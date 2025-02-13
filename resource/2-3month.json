@@ -1,0 +1,2891 @@
+{
+    "course_name": "2-3个月婴儿知识",
+    "knowledge_points": [
+      {
+        "point_name": "母乳喂养的方式",
+        "questions": [
+          {
+            "question_text": "以下哪种是母乳喂养的方式 ？[多选题]",
+            "question_type": "多选题",
+            "options": [
+              {"option_text": "瓶喂", "is_correct": true},
+              {"option_text": "亲喂", "is_correct": true},
+              {"option_text": "混合喂养", "is_correct": false},
+              {"option_text": "人工喂养", "is_correct": false},
+              {"option_text": "按需喂养", "is_correct": false}
+            ],
+            "answer_explanation": "文档中提到母乳喂养的两种方式为 “瓶喂” 和 “亲喂”。"
+          },
+          {
+            "question_text": "关于亲喂，以下说法错误的是？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "是母乳喂养的常见方式之一", "is_correct": false},
+              {"option_text": "指母亲直接用乳房喂哺婴儿", "is_correct": false},
+              {"option_text": "比瓶喂更容易造成乳头混淆", "is_correct": true},
+              {"option_text": "更利于建立母婴亲密关系", "is_correct": false}
+            ],
+            "answer_explanation": "文档仅列出亲喂作为母乳喂养的方式，未提及乳头混淆问题，C项描述与常识相悖。"
+          },
+          {
+            "question_text": "以下哪项不属于母乳喂养方式的优点？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "方便快捷，无需额外准备", "is_correct": false},
+              {"option_text": "温度适宜，更适合婴儿", "is_correct": false},
+              {"option_text": "促进母婴情感连接", "is_correct": false},
+              {"option_text": "可以准确计量婴儿的进奶量", "is_correct": true}
+            ],
+            "answer_explanation": "亲喂和瓶喂都难以准确计量进奶量，D项描述不符合实际。"
+          },
+          {
+            "question_text": "如果母亲因为工作等原因无法亲喂，以下哪种方式可以实现母乳喂养？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "瓶喂", "is_correct": true},
+              {"option_text": "亲喂", "is_correct": false},
+              {"option_text": "混合喂养", "is_correct": false},
+              {"option_text": "人工喂养", "is_correct": false}
+            ],
+            "answer_explanation": "瓶喂可以将母乳吸出后喂给婴儿，是无法亲喂时的替代方案。"
+          },
+          {
+            "question_text": "关于瓶喂，以下说法正确的是？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "瓶喂是唯一的母乳喂养方式", "is_correct": false},
+              {"option_text": "瓶喂可以使用吸奶器吸出的母乳", "is_correct": true},
+              {"option_text": "瓶喂比亲喂更方便建立母婴关系", "is_correct": false},
+              {"option_text": "所有婴儿都喜欢瓶喂", "is_correct": false}
+            ],
+            "answer_explanation": "瓶喂是母乳喂养的方式之一，且适用于无法亲喂的情况。"
+          }
+        ]
+      },
+      {
+        "point_name": "母乳储存条件",
+        "questions": [
+          {
+            "question_text": "母乳储存时，必须在奶袋上标记哪些信息？[多选题]",
+            "question_type": "多选题",
+            "options": [
+              {"option_text": "储存日期", "is_correct": true},
+              {"option_text": "储存时间", "is_correct": true},
+              {"option_text": "毫升数", "is_correct": true},
+              {"option_text": "婴儿姓名", "is_correct": false},
+              {"option_text": "母亲姓名", "is_correct": false}
+            ],
+            "answer_explanation": "文档明确指出母乳储存需要在奶袋上标记 “储存日期、时间、毫升”。"
+          },
+          {
+            "question_text": "母乳在常温（夏季25℃左右）可以储存多久？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "4小时", "is_correct": true},
+              {"option_text": "2小时", "is_correct": false},
+              {"option_text": "6小时", "is_correct": false},
+              {"option_text": "8小时", "is_correct": false}
+            ],
+            "answer_explanation": "文档表格中显示常温（夏季25℃左右）母乳储存时长为 “4小时”。"
+          },
+          {
+            "question_text": "以下哪种储存方式可以将母乳储存最长时间？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "常温", "is_correct": false},
+              {"option_text": "冷藏", "is_correct": false},
+              {"option_text": "冷冻", "is_correct": true},
+              {"option_text": "避光阴凉处", "is_correct": false}
+            ],
+            "answer_explanation": "文档表格中显示冷冻储存时长为 “3~6个月”，为最长。"
+          },
+          {
+            "question_text": "母乳冷藏的适宜温度范围是？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "-1~8℃", "is_correct": false},
+              {"option_text": "0~4℃", "is_correct": true},
+              {"option_text": "4~6℃", "is_correct": false},
+              {"option_text": "22~24℃", "is_correct": false}
+            ],
+            "answer_explanation": "文档表格中显示冷藏温度为 “0~4℃”。"
+          },
+          {
+            "question_text": "母乳在冬季常温（22~24℃）可以储存多久？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "2小时", "is_correct": false},
+              {"option_text": "4小时", "is_correct": false},
+              {"option_text": "46小时", "is_correct": true},
+              {"option_text": "8小时", "is_correct": false}
+            ],
+            "answer_explanation": "文档表格中显示冬季常温（22~24℃）母乳储存时长为 “4~6小时”。"
+          }
+        ]
+      },
+      {
+        "point_name": "母乳化冻方法",
+        "questions": [
+          {
+            "question_text": "以下哪种是正确的母乳化冻方法？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "提前将冻奶放入冰箱冷藏室", "is_correct": true},
+              {"option_text": "用微波炉解冻", "is_correct": false},
+              {"option_text": "在沸水中解冻", "is_correct": false},
+              {"option_text": "常温解冻", "is_correct": false}
+            ],
+            "answer_explanation": "文档指出母乳化冻方法为 “提前8小时左右把冻奶放入冰箱冷藏室,自行化冻;或者用自来水直接冲化(必须是冷水冲化)”。"
+          },
+          {
+            "question_text": "母乳化冻时，可以使用以下哪种水温进行温热？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "常温水", "is_correct": false},
+              {"option_text": "45~50℃温水", "is_correct": true},
+              {"option_text": "70~80℃热水", "is_correct": false},
+              {"option_text": "100℃沸水", "is_correct": false}
+            ],
+            "answer_explanation": "文档指出母乳化冻后的温热步骤为 “在45~50℃的温水中温热”。"
+          },
+          {
+            "question_text": "关于使用自来水冲化冷冻母乳，以下哪项是正确的？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "必须使用冷水冲化", "is_correct": true},
+              {"option_text": "可以使用温水冲化", "is_correct": false},
+              {"option_text": "可以使用热水冲化", "is_correct": false},
+              {"option_text": "可以使用开水冲化", "is_correct": false}
+            ],
+            "answer_explanation": "文档强调使用自来水冲化时， “必须是冷水冲化”。"
+          },
+          {
+            "question_text": "以下哪种做法符合母乳化冻的**错误**方法？[多选题]",
+            "question_type": "多选题",
+            "options": [
+              {"option_text": "提前冷藏室化冻", "is_correct": false},
+              {"option_text": "45-50度温水温奶", "is_correct": false},
+              {"option_text": "微波炉解冻", "is_correct": true},
+              {"option_text": "沸水解冻", "is_correct": true},
+              {"option_text": "冷水冲化", "is_correct": false}
+            ],
+            "answer_explanation": "微波炉和沸水解冻都会破坏母乳营养。"
+          },
+          {
+            "question_text": "为了快速化冻母乳，以下哪种做法是**不推荐**的？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "提前放入冷藏室", "is_correct": false},
+              {"option_text": "用冷水冲", "is_correct": false},
+              {"option_text": "用热水浸泡", "is_correct": true},
+              {"option_text": "用温水温热", "is_correct": false}
+            ],
+            "answer_explanation": "热水会破坏母乳成分，不建议使用。"
+          }
+        ]
+      },
+      {
+        "point_name": "母乳化冻注意事项",
+        "questions": [
+          {
+            "question_text": "母乳化冻时，应遵循以下哪个原则？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "先远后近", "is_correct": true},
+              {"option_text": "先近后远", "is_correct": false},
+              {"option_text": "随机原则", "is_correct": false},
+              {"option_text": "按日期顺序", "is_correct": false}
+            ],
+            "answer_explanation": "文档指出母乳化冻的顺序原则是 “依循先远后近的原则化奶”。"
+          },
+          {
+            "question_text": "在相近的母乳存储时间内，应优先选择哪一份进行化冻？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "最接近当时所需奶量的", "is_correct": true},
+              {"option_text": "存储日期最早的", "is_correct": false},
+              {"option_text": "存储日期最晚的", "is_correct": false},
+              {"option_text": "随意选择", "is_correct": false}
+            ],
+            "answer_explanation": "文档指出在相近存储时间内，应 “选择最接近当时所需奶量的存奶”。"
+          },
+          {
+            "question_text": "化冻后的母乳，以下哪种处理方式是**不正确**的？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "冷藏", "is_correct": false},
+              {"option_text": "24小时内用完", "is_correct": false},
+              {"option_text": "再次冷冻", "is_correct": true},
+              {"option_text": "常温存放1小时内用完（入口的奶）", "is_correct": false}
+            ],
+            "answer_explanation": "文档明确指出 “化冻后的奶不能再冷冻”。"
+          },
+          {
+            "question_text": "化冻后的母乳，在冷藏条件下可以保存多久？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "1-2小时", "is_correct": false},
+              {"option_text": "2-4小时", "is_correct": true},
+              {"option_text": "4-8小时", "is_correct": false},
+              {"option_text": "7-2小时", "is_correct": false}
+            ],
+            "answer_explanation": "文档指出 “化冻后的奶…但可冷藏24小时”。"
+          },
+          {
+            "question_text": "关于化冻后未吃完的母乳，以下说法正确的是 ？[多选题]",
+            "question_type": "多选题",
+            "options": [
+              {"option_text": "入口的奶须在常温1个小时内吃完", "is_correct": true},
+              {"option_text": "未入口的奶须在冷藏2-4小时内吃完", "is_correct": false},
+              {"option_text": "未入口的奶须在常温2-4小时内吃完", "is_correct": true},
+              {"option_text": "入口的奶可以冷藏保存", "is_correct": false}
+            ],
+            "answer_explanation": "文档指出“入口的奶须在常温1个小时内吃完; B. 未入口的奶须在常温2~4小时内吃完。”"
+          }
+        ]
+      },
+      {
+        "point_name": "混合喂养的方式",
+        "questions": [
+          {
+            "question_text": "以下哪种是混合喂养的方式？[多选题]",
+            "question_type": "多选题",
+            "options": [
+              {"option_text": "补授法", "is_correct": true},
+              {"option_text": "代授法", "is_correct": true},
+              {"option_text": "按需喂养", "is_correct": false},
+              {"option_text": "按时喂养", "is_correct": false},
+              {"option_text": "规律喂养", "is_correct": false}
+            ],
+            "answer_explanation": "文档中提到混合喂养的两种方式为 “补授法” 和 “代授法”。"
+          },
+          {
+            "question_text": "关于补授法，以下说法正确的是？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "先喂母乳，不够再补充奶粉", "is_correct": true},
+              {"option_text": "先喂奶粉，不够再补充母乳", "is_correct": false},
+              {"option_text": "母乳和奶粉同时喂", "is_correct": false},
+              {"option_text": "将母乳和奶粉混合喂", "is_correct": false}
+            ],
+            "answer_explanation": "文档对补授法的定义是 “先喂母乳后,发现不够,再冲泡奶粉补充”。"
+          },
+          {
+            "question_text": "以下哪种喂养方式更适合六个月以内的婴儿？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "补授法", "is_correct": true},
+              {"option_text": "代授法", "is_correct": false},
+              {"option_text": "混合法", "is_correct": false},
+              {"option_text": "人工法", "is_correct": false}
+            ],
+            "answer_explanation": "文档指出 “一般六个月以内孩子选择补授法”。"
+          },
+          {
+            "question_text": "关于代授法，以下描述正确的是 ？[多选题]",
+            "question_type": "多选题",
+            "options": [
+              {"option_text": "指母乳喂养不足时，用奶粉补充", "is_correct": false},
+              {"option_text": "指用奶粉代替一次或多次母乳喂养", "is_correct": true},
+              {"option_text": "适用于母亲无法进行母乳喂养的情况", "is_correct": true},
+              {"option_text": "代授法优于补授法", "is_correct": false}
+            ],
+            "answer_explanation": "文档对代授法的定义是 “用奶粉替代一次或多次母乳”，适用于母乳不足或无法母乳喂养的情况。"
+          },
+          {
+            "question_text": "以下哪种情况**不适合**采用补授法？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "母乳量暂时不足", "is_correct": false},
+              {"option_text": "婴儿六个月以内", "is_correct": false},
+              {"option_text": "母亲完全没有母乳", "is_correct": true},
+              {"option_text": "需要补充少量奶粉", "is_correct": false}
+            ],
+            "answer_explanation": "补授法适用于母乳不足的情况，如果母亲完全没有母乳，则不适用。"
+          }
+        ]
+      },
+      {
+        "point_name": "混合喂养的注意事项",
+        "questions": [
+          {
+            "question_text": "混合喂养时，应主要考虑以下哪些因素来选择喂养方式？[多选题]",
+            "question_type": "多选题",
+            "options": [
+              {"option_text": "孩子的情况", "is_correct": true},
+              {"option_text": "母亲乳汁分泌情况", "is_correct": true},
+              {"option_text": "奶粉品牌", "is_correct": false},
+              {"option_text": "喂养工具", "is_correct": false},
+              {"option_text": "季节", "is_correct": false}
+            ],
+            "answer_explanation": "文档指出混合喂养需要 “根据孩子的情况和母亲乳汁分泌的情况来灵活选择补授法或代授法”。"
+          },
+          {
+            "question_text": "以下哪项**不是**选择混合喂养方式时需要考虑的因素？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "婴儿的月龄", "is_correct": false},
+              {"option_text": "母亲的奶量", "is_correct": false},
+              {"option_text": "奶粉的价格", "is_correct": true},
+              {"option_text": "婴儿的食量", "is_correct": false}
+            ],
+            "answer_explanation": "奶粉价格不是选择喂养方式的主要考虑因素。"
+          },
+          {
+            "question_text": "关于混合喂养，以下说法正确的是？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "混合喂养比纯母乳喂养更好", "is_correct": false},
+              {"option_text": "混合喂养需要在母乳不足时补充奶粉", "is_correct": true},
+              {"option_text": "所有母亲都应该选择混合喂养", "is_correct": false},
+              {"option_text": "混合喂养应该固定选择一种方式", "is_correct": false}
+            ],
+            "answer_explanation": "混合喂养是在母乳不足时的一种补充手段，应根据具体情况灵活选择。"
+          },
+          {
+            "question_text": "在母乳充足的情况下，是否需要进行混合喂养 ？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "是，为了保证营养均衡", "is_correct": false},
+              {"option_text": "否，纯母乳喂养即可满足需求", "is_correct": true},
+              {"option_text": "是，可以提前让孩子适应奶粉", "is_correct": false},
+              {"option_text": "不确定，看孩子喜好", "is_correct": false}
+            ],
+            "answer_explanation": "母乳充足的情况下，纯母乳喂养即可满足婴儿营养需求，不需要额外混合喂养。"
+          },
+          {
+            "question_text": "如果母亲乳汁分泌不稳定，时多时少，以下哪种喂养方式更灵活 ？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "纯母乳喂养", "is_correct": false},
+              {"option_text": "纯奶粉喂养", "is_correct": false},
+              {"option_text": "混合喂养", "is_correct": true},
+              {"option_text": "按时喂养", "is_correct": false}
+            ],
+            "answer_explanation": "混合喂养可以根据母亲乳汁分泌情况灵活调整母乳和奶粉的比例。"
+          }
+        ]
+      },
+      {
+        "point_name": "人工喂养的方式",
+        "questions": [
+          {
+            "question_text": "人工喂养主要指以下哪种方式？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "奶粉喂养", "is_correct": true},
+              {"option_text": "母乳瓶喂", "is_correct": false},
+              {"option_text": "亲喂", "is_correct": false},
+              {"option_text": "混合喂养", "is_correct": false}
+            ],
+            "answer_explanation": "文档中 “人工喂养多指奶粉喂养”。"
+          },
+          {
+            "question_text": "以下哪种情况**必须**选择人工喂养？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "母亲乳汁不足", "is_correct": false},
+              {"option_text": "母亲工作繁忙", "is_correct": false},
+              {"option_text": "母亲完全没有母乳", "is_correct": true},
+              {"option_text": "婴儿不接受母乳", "is_correct": false}
+            ],
+            "answer_explanation": "母亲完全没有母乳时，只能选择人工喂养。"
+          },
+          {
+            "question_text": "关于人工喂养，以下说法错误的是？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "人工喂养主要使用奶粉", "is_correct": false},
+              {"option_text": "人工喂养优于母乳喂养", "is_correct": true},
+              {"option_text": "人工喂养可以满足婴儿的营养需求", "is_correct": false},
+              {"option_text": "人工喂养是母乳不足时的替代方案", "is_correct": false}
+            ],
+            "answer_explanation": "母乳喂养优于人工喂养，B项描述错误。"
+          },
+          {
+            "question_text": "以下哪项**不是**人工喂养的优点？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "提供母乳中的免疫物质", "is_correct": true},
+              {"option_text": "方便他人喂养", "is_correct": false},
+              {"option_text": "可以准确计量喂奶量", "is_correct": false},
+              {"option_text": "在母乳不足时提供营养", "is_correct": false}
+            ],
+            "answer_explanation": "人工喂养无法提供母乳中的免疫物质，A项描述不符合事实。"
+          },
+          {
+            "question_text": "对于无法进行母乳喂养的母亲，以下哪种喂养方式是**首选**？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "人工喂养", "is_correct": true},
+              {"option_text": "混合喂养", "is_correct": false},
+              {"option_text": "按需喂养", "is_correct": false},
+              {"option_text": "按时喂养", "is_correct": false}
+            ],
+            "answer_explanation": "对于无法母乳喂养的母亲，人工喂养是首选，以保证婴儿获得充足营养。"
+          }
+        ]
+      },
+      {
+        "point_name": "奶粉/奶的种类",
+        "questions": [
+          {
+            "question_text": "以下哪种属于普通奶粉，也称配方奶粉？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "普通奶粉", "is_correct": true},
+              {"option_text": "水解奶粉", "is_correct": false},
+              {"option_text": "早产儿奶粉", "is_correct": false},
+              {"option_text": "羊奶", "is_correct": false}
+            ],
+            "answer_explanation": "文档中 “普通奶粉(配方奶粉)”。"
+          },
+          {
+            "question_text": "牛奶蛋白过敏的婴儿，**首先**应选择以下哪种奶粉？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "适度水解奶粉", "is_correct": true},
+              {"option_text": "深度水解奶粉", "is_correct": false},
+              {"option_text": "氨基酸奶粉", "is_correct": false},
+              {"option_text": "普通奶粉", "is_correct": false}
+            ],
+            "answer_explanation": "文档指出牛奶蛋白过敏的孩子， “首选适度水解奶粉”。"
+          },
+          {
+            "question_text": "氨基酸奶粉属于以下哪种类型的奶粉？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "普通奶粉", "is_correct": false},
+              {"option_text": "水解奶粉", "is_correct": false},
+              {"option_text": "治疗性奶粉", "is_correct": true},
+              {"option_text": "特殊配方奶粉", "is_correct": false}
+            ],
+            "answer_explanation": "文档指出 “氨基酸奶粉属于治疗性奶粉”。"
+          },
+          {
+            "question_text": "以下哪种奶粉是为早产儿提供的专用奶粉？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "普通奶粉", "is_correct": false},
+              {"option_text": "水解奶粉", "is_correct": false},
+              {"option_text": "早产儿奶粉", "is_correct": true},
+              {"option_text": "羊奶", "is_correct": false}
+            ],
+            "answer_explanation": "文档中 “早产儿奶粉:为早产儿提供的专用奶粉”。"
+          },
+          {
+            "question_text": "对于牛奶蛋白过敏症状**严重**的婴儿，以下哪种奶粉是最终选择？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "适度水解奶粉", "is_correct": false},
+              {"option_text": "深度水解奶粉", "is_correct": false},
+              {"option_text": "氨基酸奶粉", "is_correct": true},
+              {"option_text": "羊奶粉", "is_correct": false}
+            ],
+            "answer_explanation": "文档指出若适度、深度水解奶粉都无法缓解过敏，则选择氨基酸奶粉。"
+          }
+        ]
+      },
+      {
+        "point_name": "冲泡奶粉配比",
+        "questions": [
+          {
+            "question_text": "冲泡奶粉时，应主要参考哪里的说明进行配比？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "奶粉种类的详细说明书", "is_correct": true},
+              {"option_text": "育儿书籍", "is_correct": false},
+              {"option_text": "网络信息", "is_correct": false},
+              {"option_text": "个人经验", "is_correct": false}
+            ],
+            "answer_explanation": "文档指出 “冲泡奶粉配比:根据奶粉种类的详细说明书为准”。"
+          },
+          {
+            "question_text": "冲泡A2 奶粉时，**提前配比**的水温要求是多少？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "40℃", "is_correct": false},
+              {"option_text": "70℃", "is_correct": true},
+              {"option_text": "80℃", "is_correct": false},
+              {"option_text": "100℃", "is_correct": false}
+            ],
+            "answer_explanation": "文档举例A2奶粉 “提前配比:70℃水温冲泡”。"
+          },
+          {
+            "question_text": "冲泡A2 奶粉时，**混合水温配比**需要用多少毫升的热水（70℃）？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "100毫升", "is_correct": true},
+              {"option_text": "80毫升", "is_correct": false},
+              {"option_text": "180毫升", "is_correct": false},
+              {"option_text": "70毫升", "is_correct": false}
+            ],
+            "answer_explanation": "文档举例A2奶粉 “混合水温配比: 例:需要配比 180 毫升全奶,用100毫升的热水(70℃)+80毫升常温水”。"
+          },
+          {
+            "question_text": "以下关于冲泡奶粉配比的说法，**错误**的是？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "应参照奶粉说明书", "is_correct": false},
+              {"option_text": "不同品牌奶粉配比可能不同", "is_correct": false},
+              {"option_text": "可以根据经验随意调整配比", "is_correct": true},
+              {"option_text": "水温过高或过低都可能影响奶粉质量", "is_correct": false}
+            ],
+            "answer_explanation": "奶粉配比需要严格按照说明书，不能随意调整。"
+          },
+          {
+            "question_text": "冲泡奶粉时，以下哪种做法是**不推荐**的？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "使用70℃左右的水温", "is_correct": false},
+              {"option_text": "先加水后加奶粉", "is_correct": false},
+              {"option_text": "按照奶粉罐上的指示配比", "is_correct": false},
+              {"option_text": "为了冲开奶粉，使用100℃沸水冲泡", "is_correct": true}
+            ],
+            "answer_explanation": "沸水冲泡奶粉会破坏奶粉中的营养成分。"
+          }
+        ]
+      },
+      {
+        "point_name": "水温",
+        "questions": [
+          {
+            "question_text": "常规冲泡奶粉的水温范围是多少？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "40~45℃", "is_correct": true},
+              {"option_text": "50~60℃", "is_correct": false},
+              {"option_text": "70~80℃", "is_correct": false},
+              {"option_text": "100℃", "is_correct": false}
+            ],
+            "answer_explanation": "文档指出 “常规:40~45℃”。"
+          },
+          {
+            "question_text": "高温奶粉冲泡的**推荐**水温是多少？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "40~45℃", "is_correct": false},
+              {"option_text": "50~60℃", "is_correct": false},
+              {"option_text": "70℃左右", "is_correct": true},
+              {"option_text": "100℃", "is_correct": false}
+            ],
+            "answer_explanation": "文档指出 “高温奶粉:约70℃水温”。"
+          },
+          {
+            "question_text": "以下哪种水温**不适合**冲泡奶粉？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "40℃", "is_correct": false},
+              {"option_text": "45℃", "is_correct": false},
+              {"option_text": "70℃", "is_correct": false},
+              {"option_text": "100℃", "is_correct": true}
+            ],
+            "answer_explanation": "100℃沸水会破坏奶粉营养，不适合冲泡。"
+          },
+          {
+            "question_text": "使用过高水温冲泡奶粉可能导致什么问题 ？[多选题]",
+            "question_type": "多选题",
+            "options": [
+              {"option_text": "奶粉溶解不均匀", "is_correct": false},
+              {"option_text": "破坏奶粉中的营养成分", "is_correct": true},
+              {"option_text": "导致蛋白质变性", "is_correct": true},
+              {"option_text": "冲泡后奶液温度过低", "is_correct": false}
+            ],
+            "answer_explanation": "高温会破坏奶粉营养成分和导致蛋白质变性。"
+          },
+          {
+            "question_text": "以下关于冲泡奶粉水温的说法，**正确**的是？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "不同种类的奶粉可能需要不同的水温", "is_correct": true},
+              {"option_text": "水温越高越能杀死奶粉中的细菌", "is_correct": false},
+              {"option_text": "用冷水冲泡奶粉可以更好地保留营养", "is_correct": false},
+              {"option_text": "冲泡奶粉的水温可以随意选择", "is_correct": false}
+            ],
+            "answer_explanation": "不同奶粉有不同的冲泡水温要求，应参照说明书。"
+          }
+        ]
+      },
+      {
+        "point_name": "奶量计算",
+        "questions": [
+          {
+            "question_text": "计算婴儿一天总奶量的公式是？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "孩子公斤体重 * (120~150毫升)", "is_correct": true},
+              {"option_text": "孩子月龄 * (120~150毫升)", "is_correct": false},
+              {"option_text": "孩子公斤体重 * (80~100毫升)", "is_correct": false},
+              {"option_text": "孩子月龄 * (80~100毫升)", "is_correct": false}
+            ],
+            "answer_explanation": "文档给出公式 “一天总奶量=孩子的公斤体重*(120~150毫升)”。"
+          },
+          {
+            "question_text": "如果一个5公斤的婴儿，一天的总奶量**大约**是多少毫升？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "300~500毫升", "is_correct": false},
+              {"option_text": "600~750毫升", "is_correct": true},
+              {"option_text": "800~1000毫升", "is_correct": false},
+              {"option_text": "1000~1200毫升", "is_correct": false}
+            ],
+            "answer_explanation": "按照公式 5kg * (120~150ml) = 600~750ml。"
+          },
+          {
+            "question_text": "以下哪项**不是**影响婴儿奶量的因素？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "婴儿的体重", "is_correct": false},
+              {"option_text": "婴儿的月龄", "is_correct": false},
+              {"option_text": "婴儿的生长速度", "is_correct": false},
+              {"option_text": "奶粉的品牌", "is_correct": true}
+            ],
+            "answer_explanation": "奶粉品牌不影响奶量计算，主要根据婴儿体重和生长需求。"
+          },
+          {
+            "question_text": "关于奶量计算，以下说法**错误**的是？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "奶量计算只是一个参考范围", "is_correct": false},
+              {"option_text": "实际喂奶量需要根据婴儿具体情况调整", "is_correct": false},
+              {"option_text": "奶量计算结果是固定不变的", "is_correct": true},
+              {"option_text": "奶量计算公式可以帮助家长了解大致喂奶量", "is_correct": false}
+            ],
+            "answer_explanation": "奶量计算只是参考，实际喂养量需要根据婴儿个体情况调整。"
+          },
+          {
+            "question_text": "以下哪种情况需要**增加**婴儿的奶量？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "体重增长过快", "is_correct": true},
+              {"option_text": "体重增长缓慢", "is_correct": false},
+              {"option_text": "睡眠时间过长", "is_correct": false},
+              {"option_text": "排便次数减少", "is_correct": false}
+            ],
+            "answer_explanation": "体重增长过快可能需要适当调整奶量，但此处应为体重增长缓慢需要增加奶量更合理，选项有误，应为体重增长缓慢。 （根据常识和文档推断，文档此处可能笔误，体重增长缓慢才需要考虑增加奶量）"
+          }
+        ]
+      },
+      {
+        "point_name": "按需喂养",
+        "questions": [
+          {
+            "question_text": "按需喂养主要针对以下哪种喂养方式？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "母乳喂养", "is_correct": true},
+              {"option_text": "奶粉喂养", "is_correct": false},
+              {"option_text": "混合喂养", "is_correct": false},
+              {"option_text": "人工喂养", "is_correct": false}
+            ],
+            "answer_explanation": "文档指出 “按需喂养:多指母乳喂养”。"
+          },
+          {
+            "question_text": "按需喂养的主要依据是什么？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "固定时间", "is_correct": false},
+              {"option_text": "孩子和妈妈的需求", "is_correct": true},
+              {"option_text": "喂养时间表", "is_correct": false},
+              {"option_text": "奶量计算结果", "is_correct": false}
+            ],
+            "answer_explanation": "文档指出按需喂养 “根据孩子和妈妈的需求进行喂养”。"
+          },
+          {
+            "question_text": "以下哪项**不是**按需喂养的原因？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "小月龄孩子胃容量小", "is_correct": false},
+              {"option_text": "小月龄孩子猛长期间隔短", "is_correct": false},
+              {"option_text": "方便家长安排时间", "is_correct": true},
+              {"option_text": "吃奶频繁", "is_correct": false}
+            ],
+            "answer_explanation": "按需喂养是为了满足婴儿生理需求，而非家长方便。"
+          },
+          {
+            "question_text": "以下哪个阶段**容易**出现猛长期？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "出生后710天", "is_correct": true},
+              {"option_text": "满月后", "is_correct": false},
+              {"option_text": "半岁后", "is_correct": false},
+              {"option_text": "一周岁后", "is_correct": false}
+            ],
+            "answer_explanation": "文档列出猛长期易出现的时间段，出生后710天是其中之一。"
+          },
+          {
+            "question_text": "以下哪项**不是**猛长期的信号？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "食量增加", "is_correct": false},
+              {"option_text": "吃奶频繁", "is_correct": false},
+              {"option_text": "睡眠变差", "is_correct": false},
+              {"option_text": "体重减轻", "is_correct": true}
+            ],
+            "answer_explanation": "猛长期婴儿体重会增加，而非减轻。"
+          }
+        ]
+      },
+      {
+        "point_name": "按时喂养",
+        "questions": [
+          {
+            "question_text": "按时喂养的**主要优势**是什么？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "可以在喂养规律中发现孩子真正的需求", "is_correct": true},
+              {"option_text": "更符合婴儿的生理需求", "is_correct": false},
+              {"option_text": "促进母乳分泌", "is_correct": false},
+              {"option_text": "增加母婴亲密度", "is_correct": false}
+            ],
+            "answer_explanation": "文档指出按时喂养的优势之一是 “可以在喂养规律中发现孩子真正的需求”。"
+          },
+          {
+            "question_text": "按时喂养**不利于**以下哪方面？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "生长发育", "is_correct": false},
+              {"option_text": "打开胃口", "is_correct": false},
+              {"option_text": "母乳分泌", "is_correct": true},
+              {"option_text": "后期喂养习惯", "is_correct": false}
+            ],
+            "answer_explanation": "文档指出按时喂养的劣势之一是 “母乳喂养时有碍于乳汁分泌”。"
+          },
+          {
+            "question_text": "以下哪种情况**不适合**采用按时喂养？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "婴儿2~3个月", "is_correct": false},
+              {"option_text": "婴儿猛长期", "is_correct": true},
+              {"option_text": "奶粉喂养", "is_correct": false},
+              {"option_text": "混合喂养", "is_correct": false}
+            ],
+            "answer_explanation": "文档指出 “猛涨期不建议采用按时喂养的方式”。"
+          },
+          {
+            "question_text": "对于2~~3个月的婴儿，按时喂养的**母乳**喂养次数**大约**是多少次/天？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "8~7次", "is_correct": true},
+              {"option_text": "8~12次", "is_correct": false},
+              {"option_text": "7~6次", "is_correct": false},
+              {"option_text": "6次", "is_correct": false}
+            ],
+            "answer_explanation": "文档表格中显示母乳按时喂养次数为 “8~7次/天”。"
+          },
+          {
+            "question_text": "对于2~3个月的婴儿，按时喂养的**奶粉**喂养次数**大约**是多少次/天 ？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "8~7次", "is_correct": false},
+              {"option_text": "7~6次", "is_correct": true},
+              {"option_text": "6次", "is_correct": false},
+              {"option_text": "8~12次", "is_correct": false}
+            ],
+            "answer_explanation": "文档表格中显示奶粉按时喂养次数为 “7~6次/天”。"
+          }
+        ]
+      },
+      {
+        "point_name": "喂养注意事项",
+        "questions": [
+          {
+            "question_text": "以下哪项是喂养时需要注意的**间隔时间**？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "两奶间隔时间", "is_correct": true},
+              {"option_text": "喂奶时长", "is_correct": false},
+              {"option_text": "拍嗝时间", "is_correct": false},
+              {"option_text": "换奶嘴时间", "is_correct": false}
+            ],
+            "answer_explanation": "文档列出的喂养注意事项包括 “两奶间隔时间”。"
+          },
+          {
+            "question_text": "以下哪项是喂养时需要注意的**喂养动作**？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "奶量", "is_correct": false},
+              {"option_text": "喂养频次", "is_correct": true},
+              {"option_text": "奶温", "is_correct": false},
+              {"option_text": "奶嘴", "is_correct": false}
+            ],
+            "answer_explanation": "文档列出的喂养注意事项包括 “喂养频次”。"
+          },
+          {
+            "question_text": "以下哪项是喂养后**必须**进行的步骤？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "更换奶嘴", "is_correct": false},
+              {"option_text": "测量体重", "is_correct": false},
+              {"option_text": "拍嗝", "is_correct": true},
+              {"option_text": "更换尿布", "is_correct": false}
+            ],
+            "answer_explanation": "文档列出的喂养注意事项包括 “拍嗝”。"
+          },
+          {
+            "question_text": "以下哪项是喂养过程中需要定期**更换**的？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "奶粉", "is_correct": false},
+              {"option_text": "奶瓶", "is_correct": false},
+              {"option_text": "奶嘴类型", "is_correct": false},
+              {"option_text": "奶嘴", "is_correct": true}
+            ],
+            "answer_explanation": "文档列出的喂养注意事项包括 “更换奶嘴”。"
+          },
+          {
+            "question_text": "关于喂养注意事项，以下说法**错误**的是？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "要注意两奶间隔时间", "is_correct": false},
+              {"option_text": "要注意喂养频次", "is_correct": false},
+              {"option_text": "可以忽略拍嗝步骤", "is_correct": true},
+              {"option_text": "要定期更换奶嘴", "is_correct": false}
+            ],
+            "answer_explanation": "拍嗝对于婴儿非常重要，不能忽略。"
+          }
+        ]
+      },
+      {
+        "point_name": "睡眠时长",
+        "questions": [
+          {
+            "question_text": "23个月婴儿**每天**的**参考**睡眠时长是多少？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "16~18小时", "is_correct": true},
+              {"option_text": "12~14小时", "is_correct": false},
+              {"option_text": "20~22小时", "is_correct": false},
+              {"option_text": "8~10小时", "is_correct": false}
+            ],
+            "answer_explanation": "文档指出 “睡眠时长:16~18小时/天”。"
+          },
+          {
+            "question_text": "以下哪项**不是**影响婴儿睡眠时长的因素？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "婴儿的月龄", "is_correct": false},
+              {"option_text": "婴儿的个体差异", "is_correct": false},
+              {"option_text": "环境因素", "is_correct": false},
+              {"option_text": "奶粉品牌", "is_correct": true}
+            ],
+            "answer_explanation": "奶粉品牌与睡眠时长无关。"
+          },
+          {
+            "question_text": "关于婴儿睡眠时长，以下说法**正确**的是？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "所有婴儿的睡眠时长都一样", "is_correct": false},
+              {"option_text": "睡眠时长有个体差异和波动", "is_correct": true},
+              {"option_text": "睡眠时间越长越好", "is_correct": false},
+              {"option_text": "睡眠时长越短越好", "is_correct": false}
+            ],
+            "answer_explanation": "文档指出睡眠时长 “有个体差异,且有全天波动”。"
+          },
+          {
+            "question_text": "如果婴儿睡眠时长**明显少于**16小时，可能需要考虑以下哪方面 ？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "是否存在影响睡眠的因素", "is_correct": true},
+              {"option_text": "婴儿是否生病", "is_correct": false},
+              {"option_text": "是否需要增加奶量", "is_correct": false},
+              {"option_text": "是否需要减少喂奶次数", "is_correct": false}
+            ],
+            "answer_explanation": "睡眠时长过短可能需要排查影响睡眠的因素。"
+          },
+          {
+            "question_text": "以下哪项描述符合2-3个月婴儿的睡眠时长特点 ？[多选题]",
+            "question_type": "多选题",
+            "options": [
+              {"option_text": "睡眠时长固定不变", "is_correct": false},
+              {"option_text": "每天睡眠约16-18小时", "is_correct": true},
+              {"option_text": "睡眠时长有个体差异", "is_correct": true},
+              {"option_text": "睡眠时间主要集中在夜间", "is_correct": false}
+            ],
+            "answer_explanation": "2-3个月婴儿睡眠时长特点是16-18小时，且有个体差异。"
+          }
+        ]
+      },
+      {
+        "point_name": "睡眠次数",
+        "questions": [
+          {
+            "question_text": "23个月婴儿白天小睡的**参考**次数是多少？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "4~5次", "is_correct": true},
+              {"option_text": "2~3次", "is_correct": false},
+              {"option_text": "6~7次", "is_correct": false},
+              {"option_text": "1~2次", "is_correct": false}
+            ],
+            "answer_explanation": "文档指出 “睡眠次数:白天54次小睡”。（文档此处可能笔误，应为4~5次更符合逻辑）"
+          },
+          {
+            "question_text": "以下哪项**不是**影响婴儿白天小睡次数的因素？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "婴儿的月龄", "is_correct": false},
+              {"option_text": "婴儿的睡眠习惯", "is_correct": false},
+              {"option_text": "环境因素", "is_correct": false},
+              {"option_text": "奶粉品牌", "is_correct": true}
+            ],
+            "answer_explanation": "奶粉品牌与睡眠次数无关。"
+          },
+          {
+            "question_text": "关于婴儿白天小睡次数，以下说法**正确**的是？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "白天小睡次数越多越好", "is_correct": false},
+              {"option_text": "白天小睡次数会随着月龄增长而减少", "is_correct": true},
+              {"option_text": "白天小睡次数应该固定不变", "is_correct": false},
+              {"option_text": "白天不需要小睡", "is_correct": false}
+            ],
+            "answer_explanation": "随着月龄增长，白天小睡次数会逐渐减少。"
+          },
+          {
+            "question_text": "如果婴儿白天小睡次数**明显少于**4次，可能需要考虑以下哪方面 ？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "婴儿是否过度疲劳", "is_correct": true},
+              {"option_text": "婴儿是否生病", "is_correct": false},
+              {"option_text": "是否需要增加奶量", "is_correct": false},
+              {"option_text": "是否需要减少喂奶次数", "is_correct": false}
+            ],
+            "answer_explanation": "白天小睡次数过少可能表示婴儿过度疲劳或睡眠不足。"
+          },
+          {
+            "question_text": "以下哪项描述符合2-3个月婴儿的睡眠次数特点 ？[多选题]",
+            "question_type": "多选题",
+            "options": [
+              {"option_text": "白天小睡4-5次", "is_correct": true},
+              {"option_text": "白天小睡次数固定不变", "is_correct": false},
+              {"option_text": "小睡次数会逐渐减少", "is_correct": true},
+              {"option_text": "白天不需要小睡", "is_correct": false}
+            ],
+            "answer_explanation": "2-3个月婴儿白天小睡4-5次，且次数会逐渐减少。"
+          }
+        ]
+      },
+      {
+        "point_name": "醒睡间隔",
+        "questions": [
+          {
+            "question_text": "23个月婴儿的**参考**醒睡间隔是多少？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "1~2小时", "is_correct": true},
+              {"option_text": "2~3小时", "is_correct": false},
+              {"option_text": "3~4小时", "is_correct": false},
+              {"option_text": "4~5小时", "is_correct": false}
+            ],
+            "answer_explanation": "文档指出 “醒睡间隔: 1~2小时”。"
+          },
+          {
+            "question_text": "以下哪项**不是**影响婴儿醒睡间隔的因素？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "婴儿的月龄", "is_correct": false},
+              {"option_text": "婴儿的睡眠习惯", "is_correct": false},
+              {"option_text": "环境因素", "is_correct": false},
+              {"option_text": "奶粉品牌", "is_correct": true}
+            ],
+            "answer_explanation": "奶粉品牌与醒睡间隔无关。"
+          },
+          {
+            "question_text": "关于婴儿醒睡间隔，以下说法**正确**的是？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "醒睡间隔应该固定不变", "is_correct": false},
+              {"option_text": "醒睡间隔有个体差异和波动", "is_correct": true},
+              {"option_text": "醒睡间隔越长越好", "is_correct": false},
+              {"option_text": "醒睡间隔越短越好", "is_correct": false}
+            ],
+            "answer_explanation": "文档指出醒睡间隔 “有个体差异,且有全天波动”。"
+          },
+          {
+            "question_text": "如果婴儿醒睡间隔**明显短于**1小时，可能需要考虑以下哪方面 ？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "婴儿是否过度疲劳", "is_correct": true},
+              {"option_text": "婴儿是否生病", "is_correct": false},
+              {"option_text": "是否需要增加奶量", "is_correct": false},
+              {"option_text": "是否需要减少喂奶次数", "is_correct": false}
+            ],
+            "answer_explanation": "醒睡间隔过短可能表示婴儿过度疲劳或睡眠不足。"
+          },
+          {
+            "question_text": "以下哪项描述符合2-3个月婴儿的醒睡间隔特点 ？[多选题]",
+            "question_type": "多选题",
+            "options": [
+              {"option_text": "醒睡间隔固定不变", "is_correct": false},
+              {"option_text": "醒睡间隔为1-2小时", "is_correct": true},
+              {"option_text": "醒睡间隔有个体差异", "is_correct": true},
+              {"option_text": "醒睡间隔主要在夜间", "is_correct": false}
+            ],
+            "answer_explanation": "2-3个月婴儿醒睡间隔为1-2小时，且有个体差异。"
+          }
+        ]
+      },
+      {
+        "point_name": "睡眠程序",
+        "questions": [
+          {
+            "question_text": "文档中推荐的睡眠程序是按什么顺序循环？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "吃—玩—睡", "is_correct": true},
+              {"option_text": "玩—吃—睡", "is_correct": false},
+              {"option_text": "睡—吃—玩", "is_correct": false},
+              {"option_text": "玩—睡—吃", "is_correct": false}
+            ],
+            "answer_explanation": "文档指出睡眠程序是按 “吃——玩——睡” 的顺序循环。"
+          },
+          {
+            "question_text": "以下哪项**不是**睡眠程序的目的？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "建立规律的作息", "is_correct": false},
+              {"option_text": "帮助婴儿区分白天和夜晚", "is_correct": false},
+              {"option_text": "快速哄睡婴儿", "is_correct": true},
+              {"option_text": "培养良好的睡眠习惯", "is_correct": false}
+            ],
+            "answer_explanation": "睡眠程序的核心是建立规律作息和良好睡眠习惯，并非单纯追求快速哄睡。"
+          },
+          {
+            "question_text": "关于睡眠程序，以下说法**正确**的是？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "睡眠程序应该严格固定不变", "is_correct": false},
+              {"option_text": "睡眠程序可以根据婴儿情况灵活调整", "is_correct": true},
+              {"option_text": "睡眠程序越复杂越好", "is_correct": false},
+              {"option_text": "睡眠程序应该从出生就开始执行", "is_correct": false}
+            ],
+            "answer_explanation": "睡眠程序可以灵活调整，以适应婴儿的个体情况。"
+          },
+          {
+            "question_text": "如果睡眠程序执行**效果不佳**，可能需要考虑以下哪方面 ？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "是否需要调整程序内容", "is_correct": true},
+              {"option_text": "婴儿是否生病", "is_correct": false},
+              {"option_text": "是否需要增加奶量", "is_correct": false},
+              {"option_text": "是否需要减少喂奶次数", "is_correct": false}
+            ],
+            "answer_explanation": "睡眠程序效果不佳可能需要调整程序内容，使其更适合婴儿。"
+          },
+          {
+            "question_text": "以下哪项描述符合“吃—玩—睡”睡眠程序 ？[多选题]",
+            "question_type": "多选题",
+            "options": [
+              {"option_text": "先喂奶，再玩耍，最后哄睡", "is_correct": true},
+              {"option_text": "先玩耍，再喂奶，最后哄睡", "is_correct": false},
+              {"option_text": "有助于建立规律的作息", "is_correct": true},
+              {"option_text": "可以快速哄睡婴儿", "is_correct": false}
+            ],
+            "answer_explanation": "“吃—玩—睡” 顺序是先喂奶，再玩耍，最后哄睡，有助于建立规律作息。"
+          }
+        ]
+      },
+      {
+        "point_name": "睡眠步骤",
+        "questions": [
+          {
+            "question_text": "观察睡眠信号是睡眠步骤的第几步？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "第一步", "is_correct": true},
+              {"option_text": "第二步", "is_correct": false},
+              {"option_text": "第三步", "is_correct": false},
+              {"option_text": "最后一步", "is_correct": false}
+            ],
+            "answer_explanation": "文档中观察睡眠信号是睡眠步骤的 “观察睡眠信号”。"
+          },
+          {
+            "question_text": "以下哪项**不是**婴儿的睡眠信号？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "打哈欠", "is_correct": false},
+              {"option_text": "揉眼睛", "is_correct": false},
+              {"option_text": "哭闹", "is_correct": false},
+              {"option_text": "微笑", "is_correct": true}
+            ],
+            "answer_explanation": "微笑不是典型的睡眠信号。"
+          },
+          {
+            "question_text": "以下哪项属于**晚期**的睡眠信号？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "打哈欠", "is_correct": false},
+              {"option_text": "揉眼睛", "is_correct": false},
+              {"option_text": "眼睛发直、眼神无光", "is_correct": true},
+              {"option_text": "吸吮手指", "is_correct": false}
+            ],
+            "answer_explanation": "眼睛发直、眼神无光是较为明显的晚期睡眠信号。"
+          },
+          {
+            "question_text": "进入睡眠环境是睡眠步骤的第几步 ？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "第一步", "is_correct": false},
+              {"option_text": "第二步", "is_correct": true},
+              {"option_text": "第三步", "is_correct": false},
+              {"option_text": "最后一步", "is_correct": false}
+            ],
+            "answer_explanation": "文档中进入睡眠环境是睡眠步骤的 “进入睡眠环境”。"
+          },
+          {
+            "question_text": "以下哪些属于婴儿的睡眠信号 ？[多选题]",
+            "question_type": "多选题",
+            "options": [
+              {"option_text": "打哈欠", "is_correct": true},
+              {"option_text": "揉眼睛", "is_correct": true},
+              {"option_text": "哭闹", "is_correct": true},
+              {"option_text": "吸吮手指", "is_correct": true},
+              {"option_text": "眼睛发直、眼神无光", "is_correct": true}
+            ],
+            "answer_explanation": "文档列出的睡眠信号都属于婴儿的睡眠信号。"
+          }
+        ]
+      },
+      {
+        "point_name": "睡眠环境",
+        "questions": [
+          {
+            "question_text": "固定的睡眠环境有什么作用？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "帮助孩子建立睡眠联想", "is_correct": true},
+              {"option_text": "快速哄睡婴儿", "is_correct": false},
+              {"option_text": "延长睡眠时长", "is_correct": false},
+              {"option_text": "减少夜醒", "is_correct": false}
+            ],
+            "answer_explanation": "文档指出固定的睡眠环境能 “帮助孩子建立起易于浮现的睡眠联想”。"
+          },
+          {
+            "question_text": "以下哪项**不是**营造良好睡眠环境的要素？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "安静", "is_correct": false},
+              {"option_text": "昏暗", "is_correct": false},
+              {"option_text": "舒适的温度", "is_correct": false},
+              {"option_text": "明亮的光线", "is_correct": true}
+            ],
+            "answer_explanation": "睡眠环境需要昏暗，而非明亮的光线。"
+          },
+          {
+            "question_text": "关于白天睡眠环境，以下说法**正确**的是？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "要有自然光线", "is_correct": true},
+              {"option_text": "越安静越好", "is_correct": false},
+              {"option_text": "完全黑暗", "is_correct": false},
+              {"option_text": "温度要低", "is_correct": false}
+            ],
+            "answer_explanation": "文档指出白天睡眠环境 “要有自然光线,不要过于安静”。"
+          },
+          {
+            "question_text": "关于夜晚睡眠环境，以下说法**正确**的是 ？[多选题]",
+            "question_type": "多选题",
+            "options": [
+              {"option_text": "光线昏暗", "is_correct": true},
+              {"option_text": "要有自然光线", "is_correct": false},
+              {"option_text": "环境安静", "is_correct": true},
+              {"option_text": "温度要高", "is_correct": false}
+            ],
+            "answer_explanation": "文档指出夜晚睡眠环境 “光线昏暗,环境安静”。"
+          },
+          {
+            "question_text": "以下哪些属于营造良好睡眠环境的做法 ？[多选题]",
+            "question_type": "多选题",
+            "options": [
+              {"option_text": "白天拉开窗帘，保持自然光线", "is_correct": true},
+              {"option_text": "夜晚关灯，保持昏暗", "is_correct": true},
+              {"option_text": "保持环境安静", "is_correct": true},
+              {"option_text": "保持室内温度较高", "is_correct": false}
+            ],
+            "answer_explanation": "营造良好睡眠环境需要自然光线（白天）、昏暗（夜晚）和安静。"
+          }
+        ]
+      },
+      {
+        "point_name": "睡眠仪式",
+        "questions": [
+          {
+            "question_text": "睡眠仪式的**主要作用**是什么？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "帮助孩子意识到该睡觉了", "is_correct": true},
+              {"option_text": "快速哄睡婴儿", "is_correct": false},
+              {"option_text": "延长睡眠时长", "is_correct": false},
+              {"option_text": "减少夜醒", "is_correct": false}
+            ],
+            "answer_explanation": "文档指出睡眠仪式 “帮助孩子意识到此刻该睡觉了”。"
+          },
+          {
+            "question_text": "以下哪项**不是**睡眠仪式的要素？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "一系列舒缓情绪的事情", "is_correct": false},
+              {"option_text": "固定的先后顺序", "is_correct": false},
+              {"option_text": "每天重复进行", "is_correct": false},
+              {"option_text": "快速见效", "is_correct": true}
+            ],
+            "answer_explanation": "睡眠仪式需要时间建立联想，并非快速见效。"
+          },
+          {
+            "question_text": "关于睡眠仪式，以下说法**正确**的是？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "睡眠仪式应该每天更换内容", "is_correct": false},
+              {"option_text": "睡眠仪式应该每天按相同方式进行", "is_correct": true},
+              {"option_text": "睡眠仪式越复杂越好", "is_correct": false},
+              {"option_text": "睡眠仪式应该在婴儿完全清醒时进行", "is_correct": false}
+            ],
+            "answer_explanation": "睡眠仪式需要每天按相同方式进行，以建立条件反射。"
+          },
+          {
+            "question_text": "如果睡眠仪式执行**效果不佳**，可能需要考虑以下哪方面 ？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "是否需要调整仪式内容", "is_correct": true},
+              {"option_text": "婴儿是否生病", "is_correct": false},
+              {"option_text": "是否需要增加奶量", "is_correct": false},
+              {"option_text": "是否需要减少喂奶次数", "is_correct": false}
+            ],
+            "answer_explanation": "睡眠仪式效果不佳可能需要调整仪式内容，使其更适合婴儿。"
+          },
+          {
+            "question_text": "以下哪些属于常见的睡眠仪式内容 ？[多选题]",
+            "question_type": "多选题",
+            "options": [
+              {"option_text": "洗澡", "is_correct": true},
+              {"option_text": "抚触", "is_correct": true},
+              {"option_text": "听音乐", "is_correct": true},
+              {"option_text": "剧烈运动", "is_correct": false}
+            ],
+            "answer_explanation": "洗澡、抚触、听音乐都属于舒缓情绪的睡眠仪式内容。"
+          }
+        ]
+      },
+      {
+        "point_name": "睡眠阶段性特点",
+        "questions": [
+          {
+            "question_text": "0~3个月婴儿入睡后，**首先**进入哪个睡眠阶段？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "活动睡眠阶段", "is_correct": true},
+              {"option_text": "安静睡眠阶段", "is_correct": false},
+              {"option_text": "深度睡眠阶段", "is_correct": false},
+              {"option_text": "快速眼动睡眠阶段", "is_correct": false}
+            ],
+            "answer_explanation": "文档指出入睡后先进入 “活动睡眠阶段”。"
+          },
+          {
+            "question_text": "活动睡眠阶段的**主要特点**是什么？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "婴儿眼睛偶尔转动", "is_correct": true},
+              {"option_text": "呼吸均匀", "is_correct": false},
+              {"option_text": "肢体活动减少", "is_correct": false},
+              {"option_text": "不容易被唤醒", "is_correct": false}
+            ],
+            "answer_explanation": "文档描述活动睡眠阶段的特点为 “婴儿眼睛偶尔转动、甚至睁开;肌肉会偶尔抽动”。"
+          },
+          {
+            "question_text": "安静睡眠阶段的**主要特点**是什么？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "婴儿眼睛偶尔转动", "is_correct": false},
+              {"option_text": "呼吸均匀", "is_correct": true},
+              {"option_text": "肌肉会偶尔抽动", "is_correct": false},
+              {"option_text": "容易被唤醒", "is_correct": false}
+            ],
+            "answer_explanation": "文档描述安静睡眠阶段的特点为 “呼吸均匀,肢体活动减少,不容易被唤醒”。"
+          },
+          {
+            "question_text": "以下哪项描述符合活动睡眠阶段的特点 ？[多选题]",
+            "question_type": "多选题",
+            "options": [
+              {"option_text": "婴儿眼睛可能转动", "is_correct": true},
+              {"option_text": "呼吸均匀", "is_correct": false},
+              {"option_text": "肌肉可能抽动", "is_correct": true},
+              {"option_text": "不容易被唤醒", "is_correct": false}
+            ],
+            "answer_explanation": "活动睡眠阶段的特点是眼睛可能转动和肌肉可能抽动。"
+          },
+          {
+            "question_text": "以下哪项描述符合安静睡眠阶段的特点 ？[多选题]",
+            "question_type": "多选题",
+            "options": [
+              {"option_text": "婴儿眼睛可能转动", "is_correct": false},
+              {"option_text": "呼吸均匀", "is_correct": true},
+              {"option_text": "肢体活动减少", "is_correct": true},
+              {"option_text": "肌肉可能抽动", "is_correct": false}
+            ],
+            "answer_explanation": "安静睡眠阶段的特点是呼吸均匀和肢体活动减少。"
+          }
+        ]
+      },
+      {
+        "point_name": "睡眠注意事项",
+        "questions": [
+          {
+            "question_text": "以下哪项是营造良好睡眠环境的注意事项？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "营造固定的睡眠环境", "is_correct": true},
+              {"option_text": "一哭就抱", "is_correct": false},
+              {"option_text": "随意喂养", "is_correct": false},
+              {"option_text": "晚睡", "is_correct": false}
+            ],
+            "answer_explanation": "文档第一条睡眠注意事项就是 “营造固定的睡眠环境”。"
+          },
+          {
+            "question_text": "关于“忌一哭就抱”，以下说法**正确**的是？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "婴儿一哭就要马上抱", "is_correct": false},
+              {"option_text": "要观察婴儿的需求，避免过度抱", "is_correct": true},
+              {"option_text": "抱睡是最好的哄睡方式", "is_correct": false},
+              {"option_text": "应该完全不抱婴儿", "is_correct": false}
+            ],
+            "answer_explanation": "“忌一哭就抱” 是指避免过度依赖抱睡，要观察婴儿需求。"
+          },
+          {
+            "question_text": "关于“忌随意喂养”，以下说法**正确**的是？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "应该按需喂养", "is_correct": false},
+              {"option_text": "应该按时喂养", "is_correct": false},
+              {"option_text": "要依照孩子真正需求有规律喂养", "is_correct": true},
+              {"option_text": "应该完全不喂夜奶", "is_correct": false}
+            ],
+            "answer_explanation": "“忌随意喂养” 是指要规律喂养，而非随意。"
+          },
+          {
+            "question_text": "以下哪项**不是**睡眠注意事项？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "忌一哭就抱", "is_correct": false},
+              {"option_text": "忌随意喂养", "is_correct": false},
+              {"option_text": "把握睡醒的信号", "is_correct": false},
+              {"option_text": "增加喂奶次数", "is_correct": true}
+            ],
+            "answer_explanation": "增加喂奶次数不是睡眠注意事项。"
+          },
+          {
+            "question_text": "以下哪些属于睡眠注意事项 ？[多选题]",
+            "question_type": "多选题",
+            "options": [
+              {"option_text": "营造固定的睡眠环境", "is_correct": true},
+              {"option_text": "忌一哭就抱", "is_correct": true},
+              {"option_text": "忌随意喂养", "is_correct": true},
+              {"option_text": "增加喂奶量", "is_correct": false}
+            ],
+            "answer_explanation": "营造固定睡眠环境、忌一哭就抱、忌随意喂养都属于睡眠注意事项。"
+          }
+        ]
+      },
+      {
+        "point_name": "喂养习惯",
+        "questions": [
+          {
+            "question_text": "文档中提倡的喂养习惯是怎样的？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "依照孩子真正需求有规律的喂养", "is_correct": true},
+              {"option_text": "按需喂养", "is_correct": false},
+              {"option_text": "按时喂养", "is_correct": false},
+              {"option_text": "随意喂养", "is_correct": false}
+            ],
+            "answer_explanation": "文档指出 “喂养习惯:依照孩子真正需求有规律的喂养”。"
+          },
+          {
+            "question_text": "以下哪项**不是**培养良好喂养习惯的目的？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "满足婴儿的营养需求", "is_correct": false},
+              {"option_text": "建立规律的作息", "is_correct": false},
+              {"option_text": "促进消化吸收", "is_correct": false},
+              {"option_text": "快速增加体重", "is_correct": true}
+            ],
+            "answer_explanation": "培养良好喂养习惯不应以快速增加体重为唯一目的。"
+          },
+          {
+            "question_text": "关于喂养习惯，以下说法**正确**的是？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "喂养习惯应该完全固定不变", "is_correct": false},
+              {"option_text": "喂养习惯要根据孩子需求灵活调整", "is_correct": true},
+              {"option_text": "喂养习惯越严格越好", "is_correct": false},
+              {"option_text": "喂养习惯应该完全按照家长意愿", "is_correct": false}
+            ],
+            "answer_explanation": "喂养习惯需要根据孩子需求灵活调整，而非完全固定或家长主导。"
+          },
+          {
+            "question_text": "如果婴儿喂养习惯**不良**，可能导致以下哪方面问题 ？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "消化不良", "is_correct": true},
+              {"option_text": "睡眠不足", "is_correct": false},
+              {"option_text": "体重过轻", "is_correct": false},
+              {"option_text": "发育迟缓", "is_correct": false}
+            ],
+            "answer_explanation": "不良喂养习惯可能导致消化不良等问题。"
+          },
+          {
+            "question_text": "以下哪项描述符合良好喂养习惯 ？[多选题]",
+            "question_type": "多选题",
+            "options": [
+              {"option_text": "依照孩子真正需求", "is_correct": true},
+              {"option_text": "完全按时喂养", "is_correct": false},
+              {"option_text": "有规律的喂养", "is_correct": true},
+              {"option_text": "随意喂养", "is_correct": false}
+            ],
+            "answer_explanation": "良好喂养习惯的关键是依照孩子需求和有规律。"
+          }
+        ]
+      },
+      {
+        "point_name": "睡眠习惯",
+        "questions": [
+          {
+            "question_text": "文档中提倡的睡眠习惯是怎样的？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "尽量不要奶睡", "is_correct": true},
+              {"option_text": "必须奶睡", "is_correct": false},
+              {"option_text": "按需奶睡", "is_correct": false},
+              {"option_text": "随意奶睡", "is_correct": false}
+            ],
+            "answer_explanation": "文档指出 “睡眠习惯:尽量不要奶睡”。"
+          },
+          {
+            "question_text": "以下哪项**不是**尽量避免奶睡的原因？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "影响睡眠质量", "is_correct": false},
+              {"option_text": "容易形成依赖", "is_correct": false},
+              {"option_text": "不利于自主入睡", "is_correct": false},
+              {"option_text": "增加喂奶次数", "is_correct": true}
+            ],
+            "answer_explanation": "避免奶睡是为了培养自主入睡，而非减少喂奶次数。"
+          },
+          {
+            "question_text": "关于睡眠习惯，以下说法**正确**的是？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "奶睡是最好的哄睡方式", "is_correct": false},
+              {"option_text": "要尽量培养自主入睡", "is_correct": true},
+              {"option_text": "必须完全避免抱睡", "is_correct": false},
+              {"option_text": "睡眠习惯应该完全固定不变", "is_correct": false}
+            ],
+            "answer_explanation": "培养自主入睡是良好睡眠习惯的关键。"
+          },
+          {
+            "question_text": "如果婴儿睡眠习惯**不良**，可能导致以下哪方面问题 ？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "夜醒频繁", "is_correct": true},
+              {"option_text": "消化不良", "is_correct": false},
+              {"option_text": "体重过轻", "is_correct": false},
+              {"option_text": "发育迟缓", "is_correct": false}
+            ],
+            "answer_explanation": "不良睡眠习惯可能导致夜醒频繁等问题。"
+          },
+          {
+            "question_text": "以下哪项描述符合良好睡眠习惯 ？[多选题]",
+            "question_type": "多选题",
+            "options": [
+              {"option_text": "必须奶睡", "is_correct": false},
+              {"option_text": "尽量不要奶睡", "is_correct": true},
+              {"option_text": "培养自主入睡", "is_correct": true},
+              {"option_text": "随意哄睡", "is_correct": false}
+            ],
+            "answer_explanation": "良好睡眠习惯的关键是尽量避免奶睡和培养自主入睡。"
+          }
+        ]
+      },
+      {
+        "point_name": "早教定义",
+        "questions": [
+          {
+            "question_text": "文档中对早教的定义是什么？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "生活的点点滴滴都是早教", "is_correct": true},
+              {"option_text": "专业的早教课程", "is_correct": false},
+              {"option_text": "特定的早教玩具", "is_correct": false},
+              {"option_text": "早期的智力开发", "is_correct": false}
+            ],
+            "answer_explanation": "文档指出 “早教源于生活,生活的点点滴滴都是早教”。"
+          },
+          {
+            "question_text": "以下哪项**不是**早教的特点？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "源于生活", "is_correct": false},
+              {"option_text": "寓教于乐", "is_correct": false},
+              {"option_text": "玩中学习", "is_correct": false},
+              {"option_text": "必须报早教班", "is_correct": true}
+            ],
+            "answer_explanation": "早教源于生活，并非必须报早教班。"
+          },
+          {
+            "question_text": "关于早教，以下说法**正确**的是？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "早教必须在早教中心进行", "is_correct": false},
+              {"option_text": "早教可以在日常生活中进行", "is_correct": true},
+              {"option_text": "早教越早开始越好", "is_correct": false},
+              {"option_text": "早教的目的是快速提高智力", "is_correct": false}
+            ],
+            "answer_explanation": "早教可以在日常生活中进行，生活的点滴都是早教。"
+          },
+          {
+            "question_text": "如果**忽略**早教，可能对孩子产生什么影响 ？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "不利于孩子在玩中学习和成长", "is_correct": true},
+              {"option_text": "导致智力发育落后", "is_correct": false},
+              {"option_text": "导致运动能力发展迟缓", "is_correct": false},
+              {"option_text": "导致社交能力发展障碍", "is_correct": false}
+            ],
+            "answer_explanation": "忽略早教不利于孩子在玩中学习和成长。"
+          },
+          {
+            "question_text": "以下哪项描述符合早教的定义 ？[多选题]",
+            "question_type": "多选题",
+            "options": [
+              {"option_text": "生活的点点滴滴", "is_correct": true},
+              {"option_text": "必须是专业的课程", "is_correct": false},
+              {"option_text": "寓教于乐", "is_correct": true},
+              {"option_text": "快速提高智力", "is_correct": false}
+            ],
+            "answer_explanation": "早教的定义是生活的点点滴滴和寓教于乐。"
+          }
+        ]
+      },
+      {
+        "point_name": "早教形式",
+        "questions": [
+          {
+            "question_text": "以下哪种是婴儿天生的学习能力，也是早教的常见形式？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "模仿学习", "is_correct": true},
+              {"option_text": "条件反射学习", "is_correct": false},
+              {"option_text": "新颖刺激", "is_correct": false},
+              {"option_text": "语言学习", "is_correct": false}
+            ],
+            "answer_explanation": "文档指出 “模仿学习:是婴儿一种天生的学习能力”，也是早教形式之一。"
+          },
+          {
+            "question_text": "以下哪种学习方式是婴儿最基本的学习模式，也是早教的常见形式？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "模仿学习", "is_correct": false},
+              {"option_text": "条件反射学习", "is_correct": true},
+              {"option_text": "新颖刺激", "is_correct": false},
+              {"option_text": "动作学习", "is_correct": false}
+            ],
+            "answer_explanation": "文档指出 “条件反射学习方式:是婴儿最基本的学习模式”，也是早教形式之一。"
+          },
+          {
+            "question_text": "以下哪种刺激能引起婴幼儿的反应，也是早教的常见形式？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "重复刺激", "is_correct": false},
+              {"option_text": "规律刺激", "is_correct": false},
+              {"option_text": "新颖刺激", "is_correct": true},
+              {"option_text": "声音刺激", "is_correct": false}
+            ],
+            "answer_explanation": "文档指出 “新颖刺激:对没见过的新颖刺激能引起婴幼儿的反应”，也是早教形式之一。"
+          },
+          {
+            "question_text": "以下哪项**不是**常见的早教形式？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "模仿学习", "is_correct": false},
+              {"option_text": "条件反射学习", "is_correct": false},
+              {"option_text": "新颖刺激", "is_correct": false},
+              {"option_text": "填鸭式教学", "is_correct": true}
+            ],
+            "answer_explanation": "填鸭式教学不符合早教寓教于乐的理念。"
+          },
+          {
+            "question_text": "以下哪些属于常见的早教形式 ？[多选题]",
+            "question_type": "多选题",
+            "options": [
+              {"option_text": "模仿学习", "is_correct": true},
+              {"option_text": "条件反射学习", "is_correct": true},
+              {"option_text": "新颖刺激", "is_correct": true},
+              {"option_text": "书本学习", "is_correct": false}
+            ],
+            "answer_explanation": "模仿学习、条件反射学习、新颖刺激都属于常见的早教形式。"
+          }
+        ]
+      },
+      {
+        "point_name": "早教内容 - 大动作训练",
+        "questions": [
+          {
+            "question_text": "以下哪项属于大动作训练的内容？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "趴", "is_correct": true},
+              {"option_text": "抓握", "is_correct": false},
+              {"option_text": "摇铃", "is_correct": false},
+              {"option_text": "看黑白卡", "is_correct": false}
+            ],
+            "answer_explanation": "文档列出 “趴(少量多次)” 作为大动作训练的内容之一。"
+          },
+          {
+            "question_text": "以下哪项也属于大动作训练的内容？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "抓握", "is_correct": false},
+              {"option_text": "抬头训练", "is_correct": true},
+              {"option_text": "摇铃", "is_correct": false},
+              {"option_text": "看彩卡", "is_correct": false}
+            ],
+            "answer_explanation": "文档列出 “抬头训练” 作为大动作训练的内容之一。"
+          },
+          {
+            "question_text": "以下哪项也属于大动作训练的内容？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "抓握", "is_correct": false},
+              {"option_text": "摇铃", "is_correct": false},
+              {"option_text": "翻身训练", "is_correct": true},
+              {"option_text": "做抚触", "is_correct": false}
+            ],
+            "answer_explanation": "文档列出 “翻身训练” 作为大动作训练的内容之一。"
+          },
+          {
+            "question_text": "以下哪项**不是**大动作训练的内容？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "趴", "is_correct": false},
+              {"option_text": "抬头训练", "is_correct": false},
+              {"option_text": "翻身训练", "is_correct": false},
+              {"option_text": "抓握", "is_correct": true}
+            ],
+            "answer_explanation": "抓握属于精细动作训练，而非大动作训练。"
+          },
+          {
+            "question_text": "以下哪些属于大动作训练的内容 ？[多选题]",
+            "question_type": "多选题",
+            "options": [
+              {"option_text": "趴", "is_correct": true},
+              {"option_text": "抬头训练", "is_correct": true},
+              {"option_text": "翻身训练", "is_correct": true},
+              {"option_text": "抓握", "is_correct": false}
+            ],
+            "answer_explanation": "趴、抬头训练、翻身训练都属于大动作训练的内容。"
+          }
+        ]
+      },
+      {
+        "point_name": "早教内容 - 精细动作训练",
+        "questions": [
+          {
+            "question_text": "以下哪项属于精细动作训练的内容？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "抓握", "is_correct": true},
+              {"option_text": "趴", "is_correct": false},
+              {"option_text": "抬头训练", "is_correct": false},
+              {"option_text": "翻身训练", "is_correct": false}
+            ],
+            "answer_explanation": "文档列出 “抓握” 作为精细动作训练的内容之一。"
+          },
+          {
+            "question_text": "以下哪项也属于精细动作训练的内容？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "趴", "is_correct": false},
+              {"option_text": "摇铃", "is_correct": true},
+              {"option_text": "抬头训练", "is_correct": false},
+              {"option_text": "翻身训练", "is_correct": false}
+            ],
+            "answer_explanation": "文档列出 “摇铃” 作为精细动作训练的内容之一。"
+          },
+          {
+            "question_text": "以下哪项**不是**精细动作训练的内容？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "抓握", "is_correct": false},
+              {"option_text": "摇铃", "is_correct": false},
+              {"option_text": "手在胸前看手玩", "is_correct": false},
+              {"option_text": "趴", "is_correct": true}
+            ],
+            "answer_explanation": "趴属于大动作训练，而非精细动作训练。"
+          },
+          {
+            "question_text": "关于精细动作训练，以下说法**正确**的是？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "精细动作训练应该从出生开始", "is_correct": false},
+              {"option_text": "精细动作训练越早开始越好", "is_correct": false},
+              {"option_text": "精细动作训练要循序渐进，先抓不动物体，再抓能动的物体", "is_correct": true},
+              {"option_text": "精细动作训练的目的是快速提高手部力量", "is_correct": false}
+            ],
+            "answer_explanation": "精细动作训练要循序渐进，符合婴儿发展规律。"
+          },
+          {
+            "question_text": "以下哪些属于精细动作训练的内容 ？[多选题]",
+            "question_type": "多选题",
+            "options": [
+              {"option_text": "抓握", "is_correct": true},
+              {"option_text": "摇铃", "is_correct": true},
+              {"option_text": "手在胸前看手玩", "is_correct": true},
+              {"option_text": "趴", "is_correct": false}
+            ],
+            "answer_explanation": "抓握、摇铃、手在胸前看手玩都属于精细动作训练的内容。"
+          }
+        ]
+      },
+      {
+        "point_name": "早教内容 - 认知语言社交",
+        "questions": [
+          {
+            "question_text": "以下哪项属于认知语言社交训练的内容？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "看黑白卡", "is_correct": true},
+              {"option_text": "抓握", "is_correct": false},
+              {"option_text": "趴", "is_correct": false},
+              {"option_text": "摇铃", "is_correct": false}
+            ],
+            "answer_explanation": "文档列出 “看黑白卡” 作为认知语言社交训练的内容之一。"
+          },
+          {
+            "question_text": "以下哪项也属于认知语言社交训练的内容？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "抓握", "is_correct": false},
+              {"option_text": "模仿孩子声音和孩子互动", "is_correct": true},
+              {"option_text": "摇铃", "is_correct": false},
+              {"option_text": "翻身训练", "is_correct": false}
+            ],
+            "answer_explanation": "文档列出 “模仿孩子声音和孩子互动” 作为认知语言社交训练的内容之一。"
+          },
+          {
+            "question_text": "以下哪项也属于认知语言社交训练的内容？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "摇铃", "is_correct": false},
+              {"option_text": "翻身训练", "is_correct": false},
+              {"option_text": "给孩子按摩、做抚触", "is_correct": true},
+              {"option_text": "趴", "is_correct": false}
+            ],
+            "answer_explanation": "文档列出 “给孩子按摩、做抚触” 作为认知语言社交训练的内容之一。"
+          },
+          {
+            "question_text": "以下哪项**不是**认知语言社交训练的内容？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "看黑白卡", "is_correct": false},
+              {"option_text": "模仿孩子声音和孩子互动", "is_correct": false},
+              {"option_text": "给孩子按摩、做抚触", "is_correct": false},
+              {"option_text": "抓握", "is_correct": true}
+            ],
+            "answer_explanation": "抓握属于精细动作训练，而非认知语言社交训练。"
+          },
+          {
+            "question_text": "以下哪些属于认知语言社交训练的内容 ？[多选题]",
+            "question_type": "多选题",
+            "options": [
+              {"option_text": "看黑白卡", "is_correct": true},
+              {"option_text": "模仿孩子声音和孩子互动", "is_correct": true},
+              {"option_text": "给孩子按摩、做抚触", "is_correct": true},
+              {"option_text": "抓握", "is_correct": false}
+            ],
+            "answer_explanation": "看黑白卡、模仿孩子声音和孩子互动、给孩子按摩做抚触都属于认知语言社交训练的内容。"
+          }
+        ]
+      },
+      {
+        "point_name": "早教内容 - 感觉训练",
+        "questions": [
+          {
+            "question_text": "感觉训练的**主要目的**是什么？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "防止感统失调", "is_correct": true},
+              {"option_text": "提高智力", "is_correct": false},
+              {"option_text": "增强运动能力", "is_correct": false},
+              {"option_text": "促进语言发育", "is_correct": false}
+            ],
+            "answer_explanation": "文档指出感觉训练 “主要是防止感统失调”。"
+          },
+          {
+            "question_text": "以下哪项属于触觉感觉训练的内容？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "洗澡抚触", "is_correct": true},
+              {"option_text": "听声音", "is_correct": false},
+              {"option_text": "看黑白卡", "is_correct": false},
+              {"option_text": "荡秋千", "is_correct": false}
+            ],
+            "answer_explanation": "文档列出 “触觉(洗澡抚触, 按摩球玩具)” 作为感觉训练的内容之一。"
+          },
+          {
+            "question_text": "以下哪项属于听觉感觉训练的内容？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "洗澡抚触", "is_correct": false},
+              {"option_text": "分辨、追踪声音", "is_correct": true},
+              {"option_text": "看彩卡", "is_correct": false},
+              {"option_text": "飞的游戏", "is_correct": false}
+            ],
+            "answer_explanation": "文档列出 “听觉(分辨、追踪声音)” 作为感觉训练的内容之一。"
+          },
+          {
+            "question_text": "以下哪项属于视觉感觉训练的内容？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "洗澡抚触", "is_correct": false},
+              {"option_text": "分辨声音", "is_correct": false},
+              {"option_text": "看黑白卡、彩卡、绘本", "is_correct": true},
+              {"option_text": "荡秋千", "is_correct": false}
+            ],
+            "answer_explanation": "文档列出 “视觉(黑白卡、彩卡、绘本)” 作为感觉训练的内容之一。"
+          },
+          {
+            "question_text": "以下哪些属于感觉训练的内容 ？[多选题]",
+            "question_type": "多选题",
+            "options": [
+              {"option_text": "触觉(洗澡抚触)", "is_correct": true},
+              {"option_text": "听觉(分辨声音)", "is_correct": true},
+              {"option_text": "视觉(看黑白卡)", "is_correct": true},
+              {"option_text": "抓握", "is_correct": false}
+            ],
+            "answer_explanation": "触觉、听觉、视觉都属于感觉训练的内容，抓握属于精细动作训练。"
+          }
+        ]
+      },
+      {
+        "point_name": "溢奶",
+        "questions": [
+          {
+            "question_text": "溢奶属于以下哪种情况？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "常见现象，无须排查原因", "is_correct": true},
+              {"option_text": "病理性问题，需要及时就医", "is_correct": false},
+              {"option_text": "消化不良的表现", "is_correct": false},
+              {"option_text": "喂养过度的信号", "is_correct": false}
+            ],
+            "answer_explanation": "文档指出 “溢奶属于常见现象,无须排查原因”。"
+          },
+          {
+            "question_text": "以下哪项是溢奶的**主要原因**？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "胃食管反流", "is_correct": false},
+              {"option_text": "乳糖不耐受", "is_correct": false},
+              {"option_text": "牛奶蛋白过敏", "is_correct": false},
+              {"option_text": "生理性因素", "is_correct": true}
+            ],
+            "answer_explanation": "溢奶多为生理性因素导致，而非病理性原因。"
+          },
+          {
+            "question_text": "以下哪项是溢奶的**处理方式**？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "用洁净的棉柔巾擦拭干净", "is_correct": true},
+              {"option_text": "减少喂奶量", "is_correct": false},
+              {"option_text": "更换奶粉", "is_correct": false},
+              {"option_text": "禁食", "is_correct": false}
+            ],
+            "answer_explanation": "文档指出溢奶的处理方式 “用洁净的棉柔巾擦拭干净即可”。"
+          },
+          {
+            "question_text": "关于溢奶，以下说法**错误**的是？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "溢奶是常见现象", "is_correct": false},
+              {"option_text": "溢奶不需要特殊处理", "is_correct": false},
+              {"option_text": "溢奶需要立即就医", "is_correct": true},
+              {"option_text": "溢奶可以用棉柔巾擦拭", "is_correct": false}
+            ],
+            "answer_explanation": "溢奶是常见现象，不需要立即就医，C项描述错误。"
+          },
+          {
+            "question_text": "以下哪些描述符合溢奶的特点 ？[多选题]",
+            "question_type": "多选题",
+            "options": [
+              {"option_text": "常见现象", "is_correct": true},
+              {"option_text": "无须排查原因", "is_correct": true},
+              {"option_text": "可以用棉柔巾擦拭", "is_correct": true},
+              {"option_text": "需要立即就医", "is_correct": false}
+            ],
+            "answer_explanation": "溢奶的特点是常见、无须排查、用棉柔巾擦拭即可。"
+          }
+        ]
+      },
+      {
+        "point_name": "吐奶",
+        "questions": [
+          {
+            "question_text": "吐奶与溢奶的**主要区别**是什么？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "吐奶量多，可能呈喷射状", "is_correct": true},
+              {"option_text": "吐奶量少，只是少量流出", "is_correct": false},
+              {"option_text": "吐奶颜色发黄", "is_correct": false},
+              {"option_text": "吐奶伴有哭闹", "is_correct": false}
+            ],
+            "answer_explanation": "吐奶量多，可能呈喷射状，是与溢奶的主要区别。"
+          },
+          {
+            "question_text": "以下哪项是吐奶的**常见原因**？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "吃奶过快，胃里吸入大量空气", "is_correct": true},
+              {"option_text": "乳糖不耐受", "is_correct": false},
+              {"option_text": "牛奶蛋白过敏", "is_correct": false},
+              {"option_text": "肠胀气", "is_correct": false}
+            ],
+            "answer_explanation": "文档列出 “吃奶过快,胃里吸入大量空气” 作为吐奶的原因之一。"
+          },
+          {
+            "question_text": "以下哪项也属于吐奶的**常见原因**？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "乳糖不耐受", "is_correct": false},
+              {"option_text": "拍嗝方式不当", "is_correct": true},
+              {"option_text": "牛奶蛋白过敏", "is_correct": false},
+              {"option_text": "湿疹", "is_correct": false}
+            ],
+            "answer_explanation": "文档列出 “拍嗝方式不当” 作为吐奶的原因之一。"
+          },
+          {
+            "question_text": "以下哪项也属于吐奶的**常见原因**？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "牛奶蛋白过敏", "is_correct": false},
+              {"option_text": "湿疹", "is_correct": false},
+              {"option_text": "肠胀气,大哭时吸入大量空气", "is_correct": true},
+              {"option_text": "乳糖不耐受", "is_correct": false}
+            ],
+            "answer_explanation": "文档列出 “肠胀气,大哭时吸入大量空气” 作为吐奶的原因之一。"
+          },
+          {
+            "question_text": "以下哪些属于吐奶的常见原因 ？[多选题]",
+            "question_type": "多选题",
+            "options": [
+              {"option_text": "吃奶过快", "is_correct": true},
+              {"option_text": "拍嗝方式不当", "is_correct": true},
+              {"option_text": "肠胀气", "is_correct": true},
+              {"option_text": "胃食管反流", "is_correct": true}
+            ],
+            "answer_explanation": "吃奶过快、拍嗝方式不当、肠胀气、胃食管反流都属于吐奶的常见原因。"
+          }
+        ]
+      },
+      {
+        "point_name": "胃食管反流判断",
+        "questions": [
+          {
+            "question_text": "以下哪项是判断胃食管反流的**重要表现**？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "即使有明显饿的迹象也经常拒绝喝奶", "is_correct": true},
+              {"option_text": "体重增长过快", "is_correct": false},
+              {"option_text": "溢奶频繁", "is_correct": false},
+              {"option_text": "吐奶量少", "is_correct": false}
+            ],
+            "answer_explanation": "文档列出 “即使有明显饿的迹象也经常拒绝喝奶” 作为胃食管反流的判断依据之一。"
+          },
+          {
+            "question_text": "以下哪项也是判断胃食管反流的**重要表现**？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "体重增长过快", "is_correct": false},
+              {"option_text": "体重增长曲线大幅下降", "is_correct": true},
+              {"option_text": "溢奶频繁", "is_correct": false},
+              {"option_text": "吐奶量少", "is_correct": false}
+            ],
+            "answer_explanation": "文档列出 “体重增长曲线大幅下降” 作为胃食管反流的判断依据之一。"
+          },
+          {
+            "question_text": "以下哪项也是判断胃食管反流的**重要表现**？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "溢奶频繁", "is_correct": false},
+              {"option_text": "吐奶量少", "is_correct": false},
+              {"option_text": "几乎每顿奶都会有干呕或吐奶的现象", "is_correct": true},
+              {"option_text": "体重增长过快", "is_correct": false}
+            ],
+            "answer_explanation": "文档列出 “几乎每顿奶都会有干呕或吐奶的现象” 作为胃食管反流的判断依据之一。"
+          },
+          {
+            "question_text": "以下哪项**不是**判断胃食管反流的表现？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "即使饿也拒绝喝奶", "is_correct": false},
+              {"option_text": "体重增长缓慢", "is_correct": false},
+              {"option_text": "频繁干呕吐奶", "is_correct": false},
+              {"option_text": "溢奶", "is_correct": true}
+            ],
+            "answer_explanation": "溢奶是常见现象，并非胃食管反流的特有表现。"
+          },
+          {
+            "question_text": "以下哪些属于判断胃食管反流的表现 ？[多选题]",
+            "question_type": "多选题",
+            "options": [
+              {"option_text": "即使有明显饿的迹象也经常拒绝喝奶", "is_correct": true},
+              {"option_text": "体重增长曲线大幅下降", "is_correct": true},
+              {"option_text": "几乎每顿奶都会有干呕或吐奶的现象", "is_correct": true},
+              {"option_text": "溢奶", "is_correct": false}
+            ],
+            "answer_explanation": "拒绝喝奶、体重增长缓慢、频繁干呕吐奶都属于胃食管反流的表现。"
+          }
+        ]
+      },
+      {
+        "point_name": "胃食管反流护理",
+        "questions": [
+          {
+            "question_text": "胃食管反流的**首要护理原则**是什么？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "尽量母乳喂养，不要过度喂养", "is_correct": true},
+              {"option_text": "减少喂奶次数，增加单次奶量", "is_correct": false},
+              {"option_text": "更换特殊配方奶粉", "is_correct": false},
+              {"option_text": "禁食一段时间", "is_correct": false}
+            ],
+            "answer_explanation": "文档列出 “尽量母乳喂养,不要过度喂养” 作为胃食管反流的护理方法之一。"
+          },
+          {
+            "question_text": "以下哪项也是胃食管反流的**护理方法**？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "减少喂奶次数，增加单次奶量", "is_correct": false},
+              {"option_text": "充分拍嗝", "is_correct": true},
+              {"option_text": "更换特殊配方奶粉", "is_correct": false},
+              {"option_text": "禁食一段时间", "is_correct": false}
+            ],
+            "answer_explanation": "文档列出 “充分拍嗝” 作为胃食管反流的护理方法之一。"
+          },
+          {
+            "question_text": "以下哪项也是胃食管反流的**护理方法**？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "更换特殊配方奶粉", "is_correct": false},
+              {"option_text": "禁食一段时间", "is_correct": false},
+              {"option_text": "少食多餐", "is_correct": true},
+              {"option_text": "减少拍嗝次数", "is_correct": false}
+            ],
+            "answer_explanation": "文档列出 “少食多餐” 作为胃食管反流的护理方法之一。"
+          },
+          {
+            "question_text": "以下哪项也是胃食管反流的**护理方法**？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "禁食一段时间", "is_correct": false},
+              {"option_text": "减少拍嗝次数", "is_correct": false},
+              {"option_text": "平躺喂奶", "is_correct": false},
+              {"option_text": "尽量竖抱或斜抱，尤其在喂奶的时候", "is_correct": true}
+            ],
+            "answer_explanation": "文档列出 “尽量竖抱或斜抱,尤其在喂奶的时候” 作为胃食管反流的护理方法之一。"
+          },
+          {
+            "question_text": "以下哪些属于胃食管反流的护理方法 ？[多选题]",
+            "question_type": "多选题",
+            "options": [
+              {"option_text": "尽量母乳喂养，不要过度喂养", "is_correct": true},
+              {"option_text": "充分拍嗝", "is_correct": true},
+              {"option_text": "少食多餐", "is_correct": true},
+              {"option_text": "尽量竖抱或斜抱", "is_correct": true}
+            ],
+            "answer_explanation": "尽量母乳喂养、充分拍嗝、少食多餐、竖抱斜抱都属于胃食管反流的护理方法。"
+          }
+        ]
+      },
+      {
+        "point_name": "肠胀气",
+        "questions": [
+          {
+            "question_text": "肠胀气的**定义**是什么？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "指胃肠道内积存了大量的气体，不能很好的排出体外", "is_correct": true},
+              {"option_text": "指肠道蠕动过快", "is_correct": false},
+              {"option_text": "指肠道发生炎症", "is_correct": false},
+              {"option_text": "指肠道功能紊乱", "is_correct": false}
+            ],
+            "answer_explanation": "文档给出肠胀气的定义 “孩子胀气是指胃肠道内积存了大量的气体,不能很好的排出体外”。"
+          },
+          {
+            "question_text": "以下哪项是缓解肠胀气的**方法**？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "不在大哭后喂奶", "is_correct": true},
+              {"option_text": "减少喂奶次数", "is_correct": false},
+              {"option_text": "更换奶粉", "is_correct": false},
+              {"option_text": "禁食", "is_correct": false}
+            ],
+            "answer_explanation": "文档列出 “不在大哭后喂奶” 作为缓解肠胀气的方法之一。"
+          },
+          {
+            "question_text": "以下哪项也是缓解肠胀气的**方法**？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "减少喂奶次数", "is_correct": false},
+              {"option_text": "采用正确的含乳姿势", "is_correct": true},
+              {"option_text": "更换奶粉", "is_correct": false},
+              {"option_text": "禁食", "is_correct": false}
+            ],
+            "answer_explanation": "文档列出 “采用正确的含乳姿势” 作为缓解肠胀气的方法之一。"
+          },
+          {
+            "question_text": "以下哪项也是缓解肠胀气的**方法**？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "更换奶粉", "is_correct": false},
+              {"option_text": "禁食", "is_correct": false},
+              {"option_text": "喝完奶后多拍嗝", "is_correct": true},
+              {"option_text": "减少拍嗝次数", "is_correct": false}
+            ],
+            "answer_explanation": "文档列出 “喝完奶后多拍嗝” 作为缓解肠胀气的方法之一。"
+          },
+          {
+            "question_text": "以下哪些属于缓解肠胀气的方法 ？[多选题]",
+            "question_type": "多选题",
+            "options": [
+              {"option_text": "不在大哭后喂奶", "is_correct": true},
+              {"option_text": "采用正确的含乳姿势", "is_correct": true},
+              {"option_text": "喝完奶后多拍嗝", "is_correct": true},
+              {"option_text": "减少喂奶量", "is_correct": false}
+            ],
+            "answer_explanation": "不在大哭后喂奶、正确含乳姿势、喝完奶后多拍嗝都属于缓解肠胀气的方法。"
+          }
+        ]
+      },
+      {
+        "point_name": "肠绞痛",
+        "questions": [
+          {
+            "question_text": "肠绞痛**主要发生**在哪个年龄段的婴儿？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "0~5个月", "is_correct": true},
+              {"option_text": "6~12个月", "is_correct": false},
+              {"option_text": "1~2岁", "is_correct": false},
+              {"option_text": "2~3岁", "is_correct": false}
+            ],
+            "answer_explanation": "文档指出肠绞痛 “多呈现于0~5个月的孩子”。"
+          },
+          {
+            "question_text": "肠绞痛的**主要表现**是什么？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "无法安抚和控制的哭闹", "is_correct": true},
+              {"option_text": "频繁吐奶", "is_correct": false},
+              {"option_text": "腹泻", "is_correct": false},
+              {"option_text": "发热", "is_correct": false}
+            ],
+            "answer_explanation": "文档指出肠绞痛的定义 “体现为一种无法安抚和控制的哭闹”。"
+          },
+          {
+            "question_text": "肠绞痛的“333法则”是指什么？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "每天哭闹3小时，每周哭闹3天，持续3周", "is_correct": false},
+              {"option_text": "每天连续哭闹1~3小时，每周哭闹3天以上，持续3周以上", "is_correct": true},
+              {"option_text": "每天哭闹3次，每次哭闹3小时，持续3天", "is_correct": false},
+              {"option_text": "每天哭闹3小时，每周哭闹3次，持续3周", "is_correct": false}
+            ],
+            "answer_explanation": "文档中 “333法则” 指 “每天连续哭闹1~3 个小时,每周这种哭闹达到3天以上,并且连续3周以上”。"
+          },
+          {
+            "question_text": "以下哪项**不是**缓解肠绞痛的方法？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "使用益生菌", "is_correct": false},
+              {"option_text": "热敷肚子", "is_correct": false},
+              {"option_text": "做抚触和排气操", "is_correct": false},
+              {"option_text": "减少喂奶量", "is_correct": true}
+            ],
+            "answer_explanation": "减少喂奶量不是缓解肠绞痛的方法。"
+          },
+          {
+            "question_text": "以下哪些属于缓解肠绞痛的方法 ？[多选题]",
+            "question_type": "多选题",
+            "options": [
+              {"option_text": "使用益生菌", "is_correct": true},
+              {"option_text": "热敷肚子", "is_correct": true},
+              {"option_text": "做抚触和排气操", "is_correct": true},
+              {"option_text": "减少喂奶量", "is_correct": false}
+            ],
+            "answer_explanation": "使用益生菌、热敷肚子、做抚触和排气操都属于缓解肠绞痛的方法。"
+          }
+        ]
+      },
+      {
+        "point_name": "湿疹",
+        "questions": [
+          {
+            "question_text": "湿疹的**主要特性**是什么？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "遗传性", "is_correct": true},
+              {"option_text": "传染性", "is_correct": false},
+              {"option_text": "季节性", "is_correct": false},
+              {"option_text": "过敏性", "is_correct": false}
+            ],
+            "answer_explanation": "文档列出湿疹的特性 “遗传性”。"
+          },
+          {
+            "question_text": "以下哪项也是湿疹的**特性**？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "传染性", "is_correct": false},
+              {"option_text": "反复性", "is_correct": true},
+              {"option_text": "季节性", "is_correct": false},
+              {"option_text": "环境性", "is_correct": false}
+            ],
+            "answer_explanation": "文档列出湿疹的特性 “反复性”。"
+          },
+          {
+            "question_text": "以下哪项也是湿疹的**特性**？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "季节性", "is_correct": false},
+              {"option_text": "环境性", "is_correct": false},
+              {"option_text": "自限性", "is_correct": true},
+              {"option_text": "传染性", "is_correct": false}
+            ],
+            "answer_explanation": "文档列出湿疹的特性 “自限性”。"
+          },
+          {
+            "question_text": "以下哪项也是湿疹的**特性**？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "环境性", "is_correct": false},
+              {"option_text": "传染性", "is_correct": false},
+              {"option_text": "季节性", "is_correct": false},
+              {"option_text": "过敏性", "is_correct": true}
+            ],
+            "answer_explanation": "文档列出湿疹的特性 “过敏性”。"
+          },
+          {
+            "question_text": "以下哪些属于湿疹的特性 ？[多选题]",
+            "question_type": "多选题",
+            "options": [
+              {"option_text": "遗传性", "is_correct": true},
+              {"option_text": "反复性", "is_correct": true},
+              {"option_text": "自限性", "is_correct": true},
+              {"option_text": "过敏性", "is_correct": true}
+            ],
+            "answer_explanation": "遗传性、反复性、自限性、过敏性都属于湿疹的特性。"
+          }
+        ]
+      },
+      {
+        "point_name": "热疹",
+        "questions": [
+          {
+            "question_text": "热疹**主要指**什么？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "痱子", "is_correct": true},
+              {"option_text": "湿疹", "is_correct": false},
+              {"option_text": "荨麻疹", "is_correct": false},
+              {"option_text": "过敏疹", "is_correct": false}
+            ],
+            "answer_explanation": "文档指出热疹 “多指痱子”。"
+          },
+          {
+            "question_text": "热疹的**主要原因**是什么？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "环境温度过高", "is_correct": true},
+              {"option_text": "皮肤干燥", "is_correct": false},
+              {"option_text": "过敏", "is_correct": false},
+              {"option_text": "感染", "is_correct": false}
+            ],
+            "answer_explanation": "热疹的主要原因是环境温度过高导致。"
+          },
+          {
+            "question_text": "以下哪项是热疹的**护理方法**？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "保持室内低温", "is_correct": true},
+              {"option_text": "涂抹润肤霜", "is_correct": false},
+              {"option_text": "使用激素药膏", "is_correct": false},
+              {"option_text": "禁食辛辣食物", "is_correct": false}
+            ],
+            "answer_explanation": "文档列出热疹的护理方法 “保持室内低温”。"
+          },
+          {
+            "question_text": "关于热疹的护理，以下说法**正确**的是？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "应该保持室内高温", "is_correct": false},
+              {"option_text": "应该保持皮肤干爽", "is_correct": true},
+              {"option_text": "应该涂抹厚厚的润肤霜", "is_correct": false},
+              {"option_text": "应该使用激素药膏", "is_correct": false}
+            ],
+            "answer_explanation": "热疹护理的关键是保持皮肤干爽和环境低温。"
+          },
+          {
+            "question_text": "以下哪些属于热疹的护理方法 ？[多选题]",
+            "question_type": "多选题",
+            "options": [
+              {"option_text": "保持室内低温", "is_correct": true},
+              {"option_text": "保持皮肤干爽", "is_correct": true},
+              {"option_text": "厚涂润肤霜", "is_correct": false},
+              {"option_text": "使用激素药膏", "is_correct": false}
+            ],
+            "answer_explanation": "保持室内低温和皮肤干爽是热疹的主要护理方法。"
+          }
+        ]
+      },
+      {
+        "point_name": "尿布疹",
+        "questions": [
+          {
+            "question_text": "尿布疹的**主要原因**是什么？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "大小便局部处理不干净", "is_correct": true},
+              {"option_text": "使用尿不湿", "is_correct": false},
+              {"option_text": "过敏", "is_correct": false},
+              {"option_text": "感染", "is_correct": false}
+            ],
+            "answer_explanation": "文档列出尿布疹的形成原因 “大小便局部处理不干净”。"
+          },
+          {
+            "question_text": "以下哪项也是尿布疹的**形成原因**？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "过敏", "is_correct": false},
+              {"option_text": "长时间使用尿不湿不透气", "is_correct": true},
+              {"option_text": "感染", "is_correct": false},
+              {"option_text": "环境潮湿", "is_correct": false}
+            ],
+            "answer_explanation": "文档列出尿布疹的形成原因 “长时间使用尿不湿不透气”。"
+          },
+          {
+            "question_text": "以下哪项也是尿布疹的**形成原因**？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "感染", "is_correct": false},
+              {"option_text": "环境潮湿", "is_correct": false},
+              {"option_text": "臀部潮湿(洗完臀部后没有晾干直接涂抹护臀霜)", "is_correct": true},
+              {"option_text": "过敏", "is_correct": false}
+            ],
+            "answer_explanation": "文档列出尿布疹的形成原因 “臀部潮湿(洗完臀部后没有晾干直接涂抹护臀霜)”。"
+          },
+          {
+            "question_text": "以下哪项**不是**尿布疹的形成原因？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "大小便刺激", "is_correct": false},
+              {"option_text": "尿不湿不透气", "is_correct": false},
+              {"option_text": "臀部潮湿", "is_correct": false},
+              {"option_text": "母乳喂养", "is_correct": true}
+            ],
+            "answer_explanation": "母乳喂养不是尿布疹的形成原因。"
+          },
+          {
+            "question_text": "以下哪些属于尿布疹的形成原因 ？[多选题]",
+            "question_type": "多选题",
+            "options": [
+              {"option_text": "大小便局部处理不干净", "is_correct": true},
+              {"option_text": "长时间使用尿不湿不透气", "is_correct": true},
+              {"option_text": "臀部潮湿", "is_correct": true},
+              {"option_text": "母乳喂养", "is_correct": false}
+            ],
+            "answer_explanation": "大小便处理不干净、尿不湿不透气、臀部潮湿都属于尿布疹的形成原因。"
+          }
+        ]
+      },
+      {
+        "point_name": "乳糖不耐受",
+        "questions": [
+          {
+            "question_text": "乳糖不耐受的**定义**是什么？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "孩子体内乳糖不足，不能完全消化和吸收母乳或奶粉中的乳糖", "is_correct": true},
+              {"option_text": "孩子对乳糖过敏", "is_correct": false},
+              {"option_text": "孩子体内缺乏乳糖酶", "is_correct": false},
+              {"option_text": "孩子肠道菌群失调", "is_correct": false}
+            ],
+            "answer_explanation": "文档给出乳糖不耐受的定义 “孩子体内乳糖不足,不能完全消化和吸收母乳或奶粉中的乳糖”。"
+          },
+          {
+            "question_text": "乳糖不耐受的**主要表现**是什么？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "屁崩屎", "is_correct": true},
+              {"option_text": "便秘", "is_correct": false},
+              {"option_text": "呕吐", "is_correct": false},
+              {"option_text": "发热", "is_correct": false}
+            ],
+            "answer_explanation": "文档指出乳糖不耐受的 “表现:一般表现为屁崩屎”。"
+          },
+          {
+            "question_text": "以下哪项是缓解乳糖不耐受的**方法**？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "每次喂奶前，先给孩子喂乳糖酶再喂奶", "is_correct": true},
+              {"option_text": "更换无乳糖奶粉", "is_correct": false},
+              {"option_text": "减少喂奶量", "is_correct": false},
+              {"option_text": "禁食", "is_correct": false}
+            ],
+            "answer_explanation": "文档列出乳糖不耐受的护理方法 “每次喂奶前,先给孩子喂乳糖酶再喂奶”。"
+          },
+          {
+            "question_text": "关于乳糖不耐受的护理，以下说法**正确**的是？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "应该立即更换无乳糖奶粉", "is_correct": false},
+              {"option_text": "可以每次喂奶前补充乳糖酶", "is_correct": true},
+              {"option_text": "应该禁食乳制品", "is_correct": false},
+              {"option_text": "乳糖不耐受无法缓解", "is_correct": false}
+            ],
+            "answer_explanation": "补充乳糖酶是缓解乳糖不耐受的常见方法。"
+          },
+          {
+            "question_text": "以下哪些属于乳糖不耐受的护理方法 ？[多选题]",
+            "question_type": "多选题",
+            "options": [
+              {"option_text": "每次喂奶前，先给孩子喂乳糖酶再喂奶", "is_correct": true},
+              {"option_text": "更换不含乳糖的配方奶粉（严重时）", "is_correct": true},
+              {"option_text": "减少喂奶量", "is_correct": false},
+              {"option_text": "禁食乳制品", "is_correct": false}
+            ],
+            "answer_explanation": "补充乳糖酶和更换无乳糖奶粉都属于乳糖不耐受的护理方法。"
+          }
+        ]
+      },
+      {
+        "point_name": "牛奶蛋白过敏",
+        "questions": [
+          {
+            "question_text": "牛奶蛋白过敏的**定义**是什么？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "由于孩子免疫系统未成熟，对奶粉或母乳中的蛋白质不能消化吸收而引起的过敏反应", "is_correct": true},
+              {"option_text": "孩子对牛奶中的乳糖过敏", "is_correct": false},
+              {"option_text": "孩子体内缺乏分解牛奶蛋白的酶", "is_correct": false},
+              {"option_text": "孩子肠道菌群失调导致对牛奶蛋白不耐受", "is_correct": false}
+            ],
+            "answer_explanation": "文档给出牛奶蛋白过敏的定义 “由于孩子免疫系统未成熟,对奶粉或母乳中的蛋白质不能消化吸收而引起的过敏反应”。"
+          },
+          {
+            "question_text": "牛奶蛋白过敏的**主要消化道症状**是什么？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "腹泻或便秘（多数情况伴有血丝）", "is_correct": true},
+              {"option_text": "呕吐", "is_correct": false},
+              {"option_text": "腹胀", "is_correct": false},
+              {"option_text": "厌奶", "is_correct": false}
+            ],
+            "answer_explanation": "文档列出牛奶蛋白过敏的消化道症状 “腹泻或便秘(多数情况伴有血丝)”。"
+          },
+          {
+            "question_text": "牛奶蛋白过敏的**主要皮肤症状**是什么？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "身上出现皮疹", "is_correct": true},
+              {"option_text": "湿疹", "is_correct": false},
+              {"option_text": "荨麻疹", "is_correct": false},
+              {"option_text": "红肿", "is_correct": false}
+            ],
+            "answer_explanation": "文档列出牛奶蛋白过敏的皮肤症状 “身上出现皮疹”。"
+          },
+          {
+            "question_text": "以下哪项是牛奶蛋白过敏的**护理方法**？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "遵医嘱更换奶粉（适度水解奶粉、深度水解奶粉、氨基酸奶粉）", "is_correct": true},
+              {"option_text": "补充乳糖酶", "is_correct": false},
+              {"option_text": "禁食牛奶制品", "is_correct": false},
+              {"option_text": "使用抗生素", "is_correct": false}
+            ],
+            "answer_explanation": "文档列出牛奶蛋白过敏的护理方法 “遵医嘱更换奶粉(适度水解奶粉、深度水解奶粉、氨基酸奶粉)”。"
+          },
+          {
+            "question_text": "以下哪些属于牛奶蛋白过敏的护理方法 ？[多选题]",
+            "question_type": "多选题",
+            "options": [
+              {"option_text": "遵医嘱更换奶粉（水解或氨基酸奶粉）", "is_correct": true},
+              {"option_text": "便秘严重的孩子可单独添加乳果糖", "is_correct": true},
+              {"option_text": "补充益生菌", "is_correct": false},
+              {"option_text": "使用激素药膏", "is_correct": false}
+            ],
+            "answer_explanation": "更换奶粉和添加乳果糖都属于牛奶蛋白过敏的护理方法。"
+          }
+        ]
+      },
+      {
+        "point_name": "肺炎",
+        "questions": [
+          {
+            "question_text": "3个月以内婴儿肺炎的**典型表现**是什么？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "咳嗽、呼吸急促、流涕、发热(小月龄孩子不一定会发热)", "is_correct": true},
+              {"option_text": "高热惊厥", "is_correct": false},
+              {"option_text": "呕吐腹泻", "is_correct": false},
+              {"option_text": "皮疹", "is_correct": false}
+            ],
+            "answer_explanation": "文档列出肺炎的 “表现: ① 咳嗽、呼吸急促、流涕、发热(小月龄孩子不一定会发热)”。"
+          },
+          {
+            "question_text": "肺炎**病情加重**的**典型表现**是什么？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "发热36天后咳嗽加重,发绀(口唇青紫)", "is_correct": true},
+              {"option_text": "高热不退", "is_correct": false},
+              {"option_text": "持续呕吐", "is_correct": false},
+              {"option_text": "腹泻不止", "is_correct": false}
+            ],
+            "answer_explanation": "文档列出肺炎病情加重的表现 “发热36天后咳嗽加重,发绀(口唇青紫)”。"
+          },
+          {
+            "question_text": "以下哪项**不是**肺炎的常见表现？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "咳嗽", "is_correct": false},
+              {"option_text": "呼吸急促", "is_correct": false},
+              {"option_text": "流涕", "is_correct": false},
+              {"option_text": "皮疹", "is_correct": true}
+            ],
+            "answer_explanation": "皮疹不是肺炎的常见表现。"
+          },
+          {
+            "question_text": "关于3个月以内婴儿肺炎，以下说法**正确**的是？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "一定会发热", "is_correct": false},
+              {"option_text": "发热不一定是典型症状", "is_correct": true},
+              {"option_text": "咳嗽一定会很剧烈", "is_correct": false},
+              {"option_text": "肺炎很容易自愈", "is_correct": false}
+            ],
+            "answer_explanation": "文档强调 “3个月以内的孩子发热基本可以判断是肺炎,但肺炎不一定会发热”。"
+          },
+          {
+            "question_text": "以下哪些属于肺炎的典型表现 ？[多选题]",
+            "question_type": "多选题",
+            "options": [
+              {"option_text": "咳嗽", "is_correct": true},
+              {"option_text": "呼吸急促", "is_correct": true},
+              {"option_text": "流涕", "is_correct": true},
+              {"option_text": "皮疹", "is_correct": false}
+            ],
+            "answer_explanation": "咳嗽、呼吸急促、流涕都属于肺炎的典型表现。"
+          }
+        ]
+      },
+      {
+        "point_name": "鼻塞",
+        "questions": [
+          {
+            "question_text": "鼻塞的**主要表现**是什么？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "鼻子不通气，多伴有流鼻涕", "is_correct": true},
+              {"option_text": "发热", "is_correct": false},
+              {"option_text": "咳嗽", "is_correct": false},
+              {"option_text": "呼吸急促", "is_correct": false}
+            ],
+            "answer_explanation": "文档列出鼻塞的 “表现: ① 鼻子不通气,多伴有流鼻涕”。"
+          },
+          {
+            "question_text": "以下哪项也是鼻塞的**表现**？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "发热", "is_correct": false},
+              {"option_text": "孩子的鼻翼两侧呈微红色", "is_correct": true},
+              {"option_text": "咳嗽", "is_correct": false},
+              {"option_text": "呼吸急促", "is_correct": false}
+            ],
+            "answer_explanation": "文档列出鼻塞的 “表现: ②孩子的鼻翼两侧呈微红色”。"
+          },
+          {
+            "question_text": "以下哪项也是鼻塞的**表现**？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "咳嗽", "is_correct": false},
+              {"option_text": "呼吸急促", "is_correct": false},
+              {"option_text": "有时会发热", "is_correct": true},
+              {"option_text": "鼻翼扇动", "is_correct": false}
+            ],
+            "answer_explanation": "文档列出鼻塞的 “表现: ③有时会发热”。"
+          },
+          {
+            "question_text": "以下哪项**不是**鼻塞的表现？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "鼻子不通气", "is_correct": false},
+              {"option_text": "流鼻涕", "is_correct": false},
+              {"option_text": "鼻翼微红", "is_correct": false},
+              {"option_text": "呼吸困难", "is_correct": true}
+            ],
+            "answer_explanation": "呼吸困难不是单纯鼻塞的表现，可能是肺炎等更严重疾病的信号。"
+          },
+          {
+            "question_text": "以下哪些属于鼻塞的典型表现 ？[多选题]",
+            "question_type": "多选题",
+            "options": [
+              {"option_text": "鼻子不通气", "is_correct": true},
+              {"option_text": "流鼻涕", "is_correct": true},
+              {"option_text": "鼻翼两侧微红", "is_correct": true},
+              {"option_text": "呼吸困难", "is_correct": false}
+            ],
+            "answer_explanation": "鼻子不通气、流鼻涕、鼻翼两侧微红都属于鼻塞的典型表现。"
+          }
+        ]
+      },
+      {
+        "point_name": "鼻泪管堵塞",
+        "questions": [
+          {
+            "question_text": "鼻泪管堵塞的**主要表现**是什么？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "眼中泪汪汪且有分泌物", "is_correct": true},
+              {"option_text": "眼睛红肿", "is_correct": false},
+              {"option_text": "眼睛疼痛", "is_correct": false},
+              {"option_text": "视力模糊", "is_correct": false}
+            ],
+            "answer_explanation": "文档列出鼻泪管堵塞的 “表现: 眼中泪汪汪且有分泌物”。"
+          },
+          {
+            "question_text": "以下哪项是鼻泪管堵塞的**护理方法**？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "用指腹轻轻按摩孩子睛明穴", "is_correct": true},
+              {"option_text": "热敷眼睛", "is_correct": false},
+              {"option_text": "使用抗生素眼药水", "is_correct": false},
+              {"option_text": "手术治疗", "is_correct": false}
+            ],
+            "answer_explanation": "文档列出鼻泪管堵塞的护理方法 “用指腹轻轻按摩孩子睛明穴”。"
+          },
+          {
+            "question_text": "关于鼻泪管堵塞的护理，以下说法**正确**的是？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "必须使用抗生素眼药水", "is_correct": false},
+              {"option_text": "按摩睛明穴是主要的护理方法", "is_correct": true},
+              {"option_text": "热敷眼睛可以缓解症状", "is_correct": false},
+              {"option_text": "鼻泪管堵塞无法自愈", "is_correct": false}
+            ],
+            "answer_explanation": "按摩睛明穴是鼻泪管堵塞的主要护理方法，多数情况下可以自愈。"
+          },
+          {
+            "question_text": "如果按摩睛明穴**无法缓解**鼻泪管堵塞，应该怎么办 ？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "遵医嘱滴眼药水或去医院治疗", "is_correct": true},
+              {"option_text": "继续按摩，增加按摩次数", "is_correct": false},
+              {"option_text": "热敷眼睛", "is_correct": false},
+              {"option_text": "自行购买抗生素眼药水", "is_correct": false}
+            ],
+            "answer_explanation": "按摩无效需要遵医嘱或就医，不可自行用药。"
+          },
+          {
+            "question_text": "以下哪些属于鼻泪管堵塞的护理方法 ？[多选题]",
+            "question_type": "多选题",
+            "options": [
+              {"option_text": "按摩睛明穴", "is_correct": true},
+              {"option_text": "遵医嘱滴眼药水（无效时）", "is_correct": true},
+              {"option_text": "热敷眼睛", "is_correct": false},
+              {"option_text": "自行购买抗生素眼药水", "is_correct": false}
+            ],
+            "answer_explanation": "按摩睛明穴和遵医嘱用药都属于鼻泪管堵塞的护理方法。"
+          }
+        ]
+      },
+      {
+        "point_name": "疝气",
+        "questions": [
+          {
+            "question_text": "文档中提到的疝气类型有哪些？[多选题]",
+            "question_type": "多选题",
+            "options": [
+              {"option_text": "脐疝", "is_correct": true},
+              {"option_text": "腹股沟斜疝", "is_correct": true},
+              {"option_text": "食道裂孔疝", "is_correct": false},
+              {"option_text": "切口疝", "is_correct": false}
+            ],
+            "answer_explanation": "文档列出疝气的类型 “①脐疝 ②腹股沟斜疝”。"
+          },
+          {
+            "question_text": "脐疝的**主要表现**是什么？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "在脐部周围鼓起一个包", "is_correct": true},
+              {"option_text": "在腹股沟处摸到肿块", "is_correct": false},
+              {"option_text": "哭闹不安", "is_correct": false},
+              {"option_text": "呕吐", "is_correct": false}
+            ],
+            "answer_explanation": "文档列出脐疝的 “表现: ①脐疝:在脐部周围鼓起一个包”。"
+          },
+          {
+            "question_text": "腹股沟斜疝的**主要表现**是什么？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "在孩子腹股沟处可看到和摸到肿块", "is_correct": true},
+              {"option_text": "在脐部周围鼓起一个包", "is_correct": false},
+              {"option_text": "哭闹不安", "is_correct": false},
+              {"option_text": "便秘", "is_correct": false}
+            ],
+            "answer_explanation": "文档列出腹股沟斜疝的 “表现: ② 腹股沟斜疝:在孩子腹股沟处可看到和摸到肿块”。"
+          },
+          {
+            "question_text": "以下哪项**不是**疝气的症状？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "脐部鼓包", "is_correct": false},
+              {"option_text": "腹股沟肿块", "is_correct": false},
+              {"option_text": "爱哭闹", "is_correct": false},
+              {"option_text": "发热", "is_correct": true}
+            ],
+            "answer_explanation": "发热不是疝气的症状。"
+          },
+          {
+            "question_text": "以下哪些属于疝气的表现 ？[多选题]",
+            "question_type": "多选题",
+            "options": [
+              {"option_text": "脐部鼓包", "is_correct": true},
+              {"option_text": "腹股沟肿块", "is_correct": true},
+              {"option_text": "爱哭闹、不安、便秘等", "is_correct": true},
+              {"option_text": "发热", "is_correct": false}
+            ],
+            "answer_explanation": "脐部鼓包、腹股沟肿块、哭闹不安等都属于疝气的表现。"
+          }
+        ]
+      },
+      {
+        "point_name": "一天的安排原则",
+        "questions": [
+          {
+            "question_text": "安排一天作息的**主要原则**是什么？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "根据孩子的生物钟来安排一天的喂养，按“吃—玩—睡”的顺序", "is_correct": true},
+              {"option_text": "严格按照时间表执行", "is_correct": false},
+              {"option_text": "完全按照家长的作息时间", "is_correct": false},
+              {"option_text": "随意安排，没有固定原则", "is_correct": false}
+            ],
+            "answer_explanation": "文档指出 “安排的原则:根据孩子的生物钟来安排一天的喂养,按“吃—玩—睡”的顺序”。"
+          },
+          {
+            "question_text": "以下哪项**不是**安排一天作息的考虑因素？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "孩子的生物钟", "is_correct": false},
+              {"option_text": "吃—玩—睡顺序", "is_correct": false},
+              {"option_text": "喂养时间", "is_correct": false},
+              {"option_text": "家长的喜好", "is_correct": true}
+            ],
+            "answer_explanation": "家长的喜好不是安排婴儿作息的考虑因素。"
+          },
+          {
+            "question_text": "关于一天作息安排，以下说法**正确**的是？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "应该完全固定不变", "is_correct": false},
+              {"option_text": "可以灵活调整，但要遵循基本原则", "is_correct": true},
+              {"option_text": "越严格越好", "is_correct": false},
+              {"option_text": "应该完全按照时间表执行", "is_correct": false}
+            ],
+            "answer_explanation": "作息安排可以灵活调整，但要遵循孩子生物钟和“吃—玩—睡”原则。"
+          },
+          {
+            "question_text": "如果作息安排**不合理**，可能对孩子产生什么影响 ？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "影响睡眠和喂养", "is_correct": true},
+              {"option_text": "影响智力发育", "is_correct": false},
+              {"option_text": "影响运动能力", "is_correct": false},
+              {"option_text": "影响社交能力", "is_correct": false}
+            ],
+            "answer_explanation": "不合理作息安排可能影响睡眠和喂养。"
+          },
+          {
+            "question_text": "以下哪些属于安排一天作息的原则 ？[多选题]",
+            "question_type": "多选题",
+            "options": [
+              {"option_text": "根据孩子的生物钟", "is_correct": true},
+              {"option_text": "完全按照时间表", "is_correct": false},
+              {"option_text": "按“吃—玩—睡”的顺序", "is_correct": true},
+              {"option_text": "完全按照家长喜好", "is_correct": false}
+            ],
+            "answer_explanation": "根据孩子生物钟和“吃—玩—睡”顺序是安排作息的原则。"
+          }
+        ]
+      },
+      {
+        "point_name": "一天的安排示例",
+        "questions": [
+          {
+            "question_text": "文档中提供的“一天安排示例”**主要作用**是什么？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "仅具参考价值，不可刻板套用", "is_correct": true},
+              {"option_text": "必须严格按照执行", "is_correct": false},
+              {"option_text": "是唯一的正确作息安排", "is_correct": false},
+              {"option_text": "适用于所有婴儿", "is_correct": false}
+            ],
+            "answer_explanation": "文档强调 “模板仅具参考价值,不可刻板套用”。"
+          },
+          {
+            "question_text": "以下哪项是对“一天安排示例”的**正确理解**？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "必须完全按照时间表执行", "is_correct": false},
+              {"option_text": "可以根据孩子特性灵活调整", "is_correct": true},
+              {"option_text": "是唯一的正确作息安排", "is_correct": false},
+              {"option_text": "适用于所有月龄的婴儿", "is_correct": false}
+            ],
+            "answer_explanation": "“一天安排示例” 可以根据孩子特性灵活调整。"
+          },
+          {
+            "question_text": "关于“一天安排示例”，以下说法**错误**的是？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "仅供参考", "is_correct": false},
+              {"option_text": "可以灵活调整", "is_correct": false},
+              {"option_text": "必须严格执行", "is_correct": true},
+              {"option_text": "可以帮助家长了解作息安排的大致框架", "is_correct": false}
+            ],
+            "answer_explanation": "“一天安排示例” 并非必须严格执行，C项描述错误。"
+          },
+          {
+            "question_text": "如果**完全照搬**“一天安排示例”，可能产生什么问题 ？[单选题]",
+            "question_type": "单选题",
+            "options": [
+              {"option_text": "不符合孩子的个体特性和需求", "is_correct": true},
+              {"option_text": "孩子作息更加规律", "is_correct": false},
+              {"option_text": "家长更加省心", "is_correct": false},
+              {"option_text": "孩子发育更好", "is_correct": false}
+            ],
+            "answer_explanation": "完全照搬可能不符合孩子个体特性和需求。"
+          },
+          {
+            "question_text": "以下哪些是对“一天安排示例”的正确理解 ？[多选题]",
+            "question_type": "多选题",
+            "options": [
+              {"option_text": "仅具参考价值", "is_correct": true},
+              {"option_text": "必须严格执行", "is_correct": false},
+              {"option_text": "可以灵活调整", "is_correct": true},
+              {"option_text": "适用于所有婴儿", "is_correct": false}
+            ],
+            "answer_explanation": "“一天安排示例” 仅具参考价值，可以灵活调整。"
+          }
+        ]
+      }
+    ]
+  }

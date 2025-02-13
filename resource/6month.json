@@ -1,0 +1,1797 @@
+{
+  "course_name": "6个月龄婴儿护理要点",
+  "knowledge_points": [
+    {
+      "point_name": "喂养 - 参照标准 (6个月龄)",
+      "questions": [
+        {
+          "question_text": "6个月龄婴儿每日的喂养次数参照标准是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "6～5 次/天", "is_correct": true},
+            {"option_text": "7～6 次/天", "is_correct": false},
+            {"option_text": "5～4 次/天", "is_correct": false},
+            {"option_text": "8～9 次/天", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出6个月龄婴儿每日喂养次数为6～5 次/天。"
+        },
+        {
+          "question_text": "6个月龄婴儿每日的奶量参照范围是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "600～800ml", "is_correct": false},
+            {"option_text": "800～1100ml", "is_correct": true},
+            {"option_text": "1000～1200ml", "is_correct": false},
+            {"option_text": "1200ml以上", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出6个月龄婴儿每日奶量为800～1100ml。"
+        },
+        {
+          "question_text": "6个月龄婴儿的胃容量参照范围大约是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "150～200ml", "is_correct": false},
+            {"option_text": "100～150ml", "is_correct": false},
+            {"option_text": "180～200ml", "is_correct": true},
+            {"option_text": "200～250ml", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出6个月龄婴儿胃容量为180～200ml。"
+        },
+        {
+          "question_text": "以下哪项是 6个月龄男孩的体重参照范围？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "6.9～8.8kg", "is_correct": true},
+            {"option_text": "6.3～8.2kg", "is_correct": false},
+            {"option_text": "5.7～7.6kg", "is_correct": false},
+            {"option_text": "5.3～6.9kg", "is_correct": false}
+          ],
+          "answer_explanation": "文档表格中6个月龄男孩体重参照范围为6.9～8.8kg。"
+        },
+        {
+          "question_text": "以下哪项是 6个月龄女孩的身高参照范围？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "59.4～64.5cm", "is_correct": false},
+            {"option_text": "63.3～68.6cm", "is_correct": true},
+            {"option_text": "57.1～59.5cm", "is_correct": false},
+            {"option_text": "54.4～59.2cm", "is_correct": false}
+          ],
+          "answer_explanation": "文档表格中6个月龄女孩身高参照范围为63.3～68.6cm。"
+        }
+      ]
+    },
+    {
+      "point_name": "喂养 - 辅食添加",
+      "questions": [
+        {
+          "question_text": "辅食的定义是指？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "除母乳和配方奶以外的其他食物", "is_correct": true},
+            {"option_text": "配方奶粉", "is_correct": false},
+            {"option_text": "母乳", "is_correct": false},
+            {"option_text": "补充维生素和矿物质的补充剂", "is_correct": false}
+          ],
+          "answer_explanation": "文档中对辅食的定义为：指添加除母乳和配方奶以外的其他各种性状的食物。"
+        },
+        {
+          "question_text": "以下哪项不是添加辅食的原因？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "母乳和配方奶已不能完全满足营养需求", "is_correct": false},
+            {"option_text": "婴儿的咀嚼能力已经非常成熟", "is_correct": true},
+            {"option_text": "婴儿胃肠道发育相对完善，可消化多样化食物", "is_correct": false},
+            {"option_text": "婴儿口腔运动功能、感知觉和心理认知能力已准备好", "is_correct": false}
+          ],
+          "answer_explanation": "B选项描述与文档中“婴儿的咀嚼和吞咽能力需要在这一两个月时间通过添加辅食训练提升”相悖。"
+        },
+        {
+          "question_text": "辅食添加的初期主要目的是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "让孩子对食物感兴趣，学会使用勺子", "is_correct": true},
+            {"option_text": "提供丰富的营养", "is_correct": false},
+            {"option_text": "锻炼咀嚼和吞咽能力", "is_correct": false},
+            {"option_text": "完全替代母乳或配方奶", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出辅食添加初期是为了让孩子对食物感兴趣，学会使用勺子，而不是关注吃了多少量。"
+        },
+        {
+          "question_text": "关于辅食添加时间，以下说法正确的是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "最早可以从2个月开始", "is_correct": false},
+            {"option_text": "最晚不能超过4个月", "is_correct": false},
+            {"option_text": "最早不能早于4个月，最晚不能晚于8个月", "is_correct": true},
+            {"option_text": "6个月是最佳添加时间，无需考虑过早或过晚", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出辅食添加时间最早不能早于4个月,最晚不能晚于8个月。"
+        },
+        {
+          "question_text": "通常情况下，婴儿开始添加辅食的月龄是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "3个月", "is_correct": false},
+            {"option_text": "4个月", "is_correct": false},
+            {"option_text": "5个月", "is_correct": false},
+            {"option_text": "6个月", "is_correct": true}
+          ],
+          "answer_explanation": "文档指出一般6个月开始添加辅食。"
+        },
+        {
+          "question_text": "添加辅食首先应选择哪种食物？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "富含铁的泥糊状米粉", "is_correct": true},
+            {"option_text": "蔬菜泥", "is_correct": false},
+            {"option_text": "水果泥", "is_correct": false},
+            {"option_text": "蛋黄", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出辅食添加从富含铁的泥糊状米粉开始逐渐添加。"
+        },
+        {
+          "question_text": "关于辅食添加初期“5+1形式”的描述，正确的是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "辅食占5顿，奶占1顿", "is_correct": false},
+            {"option_text": "奶占5顿，辅食占1顿", "is_correct": true},
+            {"option_text": "每天喂5种辅食，1种奶", "is_correct": false},
+            {"option_text": "每天喂5天辅食，1天奶", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出“5+1的形式”指奶变成5顿，辅食变成1顿。"
+        },
+        {
+          "question_text": "喂辅食时，勺子应如何送入和取出？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "勺子向上倾斜送入，向上倾斜取出", "is_correct": false},
+            {"option_text": "勺子向下倾斜送入，向下倾斜取出", "is_correct": false},
+            {"option_text": "勺子从孩子的嘴巴平进平出", "is_correct": true},
+            {"option_text": "勺子倾斜度没有要求，孩子舒适即可", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出喂辅食时注意勺子要从孩子的嘴巴平进平出。"
+        },
+        {
+          "question_text": "早产儿添加辅食的月龄应如何计算？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "按出生月龄计算", "is_correct": false},
+            {"option_text": "按实际月龄计算", "is_correct": false},
+            {"option_text": "比足月儿提前一个月", "is_correct": false},
+            {"option_text": "根据孩子的矫正月龄来计算", "is_correct": true}
+          ],
+          "answer_explanation": "文档指出早产儿添加辅食是根据孩子的矫正月龄来计算。"
+        },
+        {
+          "question_text": "以下哪项不是婴儿添加辅食应具备的条件？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "奶量达到 1200ml", "is_correct": true},
+            {"option_text": "奶量达到 800ml", "is_correct": false},
+            {"option_text": "能坐", "is_correct": false},
+            {"option_text": "挺舌反射消失", "is_correct": false}
+          ],
+          "answer_explanation": "添加辅食的条件是奶量达到 800ml，而非 1200ml。"
+        },
+        {
+          "question_text": "辅食添加的原则首先强调的是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "从多到少", "is_correct": false},
+            {"option_text": "从一种到多种", "is_correct": true},
+            {"option_text": "从粗到细", "is_correct": false},
+            {"option_text": "从浓到淡", "is_correct": false}
+          ],
+          "answer_explanation": "辅食添加原则首先强调的是从一种到多种。"
+        },
+        {
+          "question_text": "辅食添加的原则中，与婴儿咀嚼能力发展最相关的是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "从少到多", "is_correct": false},
+            {"option_text": "从淡到浓", "is_correct": false},
+            {"option_text": "从细到粗", "is_correct": true},
+            {"option_text": "从稀到稠", "is_correct": false}
+          ],
+          "answer_explanation": "辅食添加原则中，从细到粗与婴儿咀嚼能力发展最相关。"
+        },
+        {
+          "question_text": "新添加的辅食，通常建议在哪个时间段观察？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "上午 6-7 点", "is_correct": false},
+            {"option_text": "中午 12-13 点", "is_correct": false},
+            {"option_text": "下午 17-18 点", "is_correct": false},
+            {"option_text": "上午 9-10 点", "is_correct": true}
+          ],
+          "answer_explanation": "文档指出通常新添加的辅食在上午 9-10 点添加。"
+        },
+        {
+          "question_text": "试加辅食时，以下做法正确的是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "不需要减少奶量", "is_correct": true},
+            {"option_text": "需要适当减少奶量", "is_correct": false},
+            {"option_text": "需要完全停止喂奶", "is_correct": false},
+            {"option_text": "奶量和辅食量需要精确计算", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出试加辅食的时候不需要减奶量。"
+        },
+        {
+          "question_text": "对于母乳湿疹严重的婴儿，以下哪种做法可能有助于降低过敏风险？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "推迟辅食添加时间", "is_correct": false},
+            {"option_text": "母亲先吃几天要加的食物，再加给孩子", "is_correct": true},
+            {"option_text": "选择低敏配方奶粉", "is_correct": false},
+            {"option_text": "完全停止母乳喂养", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出母乳湿疹严重的孩子，可考虑让母亲先吃几天要加的食物，再加给孩子。"
+        },
+        {
+          "question_text": "以下哪种辅食添加顺序是推荐的？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "米粉 -> 蔬菜 -> 水果 -> 肉类 -> 蛋黄 -> 虾", "is_correct": true},
+            {"option_text": "水果 -> 蔬菜 -> 米粉 -> 肉类 -> 蛋黄 -> 虾", "is_correct": false},
+            {"option_text": "蔬菜 -> 水果 -> 肉类 -> 米粉 -> 蛋黄 -> 虾", "is_correct": false},
+            {"option_text": "蛋黄 -> 肉类 -> 虾 -> 米粉 -> 蔬菜 -> 水果", "is_correct": false}
+          ],
+          "answer_explanation": "文档给出的辅食添加顺序为：含铁的米粉 -> 根茎类蔬菜 -> 叶子类蔬菜 -> 果泥 -> 白肉 -> 红肉 -> 蛋黄 -> 虾。"
+        },
+        {
+          "question_text": "关于辅食添加后的宝宝喝水，以下说法正确的是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "辅食添加后必须大量补水", "is_correct": false},
+            {"option_text": "不需要过多补水，按需少量补充即可", "is_correct": true},
+            {"option_text": "辅食添加后完全不需要补水", "is_correct": false},
+            {"option_text": "补水量需要精确计算，过多过少都不利于健康", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出此月龄的孩子不需要过多补水。"
+        },
+        {
+          "question_text": "以下哪种情况表明宝宝可能需要喝水？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "每次喂奶后", "is_correct": false},
+            {"option_text": "每次睡醒后", "is_correct": false},
+            {"option_text": "尿黄或 3~4 小时没有排尿时", "is_correct": true},
+            {"option_text": "每天固定时间", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出尿黄或3~4小时没有排尿时,需要给孩子补充一些水。"
+        },
+        {
+          "question_text": "以下哪种做法不属于辅食添加的注意事项？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "保证每日摄入的奶量", "is_correct": false},
+            {"option_text": "从富含铁的泥糊状米粉开始", "is_correct": false},
+            {"option_text": "新辅食观察3-5天", "is_correct": false},
+            {"option_text": "辅食添加量越多越好", "is_correct": true}
+          ],
+          "answer_explanation": "辅食添加并非越多越好，过量添加可能影响奶量摄入和其他营养均衡。"
+        },
+        {
+          "question_text": "关于辅食添加的目的，以下说法错误的是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "初期主要关注进食量，而非进食兴趣", "is_correct": true},
+            {"option_text": "锻炼口腔肌肉和开发味觉", "is_correct": false},
+            {"option_text": "培养良好的进餐习惯和餐桌礼仪", "is_correct": false},
+            {"option_text": "提供营养，促进生长发育", "is_correct": false}
+          ],
+          "answer_explanation": "辅食添加初期是为了让孩子对食物感兴趣，而不是关注吃了多少量，A选项描述错误。"
+        }
+      ]
+    },
+    {
+      "point_name": "喂养 - 婴儿主导辅食法（BLW）",
+      "questions": [
+        {
+          "question_text": "婴儿主导辅食法（BLW）的核心特点是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "完全不提供泥或糊状食物，提供块状手指食物", "is_correct": true},
+            {"option_text": "以泥糊状食物为主，手指食物为辅", "is_correct": false},
+            {"option_text": "完全由家长喂食，不让孩子自主进食", "is_correct": false},
+            {"option_text": "完全不添加辅食，只进行母乳或配方奶喂养", "is_correct": false}
+          ],
+          "answer_explanation": "文档对BLW的定义为：BLW 完全不提供泥或糊状的食物，从添加辅食开始就提供块状的手指食物。"
+        },
+        {
+          "question_text": "BLW 辅食添加顺序与传统辅食添加顺序相比？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "完全相同", "is_correct": false},
+            {"option_text": "过程先难后易，与传统辅食添加顺序正相反", "is_correct": true},
+            {"option_text": "过程先易后难，与传统辅食添加顺序相同", "is_correct": false},
+            {"option_text": "没有明显区别", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出BLW 辅食添加顺序过程先难后易，与传统辅食添加顺序正相反。"
+        },
+        {
+          "question_text": "以下哪项不是 BLW 的优点？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "提高进食兴趣", "is_correct": false},
+            {"option_text": "技能开发（精细动作、咀嚼吞咽能力）", "is_correct": false},
+            {"option_text": "能让孩子体重快速增长", "is_correct": true},
+            {"option_text": "减轻养护者的压力", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出BLW 的缺点之一是会让孩子体重偏轻（开始时吃不了多少食物），C选项描述与此相悖。"
+        },
+        {
+          "question_text": "以下哪项属于 BLW 的优点？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "提高进食兴趣，减少挑食可能性", "is_correct": true},
+            {"option_text": "能让孩子体重快速增长", "is_correct": false},
+            {"option_text": "营养更均衡全面", "is_correct": false},
+            {"option_text": "操作简单，无需学习", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出BLW 的优点之一是提高进食兴趣，减少挑食可能性。"
+        },
+        {
+          "question_text": "以下哪项也属于 BLW 的优点？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "能让孩子体重快速增长", "is_correct": false},
+            {"option_text": "技能开发：锻炼手指精细技巧及手眼协调能力，锻炼咀嚼吞咽能力", "is_correct": true},
+            {"option_text": "营养更均衡全面", "is_correct": false},
+            {"option_text": "操作简单，无需学习", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出BLW 的优点之一是技能开发：锻炼手指精细技巧及手眼协调能力，锻炼咀嚼吞咽能力。"
+        },
+        {
+          "question_text": "以下哪项也属于 BLW 的优点？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "能让孩子体重快速增长", "is_correct": false},
+            {"option_text": "营养更均衡全面", "is_correct": false},
+            {"option_text": "减轻养护者的压力，气氛更轻松愉快", "is_correct": true},
+            {"option_text": "操作简单，无需学习", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出BLW 的优点之一是减轻养护者的压力，气氛更轻松愉快。"
+        },
+        {
+          "question_text": "以下哪项也属于 BLW 的优点？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "能让孩子体重快速增长", "is_correct": false},
+            {"option_text": "营养更均衡全面", "is_correct": false},
+            {"option_text": "操作简单，无需学习", "is_correct": false},
+            {"option_text": "孩子没有对抗情绪，保护家庭关系与吃饭积极性", "is_correct": true}
+          ],
+          "answer_explanation": "文档指出BLW 的优点之一是孩子没有对抗情绪，保护家庭关系与吃饭积极性。"
+        },
+        {
+          "question_text": "以下哪项属于 BLW 的缺点？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "会让孩子体重偏轻（开始时吃不了多少食物）", "is_correct": true},
+            {"option_text": "容易导致营养不良", "is_correct": false},
+            {"option_text": "操作复杂，难以掌握", "is_correct": false},
+            {"option_text": "容易引起呛咳", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出BLW 的缺点之一是会让孩子体重偏轻（开始时吃不了多少食物）。"
+        },
+        {
+          "question_text": "以下哪项也属于 BLW 的缺点？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "容易引起呛咳", "is_correct": false},
+            {"option_text": "会使孩子更容易缺铁", "is_correct": true},
+            {"option_text": "容易导致营养不良", "is_correct": false},
+            {"option_text": "操作复杂，难以掌握", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出BLW 的缺点之一是会使孩子更容易缺铁。"
+        },
+        {
+          "question_text": "以下哪种类型的孩子更适合 BLW？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "自主意识较强，不喜欢被安排的孩子", "is_correct": true},
+            {"option_text": "体质较弱，需要精心呵护的孩子", "is_correct": false},
+            {"option_text": "早产儿", "is_correct": false},
+            {"option_text": "不爱吃辅食的孩子", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出自主意识较强，不喜欢被安排的孩子适合 BLW。"
+        },
+        {
+          "question_text": "以下哪种类型的孩子更适合 BLW？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "早产儿", "is_correct": false},
+            {"option_text": "体质好、喝奶多、肉多、比较扛折腾的孩子", "is_correct": true},
+            {"option_text": "偏瘦弱的孩子", "is_correct": false},
+            {"option_text": "不爱运动的孩子", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出体质好、喝奶多、肉多、比较扛折腾的孩子适合 BLW。"
+        },
+        {
+          "question_text": "以下哪种类型的孩子不适合 BLW？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "一时学不会自己抓东西往嘴里放的孩子", "is_correct": true},
+            {"option_text": "自主意识较强的孩子", "is_correct": false},
+            {"option_text": "体质较好的孩子", "is_correct": false},
+            {"option_text": "足月儿", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出一时学不会自己抓东西往嘴里放的孩子不适合 BLW。"
+        },
+        {
+          "question_text": "以下哪种类型的孩子不适合 BLW？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "足月儿", "is_correct": false},
+            {"option_text": "早产儿", "is_correct": true},
+            {"option_text": "体质较好的孩子", "is_correct": false},
+            {"option_text": "自主意识较强的孩子", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出早产儿不适合 BLW。"
+        },
+        {
+          "question_text": "关于BLW，以下说法错误的是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "能锻炼孩子手眼协调能力", "is_correct": false},
+            {"option_text": "能提高孩子对食物的兴趣", "is_correct": false},
+            {"option_text": "能让孩子体重快速增长", "is_correct": true},
+            {"option_text": "能减轻照护者的喂养压力", "is_correct": false}
+          ],
+          "answer_explanation": "BLW 的缺点之一是会让孩子体重偏轻，C选项描述错误。"
+        },
+        {
+          "question_text": "关于BLW，以下说法正确的是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "BLW 辅食添加顺序与传统辅食添加顺序相同", "is_correct": false},
+            {"option_text": "BLW 能让孩子体重快速增长", "is_correct": false},
+            {"option_text": "BLW 比传统辅食添加更容易导致缺铁", "is_correct": false},
+            {"option_text": "BLW 整个辅食的进程完全由孩子来主导", "is_correct": true}
+          ],
+          "answer_explanation": "BLW 整个辅食的进程完全由孩子来主导，D选项描述正确。"
+        }
+      ]
+    },
+    {
+      "point_name": "喂养 - 换奶粉",
+      "questions": [
+        {
+          "question_text": "以下哪项属于换奶粉的类型？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "母乳替换成奶粉", "is_correct": true},
+            {"option_text": "普通奶粉替换成水解奶粉", "is_correct": false},
+            {"option_text": "一段奶粉替换成二段奶粉", "is_correct": false},
+            {"option_text": "A品牌奶粉一段替换成A品牌羊奶粉", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出母乳替换成奶粉为换奶粉的类型之一。"
+        },
+        {
+          "question_text": "以下哪项也属于换奶粉的类型？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "孩子厌奶", "is_correct": false},
+            {"option_text": "同品牌奶粉换段", "is_correct": true},
+            {"option_text": "母乳替换成羊奶", "is_correct": false},
+            {"option_text": "A品牌奶粉一段替换成B品牌奶粉一段", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出同品牌奶粉换段为换奶粉的类型之一。"
+        },
+        {
+          "question_text": "以下哪项也属于换奶粉的类型？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "普通奶粉替换成防腹泻奶粉", "is_correct": false},
+            {"option_text": "母乳替换成早产儿奶粉", "is_correct": false},
+            {"option_text": "不同品牌奶粉替换", "is_correct": true},
+            {"option_text": "一段奶粉替换成三段奶粉", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出不同品牌奶粉替换为换奶粉的类型之一。"
+        },
+        {
+          "question_text": "以下哪种换奶粉的方法更温和，宝宝更容易适应？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "混合置换法", "is_correct": true},
+            {"option_text": "隔顿代替法", "is_correct": false},
+            {"option_text": "直接更换法", "is_correct": false},
+            {"option_text": "少量多次法", "is_correct": false}
+          ],
+          "answer_explanation": "混合置换法和隔顿代替法都属于比较温和的换奶粉方法，但混合置换法更常用和更易操作。"
+        },
+        {
+          "question_text": "混合置换法换奶粉的第一步是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "原来的奶粉用 2/3，新奶粉用 1/3", "is_correct": true},
+            {"option_text": "原来的奶粉用 1/2，新奶粉用 1/2", "is_correct": false},
+            {"option_text": "原来的奶粉用 1/3，新奶粉用 2/3", "is_correct": false},
+            {"option_text": "完全用新奶粉替代", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出混合置换法换奶粉的第一步是原来的奶粉用 2/3，新奶粉用 1/3。"
+        },
+        {
+          "question_text": "混合置换法换奶粉的第二步是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "原来的奶粉用 2/3，新奶粉用 1/3", "is_correct": false},
+            {"option_text": "原来的奶粉用 1/2，新奶粉用 1/2", "is_correct": true},
+            {"option_text": "原来的奶粉用 1/3，新奶粉用 2/3", "is_correct": false},
+            {"option_text": "完全用新奶粉替代", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出混合置换法换奶粉的第二步是原来的奶粉用 1/2，新奶粉用 1/2。"
+        },
+        {
+          "question_text": "混合置换法换奶粉的第三步是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "原来的奶粉用 2/3，新奶粉用 1/3", "is_correct": false},
+            {"option_text": "原来的奶粉用 1/2，新奶粉用 1/2", "is_correct": false},
+            {"option_text": "原来的奶粉用 1/3，新奶粉用 2/3", "is_correct": true},
+            {"option_text": "完全用新奶粉替代", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出混合置换法换奶粉的第三步是原来的奶粉用 1/3，新奶粉用 2/3。"
+        },
+        {
+          "question_text": "混合置换法换奶粉的最后一步是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "原来的奶粉用 2/3，新奶粉用 1/3", "is_correct": false},
+            {"option_text": "原来的奶粉用 1/2，新奶粉用 1/2", "is_correct": false},
+            {"option_text": "原来的奶粉用 1/3，新奶粉用 2/3", "is_correct": false},
+            {"option_text": "完全用新奶粉替代", "is_correct": true}
+          ],
+          "answer_explanation": "文档指出混合置换法换奶粉的最后一步是完全用新奶粉替代。"
+        },
+        {
+          "question_text": "隔顿代替法换奶粉的第一步是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "先用新奶粉代替一顿", "is_correct": true},
+            {"option_text": "先用新奶粉代替两顿", "is_correct": false},
+            {"option_text": "先用新奶粉代替三顿", "is_correct": false},
+            {"option_text": "完全用新奶粉替代", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出隔顿代替法换奶粉的第一步是先用新奶粉代替一顿。"
+        },
+        {
+          "question_text": "无论是混合置换法还是隔顿代替法，每次转换后都需要观察适应多久？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "1天", "is_correct": false},
+            {"option_text": "3天", "is_correct": true},
+            {"option_text": "5天", "is_correct": false},
+            {"option_text": "7天", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出无论是混合置换法还是隔顿代替法，每次转换后都需要观察适应三天。"
+        }
+      ]
+    },
+    {
+      "point_name": "喂养 - 过敏体质",
+      "questions": [
+        {
+          "question_text": "关于食物不耐受和食物过敏，以下说法错误的是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "食物不耐受在国外被称为轻度过敏", "is_correct": false},
+            {"option_text": "食物过敏在国外被称为过敏", "is_correct": false},
+            {"option_text": "食物不耐受和食物过敏的原因相同，都是因为免疫系统异常", "is_correct": true},
+            {"option_text": "食物不耐受和食物过敏的症状、时效和处理方法都不同", "is_correct": false}
+          ],
+          "answer_explanation": "食物不耐受和食物过敏的原因不同，食物不耐受是由于胃肠道发育不健全造成，食物过敏是因某种食物对身体带来不可逆的或对身体发育带来严重后果的反应，C选项描述错误。"
+        },
+        {
+          "question_text": "食物不耐受的主要原因是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "由于胃肠道发育不健全造成", "is_correct": true},
+            {"option_text": "因某种食物对身体带来不可逆的反应", "is_correct": false},
+            {"option_text": "免疫系统异常", "is_correct": false},
+            {"option_text": "遗传因素", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出食物不耐受的主要原因是由于胃肠道发育不健全造成。"
+        },
+        {
+          "question_text": "食物过敏的主要原因是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "由于胃肠道发育不健全造成", "is_correct": false},
+            {"option_text": "因某种食物对身体带来不可逆的或对身体发育带来严重后果的反应", "is_correct": true},
+            {"option_text": "免疫系统异常", "is_correct": false},
+            {"option_text": "遗传因素", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出食物过敏的主要原因是因某种食物对身体带来不可逆的或对身体发育带来严重后果的反应。"
+        },
+        {
+          "question_text": "食物不耐受的症状不包括？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "胃肠道症状", "is_correct": false},
+            {"option_text": "皮疹", "is_correct": false},
+            {"option_text": "呼吸困难、哮喘", "is_correct": true},
+            {"option_text": "进食几小时后缓慢出现症状", "is_correct": false}
+          ],
+          "answer_explanation": "呼吸困难、哮喘、局部肿胀、昏迷等症状是食物过敏的症状，而非食物不耐受，C选项描述不属于食物不耐受的症状。"
+        },
+        {
+          "question_text": "食物过敏的症状不包括？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "身上出现皮疹", "is_correct": false},
+            {"option_text": "抓握", "is_correct": false},
+            {"option_text": "摇铃", "is_correct": false},
+            {"option_text": "手在胸前看手玩", "is_correct": true}
+          ],
+          "answer_explanation": "趴属于大动作训练，而非精细动作训练。"
+        },
+        {
+          "question_text": "关于精细动作训练，以下说法正确的是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "精细动作训练应该从出生开始", "is_correct": false},
+            {"option_text": "精细动作训练越早开始越好", "is_correct": false},
+            {"option_text": "精细动作训练要循序渐进，先抓不动物体，再抓能动的物体", "is_correct": true},
+            {"option_text": "精细动作训练的目的是快速提高手部力量", "is_correct": false}
+          ],
+          "answer_explanation": "精细动作训练要循序渐进，符合婴儿发展规律。"
+        },
+        {
+          "question_text": "以下哪些属于精细动作训练的内容 ？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "抓握", "is_correct": true},
+            {"option_text": "摇铃", "is_correct": true},
+            {"option_text": "手在胸前看手玩", "is_correct": true},
+            {"option_text": "趴", "is_correct": false}
+          ],
+          "answer_explanation": "抓握、摇铃、手在胸前看手玩都属于精细动作训练的内容。"
+        }
+      ]
+    },
+    {
+      "point_name": "早教内容 - 认知语言社交",
+      "questions": [
+        {
+          "question_text": "以下哪项属于认知语言社交训练的内容？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "看黑白卡", "is_correct": true},
+            {"option_text": "抓握", "is_correct": false},
+            {"option_text": "趴", "is_correct": false},
+            {"option_text": "摇铃", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出 “看黑白卡” 作为认知语言社交训练的内容之一。"
+        },
+        {
+          "question_text": "以下哪项也属于认知语言社交训练的内容？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "抓握", "is_correct": false},
+            {"option_text": "模仿孩子声音和孩子互动", "is_correct": true},
+            {"option_text": "摇铃", "is_correct": false},
+            {"option_text": "翻身训练", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出 “模仿孩子声音和孩子互动” 作为认知语言社交训练的内容之一。"
+        },
+        {
+          "question_text": "以下哪项也属于认知语言社交训练的内容？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "摇铃", "is_correct": false},
+            {"option_text": "翻身训练", "is_correct": false},
+            {"option_text": "给孩子按摩、做抚触", "is_correct": true},
+            {"option_text": "趴", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出 “给孩子按摩、做抚触” 作为认知语言社交训练的内容之一。"
+        },
+        {
+          "question_text": "以下哪项**不是**认知语言社交训练的内容？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "看黑白卡", "is_correct": false},
+            {"option_text": "模仿孩子声音和孩子互动", "is_correct": false},
+            {"option_text": "给孩子按摩、做抚触", "is_correct": false},
+            {"option_text": "抓握", "is_correct": true}
+          ],
+          "answer_explanation": "抓握属于精细动作训练，而非认知语言社交训练。"
+        },
+        {
+          "question_text": "以下哪些属于认知语言社交训练的内容 ？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "看黑白卡", "is_correct": true},
+            {"option_text": "模仿孩子声音和孩子互动", "is_correct": true},
+            {"option_text": "给孩子按摩、做抚触", "is_correct": true},
+            {"option_text": "抓握", "is_correct": false}
+          ],
+          "answer_explanation": "看黑白卡、模仿孩子声音和孩子互动、给孩子按摩做抚触都属于认知语言社交训练的内容。"
+        }
+      ]
+    },
+    {
+      "point_name": "早教内容 - 感觉训练",
+      "questions": [
+        {
+          "question_text": "感觉训练的主要目的是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "防止感统失调", "is_correct": true},
+            {"option_text": "提高智力", "is_correct": false},
+            {"option_text": "增强运动能力", "is_correct": false},
+            {"option_text": "促进语言发育", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出感觉训练 “主要是防止感统失调”。"
+        },
+        {
+          "question_text": "以下哪项属于触觉感觉训练的内容？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "洗澡抚触", "is_correct": true},
+            {"option_text": "听声音", "is_correct": false},
+            {"option_text": "看黑白卡", "is_correct": false},
+            {"option_text": "荡秋千", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出 “触觉(洗澡抚触, 按摩球玩具)” 作为感觉训练的内容之一。"
+        },
+        {
+          "question_text": "以下哪项属于听觉感觉训练的内容？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "洗澡抚触", "is_correct": false},
+            {"option_text": "分辨、追踪声音", "is_correct": true},
+            {"option_text": "看彩卡", "is_correct": false},
+            {"option_text": "飞的游戏", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出 “听觉(分辨、追踪声音)” 作为感觉训练的内容之一。"
+        },
+        {
+          "question_text": "以下哪项属于视觉感觉训练的内容？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "洗澡抚触", "is_correct": false},
+            {"option_text": "分辨声音", "is_correct": false},
+            {"option_text": "看黑白卡、彩卡、绘本", "is_correct": true},
+            {"option_text": "荡秋千", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出 “视觉(黑白卡、彩卡、绘本)” 作为感觉训练的内容之一。"
+        },
+        {
+          "question_text": "以下哪些属于感觉训练的内容 ？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "触觉(洗澡抚触)", "is_correct": true},
+            {"option_text": "听觉(分辨声音)", "is_correct": true},
+            {"option_text": "视觉(看黑白卡)", "is_correct": true},
+            {"option_text": "抓握", "is_correct": false}
+          ],
+          "answer_explanation": "触觉、听觉、视觉都属于感觉训练的内容，抓握属于精细动作训练。"
+        }
+      ]
+    },
+    {
+      "point_name": "溢奶",
+      "questions": [
+        {
+          "question_text": "溢奶属于以下哪种情况？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "常见现象，无须排查原因", "is_correct": true},
+            {"option_text": "病理性问题，需要及时就医", "is_correct": false},
+            {"option_text": "消化不良的表现", "is_correct": false},
+            {"option_text": "喂养过度的信号", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出 “溢奶属于常见现象,无须排查原因”。"
+        },
+        {
+          "question_text": "以下哪项是溢奶的主要原因？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "胃食管反流", "is_correct": false},
+            {"option_text": "乳糖不耐受", "is_correct": false},
+            {"option_text": "牛奶蛋白过敏", "is_correct": false},
+            {"option_text": "生理性因素", "is_correct": true}
+          ],
+          "answer_explanation": "溢奶多为生理性因素导致，而非病理性原因。"
+        },
+        {
+          "question_text": "以下哪项是溢奶的处理方式？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "用洁净的棉柔巾擦拭干净", "is_correct": true},
+            {"option_text": "减少喂奶量", "is_correct": false},
+            {"option_text": "更换奶粉", "is_correct": false},
+            {"option_text": "禁食", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出溢奶的处理方式 “用洁净的棉柔巾擦拭干净即可”。"
+        },
+        {
+          "question_text": "关于溢奶，以下说法错误的是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "溢奶是常见现象", "is_correct": false},
+            {"option_text": "溢奶不需要特殊处理", "is_correct": false},
+            {"option_text": "溢奶需要立即就医", "is_correct": true},
+            {"option_text": "溢奶可以用棉柔巾擦拭", "is_correct": false}
+          ],
+          "answer_explanation": "溢奶是常见现象，不需要立即就医，C项描述错误。"
+        },
+        {
+          "question_text": "以下哪些描述符合溢奶的特点 ？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "常见现象", "is_correct": true},
+            {"option_text": "无须排查原因", "is_correct": true},
+            {"option_text": "可以用棉柔巾擦拭", "is_correct": true},
+            {"option_text": "需要立即就医", "is_correct": false}
+          ],
+          "answer_explanation": "溢奶的特点是常见、无须排查、用棉柔巾擦拭即可。"
+        }
+      ]
+    },
+    {
+      "point_name": "吐奶",
+      "questions": [
+        {
+          "question_text": "吐奶与溢奶的主要区别是什么？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "吐奶量多，可能呈喷射状", "is_correct": true},
+            {"option_text": "吐奶量少，只是少量流出", "is_correct": false},
+            {"option_text": "吐奶颜色发黄", "is_correct": false},
+            {"option_text": "吐奶伴有哭闹", "is_correct": false}
+          ],
+          "answer_explanation": "吐奶量多，可能呈喷射状，是与溢奶的主要区别。"
+        },
+        {
+          "question_text": "以下哪项是吐奶的常见原因？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "吃奶过快，胃里吸入大量空气", "is_correct": true},
+            {"option_text": "乳糖不耐受", "is_correct": false},
+            {"option_text": "牛奶蛋白过敏", "is_correct": false},
+            {"option_text": "肠胀气", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出 “吃奶过快,胃里吸入大量空气” 作为吐奶的原因之一。"
+        },
+        {
+          "question_text": "以下哪项也属于吐奶的常见原因？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "乳糖不耐受", "is_correct": false},
+            {"option_text": "拍嗝方式不当", "is_correct": true},
+            {"option_text": "牛奶蛋白过敏", "is_correct": false},
+            {"option_text": "湿疹", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出 “拍嗝方式不当” 作为吐奶的原因之一。"
+        },
+        {
+          "question_text": "以下哪项也属于吐奶的常见原因？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "牛奶蛋白过敏", "is_correct": false},
+            {"option_text": "湿疹", "is_correct": false},
+            {"option_text": "肠胀气,大哭时吸入大量空气", "is_correct": true},
+            {"option_text": "乳糖不耐受", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出 “肠胀气,大哭时吸入大量空气” 作为吐奶的原因之一。"
+        },
+        {
+          "question_text": "以下哪些属于吐奶的常见原因 ？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "吃奶过快", "is_correct": true},
+            {"option_text": "拍嗝方式不当", "is_correct": true},
+            {"option_text": "肠胀气", "is_correct": true},
+            {"option_text": "胃食管反流", "is_correct": true}
+          ],
+          "answer_explanation": "吃奶过快、拍嗝方式不当、肠胀气、胃食管反流都属于吐奶的常见原因。"
+        }
+      ]
+    },
+    {
+      "point_name": "胃食管反流判断",
+      "questions": [
+        {
+          "question_text": "以下哪项是判断胃食管反流的重要表现？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "即使有明显饿的迹象也经常拒绝喝奶", "is_correct": true},
+            {"option_text": "体重增长过快", "is_correct": false},
+            {"option_text": "溢奶频繁", "is_correct": false},
+            {"option_text": "吐奶量少", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出 “即使有明显饿的迹象也经常拒绝喝奶” 作为胃食管反流的判断依据之一。"
+        },
+        {
+          "question_text": "以下哪项也是判断胃食管反流的重要表现？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "体重增长过快", "is_correct": false},
+            {"option_text": "体重增长曲线大幅下降", "is_correct": true},
+            {"option_text": "溢奶频繁", "is_correct": false},
+            {"option_text": "吐奶量少", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出 “体重增长曲线大幅下降” 作为胃食管反流的判断依据之一。"
+        },
+        {
+          "question_text": "以下哪项也是判断胃食管反流的重要表现？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "溢奶频繁", "is_correct": false},
+            {"option_text": "吐奶量少", "is_correct": false},
+            {"option_text": "几乎每顿奶都会有干呕或吐奶的现象", "is_correct": true},
+            {"option_text": "体重增长过快", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出 “几乎每顿奶都会有干呕或吐奶的现象” 作为胃食管反流的判断依据之一。"
+        },
+        {
+          "question_text": "以下哪项不是判断胃食管反流的表现？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "即使饿也拒绝喝奶", "is_correct": false},
+            {"option_text": "体重增长缓慢", "is_correct": false},
+            {"option_text": "频繁干呕吐奶", "is_correct": false},
+            {"option_text": "溢奶", "is_correct": true}
+          ],
+          "answer_explanation": "溢奶是常见现象，并非胃食管反流的特有表现。"
+        },
+        {
+          "question_text": "以下哪些属于判断胃食管反流的表现 ？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "即使有明显饿的迹象也经常拒绝喝奶", "is_correct": true},
+            {"option_text": "体重增长曲线大幅下降", "is_correct": true},
+            {"option_text": "几乎每顿奶都会有干呕或吐奶的现象", "is_correct": true},
+            {"option_text": "溢奶", "is_correct": false}
+          ],
+          "answer_explanation": "拒绝喝奶、体重增长缓慢、频繁干呕吐奶都属于胃食管反流的表现。"
+        }
+      ]
+    },
+    {
+      "point_name": "胃食管反流护理",
+      "questions": [
+        {
+          "question_text": "胃食管反流的首要护理原则是什么？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "尽量母乳喂养，不要过度喂养", "is_correct": true},
+            {"option_text": "减少喂奶次数，增加单次奶量", "is_correct": false},
+            {"option_text": "更换特殊配方奶粉", "is_correct": false},
+            {"option_text": "禁食一段时间", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出 “尽量母乳喂养,不要过度喂养” 作为胃食管反流的护理方法之一。"
+        },
+        {
+          "question_text": "以下哪项也是胃食管反流的护理方法？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "减少喂奶次数，增加单次奶量", "is_correct": false},
+            {"option_text": "充分拍嗝", "is_correct": true},
+            {"option_text": "更换特殊配方奶粉", "is_correct": false},
+            {"option_text": "禁食一段时间", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出 “充分拍嗝” 作为胃食管反流的护理方法之一。"
+        },
+        {
+          "question_text": "以下哪项也是胃食管反流的护理方法？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "更换特殊配方奶粉", "is_correct": false},
+            {"option_text": "禁食一段时间", "is_correct": false},
+            {"option_text": "少食多餐", "is_correct": true},
+            {"option_text": "减少拍嗝次数", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出 “少食多餐” 作为胃食管反流的护理方法之一。"
+        },
+        {
+          "question_text": "以下哪项也是胃食管反流的护理方法？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "禁食一段时间", "is_correct": false},
+            {"option_text": "减少拍嗝次数", "is_correct": false},
+            {"option_text": "平躺喂奶", "is_correct": false},
+            {"option_text": "尽量竖抱或斜抱，尤其在喂奶的时候", "is_correct": true}
+          ],
+          "answer_explanation": "文档列出 “尽量竖抱或斜抱,尤其在喂奶的时候” 作为胃食管反流的护理方法之一。"
+        },
+        {
+          "question_text": "以下哪些属于胃食管反流的护理方法 ？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "尽量母乳喂养，不要过度喂养", "is_correct": true},
+            {"option_text": "充分拍嗝", "is_correct": true},
+            {"option_text": "少食多餐", "is_correct": true},
+            {"option_text": "尽量竖抱或斜抱", "is_correct": true}
+          ],
+          "answer_explanation": "尽量母乳喂养、充分拍嗝、少食多餐、竖抱斜抱都属于胃食管反流的护理方法。"
+        }
+      ]
+    },
+    {
+      "point_name": "肠胀气",
+      "questions": [
+        {
+          "question_text": "肠胀气的定义是什么？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "指胃肠道内积存了大量的气体，不能很好的排出体外", "is_correct": true},
+            {"option_text": "指肠道蠕动过快", "is_correct": false},
+            {"option_text": "指肠道发生炎症", "is_correct": false},
+            {"option_text": "指肠道功能紊乱", "is_correct": false}
+          ],
+          "answer_explanation": "文档给出肠胀气的定义 “孩子胀气是指胃肠道内积存了大量的气体,不能很好的排出体外”。"
+        },
+        {
+          "question_text": "以下哪项是缓解肠胀气的方法？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "不在大哭后喂奶", "is_correct": true},
+            {"option_text": "减少喂奶次数", "is_correct": false},
+            {"option_text": "更换奶粉", "is_correct": false},
+            {"option_text": "禁食", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出 “不在大哭后喂奶” 作为缓解肠胀气的方法之一。"
+        },
+        {
+          "question_text": "以下哪项也是缓解肠胀气的方法？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "减少喂奶次数", "is_correct": false},
+            {"option_text": "采用正确的含乳姿势", "is_correct": true},
+            {"option_text": "更换奶粉", "is_correct": false},
+            {"option_text": "禁食", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出 “采用正确的含乳姿势” 作为缓解肠胀气的方法之一。"
+        },
+        {
+          "question_text": "以下哪项也是缓解肠胀气的方法？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "更换奶粉", "is_correct": false},
+            {"option_text": "禁食", "is_correct": false},
+            {"option_text": "喝完奶后多拍嗝", "is_correct": true},
+            {"option_text": "减少拍嗝次数", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出 “喝完奶后多拍嗝” 作为缓解肠胀气的方法之一。"
+        },
+        {
+          "question_text": "以下哪些属于缓解肠胀气的方法 ？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "不在大哭后喂奶", "is_correct": true},
+            {"option_text": "采用正确的含乳姿势", "is_correct": true},
+            {"option_text": "喝完奶后多拍嗝", "is_correct": true},
+            {"option_text": "减少喂奶量", "is_correct": false}
+          ],
+          "answer_explanation": "不在大哭后喂奶、正确含乳姿势、喝完奶后多拍嗝都属于缓解肠胀气的方法。"
+        }
+      ]
+    },
+    {
+      "point_name": "肠绞痛",
+      "questions": [
+        {
+          "question_text": "肠绞痛主要发生在哪个年龄段的婴儿？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "0~5个月", "is_correct": true},
+            {"option_text": "6~12个月", "is_correct": false},
+            {"option_text": "1~2岁", "is_correct": false},
+            {"option_text": "2~3岁", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出肠绞痛 “多呈现于0~5个月的孩子”。"
+        },
+        {
+          "question_text": "肠绞痛的主要表现是什么？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "无法安抚和控制的哭闹", "is_correct": true},
+            {"option_text": "频繁吐奶", "is_correct": false},
+            {"option_text": "腹泻", "is_correct": false},
+            {"option_text": "发热", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出肠绞痛的定义 “体现为一种无法安抚和控制的哭闹”。"
+        },
+        {
+          "question_text": "肠绞痛的“333法则”是指什么？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "每天哭闹3小时，每周哭闹3天，持续3周", "is_correct": false},
+            {"option_text": "每天连续哭闹1~3小时，每周哭闹3天以上，持续3周以上", "is_correct": true},
+            {"option_text": "每天哭闹3次，每次哭闹3小时，持续3天", "is_correct": false},
+            {"option_text": "每天哭闹3小时，每周哭闹3次，持续3周", "is_correct": false}
+          ],
+          "answer_explanation": "文档中 “333法则” 指 “每天连续哭闹1~3 个小时,每周这种哭闹达到3天以上,并且连续3周以上”。"
+        },
+        {
+          "question_text": "以下哪项不是缓解肠绞痛的方法？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "使用益生菌", "is_correct": false},
+            {"option_text": "热敷肚子", "is_correct": false},
+            {"option_text": "做抚触和排气操", "is_correct": false},
+            {"option_text": "减少喂奶量", "is_correct": true}
+          ],
+          "answer_explanation": "减少喂奶量不是缓解肠绞痛的方法。"
+        },
+        {
+          "question_text": "以下哪些属于缓解肠绞痛的方法 ？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "使用益生菌", "is_correct": true},
+            {"option_text": "热敷肚子", "is_correct": true},
+            {"option_text": "做抚触和排气操", "is_correct": true},
+            {"option_text": "减少喂奶量", "is_correct": false}
+          ],
+          "answer_explanation": "使用益生菌、热敷肚子、做抚触和排气操都属于缓解肠绞痛的方法。"
+        }
+      ]
+    },
+    {
+      "point_name": "湿疹",
+      "questions": [
+        {
+          "question_text": "湿疹的主要特性是什么？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "遗传性", "is_correct": true},
+            {"option_text": "传染性", "is_correct": false},
+            {"option_text": "季节性", "is_correct": false},
+            {"option_text": "过敏性", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出湿疹的特性 “遗传性”。"
+        },
+        {
+          "question_text": "以下哪项也是湿疹的特性？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "传染性", "is_correct": false},
+            {"option_text": "反复性", "is_correct": true},
+            {"option_text": "季节性", "is_correct": false},
+            {"option_text": "环境性", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出湿疹的特性 “反复性”。"
+        },
+        {
+          "question_text": "以下哪项也是湿疹的特性？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "季节性", "is_correct": false},
+            {"option_text": "环境性", "is_correct": false},
+            {"option_text": "自限性", "is_correct": true},
+            {"option_text": "传染性", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出湿疹的特性 “自限性”。"
+        },
+        {
+          "question_text": "以下哪项也是湿疹的特性？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "环境性", "is_correct": false},
+            {"option_text": "传染性", "is_correct": false},
+            {"option_text": "季节性", "is_correct": false},
+            {"option_text": "过敏性", "is_correct": true}
+          ],
+          "answer_explanation": "文档列出湿疹的特性 “过敏性”。"
+        },
+        {
+          "question_text": "以下哪些属于湿疹的特性 ？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "遗传性", "is_correct": true},
+            {"option_text": "反复性", "is_correct": true},
+            {"option_text": "自限性", "is_correct": true},
+            {"option_text": "过敏性", "is_correct": true}
+          ],
+          "answer_explanation": "遗传性、反复性、自限性、过敏性都属于湿疹的特性。"
+        }
+      ]
+    },
+    {
+      "point_name": "热疹",
+      "questions": [
+        {
+          "question_text": "热疹主要指什么？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "痱子", "is_correct": true},
+            {"option_text": "湿疹", "is_correct": false},
+            {"option_text": "荨麻疹", "is_correct": false},
+            {"option_text": "过敏疹", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出热疹 “多指痱子”。"
+        },
+        {
+          "question_text": "热疹的主要原因是什么？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "环境温度过高", "is_correct": true},
+            {"option_text": "皮肤干燥", "is_correct": false},
+            {"option_text": "过敏", "is_correct": false},
+            {"option_text": "感染", "is_correct": false}
+          ],
+          "answer_explanation": "热疹的主要原因是环境温度过高导致。"
+        },
+        {
+          "question_text": "以下哪项是热疹的护理方法？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "保持室内低温", "is_correct": true},
+            {"option_text": "涂抹润肤霜", "is_correct": false},
+            {"option_text": "使用激素药膏", "is_correct": false},
+            {"option_text": "禁食辛辣食物", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出热疹的护理方法 “保持室内低温”。"
+        },
+        {
+          "question_text": "关于热疹的护理，以下说法正确的是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "应该保持室内高温", "is_correct": false},
+            {"option_text": "应该保持皮肤干爽", "is_correct": true},
+            {"option_text": "应该涂抹厚厚的润肤霜", "is_correct": false},
+            {"option_text": "应该使用激素药膏", "is_correct": false}
+          ],
+          "answer_explanation": "热疹护理的关键是保持皮肤干爽和环境低温。"
+        },
+        {
+          "question_text": "以下哪些属于热疹的护理方法 ？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "保持室内低温", "is_correct": true},
+            {"option_text": "保持皮肤干爽", "is_correct": true},
+            {"option_text": "厚涂润肤霜", "is_correct": false},
+            {"option_text": "使用激素药膏", "is_correct": false}
+          ],
+          "answer_explanation": "保持室内低温和皮肤干爽是热疹的主要护理方法。"
+        }
+      ]
+    },
+    {
+      "point_name": "尿布疹",
+      "questions": [
+        {
+          "question_text": "尿布疹的主要原因是什么？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "大小便局部处理不干净", "is_correct": true},
+            {"option_text": "使用尿不湿", "is_correct": false},
+            {"option_text": "过敏", "is_correct": false},
+            {"option_text": "感染", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出尿布疹的形成原因 “大小便局部处理不干净”。"
+        },
+        {
+          "question_text": "以下哪项也是尿布疹的形成原因？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "过敏", "is_correct": false},
+            {"option_text": "长时间使用尿不湿不透气", "is_correct": true},
+            {"option_text": "感染", "is_correct": false},
+            {"option_text": "环境潮湿", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出尿布疹的形成原因 “长时间使用尿不湿不透气”。"
+        },
+        {
+          "question_text": "以下哪项也是尿布疹的形成原因？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "感染", "is_correct": false},
+            {"option_text": "环境潮湿", "is_correct": false},
+            {"option_text": "臀部潮湿(洗完臀部后没有晾干直接涂抹护臀霜)", "is_correct": true},
+            {"option_text": "过敏", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出尿布疹的形成原因 “臀部潮湿(洗完臀部后没有晾干直接涂抹护臀霜)”。"
+        },
+        {
+          "question_text": "以下哪项不是尿布疹的形成原因？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "大小便刺激", "is_correct": false},
+            {"option_text": "尿不湿不透气", "is_correct": false},
+            {"option_text": "臀部潮湿", "is_correct": false},
+            {"option_text": "母乳喂养", "is_correct": true}
+          ],
+          "answer_explanation": "母乳喂养不是尿布疹的形成原因。"
+        },
+        {
+          "question_text": "以下哪些属于尿布疹的形成原因 ？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "大小便局部处理不干净", "is_correct": true},
+            {"option_text": "长时间使用尿不湿不透气", "is_correct": true},
+            {"option_text": "臀部潮湿", "is_correct": true},
+            {"option_text": "母乳喂养", "is_correct": false}
+          ],
+          "answer_explanation": "大小便处理不干净、尿不湿不透气、臀部潮湿都属于尿布疹的形成原因。"
+        }
+      ]
+    },
+    {
+      "point_name": "乳糖不耐受",
+      "questions": [
+        {
+          "question_text": "乳糖不耐受的定义是什么？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "孩子体内乳糖不足，不能完全消化和吸收母乳或奶粉中的乳糖", "is_correct": true},
+            {"option_text": "孩子对乳糖过敏", "is_correct": false},
+            {"option_text": "孩子体内缺乏乳糖酶", "is_correct": false},
+            {"option_text": "孩子肠道菌群失调", "is_correct": false}
+          ],
+          "answer_explanation": "文档给出乳糖不耐受的定义 “孩子体内乳糖不足,不能完全消化和吸收母乳或奶粉中的乳糖”。"
+        },
+        {
+          "question_text": "乳糖不耐受的主要表现是什么？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "屁崩屎", "is_correct": true},
+            {"option_text": "便秘", "is_correct": false},
+            {"option_text": "呕吐", "is_correct": false},
+            {"option_text": "发热", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出乳糖不耐受的 “表现:一般表现为屁崩屎”。"
+        },
+        {
+          "question_text": "以下哪项是缓解乳糖不耐受的方法？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "每次喂奶前，先给孩子喂乳糖酶再喂奶", "is_correct": true},
+            {"option_text": "更换无乳糖奶粉", "is_correct": false},
+            {"option_text": "减少喂奶量", "is_correct": false},
+            {"option_text": "禁食", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出乳糖不耐受的护理方法 “每次喂奶前,先给孩子喂乳糖酶再喂奶”。"
+        },
+        {
+          "question_text": "关于乳糖不耐受的护理，以下说法正确的是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "应该立即更换无乳糖奶粉", "is_correct": false},
+            {"option_text": "可以每次喂奶前补充乳糖酶", "is_correct": true},
+            {"option_text": "应该禁食乳制品", "is_correct": false},
+            {"option_text": "乳糖不耐受无法缓解", "is_correct": false}
+          ],
+          "answer_explanation": "补充乳糖酶是缓解乳糖不耐受的常见方法。"
+        },
+        {
+          "question_text": "以下哪些属于乳糖不耐受的护理方法 ？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "每次喂奶前，先给孩子喂乳糖酶再喂奶", "is_correct": true},
+            {"option_text": "更换不含乳糖的配方奶粉（严重时）", "is_correct": true},
+            {"option_text": "减少喂奶量", "is_correct": false},
+            {"option_text": "禁食乳制品", "is_correct": false}
+          ],
+          "answer_explanation": "补充乳糖酶和更换无乳糖奶粉都属于乳糖不耐受的护理方法。"
+        }
+      ]
+    },
+    {
+      "point_name": "牛奶蛋白过敏",
+      "questions": [
+        {
+          "question_text": "牛奶蛋白过敏的定义是什么？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "由于孩子免疫系统未成熟，对奶粉或母乳中的蛋白质不能消化吸收而引起的过敏反应", "is_correct": true},
+            {"option_text": "孩子对牛奶中的乳糖过敏", "is_correct": false},
+            {"option_text": "孩子体内缺乏分解牛奶蛋白的酶", "is_correct": false},
+            {"option_text": "孩子肠道菌群失调导致对牛奶蛋白不耐受", "is_correct": false}
+          ],
+          "answer_explanation": "文档给出牛奶蛋白过敏的定义 “由于孩子免疫系统未成熟,对奶粉或母乳中的蛋白质不能消化吸收而引起的过敏反应”。"
+        },
+        {
+          "question_text": "牛奶蛋白过敏的主要消化道症状是什么？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "腹泻或便秘（多数情况伴有血丝）", "is_correct": true},
+            {"option_text": "呕吐", "is_correct": false},
+            {"option_text": "腹胀", "is_correct": false},
+            {"option_text": "厌奶", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出牛奶蛋白过敏的消化道症状 “腹泻或便秘(多数情况伴有血丝)”。"
+        },
+        {
+          "question_text": "牛奶蛋白过敏的主要皮肤症状是什么？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "身上出现皮疹", "is_correct": true},
+            {"option_text": "湿疹", "is_correct": false},
+            {"option_text": "荨麻疹", "is_correct": false},
+            {"option_text": "红肿", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出牛奶蛋白过敏的皮肤症状 “身上出现皮疹”。"
+        },
+        {
+          "question_text": "以下哪项是牛奶蛋白过敏的护理方法？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "遵医嘱更换奶粉（适度水解奶粉、深度水解奶粉、氨基酸奶粉）", "is_correct": true},
+            {"option_text": "补充乳糖酶", "is_correct": false},
+            {"option_text": "禁食牛奶制品", "is_correct": false},
+            {"option_text": "使用抗生素", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出牛奶蛋白过敏的护理方法 “遵医嘱更换奶粉(适度水解奶粉、深度水解奶粉、氨基酸奶粉)”。"
+        },
+        {
+          "question_text": "以下哪些属于牛奶蛋白过敏的护理方法 ？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "遵医嘱更换奶粉（水解或氨基酸奶粉）", "is_correct": true},
+            {"option_text": "便秘严重的孩子可单独添加乳果糖", "is_correct": true},
+            {"option_text": "补充益生菌", "is_correct": false},
+            {"option_text": "使用激素药膏", "is_correct": false}
+          ],
+          "answer_explanation": "更换奶粉和添加乳果糖都属于牛奶蛋白过敏的护理方法。"
+        }
+      ]
+    },
+    {
+      "point_name": "肺炎",
+      "questions": [
+        {
+          "question_text": "3个月以内婴儿肺炎的典型表现是什么？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "咳嗽、呼吸急促、流涕、发热(小月龄孩子不一定会发热)", "is_correct": true},
+            {"option_text": "高热惊厥", "is_correct": false},
+            {"option_text": "呕吐腹泻", "is_correct": false},
+            {"option_text": "皮疹", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出肺炎的 “表现: ① 咳嗽、呼吸急促、流涕、发热(小月龄孩子不一定会发热)”。"
+        },
+        {
+          "question_text": "肺炎病情加重的典型表现是什么？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "发热36天后咳嗽加重,发绀(口唇青紫)", "is_correct": true},
+            {"option_text": "高热不退", "is_correct": false},
+            {"option_text": "持续呕吐", "is_correct": false},
+            {"option_text": "腹泻不止", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出肺炎病情加重的表现 “发热36天后咳嗽加重,发绀(口唇青紫)”。"
+        },
+        {
+          "question_text": "以下哪项不是肺炎的常见表现？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "咳嗽", "is_correct": false},
+            {"option_text": "呼吸急促", "is_correct": false},
+            {"option_text": "流涕", "is_correct": false},
+            {"option_text": "皮疹", "is_correct": true}
+          ],
+          "answer_explanation": "皮疹不是肺炎的常见表现。"
+        },
+        {
+          "question_text": "关于3个月以内婴儿肺炎，以下说法正确的是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "一定会发热", "is_correct": false},
+            {"option_text": "发热不一定是典型症状", "is_correct": true},
+            {"option_text": "咳嗽一定会很剧烈", "is_correct": false},
+            {"option_text": "肺炎很容易自愈", "is_correct": false}
+          ],
+          "answer_explanation": "文档强调 “3个月以内的孩子发热基本可以判断是肺炎,但肺炎不一定会发热”。"
+        },
+        {
+          "question_text": "以下哪些属于肺炎的典型表现 ？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "咳嗽", "is_correct": true},
+            {"option_text": "呼吸急促", "is_correct": true},
+            {"option_text": "流涕", "is_correct": true},
+            {"option_text": "皮疹", "is_correct": false}
+          ],
+          "answer_explanation": "咳嗽、呼吸急促、流涕都属于肺炎的典型表现。"
+        }
+      ]
+    },
+    {
+      "point_name": "鼻塞",
+      "questions": [
+        {
+          "question_text": "鼻塞的主要表现是什么？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "鼻子不通气，多伴有流鼻涕", "is_correct": true},
+            {"option_text": "发热", "is_correct": false},
+            {"option_text": "咳嗽", "is_correct": false},
+            {"option_text": "呼吸急促", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出鼻塞的 “表现: ① 鼻子不通气,多伴有流鼻涕”。"
+        },
+        {
+          "question_text": "以下哪项也是鼻塞的表现？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "发热", "is_correct": false},
+            {"option_text": "孩子的鼻翼两侧呈微红色", "is_correct": true},
+            {"option_text": "咳嗽", "is_correct": false},
+            {"option_text": "呼吸急促", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出鼻塞的 “表现: ②孩子的鼻翼两侧呈微红色”。"
+        },
+        {
+          "question_text": "以下哪项也是鼻塞的表现？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "咳嗽", "is_correct": false},
+            {"option_text": "呼吸急促", "is_correct": false},
+            {"option_text": "有时会发热", "is_correct": true},
+            {"option_text": "鼻翼扇动", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出鼻塞的 “表现: ③有时会发热”。"
+        },
+        {
+          "question_text": "以下哪项不是鼻塞的表现？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "鼻子不通气", "is_correct": false},
+            {"option_text": "流鼻涕", "is_correct": false},
+            {"option_text": "鼻翼微红", "is_correct": false},
+            {"option_text": "呼吸困难", "is_correct": true}
+          ],
+          "answer_explanation": "呼吸困难不是单纯鼻塞的表现，可能是肺炎等更严重疾病的信号。"
+        },
+        {
+          "question_text": "以下哪些属于鼻塞的典型表现 ？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "鼻子不通气", "is_correct": true},
+            {"option_text": "流鼻涕", "is_correct": true},
+            {"option_text": "鼻翼两侧微红", "is_correct": true},
+            {"option_text": "呼吸困难", "is_correct": false}
+          ],
+          "answer_explanation": "鼻子不通气、流鼻涕、鼻翼两侧微红都属于鼻塞的典型表现。"
+        }
+      ]
+    },
+    {
+      "point_name": "鼻泪管堵塞",
+      "questions": [
+        {
+          "question_text": "鼻泪管堵塞的主要表现是什么？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "眼中泪汪汪且有分泌物", "is_correct": true},
+            {"option_text": "眼睛红肿", "is_correct": false},
+            {"option_text": "眼睛疼痛", "is_correct": false},
+            {"option_text": "视力模糊", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出鼻泪管堵塞的 “表现: 眼中泪汪汪且有分泌物”。"
+        },
+        {
+          "question_text": "以下哪项是鼻泪管堵塞的护理方法？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "用指腹轻轻按摩孩子睛明穴", "is_correct": true},
+            {"option_text": "热敷眼睛", "is_correct": false},
+            {"option_text": "使用抗生素眼药水", "is_correct": false},
+            {"option_text": "手术治疗", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出鼻泪管堵塞的护理方法 “用指腹轻轻按摩孩子睛明穴”。"
+        },
+        {
+          "question_text": "关于鼻泪管堵塞的护理，以下说法正确的是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "必须使用抗生素眼药水", "is_correct": false},
+            {"option_text": "按摩睛明穴是主要的护理方法", "is_correct": true},
+            {"option_text": "热敷眼睛可以缓解症状", "is_correct": false},
+            {"option_text": "鼻泪管堵塞无法自愈", "is_correct": false}
+          ],
+          "answer_explanation": "按摩睛明穴是鼻泪管堵塞的主要护理方法，多数情况下可以自愈。"
+        },
+        {
+          "question_text": "如果按摩睛明穴无法缓解鼻泪管堵塞，应该怎么办？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "遵医嘱滴眼药水或去医院治疗", "is_correct": true},
+            {"option_text": "继续按摩，增加按摩次数", "is_correct": false},
+            {"option_text": "热敷眼睛", "is_correct": false},
+            {"option_text": "自行购买抗生素眼药水", "is_correct": false}
+          ],
+          "answer_explanation": "按摩无效需要遵医嘱或就医，不可自行用药。"
+        },
+        {
+          "question_text": "以下哪些属于鼻泪管堵塞的护理方法 ？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "按摩睛明穴", "is_correct": true},
+            {"option_text": "遵医嘱滴眼药水（无效时）", "is_correct": true},
+            {"option_text": "热敷眼睛", "is_correct": false},
+            {"option_text": "自行购买抗生素眼药水", "is_correct": false}
+          ],
+          "answer_explanation": "按摩睛明穴和遵医嘱用药都属于鼻泪管堵塞的护理方法。"
+        }
+      ]
+    },
+    {
+      "point_name": "疝气",
+      "questions": [
+        {
+          "question_text": "文档中提到的疝气类型有哪些？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "脐疝", "is_correct": true},
+            {"option_text": "腹股沟斜疝", "is_correct": true},
+            {"option_text": "食道裂孔疝", "is_correct": false},
+            {"option_text": "切口疝", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出疝气的类型 “①脐疝 ②腹股沟斜疝”。"
+        },
+        {
+          "question_text": "脐疝的主要表现是什么？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "在脐部周围鼓起一个包", "is_correct": true},
+            {"option_text": "在腹股沟处摸到肿块", "is_correct": false},
+            {"option_text": "哭闹不安", "is_correct": false},
+            {"option_text": "呕吐", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出脐疝的 “表现: ①脐疝:在脐部周围鼓起一个包”。"
+        },
+        {
+          "question_text": "腹股沟斜疝的主要表现是什么？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "在孩子腹股沟处可看到和摸到肿块", "is_correct": true},
+            {"option_text": "在脐部周围鼓起一个包", "is_correct": false},
+            {"option_text": "哭闹不安", "is_correct": false},
+            {"option_text": "便秘", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出腹股沟斜疝的 “表现: ② 腹股沟斜疝:在孩子腹股沟处可看到和摸到肿块”。"
+        },
+        {
+          "question_text": "以下哪项不是疝气的症状？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "脐部鼓包", "is_correct": false},
+            {"option_text": "腹股沟肿块", "is_correct": false},
+            {"option_text": "爱哭闹", "is_correct": false},
+            {"option_text": "发热", "is_correct": true}
+          ],
+          "answer_explanation": "发热不是疝气的症状。"
+        },
+        {
+          "question_text": "以下哪些属于疝气的表现 ？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "脐部鼓包", "is_correct": true},
+            {"option_text": "腹股沟肿块", "is_correct": true},
+            {"option_text": "爱哭闹、不安、便秘等", "is_correct": true},
+            {"option_text": "发热", "is_correct": false}
+          ],
+          "answer_explanation": "脐部鼓包、腹股沟肿块、哭闹不安等都属于疝气的表现。"
+        }
+      ]
+    },
+    {
+      "point_name": "一天的安排原则",
+      "questions": [
+        {
+          "question_text": "安排一天作息的主要原则是什么？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "根据孩子的生物钟来安排一天的喂养，约4小时一循环", "is_correct": true},
+            {"option_text": "严格按照时间表执行", "is_correct": false},
+            {"option_text": "完全按照家长的作息时间", "is_correct": false},
+            {"option_text": "随意安排，没有固定原则", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出 “安排的原则:根据孩子的生物钟来安排一天的喂养,按“吃—玩—睡”的顺序”。"
+        },
+        {
+          "question_text": "以下哪项不是安排一天作息的考虑因素？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "孩子的生物钟", "is_correct": false},
+            {"option_text": "吃—玩—睡顺序", "is_correct": false},
+            {"option_text": "喂养时间", "is_correct": false},
+            {"option_text": "家长的喜好", "is_correct": true}
+          ],
+          "answer_explanation": "家长的喜好不是安排婴儿作息的考虑因素。"
+        },
+        {
+          "question_text": "关于一天作息安排，以下说法正确的是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "应该完全固定不变", "is_correct": false},
+            {"option_text": "可以灵活调整，但要遵循基本原则", "is_correct": true},
+            {"option_text": "越严格越好", "is_correct": false},
+            {"option_text": "应该完全按照时间表执行", "is_correct": false}
+          ],
+          "answer_explanation": "作息安排可以灵活调整，但要遵循孩子生物钟和“吃—玩—睡”原则。"
+        },
+        {
+          "question_text": "如果作息安排不合理，可能对孩子产生什么影响？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "影响睡眠和喂养", "is_correct": true},
+            {"option_text": "影响智力发育", "is_correct": false},
+            {"option_text": "影响运动能力", "is_correct": false},
+            {"option_text": "影响社交能力", "is_correct": false}
+          ],
+          "answer_explanation": "不合理作息安排可能影响睡眠和喂养。"
+        },
+        {
+          "question_text": "以下哪些属于安排一天作息的原则 ？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "根据孩子的生物钟", "is_correct": true},
+            {"option_text": "完全按照时间表", "is_correct": false},
+            {"option_text": "按“吃—玩—睡”的顺序", "is_correct": true},
+            {"option_text": "完全按照家长喜好", "is_correct": false}
+          ],
+          "answer_explanation": "根据孩子生物钟和“吃—玩—睡”顺序是安排作息的原则。"
+        }
+      ]
+    },
+    {
+      "point_name": "一天的安排示例",
+      "questions": [
+        {
+          "question_text": "文档中提供的“一天安排示例”主要作用是什么？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "仅具参考价值，不可刻板套用", "is_correct": true},
+            {"option_text": "必须严格按照执行", "is_correct": false},
+            {"option_text": "是唯一的正确作息安排", "is_correct": false},
+            {"option_text": "适用于所有婴儿", "is_correct": false}
+          ],
+          "answer_explanation": "文档强调 “模板仅具参考价值,不可刻板套用”。"
+        },
+        {
+          "question_text": "以下哪项是对“一天安排示例”的正确理解？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "必须完全按照时间表执行", "is_correct": false},
+            {"option_text": "可以根据孩子特性灵活调整", "is_correct": true},
+            {"option_text": "是唯一的正确作息安排", "is_correct": false},
+            {"option_text": "适用于所有月龄的婴儿", "is_correct": false}
+          ],
+          "answer_explanation": "“一天安排示例” 可以根据孩子特性灵活调整。"
+        },
+        {
+          "question_text": "关于“一天安排示例”，以下说法错误的是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "仅供参考", "is_correct": false},
+            {"option_text": "可以灵活调整", "is_correct": false},
+            {"option_text": "必须严格执行", "is_correct": true},
+            {"option_text": "可以帮助家长了解作息安排的大致框架", "is_correct": false}
+          ],
+          "answer_explanation": "“一天安排示例” 并非必须严格执行，C项描述错误。"
+        },
+        {
+          "question_text": "如果完全照搬“一天安排示例”，可能产生什么问题？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "不符合孩子的个体特性和需求", "is_correct": true},
+            {"option_text": "孩子作息更加规律", "is_correct": false},
+            {"option_text": "家长更加省心", "is_correct": false},
+            {"option_text": "孩子发育更好", "is_correct": false}
+          ],
+          "answer_explanation": "完全照搬可能不符合孩子个体特性和需求。"
+        },
+        {
+          "question_text": "以下哪些是对“一天安排示例”的正确理解 ？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "仅具参考价值", "is_correct": true},
+            {"option_text": "必须严格执行", "is_correct": false},
+            {"option_text": "可以灵活调整", "is_correct": true},
+            {"option_text": "适用于所有婴儿", "is_correct": false}
+          ],
+          "answer_explanation": "“一天安排示例” 仅具参考价值，可以灵活调整。"
+        }
+      ]
+    }
+  ]
+}

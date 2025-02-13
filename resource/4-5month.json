@@ -1,0 +1,1679 @@
+{
+  "course_name": "4-5个月龄婴儿护理要点",
+  "knowledge_points": [
+    {
+      "point_name": "生长特点 (4-5月龄)",
+      "questions": [
+        {
+          "question_text": "与前几个月相比，4-5个月龄婴儿的生长速度特点是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "有所减缓但仍快速", "is_correct": true},
+            {"option_text": "明显加快", "is_correct": false},
+            {"option_text": "完全停止", "is_correct": false},
+            {"option_text": "没有变化", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出4-5个月龄婴儿生长发育比前几个月有所减缓,但是仍然处在快速生长发育期。"
+        },
+        {
+          "question_text": "4-5个月龄婴儿每月身高增长的平均值约为？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "3厘米", "is_correct": false},
+            {"option_text": "2厘米", "is_correct": true},
+            {"option_text": "4厘米", "is_correct": false},
+            {"option_text": "1厘米", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出4-5个月龄婴儿身高每月大概会增长2厘米左右。"
+        },
+        {
+          "question_text": "4-5个月龄婴儿每月体重的合理增长范围是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "0.8-1.0kg", "is_correct": false},
+            {"option_text": "0.2-0.4kg", "is_correct": false},
+            {"option_text": "0.45-0.75kg", "is_correct": true},
+            {"option_text": "1.0-1.2kg", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出4-5个月龄婴儿每月体重是在0.45~0.75kg。"
+        },
+        {
+          "question_text": "4-5个月龄婴儿每月头围增长的平均值约为？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "2厘米", "is_correct": false},
+            {"option_text": "3厘米", "is_correct": false},
+            {"option_text": "0.5厘米", "is_correct": false},
+            {"option_text": "1厘米", "is_correct": true}
+          ],
+          "answer_explanation": "文档指出4-5个月龄婴儿每月头围大概增长1厘米左右。"
+        },
+        {
+          "question_text": "以下哪些描述符合 4-5个月龄婴儿的生长特点？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "生长速度较之前有所减缓", "is_correct": true},
+            {"option_text": "身高每月增长约2厘米", "is_correct": true},
+            {"option_text": "体重每月增长约1-1.5kg", "is_correct": false},
+            {"option_text": "头围每月增长约2厘米", "is_correct": false},
+            {"option_text": "生长基本停止", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出4-5个月龄婴儿生长速度减缓，身高每月增长约2厘米，体重和头围增长数值与C、D选项不符，E选项描述与文档“仍然处在快速生长期”矛盾。"
+        }
+      ]
+    },
+    {
+      "point_name": "喂养 - 参照标准 (4-5月龄)",
+      "questions": [
+        {
+          "question_text": "4-5个月龄婴儿的每日喂养次数参照标准是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "7~6次/天", "is_correct": true},
+            {"option_text": "8~9次/天", "is_correct": false},
+            {"option_text": "5~4次/天", "is_correct": false},
+            {"option_text": "10次以上/天", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出4-5个月龄婴儿喂养次数为7~6次/天。"
+        },
+        {
+          "question_text": "关于4-5个月龄婴儿的昼夜喂养安排，以下说法正确的是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "白天夜奶次数相同", "is_correct": false},
+            {"option_text": "白天喂养次数多于夜奶", "is_correct": true},
+            {"option_text": "夜奶次数多于白天", "is_correct": false},
+            {"option_text": "无需区分昼夜喂养", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出4-5个月龄婴儿昼夜安排为白天 4~5 次/天,夜奶 3~2次/夜，白天多于夜奶。"
+        },
+        {
+          "question_text": "在未添加辅食前，计算4-5个月龄婴儿每日总奶量的公式是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "月龄 * (120~150ml)", "is_correct": false},
+            {"option_text": "身高 * (120~150ml)", "is_correct": false},
+            {"option_text": "公斤体重 * (120~150ml)", "is_correct": true},
+            {"option_text": "头围 * (120~150ml)", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出未加辅食前奶量计算公式为公斤体重* (120~150ml)。"
+        },
+        {
+          "question_text": "4-5个月龄婴儿的胃容量范围大约是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "50~100ml", "is_correct": false},
+            {"option_text": "100~150ml", "is_correct": false},
+            {"option_text": "200~250ml", "is_correct": false},
+            {"option_text": "150~200ml", "is_correct": true}
+          ],
+          "answer_explanation": "文档指出4-5个月龄婴儿胃容量为150~200ml。"
+        },
+        {
+          "question_text": "以下哪些是4月龄女宝宝的身高体重参照范围 (AC)؟ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "体重 5.3~6.9kg", "is_correct": true},
+            {"option_text": "体重 6.3~8.2kg", "is_correct": false},
+            {"option_text": "身高 59.4~64.5cm", "is_correct": true},
+            {"option_text": "身高 63.2~68.6cm", "is_correct": false},
+            {"option_text": "身高 61.0~66.4cm", "is_correct": false}
+          ],
+          "answer_explanation": "文档表格中4月龄女宝宝体重 5.3~6.9kg，身高 59.4~64.5cm。"
+        }
+      ]
+    },
+    {
+      "point_name": "喂养 - 喂养时间 (4-5月龄)",
+      "questions": [
+        {
+          "question_text": "以下哪种喂养方式的单次喂养时间最长？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "人工喂养", "is_correct": false},
+            {"option_text": "母乳亲喂", "is_correct": false},
+            {"option_text": "混合喂养", "is_correct": true},
+            {"option_text": "按需喂养", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出混合喂养时间为20~30分钟，人工喂养15~20分钟，母乳亲喂10~30分钟，混合喂养时间范围上限值最高。"
+        },
+        {
+          "question_text": "人工喂养单次喂养时间的参照范围是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "15~20分钟", "is_correct": true},
+            {"option_text": "10~15分钟", "is_correct": false},
+            {"option_text": "20~30分钟", "is_correct": false},
+            {"option_text": "30分钟以上", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出人工喂养 15~20分钟。"
+        },
+        {
+          "question_text": "母乳亲喂单次喂养时间的参照范围是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "15~20分钟", "is_correct": false},
+            {"option_text": "10~30分钟", "is_correct": true},
+            {"option_text": "20~30分钟", "is_correct": false},
+            {"option_text": "30分钟以上", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出母乳亲喂10~30分钟。"
+        },
+        {
+          "question_text": "混合喂养单次喂养时间的参照范围是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "15~20分钟", "is_correct": false},
+            {"option_text": "10~30分钟", "is_correct": false},
+            {"option_text": "20~30分钟", "is_correct": true},
+            {"option_text": "30分钟以上", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出混合喂养:补授和代授都是在20~30分钟。"
+        },
+        {
+          "question_text": "关于4-5个月龄婴儿喂养时间的原则，以下说法正确的是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "喂养时间应该固定不变", "is_correct": false},
+            {"option_text": "喂养时间越短越好", "is_correct": false},
+            {"option_text": "喂养时间越长越好", "is_correct": false},
+            {"option_text": "以孩子的舒适度为前提，存在个体差异", "is_correct": true}
+          ],
+          "answer_explanation": "文档指出喂养原则: 孩子有个体差异,以孩子的舒适度为前提。"
+        }
+      ]
+    },
+    {
+      "point_name": "喂养 - 常见问题及处理 - 厌奶 (4-5月龄)",
+      "questions": [
+        {
+          "question_text": "以下哪项是厌奶的定义？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "孩子突然间奶量减少，或时多时少变化无常的现象", "is_correct": true},
+            {"option_text": "孩子拒绝喝奶", "is_correct": false},
+            {"option_text": "孩子喝奶后呕吐", "is_correct": false},
+            {"option_text": "孩子喝奶速度变慢", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出厌奶的定义: 孩子突然间奶量减少,或时多时少变化无常的现象。"
+        },
+        {
+          "question_text": "以下哪项属于生理性厌奶的环境因素？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "孩子分心，对周围环境好奇", "is_correct": true},
+            {"option_text": "流速问题", "is_correct": false},
+            {"option_text": "生长发育变缓", "is_correct": false},
+            {"option_text": "出牙", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出生理性厌奶的环境因素为：①环境(孩子分心,对周围环境好奇充满兴趣)。"
+        },
+        {
+          "question_text": "以下哪项属于生理性厌奶的不愉快刺激？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "周围环境改变", "is_correct": false},
+            {"option_text": "强迫喂养", "is_correct": true},
+            {"option_text": "贫血", "is_correct": false},
+            {"option_text": "吃迷糊奶", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出生理性厌奶的不愉快刺激为：②不愉快的刺激(流速问题、强迫喂养、喂养方式的改变、不及时拍嗝等)。"
+        },
+        {
+          "question_text": "以下哪项属于生理性厌奶的疾病因素？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "过度喂养", "is_correct": false},
+            {"option_text": "吃迷糊奶", "is_correct": false},
+            {"option_text": "打疫苗或生病", "is_correct": true},
+            {"option_text": "环境改变", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出生理性厌奶的疾病因素为：⑧打疫苗或生病。"
+        },
+        {
+          "question_text": "以下哪些属于生理性厌奶的原因？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "环境因素 (分心)", "is_correct": true},
+            {"option_text": "不愉快的刺激 (强迫喂养)", "is_correct": true},
+            {"option_text": "生长发育变缓", "is_correct": true},
+            {"option_text": "体重增长过快", "is_correct": false},
+            {"option_text": "睡眠时间过长", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出的生理性厌奶原因包含环境因素、不愉快刺激、生长发育变缓等。"
+        }
+      ]
+    },
+    {
+      "point_name": "喂养 - 常见问题及处理 - 不接受奶瓶 (4-5月龄)",
+      "questions": [
+        {
+          "question_text": "以下哪项是使用奶瓶的常见原因？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "母亲回到职场，无法亲喂", "is_correct": true},
+            {"option_text": "孩子厌奶", "is_correct": false},
+            {"option_text": "孩子出牙", "is_correct": false},
+            {"option_text": "孩子肠胀气", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出使用奶瓶的原因之一是：○ ①母亲回到职场,无法亲喂。"
+        },
+        {
+          "question_text": "以下哪项也是使用奶瓶的常见原因？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "孩子厌奶", "is_correct": false},
+            {"option_text": "母乳不足", "is_correct": true},
+            {"option_text": "孩子出牙", "is_correct": false},
+            {"option_text": "孩子肠胀气", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出使用奶瓶的原因之一是：○②母乳不足。"
+        },
+        {
+          "question_text": "以下哪项是不接受奶瓶的常见原因？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "一直母乳亲喂", "is_correct": true},
+            {"option_text": "母亲回到职场", "is_correct": false},
+            {"option_text": "母乳不足", "is_correct": false},
+            {"option_text": "孩子添加辅食", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出不接受奶瓶的原因之一是：○①一直母乳亲喂。"
+        },
+        {
+          "question_text": "以下哪项也是不接受奶瓶的常见原因？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "母亲回到职场", "is_correct": false},
+            {"option_text": "有奶睡的习惯", "is_correct": true},
+            {"option_text": "母乳不足", "is_correct": false},
+            {"option_text": "孩子添加辅食", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出不接受奶瓶的原因之一是：○。②有奶睡的习惯。"
+        },
+        {
+          "question_text": "以下哪些是解决婴儿不接受奶瓶的方法？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "尝试傍晚睡前母乳后奶瓶", "is_correct": true},
+            {"option_text": "替换流速慢一些的奶嘴", "is_correct": true},
+            {"option_text": "让除母亲以外的人喂奶瓶", "is_correct": true},
+            {"option_text": "减少喂奶次数", "is_correct": false},
+            {"option_text": "更换奶粉品牌", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出的解决方法包含尝试傍晚睡前母乳后奶瓶、替换流速慢一些的奶嘴、让除母亲以外的人喂奶瓶等。"
+        }
+      ]
+    },
+    {
+      "point_name": "喂养 - 常见问题及处理 - 不接受奶粉 (4-5月龄)",
+      "questions": [
+        {
+          "question_text": "以下哪项是不接受奶粉的常见原因？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "孩子一直吃母乳，习惯了母乳的味道", "is_correct": true},
+            {"option_text": "孩子厌奶", "is_correct": false},
+            {"option_text": "孩子出牙", "is_correct": false},
+            {"option_text": "孩子肠胀气", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出不接受奶粉的原因之一是：○①孩子一直吃母乳,习惯了母乳的味道。"
+        },
+        {
+          "question_text": "以下哪项也是不接受奶粉的常见原因？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "孩子厌奶", "is_correct": false},
+            {"option_text": "更换环境或者更换喂养者", "is_correct": true},
+            {"option_text": "孩子出牙", "is_correct": false},
+            {"option_text": "孩子肠胀气", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出不接受奶粉的原因之一是：○②更换环境或者更换喂养者。"
+        },
+        {
+          "question_text": "以下哪项是解决婴儿不接受奶粉的首选方法？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "用代授法喂宝宝", "is_correct": true},
+            {"option_text": "更换奶粉品牌", "is_correct": false},
+            {"option_text": "减少喂奶次数", "is_correct": false},
+            {"option_text": "强迫喂奶", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出解决婴儿不接受奶粉的方法之一为：○①用代授法喂宝宝。"
+        },
+        {
+          "question_text": "母乳和奶粉一点点转换法中，第一阶段的奶粉和母乳比例是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "1/4 冲泡好的奶粉和 3/4 母乳", "is_correct": true},
+            {"option_text": "1/2 冲泡好的奶粉和 1/2 母乳", "is_correct": false},
+            {"option_text": "3/4 冲泡好的奶粉和 1/4 母乳", "is_correct": false},
+            {"option_text": "全奶粉", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出母乳和奶粉一点点转换法中，第一阶段的奶粉和母乳比例是 1/4 冲泡好的奶粉和 3/4 母乳。"
+        },
+        {
+          "question_text": "以下哪些是解决婴儿不接受奶粉的方法？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "用代授法喂宝宝", "is_correct": true},
+            {"option_text": "母乳和奶粉一点点转换", "is_correct": true},
+            {"option_text": "情绪好时、不太饿或不太困的时候进行喂养", "is_correct": true},
+            {"option_text": "更换奶粉品牌", "is_correct": false},
+            {"option_text": "强迫喂奶", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出的解决方法包含用代授法喂宝宝、母乳和奶粉一点点转换、情绪好时、不太饿或不太困的时候进行喂养等。"
+        }
+      ]
+    },
+    {
+      "point_name": "喂养 - 注意事项 (4-5月龄)",
+      "questions": [
+        {
+          "question_text": "4-5个月龄婴儿喂养的注意事项强调要？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "按时喂养", "is_correct": true},
+            {"option_text": "按需喂养", "is_correct": false},
+            {"option_text": "随意喂养", "is_correct": false},
+            {"option_text": "规律喂养", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出4-5个月龄婴儿喂养的注意事项强调要按时喂养。"
+        },
+        {
+          "question_text": "关于4-5个月龄婴儿每天摄入量的描述，以下说法正确的是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "每天摄入量必须绝对固定", "is_correct": false},
+            {"option_text": "每天摄入量相对固定，允许有一定波动", "is_correct": true},
+            {"option_text": "每天摄入量可以随意变化", "is_correct": false},
+            {"option_text": "不需要关注每天摄入量", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出每天摄入量相对(不是一定)固定，允许有一定波动。"
+        },
+        {
+          "question_text": "关于4-5个月龄婴儿喂养的昼夜分配，以下说法正确的是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "尽量白天多吃，晚上少吃", "is_correct": true},
+            {"option_text": "白天晚上吃奶量相同", "is_correct": false},
+            {"option_text": "晚上多吃，白天少吃", "is_correct": false},
+            {"option_text": "无需区分昼夜吃奶量", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出喂养昼夜分配要尽量白天多吃晚上少吃。"
+        },
+        {
+          "question_text": "4-5个月龄婴儿喂养环境的注意事项强调要？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "环境安静", "is_correct": false},
+            {"option_text": "环境明亮", "is_correct": false},
+            {"option_text": "固定区域喂养，培养仪式感，减少外界刺激", "is_correct": true},
+            {"option_text": "随意更换喂养区域", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出4-5个月龄婴儿喂养环境的注意事项强调要固定区域喂养，培养仪式感，减少外界刺激。"
+        },
+        {
+          "question_text": "以下哪些属于4-5个月龄婴儿喂养的注意事项？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "按时喂养", "is_correct": true},
+            {"option_text": "每天摄入量相对固定，白天多吃晚上少吃", "is_correct": true},
+            {"option_text": "注意喂养环境，固定区域喂养，培养仪式感", "is_correct": true},
+            {"option_text": "按需喂养", "is_correct": false},
+            {"option_text": "随意喂养", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出的4-5个月龄婴儿喂养的注意事项包含按时喂养、每天摄入量相对固定、注意喂养环境等。"
+        }
+      ]
+    },
+    {
+      "point_name": "睡眠 - 睡眠时长 (4-5月龄)",
+      "questions": [
+        {
+          "question_text": "4-5个月龄婴儿每天的睡眠时长参照范围是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "15~17小时/天", "is_correct": true},
+            {"option_text": "12~14小时/天", "is_correct": false},
+            {"option_text": "18~20小时/天", "is_correct": false},
+            {"option_text": "20小时以上/天", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出4-5个月龄婴儿睡眠时长为15~17小时/天。"
+        },
+        {
+          "question_text": "以下哪项关于4-5个月龄婴儿睡眠时长的描述是正确的？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "睡眠时长是固定不变的", "is_correct": false},
+            {"option_text": "睡眠时长可能有个体差异", "is_correct": true},
+            {"option_text": "睡眠时间越长越好", "is_correct": false},
+            {"option_text": "睡眠时长越短越好", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出4-5个月龄婴儿睡眠时长有个体差异。"
+        },
+        {
+          "question_text": "如果4-5个月龄婴儿睡眠时长超过17小时/天，以下哪项做法是不必要的？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "观察婴儿精神状态", "is_correct": false},
+            {"option_text": "记录婴儿睡眠情况", "is_correct": false},
+            {"option_text": "过度担忧和干预", "is_correct": true},
+            {"option_text": "咨询医生", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出不必要过度担心和干预，因为睡眠时长可能有个体差异。"
+        },
+        {
+          "question_text": "如果4-5个月龄婴儿睡眠时长少于15小时/天，以下哪项做法是建议的？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "强迫婴儿多睡", "is_correct": false},
+            {"option_text": "减少喂奶次数", "is_correct": false},
+            {"option_text": "立即就医", "is_correct": false},
+            {"option_text": "寻找影响睡眠的因素并进行调整", "is_correct": true}
+          ],
+          "answer_explanation": "睡眠时长少于参考值，建议寻找影响睡眠的因素并进行调整。"
+        },
+        {
+          "question_text": "以下哪些描述符合4-5个月龄婴儿的睡眠时长特点？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "每天睡眠时长约15-17小时", "is_correct": true},
+            {"option_text": "睡眠时长可能有个体差异和波动", "is_correct": true},
+            {"option_text": "睡眠时长应该固定在16小时", "is_correct": false},
+            {"option_text": "睡眠时长越长越好", "is_correct": false},
+            {"option_text": "睡眠时长越短越好", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出4-5个月龄婴儿睡眠时长约15-17小时，且有个体差异和波动。"
+        }
+      ]
+    },
+    {
+      "point_name": "睡眠 - 睡醒间隔 (4-5月龄)",
+      "questions": [
+        {
+          "question_text": "4-5个月龄婴儿的睡醒间隔参照范围是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "1.5~2.5小时", "is_correct": true},
+            {"option_text": "1~1.5小时", "is_correct": false},
+            {"option_text": "2.5~3小时", "is_correct": false},
+            {"option_text": "3小时以上", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出4-5个月龄婴儿睡醒间隔为1.5~2.5小时。"
+        },
+        {
+          "question_text": "以下哪项关于4-5个月龄婴儿睡醒间隔的描述是正确的？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "睡醒间隔是固定不变的", "is_correct": false},
+            {"option_text": "睡醒间隔可能有个体差异", "is_correct": true},
+            {"option_text": "睡醒间隔越长越好", "is_correct": false},
+            {"option_text": "睡醒间隔越短越好", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出4-5个月龄婴儿睡醒间隔有个体差异。"
+        },
+        {
+          "question_text": "4-5个月龄婴儿的小睡时间与睡醒间隔的关系是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "小睡时间长的，间隔时间也会长", "is_correct": true},
+            {"option_text": "小睡时间长的，间隔时间会短", "is_correct": false},
+            {"option_text": "小睡时间与间隔时间无关", "is_correct": false},
+            {"option_text": "小睡时间越长，间隔时间越短", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出小睡时间长的,间隔时间也会长;反之小睡时间短的,间隔时间也会短。"
+        },
+        {
+          "question_text": "如果4-5个月龄婴儿睡醒间隔超过2.5小时，以下哪项做法是不必要的？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "观察婴儿精神状态", "is_correct": false},
+            {"option_text": "记录婴儿睡醒间隔", "is_correct": false},
+            {"option_text": "过度担忧和干预", "is_correct": true},
+            {"option_text": "调整作息", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出不必要过度担心和干预，因为睡醒间隔可能有个体差异。"
+        },
+        {
+          "question_text": "以下哪些描述符合4-5个月龄婴儿的睡醒间隔特点？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "睡醒间隔约1.5-2.5小时", "is_correct": true},
+            {"option_text": "睡醒间隔有个体差异和全天波动", "is_correct": true},
+            {"option_text": "睡醒间隔应该固定在2小时", "is_correct": false},
+            {"option_text": "睡醒间隔越长越好", "is_correct": false},
+            {"option_text": "睡醒间隔越短越好", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出4-5个月龄婴儿睡醒间隔约1.5-2.5小时，且有个体差异和全天波动。"
+        }
+      ]
+    },
+    {
+      "point_name": "睡眠 - 睡眠次数 (4-5月龄)",
+      "questions": [
+        {
+          "question_text": "4-5个月龄婴儿白天小睡的参照次数是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "3~4次", "is_correct": true},
+            {"option_text": "2~3次", "is_correct": false},
+            {"option_text": "4~5次", "is_correct": false},
+            {"option_text": "5次以上", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出4-5个月龄婴儿白天小睡4~3次。 （文档此处可能笔误，应为3~4次更符合逻辑和上下文）"
+        },
+        {
+          "question_text": "4-5个月龄婴儿每次白天小睡的时长参照范围是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "30分钟~1小时", "is_correct": false},
+            {"option_text": "1~2小时", "is_correct": true},
+            {"option_text": "2~3小时", "is_correct": false},
+            {"option_text": "3小时以上", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出4-5个月龄婴儿每次白天小睡大概1~2小时。"
+        },
+        {
+          "question_text": "4-5个月龄婴儿晚上睡眠的时长参照范围是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "8小时左右", "is_correct": false},
+            {"option_text": "12小时左右", "is_correct": false},
+            {"option_text": "10小时左右", "is_correct": true},
+            {"option_text": "14小时左右", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出4-5个月龄婴儿晚上约10小时。"
+        },
+        {
+          "question_text": "以下哪项关于4-5个月龄婴儿睡眠次数的描述是错误的？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "白天小睡次数约3-4次", "is_correct": false},
+            {"option_text": "每次小睡时长约1-2小时", "is_correct": false},
+            {"option_text": "晚上睡眠约10小时", "is_correct": false},
+            {"option_text": "睡眠次数是固定不变的", "is_correct": true}
+          ],
+          "answer_explanation": "睡眠次数和时长都可能有个体差异和波动，D选项描述错误。"
+        },
+        {
+          "question_text": "以下哪些描述符合4-5个月龄婴儿的睡眠次数特点？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "白天小睡3-4次", "is_correct": true},
+            {"option_text": "每次小睡时长约1-2小时", "is_correct": true},
+            {"option_text": "晚上睡眠约10小时", "is_correct": true},
+            {"option_text": "白天小睡次数越多越好", "is_correct": false},
+            {"option_text": "晚上睡眠时间越长越好", "is_correct": false}
+          ],
+          "answer_explanation": "文档描述的4-5个月龄婴儿睡眠次数特点包含白天小睡3-4次、每次小睡时长约1-2小时、晚上睡眠约10小时。"
+        }
+      ]
+    },
+    {
+      "point_name": "睡眠 - 睡眠程序 (4-5月龄)",
+      "questions": [
+        {
+          "question_text": "4-5个月龄婴儿的睡眠程序，文档建议参考？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "2~3个月(一阶)课程", "is_correct": true},
+            {"option_text": "6~7个月(二阶)课程", "is_correct": false},
+            {"option_text": "8~9个月(三阶)课程", "is_correct": false},
+            {"option_text": "10-12个月(四阶)课程", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出4-5个月龄婴儿睡眠程序参考见2~3个月(一阶)课程。"
+        },
+        {
+          "question_text": "关于4-5个月龄婴儿睡眠程序，以下说法正确的是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "应该严格按照2-3个月龄的程序执行", "is_correct": false},
+            {"option_text": "可以参考2-3个月龄的程序，并根据婴儿情况调整", "is_correct": true},
+            {"option_text": "4-5个月龄不需要睡眠程序", "is_correct": false},
+            {"option_text": "睡眠程序越复杂越好", "is_correct": false}
+          ],
+          "answer_explanation": "文档建议参考2~3个月(一阶)课程，意味着可以借鉴但非完全照搬，需根据婴儿情况调整。"
+        },
+        {
+          "question_text": "4-5个月龄婴儿睡眠程序的重点仍然是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "快速哄睡", "is_correct": false},
+            {"option_text": "延长睡眠时长", "is_correct": false},
+            {"option_text": "建立规律的作息习惯", "is_correct": true},
+            {"option_text": "减少夜醒", "is_correct": false}
+          ],
+          "answer_explanation": "睡眠程序的重点始终是建立规律的作息习惯。"
+        },
+        {
+          "question_text": "以下哪项不是建立良好睡眠程序的益处？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "帮助婴儿建立规律作息", "is_correct": false},
+            {"option_text": "培养良好睡眠习惯", "is_correct": false},
+            {"option_text": "帮助婴儿区分白天和夜晚", "is_correct": false},
+            {"option_text": "快速提高婴儿智力", "is_correct": true}
+          ],
+          "answer_explanation": "睡眠程序主要关注睡眠习惯的培养，而非直接提高智力。"
+        },
+        {
+          "question_text": "以下哪些描述符合4-5个月龄婴儿睡眠程序？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "参考2-3个月龄的睡眠程序", "is_correct": true},
+            {"option_text": "核心是建立规律的作息习惯", "is_correct": true},
+            {"option_text": "可以根据婴儿情况灵活调整", "is_correct": true},
+            {"option_text": "必须严格固定不变", "is_correct": false},
+            {"option_text": "越复杂的程序效果越好", "is_correct": false}
+          ],
+          "answer_explanation": "4-5个月龄婴儿睡眠程序参考2-3个月龄的，核心是建立规律作息习惯，且可以灵活调整。"
+        }
+      ]
+    },
+    {
+      "point_name": "睡眠 - 睡眠阶段性特点 (4-5月龄)",
+      "questions": [
+        {
+          "question_text": "4-5个月龄婴儿入睡后，首先进入哪个睡眠阶段？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "安静睡眠阶段", "is_correct": true},
+            {"option_text": "活动睡眠阶段", "is_correct": false},
+            {"option_text": "深度睡眠阶段", "is_correct": false},
+            {"option_text": "快速眼动睡眠阶段", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出4-5个月龄婴儿入睡后,先进入安静睡眠阶段。"
+        },
+        {
+          "question_text": "4-5个月龄婴儿的睡眠阶段特点是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "活动睡眠比例增加", "is_correct": false},
+            {"option_text": "活动睡眠的比例下降到了 40%左右", "is_correct": true},
+            {"option_text": "活动睡眠完全消失", "is_correct": false},
+            {"option_text": "活动睡眠比例没有变化", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出4-5个月龄婴儿活动睡眠的比例下降到了 40%左右。"
+        },
+        {
+          "question_text": "4-5个月龄婴儿的睡眠质量相比之前？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "看起来睡得更踏实", "is_correct": true},
+            {"option_text": "看起来睡得更浅", "is_correct": false},
+            {"option_text": "睡眠质量没有变化", "is_correct": false},
+            {"option_text": "睡眠质量变得更不稳定", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出4-5个月龄婴儿看起来睡得更踏实。"
+        },
+        {
+          "question_text": "对于4-5个月龄婴儿，以下哪项关于放下就醒的描述是正确的？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "放下就醒的情况更频繁", "is_correct": false},
+            {"option_text": "放下就醒的情况会有所好转", "is_correct": true},
+            {"option_text": "放下就醒的情况没有变化", "is_correct": false},
+            {"option_text": "放下就醒的情况更严重", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出4-5个月龄婴儿放下就醒的情况会有所好转。"
+        },
+        {
+          "question_text": "以下哪些描述符合4-5个月龄婴儿的睡眠阶段性特点？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "入睡后先进入安静睡眠阶段", "is_correct": true},
+            {"option_text": "活动睡眠比例下降", "is_correct": true},
+            {"option_text": "看起来睡得更踏实", "is_correct": true},
+            {"option_text": "活动睡眠比例增加", "is_correct": false},
+            {"option_text": "放下就醒情况更频繁", "is_correct": false}
+          ],
+          "answer_explanation": "文档描述的4-5个月龄婴儿睡眠阶段性特点包含入睡后先进入安静睡眠阶段、活动睡眠比例下降、看起来睡得更踏实、放下就醒情况好转。"
+        }
+      ]
+    },
+    {
+      "point_name": "睡眠 - 并觉 & 接觉 (4-5月龄)",
+      "questions": [
+        {
+          "question_text": "以下哪项是对“并觉”的正确定义？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "白天小睡数量的减少，即某个特定的小觉消失", "is_correct": true},
+            {"option_text": "帮助婴儿顺利进入下一个睡眠周期", "is_correct": false},
+            {"option_text": "婴儿睡眠周期变长", "is_correct": false},
+            {"option_text": "婴儿夜间睡眠时间延长", "is_correct": false}
+          ],
+          "answer_explanation": "文档对“并觉”的定义为：白天小睡数量的减少,即某个特定的小觉消失。"
+        },
+        {
+          "question_text": "以下哪项是对“接觉”的正确定义？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "白天小睡数量的减少，即某个特定的小觉消失", "is_correct": false},
+            {"option_text": "帮助婴儿顺利进入下一个睡眠周期", "is_correct": true},
+            {"option_text": "婴儿睡眠周期变长", "is_correct": false},
+            {"option_text": "婴儿夜间睡眠时间延长", "is_correct": false}
+          ],
+          "answer_explanation": "文档对“接觉”的定义为：帮助婴儿顺利进入下一个睡眠周期。"
+        },
+        {
+          "question_text": "以下哪项关于“并觉”的描述是正确的？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "例如4觉并成3觉，上午小觉消失", "is_correct": true},
+            {"option_text": "接觉类似于重新哄睡甚至比之前哄睡更难", "is_correct": false},
+            {"option_text": "婴儿睡眠周期比成人短", "is_correct": false},
+            {"option_text": "接觉是自然发生的睡眠现象", "is_correct": false}
+          ],
+          "answer_explanation": "文档中“并觉”的举例为：例如4觉并成3觉,上午小觉减少一个。"
+        },
+        {
+          "question_text": "以下哪项关于“接觉”的描述是正确的？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "例如4觉并成3觉，上午小觉消失", "is_correct": false},
+            {"option_text": "接觉类似于重新哄睡甚至比之前哄睡更难", "is_correct": true},
+            {"option_text": "婴儿随着睡醒间隔时间的增加、白天小睡数量的减少", "is_correct": false},
+            {"option_text": "并觉需要成人帮助才能实现", "is_correct": false}
+          ],
+          "answer_explanation": "文档中“接觉”的描述为：接觉类似于重新哄睡甚至比之前哄睡更难。"
+        },
+        {
+          "question_text": "以下哪些描述符合4-5个月龄婴儿的并觉和接觉特点？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "开始出现并觉现象，白天小睡数量可能减少", "is_correct": true},
+            {"option_text": "接觉可能需要成人帮助，类似于重新哄睡", "is_correct": true},
+            {"option_text": "并觉是指婴儿夜间睡眠时间延长", "is_correct": false},
+            {"option_text": "接觉是指白天小睡时间延长", "is_correct": false},
+            {"option_text": "并觉和接觉都是自然发生的睡眠现象，无需干预", "is_correct": false}
+          ],
+          "answer_explanation": "文档描述的4-5个月龄婴儿的并觉和接觉特点包含开始出现并觉现象、接觉可能需要成人帮助。"
+        }
+      ]
+    },
+    {
+      "point_name": "睡眠 - 注意事项 (4-5月龄)",
+      "questions": [
+        {
+          "question_text": "以下哪项是良好睡眠的基础？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "有规律的喂养", "is_correct": true},
+            {"option_text": "安静的睡眠环境", "is_correct": false},
+            {"option_text": "规律的睡眠程序", "is_correct": false},
+            {"option_text": "培养自主入睡习惯", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出有规律的喂养是良好的睡眠基础。"
+        },
+        {
+          "question_text": "关于4-5个月龄婴儿睡眠环境的描述，以下说法正确的是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "环境越安静越好", "is_correct": false},
+            {"option_text": "白天要有自然光线,环境不必太过安静", "is_correct": true},
+            {"option_text": "环境应该完全黑暗", "is_correct": false},
+            {"option_text": "环境应该保持恒温", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出白天要有自然光线,环境不必太过安静。"
+        },
+        {
+          "question_text": "以下哪项是引导宝宝养成睡眠规律的关键？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "营造安静的睡眠环境", "is_correct": false},
+            {"option_text": "白天多睡", "is_correct": false},
+            {"option_text": "观察宝宝睡眠信号", "is_correct": true},
+            {"option_text": "培养自主入睡习惯", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出观察宝宝睡眠信号,引导宝宝养成睡眠规律。"
+        },
+        {
+          "question_text": "以下哪项关于4-5个月龄婴儿白天睡眠的描述是正确的？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "白天睡眠时间越长越好", "is_correct": false},
+            {"option_text": "白天应该尽量避免睡眠", "is_correct": false},
+            {"option_text": "白天睡眠和晚上睡眠时长应该相同", "is_correct": false},
+            {"option_text": "白天不要睡得太多,以免影响晚上睡眠", "is_correct": true}
+          ],
+          "answer_explanation": "文档指出白天不要睡得太多,以免影响晚上睡眠。"
+        },
+        {
+          "question_text": "以下哪些属于4-5个月龄婴儿的睡眠注意事项？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "有规律的喂养", "is_correct": true},
+            {"option_text": "白天要有自然光线，环境不必太过安静", "is_correct": true},
+            {"option_text": "培养宝宝自主入睡的习惯", "is_correct": true},
+            {"option_text": "环境越安静越好", "is_correct": false},
+            {"option_text": "白天睡眠时间越长越好", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出的4-5个月龄婴儿睡眠注意事项包含有规律的喂养、白天要有自然光线、培养宝宝自主入睡的习惯等。"
+        }
+      ]
+    },
+    {
+      "point_name": "习惯 & 早教 - 喂养习惯 (4-5月龄)",
+      "questions": [
+        {
+          "question_text": "4-5个月龄婴儿的喂养习惯强调要有？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "规律的喂养，平均4小时一循环", "is_correct": true},
+            {"option_text": "按需喂养", "is_correct": false},
+            {"option_text": "按时喂养，无需固定循环时间", "is_correct": false},
+            {"option_text": "随意喂养", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出4-5个月龄婴儿喂养习惯强调要有规律的喂养,平均4小时一循环。"
+        },
+        {
+          "question_text": "关于4-5个月龄婴儿喂养习惯，以下说法正确的是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "喂养间隔必须严格固定为4小时", "is_correct": false},
+            {"option_text": "喂养间隔平均4小时一循环，允许有一定弹性", "is_correct": true},
+            {"option_text": "喂养间隔越短越好", "is_correct": false},
+            {"option_text": "喂养间隔越长越好", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出喂养习惯平均4小时一循环，允许有一定弹性。"
+        },
+        {
+          "question_text": "4-5个月龄婴儿喂养习惯要避免？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "规律喂养", "is_correct": false},
+            {"option_text": "按需喂养", "is_correct": false},
+            {"option_text": "喂迷糊奶", "is_correct": true},
+            {"option_text": "母乳喂养", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出4-5个月龄婴儿喂养习惯要避免不喂迷糊奶。"
+        },
+        {
+          "question_text": "以下哪项不是培养良好喂养习惯的益处？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "建立规律的作息", "is_correct": false},
+            {"option_text": "促进消化吸收", "is_correct": false},
+            {"option_text": "帮助婴儿建立安全感", "is_correct": false},
+            {"option_text": "快速增加婴儿体重", "is_correct": true}
+          ],
+          "answer_explanation": "培养良好喂养习惯不应以快速增加婴儿体重为唯一目的。"
+        },
+        {
+          "question_text": "以下哪些描述符合4-5个月龄婴儿的喂养习惯？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "有规律的喂养", "is_correct": true},
+            {"option_text": "平均4小时一循环", "is_correct": true},
+            {"option_text": "不喂迷糊奶", "is_correct": true},
+            {"option_text": "按需喂养即可", "is_correct": false},
+            {"option_text": "喂养间隔时间越短越好", "is_correct": false}
+          ],
+          "answer_explanation": "文档描述的4-5个月龄婴儿喂养习惯特点包含有规律的喂养、平均4小时一循环、不喂迷糊奶。"
+        }
+      ]
+    },
+    {
+      "point_name": "习惯 & 早教 - 睡眠习惯 (4-5月龄)",
+      "questions": [
+        {
+          "question_text": "4-5个月龄是培养孩子哪方面习惯的关键期？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "睡眠习惯", "is_correct": true},
+            {"option_text": "喂养习惯", "is_correct": false},
+            {"option_text": "早教习惯", "is_correct": false},
+            {"option_text": "运动习惯", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出4-5个月龄是培养孩子睡眠习惯的关键期。"
+        },
+        {
+          "question_text": "培养4-5个月龄婴儿睡眠习惯的核心方法是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "规律喂养", "is_correct": false},
+            {"option_text": "利用睡眠仪式进入到自主入睡", "is_correct": true},
+            {"option_text": "营造安静的睡眠环境", "is_correct": false},
+            {"option_text": "延长白天睡眠时间", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出培养4-5个月龄婴儿睡眠习惯的核心方法是利用睡眠仪式进入到自主入睡。"
+        },
+        {
+          "question_text": "以下哪项是对“自主入睡”的正确定义？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "完成睡眠仪式能够不依赖外界帮助，主要靠自己完成从迷糊到入睡的过程", "is_correct": true},
+            {"option_text": "无需任何哄睡，婴儿自己入睡", "is_correct": false},
+            {"option_text": "婴儿夜间睡眠时间达到10小时以上", "is_correct": false},
+            {"option_text": "婴儿白天小睡次数规律", "is_correct": false}
+          ],
+          "answer_explanation": "文档对“自主入睡”的定义为：完成睡眠仪式能够不依赖外界帮助,孩子主要靠自己完成从迷糊到入睡的过程。"
+        },
+        {
+          "question_text": "以下哪项不属于“外界帮助”的例子？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "吃着睡", "is_correct": false},
+            {"option_text": "抱着睡", "is_correct": false},
+            {"option_text": "走着睡", "is_correct": false},
+            {"option_text": "睡眠仪式", "is_correct": true}
+          ],
+          "answer_explanation": "睡眠仪式是辅助自主入睡的方法，而非“外界帮助”。"
+        },
+        {
+          "question_text": "以下哪些描述符合4-5个月龄婴儿的睡眠习惯培养？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "此时是培养睡眠习惯的关键期", "is_correct": true},
+            {"option_text": "利用睡眠仪式培养自主入睡", "is_correct": true},
+            {"option_text": "自主入睡是指不依赖外界帮助，靠自己完成入睡过程", "is_correct": true},
+            {"option_text": "无需任何干预，顺其自然即可", "is_correct": false},
+            {"option_text": "应该完全避免任何形式的哄睡", "is_correct": false}
+          ],
+          "answer_explanation": "文档描述的4-5个月龄婴儿睡眠习惯培养特点包含此时是培养睡眠习惯的关键期、利用睡眠仪式培养自主入睡、自主入睡的定义。"
+        }
+      ]
+    },
+    {
+      "point_name": "早教 - 标准 (4-5月龄)",
+      "questions": [
+        {
+          "question_text": "4-5个月龄婴儿在大动作方面的发育标准是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "俯卧时能用前臂支撑胸部并抬起头", "is_correct": true},
+            {"option_text": "能抓住玩具并把玩具放入口中", "is_correct": false},
+            {"option_text": "视觉机能已经比较完善", "is_correct": false},
+            {"option_text": "自言自语，咿呀不停", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出4-5个月龄婴儿大动作发育标准为：俯卧时能用前臂支撑胸部并抬起头。"
+        },
+        {
+          "question_text": "4-5个月龄婴儿在精细动作方面的发育标准是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "俯卧时能用前臂支撑胸部并抬起头", "is_correct": false},
+            {"option_text": "能抓住玩具并把玩具放入口中", "is_correct": true},
+            {"option_text": "视觉机能已经比较完善", "is_correct": false},
+            {"option_text": "自言自语，咿呀不停", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出4-5个月龄婴儿精细动作发育标准为：能抓住玩具并把玩具放入口中。"
+        },
+        {
+          "question_text": "4-5个月龄婴儿在视觉发育方面的发育标准是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "俯卧时能用前臂支撑胸部并抬起头", "is_correct": false},
+            {"option_text": "能抓住玩具并把玩具放入口中", "is_correct": false},
+            {"option_text": "视觉机能已经比较完善", "is_correct": true},
+            {"option_text": "自言自语，咿呀不停", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出4-5个月龄婴儿视觉发育标准为：视觉机能已经比较完善。"
+        },
+        {
+          "question_text": "4-5个月龄婴儿在语言发育方面的发育标准是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "俯卧时能用前臂支撑胸部并抬起头", "is_correct": false},
+            {"option_text": "能抓住玩具并把玩具放入口中", "is_correct": false},
+            {"option_text": "视觉机能已经比较完善", "is_correct": false},
+            {"option_text": "自言自语，咿呀不停", "is_correct": true}
+          ],
+          "answer_explanation": "文档指出4-5个月龄婴儿语言发育标准为：自言自语，咿呀不停。"
+        },
+        {
+          "question_text": "以下哪些属于4-5个月龄婴儿的早教标准？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "大动作：俯卧时能用前臂支撑胸部并抬起头", "is_correct": true},
+            {"option_text": "精细动作：能抓住玩具并把玩具放入口中", "is_correct": true},
+            {"option_text": "视觉发育：视觉机能已经比较完善", "is_correct": true},
+            {"option_text": "语言发育：开始说简单的词语", "is_correct": false},
+            {"option_text": "认知训练：能够认识颜色和形状", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出的4-5个月龄婴儿早教标准包含大动作、精细动作、视觉发育、语言发育等方面的标准，D和E选项描述超出4-5月龄的发育水平。"
+        }
+      ]
+    },
+    {
+      "point_name": "早教 - 早教要点 (4-5月龄)",
+      "questions": [
+        {
+          "question_text": "4-5个月龄早教的核心原则是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "保护孩子的探索欲，鼓励探索行为", "is_correct": true},
+            {"option_text": "进行专业的早教课程", "is_correct": false},
+            {"option_text": "购买益智玩具", "is_correct": false},
+            {"option_text": "进行高强度的智力开发", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出4-5个月龄早教要点核心原则是保护孩子的探索欲，鼓励探索行为。"
+        },
+        {
+          "question_text": "在4-5个月龄早教中，成人应该如何做？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "严格控制孩子的探索行为", "is_correct": false},
+            {"option_text": "用夸张的表情和声音鼓励孩子的探索行为", "is_correct": true},
+            {"option_text": "让孩子独自探索，无需干预", "is_correct": false},
+            {"option_text": "强迫孩子学习新的技能", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出在4-5个月龄早教中，成人要用夸张的表情和声音鼓励孩子的探索行为。"
+        },
+        {
+          "question_text": "在4-5个月龄早教中，成人应该尽量？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "干预孩子的探索行为", "is_correct": false},
+            {"option_text": "减少对孩子的鼓励", "is_correct": false},
+            {"option_text": "减少干预，多鼓励，多肯定", "is_correct": true},
+            {"option_text": "让孩子进行重复性的训练", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出在4-5个月龄早教中，成人要减少干预，多鼓励，多肯定。"
+        },
+        {
+          "question_text": "4-5个月龄婴儿大动作训练的要点包括？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "多趴，抱球玩，脚踢球，踏踏琴，翻身", "is_correct": true},
+            {"option_text": "精细抓握训练", "is_correct": false},
+            {"option_text": "视觉追踪训练", "is_correct": false},
+            {"option_text": "语言模仿训练", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出4-5个月龄婴儿大动作训练要点为：多趴,抱球玩,脚踢球,踏踏琴,翻身。"
+        },
+        {
+          "question_text": "以下哪些属于4-5个月龄婴儿的早教要点？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "保护探索欲，鼓励探索行为，减少干预多鼓励肯定", "is_correct": true},
+            {"option_text": "大动作训练：多趴，抱球玩等，锻炼平衡协调", "is_correct": true},
+            {"option_text": "精细动作训练：抓握（不同手指捏），翻绘本撕纸", "is_correct": true},
+            {"option_text": "认知训练：大量识字卡片", "is_correct": false},
+            {"option_text": "语言训练：背诵唐诗宋词", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出的4-5个月龄婴儿早教要点包含保护探索欲、大动作训练、精细动作训练、视觉训练、语言训练、听觉训练等。D和E选项描述超出4-5月龄的早教内容。"
+        }
+      ]
+    },
+    {
+      "point_name": "常见问题及护理 - 尿布疹、湿疹、热疹、牛奶蛋白过敏 (4-5月龄)",
+      "questions": [
+        {
+          "question_text": "关于4-5个月龄婴儿的尿布疹、湿疹、热疹、牛奶蛋白过敏等常见问题，文档建议？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "见2~3个月一阶课程", "is_correct": true},
+            {"option_text": "见6~7个月二阶课程", "is_correct": false},
+            {"option_text": "见8~9个月三阶课程", "is_correct": false},
+            {"option_text": "见10-12个月四阶课程", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出4-5个月龄婴儿的尿布疹、湿疹、热疹、牛奶蛋白过敏等常见问题，见2~3个月一阶课程。"
+        },
+        {
+          "question_text": "如果想了解4-5个月龄婴儿尿布疹的护理方法，应该参考？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "4-5个月龄护理要点文档", "is_correct": false},
+            {"option_text": "2~3个月龄护理要点文档", "is_correct": true},
+            {"option_text": "6-7个月龄护理要点文档", "is_correct": false},
+            {"option_text": "育儿百科书籍", "is_correct": false}
+          ],
+          "answer_explanation": "文档明确指示尿布疹护理方法参考2~3个月一阶课程文档。"
+        },
+        {
+          "question_text": "关于4-5个月龄婴儿湿疹的描述，以下说法正确的是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "具体内容参考2~3个月龄文档", "is_correct": true},
+            {"option_text": "4-5个月龄湿疹发病率更高", "is_correct": false},
+            {"option_text": "4-5个月龄湿疹症状更严重", "is_correct": false},
+            {"option_text": "4-5个月龄湿疹护理方法与2-3月龄不同", "is_correct": false}
+          ],
+          "answer_explanation": "文档明确指示湿疹相关内容参考2~3个月一阶课程文档。"
+        },
+        {
+          "question_text": "以下哪项不属于4-5个月龄婴儿常见问题的护理内容？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "尿布疹护理", "is_correct": false},
+            {"option_text": "湿疹护理", "is_correct": false},
+            {"option_text": "热疹护理", "is_correct": false},
+            {"option_text": "添加辅食指导", "is_correct": true}
+          ],
+          "answer_explanation": "添加辅食指导不属于文档中明确指出的4-5个月龄婴儿常见问题护理内容，尿布疹、湿疹、热疹的护理方法均在文档中明确指出参考2-3个月龄文档。"
+        },
+        {
+          "question_text": "以下哪些关于4-5个月龄婴儿常见问题及护理的描述是正确的？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "尿布疹、湿疹、热疹、牛奶蛋白过敏等常见问题及其护理方法与2-3月龄类似", "is_correct": true},
+            {"option_text": "具体护理方法需要参考2~3个月龄文档", "is_correct": true},
+            {"option_text": "4-5个月龄的护理要点更侧重于喂养、睡眠和早教", "is_correct": true},
+            {"option_text": "4-5个月龄婴儿不再会出现尿布疹、湿疹等问题", "is_correct": false},
+            {"option_text": "4-5个月龄的护理方法与6-7个月龄完全相同", "is_correct": false}
+          ],
+          "answer_explanation": "文档明确指示尿布疹、湿疹、热疹、牛奶蛋白过敏等常见问题及其护理方法参考2~3个月龄文档。"
+        }
+      ]
+    },
+    {
+      "point_name": "常见问题及护理 - 出牙 (4-5月龄)",
+      "questions": [
+        {
+          "question_text": "婴儿开始出牙的时间通常是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "4~6个月开始", "is_correct": true},
+            {"option_text": "2~4个月开始", "is_correct": false},
+            {"option_text": "6~8个月开始", "is_correct": false},
+            {"option_text": "8个月以后开始", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出婴儿出牙时间通常是4~6个月开始。"
+        },
+        {
+          "question_text": "以下哪项不是出牙的常见症状？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "流口水", "is_correct": false},
+            {"option_text": "爱咬人", "is_correct": false},
+            {"option_text": "烦躁易怒", "is_correct": false},
+            {"option_text": "高烧不退", "is_correct": true}
+          ],
+          "answer_explanation": "高烧不退不是出牙的常见症状。"
+        },
+        {
+          "question_text": "以下哪项属于出牙的常见症状？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "腹泻", "is_correct": true},
+            {"option_text": "便秘", "is_correct": false},
+            {"option_text": "呕吐", "is_correct": false},
+            {"option_text": "皮疹", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出腹泻为出牙的常见症状之一。"
+        },
+        {
+          "question_text": "以下哪项属于出牙的常见症状？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "皮疹", "is_correct": false},
+            {"option_text": "揪耳朵", "is_correct": true},
+            {"option_text": "便秘", "is_correct": false},
+            {"option_text": "黄疸", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出揪耳朵为出牙的常见症状之一。"
+        },
+        {
+          "question_text": "以下哪些属于出牙的常见症状？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "流口水", "is_correct": true},
+            {"option_text": "爱咬人", "is_correct": true},
+            {"option_text": "腹泻", "is_correct": true},
+            {"option_text": "高烧不退", "is_correct": false},
+            {"option_text": "皮疹", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出的出牙常见症状包含流口水、爱咬人、腹泻、揪耳朵、烦躁易怒、轻微发热、摩擦脸颊、喜欢吃手、食欲不振、睡眠差等，高烧不退和皮疹不属于文档列出的出牙常见症状。"
+        }
+      ]
+    },
+    {
+      "point_name": "常见问题及护理 - 口水疹 (4-5月龄)",
+      "questions": [
+        {
+          "question_text": "口水疹的主要原因是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "出牙引起", "is_correct": true},
+            {"option_text": "湿热环境", "is_correct": false},
+            {"option_text": "过敏", "is_correct": false},
+            {"option_text": "感染", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出口水疹的原因之一是出牙引起。"
+        },
+        {
+          "question_text": "以下哪项也是口水疹的原因？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "湿热环境", "is_correct": false},
+            {"option_text": "唾液腺发育使唾液分泌增多", "is_correct": true},
+            {"option_text": "过敏", "is_correct": false},
+            {"option_text": "感染", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出口水疹的原因之一是唾液腺发育使唾液分泌增多。"
+        },
+        {
+          "question_text": "以下哪项是口水疹的护理方法？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "保持口周干爽", "is_correct": true},
+            {"option_text": "涂抹激素药膏", "is_correct": false},
+            {"option_text": "使用湿纸巾擦拭口周", "is_correct": false},
+            {"option_text": "减少喂奶次数", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出口水疹的护理方法之一是保持口周干爽。"
+        },
+        {
+          "question_text": "关于口水疹的护理，以下说法错误的是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "可以用棉柔巾清理口周", "is_correct": false},
+            {"option_text": "可以用湿纸巾清理口周", "is_correct": true},
+            {"option_text": "可以涂抹凡士林或面霜", "is_correct": false},
+            {"option_text": "需要保持口周干爽", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出忌用湿纸巾，因为湿纸巾会破坏皮肤表面的油脂层,加重孩子口水疹症状，B选项描述错误。"
+        },
+        {
+          "question_text": "以下哪些属于口水疹的护理方法？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "保持口周干爽 (棉柔巾清理)", "is_correct": true},
+            {"option_text": "口周涂抹凡士林或面霜", "is_correct": true},
+            {"option_text": "忌用湿纸巾", "is_correct": true},
+            {"option_text": "使用酒精消毒", "is_correct": false},
+            {"option_text": "使用激素药膏", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出的口水疹护理方法包含保持口周干爽 (棉柔巾清理)、口周涂抹凡士林或面霜、忌用湿纸巾。"
+        }
+      ]
+    },
+    {
+      "point_name": "常见问题及护理 - 睡眠倒退期 (4-5月龄)",
+      "questions": [
+        {
+          "question_text": "睡眠倒退期的定义是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "之前睡眠好，很有规律，突然变得无规律的现象", "is_correct": true},
+            {"option_text": "之前睡眠不好，逐渐变得规律的现象", "is_correct": false},
+            {"option_text": "婴儿睡眠时间突然延长", "is_correct": false},
+            {"option_text": "婴儿夜间睡眠时间突然缩短", "is_correct": false}
+          ],
+          "answer_explanation": "文档对睡眠倒退期的定义为：之前睡眠好,很有规律,突然变得无规律的现象。"
+        },
+        {
+          "question_text": "以下哪项属于睡眠倒退期的原因？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "出牙", "is_correct": true},
+            {"option_text": "添加辅食", "is_correct": false},
+            {"option_text": "更换奶粉品牌", "is_correct": false},
+            {"option_text": "更换尿不湿品牌", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出出牙为睡眠倒退期的原因之一。"
+        },
+        {
+          "question_text": "以下哪项也属于睡眠倒退期的原因？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "添加辅食", "is_correct": false},
+            {"option_text": "猛长期", "is_correct": true},
+            {"option_text": "更换奶粉品牌", "is_correct": false},
+            {"option_text": "更换尿不湿品牌", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出猛长期为睡眠倒退期的原因之一。"
+        },
+        {
+          "question_text": "以下哪项也属于睡眠倒退期的原因？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "更换奶粉品牌", "is_correct": false},
+            {"option_text": "更换尿不湿品牌", "is_correct": false},
+            {"option_text": "积食", "is_correct": true},
+            {"option_text": "添加辅食", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出积食为睡眠倒退期的原因之一。"
+        },
+        {
+          "question_text": "以下哪些属于睡眠倒退期的原因？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "出牙", "is_correct": true},
+            {"option_text": "猛长期", "is_correct": true},
+            {"option_text": "积食", "is_correct": true},
+            {"option_text": "更换奶粉品牌", "is_correct": false},
+            {"option_text": "更换尿不湿品牌", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出的睡眠倒退期原因包含出牙、猛长期、积食、生病、分离焦虑等。更换奶粉品牌和更换尿不湿品牌不属于文档列出的睡眠倒退期原因。"
+        }
+      ]
+    },
+    {
+      "point_name": "常见问题及护理 - 积食 (4-5月龄)",
+      "questions": [
+        {
+          "question_text": "以下哪项是积食的原因？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "强迫喂养", "is_correct": true},
+            {"option_text": "腹部受凉", "is_correct": false},
+            {"option_text": "出牙", "is_correct": false},
+            {"option_text": "猛长期", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出强迫喂养为积食的原因之一。"
+        },
+        {
+          "question_text": "以下哪项也是积食的原因？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "腹部受凉", "is_correct": false},
+            {"option_text": "喂养频次过多", "is_correct": true},
+            {"option_text": "出牙", "is_correct": false},
+            {"option_text": "猛长期", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出喂养频次过多为积食的原因之一。"
+        },
+        {
+          "question_text": "以下哪项也是积食的原因？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "出牙", "is_correct": false},
+            {"option_text": "猛长期", "is_correct": false},
+            {"option_text": "猛涨期后仍然按猛涨期时喂养孩子", "is_correct": true},
+            {"option_text": "腹部受凉", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出猛涨期后仍然按猛涨期时喂养孩子为积食的原因之一。"
+        },
+        {
+          "question_text": "以下哪项也是积食的原因？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "猛长期", "is_correct": false},
+            {"option_text": "腹部受凉", "is_correct": false},
+            {"option_text": "出牙", "is_correct": false},
+            {"option_text": "吃迷糊奶", "is_correct": true}
+          ],
+          "answer_explanation": "文档列出吃迷糊奶为积食的原因之一。"
+        },
+        {
+          "question_text": "以下哪些属于积食的原因？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "强迫喂养", "is_correct": true},
+            {"option_text": "喂养频次过多", "is_correct": true},
+            {"option_text": "猛涨期后仍然按猛涨期时喂养孩子", "is_correct": true},
+            {"option_text": "吃迷糊奶", "is_correct": true},
+            {"option_text": "腹部受凉", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出的积食原因包含强迫喂养、喂养频次过多、猛涨期后仍然按猛涨期时喂养孩子、吃迷糊奶。腹部受凉不属于文档列出的积食原因。"
+        }
+      ]
+    },
+    {
+      "point_name": "常见问题及护理 - 腹泻 (4-5月龄)",
+      "questions": [
+        {
+          "question_text": "腹泻的定义不是看？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "大便次数", "is_correct": true},
+            {"option_text": "大便性状", "is_correct": false},
+            {"option_text": "大便性状突然改变", "is_correct": false},
+            {"option_text": "大便是否呈水便分离", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出腹泻的定义不是看大便次数,而是看大便性状。"
+        },
+        {
+          "question_text": "以下哪项属于感染性腹泻的原因？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "奶具消毒不干净", "is_correct": true},
+            {"option_text": "腹部受凉", "is_correct": false},
+            {"option_text": "喂养不当", "is_correct": false},
+            {"option_text": "生理性腹泻", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出奶具消毒不干净为感染性腹泻的原因之一。"
+        },
+        {
+          "question_text": "以下哪项也属于感染性腹泻的原因？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "腹部受凉", "is_correct": false},
+            {"option_text": "化冻的母乳没有热好", "is_correct": true},
+            {"option_text": "喂养不当", "is_correct": false},
+            {"option_text": "生理性腹泻", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出化冻的母乳没有热好为感染性腹泻的原因之一。"
+        },
+        {
+          "question_text": "以下哪项属于非感染性腹泻的原因？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "腹部受凉", "is_correct": true},
+            {"option_text": "奶具消毒不干净", "is_correct": false},
+            {"option_text": "化冻的母乳没有热好", "is_correct": false},
+            {"option_text": "孩子可能被感染", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出腹部受凉为非感染性腹泻的原因之一。"
+        },
+        {
+          "question_text": "以下哪些属于腹泻的原因？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "感染性原因：奶具消毒不干净", "is_correct": true},
+            {"option_text": "非感染性原因：腹部受凉", "is_correct": true},
+            {"option_text": "生理性腹泻：孩子吃的量不够", "is_correct": true},
+            {"option_text": "喂养不当：喂养姿势不正确", "is_correct": false},
+            {"option_text": "环境因素：天气炎热", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出的腹泻原因包含感染性原因 (奶具消毒不干净)、非感染性原因 (腹部受凉)、生理性腹泻 (孩子吃的量不够) 等。喂养姿势不正确和天气炎热不属于文档列出的腹泻原因。"
+        }
+      ]
+    },
+    {
+      "point_name": "常见问题及护理 - 短期内体重不增长 (4-5月龄)",
+      "questions": [
+        {
+          "question_text": "短期内体重不增长的判断标准不包括？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "体重明显增加", "is_correct": true},
+            {"option_text": "体重没有下滑", "is_correct": false},
+            {"option_text": "能吃能睡", "is_correct": false},
+            {"option_text": "精神状态好", "is_correct": false}
+          ],
+          "answer_explanation": "短期内体重不增长的判断标准是体重没有下滑，A选项描述与此标准矛盾。"
+        },
+        {
+          "question_text": "以下哪项符合短期内体重不增长的判断标准？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "体重持续下滑", "is_correct": false},
+            {"option_text": "能吃能睡", "is_correct": true},
+            {"option_text": "精神状态差", "is_correct": false},
+            {"option_text": "睡眠时间短", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出短期内体重不增长的判断标准之一是能吃能睡。"
+        },
+        {
+          "question_text": "以下哪项也符合短期内体重不增长的判断标准？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "体重持续下滑", "is_correct": false},
+            {"option_text": "睡眠时间短", "is_correct": false},
+            {"option_text": "精神状态好", "is_correct": true},
+            {"option_text": "食欲不振", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出短期内体重不增长的判断标准之一是精神状态好。"
+        },
+        {
+          "question_text": "如果4-5个月龄婴儿符合短期内体重不增长的判断标准，以下哪项做法是建议的？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "不必干预，继续观察", "is_correct": true},
+            {"option_text": "立即增加喂奶量", "is_correct": false},
+            {"option_text": "更换奶粉品牌", "is_correct": false},
+            {"option_text": "寻求医生帮助", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出如果符合短期内体重不增长的判断标准可以不必干预,继续观察。"
+        },
+        {
+          "question_text": "以下哪些描述符合短期内体重不增长的判断标准？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "体重持续下滑", "is_correct": false},
+            {"option_text": "能吃能睡", "is_correct": true},
+            {"option_text": "精神状态好", "is_correct": true},
+            {"option_text": "体重明显增加", "is_correct": false},
+            {"option_text": "食欲不振", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出的短期内体重不增长的判断标准包含体重没有下滑、能吃能睡、精神状态好。"
+        }
+      ]
+    },
+    {
+      "point_name": "常见问题及护理 - 夜醒 (4-5月龄)",
+      "questions": [
+        {
+          "question_text": "以下哪项属于夜醒的环境原因？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "睡眠环境 (包括温湿度，光线)", "is_correct": true},
+            {"option_text": "长牙", "is_correct": false},
+            {"option_text": "作息不规律", "is_correct": false},
+            {"option_text": "翻身醒", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出睡眠环境为夜醒的环境原因。"
+        },
+        {
+          "question_text": "以下哪项属于夜醒的生理原因？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "睡眠环境", "is_correct": false},
+            {"option_text": "长牙", "is_correct": true},
+            {"option_text": "作息不规律", "is_correct": false},
+            {"option_text": "翻身醒", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出长牙为夜醒的生理原因之一。"
+        },
+        {
+          "question_text": "以下哪项也属于夜醒的生理原因？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "睡眠环境", "is_correct": false},
+            {"option_text": "作息不规律", "is_correct": false},
+            {"option_text": "猛长期", "is_correct": true},
+            {"option_text": "翻身醒", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出猛长期为夜醒的生理原因之一。"
+        },
+        {
+          "question_text": "以下哪项属于夜醒的习惯性原因？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "睡眠能力发育不成熟，有奶睡、抱睡习惯", "is_correct": true},
+            {"option_text": "睡眠环境", "is_correct": false},
+            {"option_text": "生理原因", "is_correct": false},
+            {"option_text": "作息不规律", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出睡眠能力发育不成熟,有奶睡、抱睡习惯为夜醒的习惯性原因。"
+        },
+        {
+          "question_text": "以下哪些属于夜醒的原因？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "睡眠环境 (温湿度, 光线)", "is_correct": true},
+            {"option_text": "生理原因 (长牙、猛长期、生病、腹胀)", "is_correct": true},
+            {"option_text": "睡眠能力发育不成熟，有奶睡、抱睡习惯", "is_correct": true},
+            {"option_text": "添加辅食不当", "is_correct": false},
+            {"option_text": "更换奶粉品牌", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出的夜醒原因包含睡眠环境、生理原因、作息不规律、睡眠能力发育不成熟 (有奶睡、抱睡习惯)、翻身醒。添加辅食不当和更换奶粉品牌不属于文档列出的夜醒原因。"
+        }
+      ]
+    },
+    {
+      "point_name": "七、一天的安排 (4-5月龄)",
+      "questions": [
+        {
+          "question_text": "4-5个月龄婴儿一天的作息安排原则是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "根据孩子的生物钟来安排一天的喂养，约4小时一循环", "is_correct": true},
+            {"option_text": "严格按照时间表执行", "is_correct": false},
+            {"option_text": "完全按照家长的作息时间", "is_correct": false},
+            {"option_text": "随意安排，没有固定原则", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出4-5个月龄婴儿一天的作息安排原则是根据孩子的生物钟来安排一天的喂养,约4小时一循环。"
+        },
+        {
+          "question_text": "4-5个月龄婴儿一天的喂养原则是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "按需喂养", "is_correct": false},
+            {"option_text": "7~6次/天", "is_correct": true},
+            {"option_text": "8~9次/天", "is_correct": false},
+            {"option_text": "5~4次/天", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出4-5个月龄婴儿一天的喂养原则是7~6次/天。"
+        },
+        {
+          "question_text": "4-5个月龄婴儿一天的睡眠原则是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "15~17小时/天", "is_correct": true},
+            {"option_text": "12~14小时/天", "is_correct": false},
+            {"option_text": "18~20小时/天", "is_correct": false},
+            {"option_text": "20小时以上/天", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出4-5个月龄婴儿一天的睡眠原则是15~17小时/天。"
+        },
+        {
+          "question_text": "4-5个月龄婴儿早教原则强调？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "进行专业的早教课程", "is_correct": false},
+            {"option_text": "孩子清醒时间可以和孩子一起做互动，所有和孩子的互动均为早教", "is_correct": true},
+            {"option_text": "购买益智玩具", "is_correct": false},
+            {"option_text": "进行高强度的智力开发", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出4-5个月龄婴儿早教原则强调孩子清醒时间可以和孩子一起做互动,所有和孩子的互动均为早教。"
+        },
+        {
+          "question_text": "以下哪些属于4-5个月龄婴儿一天的安排原则？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "根据孩子的生物钟来安排一天的喂养，约4小时一循环", "is_correct": true},
+            {"option_text": "喂养原则：7~6次/天", "is_correct": true},
+            {"option_text": "早教原则：孩子清醒时间可以和孩子一起做互动", "is_correct": true},
+            {"option_text": "严格按照时间表执行", "is_correct": false},
+            {"option_text": "完全按照家长喜好", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出的4-5个月龄婴儿一天的安排原则包含根据孩子的生物钟来安排一天的喂养，约4小时一循环、喂养原则：7~6次/天、早教原则：孩子清醒时间可以和孩子一起做互动。"
+        }
+      ]
+    },
+    {
+        "point_name": "常见问题及护理 - 短期内体重不增长 (4-5月龄)",
+        "questions": [
+            {
+                "question_text": "短期内体重不增长的判断标准不包括？[单选题]",
+                "question_type": "单选题",
+                "options": [
+                    {
+                        "option_text": "体重明显增加",
+                        "is_correct": true
+                    },
+                    {
+                        "option_text": "体重没有下滑",
+                        "is_correct": false
+                    },
+                    {
+                        "option_text": "能吃能睡",
+                        "is_correct": false
+                    },
+                    {
+                        "option_text": "精神状态好",
+                        "is_correct": false
+                    }
+                ],
+                "answer_explanation": "短期内体重不增长的判断标准是体重没有下滑，A选项描述与此标准矛盾。"
+            }
+        ]
+    }
+  ]
+}

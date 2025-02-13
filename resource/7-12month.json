@@ -1,0 +1,4515 @@
+{
+  "course_name": "7-12个月龄婴儿护理要点",
+  "knowledge_points": [
+    {
+      "point_name": "7～12个月育儿理念",
+      "questions": [
+        {
+          "question_text": "7～12个月婴儿育儿理念的核心强调？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "顺应婴儿自身发展规律", "is_correct": true},
+            {"option_text": "制定严格的作息时间表", "is_correct": false},
+            {"option_text": "快速提升婴儿各项技能", "is_correct": false},
+            {"option_text": "以父母经验主导育儿过程", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出7～12个月育儿理念核心是“一切顺应孩子的发展,根据每个孩子的身心特点,尊重孩子...”"
+        },
+        {
+          "question_text": "在7～12个月育儿中，当孩子出现特定行为时，更应关注的是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "如何快速纠正行为偏差", "is_correct": false},
+            {"option_text": "行为背后所反映的情绪和需求", "is_correct": true},
+            {"option_text": "行为对父母育儿计划的影响", "is_correct": false},
+            {"option_text": "行为是否符合社会期望", "is_correct": false}
+          ],
+          "answer_explanation": "文档强调“重要的永远不是孩子行为本身,而是行为背后的情绪和心声。”"
+        },
+        {
+          "question_text": "7～12个月育儿理念提倡从哪个视角出发解决育儿问题？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "家庭教育专家", "is_correct": false},
+            {"option_text": "父母自身经验", "is_correct": false},
+            {"option_text": "婴儿自身的需求", "is_correct": true},
+            {"option_text": "传统育儿方法", "is_correct": false}
+          ],
+          "answer_explanation": "文档强调要“从孩子的角度去解决问题”。"
+        },
+        {
+          "question_text": "下列哪项育儿行为**最不符合** 7～12个月婴儿育儿理念？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "提供安全的环境，鼓励婴儿探索", "is_correct": false},
+            {"option_text": "当婴儿哭闹时，尝试理解其哭闹原因", "is_correct": false},
+            {"option_text": "根据婴儿的反应，调整辅食添加计划", "is_correct": false},
+            {"option_text": "为了培养独立性，减少对哭闹婴儿的安抚", "is_correct": true}
+          ],
+          "answer_explanation": "选项D与“尊重孩子...从孩子的角度去解决问题”的理念相悖。"
+        },
+        {
+          "question_text": "7～12个月育儿理念与**哪个年龄段**的育儿理念保持一致？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "6个月", "is_correct": true},
+            {"option_text": "1-3岁", "is_correct": false},
+            {"option_text": "3-6岁", "is_correct": false},
+            {"option_text": "6-12岁", "is_correct": false}
+          ],
+          "answer_explanation": "文档开头明确指出“7～12 个月的育儿理念是什么？答案：见 6 个月二阶课程。”"
+        }
+      ]
+    },
+    {
+      "point_name": "7～9个月婴儿喂养总奶量及次数",
+      "questions": [
+        {
+          "question_text": "7～9个月婴儿每日 рекомендуемый 总奶量范围是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "800～1100ml", "is_correct": true},
+            {"option_text": "600～800ml", "is_correct": false},
+            {"option_text": "700～1000ml", "is_correct": false},
+            {"option_text": "900～1200ml", "is_correct": false}
+          ],
+          "answer_explanation": "文档明确指出7～9个月婴儿“总奶量：800～1100ml”。"
+        },
+        {
+          "question_text": "7～9个月婴儿每天建议的喂奶次数为？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "3～4次", "is_correct": false},
+            {"option_text": "4～5次", "is_correct": true},
+            {"option_text": "5～6次", "is_correct": false},
+            {"option_text": "2～3次", "is_correct": false}
+          ],
+          "answer_explanation": "文档明确指出7～9个月婴儿“次数：4～5 次/天”。"
+        },
+        {
+          "question_text": "若8个月婴儿每日 потребление 奶量为750ml，喂奶3次，以下评估**最准确**的是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "奶量和次数均达标", "is_correct": false},
+            {"option_text": "奶量达标，次数不足", "is_correct": false},
+            {"option_text": "奶量不足，次数不足", "is_correct": true},
+            {"option_text": "奶量不足，次数达标", "is_correct": false}
+          ],
+          "answer_explanation": "根据文档，7～9个月总奶量建议800-1100ml，次数4-5次/天，750ml和3次均略低于建议范围。"
+        },
+        {
+          "question_text": "关于7～9个月婴儿的喂养，下列说法**错误**的是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "应保证每日800～1100ml的总奶量", "is_correct": false},
+            {"option_text": "每日喂奶次数建议为4～5次", "is_correct": false},
+            {"option_text": "辅食应逐渐从泥糊状过渡到细末状", "is_correct": false},
+            {"option_text": "奶量和喂养次数必须严格遵守，不可调整", "is_correct": true}
+          ],
+          "answer_explanation": "选项D过于绝对，实际喂养应根据婴儿个体情况灵活调整。"
+        },
+        {
+          "question_text": "7～9个月婴儿，**当辅食逐渐增加时**，奶量和喂奶次数应如何调整？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "保证总奶量和喂养次数在建议范围内即可", "is_correct": true},
+            {"option_text": "应大幅减少奶量和喂养次数", "is_correct": false},
+            {"option_text": "奶量和喂养次数无需调整", "is_correct": false},
+            {"option_text": "应增加奶量以弥补辅食的不足", "is_correct": false}
+          ],
+          "answer_explanation": "辅食增加是逐渐替代奶的过程，但7-9个月仍以奶为主，保证奶量和次数在建议范围内是合理的。"
+        }
+      ]
+    },
+    {
+      "point_name": "7～9个月婴儿胃容量",
+      "questions": [
+        {
+          "question_text": "7～9个月婴儿的胃容量 приблизительно 为？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "200～220ml", "is_correct": true},
+            {"option_text": "150～200ml", "is_correct": false},
+            {"option_text": "250～300ml", "is_correct": false},
+            {"option_text": "180～250ml", "is_correct": false}
+          ],
+          "answer_explanation": "文档明确指出7～9个月婴儿“胃容量：200～220ml”。"
+        },
+        {
+          "question_text": "了解7～9个月婴儿胃容量的**主要意义**在于辅助？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "计算精确的喂奶时间", "is_correct": false},
+            {"option_text": "制定合理的单次喂奶量", "is_correct": true},
+            {"option_text": "判断婴儿消化吸收能力", "is_correct": false},
+            {"option_text": "预测婴儿生长发育速度", "is_correct": false}
+          ],
+          "answer_explanation": "了解胃容量有助于避免过量喂养，制定合理单次喂奶量，选项B更直接相关。"
+        },
+        {
+          "question_text": "一次性喂奶量**超过** 7～9个月婴儿胃容量，**最可能**导致？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "婴儿体重增长停滞", "is_correct": false},
+            {"option_text": "婴儿出现厌奶", "is_correct": false},
+            {"option_text": "婴儿发生溢奶或呕吐", "is_correct": true},
+            {"option_text": "婴儿睡眠时间缩短", "is_correct": false}
+          ],
+          "answer_explanation": "超过胃容量最直接的反应是消化系统不适，溢奶或呕吐是常见表现。"
+        },
+        {
+          "question_text": "关于7～9个月婴儿胃容量，下列描述**不正确**的是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "胃容量范围约为200～220ml", "is_correct": false},
+            {"option_text": "胃容量会随婴儿生长发育而增加", "is_correct": false},
+            {"option_text": "胃容量影响单次喂奶量的制定", "is_correct": false},
+            {"option_text": "胃容量大小固定不变，与喂养方式无关", "is_correct": true}
+          ],
+          "answer_explanation": "婴儿胃容量会随生长发育逐渐增大，选项D描述错误。"
+        },
+        {
+          "question_text": "在7～9个月婴儿喂养中，**少量多次**喂养方式的理论基础是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "婴儿胃容量相对较小", "is_correct": true},
+            {"option_text": "促进婴儿肠道蠕动", "is_correct": false},
+            {"option_text": "培养婴儿规律进食习惯", "is_correct": false},
+            {"option_text": "减少食物过敏风险", "is_correct": false}
+          ],
+          "answer_explanation": "少量多次喂养主要考虑婴儿胃容量小的特点，避免一次性喂太多，增加消化负担。"
+        }
+      ]
+    },
+    {
+      "point_name": "7～9个月婴儿身高体重参考范围",
+      "questions": [
+        {
+          "question_text": "根据文档参照表，8个月**男孩**的正常体重范围是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "7.8～9.8kg", "is_correct": true},
+            {"option_text": "7.2～9.1kg", "is_correct": false},
+            {"option_text": "8.5～10.5kg", "is_correct": false},
+            {"option_text": "9.0～11.0kg", "is_correct": false}
+          ],
+          "answer_explanation": "查阅文档表格，8个月男孩体重范围为7.8～9.8kg。"
+        },
+        {
+          "question_text": "9个月**女孩**的正常身高范围，**应参考哪个年龄段**的参照数据？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "7个月", "is_correct": false},
+            {"option_text": "8个月", "is_correct": true},
+            {"option_text": "10个月", "is_correct": false},
+            {"option_text": "12个月", "is_correct": false}
+          ],
+          "answer_explanation": "文档表格中缺失9个月数据，但9-10个月身高体重变化平稳，9个月更接近8个月，故参考8个月数据。"
+        },
+        {
+          "question_text": "下列哪个身高体重组合**更符合** 8个月**女孩**的生长发育水平？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "体重 9.8kg，身高 73cm", "is_correct": false},
+            {"option_text": "体重 7.1kg，身高 65cm", "is_correct": false},
+            {"option_text": "体重 8.0kg，身高 68cm", "is_correct": true},
+            {"option_text": "体重 10.2kg，身高 75cm", "is_correct": false}
+          ],
+          "answer_explanation": "选项C体重8.0kg和身高68cm均在8个月女宝宝的参考范围内（体重7.2～9.1kg，身高66.4～71.8cm）。"
+        },
+        {
+          "question_text": "关于7～9个月婴儿身高体重参照表，**理解正确**的是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "参照表数据是必须达到的硬性指标", "is_correct": false},
+            {"option_text": "身高比体重更能反映婴儿发育水平", "is_correct": false},
+            {"option_text": "参照表适用于所有国家和地区的婴儿", "is_correct": false},
+            {"option_text": "参照表提供的是参考范围，存在个体差异", "is_correct": true}
+          ],
+          "answer_explanation": "身高体重参照表是参考，个体差异是普遍存在的，选项D最符合实际情况。"
+        },
+        {
+          "question_text": "若8个月**男孩**体重仅为7.2kg，**最恰当**的做法是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "咨询专业医生，评估生长发育状况", "is_correct": true},
+            {"option_text": "立即增加辅食和奶量摄入", "is_correct": false},
+            {"option_text": "直接判断为体重不达标，无需干预", "is_correct": false},
+            {"option_text": "更换为高能量配方奶粉", "is_correct": false}
+          ],
+          "answer_explanation": "体重7.2kg低于8个月男宝宝的参考范围下限，应咨询医生进行专业评估，选项A更稳妥。"
+        }
+      ]
+    },
+    {
+      "point_name": "夜奶定义及断夜奶时间",
+      "questions": [
+        {
+          "question_text": "以下哪些情况属于**夜奶**的范畴？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "晚上7点入睡后，夜间2点喂的一次奶", "is_correct": true},
+            {"option_text": "凌晨4点喂的晨奶", "is_correct": true},
+            {"option_text": "宝宝在后半夜醒来哭闹，喂奶后继续入睡", "is_correct": true},
+            {"option_text": "为了安抚宝宝入睡而进行的睡前奶", "is_correct": true},
+            {"option_text": "白天小睡期间的喂奶", "is_correct": false}
+          ],
+          "answer_explanation": "文档定义夜奶为“晚上入睡后到早晨起床前，这段时间喝的奶统称为夜奶（4～5 点的晨奶也包括在内）”，选项ABC符合定义，睡前奶若在入睡后也属于夜奶范畴。"
+        },
+        {
+          "question_text": "关于**断夜奶的时间**，文档建议**最早**可考虑在婴儿？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "6个月", "is_correct": false},
+            {"option_text": "9个月", "is_correct": true},
+            {"option_text": "12个月", "is_correct": false},
+            {"option_text": "15个月", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出“9 月龄的孩子可以一整夜不进食...断夜奶的时间：9 月龄的孩子可以...”"
+        },
+        {
+          "question_text": "**9个月**的婴儿，**生理上**是否还需要夜奶？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "不再需要", "is_correct": true},
+            {"option_text": "仍然需要", "is_correct": false},
+            {"option_text": "部分需要", "is_correct": false},
+            {"option_text": "偶尔需要", "is_correct": false}
+          ],
+          "answer_explanation": "文档明确指出“9 个月的孩子不管从生理上、心理上都不再需要夜奶了”。"
+        },
+        {
+          "question_text": "关于夜奶，下列说法**正确**的是？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "夜奶是指晚上入睡后到早晨起床前的喂奶", "is_correct": true},
+            {"option_text": "所有婴儿都应该在6个月前断夜奶", "is_correct": false},
+            {"option_text": "9个月后，婴儿生理上已不再需要夜奶", "is_correct": true},
+            {"option_text": "夜奶可以一直持续到幼儿期", "is_correct": false},
+            {"option_text": "夜奶有助于婴儿深度睡眠", "is_correct": false}
+          ],
+          "answer_explanation": "选项A和C符合文档对夜奶的定义和断夜奶时间的描述，选项B和D与文档信息不符，选项E无直接文档支持。"
+        },
+        {
+          "question_text": "**延续夜奶**至一岁的**前提条件**是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "婴儿体重增长缓慢", "is_correct": false},
+            {"option_text": "婴儿睡眠质量差", "is_correct": false},
+            {"option_text": "对母亲和孩子均无不良影响", "is_correct": true},
+            {"option_text": "婴儿辅食接受度低", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出“...如果这顿夜奶对母亲和孩子都没有任何影响的情况下，夜奶可以延续到一岁。”"
+        }
+      ]
+    },
+    {
+      "point_name": "奶与辅食的过渡（7～9个月）",
+      "questions": [
+        {
+          "question_text": "7～9个月婴儿，奶与辅食的**过渡目标**是逐渐达到？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "4+2 模式", "is_correct": true},
+            {"option_text": "3+3 模式", "is_correct": false},
+            {"option_text": "2+4 模式", "is_correct": false},
+            {"option_text": "全辅食模式", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出“9 月龄逐渐过渡到 4+2，通常辅食替代中午和晚上两顿奶...”。"
+        },
+        {
+          "question_text": "**4+2 模式**中，“2”代表的是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "每日总奶量为2份", "is_correct": false},
+            {"option_text": "每日辅食为2顿", "is_correct": true},
+            {"option_text": "每日小睡为2次", "is_correct": false},
+            {"option_text": "每日户外活动为2小时", "is_correct": false}
+          ],
+          "answer_explanation": "根据文档描述，辅食替代中午和晚上两顿奶，因此“2”代表两顿辅食。"
+        },
+        {
+          "question_text": "在7～9个月奶与辅食过渡阶段，**被辅食替代的奶**，其奶量应？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "直接减少", "is_correct": false},
+            {"option_text": "完全取消", "is_correct": false},
+            {"option_text": "并入其他奶顿中", "is_correct": true},
+            {"option_text": "保持不变", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出“将这两顿奶的奶量并到其它 4 顿奶中”。"
+        },
+        {
+          "question_text": "7～9个月奶与辅食过渡的**主要目的**是？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "为向3+3模式过渡做准备", "is_correct": true},
+            {"option_text": "让婴儿逐渐适应辅食", "is_correct": true},
+            {"option_text": "减少婴儿对母乳或配方奶的依赖", "is_correct": false},
+            {"option_text": "快速增加婴儿营养摄入", "is_correct": false},
+            {"option_text": "减轻母亲喂夜奶的负担", "is_correct": false}
+          ],
+          "answer_explanation": "过渡是为了逐渐适应辅食，并为后续3+3模式做准备，选项AB更贴合文档描述。"
+        },
+        {
+          "question_text": "关于7～9个月奶与辅食过渡，下列描述**正确**的是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "逐渐用辅食替代部分奶，达到4+2模式", "is_correct": true},
+            {"option_text": "应快速将所有奶都替换为辅食", "is_correct": false},
+            {"option_text": "奶量应保持不变，额外增加辅食", "is_correct": false},
+            {"option_text": "辅食只是零食，奶才是主要营养来源", "is_correct": false}
+          ],
+          "answer_explanation": "选项A准确描述了7-9个月奶与辅食过渡的策略。"
+        }
+      ]
+    },
+    {
+      "point_name": "辅食性状过渡（7～9个月）",
+      "questions": [
+        {
+          "question_text": "7～9个月婴儿辅食的性状，应从**泥糊状**过渡到？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "细末状", "is_correct": true},
+            {"option_text": "颗粒状", "is_correct": false},
+            {"option_text": "小块状", "is_correct": false},
+            {"option_text": "固体状", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出辅食性状“完成从泥糊状过渡到细末状”。"
+        },
+        {
+          "question_text": "**细末状辅食**的典型例子是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "米糊", "is_correct": false},
+            {"option_text": "肉末粥", "is_correct": true},
+            {"option_text": "小块水果", "is_correct": false},
+            {"option_text": "手指饼干", "is_correct": false}
+          ],
+          "answer_explanation": "肉末粥中的肉末是细末状的典型代表。"
+        },
+        {
+          "question_text": "辅食性状从泥糊状向细末状过渡的**主要目的**是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "增加辅食的营养密度", "is_correct": false},
+            {"option_text": "提高婴儿对辅食的兴趣", "is_correct": false},
+            {"option_text": "锻炼婴儿的吞咽和咀嚼能力", "is_correct": true},
+            {"option_text": "方便父母喂养", "is_correct": false}
+          ],
+          "answer_explanation": "性状过渡的主要目的是为了锻炼婴儿的口腔功能，为后续更固体食物做准备。"
+        },
+        {
+          "question_text": "若7个月婴儿**仍只接受泥糊状辅食**，可能**不利于**？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "营养吸收", "is_correct": false},
+            {"option_text": "体重增长", "is_correct": false},
+            {"option_text": "睡眠质量", "is_correct": false},
+            {"option_text": "咀嚼能力发展", "is_correct": true}
+          ],
+          "answer_explanation": "长期停留在泥糊状不利于咀嚼能力的锻炼，选项D更直接相关。"
+        },
+        {
+          "question_text": "关于7～9个月辅食性状过渡，下列说法**正确**的是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "应逐渐从泥糊状过渡到细末状", "is_correct": true},
+            {"option_text": "应快速从泥糊状过渡到颗粒状", "is_correct": false},
+            {"option_text": "辅食性状无需改变，保持泥糊状即可", "is_correct": false},
+            {"option_text": "辅食性状应根据婴儿喜好随意调整", "is_correct": false}
+          ],
+          "answer_explanation": "选项A准确描述了7-9个月辅食性状过渡的目标。"
+        }
+      ]
+    },
+    {
+      "point_name": "喂养 (10～12个月) - 总奶量及次数",
+      "questions": [
+        {
+          "question_text": "10～12个月婴儿，每日推荐的总奶量范围是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "800～1100ml", "is_correct": false},
+            {"option_text": "600～800ml", "is_correct": true},
+            {"option_text": "700～900ml", "is_correct": false},
+            {"option_text": "500～700ml", "is_correct": false}
+          ],
+          "answer_explanation": "文档明确指出10～12个月婴儿“总奶量：600～800ml”。"
+        },
+        {
+          "question_text": "10～12个月婴儿，每天建议的喂奶次数为？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "3～4次", "is_correct": true},
+            {"option_text": "4～5次", "is_correct": false},
+            {"option_text": "2～3次", "is_correct": false},
+            {"option_text": "5～6次", "is_correct": false}
+          ],
+          "answer_explanation": "文档明确指出10～12个月婴儿“次数：3～4 次/天”。"
+        },
+        {
+          "question_text": "若11个月婴儿，每日 потребление 奶量为900ml，喂奶4次，以下评估**最准确**的是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "奶量和次数均达标", "is_correct": false},
+            {"option_text": "奶量达标，次数不足", "is_correct": false},
+            {"option_text": "奶量超标，次数达标", "is_correct": false},
+            {"option_text": "奶量超标，次数达标，但奶量略超建议范围", "is_correct": true}
+          ],
+          "answer_explanation": "根据文档，10～12个月总奶量建议600-800ml，次数3-4次/天，900ml略高于建议范围，4次在建议范围内。"
+        },
+        {
+          "question_text": "关于10～12个月婴儿的喂养，下列说法**错误**的是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "应保证每日600～800ml的总奶量", "is_correct": false},
+            {"option_text": "每日喂奶次数建议为3～4次", "is_correct": false},
+            {"option_text": "辅食应逐渐替代所有奶，实现全辅食喂养", "is_correct": true},
+            {"option_text": "辅食性状应从细末状过渡到颗粒状", "is_correct": false}
+          ],
+          "answer_explanation": "选项C描述错误，10-12个月仍需保证最低奶量，并非全辅食喂养。"
+        },
+        {
+          "question_text": "10～12个月婴儿，**当辅食成为主要营养来源时**，奶量和喂奶次数应如何调整？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "奶量和次数均应增加", "is_correct": false},
+            {"option_text": "奶量和次数均应减少", "is_correct": true},
+            {"option_text": "奶量减少，次数增加", "is_correct": false},
+            {"option_text": "奶量和次数无需调整", "is_correct": false}
+          ],
+          "answer_explanation": "当辅食成为主要营养来源，奶量和次数应相应减少，但仍需保证最低奶量。"
+        }
+      ]
+    },
+    {
+      "point_name": "10～12个月婴儿胃容量",
+      "questions": [
+        {
+          "question_text": "10～12个月婴儿的胃容量 приблизительно 为？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "220～240ml", "is_correct": true},
+            {"option_text": "200～220ml", "is_correct": false},
+            {"option_text": "250～270ml", "is_correct": false},
+            {"option_text": "240～260ml", "is_correct": false}
+          ],
+          "answer_explanation": "文档明确指出10～12个月婴儿“胃容量：220～240ml”。"
+        },
+        {
+          "question_text": "与7～9个月婴儿相比，10～12个月婴儿的胃容量？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "更小", "is_correct": false},
+            {"option_text": "更大", "is_correct": true},
+            {"option_text": "相同", "is_correct": false},
+            {"option_text": "变化不定", "is_correct": false}
+          ],
+          "answer_explanation": "文档数据表明，10-12个月胃容量（220-240ml）略大于7-9个月（200-220ml）。"
+        },
+        {
+          "question_text": "了解10～12个月婴儿胃容量，**有助于**？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "精确计算每日总奶量", "is_correct": false},
+            {"option_text": "判断婴儿是否需要添加辅食", "is_correct": false},
+            {"option_text": "合理安排单次喂奶量和辅食量", "is_correct": true},
+            {"option_text": "预测婴儿身高增长速度", "is_correct": false}
+          ],
+          "answer_explanation": "了解胃容量有助于更合理地分配单次喂奶量和辅食量，避免过量或不足。"
+        },
+        {
+          "question_text": "如果一次喂奶量**超过** 10～12个月婴儿胃容量上限，**可能导致**？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "婴儿体重减轻", "is_correct": false},
+            {"option_text": "婴儿出现腹泻", "is_correct": false},
+            {"option_text": "婴儿睡眠不安", "is_correct": false},
+            {"option_text": "婴儿反胃或吐奶", "is_correct": true}
+          ],
+          "answer_explanation": "喂奶量超过胃容量上限，消化系统负担加重，可能导致反胃或吐奶。"
+        },
+        {
+          "question_text": "在10～12个月婴儿喂养中，**逐渐增加辅食种类和量**，与胃容量发展**关系最密切**的是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "胃容量增大，可容纳更多食物", "is_correct": true},
+            {"option_text": "胃容量减小，需减少奶量", "is_correct": false},
+            {"option_text": "胃容量变化不大，饮食结构需调整", "is_correct": false},
+            {"option_text": "胃容量成熟，可完全依赖辅食", "is_correct": false}
+          ],
+          "answer_explanation": "胃容量增大是逐渐增加辅食种类和量的生理基础，为接受更多食物做准备。"
+        }
+      ]
+    },
+    {
+      "point_name": "10～12个月婴儿身高体重参考范围",
+      "questions": [
+        {
+          "question_text": "根据文档参照表，10个月**男孩**的正常体重范围是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "8.6～10.6kg", "is_correct": true},
+            {"option_text": "7.9～9.9kg", "is_correct": false},
+            {"option_text": "9.1～11.3kg", "is_correct": false},
+            {"option_text": "8.5～10.6kg", "is_correct": false}
+          ],
+          "answer_explanation": "查阅文档表格，10个月男孩体重范围为8.6～10.6kg。"
+        },
+        {
+          "question_text": "12个月**女孩**的正常身高范围是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "69.0～74.5cm", "is_correct": false},
+            {"option_text": "71.5～77.1cm", "is_correct": true},
+            {"option_text": "73.4～78.8cm", "is_correct": false},
+            {"option_text": "71.0～76.3cm", "is_correct": false}
+          ],
+          "answer_explanation": "查阅文档表格，12个月女孩身高范围为71.5～77.1cm。"
+        },
+        {
+          "question_text": "下列哪个身高体重组合**更符合** 10个月**女孩**的生长发育水平？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "体重 10.5kg，身高 76cm", "is_correct": false},
+            {"option_text": "体重 7.8kg，身高 68cm", "is_correct": false},
+            {"option_text": "体重 8.8kg，身高 72cm", "is_correct": true},
+            {"option_text": "体重 11kg，身高 78cm", "is_correct": false}
+          ],
+          "answer_explanation": "选项C体重8.8kg和身高72cm均在10个月女宝宝的参考范围内（体重7.9～9.9kg，身高69.0～74.5cm）。"
+        },
+        {
+          "question_text": "关于10～12个月婴儿身高体重参照表，**最恰当的应用**是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "作为判断婴儿是否生病的唯一标准", "is_correct": false},
+            {"option_text": "指导父母严格按照表格数据喂养", "is_correct": false},
+            {"option_text": "用于与其他同龄婴儿进行比较", "is_correct": false},
+            {"option_text": "作为评估婴儿生长发育的参考依据", "is_correct": true}
+          ],
+          "answer_explanation": "参照表是参考依据，用于评估发育情况，而非绝对标准或比较工具。"
+        },
+        {
+          "question_text": "若12个月**女孩**体重为11kg，**最可能**的评估是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "体重偏轻，需要增加喂养", "is_correct": false},
+            {"option_text": "体重正常偏重，注意均衡饮食", "is_correct": true},
+            {"option_text": "体重超重，需要控制饮食", "is_correct": false},
+            {"option_text": "体重严重超重，立即就医", "is_correct": false}
+          ],
+          "answer_explanation": "体重11kg在12个月女孩的参考范围上限附近（8.5～10.6kg），属于正常偏重，注意均衡饮食即可。"
+        }
+      ]
+    },
+    {
+      "point_name": "奶与辅食的过渡（10～12个月）",
+      "questions": [
+        {
+          "question_text": "10～12个月婴儿，奶与辅食的**过渡目标**是逐渐达到？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "3+3 模式", "is_correct": true},
+            {"option_text": "4+2 模式", "is_correct": false},
+            {"option_text": "2+4 模式", "is_correct": false},
+            {"option_text": "全辅食模式", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出“逐渐过渡到 3+3，变成早、中、晚 3 顿辅食，只有当变成 3 顿辅食和 3 顿奶的时候...”。"
+        },
+        {
+          "question_text": "**3+3 模式**中，“3+3”分别代表？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "3顿奶 + 3顿零食", "is_correct": false},
+            {"option_text": "3顿奶 + 3顿辅食", "is_correct": true},
+            {"option_text": "3顿主食 + 3顿辅食", "is_correct": false},
+            {"option_text": "3顿奶 + 3顿水果", "is_correct": false}
+          ],
+          "answer_explanation": "根据文档描述，“变成早、中、晚 3 顿辅食，只有当变成 3 顿辅食和 3 顿奶的时候...”，因此是3顿奶+3顿辅食。"
+        },
+        {
+          "question_text": "在10～12个月奶与辅食过渡阶段，**实现3+3模式的关键**在于？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "大幅增加奶量", "is_correct": false},
+            {"option_text": "完全停止喂奶", "is_correct": false},
+            {"option_text": "保证最低奶量的同时，增加辅食", "is_correct": true},
+            {"option_text": "优先保证奶量，辅食随意", "is_correct": false}
+          ],
+          "answer_explanation": "文档强调“但要保证最低奶量”，同时增加辅食，逐步实现3+3模式。"
+        },
+        {
+          "question_text": "10～12个月奶与辅食过渡的**核心原则**是？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "逐渐增加辅食种类和量", "is_correct": true},
+            {"option_text": "完全用辅食替代奶", "is_correct": false},
+            {"option_text": "保证每日最低奶量", "is_correct": true},
+            {"option_text": "优先满足辅食摄入，奶量可忽略", "is_correct": false},
+            {"option_text": "根据婴儿喜好调整奶和辅食比例", "is_correct": false}
+          ],
+          "answer_explanation": "核心原则是增加辅食，但保证最低奶量，选项AC符合文档描述。"
+        },
+        {
+          "question_text": "关于10～12个月奶与辅食过渡，下列描述**正确**的是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "逐渐过渡到3顿辅食和3顿奶的模式，并保证最低奶量", "is_correct": true},
+            {"option_text": "应快速实现全辅食喂养，奶只是辅助", "is_correct": false},
+            {"option_text": "奶量应保持不变，只需增加辅食种类", "is_correct": false},
+            {"option_text": "辅食只是尝试，奶仍然是主要营养来源", "is_correct": false}
+          ],
+          "answer_explanation": "选项A准确描述了10-12个月奶与辅食过渡的目标和原则。"
+        }
+      ]
+    },
+    {
+      "point_name": "辅食性状过渡（10～12个月）",
+      "questions": [
+        {
+          "question_text": "10～12个月婴儿辅食的性状，应从**细末状**过渡到？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "泥糊状", "is_correct": false},
+            {"option_text": "颗粒状", "is_correct": true},
+            {"option_text": "小块状", "is_correct": false},
+            {"option_text": "固体状", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出辅食性状“从细末状过渡到颗粒状”。"
+        },
+        {
+          "question_text": "**颗粒状辅食**的典型例子是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "米糊", "is_correct": false},
+            {"option_text": "肉末粥", "is_correct": false},
+            {"option_text": "碎菜烂面条", "is_correct": true},
+            {"option_text": "手指饼干", "is_correct": false}
+          ],
+          "answer_explanation": "碎菜烂面条中的碎菜和面条都呈现颗粒状。"
+        },
+        {
+          "question_text": "辅食性状从细末状向颗粒状过渡的**主要意义**在于？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "增加辅食的美观度", "is_correct": false},
+            {"option_text": "提高辅食的消化率", "is_correct": false},
+            {"option_text": "方便父母制作辅食", "is_correct": false},
+            {"option_text": "进一步锻炼婴儿的咀嚼能力", "is_correct": true}
+          ],
+          "answer_explanation": "性状过渡的目的是持续锻炼咀嚼能力，为接受更固体食物做准备。"
+        },
+        {
+          "question_text": "若10个月婴儿**仍只接受细末状辅食**，可能**影响**其？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "咀嚼能力的进一步发展", "is_correct": true},
+            {"option_text": "营养素的全面摄入", "is_correct": false},
+            {"option_text": "对辅食的兴趣", "is_correct": false},
+            {"option_text": "睡眠规律的建立", "is_correct": false}
+          ],
+          "answer_explanation": "长期停留在细末状不利于咀嚼能力的进一步发展，选项A更直接相关。"
+        },
+        {
+          "question_text": "关于10～12个月辅食性状过渡，下列说法**正确**的是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "应快速从细末状过渡到固体状", "is_correct": false},
+            {"option_text": "应逐渐从细末状过渡到颗粒状", "is_correct": true},
+            {"option_text": "辅食性状无需改变，保持细末状即可", "is_correct": false},
+            {"option_text": "辅食性状应根据婴儿牙齿发育情况调整", "is_correct": false}
+          ],
+          "answer_explanation": "选项B准确描述了10-12个月辅食性状过渡的目标。"
+        }
+      ]
+    },
+    {
+      "point_name": "喂养的注意事项 (7～9个月辅食关键期)",
+      "questions": [
+        {
+          "question_text": "7～9个月是婴儿添加辅食的**关键期**，同时也是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "锻炼咀嚼能力", "is_correct": true},
+            {"option_text": "培养自主进食", "is_correct": false},
+            {"option_text": "建立规律作息", "is_correct": false},
+            {"option_text": "发展精细动作", "is_correct": false}
+          ],
+          "answer_explanation": "文档明确指出“7～9 个月是添加辅食的关键期，也是锻炼咀嚼能力的关键期。”"
+        },
+        {
+          "question_text": "在7～9个月辅食添加关键期，**最应重视**的是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "辅食的量", "is_correct": false},
+            {"option_text": "辅食的性状和多样性", "is_correct": true},
+            {"option_text": "辅食的喂养时间", "is_correct": false},
+            {"option_text": "辅食的品牌", "is_correct": false}
+          ],
+          "answer_explanation": "关键期更应关注辅食的性状（从泥糊状到细末状）和多样性，以锻炼咀嚼能力并保证营养均衡。"
+        },
+        {
+          "question_text": "若7～9个月婴儿**错过辅食添加关键期**，可能**导致**？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "体重增长过快", "is_correct": false},
+            {"option_text": "身高发育迟缓", "is_correct": false},
+            {"option_text": "咀嚼能力发展滞后", "is_correct": true},
+            {"option_text": "语言发育迟缓", "is_correct": false}
+          ],
+          "answer_explanation": "错过咀嚼能力锻炼的关键期，最直接的影响是咀嚼能力发展滞后。"
+        },
+        {
+          "question_text": "7～9个月辅食添加关键期，**不恰当的做法**是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "尝试不同性状的辅食", "is_correct": false},
+            {"option_text": "提供多种口味的辅食", "is_correct": false},
+            {"option_text": "鼓励婴儿尝试用勺子", "is_correct": false},
+            {"option_text": "只喂养泥糊状辅食，避免噎呛风险", "is_correct": true}
+          ],
+          "answer_explanation": "只喂养泥糊状辅食，会错过锻炼咀嚼能力的关键期，选项D不恰当。"
+        },
+        {
+          "question_text": "关于7～9个月辅食添加关键期，下列说法**正确**的是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "应重视辅食的性状过渡和咀嚼能力锻炼", "is_correct": true},
+            {"option_text": "应优先保证辅食的量，其次考虑性状", "is_correct": false},
+            {"option_text": "应避免过早添加辅食，以免引起过敏", "is_correct": false},
+            {"option_text": "应完全依赖辅食提供营养，减少奶量", "is_correct": false}
+          ],
+          "answer_explanation": "选项A强调了关键期最重要的两个方面：性状过渡和咀嚼能力锻炼。"
+        }
+      ]
+    },
+    {
+      "point_name": "喂养的注意事项 - 培养进餐习惯及餐桌礼仪",
+      "questions": [
+        {
+          "question_text": "从7～9个月开始，应**有意识地培养**婴儿的？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "进餐习惯及餐桌礼仪", "is_correct": true},
+            {"option_text": "独立睡眠习惯", "is_correct": false},
+            {"option_text": "社交礼仪", "is_correct": false},
+            {"option_text": "精细动作能力", "is_correct": false}
+          ],
+          "answer_explanation": "文档明确指出“要有意识的培养孩子的进餐习惯及餐桌礼仪。”"
+        },
+        {
+          "question_text": "**培养婴儿进餐习惯及餐桌礼仪**的**主要目的**是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "让婴儿尽快学会自己吃饭", "is_correct": false},
+            {"option_text": "为日后良好饮食习惯奠定基础", "is_correct": true},
+            {"option_text": "提高婴儿的社交能力", "is_correct": false},
+            {"option_text": "减轻父母喂养负担", "is_correct": false}
+          ],
+          "answer_explanation": "培养良好习惯和礼仪，是为了日后更好的饮食行为，选项B更符合长远目标。"
+        },
+        {
+          "question_text": "**不属于** 7～9个月培养婴儿进餐习惯及餐桌礼仪的**做法**是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "固定进餐时间和地点", "is_correct": false},
+            {"option_text": "营造安静愉快的进餐氛围", "is_correct": false},
+            {"option_text": "严格控制婴儿的进食速度和量", "is_correct": true},
+            {"option_text": "允许婴儿适度尝试自主进食", "is_correct": false}
+          ],
+          "answer_explanation": "严格控制进食速度和量，可能会适得其反，不利于培养良好习惯，选项C不属于。"
+        },
+        {
+          "question_text": "**错误**的培养婴儿进餐习惯及餐桌礼仪的做法是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "让婴儿和家人一起用餐", "is_correct": false},
+            {"option_text": "鼓励婴儿尝试用勺子", "is_correct": false},
+            {"option_text": "允许婴儿用手抓取食物", "is_correct": false},
+            {"option_text": "在婴儿进餐时训斥或责骂", "is_correct": true}
+          ],
+          "answer_explanation": "训斥责骂会造成负面情绪，不利于良好习惯培养，选项D错误。"
+        },
+        {
+          "question_text": "关于7～9个月培养婴儿进餐习惯及餐桌礼仪，下列说法**正确**的是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "应创造积极愉快的进餐氛围，鼓励自主尝试", "is_correct": true},
+            {"option_text": "应严格规定进餐时间和进食量，培养规律性", "is_correct": false},
+            {"option_text": "应避免婴儿用手抓食物，保持餐桌清洁", "is_correct": false},
+            {"option_text": "应在婴儿不配合时，采取强制喂食手段", "is_correct": false}
+          ],
+          "answer_explanation": "选项A强调了积极鼓励和创造良好氛围，更符合培养习惯的原则。"
+        }
+      ]
+    },
+    {
+      "point_name": "喂养的注意事项 - 引导对固体食物感兴趣",
+      "questions": [
+        {
+          "question_text": "在7～9个月辅食添加阶段，**重要的目标之一**是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "引导孩子对固体食物感兴趣", "is_correct": true},
+            {"option_text": "确保孩子摄入足够的奶量", "is_correct": false},
+            {"option_text": "让孩子尽快断掉夜奶", "is_correct": false},
+            {"option_text": "培养孩子独立睡眠能力", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出要“引导孩子对固体食物感兴趣”。"
+        },
+        {
+          "question_text": "**引导婴儿对固体食物感兴趣**的**有效方法**是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "只提供固体食物，拒绝泥糊状食物", "is_correct": false},
+            {"option_text": "提供多样化的固体食物，并鼓励尝试", "is_correct": true},
+            {"option_text": "强迫婴儿进食固体食物", "is_correct": false},
+            {"option_text": "减少奶量，增加饥饿感", "is_correct": false}
+          ],
+          "answer_explanation": "提供多样化选择和鼓励尝试是引导兴趣的有效方法，选项B更合适。"
+        },
+        {
+          "question_text": "若7～9个月婴儿**对固体食物表现出抗拒**，**不恰当的做法**是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "耐心尝试，变换食物种类和烹饪方式", "is_correct": false},
+            {"option_text": "暂时退回泥糊状食物，稍后再尝试", "is_correct": false},
+            {"option_text": "强迫婴儿进食，甚至责骂", "is_correct": true},
+            {"option_text": "观察婴儿是否身体不适，排除疾病因素", "is_correct": false}
+          ],
+          "answer_explanation": "强迫责骂会加剧抗拒，不利于引导兴趣，选项C不恰当。"
+        },
+        {
+          "question_text": "**有助于** 7～9个月婴儿对固体食物产生兴趣的做法是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "只提供单一的固体食物", "is_correct": false},
+            {"option_text": "在婴儿不饿的时候喂固体食物", "is_correct": false},
+            {"option_text": "快速将固体食物塞进婴儿嘴里", "is_correct": false},
+            {"option_text": "让婴儿观看成人进食固体食物的过程", "is_correct": true}
+          ],
+          "answer_explanation": "模仿是婴儿学习的重要方式，观看成人进食有助于引导兴趣，选项D更有效。"
+        },
+        {
+          "question_text": "关于7～9个月引导婴儿对固体食物感兴趣，下列说法**正确**的是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "应创造轻松愉快的氛围，鼓励婴儿探索和尝试", "is_correct": true},
+            {"option_text": "应严格规定每次固体食物的进食量", "is_correct": false},
+            {"option_text": "应避免婴儿用手接触固体食物，保持清洁", "is_correct": false},
+            {"option_text": "应在婴儿哭闹时，用固体食物进行安抚", "is_correct": false}
+          ],
+          "answer_explanation": "选项A强调了积极的引导方式，更符合培养兴趣的原则。"
+        }
+      ]
+    },
+    {
+      "point_name": "喂养的注意事项 - 适时引入手指食物",
+      "questions": [
+        {
+          "question_text": "在7～9个月辅食添加过程中，应**适时引入**？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "手指食物", "is_correct": true},
+            {"option_text": "液体食物", "is_correct": false},
+            {"option_text": "泥糊状食物", "is_correct": false},
+            {"option_text": "高能量食物", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出要“适时引入手指食物”。"
+        },
+        {
+          "question_text": "**手指食物**的**主要特点**是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "营养丰富，易于消化", "is_correct": false},
+            {"option_text": "方便婴儿抓握，自主进食", "is_correct": true},
+            {"option_text": "口感细腻，易于吞咽", "is_correct": false},
+            {"option_text": "形状规则，方便制作", "is_correct": false}
+          ],
+          "answer_explanation": "手指食物的关键特点是方便抓握，锻炼自主进食能力，选项B更准确。"
+        },
+        {
+          "question_text": "**引入手指食物**的**主要目的**是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "增加辅食的营养密度", "is_correct": false},
+            {"option_text": "提高婴儿对辅食的兴趣", "is_correct": false},
+            {"option_text": "锻炼婴儿手眼协调和自主进食能力", "is_correct": true},
+            {"option_text": "减轻父母喂养负担", "is_correct": false}
+          ],
+          "answer_explanation": "引入手指食物的主要目的是锻炼自主进食能力和手眼协调，选项C更贴合目的。"
+        },
+        {
+          "question_text": "**适合** 7～9个月婴儿的**手指食物**是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "坚硬的饼干", "is_correct": false},
+            {"option_text": "整颗花生", "is_correct": false},
+            {"option_text": "大块肉类", "is_correct": false},
+            {"option_text": "煮软的蔬菜条", "is_correct": true}
+          ],
+          "answer_explanation": "煮软的蔬菜条软硬适中，方便抓握，适合作为手指食物，选项D更安全。"
+        },
+        {
+          "question_text": "关于7～9个月适时引入手指食物，下列说法**正确**的是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "应选择软硬适中、方便抓握的食物", "is_correct": true},
+            {"option_text": "应优先选择营养丰富的肉类手指食物", "is_correct": false},
+            {"option_text": "应在婴儿饥饿时提供手指食物", "is_correct": false},
+            {"option_text": "应完全用手指食物替代其他辅食", "is_correct": false}
+          ],
+          "answer_explanation": "选项A强调了手指食物选择的关键要素：软硬适中和方便抓握。"
+        }
+      ]
+    },
+    {
+      "point_name": "喂养的注意事项 - 注意食物的性状",
+      "questions": [
+        {
+          "question_text": "在7～9个月和10～12个月的辅食喂养中，都**需要特别注意**？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "食物的性状", "is_correct": true},
+            {"option_text": "食物的温度", "is_correct": false},
+            {"option_text": "食物的味道", "is_correct": false},
+            {"option_text": "食物的颜色", "is_correct": false}
+          ],
+          "answer_explanation": "文档在7-9个月和10-12个月都强调了辅食性状的过渡，因此性状是需要特别注意的。"
+        },
+        {
+          "question_text": "**食物性状**主要指的是辅食的？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "营养成分", "is_correct": false},
+            {"option_text": "软硬度和颗粒度", "is_correct": true},
+            {"option_text": "味道和气味", "is_correct": false},
+            {"option_text": "颜色和外观", "is_correct": false}
+          ],
+          "answer_explanation": "食物性状主要指食物的质地，包括软硬度和颗粒度，选项B更准确。"
+        },
+        {
+          "question_text": "**不符合** 7～9个月婴儿辅食性状要求的是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "泥糊状", "is_correct": false},
+            {"option_text": "细末状", "is_correct": false},
+            {"option_text": "颗粒状", "is_correct": true},
+            {"option_text": "非常稀薄的流质", "is_correct": false}
+          ],
+          "answer_explanation": "7-9个月辅食应从泥糊状过渡到细末状，颗粒状是10-12个月的性状，选项C不符合7-9个月的要求。"
+        },
+        {
+          "question_text": "**错误**的关于辅食性状的理解是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "食物性状应随婴儿月龄增长而改变", "is_correct": false},
+            {"option_text": "食物性状影响婴儿的吞咽和咀嚼能力发展", "is_correct": false},
+            {"option_text": "食物性状直接影响婴儿对辅食的接受度", "is_correct": false},
+            {"option_text": "食物性状可以随意调整，无需考虑月龄", "is_correct": true}
+          ],
+          "answer_explanation": "食物性状应根据月龄逐步过渡，随意调整不符合婴儿发育规律，选项D错误。"
+        },
+        {
+          "question_text": "关于辅食性状，下列说法**正确**的是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "应根据婴儿月龄选择合适的性状", "is_correct": true},
+            {"option_text": "应优先选择婴儿喜欢的性状", "is_correct": false},
+            {"option_text": "食物性状越细腻越好", "is_correct": false},
+            {"option_text": "食物性状越粗糙越好", "is_correct": false}
+          ],
+          "answer_explanation": "选项A强调了根据月龄选择合适性状的重要性，符合辅食添加的原则。"
+        }
+      ]
+    },
+    {
+      "point_name": "喂养的注意事项 - 辅食的营养均衡",
+      "questions": [
+        {
+          "question_text": "在7～12个月辅食喂养中，**至关重要**的是保证？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "辅食的营养均衡", "is_correct": true},
+            {"option_text": "辅食的制作精细", "is_correct": false},
+            {"option_text": "辅食的口味丰富", "is_correct": false},
+            {"option_text": "辅食的量足够大", "is_correct": false}
+          ],
+          "answer_explanation": "文档强调“辅食的营养均衡”，这是辅食喂养的核心目标之一。"
+        },
+        {
+          "question_text": "**保证辅食营养均衡**的**核心原则**是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "只提供婴儿喜欢的食物", "is_correct": false},
+            {"option_text": "食物多样化，涵盖各类营养素", "is_correct": true},
+            {"option_text": "优先选择高能量食物", "is_correct": false},
+            {"option_text": "忽略蔬菜水果的摄入", "is_correct": false}
+          ],
+          "answer_explanation": "食物多样化是保证营养均衡的关键，各类营养素都需要摄入，选项B更准确。"
+        },
+        {
+          "question_text": "**不属于** 辅食营养均衡**范畴**的是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "碳水化合物", "is_correct": false},
+            {"option_text": "蛋白质", "is_correct": false},
+            {"option_text": "盐和糖", "is_correct": true},
+            {"option_text": "维生素和矿物质", "is_correct": false}
+          ],
+          "answer_explanation": "盐和糖不属于婴儿辅食的必需营养素，过量摄入反而有害，选项C不属于。"
+        },
+        {
+          "question_text": "**错误**的关于辅食营养均衡的理解是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "辅食应包含谷物、蔬菜、水果、肉类等", "is_correct": false},
+            {"option_text": "应注意铁、锌等微量元素的摄入", "is_correct": false},
+            {"option_text": "辅食的营养均衡比口味更重要", "is_correct": false},
+            {"option_text": "只要奶量充足，辅食营养可以忽略", "is_correct": true}
+          ],
+          "answer_explanation": "辅食是重要的营养来源，不能忽略其营养均衡，选项D错误。"
+        },
+        {
+          "question_text": "关于辅食的营养均衡，下列说法**正确**的是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "应注重食物多样性，保证各类营养素摄入", "is_correct": true},
+            {"option_text": "应优先选择高蛋白、高脂肪食物", "is_correct": false},
+            {"option_text": "辅食的营养均衡不如奶量重要", "is_correct": false},
+            {"option_text": "只要婴儿体重增长正常，辅食营养无需特别关注", "is_correct": false}
+          ],
+          "answer_explanation": "选项A强调了食物多样性和均衡营养的重要性，符合辅食添加的原则。"
+        }
+      ]
+    },
+    {
+      "point_name": "断夜奶 - 原则",
+      "questions": [
+        {
+          "question_text": "关于断夜奶的**原则**，文档中**最核心**的观点是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "9个月后生理上不再必须，可根据情况灵活处理", "is_correct": true},
+            {"option_text": "所有婴儿都应在9个月前强制断夜奶", "is_correct": false},
+            {"option_text": "夜奶必须延续到一岁，以保证婴儿营养", "is_correct": false},
+            {"option_text": "断夜奶的最佳时间是婴儿满6个月时", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出“9 个月的孩子不管从生理上、心理上都不再需要夜奶了...夜奶可以延续到一岁。” 强调了9个月后非必须和可灵活处理。"
+        },
+        {
+          "question_text": "文档指出，**生理上**，婴儿在**哪个月份**后不再需要夜奶？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "6个月", "is_correct": false},
+            {"option_text": "9个月", "is_correct": true},
+            {"option_text": "12个月", "is_correct": false},
+            {"option_text": "15个月", "is_correct": false}
+          ],
+          "answer_explanation": "文档明确指出“9 个月的孩子不管从生理上、心理上都不再需要夜奶了”。"
+        },
+        {
+          "question_text": "**心理上**，文档认为9个月后的婴儿？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "仍然非常依赖夜奶", "is_correct": false},
+            {"option_text": "对夜奶的需求更加强烈", "is_correct": false},
+            {"option_text": "也不再需要夜奶", "is_correct": true},
+            {"option_text": "夜奶有助于心理安抚", "is_correct": false}
+          ],
+          "answer_explanation": "文档明确指出“9 个月的孩子不管从生理上、心理上都不再需要夜奶了”。"
+        },
+        {
+          "question_text": "文档中，关于夜奶**延续到一岁**的描述，**关键词**是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "必须", "is_correct": false},
+            {"option_text": "应该", "is_correct": false},
+            {"option_text": "建议", "is_correct": false},
+            {"option_text": "没有影响", "is_correct": true}
+          ],
+          "answer_explanation": "文档指出“...如果这顿夜奶对母亲和孩子都没有任何影响的情况下，夜奶可以延续到一岁。” 强调了“没有影响”作为延续的前提。"
+        },
+        {
+          "question_text": "下列关于断夜奶**原则**的理解，**最准确**的是？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "9个月是考虑断夜奶的生理和心理分界点", "is_correct": true},
+            {"option_text": "为了婴儿健康，必须在9个月前断夜奶", "is_correct": false},
+            {"option_text": "是否断夜奶以及何时断，需综合考虑母亲和婴儿的情况", "is_correct": true},
+            {"option_text": "夜奶对9个月后的婴儿没有任何好处，必须立即断掉", "is_correct": false},
+            {"option_text": "断夜奶是培养婴儿独立性的重要步骤", "is_correct": false}
+          ],
+          "answer_explanation": "选项A和C准确概括了文档中关于断夜奶原则的核心思想：9个月后非必须，可灵活处理，需综合考虑。"
+        }
+      ]
+    },
+    {
+      "point_name": "断夜奶 - 不适合断夜奶的情况",
+      "questions": [
+        {
+          "question_text": "文档中列举了**哪些情景**下**不适合**断夜奶？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "孩子生病期间", "is_correct": true},
+            {"option_text": "孩子出牙时", "is_correct": true},
+            {"option_text": "周围环境发生改变时", "is_correct": true},
+            {"option_text": "主要照护人更换时", "is_correct": true},
+            {"option_text": "父母工作繁忙时", "is_correct": false}
+          ],
+          "answer_explanation": "文档明确列出四种不适合断夜奶的情况：“孩子生病期间, 出牙时, 周围环境改变的情况下, 换人的情况下”。"
+        },
+        {
+          "question_text": "**婴儿生病期间**，不建议断夜奶的**主要原因是**？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "断夜奶会影响药物吸收", "is_correct": false},
+            {"option_text": "生病期间婴儿需要更多安抚和能量", "is_correct": true},
+            {"option_text": "断夜奶会加重父母的护理负担", "is_correct": false},
+            {"option_text": "生病期间婴儿睡眠时间会延长", "is_correct": false}
+          ],
+          "answer_explanation": "生病时婴儿更脆弱，需要更多安抚和能量支持，断夜奶会增加其不适感。"
+        },
+        {
+          "question_text": "**婴儿出牙时**，不建议断夜奶的**主要考虑**是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "出牙期婴儿食欲会下降", "is_correct": false},
+            {"option_text": "出牙期婴儿需要更多钙质", "is_correct": false},
+            {"option_text": "出牙期婴儿情绪烦躁，需要安抚", "is_correct": true},
+            {"option_text": "出牙期断夜奶容易引起婴儿营养不良", "is_correct": false}
+          ],
+          "answer_explanation": "出牙期婴儿不适感增加，夜奶可能成为一种安抚方式，此时断夜奶可能增加婴儿烦躁。"
+        },
+        {
+          "question_text": "**周围环境改变**，例如**搬家**，**不建议断夜奶**的原因是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "新环境可能导致婴儿过敏", "is_correct": false},
+            {"option_text": "新环境不利于婴儿建立规律作息", "is_correct": false},
+            {"option_text": "断夜奶会增加适应新环境的难度", "is_correct": false},
+            {"option_text": "环境改变已给婴儿带来压力，不宜增加新的变化", "is_correct": true}
+          ],
+          "answer_explanation": "环境改变本身已对婴儿造成压力，此时断夜奶会增加其不安全感和不适。"
+        },
+        {
+          "question_text": "**更换主要照护人**时，不建议断夜奶的**核心考量**是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "新的照护关系尚未建立，断夜奶会增加婴儿焦虑", "is_correct": true},
+            {"option_text": "新的照护人可能不熟悉婴儿的夜奶习惯", "is_correct": false},
+            {"option_text": "断夜奶会影响新照护人与婴儿的亲密度", "is_correct": false},
+            {"option_text": "新的照护人可能无法有效安抚断夜奶的婴儿", "is_correct": false}
+          ],
+          "answer_explanation": "更换照护人会带来依恋关系的变化，此时断夜奶可能增加婴儿分离焦虑。"
+        }
+      ]
+    },
+    {
+      "point_name": "断夜奶的方法 - 母乳亲喂",
+      "questions": [
+        {
+          "question_text": "对于**母乳亲喂**的婴儿，断夜奶的**第一步**是观察？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "一天内两奶间隔最长时间", "is_correct": true},
+            {"option_text": "婴儿夜间醒来的频率", "is_correct": false},
+            {"option_text": "婴儿对辅食的接受程度", "is_correct": false},
+            {"option_text": "母亲的睡眠状况", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出“① 观察孩子一天内两奶间隔最长的时间...可尝试断夜奶。”"
+        },
+        {
+          "question_text": "若观察到母乳亲喂婴儿**两奶间隔达到5～6小时**，**意味着**？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "婴儿可以立即断夜奶", "is_correct": false},
+            {"option_text": "可以尝试断夜奶", "is_correct": true},
+            {"option_text": "婴儿夜间不需要喂奶", "is_correct": false},
+            {"option_text": "婴儿夜奶需求已减少", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出“...若间隔时间达到 5～6 小时，可尝试断夜奶。” 表明达到此间隔可以开始尝试。"
+        },
+        {
+          "question_text": "若母乳亲喂婴儿**连续2～3天夜间未醒来吃奶**，**接下来**应该？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "继续观察，等待更长时间", "is_correct": false},
+            {"option_text": "立即完全断掉夜奶", "is_correct": false},
+            {"option_text": "不必再主动喂夜奶", "is_correct": true},
+            {"option_text": "减少夜奶喂奶量", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出“② 若孩子连续 2～3 天夜奶时没有醒，则不必再喂夜奶。” 表明此时可以顺其自然停止夜奶。"
+        },
+        {
+          "question_text": "若母乳亲喂婴儿**夜间醒来要奶**，断夜奶的策略是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "立即停止喂奶，任其哭闹", "is_correct": false},
+            {"option_text": "直接用安抚奶嘴替代", "is_correct": false},
+            {"option_text": "减少每次喂奶量", "is_correct": false},
+            {"option_text": "逐渐拉长喂夜奶的时间间隔", "is_correct": true}
+          ],
+          "answer_explanation": "文档指出“③ 若醒则尝试逐渐拉长喂夜奶的时间，直到夜奶消失。” 强调逐步拉长间隔。"
+        },
+        {
+          "question_text": "关于母乳亲喂婴儿断夜奶的方法，**核心思想**是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "循序渐进，观察婴儿反应，逐步减少夜奶", "is_correct": true},
+            {"option_text": "快速果断，一次性断掉夜奶", "is_correct": false},
+            {"option_text": "以母亲的睡眠需求为优先考量", "is_correct": false},
+            {"option_text": "完全依赖婴儿自身调整，无需干预", "is_correct": false}
+          ],
+          "answer_explanation": "母乳亲喂断夜奶方法强调观察、尝试、逐步拉长间隔，体现循序渐进的原则。"
+        }
+      ]
+    },
+    {
+      "point_name": "断夜奶的方法 - 母乳瓶喂",
+      "questions": [
+        {
+          "question_text": "对于**母乳瓶喂**的婴儿，断夜奶的方法是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "逐渐拉长喂奶间隔", "is_correct": false},
+            {"option_text": "夜间逐渐减量", "is_correct": true},
+            {"option_text": "稀释夜间奶浓度", "is_correct": false},
+            {"option_text": "用安抚奶嘴替代夜奶", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出“母乳瓶喂：可在夜间逐渐减量，直至断掉夜奶。” 核心方法是减量。"
+        },
+        {
+          "question_text": "**母乳瓶喂断夜奶**的**关键步骤**是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "调整喂奶时间", "is_correct": false},
+            {"option_text": "更换奶嘴型号", "is_correct": false},
+            {"option_text": "逐渐减少夜间奶量", "is_correct": true},
+            {"option_text": "改变喂奶姿势", "is_correct": false}
+          ],
+          "answer_explanation": "关键在于“逐渐减量”，这是母乳瓶喂断夜奶的核心操作。"
+        },
+        {
+          "question_text": "**逐渐减量**是指在**哪个时间段**减少奶量？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "白天喂奶时", "is_correct": false},
+            {"option_text": "睡前最后一顿奶时", "is_correct": false},
+            {"option_text": "晨奶时", "is_correct": false},
+            {"option_text": "夜间喂奶时", "is_correct": true}
+          ],
+          "answer_explanation": "文档明确指出“可在**夜间**逐渐减量，直至断掉夜奶。” 针对的是夜间喂奶。"
+        },
+        {
+          "question_text": "母乳瓶喂断夜奶的**最终目标**是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "完全断掉夜奶", "is_correct": true},
+            {"option_text": "将夜奶量减少一半", "is_correct": false},
+            {"option_text": "将夜奶改为喂水", "is_correct": false},
+            {"option_text": "延长夜奶喂奶间隔", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出“可在夜间逐渐减量，**直至断掉夜奶。**” 最终目标是完全停止夜奶。"
+        },
+        {
+          "question_text": "与母乳亲喂相比，母乳瓶喂断夜奶的**主要区别**在于方法更侧重于？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "观察婴儿反应", "is_correct": false},
+            {"option_text": "直接控制奶量", "is_correct": true},
+            {"option_text": "调整喂养时间", "is_correct": false},
+            {"option_text": "寻求安抚替代", "is_correct": false}
+          ],
+          "answer_explanation": "母乳瓶喂可以直接控制喂奶量，因此方法更侧重于“减量”，与亲喂的“拉长间隔”有所不同。"
+        }
+      ]
+    },
+    {
+      "point_name": "断夜奶的方法 - 奶粉喂养",
+      "questions": [
+        {
+          "question_text": "对于**奶粉喂养**的婴儿，断夜奶的**首要步骤**是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "先减奶量", "is_correct": true},
+            {"option_text": "先稀释奶浓度", "is_correct": false},
+            {"option_text": "先延长喂奶间隔", "is_correct": false},
+            {"option_text": "先调整喂奶时间", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出“奶粉喂养：先减奶量，减至原来夜奶奶量的一半之后...”。  首要步骤是减奶量。"
+        },
+        {
+          "question_text": "**减奶量**的目标是先减至**原来夜奶奶量的**？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "三分之一", "is_correct": false},
+            {"option_text": "一半", "is_correct": true},
+            {"option_text": "四分之三", "is_correct": false},
+            {"option_text": "四分之一", "is_correct": false}
+          ],
+          "answer_explanation": "文档明确指出“先减奶量，减至原来夜奶奶量的**一半**之后...”。 目标是减半。"
+        },
+        {
+          "question_text": "在奶粉喂养断夜奶**减量之后**，**下一步**是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "完全停止喂奶", "is_correct": false},
+            {"option_text": "继续减奶量", "is_correct": false},
+            {"option_text": "循序渐进的稀释夜奶喂养比例", "is_correct": true},
+            {"option_text": "延长喂奶间隔时间", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出“...开始循序渐进的稀释夜奶喂养比例，直至断掉夜奶。” 下一步是稀释奶。"
+        },
+        {
+          "question_text": "**稀释夜奶喂养比例**的**具体做法**是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "增加喂水次数", "is_correct": false},
+            {"option_text": "减少奶粉浓度", "is_correct": true},
+            {"option_text": "缩短喂奶时间", "is_correct": false},
+            {"option_text": "增加奶粉中水的比例", "is_correct": true}
+          ],
+          "answer_explanation": "“稀释夜奶喂养比例” 的核心是增加水的比例，降低奶的浓度。"
+        },
+        {
+          "question_text": "奶粉喂养断夜奶的**最终目标**与母乳瓶喂一样，都是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "断掉夜奶", "is_correct": true},
+            {"option_text": "减少夜奶量", "is_correct": false},
+            {"option_text": "延长夜奶间隔", "is_correct": false},
+            {"option_text": "将夜奶改为稀释奶", "is_correct": false}
+          ],
+          "answer_explanation": "无论是母乳瓶喂还是奶粉喂养，断夜奶的最终目标都是“直至断掉夜奶”。"
+        }
+      ]
+    },
+    {
+      "point_name": "断夜奶的方法 - 有奶睡习惯",
+      "questions": [
+        {
+          "question_text": "如果婴儿有**奶睡习惯**，断夜奶的**前提条件**是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "先解决奶睡问题", "is_correct": true},
+            {"option_text": "先减少夜奶量", "is_correct": false},
+            {"option_text": "先延长喂奶间隔", "is_correct": false},
+            {"option_text": "先调整睡前程序", "is_correct": false}
+          ],
+          "answer_explanation": "文档明确指出“有奶睡习惯：要先解决奶睡问题，再断夜奶。”  解决奶睡是前提。"
+        },
+        {
+          "question_text": "**奶睡习惯**指的是婴儿需要**通过什么方式**才能入睡？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "摇晃", "is_correct": false},
+            {"option_text": "吃奶", "is_correct": true},
+            {"option_text": "抚触", "is_correct": false},
+            {"option_text": "听音乐", "is_correct": false}
+          ],
+          "answer_explanation": "奶睡习惯指的是需要通过“吃奶”才能入睡，形成了一种睡眠联结。"
+        },
+        {
+          "question_text": "**解决奶睡问题**的**核心目标**是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "让婴儿快速入睡", "is_correct": false},
+            {"option_text": "减少夜间喂奶次数", "is_correct": false},
+            {"option_text": "建立与吃奶无关的入睡方式", "is_correct": true},
+            {"option_text": "延长婴儿睡眠时间", "is_correct": false}
+          ],
+          "answer_explanation": "解决奶睡问题的核心是打破吃奶与睡眠的联结，建立新的入睡方式，选项C更准确。"
+        },
+        {
+          "question_text": "在**解决奶睡问题**的过程中，可以尝试**哪些方法**？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "调整睡前程序，例如洗澡、讲故事", "is_correct": true},
+            {"option_text": "在婴儿昏昏欲睡但未完全睡着时放下", "is_correct": true},
+            {"option_text": "逐渐将吃奶与入睡时间分离", "is_correct": true},
+            {"option_text": "减少白天喂奶次数，增加夜间喂奶", "is_correct": false},
+            {"option_text": "更换更舒适的睡眠环境", "is_correct": false}
+          ],
+          "answer_explanation": "选项ABC都是常见的解决奶睡问题的方法，旨在建立新的、非奶睡的入睡联结。"
+        },
+        {
+          "question_text": "**成功解决奶睡问题**后，才能**更顺利地进行**？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "规律作息培养", "is_correct": false},
+            {"option_text": "辅食添加", "is_correct": false},
+            {"option_text": "自主进食培养", "is_correct": false},
+            {"option_text": "断夜奶", "is_correct": true}
+          ],
+          "answer_explanation": "文档逻辑是先解决奶睡问题，再断夜奶，因此解决奶睡问题是断夜奶的前提和基础。"
+        }
+      ]
+    },
+    {
+      "point_name": "睡眠 - 睡眠时长和次数 (7～9个月 vs 10～12个月)",
+      "questions": [
+        {
+          "question_text": "与7～9个月婴儿相比，10～12个月婴儿的**总睡眠时长**？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "更长", "is_correct": false},
+            {"option_text": "更短", "is_correct": true},
+            {"option_text": "相同", "is_correct": false},
+            {"option_text": "变化不定", "is_correct": false}
+          ],
+          "answer_explanation": "文档表格显示，7～9个月总睡眠时长14～15小时，10～12个月13～14小时，后者更短。"
+        },
+        {
+          "question_text": "7～9个月婴儿的**白天小睡次数**通常为？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "3觉", "is_correct": true},
+            {"option_text": "2觉", "is_correct": false},
+            {"option_text": "1觉", "is_correct": false},
+            {"option_text": "4觉", "is_correct": false}
+          ],
+          "answer_explanation": "文档表格显示，7～9个月“白天小睡次数：3觉”。"
+        },
+        {
+          "question_text": "10～12个月婴儿的**白天小睡次数**逐渐减少为？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "3觉", "is_correct": false},
+            {"option_text": "2～1觉", "is_correct": true},
+            {"option_text": "4觉", "is_correct": false},
+            {"option_text": "0觉", "is_correct": false}
+          ],
+          "answer_explanation": "文档表格显示，10～12个月“白天小睡次数：2～1觉”。"
+        },
+        {
+          "question_text": "7～9个月婴儿的**夜间睡眠时长**约为？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "8～10小时", "is_correct": false},
+            {"option_text": "9～11小时", "is_correct": false},
+            {"option_text": "10～12小时", "is_correct": true},
+            {"option_text": "12～14小时", "is_correct": false}
+          ],
+          "answer_explanation": "文档表格显示，7～9个月“夜间睡眠时长：10～12 小时”。"
+        },
+        {
+          "question_text": "关于7～9个月和10～12个月婴儿的睡眠，下列描述**正确**的是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "两个月龄段的总睡眠时长和次数完全相同", "is_correct": false},
+            {"option_text": "10～12个月婴儿白天小睡次数更多", "is_correct": false},
+            {"option_text": "7～9个月婴儿夜间睡眠时长更短", "is_correct": false},
+            {"option_text": "随着月龄增长，总睡眠时长和白天小睡次数均减少", "is_correct": true}
+          ],
+          "answer_explanation": "选项D概括了两个月龄段睡眠的主要变化趋势：总时长和白天小睡次数均随月龄增长而减少。"
+        }
+      ]
+    },
+    {
+      "point_name": "睡眠 - 黄昏觉消失及小睡次数减少",
+      "questions": [
+        {
+          "question_text": "**黄昏觉**通常在婴儿**哪个阶段**逐渐消失？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "9个月", "is_correct": true},
+            {"option_text": "6个月", "is_correct": false},
+            {"option_text": "12个月", "is_correct": false},
+            {"option_text": "15个月", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出“9 个月黄昏觉逐渐消失”。"
+        },
+        {
+          "question_text": "**黄昏觉消失**是婴儿睡眠模式发展的**正常现象**，表明？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "婴儿睡眠质量下降", "is_correct": false},
+            {"option_text": "婴儿睡眠模式趋于成熟", "is_correct": true},
+            {"option_text": "婴儿需要更多睡眠", "is_correct": false},
+            {"option_text": "婴儿开始昼夜颠倒", "is_correct": false}
+          ],
+          "answer_explanation": "黄昏觉消失是睡眠模式成熟的表现，小睡次数减少，睡眠更集中。"
+        },
+        {
+          "question_text": "随着黄昏觉消失，婴儿的**小睡次数**会从3觉逐渐减少到？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "4觉", "is_correct": false},
+            {"option_text": "3觉", "is_correct": false},
+            {"option_text": "2觉", "is_correct": true},
+            {"option_text": "1觉", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出“9 个月黄昏觉逐渐消失，直到 10～12 个月变成 2 次小睡”。"
+        },
+        {
+          "question_text": "小睡次数减少，意味着婴儿的**醒睡间隔**会？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "缩短", "is_correct": false},
+            {"option_text": "不变", "is_correct": false},
+            {"option_text": "先缩短后延长", "is_correct": false},
+            {"option_text": "延长", "is_correct": true}
+          ],
+          "answer_explanation": "小睡次数减少，白天清醒时间相对增加，醒睡间隔自然延长。"
+        },
+        {
+          "question_text": "关于黄昏觉消失和小睡次数减少，下列说法**正确**的是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "是婴儿睡眠发展的自然过程", "is_correct": true},
+            {"option_text": "可能导致婴儿睡眠不足", "is_correct": false},
+            {"option_text": "需要人为干预以保持3觉", "is_correct": false},
+            {"option_text": "表明婴儿睡眠出现问题", "is_correct": false}
+          ],
+          "answer_explanation": "黄昏觉消失和小睡次数减少是自然发展过程，无需过度干预，选项A更符合事实。"
+        }
+      ]
+    },
+    {
+      "point_name": "睡眠 - 睡眠习惯 (自主入睡、自我安抚、减少干预、早睡)",
+      "questions": [
+        {
+          "question_text": "文档**提倡**培养婴儿**哪种入睡习惯**？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "自主入睡", "is_correct": true},
+            {"option_text": "奶睡", "is_correct": false},
+            {"option_text": "抱睡", "is_correct": false},
+            {"option_text": "摇睡", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出“尽量让孩子养成自主入睡的习惯”。"
+        },
+        {
+          "question_text": "**自主入睡**是指婴儿在**没有外界帮助**的情况下？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "快速进入深度睡眠", "is_correct": false},
+            {"option_text": "自行入睡", "is_correct": true},
+            {"option_text": "整夜不醒", "is_correct": false},
+            {"option_text": "规律小睡", "is_correct": false}
+          ],
+          "answer_explanation": "自主入睡强调婴儿自身具备入睡能力，无需依赖摇晃、抱睡等外部干预。"
+        },
+        {
+          "question_text": "文档**鼓励**婴儿进行？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "过度睡眠", "is_correct": false},
+            {"option_text": "规律睡眠", "is_correct": false},
+            {"option_text": "自我安抚", "is_correct": true},
+            {"option_text": "深度睡眠", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出“鼓励孩子自我安抚”。"
+        },
+        {
+          "question_text": "**自我安抚**是指婴儿在夜醒后或入睡前，**通过自身行为**？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "寻求成人帮助", "is_correct": false},
+            {"option_text": "哭闹不止", "is_correct": false},
+            {"option_text": "保持清醒", "is_correct": false},
+            {"option_text": "重新入睡或安静下来", "is_correct": true}
+          ],
+          "answer_explanation": "自我安抚强调婴儿自身具备调节能力，无需成人干预即可重新入睡或安静。"
+        },
+        {
+          "question_text": "文档建议**减少**对婴儿睡眠的？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "过多干预", "is_correct": true},
+            {"option_text": "规律引导", "is_correct": false},
+            {"option_text": "环境刺激", "is_correct": false},
+            {"option_text": "睡眠时长", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出“减少过多的睡眠干预”。 提倡顺应自然，减少人为干预。"
+        },
+        {
+          "question_text": "文档建议**晚上入睡时间**最好在？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "9点以后", "is_correct": false},
+            {"option_text": "8点以前", "is_correct": true},
+            {"option_text": "10点以后", "is_correct": false},
+            {"option_text": "随意", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出“干预晚上的入睡时间，最好在 8 点以前入睡。”  提倡早睡。"
+        },
+        {
+          "question_text": "关于7～12个月婴儿的睡眠习惯培养，下列做法**符合文档建议**的是？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "创造安静黑暗的睡眠环境", "is_correct": true},
+            {"option_text": "在婴儿哭闹时立即抱起安抚", "is_correct": false},
+            {"option_text": "鼓励婴儿尝试自我安抚入睡", "is_correct": true},
+            {"option_text": "尽量在晚上8点前安排婴儿入睡", "is_correct": true},
+            {"option_text": "为了保证睡眠时长，延长婴儿小睡时间", "is_correct": false}
+          ],
+          "answer_explanation": "选项ACD都与文档提倡的自主入睡、自我安抚、早睡、减少干预的睡眠习惯培养建议一致。"
+        }
+      ]
+    },
+    {
+      "point_name": "睡眠习惯引导注意事项 - 自主睡眠培养、个体化、问题拆解",
+      "questions": [
+        {
+          "question_text": "文档指出，**自主睡眠能力**是婴儿需要？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "学习", "is_correct": true},
+            {"option_text": "天生具备", "is_correct": false},
+            {"option_text": "快速掌握", "is_correct": false},
+            {"option_text": "自然获得", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出“自主睡眠是孩子需要学习的一种能力”。 强调学习而非天生就会。"
+        },
+        {
+          "question_text": "**自主睡眠培养**？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "可以一蹴而就", "is_correct": false},
+            {"option_text": "不能一蹴而就，需要慢慢培养", "is_correct": true},
+            {"option_text": "应在短期内快速完成", "is_correct": false},
+            {"option_text": "无需刻意培养，顺其自然即可", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出“自主睡眠是孩子需要学习的一种能力，不能一蹴而就，要慢慢培养”。 强调循序渐进。"
+        },
+        {
+          "question_text": "文档强调，**每个婴儿的睡眠问题**？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "基本相同，解决方法也一样", "is_correct": false},
+            {"option_text": "都非常容易解决", "is_correct": false},
+            {"option_text": "都不一样，需要个体化对待", "is_correct": true},
+            {"option_text": "都可以通过统一方法快速解决", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出“每个孩子的睡眠问题都不一样，根据孩子的情况来定”。 强调个体差异。"
+        },
+        {
+          "question_text": "对于婴儿睡眠问题，文档建议？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "采取统一的解决方法", "is_correct": false},
+            {"option_text": "忽略问题，等待自行消失", "is_correct": false},
+            {"option_text": "寻求快速解决的技巧", "is_correct": false},
+            {"option_text": "根据孩子情况一一拆解分析", "is_correct": true}
+          ],
+          "answer_explanation": "文档指出“所有孩子的睡眠问题都不是单一的，一定要根据孩子的情况一一拆解”。 强调问题拆解和个体化分析。"
+        },
+        {
+          "question_text": "关于婴儿睡眠习惯引导的注意事项，下列理解**正确**的是？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "自主睡眠是需要学习和培养的能力", "is_correct": true},
+            {"option_text": "应根据每个婴儿的具体情况制定睡眠引导方案", "is_correct": true},
+            {"option_text": "所有婴儿的睡眠问题都可以用同一种方法解决", "is_correct": false},
+            {"option_text": "自主睡眠培养可以在短期内快速完成", "is_correct": false},
+            {"option_text": "婴儿的睡眠问题通常是单一的，容易找到根源", "is_correct": false}
+          ],
+          "answer_explanation": "选项AB概括了睡眠习惯引导的两个重要方面：自主睡眠需要培养和个体化方案。"
+        }
+      ]
+    },
+    {
+      "point_name": "并觉与接觉 - 定义",
+      "questions": [
+        {
+          "question_text": "**并觉**是指婴儿的白天小睡次数？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "减少", "is_correct": true},
+            {"option_text": "增加", "is_correct": false},
+            {"option_text": "不变", "is_correct": false},
+            {"option_text": "不规律", "is_correct": false}
+          ],
+          "answer_explanation": "并觉的核心是“并”，即合并觉醒次数，减少小睡次数。"
+        },
+        {
+          "question_text": "**接觉**通常在**哪个时间段**的小睡中采用？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "上午觉", "is_correct": false},
+            {"option_text": "午觉", "is_correct": true},
+            {"option_text": "下午觉", "is_correct": false},
+            {"option_text": "黄昏觉", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出“一般午觉采取接觉的方式”。 午觉是接觉的常见场景。"
+        },
+        {
+          "question_text": "**接觉**的**主要做法**是，当婴儿小睡醒来后？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "立即抱起，防止再次入睡", "is_correct": false},
+            {"option_text": "直接结束小睡，安排其他活动", "is_correct": false},
+            {"option_text": "观察是否能再次入睡，必要时协助", "is_correct": true},
+            {"option_text": "无需理会，等待婴儿自行调整", "is_correct": false}
+          ],
+          "answer_explanation": "接觉的核心是“接”，即尝试延长小睡，在醒来后观察并协助再次入睡。"
+        },
+        {
+          "question_text": "**并觉和接觉**都是为了优化婴儿的？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "夜间睡眠时长", "is_correct": false},
+            {"option_text": "入睡速度", "is_correct": false},
+            {"option_text": "睡眠深度", "is_correct": false},
+            {"option_text": "白天小睡模式", "is_correct": true}
+          ],
+          "answer_explanation": "并觉和接觉都是为了调整和优化白天小睡模式，使其更规律和符合月龄发展。"
+        },
+        {
+          "question_text": "关于并觉和接觉的定义，下列理解**准确**的是？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "并觉是白天小睡次数减少的过程", "is_correct": true},
+            {"option_text": "接觉是延长夜间睡眠时长的方法", "is_correct": false},
+            {"option_text": "接觉是在小睡醒来后尝试协助婴儿再次入睡", "is_correct": true},
+            {"option_text": "并觉和接觉的目标都是增加婴儿的总睡眠时长", "is_correct": false},
+            {"option_text": "接觉适用于所有时间段的小睡", "is_correct": false}
+          ],
+          "answer_explanation": "选项AC准确概括了并觉和接觉的定义和核心做法。"
+        }
+      ]
+    },
+    {
+      "point_name": "并觉与接觉 - 原则",
+      "questions": [
+        {
+          "question_text": "关于白天3觉的**小睡时长原则**，文档建议每觉**不要超过**？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "2小时", "is_correct": true},
+            {"option_text": "1小时", "is_correct": false},
+            {"option_text": "3小时", "is_correct": false},
+            {"option_text": "1.5小时", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出“若白天 3 觉，那么每觉不要超过 2 小时”。  限制3觉的小睡时长。"
+        },
+        {
+          "question_text": "关于白天2觉的**小睡时长原则**，文档建议每觉**不要超过**？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "2小时", "is_correct": false},
+            {"option_text": "3小时", "is_correct": true},
+            {"option_text": "4小时", "is_correct": false},
+            {"option_text": "2.5小时", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出“若白天 2 觉，那么每觉不要超过 3 小时”。  相对3觉，2觉的小睡时长可以更长。"
+        },
+        {
+          "question_text": "若下午**3点后**才开始**第二个小睡**，文档建议此觉**最好不要超过**？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "2小时", "is_correct": false},
+            {"option_text": "1.5小时", "is_correct": false},
+            {"option_text": "1小时", "is_correct": true},
+            {"option_text": "30分钟", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出“若下午 3 点后才睡第 2 个小睡，此觉最好不要超过 1 小时”。  下午觉时长需更短。"
+        },
+        {
+          "question_text": "若下午**4:00～5:00**一定要小睡，文档建议此觉**不要超过**？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "1小时", "is_correct": false},
+            {"option_text": "45分钟", "is_correct": false},
+            {"option_text": "30分钟", "is_correct": false},
+            {"option_text": "20～30分钟", "is_correct": true}
+          ],
+          "answer_explanation": "文档指出“若下午 4:00～5:00 一定要睡一下，此觉不要超过 20～30 分钟”。  傍晚觉时长需极短。"
+        },
+        {
+          "question_text": "关于并觉和接觉的原则，下列理解**正确**的是？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "白天小睡时长需要根据小睡次数进行调整", "is_correct": true},
+            {"option_text": "下午的小睡时长需要适当控制，避免影响夜间睡眠", "is_correct": true},
+            {"option_text": "白天小睡时长越长越好，无需限制", "is_correct": false},
+            {"option_text": "接觉应尽可能延长每次小睡时长", "is_correct": false},
+            {"option_text": "并觉期间无需关注小睡时长，顺其自然即可", "is_correct": false}
+          ],
+          "answer_explanation": "选项AB概括了并觉接觉原则的核心：根据小睡次数调整时长，控制下午觉时长。"
+        }
+      ]
+    },
+    {
+      "point_name": "并觉与接觉 - 2觉并1觉的时间、信号、方法",
+      "questions": [
+        {
+          "question_text": "**2觉并1觉**最早可能在婴儿**哪个年龄段**偶尔出现？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "10～12个月", "is_correct": true},
+            {"option_text": "9～10个月", "is_correct": false},
+            {"option_text": "12～14个月", "is_correct": false},
+            {"option_text": "15～18个月", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出“最早在 10～12 个月时会偶尔出现”2觉并1觉。"
+        },
+        {
+          "question_text": "**正式完成** 2觉并1觉通常在婴儿**哪个年龄段**？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "10～12个月", "is_correct": false},
+            {"option_text": "13～18个月", "is_correct": true},
+            {"option_text": "18～24个月", "is_correct": false},
+            {"option_text": "24～30个月", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出“在 13～18 个月正式完成白天只睡 1 觉”。  完成并觉需要一段时间。"
+        },
+        {
+          "question_text": "**不属于** 2觉并1觉**信号**的是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "上午入睡困难或睡不长", "is_correct": false},
+            {"option_text": "上午觉睡得过长，醒来接近中午", "is_correct": false},
+            {"option_text": "下午觉睡得过长，影响夜间睡眠", "is_correct": true},
+            {"option_text": "上午觉后，下午觉入睡困难或很晚", "is_correct": false}
+          ],
+          "answer_explanation": "下午觉睡得过长影响夜间睡眠，是睡眠时长过长的问题，而非2觉并1觉的信号。"
+        },
+        {
+          "question_text": "**2觉并1觉**的**核心方法**是根据婴儿作息，灵活调整，**以下哪种调整思路更合理**？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "固定上午觉时间，取消下午觉", "is_correct": false},
+            {"option_text": "固定下午觉时间，取消上午觉", "is_correct": false},
+            {"option_text": "延长上午觉和下午觉时长，合并成1觉", "is_correct": false},
+            {"option_text": "根据婴儿早觉或午觉表现，灵活取消或合并", "is_correct": true}
+          ],
+          "answer_explanation": "文档强调“作息不同的孩子，并觉方式不同，根据孩子的实际情况灵活安排”，灵活调整是关键。"
+        },
+        {
+          "question_text": "关于2觉并1觉，下列理解**正确**的是？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "2觉并1觉是一个渐进的过程，需要一段时间完成", "is_correct": true},
+            {"option_text": "所有婴儿都会在12个月左右自动完成2觉并1觉", "is_correct": false},
+            {"option_text": "2觉并1觉的信号包括上午入睡困难或上午觉过长", "is_correct": true},
+            {"option_text": "2觉并1觉的方法是固定午觉时间，取消上午觉", "is_correct": false},
+            {"option_text": "2觉并1觉一旦开始，就应立即完全取消上午觉或下午觉", "is_correct": false}
+          ],
+          "answer_explanation": "选项AC概括了2觉并1觉的时间特点和信号，选项D方法过于绝对，选项E不符合循序渐进的原则。"
+        }
+      ]
+    },
+    {
+      "point_name": "并觉与接觉 - 并觉期间的特殊性、持续时间",
+      "questions": [
+        {
+          "question_text": "**并觉期间**，在安排婴儿作息时，**更重要的原则**是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "在延长醒睡间隔和避免过度疲劳之间找到平衡", "is_correct": true},
+            {"option_text": "严格遵守原有的作息时间表", "is_correct": false},
+            {"option_text": "优先保证睡眠时长，忽略醒睡间隔", "is_correct": false},
+            {"option_text": "完全顺应婴儿的需求，无需考虑规律性", "is_correct": false}
+          ],
+          "answer_explanation": "并觉期间作息不稳定，需要在新旧作息模式间过渡，平衡醒睡间隔和避免过度疲劳是关键。"
+        },
+        {
+          "question_text": "**并觉期间**，若婴儿**起床较早**，可能需要？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "只安排1觉", "is_correct": false},
+            {"option_text": "安排2觉", "is_correct": true},
+            {"option_text": "不安排小睡", "is_correct": false},
+            {"option_text": "增加夜间睡眠时长", "is_correct": false}
+          ],
+          "answer_explanation": "起床早，醒睡间隔相对较长，可能需要2觉来保证白天睡眠需求。"
+        },
+        {
+          "question_text": "**并觉期间**，若婴儿**起床较晚**，可能？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "需要安排2觉", "is_correct": false},
+            {"option_text": "仍需安排3觉", "is_correct": false},
+            {"option_text": "只需安排1觉", "is_correct": true},
+            {"option_text": "不需要小睡", "is_correct": false}
+          ],
+          "answer_explanation": "起床晚，醒睡间隔相对较短，可能1觉就足够满足白天睡眠需求。"
+        },
+        {
+          "question_text": "**并觉期间**，**不可避免地**会出现一些婴儿？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "睡眠时间延长", "is_correct": false},
+            {"option_text": "睡眠质量提高", "is_correct": false},
+            {"option_text": "作息规律性增强", "is_correct": false},
+            {"option_text": "过劳硬扛", "is_correct": true}
+          ],
+          "answer_explanation": "并觉期间作息调整，可能出现过渡期，婴儿可能出现“过劳硬扛”的状况，这是正常现象。"
+        },
+        {
+          "question_text": "关于并觉期间的特殊性，下列理解**正确**的是？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "并觉期间作息安排需更灵活，根据婴儿实际情况调整", "is_correct": true},
+            {"option_text": "并觉期间应严格按照新的作息时间表执行", "is_correct": false},
+            {"option_text": "并觉期间婴儿不会出现任何睡眠问题", "is_correct": false},
+            {"option_text": "并觉期间的“过劳硬扛”是异常现象，需立即纠正", "is_correct": false},
+            {"option_text": "并觉期间需要在规律性和灵活性之间找到平衡", "is_correct": true}
+          ],
+          "answer_explanation": "选项AE概括了并觉期间作息安排的核心特点：灵活性和平衡性，以及可能出现的过渡期“过劳硬扛”现象。"
+        },
+        {
+          "question_text": "并觉期持续的时间，**过程快的**大约为？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "8天左右", "is_correct": true},
+            {"option_text": "1个月", "is_correct": false},
+            {"option_text": "2个月", "is_correct": false},
+            {"option_text": "3个月", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出“过程快的 8 天左右”完成并觉过渡。"
+        },
+        {
+          "question_text": "并觉期持续的时间，**过程慢的**可能长达？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "8天", "is_correct": false},
+            {"option_text": "1个月", "is_correct": true},
+            {"option_text": "2个月", "is_correct": false},
+            {"option_text": "3个月", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出“过程慢的也有长达 1 个月的”并觉持续时间。"
+        },
+        {
+          "question_text": "关于并觉期持续时间，下列描述**正确**的是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "所有婴儿的并觉期持续时间都相同", "is_correct": false},
+            {"option_text": "并觉期通常在3天内结束", "is_correct": false},
+            {"option_text": "并觉期持续时间因人而异，短则几天，长则数周", "is_correct": true},
+            {"option_text": "并觉期持续时间越长，表明婴儿睡眠问题越严重", "is_correct": false}
+          ],
+          "answer_explanation": "选项C概括了并觉期持续时间的特点：个体差异大，持续时间不固定。"
+        }
+      ]
+    },
+    {
+      "point_name": "常见问题 - 入睡困难 - 找到原因 (恐惧、分离焦虑、饮食)",
+      "questions": [
+        {
+          "question_text": "婴儿**入睡困难**时，**首先**应该？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "找到原因", "is_correct": true},
+            {"option_text": "尝试哭泣免疫法", "is_correct": false},
+            {"option_text": "立即寻求医生帮助", "is_correct": false},
+            {"option_text": "更换睡眠环境", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出“入睡困难 (1) 找到原因”。 找到原因是解决问题的第一步。"
+        },
+        {
+          "question_text": "文档列举的**导致婴儿入睡困难的原因**包括？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "恐惧、害怕", "is_correct": true},
+            {"option_text": "分离焦虑", "is_correct": true},
+            {"option_text": "饮食不当", "is_correct": true},
+            {"option_text": "睡眠环境不佳", "is_correct": false},
+            {"option_text": "缺乏运动", "is_correct": false}
+          ],
+          "answer_explanation": "文档列举的入睡困难原因包括“因恐惧、害怕造成，因分离焦虑造成，因饮食造成”。"
+        },
+        {
+          "question_text": "因**恐惧、害怕**造成的入睡困难，解决方法是帮助婴儿？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "建立规律作息", "is_correct": false},
+            {"option_text": "摆脱恐惧，脱敏", "is_correct": true},
+            {"option_text": "更换睡眠环境", "is_correct": false},
+            {"option_text": "减少睡眠时间", "is_correct": false}
+          ],
+          "answer_explanation": "针对恐惧害怕，文档建议“要帮孩子摆脱这种害怕、恐惧的心理，让孩子对这种恐惧脱敏”。 脱敏是关键方法。"
+        },
+        {
+          "question_text": "因**分离焦虑**造成的入睡困难，解决方法是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "与婴儿保持距离，培养独立性", "is_correct": false},
+            {"option_text": "减少白天陪伴时间", "is_correct": false},
+            {"option_text": "父母多陪伴孩子，满足心理需求", "is_correct": true},
+            {"option_text": "强制婴儿独自入睡", "is_correct": false}
+          ],
+          "answer_explanation": "针对分离焦虑，文档建议“需要父母多陪伴孩子”。  陪伴是缓解分离焦虑的核心方法。"
+        },
+        {
+          "question_text": "因**饮食**造成的入睡困难，解决方法是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "减少喂奶量", "is_correct": false},
+            {"option_text": "增加辅食量", "is_correct": false},
+            {"option_text": "推迟晚餐时间", "is_correct": false},
+            {"option_text": "调整饮食", "is_correct": true}
+          ],
+          "answer_explanation": "针对饮食问题，文档建议“需要调整饮食”。  调整饮食是根本解决方法。"
+        }
+      ]
+    },
+    {
+      "point_name": "常见问题 - 入睡困难 - 找不到原因的解决方法 (适当哭泣、延迟哄抱、轻抚)",
+      "questions": [
+        {
+          "question_text": "当婴儿**入睡困难，且找不到明确原因时**，可以尝试？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "让孩子适当哭泣", "is_correct": true},
+            {"option_text": "立即抱起安抚", "is_correct": false},
+            {"option_text": "强制婴儿入睡", "is_correct": false},
+            {"option_text": "更换睡眠环境", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出“找不到原因 ① 可以让孩子适当的哭泣，帮助他尽早进入梦乡”。 适当哭泣是一种方法。"
+        },
+        {
+          "question_text": "**适当哭泣**的目的是帮助婴儿？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "消耗体力，更快入睡", "is_correct": false},
+            {"option_text": "自我调整状态，进入梦乡", "is_correct": true},
+            {"option_text": "发泄情绪，缓解压力", "is_correct": false},
+            {"option_text": "适应黑暗环境", "is_correct": false}
+          ],
+          "answer_explanation": "适当哭泣的目的并非放任不管，而是给婴儿自我调整和入睡的机会。"
+        },
+        {
+          "question_text": "当婴儿**睡眠过程中醒来哭泣**，**不建议**？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "观察片刻", "is_correct": false},
+            {"option_text": "轻声安抚", "is_correct": false},
+            {"option_text": "立即哄抱", "is_correct": true},
+            {"option_text": "保持安静", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出“孩子睡眠过程中醒来并哭泣，不要立即去哄，应该尽量让孩子自己重新调整状态...”。  不建议立即哄抱，给婴儿自我调整机会。"
+        },
+        {
+          "question_text": "若婴儿**哭泣不止**，**照护者可以**？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "严厉制止哭泣", "is_correct": false},
+            {"option_text": "完全忽视哭泣", "is_correct": false},
+            {"option_text": "大声呵斥", "is_correct": false},
+            {"option_text": "到孩子身边轻抚身体", "is_correct": true}
+          ],
+          "answer_explanation": "对于持续哭泣，文档建议“照护者可以到孩子身边，轻轻的抚摸孩子的身体...重新进入梦乡。”  轻抚是一种安抚方式。"
+        },
+        {
+          "question_text": "关于找不到原因的入睡困难，下列做法**符合文档建议**的是？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "允许婴儿适当哭泣，给其自我调整时间", "is_correct": true},
+            {"option_text": "在婴儿持续哭泣时，轻柔抚触安抚", "is_correct": true},
+            {"option_text": "延迟立即哄抱的时间，观察婴儿反应", "is_correct": true},
+            {"option_text": "对婴儿哭泣置之不理，任其发展", "is_correct": false},
+            {"option_text": "强制婴儿停止哭泣，尽快入睡", "is_correct": false}
+          ],
+          "answer_explanation": "选项AC概括了找不到原因的入睡困难的解决思路：适当哭泣、延迟哄抱、轻柔安抚，给婴儿自我调整和安抚的机会。"
+        }
+      ]
+    },
+    {
+      "point_name": "常见问题 - 分离焦虑影响睡眠 - 解决方法 (日常陪伴、练习分开、告别仪式、安抚物、爱和耐心)",
+      "questions": [
+        {
+          "question_text": "**分离焦虑**会**如何影响**婴儿睡眠？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "导致入睡困难、夜醒频繁", "is_correct": true},
+            {"option_text": "导致睡眠时间延长", "is_correct": false},
+            {"option_text": "提高睡眠质量", "is_correct": false},
+            {"option_text": "对睡眠无影响", "is_correct": false}
+          ],
+          "answer_explanation": "分离焦虑的核心表现之一就是影响睡眠，导致入睡和睡眠维持困难。"
+        },
+        {
+          "question_text": "**缓解分离焦虑**，**根本方法**是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "减少与婴儿的互动", "is_correct": false},
+            {"option_text": "从日常陪伴入手，满足心理需求", "is_correct": true},
+            {"option_text": "强制婴儿独立", "is_correct": false},
+            {"option_text": "更换睡眠环境", "is_correct": false}
+          ],
+          "answer_explanation": "分离焦虑源于依恋关系的建立，缓解的核心在于日常陪伴，满足情感需求。"
+        },
+        {
+          "question_text": "**练习短时间与孩子分开**，例如**捉迷藏**，**有助于**？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "提高婴儿认知能力", "is_correct": false},
+            {"option_text": "锻炼婴儿运动能力", "is_correct": false},
+            {"option_text": "缓解分离焦虑", "is_correct": true},
+            {"option_text": "培养婴儿独立性", "is_correct": false}
+          ],
+          "answer_explanation": "捉迷藏等游戏可以帮助婴儿逐渐适应短暂分离，缓解分离焦虑。"
+        },
+        {
+          "question_text": "**离开时进行正式、简短的告别仪式**，并**遵守承诺**，**有助于**？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "建立规律作息", "is_correct": false},
+            {"option_text": "提高婴儿语言能力", "is_correct": false},
+            {"option_text": "培养婴儿时间观念", "is_correct": false},
+            {"option_text": "建立安全感，缓解分离焦虑", "is_correct": true}
+          ],
+          "answer_explanation": "正式告别和遵守承诺，可以帮助婴儿建立安全感和信任感，缓解分离焦虑。"
+        },
+        {
+          "question_text": "为孩子准备**熟悉的安抚物**，例如**小毯子、玩偶**，**有助于**？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "提供安全感，缓解分离焦虑", "is_correct": true},
+            {"option_text": "提高睡眠质量", "is_correct": false},
+            {"option_text": "培养独立性", "is_correct": false},
+            {"option_text": "促进认知发展", "is_correct": false}
+          ],
+          "answer_explanation": "安抚物可以成为安全感的替代物，在分离时提供情感支持，缓解焦虑。"
+        },
+        {
+          "question_text": "**给孩子充分的爱和耐心**，是**应对分离焦虑**的**重要态度**，体现了？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "快速解决问题的决心", "is_correct": false},
+            {"option_text": "理解和接纳婴儿情绪", "is_correct": true},
+            {"option_text": "严格执行育儿原则", "is_correct": false},
+            {"option_text": "对婴儿的过度溺爱", "is_correct": false}
+          ],
+          "answer_explanation": "爱和耐心体现了对婴儿情绪的理解和接纳，是有效应对分离焦虑的基础。"
+        },
+        {
+          "question_text": "关于分离焦虑影响睡眠的解决方法，下列做法**符合文档建议**的是？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "增加日常高质量陪伴，回应婴儿需求", "is_correct": true},
+            {"option_text": "通过捉迷藏等游戏，练习短时分离", "is_correct": true},
+            {"option_text": "离开时进行简短告别，并信守承诺", "is_correct": true},
+            {"option_text": "提供安抚物，如小毯子或玩偶", "is_correct": true},
+            {"option_text": "为了培养独立性，减少睡前安抚", "is_correct": false}
+          ],
+          "answer_explanation": "选项ABCD都与文档中缓解分离焦虑的解决方法建议一致，从陪伴、练习分离、建立安全感等方面入手。"
+        }
+      ]
+    },
+    {
+      "point_name": "常见问题 - 情绪性拒绝入睡 - 解决方法 (不强迫、改变方式、平复情绪、设置规则)",
+      "questions": [
+        {
+          "question_text": "**情绪性拒绝入睡**是婴儿**哪个方面发展**的表现？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "自我意识发展", "is_correct": true},
+            {"option_text": "语言能力发展", "is_correct": false},
+            {"option_text": "运动能力发展", "is_correct": false},
+            {"option_text": "认知能力发展", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出“情绪性的拒绝入睡 这是孩子自我意识发展的表现”。 自我意识发展是核心原因。"
+        },
+        {
+          "question_text": "情绪性拒绝入睡的**主要表现**是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "夜间频繁惊醒", "is_correct": false},
+            {"option_text": "一说睡觉就抵触、哭闹", "is_correct": true},
+            {"option_text": "入睡后易做噩梦", "is_correct": false},
+            {"option_text": "睡眠时间紊乱", "is_correct": false}
+          ],
+          "answer_explanation": "文档描述主要表现为“一说到睡觉，孩子就会开始抵触，大哭大闹地反抗。”"
+        },
+        {
+          "question_text": "**面对情绪性拒绝入睡**，**首先不应**？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "尝试改变哄睡方式", "is_correct": false},
+            {"option_text": "帮助孩子平复情绪", "is_correct": false},
+            {"option_text": "强迫孩子睡觉", "is_correct": true},
+            {"option_text": "设置并坚持规则", "is_correct": false}
+          ],
+          "answer_explanation": "文档建议“不要强迫孩子睡觉”。 强迫会加剧抵触情绪。"
+        },
+        {
+          "question_text": "**可以尝试改变**的**哄睡方式**包括？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "增加睡前抚触时间", "is_correct": false},
+            {"option_text": "提高室内温度", "is_correct": false},
+            {"option_text": "更换睡衣款式", "is_correct": false},
+            {"option_text": "不拉窗帘、不放哄睡歌曲等", "is_correct": true}
+          ],
+          "answer_explanation": "文档举例“可以尝试改变惯常的哄睡方式，例如不拉窗帘、不放哄睡的歌曲等”。 改变方式是策略之一。"
+        },
+        {
+          "question_text": "在**改变哄睡方式**的同时，还应？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "帮助孩子平复情绪", "is_correct": true},
+            {"option_text": "减少睡前互动", "is_correct": false},
+            {"option_text": "缩短睡前程序", "is_correct": false},
+            {"option_text": "更换睡眠环境", "is_correct": false}
+          ],
+          "answer_explanation": "文档建议“帮孩子平复情绪”。 情绪平复是有效解决问题的前提。"
+        },
+        {
+          "question_text": "**设置规则并坚持下去**，例如“上床后不可以下去”，**目的是**？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "快速让孩子入睡", "is_correct": false},
+            {"option_text": "用坚持告诉孩子这是睡觉的原则", "is_correct": true},
+            {"option_text": "惩罚孩子的拒绝行为", "is_correct": false},
+            {"option_text": "减少父母哄睡时间", "is_correct": false}
+          ],
+          "answer_explanation": "设置规则并坚持，是为了建立界限，让孩子明白睡觉的原则和底线。"
+        },
+        {
+          "question_text": "关于情绪性拒绝入睡的解决方法，下列做法**符合文档建议**的是？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "不强迫孩子立即睡觉，尊重其情绪", "is_correct": true},
+            {"option_text": "尝试改变以往的哄睡方式，如不拉窗帘", "is_correct": true},
+            {"option_text": "温和地帮助孩子平复情绪，给予安抚", "is_correct": true},
+            {"option_text": "设置睡觉规则并坚持，例如上床后不能下床", "is_correct": true},
+            {"option_text": "对孩子的拒绝行为采取严厉的惩罚措施", "is_correct": false}
+          ],
+          "answer_explanation": "选项ACD都与文档中解决情绪性拒绝入睡的建议一致，强调不强迫、改变方式、平复情绪、设置规则和坚持。"
+        }
+      ]
+    },
+    {
+      "point_name": "习惯 & 早教 - 喂养习惯 - 培养自主进食习惯",
+      "questions": [
+        {
+          "question_text": "培养孩子**自主进食习惯**的**起点**应在？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "辅食添加初期", "is_correct": true},
+            {"option_text": "能够熟练使用勺子后", "is_correct": false},
+            {"option_text": "开始上幼儿园后", "is_correct": false},
+            {"option_text": "能够独立行走后", "is_correct": false}
+          ],
+          "answer_explanation": "自主进食习惯应从小培养，辅食添加初期即可开始引导。"
+        },
+        {
+          "question_text": "**自主进食习惯**的**核心**是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "让孩子吃得更多", "is_correct": false},
+            {"option_text": "让孩子自己动手吃饭", "is_correct": true},
+            {"option_text": "让孩子选择食物种类", "is_correct": false},
+            {"option_text": "让孩子按时吃饭", "is_correct": false}
+          ],
+          "answer_explanation": "自主进食的核心在于“自主”，即孩子自己参与进食过程，自己动手。"
+        },
+        {
+          "question_text": "**培养自主进食习惯**的**主要益处**是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "减少食物浪费", "is_correct": false},
+            {"option_text": "提高进食速度", "is_correct": false},
+            {"option_text": "培养进食兴趣和自理能力", "is_correct": true},
+            {"option_text": "减轻父母喂养负担", "is_correct": false}
+          ],
+          "answer_explanation": "自主进食不仅是技能，更重要的是培养兴趣和自理能力，选项C更全面。"
+        },
+        {
+          "question_text": "**不利于** 培养自主进食习惯的做法是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "提供手指食物", "is_correct": false},
+            {"option_text": "允许孩子用手抓食物", "is_correct": false},
+            {"option_text": "鼓励孩子尝试用勺子", "is_correct": false},
+            {"option_text": "完全由父母喂食", "is_correct": true}
+          ],
+          "answer_explanation": "完全由父母喂食，孩子缺乏自主参与，不利于自主进食习惯的培养。"
+        },
+        {
+          "question_text": "关于培养自主进食习惯，下列说法**正确**的是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "应从辅食初期开始引导，鼓励孩子自己动手", "is_correct": true},
+            {"option_text": "应在孩子掌握勺子使用后，再开始培养", "is_correct": false},
+            {"option_text": "自主进食会造成食物浪费，应尽量避免", "is_correct": false},
+            {"option_text": "培养自主进食习惯不如保证孩子摄入量重要", "is_correct": false}
+          ],
+          "answer_explanation": "选项A强调了培养自主进食习惯的时机和核心方法，符合文档精神。"
+        }
+      ]
+    },
+    {
+      "point_name": "习惯 & 早教 - 喂养习惯 - 锻炼咀嚼能力",
+      "questions": [
+        {
+          "question_text": "**咀嚼能力**的核心是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "舌头灵活度", "is_correct": false},
+            {"option_text": "口腔肌肉的咬合力", "is_correct": true},
+            {"option_text": "牙齿数量", "is_correct": false},
+            {"option_text": "吞咽速度", "is_correct": false}
+          ],
+          "answer_explanation": "文档明确指出“咀嚼能力就是口腔肌肉有足够的咬合力。” 咬合力是核心。"
+        },
+        {
+          "question_text": "**锻炼咀嚼能力**的**主要意义**在于？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "提高消化吸收率", "is_correct": false},
+            {"option_text": "预防食物过敏", "is_correct": false},
+            {"option_text": "增加吃饭积极性，利于语言发育", "is_correct": true},
+            {"option_text": "减少偏食挑食", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出“孩子咀嚼能力好了，会增加吃饭的积极性，以后对说话、吐字、表达能力都有很大的好处。”  对吃饭积极性和语言发育的益处是主要意义。"
+        },
+        {
+          "question_text": "**有助于** 锻炼咀嚼能力的方法是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "只提供泥糊状食物", "is_correct": false},
+            {"option_text": "避免给孩子吃有硬度的食物", "is_correct": false},
+            {"option_text": "延长每餐的喂食时间", "is_correct": false},
+            {"option_text": "提供不同性状和硬度的食物", "is_correct": true}
+          ],
+          "answer_explanation": "提供不同性状和硬度的食物，尤其是稍有硬度的食物，才能有效锻炼咀嚼能力。"
+        },
+        {
+          "question_text": "**不利于** 锻炼咀嚼能力的做法是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "长期只喂食泥糊状食物", "is_correct": true},
+            {"option_text": "鼓励孩子尝试手指食物", "is_correct": false},
+            {"option_text": "提供颗粒状辅食", "is_correct": false},
+            {"option_text": "让孩子啃咬磨牙棒", "is_correct": false}
+          ],
+          "answer_explanation": "长期只喂食泥糊状食物，口腔肌肉缺乏锻炼，不利于咀嚼能力发展。"
+        },
+        {
+          "question_text": "关于锻炼咀嚼能力，下列说法**正确**的是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "咀嚼能力是天生的，无需刻意锻炼", "is_correct": false},
+            {"option_text": "应通过提供不同性状食物来锻炼咀嚼能力", "is_correct": true},
+            {"option_text": "咀嚼能力主要通过牙齿发育自然获得", "is_correct": false},
+            {"option_text": "锻炼咀嚼能力会影响孩子对食物的兴趣", "is_correct": false}
+          ],
+          "answer_explanation": "选项B强调了通过食物性状锻炼咀嚼能力的方法，符合文档精神。"
+        }
+      ]
+    },
+    {
+      "point_name": "习惯 & 早教 - 喂养习惯 - 练习自己吃饭的技巧",
+      "questions": [
+        {
+          "question_text": "**练习自己吃饭技巧**的**核心**是锻炼？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "口腔肌肉力量", "is_correct": false},
+            {"option_text": "消化系统功能", "is_correct": false},
+            {"option_text": "手指精细动作和手眼协调", "is_correct": true},
+            {"option_text": "进食速度和效率", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出练习吃饭技巧是为了“锻炼手指的精细动作”，以及手眼协调能力。"
+        },
+        {
+          "question_text": "**手指食物**在练习自己吃饭技巧方面**起到的作用**是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "提供营养", "is_correct": false},
+            {"option_text": "锻炼咀嚼", "is_correct": false},
+            {"option_text": "促进消化", "is_correct": false},
+            {"option_text": "锻炼手指精细动作", "is_correct": true}
+          ],
+          "answer_explanation": "文档指出“锻炼手指的精细动作，比如吃手指食物”。 手指食物是锻炼精细动作的有效工具。"
+        },
+        {
+          "question_text": "**练习用勺子**是练习自己吃饭技巧的**重要环节**，强调？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "练习而非教会", "is_correct": true},
+            {"option_text": "教会而非练习", "is_correct": false},
+            {"option_text": "边教边练", "is_correct": false},
+            {"option_text": "无需教，只需练", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出“孩子吃饭的技巧不是教出来的，而是练出来的”。 强调练习的重要性。"
+        },
+        {
+          "question_text": "**错误**的关于练习自己吃饭技巧的理解是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "练习过程比结果更重要", "is_correct": false},
+            {"option_text": "技巧主要是教出来的，练习不重要", "is_correct": true},
+            {"option_text": "应鼓励孩子多尝试，不怕弄脏", "is_correct": false},
+            {"option_text": "手指食物是练习技巧的有效工具", "is_correct": false}
+          ],
+          "answer_explanation": "技巧重在练习，而非教会，选项B理解错误。"
+        },
+        {
+          "question_text": "关于练习自己吃饭的技巧，下列说法**正确**的是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "应在孩子完全掌握勺子用法后，再允许自主进食", "is_correct": false},
+            {"option_text": "父母应手把手教会孩子每一步技巧", "is_correct": false},
+            {"option_text": "练习是关键，应鼓励孩子多尝试，并提供支持", "is_correct": true},
+            {"option_text": "练习自己吃饭的技巧主要是为了提高进食速度", "is_correct": false}
+          ],
+          "answer_explanation": "选项C强调了练习的重要性，以及鼓励和支持的态度，符合自主进食培养的理念。"
+        }
+      ]
+    },
+    {
+      "point_name": "习惯 & 早教 - 喂养习惯 - 培养良好饮食习惯",
+      "questions": [
+        {
+          "question_text": "**0～1岁**是培养良好饮食习惯的**关键期**，**主要影响**？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "幼儿期甚至成人后的饮食习惯", "is_correct": true},
+            {"option_text": "婴儿期的体重增长速度", "is_correct": false},
+            {"option_text": "婴儿期的睡眠质量", "is_correct": false},
+            {"option_text": "婴儿期的语言发育", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出“0～1 岁所养成的饮食习惯，会影响到幼儿期的习惯，甚至持续的成人后的饮食习惯”。  影响深远。"
+        },
+        {
+          "question_text": "**良好饮食习惯**的**内涵**包括？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "卫生习惯", "is_correct": true},
+            {"option_text": "乖乖吃饭", "is_correct": true},
+            {"option_text": "调味品适量", "is_correct": true},
+            {"option_text": "不将成人习惯带给孩子", "is_correct": true},
+            {"option_text": "只吃健康食物", "is_correct": false}
+          ],
+          "answer_explanation": "文档列举了“卫生习惯，让孩子自己乖乖吃饭，把握好调味品的用量，不把自己的习惯带给孩子”等良好饮食习惯的内涵。"
+        },
+        {
+          "question_text": "**培养卫生习惯**，例如**饭前洗手**，**目的是**？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "提高进食速度", "is_correct": false},
+            {"option_text": "预防病从口入", "is_correct": true},
+            {"option_text": "培养整洁习惯", "is_correct": false},
+            {"option_text": "提高食物口感", "is_correct": false}
+          ],
+          "answer_explanation": "饭前洗手主要是为了卫生，预防病从口入，选项B更直接相关。"
+        },
+        {
+          "question_text": "**“让孩子自己乖乖吃饭”**，**核心理念**是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "强制孩子按时吃饭", "is_correct": false},
+            {"option_text": "让孩子独立完成进食", "is_correct": false},
+            {"option_text": "培养孩子对吃饭的积极性和配合度", "is_correct": true},
+            {"option_text": "减少父母喂饭的负担", "is_correct": false}
+          ],
+          "answer_explanation": "“乖乖吃饭”并非强制，而是培养积极配合的态度，选项C更准确。"
+        },
+        {
+          "question_text": "**“把握好调味品的用量”**，**主要原则**是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "多放调味品，增加食欲", "is_correct": false},
+            {"option_text": "少放调味品，保持原味", "is_correct": false},
+            {"option_text": "根据成人喜好调整调味品", "is_correct": false},
+            {"option_text": "尽量少用调味品，或使用婴儿专用调味品", "is_correct": true}
+          ],
+          "answer_explanation": "婴儿饮食应清淡，尽量少用调味品，或使用婴儿专用调味品，选项D更安全健康。"
+        },
+        {
+          "question_text": "**“不把自己的习惯带给孩子”**，**体现**？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "尊重孩子的个体差异", "is_correct": true},
+            {"option_text": "父母应改变自身饮食习惯", "is_correct": false},
+            {"option_text": "孩子应完全模仿父母饮食习惯", "is_correct": false},
+            {"option_text": "父母和孩子应分开用餐", "is_correct": false}
+          ],
+          "answer_explanation": "每个孩子都是独立的个体，饮食习惯应尊重个体差异，选项A更符合理念。"
+        },
+        {
+          "question_text": "关于培养良好饮食习惯，下列说法**正确**的是？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "0-1岁是关键期，影响深远", "is_correct": true},
+            {"option_text": "应完全按照父母的饮食习惯培养孩子", "is_correct": false},
+            {"option_text": "应注意培养卫生习惯，如饭前洗手", "is_correct": true},
+            {"option_text": "为了增加食欲，可以在婴儿辅食中多加调味品", "is_correct": false},
+            {"option_text": "良好饮食习惯可以在幼儿期快速培养，婴儿期不重要", "is_correct": false}
+          ],
+          "answer_explanation": "选项AC概括了良好饮食习惯培养的关键期和重要方面，选项BDE与文档原则相悖。"
+        }
+      ]
+    },
+    {
+      "point_name": "习惯 & 早教 - 睡眠习惯 - 营造舒适睡眠环境 (空气、温度湿度、光线、安静)",
+      "questions": [
+        {
+          "question_text": "营造**舒适睡眠环境**是培养良好睡眠习惯的**重要方面**，**主要包括**？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "空气新鲜", "is_correct": true},
+            {"option_text": "温度、湿度适宜", "is_correct": true},
+            {"option_text": "光线昏暗", "is_correct": true},
+            {"option_text": "环境安静", "is_correct": true},
+            {"option_text": "色彩鲜艳", "is_correct": false}
+          ],
+          "answer_explanation": "文档列举了“空气新鲜，温度、湿度适宜，光线昏暗，保持环境安静”等舒适睡眠环境的要素。"
+        },
+        {
+          "question_text": "**空气新鲜**的睡眠环境，**可以通过**？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "紧闭门窗", "is_correct": false},
+            {"option_text": "开窗通风", "is_correct": true},
+            {"option_text": "使用空气清新剂", "is_correct": false},
+            {"option_text": "增加室内绿植", "is_correct": false}
+          ],
+          "answer_explanation": "保持空气新鲜最直接有效的方法是开窗通风，选项B更实用。"
+        },
+        {
+          "question_text": "**温度、湿度适宜**的睡眠环境，**通常指**？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "高温高湿", "is_correct": false},
+            {"option_text": "低温干燥", "is_correct": false},
+            {"option_text": "温度适中，湿度适宜", "is_correct": true},
+            {"option_text": "温度和湿度越高越好", "is_correct": false}
+          ],
+          "answer_explanation": "适宜的温度湿度是指既不寒冷也不闷热潮湿的环境，选项C更符合舒适的定义。"
+        },
+        {
+          "question_text": "**光线昏暗**的睡眠环境，**可以通过**？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "打开所有照明设备", "is_correct": false},
+            {"option_text": "使用强光灯", "is_correct": false},
+            {"option_text": "保持室内明亮", "is_correct": false},
+            {"option_text": "拉上窗帘，关闭主要光源", "is_correct": true}
+          ],
+          "answer_explanation": "光线昏暗需要遮蔽强光来源，拉上窗帘、关灯是直接有效的方法，选项D更合适。"
+        },
+        {
+          "question_text": "**环境安静**的睡眠环境，**不包括**？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "持续播放高分贝音乐", "is_correct": true},
+            {"option_text": "轻柔的摇篮曲", "is_correct": false},
+            {"option_text": "自然的室内静音", "is_correct": false},
+            {"option_text": "隔绝外界噪音", "is_correct": false}
+          ],
+          "answer_explanation": "环境安静的核心是减少噪音干扰，持续高分贝音乐显然不属于安静范畴，选项A不符合。"
+        },
+        {
+          "question_text": "关于营造舒适睡眠环境，下列做法**符合文档建议**的是？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "为了空气流通，卧室窗户应完全打开", "is_correct": false},
+            {"option_text": "使用遮光窗帘，营造昏暗睡眠环境", "is_correct": true},
+            {"option_text": "保持卧室温度适宜，避免过冷过热", "is_correct": true},
+            {"option_text": "尽量减少卧室噪音，保持安静", "is_correct": true},
+            {"option_text": "为了增加情趣，在卧室播放欢快音乐", "is_correct": false}
+          ],
+          "answer_explanation": "选项BCD都与营造舒适睡眠环境的要素：空气、光线、温度湿度、安静 相符。选项A全开窗户可能导致温湿度不稳定或噪音，选项E欢快音乐与安静环境相悖。"
+        }
+      ]
+    },
+    {
+      "point_name": "习惯 & 早教 - 睡眠习惯 - 培养孩子正确的睡眠姿势——右侧卧",
+      "questions": [
+        {
+          "question_text": "文档建议培养孩子**哪种睡眠姿势**？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "右侧卧", "is_correct": true},
+            {"option_text": "左侧卧", "is_correct": false},
+            {"option_text": "仰卧", "is_correct": false},
+            {"option_text": "俯卧", "is_correct": false}
+          ],
+          "answer_explanation": "文档明确指出“培养孩子正确的睡眠姿势——右侧卧”。"
+        },
+        {
+          "question_text": "**右侧卧**的**主要优点**是使？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "心脏负担减轻", "is_correct": false},
+            {"option_text": "心、肝、胃、肠处于自然位置，呼吸顺畅", "is_correct": true},
+            {"option_text": "头部血液循环更佳", "is_correct": false},
+            {"option_text": "肌肉完全放松", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出“这种睡姿使心、肝、胃、肠处于自然位置，比较舒服”，“使孩子呼吸顺畅”。 选项B更全面概括优点。"
+        },
+        {
+          "question_text": "**右侧卧****有利于**食物？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "在胃部充分消化", "is_correct": false},
+            {"option_text": "快速排出体外", "is_correct": false},
+            {"option_text": "向肠道输送", "is_correct": true},
+            {"option_text": "减少胃酸反流", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出“利于食物向肠道输送”。  促进肠道蠕动和食物输送。"
+        },
+        {
+          "question_text": "**右侧卧**还有助于孩子？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "增加睡眠深度", "is_correct": false},
+            {"option_text": "减少夜醒次数", "is_correct": false},
+            {"option_text": "快速入睡", "is_correct": false},
+            {"option_text": "肌肉放松，恢复疲劳，促进生长发育", "is_correct": true}
+          ],
+          "answer_explanation": "文档指出“孩子肌肉放松，利于恢复疲劳，促进生长发育”。  促进肌肉放松和生长发育。"
+        },
+        {
+          "question_text": "关于右侧卧睡眠姿势，下列说法**正确**的是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "使身体器官处于自然位置，利于呼吸和消化", "is_correct": true},
+            {"option_text": "所有婴儿都必须保持右侧卧睡姿", "is_correct": false},
+            {"option_text": "右侧卧是唯一正确的睡眠姿势", "is_correct": false},
+            {"option_text": "右侧卧可以预防所有婴儿疾病", "is_correct": false}
+          ],
+          "answer_explanation": "选项A概括了右侧卧的主要优点：器官自然位置，利于呼吸消化。选项BCD过于绝对或夸大。"
+        }
+      ]
+    },
+    {
+      "point_name": "习惯 & 早教 - 睡眠习惯 - 养成良好的睡前习惯",
+      "questions": [
+        {
+          "question_text": "养成**良好的睡前习惯**是培养良好睡眠习惯的**重要组成部分**，**主要包括**？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "餐后至少过一两个小时再睡觉", "is_correct": true},
+            {"option_text": "睡前不玩兴奋或新奇玩具", "is_correct": true},
+            {"option_text": "睡前讲平淡、短小的故事", "is_correct": true},
+            {"option_text": "睡前洗漱", "is_correct": true},
+            {"option_text": "睡前进行剧烈运动", "is_correct": false}
+          ],
+          "answer_explanation": "文档列举了“餐后至少过一两个小时再睡觉，睡前不要给孩子玩新的或有趣的玩具，睡前可以给孩子讲一个平淡、短小的故事，睡前最好能给孩子洗漱”等良好睡前习惯。"
+        },
+        {
+          "question_text": "**餐后至少过一两个小时再睡觉**，**目的是**？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "避免消化不良", "is_correct": false},
+            {"option_text": "保证胃部排空，避免影响睡眠", "is_correct": true},
+            {"option_text": "培养规律作息", "is_correct": false},
+            {"option_text": "减少夜间排尿", "is_correct": false}
+          ],
+          "answer_explanation": "餐后立即睡觉可能导致胃部不适，影响睡眠质量，餐后间隔一段时间有助于胃部排空，选项B更直接相关。"
+        },
+        {
+          "question_text": "**睡前不玩新的或有趣的玩具**，**目的是**？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "节省玩具", "is_correct": false},
+            {"option_text": "保护玩具", "is_correct": false},
+            {"option_text": "避免过度兴奋，影响入睡", "is_correct": true},
+            {"option_text": "培养孩子专注力", "is_correct": false}
+          ],
+          "answer_explanation": "新奇有趣的玩具容易引起兴奋，不利于睡前平静，影响入睡，选项C更贴切。"
+        },
+        {
+          "question_text": "**睡前讲平淡、短小的故事**，**主要作用**是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "提高语言能力", "is_correct": false},
+            {"option_text": "促进亲子关系", "is_correct": false},
+            {"option_text": "激发想象力", "is_correct": false},
+            {"option_text": "催眠，帮助入睡", "is_correct": true}
+          ],
+          "answer_explanation": "平淡短小的故事节奏舒缓，内容平和，具有催眠作用，选项D更符合睡前故事的目的。"
+        },
+        {
+          "question_text": "**睡前洗漱**，**主要作用**是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "促进血液循环，放松身心，促进睡眠", "is_correct": true},
+            {"option_text": "保持身体清洁，预防疾病", "is_correct": false},
+            {"option_text": "培养卫生习惯", "is_correct": false},
+            {"option_text": "提高皮肤呼吸功能", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出睡前洗漱“起到血液循环的作用，促进睡眠”。 促进血液循环和放松是主要作用。"
+        },
+        {
+          "question_text": "关于养成良好睡前习惯，下列做法**不符合文档建议**的是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "睡前避免喂奶，以免影响消化", "is_correct": false},
+            {"option_text": "睡前讲同一故事，形成睡眠信号", "is_correct": false},
+            {"option_text": "睡前洗温水澡，放松身心", "is_correct": false},
+            {"option_text": "睡前保持卧室安静昏暗", "is_correct": false},
+            {"option_text": "睡前和孩子玩兴奋的游戏，增进亲子关系", "is_correct": true}
+          ],
+          "answer_explanation": "选项E睡前玩兴奋游戏与睡前保持平静、帮助入睡的目的相悖，不符合良好睡前习惯的要求。选项A描述与文档“若有睡前吃奶的习惯，最好吃饱了再睡”相悖，更正：选项A描述与文档“餐后至少过一两个小时再睡觉，若有睡前吃奶的习惯，最好吃饱了再睡”部分内容冲突，但考虑到婴儿睡前奶的特殊性，以及避免空腹影响睡眠，此处理解为睡前避免**大量**进食，而非完全禁止睡前奶，因此选项A并非完全不符合，但表述略有歧义。**最不符合的应为选项E**。"
+        }
+      ]
+    },
+    {
+      "point_name": "习惯 & 早教 - 早教 - 大动作 (7-12个月标准及训练)",
+      "questions": [
+        {
+          "question_text": "7～8个月婴儿，**大动作发育的典型标准**是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "能独坐片刻", "is_correct": true},
+            {"option_text": "开始用上肢和腹部匍匐", "is_correct": false},
+            {"option_text": "会扶着围栏迈步", "is_correct": false},
+            {"option_text": "能独立站片刻", "is_correct": false}
+          ],
+          "answer_explanation": "文档表格显示，7～8个月“能独坐片刻”。 独坐是此阶段的典型大动作发展。"
+        },
+        {
+          "question_text": "9～10个月婴儿，**开始出现的爬行方式**是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "腹部蠕动", "is_correct": false},
+            {"option_text": "用上肢和腹部匍匐", "is_correct": true},
+            {"option_text": "手膝协调爬行", "is_correct": false},
+            {"option_text": "倒退爬行", "is_correct": false}
+          ],
+          "answer_explanation": "文档表格显示，9～10个月“开始用上肢和腹部匍匐而行”。 匍匐是此阶段的爬行特点。"
+        },
+        {
+          "question_text": "11～12个月婴儿，**大动作方面可能达到的水平**是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "独坐稳", "is_correct": false},
+            {"option_text": "开始爬行", "is_correct": false},
+            {"option_text": "扶着围栏迈步", "is_correct": true},
+            {"option_text": "独立行走", "is_correct": false}
+          ],
+          "answer_explanation": "文档表格显示，11～12个月“会扶着围栏迈步”。 扶走是此阶段的典型大动作发展。"
+        },
+        {
+          "question_text": "**巩固爬行**的**训练方法**包括？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "限制婴儿活动空间", "is_correct": false},
+            {"option_text": "强迫婴儿爬行", "is_correct": false},
+            {"option_text": "只在床上练习爬行", "is_correct": false},
+            {"option_text": "引诱爬行、示范要领、游戏互动、强化训练", "is_correct": true}
+          ],
+          "answer_explanation": "文档列举了“从让孩子被动爬到引诱孩子爬行前进，给孩子示范爬行的要领,和孩子一起玩游戏，会爬后做强化训练”等巩固爬行的方法。"
+        },
+        {
+          "question_text": "**站和走**的**训练步骤**，**由易到难**的顺序是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "扶站 -> 扶走 -> 独立站 -> 牵手走", "is_correct": true},
+            {"option_text": "独立站 -> 扶站 -> 牵手走 -> 扶走", "is_correct": false},
+            {"option_text": "牵手走 -> 扶走 -> 扶站 -> 独立站", "is_correct": false},
+            {"option_text": "扶走 -> 牵手走 -> 独立站 -> 扶站", "is_correct": false}
+          ],
+          "answer_explanation": "文档列举的“站和走”训练步骤为“扶站 -> 扶着走路 -> 独立站 -> 牵着手走路”，选项A排序符合由易到难的规律。"
+        },
+        {
+          "question_text": "关于7～12个月婴儿大动作发展，下列说法**正确**的是？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "所有婴儿都会在9个月时学会爬行", "is_correct": false},
+            {"option_text": "大动作发展是一个循序渐进的过程", "is_correct": true},
+            {"option_text": "训练方法应多样化，包括引诱、示范、游戏等", "is_correct": true},
+            {"option_text": "为了尽快学会走路，应减少爬行训练", "is_correct": false},
+            {"option_text": "大动作发展主要依靠遗传因素，后天训练作用不大", "is_correct": false}
+          ],
+          "answer_explanation": "选项BC概括了大动作发展的特点和训练方法。选项A过于绝对，选项DE与文档强调的训练作用相悖。"
+        }
+      ]
+    },
+    {
+      "point_name": "习惯 & 早教 - 早教 - 精细动作 (7-12个月标准及训练)",
+      "questions": [
+        {
+          "question_text": "7～8个月婴儿，**精细动作发育的典型标准**是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "会用双手同时握东西", "is_correct": true},
+            {"option_text": "手的动作更加灵活，拇指和其他四指对捏", "is_correct": false},
+            {"option_text": "可以用手将盖子盖上或打开", "is_correct": false},
+            {"option_text": "会扔、摔东西", "is_correct": false}
+          ],
+          "answer_explanation": "文档表格显示，7～8个月“会用双手同时握东西”。 双手握物是此阶段的典型精细动作。"
+        },
+        {
+          "question_text": "9～10个月婴儿，**精细动作方面的重要进步**是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "会摇发响的玩具", "is_correct": false},
+            {"option_text": "拇指和其他四指能分开对捏", "is_correct": true},
+            {"option_text": "会翻书或摆弄玩具", "is_correct": false},
+            {"option_text": "会捕捉并拍打镜中人", "is_correct": false}
+          ],
+          "answer_explanation": "文档表格显示，9～10个月“手的动作更加灵活，大拇指和其他四指头能分开对捏”。  对捏是精细动作的重要进步。"
+        },
+        {
+          "question_text": "11～12个月婴儿，**精细动作方面可能达到的水平**是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "会用双手同时握东西", "is_correct": false},
+            {"option_text": "能摇发响的玩具", "is_correct": false},
+            {"option_text": "可以用手将盖子盖上或打开", "is_correct": true},
+            {"option_text": "会扔、摔东西", "is_correct": false}
+          ],
+          "answer_explanation": "文档表格显示，11～12个月“可以用手将盖子盖上或打开”。  盖/开盖是此阶段的精细动作发展。"
+        },
+        {
+          "question_text": "**拧瓶盖**属于**哪个月龄段**的精细动作训练？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "7～8个月", "is_correct": false},
+            {"option_text": "9～10个月", "is_correct": false},
+            {"option_text": "10～11个月", "is_correct": false},
+            {"option_text": "11～12个月", "is_correct": true}
+          ],
+          "answer_explanation": "拧瓶盖需要更精细的手指动作和手眼协调，属于较高阶的精细动作训练，可归为11-12个月龄段。"
+        },
+        {
+          "question_text": "**把物体放进桶中、搭积木、拼图、翻绘本、撕纸**等都属于？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "精细动作训练", "is_correct": true},
+            {"option_text": "大动作训练", "is_correct": false},
+            {"option_text": "认知发展训练", "is_correct": false},
+            {"option_text": "语言发育训练", "is_correct": false}
+          ],
+          "answer_explanation": "这些活动都以手部精细动作为主，属于精细动作训练的范畴。"
+        },
+        {
+          "question_text": "关于7～12个月婴儿精细动作发展，下列说法**正确**的是？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "精细动作发展是一个逐步精细化的过程", "is_correct": true},
+            {"option_text": "精细动作训练应与日常生活和游戏结合", "is_correct": true},
+            {"option_text": "手指食物可以有效锻炼婴儿的精细动作", "is_correct": true},
+            {"option_text": "精细动作发展速度与智力水平呈正相关，越快越好", "is_correct": false},
+            {"option_text": "精细动作训练的重点是让婴儿掌握技巧，而非培养兴趣", "is_correct": false}
+          ],
+          "answer_explanation": "选项AC概括了精细动作发展的特点和训练方法。选项D过于绝对，选项E忽略了兴趣培养的重要性。"
+        }
+      ]
+    },
+    {
+      "point_name": "习惯 & 早教 - 早教 - 语言发育 (7-12个月标准及训练)",
+      "questions": [
+        {
+          "question_text": "7～8个月婴儿，**语言发育的典型标准**是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "能发出比较复杂的声音，如a、e、i、o、u", "is_correct": true},
+            {"option_text": "开始懂得语意，认识物体", "is_correct": false},
+            {"option_text": "会用手势表示需要", "is_correct": false},
+            {"option_text": "会说简单的有意义的词语，如“爸爸”“妈妈”", "is_correct": false}
+          ],
+          "answer_explanation": "文档表格显示，7～8个月“能发出比较复杂的声音，如 a、e、i、o、u，好像要说话”。  发声是此阶段的语言发育特点。"
+        },
+        {
+          "question_text": "9～10个月婴儿，**语言发育方面的重要进步**是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "发出复杂声音", "is_correct": false},
+            {"option_text": "开始懂得语意，认识物体", "is_correct": true},
+            {"option_text": "会用身体动作表示要到外边玩", "is_correct": false},
+            {"option_text": "能发出简单音节如：“dada”“mama”“baba”", "is_correct": false}
+          ],
+          "answer_explanation": "文档表格显示，9～10个月“开始懂得语意；认识物体，如灯、书和笔等”。  理解语意是重要进步。"
+        },
+        {
+          "question_text": "11～12个月婴儿，**语言发育方面可能达到的水平**是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "发出复杂声音", "is_correct": false},
+            {"option_text": "开始懂得语意", "is_correct": false},
+            {"option_text": "(文档表格此处为空白，但根据上下文，应为能理解更多语言，可能说一些简单词语)", "is_correct": true},
+            {"option_text": "能发出简单音节", "is_correct": false}
+          ],
+          "answer_explanation": "文档表格11-12个月语言发育处为空白，但根据前后月龄发展，此阶段应在理解和表达方面有进一步发展，理解更多语言，可能开始说简单词语是合理推测。"
+        },
+        {
+          "question_text": "**8～12个月**是孩子**初步认知语言的**？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "准备期", "is_correct": false},
+            {"option_text": "快速发展期", "is_correct": false},
+            {"option_text": "巩固期", "is_correct": false},
+            {"option_text": "关键期", "is_correct": true}
+          ],
+          "answer_explanation": "文档明确指出“8~12个月是孩子初步认知语言的关键期”。  关键期强调此阶段的重要性。"
+        },
+        {
+          "question_text": "**促进语言发育**的**有效方法**包括？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "多和孩子说话，描述所见所闻，多带孩子户外活动", "is_correct": true},
+            {"option_text": "只教孩子说单词，避免说句子", "is_correct": false},
+            {"option_text": "减少与孩子语言互动，培养独立性", "is_correct": false},
+            {"option_text": "强迫孩子重复发音，进行语言训练", "is_correct": false}
+          ],
+          "answer_explanation": "文档列举了“多和孩子说话,看到什么就告诉孩子什么,用陈述句与孩子沟通，多带孩子到户外活动,认识大自然中的事物”等促进语言发育的方法。"
+        },
+        {
+          "question_text": "关于7～12个月婴儿语言发育，下列说法**正确**的是？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "语言发育主要依靠听觉刺激，视觉刺激作用不大", "is_correct": false},
+            {"option_text": "多和孩子说话，用陈述句沟通，有助于语言发展", "is_correct": true},
+            {"option_text": "户外活动，认识大自然事物，可以丰富语言认知", "is_correct": true},
+            {"option_text": "为了让孩子尽快说话，应强迫孩子模仿发音", "is_correct": false},
+            {"option_text": "语言发育迟缓是智力低下的唯一表现", "is_correct": false}
+          ],
+          "answer_explanation": "选项BC概括了促进语言发育的有效方法。选项A不全面，选项DE过于绝对或错误。"
+        }
+      ]
+    },
+    {
+      "point_name": "习惯 & 早教 - 早教 - 认知发展 (7-12个月标准及训练)",
+      "questions": [
+        {
+          "question_text": "7～8个月婴儿，**认知发展的典型表现**是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "喜欢藏猫猫游戏，会找藏起来的东西", "is_correct": true},
+            {"option_text": "自己拿的小勺掉地上后知道寻找", "is_correct": false},
+            {"option_text": "会观察大人的喜怒并作出相应行为", "is_correct": false},
+            {"option_text": "有初步模仿能力，模仿成人摇手再见", "is_correct": false}
+          ],
+          "answer_explanation": "文档表格显示，7～8个月“喜欢藏猫猫游戏（藏猫猫游戏指父母用手绢盖住自己或者宝宝的脸，突然拿开手绢，说“喵儿”）；会找藏起来的东西”。  藏猫猫游戏和找物是此阶段认知特点。"
+        },
+        {
+          "question_text": "9～10个月婴儿，**认知发展方面的重要进步**是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "喜欢望着镜中人笑", "is_correct": false},
+            {"option_text": "自己拿的小勺掉地上后知道寻找", "is_correct": true},
+            {"option_text": "喜欢在街上看汽车，看天空的小鸟", "is_correct": false},
+            {"option_text": "会把注意力集中到他感兴趣的事物和玩具", "is_correct": false}
+          ],
+          "answer_explanation": "文档表格显示，9～10个月“自己拿的小勺掉地上后知道寻找”。  寻找掉落物品体现了物体永久性概念的萌芽。"
+        },
+        {
+          "question_text": "11～12个月婴儿，**认知发展方面可能达到的水平**是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "喜欢藏猫猫游戏", "is_correct": false},
+            {"option_text": "会找藏起来的东西", "is_correct": false},
+            {"option_text": "会观察大人的喜怒并作出相应行为，理解成人态度和情绪", "is_correct": true},
+            {"option_text": "有初步模仿能力", "is_correct": false}
+          ],
+          "answer_explanation": "文档表格显示，11～12个月“会观察大人的喜怒并作出相应行为；开始能理解成人对他说话的态度，并开始感受愉快或不愉快的情绪”。  理解情绪和态度是此阶段认知发展特点。"
+        },
+        {
+          "question_text": "**认识身体各个部位、看绘本、认物品**等都属于？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "精细动作训练", "is_correct": false},
+            {"option_text": "大动作训练", "is_correct": false},
+            {"option_text": "语言发育训练", "is_correct": false},
+            {"option_text": "认知发展训练", "is_correct": true}
+          ],
+          "answer_explanation": "这些活动都以认知理解和学习为核心目标，属于认知发展训练范畴。"
+        },
+        {
+          "question_text": "关于7～12个月婴儿认知发展，下列说法**正确**的是？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "认知发展水平体现在对周围环境的探索和理解上", "is_correct": true},
+            {"option_text": "藏猫猫游戏有助于发展婴儿的物体永久性概念", "is_correct": true},
+            {"option_text": "绘本阅读可以促进婴儿的认知和语言发展", "is_correct": true},
+            {"option_text": "认知发展主要依靠父母的直接教导，环境影响不大", "is_correct": false},
+            {"option_text": "认知发展速度越快，婴儿智商越高", "is_correct": false}
+          ],
+          "answer_explanation": "选项AC概括了认知发展的特点和有效训练方法。选项D强调环境的重要性，选项E过于绝对。"
+        }
+      ]
+    },
+    {
+      "point_name": "习惯 & 早教 - 早教 - 社会交往 (7-12个月标准及训练)",
+      "questions": [
+        {
+          "question_text": "7～8个月婴儿，**社会交往方面表现出的特点**是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "开始认人，区分熟人和生人", "is_correct": true},
+            {"option_text": "能辨别成人的不同态度、表情和声音", "is_correct": false},
+            {"option_text": "自我意识萌芽，有时不同意妈妈意见", "is_correct": false},
+            {"option_text": "能熟练用摆手表示“再见”，拍手表示“欢迎”", "is_correct": false}
+          ],
+          "answer_explanation": "文档表格显示，7～8个月“已经开始认人，能区别熟人和生人”。 认人是此阶段社会交往的标志。"
+        },
+        {
+          "question_text": "9～10个月婴儿，**社会交往方面的重要进步**是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "要东西、拿不到就哭", "is_correct": false},
+            {"option_text": "能辨别成人的不同态度、表情和声音，并作出不同反应", "is_correct": true},
+            {"option_text": "对陌生人表示出惊奇、不快，把身体转向亲人", "is_correct": false},
+            {"option_text": "自我意识萌芽", "is_correct": false}
+          ],
+          "answer_explanation": "文档表格显示，9～10个月“能辨别成人的不同态度、表情和声音，并作出不同反应”。  理解和回应情绪是社会交往的重要进步。"
+        },
+        {
+          "question_text": "11～12个月婴儿，**社会交往方面可能达到的水平**是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "能辨别熟人和生人", "is_correct": false},
+            {"option_text": "能辨别成人表情", "is_correct": false},
+            {"option_text": "自我意识萌芽，有时不同意妈妈意见，用行动或语言表示“不”", "is_correct": true},
+            {"option_text": "能熟练用摆手表示“再见”", "is_correct": false}
+          ],
+          "answer_explanation": "文档表格显示，11～12个月“自我意识萌芽，有时不同意妈妈意见，会用行动或者语言表示“不””。  自我意识萌芽和表达拒绝是此阶段社会交往特点。"
+        },
+        {
+          "question_text": "**多和孩子做互动、带孩子和同龄人玩、引导孩子打招呼**等都属于？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "精细动作训练", "is_correct": false},
+            {"option_text": "大动作训练", "is_correct": false},
+            {"option_text": "语言发育训练", "is_correct": false},
+            {"option_text": "社交能力训练", "is_correct": true}
+          ],
+          "answer_explanation": "这些活动都以促进人际互动和交往为目标，属于社交能力训练范畴。"
+        },
+        {
+          "question_text": "关于7～12个月婴儿社会交往发展，下列说法**正确**的是？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "社会交往能力发展体现在对人际关系的认知和互动上", "is_correct": true},
+            {"option_text": "带孩子与同龄人玩耍，有助于社会交往能力发展", "is_correct": true},
+            {"option_text": "父母应积极回应婴儿的社交信号，建立良好互动", "is_correct": true},
+            {"option_text": "社会交往能力主要依靠天生性格，后天培养作用不大", "is_correct": false},
+            {"option_text": "社会交往能力发展越早越好，越外向越优秀", "is_correct": false}
+          ],
+          "answer_explanation": "选项AC概括了社会交往发展的特点和有效训练方法。选项D强调后天培养的重要性，选项E过于绝对。"
+        }
+      ]
+    },
+    {
+      "point_name": "习惯 & 早教 - 早教 - 自理能力 (7-12个月标准及训练)",
+      "questions": [
+        {
+          "question_text": "7～8个月婴儿，**自理能力方面可能达到的水平**是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "可自由地将奶瓶嘴放入口中", "is_correct": true},
+            {"option_text": "自己用手抓食物送进嘴里", "is_correct": false},
+            {"option_text": "穿衣和脱衣时会主动配合", "is_correct": false},
+            {"option_text": "能独立用勺子吃饭", "is_correct": false}
+          ],
+          "answer_explanation": "文档表格显示，7～8个月“可自由地将奶瓶嘴放入口中”。  自主进食奶瓶是此阶段自理能力体现。"
+        },
+        {
+          "question_text": "9～10个月婴儿，**自理能力方面的重要进步**是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "可自由地将奶瓶嘴放入口中", "is_correct": false},
+            {"option_text": "自己用手抓食物送进嘴里", "is_correct": true},
+            {"option_text": "穿衣和脱衣时会主动配合", "is_correct": false},
+            {"option_text": "能独立用勺子吃饭", "is_correct": false}
+          ],
+          "answer_explanation": "文档表格显示，9～10个月“自己用手抓食物送进嘴里”。  手抓食物进食是自理能力的重要进步。"
+        },
+        {
+          "question_text": "11～12个月婴儿，**自理能力方面可能达到的水平**是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "可自由地将奶瓶嘴放入口中", "is_correct": false},
+            {"option_text": "自己用手抓食物送进嘴里", "is_correct": false},
+            {"option_text": "穿衣和脱衣时会主动配合", "is_correct": true},
+            {"option_text": "能独立用勺子吃饭", "is_correct": false}
+          ],
+          "answer_explanation": "文档表格显示，11～12个月“穿衣和脱衣时会主动配合”。  穿脱衣配合是此阶段自理能力发展。"
+        },
+        {
+          "question_text": "**教孩子穿衣服、学拿勺子**等都属于？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "精细动作训练", "is_correct": false},
+            {"option_text": "大动作训练", "is_correct": false},
+            {"option_text": "语言发育训练", "is_correct": false},
+            {"option_text": "自理能力培养", "is_correct": true}
+          ],
+          "answer_explanation": "这些活动都以培养孩子自我照顾和独立生活能力为目标，属于自理能力培养范畴。"
+        },
+        {
+          "question_text": "关于7～12个月婴儿自理能力发展，下列说法**正确**的是？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "自理能力发展是一个逐步独立自主的过程", "is_correct": true},
+            {"option_text": "鼓励孩子自己动手，提供练习机会是关键", "is_correct": true},
+            {"option_text": "穿衣、吃饭等生活技能是自理能力的重要组成部分", "is_correct": true},
+            {"option_text": "自理能力发展主要依靠孩子自身模仿，父母引导作用不大", "is_correct": false},
+            {"option_text": "自理能力发展越早越好，越独立越优秀", "is_correct": false}
+          ],
+          "answer_explanation": "选项AC概括了自理能力发展的特点和培养方法。选项D强调父母引导的重要性，选项E过于绝对。"
+        }
+      ]
+    },
+    {
+      "point_name": "常见问题 - 孩子打人、咬人 - 实验性的咬人 (定义及解决方法)",
+      "questions": [
+        {
+          "question_text": "**实验性的咬人**，**定义**是指孩子通过咬人来？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "探索世界，类似游戏", "is_correct": true},
+            {"option_text": "表达愤怒和不满", "is_correct": false},
+            {"option_text": "缓解出牙不适", "is_correct": false},
+            {"option_text": "保护自己，战胜恐惧", "is_correct": false}
+          ],
+          "answer_explanation": "文档明确指出“孩子用咬人的方式来探索世界，有些婴儿吃奶的时候会试着咬母亲的乳头，有时这对于孩子来说就像是一个游戏。”"
+        },
+        {
+          "question_text": "**实验性的咬人**，**解决方法**的**核心原则**是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "严厉制止，避免再次发生", "is_correct": false},
+            {"option_text": "可以尝试，但不能放纵", "is_correct": true},
+            {"option_text": "完全禁止，杜绝咬人行为", "is_correct": false},
+            {"option_text": "无需理会，等待自然消失", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出“可以让孩子尝试，但不能放纵孩子咬人”。  允许尝试但不放纵是关键。"
+        },
+        {
+          "question_text": "当孩子**实验性咬人**时，**大人不应**？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "及时制止", "is_correct": false},
+            {"option_text": "告知孩子“妈妈会痛”", "is_correct": false},
+            {"option_text": "在孩子面前笑", "is_correct": true},
+            {"option_text": "转移孩子注意力", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出“当孩子咬人时，大人千万不能在孩子面前笑，否则孩子会认为受到鼓励和赞扬...”。  避免鼓励和赞扬是重要原则。"
+        },
+        {
+          "question_text": "**错误**的应对实验性咬人的做法是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "允许孩子尝试探索", "is_correct": false},
+            {"option_text": "明确告知孩子咬人是不对的", "is_correct": false},
+            {"option_text": "及时制止咬人行为", "is_correct": false},
+            {"option_text": "对孩子咬人行为表示赞赏和鼓励", "is_correct": true}
+          ],
+          "answer_explanation": "赞赏和鼓励会强化咬人行为，与纠正目标相悖，选项D错误。"
+        },
+        {
+          "question_text": "关于实验性的咬人，下列说法**正确**的是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "是孩子探索世界的一种方式，但需要正确引导", "is_correct": true},
+            {"option_text": "是孩子不良行为习惯，必须严厉纠正", "is_correct": false},
+            {"option_text": "是孩子智力发育迟缓的表现，需要就医", "is_correct": false},
+            {"option_text": "是孩子缺乏安全感的信号，需要更多关爱", "is_correct": false}
+          ],
+          "answer_explanation": "选项A准确概括了实验性咬人的性质和应对原则：探索行为，需要引导。"
+        }
+      ]
+    },
+    {
+      "point_name": "常见问题 - 孩子打人、咬人 - 出牙 (定义及解决方法)",
+      "questions": [
+        {
+          "question_text": "**出牙**引起的咬人行为，**主要原因是**？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "探索世界", "is_correct": false},
+            {"option_text": "牙床不适，感觉痒痒的，想咬东西缓解", "is_correct": true},
+            {"option_text": "表达愤怒和不满", "is_correct": false},
+            {"option_text": "感觉害怕，保护自己", "is_correct": false}
+          ],
+          "answer_explanation": "文档明确指出“孩子在第 4 个月的时就开始长牙，牙床总是感觉不舒服，感觉痒痒的，他们会通过咬人来缓解。”  牙床不适是主要原因。"
+        },
+        {
+          "question_text": "**出牙期咬人**的**解决方法**是提供？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "柔软的玩具", "is_correct": false},
+            {"option_text": "刺激性食物", "is_correct": false},
+            {"option_text": "安全的东西来咬，如磨牙棒", "is_correct": true},
+            {"option_text": "转移注意力，避免咬人", "is_correct": false}
+          ],
+          "answer_explanation": "文档建议“可以给他一些安全的东西来咬，比如磨牙圈、磨牙饼干或磨牙棒等...”。  提供磨牙工具是有效方法。"
+        },
+        {
+          "question_text": "**磨牙棒、磨牙饼干、磨牙圈**等物品的**主要作用**是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "提供营养", "is_correct": false},
+            {"option_text": "促进牙齿生长", "is_correct": false},
+            {"option_text": "锻炼咀嚼能力", "is_correct": false},
+            {"option_text": "缓解出牙期牙床不适", "is_correct": true}
+          ],
+          "answer_explanation": "磨牙物品的主要目的是缓解出牙不适感，让孩子有东西可以咬，转移注意力。"
+        },
+        {
+          "question_text": "**错误**的应对出牙期咬人的做法是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "禁止孩子咬任何东西，包括磨牙棒", "is_correct": true},
+            {"option_text": "提供多种不同材质的磨牙棒", "is_correct": false},
+            {"option_text": "经常清洁磨牙棒，保持卫生", "is_correct": false},
+            {"option_text": "在孩子咬磨牙棒时给予鼓励", "is_correct": false}
+          ],
+          "answer_explanation": "禁止咬任何东西，无法缓解出牙不适，与解决问题目标相悖，选项A错误。"
+        },
+        {
+          "question_text": "关于出牙期咬人，下列说法**正确**的是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "出牙期咬人是异常行为，需要立即纠正", "is_correct": false},
+            {"option_text": "出牙期咬人是正常现象，提供磨牙物可缓解不适", "is_correct": true},
+            {"option_text": "出牙期咬人是缺乏钙质的表现，需要补充钙剂", "is_correct": false},
+            {"option_text": "出牙期咬人是故意行为，需要适当惩罚", "is_correct": false}
+          ],
+          "answer_explanation": "选项B准确描述了出牙期咬人的性质和应对方法：正常现象，提供磨牙物缓解。"
+        }
+      ]
+    },
+    {
+      "point_name": "常见问题 - 孩子打人、咬人 - 感觉不舒服 (定义及解决方法)",
+      "questions": [
+        {
+          "question_text": "**感觉不舒服**引起的咬人行为，**定义**是指孩子因**身心不适**，如疼痛、哭闹等而？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "咬人或咬自己身体部位", "is_correct": true},
+            {"option_text": "拒绝进食", "is_correct": false},
+            {"option_text": "睡眠不安", "is_correct": false},
+            {"option_text": "情绪低落", "is_correct": false}
+          ],
+          "answer_explanation": "文档描述“孩子身心不舒服，感觉疼痛，经常哭闹，哭急了还会咬自己的手指或脚趾。”  身心不适是核心定义。"
+        },
+        {
+          "question_text": "**感觉不舒服咬人**的**常见诱因**是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "环境陌生", "is_correct": false},
+            {"option_text": "身体疼痛，如肚子痛、牙痛", "is_correct": true},
+            {"option_text": "与父母分离", "is_correct": false},
+            {"option_text": "玩具不满意", "is_correct": false}
+          ],
+          "answer_explanation": "文档举例“孩子身心不舒服，感觉疼痛...（躺得不舒服、肚子痛、牙痛等）”。 身体疼痛是常见诱因。"
+        },
+        {
+          "question_text": "**解决感觉不舒服咬人**的**首要步骤**是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "转移孩子注意力", "is_correct": false},
+            {"option_text": "制止咬人行为", "is_correct": false},
+            {"option_text": "查明孩子是否有生理需求，并及时解决", "is_correct": true},
+            {"option_text": "提供磨牙棒", "is_correct": false}
+          ],
+          "answer_explanation": "文档建议“当孩子哭闹时，首先要查明孩子是否有生理需求...及时帮他解决需求...”。  查明并解决需求是首要步骤。"
+        },
+        {
+          "question_text": "**若感觉不舒服咬人是出牙引起的疼痛**，**可以**？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "服用止痛药", "is_correct": false},
+            {"option_text": "冷敷牙龈", "is_correct": false},
+            {"option_text": "转移注意力，避免咬人", "is_correct": false},
+            {"option_text": "给一些玩具或食物（如磨牙物）", "is_correct": true}
+          ],
+          "answer_explanation": "文档建议“如果是出牙引起的疼痛，可以给一些玩具或食物（磨牙物）”。  提供磨牙物是针对出牙疼痛的解决方法。"
+        },
+        {
+          "question_text": "关于感觉不舒服咬人，下列说法**正确**的是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "是身体不适的信号，应首先排查生理原因", "is_correct": true},
+            {"option_text": "是孩子情绪问题，需要心理疏导", "is_correct": false},
+            {"option_text": "是习惯性行为，需要强制纠正", "is_correct": false},
+            {"option_text": "是智力发育迟缓的表现，需要特殊教育", "is_correct": false}
+          ],
+          "answer_explanation": "选项A强调了生理原因排查的重要性，符合文档针对“感觉不舒服”的解决思路。"
+        }
+      ]
+    },
+    {
+      "point_name": "常见问题 - 孩子打人、咬人 - 感觉很害怕 (定义及解决方法)",
+      "questions": [
+        {
+          "question_text": "**感觉很害怕**引起的咬人行为，**定义**是指孩子因**对陌生环境的恐惧**而？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "攻击他人", "is_correct": false},
+            {"option_text": "咬人自卫，保护自己，战胜恐惧", "is_correct": true},
+            {"option_text": "寻求关注", "is_correct": false},
+            {"option_text": "表达愤怒", "is_correct": false}
+          ],
+          "answer_explanation": "文档描述“当他自己一个人独处时，可能因为对陌生环境的害怕和恐惧而咬人，以保护自己、战胜恐惧。”  恐惧和自卫是核心定义。"
+        },
+        {
+          "question_text": "**感觉害怕咬人**的**常见情境**是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "与父母玩耍时", "is_correct": false},
+            {"option_text": "在熟悉的环境中", "is_correct": false},
+            {"option_text": "独自一人在陌生环境", "is_correct": true},
+            {"option_text": "在人群中", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出“当他自己一个人独处时，可能因为对陌生环境的害怕和恐惧而咬人”。  独处陌生环境是常见情境。"
+        },
+        {
+          "question_text": "**解决感觉害怕咬人**的**核心方法**是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "强制孩子适应陌生环境", "is_correct": false},
+            {"option_text": "减少孩子独处时间", "is_correct": false},
+            {"option_text": "严厉制止咬人行为", "is_correct": false},
+            {"option_text": "给予孩子更多耐心和爱心，提供安全感", "is_correct": true}
+          ],
+          "answer_explanation": "文档建议“大人要给予孩子更多的耐心和爱心...当他需要保护时，大人要在他身边，这对孩子非常重要”，“最好的方法是给孩子足够的安全感...恐惧感就会消失，不再咬人。”  安全感和爱心是核心方法。"
+        },
+        {
+          "question_text": "**不恰当**的应对感觉害怕咬人的做法是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "为了锻炼胆量，逼迫孩子独处", "is_correct": true},
+            {"option_text": "增加亲子陪伴时间", "is_correct": false},
+            {"option_text": "创造安全温馨的环境", "is_correct": false},
+            {"option_text": "轻声安抚孩子情绪", "is_correct": false}
+          ],
+          "answer_explanation": "文档明确指出“不要为了锻炼孩子的胆量而逼迫孩子独处，这会让孩子更恐惧。”  逼迫独处适得其反，选项A不恰当。"
+        },
+        {
+          "question_text": "关于感觉害怕咬人，下列说法**正确**的是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "感觉害怕咬人是性格懦弱的表现，需要严厉纠正", "is_correct": false},
+            {"option_text": "感觉害怕咬人是缺乏安全感的信号，需要更多关爱和陪伴", "is_correct": true},
+            {"option_text": "感觉害怕咬人是智力发育迟缓的表现，需要特殊训练", "is_correct": false},
+            {"option_text": "感觉害怕咬人是故意行为，需要适当惩罚", "is_correct": false}
+          ],
+          "answer_explanation": "选项B准确概括了感觉害怕咬人的原因和应对策略：缺乏安全感，需要关爱和陪伴。"
+        }
+      ]
+    },
+    {
+      "point_name": "常见问题 - 孩子打人、咬人 - 表达愤怒和不满 (定义及解决方法)",
+      "questions": [
+        {
+          "question_text": "**表达愤怒和不满**引起的咬人行为，**定义**是指孩子通过咬人来？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "表达负面情绪或“需要关注”", "is_correct": true},
+            {"option_text": "探索世界", "is_correct": false},
+            {"option_text": "缓解出牙不适", "is_correct": false},
+            {"option_text": "保护自己", "is_correct": false}
+          ],
+          "answer_explanation": "文档描述“当孩子不安或愤怒时也有咬人现象，有的孩子不咬妈妈只咬爸爸，这往往是表达“我需要关注”的意思，可能是爸爸与他相处的时间太少，对他的关心不够。”  负面情绪和求关注是核心定义。"
+        },
+        {
+          "question_text": "**表达愤怒和不满咬人**的**常见对象**，文档中举例为？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "陌生人", "is_correct": false},
+            {"option_text": "爸爸（可能因陪伴时间少）", "is_correct": true},
+            {"option_text": "妈妈（可能因过于严厉）", "is_correct": false},
+            {"option_text": "同龄小朋友", "is_correct": false}
+          ],
+          "answer_explanation": "文档举例“有的孩子不咬妈妈只咬爸爸，这往往是表达“我需要关注”的意思，可能是爸爸与他相处的时间太少...”。  爸爸是文档中举例的常见对象。"
+        },
+        {
+          "question_text": "**解决表达愤怒和不满咬人**的**核心方法**是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "隔离孩子，让其反思", "is_correct": false},
+            {"option_text": "严厉批评，让孩子认识错误", "is_correct": false},
+            {"option_text": "提高亲子陪伴质量，给予孩子更多关注", "is_correct": true},
+            {"option_text": "提供玩具转移注意力", "is_correct": false}
+          ],
+          "answer_explanation": "文档建议“父母需要学会如何最有效地共度亲子时光，提高亲情质量”，“每天给孩子一个固定的专属于父母和孩子互动的亲子时间...这是增进感情很有效的方法。”  提高亲子陪伴质量和关注是核心方法。"
+        },
+        {
+          "question_text": "**有效提高亲子时光质量**的做法是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "给孩子买更多玩具", "is_correct": false},
+            {"option_text": "带孩子去更昂贵的场所", "is_correct": false},
+            {"option_text": "增加亲子互动时间长度", "is_correct": false},
+            {"option_text": "全家一起专心做游戏或玩乐", "is_correct": true}
+          ],
+          "answer_explanation": "文档建议“全家一起专心做游戏或玩乐，这是增进感情很有效的方法。”  专注高质量的互动比时间长度更重要。"
+        },
+        {
+          "question_text": "关于表达愤怒和不满咬人，下列说法**正确**的是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "是情感需求的表达，需要提高亲子陪伴质量和关注", "is_correct": true},
+            {"option_text": "是孩子性格缺陷，需要心理矫正", "is_correct": false},
+            {"option_text": "是故意捣乱行为，需要适当惩罚", "is_correct": false},
+            {"option_text": "是智力发育迟缓的表现，需要特殊教育", "is_correct": false}
+          ],
+          "answer_explanation": "选项A准确概括了表达愤怒和不满咬人的原因和应对策略：情感需求，提高陪伴质量和关注。"
+        }
+      ]
+    },
+    {
+      "point_name": "常见问题 - 扔东西 - 原因及解决方法",
+      "questions": [
+        {
+          "question_text": "对于孩子**扔东西**的行为，文档认为？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "是必经的成长阶段，对智力和心理发展有好处", "is_correct": true},
+            {"option_text": "是不良习惯，需要立即纠正", "is_correct": false},
+            {"option_text": "是缺乏教养的表现，需要严厉批评", "is_correct": false},
+            {"option_text": "是智力发育超前的信号，应鼓励发展", "is_correct": false}
+          ],
+          "answer_explanation": "文档明确指出“对孩子而言，是一个必经的成长阶段，对于孩子的智力和心理成长都有很大的好处。”  成长阶段和积极意义是文档的核心观点。"
+        },
+        {
+          "question_text": "**孩子扔东西**，**主要原因是**为了？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "发泄情绪", "is_correct": false},
+            {"option_text": "探索物体运动轨迹和因果关系", "is_correct": true},
+            {"option_text": "引起成人注意", "is_correct": false},
+            {"option_text": "破坏物品", "is_correct": false}
+          ],
+          "answer_explanation": "虽然文档没有详细解释原因，但结合“成长阶段”和“智力心理成长”的描述，探索物体运动和因果关系是更合理的解释。"
+        },
+        {
+          "question_text": "**解决扔东西问题**的**第一步**是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "禁止孩子扔任何东西", "is_correct": false},
+            {"option_text": "对孩子进行批评教育", "is_correct": false},
+            {"option_text": "提供适当的玩具让孩子扔个够", "is_correct": true},
+            {"option_text": "忽略孩子扔东西的行为", "is_correct": false}
+          ],
+          "answer_explanation": "文档建议“在孩子开始掌握这项技能的时候，提供给孩子一些适当的玩具...让孩子扔个够。”  提供可扔的玩具是第一步。"
+        },
+        {
+          "question_text": "**适合**孩子扔的**玩具**包括？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "玻璃制品", "is_correct": false},
+            {"option_text": "尖锐物品", "is_correct": false},
+            {"option_text": "陶瓷玩具", "is_correct": false},
+            {"option_text": "球、绒毛玩具等安全物品", "is_correct": true}
+          ],
+          "answer_explanation": "为了安全，应选择柔软、不易损坏、不会造成伤害的玩具，如球和绒毛玩具。"
+        },
+        {
+          "question_text": "对于孩子扔东西的行为，**初期应**？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "给予表扬鼓励，增强自信心和快乐情绪", "is_correct": true},
+            {"option_text": "不予理睬，让孩子自行停止", "is_correct": false},
+            {"option_text": "严厉批评，制止扔东西行为", "is_correct": false},
+            {"option_text": "立即没收玩具，进行惩罚", "is_correct": false}
+          ],
+          "answer_explanation": "文档建议“刚开始，给予孩子表扬鼓励，增强孩子的自信心和快乐情绪...”。  鼓励和正向反馈是初期引导的重点。"
+        }
+      ]
+    },
+    {
+      "point_name": "常见问题 - 扔东西 - 纠正扔东西的习惯",
+      "questions": [
+        {
+          "question_text": "当孩子**长大后**，对于扔东西的行为，应？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "继续鼓励，发展运动能力", "is_correct": false},
+            {"option_text": "注意逐渐淡化扔东西的行为，以免养成不良习惯", "is_correct": true},
+            {"option_text": "完全禁止，杜绝扔东西行为", "is_correct": false},
+            {"option_text": "无需干预，等待自然消失", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出“当孩子长大后，不要放任孩子扔东西，应注意逐渐淡化扔东西的行为，以免养成不良习惯。”  淡化和引导是关键词。"
+        },
+        {
+          "question_text": "**纠正扔东西习惯**的**第一步**是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "惩罚扔东西行为", "is_correct": false},
+            {"option_text": "没收所有玩具", "is_correct": false},
+            {"option_text": "耐心地告诉孩子什么东西可以扔，什么东西不可以", "is_correct": true},
+            {"option_text": "忽略孩子扔东西的行为", "is_correct": false}
+          ],
+          "answer_explanation": "文档建议“耐心地告诉孩子什么东西可以扔，什么东西不可以”。  耐心告知和引导是纠正习惯的第一步。"
+        },
+        {
+          "question_text": "**了解孩子扔东西的原因**，**有助于**？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "快速制止扔东西行为", "is_correct": false},
+            {"option_text": "惩罚孩子扔东西", "is_correct": false},
+            {"option_text": "对症下药，采取更有效的纠正措施", "is_correct": true},
+            {"option_text": "忽略孩子扔东西的行为", "is_correct": false}
+          ],
+          "answer_explanation": "了解原因才能针对性解决问题，采取更有效的纠正措施。"
+        },
+        {
+          "question_text": "若孩子扔东西是**为了引起关注**，**解决方法**是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "加强对孩子的关注", "is_correct": true},
+            {"option_text": "减少与孩子互动", "is_correct": false},
+            {"option_text": "惩罚扔东西行为", "is_correct": false},
+            {"option_text": "忽略孩子扔东西的行为", "is_correct": false}
+          ],
+          "answer_explanation": "文档建议“如果是为了引起关注，可以加强对孩子的关注。”  满足关注需求是解决问题的关键。"
+        },
+        {
+          "question_text": "若孩子扔东西**砸坏物品**，**不恰当的做法**是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "告诉孩子扔东西会损坏物品", "is_correct": false},
+            {"option_text": "表现得过分夸张和紧张", "is_correct": true},
+            {"option_text": "引导孩子自己捡回扔出去的东西", "is_correct": false},
+            {"option_text": "耐心地告诉孩子什么东西可以扔，什么不可以", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出“不要强化孩子用扔东西的方式来引起他人的注意力，若孩子在扔东西时砸坏物品，照护者不要表现的过分夸张和紧张，这样会强化孩子用扔东西来求得关注...”。  避免过分夸张和紧张，以免强化不良行为。"
+        }
+      ]
+    },
+    {
+      "point_name": "常见问题 - 抓饭 - 正确看待孩子抓饭的问题",
+      "questions": [
+        {
+          "question_text": "对于孩子**抓饭**的行为，文档认为？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "不需要纠正，是正常现象", "is_correct": true},
+            {"option_text": "是不良习惯，需要立即纠正", "is_correct": false},
+            {"option_text": "是不卫生的行为，需要制止", "is_correct": false},
+            {"option_text": "是缺乏教养的表现，需要批评", "is_correct": false}
+          ],
+          "answer_explanation": "文档明确指出“孩子抓饭不需要纠正”，“孩子大便有残渣是正常现象，不能由此判定孩子吃进去的东西不消化，或肠胃不健康，吃辅食的孩子都会有这个过程。”  正常现象，无需纠正是核心观点。"
+        },
+        {
+          "question_text": "孩子**抓饭**的**行为本质**是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "故意弄脏", "is_correct": false},
+            {"option_text": "模仿大人吃饭，探索食物", "is_correct": true},
+            {"option_text": "挑食厌食", "is_correct": false},
+            {"option_text": "寻求关注", "is_correct": false}
+          ],
+          "answer_explanation": "文档描述“刚开始给孩子喂饭时，孩子喜欢把手放在饭碗里抓饭玩，过一会儿再把手拿出来放到口中，即使什么也没吃到，他也会津津有味的吸吮，这其实是孩子在模仿大人吃饭。”  模仿和探索是行为本质。"
+        },
+        {
+          "question_text": "**正确看待孩子抓饭**的**积极意义**是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "提高进食速度", "is_correct": false},
+            {"option_text": "减少食物浪费", "is_correct": false},
+            {"option_text": "锻炼手眼协调能力，建立自信，培养自理能力和良好饮食习惯", "is_correct": true},
+            {"option_text": "减轻父母喂养负担", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出“我们可以对孩子进行适当的训练，帮助孩子锻炼手眼协调能力，建立自信，培养自理能力和良好的饮食习惯。”  锻炼能力和培养习惯是积极意义。"
+        },
+        {
+          "question_text": "**错误**的关于孩子抓饭的理解是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "抓饭是孩子自主探索食物的方式", "is_correct": false},
+            {"option_text": "抓饭可以锻炼手眼协调能力", "is_correct": false},
+            {"option_text": "抓饭是模仿成人吃饭的行为", "is_correct": false},
+            {"option_text": "抓饭是不卫生且不良的习惯，必须立即纠正", "is_correct": true}
+          ],
+          "answer_explanation": "选项D与文档“孩子抓饭不需要纠正”的观点相悖，属于错误理解。"
+        },
+        {
+          "question_text": "关于孩子抓饭问题，下列说法**正确**的是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "应正确看待，无需纠正，并可适当引导", "is_correct": true},
+            {"option_text": "应立即制止，避免养成不良习惯", "is_correct": false},
+            {"option_text": "应采取强制措施，让孩子尽快学会用勺子", "is_correct": false},
+            {"option_text": "应完全放任，无需任何引导", "is_correct": false}
+          ],
+          "answer_explanation": "选项A概括了对抓饭行为的正确态度和应对策略：无需纠正，可适当引导。"
+        }
+      ]
+    },
+    {
+      "point_name": "常见问题 - 抓饭 - 注意事项",
+      "questions": [
+        {
+          "question_text": "虽然抓饭不需要纠正，但仍需注意？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "饭前洗手，提供手指食物，提供勺子，控制进餐时间，允许弄洒", "is_correct": true},
+            {"option_text": "严格控制抓饭的量，避免浪费", "is_correct": false},
+            {"option_text": "完全禁止抓饭，只允许用勺子", "is_correct": false},
+            {"option_text": "忽略抓饭行为，无需任何干预", "is_correct": false}
+          ],
+          "answer_explanation": "文档列举了“饭前洗手，给孩子一些软的手指食物，给孩子勺子，并帮他把食物放到勺子上，每顿饭不要花太长时间，当孩子将食物弄洒时，不要急着收拾，也不要抱怨”等注意事项。"
+        },
+        {
+          "question_text": "**饭前洗手**的**目的是**？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "培养卫生习惯", "is_correct": false},
+            {"option_text": "保证饮食卫生", "is_correct": true},
+            {"option_text": "提高进食兴趣", "is_correct": false},
+            {"option_text": "方便孩子抓握", "is_correct": false}
+          ],
+          "answer_explanation": "饭前洗手主要是为了饮食卫生，避免细菌污染食物，选项B更直接相关。"
+        },
+        {
+          "question_text": "**提供手指食物**的**目的是**？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "增加营养", "is_correct": false},
+            {"option_text": "锻炼咀嚼能力", "is_correct": false},
+            {"option_text": "方便孩子抓握，练习自主进食", "is_correct": true},
+            {"option_text": "提高食物口感", "is_correct": false}
+          ],
+          "answer_explanation": "手指食物的关键特点是方便抓握，练习自主进食，选项C更贴切。"
+        },
+        {
+          "question_text": "**给孩子勺子，并帮他把食物放到勺子上**，**目的是**？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "强制孩子用勺子吃饭", "is_correct": false},
+            {"option_text": "完全替代抓饭", "is_correct": false},
+            {"option_text": "加快进食速度", "is_correct": false},
+            {"option_text": "引导孩子学习使用勺子，为过渡到勺子进食做准备", "is_correct": true}
+          ],
+          "answer_explanation": "提供勺子并协助放食物，是引导孩子学习用勺子的过渡性措施，并非强制或完全替代抓饭。"
+        },
+        {
+          "question_text": "**每顿饭不要花太长时间**，**目的是**？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "避免孩子厌烦，培养专注进食的习惯", "is_correct": true},
+            {"option_text": "提高进食效率", "is_correct": false},
+            {"option_text": "减少食物浪费", "is_correct": false},
+            {"option_text": "减轻父母喂养负担", "is_correct": false}
+          ],
+          "answer_explanation": "进食时间过长容易导致孩子厌烦，影响进食兴趣，控制时间有助于培养专注习惯。"
+        },
+        {
+          "question_text": "**当孩子将食物弄洒时，不要急着收拾，也不要抱怨**，**体现**？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "放任孩子", "is_correct": false},
+            {"option_text": "给孩子练习机会，提高自理能力", "is_correct": true},
+            {"option_text": "不在乎餐桌卫生", "is_correct": false},
+            {"option_text": "鼓励孩子浪费食物", "is_correct": false}
+          ],
+          "answer_explanation": "允许弄洒，不急于收拾和抱怨，是为了给孩子练习机会，培养自理能力，而非放任或不在乎卫生。"
+        },
+        {
+          "question_text": "关于抓饭的注意事项，下列说法**正确**的是？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "饭前洗手，保证卫生", "is_correct": true},
+            {"option_text": "应严格控制抓饭行为，避免弄脏", "is_correct": false},
+            {"option_text": "提供手指食物和勺子，引导孩子学习自主进食", "is_correct": true},
+            {"option_text": "孩子弄洒食物时，应立即制止并批评", "is_correct": false},
+            {"option_text": "应完全由父母喂食，避免孩子抓饭", "is_correct": false}
+          ],
+          "answer_explanation": "选项AC概括了抓饭注意事项的重点：卫生、引导自主进食，选项BDE与文档对抓饭的积极态度和引导原则相悖。"
+        }
+      ]
+    },
+    {
+      "point_name": "常见问题 - 大便残渣 - 判断及原因",
+      "questions": [
+        {
+          "question_text": "孩子**大便中有残渣**，文档认为？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "是正常现象，不能由此判断消化不良或肠胃不健康", "is_correct": true},
+            {"option_text": "是消化不良的表现，需要调整饮食", "is_correct": false},
+            {"option_text": "是肠胃不健康的信号，需要就医", "is_correct": false},
+            {"option_text": "是辅食添加不当造成的，需要停止辅食", "is_correct": false}
+          ],
+          "answer_explanation": "文档明确指出“孩子大便有残渣是正常现象，不能由此判定孩子吃进去的东西不消化，或肠胃不健康，吃辅食的孩子都会有这个过程。”  正常现象是核心判断。"
+        },
+        {
+          "question_text": "**大便残渣**的**主要原因**与婴儿的**哪个生理特点**有关？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "胃酸分泌不足", "is_correct": false},
+            {"option_text": "肠道短，肠道菌群未完善，消化能力有限", "is_correct": true},
+            {"option_text": "咀嚼能力不足", "is_correct": false},
+            {"option_text": "吞咽功能不完善", "is_correct": false}
+          ],
+          "answer_explanation": "文档解释“孩子肠道短，前期饮食单一，能消化其它食物的肠道菌群还没有建立起来，所以消化、分解食物的能力不好...”。  肠道短和菌群不完善是主要原因。"
+        },
+        {
+          "question_text": "即使吃的是**泥糊状辅食**，也可能出现大便残渣，**原因是**？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "泥糊状辅食不易消化", "is_correct": false},
+            {"option_text": "婴儿不喜欢泥糊状辅食", "is_correct": false},
+            {"option_text": "婴儿肠道消化能力 aún 有限", "is_correct": true},
+            {"option_text": "泥糊状辅食营养不足", "is_correct": false}
+          ],
+          "answer_explanation": "即使是易消化的泥糊状辅食，由于婴儿肠道消化能力限制，也可能出现残渣。"
+        },
+        {
+          "question_text": "**成年人**大便中**也可能出现残渣**，但通常**不易察觉**，**原因是**？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "成年人饮食更精细", "is_correct": false},
+            {"option_text": "成年人咀嚼更充分", "is_correct": false},
+            {"option_text": "成年人排便更规律", "is_correct": false},
+            {"option_text": "成年人肠道更长，消化菌群更完善，消化能力更强", "is_correct": true}
+          ],
+          "answer_explanation": "文档解释“即便是一个成年人吃饭细嚼慢咽，也不太可能把所有的蔬菜水果嚼烂成泥湖状...只是成年人肠道比较长，消化食物的菌群建立得比较完善，可以把食物进一步消化掉。”  肠道长和菌群完善是成年人不易察觉残渣的原因。"
+        },
+        {
+          "question_text": "关于婴儿大便残渣，下列说法**正确**的是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "是辅食添加初期的正常现象，无需过度担忧", "is_correct": true},
+            {"option_text": "是消化不良的信号，需要立即停止辅食", "is_correct": false},
+            {"option_text": "是肠道疾病的表现，需要及时就医", "is_correct": false},
+            {"option_text": "只要出现大便残渣，就说明辅食添加不合适", "is_correct": false}
+          ],
+          "answer_explanation": "选项A概括了对大便残渣的正确判断和态度：正常现象，无需过度担忧。"
+        }
+      ]
+    },
+    {
+      "point_name": "常见问题 - 幼儿急疹 - 定义及表现 (阶段)",
+      "questions": [
+        {
+          "question_text": "**幼儿急疹**，又称？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "风疹", "is_correct": false},
+            {"option_text": "玫瑰疹", "is_correct": true},
+            {"option_text": "麻疹", "is_correct": false},
+            {"option_text": "水痘", "is_correct": false}
+          ],
+          "answer_explanation": "文档明确指出“幼儿急疹又叫玫瑰疹”。  玫瑰疹是幼儿急疹的别称。"
+        },
+        {
+          "question_text": "**幼儿急疹****常发于**哪个年龄段的儿童？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "新生儿", "is_correct": false},
+            {"option_text": "3-6个月婴儿", "is_correct": false},
+            {"option_text": "6个月～2岁孩子", "is_correct": true},
+            {"option_text": "3-6岁幼儿", "is_correct": false}
+          ],
+          "answer_explanation": "文档明确指出“幼儿急疹又叫玫瑰疹，是一种常发于 6 个月～2 岁孩子身上的病症”。  6个月-2岁是高发年龄段。"
+        },
+        {
+          "question_text": "幼儿急疹**第一阶段**的**典型症状**是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "皮疹", "is_correct": false},
+            {"option_text": "咳嗽", "is_correct": false},
+            {"option_text": "腹泻", "is_correct": false},
+            {"option_text": "突发高烧", "is_correct": true}
+          ],
+          "answer_explanation": "文档描述第一阶段“然后会突发高烧，体温可达到 39～40℃ 左右”。  高烧是第一阶段的典型症状。"
+        },
+        {
+          "question_text": "幼儿急疹**第二阶段**的**典型症状**是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "退烧时或退烧后出现玫瑰色斑点状皮疹", "is_correct": true},
+            {"option_text": "高烧持续不退", "is_correct": false},
+            {"option_text": "咳嗽加重", "is_correct": false},
+            {"option_text": "精神萎靡", "is_correct": false}
+          ],
+          "answer_explanation": "文档描述第二阶段“退热时或退热后数小时至一两天，皮肤上出现细小、清晰的玫瑰色斑点状皮疹...”。  皮疹是第二阶段的典型症状。"
+        },
+        {
+          "question_text": "幼儿急疹的**整个病程**大约持续？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "3～5天", "is_correct": false},
+            {"option_text": "8～10天", "is_correct": true},
+            {"option_text": "10～15天", "is_correct": false},
+            {"option_text": "15～20天", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出“整个病程约 8～10 天”。  8-10天是幼儿急疹的病程周期。"
+        },
+        {
+          "question_text": "关于幼儿急疹的表现，下列说法**正确**的是？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "第一阶段以高烧为主，可能持续3-4天", "is_correct": true},
+            {"option_text": "第二阶段以皮疹为主，退烧后出现", "is_correct": true},
+            {"option_text": "幼儿急疹通常病程约8-10天", "is_correct": true},
+            {"option_text": "幼儿急疹一定会引起严重并发症", "is_correct": false},
+            {"option_text": "幼儿急疹会反复发作，多次感染", "is_correct": false}
+          ],
+          "answer_explanation": "选项AC概括了幼儿急疹的表现特点：分阶段，高烧-皮疹，病程8-10天。选项DE与文档描述不符。"
+        }
+      ]
+    },
+    {
+      "point_name": "常见问题 - 幼儿急疹 - 护理",
+      "questions": [
+        {
+          "question_text": "对于**幼儿急疹**，文档指出**没有特效的治疗方法**，**护理的重点**是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "加强护理，对症处理", "is_correct": true},
+            {"option_text": "立即就医，寻求特效药", "is_correct": false},
+            {"option_text": "自行用药，控制病情", "is_correct": false},
+            {"option_text": "无需特殊处理，等待自愈", "is_correct": false}
+          ],
+          "answer_explanation": "文档明确指出“幼儿急疹没有特效的治疗方法，只能在孩子患病期间加强护理。”  加强护理是核心。"
+        },
+        {
+          "question_text": "幼儿急疹护理中，**最重要**的是保证孩子？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "营养充足", "is_correct": false},
+            {"option_text": "充分休息", "is_correct": true},
+            {"option_text": "多晒太阳", "is_correct": false},
+            {"option_text": "多运动", "is_correct": false}
+          ],
+          "answer_explanation": "文档建议“让孩子多休息”。  休息是幼儿急疹护理的重要方面。"
+        },
+        {
+          "question_text": "幼儿急疹护理中，**室内环境应保持**？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "温暖干燥", "is_correct": false},
+            {"option_text": "明亮通风", "is_correct": false},
+            {"option_text": "安静，空气新鲜", "is_correct": true},
+            {"option_text": "湿润，温度适宜", "is_correct": false}
+          ],
+          "answer_explanation": "文档建议“室内要保持安静，空气新鲜”。  安静和空气新鲜是环境要求。"
+        },
+        {
+          "question_text": "当孩子**体温不超过38.5℃** 时，幼儿急疹护理**首选**的降温方式是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "服用退烧药", "is_correct": false},
+            {"option_text": "冰敷", "is_correct": false},
+            {"option_text": "酒精擦浴", "is_correct": false},
+            {"option_text": "物理降温，温水擦身", "is_correct": true}
+          ],
+          "answer_explanation": "文档建议“体温不超过 38.5℃ 时，主要采取物理降温的方式，用温水擦身。”  物理降温是首选。"
+        },
+        {
+          "question_text": "当孩子**体温超过38.5℃** 时，幼儿急疹护理**可以**？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "适当服用退烧药", "is_correct": true},
+            {"option_text": "继续物理降温", "is_correct": false},
+            {"option_text": "冰敷头部", "is_correct": false},
+            {"option_text": "酒精擦拭全身", "is_correct": false}
+          ],
+          "answer_explanation": "文档建议“当体温超过 38.5℃ 时，要适当的给孩子吃些退烧药...”。  退烧药是高热时的辅助手段。"
+        },
+        {
+          "question_text": "幼儿急疹护理中，**饮食应以**？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "高蛋白饮食", "is_correct": false},
+            {"option_text": "流质或半流质饮食", "is_correct": true},
+            {"option_text": "高脂肪饮食", "is_correct": false},
+            {"option_text": "固体食物", "is_correct": false}
+          ],
+          "answer_explanation": "文档建议“三餐以流质或半流质饮食为主。”  流质/半流质饮食更易消化吸收。"
+        },
+        {
+          "question_text": "幼儿急疹护理中，**保持皮肤清洁卫生**的**目的是**？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "预防皮疹扩散", "is_correct": false},
+            {"option_text": "缓解皮肤瘙痒", "is_correct": false},
+            {"option_text": "预防继发感染", "is_correct": true},
+            {"option_text": "促进皮疹消退", "is_correct": false}
+          ],
+          "answer_explanation": "保持皮肤清洁主要是为了预防汗液污垢引起继发感染，选项C更贴切。"
+        },
+        {
+          "question_text": "关于幼儿急疹护理，下列做法**正确**的是？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "保证孩子充分休息，减少活动", "is_correct": true},
+            {"option_text": "体温超过38.5℃时，可适当服用退烧药", "is_correct": true},
+            {"option_text": "多给孩子喝水，促进毒素排出", "is_correct": true},
+            {"option_text": "保持皮肤清洁，预防感染", "is_correct": true},
+            {"option_text": "幼儿急疹必须使用抗生素治疗", "is_correct": false}
+          ],
+          "answer_explanation": "选项ACD概括了幼儿急疹护理的要点：休息、退烧、多饮水、皮肤清洁。选项E错误，幼儿急疹无需抗生素治疗。"
+        }
+      ]
+    },
+    {
+      "point_name": "常见问题 - 疱疹性咽炎 - 定义及特点",
+      "questions": [
+        {
+          "question_text": "**疱疹性咽炎**是由**哪种病毒**引起的急性咽部炎症疾病？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "柯萨奇病毒", "is_correct": true},
+            {"option_text": "流感病毒", "is_correct": false},
+            {"option_text": "腺病毒", "is_correct": false},
+            {"option_text": "呼吸道合胞病毒", "is_correct": false}
+          ],
+          "answer_explanation": "文档明确指出“小儿疱疹性咽炎是由柯萨奇病毒引起的急性咽部炎症疾病。”  柯萨奇病毒是病原体。"
+        },
+        {
+          "question_text": "**疱疹性咽炎****多见于**哪个年龄段的儿童？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "新生儿", "is_correct": false},
+            {"option_text": "婴幼儿和学龄前儿童", "is_correct": true},
+            {"option_text": "学龄期儿童", "is_correct": false},
+            {"option_text": "青少年", "is_correct": false}
+          ],
+          "answer_explanation": "文档明确指出“这种疾病多见于婴幼儿和学龄前儿童”。 婴幼儿和学龄前儿童是高发人群。"
+        },
+        {
+          "question_text": "疱疹性咽炎**流行季节****大多在**？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "冬季", "is_correct": false},
+            {"option_text": "秋季", "is_correct": false},
+            {"option_text": "夏初", "is_correct": true},
+            {"option_text": "春季", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出“此病一年四季均会发病，但大多于夏初流行。”  夏初是流行高峰期。"
+        },
+        {
+          "question_text": "疱疹性咽炎的**典型特点**是咽喉深处和舌头两侧出现？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "溃疡", "is_correct": false},
+            {"option_text": "脓点", "is_correct": false},
+            {"option_text": "血丝", "is_correct": false},
+            {"option_text": "小水泡，破裂后变成红点", "is_correct": true}
+          ],
+          "answer_explanation": "文档描述“咽喉深处上方有钟乳石般倒垂着的东西，舌头两侧有许多小水泡，水泡破裂后变成米粒大小的红点...”。 水泡和破裂后红点是典型特点。"
+        },
+        {
+          "question_text": "关于疱疹性咽炎的特点，下列说法**正确**的是？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "由柯萨奇病毒引起", "is_correct": true},
+            {"option_text": "多见于婴幼儿和学龄前儿童", "is_correct": true},
+            {"option_text": "夏初是流行高峰期", "is_correct": true},
+            {"option_text": "疱疹性咽炎有特效药可以快速治愈", "is_correct": false},
+            {"option_text": "患疱疹性咽炎后，可终身免疫，不会再次感染", "is_correct": false}
+          ],
+          "answer_explanation": "选项AC概括了疱疹性咽炎的病原体、高发人群和流行季节等特点。选项DE与文档描述不符。"
+        }
+      ]
+    },
+    {
+      "point_name": "常见问题 - 疱疹性咽炎 - 症状及护理",
+      "questions": [
+        {
+          "question_text": "疱疹性咽炎的**主要症状**包括？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "不同程度的发热、咽痛", "is_correct": true},
+            {"option_text": "呕吐、不想吃东西", "is_correct": true},
+            {"option_text": "流口水、不肯进食", "is_correct": true},
+            {"option_text": "咳嗽、流涕", "is_correct": false},
+            {"option_text": "皮疹、瘙痒", "is_correct": false}
+          ],
+          "answer_explanation": "文档列举的症状包括“不同程度的发热、咽痛”，“突然呕吐、高热 39℃ 左右，不想吃东西”，“经常会流口水，不肯进食”。"
+        },
+        {
+          "question_text": "疱疹性咽炎的**发热程度**通常在？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "37℃以下", "is_correct": false},
+            {"option_text": "37.7℃～40℃", "is_correct": true},
+            {"option_text": "40℃以上", "is_correct": false},
+            {"option_text": "不发热或低热", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出“体温一般在 37.7℃～40℃”。 中高热是常见症状。"
+        },
+        {
+          "question_text": "疱疹性咽炎护理中，**饮食方面**应注意？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "高蛋白饮食", "is_correct": false},
+            {"option_text": "高脂肪饮食", "is_correct": false},
+            {"option_text": "清淡、易消化、冷流食或半流食", "is_correct": true},
+            {"option_text": "辛辣刺激性食物", "is_correct": false}
+          ],
+          "answer_explanation": "文档建议“吃清淡、易消化的食物”，“给孩子喂食冷流食或半流食，太热的食物会使孩子的咽痛加重...还可增加一些蔬菜汁。” 清淡易消化冷食是饮食原则。"
+        },
+        {
+          "question_text": "疱疹性咽炎护理中，**饮水方面**应？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "限制饮水", "is_correct": false},
+            {"option_text": "只喝牛奶", "is_correct": false},
+            {"option_text": "只喝果汁", "is_correct": false},
+            {"option_text": "多喝白开水", "is_correct": true}
+          ],
+          "answer_explanation": "文档建议“照护者要给孩子多喝白开水...”。 多饮水有助于补充水分，促进代谢。"
+        },
+        {
+          "question_text": "疱疹性咽炎**高热时**的护理措施包括？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "遵医嘱服用退烧药，物理降温", "is_correct": true},
+            {"option_text": "捂汗退热", "is_correct": false},
+            {"option_text": "冰敷头部", "is_correct": false},
+            {"option_text": "酒精擦拭全身", "is_correct": false}
+          ],
+          "answer_explanation": "文档建议“如果孩子出现高热的情况，照护者应当遵医嘱给孩子服用适量的退烧药物，或者使用物理降温的方法...”。 退烧药和物理降温是高热时的主要护理方法。"
+        },
+        {
+          "question_text": "若孩子疱疹性咽炎**拒绝进食或进食困难**，**应**？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "强迫喂食", "is_correct": false},
+            {"option_text": "及时到医院进行输液治疗", "is_correct": true},
+            {"option_text": "等待自行好转", "is_correct": false},
+            {"option_text": "只喂流质食物", "is_correct": false}
+          ],
+          "answer_explanation": "文档建议“如果孩子拒绝进食或者进食困难，应及时到医院进行输液治疗。”  输液治疗是进食困难时的必要措施。"
+        },
+        {
+          "question_text": "关于疱疹性咽炎护理，下列做法**正确**的是？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "多喝白开水，保持大便通畅", "is_correct": true},
+            {"option_text": "应给孩子喂食热的、有营养的食物", "is_correct": false},
+            {"option_text": "高热时可遵医嘱服用退烧药或物理降温", "is_correct": true},
+            {"option_text": "进食困难时应及时就医输液", "is_correct": true},
+            {"option_text": "疱疹性咽炎无需特殊护理，可自行痊愈", "is_correct": false}
+          ],
+          "answer_explanation": "选项ACD概括了疱疹性咽炎护理的要点：多饮水、清淡饮食、退烧、就医。选项BE与文档建议相悖。"
+        }
+      ]
+    },
+    {
+      "point_name": "常见问题 - 1岁以内的孩子无理取闹 - 原因及处理方法",
+      "questions": [
+        {
+          "question_text": "对于**1岁以内的孩子无理取闹**，文档认为**主要原因是**？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "无法用语言表达情绪，哭是唯一表达方式", "is_correct": true},
+            {"option_text": "故意引起父母注意", "is_correct": false},
+            {"option_text": "性格任性", "is_correct": false},
+            {"option_text": "智力发育迟缓", "is_correct": false}
+          ],
+          "answer_explanation": "文档明确指出“1 岁以内的孩子还不能用语音表达自己的情绪，哭是他们唯一的表达方式。”  语言表达能力不足是主要原因。"
+        },
+        {
+          "question_text": "当1岁以内孩子**无理取闹**时，**首先**应？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "忽视哭闹", "is_correct": false},
+            {"option_text": "排除生理和病理方面的问题", "is_correct": true},
+            {"option_text": "转移注意力", "is_correct": false},
+            {"option_text": "正面强化好的行为", "is_correct": false}
+          ],
+          "answer_explanation": "文档建议“排除孩子存在饿了、尿了、病了等生理和病理方面的问题”作为首要步骤。  排除生理病理问题是前提。"
+        },
+        {
+          "question_text": "在排除生理病理问题后，对于无理取闹，可以尝试**忽视**，**目的是**？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "惩罚孩子", "is_correct": false},
+            {"option_text": "锻炼孩子独立性", "is_correct": false},
+            {"option_text": "让孩子觉得没意思而停止哭闹", "is_correct": true},
+            {"option_text": "减少父母的育儿负担", "is_correct": false}
+          ],
+          "answer_explanation": "文档解释“忽视：当孩子得不到关注，就会觉得没意思而停止”。  减少关注以停止哭闹是目的。"
+        },
+        {
+          "question_text": "**转移注意力**适用于1岁以内无理取闹的孩子，**原因是**？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "孩子理解能力强", "is_correct": false},
+            {"option_text": "孩子自控能力强", "is_correct": false},
+            {"option_text": "孩子喜欢新奇事物", "is_correct": false},
+            {"option_text": "孩子记忆力是短期的，容易被新事物吸引", "is_correct": true}
+          ],
+          "answer_explanation": "文档解释“转移注意力：这个年龄段的孩子记忆力都是短期的，所以很容易转移注意力”。  记忆力短是转移注意力有效的基础。"
+        },
+        {
+          "question_text": "对于1岁以内孩子，**不建议**采取？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "负面惩罚", "is_correct": true},
+            {"option_text": "正面强化", "is_correct": false},
+            {"option_text": "忽视", "is_correct": false},
+            {"option_text": "转移注意力", "is_correct": false}
+          ],
+          "answer_explanation": "文档建议“对于一岁以内的孩子，不要去改正他不好的行为，而是强化他好的行为”。  不建议负面惩罚，强调正面引导。"
+        },
+        {
+          "question_text": "对于1岁以内孩子，**更提倡**？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "负面惩罚", "is_correct": false},
+            {"option_text": "正面强化", "is_correct": true},
+            {"option_text": "忽视", "is_correct": false},
+            {"option_text": "转移注意力", "is_correct": false}
+          ],
+          "answer_explanation": "文档建议“...而是强化他好的行为”。  正面强化是更提倡的方法。"
+        },
+        {
+          "question_text": "关于1岁以内孩子无理取闹的处理，下列做法**符合文档建议**的是？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "首先排除生理不适等原因", "is_correct": true},
+            {"option_text": "尝试转移注意力，用新事物吸引孩子", "is_correct": true},
+            {"option_text": "对于持续哭闹，可以适当忽视，减少关注", "is_correct": true},
+            {"option_text": "对于好的行为进行正面强化，鼓励", "is_correct": true},
+            {"option_text": "对于无理取闹行为，应严厉批评制止", "is_correct": false}
+          ],
+          "answer_explanation": "选项ABCD概括了文档中针对1岁以内孩子无理取闹的处理方法：排除生理原因、转移注意力、忽视、正面强化。选项E与文档不提倡负面惩罚的观点相悖。"
+        }
+      ]
+    },
+    {
+      "point_name": "常见问题 - 其他常见问题 - 辅食添加后体重不长 - 原因",
+      "questions": [
+        {
+          "question_text": "**辅食添加后体重不长**，**可能的原因**包括？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "食物引入时间不当（过早或过晚）", "is_correct": true},
+            {"option_text": "食物密度能量低", "is_correct": true},
+            {"option_text": "奶量恒定，影响辅食摄入", "is_correct": true},
+            {"option_text": "辅食代替奶，但奶量不足", "is_correct": true},
+            {"option_text": "辅食种类单一", "is_correct": false}
+          ],
+          "answer_explanation": "文档列举的原因包括“食物引入时间不当，食物密度能量低，奶量恒定，辅食代替奶”。"
+        },
+        {
+          "question_text": "**食物引入时间过早**，可能导致体重不长的**原因是**？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "影响消化吸收，增加过敏和肠道感染机会", "is_correct": true},
+            {"option_text": "导致辅食摄入量不足", "is_correct": false},
+            {"option_text": "影响奶量摄入", "is_correct": false},
+            {"option_text": "降低食欲", "is_correct": false}
+          ],
+          "answer_explanation": "文档解释“过早引入固体食物会影响消化、吸收，增加过敏和肠道感染的机会。”  消化吸收问题是过早引入的主要负面影响。"
+        },
+        {
+          "question_text": "**食物引入时间过晚**，可能导致体重不长的**原因是**？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "消化吸收功能下降", "is_correct": false},
+            {"option_text": "肠道发育迟缓，错过味觉咀嚼功能发育关键期，进食行为异常", "is_correct": true},
+            {"option_text": "食物过敏", "is_correct": false},
+            {"option_text": "肠道感染", "is_correct": false}
+          ],
+          "answer_explanation": "文档解释“过晚引入则会导致肠道发育迟缓或错过味觉咀嚼功能发育的关键期，造成进食行为异常，断奶困难。”  肠道发育迟缓和错过关键期是过晚引入的主要负面影响。"
+        },
+        {
+          "question_text": "**食物密度能量低**，例如**汤面、粥**等，可能导致体重不长的**原因是**？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "不易消化", "is_correct": false},
+            {"option_text": "影响奶量吸收", "is_correct": false},
+            {"option_text": "摄入热量不足，吃不饱，夜醒要求进食", "is_correct": true},
+            {"option_text": "营养不均衡", "is_correct": false}
+          ],
+          "answer_explanation": "文档解释“经常食用密度能量低的食物...或摄入液体量过多，摄入的热量不足，会导致孩子吃不饱、夜醒要求进食。”  热量不足是主要原因。"
+        },
+        {
+          "question_text": "**奶量恒定**，**每次都给孩子固定奶量**，可能导致体重不长的**原因是**？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "奶量不足", "is_correct": false},
+            {"option_text": "奶量过多", "is_correct": false},
+            {"option_text": "影响奶的消化吸收", "is_correct": false},
+            {"option_text": "胃内老有食物，缺少饥饿感，进食量下降", "is_correct": true}
+          ],
+          "answer_explanation": "文档解释“每次给孩子固定的奶量...会导致胃内老有食物，缺少饥饿感，进食量反而下降。”  缺乏饥饿感导致辅食摄入不足是主要原因。"
+        },
+        {
+          "question_text": "**辅食代替奶，但奶量不足**，可能导致体重不长的**原因是**？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "总热量摄入减少，营养摄入不均衡", "is_correct": true},
+            {"option_text": "辅食不易消化吸收", "is_correct": false},
+            {"option_text": "辅食营养密度过低", "is_correct": false},
+            {"option_text": "辅食影响奶的吸收", "is_correct": false}
+          ],
+          "answer_explanation": "文档强调“这个月龄的孩子还是以奶为主，每天要保证孩子的最低奶量。”  奶量不足导致总热量和营养摄入不足是主要原因。"
+        },
+        {
+          "question_text": "关于辅食添加后体重不长的原因，下列说法**正确**的是？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "辅食添加越早越好，可以促进体重增长", "is_correct": false},
+            {"option_text": "食物密度能量过低会导致热量摄入不足", "is_correct": true},
+            {"option_text": "奶量恒定，不随辅食增加而调整，会影响辅食摄入", "is_correct": true},
+            {"option_text": "只要辅食吃得多，奶量可以忽略不计", "is_correct": false},
+            {"option_text": "辅食添加与体重增长无关，体重不长是其他原因造成的", "is_correct": false}
+          ],
+          "answer_explanation": "选项BC概括了辅食添加后体重不长的常见原因：食物能量密度低，奶量恒定。选项ADE与文档描述相悖。"
+        }
+      ]
+    },
+    {
+      "point_name": "常见问题 - 其他常见问题 - 培养孩子吃饭的兴趣",
+      "questions": [
+        {
+          "question_text": "**培养孩子吃饭的兴趣**的**核心原则**是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "不强迫喂养，尊重孩子意愿", "is_correct": true},
+            {"option_text": "严格规定喂养时间和量", "is_correct": false},
+            {"option_text": "提供单一食物，避免选择困难", "is_correct": false},
+            {"option_text": "采用奖励机制，鼓励多吃饭", "is_correct": false}
+          ],
+          "answer_explanation": "文档建议“不强迫喂养，尊重孩子自己的意愿”。  尊重意愿，不强迫是核心原则。"
+        },
+        {
+          "question_text": "当孩子**对新食物不接受**时，**正确的做法**是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "强迫孩子尝试", "is_correct": false},
+            {"option_text": "以后再尝试，不要急于求成", "is_correct": true},
+            {"option_text": "立即停止尝试新食物", "is_correct": false},
+            {"option_text": "更换其他品牌食物", "is_correct": false}
+          ],
+          "answer_explanation": "文档建议“孩子对新食物不接受，可以以后再尝试”。  耐心尝试，不强迫是关键。"
+        },
+        {
+          "question_text": "**与孩子一起吃饭，给孩子做示范**，**有助于**？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "提高喂养效率", "is_correct": false},
+            {"option_text": "减少食物浪费", "is_correct": false},
+            {"option_text": "培养孩子对吃饭的兴趣，学习吃饭技巧", "is_correct": true},
+            {"option_text": "减轻父母喂养负担", "is_correct": false}
+          ],
+          "answer_explanation": "文档建议“尽量和孩子一起吃饭，给孩子做示范”。  榜样示范作用于兴趣培养和技巧学习。"
+        },
+        {
+          "question_text": "**错误**的培养孩子吃饭兴趣的做法是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "提供多样化的食物选择", "is_correct": false},
+            {"option_text": "营造愉快的进餐氛围", "is_correct": false},
+            {"option_text": "鼓励孩子尝试新食物", "is_correct": false},
+            {"option_text": "强迫孩子吃不喜欢的食物", "is_correct": true}
+          ],
+          "answer_explanation": "强迫喂食会降低甚至扼杀孩子对吃饭的兴趣，选项D错误。"
+        },
+        {
+          "question_text": "关于培养孩子吃饭的兴趣，下列说法**正确**的是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "尊重孩子意愿，不强迫喂养，创造轻松愉快的进餐氛围", "is_correct": true},
+            {"option_text": "为了保证营养，必须让孩子吃完所有食物", "is_correct": false},
+            {"option_text": "应严格控制孩子进食量，避免过量", "is_correct": false},
+            {"option_text": "为了让孩子尽快适应辅食，应减少奶量", "is_correct": false}
+          ],
+          "answer_explanation": "选项A概括了培养吃饭兴趣的有效方法：尊重意愿，不强迫，创造良好氛围。"
+        }
+      ]
+    },
+    {
+      "point_name": "常见问题 - 其他常见问题 - 孩子不会咀嚼 - 原因及解决",
+      "questions": [
+        {
+          "question_text": "孩子**不会咀嚼**，**可能的原因**包括？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "意识问题：不知道食物要如何咀嚼，缺乏咀嚼意识", "is_correct": true},
+            {"option_text": "能力问题：口腔肌肉力量不足，咀嚼能力弱", "is_correct": true},
+            {"option_text": "食物性状不合适，长期喂养泥糊状食物", "is_correct": true},
+            {"option_text": "缺乏咀嚼练习机会", "is_correct": true},
+            {"option_text": "偏食挑食，只吃流质食物", "is_correct": false}
+          ],
+          "answer_explanation": "文档分析不会咀嚼的原因包括“意识问题：不知道食物要如何咀嚼，能力问题”。  意识和能力是主要方面。结合上下文，食物性状不合适和缺乏练习机会也属于能力问题范畴。"
+        },
+        {
+          "question_text": "对于**意识问题**导致的不会咀嚼，**解决方法**是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "照护者多给孩子示范咀嚼动作", "is_correct": true},
+            {"option_text": "提供硬质食物锻炼咀嚼力", "is_correct": false},
+            {"option_text": "减少喂食次数", "is_correct": false},
+            {"option_text": "只喂流质食物", "is_correct": false}
+          ],
+          "answer_explanation": "针对意识问题，示范是有效的引导方式，让孩子了解如何咀嚼。"
+        },
+        {
+          "question_text": "对于**能力问题**导致的不会咀嚼，**解决方法**包括？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "只提供泥糊状食物", "is_correct": false},
+            {"option_text": "平时多练习咬合能力，体会咀嚼感觉", "is_correct": true},
+            {"option_text": "提供有硬度的食物（手指食物、磨牙棒等）", "is_correct": true},
+            {"option_text": "提供适合月龄的食物，让孩子磨牙啃咬", "is_correct": true},
+            {"option_text": "减少喂食次数，增加饥饿感", "is_correct": false}
+          ],
+          "answer_explanation": "针对能力问题，需要通过练习来提升，选项BCD都提供了练习咀嚼的方法：咬合练习，硬度食物，合适月龄食物。"
+        },
+        {
+          "question_text": "**生的胡萝卜或芹菜条**可以用来**锻炼咀嚼能力**，**主要原因是**？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "有一定硬度，需要用力咀嚼", "is_correct": true},
+            {"option_text": "营养丰富", "is_correct": false},
+            {"option_text": "口感清爽", "is_correct": false},
+            {"option_text": "容易消化", "is_correct": false}
+          ],
+          "answer_explanation": "胡萝卜芹菜条的硬度是锻炼咀嚼能力的关键，需要口腔肌肉用力咬合。"
+        },
+        {
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "让孩子吃下去，补充维生素", "is_correct": false},
+            {"option_text": "练习咀嚼感受，锻炼口腔肌肉", "is_correct": true},
+            {"option_text": "替代磨牙棒", "is_correct": false},
+            {"option_text": "提高孩子对蔬菜的接受度", "is_correct": false}
+          ],
+          "answer_explanation": "文档明确指出“这是一个训练的过程，目的是练习而不是为了让孩子吃下去...”。  练习咀嚼感受和肌肉力量是主要目的。"
+        },
+        {
+          "question_text": "使用胡萝卜芹菜条**锻炼咀嚼能力**时，**需要注意**？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "选择软烂的胡萝卜芹菜条", "is_correct": false},
+            {"option_text": "让孩子 самостоятельно 完成，无需看护", "is_correct": false},
+            {"option_text": "必须在成人照看下进行，防止误吞", "is_correct": true},
+            {"option_text": "鼓励孩子尽可能多地咀嚼和吞咽", "is_correct": false}
+          ],
+          "answer_explanation": "文档强调“一定要在成人的照看下进行，防止孩子误吞。”  安全看护是重要注意事项。"
+        },
+        {
+          "question_text": "关于孩子不会咀嚼的解决，下列做法**正确**的是？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "多示范咀嚼动作，引导孩子学习", "is_correct": true},
+            {"option_text": "长期只喂泥糊状食物，避免噎呛风险", "is_correct": false},
+            {"option_text": "提供不同性状和硬度的食物，锻炼咀嚼能力", "is_correct": true},
+            {"option_text": "强迫孩子咀嚼，快速掌握技巧", "is_correct": false},
+            {"option_text": "孩子不会咀嚼是正常现象，无需干预", "is_correct": false}
+          ],
+          "answer_explanation": "选项AC概括了解决不会咀嚼问题的有效方法：示范引导，提供练习机会和合适食物。选项BDE与文档建议相悖。"
+        }
+      ]
+    },
+    {
+      "point_name": "一天的安排 - 7～9个月 - 安排原则及参考模板",
+      "questions": [
+        {
+          "question_text": "7～9个月婴儿**一天安排的原则**，**主要围绕**？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "喂养和睡眠", "is_correct": true},
+            {"option_text": "早教和运动", "is_correct": false},
+            {"option_text": "社交和认知", "is_correct": false},
+            {"option_text": "习惯培养和疾病预防", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出“安排的原则：(1) 喂养原则：4～5 次 / 天 (2) 睡眠原则：14～15 小时 / 天”。  喂养和睡眠是核心原则。"
+        },
+        {
+          "question_text": "7～9个月婴儿**每天喂养次数**的原则是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "3～4次", "is_correct": false},
+            {"option_text": "4～5次", "is_correct": true},
+            {"option_text": "5～6次", "is_correct": false},
+            {"option_text": "2～3次", "is_correct": false}
+          ],
+          "answer_explanation": "文档明确指出“喂养原则：4～5 次 / 天”。  4-5次是喂养次数原则。"
+        },
+        {
+          "question_text": "7～9个月婴儿**每天睡眠时长**的原则是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "12～13小时", "is_correct": false},
+            {"option_text": "13～14小时", "is_correct": false},
+            {"option_text": "14～15小时", "is_correct": true},
+            {"option_text": "15～16小时", "is_correct": false}
+          ],
+          "answer_explanation": "文档明确指出“睡眠原则：14～15 小时 / 天”。  14-15小时是睡眠时长原则。"
+        },
+        {
+          "question_text": "文档提供的7～9个月婴儿**一天安排模板**，**主要作用**是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "强制执行的作息标准", "is_correct": false},
+            {"option_text": "必须严格遵守的时间表", "is_correct": false},
+            {"option_text": "精确到分钟的日程安排", "is_correct": false},
+            {"option_text": "参考价值，可根据孩子特性灵活调整", "is_correct": true}
+          ],
+          "answer_explanation": "文档强调“**注意：** 根据每个孩子的特性，灵活安排一天的工作，模板仅具参考价值，不可刻板套用。”  参考价值和灵活性是模板的核心。"
+        },
+        {
+          "question_text": "关于7～9个月婴儿一天安排，下列说法**正确**的是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "应根据喂养和睡眠原则，结合孩子特性灵活安排", "is_correct": true},
+            {"option_text": "必须严格按照模板执行，确保规律作息", "is_correct": false},
+            {"option_text": "一天安排的重点是早教，喂养和睡眠可以忽略", "is_correct": false},
+            {"option_text": "一天安排主要由父母决定，无需考虑孩子需求", "is_correct": false}
+          ],
+          "answer_explanation": "选项A概括了7-9个月婴儿一天安排的核心原则：灵活和个体化。"
+        }
+      ]
+    },
+    {
+      "point_name": "一天的安排 - 10～12个月 - 安排原则及参考模板",
+      "questions": [
+        {
+          "question_text": "10～12个月婴儿**一天安排的原则**，**主要围绕**？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "喂养和睡眠", "is_correct": true},
+            {"option_text": "早教和运动", "is_correct": false},
+            {"option_text": "社交和认知", "is_correct": false},
+            {"option_text": "习惯培养和疾病预防", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出“安排的原则：(1) 喂养原则：3～4 次 / 天 (2) 睡眠原则：13～14 小时”。  喂养和睡眠依然是核心原则。"
+        },
+        {
+          "question_text": "10～12个月婴儿**每天喂养次数**的原则是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "2～3次", "is_correct": false},
+            {"option_text": "3～4次", "is_correct": true},
+            {"option_text": "4～5次", "is_correct": false},
+            {"option_text": "5～6次", "is_correct": false}
+          ],
+          "answer_explanation": "文档明确指出“喂养原则：3～4 次 / 天”。  3-4次是喂养次数原则。"
+        },
+        {
+          "question_text": "10～12个月婴儿**每天睡眠时长**的原则是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "12～13小时", "is_correct": false},
+            {"option_text": "13～14小时", "is_correct": true},
+            {"option_text": "13～14小时 (与选项B重复，应为13-14小时)", "is_correct": true},
+            {"option_text": "14～15小时", "is_correct": false}
+          ],
+          "answer_explanation": "文档明确指出“睡眠原则：13～14 小时”。  13-14小时是睡眠时长原则。"
+        },
+        {
+          "question_text": "文档提供的10～12个月婴儿**一天安排模板**，**与7～9个月模板一样**，**主要作用**是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "强制执行的作息标准", "is_correct": false},
+            {"option_text": "必须严格遵守的时间表", "is_correct": false},
+            {"option_text": "精确到分钟的日程安排", "is_correct": false},
+            {"option_text": "参考价值，可根据孩子特性灵活调整", "is_correct": true}
+          ],
+          "answer_explanation": "与7-9个月模板相同，10-12个月模板也仅供参考，强调灵活性和个体化。"
+        },
+        {
+          "question_text": "关于10～12个月婴儿一天安排，下列说法**正确**的是？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "应根据喂养和睡眠原则，结合孩子特性灵活安排，模板仅供参考", "is_correct": true},
+            {"option_text": "必须严格按照模板执行，培养规律作息", "is_correct": false},
+            {"option_text": "一天安排的重点是户外活动，喂养和睡眠可以适当调整", "is_correct": false},
+            {"option_text": "一天安排主要考虑父母时间，孩子可以配合调整", "is_correct": false}
+          ],
+          "answer_explanation": "选项A概括了10-12个月婴儿一天安排的核心原则：灵活和个体化，模板仅供参考。"
+        }
+      ]
+    }
+  ]
+}

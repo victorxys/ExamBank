@@ -1,0 +1,3763 @@
+{
+  "course_name": "1-2岁核心知识点",
+  "knowledge_points": [
+    {
+      "point_name": "核心理念",
+      "questions": [
+        {
+          "question_text": "以下哪项不属于1-2岁幼儿护理的核心理念？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "顺应孩子发展", "is_correct": false},
+            {"option_text": "尊重孩子", "is_correct": false},
+            {"option_text": "关注行为背后的情绪和心声", "is_correct": false},
+            {"option_text": "快速纠正孩子的不当行为", "is_correct": true}
+          ],
+          "answer_explanation": "文档强调育儿理念是顺应孩子发展，尊重孩子，理解行为背后的情绪，而非快速纠正行为。"
+        },
+        {
+          "question_text": "在育儿过程中，比孩子行为本身更重要的是什么？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "行为矫正技巧", "is_correct": false},
+            {"option_text": "行为背后的情绪和心声", "is_correct": true},
+            {"option_text": "家长的权威", "is_correct": false},
+            {"option_text": "育儿书籍的指导", "is_correct": false}
+          ],
+          "answer_explanation": "文档明确指出，育儿过程中重要的是孩子行为背后的情绪和心声。"
+        },
+        {
+          "question_text": "对于1-2岁的幼儿，以下哪些育儿态度是重要的？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "信任孩子", "is_correct": true},
+            {"option_text": "接纳孩子", "is_correct": true},
+            {"option_text": "放手让孩子尝试", "is_correct": true},
+            {"option_text": "尊重孩子的意愿", "is_correct": true},
+            {"option_text": "看到孩子的希望", "is_correct": true}
+          ],
+          "answer_explanation": "文档强调了信任、接纳、放手、尊重以及从希望的角度看待孩子的重要性。"
+        },
+        {
+          "question_text": "“不是孩子成长了，你才信任孩子，而是你信任了孩子，孩子才能成长”，这句话体现了什么育儿理念？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "信任是孩子成长的基石", "is_correct": true},
+            {"option_text": "孩子成长是自然而然的过程", "is_correct": false},
+            {"option_text": "家长应该无条件满足孩子", "is_correct": false},
+            {"option_text": "放手是育儿的最终目标", "is_correct": false}
+          ],
+          "answer_explanation": "这句话直接强调了信任在孩子成长中的先导作用，是文档核心理念的体现。"
+        },
+        {
+          "question_text": "当面对1-2岁幼儿的行为问题时，我们应该首先关注什么？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "如何快速制止行为", "is_correct": false},
+            {"option_text": "如何惩罚错误行为", "is_correct": false},
+            {"option_text": "孩子行为背后的情绪和需求", "is_correct": true},
+            {"option_text": "其他孩子的育儿经验", "is_correct": false}
+          ],
+          "answer_explanation": "核心理念强调关注行为背后的情绪和心声，这是解决问题的关键。"
+        }
+      ]
+    },
+    {
+      "point_name": "1-2 岁幼儿的特点",
+      "questions": [
+        {
+          "question_text": "1-2岁幼儿最显著的特点之一是模仿性强，这意味着他们在日常生活中会？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "学习和重复看到和听到的行为", "is_correct": true},
+            {"option_text": "开始独立思考和创新", "is_correct": false},
+            {"option_text": "完全理解大人的指令", "is_correct": false},
+            {"option_text": "对所有事物都感到好奇", "is_correct": false}
+          ],
+          "answer_explanation": "文档将“模仿”列为1-2岁幼儿的首要特点。"
+        },
+        {
+          "question_text": "以下哪些行为体现了1-2岁幼儿自我独立意识的增强？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "坚持自己吃饭", "is_correct": true},
+            {"option_text": "尝试自己穿衣服", "is_correct": true},
+            {"option_text": "喜欢被大人抱着", "is_correct": false},
+            {"option_text": "完全听从父母的安排", "is_correct": false},
+            {"option_text": "对陌生人表现友好", "is_correct": false}
+          ],
+          "answer_explanation": "自我独立意识增强表现为孩子开始尝试独立完成事情。"
+        },
+        {
+          "question_text": "为什么说1-2岁幼儿喜欢和大孩子玩，有认同感？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "因为大孩子更有趣", "is_correct": false},
+            {"option_text": "因为他们渴望被接纳和学习", "is_correct": true},
+            {"option_text": "因为同龄孩子太幼稚", "is_correct": false},
+            {"option_text": "因为大孩子会分享玩具", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出，喜欢和大孩子玩是因为有认同感的需求。"
+        },
+        {
+          "question_text": "关于1-2岁幼儿的叛逆期，以下说法正确的是？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "叛逆期是这个阶段的正常现象", "is_correct": true},
+            {"option_text": "叛逆期意味着孩子不听话了", "is_correct": false},
+            {"option_text": "叛逆行为更多体现在熟悉的人面前", "is_correct": true},
+            {"option_text": "叛逆期会一直持续到成年", "is_correct": false},
+            {"option_text": "叛逆期主要表现为肢体反抗", "is_correct": false}
+          ],
+          "answer_explanation": "文档描述叛逆期是正常现象，常见于熟悉人面前，初期以口头反抗为主。"
+        },
+        {
+          "question_text": "孩子在叛逆期出现反抗行为，我们应该如何理解？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "孩子变得不乖了，需要严厉管教", "is_correct": false},
+            {"option_text": "孩子在故意挑战父母的权威", "is_correct": false},
+            {"option_text": "这是孩子自我意识发展的表现", "is_correct": true},
+            {"option_text": "孩子需要更多的自由空间", "is_correct": false}
+          ],
+          "answer_explanation": "叛逆期是自我意识发展的体现，需要理解和引导而非压制。"
+        }
+      ]
+    },
+    {
+      "point_name": "喂养 (1 岁～1.5 岁)",
+      "questions": [
+        {
+          "question_text": "1岁～1.5岁幼儿的喂养，辅食和正餐处于交替过渡阶段，通常建议从 “3+3” 逐渐过渡到以下哪种模式？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "3 餐 2 奶 2 点心", "is_correct": true},
+            {"option_text": "4 餐 1 奶 2 点心", "is_correct": false},
+            {"option_text": "2 餐 3 奶 3 点心", "is_correct": false},
+            {"option_text": "全正餐模式", "is_correct": false}
+          ],
+          "answer_explanation": "文档明确指出喂养模式从“3+3”过渡到“3 餐 2 奶 2 点心”。"
+        },
+        {
+          "question_text": "在1岁～1.5岁阶段，培养幼儿与家人共同进餐的目的是什么？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "培养良好的进餐习惯", "is_correct": true},
+            {"option_text": "增进亲子关系", "is_correct": true},
+            {"option_text": "让孩子学习餐桌礼仪", "is_correct": true},
+            {"option_text": "节省喂养时间", "is_correct": false},
+            {"option_text": "确保孩子吃更多食物", "is_correct": false}
+          ],
+          "answer_explanation": "共同进餐利于习惯培养和亲子互动，餐桌礼仪也在此时开始培养。"
+        },
+        {
+          "question_text": "关于12个月男宝宝的体重和身高，以下哪个范围是文档中提供的参考值？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "体重：8.0～10.0kg，身高：70.0～75.0cm", "is_correct": false},
+            {"option_text": "体重：9.1～11.3kg，身高：73.4～78.8cm", "is_correct": true},
+            {"option_text": "体重：10.0～12.5kg，身高：75.0～80.0cm", "is_correct": false},
+            {"option_text": "体重：8.5～10.5kg，身高：72.0～77.5cm", "is_correct": false}
+          ],
+          "answer_explanation": "参照文档表格中12个月男孩的体重身高范围。"
+        },
+        {
+          "question_text": "如果一个15个月大的女孩体重为8.8kg，身高为73cm，参照文档提供的体重身高表，她的发育情况大致属于？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "偏轻", "is_correct": true},
+            {"option_text": "正常范围", "is_correct": false},
+            {"option_text": "偏重", "is_correct": false},
+            {"option_text": "无法判断", "is_correct": false}
+          ],
+          "answer_explanation": "参照文档表格中15个月女孩的体重身高范围，8.8kg和73cm都略低于参考范围。"
+        },
+        {
+          "question_text": "1岁半的幼儿，喂养上需要注意从辅食为主向正餐为主过渡，以下哪项做法是符合此阶段特点的？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "完全停止母乳或配方奶", "is_correct": false},
+            {"option_text": "只给孩子提供流质食物", "is_correct": false},
+            {"option_text": "每餐只提供辅食", "is_correct": false},
+            {"option_text": "逐渐增加正餐比例，减少辅食次数", "is_correct": true}
+          ],
+          "answer_explanation": "1-1.5岁是过渡阶段，应逐步增加正餐，而非完全停止辅食或奶。"
+        }
+      ]
+    },
+    {
+      "point_name": "喂养 (1.5～2 岁)",
+      "questions": [
+        {
+          "question_text": "1.5～2岁幼儿的喂养模式，基本上是以下哪种形式？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "三餐两奶两点心", "is_correct": true},
+            {"option_text": "四餐一点心", "is_correct": false},
+            {"option_text": "两餐三奶三点心", "is_correct": false},
+            {"option_text": "全正餐，少量加奶", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出1.5-2岁基本是“三餐两奶两点心”模式。"
+        },
+        {
+          "question_text": "在1.5～2岁阶段，如果前期培养良好，幼儿可以做到以下哪些进餐行为？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "和家人一同进餐", "is_correct": true},
+            {"option_text": "自主进食", "is_correct": true},
+            {"option_text": "养成良好的餐桌礼仪", "is_correct": true},
+            {"option_text": "拒绝尝试新食物", "is_correct": false},
+            {"option_text": "只吃自己喜欢的食物", "is_correct": false}
+          ],
+          "answer_explanation": "文档描述此阶段培养良好可实现与家人同餐、自主进食和餐桌礼仪。"
+        },
+        {
+          "question_text": "根据文档，2岁女宝宝的正常体重和身高范围大约是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "体重：9.0～12.0kg，身高：80.0～86.0cm", "is_correct": false},
+            {"option_text": "体重：10.6～13.2kg，身高：83.3～89.8cm", "is_correct": true},
+            {"option_text": "体重：11.5～14.5kg，身高：85.0～92.0cm", "is_correct": false},
+            {"option_text": "体重：9.5～12.5kg，身高：82.0～88.5cm", "is_correct": false}
+          ],
+          "answer_explanation": "参照文档表格中2岁女孩的体重身高范围。"
+        },
+        {
+          "question_text": "对于21个月大的男孩，如果体重是10.5kg，身高是82cm，参照文档的体重身高表，他的发育情况可能为？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "偏轻和偏矮", "is_correct": true},
+            {"option_text": "正常范围", "is_correct": false},
+            {"option_text": "偏重和偏高", "is_correct": false},
+            {"option_text": "体重正常，身高偏矮", "is_correct": false}
+          ],
+          "answer_explanation": "参照文档表格中21个月男孩的体重身高范围，10.5kg和82cm都略低于参考范围。"
+        },
+        {
+          "question_text": "1.5～2岁幼儿的喂养重点逐渐转向成人食物，这意味着我们需要更关注？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "食物的总量", "is_correct": false},
+            {"option_text": "喂养的次数", "is_correct": false},
+            {"option_text": "食物的质量和营养均衡", "is_correct": true},
+            {"option_text": "孩子是否吃饱", "is_correct": false}
+          ],
+          "answer_explanation": "文档强调1岁后孩子饮食注重食物质量而非数量。"
+        }
+      ]
+    },
+    {
+      "point_name": "饮食建议",
+      "questions": [
+        {
+          "question_text": "对于1～1.5岁的幼儿，饮食建议以较软食物为主，以下哪类食物**不属于**这个阶段推荐的？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "粥", "is_correct": false},
+            {"option_text": "软米饭", "is_correct": false},
+            {"option_text": "蒸熟的胡萝卜", "is_correct": false},
+            {"option_text": "炸鸡块", "is_correct": true}
+          ],
+          "answer_explanation": "1-1.5岁是较软食物阶段，炸鸡块过于油腻和坚硬，不适合。"
+        },
+        {
+          "question_text": "在1～1.5岁较软食物阶段，以下哪些食物类别是推荐的？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "碳水类（如粥、面条）", "is_correct": true},
+            {"option_text": "蔬菜类（如胡萝卜、菜花）", "is_correct": true},
+            {"option_text": "水果类（如苹果、香蕉）", "is_correct": true},
+            {"option_text": "肉类（如鸡肉、鱼肉）", "is_correct": true},
+            {"option_text": "蛋类（如鸡蛋、鹌鹑蛋）", "is_correct": true}
+          ],
+          "answer_explanation": "文档表格中列举了碳水、蔬菜、水果、肉类、蛋类等推荐食物。"
+        },
+        {
+          "question_text": "1.5～2岁是成人食物阶段，这意味着孩子的饮食可以？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "和大人基本一致", "is_correct": true},
+            {"option_text": "仍然以流质食物为主", "is_correct": false},
+            {"option_text": "完全依赖辅食", "is_correct": false},
+            {"option_text": "只吃特定种类的食物", "is_correct": false}
+          ],
+          "answer_explanation": "1.5-2岁是成人食物阶段，饮食可以和大人趋于一致。"
+        },
+        {
+          "question_text": "在1.5～2岁成人食物阶段，每餐最好保证“四大类营养摄入”，这里的“四大类营养”通常指的是？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "碳水化合物", "is_correct": true},
+            {"option_text": "蛋白质", "is_correct": true},
+            {"option_text": "脂肪", "is_correct": true},
+            {"option_text": "维生素和矿物质", "is_correct": true},
+            {"option_text": "益生菌", "is_correct": false}
+          ],
+          "answer_explanation": "四大类营养通常指碳水、蛋白质、脂肪和维生素矿物质。"
+        },
+        {
+          "question_text": "关于1岁以后孩子的饮食，文档中强调“注重食物的质量而不是总数量”，这是因为？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "孩子胃容量有限", "is_correct": false},
+            {"option_text": "孩子不喜欢吃太多", "is_correct": false},
+            {"option_text": "保证营养均衡比吃得多更重要", "is_correct": true},
+            {"option_text": "食物数量过多容易导致浪费", "is_correct": false}
+          ],
+          "answer_explanation": "文档强调食物质量重于数量，目的是为了保证营养摄入的质量。"
+        }
+      ]
+    },
+    {
+      "point_name": "喂养问题 - 积食",
+      "questions": [
+        {
+          "question_text": "以下哪项**不是**幼儿积食的常见表现？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "抗拒吃饭", "is_correct": false},
+            {"option_text": "舌苔增厚", "is_correct": false},
+            {"option_text": "口气酸臭", "is_correct": false},
+            {"option_text": "精神亢奋", "is_correct": true}
+          ],
+          "answer_explanation": "文档中积食表现包括抗拒吃饭、舌苔厚、口气酸臭，但不包括精神亢奋，反而可能是睡眠不宁、眼皮发沉。"
+        },
+        {
+          "question_text": "幼儿积食的常见表现包括？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "舌苔增厚", "is_correct": true},
+            {"option_text": "大便异常", "is_correct": true},
+            {"option_text": "口气酸臭", "is_correct": true},
+            {"option_text": "精神亢奋", "is_correct": false},
+            {"option_text": "睡眠不宁", "is_correct": true}
+          ],
+          "answer_explanation": "根据文档，积食表现包括舌苔厚、大便异常、口气酸臭、睡眠不宁等。"
+        },
+        {
+          "question_text": "针对幼儿积食问题，以下哪种饮食调整方法是推荐的？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "清淡易消化饮食", "is_correct": true},
+            {"option_text": "高蛋白高脂肪饮食", "is_correct": false},
+            {"option_text": "高糖分食物", "is_correct": false},
+            {"option_text": "完全禁食", "is_correct": false}
+          ],
+          "answer_explanation": "文档建议积食时调整饮食为清淡易消化。"
+        },
+        {
+          "question_text": "解决幼儿积食问题，除了调整饮食外，以下哪种做法也是有效的？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "强迫孩子多吃蔬菜", "is_correct": false},
+            {"option_text": "少食多餐", "is_correct": true},
+            {"option_text": "给孩子吃大量水果", "is_correct": false},
+            {"option_text": "增加零食", "is_correct": false}
+          ],
+          "answer_explanation": "文档建议积食时采取少食多餐的 feeding strategy."
+        },
+        {
+          "question_text": "晚上幼儿积食问题更容易发生，因此晚餐应该尤其注意？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "丰盛多样", "is_correct": false},
+            {"option_text": "营养均衡", "is_correct": false},
+            {"option_text": "清淡易消化", "is_correct": true},
+            {"option_text": "高热量", "is_correct": false}
+          ],
+          "answer_explanation": "文档特别指出晚上饮食要清淡易消化，以避免积食。"
+        }
+      ]
+    },
+    {
+      "point_name": "喂养问题 - 挑食",
+      "questions": [
+        {
+          "question_text": "以下哪项**不是**导致幼儿挑食的常见原因？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "孩子吃饭兴趣不高", "is_correct": false},
+            {"option_text": "从小没有培养良好进餐习惯", "is_correct": false},
+            {"option_text": "家人饮食习惯影响", "is_correct": false},
+            {"option_text": "孩子天生味觉敏感", "is_correct": true}
+          ],
+          "answer_explanation": "文档中挑食原因包括兴趣不高、习惯不良、家人影响、重口味，但没有提及天生味觉敏感作为主要原因。"
+        },
+        {
+          "question_text": "导致幼儿挑食的常见原因包括？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "孩子吃饭兴趣不高", "is_correct": true},
+            {"option_text": "从小没有培养良好的进餐习惯", "is_correct": true},
+            {"option_text": "家人饮食习惯的影响", "is_correct": true},
+            {"option_text": "孩子天生不喜欢蔬菜", "is_correct": false},
+            {"option_text": "给孩子吃重口味的食物", "is_correct": true}
+          ],
+          "answer_explanation": "文档列出的挑食原因包括兴趣不高、习惯不良、家人影响、重口味食物。"
+        },
+        {
+          "question_text": "针对幼儿挑食问题，以下哪种做法是**不推荐**的？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "不给孩子暗示挑食", "is_correct": false},
+            {"option_text": "不给孩子选择机会", "is_correct": false},
+            {"option_text": "另外用孩子喜欢的食物代替", "is_correct": true},
+            {"option_text": "培养良好进餐习惯", "is_correct": false}
+          ],
+          "answer_explanation": "文档中解决挑食的方法包括不暗示、不给选择，但“另外用其他食物代替”是不推荐的做法。"
+        },
+        {
+          "question_text": "当孩子表现出挑食行为时，家长应该避免给孩子？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "暗示，例如说“你不喜欢吃这个吧？”", "is_correct": true},
+            {"option_text": "鼓励，例如说“你真棒，又吃了一口”", "is_correct": false},
+            {"option_text": "选择，例如说“你想吃这个还是那个？”", "is_correct": false},
+            {"option_text": "表扬，例如说“你今天吃蔬菜了，真棒！”", "is_correct": false}
+          ],
+          "answer_explanation": "文档建议解决挑食问题时“不给孩子暗示”。"
+        },
+        {
+          "question_text": "解决幼儿挑食问题，以下哪种做法是推荐的？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "强迫孩子吃不喜欢的食物", "is_correct": false},
+            {"option_text": "不给孩子选择机会，餐桌上提供什么就吃什么", "is_correct": true},
+            {"option_text": "总是准备孩子喜欢的食物", "is_correct": false},
+            {"option_text": "用零食奖励孩子吃蔬菜的行为", "is_correct": false}
+          ],
+          "answer_explanation": "文档建议解决挑食问题时“不给选择机会”。"
+        }
+      ]
+    },
+    {
+      "point_name": "喂养问题 - 追喂",
+      "questions": [
+        {
+          "question_text": "以下哪项**不是**导致幼儿需要被追喂的常见原因？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "孩子对吃饭兴趣不高", "is_correct": false},
+            {"option_text": "没有养成良好的餐桌礼仪", "is_correct": false},
+            {"option_text": "孩子将吃饭与获得大人关注联系起来", "is_correct": false},
+            {"option_text": "孩子消化功能弱", "is_correct": true}
+          ],
+          "answer_explanation": "文档中追喂原因包括兴趣不高、餐桌礼仪不良、错误关联，但没有提及消化功能弱作为主要原因。"
+        },
+        {
+          "question_text": "导致幼儿需要被追喂的常见原因包括？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "孩子对吃饭兴趣不高", "is_correct": true},
+            {"option_text": "没有养成良好的餐桌礼仪", "is_correct": true},
+            {"option_text": "让孩子错误地将吃饭和得到大人关注联系起来", "is_correct": true},
+            {"option_text": "孩子生长发育迟缓", "is_correct": false},
+            {"option_text": "孩子天生饭量小", "is_correct": false}
+          ],
+          "answer_explanation": "文档列出的追喂原因包括兴趣不高、餐桌礼仪不良、错误关联。"
+        },
+        {
+          "question_text": "针对幼儿追喂问题，以下哪种做法是推荐的？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "不强迫喂养，孩子吃多少算多少", "is_correct": true},
+            {"option_text": "变着花样哄孩子吃饭", "is_correct": false},
+            {"option_text": "用动画片吸引孩子吃饭", "is_correct": false},
+            {"option_text": "追着孩子喂饭，确保吃饱", "is_correct": false}
+          ],
+          "answer_explanation": "文档建议解决追喂问题时“不强迫喂养”。"
+        },
+        {
+          "question_text": "解决幼儿追喂问题，进餐地点应该限定在？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "孩子喜欢的任何地方", "is_correct": false},
+            {"option_text": "餐桌上", "is_correct": true},
+            {"option_text": "客厅", "is_correct": false},
+            {"option_text": "户外", "is_correct": false}
+          ],
+          "answer_explanation": "文档建议解决追喂问题时“吃饭只在餐桌上”。"
+        },
+        {
+          "question_text": "“吃饭只在餐桌上”这一原则，对于解决追喂问题的主要作用是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "增加孩子的食欲", "is_correct": false},
+            {"option_text": "让孩子更快吃完饭", "is_correct": false},
+            {"option_text": "建立餐桌规矩，避免追逐喂食", "is_correct": true},
+            {"option_text": "方便家长喂饭", "is_correct": false}
+          ],
+          "answer_explanation": "限定餐桌进食是为了建立规矩，避免追逐喂食的习惯。"
+        }
+      ]
+    },
+    {
+      "point_name": "喂养问题 - 不好好吃饭",
+      "questions": [
+        {
+          "question_text": "以下哪项**不是**幼儿不好好吃饭的常见原因？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "领会错误，孩子已经吃饱", "is_correct": false},
+            {"option_text": "食欲问题，孩子根本不饿", "is_correct": false},
+            {"option_text": "原则问题，孩子用不吃饭来控制大人", "is_correct": false},
+            {"option_text": "孩子食物过敏", "is_correct": true}
+          ],
+          "answer_explanation": "文档中不好好吃饭的原因包括领会错误、食欲、原则、健康问题（病前病中病后），但没有提及食物过敏作为主要原因。"
+        },
+        {
+          "question_text": "幼儿不好好吃饭的常见原因包括？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "领会错误，家长没意识到孩子已吃饱", "is_correct": true},
+            {"option_text": "食欲问题，孩子不饿", "is_correct": true},
+            {"option_text": "原则问题，孩子用不吃饭来表达控制欲", "is_correct": true},
+            {"option_text": "孩子不喜欢饭菜的味道", "is_correct": false},
+            {"option_text": "健康问题，疾病影响食欲", "is_correct": true}
+          ],
+          "answer_explanation": "文档列出的不好好吃饭的原因包括领会错误、食欲、原则、健康问题。"
+        },
+        {
+          "question_text": "针对幼儿不好好吃饭的问题，以下哪种做法是推荐的？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "吃饭是孩子自己的事，让他自己选择吃多少", "is_correct": true},
+            {"option_text": "每顿饭都关注孩子吃了多少量", "is_correct": false},
+            {"option_text": "强迫孩子吃完碗里的饭", "is_correct": false},
+            {"option_text": "用零食诱惑孩子吃饭", "is_correct": false}
+          ],
+          "answer_explanation": "文档建议解决不好好吃饭问题时“吃饭是孩子自己的事情，让他自己选择”。"
+        },
+        {
+          "question_text": "为了培养幼儿良好的饮食习惯，建议将吃饭时间控制在？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "15分钟以内", "is_correct": false},
+            {"option_text": "30分钟以内", "is_correct": true},
+            {"option_text": "45分钟以内", "is_correct": false},
+            {"option_text": "不限制时间", "is_correct": false}
+          ],
+          "answer_explanation": "文档建议将吃饭时间控制在“30分钟以内”。"
+        },
+        {
+          "question_text": "解决幼儿不好好吃饭的问题，家长应该保持的心态是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "焦虑和担忧", "is_correct": false},
+            {"option_text": "严厉和强硬", "is_correct": false},
+            {"option_text": "淡定和放松", "is_correct": true},
+            {"option_text": "无奈和放弃", "is_correct": false}
+          ],
+          "answer_explanation": "文档强调成人应“淡定”，心平气和看待孩子吃饭。"
+        }
+      ]
+    },
+    {
+      "point_name": "喂养问题 - 孩子爱扔餐具",
+      "questions": [
+        {
+          "question_text": "对于刚开始吃辅食的孩子，扔餐具的行为应该？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "适当给予宽容", "is_correct": true},
+            {"option_text": "立即严厉制止", "is_correct": false},
+            {"option_text": "忽略不计", "is_correct": false},
+            {"option_text": "用打骂的方式纠正", "is_correct": false}
+          ],
+          "answer_explanation": "文档建议对刚开始吃辅食的孩子扔餐具行为“适当给予宽容”。"
+        },
+        {
+          "question_text": "如果1岁以上的孩子扔餐具行为有增无减，家长应该怎么做？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "坚定地告诉孩子餐具的用途", "is_correct": true},
+            {"option_text": "看着孩子的眼睛，语气坚定", "is_correct": true},
+            {"option_text": "直接抱下餐桌，停止进餐", "is_correct": true},
+            {"option_text": "打骂孩子以示惩戒", "is_correct": false},
+            {"option_text": "给孩子换塑料餐具避免摔坏", "is_correct": false}
+          ],
+          "answer_explanation": "文档建议对于1岁以上扔餐具行为要坚定告知、必要时撤下餐桌。"
+        },
+        {
+          "question_text": "当告诉1岁以上的孩子“餐具是用来装食物的，而不是扔的”时，需要注意？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "声音要轻柔", "is_correct": false},
+            {"option_text": "看着孩子的眼睛，语气坚定", "is_correct": true},
+            {"option_text": "边说边笑", "is_correct": false},
+            {"option_text": "用责备的语气", "is_correct": false}
+          ],
+          "answer_explanation": "文档强调要“看着孩子的眼睛，确定他在听你说话，语气要坚定”。"
+        },
+        {
+          "question_text": "解决1岁以上孩子扔餐具问题，以下哪种做法是**不推荐**的？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "直接抱下餐桌不让吃", "is_correct": false},
+            {"option_text": "利用绘本或游戏引导", "is_correct": false},
+            {"option_text": "全家人意见一致", "is_correct": false},
+            {"option_text": "打骂惩罚", "is_correct": true}
+          ],
+          "answer_explanation": "文档推荐撤下餐桌、绘本游戏等方法，但没有推荐打骂。"
+        },
+        {
+          "question_text": "除了直接制止和说教外，还可以通过哪些方式帮助1岁以上孩子纠正扔餐具的行为？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "利用绘本", "is_correct": true},
+            {"option_text": "玩类似吃饭的游戏", "is_correct": true},
+            {"option_text": "给孩子更昂贵的餐具", "is_correct": false},
+            {"option_text": "忽略孩子的扔餐具行为", "is_correct": false},
+            {"option_text": "给孩子塑料餐具代替", "is_correct": false}
+          ],
+          "answer_explanation": "文档建议“利用绘本或玩一些类似吃饭的游戏”进行引导。"
+        }
+      ]
+    },
+    {
+      "point_name": "睡眠习惯 - 睡眠规律",
+      "questions": [
+        {
+          "question_text": "1-2岁幼儿白天的睡眠规律，通常是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "基本上是 2 到 1 觉", "is_correct": true},
+            {"option_text": "每天固定3觉", "is_correct": false},
+            {"option_text": "白天不睡觉", "is_correct": false},
+            {"option_text": "根据大人作息调整", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出1-2岁幼儿白天睡眠规律是“基本上是 2 到 1 觉”。"
+        },
+        {
+          "question_text": "“白天基本上是2到1觉”描述的是1-2岁幼儿的？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "夜间睡眠规律", "is_correct": false},
+            {"option_text": "白天睡眠规律", "is_correct": true},
+            {"option_text": "整体睡眠时长", "is_correct": false},
+            {"option_text": "睡眠质量", "is_correct": false}
+          ],
+          "answer_explanation": "该描述针对的是“白天”的睡眠规律。"
+        },
+        {
+          "question_text": "随着月龄增长，1-2岁幼儿白天的小睡次数会？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "逐渐减少", "is_correct": true},
+            {"option_text": "逐渐增加", "is_correct": false},
+            {"option_text": "保持不变", "is_correct": false},
+            {"option_text": "完全不睡", "is_correct": false}
+          ],
+          "answer_explanation": "从“2觉到1觉”体现了小睡次数逐渐减少的趋势。"
+        },
+        {
+          "question_text": "如果1岁半的幼儿白天仍然需要睡3觉，这可能意味着？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "孩子睡眠质量非常好", "is_correct": false},
+            {"option_text": "睡眠规律尚未建立或需要调整", "is_correct": true},
+            {"option_text": "孩子生长发育迟缓", "is_correct": false},
+            {"option_text": "孩子特别嗜睡", "is_correct": false}
+          ],
+          "answer_explanation": "1-2岁白天睡眠规律是2-1觉，3觉可能说明规律需要调整。"
+        },
+        {
+          "question_text": "了解1-2岁幼儿白天睡眠规律，有助于家长？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "完全控制孩子的睡眠", "is_correct": false},
+            {"option_text": "让孩子完全按照时间表睡觉", "is_correct": false},
+            {"option_text": "更好地安排孩子一天的作息", "is_correct": true},
+            {"option_text": "减少孩子的睡眠时间", "is_correct": false}
+          ],
+          "answer_explanation": "了解睡眠规律是为了更好地安排作息，而非控制或减少睡眠。"
+        }
+      ]
+    },
+    {
+      "point_name": "睡眠习惯 - 睡眠时长",
+      "questions": [
+        {
+          "question_text": "1-2岁幼儿白天小觉的正常时长大约是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "1～2 小时", "is_correct": true},
+            {"option_text": "3～4 小时", "is_correct": false},
+            {"option_text": "半小时以内", "is_correct": false},
+            {"option_text": "不固定", "is_correct": false}
+          ],
+          "answer_explanation": "文档给出的白天小觉时长是“1～2 小时”。"
+        },
+        {
+          "question_text": "1-2岁幼儿夜间睡眠的正常时长大约是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "11～12 小时", "is_correct": false},
+            {"option_text": "9～10 小时", "is_correct": true},
+            {"option_text": "7～8 小时", "is_correct": false},
+            {"option_text": "12小时以上", "is_correct": false}
+          ],
+          "answer_explanation": "文档给出的夜间睡眠时长是“9～10 小时”。"
+        },
+        {
+          "question_text": "如果一个18个月大的幼儿夜间只睡8小时，白天小睡3小时，总睡眠时间？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "充足", "is_correct": false},
+            {"option_text": "不足", "is_correct": true},
+            {"option_text": "过多", "is_correct": false},
+            {"option_text": "无法判断", "is_correct": false}
+          ],
+          "answer_explanation": "总睡眠时间为11小时，文档建议1-2岁总睡眠约13小时，因此偏少。"
+        },
+        {
+          "question_text": "1-2岁幼儿每天的总睡眠时长（包括白天小觉和夜间睡眠）大约为？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "10小时左右", "is_correct": false},
+            {"option_text": "12小时左右", "is_correct": false},
+            {"option_text": "13小时左右", "is_correct": true},
+            {"option_text": "15小时左右", "is_correct": false}
+          ],
+          "answer_explanation": "结合白天小觉和夜间睡眠时长，总睡眠约13小时。"
+        },
+        {
+          "question_text": "了解1-2岁幼儿的睡眠时长，有助于家长判断孩子是否？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "睡眠充足", "is_correct": true},
+            {"option_text": "过于活跃", "is_correct": false},
+            {"option_text": "营养不良", "is_correct": false},
+            {"option_text": "生病了", "is_correct": false}
+          ],
+          "answer_explanation": "了解睡眠时长可以帮助判断睡眠是否充足，进而影响孩子的状态。"
+        }
+      ]
+    },
+    {
+      "point_name": "睡眠习惯 - 影响睡眠的环境因素",
+      "questions": [
+        {
+          "question_text": "以下哪项**不是**影响1-2岁幼儿睡眠的环境因素？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "刺激的噪声", "is_correct": false},
+            {"option_text": "光线太亮", "is_correct": false},
+            {"option_text": "床品不舒服", "is_correct": false},
+            {"option_text": "睡前故事内容", "is_correct": true}
+          ],
+          "answer_explanation": "文档列举的环境因素包括噪声、光线、床品、穿衣、环境变化，睡前故事内容属于睡前习惯，而非环境因素。"
+        },
+        {
+          "question_text": "影响1-2岁幼儿睡眠的环境因素包括？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "刺激的噪声（如喇叭声）", "is_correct": true},
+            {"option_text": "光线太亮（如人造光源）", "is_correct": true},
+            {"option_text": "床品不舒服（如材质不透气）", "is_correct": true},
+            {"option_text": "睡前玩的游戏", "is_correct": false},
+            {"option_text": "穿得太多或太少", "is_correct": true}
+          ],
+          "answer_explanation": "文档列举的环境因素包含噪声、光线、床品、穿衣等。"
+        },
+        {
+          "question_text": "为了给1-2岁幼儿创造良好的睡眠环境，以下哪项做法是推荐的？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "保持卧室绝对安静", "is_correct": false},
+            {"option_text": "选择纯棉床品", "is_correct": true},
+            {"option_text": "室内光线越暗越好", "is_correct": false},
+            {"option_text": "冬天给孩子穿厚厚的衣服睡觉", "is_correct": false}
+          ],
+          "answer_explanation": "文档建议选择纯棉床品，避免丝毛类易过敏材质。"
+        },
+        {
+          "question_text": "关于影响1-2岁幼儿睡眠的光线因素，以下说法正确的是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "晚上睡得越晚越好", "is_correct": false},
+            {"option_text": "白天室内光线越暗越好", "is_correct": false},
+            {"option_text": "白天自然光源照射不足会影响睡眠", "is_correct": true},
+            {"option_text": "夏季早晨室内光线暗有利于睡眠", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出白天自然光源照射不足，以及夏季早晨室内过亮会影响睡眠。"
+        },
+        {
+          "question_text": "为了避免环境变化影响1-2岁幼儿睡眠，应该尽量？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "保持睡眠环境相对稳定", "is_correct": true},
+            {"option_text": "经常更换睡眠环境", "is_correct": false},
+            {"option_text": "让孩子适应各种睡眠环境", "is_correct": false},
+            {"option_text": "在任何环境下都能哄睡", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出环境变化容易引起警惕和敏感，应保持环境稳定。"
+        }
+      ]
+    },
+    {
+      "point_name": "睡眠习惯 - 影响睡眠的身体因素",
+      "questions": [
+        {
+          "question_text": "以下哪项**不是**影响1-2岁幼儿睡眠的身体因素？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "太饿或太饱", "is_correct": false},
+            {"option_text": "特殊情况（如长牙）", "is_correct": false},
+            {"option_text": "疾病（如中耳炎）", "is_correct": false},
+            {"option_text": "睡前看电视", "is_correct": true}
+          ],
+          "answer_explanation": "文档列举的身体因素包括饥饱、特殊情况、疾病、营养缺乏、先天不足，睡前看电视属于作息或习惯因素。"
+        },
+        {
+          "question_text": "影响1-2岁幼儿睡眠的身体因素包括？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "先天不足（如早产儿）", "is_correct": true},
+            {"option_text": "太饿或太饱", "is_correct": true},
+            {"option_text": "特殊情况（如长牙、打疫苗）", "is_correct": true},
+            {"option_text": "睡前玩耍过度兴奋", "is_correct": false},
+            {"option_text": "疾病（如胃食管反流、尿路感染）", "is_correct": true}
+          ],
+          "answer_explanation": "文档列举的身体因素包含先天不足、饥饱、特殊情况、疾病等。"
+        },
+        {
+          "question_text": "如果1-2岁幼儿夜间频繁醒来，且伴有牙龈红肿，可能的原因是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "缺钙", "is_correct": false},
+            {"option_text": "长牙", "is_correct": true},
+            {"option_text": "太热", "is_correct": false},
+            {"option_text": "做梦", "is_correct": false}
+          ],
+          "answer_explanation": "文档中“长牙、牙龈红肿”被列为影响睡眠的身体因素中的“特殊情况”。"
+        },
+        {
+          "question_text": "以下哪种疾病可能导致1-2岁幼儿睡眠不好？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "贫血", "is_correct": false},
+            {"option_text": "佝偻病", "is_correct": false},
+            {"option_text": "中耳炎", "is_correct": true},
+            {"option_text": "近视", "is_correct": false}
+          ],
+          "answer_explanation": "文档中“中耳炎”被列为影响睡眠的身体因素中的“疾病”。"
+        },
+        {
+          "question_text": "如果怀疑1-2岁幼儿睡眠不好是由于“太饿或太饱”引起的，家长应该关注？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "白天奶量和辅食摄入是否合理", "is_correct": true},
+            {"option_text": "夜间是否需要加餐", "is_correct": false},
+            {"option_text": "睡前是否喂奶", "is_correct": false},
+            {"option_text": "是否需要更换奶粉品牌", "is_correct": false}
+          ],
+          "answer_explanation": "文档中“太饿或太饱”与白天摄入量不足或吃太饱有关，因此需关注白天饮食。"
+        }
+      ]
+    },
+    {
+      "point_name": "睡眠习惯 - 影响睡眠的作息因素",
+      "questions": [
+        {
+          "question_text": "以下哪项**不是**影响1-2岁幼儿睡眠的作息因素？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "不困", "is_correct": false},
+            {"option_text": "运动量不够", "is_correct": false},
+            {"option_text": "睡前过度刺激", "is_correct": false},
+            {"option_text": "卧室温度过高", "is_correct": true}
+          ],
+          "answer_explanation": "文档列举的作息因素包括不困、运动量、睡前刺激、缺觉、作息不规律，卧室温度属于环境因素。"
+        },
+        {
+          "question_text": "影响1-2岁幼儿睡眠的作息因素包括？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "不困（家长依据时间表安排睡眠）", "is_correct": true},
+            {"option_text": "运动量不够", "is_correct": true},
+            {"option_text": "睡前过度刺激（情绪未平复）", "is_correct": true},
+            {"option_text": "床品材质不舒适", "is_correct": false},
+            {"option_text": "作息不规律（每天睡眠起床时间不固定）", "is_correct": true}
+          ],
+          "answer_explanation": "文档列举的作息因素包含不困、运动量、睡前刺激、作息不规律等。"
+        },
+        {
+          "question_text": "如果1-2岁幼儿睡前过于兴奋，难以入睡，可能的原因是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "运动量不足", "is_correct": false},
+            {"option_text": "睡前过度刺激", "is_correct": true},
+            {"option_text": "缺觉", "is_correct": false},
+            {"option_text": "作息规律", "is_correct": false}
+          ],
+          "answer_explanation": "“睡前过度刺激”是导致睡前兴奋难以入睡的原因之一。"
+        },
+        {
+          "question_text": "为了帮助1-2岁幼儿更好地入睡，以下哪项做法是推荐的？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "睡前进行剧烈运动", "is_correct": false},
+            {"option_text": "睡前看电视或玩电子产品", "is_correct": false},
+            {"option_text": "增加白天的户外活动时间", "is_correct": true},
+            {"option_text": "睡前不安排任何活动", "is_correct": false}
+          ],
+          "answer_explanation": "文档建议“没有充足的户外活动时间”是“不困”的原因之一，增加户外活动有助于睡眠。"
+        },
+        {
+          "question_text": "“缺觉的孩子更有可能过度兴奋”，这说明对于1-2岁睡眠不足的幼儿，首要的解决方法可能是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "先补觉", "is_correct": true},
+            {"option_text": "减少白天小睡", "is_correct": false},
+            {"option_text": "推迟入睡时间", "is_correct": false},
+            {"option_text": "增加睡前活动", "is_correct": false}
+          ],
+          "answer_explanation": "文档建议“缺觉的孩子更有可能过度兴奋，易激惹，考虑先补觉”。"
+        }
+      ]
+    },
+    {
+      "point_name": "睡眠习惯 - 影响睡眠的心理因素",
+      "questions": [
+        {
+          "question_text": "以下哪项属于可能引起1-2岁幼儿睡眠不好的心理因素？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "妈妈上班", "is_correct": true},
+            {"option_text": "卧室光线太亮", "is_correct": false},
+            {"option_text": "床品不舒适", "is_correct": false},
+            {"option_text": "室内噪声", "is_correct": false}
+          ],
+          "answer_explanation": "文档列举的心理因素包括妈妈上班、换照护者、分离焦虑、恐惧睡眠。"
+        },
+        {
+          "question_text": "影响1-2岁幼儿睡眠的心理因素包括？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "妈妈上班", "is_correct": true},
+            {"option_text": "更换照护者", "is_correct": true},
+            {"option_text": "分离焦虑", "is_correct": true},
+            {"option_text": "室内温度过高", "is_correct": false},
+            {"option_text": "睡前吃太饱", "is_correct": false}
+          ],
+          "answer_explanation": "文档列举的心理因素包含妈妈上班、换照护者、分离焦虑等。"
+        },
+        {
+          "question_text": "“分离焦虑”是1-2岁幼儿常见的心理现象，它可能导致？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "食欲旺盛", "is_correct": false},
+            {"option_text": "睡眠不好", "is_correct": true},
+            {"option_text": "性格外向", "is_correct": false},
+            {"option_text": "运动能力增强", "is_correct": false}
+          ],
+          "answer_explanation": "文档中“分离焦虑”被列为影响睡眠的心理因素之一。"
+        },
+        {
+          "question_text": "如果发现1-2岁幼儿最近开始出现睡眠不好，且恰逢更换了照护者，可能的原因是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "更换照护者带来的心理压力", "is_correct": true},
+            {"option_text": "新照护者照顾不周", "is_correct": false},
+            {"option_text": "环境变化", "is_correct": false},
+            {"option_text": "疾病", "is_correct": false}
+          ],
+          "answer_explanation": "“更换照护者”是可能引起睡眠不好的心理因素。"
+        },
+        {
+          "question_text": "为了缓解妈妈上班可能给1-2岁幼儿带来的睡眠问题，以下哪项做法是重要的？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "延长妈妈的产假", "is_correct": false},
+            {"option_text": "完全由爸爸照顾孩子", "is_correct": false},
+            {"option_text": "给予孩子更多的安全感和关爱", "is_correct": true},
+            {"option_text": "减少孩子的睡眠时间", "is_correct": false}
+          ],
+          "answer_explanation": "妈妈上班是心理因素，需要通过安全感和关爱来缓解心理压力，从而改善睡眠。"
+        }
+      ]
+    },
+    {
+      "point_name": "睡眠习惯 - 不良入睡习惯",
+      "questions": [
+        {
+          "question_text": "以下哪项属于1-2岁幼儿常见的不良入睡习惯？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "奶睡", "is_correct": true},
+            {"option_text": "自主入睡", "is_correct": false},
+            {"option_text": "规律作息", "is_correct": false},
+            {"option_text": "睡前听故事", "is_correct": false}
+          ],
+          "answer_explanation": "文档列举的不良入睡习惯包括奶睡、抱睡。"
+        },
+        {
+          "question_text": "1-2岁幼儿常见的不良入睡习惯包括？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "奶睡", "is_correct": true},
+            {"option_text": "抱睡", "is_correct": true},
+            {"option_text": "自主入睡", "is_correct": false},
+            {"option_text": "规律小睡", "is_correct": false},
+            {"option_text": "睡前仪式", "is_correct": false}
+          ],
+          "answer_explanation": "文档列举的不良入睡习惯是奶睡和抱睡。"
+        },
+        {
+          "question_text": "“奶睡”这种不良入睡习惯指的是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "睡前喝奶", "is_correct": false},
+            {"option_text": "含着奶嘴或奶瓶入睡", "is_correct": true},
+            {"option_text": "睡醒后喝奶", "is_correct": false},
+            {"option_text": "白天喝奶睡觉", "is_correct": false}
+          ],
+          "answer_explanation": "“奶睡”指的是含着奶嘴或奶瓶入睡的习惯。"
+        },
+        {
+          "question_text": "长期“抱睡”可能给1-2岁幼儿带来的负面影响是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "难以自主入睡", "is_correct": true},
+            {"option_text": "睡眠时间过长", "is_correct": false},
+            {"option_text": "容易深度睡眠", "is_correct": false},
+            {"option_text": "促进亲子关系", "is_correct": false}
+          ],
+          "answer_explanation": "不良入睡习惯如抱睡，会导致孩子依赖抱睡，难以自主入睡。"
+        },
+        {
+          "question_text": "为了纠正1-2岁幼儿的不良入睡习惯，家长需要？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "立即完全停止奶睡或抱睡", "is_correct": false},
+            {"option_text": "偶尔允许奶睡或抱睡", "is_correct": false},
+            {"option_text": "逐步引导孩子自主入睡", "is_correct": true},
+            {"option_text": "接受孩子奶睡或抱睡的习惯", "is_correct": false}
+          ],
+          "answer_explanation": "纠正不良习惯需要逐步引导，而非立即停止，给孩子适应过程。"
+        }
+      ]
+    },
+    {
+      "point_name": "良好习惯的培养 - 睡眠习惯",
+      "questions": [
+        {
+          "question_text": "为了培养1-2岁幼儿良好的睡眠习惯，最重要的是建立？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "规律作息", "is_correct": true},
+            {"option_text": "安静的睡眠环境", "is_correct": false},
+            {"option_text": "舒适的床品", "is_correct": false},
+            {"option_text": "睡前仪式", "is_correct": false}
+          ],
+          "answer_explanation": "文档在“睡眠习惯”部分强调了“睡眠规律”。"
+        },
+        {
+          "question_text": "“规律作息”对于1-2岁幼儿的睡眠习惯培养至关重要，这意味着？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "每天睡眠时间必须完全一致", "is_correct": false},
+            {"option_text": "每天在相对固定的时间睡眠和起床", "is_correct": true},
+            {"option_text": "周末可以打破作息规律", "is_correct": false},
+            {"option_text": "作息时间完全按照家长意愿安排", "is_correct": false}
+          ],
+          "answer_explanation": "规律作息指的是在“相对固定”的时间睡眠和起床，而非完全一致或家长单方面决定。"
+        },
+        {
+          "question_text": "以下哪项做法有助于1-2岁幼儿建立规律的睡眠作息？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "每天睡到自然醒", "is_correct": false},
+            {"option_text": "周末晚睡晚起", "is_correct": false},
+            {"option_text": "每天在相对固定的时间安排小睡和夜间睡眠", "is_correct": true},
+            {"option_text": "根据家长的时间安排孩子睡眠", "is_correct": false}
+          ],
+          "answer_explanation": "规律作息需要每天在固定时间安排睡眠，包括小睡和夜间睡眠。"
+        },
+        {
+          "question_text": "如果1-2岁幼儿的作息不规律，可能会导致？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "睡眠质量下降，出现睡眠问题", "is_correct": true},
+            {"option_text": "食欲增加，体重增长过快", "is_correct": false},
+            {"option_text": "性格变得开朗外向", "is_correct": false},
+            {"option_text": "运动能力增强", "is_correct": false}
+          ],
+          "answer_explanation": "文档中“作息不规律”被列为影响睡眠的作息因素之一，会导致睡眠问题。"
+        },
+        {
+          "question_text": "培养1-2岁幼儿良好睡眠习惯的关键在于？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "购买昂贵的床品", "is_correct": false},
+            {"option_text": "坚持规律的作息时间", "is_correct": true},
+            {"option_text": "营造绝对安静的睡眠环境", "is_correct": false},
+            {"option_text": "睡前进行长时间的亲子互动", "is_correct": false}
+          ],
+          "answer_explanation": "良好睡眠习惯培养的关键在于“规律的作息时间”。"
+        }
+      ]
+    },
+    {
+      "point_name": "良好习惯的培养 - 喂养习惯",
+      "questions": [
+        {
+          "question_text": "为了培养1-2岁幼儿良好的喂养习惯，以下哪两点是核心要素？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "自主进餐", "is_correct": true},
+            {"option_text": "餐桌礼仪", "is_correct": true},
+            {"option_text": "追逐喂食", "is_correct": false},
+            {"option_text": "零食奖励", "is_correct": false},
+            {"option_text": "边玩边吃", "is_correct": false}
+          ],
+          "answer_explanation": "文档在“喂养习惯”部分强调了“自主进餐”和“餐桌礼仪”。"
+        },
+        {
+          "question_text": "“自主进餐”这种良好喂养习惯的核心在于？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "让孩子自己决定吃多少", "is_correct": true},
+            {"option_text": "家长完全不干预喂食过程", "is_correct": false},
+            {"option_text": "孩子可以随意选择食物", "is_correct": false},
+            {"option_text": "鼓励孩子快速吃完饭", "is_correct": false}
+          ],
+          "answer_explanation": "自主进餐的核心是“让孩子自己选择吃多少”，尊重孩子的食量。"
+        },
+        {
+          "question_text": "为了培养1-2岁幼儿的自主进餐习惯，家长应该？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "强迫孩子吃完碗里的饭", "is_correct": false},
+            {"option_text": "提供适合孩子抓握的餐具", "is_correct": true},
+            {"option_text": "总是喂孩子吃饭", "is_correct": false},
+            {"option_text": "用零食奖励孩子自己吃饭的行为", "is_correct": false}
+          ],
+          "answer_explanation": "提供合适的餐具是帮助孩子实现自主进餐的措施之一。"
+        },
+        {
+          "question_text": "“餐桌礼仪”是良好喂养习惯的重要组成部分，以下哪些属于餐桌礼仪的范畴？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "吃饭时不大声喧哗", "is_correct": true},
+            {"option_text": "不随意扔餐具", "is_correct": true},
+            {"option_text": "饭后收拾餐具", "is_correct": true},
+            {"option_text": "只吃自己喜欢的食物", "is_correct": false},
+            {"option_text": "边看电视边吃饭", "is_correct": false}
+          ],
+          "answer_explanation": "餐桌礼仪包括安静进餐、不扔餐具、饭后收拾等文明行为。"
+        },
+        {
+          "question_text": "培养1-2岁幼儿餐桌礼仪，需要家长？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "严厉训斥孩子的不当行为", "is_correct": false},
+            {"option_text": "完全放任孩子在餐桌上的行为", "is_correct": false},
+            {"option_text": "以身作则，做好榜样", "is_correct": true},
+            {"option_text": "用物质奖励孩子遵守餐桌礼仪的行为", "is_correct": false}
+          ],
+          "answer_explanation": "餐桌礼仪的培养需要家长以身作则，言传身教。"
+        }
+      ]
+    },
+    {
+      "point_name": "拖延入睡 - 原因",
+      "questions": [
+        {
+          "question_text": "以下哪项是1-2岁幼儿拖延入睡的常见原因？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "孩子不愿意从精彩的白天进入到乏味的睡眠中", "is_correct": true},
+            {"option_text": "孩子白天睡得太多", "is_correct": false},
+            {"option_text": "孩子身体不舒服", "is_correct": false},
+            {"option_text": "孩子卧室温度过低", "is_correct": false}
+          ],
+          "answer_explanation": "文档中拖延入睡的原因之一是“孩子不愿意从精彩的白天进入到乏味的睡眠中”。"
+        },
+        {
+          "question_text": "导致1-2岁幼儿拖延入睡的常见原因还包括？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "白天运动量过大", "is_correct": false},
+            {"option_text": "过了困点没有及时入睡，反而更精神", "is_correct": true},
+            {"option_text": "睡前喝太多水", "is_correct": false},
+            {"option_text": "卧室光线太暗", "is_correct": false}
+          ],
+          "answer_explanation": "文档中拖延入睡的另一个原因是“过了困点没有入睡，到了夜间反而越来越精神”。"
+        },
+        {
+          "question_text": "“孩子不愿意从精彩的白天进入到乏味的睡眠中”这种拖延入睡的原因，反映了孩子？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "生理节律紊乱", "is_correct": false},
+            {"option_text": "睡眠需求减少", "is_correct": false},
+            {"option_text": "对睡眠的抗拒心理", "is_correct": true},
+            {"option_text": "精力过于旺盛", "is_correct": false}
+          ],
+          "answer_explanation": "不愿意睡觉体现了孩子对睡眠的抗拒心理。"
+        },
+        {
+          "question_text": "如果发现1-2岁幼儿经常过了晚上9点还很精神，不愿睡觉，可能的原因是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "孩子睡眠时间充足", "is_correct": false},
+            {"option_text": "孩子错过了最佳入睡时间", "is_correct": true},
+            {"option_text": "孩子白天睡得太少", "is_correct": false},
+            {"option_text": "孩子对睡眠环境不满意", "is_correct": false}
+          ],
+          "answer_explanation": "“过了困点没有入睡，到了夜间反而越来越精神”解释了晚间精神的原因。"
+        },
+        {
+          "question_text": "了解1-2岁幼儿拖延入睡的原因，有助于家长？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "采取针对性的方法帮助孩子入睡", "is_correct": true},
+            {"option_text": "严厉批评孩子的拖延行为", "is_correct": false},
+            {"option_text": "强迫孩子按时睡觉", "is_correct": false},
+            {"option_text": "忽略孩子的拖延行为", "is_correct": false}
+          ],
+          "answer_explanation": "了解原因是为了采取更有效的解决策略，而非批评或强迫。"
+        }
+      ]
+    },
+    {
+      "point_name": "拖延入睡 - 处理方法",
+      "questions": [
+        {
+          "question_text": "针对1-2岁幼儿拖延入睡的问题，以下哪项处理方法是推荐的？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "帮孩子舒缓情绪，理解和接受睡觉时间到了", "is_correct": true},
+            {"option_text": "责骂孩子不听话，浪费时间", "is_correct": false},
+            {"option_text": "强制关灯，让孩子自己睡觉", "is_correct": false},
+            {"option_text": "忽略孩子的拖延行为，让孩子玩到困", "is_correct": false}
+          ],
+          "answer_explanation": "文档建议的处理方法之一是“帮孩子舒缓情绪，让孩子理解和接受睡觉的时间到了”。"
+        },
+        {
+          "question_text": "为了帮助1-2岁幼儿克服拖延入睡，可以尝试制作“睡前清单”，清单的内容可以是？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "洗温水澡", "is_correct": true},
+            {"option_text": "哄玩具熊睡觉", "is_correct": true},
+            {"option_text": "一起读绘本", "is_correct": true},
+            {"option_text": "玩电子游戏", "is_correct": false},
+            {"option_text": "吃零食", "is_correct": false}
+          ],
+          "answer_explanation": "文档建议的清单内容包括洗澡、哄玩具、读绘本等睡前准备活动。"
+        },
+        {
+          "question_text": "“睡前100%用心的陪伴”对于解决1-2岁幼儿拖延入睡问题非常重要，这意味着？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "陪伴时间越长越好", "is_correct": false},
+            {"option_text": "陪伴时要专注，不分心", "is_correct": true},
+            {"option_text": "陪伴时可以做其他家务", "is_correct": false},
+            {"option_text": "陪伴时可以玩手机", "is_correct": false}
+          ],
+          "answer_explanation": "“100%用心”强调陪伴的质量和专注度，而非时长。"
+        },
+        {
+          "question_text": "如果1-2岁幼儿睡前总是通过各种行为“折腾”家长，例如反复要求喝水、上厕所，这可能是孩子在？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "故意捣乱", "is_correct": false},
+            {"option_text": "真的有生理需求", "is_correct": false},
+            {"option_text": "寻求家长的陪伴和关注", "is_correct": true},
+            {"option_text": "表达不满情绪", "is_correct": false}
+          ],
+          "answer_explanation": "文档分析孩子“折腾”行为可能是为了实现“照护者陪伴的目的”。"
+        },
+        {
+          "question_text": "为了避免1-2岁幼儿拖延入睡，家长可以“外界提醒和发挥自控能力双管齐下”，以下哪些做法属于这种策略？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "提前准备入睡，预留缓冲时间", "is_correct": true},
+            {"option_text": "多给孩子一些选择和自主权（如选睡前读物）", "is_correct": true},
+            {"option_text": "及时赞美肯定孩子的配合行为", "is_correct": true},
+            {"option_text": "强迫孩子立即睡觉", "is_correct": false},
+            {"option_text": "忽略孩子的自主意愿", "is_correct": false}
+          ],
+          "answer_explanation": "文档建议的“外界提醒和自控力结合”方法包括提前准备、给选择权、及时赞美等。"
+        }
+      ]
+    },
+    {
+      "point_name": "夜醒问题 - 原因",
+      "questions": [
+        {
+          "question_text": "以下哪项是1-2岁幼儿夜醒的常见原因？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "白天睡太多，运动量不够", "is_correct": true},
+            {"option_text": "夜间环境太安静", "is_correct": false},
+            {"option_text": "睡前喝太多水", "is_correct": false},
+            {"option_text": "床品太硬", "is_correct": false}
+          ],
+          "answer_explanation": "文档中夜醒原因之一是“白天睡太多，运动量不够”。"
+        },
+        {
+          "question_text": "导致1-2岁幼儿夜醒的常见原因还包括？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "白天运动量过大", "is_correct": false},
+            {"option_text": "更换环境，不适应新环境", "is_correct": true},
+            {"option_text": "睡前吃太多零食", "is_correct": false},
+            {"option_text": "卧室温度过低", "is_correct": false}
+          ],
+          "answer_explanation": "文档中夜醒原因还包括“更换环境”。"
+        },
+        {
+          "question_text": "“白天睡太多，运动量不够”导致夜醒的原因是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "孩子白天精力不足", "is_correct": false},
+            {"option_text": "孩子白天睡眠质量差", "is_correct": false},
+            {"option_text": "昼夜节律紊乱，白天睡得多晚上睡不实", "is_correct": true},
+            {"option_text": "孩子白天缺乏安全感", "is_correct": false}
+          ],
+          "answer_explanation": "白天睡太多会影响夜间睡眠，导致昼夜节律紊乱。"
+        },
+        {
+          "question_text": "“夜间互动刺激过多”也可能导致1-2岁幼儿夜醒，这里的“互动刺激”指的是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "夜间喂奶", "is_correct": false},
+            {"option_text": "夜间频繁的安抚和回应", "is_correct": true},
+            {"option_text": "夜间更换尿布", "is_correct": false},
+            {"option_text": "夜间开灯", "is_correct": false}
+          ],
+          "answer_explanation": "文档中“夜间互动刺激过多”指的是夜间频繁的干预行为。"
+        },
+        {
+          "question_text": "“习惯性夜醒”是指1-2岁幼儿？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "长期形成的夜间醒来习惯", "is_correct": true},
+            {"option_text": "偶尔一次夜间醒来", "is_correct": false},
+            {"option_text": "生病引起的夜间醒来", "is_correct": false},
+            {"option_text": "做梦导致的夜间醒来", "is_correct": false}
+          ],
+          "answer_explanation": "“习惯性夜醒”指的是长期形成的夜间醒来习惯，需要调整作息。"
+        }
+      ]
+    },
+    {
+      "point_name": "夜醒问题 - 解决方法",
+      "questions": [
+        {
+          "question_text": "针对1-2岁幼儿因“白天睡太多，运动量不够”导致的夜醒，以下哪种解决方法是推荐的？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "增加白天运动量，减少被动逗乐", "is_correct": true},
+            {"option_text": "减少白天小睡时间", "is_correct": false},
+            {"option_text": "推迟夜间入睡时间", "is_correct": false},
+            {"option_text": "夜间频繁安抚", "is_correct": false}
+          ],
+          "answer_explanation": "针对“白天睡太多，运动量不够”的原因，解决方法是“增加白天运动量”。"
+        },
+        {
+          "question_text": "为了解决因“更换环境”引起的1-2岁幼儿夜醒问题，应该？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "频繁更换环境，让孩子适应", "is_correct": false},
+            {"option_text": "保持生活环境相对稳定", "is_correct": true},
+            {"option_text": "在任何环境下都进行睡眠训练", "is_correct": false},
+            {"option_text": "忽略环境变化的影响", "is_correct": false}
+          ],
+          "answer_explanation": "针对“更换环境”的原因，解决方法是“保持生活环境相对稳定”。"
+        },
+        {
+          "question_text": "针对“夜间互动刺激过多”导致的夜醒，以下哪种做法是推荐的？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "夜间频繁安抚孩子", "is_correct": false},
+            {"option_text": "夜间与孩子玩耍互动", "is_correct": false},
+            {"option_text": "最好的干预就是装睡不干预", "is_correct": true},
+            {"option_text": "夜间开灯观察孩子情况", "is_correct": false}
+          ],
+          "answer_explanation": "针对“夜间互动刺激过多”的原因，解决方法是“装睡不干预”，减少刺激。"
+        },
+        {
+          "question_text": "如果1-2岁幼儿是“习惯性夜醒”，需要？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "忽略夜醒行为，等待自行消失", "is_correct": false},
+            {"option_text": "对整个作息习惯进行综合调整", "is_correct": true},
+            {"option_text": "夜间频繁喂奶安抚", "is_correct": false},
+            {"option_text": "强迫孩子夜间不醒来", "is_correct": false}
+          ],
+          "answer_explanation": "“习惯性夜醒”需要“对整个作息习惯调整”，包括活动量、入睡方式等。"
+        },
+        {
+          "question_text": "针对“夜惊做梦”引起的夜醒，文档建议的处理方式是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "先观察，看孩子能否自行入睡，不能再叫醒安抚", "is_correct": true},
+            {"option_text": "立即叫醒孩子，安抚情绪", "is_correct": false},
+            {"option_text": "忽略夜惊，等待自行消失", "is_correct": false},
+            {"option_text": "记录夜惊频率，寻求医生帮助", "is_correct": false}
+          ],
+          "answer_explanation": "文档建议夜惊时“先不要干预，看孩子能否自己入睡，若不能再叫醒，重新哄睡”。"
+        }
+      ]
+    },
+    {
+      "point_name": "早教的体现方面 - 大动作",
+      "questions": [
+        {
+          "question_text": "以下哪项**不是**1-2岁幼儿早教中体现的大动作发展方面？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "走", "is_correct": false},
+            {"option_text": "跑", "is_correct": false},
+            {"option_text": "上下楼梯", "is_correct": false},
+            {"option_text": "精细的抓握", "is_correct": true}
+          ],
+          "answer_explanation": "文档中大动作包括走、跑、上下楼梯、跳，精细抓握属于精细动作。"
+        },
+        {
+          "question_text": "1-2岁幼儿早教中体现的大动作发展方面包括？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "走", "is_correct": true},
+            {"option_text": "跑", "is_correct": true},
+            {"option_text": "跳", "is_correct": true},
+            {"option_text": "语言表达", "is_correct": false},
+            {"option_text": "认知理解", "is_correct": false}
+          ],
+          "answer_explanation": "文档列举的大动作发展方面包括走、跑、跳等运动技能。"
+        },
+        {
+          "question_text": "1-2岁幼儿“走”的大动作发展目标通常包括？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "能独立走稳", "is_correct": true},
+            {"option_text": "能单脚跳", "is_correct": false},
+            {"option_text": "能倒退跑", "is_correct": false},
+            {"option_text": "能跳绳", "is_correct": false}
+          ],
+          "answer_explanation": "1-2岁大动作发展目标包括“走”，目标是“能独立走稳”。"
+        },
+        {
+          "question_text": "1-2岁幼儿“上下楼梯”的大动作发展目标通常是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "能独立快速上下楼梯", "is_correct": false},
+            {"option_text": "能扶着大人手上下楼梯", "is_correct": true},
+            {"option_text": "能单手扶栏杆上下楼梯", "is_correct": false},
+            {"option_text": "能背着书包上下楼梯", "is_correct": false}
+          ],
+          "answer_explanation": "1-2岁大动作发展目标包括“上下楼梯”，目标是“扶着大人手上下楼梯”。"
+        },
+        {
+          "question_text": "1-2岁幼儿“跳”的大动作发展通常是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "能双脚连续跳跃", "is_correct": false},
+            {"option_text": "能单脚跳跃", "is_correct": false},
+            {"option_text": "开始学跳", "is_correct": true},
+            {"option_text": "能跳过障碍物", "is_correct": false}
+          ],
+          "answer_explanation": "1-2岁大动作发展目标包括“跳”，目标是“开始学跳”。"
+        }
+      ]
+    },
+    {
+      "point_name": "早教的体现方面 - 精细动作",
+      "questions": [
+        {
+          "question_text": "以下哪项**不是**1-2岁幼儿早教中体现的精细动作发展方面？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "随意涂鸦", "is_correct": false},
+            {"option_text": "贴画", "is_correct": false},
+            {"option_text": "搭积木", "is_correct": false},
+            {"option_text": "跑和跳", "is_correct": true}
+          ],
+          "answer_explanation": "文档中精细动作包括涂鸦、贴画、积木，跑跳属于大动作。"
+        },
+        {
+          "question_text": "1-2岁幼儿早教中体现的精细动作发展方面包括？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "随意涂鸦", "is_correct": true},
+            {"option_text": "贴画", "is_correct": true},
+            {"option_text": "搭积木", "is_correct": true},
+            {"option_text": "语言表达", "is_correct": false},
+            {"option_text": "社交交往", "is_correct": false}
+          ],
+          "answer_explanation": "文档列举的精细动作发展方面包括涂鸦、贴画、积木等手部精细活动。"
+        },
+        {
+          "question_text": "1-2岁幼儿“随意涂鸦”的精细动作发展目标通常是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "能用笔在纸上乱画", "is_correct": true},
+            {"option_text": "能画出简单的图形", "is_correct": false},
+            {"option_text": "能临摹复杂的图案", "is_correct": false},
+            {"option_text": "能写自己的名字", "is_correct": false}
+          ],
+          "answer_explanation": "1-2岁精细动作发展目标包括“涂鸦”，目标是“随意涂鸦”。"
+        },
+        {
+          "question_text": "1-2岁幼儿“贴画”的精细动作发展目标是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "能用剪刀剪出图案", "is_correct": false},
+            {"option_text": "能将贴纸粘贴到指定位置", "is_correct": true},
+            {"option_text": "能画出贴画的轮廓", "is_correct": false},
+            {"option_text": "能设计复杂的贴画作品", "is_correct": false}
+          ],
+          "answer_explanation": "1-2岁精细动作发展目标包括“贴画”，目标是能完成简单的粘贴动作。"
+        },
+        {
+          "question_text": "1-2岁幼儿“搭积木”的精细动作发展目标通常是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "能搭建复杂的建筑模型", "is_correct": false},
+            {"option_text": "能独立完成积木作品", "is_correct": false},
+            {"option_text": "能用积木进行简单的堆叠", "is_correct": true},
+            {"option_text": "能按图纸搭建积木", "is_correct": false}
+          ],
+          "answer_explanation": "1-2岁精细动作发展目标包括“积木”，目标是简单的堆叠，如两三块积木。"
+        }
+      ]
+    },
+    {
+      "point_name": "早教的体现方面 - 认知",
+      "questions": [
+        {
+          "question_text": "1-2岁幼儿的认知发展主要通过哪些感觉器官进行？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "视觉", "is_correct": true},
+            {"option_text": "味觉", "is_correct": true},
+            {"option_text": "听觉", "is_correct": true},
+            {"option_text": "触觉", "is_correct": true},
+            {"option_text": "嗅觉", "is_correct": true}
+          ],
+          "answer_explanation": "文档指出认知发展由“视觉、味觉、听觉、触觉、嗅觉”等一系列能力组成。"
+        },
+        {
+          "question_text": "1-2岁幼儿认知发展的核心途径是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "感觉和感知", "is_correct": true},
+            {"option_text": "逻辑推理", "is_correct": false},
+            {"option_text": "抽象思维", "is_correct": false},
+            {"option_text": "语言交流", "is_correct": false}
+          ],
+          "answer_explanation": "文档明确指出感觉是孩子最初认识世界的途径。"
+        },
+        {
+          "question_text": "通过“视觉”进行认知发展，1-2岁幼儿主要学习？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "辨别声音", "is_correct": false},
+            {"option_text": "观察颜色和形状", "is_correct": true},
+            {"option_text": "品尝味道", "is_correct": false},
+            {"option_text": "感受质地", "is_correct": false}
+          ],
+          "answer_explanation": "视觉认知主要通过观察颜色、形状等视觉信息。"
+        },
+        {
+          "question_text": "通过“触觉”进行认知发展，1-2岁幼儿主要学习？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "听辨声音", "is_correct": false},
+            {"option_text": "识别颜色", "is_correct": false},
+            {"option_text": "感知物体材质和温度", "is_correct": true},
+            {"option_text": "分辨气味", "is_correct": false}
+          ],
+          "answer_explanation": "触觉认知主要通过感知物体材质、温度等触觉信息。"
+        },
+        {
+          "question_text": "1-2岁幼儿的认知发展是一个？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "系列能力发展组成的综合过程", "is_correct": true},
+            {"option_text": "单一能力发展的线性过程", "is_correct": false},
+            {"option_text": "以语言发展为主导的过程", "is_correct": false},
+            {"option_text": "以运动发展为主导的过程", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出认知发展是“由一系列发展能力组成的”。"
+        }
+      ]
+    },
+    {
+      "point_name": "早教的体现方面 - 语言",
+      "questions": [
+        {
+          "question_text": "1-2岁幼儿语言发展通常经历哪三个阶段？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "语音", "is_correct": true},
+            {"option_text": "理解", "is_correct": true},
+            {"option_text": "表达", "is_correct": true},
+            {"option_text": "书写", "is_correct": false},
+            {"option_text": "阅读", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出语言发展经历“语音、理解、表达”三个阶段。"
+        },
+        {
+          "question_text": "1-1.5岁幼儿的语言发展处于“被动的”言语活动期，这个阶段的特点是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "听得多、说得少、理解多、表达少", "is_correct": true},
+            {"option_text": "说得多、听得少、理解少、表达多", "is_correct": false},
+            {"option_text": "听说读写能力均衡发展", "is_correct": false},
+            {"option_text": "完全不会说话", "is_correct": false}
+          ],
+          "answer_explanation": "文档描述“被动的”言语活动期特点是“听的多、说的少、理解多、表达少”。"
+        },
+        {
+          "question_text": "在1-1.5岁“被动的”言语活动期，幼儿的语言表达方式常常是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "长句子", "is_correct": false},
+            {"option_text": "以词代句", "is_correct": true},
+            {"option_text": "流利的对话", "is_correct": false},
+            {"option_text": "书面表达", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出此阶段“以词代句，一词多意”。"
+        },
+        {
+          "question_text": "1.5-2岁幼儿的语言发展从“被动”转向“主动”的言语活动期，这个转变的关键期是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "12个月", "is_correct": false},
+            {"option_text": "15个月", "is_correct": false},
+            {"option_text": "18个月", "is_correct": true},
+            {"option_text": "24个月", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出“18个月是婴幼儿口头语言开始发展、形成的关键期”。"
+        },
+        {
+          "question_text": "在1.5-2岁“主动的”言语活动期，幼儿的语言表达特点是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "会说小短句，开始与人交流", "is_correct": true},
+            {"option_text": "只会说单词，不会连句成段", "is_correct": false},
+            {"option_text": "语言发展停滞不前", "is_correct": false},
+            {"option_text": "完全理解复杂的语言指令", "is_correct": false}
+          ],
+          "answer_explanation": "文档描述此阶段“会说小短句”，“开始学会与人交流”。"
+        }
+      ]
+    },
+    {
+      "point_name": "早教的体现方面 - 社交",
+      "questions": [
+        {
+          "question_text": "1-2岁幼儿的社交发展主要体现在哪些方面？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "对小伙伴感兴趣，喜欢一起玩", "is_correct": true},
+            {"option_text": "产生独立心理，喜欢自己做事", "is_correct": true},
+            {"option_text": "能按照成人的指示做事", "is_correct": true},
+            {"option_text": "完全听从父母的安排", "is_correct": false},
+            {"option_text": "对陌生人表现友好", "is_correct": false}
+          ],
+          "answer_explanation": "文档列举的社交发展方面包括对伙伴感兴趣、独立心理、按指示做事、初步是非观。"
+        },
+        {
+          "question_text": "1-2岁幼儿“对小伙伴感兴趣，喜欢和小伙伴玩”的社交特点，体现了？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "竞争意识萌发", "is_correct": false},
+            {"option_text": "社交意识初步发展", "is_correct": true},
+            {"option_text": "独立意识增强", "is_correct": false},
+            {"option_text": "语言表达能力提高", "is_correct": false}
+          ],
+          "answer_explanation": "喜欢和小伙伴玩体现了社交意识的初步发展。"
+        },
+        {
+          "question_text": "1-2岁幼儿“产生独立心理，什么事情都喜欢自己做”的社交特点，实际上是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "叛逆行为的表现", "is_correct": false},
+            {"option_text": "社交障碍的表现", "is_correct": false},
+            {"option_text": "自我意识发展的体现", "is_correct": true},
+            {"option_text": "认知能力提高的表现", "is_correct": false}
+          ],
+          "answer_explanation": "独立心理是自我意识发展的体现，也影响着社交行为。"
+        },
+        {
+          "question_text": "1-2岁幼儿“能按照成人的指示做事”的社交能力，反映了？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "规则意识开始建立", "is_correct": true},
+            {"option_text": "语言理解能力提高", "is_correct": false},
+            {"option_text": "运动协调能力增强", "is_correct": false},
+            {"option_text": "模仿能力增强", "is_correct": false}
+          ],
+          "answer_explanation": "按指示做事反映了规则意识的初步建立，是社交规范的基础。"
+        },
+        {
+          "question_text": "1-2岁幼儿“有初步的是非观念”的社交特点，意味着孩子开始？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "完全区分对错", "is_correct": false},
+            {"option_text": "萌发道德意识的萌芽", "is_correct": true},
+            {"option_text": "完全遵守社会规则", "is_correct": false},
+            {"option_text": "能够理性判断是非", "is_correct": false}
+          ],
+          "answer_explanation": "初步是非观念是道德意识的萌芽阶段，而非完全理性判断。"
+        }
+      ]
+    },
+    {
+      "point_name": "早教详细标准 - 大动作 (13～15 个月)",
+      "questions": [
+        {
+          "question_text": "根据文档，13～15个月幼儿的大动作发展标准是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "能独立走稳", "is_correct": true},
+            {"option_text": "能跑得很稳", "is_correct": false},
+            {"option_text": "能单脚跳", "is_correct": false},
+            {"option_text": "能扶栏杆上楼梯", "is_correct": false}
+          ],
+          "answer_explanation": "文档中13-15个月大动作标准是“能独立走稳”。"
+        },
+        {
+          "question_text": "大约在15个月时，幼儿在“上下楼梯”方面的大动作发展标准是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "能独立上下楼梯", "is_correct": false},
+            {"option_text": "可以扶着大人手上下楼梯", "is_correct": true},
+            {"option_text": "能扶栏杆自己上下楼梯", "is_correct": false},
+            {"option_text": "完全不会上下楼梯", "is_correct": false}
+          ],
+          "answer_explanation": "文档中15个月左右大动作标准是“可以扶着大人手上下楼梯”。"
+        },
+        {
+          "question_text": "“能独立走稳”是哪个年龄段幼儿的大动作发展标准？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "13～15个月", "is_correct": true},
+            {"option_text": "16～18个月", "is_correct": false},
+            {"option_text": "19～21个月", "is_correct": false},
+            {"option_text": "22～24个月", "is_correct": false}
+          ],
+          "answer_explanation": "文档中“能独立走稳”是13-15个月的大动作标准。"
+        },
+        {
+          "question_text": "如果14个月的幼儿还不能独立行走，家长应该？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "强迫孩子练习走路", "is_correct": false},
+            {"option_text": "完全不干预，等待自然发展", "is_correct": false},
+            {"option_text": "关注孩子发展情况，必要时咨询专业人士", "is_correct": true},
+            {"option_text": "与其他孩子比较，施加压力", "is_correct": false}
+          ],
+          "answer_explanation": "发育有差异，需要关注但不必过度焦虑，必要时咨询专业人士。"
+        },
+        {
+          "question_text": "13～15个月幼儿的大动作发展主要集中在？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "独立行走和初步的楼梯探索", "is_correct": true},
+            {"option_text": "跑和跳跃", "is_correct": false},
+            {"option_text": "精细的手部动作", "is_correct": false},
+            {"option_text": "语言表达能力", "is_correct": false}
+          ],
+          "answer_explanation": "13-15个月大动作发展主要在独立行走和初步楼梯探索。"
+        }
+      ]
+    },
+    {
+      "point_name": "早教详细标准 - 大动作 (16～18 个月)",
+      "questions": [
+        {
+          "question_text": "根据文档，16～18个月幼儿在“行走”方面的大动作发展标准是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "走得很稳，能蹲下捡东西后站起来走", "is_correct": true},
+            {"option_text": "能独立走稳，但容易摔跤", "is_correct": false},
+            {"option_text": "开始尝试独立行走", "is_correct": false},
+            {"option_text": "只能扶着物体行走", "is_correct": false}
+          ],
+          "answer_explanation": "文档中16-18个月大动作标准是“走得很稳，能蹲下捡东西后，接着站起来再走，很少摔跤”。"
+        },
+        {
+          "question_text": "16～18个月幼儿在“跑步”方面的大动作发展标准是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "能跑得很快且稳", "is_correct": false},
+            {"option_text": "开始学跑", "is_correct": true},
+            {"option_text": "能双脚并拢跳跃", "is_correct": false},
+            {"option_text": "能单脚跳跃", "is_correct": false}
+          ],
+          "answer_explanation": "文档中16-18个月大动作标准是“开始学跑”。"
+        },
+        {
+          "question_text": "“可抬脚踢球”是哪个年龄段幼儿的大动作发展标准？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "16～18个月", "is_correct": true},
+            {"option_text": "13～15个月", "is_correct": false},
+            {"option_text": "19～21个月", "is_correct": false},
+            {"option_text": "22～24个月", "is_correct": false}
+          ],
+          "answer_explanation": "文档中“可抬脚踢球”是16-18个月的大动作标准。"
+        },
+        {
+          "question_text": "16～18个月幼儿在“楼梯”方面的大动作能力是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "能独立上下楼梯", "is_correct": false},
+            {"option_text": "能扶着大人手上下楼梯", "is_correct": false},
+            {"option_text": "扶栏杆可以上几步楼梯", "is_correct": true},
+            {"option_text": "完全不会上下楼梯", "is_correct": false}
+          ],
+          "answer_explanation": "文档中16-18个月大动作标准是“扶栏杆可以上几步楼梯”。"
+        },
+        {
+          "question_text": "以下哪些大动作技能是16～18个月幼儿应该掌握的？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "走得很稳，蹲下捡东西再站起", "is_correct": true},
+            {"option_text": "可抬脚踢球", "is_correct": true},
+            {"option_text": "开始学跑", "is_correct": true},
+            {"option_text": "能独立上下楼梯", "is_correct": false},
+            {"option_text": "能单脚跳跃", "is_correct": false}
+          ],
+          "answer_explanation": "文档中16-18个月大动作标准包括走稳、踢球、学跑、扶栏杆上楼梯等，但独立上下楼梯和单脚跳跃是更晚阶段的目标。"
+        }
+      ]
+    },
+    {
+      "point_name": "早教详细标准 - 大动作 (19～21 个月)",
+      "questions": [
+        {
+          "question_text": "根据文档，19～21个月幼儿在“行走”方面的大动作发展标准是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "除了会很稳的向前走之外，还能稳定地倒退走和向侧方走", "is_correct": true},
+            {"option_text": "走得很稳，但只能向前走", "is_correct": false},
+            {"option_text": "开始能稳定地向前走", "is_correct": false},
+            {"option_text": "能跑得很快很稳", "is_correct": false}
+          ],
+          "answer_explanation": "文档中19-21个月大动作标准是“除了会很稳的向前走之外，还能稳定地倒退走和向侧方走”。"
+        },
+        {
+          "question_text": "19～21个月幼儿在“跑步”方面的大动作能力提升表现为？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "能跑得飞快", "is_correct": false},
+            {"option_text": "跑步时可以控制速度和绕开障碍物跑", "is_correct": true},
+            {"option_text": "能单脚跳跃着跑", "is_correct": false},
+            {"option_text": "能边跑边跳", "is_correct": false}
+          ],
+          "answer_explanation": "文档中19-21个月大动作标准是“跑步时可以控制速度和绕开障碍物跑”。"
+        },
+        {
+          "question_text": "“游戏时会蹲下”是哪个年龄段幼儿的常见大动作行为？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "19～21个月", "is_correct": true},
+            {"option_text": "16～18个月", "is_correct": false},
+            {"option_text": "13～15个月", "is_correct": false},
+            {"option_text": "22～24个月", "is_correct": false}
+          ],
+          "answer_explanation": "文档中“游戏时会蹲下”是19-21个月的大动作表现。"
+        },
+        {
+          "question_text": "19～21个月幼儿在“行走”方面，除了向前走稳外，还能？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "单脚跳跃", "is_correct": false},
+            {"option_text": "双脚并拢跳跃", "is_correct": false},
+            {"option_text": "稳定地倒退走和向侧方走", "is_correct": true},
+            {"option_text": "跑得很快", "is_correct": false}
+          ],
+          "answer_explanation": "文档强调19-21个月幼儿行走能力提升包括倒退走和侧方走。"
+        },
+        {
+          "question_text": "以下哪些大动作技能是19～21个月幼儿应该掌握的？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "稳定地倒退走和向侧方走", "is_correct": true},
+            {"option_text": "跑步时可以控制速度和绕开障碍物", "is_correct": true},
+            {"option_text": "游戏时会蹲下", "is_correct": true},
+            {"option_text": "能独立上下楼梯", "is_correct": false},
+            {"option_text": "能双脚连续跳跃", "is_correct": false}
+          ],
+          "answer_explanation": "文档中19-21个月大动作标准包括稳定倒退走侧方走、跑步控速避障、游戏时蹲下，独立上下楼梯和连续跳跃是更晚阶段目标。"
+        }
+      ]
+    },
+    {
+      "point_name": "早教详细标准 - 大动作 (22～24 个月)",
+      "questions": [
+        {
+          "question_text": "根据文档，22～24个月幼儿在“楼梯”方面的大动作发展标准是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "能独立扶着或不扶栏杆上楼梯", "is_correct": true},
+            {"option_text": "能扶着大人手上下楼梯", "is_correct": false},
+            {"option_text": "能扶栏杆上几步楼梯", "is_correct": false},
+            {"option_text": "只能在平地上行走", "is_correct": false}
+          ],
+          "answer_explanation": "文档中22-24个月大动作标准是“能独立扶着或不扶栏杆上楼梯”。"
+        },
+        {
+          "question_text": "22～24个月幼儿在“跳跃”方面的大动作发展标准是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "能单脚跳跃", "is_correct": false},
+            {"option_text": "开始学跳", "is_correct": true},
+            {"option_text": "能双脚连续跳跃", "is_correct": false},
+            {"option_text": "能跳过一定高度的障碍物", "is_correct": false}
+          ],
+          "answer_explanation": "文档中22-24个月大动作标准是“开始学跳”。"
+        },
+        {
+          "question_text": "“能独立扶着或不扶栏杆上楼梯”是哪个年龄段幼儿的大动作发展标准？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "22～24个月", "is_correct": true},
+            {"option_text": "19～21个月", "is_correct": false},
+            {"option_text": "16～18个月", "is_correct": false},
+            {"option_text": "13～15个月", "is_correct": false}
+          ],
+          "answer_explanation": "文档中“能独立扶着或不扶栏杆上楼梯”是22-24个月的大动作标准。"
+        },
+        {
+          "question_text": "如果23个月的幼儿还不能独立上楼梯，但可以扶着栏杆，家长应该？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "强迫孩子练习上楼梯", "is_correct": false},
+            {"option_text": "认为孩子发育迟缓", "is_correct": false},
+            {"option_text": "继续鼓励和引导，观察发展情况", "is_correct": true},
+            {"option_text": "完全停止楼梯练习", "is_correct": false}
+          ],
+          "answer_explanation": "22-24个月目标是独立或扶栏杆上楼梯，如果能扶栏杆，说明接近目标，继续鼓励观察即可。"
+        },
+        {
+          "question_text": "以下哪些大动作技能是22～24个月幼儿应该开始发展的？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "能独立扶着或不扶栏杆上楼梯", "is_correct": true},
+            {"option_text": "开始学跳", "is_correct": true},
+            {"option_text": "走得很稳", "is_correct": true},
+            {"option_text": "能跑得很快并控制方向", "is_correct": false},
+            {"option_text": "能单脚连续跳跃", "is_correct": false}
+          ],
+          "answer_explanation": "文档中22-24个月大动作标准主要包括独立上楼梯和开始学跳，走和跑的稳定是之前阶段已掌握的技能，单脚跳跃是更晚阶段目标。"
+        }
+      ]
+    },
+    {
+      "point_name": "早教详细标准 - 精细动作 (13～15 个月)",
+      "questions": [
+        {
+          "question_text": "根据文档，13～15个月幼儿在精细动作方面最显著的特点是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "萌发好奇心，对感兴趣的东西都想接触一下", "is_correct": true},
+            {"option_text": "能熟练使用工具", "is_correct": false},
+            {"option_text": "能完成复杂的精细动作", "is_correct": false},
+            {"option_text": "精细动作发展停滞", "is_correct": false}
+          ],
+          "answer_explanation": "文档中13-15个月精细动作特点是“萌发好奇心，对感兴趣的东西都想接触一下”。"
+        },
+        {
+          "question_text": "13～15个月幼儿在“积木”方面的精细动作发展标准是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "能用多块积木搭建复杂模型", "is_correct": false},
+            {"option_text": "能用两块积木搭起一座塔", "is_correct": true},
+            {"option_text": "能用积木进行分类", "is_correct": false},
+            {"option_text": "能画出积木的形状", "is_correct": false}
+          ],
+          "answer_explanation": "文档中13-15个月精细动作标准是“能用两块积木搭起一座塔”。"
+        },
+        {
+          "question_text": "“能巧妙地夹起细小的东西”是哪个年龄段幼儿的精细动作发展标准？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "13～15个月", "is_correct": true},
+            {"option_text": "16～18个月", "is_correct": false},
+            {"option_text": "19～21个月", "is_correct": false},
+            {"option_text": "22～24个月", "is_correct": false}
+          ],
+          "answer_explanation": "文档中“能巧妙地夹起细小的东西”是13-15个月的精细动作标准。"
+        },
+        {
+          "question_text": "13～15个月幼儿在“用手偏好”方面，精细动作发展表现为？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "左右手都能灵活使用", "is_correct": false},
+            {"option_text": "开始学习使用双手", "is_correct": false},
+            {"option_text": "明显偏好使用某一只手", "is_correct": true},
+            {"option_text": "双手协调性差", "is_correct": false}
+          ],
+          "answer_explanation": "文档中13-15个月精细动作标准是“明显偏好使用某一只手”。"
+        },
+        {
+          "question_text": "以下哪些精细动作技能是13～15个月幼儿应该开始发展的？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "萌发好奇心，想接触感兴趣的东西", "is_correct": true},
+            {"option_text": "能用两块积木搭起一座塔", "is_correct": true},
+            {"option_text": "能巧妙地夹起细小的东西", "is_correct": true},
+            {"option_text": "能用彩笔画出线条", "is_correct": false},
+            {"option_text": "能用剪刀剪纸", "is_correct": false}
+          ],
+          "answer_explanation": "文档中13-15个月精细动作标准包括好奇心、搭积木（两块）、夹小东西、偏好用手等，用彩笔画线和剪纸是更晚阶段目标。"
+        }
+      ]
+    },
+    {
+      "point_name": "早教详细标准 - 精细动作 (16～18 个月)",
+      "questions": [
+        {
+          "question_text": "根据文档，16～18个月幼儿在“绘画”方面的精细动作发展标准是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "以明显偏好使用的那只手握彩笔乱画", "is_correct": true},
+            {"option_text": "能画出简单的线条和图形", "is_correct": false},
+            {"option_text": "能临摹简单的图案", "is_correct": false},
+            {"option_text": "能独立完成绘画作品", "is_correct": false}
+          ],
+          "answer_explanation": "文档中16-18个月精细动作标准是“以明显偏好使用的那只手握彩笔乱画”。"
+        },
+        {
+          "question_text": "16～18个月幼儿在“积木”方面的精细动作能力提升表现为？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "能用两块积木搭起一座塔", "is_correct": false},
+            {"option_text": "按示范能用三块积木搭起一座塔", "is_correct": true},
+            {"option_text": "能用多块积木搭建复杂建筑", "is_correct": false},
+            {"option_text": "能用积木进行分类和排序", "is_correct": false}
+          ],
+          "answer_explanation": "文档中16-18个月精细动作标准是“按示范能用三块积木搭起一座塔”。"
+        },
+        {
+          "question_text": "“以明显偏好使用的那只手握彩笔乱画”是哪个年龄段幼儿的精细动作发展标准？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "16～18个月", "is_correct": true},
+            {"option_text": "13～15个月", "is_correct": false},
+            {"option_text": "19～21个月", "is_correct": false},
+            {"option_text": "22～24个月", "is_correct": false}
+          ],
+          "answer_explanation": "文档中“以明显偏好使用的那只手握彩笔乱画”是16-18个月的精细动作标准。"
+        },
+        {
+          "question_text": "如果17个月的幼儿还不能用三块积木搭塔，但可以搭两块，家长应该？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "强迫孩子练习搭三块积木", "is_correct": false},
+            {"option_text": "认为孩子精细动作发育迟缓", "is_correct": false},
+            {"option_text": "继续鼓励和引导，提供示范", "is_correct": true},
+            {"option_text": "完全停止积木游戏", "is_correct": false}
+          ],
+          "answer_explanation": "16-18个月目标是三块积木，能搭两块说明接近目标，鼓励引导即可。"
+        },
+        {
+          "question_text": "以下哪些精细动作技能是16～18个月幼儿应该发展的？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "以偏好手握彩笔乱画", "is_correct": true},
+            {"option_text": "按示范用三块积木搭塔", "is_correct": true},
+            {"option_text": "喜欢用手探索物品", "is_correct": true},
+            {"option_text": "能用剪刀剪直线", "is_correct": false},
+            {"option_text": "能画出圆形", "is_correct": false}
+          ],
+          "answer_explanation": "文档中16-18个月精细动作标准包括乱画、搭积木（三块），剪直线和画圆是更晚阶段目标。"
+        }
+      ]
+    },
+    {
+      "point_name": "早教详细标准 - 精细动作 (19～21 个月)",
+      "questions": [
+        {
+          "question_text": "根据文档，19～21个月幼儿在“形状配对”方面的精细动作发展标准是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "会把圆形、方形、三角形放入形状相同的孔内", "is_correct": true},
+            {"option_text": "能识别多种形状", "is_correct": false},
+            {"option_text": "能画出圆形、方形、三角形", "is_correct": false},
+            {"option_text": "能用形状积木搭建图案", "is_correct": false}
+          ],
+          "answer_explanation": "文档中19-21个月精细动作标准是“会把圆形、方形、三角形放入形状相同的孔内”。"
+        },
+        {
+          "question_text": "19～21个月幼儿在“开门”方面的精细动作能力提升表现为？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "能独立开各种门锁", "is_correct": false},
+            {"option_text": "能打开门闩", "is_correct": true},
+            {"option_text": "能用钥匙开门", "is_correct": false},
+            {"option_text": "能拆卸门锁", "is_correct": false}
+          ],
+          "answer_explanation": "文档中19-21个月精细动作标准是“能打开门闩”。"
+        },
+        {
+          "question_text": "“会把圆形、方形、三角形放入形状相同的孔内”是哪个年龄段幼儿的精细动作发展标准？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "19～21个月", "is_correct": true},
+            {"option_text": "16～18个月", "is_correct": false},
+            {"option_text": "13～15个月", "is_correct": false},
+            {"option_text": "22～24个月", "is_correct": false}
+          ],
+          "answer_explanation": "文档中“会把圆形、方形、三角形放入形状相同的孔内”是19-21个月的精细动作标准。"
+        },
+        {
+          "question_text": "如果20个月的幼儿还不能进行形状配对，但能搭积木和涂鸦，家长应该？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "强迫孩子练习形状配对", "is_correct": false},
+            {"option_text": "认为孩子精细动作发育迟缓", "is_correct": false},
+            {"option_text": "提供形状配对玩具，引导孩子尝试", "is_correct": true},
+            {"option_text": "完全停止精细动作训练", "is_correct": false}
+          ],
+          "answer_explanation": "发育有差异，提供玩具引导尝试即可，不必强迫或过度担忧。"
+        },
+        {
+          "question_text": "以下哪些精细动作技能是19～21个月幼儿应该发展的？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "会把形状放入对应孔内", "is_correct": true},
+            {"option_text": "能打开门闩", "is_correct": true},
+            {"option_text": "能用手指捏起小物品", "is_correct": true},
+            {"option_text": "能用剪刀剪曲线", "is_correct": false},
+            {"option_text": "能写简单的字", "is_correct": false}
+          ],
+          "answer_explanation": "文档中19-21个月精细动作标准包括形状配对、开门闩，剪曲线和写字是更晚阶段目标。"
+        }
+      ]
+    },
+    {
+      "point_name": "早教详细标准 - 精细动作 (22～24 个月)",
+      "questions": [
+        {
+          "question_text": "根据文档，22～24个月幼儿在“翻书”方面的精细动作发展标准是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "会逐页翻书", "is_correct": true},
+            {"option_text": "能快速翻书", "is_correct": false},
+            {"option_text": "能按顺序翻书", "is_correct": false},
+            {"option_text": "喜欢撕书", "is_correct": false}
+          ],
+          "answer_explanation": "文档中22-24个月精细动作标准是“会逐页翻书”。"
+        },
+        {
+          "question_text": "22～24个月幼儿在“绘画”方面的精细动作能力提升表现为？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "能画出复杂的图案", "is_correct": false},
+            {"option_text": "可以模仿画竖线或圆", "is_correct": true},
+            {"option_text": "能独立完成绘画作品", "is_correct": false},
+            {"option_text": "能进行色彩搭配", "is_correct": false}
+          ],
+          "answer_explanation": "文档中22-24个月精细动作标准是“可以模仿画竖线或圆”。"
+        },
+        {
+          "question_text": "“会逐页翻书”是哪个年龄段幼儿的精细动作发展标准？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "22～24个月", "is_correct": true},
+            {"option_text": "19～21个月", "is_correct": false},
+            {"option_text": "16～18个月", "is_correct": false},
+            {"option_text": "13～15个月", "is_correct": false}
+          ],
+          "answer_explanation": "文档中“会逐页翻书”是22-24个月的精细动作标准。"
+        },
+        {
+          "question_text": "如果23个月的幼儿还不能模仿画线或圆，但能翻书和形状配对，家长应该？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "强迫孩子练习画画", "is_correct": false},
+            {"option_text": "认为孩子精细动作发育迟缓", "is_correct": false},
+            {"option_text": "提供画笔和纸，鼓励孩子尝试涂鸦和模仿", "is_correct": true},
+            {"option_text": "完全停止绘画活动", "is_correct": false}
+          ],
+          "answer_explanation": "发育有差异，提供材料鼓励尝试即可，不必强迫或过度担忧。"
+        },
+        {
+          "question_text": "以下哪些精细动作技能是22～24个月幼儿应该发展的？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "会逐页翻书", "is_correct": true},
+            {"option_text": "可以模仿画竖线或圆", "is_correct": true},
+            {"option_text": "能拧瓶盖", "is_correct": true},
+            {"option_text": "能用剪刀剪圆形", "is_correct": false},
+            {"option_text": "能写自己的名字", "is_correct": false}
+          ],
+          "answer_explanation": "文档中22-24个月精细动作标准包括翻书、模仿画线圆，剪圆形和写名字是更晚阶段目标。"
+        }
+      ]
+    },
+    {
+      "point_name": "早教详细标准 - 语言发育 (13～15个月)",
+      "questions": [
+        {
+          "question_text": "根据文档，13～15个月幼儿的语言发育特点是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "能说完整的句子", "is_correct": false},
+            {"option_text": "能听懂自己的名字，能听懂简单的指令", "is_correct": true},
+            {"option_text": "开始大量识字", "is_correct": false},
+            {"option_text": "语言理解能力停滞不前", "is_correct": false}
+          ],
+          "answer_explanation": "文档中13-15个月语言发育标准是“能听懂自己的名字，能听懂简单的指令”。"
+        },
+        {
+          "question_text": "13～15个月幼儿在语言理解方面，通常能听懂？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "复杂的长句", "is_correct": false},
+            {"option_text": "简单的指令", "is_correct": true},
+            {"option_text": "抽象的概念", "is_correct": false},
+            {"option_text": "多重指令", "is_correct": false}
+          ],
+          "answer_explanation": "13-15个月幼儿的语言理解能力可以达到听懂简单指令的水平。"
+        },
+        {
+          "question_text": "“能听懂自己的名字”是哪个年龄段幼儿的语言发育标准？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "13～15个月", "is_correct": true},
+            {"option_text": "16～18个月", "is_correct": false},
+            {"option_text": "19～21个月", "is_correct": false},
+            {"option_text": "22～24个月", "is_correct": false}
+          ],
+          "answer_explanation": "文档中“能听懂自己的名字”是13-15个月的语言发育标准。"
+        },
+        {
+          "question_text": "如果14个月的幼儿还不能听懂自己的名字，家长应该？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "强迫孩子练习听名字", "is_correct": false},
+            {"option_text": "认为孩子语言发育迟缓", "is_correct": false},
+            {"option_text": "多和孩子互动，呼唤名字，观察发展情况", "is_correct": true},
+            {"option_text": "完全忽略，等待自然发展", "is_correct": false}
+          ],
+          "answer_explanation": "发育有差异，多互动观察即可，不必过度焦虑。"
+        },
+        {
+          "question_text": "13～15个月幼儿的语言发育主要体现在？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "语言表达的爆发期", "is_correct": false},
+            {"option_text": "语言理解能力的初步发展", "is_correct": true},
+            {"option_text": "书面语言的启蒙", "is_correct": false},
+            {"option_text": "抽象语言思维的建立", "is_correct": false}
+          ],
+          "answer_explanation": "13-15个月语言发育主要体现在语言理解能力的初步发展阶段。"
+        }
+      ]
+    },
+    {
+      "point_name": "早教详细标准 - 语言发育 (16～18个月)",
+      "questions": [
+        {
+          "question_text": "根据文档，16～18个月幼儿的语言表达特点是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "开始说简单的叠词，无意识的叫“爸爸、妈妈”", "is_correct": false},
+            {"option_text": "开始有意识的叫“爸爸、妈妈”", "is_correct": true},
+            {"option_text": "能说完整的长句子", "is_correct": false},
+            {"option_text": "语言表达能力停滞不前", "is_correct": false}
+          ],
+          "answer_explanation": "文档中16-18个月语言发育标准是“开始有意识的叫‘爸爸、妈妈’”。"
+        },
+        {
+          "question_text": "16～18个月幼儿在称谓方面，开始有意识地称呼？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "所有家庭成员", "is_correct": false},
+            {"option_text": "爸爸、妈妈", "is_correct": true},
+            {"option_text": "兄弟姐妹", "is_correct": false},
+            {"option_text": "宠物", "is_correct": false}
+          ],
+          "answer_explanation": "16-18个月幼儿开始有意识地称呼爸爸妈妈等主要照护者。"
+        },
+        {
+          "question_text": "“开始有意识的叫‘爸爸、妈妈’”是哪个年龄段幼儿的语言发育标准？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "16～18个月", "is_correct": true},
+            {"option_text": "13～15个月", "is_correct": false},
+            {"option_text": "19～21个月", "is_correct": false},
+            {"option_text": "22～24个月", "is_correct": false}
+          ],
+          "answer_explanation": "文档中“开始有意识的叫‘爸爸、妈妈’”是16-18个月的语言发育标准。"
+        },
+        {
+          "question_text": "如果17个月的幼儿还不会有意识地叫爸爸妈妈，家长应该？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "强迫孩子练习叫爸爸妈妈", "is_correct": false},
+            {"option_text": "认为孩子语言发育迟缓", "is_correct": false},
+            {"option_text": "创造语言环境，鼓励孩子发声，观察发展", "is_correct": true},
+            {"option_text": "完全不理会，等待自然发展", "is_correct": false}
+          ],
+          "answer_explanation": "发育有差异，创造语言环境，鼓励孩子发声观察即可。"
+        },
+        {
+          "question_text": "16～18个月幼儿的语言发育，在表达方面的重要进展是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "开始掌握语法规则", "is_correct": false},
+            {"option_text": "能进行流畅的对话", "is_correct": false},
+            {"option_text": "有意识地使用称谓", "is_correct": true},
+            {"option_text": "词汇量迅速爆发", "is_correct": false}
+          ],
+          "answer_explanation": "16-18个月语言发育的重要进展是有意识地使用称谓，如爸爸妈妈。"
+        }
+      ]
+    },
+    {
+      "point_name": "早教详细标准 - 语言发育 (19～21个月)",
+      "questions": [
+        {
+          "question_text": "根据文档，19～21个月幼儿的语言表达能力进一步发展，表现为？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "开始说短句", "is_correct": true},
+            {"option_text": "能说复杂的长句", "is_correct": false},
+            {"option_text": "只会说单词", "is_correct": false},
+            {"option_text": "语言表达能力退步", "is_correct": false}
+          ],
+          "answer_explanation": "文档中19-21个月语言发育标准是“开始说短句”。"
+        },
+        {
+          "question_text": "19～21个月幼儿开始说的“短句”的特点是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "语法正确，结构完整", "is_correct": false},
+            {"option_text": "能表达完整的意思", "is_correct": true},
+            {"option_text": "发音清晰，语调流畅", "is_correct": false},
+            {"option_text": "词汇丰富，用词准确", "is_correct": false}
+          ],
+          "answer_explanation": "19-21个月幼儿开始说的短句，虽然简单，但已能表达完整的意思。"
+        },
+        {
+          "question_text": "“开始说短句”是哪个年龄段幼儿的语言发育标准？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "19～21个月", "is_correct": true},
+            {"option_text": "16～18个月", "is_correct": false},
+            {"option_text": "13～15个月", "is_correct": false},
+            {"option_text": "22～24个月", "is_correct": false}
+          ],
+          "answer_explanation": "文档中“开始说短句”是19-21个月的语言发育标准。"
+        },
+        {
+          "question_text": "如果20个月的幼儿还不会说短句，但能有意识地叫爸爸妈妈，家长应该？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "强迫孩子练习说短句", "is_correct": false},
+            {"option_text": "认为孩子语言发育迟缓", "is_correct": false},
+            {"option_text": "多和孩子用短句交流，鼓励模仿，持续观察", "is_correct": true},
+            {"option_text": "完全忽视，等待自然发展", "is_correct": false}
+          ],
+          "answer_explanation": "发育有差异，多用短句交流，鼓励模仿，持续观察即可。"
+        },
+        {
+          "question_text": "19～21个月幼儿的语言发育，在表达方面的重要进展是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "词汇量飞速增长", "is_correct": false},
+            {"option_text": "开始掌握复杂的语法", "is_correct": false},
+            {"option_text": "能进行流畅的对话", "is_correct": false},
+            {"option_text": "开始说短句，表达意愿", "is_correct": true}
+          ],
+          "answer_explanation": "19-21个月语言发育的重要进展是开始说短句，表达自己的意愿。"
+        }
+      ]
+    },
+    {
+      "point_name": "早教详细标准 - 语言发育 (22～24个月)",
+      "questions": [
+        {
+          "question_text": "根据文档，22～24个月幼儿的语言表达能力进一步提升，表现为？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "能说出由2～3个词组成的句子", "is_correct": true},
+            {"option_text": "能说复杂的长句", "is_correct": false},
+            {"option_text": "只会说单词", "is_correct": false},
+            {"option_text": "语言表达能力退步", "is_correct": false}
+          ],
+          "answer_explanation": "文档中22-24个月语言发育标准是“能说出由2～3个词组成的句子”。"
+        },
+        {
+          "question_text": "22～24个月幼儿说的“2～3个词组成的句子”的特点是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "语法复杂，结构完整", "is_correct": false},
+            {"option_text": "能进行简单的交流", "is_correct": true},
+            {"option_text": "发音清晰，语调流畅", "is_correct": false},
+            {"option_text": "词汇量丰富，用词准确", "is_correct": false}
+          ],
+          "answer_explanation": "22-24个月幼儿能说2-3词句，开始进行简单的交流。"
+        },
+        {
+          "question_text": "“能说出由2～3个词组成的句子”是哪个年龄段幼儿的语言发育标准？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "22～24个月", "is_correct": true},
+            {"option_text": "19～21个月", "is_correct": false},
+            {"option_text": "16～18个月", "is_correct": false},
+            {"option_text": "13～15个月", "is_correct": false}
+          ],
+          "answer_explanation": "文档中“能说出由2～3个词组成的句子”是22-24个月的语言发育标准。"
+        },
+        {
+          "question_text": "如果23个月的幼儿还不能说2-3词句，但能说短句，家长应该？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "强迫孩子练习说2-3词句", "is_correct": false},
+            {"option_text": "认为孩子语言发育迟缓", "is_correct": false},
+            {"option_text": "多和孩子进行情景对话，用2-3词句引导，持续观察", "is_correct": true},
+            {"option_text": "完全放任，等待自然发展", "is_correct": false}
+          ],
+          "answer_explanation": "发育有差异，多进行情景对话，用2-3词句引导，持续观察即可。"
+        },
+        {
+          "question_text": "22～24个月幼儿的语言发育，在表达方面的重要进展是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "词汇量爆发式增长", "is_correct": false},
+            {"option_text": "掌握复杂的语法结构", "is_correct": false},
+            {"option_text": "能进行流畅的对话", "is_correct": false},
+            {"option_text": "能说2～3个词的句子，进行简单交流", "is_correct": true}
+          ],
+          "answer_explanation": "22-24个月语言发育的重要进展是能说2-3词句，开始进行简单交流。"
+        }
+      ]
+    },
+    {
+      "point_name": "早教详细标准 - 认知发展 (13～15个月)",
+      "questions": [
+        {
+          "question_text": "根据文档，13～15个月幼儿的认知发展特点是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "开始理解因果关系", "is_correct": true},
+            {"option_text": "能进行抽象思维", "is_correct": false},
+            {"option_text": "认知能力停滞不前", "is_correct": false},
+            {"option_text": "开始进行逻辑推理", "is_correct": false}
+          ],
+          "answer_explanation": "文档中13-15个月认知发展标准是“开始理解因果关系”。"
+        },
+        {
+          "question_text": "13～15个月幼儿开始理解的“因果关系”是指？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "复杂的社会现象", "is_correct": false},
+            {"option_text": "简单的动作和结果之间的联系", "is_correct": true},
+            {"option_text": "抽象的逻辑推理", "is_correct": false},
+            {"option_text": "道德行为的后果", "is_correct": false}
+          ],
+          "answer_explanation": "13-15个月幼儿开始理解简单的动作与结果之间的因果联系。"
+        },
+        {
+          "question_text": "“开始理解因果关系”是哪个年龄段幼儿的认知发展标准？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "13～15个月", "is_correct": true},
+            {"option_text": "16～18个月", "is_correct": false},
+            {"option_text": "19～21个月", "is_correct": false},
+            {"option_text": "22～24个月", "is_correct": false}
+          ],
+          "answer_explanation": "文档中“开始理解因果关系”是13-15个月的认知发展标准。"
+        },
+        {
+          "question_text": "如果14个月的幼儿还不能理解简单的因果关系，家长应该？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "强迫孩子学习因果关系", "is_correct": false},
+            {"option_text": "认为孩子认知发育迟缓", "is_correct": false},
+            {"option_text": "通过游戏和日常互动，帮助孩子建立因果联系，持续观察", "is_correct": true},
+            {"option_text": "完全忽视，等待自然发展", "is_correct": false}
+          ],
+          "answer_explanation": "发育有差异，通过游戏和日常互动引导建立因果联系即可。"
+        },
+        {
+          "question_text": "13～15个月幼儿的认知发展，在思维方面的重要进展是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "抽象思维萌芽", "is_correct": false},
+            {"option_text": "逻辑推理能力形成", "is_correct": false},
+            {"option_text": "开始理解简单的因果关系", "is_correct": true},
+            {"option_text": "空间想象力发展", "is_correct": false}
+          ],
+          "answer_explanation": "13-15个月认知发展的重要进展是开始理解简单的因果关系。"
+        }
+      ]
+    },
+    {
+      "point_name": "早教详细标准 - 认知发展 (16～18个月)",
+      "questions": [
+        {
+          "question_text": "根据文档，16～18个月幼儿的认知能力进一步发展，表现为？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "能区分物品的大小、颜色、形状", "is_correct": true},
+            {"option_text": "能进行复杂的逻辑推理", "is_correct": false},
+            {"option_text": "认知能力停滞不前", "is_correct": false},
+            {"option_text": "开始进行抽象思维", "is_correct": false}
+          ],
+          "answer_explanation": "文档中16-18个月认知发展标准是“能区分物品的大小、颜色、形状”。"
+        },
+        {
+          "question_text": "16～18个月幼儿能区分的物品特征主要包括？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "材质、用途、功能", "is_correct": false},
+            {"option_text": "大小、颜色、形状", "is_correct": true},
+            {"option_text": "价值、品牌、产地", "is_correct": false},
+            {"option_text": "新旧、好坏、优劣", "is_correct": false}
+          ],
+          "answer_explanation": "16-18个月幼儿开始能区分物品的大小、颜色和形状等基本特征。"
+        },
+        {
+          "question_text": "“能区分物品的大小、颜色、形状”是哪个年龄段幼儿的认知发展标准？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "16～18个月", "is_correct": true},
+            {"option_text": "13～15个月", "is_correct": false},
+            {"option_text": "19～21个月", "is_correct": false},
+            {"option_text": "22～24个月", "is_correct": false}
+          ],
+          "answer_explanation": "文档中“能区分物品的大小、颜色、形状”是16-18个月的认知发展标准。"
+        },
+        {
+          "question_text": "如果17个月的幼儿还不能区分物品的大小颜色形状，但能理解因果关系，家长应该？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "强迫孩子练习区分物品特征", "is_correct": false},
+            {"option_text": "认为孩子认知发育迟缓", "is_correct": false},
+            {"option_text": "通过游戏和日常物品，引导孩子观察和比较物品特征，持续观察", "is_correct": true},
+            {"option_text": "完全忽视，等待自然发展", "is_correct": false}
+          ],
+          "answer_explanation": "发育有差异，通过游戏和日常物品引导观察比较即可。"
+        },
+        {
+          "question_text": "16～18个月幼儿的认知发展，在感知方面的重要进展是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "开始进行抽象概括", "is_correct": false},
+            {"option_text": "能理解复杂的空间关系", "is_correct": false},
+            {"option_text": "能区分物品的大小、颜色、形状等特征", "is_correct": true},
+            {"option_text": "开始进行逻辑分类", "is_correct": false}
+          ],
+          "answer_explanation": "16-18个月认知发展的重要进展是能区分物品的大小颜色形状等特征。"
+        }
+      ]
+    },
+    {
+      "point_name": "早教详细标准 - 认知发展 (19～21个月)",
+      "questions": [
+        {
+          "question_text": "根据文档，19～21个月幼儿的认知能力继续发展，表现为？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "能认识身体的各个部位", "is_correct": true},
+            {"option_text": "能进行复杂的抽象推理", "is_correct": false},
+            {"option_text": "认知能力停滞不前", "is_correct": false},
+            {"option_text": "开始进行逆向思维", "is_correct": false}
+          ],
+          "answer_explanation": "文档中19-21个月认知发展标准是“能认识身体的各个部位”。"
+        },
+        {
+          "question_text": "19～21个月幼儿能认识的“身体部位”通常包括？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "所有内脏器官", "is_correct": false},
+            {"option_text": "常见的外部身体部位", "is_correct": true},
+            {"option_text": "复杂的神经系统", "is_correct": false},
+            {"option_text": "细胞和组织", "is_correct": false}
+          ],
+          "answer_explanation": "19-21个月幼儿能认识常见的外部身体部位，如手、脚、眼睛等。"
+        },
+        {
+          "question_text": "“能认识身体的各个部位”是哪个年龄段幼儿的认知发展标准？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "19～21个月", "is_correct": true},
+            {"option_text": "16～18个月", "is_correct": false},
+            {"option_text": "13～15个月", "is_correct": false},
+            {"option_text": "22～24个月", "is_correct": false}
+          ],
+          "answer_explanation": "文档中“能认识身体的各个部位”是19-21个月的认知发展标准。"
+        },
+        {
+          "question_text": "如果20个月的幼儿还不能认识身体部位，但能区分物品特征，家长应该？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "强迫孩子学习身体部位", "is_correct": false},
+            {"option_text": "认为孩子认知发育迟缓", "is_correct": false},
+            {"option_text": "通过游戏和日常互动，指认身体部位，帮助孩子认识，持续观察", "is_correct": true},
+            {"option_text": "完全忽视，等待自然发展", "is_correct": false}
+          ],
+          "answer_explanation": "发育有差异，通过游戏和日常互动指认身体部位即可。"
+        },
+        {
+          "question_text": "19～21个月幼儿的认知发展，在自我认知方面的重要进展是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "开始区分自己和他人的想法", "is_correct": false},
+            {"option_text": "能进行反思性思维", "is_correct": false},
+            {"option_text": "能认识自己的身体部位", "is_correct": true},
+            {"option_text": "开始形成道德判断", "is_correct": false}
+          ],
+          "answer_explanation": "19-21个月认知发展的重要进展是能认识自己的身体部位，是自我认知发展的一部分。"
+        }
+      ]
+    },
+    {
+      "point_name": "早教详细标准 - 认知发展 (22～24个月)",
+      "questions": [
+        {
+          "question_text": "根据文档，22～24个月幼儿的认知能力继续提升，表现为？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "能听指令指出5种以上的物品", "is_correct": true},
+            {"option_text": "能进行抽象逻辑推理", "is_correct": false},
+            {"option_text": "认知能力停滞不前", "is_correct": false},
+            {"option_text": "开始进行辩证思维", "is_correct": false}
+          ],
+          "answer_explanation": "文档中22-24个月认知发展标准是“能听指令指出5种以上的物品”。"
+        },
+        {
+          "question_text": "22～24个月幼儿“听指令指出物品”的能力，反映了其？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "抽象思维能力", "is_correct": false},
+            {"option_text": "语言理解和认知能力的综合发展", "is_correct": true},
+            {"option_text": "运动协调能力", "is_correct": false},
+            {"option_text": "社交交往能力", "is_correct": false}
+          ],
+          "answer_explanation": "听指令指出物品，体现了语言理解和物体认知能力的结合。"
+        },
+        {
+          "question_text": "“能听指令指出5种以上的物品”是哪个年龄段幼儿的认知发展标准？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "22～24个月", "is_correct": true},
+            {"option_text": "19～21个月", "is_correct": false},
+            {"option_text": "16～18个月", "is_correct": false},
+            {"option_text": "13～15个月", "is_correct": false}
+          ],
+          "answer_explanation": "文档中“能听指令指出5种以上的物品”是22-24个月的认知发展标准。"
+        },
+        {
+          "question_text": "如果23个月的幼儿还不能听指令指出5种物品，但能认识身体部位，家长应该？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "强迫孩子练习指认物品", "is_correct": false},
+            {"option_text": "认为孩子认知发育迟缓", "is_correct": false},
+            {"option_text": "通过游戏和日常指令，引导孩子理解物品名称和指认，持续观察", "is_correct": true},
+            {"option_text": "完全忽视，等待自然发展", "is_correct": false}
+          ],
+          "answer_explanation": "发育有差异，通过游戏和日常指令引导孩子理解指认即可。"
+        },
+        {
+          "question_text": "22～24个月幼儿的认知发展，在语言和认知结合方面的重要进展是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "开始进行书面阅读", "is_correct": false},
+            {"option_text": "能听指令指出5种以上的物品", "is_correct": true},
+            {"option_text": "能进行抽象概括", "is_correct": false},
+            {"option_text": "开始进行逻辑分类", "is_correct": false}
+          ],
+          "answer_explanation": "22-24个月认知发展的重要进展是能听指令指出5种以上的物品，体现语言和认知的结合。"
+        }
+      ]
+    },
+    {
+      "point_name": "早教详细标准 - 社交交往 (13～15个月)",
+      "questions": [
+        {
+          "question_text": "根据文档，13～15个月幼儿的社交交往能力开始发展，表现为？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "开始有初步的是非观念", "is_correct": false},
+            {"option_text": "开始出现试探行为", "is_correct": true},
+            {"option_text": "社交能力停滞不前", "is_correct": false},
+            {"option_text": "能独立与人交往", "is_correct": false}
+          ],
+          "answer_explanation": "文档中13-15个月社交交往标准是“开始出现试探行为”。"
+        },
+        {
+          "question_text": "13～15个月幼儿“试探行为”的主要目的是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "挑战权威", "is_correct": false},
+            {"option_text": "探索成人对某些行为的反应", "is_correct": true},
+            {"option_text": "故意捣乱", "is_correct": false},
+            {"option_text": "表达不满", "is_correct": false}
+          ],
+          "answer_explanation": "13-15个月幼儿的试探行为是为了探索成人对特定行为的反应，建立规则意识的萌芽。"
+        },
+        {
+          "question_text": "“开始出现试探行为”是哪个年龄段幼儿的社交交往发展标准？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "13～15个月", "is_correct": true},
+            {"option_text": "16～18个月", "is_correct": false},
+            {"option_text": "19～21个月", "is_correct": false},
+            {"option_text": "22～24个月", "is_correct": false}
+          ],
+          "answer_explanation": "文档中“开始出现试探行为”是13-15个月的社交交往发展标准。"
+        },
+        {
+          "question_text": "如果14个月的幼儿没有明显的试探行为，家长应该？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "强迫孩子进行试探", "is_correct": false},
+            {"option_text": "认为孩子社交发育迟缓", "is_correct": false},
+            {"option_text": "观察孩子行为，在安全范围内允许孩子探索，并给予适当反馈", "is_correct": true},
+            {"option_text": "完全忽视，等待自然发展", "is_correct": false}
+          ],
+          "answer_explanation": "发育有差异，在安全范围内允许探索，并给予适当反馈即可。"
+        },
+        {
+          "question_text": "13～15个月幼儿的社交交往，在规则意识方面的重要萌芽是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "开始遵守社会规范", "is_correct": false},
+            {"option_text": "能理解复杂的社会规则", "is_correct": false},
+            {"option_text": "开始出现试探行为，探索规则边界", "is_correct": true},
+            {"option_text": "社交能力完全成熟", "is_correct": false}
+          ],
+          "answer_explanation": "13-15个月社交交往的重要萌芽是开始出现试探行为，探索规则的边界。"
+        }
+      ]
+    },
+    {
+      "point_name": "早教详细标准 - 社交交往 (16～18个月)",
+      "questions": [
+        {
+          "question_text": "根据文档，16～18个月幼儿的社交交往能力进一步发展，表现为？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "开始有初步的是非观念", "is_correct": true},
+            {"option_text": "能独立与人交往", "is_correct": false},
+            {"option_text": "社交能力停滞不前", "is_correct": false},
+            {"option_text": "完全理解社会规则", "is_correct": false}
+          ],
+          "answer_explanation": "文档中16-18个月社交交往标准是“开始有初步的是非观念”。"
+        },
+        {
+          "question_text": "16～18个月幼儿“初步的是非观念”主要体现在？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "能理性判断对错", "is_correct": false},
+            {"option_text": "开始区分好行为和坏行为", "is_correct": true},
+            {"option_text": "完全遵守道德准则", "is_correct": false},
+            {"option_text": "能进行道德评价", "is_correct": false}
+          ],
+          "answer_explanation": "16-18个月幼儿开始初步区分好行为和坏行为，道德意识萌芽。"
+        },
+        {
+          "question_text": "“开始有初步的是非观念”是哪个年龄段幼儿的社交交往发展标准？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "16～18个月", "is_correct": true},
+            {"option_text": "13～15个月", "is_correct": false},
+            {"option_text": "19～21个月", "is_correct": false},
+            {"option_text": "22～24个月", "is_correct": false}
+          ],
+          "answer_explanation": "文档中“开始有初步的是非观念”是16-18个月的社交交往发展标准。"
+        },
+        {
+          "question_text": "如果17个月的幼儿还没有表现出是非观念，家长应该？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "强迫孩子学习是非对错", "is_correct": false},
+            {"option_text": "认为孩子社交发育迟缓", "is_correct": false},
+            {"option_text": "通过日常引导，明确好坏行为，并进行鼓励或纠正，持续观察", "is_correct": true},
+            {"option_text": "完全忽视，等待自然发展", "is_correct": false}
+          ],
+          "answer_explanation": "发育有差异，通过日常引导，明确好坏行为，并进行鼓励或纠正即可。"
+        },
+        {
+          "question_text": "16～18个月幼儿的社交交往，在道德意识方面的重要萌芽是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "完全形成道德判断能力", "is_correct": false},
+            {"option_text": "开始遵守社会道德规范", "is_correct": false},
+            {"option_text": "开始有初步的是非观念，区分好坏行为", "is_correct": true},
+            {"option_text": "能进行道德评价", "is_correct": false}
+          ],
+          "answer_explanation": "16-18个月社交交往的重要萌芽是开始有初步的是非观念，区分好坏行为，是道德意识的初步建立。"
+        }
+      ]
+    },
+    {
+      "point_name": "早教详细标准 - 社交交往 (19～21个月)",
+      "questions": [
+        {
+          "question_text": "根据文档，19～21个月幼儿的社交交往能力继续发展，表现为？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "能按指示做简单的事情", "is_correct": true},
+            {"option_text": "能独立处理复杂的社交情境", "is_correct": false},
+            {"option_text": "社交能力停滞不前", "is_correct": false},
+            {"option_text": "完全理解社会规则", "is_correct": false}
+          ],
+          "answer_explanation": "文档中19-21个月社交交往标准是“能按指示做简单的事情”。"
+        },
+        {
+          "question_text": "19～21个月幼儿“能按指示做简单的事情”的能力，反映了其？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "独立解决问题的能力", "is_correct": false},
+            {"option_text": "规则意识和执行能力的提升", "is_correct": true},
+            {"option_text": "语言表达能力", "is_correct": false},
+            {"option_text": "抽象思维能力", "is_correct": false}
+          ],
+          "answer_explanation": "能按指示做事，反映了规则意识和执行能力的提升。"
+        },
+        {
+          "question_text": "“能按指示做简单的事情”是哪个年龄段幼儿的社交交往发展标准？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "19～21个月", "is_correct": true},
+            {"option_text": "16～18个月", "is_correct": false},
+            {"option_text": "13～15个月", "is_correct": false},
+            {"option_text": "22～24个月", "is_correct": false}
+          ],
+          "answer_explanation": "文档中“能按指示做简单的事情”是19-21个月的社交交往发展标准。"
+        },
+        {
+          "question_text": "如果20个月的幼儿还不能按指示做简单事情，但有初步是非观念，家长应该？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "强迫孩子服从指令", "is_correct": false},
+            {"option_text": "认为孩子社交发育迟缓", "is_correct": false},
+            {"option_text": "用清晰简单的指令引导孩子，并给予鼓励，持续观察", "is_correct": true},
+            {"option_text": "完全忽视，等待自然发展", "is_correct": false}
+          ],
+          "answer_explanation": "发育有差异，用清晰简单指令引导，并给予鼓励即可。"
+        },
+        {
+          "question_text": "19～21个月幼儿的社交交往，在执行力方面的重要提升是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "能独立完成复杂的任务", "is_correct": false},
+            {"option_text": "开始进行团队合作", "is_correct": false},
+            {"option_text": "能按指示做简单的事情，提升执行力", "is_correct": true},
+            {"option_text": "社交能力完全成熟", "is_correct": false}
+          ],
+          "answer_explanation": "19-21个月社交交往的重要提升是能按指示做简单的事情，体现执行力的发展。"
+        }
+      ]
+    },
+    {
+      "point_name": "早教详细标准 - 社交交往 (22～24个月)",
+      "questions": [
+        {
+          "question_text": "根据文档，22～24个月幼儿的社交交往能力更加成熟，表现为？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "开始玩简单的“角色扮演”游戏", "is_correct": true},
+            {"option_text": "能进行复杂的团队合作", "is_correct": false},
+            {"option_text": "社交能力停滞不前", "is_correct": false},
+            {"option_text": "完全理解社会规则", "is_correct": false}
+          ],
+          "answer_explanation": "文档中22-24个月社交交往标准是“开始玩简单的‘角色扮演’游戏”。"
+        },
+        {
+          "question_text": "22～24个月幼儿开始玩的“角色扮演”游戏的特点是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "情节复杂，角色众多", "is_correct": false},
+            {"option_text": "简单模仿生活中的场景和角色", "is_correct": true},
+            {"option_text": "具有明确的规则和胜负", "is_correct": false},
+            {"option_text": "需要成人指导和参与", "is_correct": false}
+          ],
+          "answer_explanation": "22-24个月幼儿的角色扮演游戏通常是简单模仿生活场景和角色。"
+        },
+        {
+          "question_text": "“开始玩简单的‘角色扮演’游戏”是哪个年龄段幼儿的社交交往发展标准？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "22～24个月", "is_correct": true},
+            {"option_text": "19～21个月", "is_correct": false},
+            {"option_text": "16～18个月", "is_correct": false},
+            {"option_text": "13～15个月", "is_correct": false}
+          ],
+          "answer_explanation": "文档中“开始玩简单的‘角色扮演’游戏”是22-24个月的社交交往发展标准。"
+        },
+        {
+          "question_text": "如果23个月的幼儿还没有角色扮演行为，但能按指示做事，家长应该？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "强迫孩子进行角色扮演", "is_correct": false},
+            {"option_text": "认为孩子社交发育迟缓", "is_correct": false},
+            {"option_text": "创造游戏环境，鼓励孩子模仿和参与简单的角色扮演，持续观察", "is_correct": true},
+            {"option_text": "完全忽视，等待自然发展", "is_correct": false}
+          ],
+          "answer_explanation": "发育有差异，创造游戏环境，鼓励模仿和参与简单角色扮演即可。"
+        },
+        {
+          "question_text": "22～24个月幼儿的社交交往，在游戏互动方面的重要进展是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "能进行竞技性游戏", "is_correct": false},
+            {"option_text": "开始玩简单的“角色扮演”游戏，提升互动性", "is_correct": true},
+            {"option_text": "能理解复杂的社会规则", "is_correct": false},
+            {"option_text": "社交能力完全成熟", "is_correct": false}
+          ],
+          "answer_explanation": "22-24个月社交交往的重要进展是开始玩简单的角色扮演游戏，提升社交互动性。"
+        }
+      ]
+    },
+    {
+      "point_name": "早教详细标准 - 自理能力 (13～15个月)",
+      "questions": [
+        {
+          "question_text": "根据文档，13～15个月幼儿的自理能力发展开始起步，主要表现在？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "开始尝试用勺子", "is_correct": true},
+            {"option_text": "能独立穿脱衣服", "is_correct": false},
+            {"option_text": "自理能力停滞不前", "is_correct": false},
+            {"option_text": "能独立完成洗漱", "is_correct": false}
+          ],
+          "answer_explanation": "文档中13-15个月自理能力标准是“开始尝试用勺子”。"
+        },
+        {
+          "question_text": "13～15个月幼儿“开始尝试用勺子”的自理行为，通常表现为？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "能熟练用勺子吃饭", "is_correct": false},
+            {"option_text": "能用勺子舀起食物，但可能洒出来", "is_correct": true},
+            {"option_text": "完全拒绝使用勺子", "is_correct": false},
+            {"option_text": "能用勺子喂别人", "is_correct": false}
+          ],
+          "answer_explanation": "13-15个月幼儿尝试用勺子，表现为能舀起食物，但精细动作尚不成熟，可能洒出来。"
+        },
+        {
+          "question_text": "“开始尝试用勺子”是哪个年龄段幼儿的自理能力发展标准？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "13～15个月", "is_correct": true},
+            {"option_text": "16～18个月", "is_correct": false},
+            {"option_text": "19～21个月", "is_correct": false},
+            {"option_text": "22～24个月", "is_correct": false}
+          ],
+          "answer_explanation": "文档中“开始尝试用勺子”是13-15个月的自理能力发展标准。"
+        },
+        {
+          "question_text": "如果14个月的幼儿还没有尝试用勺子，家长应该？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "强迫孩子使用勺子", "is_correct": false},
+            {"option_text": "认为孩子自理能力发展迟缓", "is_correct": false},
+            {"option_text": "提供勺子，鼓励孩子尝试，但不强求，持续观察", "is_correct": true},
+            {"option_text": "完全替代喂养，避免孩子弄脏", "is_correct": false}
+          ],
+          "answer_explanation": "发育有差异，提供勺子鼓励尝试即可，不必强迫。"
+        },
+        {
+          "question_text": "13～15个月幼儿的自理能力，在进食方面的重要起步是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "能独立进食", "is_correct": false},
+            {"option_text": "开始尝试用勺子，迈出自理第一步", "is_correct": true},
+            {"option_text": "能收拾餐具", "is_correct": false},
+            {"option_text": "能选择食物", "is_correct": false}
+          ],
+          "answer_explanation": "13-15个月自理能力的重要起步是开始尝试用勺子，迈出自理进食的第一步。"
+        }
+      ]
+    },
+    {
+      "point_name": "早教详细标准 - 自理能力 (16～18个月)",
+      "questions": [
+        {
+          "question_text": "根据文档，16～18个月幼儿的自理能力发展更进一步，表现为？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "能自己抱奶瓶/水杯喝水", "is_correct": true},
+            {"option_text": "能独立穿脱鞋子", "is_correct": false},
+            {"option_text": "自理能力停滞不前", "is_correct": false},
+            {"option_text": "能独立洗脸", "is_correct": false}
+          ],
+          "answer_explanation": "文档中16-18个月自理能力标准是“能自己抱奶瓶/水杯喝水”。"
+        },
+        {
+          "question_text": "16～18个月幼儿“自己抱奶瓶/水杯喝水”的自理行为，通常表现为？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "能稳稳地抱住奶瓶/水杯，不洒", "is_correct": false},
+            {"option_text": "能抱起奶瓶/水杯，但可能洒出", "is_correct": true},
+            {"option_text": "完全依赖成人喂水", "is_correct": false},
+            {"option_text": "能用杯子喝水", "is_correct": false}
+          ],
+          "answer_explanation": "16-18个月幼儿能抱起奶瓶水杯，但动作协调性还在发展中，可能洒出。"
+        },
+        {
+          "question_text": "“能自己抱奶瓶/水杯喝水”是哪个年龄段幼儿的自理能力发展标准？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "16～18个月", "is_correct": true},
+            {"option_text": "13～15个月", "is_correct": false},
+            {"option_text": "19～21个月", "is_correct": false},
+            {"option_text": "22～24个月", "is_correct": false}
+          ],
+          "answer_explanation": "文档中“能自己抱奶瓶/水杯喝水”是16-18个月的自理能力标准。"
+        },
+        {
+          "question_text": "如果17个月的幼儿还不能自己抱奶瓶水杯喝水，但已尝试用勺子，家长应该？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "强迫孩子自己抱奶瓶", "is_correct": false},
+            {"option_text": "认为孩子自理能力发展迟缓", "is_correct": false},
+            {"option_text": "提供奶瓶/水杯，鼓励孩子自己拿握，但不强求，持续观察", "is_correct": true},
+            {"option_text": "完全替代喂水，避免孩子洒湿衣服", "is_correct": false}
+          ],
+          "answer_explanation": "发育有差异，提供奶瓶水杯鼓励尝试即可，不必强迫。"
+        },
+        {
+          "question_text": "16～18个月幼儿的自理能力，在饮水方面的重要进展是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "能独立用杯子喝水", "is_correct": false},
+            {"option_text": "能自己抱奶瓶/水杯喝水，提升自理能力", "is_correct": true},
+            {"option_text": "能主动要水喝", "is_correct": false},
+            {"option_text": "能收拾水杯", "is_correct": false}
+          ],
+          "answer_explanation": "16-18个月自理能力的重要进展是能自己抱奶瓶/水杯喝水，提升饮水自理能力。"
+        }
+      ]
+    },
+    {
+      "point_name": "早教详细标准 - 自理能力 (19～21个月)",
+      "questions": [
+        {
+          "question_text": "根据文档，19～21个月幼儿的自理能力继续发展，表现为？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "能拉开衣服拉链", "is_correct": true},
+            {"option_text": "能独立穿脱所有衣物", "is_correct": false},
+            {"option_text": "自理能力停滞不前", "is_correct": false},
+            {"option_text": "能独立洗澡", "is_correct": false}
+          ],
+          "answer_explanation": "文档中19-21个月自理能力标准是“能拉开衣服拉链”。"
+        },
+        {
+          "question_text": "19～21个月幼儿“能拉开衣服拉链”的自理行为，通常表现为？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "能熟练快速地拉开拉链", "is_correct": false},
+            {"option_text": "能尝试拉开拉链，但可能需要成人辅助", "is_correct": true},
+            {"option_text": "完全不会操作拉链", "is_correct": false},
+            {"option_text": "能拉上拉链", "is_correct": false}
+          ],
+          "answer_explanation": "19-21个月幼儿尝试拉拉链，能完成拉开的动作，但可能需要成人协助。"
+        },
+        {
+          "question_text": "“能拉开衣服拉链”是哪个年龄段幼儿的自理能力发展标准？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "19～21个月", "is_correct": true},
+            {"option_text": "16～18个月", "is_correct": false},
+            {"option_text": "13～15个月", "is_correct": false},
+            {"option_text": "22～24个月", "is_correct": false}
+          ],
+          "answer_explanation": "文档中“能拉开衣服拉链”是19-21个月的自理能力标准。"
+        },
+        {
+          "question_text": "如果20个月的幼儿还不能拉开拉链，但能抱奶瓶喝水，家长应该？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "强迫孩子练习拉拉链", "is_correct": false},
+            {"option_text": "认为孩子自理能力发展迟缓", "is_correct": false},
+            {"option_text": "提供带拉链的衣服，鼓励孩子尝试，但不强求，持续观察", "is_correct": true},
+            {"option_text": "避免给孩子穿带拉链的衣服", "is_correct": false}
+          ],
+          "answer_explanation": "发育有差异，提供带拉链衣服鼓励尝试即可，不必强迫。"
+        },
+        {
+          "question_text": "19～21个月幼儿的自理能力，在穿衣方面的重要进展是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "能独立穿脱外套", "is_correct": false},
+            {"option_text": "能拉开衣服拉链，迈出穿衣自理一步", "is_correct": true},
+            {"option_text": "能整理衣物", "is_correct": false},
+            {"option_text": "能选择衣服", "is_correct": false}
+          ],
+          "answer_explanation": "19-21个月自理能力的重要进展是能拉开衣服拉链，迈出穿衣自理的第一步。"
+        }
+      ]
+    },
+    {
+      "point_name": "早教详细标准 - 自理能力 (22～24个月)",
+      "questions": [
+        {
+          "question_text": "根据文档，22～24个月幼儿的自理能力进一步成熟，表现为？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "能脱掉鞋子", "is_correct": true},
+            {"option_text": "能独立穿脱所有鞋子", "is_correct": false},
+            {"option_text": "自理能力停滞不前", "is_correct": false},
+            {"option_text": "能独立洗漱", "is_correct": false}
+          ],
+          "answer_explanation": "文档中22-24个月自理能力标准是“能脱掉鞋子”。"
+        },
+        {
+          "question_text": "22～24个月幼儿“能脱掉鞋子”的自理行为，通常表现为？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "能熟练地穿脱各种鞋子", "is_correct": false},
+            {"option_text": "能尝试脱掉鞋子，但穿鞋还需要成人帮忙", "is_correct": true},
+            {"option_text": "完全不会穿脱鞋子", "is_correct": false},
+            {"option_text": "能系鞋带", "is_correct": false}
+          ],
+          "answer_explanation": "22-24个月幼儿能尝试脱鞋子，但穿鞋等更精细动作还需要成人协助。"
+        },
+        {
+          "question_text": "“能脱掉鞋子”是哪个年龄段幼儿的自理能力发展标准？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "22～24个月", "is_correct": true},
+            {"option_text": "19～21个月", "is_correct": false},
+            {"option_text": "16～18个月", "is_correct": false},
+            {"option_text": "13～15个月", "is_correct": false}
+          ],
+          "answer_explanation": "文档中“能脱掉鞋子”是22-24个月的自理能力标准。"
+        },
+        {
+          "question_text": "如果23个月的幼儿还不能脱鞋子，但能拉开拉链，家长应该？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "强迫孩子练习脱鞋子", "is_correct": false},
+            {"option_text": "认为孩子自理能力发展迟缓", "is_correct": false},
+            {"option_text": "提供易于脱掉的鞋子，鼓励孩子尝试，但不强求，持续观察", "is_correct": true},
+            {"option_text": "完全依赖成人穿脱鞋子", "is_correct": false}
+          ],
+          "answer_explanation": "发育有差异，提供易脱鞋子鼓励尝试即可，不必强迫。"
+        },
+        {
+          "question_text": "22～24个月幼儿的自理能力，在穿鞋方面的重要进展是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "能独立穿脱所有鞋子", "is_correct": false},
+            {"option_text": "能脱掉鞋子，迈出穿鞋自理一步", "is_correct": true},
+            {"option_text": "能整理鞋子", "is_correct": false},
+            {"option_text": "能选择鞋子", "is_correct": false}
+          ],
+          "answer_explanation": "22-24个月自理能力的重要进展是能脱掉鞋子，迈出穿鞋自理的第一步。"
+        }
+      ]
+    },
+    {
+      "point_name": "绘本的选择",
+      "questions": [
+        {
+          "question_text": "为1-2岁幼儿选择绘本时，以下哪项是首要考虑的因素？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "颜色鲜亮，插图活泼有趣", "is_correct": true},
+            {"option_text": "故事情节复杂，有教育意义", "is_correct": false},
+            {"option_text": "文字优美，语言富有哲理", "is_correct": false},
+            {"option_text": "价格昂贵，制作精良", "is_correct": false}
+          ],
+          "answer_explanation": "文档中绘本选择首要因素是“颜色鲜亮，插图活泼有趣的绘本”。"
+        },
+        {
+          "question_text": "根据1-2岁幼儿的年龄特点，选择绘本时应注意？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "选择文字量大的绘本", "is_correct": false},
+            {"option_text": "选择情节简单的故事", "is_correct": true},
+            {"option_text": "选择知识性强的科普绘本", "is_correct": false},
+            {"option_text": "选择成人喜欢的绘本", "is_correct": false}
+          ],
+          "answer_explanation": "文档建议选择“情节简单的、且贴近孩子生活的故事”。"
+        },
+        {
+          "question_text": "情绪启蒙类绘本对于1-2岁幼儿的意义在于？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "提高识字能力", "is_correct": false},
+            {"option_text": "培养逻辑思维", "is_correct": false},
+            {"option_text": "帮助孩子认识和表达情绪", "is_correct": true},
+            {"option_text": "促进社交能力", "is_correct": false}
+          ],
+          "answer_explanation": "文档特别提到选择“情绪启蒙的绘本”。"
+        },
+        {
+          "question_text": "为了吸引1-2岁幼儿的注意力，可以选择哪种类型的绘本？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "节奏感明快、语言重复较多的绘本", "is_correct": true},
+            {"option_text": "文字优美、意境深远的绘本", "is_correct": false},
+            {"option_text": "情节曲折、悬念迭生的绘本", "is_correct": false},
+            {"option_text": "黑白线条、风格简约的绘本", "is_correct": false}
+          ],
+          "answer_explanation": "文档建议选择“节奏感明快、语言重复较多的绘本”。"
+        },
+        {
+          "question_text": "以下哪些类型的绘本适合1-2岁幼儿阅读？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "纸板书", "is_correct": true},
+            {"option_text": "布书", "is_correct": true},
+            {"option_text": "手偶书", "is_correct": true},
+            {"option_text": "洞洞书", "is_correct": true},
+            {"option_text": "长篇小说", "is_correct": false}
+          ],
+          "answer_explanation": "文档推荐的互动性绘本类型包括纸板书、布书、手偶书、洞洞书等。"
+        }
+      ]
+    },
+    {
+      "point_name": "八大智能的培养方式",
+      "questions": [
+        {
+          "question_text": "以下哪项活动主要培养幼儿的语言智能？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "背古诗词", "is_correct": true},
+            {"option_text": "搭积木", "is_correct": false},
+            {"option_text": "唱歌", "is_correct": false},
+            {"option_text": "画画", "is_correct": false}
+          ],
+          "answer_explanation": "文档中“背古诗词”被列为语言智能的培养方式。"
+        },
+        {
+          "question_text": "培养幼儿数学逻辑智能，可以尝试以下哪些活动？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "运算", "is_correct": true},
+            {"option_text": "棋牌游戏", "is_correct": true},
+            {"option_text": "画画", "is_correct": false},
+            {"option_text": "唱歌", "is_correct": false},
+            {"option_text": "户外运动", "is_correct": false}
+          ],
+          "answer_explanation": "文档中“运算、棋牌游戏”被列为数学逻辑智能的培养方式。"
+        },
+        {
+          "question_text": "“画画、搭积木”等活动主要培养幼儿的哪项智能？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "语言智能", "is_correct": false},
+            {"option_text": "空间视觉智能", "is_correct": true},
+            {"option_text": "音乐智能", "is_correct": false},
+            {"option_text": "肢体运动智能", "is_correct": false}
+          ],
+          "answer_explanation": "文档中“画画、搭积木”被列为空间视觉智能的培养方式。"
+        },
+        {
+          "question_text": "通过“唱歌、乐器学习”等活动，主要培养幼儿的？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "肢体运动智能", "is_correct": false},
+            {"option_text": "人际智能", "is_correct": false},
+            {"option_text": "音乐智能", "is_correct": true},
+            {"option_text": "自然观察智能", "is_correct": false}
+          ],
+          "answer_explanation": "文档中“唱歌、乐器”被列为音乐智能的培养方式。"
+        },
+        {
+          "question_text": "以下哪些活动可以有效培养幼儿的肢体运动智能？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "平衡训练", "is_correct": true},
+            {"option_text": "协调性训练", "is_correct": true},
+            {"option_text": "敏捷性训练", "is_correct": true},
+            {"option_text": "背诵古诗", "is_correct": false},
+            {"option_text": "逻辑推理游戏", "is_correct": false}
+          ],
+          "answer_explanation": "文档中肢体运动智能培养包括平衡、协调、敏捷等训练。"
+        }
+      ]
+    },
+    {
+      "point_name": "常见情绪问题 - 暴力行为",
+      "questions": [
+        {
+          "question_text": "1-2岁幼儿出现暴力行为，有时可能只是为了？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "表达感兴趣", "is_correct": true},
+            {"option_text": "表达愤怒", "is_correct": false},
+            {"option_text": "表达讨厌", "is_correct": false},
+            {"option_text": "寻求帮助", "is_correct": false}
+          ],
+          "answer_explanation": "文档中暴力行为原因之一是“用来表达感兴趣”。"
+        },
+        {
+          "question_text": "1-2岁幼儿的暴力行为，也可能是为了？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "表达爱意", "is_correct": false},
+            {"option_text": "想要一起玩", "is_correct": true},
+            {"option_text": "表示友好", "is_correct": false},
+            {"option_text": "寻求安慰", "is_correct": false}
+          ],
+          "answer_explanation": "文档中暴力行为原因之一是“想要一起玩”。"
+        },
+        {
+          "question_text": "当1-2岁幼儿用暴力行为表达讨厌时，通常是因为？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "感到羞耻", "is_correct": false},
+            {"option_text": "受到惊吓", "is_correct": false},
+            {"option_text": "强烈拒绝和抵触", "is_correct": true},
+            {"option_text": "想要引起注意", "is_correct": false}
+          ],
+          "answer_explanation": "文档中暴力行为原因之一是“表达讨厌”，表现为拒绝和抵触。"
+        },
+        {
+          "question_text": "以下哪种情绪可能导致1-2岁幼儿出现暴力行为？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "快乐", "is_correct": false},
+            {"option_text": "平静", "is_correct": false},
+            {"option_text": "满足", "is_correct": false},
+            {"option_text": "愤怒", "is_correct": true}
+          ],
+          "answer_explanation": "文档中暴力行为原因之一是“表达愤怒”。"
+        },
+        {
+          "question_text": "当1-2岁幼儿感到羞耻时，也可能倾向于用暴力攻击的方式表达，这时家长应该？[多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "尊重孩子，维护自尊", "is_correct": true},
+            {"option_text": "不要训斥、羞辱孩子", "is_correct": true},
+            {"option_text": "冷静客观就事论事", "is_correct": true},
+            {"option_text": "严厉惩罚暴力行为", "is_correct": false},
+            {"option_text": "当众批评孩子", "is_correct": false}
+          ],
+          "answer_explanation": "文档中针对羞耻感导致的暴力行为，解决方法包括尊重、不羞辱、冷静客观。"
+        }
+      ]
+    },
+    {
+      "point_name": "常见情绪问题 - 撒泼打滚",
+      "questions": [
+        {
+          "question_text": "1-2岁幼儿撒泼打滚行为的主要目的是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "为了达到自己的目的", "is_correct": true},
+            {"option_text": "为了引起大人注意", "is_correct": false},
+            {"option_text": "为了表达不满", "is_correct": false},
+            {"option_text": "为了发泄情绪", "is_correct": false}
+          ],
+          "answer_explanation": "文档中撒泼打滚的原因之一是“为了达到自己的目的”。"
+        },
+        {
+          "question_text": "1-2岁幼儿撒泼打滚行为也与以下哪项发展有关？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "语言能力发展", "is_correct": false},
+            {"option_text": "自我意识的萌发", "is_correct": true},
+            {"option_text": "运动能力发展", "is_correct": false},
+            {"option_text": "认知能力发展", "is_correct": false}
+          ],
+          "answer_explanation": "文档中撒泼打滚的另一个原因是“自我意识的萌发”。"
+        },
+        {
+          "question_text": "当1-2岁幼儿出现撒泼打滚行为时，以下哪种处理方法是推荐的？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "严厉呵斥孩子", "is_correct": false},
+            {"option_text": "和孩子硬顶，讲道理", "is_correct": false},
+            {"option_text": "第一时间将孩子带离现场", "is_correct": true},
+            {"option_text": "忽略孩子的行为，不予理睬", "is_correct": false}
+          ],
+          "answer_explanation": "文档建议撒泼打滚时“第一时间将孩子带离现场”。"
+        },
+        {
+          "question_text": "带离现场后，面对撒泼打滚的1-2岁幼儿，可以尝试？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "转移注意力", "is_correct": true},
+            {"option_text": "继续讲道理", "is_correct": false},
+            {"option_text": "强迫孩子停止哭闹", "is_correct": false},
+            {"option_text": "用零食安抚", "is_correct": false}
+          ],
+          "answer_explanation": "文档建议带离现场后“通过转移注意力的方式来化解孩子的急躁”。"
+        },
+        {
+          "question_text": "对于1-2岁幼儿的撒泼打滚行为，以下哪种做法是**不推荐**的？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "带离现场", "is_correct": false},
+            {"option_text": "和孩子硬顶，讲道理或呵斥", "is_correct": true},
+            {"option_text": "转移注意力", "is_correct": false},
+            {"option_text": "耐心讲道理（情绪平复后）", "is_correct": false}
+          ],
+          "answer_explanation": "文档明确指出“不要和孩子硬顶，这时候越是跟他讲道理或呵斥他，孩子闹得越凶”。"
+        }
+      ]
+    },
+    {
+      "point_name": "常见情绪问题 - 发脾气",
+      "questions": [
+        {
+          "question_text": "1-2岁幼儿发脾气的主要原因是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "某种事物妨碍了他的行为或需求", "is_correct": true},
+            {"option_text": "想要引起大人注意", "is_correct": false},
+            {"option_text": "身体不舒服", "is_correct": false},
+            {"option_text": "模仿大人行为", "is_correct": false}
+          ],
+          "answer_explanation": "文档中发脾气的原因是“某种事物妨碍了他的行为或不能满足他的需求”。"
+        },
+        {
+          "question_text": "1-2岁幼儿发脾气时，常常伴随以下哪种情况？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "语言表达流畅", "is_correct": false},
+            {"option_text": "语言还不会表达", "is_correct": true},
+            {"option_text": "能理性沟通", "is_correct": false},
+            {"option_text": "能控制情绪", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出发脾气是由于“语言还不会表达，也不会选择一个适当的方式来对待，又控制不了自己的情绪”。"
+        },
+        {
+          "question_text": "面对正在发脾气的1-2岁幼儿，以下哪种处理方法是推荐的？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "严厉制止孩子的行为", "is_correct": false},
+            {"option_text": "强迫孩子停止哭闹", "is_correct": false},
+            {"option_text": "陪伴而不是干预", "is_correct": true},
+            {"option_text": "忽略孩子的脾气，不予理睬", "is_correct": false}
+          ],
+          "answer_explanation": "文档建议对于发脾气的孩子“最好的方法是陪伴而不是干预”。"
+        },
+        {
+          "question_text": "“陪伴而不是干预”处理发脾气幼儿的方法，强调的是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "理解和接纳孩子的情绪", "is_correct": true},
+            {"option_text": "快速制止孩子的行为", "is_correct": false},
+            {"option_text": "忽略孩子的情绪需求", "is_correct": false},
+            {"option_text": "用道理说服孩子", "is_correct": false}
+          ],
+          "answer_explanation": "陪伴而非干预，核心是理解和接纳孩子的情绪，而非强行制止。"
+        },
+        {
+          "question_text": "当1-2岁幼儿发脾气时，家长的正确做法是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "大声呵斥，让孩子停止", "is_correct": false},
+            {"option_text": "保持冷静，陪伴孩子", "is_correct": true},
+            {"option_text": "强行转移孩子注意力", "is_correct": false},
+            {"option_text": "用零食或玩具安抚", "is_correct": false}
+          ],
+          "answer_explanation": "面对发脾气，家长应保持冷静陪伴，理解和接纳孩子的情绪。"
+        }
+      ]
+    },
+    {
+      "point_name": "恐惧及解决方法",
+      "questions": [
+        {
+          "question_text": "1-2岁幼儿产生恐惧情绪，通常与以下哪项发展有关？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "自我意识", "is_correct": true},
+            {"option_text": "语言能力", "is_correct": false},
+            {"option_text": "运动能力", "is_correct": false},
+            {"option_text": "认知能力", "is_correct": false}
+          ],
+          "answer_explanation": "文档中恐惧的原因是“当孩子有了自我意识之后，就会有莫名其妙的恐惧”。"
+        },
+        {
+          "question_text": "1-2岁幼儿的恐惧情绪，常常表现为？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "理性且有明确原因", "is_correct": false},
+            {"option_text": "莫名其妙，没有明显原因", "is_correct": true},
+            {"option_text": "只对特定事物恐惧", "is_correct": false},
+            {"option_text": "完全不会表达恐惧", "is_correct": false}
+          ],
+          "answer_explanation": "文档描述1-2岁幼儿的恐惧是“莫名其妙的恐惧”。"
+        },
+        {
+          "question_text": "面对1-2岁幼儿的恐惧情绪，以下哪种解决方法是首要的？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "嘲笑孩子的恐惧", "is_correct": false},
+            {"option_text": "强迫孩子克服恐惧", "is_correct": false},
+            {"option_text": "承认他们的恐惧，让孩子获得安全感", "is_correct": true},
+            {"option_text": "忽略孩子的恐惧，不予理睬", "is_correct": false}
+          ],
+          "answer_explanation": "文档建议解决恐惧的首要方法是“承认他们的恐惧，让孩子获得安全感”。"
+        },
+        {
+          "question_text": "为了帮助1-2岁幼儿克服恐惧，可以尝试？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "让孩子认知和了解恐惧的事物", "is_correct": true},
+            {"option_text": "完全避免接触恐惧的事物", "is_correct": false},
+            {"option_text": "强迫孩子面对恐惧的事物", "is_correct": false},
+            {"option_text": "用讲道理的方式消除恐惧", "is_correct": false}
+          ],
+          "answer_explanation": "文档建议“尝试让孩子认知和了解这些让他们恐惧的事物”。"
+        },
+        {
+          "question_text": "“给孩子机会让他脱敏”是解决1-2岁幼儿恐惧情绪的方法之一，脱敏是指？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "完全避免接触恐惧事物", "is_correct": false},
+            {"option_text": "循序渐进地接触恐惧事物", "is_correct": true},
+            {"option_text": "立即让孩子面对恐惧事物", "is_correct": false},
+            {"option_text": "用语言解释恐惧事物不可怕", "is_correct": false}
+          ],
+          "answer_explanation": "脱敏是指循序渐进地接触，逐渐适应。"
+        }
+      ]
+    },
+    {
+      "point_name": "情绪中的安全感",
+      "questions": [
+        {
+          "question_text": "1-2岁幼儿安全感的最重要来源是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "成人内心的稳定", "is_correct": true},
+            {"option_text": "物质条件的满足", "is_correct": false},
+            {"option_text": "丰富的玩具", "is_correct": false},
+            {"option_text": "安静的环境", "is_correct": false}
+          ],
+          "answer_explanation": "文档中安全感来源首要因素是“成人内心的稳定”。"
+        },
+        {
+          "question_text": "以下哪项是建立1-2岁幼儿安全感的关键做法？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "完全满足孩子的所有需求", "is_correct": false},
+            {"option_text": "积极回应孩子的需求", "is_correct": true},
+            {"option_text": "对孩子的要求置之不理", "is_correct": false},
+            {"option_text": "严格控制孩子", "is_correct": false}
+          ],
+          "answer_explanation": "文档中安全感来源之一是“积极回应孩子的需求”。"
+        },
+        {
+          "question_text": "“赋予孩子掌控感”有助于提升1-2岁幼儿的安全感，这意味着？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "让孩子完全掌控一切", "is_correct": false},
+            {"option_text": "家长完全听从孩子", "is_correct": false},
+            {"option_text": "在力所能及的范围内给孩子选择权和自主权", "is_correct": true},
+            {"option_text": "限制孩子的所有选择", "is_correct": false}
+          ],
+          "answer_explanation": "赋予掌控感是在一定范围内给予选择权，而非完全放任或限制。"
+        },
+        {
+          "question_text": "1-2岁幼儿无理取闹，大哭大叫的背后，可能隐藏着？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "寻求关注和安全感", "is_correct": true},
+            {"option_text": "生理不适", "is_correct": false},
+            {"option_text": "故意捣乱", "is_correct": false},
+            {"option_text": "语言表达能力不足", "is_correct": false}
+          ],
+          "answer_explanation": "文档分析无理取闹的原因是孩子思维简单，认为大叫“有效”。"
+        },
+        {
+          "question_text": "为了预防1-2岁幼儿无理取闹，家长应该？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "对孩子大叫大吼", "is_correct": false},
+            {"option_text": "给予孩子高质量的陪伴和及时的回应", "is_correct": true},
+            {"option_text": "对孩子的要求一概拒绝", "is_correct": false},
+            {"option_text": "忽略孩子的大叫行为", "is_correct": false}
+          ],
+          "answer_explanation": "预防无理取闹需要“父母高质量的陪伴、对孩子的反应及时响应”。"
+        }
+      ]
+    },
+    {
+      "point_name": "逆反期 (执拗期)",
+      "questions": [
+        {
+          "question_text": "1-2岁幼儿的逆反期，也称为？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "执拗期", "is_correct": true},
+            {"option_text": "青春期", "is_correct": false},
+            {"option_text": "更年期", "is_correct": false},
+            {"option_text": "叛逆期后期", "is_correct": false}
+          ],
+          "answer_explanation": "文档中逆反期也称为“执拗期”。"
+        },
+        {
+          "question_text": "1-2岁幼儿逆反期的根本原因是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "家长管教不当", "is_correct": false},
+            {"option_text": "孩子内心秩序感的建立和抗争", "is_correct": true},
+            {"option_text": "孩子故意和家长作对", "is_correct": false},
+            {"option_text": "孩子生理发育的自然阶段", "is_correct": false}
+          ],
+          "answer_explanation": "文档中逆反期来源于“秩序期”，是“为了秩序感而抗争”。"
+        },
+        {
+          "question_text": "逆反期与1-2岁幼儿的哪项发展密切相关？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "运动能力", "is_correct": false},
+            {"option_text": "语言能力", "is_correct": false},
+            {"option_text": "自我意识", "is_correct": true},
+            {"option_text": "认知能力", "is_correct": false}
+          ],
+          "answer_explanation": "文档指出逆反期与“孩子的自我意识快速发展密切相关”。"
+        },
+        {
+          "question_text": "1-2岁幼儿逆反期的特点是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "有十分独立且看似执拗的自我意识", "is_correct": true},
+            {"option_text": "完全不听从父母的指令", "is_correct": false},
+            {"option_text": "情绪极不稳定，喜怒无常", "is_correct": false},
+            {"option_text": "语言表达能力突然下降", "is_correct": false}
+          ],
+          "answer_explanation": "文档描述逆反期特点是“十分独立且看似执拗的自我意识”。"
+        },
+        {
+          "question_text": "面对1-2岁幼儿的逆反期，家长应该采取的态度是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "严厉管教，纠正“错误”行为", "is_correct": false},
+            {"option_text": "耐心引导，帮助孩子平稳度过", "is_correct": true},
+            {"option_text": "完全放任，不加干预", "is_correct": false},
+            {"option_text": "与其他孩子比较，施加压力", "is_correct": false}
+          ],
+          "answer_explanation": "文档建议“只要耐心引导就可以帮孩子平稳度过”。"
+        }
+      ]
+    },
+    {
+      "point_name": "分离焦虑",
+      "questions": [
+        {
+          "question_text": "1-2岁幼儿出现分离焦虑的年龄阶段通常是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "6、7个月开始到2岁", "is_correct": true},
+            {"option_text": "3-4岁", "is_correct": false},
+            {"option_text": "5-6岁", "is_correct": false},
+            {"option_text": "7岁以后", "is_correct": false}
+          ],
+          "answer_explanation": "文档中分离焦虑发生阶段是“6、7 个月开始到 2 岁”。"
+        },
+        {
+          "question_text": "以下哪项游戏可以帮助缓解1-2岁幼儿的分离焦虑？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "追逐游戏", "is_correct": false},
+            {"option_text": "躲猫猫游戏", "is_correct": true},
+            {"option_text": "角色扮演游戏", "is_correct": false},
+            {"option_text": "积木搭建游戏", "is_correct": false}
+          ],
+          "answer_explanation": "文档建议“玩躲猫猫游戏，帮助孩子来建立人和事物永久存在的意识”缓解分离焦虑。"
+        },
+        {
+          "question_text": "“妈妈爸爸会回来的”这种保证，对于缓解1-2岁幼儿分离焦虑的作用是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "让孩子完全忘记父母", "is_correct": false},
+            {"option_text": "让孩子立即停止哭闹", "is_correct": false},
+            {"option_text": "给予孩子安全感和信任感", "is_correct": true},
+            {"option_text": "让孩子学会独立", "is_correct": false}
+          ],
+          "answer_explanation": "保证会回来是为了“用温柔有信心的语调向孩子作出保证”。"
+        },
+        {
+          "question_text": "分离焦虑高峰期通常在1-2岁幼儿的哪个阶段？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "10～18个月", "is_correct": true},
+            {"option_text": "6～10个月", "is_correct": false},
+            {"option_text": "18～24个月", "is_correct": false},
+            {"option_text": "2岁以后", "is_correct": false}
+          ],
+          "answer_explanation": "文档中分离焦虑高峰期是“10～18个月”。"
+        },
+        {
+          "question_text": "对于处于分离焦虑期的1-2岁幼儿，睡前高质量的陪伴和互动？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "可以忽略不计", "is_correct": false},
+            {"option_text": "尤为重要", "is_correct": true},
+            {"option_text": "适得其反", "is_correct": false},
+            {"option_text": "没有明显作用", "is_correct": false}
+          ],
+          "answer_explanation": "文档强调“睡前高质量的陪伴和互动对这个阶段尤为重要”。"
+        }
+      ]
+    },
+    {
+      "point_name": "一天的安排示例 - 1-2岁",
+      "questions": [
+        {
+          "question_text": "根据文档，1-2岁幼儿一天的喂养原则是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "三餐两点", "is_correct": true},
+            {"option_text": "四餐一点", "is_correct": false},
+            {"option_text": "两餐三点", "is_correct": false},
+            {"option_text": "自由进食", "is_correct": false}
+          ],
+          "answer_explanation": "文档中1-2岁喂养原则是“三餐两点”。"
+        },
+        {
+          "question_text": "1-2岁幼儿一天的睡眠原则是？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "10小时左右", "is_correct": false},
+            {"option_text": "13小时左右", "is_correct": true},
+            {"option_text": "15小时左右", "is_correct": false},
+            {"option_text": "不限制睡眠时间", "is_correct": false}
+          ],
+          "answer_explanation": "文档中1-2岁睡眠原则是“13小时左右”。"
+        },
+        {
+          "question_text": "在1-2岁幼儿的一天安排模板中，早餐时间通常建议在？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "6:00-7:00", "is_correct": false},
+            {"option_text": "7:00-8:00", "is_correct": false},
+            {"option_text": "7:30-8:30", "is_correct": true},
+            {"option_text": "9:00-10:00", "is_correct": false}
+          ],
+          "answer_explanation": "参照1-2岁一日安排模板，早餐时间建议在7:30-8:30。"
+        },
+        {
+          "question_text": "1-2岁幼儿午睡时间，在一天安排模板中通常建议安排在？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "12:30～14:30 或 15:00", "is_correct": true},
+            {"option_text": "11:00-12:00", "is_correct": false},
+            {"option_text": "15:00-16:00", "is_correct": false},
+            {"option_text": "下午任何时间", "is_correct": false}
+          ],
+          "answer_explanation": "参照1-2岁一日安排模板，午睡时间建议在12:30～14:30 或 15:00。"
+        },
+        {
+          "question_text": "文档中强调，1-2岁幼儿一天的安排模板？[单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "必须严格遵守，不能变动", "is_correct": false},
+            {"option_text": "仅具参考价值，不可刻板套用", "is_correct": true},
+            {"option_text": "适用于所有1-2岁幼儿", "is_correct": false},
+            {"option_text": "是育儿的唯一标准", "is_correct": false}
+          ],
+          "answer_explanation": "文档明确指出“模板仅具参考价值，不可刻板套用”，要根据孩子特性灵活安排。"
+        }
+      ]
+    }
+  ]
+}
