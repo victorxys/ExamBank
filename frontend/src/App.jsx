@@ -1,206 +1,223 @@
-import { useEffect, useState } from 'react'
-import { 
-  Container, 
-  Typography, 
-  Grid, 
-  Card, 
-  CardContent, 
-  CardHeader,
-  Box,
-  ThemeProvider,
-  createTheme,
-  CssBaseline,
-  useMediaQuery,
-  Chip,
-  IconButton,
-  CardActions,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Button,
-  List,
-  ListItem,
-  ListItemText,
-  CircularProgress,
-  ListItemButton,
-  Collapse,
-  Paper,
-  RadioGroup,
-  FormControlLabel,
-  Radio,
-  Checkbox,
-  Rating,
-  Divider
-} from '@mui/material'
-import { 
-  Info as InfoIcon, 
-  Close as CloseIcon,
-  ExpandMore as ExpandMoreIcon,
-  ExpandLess as ExpandLessIcon,
-  Check as CheckIcon,
-  Clear as ClearIcon
-} from '@mui/icons-material'
-import { Routes, Route, useNavigate, useParams } from 'react-router-dom'
+import React from 'react'
+import { Routes, Route, Navigate } from 'react-router-dom'
+import { ThemeProvider, createTheme } from '@mui/material/styles'
+import { Box, CssBaseline } from '@mui/material'
+import Questions from './components/Questions'
 import KnowledgePoints from './components/KnowledgePoints'
-import './App.css'
+import ExamList from './components/ExamList'
+import ExamDetail from './components/ExamDetail'
+import Sidebar from './components/Sidebar'
+import Navbar from './components/Navbar'
+import CourseList from './components/CourseList'
+import ExamTaking from './components/ExamTaking'
+import ExamRecords from './components/ExamRecords'
+import ExamRecordDetail from './components/ExamRecordDetail'
+import ExamTake from './components/ExamTake'
+import "@fortawesome/fontawesome-free/css/all.min.css";
 
-// 创建自定义主题
 const theme = createTheme({
   palette: {
+    mode: 'light',
     primary: {
-      main: '#56aea2',
-      light: '#7bc4ba',
-      dark: '#3d8b81',
+      main: '#1976d2',
     },
     secondary: {
-      main: '#03c4eb',
-      light: '#4dd4f4',
-      dark: '#0297b4',
+      main: '#dc004e',
+    },
+    error: {
+      main: '#f5365c',
+      light: '#f76e8b',
+      dark: '#ea0038',
+    },
+    warning: {
+      main: '#fb6340',
+      light: '#fc8f73',
+      dark: '#fa3a0e',
+    },
+    info: {
+      main: '#11cdef',
+      light: '#41d7f2',
+      dark: '#0da5c2',
+    },
+    success: {
+      main: '#2dce89',
+      light: '#54d8a1',
+      dark: '#24a46d',
+    },
+    grey: {
+      50: '#f8f9fa',
+      100: '#f6f9fc',
+      200: '#e9ecef',
+      300: '#dee2e6',
+      400: '#ced4da',
+      500: '#adb5bd',
+      600: '#8898aa',
+      700: '#525f7f',
+      800: '#32325d',
+      900: '#212529',
     },
     background: {
       default: '#f8f9fe',
       paper: '#ffffff',
     },
     text: {
-      primary: '#2c3e50',
-      secondary: '#34495e',
+      primary: '#525f7f',
+      secondary: '#8898aa',
     },
   },
   typography: {
     fontFamily: '"Open Sans", "Helvetica", "Arial", sans-serif',
-    h4: {
+    h1: {
+      fontSize: '1.625rem',
       fontWeight: 600,
-      color: '#2c3e50',
+      lineHeight: 1.5,
+    },
+    h2: {
+      fontSize: '1.25rem',
+      fontWeight: 600,
+      lineHeight: 1.5,
+    },
+    h3: {
+      fontSize: '1.0625rem',
+      fontWeight: 600,
+      lineHeight: 1.5,
+    },
+    h4: {
+      fontSize: '0.9375rem',
+      fontWeight: 600,
+      lineHeight: 1.5,
+    },
+    h5: {
+      fontSize: '0.8125rem',
+      fontWeight: 600,
+      lineHeight: 1.5,
     },
     h6: {
+      fontSize: '0.625rem',
       fontWeight: 600,
-      color: '#2c3e50',
+      lineHeight: 1.5,
     },
     body1: {
-      color: '#34495e',
+      fontSize: '0.875rem',
+      lineHeight: 1.5,
     },
     body2: {
-      color: '#7f8c8d',
+      fontSize: '0.875rem',
+      lineHeight: 1.5,
+    },
+    button: {
+      textTransform: 'none',
+      fontWeight: 600,
     },
   },
+  shape: {
+    borderRadius: 4,
+  },
   components: {
-    MuiCard: {
+    MuiButton: {
       styleOverrides: {
         root: {
           borderRadius: '0.375rem',
-          boxShadow: '0 1px 3px rgba(86,174,162,.15), 0 1px 0 rgba(0,0,0,.02)',
+          padding: '0.625rem 1.25rem',
+          fontSize: '0.875rem',
+          fontWeight: 600,
+          boxShadow: '0 4px 6px rgba(50,50,93,.11), 0 1px 3px rgba(0,0,0,.08)',
           transition: 'all .15s ease',
           '&:hover': {
             transform: 'translateY(-1px)',
-            boxShadow: '0 4px 6px rgba(86,174,162,.1), 0 1px 3px rgba(0,0,0,.08)',
+            boxShadow: '0 7px 14px rgba(50,50,93,.1), 0 3px 6px rgba(0,0,0,.08)',
+          },
+        },
+        contained: {
+          '&.MuiButton-containedPrimary': {
+            background: 'linear-gradient(87deg, #5e72e4 0, #825ee4 100%)',
+          },
+          '&.MuiButton-containedSecondary': {
+            background: 'linear-gradient(87deg, #f5365c 0, #f56036 100%)',
           },
         },
       },
     },
-    MuiChip: {
+    MuiCard: {
       styleOverrides: {
         root: {
           borderRadius: '0.375rem',
+          boxShadow: '0 0 2rem 0 rgba(136,168,170,.15)',
+          border: '1px solid rgba(0,0,0,.05)',
         },
-        outlinedPrimary: {
-          borderColor: '#56aea2',
-          color: '#56aea2',
+      },
+    },
+    MuiCardHeader: {
+      styleOverrides: {
+        root: {
+          padding: '1.25rem 1.5rem',
+          marginBottom: '0',
+          backgroundColor: 'transparent',
+          borderBottom: '1px solid rgba(0,0,0,.05)',
+        },
+      },
+    },
+    MuiCardContent: {
+      styleOverrides: {
+        root: {
+          padding: '1.5rem',
+        },
+      },
+    },
+    MuiAppBar: {
+      styleOverrides: {
+        root: {
+          boxShadow: 'none',
+          borderBottom: '1px solid rgba(0,0,0,.05)',
+          backgroundColor: '#fff',
         },
       },
     },
   },
 })
 
-function CourseList() {
-  const [courses, setCourses] = useState([])
-  const navigate = useNavigate()
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
-
-  useEffect(() => {
-    fetch('http://localhost:5000/api/courses')
-      .then(response => response.json())
-      .then(data => setCourses(data))
-      .catch(error => console.error('Error:', error))
-  }, [])
-
-  return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
-      <Typography variant="h4" component="h1" gutterBottom>
-        课程列表
-      </Typography>
-      
-      <Grid container spacing={3}>
-        {courses.map((course) => (
-          <Grid item key={course.id} xs={12} sm={6} md={4}>
-            <Card 
-              sx={{ 
-                height: '100%',
-                display: 'flex',
-                flexDirection: 'column',
-                cursor: 'pointer',
-                '&:hover': {
-                  boxShadow: 6
-                }
-              }}
-              onClick={() => navigate(`/courses/${course.id}/knowledge-points`)}
-            >
-              <CardHeader
-                title={
-                  <Typography variant="h6">
-                    {course.course_name}
-                  </Typography>
-                }
-                action={
-                  <IconButton size="small">
-                    <InfoIcon />
-                  </IconButton>
-                }
-              />
-              <CardContent sx={{ flexGrow: 1 }}>
-                <Typography variant="body2" color="text.secondary" paragraph>
-                  {course.description || '暂无描述'}
-                </Typography>
-                <Box display="flex" gap={1} flexWrap="wrap">
-                  <Chip 
-                    label={`${course.total_points || 0} 个知识点`}
-                    size="small"
-                    color="primary"
-                  />
-                  <Chip 
-                    label={`${course.total_questions || 0} 道题目`}
-                    size="small"
-                    color="secondary"
-                  />
-                </Box>
-              </CardContent>
-              <CardActions sx={{ justifyContent: 'flex-end', p: 2 }}>
-                <Typography variant="caption" color="text.secondary">
-                  创建时间：{new Date(course.created_at).toLocaleString('zh-CN', {
-                    year: 'numeric',
-                    month: '2-digit',
-                    day: '2-digit',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                  })}
-                </Typography>
-              </CardActions>
-            </Card>
-          </Grid>
-        ))}
-      </Grid>
-    </Container>
-  )
-}
-
 function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Routes>
-        <Route path="/" element={<CourseList />} />
-        <Route path="/courses/:courseId/knowledge-points" element={<KnowledgePoints />} />
-      </Routes>
+      <Box sx={{ display: 'flex', minHeight: '100vh', width: '100%' }}>
+        <Sidebar />
+        <Box
+          component="main"
+          sx={{
+            flexGrow: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            minHeight: '100vh',
+            width: '100%',
+            backgroundColor: 'background.default',
+          }}
+        >
+          <Navbar />
+          <Box
+            sx={{
+              flex: 1,
+              p: { xs: 2, sm: 3 },
+              mt: '64px',
+              width: '100%',
+              height: 'calc(100vh - 64px)',
+              overflow: 'auto',
+              maxWidth: '100%'
+            }}
+          >
+            <Routes>
+              <Route path="/" element={<Navigate to="/exams" />} />
+              <Route path="/exams" element={<ExamList />} />
+              <Route path="/exams/:examId" element={<ExamDetail />} />
+              <Route path="/take-exam" element={<ExamTake />} />
+              <Route path="/courses/:courseId/knowledge_points" element={<KnowledgePoints />} />
+              <Route path="/courses/:courseId/knowledge_points/:knowledgePointId/questions" element={<Questions />} />
+              <Route path="/exam-records" element={<ExamRecords />} />
+              <Route path="/exam-records/:examId/:userId" element={<ExamRecordDetail />} />
+            </Routes>
+          </Box>
+        </Box>
+      </Box>
     </ThemeProvider>
   )
 }

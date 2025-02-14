@@ -8,7 +8,7 @@
           "question_text": "以下哪项最符合 2-3 岁幼儿的育儿理念？ [单选题]",
           "question_type": "单选题",
           "options": [
-            {"option_text": "顺应孩子的发展，尊重其身心特点", "is_correct": false},
+            {"option_text": "顺应孩子的发展，尊重其身心特点", "is_correct": true},
             {"option_text": "严格按照规章制度培养孩子", "is_correct": false},
             {"option_text": "以家长的期望为中心教育孩子", "is_correct": false},
             {"option_text": "快速纠正孩子的所有不良行为", "is_correct": false}
@@ -20,7 +20,7 @@
           "question_type": "单选题",
           "options": [
             {"option_text": "孩子的行为习惯是否符合社会规范", "is_correct": false},
-            {"option_text": "孩子行为背后的情绪和真实想法", "is_correct": false},
+            {"option_text": "孩子行为背后的情绪和真实想法", "is_correct": true},
             {"option_text": "孩子掌握了多少知识和技能", "is_correct": false},
             {"option_text": "孩子是否听从家长的指令", "is_correct": false}
           ],
@@ -30,9 +30,9 @@
           "question_text": "以下哪些育儿行为体现了“尊重孩子”的理念？ [多选题]",
           "question_type": "多选题",
           "options": [
-            {"option_text": "从孩子的角度去理解和解决问题", "is_correct": false},
+            {"option_text": "从孩子的角度去理解和解决问题", "is_correct": true},
             {"option_text": "强制孩子接受家长的安排", "is_correct": false},
-            {"option_text": "根据孩子的身心特点进行教养", "is_correct": false},
+            {"option_text": "根据孩子的身心特点进行教养", "is_correct": true},
             {"option_text": "忽视孩子的个人意愿，强调服从", "is_correct": false},
             {"option_text": "只关注孩子的物质需求", "is_correct": false}
           ],
@@ -45,7 +45,7 @@
             {"option_text": "行为发生的时间和地点", "is_correct": false},
             {"option_text": "行为造成的后果和影响", "is_correct": false},
             {"option_text": "如何快速有效地纠正行为", "is_correct": false},
-            {"option_text": "行为背后隐藏的情绪和需求", "is_correct": false}
+            {"option_text": "行为背后隐藏的情绪和需求", "is_correct": true}
           ],
           "answer_explanation": "再次强调育儿核心理念是关注行为背后的情绪和心声。"
         },
@@ -53,7 +53,7 @@
           "question_text": "在 2-3 岁幼儿的教育中， “顺应孩子的发展” 意味着什么？ [单选题]",
           "question_type": "单选题",
           "options": [
-            {"option_text": "根据孩子不同年龄段的身心发展规律进行教育", "is_correct": false},
+            {"option_text": "根据孩子不同年龄段的身心发展规律进行教育", "is_correct": true},
             {"option_text": "完全放任孩子自由成长，不加干预", "is_correct": false},
             {"option_text": "按照统一标准培养所有孩子", "is_correct": false},
             {"option_text": "过度保护孩子，避免任何挫折", "is_correct": false}
@@ -69,7 +69,7 @@
           "question_text": "2～3 岁是孩子哪方面习惯培养的关键期？ [单选题]",
           "question_type": "单选题",
           "options": [
-            {"option_text": "行为习惯和生活习惯", "is_correct": false},
+            {"option_text": "行为习惯和生活习惯", "is_correct": true},
             {"option_text": "学习习惯和阅读习惯", "is_correct": false},
             {"option_text": "饮食习惯和运动习惯", "is_correct": false},
             {"option_text": "社交习惯和礼仪习惯", "is_correct": false}
@@ -81,7 +81,7 @@
           "question_type": "单选题",
           "options": [
             {"option_text": "没有影响，人格是天生的", "is_correct": false},
-            {"option_text": "有长远的影响", "is_correct": false},
+            {"option_text": "有长远的影响", "is_correct": true},
             {"option_text": "只有短期影响，成年后会改变", "is_correct": false},
             {"option_text": "主要影响孩子的智力发展，与人格无关", "is_correct": false}
           ],
@@ -93,7 +93,7 @@
           "options": [
             {"option_text": "由遗传基因决定", "is_correct": false},
             {"option_text": "通过后天学习知识形成", "is_correct": false},
-            {"option_text": "在环境中的行为习惯中形成", "is_correct": false},
+            {"option_text": "在环境中的行为习惯中形成", "is_correct": true},
             {"option_text": "主要受家庭经济条件影响", "is_correct": false}
           ],
           "answer_explanation": "文档指出“人格是环境中的行为习惯形成的”。"
@@ -102,9 +102,9 @@
           "question_text": "以下关于 2-3 岁幼儿习惯培养的说法正确的是？ [多选题]",
           "question_type": "多选题",
           "options": [
-            {"option_text": "2-3岁是培养良好习惯的关键时期", "is_correct": false},
+            {"option_text": "2-3岁是培养良好习惯的关键时期", "is_correct": true},
             {"option_text": "幼儿期习惯对人格没有长期影响", "is_correct": false},
-            {"option_text": "可以通过改变环境来帮助孩子改变不良习惯", "is_correct": false},
+            {"option_text": "可以通过改变环境来帮助孩子改变不良习惯", "is_correct": true},
             {"option_text": "人格完全由遗传基因决定，习惯无法改变", "is_correct": false},
             {"option_text": "习惯培养主要依靠严厉的惩罚措施", "is_correct": false}
           ],
@@ -114,7 +114,7 @@
           "question_text": "如果孩子在幼儿期养成了不良习惯，家长应该怎么做？ [单选题]",
           "question_type": "单选题",
           "options": [
-            {"option_text": "尝试通过改变环境来帮助孩子", "is_correct": false},
+            {"option_text": "尝试通过改变环境来帮助孩子", "is_correct": true},
             {"option_text": "认为人格已定型，无需改变", "is_correct": false},
             {"option_text": "严厉批评孩子，强制纠正", "is_correct": false},
             {"option_text": "等待孩子长大后自然改正", "is_correct": false}
@@ -130,7 +130,7 @@
           "question_text": "养成良好习惯，可以让孩子明白什么？ [单选题]",
           "question_type": "单选题",
           "options": [
-            {"option_text": "什么时间做什么事", "is_correct": false},
+            {"option_text": "什么时间做什么事", "is_correct": true},
             {"option_text": "如何取悦家长", "is_correct": false},
             {"option_text": "如何获得更多奖励", "is_correct": false},
             {"option_text": "如何避免惩罚", "is_correct": false}
@@ -142,7 +142,7 @@
           "question_type": "单选题",
           "options": [
             {"option_text": "情绪管理", "is_correct": false},
-            {"option_text": "时间管理", "is_correct": false},
+            {"option_text": "时间管理", "is_correct": true},
             {"option_text": "金钱管理", "is_correct": false},
             {"option_text": "人际关系管理", "is_correct": false}
           ],
@@ -152,9 +152,9 @@
           "question_text": "学会时间管理，能帮助孩子更合理地分配什么？ [多选题]",
           "question_type": "多选题",
           "options": [
-            {"option_text": "学习时间", "is_correct": false},
-            {"option_text": "玩乐时间", "is_correct": false},
-            {"option_text": "生活时间", "is_correct": false},
+            {"option_text": "学习时间", "is_correct": true},
+            {"option_text": "玩乐时间", "is_correct": true},
+            {"option_text": "生活时间", "is_correct": true},
             {"option_text": "零花钱", "is_correct": false},
             {"option_text": "社交时间", "is_correct": false}
           ],
@@ -167,7 +167,7 @@
             {"option_text": "让孩子更守时", "is_correct": false},
             {"option_text": "帮助孩子合理安排生活", "is_correct": false},
             {"option_text": "培养孩子的时间管理能力", "is_correct": false},
-            {"option_text": "让孩子完全听从家长安排", "is_correct": false}
+            {"option_text": "让孩子完全听从家长安排", "is_correct": true}
           ],
           "answer_explanation": "良好习惯的益处是时间管理和合理安排，而不是让孩子完全听从家长。"
         },
@@ -176,7 +176,7 @@
           "question_type": "单选题",
           "options": [
             {"option_text": "物质生活和精神生活", "is_correct": false},
-            {"option_text": "学习与生活", "is_correct": false},
+            {"option_text": "学习与生活", "is_correct": true},
             {"option_text": "个人兴趣和家长期望", "is_correct": false},
             {"option_text": "独立性和依赖性", "is_correct": false}
           ],
@@ -191,7 +191,7 @@
           "question_text": "在孩子习惯培养中，为什么要计划好时间和空间？ [单选题]",
           "question_type": "单选题",
           "options": [
-            {"option_text": "为了科学合理地安排孩子的学习与生活", "is_correct": false},
+            {"option_text": "为了科学合理地安排孩子的学习与生活", "is_correct": true},
             {"option_text": "为了完全掌控孩子的生活", "is_correct": false},
             {"option_text": "为了让孩子适应家长的作息时间", "is_correct": false},
             {"option_text": "为了减少家长的育儿负担", "is_correct": false}
@@ -202,9 +202,9 @@
           "question_text": "计划时间和空间时，需要考虑哪些因素？ [多选题]",
           "question_type": "多选题",
           "options": [
-            {"option_text": "春夏秋冬四季变化", "is_correct": false},
-            {"option_text": "不同地区的特点", "is_correct": false},
-            {"option_text": "每个人的生物钟规律", "is_correct": false},
+            {"option_text": "春夏秋冬四季变化", "is_correct": true},
+            {"option_text": "不同地区的特点", "is_correct": true},
+            {"option_text": "每个人的生物钟规律", "is_correct": true},
             {"option_text": "家长的个人喜好", "is_correct": false},
             {"option_text": "社会流行趋势", "is_correct": false}
           ],
@@ -215,7 +215,7 @@
           "question_type": "单选题",
           "options": [
             {"option_text": "生物钟规律", "is_correct": false},
-            {"option_text": "环境因素", "is_correct": false},
+            {"option_text": "环境因素", "is_correct": true},
             {"option_text": "学习内容", "is_correct": false},
             {"option_text": "生活习惯", "is_correct": false}
           ],
@@ -227,7 +227,7 @@
           "options": [
             {"option_text": "完全个性化定制", "is_correct": false},
             {"option_text": "绝对的按时作息", "is_correct": false},
-            {"option_text": "科学合理，按规律办事", "is_correct": false},
+            {"option_text": "科学合理，按规律办事", "is_correct": true},
             {"option_text": "最大限度利用时间", "is_correct": false}
           ],
           "answer_explanation": "结合生物钟是为了“做到科学合理，按规律办事”。"
@@ -236,7 +236,7 @@
           "question_text": "合理分配时间，安排不同的学习和生活，最终目标是？ [单选题]",
           "question_type": "单选题",
           "options": [
-            {"option_text": "做到科学合理，按规律办事", "is_correct": false},
+            {"option_text": "做到科学合理，按规律办事", "is_correct": true},
             {"option_text": "让孩子成为时间管理大师", "is_correct": false},
             {"option_text": "完全符合时间表安排", "is_correct": false},
             {"option_text": "最大限度利用孩子的潜力", "is_correct": false}
@@ -252,7 +252,7 @@
           "question_text": "2-3 岁幼儿白天的睡眠规律是？ [单选题]",
           "question_type": "单选题",
           "options": [
-            {"option_text": "白天基本上是 2 到 1 觉", "is_correct": false},
+            {"option_text": "白天基本上是 2 到 1 觉", "is_correct": true},
             {"option_text": "白天固定 3 觉", "is_correct": false},
             {"option_text": "白天不需要睡觉", "is_correct": false},
             {"option_text": "白天睡眠时间不规律", "is_correct": false}
@@ -263,7 +263,7 @@
           "question_text": "“白天基本上是 2 到 1 觉”描述的是哪个年龄段幼儿的睡眠规律？ [单选题]",
           "question_type": "单选题",
           "options": [
-            {"option_text": "2-3 岁", "is_correct": false},
+            {"option_text": "2-3 岁", "is_correct": true},
             {"option_text": "7-12 个月", "is_correct": false},
             {"option_text": "4-6 岁", "is_correct": false},
             {"option_text": "新生儿", "is_correct": false}
@@ -274,7 +274,7 @@
           "question_text": "随着孩子年龄增长，白天小睡的次数会如何变化？ [单选题]",
           "question_type": "单选题",
           "options": [
-            {"option_text": "逐渐减少", "is_correct": false},
+            {"option_text": "逐渐减少", "is_correct": true},
             {"option_text": "逐渐增多", "is_correct": false},
             {"option_text": "保持不变", "is_correct": false},
             {"option_text": "完全不睡", "is_correct": false}
@@ -286,7 +286,7 @@
           "question_type": "单选题",
           "options": [
             {"option_text": "孩子睡眠质量很好", "is_correct": false},
-            {"option_text": "孩子的睡眠规律可能需要调整", "is_correct": false},
+            {"option_text": "孩子的睡眠规律可能需要调整", "is_correct": true},
             {"option_text": "孩子生长发育迟缓", "is_correct": false},
             {"option_text": "孩子特别嗜睡", "is_correct": false}
           ],
@@ -298,7 +298,7 @@
           "options": [
             {"option_text": "强制孩子按规律睡觉", "is_correct": false},
             {"option_text": "完全控制孩子的睡眠", "is_correct": false},
-            {"option_text": "更好地安排孩子一天的活动", "is_correct": false},
+            {"option_text": "更好地安排孩子一天的活动", "is_correct": true},
             {"option_text": "减少孩子的睡眠时间", "is_correct": false}
           ],
           "answer_explanation": "了解规律是为了更好地安排活动，而不是控制或减少睡眠。"
@@ -312,7 +312,7 @@
           "question_text": "2-3 岁幼儿白天小觉的正常时长大约是？ [单选题]",
           "question_type": "单选题",
           "options": [
-            {"option_text": "1～2 小时", "is_correct": false},
+            {"option_text": "1～2 小时", "is_correct": true},
             {"option_text": "3～4 小时", "is_correct": false},
             {"option_text": "半小时", "is_correct": false},
             {"option_text": "不固定", "is_correct": false}
@@ -324,7 +324,7 @@
           "question_type": "单选题",
           "options": [
             {"option_text": "11～12 小时", "is_correct": false},
-            {"option_text": "9～10 小时", "is_correct": false},
+            {"option_text": "9～10 小时", "is_correct": true},
             {"option_text": "7～8 小时", "is_correct": false},
             {"option_text": "12 小时以上", "is_correct": false}
           ],
@@ -335,7 +335,7 @@
           "question_type": "单选题",
           "options": [
             {"option_text": "充足", "is_correct": false},
-            {"option_text": "不足", "is_correct": false},
+            {"option_text": "不足", "is_correct": true},
             {"option_text": "过多", "is_correct": false},
             {"option_text": "无法判断", "is_correct": false}
           ],
@@ -347,7 +347,7 @@
           "options": [
             {"option_text": "10 小时", "is_correct": false},
             {"option_text": "11 小时", "is_correct": false},
-            {"option_text": "11-12 小时", "is_correct": false},
+            {"option_text": "11-12 小时", "is_correct": true},
             {"option_text": "13 小时", "is_correct": false}
           ],
           "answer_explanation": "结合白天小觉和夜间睡眠时长，总睡眠约 11-12 小时。"
@@ -356,7 +356,7 @@
           "question_text": "如果孩子白天小睡时间过长，可能会影响到？ [单选题]",
           "question_type": "单选题",
           "options": [
-            {"option_text": "夜间睡眠时长", "is_correct": false},
+            {"option_text": "夜间睡眠时长", "is_correct": true},
             {"option_text": "白天的活动量", "is_correct": false},
             {"option_text": "食欲", "is_correct": false},
             {"option_text": "情绪", "is_correct": false}
@@ -372,7 +372,7 @@
           "question_text": "2-3 岁幼儿拖延入睡的常见原因之一是？ [单选题]",
           "question_type": "单选题",
           "options": [
-            {"option_text": "不愿意从精彩的白天进入睡眠", "is_correct": false},
+            {"option_text": "不愿意从精彩的白天进入睡眠", "is_correct": true},
             {"option_text": "白天睡得太多", "is_correct": false},
             {"option_text": "身体不适", "is_correct": false},
             {"option_text": "卧室温度过低", "is_correct": false}
@@ -384,7 +384,7 @@
           "question_type": "单选题",
           "options": [
             {"option_text": "白天运动量过大", "is_correct": false},
-            {"option_text": "过了困点后反而更精神", "is_correct": false},
+            {"option_text": "过了困点后反而更精神", "is_correct": true},
             {"option_text": "睡前喝水太多", "is_correct": false},
             {"option_text": "卧室光线太暗", "is_correct": false}
           ],
@@ -396,7 +396,7 @@
           "options": [
             {"option_text": "黑暗环境", "is_correct": false},
             {"option_text": "独自一人", "is_correct": false},
-            {"option_text": "睡眠本身", "is_correct": false},
+            {"option_text": "睡眠本身", "is_correct": true},
             {"option_text": "卧室", "is_correct": false}
           ],
           "answer_explanation": "不愿意离开白天精彩活动进入睡眠，体现了对睡眠的抗拒。"
@@ -406,7 +406,7 @@
           "question_type": "单选题",
           "options": [
             {"option_text": "强迫孩子立即睡觉", "is_correct": false},
-            {"option_text": "帮助孩子调整入睡时间", "is_correct": false},
+            {"option_text": "帮助孩子调整入睡时间", "is_correct": true},
             {"option_text": "让孩子玩到精疲力尽再睡", "is_correct": false},
             {"option_text": "忽略孩子的精神状态", "is_correct": false}
           ],
@@ -416,7 +416,7 @@
           "question_text": "了解 2-3 岁幼儿拖延入睡的原因，有助于家长采取更有效的？ [单选题]",
           "question_type": "单选题",
           "options": [
-            {"option_text": "应对策略", "is_correct": false},
+            {"option_text": "应对策略", "is_correct": true},
             {"option_text": "批评方式", "is_correct": false},
             {"option_text": "惩罚措施", "is_correct": false},
             {"option_text": "放任态度", "is_correct": false}
@@ -432,7 +432,7 @@
           "question_text": "针对 2-3 岁幼儿拖延入睡，首先要做的处理方法是？ [单选题]",
           "question_type": "单选题",
           "options": [
-            {"option_text": "帮孩子舒缓情绪，接受睡觉时间", "is_correct": false},
+            {"option_text": "帮孩子舒缓情绪，接受睡觉时间", "is_correct": true},
             {"option_text": "严厉批评孩子的拖延行为", "is_correct": false},
             {"option_text": "强制关灯，让孩子独自睡觉", "is_correct": false},
             {"option_text": "忽略孩子的拖延行为", "is_correct": false}
@@ -444,7 +444,7 @@
           "question_type": "单选题",
           "options": [
             {"option_text": "文字描述", "is_correct": false},
-            {"option_text": "简笔画", "is_correct": false},
+            {"option_text": "简笔画", "is_correct": true},
             {"option_text": "照片", "is_correct": false},
             {"option_text": "视频", "is_correct": false}
           ],
@@ -456,7 +456,7 @@
           "options": [
             {"option_text": "完全由家长决定", "is_correct": false},
             {"option_text": "参考其他孩子的清单", "is_correct": false},
-            {"option_text": "邀请孩子一起参与设计", "is_correct": false},
+            {"option_text": "邀请孩子一起参与设计", "is_correct": true},
             {"option_text": "越详细越好", "is_correct": false}
           ],
           "answer_explanation": "文档建议 “可以邀请孩子一起参与设计，每一条都解释给他听，征得他的同意”。"
@@ -466,7 +466,7 @@
           "question_type": "单选题",
           "options": [
             {"option_text": "时长", "is_correct": false},
-            {"option_text": "质量", "is_correct": false},
+            {"option_text": "质量", "is_correct": true},
             {"option_text": "形式", "is_correct": false},
             {"option_text": "地点", "is_correct": false}
           ],
@@ -478,7 +478,7 @@
           "options": [
             {"option_text": "故意捣乱", "is_correct": false},
             {"option_text": "生理需求", "is_correct": false},
-            {"option_text": "寻求陪伴和关注", "is_correct": false},
+            {"option_text": "寻求陪伴和关注", "is_correct": true},
             {"option_text": "拖延时间", "is_correct": false}
           ],
           "answer_explanation": "文档分析孩子“折腾”可能是为了 “实现照护者陪伴的目的”。"
@@ -492,7 +492,7 @@
           "question_text": "以下哪项属于可能引起 2-3 岁幼儿夜惊/夜醒的环境因素？ [单选题]",
           "question_type": "单选题",
           "options": [
-            {"option_text": "户外喇叭声", "is_correct": false},
+            {"option_text": "户外喇叭声", "is_correct": true},
             {"option_text": "睡前故事内容", "is_correct": false},
             {"option_text": "晚餐吃得过多", "is_correct": false},
             {"option_text": "白天运动量不足", "is_correct": false}
@@ -504,7 +504,7 @@
           "question_type": "单选题",
           "options": [
             {"option_text": "睡眠时间过长", "is_correct": false},
-            {"option_text": "夜惊/夜醒", "is_correct": false},
+            {"option_text": "夜惊/夜醒", "is_correct": true},
             {"option_text": "食欲不振", "is_correct": false},
             {"option_text": "白天嗜睡", "is_correct": false}
           ],
@@ -516,7 +516,7 @@
           "options": [
             {"option_text": "丝绸", "is_correct": false},
             {"option_text": "羊毛", "is_correct": false},
-            {"option_text": "纯棉", "is_correct": false},
+            {"option_text": "纯棉", "is_correct": true},
             {"option_text": "化纤", "is_correct": false}
           ],
           "answer_explanation": "文档建议 “床品避免丝、毛类、易引起过敏的材质，选择纯棉类”。"
@@ -526,7 +526,7 @@
           "question_type": "单选题",
           "options": [
             {"option_text": "生长发育迟缓", "is_correct": false},
-            {"option_text": "睡眠质量下降", "is_correct": false},
+            {"option_text": "睡眠质量下降", "is_correct": true},
             {"option_text": "白天情绪烦躁", "is_correct": false},
             {"option_text": "食欲下降", "is_correct": false}
           ],
@@ -536,9 +536,9 @@
           "question_text": "以下哪些环境变化可能引起 2-3 岁幼儿夜惊/夜醒？ [多选题]",
           "question_type": "多选题",
           "options": [
-            {"option_text": "搬家", "is_correct": false},
-            {"option_text": "旅行更换住宿", "is_correct": false},
-            {"option_text": "入睡和睡眠过程不在同一地点", "is_correct": false},
+            {"option_text": "搬家", "is_correct": true},
+            {"option_text": "旅行更换住宿", "is_correct": true},
+            {"option_text": "入睡和睡眠过程不在同一地点", "is_correct": true},
             {"option_text": "室内空气湿度增加", "is_correct": false},
             {"option_text": "睡前玩剧烈运动", "is_correct": false}
           ],
@@ -553,7 +553,7 @@
           "question_text": "以下哪项属于可能引起 2-3 岁幼儿夜惊/夜醒的身体因素？ [单选题]",
           "question_type": "单选题",
           "options": [
-            {"option_text": "太饿或太饱", "is_correct": false},
+            {"option_text": "太饿或太饱", "is_correct": true},
             {"option_text": "睡前过度兴奋", "is_correct": false},
             {"option_text": "作息不规律", "is_correct": false},
             {"option_text": "更换照护者", "is_correct": false}
@@ -565,7 +565,7 @@
           "question_type": "单选题",
           "options": [
             {"option_text": "食欲旺盛", "is_correct": false},
-            {"option_text": "夜惊/夜醒", "is_correct": false},
+            {"option_text": "夜惊/夜醒", "is_correct": true},
             {"option_text": "白天过度安静", "is_correct": false},
             {"option_text": "体重快速增加", "is_correct": false}
           ],
@@ -577,7 +577,7 @@
           "options": [
             {"option_text": "贫血", "is_correct": false},
             {"option_text": "近视", "is_correct": false},
-            {"option_text": "中耳炎", "is_correct": false},
+            {"option_text": "中耳炎", "is_correct": true},
             {"option_text": "龋齿", "is_correct": false}
           ],
           "answer_explanation": "文档中 “疾病   胃食管反流；中耳炎；尿路感染；发热；过敏、湿疹、痱子；腹痛、胀气、腹泻等” 被列为夜惊/夜醒的身体因素。"
@@ -587,7 +587,7 @@
           "question_type": "单选题",
           "options": [
             {"option_text": "白天过度活跃", "is_correct": false},
-            {"option_text": "睡眠不好", "is_correct": false},
+            {"option_text": "睡眠不好", "is_correct": true},
             {"option_text": "食欲增加", "is_correct": false},
             {"option_text": "体重增长过快", "is_correct": false}
           ],
@@ -600,7 +600,7 @@
             {"option_text": "环境因素", "is_correct": false},
             {"option_text": "作息因素", "is_correct": false},
             {"option_text": "心理因素", "is_correct": false},
-            {"option_text": "成长阶段的身体因素", "is_correct": false}
+            {"option_text": "成长阶段的身体因素", "is_correct": true}
           ],
           "answer_explanation": "文档新增 “成长阶段   孩子在学习新的技能；正在经历猛长期；大运动发展、大脑发育的活跃期” 作为身体因素。"
         }
@@ -613,7 +613,7 @@
           "question_text": "以下哪项属于可能引起 2-3 岁幼儿夜惊/夜醒的作息因素？ [单选题]",
           "question_type": "单选题",
           "options": [
-            {"option_text": "没有充足的户外活动时间", "is_correct": false},
+            {"option_text": "没有充足的户外活动时间", "is_correct": true},
             {"option_text": "床品不舒适", "is_correct": false},
             {"option_text": "分离焦虑", "is_correct": false},
             {"option_text": "太饿或太饱", "is_correct": false}
@@ -625,7 +625,7 @@
           "question_type": "单选题",
           "options": [
             {"option_text": "睡眠时间过长", "is_correct": false},
-            {"option_text": "夜惊/夜醒", "is_correct": false},
+            {"option_text": "夜惊/夜醒", "is_correct": true},
             {"option_text": "白天精力不足", "is_correct": false},
             {"option_text": "食欲旺盛", "is_correct": false}
           ],
@@ -637,7 +637,7 @@
           "options": [
             {"option_text": "嗜睡", "is_correct": false},
             {"option_text": "安静", "is_correct": false},
-            {"option_text": "过度兴奋、易激惹", "is_correct": false},
+            {"option_text": "过度兴奋、易激惹", "is_correct": true},
             {"option_text": "食欲不振", "is_correct": false}
           ],
           "answer_explanation": "文档中 “缺觉的孩子更有可能过度兴奋，易激惹”。"
@@ -649,7 +649,7 @@
             {"option_text": "睡前过度刺激", "is_correct": false},
             {"option_text": "运动量不够", "is_correct": false},
             {"option_text": "不困", "is_correct": false},
-            {"option_text": "作息不规律", "is_correct": false}
+            {"option_text": "作息不规律", "is_correct": true}
           ],
           "answer_explanation": "文档中 “作息不规律   每天睡眠和起床的时间没有规律” 被列为夜惊/夜醒的作息因素。"
         },
@@ -657,9 +657,9 @@
           "question_text": "以下哪些作息习惯可能导致 2-3 岁幼儿夜惊/夜醒？ [多选题]",
           "question_type": "多选题",
           "options": [
-            {"option_text": "睡前玩电子产品", "is_correct": false},
-            {"option_text": "白天户外活动不足", "is_correct": false},
-            {"option_text": "每天睡觉时间不固定", "is_correct": false},
+            {"option_text": "睡前玩电子产品", "is_correct": true},
+            {"option_text": "白天户外活动不足", "is_correct": true},
+            {"option_text": "每天睡觉时间不固定", "is_correct": true},
             {"option_text": "卧室温度过低", "is_correct": false},
             {"option_text": "床品材质不舒适", "is_correct": false}
           ],
@@ -674,7 +674,7 @@
           "question_text": "以下哪项属于可能引起 2-3 岁幼儿夜惊/夜醒的心理因素？ [单选题]",
           "question_type": "单选题",
           "options": [
-            {"option_text": "妈妈上班", "is_correct": false},
+            {"option_text": "妈妈上班", "is_correct": true},
             {"option_text": "室内噪声", "is_correct": false},
             {"option_text": "穿衣过多", "is_correct": false},
             {"option_text": "长牙", "is_correct": false}
@@ -686,7 +686,7 @@
           "question_type": "单选题",
           "options": [
             {"option_text": "食欲增加", "is_correct": false},
-            {"option_text": "夜惊/夜醒", "is_correct": false},
+            {"option_text": "夜惊/夜醒", "is_correct": true},
             {"option_text": "白天情绪稳定", "is_correct": false},
             {"option_text": "运动能力增强", "is_correct": false}
           ],
@@ -697,7 +697,7 @@
           "question_type": "单选题",
           "options": [
             {"option_text": "食欲旺盛", "is_correct": false},
-            {"option_text": "睡眠不好", "is_correct": false},
+            {"option_text": "睡眠不好", "is_correct": true},
             {"option_text": "性格外向", "is_correct": false},
             {"option_text": "运动能力增强", "is_correct": false}
           ],
@@ -710,7 +710,7 @@
             {"option_text": "环境因素", "is_correct": false},
             {"option_text": "身体因素", "is_correct": false},
             {"option_text": "作息因素", "is_correct": false},
-            {"option_text": "心理因素", "is_correct": false}
+            {"option_text": "心理因素", "is_correct": true}
           ],
           "answer_explanation": "文档中 “恐惧睡眠等” 被列为夜惊/夜醒的心理因素。"
         },
@@ -718,9 +718,9 @@
           "question_text": "以下哪些情况可能引发 2-3 岁幼儿的心理压力，进而影响睡眠？ [多选题]",
           "question_type": "多选题",
           "options": [
-            {"option_text": "父母工作忙碌，陪伴时间少", "is_correct": false},
-            {"option_text": "更换主要照顾人", "is_correct": false},
-            {"option_text": "与父母短暂分离", "is_correct": false},
+            {"option_text": "父母工作忙碌，陪伴时间少", "is_correct": true},
+            {"option_text": "更换主要照顾人", "is_correct": true},
+            {"option_text": "与父母短暂分离", "is_correct": true},
             {"option_text": "卧室光线太亮", "is_correct": false},
             {"option_text": "睡前玩兴奋游戏", "is_correct": false}
           ],
@@ -735,7 +735,7 @@
           "question_text": "以下哪项属于 2-3 岁幼儿常见的不良入睡习惯？ [单选题]",
           "question_type": "单选题",
           "options": [
-            {"option_text": "奶睡", "is_correct": false},
+            {"option_text": "奶睡", "is_correct": true},
             {"option_text": "自主入睡", "is_correct": false},
             {"option_text": "规律作息", "is_correct": false},
             {"option_text": "睡前听故事", "is_correct": false}
@@ -746,8 +746,8 @@
           "question_text": "2-3 岁幼儿不良入睡习惯主要包括？ [多选题]",
           "question_type": "多选题",
           "options": [
-            {"option_text": "奶睡", "is_correct": false},
-            {"option_text": "抱睡", "is_correct": false},
+            {"option_text": "奶睡", "is_correct": true},
+            {"option_text": "抱睡", "is_correct": true},
             {"option_text": "自主入睡", "is_correct": false},
             {"option_text": "规律小睡", "is_correct": false},
             {"option_text": "睡前仪式", "is_correct": false}
@@ -758,7 +758,7 @@
           "question_text": "长期奶睡的 2-3 岁幼儿，可能更难培养？ [单选题]",
           "question_type": "单选题",
           "options": [
-            {"option_text": "自主入睡能力", "is_correct": false},
+            {"option_text": "自主入睡能力", "is_correct": true},
             {"option_text": "规律作息", "is_correct": false},
             {"option_text": "良好食欲", "is_correct": false},
             {"option_text": "稳定情绪", "is_correct": false}
@@ -770,7 +770,7 @@
           "question_type": "单选题",
           "options": [
             {"option_text": "奶嘴", "is_correct": false},
-            {"option_text": "成人怀抱", "is_correct": false},
+            {"option_text": "成人怀抱", "is_correct": true},
             {"option_text": "特定玩具", "is_correct": false},
             {"option_text": "安静环境", "is_correct": false}
           ],
@@ -782,7 +782,7 @@
           "options": [
             {"option_text": "立即完全停止所有安抚", "is_correct": false},
             {"option_text": "偶尔允许不良入睡习惯", "is_correct": false},
-            {"option_text": "逐步引导孩子自主入睡", "is_correct": false},
+            {"option_text": "逐步引导孩子自主入睡", "is_correct": true},
             {"option_text": "接受孩子的不良入睡习惯", "is_correct": false}
           ],
           "answer_explanation": "纠正不良习惯需要逐步引导，而非立即强行停止。"
@@ -796,7 +796,7 @@
           "question_text": "为了减少 2-3 岁幼儿夜尿，睡前应该？ [单选题]",
           "question_type": "单选题",
           "options": [
-            {"option_text": "引导孩子排尿", "is_correct": false},
+            {"option_text": "引导孩子排尿", "is_correct": true},
             {"option_text": "限制孩子饮水", "is_correct": false},
             {"option_text": "更换更吸水的尿不湿", "is_correct": false},
             {"option_text": "夜间定时叫醒孩子排尿", "is_correct": false}
@@ -808,7 +808,7 @@
           "question_type": "单选题",
           "options": [
             {"option_text": "更快入睡", "is_correct": false},
-            {"option_text": "睡得更长更踏实", "is_correct": false},
+            {"option_text": "睡得更长更踏实", "is_correct": true},
             {"option_text": "减少做梦", "is_correct": false},
             {"option_text": "提高睡眠质量", "is_correct": false}
           ],
@@ -820,7 +820,7 @@
           "options": [
             {"option_text": "孩子是否踢被子", "is_correct": false},
             {"option_text": "孩子是否翻身", "is_correct": false},
-            {"option_text": "孩子排尿信号", "is_correct": false},
+            {"option_text": "孩子排尿信号", "is_correct": true},
             {"option_text": "孩子是否做梦", "is_correct": false}
           ],
           "answer_explanation": "文档强调 “夜里妈妈也要格外敏感，及时发现孩子要排尿的信号”。"
@@ -832,7 +832,7 @@
             {"option_text": "夜惊", "is_correct": false},
             {"option_text": "夜醒", "is_correct": false},
             {"option_text": "尿频", "is_correct": false},
-            {"option_text": "尿床", "is_correct": false}
+            {"option_text": "尿床", "is_correct": true}
           ],
           "answer_explanation": "及时发现排尿信号，是为了 “减少尿床现象发生”。"
         },
@@ -843,7 +843,7 @@
             {"option_text": "睡前引导排尿", "is_correct": false},
             {"option_text": "夜间及时响应排尿信号", "is_correct": false},
             {"option_text": "逐步摆脱尿不湿", "is_correct": false},
-            {"option_text": "睡前大量饮水", "is_correct": false}
+            {"option_text": "睡前大量饮水", "is_correct": true}
           ],
           "answer_explanation": "睡前大量饮水会增加夜尿量，不利于减少夜尿。"
         }
@@ -856,7 +856,7 @@
           "question_text": "2-3 岁幼儿的喂养习惯安排，首先要做到？ [单选题]",
           "question_type": "单选题",
           "options": [
-            {"option_text": "定时定点", "is_correct": false},
+            {"option_text": "定时定点", "is_correct": true},
             {"option_text": "少量多餐", "is_correct": false},
             {"option_text": "荤素搭配", "is_correct": false},
             {"option_text": "营养均衡", "is_correct": false}
@@ -868,7 +868,7 @@
           "question_type": "单选题",
           "options": [
             {"option_text": "对食物的兴趣", "is_correct": false},
-            {"option_text": "规律的饮食习惯", "is_correct": false},
+            {"option_text": "规律的饮食习惯", "is_correct": true},
             {"option_text": "自主进食能力", "is_correct": false},
             {"option_text": "良好的食欲", "is_correct": false}
           ],
@@ -880,7 +880,7 @@
           "options": [
             {"option_text": "不挑食", "is_correct": false},
             {"option_text": "不偏食", "is_correct": false},
-            {"option_text": "良好的餐桌礼仪", "is_correct": false},
+            {"option_text": "良好的餐桌礼仪", "is_correct": true},
             {"option_text": "不剩饭", "is_correct": false}
           ],
           "answer_explanation": "文档强调喂养习惯要包括 “有良好的进餐习惯和餐桌礼仪”。"
@@ -889,7 +889,7 @@
           "question_text": "培养 2-3 岁幼儿餐桌礼仪，从哪个阶段开始培养？ [单选题]",
           "question_type": "单选题",
           "options": [
-            {"option_text": "从小", "is_correct": false},
+            {"option_text": "从小", "is_correct": true},
             {"option_text": "入园前", "is_correct": false},
             {"option_text": "小学阶段", "is_correct": false},
             {"option_text": "青春期", "is_correct": false}
@@ -900,9 +900,9 @@
           "question_text": "以下哪些属于 2-3 岁幼儿餐桌礼仪的范畴？ [多选题]",
           "question_type": "多选题",
           "options": [
-            {"option_text": "安静进餐", "is_correct": false},
-            {"option_text": "不乱扔食物", "is_correct": false},
-            {"option_text": "饭后收拾餐具", "is_correct": false},
+            {"option_text": "安静进餐", "is_correct": true},
+            {"option_text": "不乱扔食物", "is_correct": true},
+            {"option_text": "饭后收拾餐具", "is_correct": true},
             {"option_text": "只吃喜欢的食物", "is_correct": false},
             {"option_text": "边看电视边吃饭", "is_correct": false}
           ],
@@ -917,7 +917,7 @@
           "question_text": "2-3 岁幼儿不好好吃饭的原因之一是，家长可能？ [单选题]",
           "question_type": "单选题",
           "options": [
-            {"option_text": "领会错误，孩子已经吃饱", "is_correct": false},
+            {"option_text": "领会错误，孩子已经吃饱", "is_correct": true},
             {"option_text": "饭菜不可口", "is_correct": false},
             {"option_text": "进餐环境嘈杂", "is_correct": false},
             {"option_text": "餐具不合适", "is_correct": false}
@@ -929,7 +929,7 @@
           "question_type": "单选题",
           "options": [
             {"option_text": "挑食", "is_correct": false},
-            {"option_text": "根本不饿", "is_correct": false},
+            {"option_text": "根本不饿", "is_correct": true},
             {"option_text": "消化不良", "is_correct": false},
             {"option_text": "偏食", "is_correct": false}
           ],
@@ -941,7 +941,7 @@
           "options": [
             {"option_text": "表达不满", "is_correct": false},
             {"option_text": "吸引注意", "is_correct": false},
-            {"option_text": "控制他人", "is_correct": false},
+            {"option_text": "控制他人", "is_correct": true},
             {"option_text": "寻求安慰", "is_correct": false}
           ],
           "answer_explanation": "文档列举的不好好吃饭原因包括 “原则问题：孩子可能是饿了，但孩子情绪作祟，控制他人的欲望占上风，可能就不乐意吃饭”。"
@@ -953,7 +953,7 @@
             {"option_text": "生长发育高峰期", "is_correct": false},
             {"option_text": "换牙期", "is_correct": false},
             {"option_text": "猛长期", "is_correct": false},
-            {"option_text": "病前、病中、病后一周或几周内", "is_correct": false}
+            {"option_text": "病前、病中、病后一周或几周内", "is_correct": true}
           ],
           "answer_explanation": "文档列举的不好好吃饭原因包括 “健康问题：孩子在病前、病中、病后的一周或几周内，都有可能不爱吃饭”。"
         },
@@ -964,7 +964,7 @@
             {"option_text": "孩子已经吃饱", "is_correct": false},
             {"option_text": "孩子根本不饿", "is_correct": false},
             {"option_text": "孩子用不吃饭来控制大人", "is_correct": false},
-            {"option_text": "孩子饭量天生很小", "is_correct": false}
+            {"option_text": "孩子饭量天生很小", "is_correct": true}
           ],
           "answer_explanation": "文档列举的原因包括领会错误、食欲、原则、健康，但不包括天生饭量小。"
         }
@@ -977,7 +977,7 @@
           "question_text": "针对 2-3 岁幼儿不好好吃饭，家长首先要明确？ [单选题]",
           "question_type": "单选题",
           "options": [
-            {"option_text": "吃饭是孩子自己的事情", "is_correct": false},
+            {"option_text": "吃饭是孩子自己的事情", "is_correct": true},
             {"option_text": "家长必须让孩子吃饱", "is_correct": false},
             {"option_text": "吃饭时间必须固定", "is_correct": false},
             {"option_text": "饭菜必须营养丰富", "is_correct": false}
@@ -989,7 +989,7 @@
           "question_type": "单选题",
           "options": [
             {"option_text": "孩子吃多少量", "is_correct": false},
-            {"option_text": "孩子的营养均衡和品种丰富", "is_correct": false},
+            {"option_text": "孩子的营养均衡和品种丰富", "is_correct": true},
             {"option_text": "孩子按时吃完饭", "is_correct": false},
             {"option_text": "孩子喜欢吃什么", "is_correct": false}
           ],
@@ -1000,7 +1000,7 @@
           "question_type": "单选题",
           "options": [
             {"option_text": "15 分钟", "is_correct": false},
-            {"option_text": "30 分钟以内", "is_correct": false},
+            {"option_text": "30 分钟以内", "is_correct": true},
             {"option_text": "45 分钟", "is_correct": false},
             {"option_text": "不限制时间", "is_correct": false}
           ],
@@ -1012,7 +1012,7 @@
           "options": [
             {"option_text": "焦虑和担忧", "is_correct": false},
             {"option_text": "严厉和强硬", "is_correct": false},
-            {"option_text": "淡定和放松", "is_correct": false},
+            {"option_text": "淡定和放松", "is_correct": true},
             {"option_text": "无奈和放弃", "is_correct": false}
           ],
           "answer_explanation": "文档强调成人应该 “淡定，孩子饿一两顿没关系”。"
@@ -1024,7 +1024,7 @@
             {"option_text": "医生", "is_correct": false},
             {"option_text": "营养师", "is_correct": false},
             {"option_text": "其他家长", "is_correct": false},
-            {"option_text": "孩子自己", "is_correct": false}
+            {"option_text": "孩子自己", "is_correct": true}
           ],
           "answer_explanation": "文档强调 “把吃饭的权利真正交给孩子”。"
         }
@@ -1037,7 +1037,7 @@
           "question_text": "2-3 岁幼儿对周围事物产生兴趣和好奇心，求知欲加强，这属于哪方面发育特点？ [单选题]",
           "question_type": "单选题",
           "options": [
-            {"option_text": "好奇心", "is_correct": false},
+            {"option_text": "好奇心", "is_correct": true},
             {"option_text": "自我意识", "is_correct": false},
             {"option_text": "认知能力", "is_correct": false},
             {"option_text": "情绪", "is_correct": false}
@@ -1049,7 +1049,7 @@
           "question_type": "单选题",
           "options": [
             {"option_text": "认知能力", "is_correct": false},
-            {"option_text": "自我意识", "is_correct": false},
+            {"option_text": "自我意识", "is_correct": true},
             {"option_text": "语言能力", "is_correct": false},
             {"option_text": "动作发展", "is_correct": false}
           ],
@@ -1061,7 +1061,7 @@
           "options": [
             {"option_text": "逻辑推理", "is_correct": false},
             {"option_text": "抽象思维", "is_correct": false},
-            {"option_text": "感知觉和动作", "is_correct": false},
+            {"option_text": "感知觉和动作", "is_correct": true},
             {"option_text": "语言描述", "is_correct": false}
           ],
           "answer_explanation": "文档指出 “认知能力         发展更快，主要靠感知觉和动作认识事物”。"
@@ -1073,7 +1073,7 @@
             {"option_text": "语言表达", "is_correct": false},
             {"option_text": "撒娇卖萌", "is_correct": false},
             {"option_text": "讲道理", "is_correct": false},
-            {"option_text": "发脾气", "is_correct": false}
+            {"option_text": "发脾气", "is_correct": true}
           ],
           "answer_explanation": "文档指出 “情绪         常用发脾气来争取自己想要的事物”。"
         },
@@ -1081,7 +1081,7 @@
           "question_text": "2-3 岁幼儿的推理能力处于什么发展阶段？ [单选题]",
           "question_type": "单选题",
           "options": [
-            {"option_text": "初步形成", "is_correct": false},
+            {"option_text": "初步形成", "is_correct": true},
             {"option_text": "快速发展", "is_correct": false},
             {"option_text": "基本成熟", "is_correct": false},
             {"option_text": "尚未萌芽", "is_correct": false}
@@ -1097,7 +1097,7 @@
           "question_text": "2-3 岁幼儿心理特点之一是好动和？ [单选题]",
           "question_type": "单选题",
           "options": [
-            {"option_text": "注意力易分散", "is_correct": false},
+            {"option_text": "注意力易分散", "is_correct": true},
             {"option_text": "记忆力增强", "is_correct": false},
             {"option_text": "情绪稳定", "is_correct": false},
             {"option_text": "善于社交", "is_correct": false}
@@ -1109,7 +1109,7 @@
           "question_type": "单选题",
           "options": [
             {"option_text": "具体形象思维和抽象思维", "is_correct": false},
-            {"option_text": "感知动作思维和表象思维", "is_correct": false},
+            {"option_text": "感知动作思维和表象思维", "is_correct": true},
             {"option_text": "直觉行动思维和逻辑思维", "is_correct": false},
             {"option_text": "经验思维和创新思维", "is_correct": false}
           ],
@@ -1119,7 +1119,7 @@
           "question_text": "2 岁左右幼儿的思维以什么为主？ [单选题]",
           "question_type": "单选题",
           "options": [
-            {"option_text": "感知动作思维", "is_correct": false},
+            {"option_text": "感知动作思维", "is_correct": true},
             {"option_text": "表象思维", "is_correct": false},
             {"option_text": "抽象思维", "is_correct": false},
             {"option_text": "逻辑思维", "is_correct": false}
@@ -1131,7 +1131,7 @@
           "question_type": "单选题",
           "options": [
             {"option_text": "抽象逻辑思维", "is_correct": false},
-            {"option_text": "表象思维", "is_correct": false},
+            {"option_text": "表象思维", "is_correct": true},
             {"option_text": "直觉行动思维", "is_correct": false},
             {"option_text": "发散思维", "is_correct": false}
           ],
@@ -1143,7 +1143,7 @@
           "options": [
             {"option_text": "内向", "is_correct": false},
             {"option_text": "安静", "is_correct": false},
-            {"option_text": "好奇心强烈，求知欲强", "is_correct": false},
+            {"option_text": "好奇心强烈，求知欲强", "is_correct": true},
             {"option_text": "独立性强", "is_correct": false}
           ],
           "answer_explanation": "文档指出心理特点 “3. 好奇心强烈，求知欲望强”。"
@@ -1157,7 +1157,7 @@
           "question_text": "在孩子学语言时，首先要消除他的？ [单选题]",
           "question_type": "单选题",
           "options": [
-            {"option_text": "胆怯情绪", "is_correct": false},
+            {"option_text": "胆怯情绪", "is_correct": true},
             {"option_text": "逆反心理", "is_correct": false},
             {"option_text": "依赖性", "is_correct": false},
             {"option_text": "厌学情绪", "is_correct": false}
@@ -1169,7 +1169,7 @@
           "question_type": "单选题",
           "options": [
             {"option_text": "严厉指责", "is_correct": false},
-            {"option_text": "多鼓励引导少指责", "is_correct": false},
+            {"option_text": "多鼓励引导少指责", "is_correct": true},
             {"option_text": "完全放任", "is_correct": false},
             {"option_text": "不予理睬", "is_correct": false}
           ],
@@ -1181,7 +1181,7 @@
           "options": [
             {"option_text": "立即纠正并批评", "is_correct": false},
             {"option_text": "完全忽略", "is_correct": false},
-            {"option_text": "正确对待", "is_correct": false},
+            {"option_text": "正确对待", "is_correct": true},
             {"option_text": "嘲笑", "is_correct": false}
           ],
           "answer_explanation": "文档建议 “正确对待孩子语言中的错误和缺点”。"
@@ -1193,7 +1193,7 @@
             {"option_text": "只进行书面教学", "is_correct": false},
             {"option_text": "只进行口头教学", "is_correct": false},
             {"option_text": "完全依赖家庭环境", "is_correct": false},
-            {"option_text": "通过多种途径", "is_correct": false}
+            {"option_text": "通过多种途径", "is_correct": true}
           ],
           "answer_explanation": "文档建议 “通过多种途径来发展孩子的语言”。"
         },
@@ -1201,7 +1201,7 @@
           "question_text": "对孩子说话，语言要？ [单选题]",
           "question_type": "单选题",
           "options": [
-            {"option_text": "规范", "is_correct": false},
+            {"option_text": "规范", "is_correct": true},
             {"option_text": "随意", "is_correct": false},
             {"option_text": "夸张", "is_correct": false},
             {"option_text": "幼稚", "is_correct": false}
@@ -1217,7 +1217,7 @@
           "question_text": "对于认知能力不足的孩子，可以利用什么进行游戏化认知训练？ [单选题]",
           "question_type": "单选题",
           "options": [
-            {"option_text": "绘本", "is_correct": false},
+            {"option_text": "绘本", "is_correct": true},
             {"option_text": "积木", "is_correct": false},
             {"option_text": "玩具车", "is_correct": false},
             {"option_text": "动画片", "is_correct": false}
@@ -1229,7 +1229,7 @@
           "question_type": "单选题",
           "options": [
             {"option_text": "做数学题", "is_correct": false},
-            {"option_text": "看绘本、讲故事、识数、说儿歌", "is_correct": false},
+            {"option_text": "看绘本、讲故事、识数、说儿歌", "is_correct": true},
             {"option_text": "玩电子游戏", "is_correct": false},
             {"option_text": "进行体育锻炼", "is_correct": false}
           ],
@@ -1241,7 +1241,7 @@
           "options": [
             {"option_text": "限制孩子提问", "is_correct": false},
             {"option_text": "只让孩子看书", "is_correct": false},
-            {"option_text": "多看、多听、多说、多想、多提问", "is_correct": false},
+            {"option_text": "多看、多听、多说、多想、多提问", "is_correct": true},
             {"option_text": "减少孩子与外界接触", "is_correct": false}
           ],
           "answer_explanation": "文档建议 “求知欲可通过多看、多听、多说、多想、多提问来满足”。"
@@ -1253,7 +1253,7 @@
             {"option_text": "语言能力", "is_correct": false},
             {"option_text": "社交能力", "is_correct": false},
             {"option_text": "运动能力", "is_correct": false},
-            {"option_text": "认知能力", "is_correct": false}
+            {"option_text": "认知能力", "is_correct": true}
           ],
           "answer_explanation": "文档建议 “玩橡皮泥、折纸以及一些力所能及的家务” 引导认知能力。"
         },
@@ -1261,7 +1261,7 @@
           "question_text": "对于幼儿时期的孩子，什么活动是主导活动，也是引导认知能力的好方法？ [单选题]",
           "question_type": "单选题",
           "options": [
-            {"option_text": "游戏", "is_correct": false},
+            {"option_text": "游戏", "is_correct": true},
             {"option_text": "学习", "is_correct": false},
             {"option_text": "阅读", "is_correct": false},
             {"option_text": "运动", "is_correct": false}
@@ -1277,7 +1277,7 @@
           "question_text": "孩子说话晚的原因之一可能是？ [单选题]",
           "question_type": "单选题",
           "options": [
-            {"option_text": "平时缺乏语音输入", "is_correct": false},
+            {"option_text": "平时缺乏语音输入", "is_correct": true},
             {"option_text": "嘴巴肌肉过于发达", "is_correct": false},
             {"option_text": "听力过好", "is_correct": false},
             {"option_text": "性格内向", "is_correct": false}
@@ -1289,7 +1289,7 @@
           "question_type": "单选题",
           "options": [
             {"option_text": "唱歌", "is_correct": false},
-            {"option_text": "咀嚼食物", "is_correct": false},
+            {"option_text": "咀嚼食物", "is_correct": true},
             {"option_text": "吹气球", "is_correct": false},
             {"option_text": "发声练习", "is_correct": false}
           ],
@@ -1301,7 +1301,7 @@
           "options": [
             {"option_text": "集体交流", "is_correct": false},
             {"option_text": "网络交流", "is_correct": false},
-            {"option_text": "一对一的交流时间", "is_correct": false},
+            {"option_text": "一对一的交流时间", "is_correct": true},
             {"option_text": "与陌生人交流", "is_correct": false}
           ],
           "answer_explanation": "文档列举说话晚的原因包括 “缺乏一对一的交流时间”。"
@@ -1313,7 +1313,7 @@
             {"option_text": "纯外语环境", "is_correct": false},
             {"option_text": "纯母语环境", "is_correct": false},
             {"option_text": "混合双语环境", "is_correct": false},
-            {"option_text": "单纯的单语环境", "is_correct": false}
+            {"option_text": "单纯的单语环境", "is_correct": true}
           ],
           "answer_explanation": "文档建议 “可以先提供孩子单纯的单语环境，然后在双语”。"
         },
@@ -1324,7 +1324,7 @@
             {"option_text": "多和孩子说话", "is_correct": false},
             {"option_text": "多让孩子咀嚼食物", "is_correct": false},
             {"option_text": "增加亲子互动时间", "is_correct": false},
-            {"option_text": "减少语言输入", "is_correct": false}
+            {"option_text": "减少语言输入", "is_correct": true}
           ],
           "answer_explanation": "减少语言输入与改善说话晚的情况相悖。"
         }
@@ -1337,7 +1337,7 @@
           "question_text": "如果孩子说话语言不够强烈，家长应该引导孩子？ [单选题]",
           "question_type": "单选题",
           "options": [
-            {"option_text": "说出自己的想法", "is_correct": false},
+            {"option_text": "说出自己的想法", "is_correct": true},
             {"option_text": "模仿大人说话", "is_correct": false},
             {"option_text": "背诵更多词汇", "is_correct": false},
             {"option_text": "使用更复杂的句式", "is_correct": false}
@@ -1349,7 +1349,7 @@
           "question_type": "单选题",
           "options": [
             {"option_text": "记忆力", "is_correct": false},
-            {"option_text": "语言表达能力", "is_correct": false},
+            {"option_text": "语言表达能力", "is_correct": true},
             {"option_text": "运动协调能力", "is_correct": false},
             {"option_text": "逻辑思维能力", "is_correct": false}
           ],
@@ -1361,7 +1361,7 @@
           "options": [
             {"option_text": "词汇量不足", "is_correct": false},
             {"option_text": "语法掌握不好", "is_correct": false},
-            {"option_text": "表达意愿不足", "is_correct": false},
+            {"option_text": "表达意愿不足", "is_correct": true},
             {"option_text": "听力障碍", "is_correct": false}
           ],
           "answer_explanation": "语言不够强烈，通常是表达意愿不足的表现。"
@@ -1373,7 +1373,7 @@
             {"option_text": "背诵的知识", "is_correct": false},
             {"option_text": "模仿的声音", "is_correct": false},
             {"option_text": "复杂的句子", "is_correct": false},
-            {"option_text": "自己的想法", "is_correct": false}
+            {"option_text": "自己的想法", "is_correct": true}
           ],
           "answer_explanation": "文档强调引导孩子 “说出他的想法”。"
         },
@@ -1381,7 +1381,7 @@
           "question_text": "通过引导孩子说出想法，最终目的是培养孩子？ [单选题]",
           "question_type": "单选题",
           "options": [
-            {"option_text": "清晰表达自己意愿的能力", "is_correct": false},
+            {"option_text": "清晰表达自己意愿的能力", "is_correct": true},
             {"option_text": "快速学习语言的能力", "is_correct": false},
             {"option_text": "掌握更多词汇的能力", "is_correct": false},
             {"option_text": "流利使用复杂语言的能力", "is_correct": false}
@@ -1397,7 +1397,7 @@
           "question_text": "抗挫力的定义是指孩子在遭受挫折后，能够？ [单选题]",
           "question_type": "单选题",
           "options": [
-            {"option_text": "忍受和摆脱挫折带来的负面影响", "is_correct": false},
+            {"option_text": "忍受和摆脱挫折带来的负面影响", "is_correct": true},
             {"option_text": "完全避免挫折的发生", "is_correct": false},
             {"option_text": "快速忘记挫折经历", "is_correct": false},
             {"option_text": "对挫折无动于衷", "is_correct": false}
@@ -1408,8 +1408,8 @@
           "question_text": "抗挫力包含哪两方面的能力？ [多选题]",
           "question_type": "多选题",
           "options": [
-            {"option_text": "挫折耐受力", "is_correct": false},
-            {"option_text": "挫折排解力", "is_correct": false},
+            {"option_text": "挫折耐受力", "is_correct": true},
+            {"option_text": "挫折排解力", "is_correct": true},
             {"option_text": "挫折回避力", "is_correct": false},
             {"option_text": "挫折转移力", "is_correct": false},
             {"option_text": "挫折反击力", "is_correct": false}
@@ -1421,7 +1421,7 @@
           "question_type": "单选题",
           "options": [
             {"option_text": "积极寻求解决问题的方法", "is_correct": false},
-            {"option_text": "面对挫折不会觉得特别难过或难过太久", "is_correct": false},
+            {"option_text": "面对挫折不会觉得特别难过或难过太久", "is_correct": true},
             {"option_text": "主动挑战困难的任务", "is_correct": false},
             {"option_text": "将挫折转化为前进的动力", "is_correct": false}
           ],
@@ -1433,7 +1433,7 @@
           "options": [
             {"option_text": "接受挫折带来的负面情绪", "is_correct": false},
             {"option_text": "对挫折表现出无所谓", "is_correct": false},
-            {"option_text": "努力尝试再次解决问题", "is_correct": false},
+            {"option_text": "努力尝试再次解决问题", "is_correct": true},
             {"option_text": "完全忽略挫折的存在", "is_correct": false}
           ],
           "answer_explanation": "文档中挫折排解力定义为 “‘我再试一试’的能力。比如，这次搭积木垮掉了，我会努力再试试，试着做好。”"
@@ -1442,9 +1442,9 @@
           "question_text": "具备抗挫力的孩子，通常拥有哪些特质相关的信念？ [多选题]",
           "question_type": "多选题",
           "options": [
-            {"option_text": "“我是”：自信、值得被爱", "is_correct": false},
-            {"option_text": "“我有”：安全感、有支持", "is_correct": false},
-            {"option_text": "“我能”：自我解决、自我激励", "is_correct": false},
+            {"option_text": "“我是”：自信、值得被爱", "is_correct": true},
+            {"option_text": "“我有”：安全感、有支持", "is_correct": true},
+            {"option_text": "“我能”：自我解决、自我激励", "is_correct": true},
             {"option_text": "“我怕”：对挫折感到恐惧", "is_correct": false},
             {"option_text": "“我躲”：尽量回避挫折", "is_correct": false}
           ],
@@ -1459,7 +1459,7 @@
           "question_text": "2-3 岁幼儿处于秩序敏感期，这时应该侧重教孩子什么？ [单选题]",
           "question_type": "单选题",
           "options": [
-            {"option_text": "生活的规矩和守则", "is_correct": false},
+            {"option_text": "生活的规矩和守则", "is_correct": true},
             {"option_text": "知识和技能", "is_correct": false},
             {"option_text": "抽象思维", "is_correct": false},
             {"option_text": "创新能力", "is_correct": false}
@@ -1471,7 +1471,7 @@
           "question_type": "单选题",
           "options": [
             {"option_text": "语言表达能力", "is_correct": false},
-            {"option_text": "自我控制能力", "is_correct": false},
+            {"option_text": "自我控制能力", "is_correct": true},
             {"option_text": "人际交往能力", "is_correct": false},
             {"option_text": "运动协调能力", "is_correct": false}
           ],
@@ -1481,9 +1481,9 @@
           "question_text": "秩序敏感期的孩子，对什么表现出特别的执着？ [多选题]",
           "question_type": "多选题",
           "options": [
-            {"option_text": "做事情的顺序", "is_correct": false},
-            {"option_text": "事物的拥有权", "is_correct": false},
-            {"option_text": "生活习惯", "is_correct": false},
+            {"option_text": "做事情的顺序", "is_correct": true},
+            {"option_text": "事物的拥有权", "is_correct": true},
+            {"option_text": "生活习惯", "is_correct": true},
             {"option_text": "学习内容", "is_correct": false},
             {"option_text": "社交规则", "is_correct": false}
           ],
@@ -1495,7 +1495,7 @@
           "options": [
             {"option_text": "批评", "is_correct": false},
             {"option_text": "奖励", "is_correct": false},
-            {"option_text": "承诺", "is_correct": false},
+            {"option_text": "承诺", "is_correct": true},
             {"option_text": "赞扬", "is_correct": false}
           ],
           "answer_explanation": "文档指出秩序敏感期表现 “注重承诺是秩序敏感期的另一个表现”。"
@@ -1504,7 +1504,7 @@
           "question_text": "秩序敏感期的孩子，可能会重复、执拗地做什么事？ [单选题]",
           "question_type": "单选题",
           "options": [
-            {"option_text": "某一件事", "is_correct": false},
+            {"option_text": "某一件事", "is_correct": true},
             {"option_text": "所有事情", "is_correct": false},
             {"option_text": "具有挑战性的事", "is_correct": false},
             {"option_text": "新奇的事情", "is_correct": false}
@@ -1520,7 +1520,7 @@
           "question_text": "为 2-3 岁入园幼儿选择绘本时，应侧重于哪种类型？ [单选题]",
           "question_type": "单选题",
           "options": [
-            {"option_text": "故事类，行为引导和情绪认知", "is_correct": false},
+            {"option_text": "故事类，行为引导和情绪认知", "is_correct": true},
             {"option_text": "识字卡片，认知事物", "is_correct": false},
             {"option_text": "科普类，知识学习", "is_correct": false},
             {"option_text": "纯文字类，培养阅读习惯", "is_correct": false}
@@ -1532,7 +1532,7 @@
           "question_type": "单选题",
           "options": [
             {"option_text": "让孩子提前适应幼儿园生活", "is_correct": false},
-            {"option_text": "帮助孩子更快适应入园生活", "is_correct": false},
+            {"option_text": "帮助孩子更快适应入园生活", "is_correct": true},
             {"option_text": "完全消除入园焦虑", "is_correct": false},
             {"option_text": "让孩子更听话", "is_correct": false}
           ],
@@ -1542,9 +1542,9 @@
           "question_text": "入园前，需要培养孩子的哪些自理能力？ [多选题]",
           "question_type": "多选题",
           "options": [
-            {"option_text": "吃饭", "is_correct": false},
-            {"option_text": "穿衣", "is_correct": false},
-            {"option_text": "入厕", "is_correct": false},
+            {"option_text": "吃饭", "is_correct": true},
+            {"option_text": "穿衣", "is_correct": true},
+            {"option_text": "入厕", "is_correct": true},
             {"option_text": "阅读", "is_correct": false},
             {"option_text": "写字", "is_correct": false}
           ],
@@ -1554,7 +1554,7 @@
           "question_text": "入园前，表达能力培养的重点是引导孩子？ [单选题]",
           "question_type": "单选题",
           "options": [
-            {"option_text": "说出发生的事情，表达意愿和感受", "is_correct": false},
+            {"option_text": "说出发生的事情，表达意愿和感受", "is_correct": true},
             {"option_text": "背诵儿歌和故事", "is_correct": false},
             {"option_text": "使用复杂的词汇", "is_correct": false},
             {"option_text": "书写自己的名字", "is_correct": false}
@@ -1566,7 +1566,7 @@
           "question_type": "单选题",
           "options": [
             {"option_text": "与老师交流", "is_correct": false},
-            {"option_text": "寻求帮助和解决问题", "is_correct": false},
+            {"option_text": "寻求帮助和解决问题", "is_correct": true},
             {"option_text": "与小朋友玩耍", "is_correct": false},
             {"option_text": "适应新环境", "is_correct": false}
           ],
@@ -1581,7 +1581,7 @@
           "question_text": "确定孩子入厕训练准备好的信号之一是？ [单选题]",
           "question_type": "单选题",
           "options": [
-            {"option_text": "模仿成人上厕所", "is_correct": false},
+            {"option_text": "模仿成人上厕所", "is_correct": true},
             {"option_text": "能独立穿脱裤子", "is_correct": false},
             {"option_text": "能控制大小便时间", "is_correct": false},
             {"option_text": "能识别男女厕所", "is_correct": false}
@@ -1593,7 +1593,7 @@
           "question_type": "单选题",
           "options": [
             {"option_text": "大小便的感受", "is_correct": false},
-            {"option_text": "其它的感觉和要求", "is_correct": false},
+            {"option_text": "其它的感觉和要求", "is_correct": true},
             {"option_text": "对厕所的喜好", "is_correct": false},
             {"option_text": "对尿不湿的厌恶", "is_correct": false}
           ],
@@ -1605,7 +1605,7 @@
           "options": [
             {"option_text": "孩子讨厌尿布湿", "is_correct": false},
             {"option_text": "孩子想要更换尿布湿", "is_correct": false},
-            {"option_text": "孩子可能准备好接受入厕训练", "is_correct": false},
+            {"option_text": "孩子可能准备好接受入厕训练", "is_correct": true},
             {"option_text": "孩子感到不舒服", "is_correct": false}
           ],
           "answer_explanation": "文档列举的准备好信号包括 “尿不湿湿了或脏了后，会把尿布拉开或跑来告诉别人”。"
@@ -1617,7 +1617,7 @@
             {"option_text": "1 小时", "is_correct": false},
             {"option_text": "2 小时", "is_correct": false},
             {"option_text": "2.5 小时", "is_correct": false},
-            {"option_text": "3 小时", "is_correct": false}
+            {"option_text": "3 小时", "is_correct": true}
           ],
           "answer_explanation": "文档列举的准备好信号包括 “尿湿尿布湿的时间间隔变长，至少达三个小时”。"
         },
@@ -1625,9 +1625,9 @@
           "question_text": "以下哪些行为表明孩子可能已经准备好接受入厕训练？ [多选题]",
           "question_type": "多选题",
           "options": [
-            {"option_text": "对成人上厕所表现出兴趣", "is_correct": false},
-            {"option_text": "能用语言表达需求", "is_correct": false},
-            {"option_text": "尿不湿能保持较长时间干爽", "is_correct": false},
+            {"option_text": "对成人上厕所表现出兴趣", "is_correct": true},
+            {"option_text": "能用语言表达需求", "is_correct": true},
+            {"option_text": "尿不湿能保持较长时间干爽", "is_correct": true},
             {"option_text": "能独立完成穿脱衣服", "is_correct": false},
             {"option_text": "能清晰说出“我要尿尿”", "is_correct": false}
           ],
@@ -1642,7 +1642,7 @@
           "question_text": "2-3 岁幼儿一天安排的原则是，根据孩子的什么来安排？ [单选题]",
           "question_type": "单选题",
           "options": [
-            {"option_text": "生物钟", "is_correct": false},
+            {"option_text": "生物钟", "is_correct": true},
             {"option_text": "家长的时间", "is_correct": false},
             {"option_text": "幼儿园作息", "is_correct": false},
             {"option_text": "天气情况", "is_correct": false}
@@ -1654,7 +1654,7 @@
           "question_type": "单选题",
           "options": [
             {"option_text": "玩-睡-吃", "is_correct": false},
-            {"option_text": "吃-玩-睡", "is_correct": false},
+            {"option_text": "吃-玩-睡", "is_correct": true},
             {"option_text": "睡-吃-玩", "is_correct": false},
             {"option_text": "自由活动", "is_correct": false}
           ],
@@ -1666,7 +1666,7 @@
           "options": [
             {"option_text": "2 小时", "is_correct": false},
             {"option_text": "2.5 小时", "is_correct": false},
-            {"option_text": "3 小时", "is_correct": false},
+            {"option_text": "3 小时", "is_correct": true},
             {"option_text": "4 小时", "is_correct": false}
           ],
           "answer_explanation": "文档建议 “约三小时一循环”。"
@@ -1675,7 +1675,7 @@
           "question_text": "2-3 岁幼儿的喂养原则是？ [单选题]",
           "question_type": "单选题",
           "options": [
-            {"option_text": "三餐两点", "is_correct": false},
+            {"option_text": "三餐两点", "is_correct": true},
             {"option_text": "四餐一点", "is_correct": false},
             {"option_text": "自由进食", "is_correct": false},
             {"option_text": "按需喂养", "is_correct": false}
@@ -1687,7 +1687,7 @@
           "question_type": "单选题",
           "options": [
             {"option_text": "10 小时", "is_correct": false},
-            {"option_text": "13 小时左右", "is_correct": false},
+            {"option_text": "13 小时左右", "is_correct": true},
             {"option_text": "15 小时", "is_correct": false},
             {"option_text": "18 小时", "is_correct": false}
           ],
