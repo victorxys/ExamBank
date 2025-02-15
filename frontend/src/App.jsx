@@ -209,7 +209,7 @@ function App() {
               <Route path="/" element={<Navigate to="/exams" />} />
               <Route path="/exams" element={<ExamList />} />
               <Route path="/exams/:examId" element={<ExamDetail />} />
-              <Route path="/take-exam" element={<ExamTake />} />
+              <Route path="/take-exam/:examId" element={<ExamTake />} />
               <Route path="/courses/:courseId/knowledge_points" element={<KnowledgePoints />} />
               <Route path="/courses/:courseId/knowledge_points/:knowledgePointId/questions" element={<Questions />} />
               <Route path="/exam-records" element={<ExamRecords />} />

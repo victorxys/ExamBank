@@ -115,10 +115,10 @@ function ExamRecords() {
           <TableHead>
             <TableRow>
               <TableCell>考试名称</TableCell>
-              <TableCell>课程</TableCell>
-              <TableCell>考生姓名</TableCell>
+              <TableCell>考生</TableCell>
               <TableCell>考试时间</TableCell>
-              <TableCell>得分</TableCell>
+              <TableCell>分数</TableCell>
+              <TableCell>题目数量</TableCell>
               <TableCell>操作</TableCell>
             </TableRow>
           </TableHead>
@@ -144,16 +144,6 @@ function ExamRecords() {
                       )}
                     </Box>
                   </TableCell>
-                  <TableCell>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <SchoolIcon fontSize="small" color="primary" />
-                      <Typography variant="body2">
-                        {record.courses && record.courses.length > 0
-                          ? record.courses.join(', ')
-                          : '未指定课程'}
-                      </Typography>
-                    </Box>
-                  </TableCell>
                   <TableCell>{record.user_name || '未知'}</TableCell>
                   <TableCell>
                     {record.exam_time
@@ -175,6 +165,14 @@ function ExamRecords() {
                       }}
                     >
                       {record.total_score?.toFixed(2) || '0.00'}分
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2" component="div">
+                      单选题：{record.single_choice_count || 0}题
+                    </Typography>
+                    <Typography variant="body2" component="div">
+                      多选题：{record.multiple_choice_count || 0}题
                     </Typography>
                   </TableCell>
                   <TableCell>

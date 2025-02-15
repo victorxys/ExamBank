@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import {
   Box,
   Button,
@@ -67,12 +67,18 @@ function ExamList() {
           recordsResponse.json()
         ])
 
+        // 为每条记录生成唯一的 key
+        const processedRecords = recordsData.map(record => ({
+          ...record,
+          // 使用 exam_id 和 created_at 组合作为唯一标识符
+          uniqueId: record.exam_id && record.created_at 
+            ? `${record.exam_id}-${new Date(record.created_at).getTime()}`
+            : `record-${Math.random().toString(36).substr(2, 9)}`
+        }));
+
         setExams(examsData)
         setCourses(coursesData)
-        setExamRecords(recordsData.map(record => ({
-          ...record,
-          uniqueId: `${record.exam_id}-${record.user_id}-${record.created_at}`
-        })))
+        setExamRecords(processedRecords)
       } catch (error) {
         console.error('Error fetching data:', error)
         setError(error.message)
@@ -208,11 +214,11 @@ function ExamList() {
   }
 
   const handlePreview = (examId) => {
-    window.open(`/take-exam?id=${examId}&preview=true`, '_blank');
+    window.open(`/take-exam/${examId}?preview=true`, '_blank');
   };
 
   const handleShare = (examId) => {
-    const examUrl = `${window.location.origin}/take-exam?id=${examId}`;
+    const examUrl = `${window.location.origin}/take-exam/${examId}`;
     navigator.clipboard.writeText(examUrl).then(() => {
       alert('答题链接已复制到剪贴板！');
     });
@@ -282,48 +288,85 @@ function ExamList() {
       </Box>
 
       <Grid container spacing={2}>
-        {exams.map((exam) => (
-          <Grid item xs={12} sm={6} md={4} key={`exam-${exam.id}-${exam.updated_at}`}>
-            <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-              <CardContent sx={{ flexGrow: 1 }}>
-                <Typography gutterBottom variant="h5" component="div">
-                  {exam.title}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {exam.description || '无描述'}
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                  课程：{exam.course_names?.join('、') || '无课程'}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  单选题：{exam.single_count || 0}题
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  多选题：{exam.multiple_count || 0}题
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  创建时间：{new Date(exam.created_at).toLocaleString()}
-                </Typography>
-              </CardContent>
-              <CardActions>
-                <Button size="small" onClick={() => handleViewDetails(exam.id, exam.created_at)}>
-                  查看详情
-                </Button>
-                <Button size="small" onClick={() => handlePreview(exam.id)}>
-                  预览
-                </Button>
-                <Button size="small" onClick={() => handleShare(exam.id)}>
-                  分享
-                </Button>
-              </CardActions>
-            </Card>
-          </Grid>
-        ))}
+        {exams.map((exam) => {
+          // 确保有一个有效的唯一标识符
+          const examKey = exam.id 
+            ? `exam-${exam.id}-${Date.now()}`
+            : `exam-${Math.random().toString(36).substr(2, 9)}`;
+            
+          return (
+            <Grid item xs={12} sm={6} md={4} key={examKey}>
+              <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                <CardContent sx={{ flexGrow: 1 }}>
+                  <Typography gutterBottom variant="h5" component="div">
+                    {exam.title}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {exam.description || '无描述'}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                    课程：{exam.course_names?.join('、') || '无课程'}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    单选题：{exam.single_count || 0}题
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    多选题：{exam.multiple_count || 0}题
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    创建时间：{new Date(exam.created_at).toLocaleString()}
+                  </Typography>
+                </CardContent>
+                <CardActions>
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    component={Link}
+                    to={`/take-exam/${exam.id}`}
+                    sx={{ mr: 1 }}
+                  >
+                    开始考试
+                  </Button>
+                  <Button size="small" onClick={() => handleViewDetails(exam.id, exam.created_at)}>
+                    查看详情
+                  </Button>
+                  <Button size="small" onClick={() => handlePreview(exam.id)}>
+                    预览
+                  </Button>
+                  <Button size="small" onClick={() => handleShare(exam.id)}>
+                    分享
+                  </Button>
+                </CardActions>
+              </Card>
+            </Grid>
+          );
+        })}
       </Grid>
 
       <Table>
         <TableBody>
-          {renderExamRecords()}
+          {examRecords.map((record) => {
+            // 确保有一个有效的唯一标识符
+            const recordKey = record.uniqueId || `record-${Math.random().toString(36).substr(2, 9)}`;
+            
+            return (
+              <TableRow key={recordKey}>
+                <TableCell>{record.exam_title}</TableCell>
+                <TableCell>{record.total_score}</TableCell>
+                <TableCell>{new Date(record.created_at).toLocaleString()}</TableCell>
+                <TableCell>
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    size="small"
+                    onClick={() => handleViewRecord(record.exam_id, record.user_id, record.created_at)}
+                  >
+                    查看详情
+                  </Button>
+                </TableCell>
+              </TableRow>
+            );
+          })}
         </TableBody>
       </Table>
 

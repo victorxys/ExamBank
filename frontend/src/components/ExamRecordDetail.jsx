@@ -51,9 +51,10 @@ const ExamRecordDetail = () => {
           return;
         }
 
-        const formattedTime = examTime.replace(' ', 'T');
+        const formattedTime = examTime.includes('T') ? examTime : examTime.replace(' ', 'T');
+        const timeWithZone = formattedTime.includes('+') ? formattedTime : `${formattedTime}+08:00`;
         const response = await fetch(
-          `http://localhost:5000/api/exam-records/${examId}/${userId}?exam_time=${encodeURIComponent(formattedTime)}`,
+          `http://localhost:5000/api/exam-records/${examId}/${userId}?exam_time=${encodeURIComponent(timeWithZone)}`,
           {
             signal: abortController.signal,
             headers: {
@@ -201,7 +202,7 @@ const ExamRecordDetail = () => {
           </Grid>
           <Grid item>
             <Typography variant="body1">
-              答题次数：第 {record.attempt_number || 1} 次
+              答题次数：第 {record.attempt_number} 次
             </Typography>
           </Grid>
         </Grid>
