@@ -345,7 +345,6 @@ function ExamList() {
       </Box>
 
       <Grid container spacing={2}>
-<<<<<<< Updated upstream
         {exams.map((exam) => {
           // 确保有一个有效的唯一标识符
           const examKey = exam.id 
@@ -427,74 +426,6 @@ function ExamList() {
           })}
         </TableBody>
       </Table>
-=======
-        {exams.map((exam) => (
-          <Grid item xs={12} sm={6} md={4} key={exam.id}>
-            <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-              <CardContent sx={{ flexGrow: 1 }}>
-                <Typography gutterBottom variant="h5" component="div">
-                  {exam.title}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {exam.description || '无描述'}
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                  课程：{exam.course_names?.join('、') || '无课程'}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  单选题：{exam.single_count || 0}题
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  多选题：{exam.multiple_count || 0}题
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  创建时间：{new Date(exam.created_at).toLocaleString()}
-                </Typography>
-              </CardContent>
-              <CardActions>
-                <Button size="small" onClick={() => navigate(`/exams/${exam.id}`)}>
-                  查看
-                </Button>
-                <Button size="small" onClick={() => handleShare(exam.id)}>
-                  分享
-                </Button>
-                <IconButton
-                  color="error"
-                  onClick={() => handleDeleteClick(exam)}
-                  aria-label="delete"
-                >
-                  <DeleteIcon />
-                </IconButton>
-              </CardActions>
-            </Card>
-          </Grid>
-        ))}
-      </Grid>
-
-      {examRecords.length > 0 && (
-        <Box sx={{ mt: 4 }}>
-          <Typography variant="h6" gutterBottom>
-            考试记录
-          </Typography>
-          <TableContainer component={Paper}>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>试卷名称</TableCell>
-                  <TableCell>考生手机</TableCell>
-                  <TableCell>得分</TableCell>
-                  <TableCell>考试时间</TableCell>
-                  <TableCell>操作</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {renderExamRecords()}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </Box>
-      )}
->>>>>>> Stashed changes
 
       {/* 新建考卷对话框 */}
       <Dialog
