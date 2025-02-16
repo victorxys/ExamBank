@@ -159,7 +159,8 @@ const ExamTake = () => {
         // 普通答题模式数据格式
         questions = [
           ...(data.questions.single || []).map(q => ({
-            ...q,
+            id: q.id,
+            question_text: q.question_text,
             question_type: '单选题',
             options: q.options.map(opt => ({
               id: opt.id,
@@ -167,7 +168,8 @@ const ExamTake = () => {
             }))
           })),
           ...(data.questions.multiple || []).map(q => ({
-            ...q,
+            id: q.id,
+            question_text: q.question_text,
             question_type: '多选题',
             options: q.options.map(opt => ({
               id: opt.id,
@@ -598,6 +600,7 @@ const ExamTake = () => {
                 </Typography>
               )}
 
+<<<<<<< Updated upstream
               {/* 题目列表 */}
               {exam.questions && exam.questions.length > 0 ? (
                 <Box>
@@ -617,6 +620,233 @@ const ExamTake = () => {
                 </Box>
               ) : (
                 <Alert severity="info">该试卷暂无题目</Alert>
+=======
+          {submitted ? (
+            <Box>
+              <Typography variant="h5" gutterBottom>
+                考试结果
+              </Typography>
+              <Box sx={{ mb: 4 }}>
+                <Typography variant="h6" color="primary" gutterBottom>
+                  总分：{examResult.total_score}
+                </Typography>
+                <Typography color="text.secondary">
+                  共{examResult.questions.length}题，
+                  答对{examResult.questions.filter(q => q.is_correct).length}题，
+                  答错{examResult.questions.filter(q => !q.is_correct).length}题
+                </Typography>
+              </Box>
+
+              {/* 错题列表 */}
+              {examResult.questions.filter(q => !q.is_correct).length > 0 && (
+                <>
+                  <Typography variant="h6" sx={{ mb: 2, color: 'error.main' }}>
+                    错题详情：
+                  </Typography>
+                  {examResult.questions
+                    .filter(question => !question.is_correct)
+                    .map((question, index) => (
+                    <Box key={question.id} sx={{ mt: 4 }}>
+                      <Typography variant="subtitle1" sx={{ mb: 2 }}>
+                        {index + 1}. {question.question_text}
+                      </Typography>
+                      <Typography color="error.main" sx={{ mb: 1 }}>
+                        得分：{question.score}
+                      </Typography>
+                      
+                      {/* 选项列表 */}
+                      <Box sx={{ ml: 2 }}>
+                        {question.options?.map((option, optIndex) => {
+                          const isSelected = question.selected_option_ids?.includes(option.id);
+                          const isCorrect = option.is_correct;
+                          
+                          return (
+                            <Box 
+                              key={option.id || optIndex}
+                              sx={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                mb: 1,
+                                p: 1,
+                                backgroundColor: 
+                                  isCorrect ? 'rgba(76, 175, 80, 0.05)' :
+                                  isSelected ? 'rgba(255, 82, 82, 0.1)' :
+                                  'transparent',
+                                borderRadius: 1,
+                                position: 'relative'
+                              }}
+                            >
+                              {/* 选择状态标记 */}
+                              <Box
+                                sx={{
+                                  position: 'absolute',
+                                  left: -24,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  color: isSelected ? '#FF5252' : 'transparent'
+                                }}
+                              >
+                                ●
+                              </Box>
+                              
+                              {/* 选项字母 */}
+                              <Typography 
+                                sx={{ 
+                                  minWidth: 24,
+                                  color: 
+                                    isCorrect ? '#4CAF50' :
+                                    isSelected ? '#FF5252' :
+                                    'text.primary'
+                                }}
+                              >
+                                {option.char}.
+                              </Typography>
+
+                              {/* 选项内容 */}
+                              <Typography
+                                sx={{
+                                  flex: 1,
+                                  color: 
+                                    isCorrect ? '#4CAF50' :
+                                    isSelected ? '#FF5252' :
+                                    'text.primary'
+                                }}
+                              >
+                                {option.content}
+                              </Typography>
+
+                              {/* 正确/错误标记 */}
+                              <Box sx={{ ml: 1, display: 'flex', alignItems: 'center' }}>
+                                {isCorrect && (
+                                  <Typography sx={{ color: '#4CAF50', fontWeight: 'bold' }}>
+                                    ✓
+                                  </Typography>
+                                )}
+                                {!isCorrect && isSelected && (
+                                  <Typography sx={{ color: '#FF5252', fontWeight: 'bold' }}>
+                                    ✗
+                                  </Typography>
+                                )}
+                              </Box>
+                            </Box>
+                          );
+                        })}
+                      </Box>
+
+                      {/* 解析 */}
+                      {question.explanation && (
+                        <Box sx={{ mt: 2, ml: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+                          <Typography variant="body2" color="text.secondary">
+                            <strong>解析：</strong>{question.explanation}
+                          </Typography>
+                        </Box>
+                      )}
+                    </Box>
+                  ))}
+                </>
+              )}
+              
+              {/* 如果没有错题 */}
+              {examResult.questions.every(q => q.is_correct) && (
+                <Box sx={{ mt: 4, textAlign: 'center' }}>
+                  <Typography variant="h6" color="success.main">
+                    恭喜！你答对了所有题目！
+                  </Typography>
+                </Box>
+              )}
+            </Box>
+          ) : (
+            <Box>
+              {/* 单选题部分 */}
+              {exam.questions.filter(q => q.question_type === '单选题').length > 0 && (
+                <>
+                  <Typography variant="h5" sx={{ mt: 4, mb: 3, fontWeight: 'bold' }}>
+                    一、单选题
+                  </Typography>
+                  {exam.questions
+                    .filter(q => q.question_type === '单选题')
+                    .map((question, index) => (
+                      <Box key={question.id} id={`question-${question.id}`} sx={{ mt: 3, transition: 'background-color 0.5s ease' }}>
+                        <FormControl component="fieldset" sx={{ width: '100%' }}>
+                          <FormLabel component="legend" sx={{ mb: 1, display: 'flex', alignItems: 'flex-start' }}>
+                            <Box component="span" sx={{ mr: 1, flexShrink: 0 }}>
+                              {index + 1}.
+                            </Box>
+                            <MarkdownTypography 
+                              component="span" 
+                              sx={{ 
+                                display: 'inline',
+                                '& p': { 
+                                  display: 'inline',
+                                  mt: 0,
+                                  mb: 0
+                                }
+                              }}
+                            >
+                              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                {question.question_text}
+                              </ReactMarkdown>
+                            </MarkdownTypography>
+                          </FormLabel>
+                          <RadioGroup
+                            value={answers[question.id]?.selected || ''}
+                            onChange={(e) => {
+                              console.log('单选题选择：', {
+                                questionId: question.id,
+                                optionId: e.target.value,
+                                type: '单选题'
+                              });
+                              handleAnswerChange(question.id, e.target.value, '单选题');
+                            }}
+                          >
+                            {question.options.map((option, optionIndex) => (
+                              <FormControlLabel
+                                key={option.id}
+                                value={option.id}
+                                control={
+                                  <Radio 
+                                    sx={{
+                                      mt: '-3px', // 向上微调单选框位置
+                                      p: '9px'    // 调整内边距
+                                    }}
+                                  />
+                                }
+                                sx={{
+                                  alignItems: 'flex-start',
+                                  margin: '4px 0',  // 调整选项间距
+                                  '& .MuiFormControlLabel-label': {
+                                    mt: '3px'  // 微调标签位置以对齐单选框
+                                  }
+                                }}
+                                label={
+                                  <Box component="span" sx={{ display: 'flex', alignItems: 'flex-start' }}>
+                                    <Box component="span" sx={{ mr: 1, flexShrink: 0, minWidth: '20px' }}>
+                                      {String.fromCharCode(65 + optionIndex)}.
+                                    </Box>
+                                    <MarkdownTypography 
+                                      component="span"
+                                      sx={{
+                                        flex: 1,
+                                        '& p': { 
+                                          mt: 0,
+                                          mb: 0
+                                        }
+                                      }}
+                                    >
+                                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                        {option.option_text}
+                                      </ReactMarkdown>
+                                    </MarkdownTypography>
+                                  </Box>
+                                }
+                              />
+                            ))}
+                          </RadioGroup>
+                        </FormControl>
+                      </Box>
+                    ))}
+                </>
+>>>>>>> Stashed changes
               )}
 
               {/* 考试结果 */}

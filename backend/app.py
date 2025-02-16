@@ -6,11 +6,15 @@ import os
 from dotenv import load_dotenv
 import uuid
 from dateutil import parser
+import logging
 
 load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
+
+# Create a logger
+logger = logging.getLogger(__name__)
 
 def get_db_connection():
     conn = psycopg2.connect(
@@ -1017,69 +1021,156 @@ def get_exam_for_taking(exam_id):
 
 @app.route('/api/exams/<exam_id>/submit', methods=['POST'])
 def submit_exam_answer(exam_id):
+<<<<<<< Updated upstream
     print("现在，开始提交考试答案，考试ID：", exam_id)
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
+=======
+    logger = logging.getLogger(__name__)
+    logger.info(f"Starting exam submission for exam_id: {exam_id}")
+    
+    conn = None
+    cur = None
+>>>>>>> Stashed changes
     try:
+        # Input validation
+        if not exam_id:
+            raise ValueError("Exam ID is required")
+            
         data = request.json
         user_id = data.get('user_id')
         answers = data.get('answers', [])
-        print(answers)
-        if not user_id or not answers:
-            return jsonify({'error': '缺少必要参数'}), 400
+        
+        if not user_id:
+            raise ValueError("User ID is required")
+        if not answers:
+            raise ValueError("No answers provided")
+            
+        # Validate exam_id and user_id are valid UUIDs
+        try:
+            exam_uuid = str(uuid.UUID(exam_id))
+            user_uuid = str(uuid.UUID(user_id))
+        except ValueError as e:
+            logger.error(f"Invalid UUID format: {str(e)}")
+            return jsonify({'error': 'Invalid exam ID or user ID format'}), 400
+            
+        # Establish database connection
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # Verify exam exists and is active
+        cur.execute('''
+            SELECT id, title FROM exampaper WHERE id = %s
+        ''', (exam_uuid,))
+        exam = cur.fetchone()
+        if not exam:
+            raise ValueError(f"Exam with ID {exam_id} not found")
+            
+        # Verify user exists
+        cur.execute('''
+            SELECT id FROM "user" WHERE id = %s
+        ''', (user_uuid,))
+        user = cur.fetchone()
+        if not user:
+            raise ValueError(f"User with ID {user_id} not found")
+            
+        # Check if user has already submitted this exam
+        cur.execute('''
+            SELECT COUNT(*) as submission_count 
+            FROM answerrecord 
+            WHERE exam_paper_id = %s AND user_id = %s
+        ''', (exam_uuid, user_uuid))
+        submission_count = cur.fetchone()['submission_count']
+        # if submission_count > 0:
+        #     raise ValueError("You have already submitted this exam")
 
         results = []
         total_score = 0
 
         for answer in answers:
-            question_id = answer['question_id']
-            selected_options = answer['selected_options']
+            question_id = answer.get('question_id')
+            selected_options = answer.get('selected_options', [])
+            
+            if not question_id:
+                logger.warning("Skipping answer with missing question_id")
+                continue
+                
+            # Validate question_id UUID
+            try:
+                question_id = str(uuid.UUID(question_id))
+            except ValueError:
+                logger.warning(f"Invalid question_id UUID format: {question_id}")
+                continue
 
-            # 确保 selected_options 是 UUID 格式
+            # Validate selected_options
             try:
                 selected_options = [str(uuid.UUID(opt)) for opt in selected_options]
             except ValueError as e:
-                print('Invalid UUID in selected_options:', e)
-                return jsonify({'error': 'Invalid UUID format in selected options'}), 400
+                logger.error(f"Invalid UUID in selected_options: {str(e)}")
+                continue
 
-            # 修改后的SQL查询
+            # Get question info and correct answers
             cur.execute('''
-                WITH option_ordered AS (
-                    SELECT 
+                WITH option_with_index AS (
+                    SELECT
                         id,
                         question_id,
-                        ROW_NUMBER() OVER (ORDER BY id) - 1 as option_index
+                        option_text,
+                        is_correct,
+                        chr(65 + (ROW_NUMBER() OVER (PARTITION BY question_id ORDER BY id) - 1)::integer) AS option_char
                     FROM option
+                    WHERE question_id = %s
                 ),
                 correct_options AS (
-                    SELECT 
-                        array_agg(chr(65 + CAST(oo.option_index AS INTEGER))) as correct_answer_chars,
-                        array_agg(oo.id) as correct_option_ids
-                    FROM option_ordered oo
-                    JOIN option op ON oo.id = op.id
-                    WHERE op.is_correct
+                  SELECT
+                        question_id,
+                        array_agg(id) as correct_option_ids,
+                        array_agg(option_char) AS correct_answer_chars
+                    FROM option_with_index
+                    WHERE is_correct
+                    GROUP BY question_id
                 )
-                SELECT 
+                SELECT
                     q.id,
                     q.question_type,
                     q.question_text,
                     a.explanation,
                     co.correct_answer_chars,
-                    co.correct_option_ids
+                    co.correct_option_ids,
+                    json_agg(
+                        json_build_object(
+                            'id', owi.id,
+                            'content', owi.option_text,
+                            'is_correct', owi.is_correct,
+                            'char', owi.option_char
+                        ) ORDER BY owi.option_char
+                    ) AS options
                 FROM question q
                 LEFT JOIN answer a ON q.id = a.question_id
-                CROSS JOIN correct_options co
+                LEFT JOIN option_with_index owi ON q.id = owi.question_id
+                LEFT JOIN correct_options co ON q.id = co.question_id
                 WHERE q.id = %s
-            ''', (question_id,))
+                GROUP BY q.id, q.question_type, q.question_text, a.explanation, co.correct_answer_chars, co.correct_option_ids;
+            ''', (question_id, question_id))
             
             question_info = cur.fetchone()
 
+<<<<<<< Updated upstream
             print(f"question_info:{question_info}")
             print(f"question_info['correct_answer_chars']:{question_info['correct_answer_chars']}")
             
             # 判断答案是否正确
+=======
+            print("question_info:",question_info)
+            if not question_info:
+                logger.warning(f"No question info found for question_id: {question_id}")
+                continue
+
+            # Calculate score
+>>>>>>> Stashed changes
             is_correct = False
             score = 0
+
             if question_info['question_type'] == '单选题':
                 is_correct = len(selected_options) == 1 and selected_options[0] in question_info['correct_option_ids']
                 score = 1 if is_correct else 0
@@ -1089,12 +1180,31 @@ def submit_exam_answer(exam_id):
                 is_correct = selected_set == correct_set
                 score = 2 if is_correct else 0
 
-            # 保存答案记录（添加类型转换）
-            cur.execute('''
-                INSERT INTO answerrecord 
-                (exam_paper_id, question_id, selected_option_ids, score, user_id) 
-                VALUES (%s, %s, %s::uuid[], %s, %s)
-            ''', (exam_id, question_id, selected_options, score, user_id))
+            # Record answer
+            try:
+                # Convert selected_options to a PostgreSQL array literal
+                selected_options_literal = '{' + ','.join(selected_options) + '}'
+                cur.execute('''
+                    INSERT INTO answerrecord (
+                        exam_paper_id,
+                        question_id,
+                        selected_option_ids,
+                        score,
+                        user_id
+                    ) VALUES (%s, %s, %s::uuid[], %s, %s)
+                    RETURNING id
+                ''', (
+                    exam_uuid,
+                    question_id,
+                    selected_options_literal,
+                    score,
+                    user_uuid
+                ))
+                answer_record_id = cur.fetchone()['id']
+                logger.info(f"Created answer record with ID: {answer_record_id}")
+            except Exception as e:
+                logger.error(f"Error recording answer: {str(e)}")
+                raise
 
             total_score += score
             results.append({
@@ -1103,22 +1213,65 @@ def submit_exam_answer(exam_id):
                 'is_correct': is_correct,
                 'score': score,
                 'correct_answer': '、'.join(question_info['correct_answer_chars']),
-                'explanation': question_info['explanation'] or ""
+                'explanation': question_info['explanation'],
+                'selected_option_ids': selected_options,
+                'options': question_info['options']
             })
         print(results)
         conn.commit()
+        logger.info(f"Successfully submitted exam {exam_id} for user {user_id}")
+        
         return jsonify({
+            'exam_id': exam_id,
             'total_score': total_score,
             'questions': results
         })
 
+    except ValueError as e:
+        if conn:
+            conn.rollback()
+        logger.error(f"Validation error in submit_exam_answer: {str(e)}")
+        return jsonify({'error': str(e)}), 400
     except Exception as e:
-        conn.rollback()
-        print('Error in submit_exam_answer:', str(e))
-        return jsonify({'error': str(e)}), 500
+        if conn:
+            conn.rollback()
+        logger.error(f"Error in submit_exam_answer: {str(e)}")
+        return jsonify({'error': 'An internal server error occurred'}), 500
     finally:
-        cur.close()
-        conn.close()
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
+
+@app.route('/api/exams/<exam_id>', methods=['DELETE'])
+def delete_exam(exam_id):
+    try:
+        # Validate exam_id is a valid UUID
+        try:
+            uuid.UUID(exam_id)
+        except ValueError:
+            return jsonify({'error': 'Invalid exam ID format'}), 400
+
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                # First check if exam exists
+                cur.execute("SELECT id FROM exampaper WHERE id = %s", (exam_id,))
+                if cur.fetchone() is None:
+                    return jsonify({'error': 'Exam not found'}), 404
+
+                # Delete all answer records for this exam
+                cur.execute("DELETE FROM answerrecord WHERE exam_paper_id = %s", (exam_id,))
+                
+                # Delete the exam paper
+                cur.execute("DELETE FROM exampaper WHERE id = %s", (exam_id,))
+                
+                conn.commit()
+
+        return jsonify({'message': 'Exam deleted successfully'}), 200
+
+    except Exception as e:
+        app.logger.error(f"Error deleting exam: {str(e)}")
+        return jsonify({'error': 'Internal server error'}), 500
 
 @app.route('/api/users/login', methods=['POST'])
 def login_or_register_user():
@@ -1487,6 +1640,7 @@ def get_courses_knowledge_points(course_ids):
 #         results = []
 #         total_score = 0
 
+<<<<<<< Updated upstream
 #         for answer in answers:
 #             question_id = answer['question_id']
 #             selected_options = answer['selected_options']
@@ -1590,6 +1744,9 @@ def get_courses_knowledge_points(course_ids):
 #     finally:
 #         cur.close()
 #         conn.close()
+=======
+
+>>>>>>> Stashed changes
 
 @app.route('/api/users/login', methods=['POST'])
 def user_login():

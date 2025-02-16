@@ -10,6 +10,7 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
+  DialogContentText,
   DialogActions,
   TextField,
   Grid,
@@ -26,9 +27,13 @@ import {
   Table,
   TableBody,
   TableCell,
-  TableRow
+  TableRow,
+  TableContainer,
+  TableHead,
+  IconButton
 } from '@mui/material'
 import { Add as AddIcon } from '@mui/icons-material'
+import DeleteIcon from '@mui/icons-material/Delete';
 
 function ExamList() {
   const navigate = useNavigate()
@@ -46,6 +51,8 @@ function ExamList() {
   const [singleCount, setSingleCount] = useState(0)
   const [multipleCount, setMultipleCount] = useState(0)
   const [examRecords, setExamRecords] = useState([])
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [examToDelete, setExamToDelete] = useState(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -123,6 +130,22 @@ function ExamList() {
     }
   }
 
+  const fetchExams = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('http://localhost:5000/api/exams');
+      if (!response.ok) {
+        throw new Error('Failed to fetch exams');
+      }
+      const data = await response.json();
+      setExams(data);
+    } catch (error) {
+      console.error('Error fetching exams:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleNewExam = async () => {
     try {
       if (!title) {
@@ -164,7 +187,7 @@ function ExamList() {
 
       setNewExamDialogOpen(false)
       resetForm()
-      fetchCourses()
+      await fetchExams()
       fetchExamRecords()
     } catch (error) {
       console.error('Error creating exam:', error)
@@ -234,25 +257,59 @@ function ExamList() {
     navigate(`/exam-records/${examId}/${userId}?exam_time=${encodeURIComponent(formattedTime)}`);
   }
 
+  const handleDeleteClick = (exam) => {
+    setExamToDelete(exam);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteCancel = () => {
+    setExamToDelete(null);
+    setDeleteDialogOpen(false);
+  };
+
+  const handleDeleteConfirm = async () => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/exams/${examToDelete.id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to delete exam');
+      }
+
+      // Remove the deleted exam from the state
+      setExams(exams.filter(exam => exam.id !== examToDelete.id));
+      setDeleteDialogOpen(false);
+      setExamToDelete(null);
+    } catch (error) {
+      console.error('Error deleting exam:', error);
+      // You might want to show an error message to the user here
+    }
+  };
+
   const renderExamRecords = () => {
-    return examRecords.map((record) => (
-      <TableRow key={record.uniqueId}>
-        <TableCell>{record.exam_title}</TableCell>
-        <TableCell>{record.total_score}</TableCell>
-        <TableCell>{new Date(record.created_at).toLocaleString()}</TableCell>
-        <TableCell>
-          <Button
-            variant="contained"
-            color="primary"
-            size="small"
-            onClick={() => handleViewRecord(record.exam_id, record.user_id, record.created_at)}
-          >
-            查看详情
-          </Button>
-        </TableCell>
-      </TableRow>
-    ))
-  }
+    return examRecords.map((record) => {
+      const recordKey = `record-${record.exam_id}-${record.user_id}-${record.exam_time}`;
+      return (
+        <TableRow key={recordKey}>
+          <TableCell>{record.exam_title}</TableCell>
+          <TableCell>{record.user_phone}</TableCell>
+          <TableCell>{record.score}</TableCell>
+          <TableCell>{record.exam_time}</TableCell>
+          <TableCell>
+            <Button
+              variant="contained"
+              size="small"
+              onClick={() => handleViewExamRecord(record.exam_id, record.user_id, record.exam_time)}
+            >
+              查看详情
+            </Button>
+          </TableCell>
+        </TableRow>
+      );
+    });
+  };
 
   if (loading) {
     return (
@@ -288,6 +345,7 @@ function ExamList() {
       </Box>
 
       <Grid container spacing={2}>
+<<<<<<< Updated upstream
         {exams.map((exam) => {
           // 确保有一个有效的唯一标识符
           const examKey = exam.id 
@@ -369,6 +427,74 @@ function ExamList() {
           })}
         </TableBody>
       </Table>
+=======
+        {exams.map((exam) => (
+          <Grid item xs={12} sm={6} md={4} key={exam.id}>
+            <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+              <CardContent sx={{ flexGrow: 1 }}>
+                <Typography gutterBottom variant="h5" component="div">
+                  {exam.title}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {exam.description || '无描述'}
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                  课程：{exam.course_names?.join('、') || '无课程'}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  单选题：{exam.single_count || 0}题
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  多选题：{exam.multiple_count || 0}题
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  创建时间：{new Date(exam.created_at).toLocaleString()}
+                </Typography>
+              </CardContent>
+              <CardActions>
+                <Button size="small" onClick={() => navigate(`/exams/${exam.id}`)}>
+                  查看
+                </Button>
+                <Button size="small" onClick={() => handleShare(exam.id)}>
+                  分享
+                </Button>
+                <IconButton
+                  color="error"
+                  onClick={() => handleDeleteClick(exam)}
+                  aria-label="delete"
+                >
+                  <DeleteIcon />
+                </IconButton>
+              </CardActions>
+            </Card>
+          </Grid>
+        ))}
+      </Grid>
+
+      {examRecords.length > 0 && (
+        <Box sx={{ mt: 4 }}>
+          <Typography variant="h6" gutterBottom>
+            考试记录
+          </Typography>
+          <TableContainer component={Paper}>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>试卷名称</TableCell>
+                  <TableCell>考生手机</TableCell>
+                  <TableCell>得分</TableCell>
+                  <TableCell>考试时间</TableCell>
+                  <TableCell>操作</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {renderExamRecords()}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </Box>
+      )}
+>>>>>>> Stashed changes
 
       {/* 新建考卷对话框 */}
       <Dialog
@@ -545,6 +671,25 @@ function ExamList() {
           </Button>
           <Button onClick={handleNewExam} variant="contained" color="primary">
             创建
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={handleDeleteCancel}
+      >
+        <DialogTitle>确认删除</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            确定要删除试卷 "{examToDelete?.title}" 吗？此操作将同时删除所有相关的考试记录，且不可恢复。
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleDeleteCancel}>取消</Button>
+          <Button onClick={handleDeleteConfirm} color="error" variant="contained">
+            删除
           </Button>
         </DialogActions>
       </Dialog>
