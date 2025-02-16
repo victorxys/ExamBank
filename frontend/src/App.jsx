@@ -9,7 +9,7 @@ import ExamDetail from './components/ExamDetail'
 import Sidebar from './components/Sidebar'
 import Navbar from './components/Navbar'
 import CourseList from './components/CourseList'
-import ExamTaking from './components/ExamTaking'
+// import ExamTaking from './components/ExamTaking'
 import ExamRecords from './components/ExamRecords'
 import ExamRecordDetail from './components/ExamRecordDetail'
 import ExamTake from './components/ExamTake'
@@ -209,7 +209,7 @@ function App() {
               <Route path="/" element={<Navigate to="/exams" />} />
               <Route path="/exams" element={<ExamList />} />
               <Route path="/exams/:examId" element={<ExamDetail />} />
-              <Route path="/take-exam/:examId" element={<ExamTake />} />
+              <Route path="/exams/:examId/take" element={<ExamTake />} />
               <Route path="/courses/:courseId/knowledge_points" element={<KnowledgePoints />} />
               <Route path="/courses/:courseId/knowledge_points/:knowledgePointId/questions" element={<Questions />} />
               <Route path="/exam-records" element={<ExamRecords />} />

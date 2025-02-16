@@ -22,23 +22,28 @@ const ExamDetail = () => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    const fetchExamDetail = async () => {
-      try {
-        const response = await fetch(`http://localhost:5000/api/exams/${examId}/detail`);
-        const data = await response.json();
-        if (!response.ok) {
-          throw new Error(data.error || '获取试卷详情失败');
-        }
-        setExam(data);
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
+    if (!examId) {
+      setError('试卷ID不能为空');
+      setLoading(false);
+      return;
+    }
     fetchExamDetail();
   }, [examId]);
+
+  const fetchExamDetail = async () => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/exams/${examId}/detail`);
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || '获取试卷详情失败');
+      }
+      setExam(data);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   if (loading) {
     return (

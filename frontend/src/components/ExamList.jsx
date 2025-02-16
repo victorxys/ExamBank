@@ -48,8 +48,8 @@ function ExamList() {
   const [courses, setCourses] = useState([])
   const [knowledgePoints, setKnowledgePoints] = useState([])
   const [selectedPoints, setSelectedPoints] = useState([])
-  const [singleCount, setSingleCount] = useState(0)
-  const [multipleCount, setMultipleCount] = useState(0)
+  const [singleCount, setSingleCount] = useState('');
+  const [multipleCount, setMultipleCount] = useState(0);
   const [examRecords, setExamRecords] = useState([])
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [examToDelete, setExamToDelete] = useState(null);
@@ -160,7 +160,7 @@ function ExamList() {
         alert('请选择至少一个知识点')
         return
       }
-      if (singleCount === 0 && multipleCount === 0) {
+      if (singleCount === '' && multipleCount === 0) {
         alert('请设置要抽取的题目数量')
         return
       }
@@ -200,8 +200,8 @@ function ExamList() {
     setDescription('')
     setSelectedCourses([])
     setSelectedPoints([])
-    setSingleCount(0)
-    setMultipleCount(0)
+    setSingleCount('');
+    setMultipleCount(0);
   }
 
   const handleCoursesChange = async (event) => {
@@ -241,7 +241,7 @@ function ExamList() {
   };
 
   const handleShare = (examId) => {
-    const examUrl = `${window.location.origin}/take-exam/${examId}`;
+    const examUrl = `${window.location.origin}/exams/${examId}/take`;
     navigator.clipboard.writeText(examUrl).then(() => {
       alert('答题链接已复制到剪贴板！');
     });
@@ -262,30 +262,60 @@ function ExamList() {
     setDeleteDialogOpen(true);
   };
 
-  const handleDeleteCancel = () => {
-    setExamToDelete(null);
-    setDeleteDialogOpen(false);
-  };
-
   const handleDeleteConfirm = async () => {
+    if (!examToDelete) return;
+
     try {
       const response = await fetch(`http://localhost:5000/api/exams/${examToDelete.id}`, {
         method: 'DELETE',
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to delete exam');
+        throw new Error('删除试卷失败');
       }
 
-      // Remove the deleted exam from the state
+      // 从列表中移除已删除的试卷
       setExams(exams.filter(exam => exam.id !== examToDelete.id));
       setDeleteDialogOpen(false);
       setExamToDelete(null);
     } catch (error) {
-      console.error('Error deleting exam:', error);
-      // You might want to show an error message to the user here
+      console.error('删除试卷时出错：', error);
+      alert('删除试卷失败：' + error.message);
     }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteDialogOpen(false);
+    setExamToDelete(null);
+  };
+
+  const handleSingleCountChange = (e) => {
+    const inputValue = e.target.value;
+    if (inputValue === '') {
+      setSingleCount('');
+      setMultipleCount(0);
+      return;
+    }
+
+    const value = parseInt(inputValue) || 0;
+    // 限制单选题数量不超过100
+    const newSingleCount = Math.min(100, Math.max(0, value));
+    setSingleCount(newSingleCount);
+
+    // 计算多选题数量：(100 - 单选题分数) / 2，向下取整
+    const remainingPoints = 100 - newSingleCount;
+    const calculatedMultipleCount = Math.floor(remainingPoints / 2);
+    // 限制多选题数量不超过50
+    const newMultipleCount = Math.min(50, Math.max(0, calculatedMultipleCount));
+    setMultipleCount(newMultipleCount);
+  };
+
+  const handleMultipleCountChange = (e) => {
+    const value = parseInt(e.target.value) || 0;
+    // 限制多选题数量不超过50且总分不超过100
+    const maxMultipleCount = Math.floor((100 - singleCount) / 2);
+    const newMultipleCount = Math.min(50, Math.min(maxMultipleCount, Math.max(0, value)));
+    setMultipleCount(newMultipleCount);
   };
 
   const renderExamRecords = () => {
@@ -375,15 +405,15 @@ function ExamList() {
                   </Typography>
                 </CardContent>
                 <CardActions>
-                  <Button
+                  {/* <Button
                     variant="contained"
                     color="primary"
                     component={Link}
-                    to={`/take-exam/${exam.id}`}
+                    to={`/exams/${exam.id}/take`}
                     sx={{ mr: 1 }}
                   >
                     开始考试
-                  </Button>
+                  </Button> */}
                   <Button size="small" onClick={() => handleViewDetails(exam.id, exam.created_at)}>
                     查看详情
                   </Button>
@@ -393,6 +423,13 @@ function ExamList() {
                   <Button size="small" onClick={() => handleShare(exam.id)}>
                     分享
                   </Button>
+                  <Button 
+                    size="small" 
+                    color="error"
+                    onClick={() => handleDeleteClick(exam)}
+                  >
+                    删除
+                  </Button>
                 </CardActions>
               </Card>
             </Grid>
@@ -400,32 +437,28 @@ function ExamList() {
         })}
       </Grid>
 
-      <Table>
-        <TableBody>
-          {examRecords.map((record) => {
-            // 确保有一个有效的唯一标识符
-            const recordKey = record.uniqueId || `record-${Math.random().toString(36).substr(2, 9)}`;
-            
-            return (
-              <TableRow key={recordKey}>
-                <TableCell>{record.exam_title}</TableCell>
-                <TableCell>{record.total_score}</TableCell>
-                <TableCell>{new Date(record.created_at).toLocaleString()}</TableCell>
-                <TableCell>
-                  <Button
-                    variant="contained"
-                    color="primary"
-                    size="small"
-                    onClick={() => handleViewRecord(record.exam_id, record.user_id, record.created_at)}
-                  >
-                    查看详情
-                  </Button>
-                </TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
+      {/* 删除确认对话框 */}
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={handleDeleteCancel}
+      >
+        <DialogTitle>确认删除</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            确定要删除试卷"{examToDelete?.title}"吗？此操作不可恢复。
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleDeleteCancel}>取消</Button>
+          <Button 
+            onClick={handleDeleteConfirm} 
+            color="error" 
+            variant="contained"
+          >
+            删除
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* 新建考卷对话框 */}
       <Dialog
@@ -572,20 +605,28 @@ function ExamList() {
                     <TextField
                       fullWidth
                       type="number"
-                      label="单选题数量"
+                      label="单选题数量 （每题1分）"
                       value={singleCount}
-                      onChange={(e) => setSingleCount(parseInt(e.target.value) || 0)}
-                      inputProps={{ min: 0 }}
+                      onChange={handleSingleCountChange}
+                      inputProps={{ 
+                        min: 0,
+                        max: 100
+                      }}
+                      helperText={`试卷总分：${(parseInt(singleCount) || 0) + multipleCount * 2}/100`}
                     />
                   </Grid>
                   <Grid item xs={12} sm={6}>
                     <TextField
                       fullWidth
                       type="number"
-                      label="多选题数量"
+                      label="多选题数量（每题2分）"
                       value={multipleCount}
-                      onChange={(e) => setMultipleCount(parseInt(e.target.value) || 0)}
-                      inputProps={{ min: 0 }}
+                      onChange={handleMultipleCountChange}
+                      inputProps={{ 
+                        min: 0,
+                        max: 50
+                      }}
+                      disabled={true}
                     />
                   </Grid>
                 </Grid>
@@ -602,25 +643,6 @@ function ExamList() {
           </Button>
           <Button onClick={handleNewExam} variant="contained" color="primary">
             创建
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Delete Confirmation Dialog */}
-      <Dialog
-        open={deleteDialogOpen}
-        onClose={handleDeleteCancel}
-      >
-        <DialogTitle>确认删除</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            确定要删除试卷 "{examToDelete?.title}" 吗？此操作将同时删除所有相关的考试记录，且不可恢复。
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleDeleteCancel}>取消</Button>
-          <Button onClick={handleDeleteConfirm} color="error" variant="contained">
-            删除
           </Button>
         </DialogActions>
       </Dialog>
