@@ -11,10 +11,18 @@ import logging
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, resources={r"/api/*": {"origins": "*"}})
 
 # Create a logger
 logger = logging.getLogger(__name__)
+
+# 健康检查接口
+@app.route('/api/health')
+def health_check():
+    return jsonify({
+        'status': 'ok',
+        'message': 'Server is running'
+    })
 
 def get_db_connection():
     conn = psycopg2.connect(
@@ -1629,4 +1637,4 @@ def user_login():
         conn.close()
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, host='0.0.0.0', port=5000)

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
+import { API_BASE_URL } from '../config';
 import {
   Box,
   Button,
@@ -59,9 +60,9 @@ function ExamList() {
       try {
         setLoading(true)
         const [examsResponse, coursesResponse, recordsResponse] = await Promise.all([
-          fetch('http://localhost:5000/api/exams'),
-          fetch('http://localhost:5000/api/courses'),
-          fetch('http://localhost:5000/api/exam-records')
+          fetch(`${API_BASE_URL}/api/exams`),
+          fetch(`${API_BASE_URL}/api/courses`),
+          fetch(`${API_BASE_URL}/api/exam-records`)
         ])
 
         if (!examsResponse.ok || !coursesResponse.ok || !recordsResponse.ok) {
@@ -99,7 +100,7 @@ function ExamList() {
 
   const fetchCourses = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/courses')
+      const response = await fetch(`${API_BASE_URL}/api/courses`)
       if (!response.ok) {
         throw new Error('获取课程列表失败')
       }
@@ -119,7 +120,7 @@ function ExamList() {
 
   const fetchExamRecords = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/exam-records')
+      const response = await fetch(`${API_BASE_URL}/api/exam-records`)
       if (!response.ok) {
         throw new Error('Failed to fetch exam records')
       }
@@ -133,7 +134,7 @@ function ExamList() {
   const fetchExams = async () => {
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:5000/api/exams');
+      const response = await fetch(`${API_BASE_URL}/api/exams`);
       if (!response.ok) {
         throw new Error('Failed to fetch exams');
       }
@@ -165,7 +166,7 @@ function ExamList() {
         return
       }
 
-      const response = await fetch('http://localhost:5000/api/exams', {
+      const response = await fetch(`${API_BASE_URL}/api/exams`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -210,7 +211,7 @@ function ExamList() {
     
     if (courseIds.length > 0) {
       try {
-        const response = await fetch(`http://localhost:5000/api/courses/${courseIds.join(',')}/points`)
+        const response = await fetch(`${API_BASE_URL}/api/courses/${courseIds.join(',')}/points`)
         if (!response.ok) {
           throw new Error('Failed to fetch knowledge points')
         }
@@ -240,11 +241,28 @@ function ExamList() {
     window.open(`/take-exam/${examId}?preview=true`, '_blank');
   };
 
-  const handleShare = (examId) => {
+  const handleShare = async (examId) => {
     const examUrl = `${window.location.origin}/exams/${examId}/take`;
-    navigator.clipboard.writeText(examUrl).then(() => {
-      alert('答题链接已复制到剪贴板！');
-    });
+    
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(examUrl);
+        alert('答题链接已复制到剪贴板！');
+      } else {
+        // 创建一个临时输入框来复制文本
+        const tempInput = document.createElement('input');
+        tempInput.value = examUrl;
+        document.body.appendChild(tempInput);
+        tempInput.select();
+        document.execCommand('copy');
+        document.body.removeChild(tempInput);
+        alert('答题链接已复制到剪贴板！');
+      }
+    } catch (error) {
+      console.error('复制链接失败:', error);
+      // 如果复制失败，显示链接让用户手动复制
+      alert(`请手动复制链接：${examUrl}`);
+    }
   };
 
   const handleViewDetails = (examId, examTime) => {
@@ -266,7 +284,7 @@ function ExamList() {
     if (!examToDelete) return;
 
     try {
-      const response = await fetch(`http://localhost:5000/api/exams/${examToDelete.id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/exams/${examToDelete.id}`, {
         method: 'DELETE',
       });
 

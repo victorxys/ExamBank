@@ -24,6 +24,7 @@ import {
   Alert,
   Chip
 } from '@mui/material';
+import { API_BASE_URL } from '../config';
 
 // 自定义 Markdown 样式组件
 const MarkdownTypography = ({ children, ...props }) => {
@@ -85,7 +86,7 @@ const ExamTake = () => {
 
   const fetchExam = async () => {
     try {
-      const response = await fetch(`http://localhost:5000/api/exams/${examId}/take`);
+      const response = await fetch(`${API_BASE_URL}/api/exams/${examId}/take`);
       if (!response.ok) {
         throw new Error('获取试卷失败');
       }
@@ -124,7 +125,7 @@ const ExamTake = () => {
   // 检查手机号是否存在
   const checkPhoneNumber = async (phone) => {
     try {
-      const response = await fetch('http://localhost:5000/api/users/login', {
+      const response = await fetch(`${API_BASE_URL}/api/users/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -191,7 +192,7 @@ const ExamTake = () => {
     }
 
     try {
-      const response = await fetch('http://localhost:5000/api/users/login', {
+      const response = await fetch(`${API_BASE_URL}/api/users/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -304,7 +305,7 @@ const ExamTake = () => {
         user_id: user.id
       });
 
-      const response = await fetch(`http://localhost:5000/api/exams/${examId}/submit`, {
+      const response = await fetch(`${API_BASE_URL}/api/exams/${examId}/submit`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

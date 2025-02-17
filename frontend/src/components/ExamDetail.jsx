@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
+import { API_BASE_URL } from '../config';
 import {
   Container,
   Typography,
@@ -27,23 +28,22 @@ const ExamDetail = () => {
       setLoading(false);
       return;
     }
+    const fetchExamDetail = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/exams/${examId}/detail`);
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.error || '获取试卷详情失败');
+        }
+        setExam(data);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
     fetchExamDetail();
   }, [examId]);
-
-  const fetchExamDetail = async () => {
-    try {
-      const response = await fetch(`http://localhost:5000/api/exams/${examId}/detail`);
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error || '获取试卷详情失败');
-      }
-      setExam(data);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   if (loading) {
     return (
