@@ -184,18 +184,22 @@ def get_course_knowledge_points(course_id):
     cur = conn.cursor(cursor_factory=RealDictCursor)
     try:
         cur.execute('''
-            SELECT 
+            SELECT
                 kp.id,
                 kp.point_name,
                 kp.description,
                 kp.created_at,
                 kp.updated_at,
-                COUNT(q.id) as question_count
+                COUNT(q.id) AS question_count,
+                SUM(CASE WHEN q.question_type = '单选题' THEN 1 ELSE 0 END) AS single_count,
+                SUM(CASE WHEN q.question_type = '多选题' THEN 1 ELSE 0 END) AS multiple_count
+                -- 如果需要, 还可以计算问答题数量
+                -- , SUM(CASE WHEN q.question_type = '问答' THEN 1 ELSE 0 END) AS qa_count
             FROM knowledgepoint kp
             LEFT JOIN question q ON q.knowledge_point_id = kp.id
-            WHERE kp.course_id = %s
+            WHERE kp.course_id = %s  -- 占位符, 实际使用时需要替换为具体的 course_id
             GROUP BY kp.id, kp.point_name, kp.description, kp.created_at, kp.updated_at
-            ORDER BY kp.created_at DESC
+            ORDER BY kp.created_at DESC;
         ''', (course_id,))
         points = cur.fetchall()
         print("SQL查询结果：", points)
@@ -301,6 +305,9 @@ def get_knowledge_points():
             ORDER BY kp.created_at DESC
             LIMIT %s OFFSET %s
         '''
+        
+        # 计算偏移量
+        offset = (page - 1) * per_page
         
         # 添加分页参数
         params.extend([per_page, offset])

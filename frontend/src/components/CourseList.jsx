@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { API_BASE_URL } from '../config';
 import {
   Box,
   Card,
@@ -68,7 +69,7 @@ function CourseList() {
 
   const fetchCourses = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/courses')
+      const response = await fetch(`${API_BASE_URL}/api/courses`)
       const data = await response.json()
       setCourses(data)
     } catch (error) {
@@ -93,7 +94,7 @@ function CourseList() {
   const handleDeleteClick = async (e, course) => {
     e.stopPropagation()
     try {
-      const response = await fetch(`http://localhost:5000/api/courses/${course.id}/check-deleteable`)
+      const response = await fetch(`${API_BASE_URL}/api/courses/${course.id}/check-deleteable`)
       const data = await response.json()
       if (data.deleteable) {
         setSelectedCourse(course)
@@ -109,7 +110,7 @@ function CourseList() {
 
   const handleEditSubmit = async () => {
     try {
-      const response = await fetch(`http://localhost:5000/api/courses/${selectedCourse.id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/courses/${selectedCourse.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -144,7 +145,7 @@ function CourseList() {
 
   const handleDeleteConfirm = async () => {
     try {
-      const response = await fetch(`http://localhost:5000/api/courses/${selectedCourse.id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/courses/${selectedCourse.id}`, {
         method: 'DELETE',
       })
       if (response.ok) {
@@ -183,7 +184,7 @@ function CourseList() {
       return;
     }
     try {
-      const response = await fetch('http://localhost:5000/api/courses', {
+      const response = await fetch(`${API_BASE_URL}/api/courses`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

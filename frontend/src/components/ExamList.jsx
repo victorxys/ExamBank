@@ -238,7 +238,7 @@ function ExamList() {
     
     if (courseIds.length > 0) {
       try {
-        const response = await fetch(`${API_BASE_URL}/api/courses/${courseIds.join(',')}/points`)
+        const response = await fetch(`${API_BASE_URL}/api/courses/${courseIds.join(',')}/knowledge_points`)
         if (!response.ok) {
           throw new Error('Failed to fetch knowledge points')
         }
@@ -265,7 +265,7 @@ function ExamList() {
   }
 
   const handlePreview = (examId) => {
-    window.open(`/take-exam/${examId}?preview=true`, '_blank');
+    window.open(`/exams/${examId}/take?preview=true`, '_blank');
   };
 
   const handleShare = async (examId) => {
@@ -641,7 +641,7 @@ function ExamList() {
                           }}
                         >
                           <Typography variant="subtitle2" gutterBottom>
-                            {point.name}
+                            {point.point_name}
                           </Typography>
                           <Box sx={{ display: 'flex', gap: 2 }}>
                             <Typography variant="caption" color="text.secondary">
