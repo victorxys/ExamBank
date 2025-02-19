@@ -51,6 +51,8 @@ const MarkdownTypography = ({ children, ...props }) => {
 
 const ExamTake = () => {
   const { examId } = useParams();
+  const previousActiveElement = React.useRef(null);
+  const mainContentRef = React.useRef(null);
   const [exam, setExam] = useState(null);
   const [answers, setAnswers] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -351,8 +353,14 @@ const ExamTake = () => {
 
   return (
     <Container>
-      <Dialog open={loginOpen && !user} onClose={() => !isSubmitting && setLoginOpen(false)}>
-        <DialogTitle>登录</DialogTitle>
+      <Dialog 
+        open={loginOpen && !user} 
+        onClose={() => !isSubmitting && setLoginOpen(false)}
+        disableEnforceFocus={false}
+        disablePortal={false}
+        aria-labelledby="login-dialog-title"
+      >
+        <DialogTitle id="login-dialog-title">登录</DialogTitle>
         <DialogContent>
           <Box component="form" sx={{ mt: 2 }}>
             <TextField

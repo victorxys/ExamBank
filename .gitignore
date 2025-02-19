@@ -186,3 +186,10 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# DB
+/db
+*.config.js
+
+/backend/migrations
+frontend/src/components 2

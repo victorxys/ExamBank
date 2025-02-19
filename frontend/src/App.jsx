@@ -9,20 +9,27 @@ import ExamDetail from './components/ExamDetail'
 import Sidebar from './components/Sidebar'
 import Navbar from './components/Navbar'
 import CourseList from './components/CourseList'
+import ErrorBoundary from './components/ErrorBoundary'
 // import ExamTaking from './components/ExamTaking'
 import ExamRecords from './components/ExamRecords'
 import ExamRecordDetail from './components/ExamRecordDetail'
 import ExamTake from './components/ExamTake'
+import UserManagement from './components/UserManagement'
 import "@fortawesome/fontawesome-free/css/all.min.css";
+import "./styles/argon-theme.css";
 
 const theme = createTheme({
   palette: {
     mode: 'light',
     primary: {
-      main: '#1976d2',
+      main: '#5e72e4',
+      light: '#7789e8',
+      dark: '#4050e0',
     },
     secondary: {
-      main: '#dc004e',
+      main: '#f7fafc',
+      light: '#ffffff',
+      dark: '#d4e1f4',
     },
     error: {
       main: '#f5365c',
@@ -205,16 +212,22 @@ function App() {
               maxWidth: '100%'
             }}
           >
-            <Routes>
-              <Route path="/" element={<Navigate to="/exams" />} />
-              <Route path="/exams" element={<ExamList />} />
-              <Route path="/exams/:examId" element={<ExamDetail />} />
-              <Route path="/exams/:examId/take" element={<ExamTake />} />
-              <Route path="/courses/:courseId/knowledge_points" element={<KnowledgePoints />} />
-              <Route path="/courses/:courseId/knowledge_points/:knowledgePointId/questions" element={<Questions />} />
-              <Route path="/exam-records" element={<ExamRecords />} />
-              <Route path="/exam-records/:examId/:userId" element={<ExamRecordDetail />} />
-            </Routes>
+            <ErrorBoundary>
+              <Routes>
+                <Route path="/" element={<Navigate to="/exams" />} />
+                <Route path="/exams" element={<ExamList />} />
+                <Route path="/exams/:examId" element={<ExamDetail />} />
+                <Route path="/exams/:examId/take" element={<ExamTake />} />
+                <Route path="/knowledge-points" element={<KnowledgePoints />} />
+                <Route path="/courses" element={<CourseList />} />
+                <Route path="/courses/:courseId/knowledge_points" element={<KnowledgePoints />} />
+                <Route path="/courses/:courseId/knowledge_points/:knowledgePointId/questions" element={<Questions />} />
+                <Route path="/questions" element={<Questions />} />
+                <Route path="/exam-records" element={<ExamRecords />} />
+                <Route path="/exam-records/:examId/:userId" element={<ExamRecordDetail />} />
+                <Route path="/users" element={<UserManagement />} />
+              </Routes>
+            </ErrorBoundary>
           </Box>
         </Box>
       </Box>

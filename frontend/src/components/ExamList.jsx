@@ -35,6 +35,7 @@ import {
 } from '@mui/material'
 import { Add as AddIcon } from '@mui/icons-material'
 import DeleteIcon from '@mui/icons-material/Delete';
+import AlertMessage from './AlertMessage';
 
 function ExamList() {
   const navigate = useNavigate()
@@ -42,6 +43,7 @@ function ExamList() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [newExamDialogOpen, setNewExamDialogOpen] = useState(false)
+  const [alert, setAlert] = useState({ show: false, message: '', severity: 'info' })
   const [editingExam, setEditingExam] = useState(null)
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -150,19 +152,35 @@ function ExamList() {
   const handleNewExam = async () => {
     try {
       if (!title) {
-        alert('请输入考卷标题')
+        setAlert({
+          show: true,
+          message: '请输入考卷标题',
+          severity: 'warning'
+        })
         return
       }
       if (selectedCourses.length === 0) {
-        alert('请选择至少一个课程')
+        setAlert({
+          show: true,
+          message: '请选择至少一个课程',
+          severity: 'warning'
+        })
         return
       }
       if (selectedPoints.length === 0) {
-        alert('请选择至少一个知识点')
+        setAlert({
+          show: true,
+          message: '请选择至少一个知识点',
+          severity: 'warning'
+        })
         return
       }
       if (singleCount === '' && multipleCount === 0) {
-        alert('请设置要抽取的题目数量')
+        setAlert({
+          show: true,
+          message: '请设置要抽取的题目数量',
+          severity: 'warning'
+        })
         return
       }
 
@@ -190,9 +208,18 @@ function ExamList() {
       resetForm()
       await fetchExams()
       fetchExamRecords()
+      setAlert({
+        show: true,
+        message: '考卷创建成功',
+        severity: 'success'
+      })
     } catch (error) {
       console.error('Error creating exam:', error)
-      alert(error.message || '创建考卷失败，请重试')
+      setAlert({
+        show: true,
+        message: error.message || '创建考卷失败，请重试',
+        severity: 'error'
+      })
     }
   }
 
@@ -247,7 +274,11 @@ function ExamList() {
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
         await navigator.clipboard.writeText(examUrl);
-        alert('答题链接已复制到剪贴板！');
+        setAlert({
+          show: true,
+          message: '答题链接已复制到剪贴板！',
+          severity: 'success'
+        });
       } else {
         // 创建一个临时输入框来复制文本
         const tempInput = document.createElement('input');
@@ -256,12 +287,20 @@ function ExamList() {
         tempInput.select();
         document.execCommand('copy');
         document.body.removeChild(tempInput);
-        alert('答题链接已复制到剪贴板！');
+        setAlert({
+          show: true,
+          message: '答题链接已复制到剪贴板！',
+          severity: 'success'
+        });
       }
     } catch (error) {
       console.error('复制链接失败:', error);
       // 如果复制失败，显示链接让用户手动复制
-      alert(`请手动复制链接：${examUrl}`);
+      setAlert({
+        show: true,
+        message: `请手动复制链接：${examUrl}`,
+        severity: 'error'
+      });
     }
   };
 
@@ -292,10 +331,14 @@ function ExamList() {
         throw new Error('删除试卷失败');
       }
 
-      // 从列表中移除已删除的试卷
       setExams(exams.filter(exam => exam.id !== examToDelete.id));
       setDeleteDialogOpen(false);
       setExamToDelete(null);
+      setAlert({
+        show: true,
+        message: '试卷删除成功',
+        severity: 'success'
+      });
     } catch (error) {
       console.error('删除试卷时出错：', error);
       alert('删除试卷失败：' + error.message);
@@ -379,6 +422,14 @@ function ExamList() {
 
   return (
     <Box sx={{ width: '100%', height: '100%', p: 3 }}>
+      {alert.show && (
+        <AlertMessage
+          open={alert.show}
+          message={alert.message}
+          severity={alert.severity}
+          onClose={() => setAlert({ ...alert, show: false })}
+        />
+      )}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
         <Typography variant="h4">
           考卷管理

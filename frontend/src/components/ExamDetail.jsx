@@ -220,11 +220,11 @@ const QuestionItem = ({ question, index }) => {
             <List dense disablePadding>
               {options.map((option, optIndex) => {
                 const optionLetter = String.fromCharCode(65 + optIndex);
-                const isCorrect = answers.includes(optionLetter);
+                const isCorrect = option.is_correct;
                 return (
                   <ListItem key={optIndex} sx={{ py: 0.5 }} disableGutters>
                     <ListItemText
-                      primary={`${optionLetter}. ${option}`}
+                      primary={`${optionLetter}. ${option.option_text}`}
                       sx={{
                         '& .MuiListItemText-primary': {
                           color: isCorrect ? 'success.main' : 'text.primary',
@@ -240,7 +240,7 @@ const QuestionItem = ({ question, index }) => {
             {/* 答案和解释 */}
             <Box sx={{ mt: 2 }}>
               <Typography variant="body2" color="success.main" sx={{ fontWeight: 'bold' }}>
-                正确答案：{answers.join('、')}
+                正确答案：{options.filter(opt => opt.is_correct).map((_, idx) => String.fromCharCode(65 + idx)).join('、')}
               </Typography>
               {question.explanation && (
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
@@ -260,9 +260,9 @@ const QuestionItem = ({ question, index }) => {
               />
               <Chip
                 icon={<LocalLibraryIcon />}
-                label={question.point_name || '未知知识点'}
+                label={question.knowledge_point_name || '未知知识点'}
                 size="small"
-                color="secondary"
+                color="primary"
                 variant="outlined"
               />
             </Box>

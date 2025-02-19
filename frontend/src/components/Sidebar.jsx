@@ -19,7 +19,12 @@ import {
   Dashboard as DashboardIcon,
   Assignment as AssignmentIcon,
   AssignmentTurnedIn as AssignmentTurnedInIcon,
+  People as PeopleIcon,
 } from '@mui/icons-material'
+
+// Import Argon Dashboard styles
+// 使用CDN方式引入Argon Dashboard样式
+// @creative-tim-official/argon-dashboard-free/assets/css/argon-dashboard.min.css
 
 const drawerWidth = 260
 
@@ -54,6 +59,11 @@ const menuItems = [
     icon: <AssignmentTurnedInIcon />,
     path: '/exam-records',
   },
+  {
+    text: '用户管理',
+    icon: <PeopleIcon />,
+    path: '/users',
+  },
 ]
 
 function Sidebar() {
@@ -65,8 +75,9 @@ function Sidebar() {
   }
 
   const drawer = (
-    <Box>
+    <Box className="sidenav bg-white">
       <Box
+        className="sidenav-header"
         sx={{
           p: 3,
           display: 'flex',
@@ -74,37 +85,45 @@ function Sidebar() {
           justifyContent: 'center',
         }}
       >
-        <Typography variant="h6" component="div" color="primary">
+        <Typography variant="h6" component="div" className="text-primary">
           考试题库系统
         </Typography>
       </Box>
       <Divider />
-      <List>
+      <List className="navbar-nav">
         {menuItems.map((item) => (
           <ListItem
-            button
             key={item.text}
             component={RouterLink}
             to={item.path}
             selected={location.pathname === item.path}
+            className={`nav-item ${location.pathname === item.path ? 'active' : ''}`}
             sx={{
               py: 1.5,
               px: 3,
               borderRadius: 1,
               mx: 2,
               mb: 0.5,
-              '&.Mui-selected': {
-                backgroundColor: 'primary.main',
-                color: 'white',
+              textDecoration: 'none',
+              transition: 'all 0.15s ease',
+              '&.active': {
+                background: 'linear-gradient(87deg, #5e72e4 0%, #825ee4 100%)',
+                boxShadow: '0 7px 14px rgba(50, 50, 93, 0.1), 0 3px 6px rgba(0, 0, 0, 0.08)',
                 '& .MuiListItemIcon-root': {
                   color: 'white',
                 },
+                '& .MuiListItemText-root': {
+                  color: 'white',
+                },
                 '&:hover': {
-                  backgroundColor: 'primary.dark',
+                  background: 'linear-gradient(87deg, #5e72e4 0%, #825ee4 100%)',
+                  boxShadow: '0 7px 14px rgba(50, 50, 93, 0.15), 0 3px 6px rgba(0, 0, 0, 0.1)',
+                  transform: 'translateY(-1px)',
                 },
               },
               '&:hover': {
                 backgroundColor: 'rgba(94, 114, 228, 0.1)',
+                transform: 'translateY(-1px)',
               },
             }}
           >
@@ -116,7 +135,10 @@ function Sidebar() {
             >
               {item.icon}
             </ListItemIcon>
-            <ListItemText primary={item.text} />
+            <ListItemText
+              primary={item.text}
+              className={location.pathname === item.path ? 'text-white' : 'text-primary'}
+            />
           </ListItem>
         ))}
       </List>
@@ -127,16 +149,18 @@ function Sidebar() {
     <Box
       component="nav"
       sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
+      className="sidenav-container"
     >
       <Drawer
         variant="permanent"
+        className="sidenav shadow-sm"
         sx={{
           display: { xs: 'none', sm: 'block' },
           '& .MuiDrawer-paper': {
             boxSizing: 'border-box',
             width: drawerWidth,
             borderRight: 0,
-            backgroundColor: 'background.paper',
+            backgroundColor: 'white',
             backgroundImage: 'none',
             boxShadow: '0 0 2rem 0 rgba(136, 152, 170, .15)',
           },

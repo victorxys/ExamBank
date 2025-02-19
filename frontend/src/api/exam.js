@@ -35,7 +35,7 @@ export const courseApi = {
   
   // 获取知识点
   getKnowledgePoints: (courseIds) => 
-    api.get(`/api/courses/${courseIds.join(',')}/points`)
+    api.get(`/api/courses/${courseIds}/knowledge_points`)
 };
 
 export const userApi = {
@@ -45,4 +45,18 @@ export const userApi = {
   // 验证登录
   verifyCode: (phone, code) => 
     api.post('/api/users/login', { phone, code })
+};
+
+export const questionApi = {
+  // 获取题目列表
+  getQuestions: (search = '', type = 'question') => 
+    api.get('/api/questions', { params: { search, type } }),
+  
+  // 更新题目
+  updateQuestion: (questionId, data) => 
+    api.put(`/api/questions/${questionId}`, data),
+  
+  // 删除题目
+  deleteQuestion: (questionId) => 
+    api.delete(`/api/questions/${questionId}`)
 };

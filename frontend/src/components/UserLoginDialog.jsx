@@ -13,19 +13,23 @@ import {
 function UserLoginDialog({ open, onClose, onLogin }) {
   const [username, setUsername] = useState('')
   const [phoneNumber, setPhoneNumber] = useState('')
-  const [error, setError] = useState(null)
+  const [alert, setAlert] = useState({ show: false, message: '', severity: 'info' })
   const [loading, setLoading] = useState(false)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!username || !phoneNumber) {
-      setError('请填写用户名和手机号')
+      setAlert({
+        show: true,
+        message: '请填写用户名和手机号',
+        severity: 'warning'
+      })
       return
     }
 
     try {
       setLoading(true)
-      setError(null)
+      setAlert({ show: false, message: '', severity: 'info' })
       const response = await fetch('http://localhost:5000/api/users/login', {
         method: 'POST',
         headers: {
@@ -43,10 +47,19 @@ function UserLoginDialog({ open, onClose, onLogin }) {
       }
 
       const user = await response.json()
+      setAlert({
+        show: true,
+        message: '登录成功',
+        severity: 'success'
+      })
       onLogin(user)
     } catch (error) {
       console.error('Login error:', error)
-      setError(error.message)
+      setAlert({
+        show: true,
+        message: error.message || '登录失败，请重试',
+        severity: 'error'
+      })
     } finally {
       setLoading(false)
     }
@@ -57,9 +70,9 @@ function UserLoginDialog({ open, onClose, onLogin }) {
       <DialogTitle>考生信息</DialogTitle>
       <form onSubmit={handleSubmit}>
         <DialogContent>
-          {error && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {error}
+          {alert.show && (
+            <Alert severity={alert.severity} sx={{ mb: 2 }}>
+              {alert.message}
             </Alert>
           )}
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>

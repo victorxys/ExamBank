@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { API_BASE_URL } from '../config'
 import {
   Box,
   Button,
@@ -27,8 +28,16 @@ import {
   Chip,
   useTheme,
   CircularProgress,
-  FormControlLabel
+  FormControlLabel,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper
 } from '@mui/material'
+import AlertMessage from './AlertMessage'
 import {
   Add as AddIcon,
   Remove as RemoveIcon,
@@ -38,11 +47,9 @@ import {
 } from '@mui/icons-material'
 
 function Questions() {
-  const { courseId, knowledgePointId } = useParams()
   const navigate = useNavigate()
   const theme = useTheme()
   
-  const [knowledgePoint, setKnowledgePoint] = useState(null)
   const [questions, setQuestions] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -50,170 +57,99 @@ function Questions() {
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [questionToDelete, setQuestionToDelete] = useState(null)
+  const [searchText, setSearchText] = useState('')
+  const [searchType, setSearchType] = useState('question')
+  const [courses, setCourses] = useState([])
+  const [knowledgePoints, setKnowledgePoints] = useState([])
+  const [selectedCourse, setSelectedCourse] = useState('');
+  const [selectedKnowledgePoint, setSelectedKnowledgePoint] = useState('');
+  const [filteredKnowledgePoints, setFilteredKnowledgePoints] = useState([]);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        setLoading(true)
-        setError(null)
+        setLoading(true);
+        setError(null);
 
-        // 获取知识点信息
-        const pointResponse = await fetch(`http://localhost:5000/api/knowledge_points/${knowledgePointId}`)
-        if (!pointResponse.ok) {
-          throw new Error(`Failed to fetch knowledge point: ${pointResponse.status}`)
-        }
-        const pointData = await pointResponse.json()
-        setKnowledgePoint(pointData)
+        // 构建查询参数
+        const params = new URLSearchParams();
+        if (searchText) params.append('title', searchText);
+        if (selectedCourse) params.append('course', selectedCourse);
+        if (selectedKnowledgePoint) params.append('knowledgePoint', selectedKnowledgePoint);
 
-        // 获取题目列表
-        const questionsResponse = await fetch(`http://localhost:5000/api/knowledge_points/${knowledgePointId}/questions`)
+        // 获取所有题目列表
+        const questionsResponse = await fetch(
+          `${API_BASE_URL}/api/questions?${params.toString()}`
+        );
         if (!questionsResponse.ok) {
-          throw new Error(`Failed to fetch questions: ${questionsResponse.status}`)
+          throw new Error(`获取题目列表失败: ${questionsResponse.status}`);
         }
-        const questionsData = await questionsResponse.json()
-        setQuestions(questionsData)
+        const questionsData = await questionsResponse.json();
+        setQuestions(questionsData.data || []);
+
+        // 获取课程列表
+        const coursesResponse = await fetch(`${API_BASE_URL}/api/courses`);
+        if (!coursesResponse.ok) {
+          throw new Error(`获取课程列表失败: ${coursesResponse.status}`);
+        }
+        const coursesData = await coursesResponse.json();
+        setCourses(coursesData);
+
+        // 如果选择了课程，获取该课程下的知识点
+        if (selectedCourse) {
+          const pointsResponse = await fetch(`${API_BASE_URL}/api/courses/${selectedCourse}/knowledge_points`);
+          if (!pointsResponse.ok) {
+            throw new Error(`获取知识点列表失败: ${pointsResponse.status}`);
+          }
+          const pointsData = await pointsResponse.json();
+          setKnowledgePoints(pointsData || []);
+          setFilteredKnowledgePoints(pointsData || []);
+        } else {
+          setKnowledgePoints([]);
+          setFilteredKnowledgePoints([]);
+        }
       } catch (error) {
-        console.error('Error:', error)
-        setError(error.message)
+        console.error('Error:', error);
+        setError(error.message);
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
+    };
+    
+    const timeoutId = setTimeout(fetchData, 300);
+    return () => clearTimeout(timeoutId);
+  }, [searchText, selectedCourse, selectedKnowledgePoint]);
+
+  // 当编辑对话框打开时，如果有选中的课程，加载该课程的知识点列表
+  useEffect(() => {
+    const loadKnowledgePoints = async () => {
+      if (editingQuestion?.course_id) {
+        try {
+          const response = await fetch(`${API_BASE_URL}/api/courses/${editingQuestion.course_id}/knowledge_points`);
+          if (!response.ok) {
+            throw new Error(`获取知识点列表失败: ${response.status}`);
+          }
+          const data = await response.json();
+          setKnowledgePoints(data || []);
+        } catch (error) {
+          console.error('Error loading knowledge points:', error);
+        }
+      }
+    };
+
+    if (editDialogOpen) {
+      loadKnowledgePoints();
     }
-    fetchData()
-  }, [knowledgePointId])
+  }, [editDialogOpen, editingQuestion?.course_id]);
 
-  if (loading) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', width: '100%', maxWidth: '100%' }}>
-        <CircularProgress />
-      </Box>
-    )
-  }
-
-  if (error || !knowledgePoint) {
-    return (
-      <Box sx={{ p: 3, width: '100%', maxWidth: '100%' }}>
-        <Button
-          color="primary"
-          startIcon={<ArrowBackIcon />}
-          onClick={() => navigate(`/courses/${courseId}/knowledge_points`)}
-          sx={{ mb: 3 }}
-        >
-          返回知识点列表
-        </Button>
-        <Typography color="error" gutterBottom>
-          {error || '知识点不存在'}
-        </Typography>
-      </Box>
-    )
-  }
-
-  const handleEditQuestion = (question) => {
-    setEditingQuestion({
-      ...question,
-      options: [...question.options].sort((a, b) => a.id - b.id)
-    })
-    setEditDialogOpen(true)
-  }
-
-  const handleAddQuestion = () => {
-    setEditingQuestion({
-      question_text: '',
-      question_type: '单选题',
-      difficulty: 3,
-      knowledge_point_id: knowledgePointId,
-      answer_text: '',
-      explanation: '',
-      source: '',
-      options: []
-    })
-    setEditDialogOpen(true)
-  }
-
-  const handleSaveQuestion = async () => {
-    try {
-      // 验证必填字段
-      if (!editingQuestion.question_text.trim()) {
-        alert('请输入题目内容')
-        return
-      }
-
-      if (editingQuestion.options.length === 0) {
-        alert('请至少添加一个选项')
-        return
-      }
-
-      if (!editingQuestion.options.some(opt => opt.option_text.trim() && opt.is_correct)) {
-        alert('请至少选择一个有内容的正确答案')
-        return
-      }
-
-      const questionData = {
-        question_text: editingQuestion.question_text.trim(),
-        question_type: editingQuestion.question_type,
-        difficulty: editingQuestion.difficulty || 3,
-        knowledge_point_id: knowledgePointId,
-        answer_text: editingQuestion.answer_text?.trim() || '',
-        explanation: editingQuestion.explanation?.trim() || '',
-        source: editingQuestion.source?.trim() || '',
-        // 过滤掉空选项
-        options: editingQuestion.options
-          .filter(opt => opt.option_text.trim())
-          .map(opt => ({
-            option_text: opt.option_text.trim(),
-            is_correct: opt.is_correct
-          }))
-      }
-
-      let response
-      if (editingQuestion.id) {
-        // 更新现有题目
-        response = await fetch(`http://localhost:5000/api/questions/${editingQuestion.id}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(questionData),
-        })
-      } else {
-        // 创建新题目
-        response = await fetch('http://localhost:5000/api/questions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(questionData),
-        })
-      }
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || `Failed to ${editingQuestion.id ? 'update' : 'create'} question: ${response.status}`)
-      }
-
-      const updatedQuestion = await response.json()
-      
-      // 更新题目列表
-      if (editingQuestion.id) {
-        // 如果是更新现有题目，保持原有位置
-        setQuestions(questions.map(q => 
-          q.id === updatedQuestion.id ? updatedQuestion : q
-        ))
-      } else {
-        // 如果是新题目，添加到列表最前方
-        setQuestions([updatedQuestion, ...questions])
-      }
-
-      setEditDialogOpen(false)
-      setEditingQuestion(null)
-    } catch (error) {
-      console.error('Failed to save question:', error)
-      alert(error.message)
-    }
-  }
+  const handleCourseChange = (event) => {
+    const courseId = event.target.value;
+    setSelectedCourse(courseId);
+    setSelectedKnowledgePoint(''); // 重置知识点选择
+  };
 
   const handleAddOption = () => {
-    const maxId = Math.max(...(editingQuestion.options.map(opt => opt.id || 0)), 0)
+    const maxId = Math.max(...(editingQuestion.options.map(opt => opt.id || 0)), 0);
     setEditingQuestion(prev => ({
       ...prev,
       options: [
@@ -224,15 +160,8 @@ function Questions() {
           is_correct: false
         }
       ]
-    }))
-  }
-
-  const handleRemoveOption = (optionId) => {
-    setEditingQuestion(prev => ({
-      ...prev,
-      options: prev.options.filter(opt => opt.id !== optionId)
-    }))
-  }
+    }));
+  };
 
   const handleOptionChange = (optionId, field, value) => {
     setEditingQuestion(prev => ({
@@ -240,130 +169,383 @@ function Questions() {
       options: prev.options.map(opt =>
         opt.id === optionId ? { ...opt, [field]: value } : opt
       )
-    }))
-  }
+    }));
+  };
+
+  const handleRemoveOption = (optionId) => {
+    setEditingQuestion(prev => ({
+      ...prev,
+      options: prev.options.filter(opt => opt.id !== optionId)
+    }));
+  };
 
   const handleDeleteQuestion = async () => {
     try {
-      const response = await fetch(`http://localhost:5000/api/questions/${questionToDelete.id}`, {
+      if (!questionToDelete) return;
+
+      // 检查题目是否被试卷引用
+      const checkResponse = await fetch(`${API_BASE_URL}/api/questions/${questionToDelete.id}/check-usage`);
+      const checkData = await checkResponse.json();
+      
+      if (checkData.is_used_in_exam) {
+        throw new Error('该题目已被试卷引用，无法删除');
+      }
+
+      const response = await fetch(`${API_BASE_URL}/api/questions/${questionToDelete.id}`, {
         method: 'DELETE',
-      })
+      });
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || `Failed to delete question: ${response.status}`)
+        const errorData = await response.json();
+        throw new Error(errorData.error || `删除题目失败: ${response.status}`);
       }
 
       // 从列表中移除被删除的题目
-      setQuestions(questions.filter(q => q.id !== questionToDelete.id))
-      setDeleteDialogOpen(false)
-      setQuestionToDelete(null)
+      setQuestions(questions.filter(q => q.id !== questionToDelete.id));
+      setDeleteDialogOpen(false);
+      setQuestionToDelete(null);
     } catch (error) {
-      console.error('Failed to delete question:', error)
-      alert(error.message)
+      console.error('删除题目失败:', error);
+      alert(error.message);
     }
-  }
+  };
 
-  const openDeleteDialog = (question) => {
-    setQuestionToDelete(question)
-    setDeleteDialogOpen(true)
-  }
+  const handleAddQuestion = () => {
+    setEditingQuestion({
+      question_text: '',
+      question_type: '单选题',
+      difficulty: 3,
+      course_id: selectedCourse || '',
+      knowledge_point_id: selectedKnowledgePoint || '',
+      answer_text: '',
+      explanation: '',
+      source: '',
+      options: []
+    });
+    setEditDialogOpen(true);
+  };
 
+  const handleEditQuestion = async (question) => {
+    setEditingQuestion({
+      ...question,
+      options: [...(question.options || [])].sort((a, b) => a.id - b.id)
+    });
+    setEditDialogOpen(true);
+
+    // 加载该题目所属课程的知识点列表
+    if (question.course_id) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/courses/${question.course_id}/knowledge_points`);
+        if (!response.ok) {
+          throw new Error(`获取知识点列表失败: ${response.status}`);
+        }
+        const data = await response.json();
+        setKnowledgePoints(data || []);
+      } catch (error) {
+        console.error('Error loading knowledge points:', error);
+      }
+    }
+  };
+
+  const handleSaveQuestion = async () => {
+    try {
+      // 验证必填字段
+      if (!editingQuestion.question_text.trim()) {
+        alert('请输入题目内容');
+        return;
+      }
+
+      if (editingQuestion.options.length === 0) {
+        alert('请至少添加一个选项');
+        return;
+      }
+
+      if (!editingQuestion.options.some(opt => opt.option_text.trim() && opt.is_correct)) {
+        alert('请至少选择一个有内容的正确答案');
+        return;
+      }
+
+      const questionData = {
+        question_text: editingQuestion.question_text.trim(),
+        question_type: editingQuestion.question_type,
+        difficulty: editingQuestion.difficulty || 3,
+        course_id: editingQuestion.course_id,
+        knowledge_point_id: editingQuestion.knowledge_point_id,
+        answer_text: editingQuestion.answer_text?.trim() || '',
+        explanation: editingQuestion.explanation?.trim() || '',
+        source: editingQuestion.source?.trim() || '',
+        // 过滤掉空选项
+        options: editingQuestion.options
+          .filter(opt => opt.option_text.trim())
+          .map(opt => ({
+            option_text: opt.option_text.trim(),
+            is_correct: opt.is_correct
+          }))
+      };
+
+      let response;
+      if (editingQuestion.id) {
+        // 更新现有题目
+        response = await fetch(`${API_BASE_URL}/api/questions/${editingQuestion.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(questionData),
+        });
+      } else {
+        // 创建新题目
+        response = await fetch(`${API_BASE_URL}/api/questions`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(questionData),
+        });
+      }
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Failed to ${editingQuestion.id ? 'update' : 'create'} question: ${response.status}`);
+      }
+
+      const updatedQuestion = await response.json();
+      
+      // 重新获取题目列表以确保显示最新的知识点和课程信息
+      const params = new URLSearchParams();
+      if (searchText) params.append('title', searchText);
+      if (selectedCourse) params.append('course', selectedCourse);
+      if (selectedKnowledgePoint) params.append('knowledgePoint', selectedKnowledgePoint);
+
+      const questionsResponse = await fetch(`${API_BASE_URL}/api/questions?${params.toString()}`);
+      if (questionsResponse.ok) {
+        const data = await questionsResponse.json();
+        setQuestions(data.data || []);
+      } else {
+        // 如果获取最新列表失败，至少更新当前编辑的题目
+        setQuestions(questions.map(q =>
+          q.id === updatedQuestion.id ? updatedQuestion : q
+        ));
+      }
+
+      setEditDialogOpen(false);
+      setEditingQuestion(null);
+    } catch (error) {
+      console.error('Failed to save question:', error);
+      alert(error.message);
+    }
+  };
+
+  // 在搜索栏部分添加课程和知识点选择
   return (
-    <Box sx={{ 
-      width: '100%', 
-      height: '100%', 
-      p: 3,
-      display: 'flex',
-      flexDirection: 'column',
-      overflow: 'hidden',
-      maxWidth: '100%'
-    }}>
-      <Box display="flex" width="100%" mb={2} alignItems="center" justifyContent="space-between">
-        <Button
-          variant="contained"
-          color="primary"
-          startIcon={<ArrowBackIcon />}
-          onClick={() => navigate(`/courses/${courseId}/knowledge_points`)}
-        >
-          返回知识点列表
-        </Button>
-        
-        <Typography 
-          variant="h4" 
-          component="h1" 
-          color="inherit"
-          sx={{
-            margin: '0 20px',
-            flex: 1,
-            textAlign: 'center',
-            fontSize: '1.8rem',
-            fontWeight: 500
-          }}
-        >
-          {knowledgePoint.point_name} - 题目列表
+  <Box sx={{ width: '100%', height: '100%' }}>
+    <Box
+      sx={{
+        background: `linear-gradient(87deg, ${theme.palette.primary.main} 0, ${theme.palette.primary.dark} 100%)`,
+        borderRadius: '0.375rem',
+        p: 3,
+        mb: 3,
+        color: 'white',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+      }}
+    >
+      <Box>
+        <Typography variant="h1" component="h1" color="white" gutterBottom>
+          题库管理
         </Typography>
+        <Typography variant="body1" color="white" sx={{ opacity: 0.8 }}>
+          这里列出了所有可用的题目，您可以添加、编辑或删除题目。
+        </Typography>
+      </Box>
+    </Box>
 
+    <Box
+      sx={{
+        backgroundColor: 'white',
+        borderRadius: '0.375rem',
+        boxShadow: '0 0 2rem 0 rgba(136, 152, 170, .15)',
+        p: 3,
+        mb: 4
+      }}
+    >
+      <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>
+        <TextField
+          label="搜索题目"
+          value={searchText}
+          onChange={(e) => setSearchText(e.target.value)}
+          size="small"
+          sx={{
+            width: '300px',
+            '& .MuiOutlinedInput-root': {
+              borderRadius: '0.375rem',
+              '&:hover fieldset': {
+                borderColor: theme.palette.primary.main,
+              },
+              '&.Mui-focused fieldset': {
+                borderColor: theme.palette.primary.main,
+              },
+            },
+          }}
+          placeholder="输入题目关键词"
+        />
+        <FormControl size="small" sx={{ width: '200px' }}>
+          <InputLabel>选择课程</InputLabel>
+          <Select
+            value={selectedCourse}
+            onChange={handleCourseChange}
+            label="选择课程"
+          >
+            <MenuItem value="">全部课程</MenuItem>
+            {courses.map((course) => (
+              <MenuItem key={course.id} value={course.id}>
+                {course.course_name}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        <FormControl size="small" sx={{ width: '200px' }}>
+          <InputLabel>选择知识点</InputLabel>
+          <Select
+            value={selectedKnowledgePoint}
+            onChange={(e) => setSelectedKnowledgePoint(e.target.value)}
+            label="选择知识点"
+            disabled={!selectedCourse}
+          >
+            <MenuItem value="">全部知识点</MenuItem>
+            {filteredKnowledgePoints.map((point) => (
+              <MenuItem key={point.id} value={point.id}>
+                {point.point_name}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
         <Button
           variant="contained"
-          color="primary"
           startIcon={<AddIcon />}
           onClick={handleAddQuestion}
+          sx={{
+            background: 'linear-gradient(87deg, #5e72e4 0, #825ee4 100%)',
+            '&:hover': {
+              background: 'linear-gradient(87deg, #4050e0 0, #6f4ed4 100%)',
+            },
+          }}
         >
-          添加新题目
+          添加题目
         </Button>
       </Box>
 
-      {/* 题目列表 */}
-      <Box sx={{ 
-        mt: 3, 
-        flex: 1,
-        overflow: 'auto',
-        width: '100%',
-        maxWidth: '100%'
-      }}>
-        {questions.map((question) => (
-          <Card key={question.id} sx={{ mb: 2, p: 2, width: '100%', maxWidth: '100%' }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%' }}>
-              <Typography variant="body1" sx={{ flex: 1, width: '100%', wordBreak: 'break-word' }}>
-                {question.question_text}
-              </Typography>
-              <Box sx={{ ml: 2, flexShrink: 0 }}>
-                <IconButton
-                  size="small"
-                  onClick={() => handleEditQuestion(question)}
-                  sx={{ mr: 1 }}
-                >
-                  <EditIcon />
-                </IconButton>
-                <IconButton
-                  size="small"
-                  onClick={() => openDeleteDialog(question)}
-                  sx={{ color: theme.palette.error.main }}
-                >
-                  <DeleteIcon />
-                </IconButton>
-              </Box>
-            </Box>
-            <Box sx={{ mt: 2, width: '100%' }}>
-              {question.options.map((option, index) => (
-                <Box key={index} sx={{ display: 'flex', alignItems: 'center', mt: 1, width: '100%' }}>
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        checked={option.is_correct}
-                        disabled
-                      />
-                    }
-                    label={option.option_text}
-                    sx={{ width: '100%' }}
+      <TableContainer
+        component={Paper}
+        sx={{
+          boxShadow: 'none',
+          border: '1px solid rgba(0, 0, 0, 0.1)',
+          borderRadius: '0.375rem',
+          overflow: 'hidden'
+        }}
+      >
+        <Table>
+          <TableHead>
+            <TableRow
+              sx={{
+                backgroundColor: '#f6f9fc',
+                '& th': {
+                  color: '#8898aa',
+                  fontSize: '0.65rem',
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  letterSpacing: '1px',
+                  borderBottom: 'none'
+                }
+              }}
+            >
+              <TableCell>题目内容</TableCell>
+              <TableCell>题目类型</TableCell>
+              <TableCell>知识点</TableCell>
+              <TableCell>课程</TableCell>
+              <TableCell>状态</TableCell>
+              <TableCell>操作</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {Array.isArray(questions) && questions.map((question) => (
+              <TableRow
+                key={question.id}
+                sx={{
+                  '&:hover': {
+                    backgroundColor: '#f6f9fc'
+                  }
+                }}
+              >
+                <TableCell sx={{ color: '#525f7f' }}>{question.question_text}</TableCell>
+                <TableCell>
+                  <Chip 
+                    label={question.question_type === '单选题' ? '单选题' : '多选题'} 
+                    size="small"
+                    sx={{
+                      backgroundColor: 'rgba(94, 114, 228, 0.1)',
+                      color: theme.palette.primary.main,
+                      fontWeight: 600
+                    }}
                   />
-                </Box>
-              ))}
-            </Box>
-          </Card>
-        ))}
-      </Box>
+                </TableCell>
+                <TableCell sx={{ color: '#525f7f' }}>{question.knowledge_point_name || '-'}</TableCell>
+                <TableCell sx={{ color: '#525f7f' }}>{question.course_name || '-'}</TableCell>
+                <TableCell>
+                  {question.is_used_in_exam && (
+                    <Chip 
+                      label="已用于试卷" 
+                      color="warning" 
+                      size="small"
+                      sx={{
+                        backgroundColor: 'rgba(251, 99, 64, 0.1)',
+                        color: '#fb6340',
+                        fontWeight: 600
+                      }}
+                    />
+                  )}
+                </TableCell>
+                <TableCell>
+                  <IconButton
+                    size="small"
+                    onClick={() => handleEditQuestion(question)}
+                    sx={{
+                      mr: 1,
+                      color: theme.palette.primary.main,
+                      '&:hover': {
+                        backgroundColor: 'rgba(94, 114, 228, 0.1)'
+                      }
+                    }}
+                  >
+                    <EditIcon />
+                  </IconButton>
+                  <IconButton
+                    size="small"
+                    onClick={() => {
+                      setQuestionToDelete(question)
+                      setDeleteDialogOpen(true)
+                    }}
+                    disabled={question.is_used_in_exam}
+                    sx={{
+                      color: theme.palette.error.main,
+                      '&:hover': {
+                        backgroundColor: 'rgba(245, 54, 92, 0.1)'
+                      },
+                      '&.Mui-disabled': {
+                        color: 'rgba(0, 0, 0, 0.26)'
+                      }
+                    }}
+                  >
+                    <DeleteIcon />
+                  </IconButton>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    </Box>
 
       {/* 编辑对话框 */}
       <Dialog 
@@ -437,6 +619,42 @@ function Questions() {
                 }))}
                 fullWidth
               />
+
+              <FormControl fullWidth>
+                <InputLabel>所属课程</InputLabel>
+                <Select
+                  value={editingQuestion.course_id || ''}
+                  label="所属课程"
+                  onChange={(e) => setEditingQuestion(prev => ({
+                    ...prev,
+                    course_id: e.target.value
+                  }))}
+                >
+                  {courses.map((course) => (
+                    <MenuItem key={course.id} value={course.id}>
+                      {course.course_name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+
+              <FormControl fullWidth>
+                <InputLabel>所属知识点</InputLabel>
+                <Select
+                  value={editingQuestion.knowledge_point_id || ''}
+                  label="所属知识点"
+                  onChange={(e) => setEditingQuestion(prev => ({
+                    ...prev,
+                    knowledge_point_id: e.target.value
+                  }))}
+                >
+                  {knowledgePoints.map((point) => (
+                    <MenuItem key={point.id} value={point.id}>
+                      {point.point_name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
 
               <Box>
                 <Typography component="div" variant="subtitle1" gutterBottom>

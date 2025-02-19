@@ -12,7 +12,7 @@
  Target Server Version : 130018 (130018)
  File Encoding         : 65001
 
- Date: 14/02/2025 09:18:20
+ Date: 17/02/2025 22:54:04
 */
 
 
@@ -218,7 +218,11 @@ CREATE TABLE "public"."user" (
   "username" varchar(255) COLLATE "pg_catalog"."default" NOT NULL,
   "phone_number" varchar(20) COLLATE "pg_catalog"."default" NOT NULL,
   "created_at" timestamptz(6) DEFAULT now(),
-  "updated_at" timestamptz(6) DEFAULT now()
+  "updated_at" timestamptz(6) DEFAULT now(),
+  "password" varchar(255) COLLATE "pg_catalog"."default" NOT NULL,
+  "role" varchar(50) COLLATE "pg_catalog"."default" NOT NULL DEFAULT 'student'::character varying,
+  "email" varchar(255) COLLATE "pg_catalog"."default",
+  "status" varchar(50) COLLATE "pg_catalog"."default" NOT NULL DEFAULT 'active'::character varying
 )
 ;
 ALTER TABLE "public"."user" OWNER TO "postgres";
@@ -227,7 +231,167 @@ COMMENT ON COLUMN "public"."user"."username" IS '用户名';
 COMMENT ON COLUMN "public"."user"."phone_number" IS '手机号';
 COMMENT ON COLUMN "public"."user"."created_at" IS '创建时间';
 COMMENT ON COLUMN "public"."user"."updated_at" IS '更新时间';
+COMMENT ON COLUMN "public"."user"."password" IS '密码（加密存储）';
+COMMENT ON COLUMN "public"."user"."role" IS '用户角色（admin/teacher/student）';
+COMMENT ON COLUMN "public"."user"."email" IS '邮箱';
+COMMENT ON COLUMN "public"."user"."status" IS '用户状态（active/inactive）';
 COMMENT ON TABLE "public"."user" IS '用户表';
+
+-- ----------------------------
+-- Function structure for calculate_score
+-- ----------------------------
+DROP FUNCTION IF EXISTS "public"."calculate_score"("p_exam_paper_id" uuid, "p_user_id" varchar);
+CREATE OR REPLACE FUNCTION "public"."calculate_score"("p_exam_paper_id" uuid, "p_user_id" varchar)
+  RETURNS "pg_catalog"."int4" AS $BODY$
+DECLARE
+    total_score INTEGER := 0;
+    question_record RECORD;
+    correct_option_ids UUID[];
+    user_option_ids UUID[];
+BEGIN
+    -- 遍历用户在该试卷上的所有答题记录
+    FOR question_record IN
+        SELECT question_id, selected_option_ids
+        FROM AnswerRecord
+        WHERE exam_paper_id = p_exam_paper_id AND user_id = p_user_id
+    LOOP
+        -- 获取该题目的标准答案 (正确选项的 ID 列表)
+        SELECT ARRAY_AGG(id) INTO correct_option_ids
+        FROM Option
+        WHERE question_id = question_record.question_id AND is_correct = TRUE;
+
+        -- 获取用户选择的选项 ID 列表
+        user_option_ids := question_record.selected_option_ids;
+
+        -- 判断答案是否正确 (完全匹配)
+        IF user_option_ids = correct_option_ids THEN
+            -- 获取该题目的分值, 可以在Question表中增加一个score字段表示分值.
+            -- 这里假定每题1分。
+            total_score := total_score + 1; 
+        END IF;
+    END LOOP;
+
+    RETURN total_score;
+END;
+$BODY$
+  LANGUAGE plpgsql VOLATILE
+  COST 100;
+ALTER FUNCTION "public"."calculate_score"("p_exam_paper_id" uuid, "p_user_id" varchar) OWNER TO "postgres";
+
+-- ----------------------------
+-- Function structure for update_modified_column
+-- ----------------------------
+DROP FUNCTION IF EXISTS "public"."update_modified_column"();
+CREATE OR REPLACE FUNCTION "public"."update_modified_column"()
+  RETURNS "pg_catalog"."trigger" AS $BODY$
+BEGIN
+    NEW.updated_at = now();
+    RETURN NEW;
+END;
+$BODY$
+  LANGUAGE plpgsql VOLATILE
+  COST 100;
+ALTER FUNCTION "public"."update_modified_column"() OWNER TO "postgres";
+
+-- ----------------------------
+-- Function structure for uuid_generate_v1
+-- ----------------------------
+DROP FUNCTION IF EXISTS "public"."uuid_generate_v1"();
+CREATE OR REPLACE FUNCTION "public"."uuid_generate_v1"()
+  RETURNS "pg_catalog"."uuid" AS '$libdir/uuid-ossp', 'uuid_generate_v1'
+  LANGUAGE c VOLATILE STRICT
+  COST 1;
+ALTER FUNCTION "public"."uuid_generate_v1"() OWNER TO "victor";
+
+-- ----------------------------
+-- Function structure for uuid_generate_v1mc
+-- ----------------------------
+DROP FUNCTION IF EXISTS "public"."uuid_generate_v1mc"();
+CREATE OR REPLACE FUNCTION "public"."uuid_generate_v1mc"()
+  RETURNS "pg_catalog"."uuid" AS '$libdir/uuid-ossp', 'uuid_generate_v1mc'
+  LANGUAGE c VOLATILE STRICT
+  COST 1;
+ALTER FUNCTION "public"."uuid_generate_v1mc"() OWNER TO "victor";
+
+-- ----------------------------
+-- Function structure for uuid_generate_v3
+-- ----------------------------
+DROP FUNCTION IF EXISTS "public"."uuid_generate_v3"("namespace" uuid, "name" text);
+CREATE OR REPLACE FUNCTION "public"."uuid_generate_v3"("namespace" uuid, "name" text)
+  RETURNS "pg_catalog"."uuid" AS '$libdir/uuid-ossp', 'uuid_generate_v3'
+  LANGUAGE c IMMUTABLE STRICT
+  COST 1;
+ALTER FUNCTION "public"."uuid_generate_v3"("namespace" uuid, "name" text) OWNER TO "victor";
+
+-- ----------------------------
+-- Function structure for uuid_generate_v4
+-- ----------------------------
+DROP FUNCTION IF EXISTS "public"."uuid_generate_v4"();
+CREATE OR REPLACE FUNCTION "public"."uuid_generate_v4"()
+  RETURNS "pg_catalog"."uuid" AS '$libdir/uuid-ossp', 'uuid_generate_v4'
+  LANGUAGE c VOLATILE STRICT
+  COST 1;
+ALTER FUNCTION "public"."uuid_generate_v4"() OWNER TO "victor";
+
+-- ----------------------------
+-- Function structure for uuid_generate_v5
+-- ----------------------------
+DROP FUNCTION IF EXISTS "public"."uuid_generate_v5"("namespace" uuid, "name" text);
+CREATE OR REPLACE FUNCTION "public"."uuid_generate_v5"("namespace" uuid, "name" text)
+  RETURNS "pg_catalog"."uuid" AS '$libdir/uuid-ossp', 'uuid_generate_v5'
+  LANGUAGE c IMMUTABLE STRICT
+  COST 1;
+ALTER FUNCTION "public"."uuid_generate_v5"("namespace" uuid, "name" text) OWNER TO "victor";
+
+-- ----------------------------
+-- Function structure for uuid_nil
+-- ----------------------------
+DROP FUNCTION IF EXISTS "public"."uuid_nil"();
+CREATE OR REPLACE FUNCTION "public"."uuid_nil"()
+  RETURNS "pg_catalog"."uuid" AS '$libdir/uuid-ossp', 'uuid_nil'
+  LANGUAGE c IMMUTABLE STRICT
+  COST 1;
+ALTER FUNCTION "public"."uuid_nil"() OWNER TO "victor";
+
+-- ----------------------------
+-- Function structure for uuid_ns_dns
+-- ----------------------------
+DROP FUNCTION IF EXISTS "public"."uuid_ns_dns"();
+CREATE OR REPLACE FUNCTION "public"."uuid_ns_dns"()
+  RETURNS "pg_catalog"."uuid" AS '$libdir/uuid-ossp', 'uuid_ns_dns'
+  LANGUAGE c IMMUTABLE STRICT
+  COST 1;
+ALTER FUNCTION "public"."uuid_ns_dns"() OWNER TO "victor";
+
+-- ----------------------------
+-- Function structure for uuid_ns_oid
+-- ----------------------------
+DROP FUNCTION IF EXISTS "public"."uuid_ns_oid"();
+CREATE OR REPLACE FUNCTION "public"."uuid_ns_oid"()
+  RETURNS "pg_catalog"."uuid" AS '$libdir/uuid-ossp', 'uuid_ns_oid'
+  LANGUAGE c IMMUTABLE STRICT
+  COST 1;
+ALTER FUNCTION "public"."uuid_ns_oid"() OWNER TO "victor";
+
+-- ----------------------------
+-- Function structure for uuid_ns_url
+-- ----------------------------
+DROP FUNCTION IF EXISTS "public"."uuid_ns_url"();
+CREATE OR REPLACE FUNCTION "public"."uuid_ns_url"()
+  RETURNS "pg_catalog"."uuid" AS '$libdir/uuid-ossp', 'uuid_ns_url'
+  LANGUAGE c IMMUTABLE STRICT
+  COST 1;
+ALTER FUNCTION "public"."uuid_ns_url"() OWNER TO "victor";
+
+-- ----------------------------
+-- Function structure for uuid_ns_x500
+-- ----------------------------
+DROP FUNCTION IF EXISTS "public"."uuid_ns_x500"();
+CREATE OR REPLACE FUNCTION "public"."uuid_ns_x500"()
+  RETURNS "pg_catalog"."uuid" AS '$libdir/uuid-ossp', 'uuid_ns_x500'
+  LANGUAGE c IMMUTABLE STRICT
+  COST 1;
+ALTER FUNCTION "public"."uuid_ns_x500"() OWNER TO "victor";
 
 -- ----------------------------
 -- Triggers structure for table answer
