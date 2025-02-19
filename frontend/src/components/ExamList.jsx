@@ -62,9 +62,9 @@ function ExamList() {
       try {
         setLoading(true)
         const [examsResponse, coursesResponse, recordsResponse] = await Promise.all([
-          fetch(`${API_BASE_URL}/api/exams`),
-          fetch(`${API_BASE_URL}/api/courses`),
-          fetch(`${API_BASE_URL}/api/exam-records`)
+          fetch(`${API_BASE_URL}/exams`),
+          fetch(`${API_BASE_URL}/courses`),
+          fetch(`${API_BASE_URL}/exam-records`)
         ])
 
         if (!examsResponse.ok || !coursesResponse.ok || !recordsResponse.ok) {
@@ -102,7 +102,7 @@ function ExamList() {
 
   const fetchCourses = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/courses`)
+      const response = await fetch(`${API_BASE_URL}/courses`)
       if (!response.ok) {
         throw new Error('获取课程列表失败')
       }
@@ -122,7 +122,7 @@ function ExamList() {
 
   const fetchExamRecords = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/exam-records`)
+      const response = await fetch(`${API_BASE_URL}/exam-records`)
       if (!response.ok) {
         throw new Error('Failed to fetch exam records')
       }
@@ -136,7 +136,7 @@ function ExamList() {
   const fetchExams = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_BASE_URL}/api/exams`);
+      const response = await fetch(`${API_BASE_URL}/exams`);
       if (!response.ok) {
         throw new Error('Failed to fetch exams');
       }
@@ -184,7 +184,7 @@ function ExamList() {
         return
       }
 
-      const response = await fetch(`${API_BASE_URL}/api/exams`, {
+      const response = await fetch(`${API_BASE_URL}/exams`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -238,7 +238,7 @@ function ExamList() {
     
     if (courseIds.length > 0) {
       try {
-        const response = await fetch(`${API_BASE_URL}/api/courses/${courseIds.join(',')}/knowledge_points`)
+        const response = await fetch(`${API_BASE_URL}/courses/${courseIds.join(',')}/knowledge_points`)
         if (!response.ok) {
           throw new Error('Failed to fetch knowledge points')
         }
@@ -323,7 +323,7 @@ function ExamList() {
     if (!examToDelete) return;
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/exams/${examToDelete.id}`, {
+      const response = await fetch(`${API_BASE_URL}/exams/${examToDelete.id}`, {
         method: 'DELETE',
       });
 

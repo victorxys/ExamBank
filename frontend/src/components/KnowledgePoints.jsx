@@ -100,7 +100,7 @@ function KnowledgePoints() {
   useEffect(() => {
     const fetchCourses = async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/api/courses`);
+        const response = await fetch(`${API_BASE_URL}/courses`);
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -131,7 +131,7 @@ function KnowledgePoints() {
         per_page: rowsPerPage,
         ...searchParams
       });
-      const response = await fetch(`${API_BASE_URL}/api/knowledge-points?${queryParams}`);
+      const response = await fetch(`${API_BASE_URL}/knowledge-points?${queryParams}`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -170,7 +170,7 @@ function KnowledgePoints() {
     if (!selectedKnowledgePoint) return;
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/knowledge_points/${selectedKnowledgePoint.id}`, {
+      const response = await fetch(`${API_BASE_URL}/knowledge_points/${selectedKnowledgePoint.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -224,7 +224,7 @@ function KnowledgePoints() {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/knowledge-points`, {
+      const response = await fetch(`${API_BASE_URL}/knowledge-points`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -261,7 +261,7 @@ function KnowledgePoints() {
     if (!deletePointId) return;
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/knowledge_points/${deletePointId}`, {
+      const response = await fetch(`${API_BASE_URL}/knowledge_points/${deletePointId}`, {
         method: 'DELETE',
       });
 

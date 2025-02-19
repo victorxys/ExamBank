@@ -61,7 +61,7 @@ function Questions() {
         setError(null)
 
         // 获取知识点信息
-        const pointResponse = await fetch(`${API_BASE_URL}/api/knowledge_points/${knowledgePointId}`)
+        const pointResponse = await fetch(`${API_BASE_URL}/knowledge_points/${knowledgePointId}`)
         if (!pointResponse.ok) {
           throw new Error(`Failed to fetch knowledge point: ${pointResponse.status}`)
         }
@@ -70,7 +70,7 @@ function Questions() {
 
         // 获取题目列表，添加搜索参数
         const questionsResponse = await fetch(
-          `${API_BASE_URL}/api/knowledge_points/${knowledgePointId}/questions?search=${searchText}&type=${searchType}`
+          `${API_BASE_URL}/knowledge_points/${knowledgePointId}/questions?search=${searchText}&type=${searchType}`
         )
         if (!questionsResponse.ok) {
           throw new Error(`Failed to fetch questions: ${questionsResponse.status}`)
@@ -176,7 +176,7 @@ function Questions() {
       let response
       if (editingQuestion.id) {
         // 更新现有题目
-        response = await fetch(`${API_BASE_URL}/api/questions/${editingQuestion.id}`, {
+        response = await fetch(`${API_BASE_URL}/questions/${editingQuestion.id}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -185,7 +185,7 @@ function Questions() {
         })
       } else {
         // 创建新题目
-        response = await fetch(`${API_BASE_URL}/api/questions`, {
+        response = await fetch(`${API_BASE_URL}/questions`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -259,14 +259,14 @@ function Questions() {
   const handleDeleteQuestion = async () => {
     try {
       // 检查题目是否被试卷引用
-      const checkResponse = await fetch(`${API_BASE_URL}/api/questions/${questionToDelete.id}/check-usage`);
+      const checkResponse = await fetch(`${API_BASE_URL}/questions/${questionToDelete.id}/check-usage`);
       const checkData = await checkResponse.json();
       
       if (checkData.is_used_in_exam) {
         throw new Error('该题目已被试卷引用，无法删除');
       }
 
-      const response = await fetch(`${API_BASE_URL}/api/questions/${questionToDelete.id}`, {
+      const response = await fetch(`${API_BASE_URL}/questions/${questionToDelete.id}`, {
         method: 'DELETE',
       });
 

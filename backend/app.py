@@ -8,6 +8,9 @@ import uuid
 from dateutil import parser
 import logging
 from werkzeug.security import generate_password_hash, check_password_hash
+from backend.api.temp_answer import save_temp_answer, get_temp_answers, mark_temp_answers_submitted  # 使用绝对导入
+from backend.db import get_db_connection
+
 
 load_dotenv()
 
@@ -17,15 +20,6 @@ CORS(app)
 # Create a logger
 logger = logging.getLogger(__name__)
 
-def get_db_connection():
-    conn = psycopg2.connect(
-        host="localhost",
-        database="ExamDB",
-        user=os.getenv('DB_USER', 'postgres'),
-        password=os.getenv('DB_PASSWORD', 'postgres')
-    )
-    conn.set_client_encoding('UTF8')
-    return conn
 
 @app.route('/api/courses', methods=['GET'])
 def get_courses():
@@ -116,7 +110,7 @@ def get_course(course_id):
             GROUP BY c.id, c.course_name, c.age_group, c.description, c.created_at, c.updated_at
         ''', (course_id,))
         course = cur.fetchone()
-        print("SQL查询结果：", course)
+        # print("SQL查询结果：", course)
         if course is None:
             return jsonify({'error': 'Course not found'}), 404
         return jsonify(course)
@@ -215,7 +209,7 @@ def get_course_knowledge_points(course_id):
 def create_knowledge_point():
     print("开始创建知识点")
     data = request.json
-    print("创建数据：", data)
+    # print("创建数据：", data)
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
     try:
@@ -239,7 +233,7 @@ def create_knowledge_point():
             data.get('description', '')
         ))
         point = cur.fetchone()
-        print("创建知识点结果：", point)
+        # print("创建知识点结果：", point)
         
         conn.commit()
         return jsonify(point)
@@ -348,7 +342,7 @@ def get_knowledge_point(point_id):
             GROUP BY kp.id, kp.point_name, kp.description, kp.created_at, kp.updated_at
         ''', (point_id,))
         point = cur.fetchone()
-        print("SQL查询结果：", point)
+        # print("SQL查询结果：", point)
         if point is None:
             return jsonify({'error': 'Knowledge point not found'}), 404
         return jsonify(point)
@@ -444,7 +438,7 @@ def get_knowledge_point_questions(point_id):
             ORDER BY q.created_at DESC, q.id ASC
         ''', (point_id,))
         questions = cur.fetchall()
-        print("SQL查询结果：", questions)
+        # print("SQL查询结果：", questions)
         
         # 获取每个题目的选项，按id排序
         for question in questions:
@@ -499,7 +493,7 @@ def get_question(question_id):
             WHERE q.id = %s
         ''', (question_id,))
         question = cur.fetchone()
-        print("SQL查询结果：", question)
+        # print("SQL查询结果：", question)
         
         if question is None:
             return jsonify({'error': '题目不存在'}), 404
@@ -534,14 +528,14 @@ def get_question(question_id):
 def update_question(question_id):
     print("开始更新题目，题目ID：", question_id)
     data = request.json
-    print("更新数据：", data)
+    # print("更新数据：", data)
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
     try:
         # 检查题目是否存在
         check_sql = 'SELECT id FROM question WHERE id = %s::uuid'
-        print("执行检查题目SQL：", check_sql)
-        print("参数：", (question_id,))
+        # print("执行检查题目SQL：", check_sql)
+        # print("参数：", (question_id,))
         cur.execute(check_sql, (question_id,))
         if not cur.fetchone():
             return jsonify({'error': 'Question not found'}), 404
@@ -563,11 +557,11 @@ def update_question(question_id):
             data['knowledge_point_id'],
             question_id
         )
-        print("执行更新题目SQL：", update_question_sql)
-        print("参数：", update_question_params)
+        # print("执行更新题目SQL：", update_question_sql)
+        # print("参数：", update_question_params)
         cur.execute(update_question_sql, update_question_params)
         question = cur.fetchone()
-        print("更新题目结果：", question)
+        # print("更新题目结果：", question)
 
         # 更新答案信息
         update_answer_sql = '''
@@ -584,8 +578,8 @@ def update_question(question_id):
             data.get('source', ''),
             question_id
         )
-        print("执行更新答案SQL：", update_answer_sql)
-        print("参数：", update_answer_params)
+        # print("执行更新答案SQL：", update_answer_sql)
+        # print("参数：", update_answer_params)
         cur.execute(update_answer_sql, update_answer_params)
         answer = cur.fetchone()
         if answer:
@@ -628,7 +622,7 @@ def update_question(question_id):
 def create_question():
     print("开始创建题目")
     data = request.json
-    print("创建数据：", data)
+    # print("创建数据：", data)
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
     try:
@@ -654,7 +648,7 @@ def create_question():
             data['knowledge_point_id']
         ))
         question = cur.fetchone()
-        print("创建题目结果：", question)
+        # print("创建题目结果：", question)
         
         # 插入答案信息
         cur.execute('''
@@ -693,7 +687,7 @@ def create_question():
                     option.get('is_correct', False)
                 ))
                 question['options'].append(cur.fetchone())
-            print("创建选项结果：", question['options'])
+            # print("创建选项结果：", question['options'])
         else:
             question['options'] = []
         
@@ -1009,7 +1003,7 @@ def get_exampapers():
             }
             result.append(exam_paper)
             
-        print("API Response:", result)
+        # print("API Response:", result)
         return jsonify(result)
     except Exception as e:
         print(f"Error in get_exampapers: {str(e)}")
@@ -1067,7 +1061,7 @@ def get_exams():
             }
             result.append(exam_record)
             
-        print("API Response:", result)
+        # print("API Response:", result)
         return jsonify(result)
     except Exception as e:
         print(f"Error in get_exams: {str(e)}")
@@ -1083,7 +1077,7 @@ def create_exam():
     cur = conn.cursor(cursor_factory=RealDictCursor)
     try:
         data = request.get_json()
-        print("创建数据：", data)
+        # print("创建数据：", data)
         
         title = data.get('title')
         description = data.get('description', '')
@@ -1101,8 +1095,8 @@ def create_exam():
         if single_count == 0 and multiple_count == 0:
             return jsonify({'error': '请设置要抽取的题目数量'}), 400
 
-        print(f"Creating exam with {len(course_ids)} courses and {len(point_ids)} knowledge points")
-        print(f"Requesting {single_count} single choice and {multiple_count} multiple choice questions")
+        # print(f"Creating exam with {len(course_ids)} courses and {len(point_ids)} knowledge points")
+        # print(f"Requesting {single_count} single choice and {multiple_count} multiple choice questions")
 
         # 创建考卷
         cur.execute('''
@@ -1130,7 +1124,7 @@ def create_exam():
                 AND q.question_type = '单选题'
             ''')
             available_single = cur.fetchone()['count']
-            print(f"Available single choice questions: {available_single}")
+            # print(f"Available single choice questions: {available_single}")
             if available_single < single_count:
                 conn.rollback()
                 return jsonify({'error': f'单选题数量不足，只有 {available_single} 道题可用'}), 400
@@ -1143,7 +1137,7 @@ def create_exam():
                 AND q.question_type = '多选题'
             ''')
             available_multiple = cur.fetchone()['count']
-            print(f"Available multiple choice questions: {available_multiple}")
+            # print(f"Available multiple choice questions: {available_multiple}")
             if available_multiple < multiple_count:
                 conn.rollback()
                 return jsonify({'error': f'多选题数量不足，只有 {available_multiple} 道题可用'}), 400
@@ -1200,7 +1194,7 @@ def get_exam(exam_id):
             WHERE ep.id = %s
         ''', (exam_id,))
         exam = cur.fetchone()
-        print("SQL查询结果：", exam)
+        # print("SQL查询结果：", exam)
         if not exam:
             return jsonify({'error': 'Exam not found'}), 404
 
@@ -1292,7 +1286,7 @@ def get_exam_detail(exam_id):
             GROUP BY e.id, e.title, e.description, e.created_at, ec.course_names
         ''', (exam_id, exam_id))
         exam = cur.fetchone()
-        print("SQL查询结果：", exam)
+        # print("SQL查询结果：", exam)
         
         if not exam:
             return jsonify({'error': '试卷不存在'}), 404
@@ -1335,7 +1329,7 @@ def get_exam_detail(exam_id):
         
         questions = cur.fetchall()
         exam['questions'] = [dict(q) for q in questions]
-        print("SQL查询结果：==========>", exam)
+        # print("SQL查询结果：==========>", exam)
         return jsonify(exam)
     except Exception as e:
         print('Error in get_exam_detail:', str(e))
@@ -1457,7 +1451,7 @@ def get_exam_for_taking(exam_id):
                 grouped_questions['single'].append(q)
             elif q['question_type'] == '多选题':
                 grouped_questions['multiple'].append(q)
-        print(grouped_questions)
+        # print(grouped_questions)
         return jsonify({
             'exam': exam,
             'questions': grouped_questions
@@ -1659,7 +1653,7 @@ def submit_exam_answer(exam_id):
             
             question_info = cur.fetchone()
 
-            print("question_info:",question_info)
+            # print("question_info:",question_info)
             if not question_info:
                 logger.warning(f"No question info found for question_id: {question_id}")
                 continue
@@ -1684,11 +1678,11 @@ def submit_exam_answer(exam_id):
                 selected_set = set(selected_options)
                 correct_set = set(correct_options)
                 
-                print("选中的选项：", selected_set)
-                print("正确的选项：", correct_set)
+                # print("选中的选项：", selected_set)
+                # print("正确的选项：", correct_set)
                 
                 is_correct = selected_set == correct_set
-                print("是否正确：", is_correct)
+                # print("是否正确：", is_correct)
                 score = 2 if is_correct else 0
 
             # Record answer
@@ -1891,7 +1885,7 @@ def get_exam_records():
                 }
                 result.append(exam_record)
                 
-            print("API Response:", result)  # 添加日志输出
+            # print("API Response:", result)  # 添加日志输出
             return jsonify(result)
         finally:
             cur.close()
@@ -1998,6 +1992,24 @@ def get_questions():
         cur.close()
         conn.close()
 
+# 自动保存答题进度的路由
+@app.route('/api/exams/<exam_id>/temp-answers', methods=['POST'])
+def save_temp_answer_route(exam_id):
+    data = request.json
+    user_id = data.get('user_id')
+    question_id = data.get('question_id')
+    selected_options = data.get('selected_options', [])
+    
+    return save_temp_answer(exam_id, user_id, question_id, selected_options)
+
+@app.route('/api/exams/<exam_id>/temp-answers/<user_id>', methods=['GET'])
+def get_temp_answers_route(exam_id, user_id):
+    return get_temp_answers(exam_id, user_id)
+
+@app.route('/api/exams/<exam_id>/temp-answers/<user_id>/submit', methods=['POST'])
+def mark_temp_answers_submitted_route(exam_id, user_id):
+    return mark_temp_answers_submitted(exam_id, user_id)
+
 @app.route('/api/exam-records/<exam_id>/<user_id>', methods=['GET'])
 def get_exam_record_detail(exam_id, user_id):
     print("开始获取考试记录详情，考试ID：", exam_id, "用户ID：", user_id)
@@ -2008,14 +2020,14 @@ def get_exam_record_detail(exam_id, user_id):
         if not exam_time:
             return jsonify({'error': 'exam_time is required'}), 400
             
-        print("收到的考试时间：", exam_time)
+        # print("收到的考试时间：", exam_time)
         try:
             exam_time = exam_time.replace(' ', 'T')
             exam_time = exam_time.replace('Z', '+00:00')
             if '+' in exam_time and ':' not in exam_time.split('+')[1]:
                 parts = exam_time.split('+')
                 exam_time = f"{parts[0]}+{parts[1][:2]}:{parts[1][2:]}"
-            print("转换后的考试时间：", exam_time)
+            # print("转换后的考试时间：", exam_time)
         except Exception as e:
             print("时间格式转换错误：", str(e))
             return jsonify({'error': '无效的时间格式'}), 400
@@ -2167,15 +2179,15 @@ def get_courses_knowledge_points():
     cur = conn.cursor(cursor_factory=RealDictCursor)
     try:
         course_id_list = course_ids.split(',')
-        print("Fetching knowledge points for courses:", course_id_list)
+        # print("Fetching knowledge points for courses:", course_id_list)
         
         query = "WITH questioncounts AS (SELECT q.knowledge_point_id, SUM(CASE WHEN q.question_type = '单选题' THEN 1 ELSE 0 END) as single_count, SUM(CASE WHEN q.question_type = '多选题' THEN 1 ELSE 0 END) as multiple_count FROM question q GROUP BY q.knowledge_point_id) SELECT kp.id, kp.point_name as name, kp.course_id, COALESCE(qc.single_count, 0)::integer as single_count, COALESCE(qc.multiple_count, 0)::integer as multiple_count FROM knowledgepoint kp LEFT JOIN questioncounts qc ON kp.id = qc.knowledge_point_id WHERE kp.course_id::text = ANY(%s) ORDER BY kp.point_name"
         
         cur.execute(query, (course_id_list,))
         points = cur.fetchall()
         print("SQL query executed successfully")
-        print("Knowledge points found:", len(points))
-        print("First point example:", points[0] if points else "No points found")
+        # print("Knowledge points found:", len(points))
+        # print("First point example:", points[0] if points else "No points found")
         return jsonify(points)
     except Exception as e:
         print('Error in get_courses_knowledge_points:', str(e))

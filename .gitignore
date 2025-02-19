@@ -189,9 +189,10 @@ cython_debug/
 
 # DB
 /db
-*.config.js
 
 /backend/migrations 
 frontend/src/components 2
 
-frontend/src/config.js
+config.js
+
+vite.config.js

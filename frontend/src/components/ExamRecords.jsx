@@ -60,7 +60,7 @@ function ExamRecords() {
   const fetchRecords = async () => {
     try {
       setLoading(true)
-      const url = new URL(`${API_BASE_URL}/api/exam-records`)
+      const url = new URL(`${API_BASE_URL}/exam-records`)
       if (debouncedSearchTerm) {
         url.searchParams.append('search', debouncedSearchTerm)
       }

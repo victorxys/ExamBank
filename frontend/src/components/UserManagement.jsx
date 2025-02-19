@@ -47,7 +47,7 @@ const UserManagement = () => {
 
   const fetchUsers = async () => {
     try {
-      const response = await api.get('/api/users');
+      const response = await api.get('/users');
       console.log('Users API response:', response.data);
       if (response.data && Array.isArray(response.data)) {
         let filteredUsers = response.data;
@@ -102,9 +102,9 @@ const UserManagement = () => {
   const handleSubmit = async () => {
     try {
       if (editUser) {
-        await api.put(`/api/users/${editUser.id}`, formData);
+        await api.put(`/users/${editUser.id}`, formData);
       } else {
-        await api.post('/api/users', formData);
+        await api.post('/users', formData);
       }
       fetchUsers();
       handleClose();
@@ -116,7 +116,7 @@ const UserManagement = () => {
   const handleDelete = async (id) => {
     if (window.confirm('确定要删除这个用户吗？')) {
       try {
-        await api.delete(`/api/users/${id}`);
+        await api.delete(`/users/${id}`);
         fetchUsers();
       } catch (error) {
         console.error('Error deleting user:', error);

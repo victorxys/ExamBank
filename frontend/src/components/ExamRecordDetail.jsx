@@ -55,7 +55,7 @@ const ExamRecordDetail = () => {
         const formattedTime = examTime.includes('T') ? examTime : examTime.replace(' ', 'T');
         const timeWithZone = formattedTime.includes('+') ? formattedTime : `${formattedTime}+08:00`;
         const response = await fetch(
-          `${API_BASE_URL}/api/exam-records/${examId}/${userId}?exam_time=${encodeURIComponent(timeWithZone)}`,
+          `${API_BASE_URL}/exam-records/${examId}/${userId}?exam_time=${encodeURIComponent(timeWithZone)}`,
           {
             signal: abortController.signal,
             headers: {

@@ -79,7 +79,7 @@ function Questions() {
 
         // 获取所有题目列表
         const questionsResponse = await fetch(
-          `${API_BASE_URL}/api/questions?${params.toString()}`
+          `${API_BASE_URL}/questions?${params.toString()}`
         );
         if (!questionsResponse.ok) {
           throw new Error(`获取题目列表失败: ${questionsResponse.status}`);
@@ -88,7 +88,7 @@ function Questions() {
         setQuestions(questionsData.data || []);
 
         // 获取课程列表
-        const coursesResponse = await fetch(`${API_BASE_URL}/api/courses`);
+        const coursesResponse = await fetch(`${API_BASE_URL}/courses`);
         if (!coursesResponse.ok) {
           throw new Error(`获取课程列表失败: ${coursesResponse.status}`);
         }
@@ -97,7 +97,7 @@ function Questions() {
 
         // 如果选择了课程，获取该课程下的知识点
         if (selectedCourse) {
-          const pointsResponse = await fetch(`${API_BASE_URL}/api/courses/${selectedCourse}/knowledge_points`);
+          const pointsResponse = await fetch(`${API_BASE_URL}/courses/${selectedCourse}/knowledge_points`);
           if (!pointsResponse.ok) {
             throw new Error(`获取知识点列表失败: ${pointsResponse.status}`);
           }
@@ -125,7 +125,7 @@ function Questions() {
     const loadKnowledgePoints = async () => {
       if (editingQuestion?.course_id) {
         try {
-          const response = await fetch(`${API_BASE_URL}/api/courses/${editingQuestion.course_id}/knowledge_points`);
+          const response = await fetch(`${API_BASE_URL}/courses/${editingQuestion.course_id}/knowledge_points`);
           if (!response.ok) {
             throw new Error(`获取知识点列表失败: ${response.status}`);
           }
@@ -149,7 +149,9 @@ function Questions() {
   };
 
   const handleAddOption = () => {
-    const maxId = Math.max(...(editingQuestion.options.map(opt => opt.id || 0)), 0);
+    const maxId = editingQuestion.options.length > 0
+      ? Math.max(...editingQuestion.options.map(opt => parseInt(opt.id) || 0))
+      : 0;
     setEditingQuestion(prev => ({
       ...prev,
       options: [
@@ -184,14 +186,14 @@ function Questions() {
       if (!questionToDelete) return;
 
       // 检查题目是否被试卷引用
-      const checkResponse = await fetch(`${API_BASE_URL}/api/questions/${questionToDelete.id}/check-usage`);
+      const checkResponse = await fetch(`${API_BASE_URL}/questions/${questionToDelete.id}/check-usage`);
       const checkData = await checkResponse.json();
       
       if (checkData.is_used_in_exam) {
         throw new Error('该题目已被试卷引用，无法删除');
       }
 
-      const response = await fetch(`${API_BASE_URL}/api/questions/${questionToDelete.id}`, {
+      const response = await fetch(`${API_BASE_URL}/questions/${questionToDelete.id}`, {
         method: 'DELETE',
       });
 
@@ -235,7 +237,7 @@ function Questions() {
     // 加载该题目所属课程的知识点列表
     if (question.course_id) {
       try {
-        const response = await fetch(`${API_BASE_URL}/api/courses/${question.course_id}/knowledge_points`);
+        const response = await fetch(`${API_BASE_URL}/courses/${question.course_id}/knowledge_points`);
         if (!response.ok) {
           throw new Error(`获取知识点列表失败: ${response.status}`);
         }
@@ -286,7 +288,7 @@ function Questions() {
       let response;
       if (editingQuestion.id) {
         // 更新现有题目
-        response = await fetch(`${API_BASE_URL}/api/questions/${editingQuestion.id}`, {
+        response = await fetch(`${API_BASE_URL}/questions/${editingQuestion.id}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -295,7 +297,7 @@ function Questions() {
         });
       } else {
         // 创建新题目
-        response = await fetch(`${API_BASE_URL}/api/questions`, {
+        response = await fetch(`${API_BASE_URL}/questions`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -317,7 +319,7 @@ function Questions() {
       if (selectedCourse) params.append('course', selectedCourse);
       if (selectedKnowledgePoint) params.append('knowledgePoint', selectedKnowledgePoint);
 
-      const questionsResponse = await fetch(`${API_BASE_URL}/api/questions?${params.toString()}`);
+      const questionsResponse = await fetch(`${API_BASE_URL}/questions?${params.toString()}`);
       if (questionsResponse.ok) {
         const data = await questionsResponse.json();
         setQuestions(data.data || []);
@@ -553,10 +555,13 @@ function Questions() {
         onClose={() => setEditDialogOpen(false)}
         maxWidth="md"
         fullWidth
+        disableEnforceFocus={false}
+        disablePortal={false}
+        aria-labelledby="edit-question-title"
       >
         <DialogTitle>
           <Box display="flex" alignItems="center" gap={2} width="100%">
-            <Typography variant="h6">
+            <Typography variant="h6" id="edit-question-title">
               {editingQuestion?.id ? '编辑考题' : '添加新考题'}
             </Typography>
             {editingQuestion?.question_type && (

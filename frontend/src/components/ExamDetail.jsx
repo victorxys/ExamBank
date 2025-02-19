@@ -30,7 +30,7 @@ const ExamDetail = () => {
     }
     const fetchExamDetail = async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/api/exams/${examId}/detail`);
+        const response = await fetch(`${API_BASE_URL}/exams/${examId}/detail`);
         const data = await response.json();
         if (!response.ok) {
           throw new Error(data.error || '获取试卷详情失败');

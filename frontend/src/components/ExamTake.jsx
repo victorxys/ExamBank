@@ -88,7 +88,7 @@ const ExamTake = () => {
 
   const fetchExam = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/exams/${examId}/take`);
+      const response = await fetch(`${API_BASE_URL}/exams/${examId}/take`);
       if (!response.ok) {
         throw new Error('获取试卷失败');
       }
@@ -127,7 +127,7 @@ const ExamTake = () => {
   // 检查手机号是否存在
   const checkPhoneNumber = async (phone) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/users/login`, {
+      const response = await fetch(`${API_BASE_URL}/users/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -194,7 +194,7 @@ const ExamTake = () => {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/users/login`, {
+      const response = await fetch(`${API_BASE_URL}/users/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -214,6 +214,50 @@ const ExamTake = () => {
       setUser(user);
       setLoginOpen(false);
       setLoginError(null);
+
+      // 加载临时答案
+      try {
+        const tempAnswersResponse = await fetch(`${API_BASE_URL}/exams/${examId}/temp-answers/${user.id}`);
+        if (tempAnswersResponse.ok) {
+          const tempAnswersData = await tempAnswersResponse.json();
+          if (tempAnswersData.success && tempAnswersData.temp_answers) {
+            // 将临时答案转换为answers状态格式
+            const tempAnswers = {};
+            tempAnswersData.temp_answers.forEach(answer => {
+              // 获取问题类型
+              const question = exam.questions.find(q => q.id === answer.question_id);
+              if (question) {
+                // 解析PostgreSQL数组格式字符串
+                const optionIds = answer.selected_option_ids
+                  .replace(/[{}]/g, '') // 移除花括号
+                  .split(',') // 按逗号分割
+                  .filter(id => id.trim()); // 过滤空字符串
+
+                if (question.question_type === '单选题') {
+                  tempAnswers[answer.question_id] = {
+                    question_type: '单选题',
+                    selected: optionIds[0]
+                  };
+                } else {
+                  // 多选题，将选项数组转换为对象格式
+                  const selectedOptions = {};
+                  optionIds.forEach(optionId => {
+                    selectedOptions[optionId] = true;
+                  });
+                  tempAnswers[answer.question_id] = {
+                    question_type: '多选题',
+                    selected: selectedOptions
+                  };
+                }
+              }
+            });
+            setAnswers(tempAnswers);
+            console.log('已加载临时答案：', tempAnswers);
+          }
+        }
+      } catch (err) {
+        console.error('加载临时答案失败：', err);
+      }
     } catch (err) {
       console.error('登录时出错：', err);
       setLoginError(err.message);
@@ -221,25 +265,83 @@ const ExamTake = () => {
   };
 
   const handleAnswerChange = (questionId, optionId, type) => {
+    console.log('答案变更：', { questionId, optionId, type });
     if (type === '多选题') {
-      setAnswers(prev => ({
-        ...prev,
-        [questionId]: {
-          question_type: type,
-          selected: {
-            ...prev[questionId]?.selected,
-            [optionId]: !prev[questionId]?.selected?.[optionId]
+      setAnswers(prev => {
+        const newAnswers = {
+          ...prev,
+          [questionId]: {
+            question_type: type,
+            selected: {
+              ...prev[questionId]?.selected,
+              [optionId]: !prev[questionId]?.selected?.[optionId]
+            }
           }
-        }
-      }));
+        };
+        console.log('更新后的答案状态：', newAnswers);
+        // 触发自动保存
+        saveAnswerToServer(questionId, newAnswers[questionId]);
+        return newAnswers;
+      });
     } else {
-      setAnswers(prev => ({
-        ...prev,
-        [questionId]: {
-          question_type: type,
-          selected: optionId
-        }
-      }));
+      setAnswers(prev => {
+        const newAnswers = {
+          ...prev,
+          [questionId]: {
+            question_type: type,
+            selected: optionId
+          }
+        };
+        console.log('更新后的答案状态：', newAnswers);
+        // 触发自动保存
+        saveAnswerToServer(questionId, newAnswers[questionId]);
+        return newAnswers;
+      });
+    }
+  };
+
+  // 添加自动保存函数
+  const saveAnswerToServer = async (questionId, answer) => {
+    if (!user) {
+      console.log('用户未登录，不执行自动保存');
+      return;
+    }
+
+    try {
+      const selected_options = answer.question_type === '单选题'
+        ? [answer.selected]
+        : Object.entries(answer.selected || {})
+            .filter(([_, selected]) => selected)
+            .map(([optionId]) => optionId);
+
+      console.log('准备发送自动保存请求：', {
+        examId,
+        questionId,
+        userId: user.id,
+        selected_options
+      });
+
+      const response = await fetch(`${API_BASE_URL}/exams/${examId}/temp-answers`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          user_id: user.id,
+          question_id: questionId,
+          selected_options
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || '自动保存失败');
+      }
+
+      const result = await response.json();
+      console.log('自动保存成功：', result);
+    } catch (err) {
+      console.error('自动保存失败：', err);
     }
   };
 
@@ -307,7 +409,7 @@ const ExamTake = () => {
         user_id: user.id
       });
 
-      const response = await fetch(`${API_BASE_URL}/api/exams/${examId}/submit`, {
+      const response = await fetch(`${API_BASE_URL}/exams/${examId}/submit`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

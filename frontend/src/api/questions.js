@@ -4,7 +4,7 @@ import { API_BASE_URL } from '../config';
 export const getQuestions = async (params = {}) => {
   try {
     const queryString = new URLSearchParams(params).toString();
-    const response = await fetch(`${API_BASE_URL}/api/questions${queryString ? `?${queryString}` : ''}`);
+    const response = await fetch(`${API_BASE_URL}/questions${queryString ? `?${queryString}` : ''}`);
     if (!response.ok) {
       throw new Error('获取题目列表失败');
     }
@@ -18,7 +18,7 @@ export const getQuestions = async (params = {}) => {
 // 删除题目
 export const deleteQuestion = async (questionId) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/questions/${questionId}`, {
+    const response = await fetch(`${API_BASE_URL}/questions/${questionId}`, {
       method: 'DELETE',
     });
     if (!response.ok) {
@@ -34,7 +34,7 @@ export const deleteQuestion = async (questionId) => {
 // 更新题目
 export const updateQuestion = async (questionId, questionData) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/questions/${questionId}`, {
+    const response = await fetch(`${API_BASE_URL}/questions/${questionId}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
