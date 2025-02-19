@@ -193,3 +193,5 @@ cython_debug/
 
 /backend/migrations 
 frontend/src/components 2
+
+frontend/src/config.js
