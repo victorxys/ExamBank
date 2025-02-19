@@ -20,6 +20,22 @@ CORS(app)
 # Create a logger
 logger = logging.getLogger(__name__)
 
+@app.errorhandler(500)
+def internal_server_error(error):
+    return jsonify({'error': 'Internal Server Error', 'message': str(error)}), 500
+
+# 更好的做法是，记录详细的错误信息到日志文件
+import logging
+log = logging.getLogger('werkzeug')
+
+@app.errorhandler(Exception)
+def handle_exception(e):
+    # 记录异常信息到日志
+    log.exception("An unhandled exception occurred:")
+    # 返回一个友好的错误信息给客户端
+    return jsonify({'error': 'Internal Server Error', 'message': 'An unexpected error occurred.'}), 500
+
+
 
 @app.route('/api/courses', methods=['GET'])
 def get_courses():
