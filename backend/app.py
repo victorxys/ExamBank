@@ -17,6 +17,8 @@ load_dotenv()
 app = Flask(__name__)
 CORS(app)
 
+app.config['SECRET_KEY'] = os.environ['SECRET_KEY']  # 设置 SECRET_KEY
+
 # Create a logger
 logger = logging.getLogger(__name__)
 
