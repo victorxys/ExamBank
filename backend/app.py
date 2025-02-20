@@ -19,12 +19,12 @@ CORS(app)
 
 app.config['SECRET_KEY'] = os.environ['SECRET_KEY']  # 设置 SECRET_KEY
 
-
+flask_log = os.environ['FLASK_LOG_FILE'] # 设置flask log地址
 
 # 配置日志记录
 log = logging.getLogger(__name__)
 log.setLevel(logging.DEBUG)
-handler = logging.FileHandler('/Users/victor/development/ExamBank/logs/flask.log')
+handler = logging.FileHandler(flask_log)
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 handler.setFormatter(formatter)
 log.addHandler(handler)
