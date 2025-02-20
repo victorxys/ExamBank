@@ -8,7 +8,7 @@ load_dotenv()
 
 log = logging.getLogger(__name__)
 log.setLevel(logging.DEBUG)
-handler = logging.FileHandler(os.environ['FLASK_LOG_FILE'])
+handler = logging.FileHandler('/Users/victor/development/ExamBank/logs/flask.log')
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 handler.setFormatter(formatter)
 log.addHandler(handler)
