@@ -65,7 +65,8 @@ function ExamRecords() {
   const fetchRecords = async () => {
     console.log('fetchRecords 被调用')
     try {
-      setLoading(true)
+      console.log('进入 try 块'); // 添加这一行
+      // setLoading(true)
       const url = new URL(`${API_BASE_URL}/exam-records`)
       console.log('API_BASE_URL:', API_BASE_URL); // 输出 API_BASE_URL 的值
       console.log('url:', url); // 输出 url 的值
@@ -73,7 +74,8 @@ function ExamRecords() {
       if (debouncedSearchTerm) {
         url.searchParams.append('search', debouncedSearchTerm)
       }
-      const response = await fetch(url)
+      // const response = await fetch(url)
+      const response = await fetch(url.toString()); // 修改这一行
       if (!response.ok) {
         throw new Error('Failed to fetch exam records')
       }
