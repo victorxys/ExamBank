@@ -17,8 +17,18 @@ load_dotenv()
 app = Flask(__name__)
 CORS(app)
 
-# Create a logger
-logger = logging.getLogger(__name__)
+app.config['SECRET_KEY'] = os.environ['SECRET_KEY']  # 设置 SECRET_KEY
+
+
+
+# 配置日志记录
+log = logging.getLogger(__name__)
+log.setLevel(logging.DEBUG)
+handler = logging.FileHandler('/Users/victor/development/ExamBank/logs/flask.log')
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+handler.setFormatter(formatter)
+log.addHandler(handler)
+
 
 
 @app.route('/api/courses', methods=['GET'])
