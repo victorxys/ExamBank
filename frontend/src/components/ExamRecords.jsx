@@ -66,7 +66,8 @@ function ExamRecords() {
     console.log('fetchRecords 被调用')
     try {
       console.log('进入 try 块'); // 添加这一行
-      // setLoading(true)
+      setLoading(true)
+      console.log('window.location.href:', window.location.href); // 添加这一行
       const url = new URL(`${API_BASE_URL}/exam-records`)
       console.log('API_BASE_URL:', API_BASE_URL); // 输出 API_BASE_URL 的值
       console.log('url:', url); // 输出 url 的值
