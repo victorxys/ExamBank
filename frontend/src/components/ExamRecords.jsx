@@ -56,6 +56,7 @@ function ExamRecords() {
   useEffect(() => {
     fetchRecords()
   }, [debouncedSearchTerm])
+  
 
   const fetchRecords = async () => {
     try {
