@@ -17,28 +17,13 @@ load_dotenv()
 app = Flask(__name__)
 CORS(app)
 
-app.config['SECRET_KEY'] = os.environ['SECRET_KEY']  # 设置 SECRET_KEY
-
-
-
-# 配置日志记录
-log = logging.getLogger(__name__)
-log.setLevel(logging.DEBUG)
-handler = logging.FileHandler('/Users/victor/development/ExamBank/logs/flask.log')
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-handler.setFormatter(formatter)
-log.addHandler(handler)
-
-# 全局错误处理
-@app.errorhandler(Exception)
-def handle_exception(e):
-    log.exception("An unhandled exception occurred:")
-    return jsonify({'error': 'Internal Server Error'}), 500
+# Create a logger
+logger = logging.getLogger(__name__)
 
 
 @app.route('/api/courses', methods=['GET'])
 def get_courses():
-    log.debug("开始获取课程列表")  # 使用 log.debug
+    # print("开始获取课程列表")
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
     try:
@@ -59,11 +44,11 @@ def get_courses():
             ORDER BY c.created_at DESC
         ''')
         courses = cur.fetchall()
-        log.debug(f"SQL查询结果：{courses}")  # 使用 log.debug
+        # print("SQL查询结果：", courses)
         return jsonify(courses)
     except Exception as e:
-        log.exception('Error in get_courses:')  # 使用 log.exception 记录 traceback
-        return jsonify({'error': '获取课程列表失败'}), 500  # 返回更友好的错误信息
+        print('Error in get_courses:', str(e))
+        return jsonify({'error': str(e)}), 500
     finally:
         cur.close()
         conn.close()
@@ -783,7 +768,7 @@ def delete_question(question_id):
 
 @app.route('/api/users', methods=['GET'])
 def get_users():
-    print("开始获取用户列表")
+    log.debug("开始获取用户列表")
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
     try:
@@ -804,6 +789,7 @@ def get_users():
         return jsonify(users)
     except Exception as e:
         print('Error in get_users:', str(e))
+        log.exception('Error in get_users:')
         return jsonify({'error': str(e)}), 500
     finally:
         cur.close()
@@ -1846,6 +1832,7 @@ def login_or_register_user():
 
 @app.route('/api/exam-records', methods=['GET'])
 def get_exam_records():
+    log.debug("开始获取考试记录列表")
     try:
         search = request.args.get('search', '')
         
@@ -1908,6 +1895,7 @@ def get_exam_records():
             
     except Exception as e:
         print(f"Error in get_exam_records: {str(e)}")  # 添加错误日志
+        log.debug(f"Error in get_exam_records: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/questions', methods=['GET'])
