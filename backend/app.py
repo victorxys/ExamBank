@@ -29,6 +29,11 @@ formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(messag
 handler.setFormatter(formatter)
 log.addHandler(handler)
 
+# 全局错误处理
+@app.errorhandler(Exception)
+def handle_exception(e):
+    log.exception("An unhandled exception occurred:")
+    return jsonify({'error': 'Internal Server Error'}), 500
 
 
 @app.route('/api/courses', methods=['GET'])
