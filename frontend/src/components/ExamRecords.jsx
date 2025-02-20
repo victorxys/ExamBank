@@ -56,12 +56,15 @@ function ExamRecords() {
   useEffect(() => {
     fetchRecords()
   }, [debouncedSearchTerm])
-  
+
 
   const fetchRecords = async () => {
     try {
       setLoading(true)
       const url = new URL(`${API_BASE_URL}/exam-records`)
+      console.log('API_BASE_URL:', API_BASE_URL); // 输出 API_BASE_URL 的值
+      console.log('url:', url); // 输出 url 的值
+      console.log('url.toString():', url.toString()); // 输出 url 的字符串形式
       if (debouncedSearchTerm) {
         url.searchParams.append('search', debouncedSearchTerm)
       }
