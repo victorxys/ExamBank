@@ -29,11 +29,16 @@ formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(messag
 handler.setFormatter(formatter)
 log.addHandler(handler)
 
+# 全局错误处理
+@app.errorhandler(Exception)
+def handle_exception(e):
+    log.exception("An unhandled exception occurred:")
+    return jsonify({'error': 'Internal Server Error'}), 500
 
 
 @app.route('/api/courses', methods=['GET'])
 def get_courses():
-    # print("开始获取课程列表")
+    log.debug("开始获取课程列表")  # 使用 log.debug
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
     try:
@@ -54,11 +59,11 @@ def get_courses():
             ORDER BY c.created_at DESC
         ''')
         courses = cur.fetchall()
-        # print("SQL查询结果：", courses)
+        log.debug(f"SQL查询结果：{courses}")  # 使用 log.debug
         return jsonify(courses)
     except Exception as e:
-        print('Error in get_courses:', str(e))
-        return jsonify({'error': str(e)}), 500
+        log.exception('Error in get_courses:')  # 使用 log.exception 记录 traceback
+        return jsonify({'error': '获取课程列表失败'}), 500  # 返回更友好的错误信息
     finally:
         cur.close()
         conn.close()
