@@ -196,3 +196,5 @@ frontend/src/components 2
 config.js
 
 vite.config.js
+
+logs/
