@@ -57,11 +57,13 @@ function ExamRecords() {
 
   // 使用防抖后的搜索词进行搜索
   useEffect(() => {
+    console.log('useEffect 被触发了');
     fetchRecords()
   }, [debouncedSearchTerm])
 
 
   const fetchRecords = async () => {
+    console.log('fetchRecords 被调用')
     try {
       setLoading(true)
       const url = new URL(`${API_BASE_URL}/exam-records`)
