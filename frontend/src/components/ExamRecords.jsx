@@ -63,31 +63,32 @@ function ExamRecords() {
 
 
   const fetchRecords = async () => {
-    console.log('fetchRecords 被调用')
+    console.log('fetchRecords 被调用');
     try {
-      console.log('进入 try 块'); // 添加这一行
-      setLoading(true)
-      console.log('window.location.href:', window.location.href); // 添加这一行
-      const url = new URL(`${API_BASE_URL}/exam-records`)
-      console.log('API_BASE_URL:', API_BASE_URL); // 输出 API_BASE_URL 的值
-      console.log('url:', url); // 输出 url 的值
-      console.log('url.toString():', url.toString()); // 输出 url 的字符串形式
+      setLoading(true);
+      let apiUrl = `${API_BASE_URL}/exam-records`; // 基础 URL
+  
       if (debouncedSearchTerm) {
-        url.searchParams.append('search', debouncedSearchTerm)
+        // 添加查询参数 (使用 encodeURIComponent 编码)
+        apiUrl += `?search=${encodeURIComponent(debouncedSearchTerm)}`;
       }
-      // const response = await fetch(url)
-      const response = await fetch(url.toString()); // 修改这一行
+      console.log('API URL:', apiUrl);
+  
+      const response = await fetch(apiUrl);
+  
       if (!response.ok) {
-        throw new Error('Failed to fetch exam records')
+        const errorText = await response.text();
+        throw new Error(`获取考试记录失败 (status: ${response.status}): ${errorText}`);
       }
-      const data = await response.json()
-      console.log('Fetched records:', data) // 添加日志输出
-      setRecords(data)
+  
+      const data = await response.json();
+      console.log('获取到的考试记录：', data);
+      setRecords(data);
     } catch (error) {
-      console.error('Error fetching exam records:', error)
-      setError(error.message)
+      console.error('获取考试记录出错：', error);
+      setError(error.message);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
