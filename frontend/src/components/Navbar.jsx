@@ -32,51 +32,7 @@ function Navbar() {
     return ''
   }
 
-  return (
-    <AppBar
-      position="fixed"
-      sx={{
-        width: { sm: `calc(100% - ${drawerWidth}px)` },
-        ml: { sm: `${drawerWidth}px` },
-        boxShadow: 'none',
-        borderBottom: `1px solid ${theme.palette.divider}`,
-        backgroundColor: theme.palette.background.paper,
-      }}
-    >
-      <Toolbar
-        sx={{
-          pr: '24px',
-        }}
-      >
-        <IconButton
-          edge="start"
-          color="inherit"
-          aria-label="open drawer"
-          sx={{
-            marginRight: '36px',
-            display: { sm: 'none' },
-          }}
-        >
-          <MenuIcon />
-        </IconButton>
-        <Typography
-          component="h1"
-          variant="h6"
-          color="primary"
-          noWrap
-          sx={{ flexGrow: 1 }}
-        >
-          {getPageTitle()}
-        </Typography>
-        <IconButton color="primary">
-          <NotificationsIcon />
-        </IconButton>
-        <IconButton color="primary">
-          <PersonIcon />
-        </IconButton>
-      </Toolbar>
-    </AppBar>
-  )
+  return null
 }
 
 export default Navbar

@@ -75,6 +75,17 @@ const ExamDetail = () => {
 
   return (
     <Container maxWidth="lg">
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          mb: 4,
+          mt: 2
+        }}
+      >
+        <img src="/src/assets/logo.svg" alt="考试题库系统" style={{ width: '200px' }} />
+      </Box>
       <Paper elevation={3} sx={{ p: 3, my: 3 }}>
         {/* 试卷基本信息 */}
         <Typography variant="h4" gutterBottom>

@@ -25,12 +25,12 @@ import {
   Chip
 } from '@mui/material';
 import { API_BASE_URL } from '../config';
+import { hasToken, saveToken } from '../api/auth-utils';
 
 // 自定义 Markdown 样式组件
 const MarkdownTypography = ({ children, ...props }) => {
   return (
-    <Typography
-      component="div"
+    <Box
       sx={{
         '& p': { mt: 1, mb: 1 },
         '& strong': { fontWeight: 'bold' },
@@ -45,7 +45,7 @@ const MarkdownTypography = ({ children, ...props }) => {
       {...props}
     >
       {children}
-    </Typography>
+    </Box>
   );
 };
 
@@ -60,8 +60,9 @@ const ExamTake = () => {
   const [examResult, setExamResult] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [loginOpen, setLoginOpen] = useState(true);
-  const [user, setUser] = useState(null);
+  const tokenData = hasToken();
+  const [loginOpen, setLoginOpen] = useState(!tokenData);
+  const [user, setUser] = useState(tokenData);
   const [loginForm, setLoginForm] = useState({
     username: '',
     phone_number: '',
@@ -152,13 +153,18 @@ const ExamTake = () => {
         throw new Error(error.error || '检查手机号失败');
       }
 
-      const user = await response.json();
+      const loginData = await response.json();
       // 如果找到了用户，自动填充用户名
-      if (user && user.username) {
+      if (loginData && loginData.user.username) {
         setLoginForm(prev => ({
           ...prev,
-          username: user.username
+          username: loginData.user.username
         }));
+      }
+      if (loginData && loginData.access_token) {
+        console.log('用户登录成功，JWT令牌：', loginData.access_token);
+        // 保存JWT令牌到Cookie中，设置30天过期
+        saveToken(loginData.access_token, null, true);
       }
     } catch (err) {
       console.error('检查手机号时出错：', err);
@@ -217,7 +223,7 @@ const ExamTake = () => {
 
       // 加载临时答案
       try {
-        const tempAnswersResponse = await fetch(`${API_BASE_URL}/exams/${examId}/temp-answers/${user.id}`);
+        const tempAnswersResponse = await fetch(`${API_BASE_URL}/exams/${examId}/temp-answers/${user.user.id}`);
         if (tempAnswersResponse.ok) {
           const tempAnswersData = await tempAnswersResponse.json();
           if (tempAnswersData.success && tempAnswersData.temp_answers) {
@@ -455,6 +461,17 @@ const ExamTake = () => {
 
   return (
     <Container>
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          mb: 4,
+          mt: 2
+        }}
+      >
+        <img src="/src/assets/logo.svg" alt="考试题库系统" style={{ width: '200px' }} />
+      </Box>
       <Dialog 
         open={loginOpen && !user} 
         onClose={() => !isSubmitting && setLoginOpen(false)}
@@ -562,13 +579,13 @@ const ExamTake = () => {
             {exam.title}
           </Typography>
           {exam.description && (
-            <Typography variant="body1" color="text.secondary" paragraph>
-              <MarkdownTypography component="span">
+            <Box sx={{ color: 'text.secondary', my: 2 }}>
+              <MarkdownTypography>
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>
                   {exam.description}
                 </ReactMarkdown>
               </MarkdownTypography>
-            </Typography>
+            </Box>
           )}
 
           {submitted ? (

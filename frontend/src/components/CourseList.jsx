@@ -264,10 +264,11 @@ function CourseList() {
           添加课程
         </Button>
       </Box>
-
-      <Grid container spacing={3} sx={{ width: '100%', m: 0 }}>
+    
+      <Card sx={{ boxShadow: '0 0 2rem 0 rgba(136, 152, 170, .15)', borderRadius: '0.375rem', backgroundColor: 'transparent', border: 'none' }}>
+        <Grid container spacing={2}>
         {courses.map((course) => (
-          <Grid item key={course.id} xs={12} sm={6} lg={4} sx={{ p: 1.5 }}>
+          <Grid item key={course.id} xs={12} sm={6} lg={4}>
             <Card
               sx={{
                 height: '100%',
@@ -348,7 +349,8 @@ function CourseList() {
             </Card>
           </Grid>
         ))}
-      </Grid>
+        </Grid>
+      </Card>
 
       <Menu
         anchorEl={anchorEl}

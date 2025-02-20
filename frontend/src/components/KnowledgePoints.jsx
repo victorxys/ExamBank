@@ -33,6 +33,8 @@ import {
   Edit as EditIcon,
   Delete as DeleteIcon,
   Search as SearchIcon,
+  Person as PersonIcon,
+  Notifications as NotificationsIcon,
 } from '@mui/icons-material';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTheme } from '@mui/material';
@@ -310,6 +312,14 @@ function KnowledgePoints() {
           <Typography variant="body1" color="white" sx={{ opacity: 0.8 }}>
             这里列出了所有的知识点，您可以添加、编辑或删除知识点。
           </Typography>
+        </Box>
+        <Box sx={{ display: 'flex', gap: 2 }}>
+          <IconButton sx={{ color: 'white' }}>
+            <PersonIcon />
+          </IconButton>
+          <IconButton sx={{ color: 'white' }}>
+            <NotificationsIcon />
+          </IconButton>
         </Box>
       </Box>
       <AlertMessage

@@ -8,6 +8,8 @@ import uuid
 from dateutil import parser
 import logging
 from werkzeug.security import generate_password_hash, check_password_hash
+from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
+from datetime import timedelta
 from backend.api.temp_answer import save_temp_answer, get_temp_answers, mark_temp_answers_submitted  # 使用绝对导入
 from backend.db import get_db_connection
 
@@ -18,6 +20,81 @@ app = Flask(__name__)
 CORS(app)
 
 app.config['SECRET_KEY'] = os.environ['SECRET_KEY']  # 设置 SECRET_KEY
+app.config['JWT_SECRET_KEY'] = os.environ['SECRET_KEY']  # JWT密钥
+app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=30)  # Token过期时间
+
+jwt = JWTManager(app)  # 初始化JWT管理器
+
+@app.route('/api/login', methods=['POST'])
+def login():
+    data = request.get_json()
+    if not data or 'username' not in data or 'password' not in data:
+        return jsonify({'error': '请提供用户名和密码'}), 400
+
+    conn = get_db_connection()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    try:
+        cur.execute('SELECT * FROM users WHERE username = %s', (data['username'],))
+        user = cur.fetchone()
+
+        if user and check_password_hash(user['password'], data['password']):
+            access_token = create_access_token(identity=user['id'])
+            return jsonify({
+                'access_token': access_token,
+                'user': {
+                    'id': user['id'],
+                    'username': user['username'],
+                    'role': user['role']
+                }
+            })
+        return jsonify({'error': '用户名或密码错误'}), 401
+    except Exception as e:
+        print('Error in login:', str(e))
+        return jsonify({'error': str(e)}), 500
+    finally:
+        cur.close()
+        conn.close()
+
+@app.route('/api/register', methods=['POST'])
+def register():
+    data = request.get_json()
+    if not data or 'username' not in data or 'password' not in data:
+        return jsonify({'error': '请提供用户名和密码'}), 400
+
+    conn = get_db_connection()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    try:
+        # 检查用户名是否已存在
+        cur.execute('SELECT id FROM users WHERE username = %s', (data['username'],))
+        if cur.fetchone():
+            return jsonify({'error': '用户名已存在'}), 400
+
+        # 创建新用户
+        hashed_password = generate_password_hash(data['password'])
+        cur.execute(
+            'INSERT INTO users (username, password, role) VALUES (%s, %s, %s) RETURNING id, username, role',
+            (data['username'], hashed_password, data.get('role', 'user'))
+        )
+        new_user = cur.fetchone()
+        conn.commit()
+
+        # 生成访问令牌
+        access_token = create_access_token(identity=new_user['id'])
+        return jsonify({
+            'access_token': access_token,
+            'user': {
+                'id': new_user['id'],
+                'username': new_user['username'],
+                'role': new_user['role']
+            }
+        })
+    except Exception as e:
+        conn.rollback()
+        print('Error in register:', str(e))
+        return jsonify({'error': str(e)}), 500
+    finally:
+        cur.close()
+        conn.close()
 
 flask_log = os.environ['FLASK_LOG_FILE'] # 设置flask log地址
 
@@ -1801,6 +1878,8 @@ def login_or_register_user():
     phone_number = data.get('phone_number')
     username = data.get('username', '')
 
+    print("Received data:", data)
+
     if not phone_number:
         return jsonify({'error': '手机号不能为空'}), 400
 
@@ -1810,14 +1889,22 @@ def login_or_register_user():
         # 先查找是否存在该手机号的用户
         cur.execute('SELECT * FROM "user" WHERE phone_number = %s', (phone_number,))
         existing_user = cur.fetchone()
-
+        print("Existing user:", existing_user)
+    
         if existing_user:
             # 如果用户已存在，直接返回用户信息
+            # 生成访问令牌
+            access_token = create_access_token(identity=existing_user['id'])
             return jsonify({
-                'id': existing_user['id'],
-                'username': existing_user['username'],
-                'phone_number': existing_user['phone_number']
+                'access_token': access_token,
+                'user': {
+                    'id': existing_user['id'],
+                    'username': existing_user['username'],
+                    'phone_number': existing_user['phone_number'],
+                    'role': existing_user['role']
+                }
             })
+            
         
         # 如果用户不存在且没有提供用户名，返回404
         if not username:
@@ -1825,16 +1912,21 @@ def login_or_register_user():
             
         # 如果用户不存在且提供了用户名，创建新用户
         cur.execute(
-            'INSERT INTO "user" (username, phone_number) VALUES (%s, %s) RETURNING id, username, phone_number',
+            'INSERT INTO "user" (username, phone_number) VALUES (%s, %s) RETURNING id, username, phone_number, role',
             (username, phone_number)
         )
         new_user = cur.fetchone()
         conn.commit()
-
+        # 生成访问令牌
+        access_token = create_access_token(identity=new_user['id'])
         return jsonify({
-            'id': new_user['id'],
-            'username': new_user['username'],
-            'phone_number': new_user['phone_number']
+            'access_token': access_token,
+                'user': {
+                    'id': new_user['id'],
+                    'username': new_user['username'],
+                    'phone_number': new_user['phone_number'],
+                    'role': new_user['role']
+                }
         })
 
     except psycopg2.Error as e:
@@ -1850,43 +1942,74 @@ def get_exam_records():
     log.debug("开始获取考试记录列表")
     try:
         search = request.args.get('search', '')
-        
+
         query = """
-            SELECT 
-                ep.id as exam_paper_id,
-                ep.title as exam_title,
-                ep.description as exam_description,
+            WITH ExamPaperQuestionCounts AS (
+                SELECT
+                    epq.exam_paper_id,
+                    COUNT(DISTINCT epq.question_id) AS total_questions,
+                    COUNT(DISTINCT CASE WHEN q.question_type = '单选题' THEN epq.question_id END) AS single_choice_total,
+                    COUNT(DISTINCT CASE WHEN q.question_type = '多选题' THEN epq.question_id END) AS multi_choice_total
+                FROM exampaperquestion epq
+                JOIN question q ON epq.question_id = q.id
+                GROUP BY epq.exam_paper_id
+            )
+            SELECT
+                ep.id AS exam_paper_id,
+                ep.title AS exam_title,
+                ep.description AS exam_description,
                 ar.user_id,
-                ar.created_at as exam_time,
-                ROUND(CAST(AVG(ar.score)::float / COUNT(*) * 100 as numeric), 2) as total_score,
-                u.username as user_name,
+                ar.created_at AS exam_time,
+                SUM(ar.score) AS total_score,
+                SUM(CASE WHEN ar.score > 0 THEN 1 ELSE 0 END) AS correct_count,  -- 直接在主查询中计算
+                epqc.total_questions,
+                CASE
+                    WHEN epqc.total_questions = 0 THEN 0.00
+                    ELSE ROUND((CAST(SUM(CASE WHEN ar.score > 0 THEN 1 ELSE 0 END) AS DECIMAL) / epqc.total_questions) * 100, 2)
+                END AS accuracy_rate,
+                u.username AS user_name,
                 u.phone_number,
-                array_agg(DISTINCT tc.course_name) as course_names
+                array_agg(DISTINCT tc.course_name) AS course_names,
+                epqc.single_choice_total,
+                SUM(CASE WHEN q.question_type = '单选题' AND ar.score = 1 THEN 1 ELSE 0 END) AS single_choice_correct,
+                COALESCE(epqc.single_choice_total, 0) - SUM(CASE WHEN q.question_type = '单选题' AND ar.score = 1 THEN 1 ELSE 0 END) AS single_choice_incorrect,
+                epqc.multi_choice_total,
+                SUM(CASE WHEN q.question_type = '多选题' AND ar.score = 2 THEN 1 ELSE 0 END) AS multi_choice_correct,
+                COALESCE(epqc.multi_choice_total, 0) - SUM(CASE WHEN q.question_type = '多选题' AND ar.score = 2 THEN 1 ELSE 0 END) AS multi_choice_incorrect
             FROM answerrecord ar
             JOIN exampaper ep ON ar.exam_paper_id = ep.id
             JOIN "user" u ON ar.user_id = u.id
             LEFT JOIN exampapercourse epc ON ep.id = epc.exam_paper_id
             LEFT JOIN trainingcourse tc ON epc.course_id = tc.id
-            WHERE 
-                CASE 
-                    WHEN %s != '' THEN 
-                        u.username ILIKE '%%' || %s || '%%' OR 
+            JOIN ExamPaperQuestionCounts epqc ON ep.id = epqc.exam_paper_id
+            JOIN question q ON q.id = ar.question_id  -- 移动到这里
+            WHERE
+                CASE
+                    WHEN %s != '' THEN
+                        u.username ILIKE '%%' || %s || '%%' OR
                         u.phone_number ILIKE '%%' || %s || '%%'
                     ELSE TRUE
                 END
-            GROUP BY 
-                ep.id, ep.title, ep.description, 
-                ar.user_id, ar.created_at,
-                u.username, u.phone_number
-            ORDER BY ar.created_at DESC
+            GROUP BY
+                ep.id,
+                ep.title,
+                ep.description,
+                ar.user_id,
+                ar.created_at,  -- 加入到 GROUP BY
+                u.username,
+                u.phone_number,
+                epqc.total_questions,
+                epqc.single_choice_total,
+                epqc.multi_choice_total
+            ORDER BY ar.created_at DESC;
         """
-        
+
         conn = get_db_connection()
         cur = conn.cursor()
         try:
             cur.execute(query, (search, search, search))
             records = cur.fetchall()
-            
+
             result = []
             for record in records:
                 exam_record = {
@@ -1896,20 +2019,28 @@ def get_exam_records():
                     'user_id': record[3],
                     'exam_time': record[4].isoformat() if record[4] else None,
                     'total_score': float(record[5]) if record[5] is not None else 0.0,
-                    'user_name': record[6],
-                    'phone_number': record[7],
-                    'courses': [course for course in record[8] if course is not None] if record[8] else []
+                    'correct_count': record[6],
+                    'total_questions': record[7],
+                    'accuracy_rate': record[8]/100,
+                    'user_name': record[9],
+                    'phone_number': record[10],
+                    'courses': record[11] if record[11] else [],
+                    'single_choice_total': record[12],
+                    'single_choice_correct': record[13],
+                    'single_choice_incorrect': record[14],
+                    'multi_choice_total': record[15],
+                    'multi_choice_correct': record[16],
+                    'multi_choice_incorrect': record[17],
                 }
                 result.append(exam_record)
-                
-            # print("API Response:", result)  # 添加日志输出
+
             return jsonify(result)
         finally:
             cur.close()
             conn.close()
-            
+
     except Exception as e:
-        print(f"Error in get_exam_records: {str(e)}")  # 添加错误日志
+        print(f"Error in get_exam_records: {str(e)}")
         log.debug(f"Error in get_exam_records: {str(e)}")
         return jsonify({'error': str(e)}), 500
 

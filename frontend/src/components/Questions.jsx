@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { API_BASE_URL } from '../config'
 import {
   Box,
@@ -44,11 +44,15 @@ import {
   ArrowBack as ArrowBackIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
+  Person as PersonIcon,
+  Notifications as NotificationsIcon,
 } from '@mui/icons-material'
 
 function Questions() {
   const navigate = useNavigate()
   const theme = useTheme()
+  const location = useLocation()
+  const queryParams = new URLSearchParams(location.search)
   
   const [questions, setQuestions] = useState([])
   const [loading, setLoading] = useState(true)
@@ -61,9 +65,9 @@ function Questions() {
   const [searchType, setSearchType] = useState('question')
   const [courses, setCourses] = useState([])
   const [knowledgePoints, setKnowledgePoints] = useState([])
-  const [selectedCourse, setSelectedCourse] = useState('');
-  const [selectedKnowledgePoint, setSelectedKnowledgePoint] = useState('');
-  const [filteredKnowledgePoints, setFilteredKnowledgePoints] = useState([]);
+  const [selectedCourse, setSelectedCourse] = useState(queryParams.get('course_id') || '')
+  const [selectedKnowledgePoint, setSelectedKnowledgePoint] = useState(queryParams.get('knowledge_point_id') || '')
+  const [filteredKnowledgePoints, setFilteredKnowledgePoints] = useState([])
 
   useEffect(() => {
     const fetchData = async () => {
@@ -360,6 +364,14 @@ function Questions() {
         <Typography variant="body1" color="white" sx={{ opacity: 0.8 }}>
           这里列出了所有可用的题目，您可以添加、编辑或删除题目。
         </Typography>
+      </Box>
+      <Box sx={{ display: 'flex', gap: 2 }}>
+        <IconButton sx={{ color: 'white' }}>
+          <PersonIcon />
+        </IconButton>
+        <IconButton sx={{ color: 'white' }}>
+          <NotificationsIcon />
+        </IconButton>
       </Box>
     </Box>
 

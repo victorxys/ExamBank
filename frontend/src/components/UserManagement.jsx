@@ -25,6 +25,10 @@ import { Edit as EditIcon, Delete as DeleteIcon, Add as AddIcon } from '@mui/ico
 import { MenuItem } from '@mui/material';
 import api from '../api/axios';
 import { useTheme } from '@mui/material';
+import {  
+  Person as PersonIcon,
+  Notifications as NotificationsIcon,
+} from '@mui/icons-material';
 
 const UserManagement = () => {
   const theme = useTheme();
@@ -125,7 +129,7 @@ const UserManagement = () => {
   };
 
   return (
-    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+    <Box sx={{ width: '100%', height: '100%' }}>
       <Box
         sx={{
           background: `linear-gradient(87deg, ${theme.palette.primary.main} 0, ${theme.palette.primary.dark} 100%)`,
@@ -146,9 +150,23 @@ const UserManagement = () => {
             这里列出了所有的用户，您可以添加、编辑或删除用户。此处用户与员工平台关联
           </Typography>
         </Box>
+        <Box sx={{ display: 'flex', gap: 2 }}>
+          <IconButton sx={{ color: 'white' }}>
+            <PersonIcon />
+          </IconButton>
+          <IconButton sx={{ color: 'white' }}>
+            <NotificationsIcon />
+          </IconButton>
+        </Box>
       </Box>
-      <Card>
+
+      <Card sx={{ 
+        boxShadow: '0 0 2rem 0 rgba(136, 152, 170, .15)',
+        backgroundColor: 'white',
+        borderRadius: '0.375rem'
+      }}>
         <CardHeader
+          sx={{ p: 3 }}
           title={
             <Box display="flex" justifyContent="space-between" alignItems="center" gap={2}>
               <Box display="flex" gap={2} flex={1}>
@@ -158,6 +176,17 @@ const UserManagement = () => {
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   fullWidth
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: '0.375rem',
+                      '&:hover fieldset': {
+                        borderColor: theme.palette.primary.main,
+                      },
+                      '&.Mui-focused fieldset': {
+                        borderColor: theme.palette.primary.main,
+                      },
+                    },
+                  }}
                 />
               </Box>
               <Button
@@ -165,37 +194,58 @@ const UserManagement = () => {
                 color="primary"
                 startIcon={<AddIcon />}
                 onClick={() => handleOpen()}
+                sx={{
+                  background: 'linear-gradient(87deg, #5e72e4 0, #825ee4 100%)',
+                  '&:hover': {
+                    background: 'linear-gradient(87deg, #4050e0 0, #6f4ed4 100%)',
+                  },
+                }}
               >
                 添加用户
               </Button>
             </Box>
           }
         />
-        <CardContent>
-          <TableContainer component={Paper}>
+        <CardContent sx={{ p: 3 }}>
+          <TableContainer
+            component={Paper}
+            sx={{
+              boxShadow: 'none',
+              border: '1px solid rgba(0, 0, 0, 0.1)',
+              borderRadius: '0.375rem',
+              overflow: 'hidden'
+            }}
+          >
             <Table>
               <TableHead>
                 <TableRow sx={{ backgroundColor: '#f6f9fc' }}>
-                  <TableCell sx={{ color: '#8898aa', fontWeight: 600 }}>用户名</TableCell>
-                  <TableCell sx={{ color: '#8898aa', fontWeight: 600 }}>手机号</TableCell>
-                  <TableCell sx={{ color: '#8898aa', fontWeight: 600 }}>角色</TableCell>
-                  <TableCell sx={{ color: '#8898aa', fontWeight: 600 }}>邮箱</TableCell>
-                  <TableCell sx={{ color: '#8898aa', fontWeight: 600 }}>状态</TableCell>
-                  <TableCell sx={{ color: '#8898aa', fontWeight: 600 }}>创建时间</TableCell>
-                  <TableCell sx={{ color: '#8898aa', fontWeight: 600 }}>更新时间</TableCell>
-                  <TableCell sx={{ color: '#8898aa', fontWeight: 600 }} align="right">操作</TableCell>
+                  <TableCell sx={{ color: '#8898aa', fontWeight: 600, fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '1px' }}>用户名</TableCell>
+                  <TableCell sx={{ color: '#8898aa', fontWeight: 600, fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '1px' }}>手机号</TableCell>
+                  <TableCell sx={{ color: '#8898aa', fontWeight: 600, fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '1px' }}>角色</TableCell>
+                  <TableCell sx={{ color: '#8898aa', fontWeight: 600, fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '1px' }}>邮箱</TableCell>
+                  <TableCell sx={{ color: '#8898aa', fontWeight: 600, fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '1px' }}>状态</TableCell>
+                  <TableCell sx={{ color: '#8898aa', fontWeight: 600, fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '1px' }}>创建时间</TableCell>
+                  <TableCell sx={{ color: '#8898aa', fontWeight: 600, fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '1px' }}>更新时间</TableCell>
+                  <TableCell sx={{ color: '#8898aa', fontWeight: 600, fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '1px' }} align="right">操作</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {users.map((user) => (
-                  <TableRow key={user.id}>
-                    <TableCell>{user.username}</TableCell>
-                    <TableCell>{user.phone_number}</TableCell>
-                    <TableCell>{user.role}</TableCell>
-                    <TableCell>{user.email || '-'}</TableCell>
-                    <TableCell>{user.status}</TableCell>
-                    <TableCell>{new Date(user.created_at).toLocaleString()}</TableCell>
-                    <TableCell>{new Date(user.updated_at).toLocaleString()}</TableCell>
+                  <TableRow 
+                    key={user.id}
+                    sx={{
+                      '&:hover': {
+                        backgroundColor: '#f6f9fc'
+                      }
+                    }}
+                  >
+                    <TableCell sx={{ color: '#525f7f' }}>{user.username}</TableCell>
+                    <TableCell sx={{ color: '#525f7f' }}>{user.phone_number}</TableCell>
+                    <TableCell sx={{ color: '#525f7f' }}>{user.role}</TableCell>
+                    <TableCell sx={{ color: '#525f7f' }}>{user.email || '-'}</TableCell>
+                    <TableCell sx={{ color: '#525f7f' }}>{user.status}</TableCell>
+                    <TableCell sx={{ color: '#525f7f' }}>{new Date(user.created_at).toLocaleString()}</TableCell>
+                    <TableCell sx={{ color: '#525f7f' }}>{new Date(user.updated_at).toLocaleString()}</TableCell>
                     <TableCell align="right">
                       <IconButton
                         color="primary"
@@ -220,7 +270,15 @@ const UserManagement = () => {
         </CardContent>
       </Card>
 
-      <Dialog open={open} onClose={handleClose}>
+      <Dialog 
+        open={open} 
+        onClose={handleClose}
+        PaperProps={{
+          sx: {
+            borderRadius: '0.375rem',
+          }
+        }}
+      >
         <DialogTitle>{editUser ? '编辑用户' : '添加用户'}</DialogTitle>
         <DialogContent>
           <TextField
@@ -282,12 +340,22 @@ const UserManagement = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={handleClose}>取消</Button>
-          <Button onClick={handleSubmit} variant="contained" color="primary">
+          <Button 
+            onClick={handleSubmit} 
+            variant="contained" 
+            color="primary"
+            sx={{
+              background: 'linear-gradient(87deg, #5e72e4 0, #825ee4 100%)',
+              '&:hover': {
+                background: 'linear-gradient(87deg, #4050e0 0, #6f4ed4 100%)',
+              },
+            }}
+          >
             保存
           </Button>
         </DialogActions>
       </Dialog>
-    </Container>
+    </Box>
   );
 };
 

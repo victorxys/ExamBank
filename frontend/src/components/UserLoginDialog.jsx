@@ -9,6 +9,7 @@ import {
   Box,
   Alert
 } from '@mui/material'
+import { API_BASE_URL } from '../config'
 
 function UserLoginDialog({ open, onClose, onLogin }) {
   const [username, setUsername] = useState('')
@@ -38,7 +39,8 @@ function UserLoginDialog({ open, onClose, onLogin }) {
         body: JSON.stringify({
           username,
           phone_number: phoneNumber
-        })
+        }),
+        credentials: 'include' // 允许发送和接收cookie
       })
 
       if (!response.ok) {
@@ -46,7 +48,10 @@ function UserLoginDialog({ open, onClose, onLogin }) {
         throw new Error(data.error || '登录失败')
       }
 
-      const user = await response.json()
+      const { user, token } = await response.json()
+      
+      // 将JWT令牌存储在localStorage中
+      localStorage.setItem('jwt_token', token)
       setAlert({
         show: true,
         message: '登录成功',

@@ -21,6 +21,7 @@ import {
   AssignmentTurnedIn as AssignmentTurnedInIcon,
   People as PeopleIcon,
 } from '@mui/icons-material'
+import logo from '../assets/logo.svg'
 
 // Import Argon Dashboard styles
 // 使用CDN方式引入Argon Dashboard样式
@@ -83,11 +84,10 @@ function Sidebar() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
+          flexDirection: 'column',
         }}
       >
-        <Typography variant="h6" component="div" className="text-primary">
-          考试题库系统
-        </Typography>
+        <img src={logo} alt="萌姨萌嫂考试苑" style={{ width: '80%', marginBottom: '1rem' }} />
       </Box>
       <Divider />
       <List className="navbar-nav">

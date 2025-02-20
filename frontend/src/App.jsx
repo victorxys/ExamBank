@@ -1,5 +1,5 @@
 import React from 'react'
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { ThemeProvider, createTheme } from '@mui/material/styles'
 import { Box, CssBaseline } from '@mui/material'
 import Questions from './components/Questions'
@@ -184,6 +184,42 @@ const theme = createTheme({
 })
 
 function App() {
+  const location = useLocation();
+  const isExamRoute = location.pathname.includes('/exams/') && location.pathname.includes('/take');
+
+  if (isExamRoute) {
+    return (
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <Box
+          sx={{
+            display: 'flex',
+            minHeight: '100vh',
+            width: '100%',
+            backgroundColor: 'background.default',
+          }}
+        >
+          <Box
+            component="main"
+            sx={{
+              flexGrow: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              minHeight: '100vh',
+              width: '100%',
+            }}
+          >
+            <ErrorBoundary>
+              <Routes>
+                <Route path="/exams/:examId/take" element={<ExamTake />} />
+              </Routes>
+            </ErrorBoundary>
+          </Box>
+        </Box>
+      </ThemeProvider>
+    );
+  }
+
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
@@ -205,9 +241,9 @@ function App() {
             sx={{
               flex: 1,
               p: { xs: 2, sm: 3 },
-              mt: '64px',
+              mt: 0,
               width: '100%',
-              height: 'calc(100vh - 64px)',
+              height: '100vh',
               overflow: 'auto',
               maxWidth: '100%'
             }}
@@ -217,7 +253,6 @@ function App() {
                 <Route path="/" element={<Navigate to="/exams" />} />
                 <Route path="/exams" element={<ExamList />} />
                 <Route path="/exams/:examId" element={<ExamDetail />} />
-                <Route path="/exams/:examId/take" element={<ExamTake />} />
                 <Route path="/knowledge-points" element={<KnowledgePoints />} />
                 <Route path="/courses" element={<CourseList />} />
                 <Route path="/courses/:courseId/knowledge_points" element={<KnowledgePoints />} />
@@ -232,7 +267,7 @@ function App() {
         </Box>
       </Box>
     </ThemeProvider>
-  )
+  );
 }
 
 export default App

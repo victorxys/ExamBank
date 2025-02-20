@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
+import { useTheme } from '@mui/material/styles'
 import { API_BASE_URL } from '../config';
 import {
   Box,
@@ -31,14 +32,24 @@ import {
   TableRow,
   TableContainer,
   TableHead,
-  IconButton
+  IconButton,
+  Menu
 } from '@mui/material'
-import { Add as AddIcon } from '@mui/icons-material'
-import DeleteIcon from '@mui/icons-material/Delete';
+import { 
+  Add as AddIcon,
+  Delete as DeleteIcon,
+  School as SchoolIcon,
+  MoreVert as MoreVertIcon,
+  LibraryBooks as LibraryBooksIcon,
+  QuestionAnswer as QuestionAnswerIcon,
+  Visibility as VisibilityIcon,
+  Share as ShareIcon
+} from '@mui/icons-material'
 import AlertMessage from './AlertMessage';
 
 function ExamList() {
   const navigate = useNavigate()
+  const theme = useTheme()
   const [exams, setExams] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -56,6 +67,8 @@ function ExamList() {
   const [examRecords, setExamRecords] = useState([])
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [examToDelete, setExamToDelete] = useState(null);
+  const [anchorEl, setAnchorEl] = useState(null);
+  const [selectedExam, setSelectedExam] = useState(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -421,7 +434,7 @@ function ExamList() {
   }
 
   return (
-    <Box sx={{ width: '100%', height: '100%', p: 3 }}>
+    <Box sx={{ width: '100%', height: '100%' }}>
       {alert.show && (
         <AlertMessage
           open={alert.show}
@@ -430,100 +443,181 @@ function ExamList() {
           onClose={() => setAlert({ ...alert, show: false })}
         />
       )}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
-        <Typography variant="h4">
-          考卷管理
-        </Typography>
+      <Box
+        sx={{
+          background: `linear-gradient(87deg, ${theme.palette.primary.main} 0, ${theme.palette.primary.dark} 100%)`,
+          borderRadius: '0.375rem',
+          p: 3,
+          mb: 3,
+          color: 'white',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+        }}
+      >
+        <Box>
+          <Typography variant="h1" component="h1" color="white" gutterBottom>
+            考卷管理
+          </Typography>
+          <Typography variant="body1" color="white" sx={{ opacity: 0.8 }}>
+            这里列出了所有可用的考卷，您可以添加、编辑或删除考卷。
+          </Typography>
+        </Box>
         <Button
           variant="contained"
+          color="primary"
           startIcon={<AddIcon />}
           onClick={() => setNewExamDialogOpen(true)}
+          sx={{
+            background: 'linear-gradient(87deg, #5e72e4 0, #825ee4 100%)',
+            '&:hover': {
+              background: 'linear-gradient(87deg, #4050e0 0, #6f4ed4 100%)',
+            },
+          }}
         >
           新建考卷
         </Button>
       </Box>
 
-      <Grid container spacing={2}>
-        {exams.map((exam) => {
-          // 确保有一个有效的唯一标识符
-          const examKey = exam.id 
-            ? `exam-${exam.id}-${Date.now()}`
-            : `exam-${Math.random().toString(36).substr(2, 9)}`;
-            
-          return (
-            <Grid item xs={12} sm={6} md={4} key={examKey}>
-              <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-                <CardContent sx={{ flexGrow: 1 }}>
-                  <Typography gutterBottom variant="h5" component="div">
-                    {exam.title}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {exam.description || '无描述'}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                    课程：{exam.course_names?.join('、') || '无课程'}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    单选题：{exam.single_count || 0}题
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    多选题：{exam.multiple_count || 0}题
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    创建时间：{new Date(exam.created_at).toLocaleString()}
-                  </Typography>
-                </CardContent>
-                <CardActions>
-                  {/* <Button
-                    variant="contained"
-                    color="primary"
-                    component={Link}
-                    to={`/exams/${exam.id}/take`}
-                    sx={{ mr: 1 }}
-                  >
-                    开始考试
-                  </Button> */}
-                  <Button size="small" onClick={() => handleViewDetails(exam.id, exam.created_at)}>
-                    查看详情
-                  </Button>
-                  <Button size="small" onClick={() => handlePreview(exam.id)}>
-                    预览
-                  </Button>
-                  <Button size="small" onClick={() => handleShare(exam.id)}>
-                    分享
-                  </Button>
-                  <Button 
-                    size="small" 
-                    color="error"
-                    onClick={() => handleDeleteClick(exam)}
-                  >
-                    删除
-                  </Button>
-                </CardActions>
-              </Card>
-            </Grid>
-          );
-        })}
-      </Grid>
+      <Card sx={{ boxShadow: '0 0 2rem 0 rgba(136, 152, 170, .15)', borderRadius: '0.375rem', backgroundColor: 'transparent', border: 'none' }}>
+        <Grid container spacing={2}>
+          {exams.map((exam) => {
+            const examKey = exam.id 
+              ? `exam-${exam.id}-${Date.now()}`
+              : `exam-${Math.random().toString(36).substr(2, 9)}`;
+              
+            return (
+              <Grid item xs={12} sm={6} lg={4} key={examKey}>
+                <Card
+                  sx={{
+                    height: '100%',
+                    cursor: 'pointer',
+                    transition: 'all .15s ease',
+                    background: `linear-gradient(87deg, ${theme.palette.grey[100]} 0, ${theme.palette.grey[50]} 100%)`,
+                    boxShadow: '0 0 2rem 0 rgba(136,168,170,.15)',
+                    '&:hover': {
+                      transform: 'translateY(-5px)',
+                      boxShadow: '0 7px 14px rgba(50,50,93,.1), 0 3px 6px rgba(0,0,0,.08)',
+                    },
+                  }}
+                  onClick={() => handleViewDetails(exam.id, exam.created_at)}
+                >
+                  <CardContent>
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        mb: 2,
+                        justifyContent: 'space-between',
+                      }}
+                    >
+                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        <IconButton
+                          sx={{
+                            backgroundColor: theme.palette.primary.main,
+                            color: 'white',
+                            '&:hover': {
+                              backgroundColor: theme.palette.primary.dark,
+                            },
+                            mr: 2,
+                          }}
+                        >
+                          <SchoolIcon />
+                        </IconButton>
+                        <Typography variant="h2">{exam.title}</Typography>
+                      </Box>
+                      <IconButton
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setAnchorEl(e.currentTarget);
+                          setSelectedExam(exam);
+                        }}
+                        size="small"
+                        color="primary"
+                      >
+                        <MoreVertIcon />
+                      </IconButton>
+                    </Box>
+
+                    <Typography
+                      variant="body1"
+                      color="text.secondary"
+                      sx={{ mb: 2, minHeight: '3em' }}
+                    >
+                      {exam.description || '暂无描述'}
+                    </Typography>
+
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        gap: 1,
+                        flexWrap: 'wrap',
+                        alignItems: 'center',
+                      }}
+                    >
+                      <Chip
+                        icon={<LibraryBooksIcon />}
+                        label={`单选题：${exam.single_count || 0}题`}
+                        color="primary"
+                        variant="outlined"
+                      />
+                      <Chip
+                        icon={<QuestionAnswerIcon />}
+                        label={`多选题：${exam.multiple_count || 0}题`}
+                        color="primary"
+                        variant="outlined"
+                      />
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Grid>
+            );
+          })}
+        </Grid>
+      </Card>
+
+      <Menu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={() => setAnchorEl(null)}
+      >
+        <MenuItem onClick={() => {
+          setAnchorEl(null);
+          handlePreview(selectedExam.id);
+        }}>
+          <VisibilityIcon sx={{ mr: 1 }} />
+          预览
+        </MenuItem>
+        <MenuItem onClick={() => {
+          setAnchorEl(null);
+          handleShare(selectedExam.id);
+        }}>
+          <ShareIcon sx={{ mr: 1 }} />
+          分享
+        </MenuItem>
+        <MenuItem 
+          onClick={() => {
+            setAnchorEl(null);
+            handleDeleteClick(selectedExam);
+          }} 
+          sx={{ color: 'error.main' }}
+        >
+          <DeleteIcon sx={{ mr: 1 }} />
+          删除
+        </MenuItem>
+      </Menu>
 
       {/* 删除确认对话框 */}
-      <Dialog
-        open={deleteDialogOpen}
-        onClose={handleDeleteCancel}
-      >
-        <DialogTitle>确认删除</DialogTitle>
+      <Dialog open={deleteDialogOpen} onClose={handleDeleteCancel}>
+        <DialogTitle>删除考卷</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            确定要删除试卷"{examToDelete?.title}"吗？此操作不可恢复。
+            确定要删除考卷 {examToDelete?.title} 吗？
           </DialogContentText>
         </DialogContent>
         <DialogActions>
           <Button onClick={handleDeleteCancel}>取消</Button>
-          <Button 
-            onClick={handleDeleteConfirm} 
-            color="error" 
-            variant="contained"
-          >
+          <Button onClick={handleDeleteConfirm} variant="contained" color="error">
             删除
           </Button>
         </DialogActions>
