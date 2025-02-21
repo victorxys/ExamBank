@@ -692,7 +692,7 @@ const ExamTake = () => {
               {exam.questions.filter(q => q.question_type === '单选题').length > 0 && (
                 <>
                   <Typography variant="h5" sx={{ mt: 4, mb: 3, fontWeight: 'bold' }}>
-                    一、单选题
+                    一、单选题 {user.sub}
                   </Typography>
                   {exam.questions
                     .filter(q => q.question_type === '单选题')
