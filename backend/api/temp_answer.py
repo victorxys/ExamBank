@@ -20,8 +20,12 @@ def save_temp_answer(exam_id, user_id, question_id, selected_options):
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=RealDictCursor)
         
-        # 直接使用选项ID，不进行转换
-        selected_options_literal = '{' + ','.join(selected_options) + '}'
+        # 确保selected_options是列表
+        if not isinstance(selected_options, list):
+            selected_options = [selected_options]
+        
+        # 将选项ID转换为PostgreSQL数组格式
+        selected_options_literal = '{' + ','.join(str(uuid.UUID(opt)) for opt in selected_options) + '}'
         print(f"选项ID数组：{selected_options_literal}")
         
         # 先删除可能存在的记录
@@ -29,7 +33,8 @@ def save_temp_answer(exam_id, user_id, question_id, selected_options):
             DELETE FROM temp_answer_record
             WHERE exam_paper_id = %s
             AND question_id = %s
-            AND user_id = %s;
+            AND user_id = %s
+            AND is_submitted = false;
         """, (exam_uuid, question_uuid, user_uuid))
         
         # 插入新记录
@@ -40,8 +45,9 @@ def save_temp_answer(exam_id, user_id, question_id, selected_options):
                 selected_option_ids,
                 user_id,
                 created_at,
-                updated_at
-            ) VALUES (%s, %s, %s, %s, NOW(), NOW())
+                updated_at,
+                is_submitted
+            ) VALUES (%s, %s, %s, %s, NOW(), NOW(), false)
             RETURNING id;
         """, (exam_uuid, question_uuid, selected_options_literal, user_uuid))
         
@@ -78,9 +84,9 @@ def get_temp_answers(exam_id, user_id):
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=RealDictCursor)
         
-        # 查询临时答案
+        # 查询临时答案，使用DISTINCT ON确保每个question_id只返回最新的一条记录
         cur.execute("""
-            SELECT
+            SELECT DISTINCT ON (question_id)
                 question_id,
                 selected_option_ids,
                 created_at,
@@ -89,7 +95,7 @@ def get_temp_answers(exam_id, user_id):
             WHERE exam_paper_id = %s
             AND user_id = %s
             AND is_submitted = false
-            ORDER BY created_at;
+            ORDER BY question_id, updated_at DESC;
         """, (exam_uuid, user_uuid))
         
         temp_answers = cur.fetchall()

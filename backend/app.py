@@ -1759,28 +1759,32 @@ def submit_exam_answer(exam_id):
                 is_correct = len(selected_options) == 1 and selected_options[0] in question_info['correct_option_ids']
                 score = 1 if is_correct else 0
             elif question_info['question_type'] == '多选题':
-                # 确保 correct_option_ids 是列表而不是字符串
+                # 确保 correct_option_ids 是列表格式
                 if isinstance(question_info['correct_option_ids'], str):
                     # 如果是字符串，去掉首尾的 {} 并分割
                     correct_options = question_info['correct_option_ids'].strip('{}').split(',')
-                    # 过滤掉空字符串
-                    correct_options = [opt for opt in correct_options if opt]
+                    # 过滤掉空字符串并转换为UUID字符串
+                    correct_options = [str(uuid.UUID(opt.strip())) for opt in correct_options if opt.strip()]
                 else:
-                    correct_options = question_info['correct_option_ids']
+                    correct_options = [str(uuid.UUID(opt)) for opt in question_info['correct_option_ids']]
+
+                # 确保 selected_options 也是UUID字符串格式
+                selected_options = [str(uuid.UUID(opt)) for opt in selected_options]
 
                 selected_set = set(selected_options)
                 correct_set = set(correct_options)
                 
-                # print("选中的选项：", selected_set)
-                # print("正确的选项：", correct_set)
-                
                 is_correct = selected_set == correct_set
-                # print("是否正确：", is_correct)
                 score = 2 if is_correct else 0
 
             # Record answer
             try:
                 # Convert selected_options to a PostgreSQL array literal
+                # 确保 selected_options 是列表格式
+                if not isinstance(selected_options, list):
+                    selected_options = [selected_options]
+                # 确保所有选项都是有效的UUID字符串
+                selected_options = [str(uuid.UUID(opt)) for opt in selected_options]
                 selected_options_literal = '{' + ','.join(selected_options) + '}'
                 cur.execute('''
                     INSERT INTO answerrecord (
@@ -1878,7 +1882,7 @@ def login_or_register_user():
     phone_number = data.get('phone_number')
     username = data.get('username', '')
 
-    print("Received data:", data)
+    print("Received data====>:", data)
 
     if not phone_number:
         return jsonify({'error': '手机号不能为空'}), 400
@@ -1909,11 +1913,12 @@ def login_or_register_user():
         # 如果用户不存在且没有提供用户名，返回404
         if not username:
             return jsonify({'error': 'user_not_found'}), 404
-            
+        print("到这里了")
         # 如果用户不存在且提供了用户名，创建新用户
+        password = "123"
         cur.execute(
-            'INSERT INTO "user" (username, phone_number) VALUES (%s, %s) RETURNING id, username, phone_number, role',
-            (username, phone_number)
+            'INSERT INTO "user" (username, phone_number,password) VALUES (%s, %s, %s) RETURNING id, username, phone_number, role',
+            (username, phone_number,password)
         )
         new_user = cur.fetchone()
         conn.commit()

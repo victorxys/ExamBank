@@ -7,7 +7,7 @@ const REMEMBER_ME_KEY = 'remember_me';
 // Cookie配置，设置安全属性
 const cookieOptions = {
   expires: 30, // 30天过期
-  secure: process.env.NODE_ENV === 'production', // 在生产环境中只通过HTTPS发送
+//   secure: process.env.NODE_ENV === 'production', // 在生产环境中只通过HTTPS发送
   sameSite: 'Lax' // 防止CSRF攻击
 };
 

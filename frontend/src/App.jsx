@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { ThemeProvider, createTheme } from '@mui/material/styles'
 import { Box, CssBaseline } from '@mui/material'
@@ -15,8 +15,11 @@ import ExamRecords from './components/ExamRecords'
 import ExamRecordDetail from './components/ExamRecordDetail'
 import ExamTake from './components/ExamTake'
 import UserManagement from './components/UserManagement'
+import UserLoginDialog from './components/UserLoginDialog'
+import { hasToken } from './api/auth-utils'
 import "@fortawesome/fontawesome-free/css/all.min.css";
 import "./styles/argon-theme.css";
+import PrivateRoute from './components/PrivateRoute';
 
 const theme = createTheme({
   palette: {
@@ -186,6 +189,23 @@ const theme = createTheme({
 function App() {
   const location = useLocation();
   const isExamRoute = location.pathname.includes('/exams/') && location.pathname.includes('/take');
+  const [loginOpen, setLoginOpen] = useState(false);
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    // 检查是否有有效的token
+    const userInfo = hasToken();
+    if (!userInfo) {
+      setLoginOpen(true);
+    } else {
+      setUser(userInfo);
+    }
+  }, []);
+
+  const handleLogin = (userData) => {
+    setUser(userData);
+    setLoginOpen(false);
+  };
 
   if (isExamRoute) {
     return (
@@ -216,6 +236,11 @@ function App() {
             </ErrorBoundary>
           </Box>
         </Box>
+        <UserLoginDialog
+          open={loginOpen}
+          onClose={() => setLoginOpen(false)}
+          onLogin={handleLogin}
+        />
       </ThemeProvider>
     );
   }
@@ -251,21 +276,26 @@ function App() {
             <ErrorBoundary>
               <Routes>
                 <Route path="/" element={<Navigate to="/exams" />} />
-                <Route path="/exams" element={<ExamList />} />
-                <Route path="/exams/:examId" element={<ExamDetail />} />
-                <Route path="/knowledge-points" element={<KnowledgePoints />} />
-                <Route path="/courses" element={<CourseList />} />
-                <Route path="/courses/:courseId/knowledge_points" element={<KnowledgePoints />} />
-                <Route path="/courses/:courseId/knowledge_points/:knowledgePointId/questions" element={<Questions />} />
-                <Route path="/questions" element={<Questions />} />
-                <Route path="/exam-records" element={<ExamRecords />} />
-                <Route path="/exam-records/:examId/:userId" element={<ExamRecordDetail />} />
-                <Route path="/users" element={<UserManagement />} />
+                <Route path="/exams" element={<PrivateRoute element={<ExamList />} />} />
+                <Route path="/exams/:examId" element={<PrivateRoute element={<ExamDetail />} />} />
+                <Route path="/knowledge-points" element={<PrivateRoute element={<KnowledgePoints />} />} />
+                <Route path="/courses" element={<PrivateRoute element={<CourseList />} />} />
+                <Route path="/courses/:courseId/knowledge_points" element={<PrivateRoute element={<KnowledgePoints />} />} />
+                <Route path="/courses/:courseId/knowledge_points/:knowledgePointId/questions" element={<PrivateRoute element={<Questions />} />} />
+                <Route path="/questions" element={<PrivateRoute element={<Questions />} />} />
+                <Route path="/exam-records" element={<PrivateRoute element={<ExamRecords />} />} />
+                <Route path="/exam-records/:examId/:userId" element={<PrivateRoute element={<ExamRecordDetail />} />} />
+                <Route path="/users" element={<PrivateRoute element={<UserManagement />} />} />
               </Routes>
             </ErrorBoundary>
           </Box>
         </Box>
       </Box>
+      <UserLoginDialog
+        open={loginOpen}
+        onClose={() => setLoginOpen(false)}
+        onLogin={handleLogin}
+      />
     </ThemeProvider>
   );
 }

@@ -26,7 +26,12 @@ export const examApi = {
   getExamRecordDetail: (examId, userId, examTime) => 
     api.get(`/exam-records/${examId}/${userId}`, {
       params: { exam_time: examTime }
-    })
+    }),
+  
+  // 获取临时答案
+  getTempAnswers: (examId, userId) => 
+    api.get(`/exams/${examId}/temp-answers/${userId}`),
+
 };
 
 export const courseApi = {

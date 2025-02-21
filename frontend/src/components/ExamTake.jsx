@@ -8,7 +8,6 @@ import {
   Paper,
   Box,
   Button,
-  TextField,
   Radio,
   RadioGroup,
   FormControlLabel,
@@ -25,7 +24,7 @@ import {
   Chip
 } from '@mui/material';
 import { API_BASE_URL } from '../config';
-import { hasToken, saveToken } from '../api/auth-utils';
+import { hasToken } from '../api/auth-utils';
 
 // 自定义 Markdown 样式组件
 const MarkdownTypography = ({ children, ...props }) => {
@@ -61,14 +60,8 @@ const ExamTake = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const tokenData = hasToken();
-  const [loginOpen, setLoginOpen] = useState(!tokenData);
-  const [user, setUser] = useState(tokenData);
-  const [loginForm, setLoginForm] = useState({
-    username: '',
-    phone_number: '',
-  });
-  const [loginError, setLoginError] = useState(null);
-  const [checkingPhone, setCheckingPhone] = useState(false);
+  const [user] = useState(tokenData);
+  const [preview, setPreview] = useState(false);
   const [incompleteQuestions, setIncompleteQuestions] = useState([]);
   const [showIncompleteDialog, setShowIncompleteDialog] = useState(false);
 
@@ -80,195 +73,115 @@ const ExamTake = () => {
     }
     
     const preview = new URLSearchParams(window.location.search).get('preview') === 'true';
-    if (preview) {
-      setLoginOpen(false); // 预览模式不需要登录
-    }
-    
+    setPreview(preview);
+    const fetchExam = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/exams/${examId}/take`);
+        if (!response.ok) {
+          throw new Error('获取试卷失败');
+        }
+        const data = await response.json();
+        setExam({
+          ...data.exam,
+          questions: [
+            ...(data.questions.single || []).map(q => ({
+              id: q.id,
+              question_text: q.question_text,
+              question_type: '单选题',
+              options: q.options.map(opt => ({
+                id: opt.id,
+                option_text: opt.content
+              }))
+            })),
+            ...(data.questions.multiple || []).map(q => ({
+              id: q.id,
+              question_text: q.question_text,
+              question_type: '多选题',
+              options: q.options.map(opt => ({
+                id: opt.id,
+                option_text: opt.content
+              }))
+            }))
+          ]
+        });
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
     fetchExam();
   }, [examId]);
 
-  const fetchExam = async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/exams/${examId}/take`);
-      if (!response.ok) {
-        throw new Error('获取试卷失败');
+  // 新增一个useEffect来处理临时答案的加载
+  useEffect(() => {
+    const loadTempAnswersIfNeeded = async () => {
+      if (exam && tokenData && tokenData.sub && !preview) {
+        console.log('exam已加载，开始加载临时答案');
+        await loadTempAnswers(tokenData.sub);
       }
-      const data = await response.json();
-      console.log('获取到的试卷数据：', data);  // 添加日志
-      setExam({
-        ...data.exam,
-        questions: [
-          ...(data.questions.single || []).map(q => ({
-            id: q.id,
-            question_text: q.question_text,
-            question_type: '单选题',
-            options: q.options.map(opt => ({
-              id: opt.id,
-              option_text: opt.content
-            }))
-          })),
-          ...(data.questions.multiple || []).map(q => ({
-            id: q.id,
-            question_text: q.question_text,
-            question_type: '多选题',
-            options: q.options.map(opt => ({
-              id: opt.id,
-              option_text: opt.content
-            }))
-          }))
-        ]
-      });
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
 
-  // 检查手机号是否存在
-  const checkPhoneNumber = async (phone) => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/users/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          phone_number: phone,
-          username: ''  // 不提供用户名，用于检查手机号是否存在
-        }),
-      });
+    loadTempAnswersIfNeeded();
+  }, [exam]); // 当exam更新时触发
 
-      if (response.status === 404) {
-        // 用户不存在，清空用户名字段
-        setLoginForm(prev => ({
-          ...prev,
-          username: ''
-        }));
-        return;
-      }
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || '检查手机号失败');
-      }
-
-      const loginData = await response.json();
-      // 如果找到了用户，自动填充用户名
-      if (loginData && loginData.user.username) {
-        setLoginForm(prev => ({
-          ...prev,
-          username: loginData.user.username
-        }));
-      }
-      if (loginData && loginData.access_token) {
-        console.log('用户登录成功，JWT令牌：', loginData.access_token);
-        // 保存JWT令牌到Cookie中，设置30天过期
-        saveToken(loginData.access_token, null, true);
-      }
-    } catch (err) {
-      console.error('检查手机号时出错：', err);
-      setLoginError(err.message);
-    }
-  };
-
-  // 处理手机号输入
-  const handlePhoneChange = async (e) => {
-    const phone = e.target.value;
-    setLoginForm(prev => ({
-      ...prev,
-      phone_number: phone
-    }));
-
-    if (phone.length >= 3) {  // 这里的长度可以根据实际需求调整
-      setCheckingPhone(true);
-      await checkPhoneNumber(phone);
-      setCheckingPhone(false);
-    } else {
-      // 当手机号长度不足时，清空用户名
-      setLoginForm(prev => ({
-        ...prev,
-        username: ''
-      }));
-    }
-  };
-
-  const handleLogin = async () => {
-    if (!loginForm.phone_number) {
-      setLoginError('请输入手机号');
+  const loadTempAnswers = async (userId) => {
+    if (!exam) {
+      console.log('exam 对象尚未加载，暂不处理临时答案');
       return;
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/users/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          username: loginForm.username || '考生',
-          phone_number: loginForm.phone_number,
-        }),
-      });
+      const response = await fetch(`${API_BASE_URL}/exams/${examId}/temp-answers/${userId}`);
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || '登录失败');
+        throw new Error('加载临时答案失败');
       }
+      const data = await response.json();
+      if (data.success && data.temp_answers) {
+        const tempAnswers = {};
+        console.log('临时答案数据：', data.temp_answers);
+        data.temp_answers.forEach(answer => {
+          // 获取题目类型
+          const question = exam.questions.find(q => q.id === answer.question_id);
+          if (!question) return;
+          
+          console.log('题目类型：', answer);
+          // 处理PostgreSQL数组格式：去掉花括号并分割，同时去掉空格
+          const optionIds = answer.selected_option_ids
+            .replace(/[{}]/g, '')
+            .split(',')
+            .map(id => id.trim())
+            .filter(id => id);
 
-      const user = await response.json();
-      setUser(user);
-      setLoginOpen(false);
-      setLoginError(null);
-
-      // 加载临时答案
-      try {
-        const tempAnswersResponse = await fetch(`${API_BASE_URL}/exams/${examId}/temp-answers/${user.user.id}`);
-        if (tempAnswersResponse.ok) {
-          const tempAnswersData = await tempAnswersResponse.json();
-          if (tempAnswersData.success && tempAnswersData.temp_answers) {
-            // 将临时答案转换为answers状态格式
-            const tempAnswers = {};
-            tempAnswersData.temp_answers.forEach(answer => {
-              // 获取问题类型
-              const question = exam.questions.find(q => q.id === answer.question_id);
-              if (question) {
-                // 解析PostgreSQL数组格式字符串
-                const optionIds = answer.selected_option_ids
-                  .replace(/[{}]/g, '') // 移除花括号
-                  .split(',') // 按逗号分割
-                  .filter(id => id.trim()); // 过滤空字符串
-
-                if (question.question_type === '单选题') {
-                  tempAnswers[answer.question_id] = {
-                    question_type: '单选题',
-                    selected: optionIds[0]
-                  };
-                } else {
-                  // 多选题，将选项数组转换为对象格式
-                  const selectedOptions = {};
-                  optionIds.forEach(optionId => {
-                    selectedOptions[optionId] = true;
-                  });
-                  tempAnswers[answer.question_id] = {
-                    question_type: '多选题',
-                    selected: selectedOptions
-                  };
-                }
-              }
+          if (question.question_type === '多选题') {
+            // 多选题：将选项ID数组转换为对象格式
+            const selectedOptions = {};
+            optionIds.forEach(optionId => {
+              selectedOptions[optionId] = true;
             });
-            setAnswers(tempAnswers);
-            console.log('已加载临时答案：', tempAnswers);
+            tempAnswers[answer.question_id] = {
+              question_type: '多选题',
+              selected: selectedOptions
+            };
+          } else {
+            // 单选题：使用第一个选项ID
+            tempAnswers[answer.question_id] = {
+              question_type: '单选题',
+              selected: optionIds[0]
+            };
           }
-        }
-      } catch (err) {
-        console.error('加载临时答案失败：', err);
+        });
+        console.log('处理后的临时答案：', tempAnswers);
+        setAnswers(tempAnswers);
       }
-    } catch (err) {
-      console.error('登录时出错：', err);
-      setLoginError(err.message);
+    } catch (error) {
+      console.error('加载临时答案失败:', error);
     }
   };
+
+  
 
   const handleAnswerChange = (questionId, optionId, type) => {
     console.log('答案变更：', { questionId, optionId, type });
@@ -284,9 +197,13 @@ const ExamTake = () => {
             }
           }
         };
-        console.log('更新后的答案状态：', newAnswers);
-        // 触发自动保存
-        saveAnswerToServer(questionId, newAnswers[questionId]);
+        console.log('用户信息：', user);
+        console.log('更新后的答案状态11：', newAnswers);
+        // 只有在用户已登录时才保存答案
+        
+        if (user && user.sub) {
+          saveAnswerToServer(questionId, newAnswers[questionId]);
+        }
         return newAnswers;
       });
     } else {
@@ -298,18 +215,20 @@ const ExamTake = () => {
             selected: optionId
           }
         };
+        
         console.log('更新后的答案状态：', newAnswers);
-        // 触发自动保存
-        saveAnswerToServer(questionId, newAnswers[questionId]);
+        // 只有在用户已登录时才保存答案
+        if (user && user.sub) {
+          saveAnswerToServer(questionId, newAnswers[questionId]);
+        }
         return newAnswers;
       });
     }
   };
 
-  // 添加自动保存函数
   const saveAnswerToServer = async (questionId, answer) => {
-    if (!user) {
-      console.log('用户未登录，不执行自动保存');
+    if (!user || !user.sub) {
+      console.log('用户未登录或用户信息不完整，不执行自动保存');
       return;
     }
 
@@ -323,7 +242,7 @@ const ExamTake = () => {
       console.log('准备发送自动保存请求：', {
         examId,
         questionId,
-        userId: user.id,
+        userId: user.sub,
         selected_options
       });
 
@@ -333,7 +252,7 @@ const ExamTake = () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          user_id: user.id,
+          user_id: user.sub,
           question_id: questionId,
           selected_options
         }),
@@ -374,10 +293,6 @@ const ExamTake = () => {
   };
 
   const handleSubmit = async () => {
-    if (!user) {
-      setLoginOpen(true);
-      return;
-    }
 
     // 检查未完成的题目
     const incomplete = checkIncompleteQuestions();
@@ -412,7 +327,7 @@ const ExamTake = () => {
       console.log('提交的答案数据：', {
         answers,
         formattedAnswers,
-        user_id: user.id
+        user_id: user.sub
       });
 
       const response = await fetch(`${API_BASE_URL}/exams/${examId}/submit`, {
@@ -421,7 +336,7 @@ const ExamTake = () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          user_id: user.id,
+          user_id: user.sub,
           answers: formattedAnswers
         }),
       });
@@ -472,49 +387,7 @@ const ExamTake = () => {
       >
         <img src="/src/assets/logo.svg" alt="考试题库系统" style={{ width: '200px' }} />
       </Box>
-      <Dialog 
-        open={loginOpen && !user} 
-        onClose={() => !isSubmitting && setLoginOpen(false)}
-        disableEnforceFocus={false}
-        disablePortal={false}
-        aria-labelledby="login-dialog-title"
-      >
-        <DialogTitle id="login-dialog-title">登录</DialogTitle>
-        <DialogContent>
-          <Box component="form" sx={{ mt: 2 }}>
-            <TextField
-              margin="dense"
-              label="手机号"
-              type="tel"
-              required
-              fullWidth
-              value={loginForm.phone_number || ''}
-              onChange={handlePhoneChange}
-              error={!!loginError}
-              helperText={loginError}
-              InputProps={{
-                endAdornment: checkingPhone && (
-                  <CircularProgress size={20} />
-                ),
-              }}
-            />
-            <TextField
-              margin="dense"
-              label="用户名"
-              type="text"
-              fullWidth
-              value={loginForm.username || ''}
-              onChange={(e) => setLoginForm({ ...loginForm, username: e.target.value })}
-              disabled={checkingPhone}
-              required={!loginForm.username}  // 如果没有用户名，则为必填
-              helperText={!loginForm.username && '请输入用户名'}
-            />
-          </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleLogin}>登录</Button>
-        </DialogActions>
-      </Dialog>
+      
 
       {/* 未完成题目对话框 */}
       <Dialog
