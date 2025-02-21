@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import logoSvg from '../assets/logo.svg';
 import {
   Container,
   Typography,
@@ -385,7 +386,7 @@ const ExamTake = () => {
           mt: 2
         }}
       >
-        <img src="/src/assets/logo.svg" alt="考试题库系统" style={{ width: '200px' }} />
+        <img src={logoSvg} alt="考试题库系统" style={{ width: '200px' }} />
       </Box>
       
 
