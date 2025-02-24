@@ -9,7 +9,8 @@ from dateutil import parser
 import logging
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
-from datetime import timedelta
+from datetime import timedelta, datetime
+import datetime as dt
 from backend.api.temp_answer import save_temp_answer, get_temp_answers, mark_temp_answers_submitted  # 使用绝对导入
 from backend.db import get_db_connection
 
@@ -516,7 +517,8 @@ def get_knowledge_point_questions(point_id):
                 q.id,
                 q.question_type,
                 q.question_text,
-                epq.id as exam_paper_question_id,
+                q.knowledge_point_id,
+                kp.course_id,
                 json_agg(json_build_object(
                     'id', o.id,
                     'content', o.option_text,
@@ -527,6 +529,7 @@ def get_knowledge_point_questions(point_id):
             LEFT JOIN knowledgepoint kp ON q.knowledge_point_id = kp.id
             LEFT JOIN option o ON q.id = o.question_id
             WHERE q.knowledge_point_id = %s
+            GROUP BY q.id, q.question_type, q.question_text, q.knowledge_point_id, kp.course_id
             ORDER BY q.created_at DESC, q.id ASC
         ''', (point_id,))
         questions = cur.fetchall()
@@ -993,6 +996,11 @@ def update_user(user_id):
         cur.close()
         conn.close()
 
+@app.route('/api/users/<user_id>/details', methods=['GET'])
+def get_user_detail(user_id):
+    from .api.user_details import get_user_details
+    return get_user_details(user_id)
+
 @app.route('/api/users/<user_id>', methods=['DELETE'])
 def delete_user(user_id):
     print("开始删除用户，用户ID：", user_id)
@@ -1291,10 +1299,11 @@ def get_exam(exam_id):
         if not exam:
             return jsonify({'error': 'Exam not found'}), 404
 
-        # 获取考卷中的所有题目及其选项
+        # 获取试卷中的所有题目及其选项
         cur.execute('''
             WITH option_numbers AS (
                 SELECT 
+                    id,
                     question_id,
                     option_text,
                     is_correct,
@@ -1306,41 +1315,29 @@ def get_exam(exam_id):
                 q.question_type,
                 q.question_text,
                 a.explanation,
-                epq.id as exam_paper_question_id,
-                array_agg(o.option_text ORDER BY o.option_index) as options,
-                array_agg(
-                    CASE WHEN o.is_correct THEN chr(65 + o.option_index) END
-                    ORDER BY o.option_index
-                ) FILTER (WHERE o.is_correct) as answer,
+                kp.id as knowledge_point_id,
+                kp.point_name as knowledge_point_name,
                 tc.course_name,
-                kp.point_name
+                array_agg(json_build_object(
+                    'id', o.id,
+                    'option_text', o.option_text,
+                    'index', o.option_index,
+                    'is_correct', o.is_correct
+                ) ORDER BY o.option_index) as options
             FROM exampaperquestion epq
             JOIN question q ON epq.question_id = q.id
-            JOIN knowledgepoint kp ON q.knowledge_point_id = kp.id
-            JOIN trainingcourse tc ON kp.course_id = tc.id
             LEFT JOIN option_numbers o ON q.id = o.question_id
             LEFT JOIN answer a ON q.id = a.question_id
+            LEFT JOIN knowledgepoint kp ON q.knowledge_point_id = kp.id
+            LEFT JOIN trainingcourse tc ON kp.course_id = tc.id
             WHERE epq.exam_paper_id = %s
-            GROUP BY 
-                q.id,
-                q.question_type,
-                q.question_text,
-                a.explanation,
-                tc.course_name,
-                kp.point_name,
-                epq.id
-            ORDER BY 
-                CASE q.question_type 
-                    WHEN '单选题' THEN 1 
-                    WHEN '多选题' THEN 2 
-                    ELSE 3 
-                END,
-                epq.id
+            GROUP BY q.id, q.question_type, q.question_text, a.explanation, kp.id, kp.point_name, tc.course_name, epq.created_at
+            ORDER BY epq.created_at ASC
         ''', (exam_id,))
         
         questions = cur.fetchall()
-        exam['questions'] = questions
-
+        exam['questions'] = [dict(q) for q in questions]
+        # print("SQL查询结果：==========>", exam)
         return jsonify(exam)
     except Exception as e:
         print('Error in get_exam:', str(e))
@@ -1422,10 +1419,10 @@ def get_exam_detail(exam_id):
         
         questions = cur.fetchall()
         exam['questions'] = [dict(q) for q in questions]
-        # print("SQL查询结果：==========>", exam)
+        
         return jsonify(exam)
     except Exception as e:
-        print('Error in get_exam_detail:', str(e))
+        print('Error in get_exam_record_detail:', str(e))
         return jsonify({'error': str(e)}), 500
     finally:
         cur.close()
@@ -1512,21 +1509,27 @@ def get_exam_for_taking(exam_id):
                 q.id,
                 q.question_type,
                 q.question_text,
+                q.knowledge_point_id,
+                kp.course_id,
                 epq.id as exam_paper_question_id,
                 json_agg(
                     json_build_object(
                         'id', o.id,
-                        'content', o.option_text
+                        'content', o.option_text,
+                        'is_correct', o.is_correct
                     ) ORDER BY o.id
                 ) as options
             FROM exampaperquestion epq
             JOIN question q ON epq.question_id = q.id
+            LEFT JOIN knowledgepoint kp ON q.knowledge_point_id = kp.id
             LEFT JOIN option o ON q.id = o.question_id
             WHERE epq.exam_paper_id = %s
             GROUP BY 
                 q.id,
                 q.question_type,
                 q.question_text,
+                q.knowledge_point_id,
+                kp.course_id,
                 epq.id
             ORDER BY epq.created_at ASC
         ''', (exam_id,))
@@ -1557,64 +1560,7 @@ def get_exam_for_taking(exam_id):
         cur.close()
         conn.close()
 
-@app.route('/api/exams/<exam_id>/take', methods=['GET'])
-def get_exam_questions(exam_id):
-    print("开始获取考试题目，考试ID：", exam_id)
-    conn = get_db_connection()
-    cur = conn.cursor(cursor_factory=RealDictCursor)
-    try:
-        # 获取试卷基本信息
-        cur.execute('''
-            SELECT 
-                ep.id,
-                ep.title,
-                ep.description
-            FROM exampaper ep
-            WHERE ep.id = %s
-        ''', (exam_id,))
-        exam = cur.fetchone()
-        
-        if not exam:
-            return jsonify({'error': '试卷不存在'}), 404
 
-        # 获取试卷中的所有题目及其选项
-        cur.execute('''
-            WITH option_numbers AS (
-                SELECT 
-                    question_id,
-                    option_text,
-                    is_correct,
-                    id as option_id,
-                    (ROW_NUMBER() OVER (PARTITION BY question_id ORDER BY id) - 1)::integer as option_index
-                FROM option
-            )
-            SELECT 
-                q.id,
-                q.question_type,
-                q.question_text,
-                array_agg(json_build_object(
-                    'id', o.option_id,
-                    'option_text', o.option_text,
-                    'index', o.option_index
-                ) ORDER BY o.option_index) as options
-            FROM exampaperquestion epq
-            JOIN question q ON epq.question_id = q.id
-            LEFT JOIN option_numbers o ON q.id = o.question_id
-            WHERE epq.exam_paper_id = %s
-            GROUP BY q.id, q.question_type, q.question_text, epq.created_at
-            ORDER BY epq.created_at ASC
-        ''', (exam_id,))
-        
-        questions = cur.fetchall()
-        exam['questions'] = questions
-
-        return jsonify(exam)
-    except Exception as e:
-        print('Error in get_exam_questions:', str(e))
-        return jsonify({'error': str(e)}), 500
-    finally:
-        cur.close()
-        conn.close()
 
 @app.route('/api/exams/<exam_id>/submit', methods=['POST'])
 def submit_exam_answer(exam_id):
@@ -1649,6 +1595,28 @@ def submit_exam_answer(exam_id):
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=RealDictCursor)
         
+        # 获取用户信息
+        cur.execute('''
+            SELECT username, phone_number
+            FROM "user"
+            WHERE id = %s
+        ''', (user_uuid,))
+        user_info = cur.fetchone()
+        if not user_info:
+            raise ValueError(f"User with ID {user_id} not found")
+
+        # 获取考试开始时间（从临时答案表中获取第一次保存的时间）
+        cur.execute('''
+            SELECT MIN(created_at) as start_time
+            FROM temp_answer_record
+            WHERE exam_paper_id = %s AND user_id = %s
+        ''', (exam_uuid, user_uuid))
+        start_time_record = cur.fetchone()
+        start_time = start_time_record['start_time'] if start_time_record and start_time_record['start_time'] else dt.datetime.now()
+
+        # 获取当前时间作为提交时间
+        submit_time = dt.datetime.now()
+
         # Verify exam exists and is active
         cur.execute('''
             SELECT id, title FROM exampaper WHERE id = %s
@@ -1656,24 +1624,6 @@ def submit_exam_answer(exam_id):
         exam = cur.fetchone()
         if not exam:
             raise ValueError(f"Exam with ID {exam_id} not found")
-            
-        # Verify user exists
-        cur.execute('''
-            SELECT id FROM "user" WHERE id = %s
-        ''', (user_uuid,))
-        user = cur.fetchone()
-        if not user:
-            raise ValueError(f"User with ID {user_id} not found")
-            
-        # Check if user has already submitted this exam
-        cur.execute('''
-            SELECT COUNT(*) as submission_count 
-            FROM answerrecord 
-            WHERE exam_paper_id = %s AND user_id = %s
-        ''', (exam_uuid, user_uuid))
-        submission_count = cur.fetchone()['submission_count']
-        # if submission_count > 0:
-        #     raise ValueError("You have already submitted this exam")
 
         results = []
         total_score = 0
@@ -1823,13 +1773,19 @@ def submit_exam_answer(exam_id):
         # Commit the transaction
         conn.commit()
         
-        # Return the results
-        return jsonify({
+        # 在返回结果中添加用户信息和考试时间信息
+        response_data = {
             'exam_id': exam_id,
             'user_id': user_id,
+            'username': user_info['username'],
+            'phone_number': user_info['phone_number'],
+            'start_time': start_time.isoformat() if start_time else None,
+            'submit_time': submit_time.isoformat(),
             'total_score': total_score,
             'questions': results
-        })
+        }
+        
+        return jsonify(response_data)
     except ValueError as e:
         if conn:
             conn.rollback()
@@ -2345,6 +2301,45 @@ def get_courses_knowledge_points():
         return jsonify(points)
     except Exception as e:
         print('Error in get_courses_knowledge_points:', str(e))
+        return jsonify({'error': str(e)}), 500
+    finally:
+        cur.close()
+        conn.close()
+
+@app.route('/api/exams/<exam_id>', methods=['PATCH'])
+def patch_exam(exam_id):
+    print("开始更新考卷基本信息，考卷ID：", exam_id)
+    conn = get_db_connection()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    try:
+        data = request.json
+        title = data.get('title')
+        description = data.get('description', '')
+        
+        if not title:
+            return jsonify({'error': '考卷标题不能为空'}), 400
+            
+        # 检查考卷是否存在
+        cur.execute('SELECT id FROM exampaper WHERE id = %s', (exam_id,))
+        if not cur.fetchone():
+            return jsonify({'error': '考卷不存在'}), 404
+            
+        # 更新考卷基本信息
+        cur.execute('''
+            UPDATE exampaper
+            SET title = %s,
+                description = %s,
+                updated_at = NOW()
+            WHERE id = %s
+            RETURNING id, title, description, updated_at
+        ''', (title, description, exam_id))
+        
+        updated_exam = cur.fetchone()
+        conn.commit()
+        return jsonify(updated_exam)
+    except Exception as e:
+        conn.rollback()
+        print('Error in patch_exam:', str(e))
         return jsonify({'error': str(e)}), 500
     finally:
         cur.close()

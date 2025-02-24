@@ -22,10 +22,13 @@ import {
   DialogActions,
   CircularProgress,
   Alert,
-  Chip
+  Chip,
+  Grid
 } from '@mui/material';
 import { API_BASE_URL } from '../config';
 import { hasToken } from '../api/auth-utils';
+import { useTheme } from '@mui/material/styles';
+import userApi from '../api/user';
 
 // 自定义 Markdown 样式组件
 const MarkdownTypography = ({ children, ...props }) => {
@@ -65,6 +68,10 @@ const ExamTake = () => {
   const [preview, setPreview] = useState(false);
   const [incompleteQuestions, setIncompleteQuestions] = useState([]);
   const [showIncompleteDialog, setShowIncompleteDialog] = useState(false);
+  const theme = useTheme();
+  const [examStartTime, setExamStartTime] = useState(null);
+  const [examDuration, setExamDuration] = useState(null);
+  const [userInfo, setUserInfo] = useState(null);
 
   useEffect(() => {
     if (!examId) {
@@ -77,6 +84,7 @@ const ExamTake = () => {
     setPreview(preview);
     const fetchExam = async () => {
       try {
+
         const response = await fetch(`${API_BASE_URL}/exams/${examId}/take`);
         if (!response.ok) {
           throw new Error('获取试卷失败');
@@ -121,6 +129,9 @@ const ExamTake = () => {
       if (exam && tokenData && tokenData.sub && !preview) {
         console.log('exam已加载，开始加载临时答案');
         await loadTempAnswers(tokenData.sub);
+        
+        const response = await userApi.getUserDetails(tokenData.sub);
+        setUserInfo(response.data);
       }
     };
 
@@ -293,8 +304,25 @@ const ExamTake = () => {
     return incomplete;
   };
 
-  const handleSubmit = async () => {
+  const calculateDuration = (startTime, endTime) => {
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+    const diff = Math.floor((end - start) / 1000); // 转换为秒
 
+    const hours = Math.floor(diff / 3600);
+    const minutes = Math.floor((diff % 3600) / 60);
+    const seconds = diff % 60;
+
+    if (hours > 0) {
+      return `${hours}小时${minutes}分${seconds}秒`;
+    } else if (minutes > 0) {
+      return `${minutes}分${seconds}秒`;
+    } else {
+      return `${seconds}秒`;
+    }
+  };
+
+  const handleSubmit = async () => {
     // 检查未完成的题目
     const incomplete = checkIncompleteQuestions();
     if (incomplete.length > 0) {
@@ -312,52 +340,72 @@ const ExamTake = () => {
           : Object.entries(answer.selected || {})  // 多选题过滤出选中的optionId
               .filter(([_, selected]) => selected)
               .map(([optionId]) => optionId);
-
-        console.log('格式化答案：', {
-          questionId,
-          answer,
-          selected_options
-        });
-
-        return {
-          question_id: questionId,
-          selected_options
-        };
+      
+      console.log('格式化答案：', {
+        questionId,
+        answer,
+        selected_options
       });
-
-      console.log('提交的答案数据：', {
-        answers,
-        formattedAnswers,
-        user_id: user.sub
-      });
-
-      const response = await fetch(`${API_BASE_URL}/exams/${examId}/submit`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          user_id: user.sub,
-          answers: formattedAnswers
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || '提交答案失败');
-      }
-
-      const result = await response.json();
-      console.log('提交答案结果：', result);
-      setExamResult(result);
-      setSubmitted(true);
-    } catch (err) {
-      console.error('提交答案时出错：', err);
-      setError(err.message);
-    } finally {
-      setIsSubmitting(false);
+      
+      return {
+        question_id: questionId,
+        selected_options
+      };
+    });
+  
+    console.log('提交的答案数据：', {
+      answers,
+      formattedAnswers,
+      user_id: user.sub,
+      API_BASE_URL:API_BASE_URL,
+      examId:examId
+    });
+  
+    const response = await fetch(`${API_BASE_URL}/exams/${examId}/submit`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        user_id: user.sub,
+        answers: formattedAnswers
+      }),
+    });
+  
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || '提交答案失败');
     }
-  };
+  
+    const result = await response.json();
+    console.log('提交答案结果：', result);
+    
+    // 计算考试用时
+    if (result.start_time && result.submit_time) {
+      const duration = calculateDuration(result.start_time, result.submit_time);
+      setExamDuration(duration);
+    }
+    
+    setExamResult(result);
+    setSubmitted(true);
+  
+    // 添加页面滚动和焦点设置逻辑
+    setTimeout(() => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      const scoreElement = document.querySelector('[data-testid="exam-score"]');
+      if (scoreElement) {
+        scoreElement.focus();
+        scoreElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 100);
+  
+  } catch (err) {
+    console.error('提交答案时出错：', err);
+    setError(err.message);
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
   if (loading) {
     return (
@@ -388,7 +436,77 @@ const ExamTake = () => {
       >
         <img src={logoSvg} alt="考试题库系统" style={{ width: '200px' }} />
       </Box>
-      
+
+      {exam && !submitted && (
+        <Paper 
+          elevation={3}
+          sx={{ 
+            p: 4, 
+            mb: 4,
+            backgroundColor: '#f8f9fa',
+            borderRadius: 2,
+            border: '1px solid #e0e0e0'
+          }}
+        >
+          <Box sx={{ 
+            textAlign: 'center', 
+            mb: 4,
+            borderBottom: '1px solid #e0e0e0',
+            pb: 1
+          }}>
+            <Typography 
+              variant="h3" 
+              gutterBottom 
+              sx={{ 
+                fontWeight: 'bold',
+                color: theme.palette.primary.main
+              }}
+            >
+              {exam?.title || '考试'}
+            </Typography>
+            {exam?.description && (
+              <Typography 
+                variant="subtitle1" 
+                sx={{ 
+                  color: 'text.secondary',
+                  maxWidth: '800px',
+                  margin: '0 auto',
+                  mb: 3
+                }}
+              >
+                {exam.description}
+              </Typography>
+            )}
+          </Box>
+
+          <Grid container spacing={3}>
+            <Grid item xs={12} md={6}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <Typography variant="body1">
+                  <Box component="span" sx={{ color: 'text.secondary', mr: 2 }}>考生姓名：</Box>
+                  <Box component="span" sx={{ fontWeight: 'bold' }}>{userInfo?.username || '-'}</Box>
+                </Typography>
+                <Typography variant="body1">
+                  <Box component="span" sx={{ color: 'text.secondary', mr: 2 }}>手机号码：</Box>
+                  <Box component="span">{userInfo?.phone_number || '-'}</Box>
+                </Typography>
+              </Box>
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <Typography variant="body1">
+                  <Box component="span" sx={{ color: 'text.secondary', mr: 2 }}>题目数量：</Box>
+                  <Box component="span">{exam?.questions?.length || 0}题</Box>
+                </Typography>
+                <Typography variant="body1">
+                  <Box component="span" sx={{ color: 'text.secondary', mr: 2 }}>考试时间：</Box>
+                  <Box component="span">{new Date().toLocaleString()}</Box>
+                </Typography>
+              </Box>
+            </Grid>
+          </Grid>
+        </Paper>
+      )}
 
       {/* 未完成题目对话框 */}
       <Dialog
@@ -449,50 +567,107 @@ const ExamTake = () => {
 
       {exam && (
         <Paper sx={{ p: 3, my: 3 }}>
-          <Typography variant="h4" gutterBottom>
-            {exam.title}
-          </Typography>
-          {exam.description && (
-            <Box sx={{ color: 'text.secondary', my: 2 }}>
-              <MarkdownTypography>
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                  {exam.description}
-                </ReactMarkdown>
-              </MarkdownTypography>
-            </Box>
-          )}
-
           {submitted ? (
             <Box>
               {/* 考试基本信息 */}
-              <Paper 
-                sx={{ 
-                  p: 3, 
-                  mb: 4,
-                  backgroundColor: '#f8f9fa',
-                  borderRadius: 2
-                }}
-              >
-                <Typography variant="h5" gutterBottom>
+              <Box sx={{ 
+                textAlign: 'center', 
+                mb: 4,
+                borderBottom: '1px solid #e0e0e0',
+                pb: 1
+              }}>
+                <Typography 
+                  variant="h3" 
+                  gutterBottom 
+                  sx={{ 
+                    fontWeight: 'bold',
+                    color: theme.palette.primary.main
+                  }}
+                >
                   {exam?.title || '考试结果'}
                 </Typography>
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3, color: 'text.secondary' }}>
-                  <Typography>
-                    学生：{user?.username || '-'}
+                {exam?.description && (
+                  <Typography 
+                    variant="subtitle1" 
+                    sx={{ 
+                      color: 'text.secondary',
+                      maxWidth: '800px',
+                      margin: '0 auto',
+                      mb: 3
+                    }}
+                  >
+                    {exam.description}
                   </Typography>
-                  <Typography>
-                    考试时间：{new Date().toLocaleString()}
-                  </Typography>
-                  <Typography color="primary" fontWeight="bold">
-                    得分：{examResult.total_score}分
-                  </Typography>
-                  <Typography>
-                    答题次数：第 1 次
-                  </Typography>
-                </Box>
+                )}
+              </Box>
+
+              <Paper 
+                elevation={3}
+                sx={{ 
+                  p: 4, 
+                  mb: 4,
+                  backgroundColor: '#f8f9fa',
+                  borderRadius: 2,
+                  border: '1px solid #e0e0e0'
+                }}
+              >
+                <Grid container spacing={3}>
+                  <Grid item xs={12} md={8}>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                      <Typography variant="body1">
+                        <Box component="span" sx={{ color: 'text.secondary', mr: 2 }}>考生姓名：</Box>
+                        <Box component="span" sx={{ fontWeight: 'bold' }}>{examResult?.username || '-'}</Box>
+                      </Typography>
+                      <Typography variant="body1">
+                        <Box component="span" sx={{ color: 'text.secondary', mr: 2 }}>考试时间：</Box>
+                        <Box component="span">{new Date(examResult?.start_time).toLocaleString()}</Box>
+                      </Typography>
+                      <Typography variant="body1">
+                        <Box component="span" sx={{ color: 'text.secondary', mr: 2 }}>提交时间：</Box>
+                        <Box component="span">{new Date(examResult?.submit_time).toLocaleString()}</Box>
+                      </Typography>
+                      <Typography variant="body1">
+                        <Box component="span" sx={{ color: 'text.secondary', mr: 2 }}>考试用时：</Box>
+                        <Box component="span">{examDuration || '-'}</Box>
+                      </Typography>
+                    </Box>
+                  </Grid>
+                  <Grid item xs={12} md={4}>
+                    <Box sx={{ 
+                      display: 'flex', 
+                      flexDirection: 'column', 
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      height: '100%',
+                      backgroundColor: examResult.total_score >= 60 ? '#2dce89' : '#f5365c',
+                      background: examResult.total_score >= 60
+                        ? 'linear-gradient(87deg, #2dce89 0%, #2fcca0 100%)'
+                        : 'linear-gradient(87deg, #f5365c 0%, #f56036 100%)',
+                      borderRadius: 2,
+                      p: 3,
+                      boxShadow: '0 4px 20px 0 rgba(0,0,0,0.14), 0 7px 10px -5px rgba(45,206,137,0.4)',
+                      transition: 'all 0.3s ease-in-out'
+                    }}>
+                      <Typography variant="h2" sx={{ 
+                        color: 'white', 
+                        mb: 1,
+                        opacity: 0.9
+                      }}>总分</Typography>
+                      <Typography variant="h2" sx={{ 
+                        color: 'white', 
+                        fontWeight: 'bold',
+                        textShadow: '2px 2px 4px rgba(0,0,0,0.2)',
+                        fontSize: '3rem'
+                      }}>
+                        {examResult.total_score}
+                      </Typography>
+                    </Box>
+                  </Grid>
+                </Grid>
               </Paper>
 
-              {/* 错题列表 */}
+              
+
               {examResult.questions
                 .filter(question => !question.is_correct)
                 .map((question, index) => (
@@ -507,6 +682,10 @@ const ExamTake = () => {
                     '& + &': { mt: 3 }
                   }}
                 >
+                  {/* 错题列表 */}
+                  <Typography variant="h3" sx={{ mb: 3, fontWeight: 'bold', color: '#d32f2f', textAlign:'center'}}>
+                  错题解析
+                  </Typography>
                   {/* 课程和知识点标签 */}
                   <Box sx={{ mb: 2, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                     {question.course_name && (
@@ -581,7 +760,7 @@ const ExamTake = () => {
                               left: -24,
                               display: 'flex',
                               alignItems: 'center',
-                              color: isSelected ? '#FF5252' : 'transparent'
+                              color: isSelected ? '#666666' : 'transparent'
                             }}
                           >
                             ●
@@ -667,9 +846,10 @@ const ExamTake = () => {
               {/* 全对提示 */}
               {examResult.questions.every(q => q.is_correct) && (
                 <Paper 
+                  elevation={3}
                   sx={{ 
                     mt: 3,
-                    p: 3,
+                    p: 4,
                     textAlign: 'center',
                     backgroundColor: '#e8f5e9',
                     border: '1px solid #a5d6a7',
@@ -677,11 +857,28 @@ const ExamTake = () => {
                   }}
                 >
                   <Typography 
-                    variant="h6" 
+                    variant="h2" 
                     color="success.main"
-                    sx={{ fontWeight: 'bold' }}
+                    sx={{ 
+                      fontWeight: 'bold',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 2
+                    }}
                   >
-                    太棒了！你已经完全掌握了这些知识点
+                    <span role="img" aria-label="celebration">🎉</span>
+                    恭喜你！完美通过本次考试
+                    <span role="img" aria-label="celebration">🎉</span>
+                  </Typography>
+                  <Typography 
+                    variant="subtitle1" 
+                    sx={{ 
+                      mt: 2,
+                      color: 'success.dark'
+                    }}
+                  >
+                    你已经完全掌握了这些知识点，继续保持！
                   </Typography>
                 </Paper>
               )}
@@ -692,7 +889,7 @@ const ExamTake = () => {
               {exam.questions.filter(q => q.question_type === '单选题').length > 0 && (
                 <>
                   <Typography variant="h5" sx={{ mt: 4, mb: 3, fontWeight: 'bold' }}>
-                    一、单选题 {user.sub}
+                    一、单选题 
                   </Typography>
                   {exam.questions
                     .filter(q => q.question_type === '单选题')

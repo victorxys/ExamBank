@@ -49,7 +49,7 @@ function AlertMessage({ open, message, severity, onClose }) {
           },
           '& .MuiIconButton-root': {
             padding: '4px',
-            color: 'inherit',
+            color: 'white',
             opacity: 0.7,
             '&:hover': {
               opacity: 1

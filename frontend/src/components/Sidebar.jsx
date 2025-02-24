@@ -22,6 +22,7 @@ import {
   People as PeopleIcon,
 } from '@mui/icons-material'
 import logo from '../assets/logo.svg'
+import UserInfo from './UserInfo'
 
 // Import Argon Dashboard styles
 // 使用CDN方式引入Argon Dashboard样式
@@ -80,16 +81,18 @@ function Sidebar() {
       <Box
         className="sidenav-header"
         sx={{
-          p: 3,
+          p: 0,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           flexDirection: 'column',
+          mb:-5
         }}
       >
         <img src={logo} alt="萌姨萌嫂考试苑" style={{ width: '80%', marginBottom: '1rem' }} />
       </Box>
-      <Divider />
+      <UserInfo />
+      {/*<Divider />*/}
       <List className="navbar-nav">
         {menuItems.map((item) => (
           <ListItem

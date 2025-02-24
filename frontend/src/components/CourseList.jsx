@@ -100,11 +100,19 @@ function CourseList() {
         setSelectedCourse(course)
         setOpenDeleteDialog(true)
       } else {
-        alert('该课程包含知识点或题目，无法删除')
+        setAlert({
+          show: true,
+          message: '该课程包含知识点或题目，无法删除',
+          severity: 'warning'
+        });
       }
     } catch (error) {
       console.error('Error:', error)
-      alert('检查课程是否可删除时出错')
+      setAlert({
+        show: true,
+        message: '检查课程是否可删除时出错',
+        severity: 'error'
+      });
     }
   }
 

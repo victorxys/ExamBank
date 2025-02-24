@@ -260,7 +260,7 @@ function ExamRecords() {
                             display: 'inline-block'
                           }}
                         >
-                          {record.total_score?.toFixed(2) || '0.00'}分
+                          {(typeof record.total_score === 'number' ? record.total_score.toFixed(2) : '0.00')}分
                         </Typography>
                       </TableCell>
                       <TableCell>
@@ -315,7 +315,22 @@ function ExamRecords() {
                           variant="contained"
                           size="small"
                           startIcon={<VisibilityIcon />}
-                          onClick={() => navigate(`/exam-records/${record.exam_paper_id}/${record.user_id}?exam_time=${encodeURIComponent(record.exam_time.toString())}`)}                        
+                          onClick={() => navigate(`/exam-records/${record.exam_paper_id}/${record.user_id}?exam_time=${encodeURIComponent(record.exam_time.toString())}`, {
+                            state: {
+                              total_score: record.total_score,
+                              accuracy_rate: record.accuracy_rate,
+                              username: record.user_name,
+                              phone_number: record.phone_number,
+                              exam_title: record.exam_title,
+                              attempt_number: record.attempt_number,
+                              single_choice_correct: record.single_choice_correct,
+                              single_choice_incorrect: record.single_choice_incorrect,
+                              single_choice_total: record.single_choice_total,
+                              multi_choice_correct: record.multi_choice_correct,
+                              multi_choice_incorrect: record.multi_choice_incorrect,
+                              multi_choice_total: record.multi_choice_total
+                            }
+                          })}                        
                           sx={{
                             background: 'linear-gradient(87deg, #5e72e4 0%, #825ee4 100%)',
                             boxShadow: '0 4px 6px rgba(50, 50, 93, 0.11), 0 1px 3px rgba(0, 0, 0, 0.08)',

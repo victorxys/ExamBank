@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
 import {
   Dialog,
   DialogTitle,
@@ -18,6 +18,35 @@ function UserLoginDialog({ open, onClose, onLogin }) {
   const [alert, setAlert] = useState({ show: false, message: '', severity: 'info' })
   const [loading, setLoading] = useState(false)
   const [checkingPhone, setCheckingPhone] = useState(false)
+  const previousFocusRef = useRef(null)
+
+  const getMainContent = () => {
+    return document.getElementById('root');
+  };
+
+  // 保存对话框打开前的焦点元素
+  React.useEffect(() => {
+    if (open) {
+      previousFocusRef.current = document.activeElement;
+      const mainContent = getMainContent();
+      if (mainContent) {
+        mainContent.setAttribute('aria-hidden', 'true');
+      }
+    } else {
+      const mainContent = getMainContent();
+      if (mainContent) {
+        mainContent.removeAttribute('aria-hidden');
+      }
+      if (previousFocusRef.current) {
+        previousFocusRef.current.focus();
+      }
+    }
+  }, [open]);
+
+  // 处理对话框关闭时的焦点恢复
+  const handleClose = () => {
+    onClose();
+  };
 
   const checkPhoneNumber = async (phone) => {
     try {
@@ -130,9 +159,13 @@ function UserLoginDialog({ open, onClose, onLogin }) {
   return (
     <Dialog 
       open={open} 
-      onClose={onClose} 
+      onClose={handleClose} 
       maxWidth="sm" 
       fullWidth
+      disableEnforceFocus={false}
+      disablePortal={false}
+      keepMounted
+      aria-labelledby="login-dialog-title"
       sx={{
         '& .MuiBackdrop-root': {
           backgroundColor: 'rgba(0, 0, 0, 0.7)'
@@ -145,12 +178,15 @@ function UserLoginDialog({ open, onClose, onLogin }) {
         }
       }}
     >
-      <DialogTitle sx={{ 
-        borderBottom: '1px solid rgba(0, 0, 0, 0.1)',
-        padding: '20px 24px',
-        fontSize: '1.25rem',
-        fontWeight: 600
-      }}>
+      <DialogTitle 
+        id="login-dialog-title"
+        sx={{ 
+          borderBottom: '1px solid rgba(0, 0, 0, 0.1)',
+          padding: '20px 24px',
+          fontSize: '1.25rem',
+          fontWeight: 600
+        }}
+      >
         用户信息
       </DialogTitle>
       <form onSubmit={handleSubmit}>
@@ -168,6 +204,7 @@ function UserLoginDialog({ open, onClose, onLogin }) {
               required
               fullWidth
               type="tel"
+              autoFocus
             />
             <TextField
               label="姓名"
@@ -181,7 +218,7 @@ function UserLoginDialog({ open, onClose, onLogin }) {
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={onClose}>取消</Button>
+          <Button onClick={handleClose}>取消</Button>
           <Button
             type="submit"
             variant="contained"

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import TablePagination from '@mui/material/TablePagination'
 import { useNavigate, Link } from 'react-router-dom'
 import { useTheme } from '@mui/material/styles'
 import { API_BASE_URL } from '../config';
@@ -32,6 +33,7 @@ import {
   TableRow,
   TableContainer,
   TableHead,
+  TableFooter,
   IconButton,
   Menu
 } from '@mui/material'
@@ -45,7 +47,8 @@ import {
   Visibility as VisibilityIcon,
   Share as ShareIcon,
   Person as PersonIcon,
-  Notifications as NotificationsIcon
+  Notifications as NotificationsIcon,
+  Edit as EditIcon
 } from '@mui/icons-material'
 import AlertMessage from './AlertMessage';
 
@@ -64,6 +67,8 @@ function ExamList() {
   const [courses, setCourses] = useState([])
   const [knowledgePoints, setKnowledgePoints] = useState([])
   const [selectedPoints, setSelectedPoints] = useState([])
+  const [page, setPage] = useState(0)
+  const [rowsPerPage, setRowsPerPage] = useState(10)
   const [singleCount, setSingleCount] = useState('');
   const [multipleCount, setMultipleCount] = useState(0);
   const [examRecords, setExamRecords] = useState([])
@@ -73,6 +78,10 @@ function ExamList() {
   const [selectedExam, setSelectedExam] = useState(null);
   const [searchText, setSearchText] = useState('');
   const [selectedFilterCourses, setSelectedFilterCourses] = useState([]);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editTitle, setEditTitle] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [selectedPointsQuestionCounts, setSelectedPointsQuestionCounts] = useState({ single: 0, multiple: 0 });
 
   useEffect(() => {
     const fetchData = async () => {
@@ -249,20 +258,29 @@ function ExamList() {
     setMultipleCount(0);
   }
 
+  // 在过滤或搜索时重置分页
+  useEffect(() => {
+    setPage(0)
+  }, [searchText, selectedFilterCourses, selectedPoints])
+
+  // 修改handleCoursesChange函数
   const handleCoursesChange = async (event) => {
     const courseIds = event.target.value
     setSelectedCourses(courseIds)
     
     if (courseIds.length > 0) {
       try {
-        const response = await fetch(`${API_BASE_URL}/courses/${courseIds.join(',')}/knowledge_points`)
-        if (!response.ok) {
-          throw new Error('Failed to fetch knowledge points')
-        }
-        const data = await response.json()
-        console.log('Knowledge points:', data) // 添加日志
-        setKnowledgePoints(data)
-        setSelectedPoints([]) // 清空已选知识点
+        // 获取所有选中课程的知识点
+        const promises = courseIds.map(courseId =>
+          fetch(`${API_BASE_URL}/courses/${courseId}/knowledge_points`)
+            .then(res => res.json())
+        )
+        
+        const allPointsData = await Promise.all(promises)
+        // 合并所有课程的知识点，并去重
+        const mergedPoints = allPointsData.flat()
+        const uniquePoints = Array.from(new Map(mergedPoints.map(point => [point.id, point])).values())
+        setKnowledgePoints(uniquePoints)
       } catch (error) {
         console.error('Error fetching knowledge points:', error)
         alert('获取知识点失败：' + error.message)
@@ -331,6 +349,67 @@ function ExamList() {
     navigate(`/exam-records/${examId}/${userId}?exam_time=${encodeURIComponent(formattedTime)}`);
   };
 
+  // 在过滤或搜索时重置分页
+  useEffect(() => {
+    setPage(0)
+  }, [searchText, selectedFilterCourses])
+
+  // 获取选中知识点题目数量
+  useEffect(() => {
+    const fetchSelectedPointsQuestions = async () => {
+      if (selectedPoints.length === 0) {
+        setSelectedPointsQuestionCounts({ single: 0, multiple: 0 });
+        return;
+      }
+
+      try {
+        const promises = selectedPoints.map(pointId =>
+          fetch(`${API_BASE_URL}/knowledge_points/${pointId}/questions`)
+            .then(res => res.json())
+        );
+
+        const allQuestionsData = await Promise.all(promises);
+        const flatQuestions = allQuestionsData.flat();
+
+        const counts = flatQuestions.reduce((acc, question) => {
+          if (question.question_type === '单选题') acc.single++;
+          if (question.question_type === '多选题') acc.multiple++;
+          return acc;
+        }, { single: 0, multiple: 0 });
+
+        setSelectedPointsQuestionCounts(counts);
+      } catch (error) {
+        console.error('获取知识点题目数量失败：', error);
+      }
+    };
+
+    fetchSelectedPointsQuestions();
+  }, [selectedPoints]);
+
+  // 搜索重置
+  useEffect(() => {
+    if (searchText.trim() === '') {
+      // 重置知识点列表为原始状态
+      const fetchAllKnowledgePoints = async () => {
+        if (selectedCourses.length > 0) {
+          try {
+            const promises = selectedCourses.map(courseId =>
+              fetch(`${API_BASE_URL}/courses/${courseId}/knowledge_points`)
+                .then(res => res.json())
+            );
+            const allPointsData = await Promise.all(promises);
+            const mergedPoints = allPointsData.flat();
+            const uniquePoints = Array.from(new Map(mergedPoints.map(point => [point.id, point])).values());
+            setKnowledgePoints(uniquePoints);
+          } catch (error) {
+            console.error('Error fetching knowledge points:', error);
+          }
+        }
+      };
+      fetchAllKnowledgePoints();
+    }
+  }, [searchText, selectedCourses]);
+
   // 过滤考卷列表
   const filteredExams = exams.filter(exam => {
     const matchesSearch = searchText.trim() === '' ||
@@ -347,6 +426,16 @@ function ExamList() {
 
     return matchesSearch && matchesCourses;
   });
+
+  // 计算单选题和多选题总数
+  const totalCounts = filteredExams.reduce((acc, exam) => {
+    const singleChoiceQuestions = exam.questions?.filter(q => q.question_type === '单选题') || []
+    const multiChoiceQuestions = exam.questions?.filter(q => q.question_type === '多选题') || []
+    return {
+      single: acc.single + singleChoiceQuestions.length,
+      multiple: acc.multiple + multiChoiceQuestions.length
+    }
+  }, { single: 0, multiple: 0 })
 
   const handleDeleteClick = (exam) => {
     setExamToDelete(exam);
@@ -411,6 +500,70 @@ function ExamList() {
     const maxMultipleCount = Math.floor((100 - singleCount) / 2);
     const newMultipleCount = Math.min(50, Math.min(maxMultipleCount, Math.max(0, value)));
     setMultipleCount(newMultipleCount);
+  };
+
+  const handleEditClick = (exam) => {
+    setEditingExam(exam);
+    setEditTitle(exam.title);
+    setEditDescription(exam.description || '');
+    setEditDialogOpen(true);
+  };
+
+  const handleEditSave = async () => {
+    try {
+      if (!editTitle.trim()) {
+        setAlert({
+          show: true,
+          message: '请输入考卷标题',
+          severity: 'warning'
+        });
+        return;
+      }
+
+      const response = await fetch(`${API_BASE_URL}/exams/${editingExam.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          title: editTitle,
+          description: editDescription,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('更新考卷失败');
+      }
+
+      // 更新本地数据
+      setExams(exams.map(exam => 
+        exam.id === editingExam.id 
+          ? { ...exam, title: editTitle, description: editDescription }
+          : exam
+      ));
+
+      setEditDialogOpen(false);
+      setEditingExam(null);
+      setAlert({
+        show: true,
+        message: '考卷更新成功',
+        severity: 'success'
+      });
+    } catch (error) {
+      console.error('Error updating exam:', error);
+      setAlert({
+        show: true,
+        message: error.message || '更新考卷失败，请重试',
+        severity: 'error'
+      });
+    }
+  };
+
+  const handleEditCancel = () => {
+    setEditDialogOpen(false);
+    setEditingExam(null);
+    setEditTitle('');
+    setEditDescription('');
   };
 
   const renderExamRecords = () => {
@@ -508,46 +661,48 @@ function ExamList() {
         </Box>
       </Box>
 
-      <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>
-        <TextField
-          label="搜索考卷"
-          value={searchText}
-          onChange={(e) => setSearchText(e.target.value)}
-          size="small"
-          sx={{
-            width: '300px',
-            '& .MuiOutlinedInput-root': {
-              borderRadius: '0.375rem',
-              '&:hover fieldset': {
-                borderColor: theme.palette.primary.main,
-              },
-              '&.Mui-focused fieldset': {
-                borderColor: theme.palette.primary.main,
-              },
-            },
-          }}
-          placeholder="输入考卷标题或描述"
-        />
-        <FormControl size="small" sx={{ width: '200px' }}>
-          <InputLabel>按课程筛选</InputLabel>
-          <Select
-            multiple
-            value={selectedFilterCourses}
-            onChange={(e) => setSelectedFilterCourses(e.target.value)}
-            label="按课程筛选"
-          >
-            {courses.map((course) => (
-              <MenuItem key={course.id} value={course.id}>
-                {course.course_name}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-
-      </Box>
+      
 
       <Card sx={{ mb: 2 }}>
+        
         <CardContent>
+        <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>
+          <TextField
+            label="搜索考卷"
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            size="small"
+            sx={{
+              width: '300px',
+              '& .MuiOutlinedInput-root': {
+                borderRadius: '0.375rem',
+                '&:hover fieldset': {
+                  borderColor: theme.palette.primary.main,
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: theme.palette.primary.main,
+                },
+              },
+            }}
+            placeholder="输入考卷标题或描述"
+          />
+          <FormControl size="small" sx={{ width: '200px' }}>
+            <InputLabel>按课程筛选</InputLabel>
+            <Select
+              multiple
+              value={selectedFilterCourses}
+              onChange={(e) => setSelectedFilterCourses(e.target.value)}
+              label="按课程筛选"
+            >
+              {courses.map((course) => (
+                <MenuItem key={course.id} value={course.id}>
+                  {course.course_name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+        </Box>
           <TableContainer
             component={Paper}
             sx={{
@@ -638,6 +793,15 @@ function ExamList() {
                           <Button
                             size="small"
                             variant="contained"
+                            color="primary"
+                            onClick={() => handleEditClick(exam)}
+                            startIcon={<EditIcon />}
+                          >
+                            编辑
+                          </Button>
+                          <Button
+                            size="small"
+                            variant="contained"
                             color="error"
                             onClick={() => handleDeleteClick(exam)}
                             startIcon={<DeleteIcon />}
@@ -652,6 +816,8 @@ function ExamList() {
               </TableBody>
             </Table>
           </TableContainer>
+
+      
         </CardContent>
       </Card>
 
@@ -786,48 +952,148 @@ function ExamList() {
                 </Box>
 
                 {/* 已选知识点计数 */}
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  已选择 {selectedPoints.length} 个知识点
-                </Typography>
-
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 1, mb: 2 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    已选择 {selectedPoints.length} 个知识点
+                  </Typography>
+                  <Chip
+                    size="small"
+                    label={`单选题：${selectedPointsQuestionCounts.single}题`}
+                    color="primary"
+                    variant="outlined"
+                  />
+                  <Chip
+                    size="small"
+                    label={`多选题：${selectedPointsQuestionCounts.multiple}题`}
+                    color="primary"
+                    variant="outlined"
+                  />
+                </Box>
+                <Box sx={{ mb: 2, display: 'flex', gap: 2, alignItems: 'center' }}>
+                      <TextField
+                        size="small"
+                        label="搜索知识点"
+                        variant="outlined"
+                        onChange={(e) => {
+                          const searchValue = e.target.value.toLowerCase();
+                          if (searchValue === '') {
+                            // 当搜索内容为空时，显示所有已选课程的知识点
+                            if (selectedCourses.length > 0) {
+                              const fetchOriginalPoints = async () => {
+                                try {
+                                  const promises = selectedCourses.map(courseId =>
+                                    fetch(`${API_BASE_URL}/courses/${courseId}/knowledge_points`)
+                                      .then(res => res.json())
+                                  );
+                                  const allPointsData = await Promise.all(promises);
+                                  const mergedPoints = allPointsData.flat();
+                                  const uniquePoints = Array.from(
+                                    new Map(mergedPoints.map(point => [point.id, point])).values()
+                                  );
+                                  setKnowledgePoints(uniquePoints);
+                                } catch (error) {
+                                  console.error('Error fetching original knowledge points:', error);
+                                }
+                              };
+                              fetchOriginalPoints();
+                            }
+                          } else {
+                            // 在所有已选课程的知识点中进行搜索
+                            const fetchAndFilterPoints = async () => {
+                              try {
+                                const promises = selectedCourses.map(courseId =>
+                                  fetch(`${API_BASE_URL}/courses/${courseId}/knowledge_points`)
+                                    .then(res => res.json())
+                                );
+                                const allPointsData = await Promise.all(promises);
+                                const mergedPoints = allPointsData.flat();
+                                const uniquePoints = Array.from(
+                                  new Map(mergedPoints.map(point => [point.id, point])).values()
+                                );
+                                const filteredPoints = uniquePoints.filter(point =>
+                                  point.point_name.toLowerCase().includes(searchValue)
+                                );
+                                setKnowledgePoints(filteredPoints);
+                              } catch (error) {
+                                console.error('Error fetching and filtering knowledge points:', error);
+                              }
+                            };
+                            fetchAndFilterPoints();
+                          }
+                        }}
+                      />
+                    </Box>
                 {/* 知识点列表 */}
                 {knowledgePoints.length > 0 ? (
-                  <Grid container spacing={1}>
-                    {knowledgePoints.map((point) => (
-                      <Grid item xs={12} sm={6} md={4} key={point.id}>
-                        <Paper
-                          sx={{
-                            p: 2,
-                            cursor: 'pointer',
-                            bgcolor: selectedPoints.includes(point.id) ? 'primary.light' : 'background.paper',
-                            color: selectedPoints.includes(point.id) ? 'primary.contrastText' : 'text.primary',
-                            '&:hover': {
-                              bgcolor: 'action.hover',
-                            },
-                          }}
-                          onClick={() => {
-                            setSelectedPoints(prev =>
-                              prev.includes(point.id)
-                                ? prev.filter(id => id !== point.id)
-                                : [...prev, point.id]
-                            )
-                          }}
-                        >
-                          <Typography variant="subtitle2" gutterBottom>
-                            {point.point_name}
-                          </Typography>
-                          <Box sx={{ display: 'flex', gap: 2 }}>
-                            <Typography variant="caption" color="text.secondary">
-                              单选题：{point.single_count || 0}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              多选题：{point.multiple_count || 0}
-                            </Typography>
-                          </Box>
-                        </Paper>
-                      </Grid>
-                    ))}
-                  </Grid>
+                  <Box>
+                    
+                    <TableContainer component={Paper}>
+                      <Table>
+                        <TableHead>
+                          <TableRow>
+                            <TableCell padding="checkbox">
+                              <Checkbox
+                                indeterminate={selectedPoints.length > 0 && selectedPoints.length < knowledgePoints.length}
+                                checked={selectedPoints.length === knowledgePoints.length}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    handleSelectAllPoints();
+                                  } else {
+                                    handleUnselectAllPoints();
+                                  }
+                                }}
+                              />
+                            </TableCell>
+                            <TableCell>知识点名称</TableCell>
+                            <TableCell align="right">单选题数量</TableCell>
+                            <TableCell align="right">多选题数量</TableCell>
+                            <TableCell>所属课程</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {knowledgePoints
+                            .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                            .map((point) => (
+                              <TableRow
+                                key={point.id}
+                                selected={selectedPoints.includes(point.id)}
+                                onClick={() => {
+                                  setSelectedPoints(prev =>
+                                    prev.includes(point.id)
+                                      ? prev.filter(id => id !== point.id)
+                                      : [...prev, point.id]
+                                  );
+                                }}
+                                hover
+                                sx={{ cursor: 'pointer' }}
+                              >
+                                <TableCell padding="checkbox">
+                                  <Checkbox
+                                    checked={selectedPoints.includes(point.id)}
+                                  />
+                                </TableCell>
+                                <TableCell>{point.point_name}</TableCell>
+                                <TableCell align="right">{point.single_count || 0}</TableCell>
+                                <TableCell align="right">{point.multiple_count || 0}</TableCell>
+                                <TableCell>{point.course_name}</TableCell>
+                              </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                      <TablePagination
+                        component="div"
+                        count={knowledgePoints.length}
+                        page={page}
+                        onPageChange={(e, newPage) => setPage(newPage)}
+                        rowsPerPage={rowsPerPage}
+                        onRowsPerPageChange={(e) => {
+                          setRowsPerPage(parseInt(e.target.value, 10));
+                          setPage(0);
+                        }}
+                        labelRowsPerPage="每页行数"
+                      />
+                    </TableContainer>
+                  </Box>
                 ) : (
                   <Typography color="text.secondary">
                     暂无知识点
@@ -885,6 +1151,44 @@ function ExamList() {
           </Button>
           <Button onClick={handleNewExam} variant="contained" color="primary">
             创建
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* 编辑考卷对话框 */}
+      <Dialog
+        open={editDialogOpen}
+        onClose={handleEditCancel}
+        maxWidth="sm"
+        fullWidth
+        disableEnforceFocus={false}
+        disablePortal={false}
+      >
+        <DialogTitle>编辑考卷</DialogTitle>
+        <DialogContent>
+          <Box sx={{ mt: 2 }}>
+            <TextField
+              fullWidth
+              label="考卷标题"
+              value={editTitle}
+              onChange={(e) => setEditTitle(e.target.value)}
+              sx={{ mb: 2 }}
+            />
+            <TextField
+              fullWidth
+              label="考卷描述"
+              value={editDescription}
+              onChange={(e) => setEditDescription(e.target.value)}
+              multiline
+              rows={3}
+              sx={{ mb: 2 }}
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleEditCancel}>取消</Button>
+          <Button onClick={handleEditSave} variant="contained" color="primary">
+            保存
           </Button>
         </DialogActions>
       </Dialog>
