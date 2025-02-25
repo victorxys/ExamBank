@@ -905,6 +905,7 @@ def create_user():
         # 检查用户名是否已存在
         cur.execute('SELECT id FROM "user" WHERE username = %s', (data['username'],))
         if cur.fetchone():
+            log.debug(f"Username {data['username']} already exists")
             return jsonify({'error': 'Username already exists'}), 400
 
         # 创建新用户
@@ -928,9 +929,11 @@ def create_user():
         ))
         new_user = cur.fetchone()
         conn.commit()
+        log.debug(f"Created new user: {new_user}")
         return jsonify(new_user)
     except Exception as e:
         conn.rollback()
+        log.debug(f"Error in create_user: {str(e)}")
         print('Error in create_user:', str(e))
         return jsonify({'error': str(e)}), 500
     finally:
