@@ -8,6 +8,12 @@ import uuid
 from dateutil import parser
 import logging
 from werkzeug.security import generate_password_hash, check_password_hash
+
+# 配置密码加密方法为pbkdf2
+from werkzeug.security import generate_password_hash as _generate_password_hash
+
+def generate_password_hash(password):
+    return _generate_password_hash(password, method='pbkdf2:sha256')
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 from datetime import timedelta, datetime
 import datetime as dt
