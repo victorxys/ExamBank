@@ -895,7 +895,7 @@ def get_users():
 def create_user():
     print("开始创建用户")
     data = request.get_json()
-    logger.debug(f"Received data: {data}")
+    log.debug(f"Received data: {data}")
     if not data or 'username' not in data or 'password' not in data:
         return jsonify({'error': 'Missing required fields'}), 400
 
