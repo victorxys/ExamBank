@@ -102,7 +102,14 @@ const UserManagement = () => {
   const handleClose = () => {
     setOpen(false);
     setEditUser(null);
-    setFormData({ username: '', phone_number: '' });
+    setFormData({
+      username: '',
+      phone_number: '',
+      password: '',
+      role: 'student',
+      email: '',
+      status: 'active'
+    });
   };
 
   const handleSubmit = async () => {
