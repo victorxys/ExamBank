@@ -16,10 +16,12 @@ import ExamRecordDetail from './components/ExamRecordDetail'
 import ExamTake from './components/ExamTake'
 import UserManagement from './components/UserManagement'
 import UserLoginDialog from './components/UserLoginDialog'
+import UserEvaluation from './components/UserEvaluation'
 import { hasToken } from './api/auth-utils'
 import "@fortawesome/fontawesome-free/css/all.min.css";
 import "./styles/argon-theme.css";
 import PrivateRoute from './components/PrivateRoute';
+import UserEvaluationSummary from './components/UserEvaluationSummary'
 
 const theme = createTheme({
   palette: {
@@ -286,6 +288,8 @@ function App() {
                 <Route path="/exam-records" element={<PrivateRoute element={<ExamRecords />} />} />
                 <Route path="/exam-records/:examId/:userId" element={<PrivateRoute element={<ExamRecordDetail />} />} />
                 <Route path="/users" element={<PrivateRoute element={<UserManagement />} />} />
+                <Route path="/user-evaluation/:userId" element={<PrivateRoute element={<UserEvaluation />} />} />
+                <Route path="/user-evaluation-summary/:userId" element={<PrivateRoute element={<UserEvaluationSummary />} />} />
               </Routes>
             </ErrorBoundary>
           </Box>

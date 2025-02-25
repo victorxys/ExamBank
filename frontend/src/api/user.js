@@ -5,5 +5,8 @@ export default {
   getUserInfo: (userId) => api.get(`/users/${userId}`),
   
   // 获取用户完整信息（包括姓名、手机号、角色、状态）
-  getUserDetails: (userId) => api.get(`/users/${userId}/details`)
+  getUserDetails: (userId) => api.get(`/users/${userId}/details`),
+
+  // 获取评价详情
+  getEvaluationDetail: (evaluationId) => api.get(`/api/evaluation/${evaluationId}`)
 };

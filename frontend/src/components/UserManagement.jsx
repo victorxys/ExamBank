@@ -21,7 +21,7 @@ import {
   CardHeader,
   CardContent,
 } from '@mui/material';
-import { Edit as EditIcon, Delete as DeleteIcon, Add as AddIcon } from '@mui/icons-material';
+import { Edit as EditIcon, Delete as DeleteIcon, Add as AddIcon, Assessment as AssessmentIcon } from '@mui/icons-material';
 import { MenuItem } from '@mui/material';
 import api from '../api/axios';
 import { useTheme } from '@mui/material';
@@ -29,9 +29,11 @@ import {
   Person as PersonIcon,
   Notifications as NotificationsIcon,
 } from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
 
 const UserManagement = () => {
   const theme = useTheme();
+  const navigate = useNavigate();
   const [users, setUsers] = useState([]);
   const [open, setOpen] = useState(false);
   const [editUser, setEditUser] = useState(null);
@@ -52,7 +54,7 @@ const UserManagement = () => {
   const fetchUsers = async () => {
     try {
       const response = await api.get('/users');
-      console.log('Users API response:', response.data);
+      // console.log('Users API response:', response.data);
       if (response.data && Array.isArray(response.data)) {
         let filteredUsers = response.data;
         if (searchTerm) {
@@ -260,6 +262,13 @@ const UserManagement = () => {
                         size="small"
                       >
                         <DeleteIcon />
+                      </IconButton>
+                      <IconButton
+                        color="info"
+                        onClick={() => navigate(`/user-evaluation/${user.id}`)}
+                        size="small"
+                      >
+                        <AssessmentIcon />
                       </IconButton>
                     </TableCell>
                   </TableRow>

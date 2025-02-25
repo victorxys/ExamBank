@@ -12,6 +12,7 @@ from flask_jwt_extended import JWTManager, create_access_token, jwt_required, ge
 from datetime import timedelta, datetime
 import datetime as dt
 from backend.api.temp_answer import save_temp_answer, get_temp_answers, mark_temp_answers_submitted  # 使用绝对导入
+from backend.api.evaluation import get_evaluation_items, get_user_evaluations
 from backend.db import get_db_connection
 
 
@@ -1000,6 +1001,123 @@ def update_user(user_id):
 def get_user_detail(user_id):
     from .api.user_details import get_user_details
     return get_user_details(user_id)
+
+@app.route('/api/evaluation-items', methods=['GET'])
+def get_evaluation_items_route():
+    return get_evaluation_items()
+
+@app.route('/api/evaluation/structure', methods=['GET'])
+def get_evaluation_structure():
+    conn = get_db_connection()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    try:
+        # 获取所有评价方面
+        cur.execute("""
+            SELECT 
+                id,
+                aspect_name,
+                description
+            FROM evaluation_aspect
+            ORDER BY created_at DESC
+        """)
+        aspects = cur.fetchall()
+        
+        # 获取所有评价类别
+        cur.execute("""
+            SELECT 
+                id,
+                category_name,
+                description,
+                aspect_id
+            FROM evaluation_category
+            ORDER BY created_at DESC
+        """)
+        categories = cur.fetchall()
+        
+        # 获取所有评价项
+        cur.execute("""
+            SELECT 
+                id,
+                item_name,
+                description,
+                category_id
+            FROM evaluation_item
+            ORDER BY created_at DESC
+        """)
+        items = cur.fetchall()
+        
+        # 构建层级结构
+        structure = []
+        for aspect in aspects:
+            aspect_data = {
+                'id': aspect['id'],
+                'name': aspect['aspect_name'],
+                'description': aspect['description'],
+                'type': 'aspect',
+                'children': []
+            }
+            
+            # 添加该方面下的类别
+            for category in categories:
+                if category['aspect_id'] == aspect['id']:
+                    category_data = {
+                        'id': category['id'],
+                        'name': category['category_name'],
+                        'description': category['description'],
+                        'type': 'category',
+                        'children': []
+                    }
+                    
+                    # 添加该类别下的评价项
+                    for item in items:
+                        if item['category_id'] == category['id']:
+                            item_data = {
+                                'id': item['id'],
+                                'name': item['item_name'],
+                                'description': item['description'],
+                                'type': 'item'
+                            }
+                            category_data['children'].append(item_data)
+                    
+                    aspect_data['children'].append(category_data)
+            
+            structure.append(aspect_data)
+        
+        return jsonify(structure)
+    except Exception as e:
+        print('Error in get_evaluation_structure:', str(e))
+        return jsonify({'error': str(e)}), 500
+    finally:
+        cur.close()
+        conn.close()
+
+@app.route('/api/users/<user_id>/evaluations', methods=['GET'])
+def get_user_evaluations_route(user_id):
+    return get_user_evaluations(user_id)
+
+@app.route('/api/user-evaluation/<user_id>', methods=['POST'])
+def create_user_evaluation_route(user_id):
+    data = request.get_json()
+    conn = get_db_connection()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    try:
+        cur.execute("""
+            INSERT INTO evaluation 
+            (evaluator_id, evaluated_user_id, evaluation_items, scores, comments)
+            VALUES (%s, %s, %s, %s, %s)
+            RETURNING id
+        """, (data['evaluator_id'], user_id, data['evaluation_items'], 
+              data['scores'], data['comments']))
+        evaluation_id = cur.fetchone()['id']
+        conn.commit()
+        return jsonify({'id': evaluation_id, 'message': '评价提交成功'})
+    except Exception as e:
+        conn.rollback()
+        print('Error in create_user_evaluation:', str(e))
+        return jsonify({'error': str(e)}), 500
+    finally:
+        cur.close()
+        conn.close()
 
 @app.route('/api/users/<user_id>', methods=['DELETE'])
 def delete_user(user_id):
@@ -2340,6 +2458,140 @@ def patch_exam(exam_id):
     except Exception as e:
         conn.rollback()
         print('Error in patch_exam:', str(e))
+        return jsonify({'error': str(e)}), 500
+    finally:
+        cur.close()
+        conn.close()
+
+@app.route('/api/evaluation/<evaluation_id>', methods=['GET'])
+def get_evaluation_detail(evaluation_id):
+    conn = get_db_connection()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    try:
+        # 获取评价基本信息和详细评分
+        cur.execute("""
+            WITH evaluation_scores AS (
+                SELECT 
+                    ei.id as item_id,
+                    ei.item_name,
+                    ei.description,
+                    ec.id as category_id,
+                    ec.category_name,
+                    ea.id as aspect_id,
+                    ea.aspect_name,
+                    ed.score
+                FROM evaluation e
+                JOIN evaluation_detail ed ON e.id = ed.evaluation_id
+                JOIN evaluation_item ei ON ed.item_id = ei.id
+                JOIN evaluation_category ec ON ei.category_id = ec.id
+                JOIN evaluation_aspect ea ON ec.aspect_id = ea.id
+                WHERE e.id = %s
+            )
+            SELECT json_build_object(
+                'id', e.id,
+                'evaluator_name', u.username,
+                'evaluation_time', e.evaluation_time,
+                'average_score', COALESCE((SELECT AVG(score) FROM evaluation_detail WHERE evaluation_id = e.id), 0),
+                'aspects', COALESCE(
+                    (SELECT json_agg(
+                        json_build_object(
+                            'id', a.aspect_id,
+                            'name', a.aspect_name,
+                            'score', a.avg_score,
+                            'categories', COALESCE(
+                                (SELECT json_agg(
+                                    json_build_object(
+                                        'id', c.category_id,
+                                        'name', c.category_name,
+                                        'score', c.avg_score,
+                                        'items', COALESCE(
+                                            (SELECT json_agg(
+                                                json_build_object(
+                                                    'id', es.item_id,
+                                                    'name', es.item_name,
+                                                    'description', es.description,
+                                                    'score', es.score
+                                                )
+                                            )
+                                            FROM evaluation_scores es
+                                            WHERE es.category_id = c.category_id
+                                            GROUP BY c.category_id), '[]'::json)
+                                    )
+                                )
+                                FROM (
+                                    SELECT 
+                                        category_id,
+                                        category_name,
+                                        AVG(score) as avg_score
+                                    FROM evaluation_scores
+                                    WHERE aspect_id = a.aspect_id
+                                    GROUP BY category_id, category_name
+                                ) c), '[]'::json)
+                        )
+                    )
+                    FROM (
+                        SELECT 
+                            aspect_id,
+                            aspect_name,
+                            AVG(score) as avg_score
+                        FROM evaluation_scores
+                        GROUP BY aspect_id, aspect_name
+                    ) a), '[]'::json)
+            ) as result
+            FROM evaluation e
+            JOIN "user" u ON e.evaluator_user_id = u.id
+            WHERE e.id = %s
+        """, (evaluation_id, evaluation_id))
+        
+        result = cur.fetchone()
+        if not result:
+            return jsonify({'error': '未找到评价记录'}), 404
+            
+        return jsonify(result['result'])
+    except Exception as e:
+        print('Error in get_evaluation_detail:', str(e))
+        return jsonify({'error': str(e)}), 500
+    finally:
+        cur.close()
+        conn.close()
+
+@app.route('/api/evaluation', methods=['POST'])
+def create_evaluation():
+    data = request.get_json()
+    if not data or 'evaluated_user_id' not in data or 'evaluations' not in data:
+        return jsonify({'error': '缺少必要的评价数据'}), 400
+    print("开始创建评价记录",data)
+    conn = get_db_connection()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    try:
+        # 获取当前用户ID（评价者ID）
+        evaluator_id = data['evaluator_user_id']
+        if not evaluator_id:
+            return jsonify({'error': '未授权的操作'}), 401
+
+        # 插入评价记录
+        cur.execute("""
+            INSERT INTO evaluation 
+            (evaluator_user_id, evaluated_user_id, updated_at)
+            VALUES (%s, %s, NOW())
+            RETURNING id
+        """, (evaluator_id, data['evaluated_user_id']))
+        evaluation_id = cur.fetchone()['id']
+
+        # 插入评价项目分数
+        for evaluation in data['evaluations']:
+            cur.execute("""
+                INSERT INTO evaluation_detail
+                (evaluation_id, item_id, score)
+                VALUES (%s, %s, %s)
+            """, (evaluation_id, evaluation['item_id'], evaluation['score']))
+
+        conn.commit()
+        return jsonify({'success': True, 'message': '评价提交成功', 'id': evaluation_id})
+
+    except Exception as e:
+        conn.rollback()
+        print('Error in create_evaluation:', str(e))
         return jsonify({'error': str(e)}), 500
     finally:
         cur.close()
