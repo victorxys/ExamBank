@@ -18,7 +18,7 @@ from flask_jwt_extended import JWTManager, create_access_token, jwt_required, ge
 from datetime import timedelta, datetime
 import datetime as dt
 from backend.api.temp_answer import save_temp_answer, get_temp_answers, mark_temp_answers_submitted  # 使用绝对导入
-from backend.api.evaluation import get_evaluation_items, get_user_evaluations
+from backend.api.evaluation import get_evaluation_items, get_user_evaluations, update_evaluation
 from backend.db import get_db_connection
 
 
@@ -2606,6 +2606,13 @@ def create_evaluation():
     finally:
         cur.close()
         conn.close()
+
+@app.route('/api/evaluation/<evaluation_id>', methods=['PUT'])
+def update_evaluation_route(evaluation_id):
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': '缺少必要的评价数据'}), 400
+    return update_evaluation(evaluation_id, data)
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)

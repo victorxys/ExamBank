@@ -124,3 +124,71 @@ def get_user_evaluations(user_id):
     finally:
         cur.close()
         conn.close()
+
+def update_evaluation(evaluation_id, data):
+    conn = get_db_connection()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    try:
+        print("开始更新评价记录，评价ID:", evaluation_id)
+        print("接收到的数据:", data)
+
+        # 验证评价记录是否存在
+        cur.execute("""
+            SELECT id FROM evaluation 
+            WHERE id = %s
+        """, (evaluation_id,))
+        if not cur.fetchone():
+            return jsonify({'error': '未找到评价记录'}), 404
+
+        # 验证数据格式
+        if not isinstance(data.get('evaluations'), list):
+            return jsonify({'error': '评价数据格式错误：evaluations必须是数组'}), 400
+
+        for evaluation in data['evaluations']:
+            if not isinstance(evaluation, dict) or \
+               'item_id' not in evaluation or \
+               'score' not in evaluation:
+                return jsonify({'error': '评价数据格式错误：每个评价项必须包含item_id和score'}), 400
+
+            if not isinstance(evaluation['score'], (int, float)) or \
+               evaluation['score'] < 0 or evaluation['score'] > 100:
+                return jsonify({'error': f'评分值无效：{evaluation["score"]}，分数必须在0-100之间'}), 400
+
+        # 更新评价时间
+        cur.execute("""
+            UPDATE evaluation 
+            SET updated_at = NOW()
+            WHERE id = %s
+        """, (evaluation_id,))
+
+        # 更新评价项目分数
+        if 'evaluations' in data:
+            # 先删除原有的评分记录
+            cur.execute("""
+                DELETE FROM evaluation_detail 
+                WHERE evaluation_id = %s
+            """, (evaluation_id,))
+
+            # 插入新的评分记录
+            for evaluation in data['evaluations']:
+                try:
+                    cur.execute("""
+                        INSERT INTO evaluation_detail
+                        (evaluation_id, item_id, score)
+                        VALUES (%s, %s, %s)
+                    """, (evaluation_id, evaluation['item_id'], evaluation['score']))
+                except Exception as e:
+                    print(f"插入评分记录失败: evaluation_id={evaluation_id}, item_id={evaluation['item_id']}, score={evaluation['score']}")
+                    raise e
+
+        conn.commit()
+        print("评价更新成功，评价ID:", evaluation_id)
+        return jsonify({'success': True, 'message': '评价更新成功', 'id': evaluation_id})
+
+    except Exception as e:
+        conn.rollback()
+        print('Error in update_evaluation:', str(e))
+        return jsonify({'error': str(e)}), 500
+    finally:
+        cur.close()
+        conn.close()

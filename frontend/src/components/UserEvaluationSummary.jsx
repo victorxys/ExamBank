@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   Container,
   Paper,
@@ -19,9 +19,10 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
+  DialogActions,
   IconButton,
 } from '@mui/material';
-import { Visibility as VisibilityIcon } from '@mui/icons-material';
+import { Visibility as VisibilityIcon, Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import api from '../api/axios';
 import { hasToken } from '../api/auth-utils';
 
@@ -33,7 +34,10 @@ const UserEvaluationSummary = () => {
   const [userInfo, setUserInfo] = useState(null);
   const [selectedEvaluation, setSelectedEvaluation] = useState(null);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [evaluationToDelete, setEvaluationToDelete] = useState(null);
   const tokenData = hasToken();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -202,22 +206,43 @@ const UserEvaluationSummary = () => {
                         sx={{ ml: 1 }}
                       />
                     </Box>
-                    <Button
-                      startIcon={<VisibilityIcon />}
-                      size="small"
-                      onClick={async () => {
-                        try {
-                          const response = await api.get(`/evaluation/${evaluation.id}`);
-                          setSelectedEvaluation(response.data);
-                          setDetailDialogOpen(true);
-                        } catch (error) {
-                          console.error('获取评价详情失败:', error);
-                          // 可以添加错误提示
-                        }
-                      }}
-                    >
-                      查看详情
-                    </Button>
+                    <Box sx={{ display: 'flex', gap: 1 }}>
+                      <Button
+                        startIcon={<VisibilityIcon />}
+                        size="small"
+                        onClick={async () => {
+                          try {
+                            const response = await api.get(`/evaluation/${evaluation.id}`);
+                            setSelectedEvaluation(response.data);
+                            setDetailDialogOpen(true);
+                          } catch (error) {
+                            console.error('获取评价详情失败:', error);
+                            // 可以添加错误提示
+                          }
+                        }}
+                      >
+                        查看详情
+                      </Button>
+                      <Button
+                        startIcon={<EditIcon />}
+                        size="small"
+                        color="primary"
+                        onClick={() => navigate(`/user-evaluation/${userId}?edit=${evaluation.id}`)}
+                      >
+                        编辑
+                      </Button>
+                      <Button
+                        startIcon={<DeleteIcon />}
+                        size="small"
+                        color="error"
+                        onClick={() => {
+                          setEvaluationToDelete(evaluation);
+                          setDeleteDialogOpen(true);
+                        }}
+                      >
+                        删除
+                      </Button>
+                    </Box>
                   </Box>
                 </Box>
 
@@ -372,6 +397,41 @@ const UserEvaluationSummary = () => {
             </Box>
           )}
         </DialogContent>
+      </Dialog>
+
+      {/* 删除确认对话框 */}
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>确认删除</DialogTitle>
+        <DialogContent>
+          <Typography variant="body1">
+            确定要删除这条评价记录吗？此操作无法撤销。
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialogOpen(false)}>取消</Button>
+          <Button
+            color="error"
+            onClick={async () => {
+              try {
+                await api.delete(`/evaluation/${evaluationToDelete.id}`);
+                // 刷新评价列表
+                const summaryResponse = await api.get(`/users/${userId}/evaluations`);
+                setEvaluationSummary(summaryResponse.data);
+                setDeleteDialogOpen(false);
+              } catch (error) {
+                console.error('删除评价失败:', error);
+                alert('删除评价失败: ' + (error.response?.data?.message || error.message));
+              }
+            }}
+          >
+            删除
+          </Button>
+        </DialogActions>
       </Dialog>
     </Container>
   );
