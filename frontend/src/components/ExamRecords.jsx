@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTheme } from '@mui/material'
 import { API_BASE_URL } from '../config';
+import { getToken } from '../api/auth-utils';
 import {
   Box,
   Card,
@@ -30,6 +31,7 @@ import {
   Notifications as NotificationsIcon
 } from '@mui/icons-material'
 import debounce from 'lodash/debounce'
+import PageHeader from './PageHeader';
 // console.log('API_BASE_URL:', API_BASE_URL); // 输出 API_BASE_URL 的值
 // console.log('url:', url); // 输出 url 的值
 // console.log('url.toString():', url.toString()); // 输出 url 的字符串形式
@@ -75,9 +77,14 @@ function ExamRecords() {
         // 添加查询参数 (使用 encodeURIComponent 编码)
         apiUrl += `?search=${encodeURIComponent(debouncedSearchTerm)}`;
       }
-      // console.log('API URL:', apiUrl);
   
-      const response = await fetch(apiUrl);
+      const token = getToken();
+      const response = await fetch(apiUrl, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
   
       if (!response.ok) {
         const errorText = await response.text();
@@ -85,10 +92,8 @@ function ExamRecords() {
       }
   
       const data = await response.json();
-      // console.log('获取到的考试记录：', data);
       setRecords(data);
     } catch (error) {
-      // console.error('获取考试记录出错：', error);
       setError(error.message);
     } finally {
       setLoading(false);
@@ -110,35 +115,11 @@ function ExamRecords() {
 
   return (
     <Box sx={{ width: '100%', height: '100%' }}>
-      <Box
-        sx={{
-          background: `linear-gradient(87deg, ${theme.palette.primary.main} 0, ${theme.palette.primary.dark} 100%)`,
-          borderRadius: '0.375rem',
-          p: 3,
-          mb: 3,
-          color: 'white',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-        }}
-      >
-        <Box>
-          <Typography variant="h1" component="h1" color="white" gutterBottom>
-            考试记录
-          </Typography>
-          <Typography variant="body1" color="white" sx={{ opacity: 0.8 }}>
-            这里列出了所有的考试记录，您可以查看所有考试记录。
-          </Typography>
-        </Box>
-        <Box sx={{ display: 'flex', gap: 2 }}>
-          <IconButton sx={{ color: 'white' }}>
-            <PersonIcon />
-          </IconButton>
-          <IconButton sx={{ color: 'white' }}>
-            <NotificationsIcon />
-          </IconButton>
-        </Box>
-      </Box>
+      <PageHeader
+        title="考试记录"
+        description="这里列出了所有的考试记录，您可以查看所有考试记录。"
+      />
+      
 
       <Card sx={{ mb: 2 }}>
         <CardContent>
@@ -187,7 +168,7 @@ function ExamRecords() {
                     backgroundColor: '#f6f9fc',
                     '& th': {
                       color: '#8898aa',
-                      fontSize: '0.65rem',
+                      fontSize: 'h4.fontSize',
                       fontWeight: 700,
                       textTransform: 'uppercase',
                       letterSpacing: '1px',
@@ -331,15 +312,6 @@ function ExamRecords() {
                               multi_choice_total: record.multi_choice_total
                             }
                           })}                        
-                          sx={{
-                            background: 'linear-gradient(87deg, #5e72e4 0%, #825ee4 100%)',
-                            boxShadow: '0 4px 6px rgba(50, 50, 93, 0.11), 0 1px 3px rgba(0, 0, 0, 0.08)',
-                            '&:hover': {
-                              background: 'linear-gradient(87deg, #5e72e4 0%, #825ee4 100%)',
-                              boxShadow: '0 7px 14px rgba(50, 50, 93, 0.1), 0 3px 6px rgba(0, 0, 0, 0.08)',
-                              transform: 'translateY(-1px)'
-                            }
-                          }}
                         >
                           查看详情
                         </Button>

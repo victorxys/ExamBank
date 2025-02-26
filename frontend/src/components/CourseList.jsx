@@ -21,6 +21,7 @@ import {
   MenuItem,
 } from '@mui/material'
 import AlertMessage from './AlertMessage'
+import PageHeader from './PageHeader'
 import {
   School as SchoolIcon,
   LibraryBooks as LibraryBooksIcon,
@@ -234,44 +235,23 @@ function CourseList() {
         severity={alert.severity}
         onClose={() => setAlert({ ...alert, show: false })}
       />
-      <Box
-        sx={{
-          background: `linear-gradient(87deg, ${theme.palette.primary.main} 0, ${theme.palette.primary.dark} 100%)`,
-          borderRadius: '0.375rem',
-          p: 3,
-          mb: 3,
-          color: 'white',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-        }}
-      >
-        <Box>
-          <Typography variant="h1" component="h1" color="white" gutterBottom>
-            课程列表
-          </Typography>
-          <Typography variant="body1" color="white" sx={{ opacity: 0.8 }}>
-            这里列出了所有可用的课程，点击课程卡片可以查看该课程的知识点和题目。
-          </Typography>
-        </Box>
-        <Button
-          variant="contained"
-          color="primary"
-          startIcon={<AddIcon />}
-          onClick={() => {
-            setEditFormData({ course_name: '', description: '', age_group: '' })
-            setOpenCreateDialog(true)
-          }}
-          sx={{
-            background: 'linear-gradient(87deg, #5e72e4 0, #825ee4 100%)',
-            '&:hover': {
-              background: 'linear-gradient(87deg, #4050e0 0, #6f4ed4 100%)',
-            },
-          }}
-        >
-          添加课程
-        </Button>
-      </Box>
+      <PageHeader
+        title="课程列表"
+        description="这里列出了所有可用的课程，点击课程卡片可以查看该课程的知识点和题目。"
+        actions={
+          <Button
+            variant="contained"
+            color="primary"
+            startIcon={<AddIcon />}
+            onClick={() => {
+              setEditFormData({ course_name: '', description: '', age_group: '' })
+              setOpenCreateDialog(true)
+            }}
+          >
+            添加课程
+          </Button>
+        }
+      />
     
       <Card sx={{ boxShadow: '0 0 2rem 0 rgba(136, 152, 170, .15)', borderRadius: '0.375rem', backgroundColor: 'transparent', border: 'none' }}>
         <Grid container spacing={2}>

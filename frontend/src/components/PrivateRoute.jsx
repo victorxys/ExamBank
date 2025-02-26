@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
 import { hasToken } from '../api/auth-utils';
 import UserLoginDialog from './UserLoginDialog';
+import { useLocation, Navigate } from 'react-router-dom';
+
 
 const PrivateRoute = ({ element }) => {
   const [loginOpen, setLoginOpen] = useState(false);
-  const isAuthenticated = hasToken();
+  const userInfo = hasToken();
+  const location = useLocation();
 
-  if (!isAuthenticated) {
+  if (!userInfo) {
     // 如果用户未登录，显示登录弹窗
     return (
       <>
@@ -23,7 +26,14 @@ const PrivateRoute = ({ element }) => {
     );
   }
 
-  // 如果用户已登录，渲染原始组件
+  // 如果是学生用户，只允许访问考试记录页面
+  // console.log(location.pathname)
+  // console.log(userInfo.role)
+  if (userInfo.role === 'student' && !location.pathname.includes('/exam-records')) {
+    return <Navigate to="/exam-records" replace />;
+  }
+
+  // 如果用户已登录且有权限，渲染原始组件
   return element;
 };
 

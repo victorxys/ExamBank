@@ -19,6 +19,7 @@ import {
 import AlertMessage from './AlertMessage';
 import api from '../api/axios';
 import { hasToken } from '../api/auth-utils';
+import PageHeader from './PageHeader'
 
 const UserEvaluation = () => {
   const { userId } = useParams();
@@ -164,15 +165,19 @@ const UserEvaluation = () => {
   };
 
   return (
-    <Container maxWidth="md" sx={{ py: 4 }}>
+    <Container maxWidth="100%" >
       <AlertMessage
         open={alertOpen}
         message={alertMessage?.message}
         severity={alertMessage?.severity || 'info'}
         onClose={handleAlertClose}
       />
+       <PageHeader
+        title= {userInfo ? `正在对 ${userInfo.username} 进行评价` : '用户评价'}
+        description="请如实对该用户进行评价，对于不了解的评价项可以不做选择"
+      />
       <Typography variant="h1" gutterBottom textAlign={'center'} color={'#999999'}>
-        {userInfo ? `正在对 ${userInfo.username} 进行评价` : '用户评价'}
+       
       </Typography>
       
       {evaluationStructure.map(aspect => (

@@ -4,7 +4,7 @@
 
 :root {
   /* Colors */
-  --primary: #5e72e4;
+  --primary: #56aea2;
   --secondary: #f7fafc;
   --success: #2dce89;
   --info: #11cdef;
@@ -71,7 +71,7 @@ a {
 }
 
 a:hover {
-  color: #233dd2;
+  color: #56aea2;
   text-decoration: none;
 }
 

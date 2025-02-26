@@ -27,9 +27,10 @@ const theme = createTheme({
   palette: {
     mode: 'light',
     primary: {
-      main: '#5e72e4',
+      main: '#56aea2',
       light: '#7789e8',
-      dark: '#4050e0',
+      dark: '#a0d4c3',
+      contrastText: '#ffffff',
     },
     secondary: {
       main: '#f7fafc',
@@ -142,7 +143,7 @@ const theme = createTheme({
         },
         contained: {
           '&.MuiButton-containedPrimary': {
-            background: 'linear-gradient(87deg, #5e72e4 0, #825ee4 100%)',
+            background: 'linear-gradient(87deg,rgb(124, 190, 168) 0, #56aea2 100%)',
           },
           '&.MuiButton-containedSecondary': {
             background: 'linear-gradient(87deg, #f5365c 0, #f56036 100%)',

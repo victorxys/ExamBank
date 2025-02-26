@@ -38,6 +38,7 @@ import {
 } from '@mui/icons-material';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTheme } from '@mui/material';
+import PageHeader from './PageHeader';
 
 function KnowledgePoints() {
   const { courseId } = useParams();
@@ -293,35 +294,19 @@ function KnowledgePoints() {
 
   return (
     <Box sx={{ width: '100%', height: '100%' }}>
-      <Box
-        sx={{
-          background: `linear-gradient(87deg, ${theme.palette.primary.main} 0, ${theme.palette.primary.dark} 100%)`,
-          borderRadius: '0.375rem',
-          p: 3,
-          mb: 3,
-          color: 'white',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-        }}
-      >
-        <Box>
-          <Typography variant="h1" component="h1" color="white" gutterBottom>
-            知识点管理
-          </Typography>
-          <Typography variant="body1" color="white" sx={{ opacity: 0.8 }}>
-            这里列出了所有的知识点，您可以添加、编辑或删除知识点。
-          </Typography>
-        </Box>
-        <Box sx={{ display: 'flex', gap: 2 }}>
-          <IconButton sx={{ color: 'white' }}>
-            <PersonIcon />
-          </IconButton>
-          <IconButton sx={{ color: 'white' }}>
-            <NotificationsIcon />
-          </IconButton>
-        </Box>
-      </Box>
+      <PageHeader
+        title="知识点管理"
+        description="这里列出了所有的知识点，您可以添加、编辑或删除知识点。"
+        actions={
+          <Button
+              variant="contained"
+              color="primary"
+              onClick={() => setOpenCreateDialog(true)}
+            >
+              添加知识点
+            </Button>
+        }
+      />
       <AlertMessage
         open={alert.show}
         message={alert.message}
@@ -333,15 +318,7 @@ function KnowledgePoints() {
         <CardHeader 
           title={courseId ? courses.find(c => c.id === courseId)?.course_name || '课程知识点' : '知识点管理'} 
           subheader={courseId ? '课程的所有知识点' : undefined}
-          action={
-            <Button
-              variant="contained"
-              color="primary"
-              onClick={() => setOpenCreateDialog(true)}
-            >
-              添加知识点
-            </Button>
-          }
+          
         />
         <CardContent>
           <Grid container spacing={2} sx={{ mb: 2 }}>
@@ -383,16 +360,6 @@ function KnowledgePoints() {
                 </FormControl>
               </Grid>
             )}
-            <Grid item xs={12} sm={courseId ? 4 : 4}>
-              <Button
-                variant="contained"
-                startIcon={<SearchIcon />}
-                onClick={handleSearch}
-                sx={{ mt: 1 }}
-              >
-                搜索
-              </Button>
-            </Grid>
           </Grid>
 
           <TableContainer component={Paper}>

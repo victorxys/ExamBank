@@ -21,6 +21,7 @@ import {
   RadioButtonChecked as RadioButtonCheckedIcon,
   CheckBox as CheckBoxIcon
 } from '@mui/icons-material'
+import { hasToken } from '../api/auth-utils';
 
 const ExamRecordDetail = () => {
   const { examId, userId } = useParams()
@@ -34,6 +35,19 @@ const ExamRecordDetail = () => {
   const [error, setError] = useState(null)
   const [dataVersion, setDataVersion] = useState(0)
   const [showOnlyIncorrect, setShowOnlyIncorrect] = useState(false)
+  const userInfo = hasToken();
+  const [userRole, setUserRole] = useState(userInfo.role);
+  
+  
+  useEffect(() => {
+    
+    if (userInfo) {
+      // console.log('Token:', userInfo);
+      if (userInfo.role === 'student') {
+        setShowOnlyIncorrect(true);
+      }
+    }
+  }, []);
 
   const getCacheKey = (examId, userId, examTime) => {
     return `exam-record-${examId}-${userId}-${examTime}`;
@@ -111,10 +125,10 @@ const ExamRecordDetail = () => {
         }
       } catch (error) {
         if (error.name === 'AbortError') {
-          console.log('Fetch aborted');
+          // console.log('Fetch aborted');
           return;
         }
-        console.error('Error fetching exam record:', error);
+        // console.error('Error fetching exam record:', error);
         if (isMounted) {
           setError(error.message || '获取考试记录失败，请重试');
         }
@@ -309,16 +323,19 @@ const ExamRecordDetail = () => {
                 </Box>
               </Grid>
               <Grid item xs={12} md={2}>
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={showOnlyIncorrect}
-                      onChange={(e) => setShowOnlyIncorrect(e.target.checked)}
-                      color="primary"
-                    />
-                  }
-                  label="只显示错题"
-                />
+               
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={showOnlyIncorrect}
+                        onChange={(e) => setShowOnlyIncorrect(e.target.checked)}
+                        color="primary"
+                        disabled={userRole === 'student'}
+                      />
+                    }
+                    label="只显示错题"
+                  />
+                
               </Grid>
             </Grid>
           </CardContent>

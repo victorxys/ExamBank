@@ -51,6 +51,7 @@ import {
   Edit as EditIcon
 } from '@mui/icons-material'
 import AlertMessage from './AlertMessage';
+import PageHeader from './PageHeader';
 
 function ExamList() {
   const navigate = useNavigate()
@@ -71,7 +72,7 @@ function ExamList() {
   const [rowsPerPage, setRowsPerPage] = useState(10)
   const [singleCount, setSingleCount] = useState('');
   const [multipleCount, setMultipleCount] = useState(0);
-  const [examRecords, setExamRecords] = useState([])
+  
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [examToDelete, setExamToDelete] = useState(null);
   const [anchorEl, setAnchorEl] = useState(null);
@@ -87,34 +88,26 @@ function ExamList() {
     const fetchData = async () => {
       try {
         setLoading(true)
-        const [examsResponse, coursesResponse, recordsResponse] = await Promise.all([
+        const [examsResponse, coursesResponse] = await Promise.all([
           fetch(`${API_BASE_URL}/exams`),
           fetch(`${API_BASE_URL}/courses`),
-          fetch(`${API_BASE_URL}/exam-records`)
+          // fetch(`${API_BASE_URL}/exam-records`)
         ])
 
-        if (!examsResponse.ok || !coursesResponse.ok || !recordsResponse.ok) {
+        if (!examsResponse.ok || !coursesResponse.ok ) {
           throw new Error('获取数据失败')
         }
 
-        const [examsData, coursesData, recordsData] = await Promise.all([
+        const [examsData, coursesData] = await Promise.all([
           examsResponse.json(),
           coursesResponse.json(),
-          recordsResponse.json()
+          // recordsResponse.json()
         ])
 
-        // 为每条记录生成唯一的 key
-        const processedRecords = recordsData.map(record => ({
-          ...record,
-          // 使用 exam_id 和 created_at 组合作为唯一标识符
-          uniqueId: record.exam_id && record.created_at 
-            ? `${record.exam_id}-${new Date(record.created_at).getTime()}`
-            : `record-${Math.random().toString(36).substr(2, 9)}`
-        }));
+
 
         setExams(examsData)
         setCourses(coursesData)
-        setExamRecords(processedRecords)
       } catch (error) {
         console.error('Error fetching data:', error)
         setError(error.message)
@@ -146,18 +139,7 @@ function ExamList() {
     }
   }
 
-  const fetchExamRecords = async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/exam-records`)
-      if (!response.ok) {
-        throw new Error('Failed to fetch exam records')
-      }
-      const data = await response.json()
-      setExamRecords(data)
-    } catch (error) {
-      console.error('Error fetching exam records:', error)
-    }
-  }
+  
 
   const fetchExams = async () => {
     try {
@@ -617,52 +599,20 @@ function ExamList() {
           onClose={() => setAlert({ ...alert, show: false })}
         />
       )}
-      <Box
-        sx={{
-          background: `linear-gradient(87deg, ${theme.palette.primary.main} 0, ${theme.palette.primary.dark} 100%)`,
-          borderRadius: '0.375rem',
-          p: 3,
-          mb: 3,
-          color: 'white',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-        }}
-      >
-        <Box>
-          <Typography variant="h1" component="h1" color="white" gutterBottom>
-            考卷管理
-          </Typography>
-          <Typography variant="body1" color="white" sx={{ opacity: 0.8 }}>
-            这里列出了所有可用的考卷，您可以添加、编辑或删除考卷。
-          </Typography>
-        </Box>
-        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+      <PageHeader
+        title="考卷管理"
+        description="这里列出了所有可用的考卷，您可以添加、编辑或删除考卷。"
+        actions={
           <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={() => setNewExamDialogOpen(true)}
-            sx={{
-              background: 'linear-gradient(87deg, #5e72e4 0, #825ee4 100%)',
-              '&:hover': {
-                background: 'linear-gradient(87deg, #4050e0 0, #6f4ed4 100%)',
-              },
-              mr: 2
-            }}
-          >
-            新建考卷
-          </Button>
-          <IconButton sx={{ color: 'white' }}>
-            <PersonIcon />
-          </IconButton>
-          <IconButton sx={{ color: 'white' }}>
-            <NotificationsIcon />
-          </IconButton>
-        </Box>
-      </Box>
-
-      
-
+          variant="contained"
+          startIcon={<AddIcon />}
+          onClick={() => setNewExamDialogOpen(true)}
+          
+        >
+          新建考卷
+        </Button>
+        }
+      />
       <Card sx={{ mb: 2 }}>
         
         <CardContent>

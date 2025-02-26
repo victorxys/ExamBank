@@ -23,14 +23,14 @@ import {
 } from '@mui/icons-material'
 import logo from '../assets/logo.svg'
 import UserInfo from './UserInfo'
-
+import { hasToken } from '../api/auth-utils'
 // Import Argon Dashboard styles
 // 使用CDN方式引入Argon Dashboard样式
 // @creative-tim-official/argon-dashboard-free/assets/css/argon-dashboard.min.css
 
 const drawerWidth = 260
 
-const menuItems = [
+const allMenuItems = [
   {
     text: '仪表盘',
     icon: <DashboardIcon />,
@@ -68,9 +68,18 @@ const menuItems = [
   },
 ]
 
+const studentMenuItems = [
+  {
+    text: '考试记录',
+    icon: <AssignmentTurnedInIcon />,
+    path: '/exam-records',
+  },
+]
+
 function Sidebar() {
   const location = useLocation()
   const [mobileOpen, setMobileOpen] = useState(false)
+  const userInfo = hasToken()
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen)
@@ -94,7 +103,7 @@ function Sidebar() {
       <UserInfo />
       {/*<Divider />*/}
       <List className="navbar-nav">
-        {menuItems.map((item) => (
+        {(userInfo?.role === 'student' ? studentMenuItems : allMenuItems).map((item) => (
           <ListItem
             key={item.text}
             component={RouterLink}
@@ -110,7 +119,7 @@ function Sidebar() {
               textDecoration: 'none',
               transition: 'all 0.15s ease',
               '&.active': {
-                background: 'linear-gradient(87deg, #5e72e4 0%, #825ee4 100%)',
+                background: 'linear-gradient(87deg, #56aea2 0%, #a0d4c3 100%)',
                 boxShadow: '0 7px 14px rgba(50, 50, 93, 0.1), 0 3px 6px rgba(0, 0, 0, 0.08)',
                 '& .MuiListItemIcon-root': {
                   color: 'white',
@@ -119,13 +128,13 @@ function Sidebar() {
                   color: 'white',
                 },
                 '&:hover': {
-                  background: 'linear-gradient(87deg, #5e72e4 0%, #825ee4 100%)',
+                  background: 'linear-gradient(87deg, #56aea2 0%, #a0d4c3 100%)',
                   boxShadow: '0 7px 14px rgba(50, 50, 93, 0.15), 0 3px 6px rgba(0, 0, 0, 0.1)',
                   transform: 'translateY(-1px)',
                 },
               },
               '&:hover': {
-                backgroundColor: 'rgba(94, 114, 228, 0.1)',
+                backgroundColor: 'rgba(94, 228, 188, 0.1)',
                 transform: 'translateY(-1px)',
               },
             }}

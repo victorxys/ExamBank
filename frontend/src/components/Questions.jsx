@@ -47,6 +47,7 @@ import {
   Person as PersonIcon,
   Notifications as NotificationsIcon,
 } from '@mui/icons-material'
+import PageHeader from './PageHeader'
 
 function Questions() {
   const navigate = useNavigate()
@@ -345,34 +346,27 @@ function Questions() {
   // 在搜索栏部分添加课程和知识点选择
   return (
   <Box sx={{ width: '100%', height: '100%' }}>
+    <PageHeader
+        title="题库管理"
+        description="这里列出了所有可用的题目，您可以添加、编辑或删除题目。"
+        actions={
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={handleAddQuestion}
+            sx={{
+              background: 'linear-gradient(87deg, #5e72e4 0, #825ee4 100%)',
+              '&:hover': {
+                background: 'linear-gradient(87deg, #4050e0 0, #6f4ed4 100%)',
+              },
+            }}
+          >
+            添加题目
+          </Button>
+        }
+      />
     <Box
-      sx={{
-        background: `linear-gradient(87deg, ${theme.palette.primary.main} 0, ${theme.palette.primary.dark} 100%)`,
-        borderRadius: '0.375rem',
-        p: 3,
-        mb: 3,
-        color: 'white',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-      }}
     >
-      <Box>
-        <Typography variant="h1" component="h1" color="white" gutterBottom>
-          题库管理
-        </Typography>
-        <Typography variant="body1" color="white" sx={{ opacity: 0.8 }}>
-          这里列出了所有可用的题目，您可以添加、编辑或删除题目。
-        </Typography>
-      </Box>
-      <Box sx={{ display: 'flex', gap: 2 }}>
-        <IconButton sx={{ color: 'white' }}>
-          <PersonIcon />
-        </IconButton>
-        <IconButton sx={{ color: 'white' }}>
-          <NotificationsIcon />
-        </IconButton>
-      </Box>
     </Box>
 
     <Box
@@ -435,19 +429,7 @@ function Questions() {
             ))}
           </Select>
         </FormControl>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={handleAddQuestion}
-          sx={{
-            background: 'linear-gradient(87deg, #5e72e4 0, #825ee4 100%)',
-            '&:hover': {
-              background: 'linear-gradient(87deg, #4050e0 0, #6f4ed4 100%)',
-            },
-          }}
-        >
-          添加题目
-        </Button>
+        
       </Box>
 
       <TableContainer

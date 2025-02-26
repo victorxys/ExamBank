@@ -30,6 +30,7 @@ import {
   Notifications as NotificationsIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
+import PageHeader from './PageHeader';
 
 const UserManagement = () => {
   const theme = useTheme();
@@ -139,35 +140,10 @@ const UserManagement = () => {
 
   return (
     <Box sx={{ width: '100%', height: '100%' }}>
-      <Box
-        sx={{
-          background: `linear-gradient(87deg, ${theme.palette.primary.main} 0, ${theme.palette.primary.dark} 100%)`,
-          borderRadius: '0.375rem',
-          p: 3,
-          mb: 3,
-          color: 'white',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-        }}
-      >
-        <Box>
-          <Typography variant="h1" component="h1" color="white" gutterBottom>
-            用户管理
-          </Typography>
-          <Typography variant="body1" color="white" sx={{ opacity: 0.8 }}>
-            这里列出了所有的用户，您可以添加、编辑或删除用户。此处用户与员工平台关联
-          </Typography>
-        </Box>
-        <Box sx={{ display: 'flex', gap: 2 }}>
-          <IconButton sx={{ color: 'white' }}>
-            <PersonIcon />
-          </IconButton>
-          <IconButton sx={{ color: 'white' }}>
-            <NotificationsIcon />
-          </IconButton>
-        </Box>
-      </Box>
+      <PageHeader
+        title="用户管理"
+        description="这里列出了所有的用户，您可以添加、编辑或删除用户。此处用户与员工平台关联"
+      />
 
       <Card sx={{ 
         boxShadow: '0 0 2rem 0 rgba(136, 152, 170, .15)',

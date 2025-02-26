@@ -18,6 +18,10 @@ from flask_jwt_extended import JWTManager, create_access_token, jwt_required, ge
 from datetime import timedelta, datetime
 import datetime as dt
 from backend.api.temp_answer import save_temp_answer, get_temp_answers, mark_temp_answers_submitted  # 使用绝对导入
+
+# 创建带有角色信息的访问令牌
+def create_token_with_role(user_id, role):
+    return create_access_token(identity=user_id, additional_claims={'role': role})
 from backend.api.evaluation import get_evaluation_items, get_user_evaluations, update_evaluation
 from backend.db import get_db_connection
 
@@ -46,7 +50,7 @@ def login():
         user = cur.fetchone()
 
         if user and check_password_hash(user['password'], data['password']):
-            access_token = create_access_token(identity=user['id'])
+            access_token = create_token_with_role(user['id'], user['role'])
             return jsonify({
                 'access_token': access_token,
                 'user': {
@@ -87,7 +91,8 @@ def register():
         conn.commit()
 
         # 生成访问令牌
-        access_token = create_access_token(identity=new_user['id'])
+        # access_token = create_access_token(identity=new_user['id'])
+        access_token = create_token_with_role(new_user['id'], new_user['role'])
         return jsonify({
             'access_token': access_token,
             'user': {
@@ -1982,7 +1987,8 @@ def login_or_register_user():
         if existing_user:
             # 如果用户已存在，直接返回用户信息
             # 生成访问令牌
-            access_token = create_access_token(identity=existing_user['id'])
+            # access_token = create_access_token(identity=existing_user['id'])
+            access_token = create_token_with_role(existing_user['id'], existing_user['role'])
             return jsonify({
                 'access_token': access_token,
                 'user': {
@@ -2007,7 +2013,9 @@ def login_or_register_user():
         new_user = cur.fetchone()
         conn.commit()
         # 生成访问令牌
-        access_token = create_access_token(identity=new_user['id'])
+        # access_token = create_access_token(identity=new_user['id'])
+        access_token = create_token_with_role(new_user['id'], new_user['role'])
+        
         return jsonify({
             'access_token': access_token,
                 'user': {
@@ -2027,9 +2035,20 @@ def login_or_register_user():
         conn.close()
 
 @app.route('/api/exam-records', methods=['GET'])
+@jwt_required()
 def get_exam_records():
     log.debug("开始获取考试记录列表")
     try:
+        # 获取当前用户信息
+        current_user_id = get_jwt_identity()
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # 获取用户角色
+        cur.execute('SELECT "role" FROM "user" WHERE id = %s', (current_user_id,))
+        user_role = cur.fetchone()['role']
+        cur.close()
+        
         search = request.args.get('search', '')
 
         query = """
@@ -2079,6 +2098,10 @@ def get_exam_records():
                         u.phone_number ILIKE '%%' || %s || '%%'
                     ELSE TRUE
                 END
+                AND CASE
+                    WHEN %s != 'admin' THEN ar.user_id = %s
+                    ELSE TRUE
+                END
             GROUP BY
                 ep.id,
                 ep.title,
@@ -2096,7 +2119,7 @@ def get_exam_records():
         conn = get_db_connection()
         cur = conn.cursor()
         try:
-            cur.execute(query, (search, search, search))
+            cur.execute(query, (search, search, search, user_role, current_user_id))
             records = cur.fetchall()
 
             result = []

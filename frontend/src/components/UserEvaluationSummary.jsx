@@ -25,6 +25,7 @@ import {
 import { Visibility as VisibilityIcon, Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import api from '../api/axios';
 import { hasToken } from '../api/auth-utils';
+import PageHeader from './PageHeader'
 
 const UserEvaluationSummary = () => {
   const { userId } = useParams();
@@ -75,7 +76,11 @@ const UserEvaluationSummary = () => {
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
-      <Typography variant="h1" gutterBottom>员工评价汇总</Typography>
+      <PageHeader
+        title="员工评价汇总"
+        description="展示此员工的平均评价分数，同时可查看历史评价结果"
+      />
+      
       
       {/* 用户基本信息卡片 */}
       <Card sx={{ mb: 4 }}>
@@ -91,7 +96,7 @@ const UserEvaluationSummary = () => {
               </Typography>
             </Grid>
             <Grid item xs={12} md={6}>
-              <Box display="flex" justifyContent="flex-end">
+              <Box display="flex" justifyContent="flex-end" gap={2}>
                 <Button
                   variant="contained"
                   color="primary"
@@ -99,6 +104,97 @@ const UserEvaluationSummary = () => {
                   to={`/user-evaluation/${userId}`}
                 >
                   添加新评价
+                </Button>
+                <Button
+                  variant="outlined"
+                  color="primary"
+                  onClick={() => {
+                    if (!evaluationSummary || !userInfo) return;
+
+                    // 生成markdown内容
+                    let markdown = `# ${userInfo.username} 的评价汇总\n\n`;
+
+                    // 添加用户基本信息
+                    markdown += `## 基本信息\n\n`;
+                    markdown += `- 用户名：${userInfo.username}\n`;
+                    
+
+                    // 添加评价汇总信息
+                    evaluationSummary.aspects?.forEach(aspect => {
+                      markdown += `## ${aspect.name}\n\n`;
+                      markdown += `总体评分：${aspect.average_score?.toFixed(1) || '暂无'}\n\n`;
+
+                      aspect.categories?.forEach(category => {
+                        markdown += `### ${category.name}\n\n`;
+
+                        category.items?.forEach(item => {
+                          markdown += `#### ${item.name}\n`;
+                          markdown += `- 平均得分：${item.average_score?.toFixed(1) || '暂无'}\n`;
+                          if (item.description) {
+                            markdown += `- 说明：${item.description}\n`;
+                          }
+                          markdown += '\n';
+                        });
+                      });
+                    });
+
+                    // 创建并下载文件
+                    const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `${userInfo.username}_评价汇总.md`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(url);
+                  }}
+                >
+                  导出评价
+                </Button>
+                <Button
+                  variant="outlined"
+                  color="primary"
+                  onClick={() => {
+                    if (!evaluationSummary || !userInfo) return;
+
+                    // 生成markdown内容
+                    let markdown = `# ${userInfo.username} 的评价汇总\n\n`;
+
+                    // 添加用户基本信息
+                    markdown += `## 基本信息\n\n`;
+                    markdown += `- 用户名：${userInfo.username}\n`;
+                    
+
+                    // 添加评价汇总信息
+                    evaluationSummary.aspects?.forEach(aspect => {
+                      markdown += `## ${aspect.name}\n\n`;
+                      markdown += `总体评分：${aspect.average_score?.toFixed(1) || '暂无'}\n\n`;
+
+                      aspect.categories?.forEach(category => {
+                        markdown += `### ${category.name}\n\n`;
+
+                        category.items?.forEach(item => {
+                          markdown += `#### ${item.name}\n`;
+                          markdown += `- 平均得分：${item.average_score?.toFixed(1) || '暂无'}\n`;
+                          if (item.description) {
+                            markdown += `- 说明：${item.description}\n`;
+                          }
+                          markdown += '\n';
+                        });
+                      });
+                    });
+
+                    // 复制到剪贴板
+                    navigator.clipboard.writeText(markdown).then(() => {
+                      alert('评价内容已复制到剪贴板');
+                    }).catch(err => {
+                      console.error('复制失败:', err);
+                      alert('复制失败，请重试');
+                    });
+                  }}
+                >
+                  复制评价
                 </Button>
               </Box>
             </Grid>
