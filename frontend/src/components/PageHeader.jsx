@@ -1,7 +1,7 @@
 import React from 'react';
 import { Box, Typography, IconButton } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { Person as PersonIcon, Notifications as NotificationsIcon } from '@mui/icons-material';
+import { Person as PersonIcon } from '@mui/icons-material';
 
 const PageHeader = ({ 
   title, 
@@ -40,9 +40,6 @@ const PageHeader = ({
           <>
             <IconButton sx={{ color: 'white' }}>
               <PersonIcon />
-            </IconButton>
-            <IconButton sx={{ color: 'white' }}>
-              <NotificationsIcon />
             </IconButton>
           </>
         )}

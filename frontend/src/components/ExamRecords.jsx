@@ -163,19 +163,7 @@ function ExamRecords() {
           >
             <Table>
               <TableHead>
-                <TableRow
-                  sx={{
-                    backgroundColor: '#f6f9fc',
-                    '& th': {
-                      color: '#8898aa',
-                      fontSize: 'h4.fontSize',
-                      fontWeight: 700,
-                      textTransform: 'uppercase',
-                      letterSpacing: '1px',
-                      borderBottom: 'none'
-                    }
-                  }}
-                >
+                <TableRow>
                   <TableCell>考试名称</TableCell>
                   <TableCell>考生</TableCell>
                   <TableCell>考试时间</TableCell>

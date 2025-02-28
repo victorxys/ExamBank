@@ -27,9 +27,9 @@ const theme = createTheme({
   palette: {
     mode: 'light',
     primary: {
-      main: '#56aea2',
+      main: '#26A69A',
       light: '#7789e8',
-      dark: '#a0d4c3',
+      dark: '#408d86',
       contrastText: '#ffffff',
     },
     secondary: {
@@ -70,7 +70,7 @@ const theme = createTheme({
       900: '#212529',
     },
     background: {
-      default: '#f8f9fe',
+      default: '#E0F2F1',
       paper: '#ffffff',
     },
     text: {
@@ -78,6 +78,7 @@ const theme = createTheme({
       secondary: '#8898aa',
     },
   },
+  
   typography: {
     fontFamily: '"Open Sans", "Helvetica", "Arial", sans-serif',
     h1: {
@@ -143,7 +144,7 @@ const theme = createTheme({
         },
         contained: {
           '&.MuiButton-containedPrimary': {
-            background: 'linear-gradient(87deg,rgb(124, 190, 168) 0, #56aea2 100%)',
+            background: 'linear-gradient(87deg, #26A69A 0, #56aea2 100%)',
           },
           '&.MuiButton-containedSecondary': {
             background: 'linear-gradient(87deg, #f5365c 0, #f56036 100%)',

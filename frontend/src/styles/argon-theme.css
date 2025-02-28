@@ -4,7 +4,7 @@
 
 :root {
   /* Colors */
-  --primary: #56aea2;
+  --primary: #263339;    /* #左侧菜单文字 */
   --secondary: #f7fafc;
   --success: #2dce89;
   --info: #11cdef;
@@ -12,7 +12,7 @@
   --danger: #f5365c;
   --light: #adb5bd;
   --dark: #212529;
-  --default: #172b4d;
+  --default: #172b4d; /* #左侧用户名称文字 */
   
   /* Typography */
   --font-family-sans-serif: 'Open Sans', sans-serif;

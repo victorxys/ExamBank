@@ -119,7 +119,7 @@ function Sidebar() {
               textDecoration: 'none',
               transition: 'all 0.15s ease',
               '&.active': {
-                background: 'linear-gradient(87deg, #56aea2 0%, #a0d4c3 100%)',
+                background: 'linear-gradient(87deg, #26A69A 0%, #56aea2 100%)',
                 boxShadow: '0 7px 14px rgba(50, 50, 93, 0.1), 0 3px 6px rgba(0, 0, 0, 0.08)',
                 '& .MuiListItemIcon-root': {
                   color: 'white',
@@ -128,13 +128,13 @@ function Sidebar() {
                   color: 'white',
                 },
                 '&:hover': {
-                  background: 'linear-gradient(87deg, #56aea2 0%, #a0d4c3 100%)',
+                  background: 'linear-gradient(87deg, #26A69A 0%, #56aea2 100%)',
                   boxShadow: '0 7px 14px rgba(50, 50, 93, 0.15), 0 3px 6px rgba(0, 0, 0, 0.1)',
                   transform: 'translateY(-1px)',
                 },
               },
               '&:hover': {
-                backgroundColor: 'rgba(94, 228, 188, 0.1)',
+                backgroundColor: '#D0EBEA',
                 transform: 'translateY(-1px)',
               },
             }}

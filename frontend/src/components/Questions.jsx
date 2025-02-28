@@ -443,19 +443,7 @@ function Questions() {
       >
         <Table>
           <TableHead>
-            <TableRow
-              sx={{
-                backgroundColor: '#f6f9fc',
-                '& th': {
-                  color: '#8898aa',
-                  fontSize: '0.65rem',
-                  fontWeight: 700,
-                  textTransform: 'uppercase',
-                  letterSpacing: '1px',
-                  borderBottom: 'none'
-                }
-              }}
-            >
+            <TableRow>
               <TableCell>题目内容</TableCell>
               <TableCell>题目类型</TableCell>
               <TableCell>知识点</TableCell>

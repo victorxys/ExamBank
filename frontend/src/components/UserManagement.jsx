@@ -203,15 +203,15 @@ const UserManagement = () => {
           >
             <Table>
               <TableHead>
-                <TableRow sx={{ backgroundColor: '#f6f9fc' }}>
-                  <TableCell sx={{ color: '#8898aa', fontWeight: 600, fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '1px' }}>用户名</TableCell>
-                  <TableCell sx={{ color: '#8898aa', fontWeight: 600, fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '1px' }}>手机号</TableCell>
-                  <TableCell sx={{ color: '#8898aa', fontWeight: 600, fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '1px' }}>角色</TableCell>
-                  <TableCell sx={{ color: '#8898aa', fontWeight: 600, fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '1px' }}>邮箱</TableCell>
-                  <TableCell sx={{ color: '#8898aa', fontWeight: 600, fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '1px' }}>状态</TableCell>
-                  <TableCell sx={{ color: '#8898aa', fontWeight: 600, fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '1px' }}>创建时间</TableCell>
-                  <TableCell sx={{ color: '#8898aa', fontWeight: 600, fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '1px' }}>更新时间</TableCell>
-                  <TableCell sx={{ color: '#8898aa', fontWeight: 600, fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '1px' }} align="right">操作</TableCell>
+                <TableRow >
+                  <TableCell >用户名</TableCell>
+                  <TableCell >手机号</TableCell>
+                  <TableCell >角色</TableCell>
+                  <TableCell >邮箱</TableCell>
+                  <TableCell >状态</TableCell>
+                  <TableCell >创建时间</TableCell>
+                  <TableCell >更新时间</TableCell>
+                  <TableCell sx={{textAlign:'center'}}>操作</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>

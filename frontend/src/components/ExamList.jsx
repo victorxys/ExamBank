@@ -663,20 +663,8 @@ function ExamList() {
             }}
           >
             <Table>
-              <TableHead>
-                <TableRow
-                  sx={{
-                    backgroundColor: '#f6f9fc',
-                    '& th': {
-                      color: '#8898aa',
-                      fontSize: '0.65rem',
-                      fontWeight: 700,
-                      textTransform: 'uppercase',
-                      letterSpacing: '1px',
-                      borderBottom: 'none'
-                    }
-                  }}
-                >
+              <TableHead >
+                <TableRow>
                   <TableCell>考卷标题</TableCell>
                   <TableCell>课程</TableCell>
                   <TableCell>题目数量</TableCell>
