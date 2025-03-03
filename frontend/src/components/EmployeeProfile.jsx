@@ -21,7 +21,9 @@ import {
   DialogActions,
   Button,
   CircularProgress,
-  Alert
+  Alert,
+  Menu,
+  MenuItem
 } from '@mui/material';
 import { Add as AddIcon, Share as ShareIcon } from '@mui/icons-material';
 import html2canvas from 'html2canvas';
@@ -36,6 +38,7 @@ const EmployeeProfile = () => {
   const [dialogContent, setDialogContent] = useState({ title: '', content: '' });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [anchorEl, setAnchorEl] = useState(null);
   const [employeeData, setEmployeeData] = useState(null);
 
   useEffect(() => {
@@ -167,48 +170,102 @@ const EmployeeProfile = () => {
         />
       </Box>
 
-      <Container maxWidth="lg" sx={{ py: 4, position: 'relative' }}>
-        <Button
-          variant="contained"
-          color="primary"
-          startIcon={<ShareIcon />}
-          onClick={async () => {
-            try {
-              const element = document.getElementById('employee-profile-content');
-              if (!element) return;
+      <Container maxWidth="lg" sx={{ py: 6, position: 'relative' }}>
+        <Box sx={{ position: 'absolute', top: 88, right: 24, zIndex: 1000, pointerEvents: 'auto' }}>
+          <Button
+            variant="contained"
+            color="primary"
+            startIcon={<ShareIcon />}
+            onClick={(event) => setAnchorEl(event.currentTarget)}
+            sx={{
+              background: 'linear-gradient(87deg, #26A69A 0, #56aea2 100%)',
+              '&:hover': {
+                background: 'linear-gradient(87deg, #1a8c82 0, #408d86 100%)'
+              }
+            }}
+          >
+            分享
+          </Button>
+          <Menu
+            anchorEl={anchorEl}
+            open={Boolean(anchorEl)}
+            onClose={() => setAnchorEl(null)}
+          >
+            <MenuItem onClick={async () => {
+              try {
+                const element = document.getElementById('employee-profile-content');
+                if (!element) return;
 
-              const canvas = await html2canvas(element, {
-                scale: window.devicePixelRatio, // 使用设备像素比来保持清晰度
-                useCORS: true, // 允许加载跨域图片
-                logging: false,
-                backgroundColor: '#E0F2F1'
-              });
+                const canvas = await html2canvas(element, {
+                  scale: window.devicePixelRatio,
+                  useCORS: true,
+                  logging: false,
+                  backgroundColor: '#E0F2F1'
+                });
 
-              // 将canvas转换为图片
-              const image = canvas.toDataURL('image/jpeg', 1.0);
-              
-              // 创建下载链接
-              const link = document.createElement('a');
-              link.download = `${employeeData.name}-档案.jpg`;
-              link.href = image;
-              link.click();
-            } catch (error) {
-              console.error('生成图片失败:', error);
-              alert('生成图片失败，请稍后重试');
-            }
-          }}
-          sx={{
-            position: 'absolute',
-            top: 16,
-            right: 24,
-            background: 'linear-gradient(87deg, #26A69A 0, #56aea2 100%)',
-            '&:hover': {
-              background: 'linear-gradient(87deg, #1a8c82 0, #408d86 100%)'
-            }
-          }}
-        >
-          生成图片
-        </Button>
+                // 将canvas转换为Blob
+                canvas.toBlob(async (blob) => {
+                  try {
+                    // 使用新的ClipboardAPI复制图片
+                    await navigator.clipboard.write([
+                      new ClipboardItem({
+                        'image/png': blob
+                      })
+                    ]);
+                    alert('图片已复制到剪贴板');
+                  } catch (error) {
+                    console.error('复制图片失败:', error);
+                    alert('复制图片失败，请稍后重试');
+                  }
+                }, 'image/png');
+              } catch (error) {
+                console.error('生成图片失败:', error);
+                alert('生成图片失败，请稍后重试');
+              }
+              setAnchorEl(null);
+            }}>
+              复制图片
+            </MenuItem>
+            <MenuItem onClick={async () => {
+              try {
+                const element = document.getElementById('employee-profile-content');
+                if (!element) return;
+
+                const canvas = await html2canvas(element, {
+                  scale: window.devicePixelRatio,
+                  useCORS: true,
+                  logging: false,
+                  backgroundColor: '#E0F2F1'
+                });
+
+                const image = canvas.toDataURL('image/jpeg', 1.0);
+                const link = document.createElement('a');
+                link.download = `${employeeData.name}-档案.jpg`;
+                link.href = image;
+                link.click();
+              } catch (error) {
+                console.error('下载图片失败:', error);
+                alert('下载图片失败，请稍后重试');
+              }
+              setAnchorEl(null);
+            }}>
+              下载图片
+            </MenuItem>
+            <MenuItem onClick={async () => {
+              try {
+                const shareUrl = `${window.location.origin}/employee-profile/${userId}?public=true`;
+                await navigator.clipboard.writeText(shareUrl);
+                alert('链接已复制到剪贴板');
+              } catch (error) {
+                console.error('复制链接失败:', error);
+                alert('复制链接失败，请稍后重试');
+              }
+              setAnchorEl(null);
+            }}>
+              复制链接
+            </MenuItem>
+          </Menu>
+        </Box>
       <Box id="employee-profile-content">
       {/* 基本信息部分 */}
       <Box

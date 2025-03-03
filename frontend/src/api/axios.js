@@ -16,7 +16,15 @@ const api = axios.create({
 // 请求拦截器：添加Token到请求头
 api.interceptors.request.use(
   async (config) => {
+    // 检查是否是公开路由
+    const isPublicRoute = config.url.includes('/employee-profile');
     const token = getToken();
+    
+    // 如果不是公开路由且没有token，拒绝请求
+    if (!isPublicRoute && !token) {
+      return Promise.reject(new Error('未登录'));
+    }
+    
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
 

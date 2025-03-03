@@ -194,23 +194,60 @@ const theme = createTheme({
 function App() {
   const location = useLocation();
   const isExamRoute = location.pathname.includes('/exams/') && location.pathname.includes('/take');
+  const isEmployeeProfileRoute = location.pathname.includes('/employee-profile/');
   const [loginOpen, setLoginOpen] = useState(false);
   const [user, setUser] = useState(null);
 
   useEffect(() => {
     // 检查是否有有效的token
     const userInfo = hasToken();
-    if (!userInfo) {
+    // 只在非员工介绍页面时检查登录状态
+    if (!userInfo && !isEmployeeProfileRoute) {
       setLoginOpen(true);
+      setUser(null);
     } else {
       setUser(userInfo);
     }
-  }, []);
+  }, [isEmployeeProfileRoute]);
 
   const handleLogin = (userData) => {
     setUser(userData);
     setLoginOpen(false);
   };
+
+  // 员工介绍页面使用独立布局
+  if (isEmployeeProfileRoute) {
+    return (
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <Box
+          sx={{
+            display: 'flex',
+            minHeight: '100vh',
+            width: '100%',
+            backgroundColor: 'background.default',
+          }}
+        >
+          <Box
+            component="main"
+            sx={{
+              flexGrow: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              minHeight: '100vh',
+              width: '100%',
+            }}
+          >
+            <ErrorBoundary>
+              <Routes>
+                <Route path="/employee-profile/:userId" element={<EmployeeProfile />} />
+              </Routes>
+            </ErrorBoundary>
+          </Box>
+        </Box>
+      </ThemeProvider>
+    );
+  }
 
   if (isExamRoute) {
     return (
@@ -293,7 +330,7 @@ function App() {
                 <Route path="/users" element={<PrivateRoute element={<UserManagement />} />} />
                 <Route path="/user-evaluation/:userId" element={<PrivateRoute element={<UserEvaluation />} />} />
                 <Route path="/user-evaluation-summary/:userId" element={<PrivateRoute element={<UserEvaluationSummary />} />} />
-                <Route path="/employee-profile/:userId" element={<PrivateRoute element={<EmployeeProfile />} />} />
+                <Route path="/employee-profile/:userId" element={<EmployeeProfile />} />
               </Routes>
             </ErrorBoundary>
           </Box>

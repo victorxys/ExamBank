@@ -2647,8 +2647,8 @@ def update_evaluation_route(evaluation_id):
 def ai_generate_route():
     try:
         data = request.get_json()
-        print('后端接收到的AI评价数据:', data)
-        log.debug('后端接收到的AI评价数据:', data)
+        # print('后端接收到的AI评价数据:', data)
+        # log.debug('后端接收到的AI评价数据:', data)
         if not data or 'evaluations' not in data:
             return jsonify({'error': '缺少评价数据'}), 400
 
@@ -2662,8 +2662,8 @@ def ai_generate_route():
         
         # 将AI生成的结果保存到user_profile表
         if result:
-            print('AI生成结果，准备写入数据库:', result)
-            log.debug('AI生成结果，准备写入数据库:', result)
+            # print('AI生成结果，准备写入数据库:', result)
+            # log.debug('AI生成结果，准备写入数据库:', result)
             conn = get_db_connection()
             cur = conn.cursor(cursor_factory=RealDictCursor)
             try:
@@ -2681,7 +2681,7 @@ def ai_generate_route():
                 """, (evaluated_user_id, profile_data, profile_data))
                 
                 conn.commit()
-                print('AI生成结果已保存到user_profile')
+                # print('AI生成结果已保存到user_profile')
                 return jsonify(result)
             except Exception as db_error:
                 conn.rollback()
