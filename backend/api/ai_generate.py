@@ -37,7 +37,7 @@ def generate(evaluations):
             types.Part.from_text(
                 text="""你是一位资深的月嫂/育儿嫂管理人员，对与客户寻找月嫂/育儿嫂的需求十分了解，同时也对公司内的月嫂/育儿嫂的特点、特征有清晰的认识。我将向你提供公司内员工的评价结果。
 
-请汇总此员工的"个人介绍"(introduction),并对汇总后的个人介绍进行详细描述(more),之后再提炼为简单介绍(description).
+请汇总此员工的"个人介绍"(introduction),并对汇总后的个人介绍进行详细描述(more),之后再提炼为简单介绍(description).在下述称呼中除了“姓名”，其他全部称呼为 “某阿姨”
 
 然后从以下几个维度来进行详细评价(more)：
 1.服务优势(advantages)
