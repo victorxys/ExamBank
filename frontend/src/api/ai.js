@@ -4,6 +4,8 @@ export default {
   // 生成AI评价
   generateAIEvaluation: (evaluations, userId) => {
     console.log('提交AI评价数据前:', evaluations);
+    console.log('请求URL:', `${api.defaults.baseURL}/ai-generate`);
+    console.log('请求数据:', { evaluations, evaluated_user_id: userId });
     return api.post('/ai-generate', { evaluations, evaluated_user_id: userId }, {
       timeout: 300000 // 设置5分钟超时时间
     })
