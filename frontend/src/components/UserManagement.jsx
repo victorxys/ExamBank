@@ -260,6 +260,14 @@ const UserManagement = () => {
                       >
                         <AssessmentIcon />
                       </IconButton>
+                      <IconButton
+                        color="info"
+                        onClick={() => navigate(`/employee-profile/${user.id}`)}
+                        size="small"
+                        sx={{ ml: 1 }}
+                      >
+                        <PersonIcon />
+                      </IconButton>
                     </TableCell>
                   </TableRow>
                 ))}

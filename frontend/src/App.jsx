@@ -22,6 +22,7 @@ import "@fortawesome/fontawesome-free/css/all.min.css";
 import "./styles/argon-theme.css";
 import PrivateRoute from './components/PrivateRoute';
 import UserEvaluationSummary from './components/UserEvaluationSummary'
+import EmployeeProfile from './components/EmployeeProfile'
 
 const theme = createTheme({
   palette: {
@@ -292,6 +293,7 @@ function App() {
                 <Route path="/users" element={<PrivateRoute element={<UserManagement />} />} />
                 <Route path="/user-evaluation/:userId" element={<PrivateRoute element={<UserEvaluation />} />} />
                 <Route path="/user-evaluation-summary/:userId" element={<PrivateRoute element={<UserEvaluationSummary />} />} />
+                <Route path="/employee-profile/:userId" element={<PrivateRoute element={<EmployeeProfile />} />} />
               </Routes>
             </ErrorBoundary>
           </Box>

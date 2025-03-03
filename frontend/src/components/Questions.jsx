@@ -69,6 +69,7 @@ function Questions() {
   const [selectedCourse, setSelectedCourse] = useState(queryParams.get('course_id') || '')
   const [selectedKnowledgePoint, setSelectedKnowledgePoint] = useState(queryParams.get('knowledge_point_id') || '')
   const [filteredKnowledgePoints, setFilteredKnowledgePoints] = useState([])
+  const [aiGenerating, setAiGenerating] = useState(false)
 
   useEffect(() => {
     const fetchData = async () => {

@@ -25,6 +25,7 @@ import {
 import { Visibility as VisibilityIcon, Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import api from '../api/axios';
 import { hasToken } from '../api/auth-utils';
+import ai from '../api/ai';
 import PageHeader from './PageHeader'
 
 const UserEvaluationSummary = () => {
@@ -37,6 +38,7 @@ const UserEvaluationSummary = () => {
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [evaluationToDelete, setEvaluationToDelete] = useState(null);
+  const [aiGenerating, setAiGenerating] = useState(false);
   const tokenData = hasToken();
   const navigate = useNavigate();
 
@@ -108,25 +110,25 @@ const UserEvaluationSummary = () => {
                 <Button
                   variant="outlined"
                   color="primary"
-                  onClick={() => {
+                  disabled={aiGenerating}
+                  onClick={async () => {
                     if (!evaluationSummary || !userInfo) return;
-
+                  
                     // 生成markdown内容
                     let markdown = `# ${userInfo.username} 的评价汇总\n\n`;
-
+                  
                     // 添加用户基本信息
                     markdown += `## 基本信息\n\n`;
                     markdown += `- 用户名：${userInfo.username}\n`;
                     
-
                     // 添加评价汇总信息
                     evaluationSummary.aspects?.forEach(aspect => {
                       markdown += `## ${aspect.name}\n\n`;
                       markdown += `总体评分：${aspect.average_score?.toFixed(1) || '暂无'}\n\n`;
-
+                  
                       aspect.categories?.forEach(category => {
                         markdown += `### ${category.name}\n\n`;
-
+                  
                         category.items?.forEach(item => {
                           markdown += `#### ${item.name}\n`;
                           markdown += `- 平均得分：${item.average_score?.toFixed(1) || '暂无'}\n`;
@@ -138,64 +140,32 @@ const UserEvaluationSummary = () => {
                       });
                     });
 
-                    // 创建并下载文件
-                    const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
-                    const url = URL.createObjectURL(blob);
-                    const link = document.createElement('a');
-                    link.href = url;
-                    link.download = `${userInfo.username}_评价汇总.md`;
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                    URL.revokeObjectURL(url);
-                  }}
-                >
-                  导出评价
-                </Button>
-                <Button
-                  variant="outlined"
-                  color="primary"
-                  onClick={() => {
-                    if (!evaluationSummary || !userInfo) return;
-
-                    // 生成markdown内容
-                    let markdown = `# ${userInfo.username} 的评价汇总\n\n`;
-
-                    // 添加用户基本信息
-                    markdown += `## 基本信息\n\n`;
-                    markdown += `- 用户名：${userInfo.username}\n`;
-                    
-
-                    // 添加评价汇总信息
-                    evaluationSummary.aspects?.forEach(aspect => {
-                      markdown += `## ${aspect.name}\n\n`;
-                      markdown += `总体评分：${aspect.average_score?.toFixed(1) || '暂无'}\n\n`;
-
-                      aspect.categories?.forEach(category => {
-                        markdown += `### ${category.name}\n\n`;
-
-                        category.items?.forEach(item => {
-                          markdown += `#### ${item.name}\n`;
-                          markdown += `- 平均得分：${item.average_score?.toFixed(1) || '暂无'}\n`;
-                          if (item.description) {
-                            markdown += `- 说明：${item.description}\n`;
-                          }
-                          markdown += '\n';
-                        });
+                    try {
+                      setAiGenerating(true);
+                      const response = await ai.generateAIEvaluation({
+                        evaluations: markdown,
+                        evaluated_user_id: userId,
                       });
-                    });
-
-                    // 复制到剪贴板
-                    navigator.clipboard.writeText(markdown).then(() => {
-                      alert('评价内容已复制到剪贴板');
-                    }).catch(err => {
-                      console.error('复制失败:', err);
-                      alert('复制失败，请重试');
-                    });
+                      alert('AI员工介绍已生成');
+                      navigate(`/employee-profile/${userId}`);
+                    } catch (error) {
+                      console.error('AI生成失败:', error);
+                      alert('AI生成失败，请稍后重试');
+                    } finally {
+                      setAiGenerating(false);
+                    }
                   }}
                 >
-                  复制评价
+                  {aiGenerating ? (
+                    <>
+                      <CircularProgress size={20} sx={{ mr: 1 }} />
+                      正在生成中...
+                    </>
+                  ) : (
+                    'AI员工介绍'
+                  )}
                 </Button>
+                
               </Box>
             </Grid>
           </Grid>

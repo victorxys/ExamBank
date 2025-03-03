@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import {
   Container,
   Paper,
@@ -23,6 +23,7 @@ import PageHeader from './PageHeader'
 
 const UserEvaluation = () => {
   const { userId } = useParams();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [alertMessage, setAlertMessage] = useState(null);
   const [alertOpen, setAlertOpen] = useState(false);
@@ -101,23 +102,17 @@ const UserEvaluation = () => {
       });
       
       if (response.data && response.data.success) {
-        // 显示成功消息，但保留评价内容
+        // 显示成功消息
         setAlertMessage({
           severity: 'success',
           message: editEvaluationId ? '评价更新成功' : '评价提交成功'
         });
         setAlertOpen(true);
-        // 保持表单内容不变，让用户可以继续查看已提交的评价
 
-        // 添加页面滚动和焦点设置逻辑
+        // 延迟跳转，让用户看到成功消息
         setTimeout(() => {
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-          const titleElement = document.querySelector('h1');
-          if (titleElement) {
-            titleElement.focus();
-            titleElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          }
-        }, 100);
+          navigate(`/user-evaluation-summary/${userId}`);
+        }, 1500);
       }
     } catch (error) {
       console.error('提交评价失败:', error);

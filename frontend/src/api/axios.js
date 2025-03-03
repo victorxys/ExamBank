@@ -7,6 +7,10 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 10000, // 设置超时时间为10秒
+  validateStatus: function (status) {
+    return status >= 200 && status < 500; // 只有状态码大于等于500时才会reject
+  },
 });
 
 // 请求拦截器：添加Token到请求头

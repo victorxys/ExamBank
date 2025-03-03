@@ -12,7 +12,7 @@
  Target Server Version : 130018 (130018)
  File Encoding         : 65001
 
- Date: 17/02/2025 22:54:04
+ Date: 02/03/2025 23:57:28
 */
 
 
@@ -67,6 +67,112 @@ COMMENT ON COLUMN "public"."answerrecord"."created_at" IS '答题时间';
 COMMENT ON COLUMN "public"."answerrecord"."updated_at" IS '更新时间';
 COMMENT ON COLUMN "public"."answerrecord"."user_id" IS '答题者 ID, 外键, 关联到user表';
 COMMENT ON TABLE "public"."answerrecord" IS '答题记录表，存储用户的答题信息';
+
+-- ----------------------------
+-- Table structure for evaluation
+-- ----------------------------
+DROP TABLE IF EXISTS "public"."evaluation";
+CREATE TABLE "public"."evaluation" (
+  "id" uuid NOT NULL DEFAULT gen_random_uuid(),
+  "evaluated_user_id" uuid NOT NULL,
+  "evaluator_user_id" uuid NOT NULL,
+  "evaluation_time" timestamptz(6) DEFAULT now(),
+  "updated_at" timestamptz(6) DEFAULT now()
+)
+;
+ALTER TABLE "public"."evaluation" OWNER TO "postgres";
+COMMENT ON COLUMN "public"."evaluation"."id" IS '主键';
+COMMENT ON COLUMN "public"."evaluation"."evaluated_user_id" IS '被评价人ID，外键，关联到user表';
+COMMENT ON COLUMN "public"."evaluation"."evaluator_user_id" IS '评价人ID，外键，关联到user表';
+COMMENT ON COLUMN "public"."evaluation"."evaluation_time" IS '评价时间';
+COMMENT ON COLUMN "public"."evaluation"."updated_at" IS '更新时间';
+COMMENT ON TABLE "public"."evaluation" IS '评价表';
+
+-- ----------------------------
+-- Table structure for evaluation_aspect
+-- ----------------------------
+DROP TABLE IF EXISTS "public"."evaluation_aspect";
+CREATE TABLE "public"."evaluation_aspect" (
+  "id" uuid NOT NULL DEFAULT gen_random_uuid(),
+  "aspect_name" varchar(255) COLLATE "pg_catalog"."default" NOT NULL,
+  "description" text COLLATE "pg_catalog"."default",
+  "created_at" timestamptz(6) DEFAULT now(),
+  "updated_at" timestamptz(6) DEFAULT now()
+)
+;
+ALTER TABLE "public"."evaluation_aspect" OWNER TO "postgres";
+COMMENT ON COLUMN "public"."evaluation_aspect"."id" IS '主键';
+COMMENT ON COLUMN "public"."evaluation_aspect"."aspect_name" IS '方面名称';
+COMMENT ON COLUMN "public"."evaluation_aspect"."description" IS '方面描述';
+COMMENT ON COLUMN "public"."evaluation_aspect"."created_at" IS '创建时间';
+COMMENT ON COLUMN "public"."evaluation_aspect"."updated_at" IS '更新时间';
+COMMENT ON TABLE "public"."evaluation_aspect" IS '评价方面表';
+
+-- ----------------------------
+-- Table structure for evaluation_category
+-- ----------------------------
+DROP TABLE IF EXISTS "public"."evaluation_category";
+CREATE TABLE "public"."evaluation_category" (
+  "id" uuid NOT NULL DEFAULT gen_random_uuid(),
+  "aspect_id" uuid NOT NULL,
+  "category_name" varchar(255) COLLATE "pg_catalog"."default" NOT NULL,
+  "description" text COLLATE "pg_catalog"."default",
+  "created_at" timestamptz(6) DEFAULT now(),
+  "updated_at" timestamptz(6) DEFAULT now()
+)
+;
+ALTER TABLE "public"."evaluation_category" OWNER TO "postgres";
+COMMENT ON COLUMN "public"."evaluation_category"."id" IS '主键';
+COMMENT ON COLUMN "public"."evaluation_category"."aspect_id" IS '外键，关联到评价方面表';
+COMMENT ON COLUMN "public"."evaluation_category"."category_name" IS '类别名称';
+COMMENT ON COLUMN "public"."evaluation_category"."description" IS '类别描述';
+COMMENT ON COLUMN "public"."evaluation_category"."created_at" IS '创建时间';
+COMMENT ON COLUMN "public"."evaluation_category"."updated_at" IS '更新时间';
+COMMENT ON TABLE "public"."evaluation_category" IS '评价类别表';
+
+-- ----------------------------
+-- Table structure for evaluation_detail
+-- ----------------------------
+DROP TABLE IF EXISTS "public"."evaluation_detail";
+CREATE TABLE "public"."evaluation_detail" (
+  "id" uuid NOT NULL DEFAULT gen_random_uuid(),
+  "evaluation_id" uuid NOT NULL,
+  "item_id" uuid NOT NULL,
+  "score" int4 NOT NULL,
+  "comment" text COLLATE "pg_catalog"."default",
+  "created_at" timestamptz(6) DEFAULT now()
+)
+;
+ALTER TABLE "public"."evaluation_detail" OWNER TO "postgres";
+COMMENT ON COLUMN "public"."evaluation_detail"."id" IS '主键';
+COMMENT ON COLUMN "public"."evaluation_detail"."evaluation_id" IS '外键，关联到评价表';
+COMMENT ON COLUMN "public"."evaluation_detail"."item_id" IS '外键，关联到评价项表';
+COMMENT ON COLUMN "public"."evaluation_detail"."score" IS '评价分数 (30, 20, 或 10)';
+COMMENT ON COLUMN "public"."evaluation_detail"."comment" IS '评价备注';
+COMMENT ON COLUMN "public"."evaluation_detail"."created_at" IS '创建时间';
+COMMENT ON TABLE "public"."evaluation_detail" IS '评价详情表';
+
+-- ----------------------------
+-- Table structure for evaluation_item
+-- ----------------------------
+DROP TABLE IF EXISTS "public"."evaluation_item";
+CREATE TABLE "public"."evaluation_item" (
+  "id" uuid NOT NULL DEFAULT gen_random_uuid(),
+  "category_id" uuid NOT NULL,
+  "item_name" varchar(255) COLLATE "pg_catalog"."default" NOT NULL,
+  "description" text COLLATE "pg_catalog"."default",
+  "created_at" timestamptz(6) DEFAULT now(),
+  "updated_at" timestamptz(6) DEFAULT now()
+)
+;
+ALTER TABLE "public"."evaluation_item" OWNER TO "postgres";
+COMMENT ON COLUMN "public"."evaluation_item"."id" IS '主键';
+COMMENT ON COLUMN "public"."evaluation_item"."category_id" IS '外键，关联到评价类别表';
+COMMENT ON COLUMN "public"."evaluation_item"."item_name" IS '评价项名称';
+COMMENT ON COLUMN "public"."evaluation_item"."description" IS '评价项描述';
+COMMENT ON COLUMN "public"."evaluation_item"."created_at" IS '创建时间';
+COMMENT ON COLUMN "public"."evaluation_item"."updated_at" IS '更新时间';
+COMMENT ON TABLE "public"."evaluation_item" IS '评价项表';
 
 -- ----------------------------
 -- Table structure for exampaper
@@ -188,6 +294,34 @@ COMMENT ON COLUMN "public"."question"."updated_at" IS '更新时间';
 COMMENT ON TABLE "public"."question" IS '题目表，存储题库中的题目';
 
 -- ----------------------------
+-- Table structure for temp_answer_record
+-- ----------------------------
+DROP TABLE IF EXISTS "public"."temp_answer_record";
+CREATE TABLE "public"."temp_answer_record" (
+  "id" uuid NOT NULL DEFAULT gen_random_uuid(),
+  "exam_paper_id" uuid NOT NULL,
+  "question_id" uuid NOT NULL,
+  "selected_option_ids" uuid[],
+  "answer_text" text COLLATE "pg_catalog"."default",
+  "created_at" timestamptz(6) DEFAULT now(),
+  "updated_at" timestamptz(6) DEFAULT now(),
+  "user_id" uuid NOT NULL,
+  "is_submitted" bool DEFAULT false
+)
+;
+ALTER TABLE "public"."temp_answer_record" OWNER TO "postgres";
+COMMENT ON COLUMN "public"."temp_answer_record"."id" IS '主键';
+COMMENT ON COLUMN "public"."temp_answer_record"."exam_paper_id" IS '外键，关联到 ExamPaper 表';
+COMMENT ON COLUMN "public"."temp_answer_record"."question_id" IS '外键，关联到 Question 表';
+COMMENT ON COLUMN "public"."temp_answer_record"."selected_option_ids" IS '用户选择的选项 ID 列表 (用于单选和多选)';
+COMMENT ON COLUMN "public"."temp_answer_record"."answer_text" IS '用户填写的答案 (用于问答)';
+COMMENT ON COLUMN "public"."temp_answer_record"."created_at" IS '答题时间';
+COMMENT ON COLUMN "public"."temp_answer_record"."updated_at" IS '更新时间';
+COMMENT ON COLUMN "public"."temp_answer_record"."user_id" IS '答题者 ID, 外键, 关联到user表';
+COMMENT ON COLUMN "public"."temp_answer_record"."is_submitted" IS '是否已提交';
+COMMENT ON TABLE "public"."temp_answer_record" IS '临时答题记录表，存储用户的答题进度';
+
+-- ----------------------------
 -- Table structure for trainingcourse
 -- ----------------------------
 DROP TABLE IF EXISTS "public"."trainingcourse";
@@ -219,7 +353,7 @@ CREATE TABLE "public"."user" (
   "phone_number" varchar(20) COLLATE "pg_catalog"."default" NOT NULL,
   "created_at" timestamptz(6) DEFAULT now(),
   "updated_at" timestamptz(6) DEFAULT now(),
-  "password" varchar(255) COLLATE "pg_catalog"."default" NOT NULL,
+  "password" varchar(255) COLLATE "pg_catalog"."default" NOT NULL DEFAULT NULL::character varying,
   "role" varchar(50) COLLATE "pg_catalog"."default" NOT NULL DEFAULT 'student'::character varying,
   "email" varchar(255) COLLATE "pg_catalog"."default",
   "status" varchar(50) COLLATE "pg_catalog"."default" NOT NULL DEFAULT 'active'::character varying
@@ -236,6 +370,24 @@ COMMENT ON COLUMN "public"."user"."role" IS '用户角色（admin/teacher/studen
 COMMENT ON COLUMN "public"."user"."email" IS '邮箱';
 COMMENT ON COLUMN "public"."user"."status" IS '用户状态（active/inactive）';
 COMMENT ON TABLE "public"."user" IS '用户表';
+
+-- ----------------------------
+-- Table structure for user_profile
+-- ----------------------------
+DROP TABLE IF EXISTS "public"."user_profile";
+CREATE TABLE "public"."user_profile" (
+  "user_id" uuid NOT NULL,
+  "profile_data" jsonb NOT NULL,
+  "created_at" timestamptz(6) DEFAULT now(),
+  "updated_at" timestamptz(6) DEFAULT now()
+)
+;
+ALTER TABLE "public"."user_profile" OWNER TO "postgres";
+COMMENT ON COLUMN "public"."user_profile"."user_id" IS '用户ID，主键，外键关联到 user 表';
+COMMENT ON COLUMN "public"."user_profile"."profile_data" IS '用户详细信息 (JSON 格式)';
+COMMENT ON COLUMN "public"."user_profile"."created_at" IS '创建时间';
+COMMENT ON COLUMN "public"."user_profile"."updated_at" IS '更新时间';
+COMMENT ON TABLE "public"."user_profile" IS '用户详细信息表';
 
 -- ----------------------------
 -- Function structure for calculate_score
@@ -423,6 +575,59 @@ EXECUTE PROCEDURE "public"."update_modified_column"();
 ALTER TABLE "public"."answerrecord" ADD CONSTRAINT "answerrecord_pkey" PRIMARY KEY ("id");
 
 -- ----------------------------
+-- Triggers structure for table evaluation
+-- ----------------------------
+CREATE TRIGGER "update_evaluation_modtime" BEFORE UPDATE ON "public"."evaluation"
+FOR EACH ROW
+EXECUTE PROCEDURE "public"."update_modified_column"();
+
+-- ----------------------------
+-- Primary Key structure for table evaluation
+-- ----------------------------
+ALTER TABLE "public"."evaluation" ADD CONSTRAINT "evaluation_pkey" PRIMARY KEY ("id");
+
+-- ----------------------------
+-- Triggers structure for table evaluation_aspect
+-- ----------------------------
+CREATE TRIGGER "update_evaluation_aspect_modtime" BEFORE UPDATE ON "public"."evaluation_aspect"
+FOR EACH ROW
+EXECUTE PROCEDURE "public"."update_modified_column"();
+
+-- ----------------------------
+-- Primary Key structure for table evaluation_aspect
+-- ----------------------------
+ALTER TABLE "public"."evaluation_aspect" ADD CONSTRAINT "evaluation_aspect_pkey" PRIMARY KEY ("id");
+
+-- ----------------------------
+-- Triggers structure for table evaluation_category
+-- ----------------------------
+CREATE TRIGGER "update_evaluation_category_modtime" BEFORE UPDATE ON "public"."evaluation_category"
+FOR EACH ROW
+EXECUTE PROCEDURE "public"."update_modified_column"();
+
+-- ----------------------------
+-- Primary Key structure for table evaluation_category
+-- ----------------------------
+ALTER TABLE "public"."evaluation_category" ADD CONSTRAINT "evaluation_category_pkey" PRIMARY KEY ("id");
+
+-- ----------------------------
+-- Primary Key structure for table evaluation_detail
+-- ----------------------------
+ALTER TABLE "public"."evaluation_detail" ADD CONSTRAINT "evaluation_detail_pkey" PRIMARY KEY ("id");
+
+-- ----------------------------
+-- Triggers structure for table evaluation_item
+-- ----------------------------
+CREATE TRIGGER "update_evaluation_item_modtime" BEFORE UPDATE ON "public"."evaluation_item"
+FOR EACH ROW
+EXECUTE PROCEDURE "public"."update_modified_column"();
+
+-- ----------------------------
+-- Primary Key structure for table evaluation_item
+-- ----------------------------
+ALTER TABLE "public"."evaluation_item" ADD CONSTRAINT "evaluation_item_pkey" PRIMARY KEY ("id");
+
+-- ----------------------------
 -- Triggers structure for table exampaper
 -- ----------------------------
 CREATE TRIGGER "update_exampaper_modtime" BEFORE UPDATE ON "public"."exampaper"
@@ -493,6 +698,17 @@ EXECUTE PROCEDURE "public"."update_modified_column"();
 ALTER TABLE "public"."question" ADD CONSTRAINT "question_pkey" PRIMARY KEY ("id");
 
 -- ----------------------------
+-- Indexes structure for table temp_answer_record
+-- ----------------------------
+CREATE INDEX "idx_temp_answer_record_exam_user" ON "public"."temp_answer_record" USING btree (
+  "exam_paper_id" "pg_catalog"."uuid_ops" ASC NULLS LAST,
+  "user_id" "pg_catalog"."uuid_ops" ASC NULLS LAST
+);
+CREATE INDEX "idx_temp_answer_record_is_submitted" ON "public"."temp_answer_record" USING btree (
+  "is_submitted" "pg_catalog"."bool_ops" ASC NULLS LAST
+);
+
+-- ----------------------------
 -- Triggers structure for table trainingcourse
 -- ----------------------------
 CREATE TRIGGER "update_trainingcourse_modtime" BEFORE UPDATE ON "public"."trainingcourse"
@@ -522,6 +738,25 @@ ALTER TABLE "public"."user" ADD CONSTRAINT "user_phone_number_key" UNIQUE ("phon
 ALTER TABLE "public"."user" ADD CONSTRAINT "user_pkey" PRIMARY KEY ("id");
 
 -- ----------------------------
+-- Indexes structure for table user_profile
+-- ----------------------------
+CREATE INDEX "idx_user_profile_data" ON "public"."user_profile" USING gin (
+  "profile_data" "pg_catalog"."jsonb_ops"
+);
+
+-- ----------------------------
+-- Triggers structure for table user_profile
+-- ----------------------------
+CREATE TRIGGER "update_user_profile_modtime" BEFORE UPDATE ON "public"."user_profile"
+FOR EACH ROW
+EXECUTE PROCEDURE "public"."update_modified_column"();
+
+-- ----------------------------
+-- Primary Key structure for table user_profile
+-- ----------------------------
+ALTER TABLE "public"."user_profile" ADD CONSTRAINT "user_profile_pkey" PRIMARY KEY ("user_id");
+
+-- ----------------------------
 -- Foreign Keys structure for table answer
 -- ----------------------------
 ALTER TABLE "public"."answer" ADD CONSTRAINT "answer_question_id_fkey" FOREIGN KEY ("question_id") REFERENCES "public"."question" ("id") ON DELETE CASCADE ON UPDATE NO ACTION;
@@ -532,6 +767,28 @@ ALTER TABLE "public"."answer" ADD CONSTRAINT "answer_question_id_fkey" FOREIGN K
 ALTER TABLE "public"."answerrecord" ADD CONSTRAINT "answerrecord_exam_paper_id_fkey" FOREIGN KEY ("exam_paper_id") REFERENCES "public"."exampaper" ("id") ON DELETE CASCADE ON UPDATE NO ACTION;
 ALTER TABLE "public"."answerrecord" ADD CONSTRAINT "answerrecord_question_id_fkey" FOREIGN KEY ("question_id") REFERENCES "public"."question" ("id") ON DELETE CASCADE ON UPDATE NO ACTION;
 ALTER TABLE "public"."answerrecord" ADD CONSTRAINT "answerrecord_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "public"."user" ("id") ON DELETE CASCADE ON UPDATE NO ACTION;
+
+-- ----------------------------
+-- Foreign Keys structure for table evaluation
+-- ----------------------------
+ALTER TABLE "public"."evaluation" ADD CONSTRAINT "evaluation_evaluated_user_id_fkey" FOREIGN KEY ("evaluated_user_id") REFERENCES "public"."user" ("id") ON DELETE NO ACTION ON UPDATE NO ACTION;
+ALTER TABLE "public"."evaluation" ADD CONSTRAINT "evaluation_evaluator_user_id_fkey" FOREIGN KEY ("evaluator_user_id") REFERENCES "public"."user" ("id") ON DELETE NO ACTION ON UPDATE NO ACTION;
+
+-- ----------------------------
+-- Foreign Keys structure for table evaluation_category
+-- ----------------------------
+ALTER TABLE "public"."evaluation_category" ADD CONSTRAINT "evaluation_category_aspect_id_fkey" FOREIGN KEY ("aspect_id") REFERENCES "public"."evaluation_aspect" ("id") ON DELETE CASCADE ON UPDATE NO ACTION;
+
+-- ----------------------------
+-- Foreign Keys structure for table evaluation_detail
+-- ----------------------------
+ALTER TABLE "public"."evaluation_detail" ADD CONSTRAINT "evaluation_detail_evaluation_id_fkey" FOREIGN KEY ("evaluation_id") REFERENCES "public"."evaluation" ("id") ON DELETE CASCADE ON UPDATE NO ACTION;
+ALTER TABLE "public"."evaluation_detail" ADD CONSTRAINT "evaluation_detail_item_id_fkey" FOREIGN KEY ("item_id") REFERENCES "public"."evaluation_item" ("id") ON DELETE CASCADE ON UPDATE NO ACTION;
+
+-- ----------------------------
+-- Foreign Keys structure for table evaluation_item
+-- ----------------------------
+ALTER TABLE "public"."evaluation_item" ADD CONSTRAINT "evaluation_item_category_id_fkey" FOREIGN KEY ("category_id") REFERENCES "public"."evaluation_category" ("id") ON DELETE CASCADE ON UPDATE NO ACTION;
 
 -- ----------------------------
 -- Foreign Keys structure for table exampapercourse
@@ -559,3 +816,8 @@ ALTER TABLE "public"."option" ADD CONSTRAINT "option_question_id_fkey" FOREIGN K
 -- Foreign Keys structure for table question
 -- ----------------------------
 ALTER TABLE "public"."question" ADD CONSTRAINT "question_knowledge_point_id_fkey" FOREIGN KEY ("knowledge_point_id") REFERENCES "public"."knowledgepoint" ("id") ON DELETE CASCADE ON UPDATE NO ACTION;
+
+-- ----------------------------
+-- Foreign Keys structure for table user_profile
+-- ----------------------------
+ALTER TABLE "public"."user_profile" ADD CONSTRAINT "user_profile_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "public"."user" ("id") ON DELETE CASCADE ON UPDATE NO ACTION;

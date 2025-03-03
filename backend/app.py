@@ -23,6 +23,7 @@ from backend.api.temp_answer import save_temp_answer, get_temp_answers, mark_tem
 def create_token_with_role(user_id, role):
     return create_access_token(identity=user_id, additional_claims={'role': role})
 from backend.api.evaluation import get_evaluation_items, get_user_evaluations, update_evaluation
+from backend.api.user_profile import get_user_profile
 from backend.db import get_db_connection
 
 
@@ -66,6 +67,11 @@ def login():
     finally:
         cur.close()
         conn.close()
+
+@app.route('/api/users/<user_id>/profile', methods=['GET'])
+# @jwt_required()
+def get_profile(user_id):
+    return get_user_profile(user_id)
 
 @app.route('/api/register', methods=['POST'])
 def register():
@@ -2636,6 +2642,56 @@ def update_evaluation_route(evaluation_id):
     if not data:
         return jsonify({'error': '缺少必要的评价数据'}), 400
     return update_evaluation(evaluation_id, data)
+
+@app.route('/api/ai-generate', methods=['POST'])
+def ai_generate_route():
+    try:
+        data = request.get_json()
+        print('后端接收到的AI评价数据:', data)
+        if not data or 'evaluations' not in data:
+            return jsonify({'error': '缺少评价数据'}), 400
+
+        # 从evaluations对象中提取evaluated_user_id
+        evaluated_user_id = data['evaluations'].get('evaluated_user_id')
+        if not evaluated_user_id:
+            return jsonify({'error': '缺少用户ID'}), 400
+
+        from backend.api.ai_generate import generate
+        result = generate(data['evaluations']['evaluations'])
+        
+        # 将AI生成的结果保存到user_profile表
+        if result:
+            print('AI生成结果，准备写入数据库:', result)
+            conn = get_db_connection()
+            cur = conn.cursor(cursor_factory=RealDictCursor)
+            try:
+                # 检查是否已存在用户记录
+                # 将Python字典转换为JSON字符串
+                import json
+                profile_data = json.dumps(result)
+                
+                cur.execute("""
+                    INSERT INTO user_profile (user_id, profile_data)
+                    VALUES (%s, %s)
+                    ON CONFLICT (user_id)
+                    DO UPDATE SET profile_data = %s
+                    RETURNING user_id
+                """, (evaluated_user_id, profile_data, profile_data))
+                
+                conn.commit()
+                print('AI生成结果已保存到user_profile')
+                return jsonify(result)
+            except Exception as db_error:
+                conn.rollback()
+                print('Error saving to user_profile:', str(db_error))
+                return jsonify({'error': '保存用户资料失败'}), 500
+            finally:
+                cur.close()
+                conn.close()
+        return jsonify({'error': 'AI生成结果为空'}), 500
+    except Exception as e:
+        print('Error in ai_generate:', str(e))
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
