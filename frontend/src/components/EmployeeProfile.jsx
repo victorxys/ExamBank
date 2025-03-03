@@ -29,6 +29,7 @@ import { Add as AddIcon, Share as ShareIcon } from '@mui/icons-material';
 import html2canvas from 'html2canvas';
 import { useTheme } from '@mui/material/styles';
 import api from '../api/axios';
+import logoSvg from '../assets/logo.svg';
 
 const EmployeeProfile = () => {
   const theme = useTheme();
@@ -40,6 +41,10 @@ const EmployeeProfile = () => {
   const [error, setError] = useState(null);
   const [anchorEl, setAnchorEl] = useState(null);
   const [employeeData, setEmployeeData] = useState(null);
+  const [isPublic] = useState(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    return searchParams.get('public') === 'true';
+  });
 
   useEffect(() => {
     const fetchEmployeeData = async () => {
@@ -170,27 +175,28 @@ const EmployeeProfile = () => {
         />
       </Box>
 
-      <Container maxWidth="lg" sx={{ py: 6, position: 'relative' }}>
-        <Box sx={{ position: 'absolute', top: 88, right: 24, zIndex: 1000, pointerEvents: 'auto' }}>
-          <Button
-            variant="contained"
-            color="primary"
-            startIcon={<ShareIcon />}
-            onClick={(event) => setAnchorEl(event.currentTarget)}
-            sx={{
-              background: 'linear-gradient(87deg, #26A69A 0, #56aea2 100%)',
-              '&:hover': {
-                background: 'linear-gradient(87deg, #1a8c82 0, #408d86 100%)'
-              }
-            }}
-          >
-            分享
-          </Button>
-          <Menu
-            anchorEl={anchorEl}
-            open={Boolean(anchorEl)}
-            onClose={() => setAnchorEl(null)}
-          >
+      <Container maxWidth="lg" sx={{ py: 3, position: 'relative' }}>        
+        {!isPublic && (
+          <Box sx={{ position: 'absolute', top: 88, right: 24, zIndex: 1000, pointerEvents: 'auto' }}>
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={<ShareIcon />}
+              onClick={(event) => setAnchorEl(event.currentTarget)}
+              sx={{
+                background: 'linear-gradient(87deg, #26A69A 0, #56aea2 100%)',
+                '&:hover': {
+                  background: 'linear-gradient(87deg, #1a8c82 0, #408d86 100%)'
+                }
+              }}
+            >
+              分享
+            </Button>
+            <Menu
+              anchorEl={anchorEl}
+              open={Boolean(anchorEl)}
+              onClose={() => setAnchorEl(null)}
+            >
             <MenuItem onClick={async () => {
               try {
                 const element = document.getElementById('employee-profile-content');
@@ -199,8 +205,24 @@ const EmployeeProfile = () => {
                 const canvas = await html2canvas(element, {
                   scale: window.devicePixelRatio,
                   useCORS: true,
+                  allowTaint: true,
                   logging: false,
-                  backgroundColor: '#E0F2F1'
+                  backgroundColor: '#E0F2F1',
+                  x: -24, // 添加左边距
+                  width: element.offsetWidth + 48, // 增加总宽度以包含边距
+                  onclone: function(clonedDoc) {
+                    const clonedElement = clonedDoc.getElementById('employee-profile-content');
+                    if (clonedElement) {
+                      const boxes = clonedElement.getElementsByClassName('logo-box');
+                      for (let box of boxes) {
+                        box.style.backgroundImage = `url(${logoSvg})`;
+                        box.style.backgroundSize = 'contain';
+                        box.style.backgroundRepeat = 'no-repeat';
+                        box.style.backgroundPosition = 'left center';
+                        box.style.opacity = '0.9';
+                      }
+                    }
+                  }
                 });
 
                 // 将canvas转换为Blob
@@ -234,8 +256,24 @@ const EmployeeProfile = () => {
                 const canvas = await html2canvas(element, {
                   scale: window.devicePixelRatio,
                   useCORS: true,
+                  allowTaint: true,
                   logging: false,
-                  backgroundColor: '#E0F2F1'
+                  backgroundColor: '#E0F2F1',
+                  x: -24, // 添加左边距
+                  width: element.offsetWidth + 48, // 增加总宽度以包含边距
+                  onclone: function(clonedDoc) {
+                    const clonedElement = clonedDoc.getElementById('employee-profile-content');
+                    if (clonedElement) {
+                      const boxes = clonedElement.getElementsByClassName('logo-box');
+                      for (let box of boxes) {
+                        box.style.backgroundImage = `url(${logoSvg})`;
+                        box.style.backgroundSize = 'contain';
+                        box.style.backgroundRepeat = 'no-repeat';
+                        box.style.backgroundPosition = 'left center';
+                        box.style.opacity = '0.9';
+                      }
+                    }
+                  }
                 });
 
                 const image = canvas.toDataURL('image/jpeg', 1.0);
@@ -266,13 +304,14 @@ const EmployeeProfile = () => {
             </MenuItem>
           </Menu>
         </Box>
-      <Box id="employee-profile-content">
+        )}
+      <Box id="employee-profile-content" sx={{ px: 3 }}>
       {/* 基本信息部分 */}
       <Box
         sx={{
           display: 'flex',
           flexDirection: 'column',
-          alignItems: 'center',
+          alignItems: 'flex-start', // 修改为靠左对齐
           mb: 4,
           position: 'relative'
         }}
@@ -287,25 +326,53 @@ const EmployeeProfile = () => {
             opacity: 0.3
           }}
         />
-        <Avatar
-          sx={{
-            width: 80,
-            height: 80,
-            border: '4px solid white',
-            boxShadow: '0 8px 16px rgba(38, 166, 154, 0.1)',
-            bgcolor: '#F5F5F5',
-            color: theme.palette.primary.main
-          }}
-          alt={employeeData?.name}
-          src={employeeData?.avatar}
-        >
-          {employeeData?.name?.[0]}
-        </Avatar>
+        <Box sx={{ 
+          width: '100%',
+          display: 'flex', 
+          flexDirection: 'column',
+          justifyContent: 'center',
+          alignItems: 'center', 
+          position: 'relative',
+          mb: 2,
+          mt: 2,
+          '&::before': {
+            content: '""',
+            position: 'absolute',
+            top: '50%',
+            left: '0',
+            transform: 'translateY(-50%)',
+            width: '100px',
+            height: '100px',
+            backgroundImage: `url(${logoSvg})`,
+            backgroundSize: 'contain',
+            backgroundRepeat: 'no-repeat',
+            backgroundPosition: 'left center',
+            opacity: 0.9,
+            zIndex: 0
+          }
+        }}>
+          <Avatar
+            sx={{
+              width: 100,
+              height: 100,
+              border: '4px solid white',
+              boxShadow: '0 8px 16px rgba(38, 166, 154, 0.1)',
+              bgcolor: '#F5F5F5',
+              color: theme.palette.primary.main
+            }}
+            alt={employeeData?.name}
+            src={employeeData?.avatar}
+          >
+            {employeeData?.name?.[0]}
+          </Avatar>
+
+        </Box>
 
         <Box
           sx={{
             mt: 2,
-            textAlign: 'center'
+            textAlign: 'center',
+            width: '100%'
           }}
         >
           <Typography
@@ -313,7 +380,9 @@ const EmployeeProfile = () => {
             sx={{
               color: '#263339',
               fontWeight: 600,
-              mb: 1
+              mb: 1,
+              textAlign: 'center',
+              width: '100%'
             }}
           >
             {employeeData.name}
