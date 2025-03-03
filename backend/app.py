@@ -2648,6 +2648,7 @@ def ai_generate_route():
     try:
         data = request.get_json()
         print('后端接收到的AI评价数据:', data)
+        log.debug('后端接收到的AI评价数据:', data)
         if not data or 'evaluations' not in data:
             return jsonify({'error': '缺少评价数据'}), 400
 
@@ -2662,6 +2663,7 @@ def ai_generate_route():
         # 将AI生成的结果保存到user_profile表
         if result:
             print('AI生成结果，准备写入数据库:', result)
+            log.debug('AI生成结果，准备写入数据库:', result)
             conn = get_db_connection()
             cur = conn.cursor(cursor_factory=RealDictCursor)
             try:
@@ -2684,6 +2686,7 @@ def ai_generate_route():
             except Exception as db_error:
                 conn.rollback()
                 print('Error saving to user_profile:', str(db_error))
+                log.debug('Error saving to user_profile:', str(db_error))
                 return jsonify({'error': '保存用户资料失败'}), 500
             finally:
                 cur.close()
@@ -2691,6 +2694,7 @@ def ai_generate_route():
         return jsonify({'error': 'AI生成结果为空'}), 500
     except Exception as e:
         print('Error in ai_generate:', str(e))
+        log.debug('Error in ai_generate:', str(e))
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
