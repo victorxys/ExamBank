@@ -198,3 +198,4 @@ config.js
 vite.config.js
 
 logs/
+frontend/public/avatar

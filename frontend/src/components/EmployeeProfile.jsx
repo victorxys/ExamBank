@@ -42,8 +42,9 @@ const EmployeeProfile = () => {
   const [anchorEl, setAnchorEl] = useState(null);
   const [employeeData, setEmployeeData] = useState(null);
   const [isPublic] = useState(() => {
-    const searchParams = new URLSearchParams(window.location.search);
-    return searchParams.get('public') === 'true';
+  // const searchParams = new URLSearchParams(window.location.search);
+  const publicParams = new URL(window.location.href).searchParams.get('public')
+  return publicParams; // 使用 return 返回 publicParams
   });
 
   useEffect(() => {
@@ -51,7 +52,8 @@ const EmployeeProfile = () => {
       try {
         setLoading(true);
         setError(null);
-        const response = await api.get(`/users/${userId}/profile`);
+        const publicParam = new URL(window.location.href).searchParams.get('public');
+        const response = await api.get(`/users/${userId}/profile${publicParam ? `?public=${publicParam}` : ''}`);
         setEmployeeData(response.data);
       } catch (error) {
         console.error('获取员工信息失败:', error);
@@ -65,7 +67,7 @@ const EmployeeProfile = () => {
       fetchEmployeeData();
     }
   }, [userId]);
-
+  console.log('isPublic',isPublic)
   const handleOpenDialog = (title, content) => {
     setDialogContent({ title, content });
     setDialogOpen(true);
@@ -90,11 +92,11 @@ const EmployeeProfile = () => {
       </Box>
     );
   }
-
+  console.log('employeeData:', employeeData);
   if (!employeeData || !employeeData.introduction) {
     return (
       <Box sx={{ p: 3, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-        <Alert severity="info" sx={{ width: '100%' }}>暂无员工介绍，请先评价员工，然后由AI生成相应评价</Alert>
+        <Alert severity="info" sx={{ width: '100%' }}>暂无员工介绍，请先评价员工，然后再生成相应评价</Alert>
         <Button
           variant="contained"
           color="primary"
@@ -174,7 +176,7 @@ const EmployeeProfile = () => {
           }}
         />
       </Box>
-
+      
       <Container maxWidth="lg" sx={{ py: 3, position: 'relative' }}>        
         {!isPublic && (
           <Box sx={{ position: 'absolute', top: 88, right: 24, zIndex: 1000, pointerEvents: 'auto' }}>
@@ -267,18 +269,20 @@ const EmployeeProfile = () => {
                       const boxes = clonedElement.getElementsByClassName('logo-box');
                       for (let box of boxes) {
                         box.style.backgroundImage = `url(${logoSvg})`;
-                        box.style.backgroundSize = 'contain';
+                        // box.style.backgroundSize = 'contain';
                         box.style.backgroundRepeat = 'no-repeat';
                         box.style.backgroundPosition = 'left center';
                         box.style.opacity = '0.9';
+                        box.style.backgroundSize = 'auto 150%'; // 设置宽度为 100px，高度自动调整
+
                       }
                     }
                   }
                 });
 
-                const image = canvas.toDataURL('image/jpeg', 1.0);
+                const image = canvas.toDataURL('image/png', 1.0);
                 const link = document.createElement('a');
-                link.download = `${employeeData.name}-档案.jpg`;
+                link.download = `${employeeData.name}-档案.png`;
                 link.href = image;
                 link.click();
               } catch (error) {
@@ -343,6 +347,7 @@ const EmployeeProfile = () => {
             transform: 'translateY(-50%)',
             width: '100px',
             height: '100px',
+            className: 'logo-box',
             backgroundImage: `url(${logoSvg})`,
             backgroundSize: 'contain',
             backgroundRepeat: 'no-repeat',
@@ -361,7 +366,7 @@ const EmployeeProfile = () => {
               color: theme.palette.primary.main
             }}
             alt={employeeData?.name}
-            src={employeeData?.avatar}
+            src={`/avatar/${userId}-avatar.jpg`}
           >
             {employeeData?.name?.[0]}
           </Avatar>
@@ -780,6 +785,31 @@ const EmployeeProfile = () => {
           </Button>
         </DialogActions>
       </Dialog>
+      {employeeData.employee_show_url && (
+        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3, mb: 4 }}>
+          <Button
+            variant="contained"
+            size="large"
+            href={employeeData.employee_show_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            sx={{
+              background: 'linear-gradient(87deg, #26A69A 0, #56aea2 100%)',
+              '&:hover': {
+                background: 'linear-gradient(87deg, #1a8c82 0, #408d86 100%)'
+              },
+              px: 4,
+              py: 1.5,
+              borderRadius: '0.5rem',
+              boxShadow: '0 4px 6px rgba(50, 50, 93, 0.11), 0 1px 3px rgba(0, 0, 0, 0.08)'
+            }}
+          >
+            查看详细信息
+          </Button>
+        </Box>
+      )}
+
+    
     </Box>
   );
 };

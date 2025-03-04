@@ -69,8 +69,17 @@ def login():
         conn.close()
 
 @app.route('/api/users/<user_id>/profile', methods=['GET'])
-# @jwt_required()
+
+@jwt_required(optional=True)
 def get_profile(user_id):
+    print("开始获取用户详细信息，用户ID：", user_id)
+    public_param = request.args.get('public', 'false').lower() == 'true'
+    print("public_param:", request)
+    
+    public_value = request.args.get('public')
+    print(f"public 参数的值：{public_value}")
+    if not public_param and (not get_jwt_identity() and not public_param):
+        return jsonify({'msg': 'Missing authorization'}), 401
     return get_user_profile(user_id)
 
 @app.route('/api/register', methods=['POST'])

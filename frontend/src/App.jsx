@@ -195,20 +195,36 @@ function App() {
   const location = useLocation();
   const isExamRoute = location.pathname.includes('/exams/') && location.pathname.includes('/take');
   const isEmployeeProfileRoute = location.pathname.includes('/employee-profile/');
+  const isPublicEmployeeProfile = isEmployeeProfileRoute && new URL(window.location.href).searchParams.get('public') === 'true';
+
   const [loginOpen, setLoginOpen] = useState(false);
   const [user, setUser] = useState(null);
+  // 根据 isPublicEmployeeProfile 的值动态生成 publicUrl
+  const publicUrl = isPublicEmployeeProfile ? '?public=true' : '';
 
   useEffect(() => {
     // 检查是否有有效的token
     const userInfo = hasToken();
-    // 只在非员工介绍页面时检查登录状态
-    if (!userInfo && !isEmployeeProfileRoute) {
+    // 只在非员工介绍页面或非公开访问模式时检查登录状态
+    console.log('userInfo', userInfo);
+    console.log('isPublicEmployeeProfile', isPublicEmployeeProfile)
+    // console.log('urlParams', urlParams)
+    // console.log('url',url)
+    
+    if(isPublicEmployeeProfile){
+      console.log('isPublicEmployeeProfile',isPublicEmployeeProfile)
+      console.log('gongkaiyemian no loging')
+    }
+   
+  
+    if (!userInfo && !isPublicEmployeeProfile) {
+      console.log('no token需要登录')
       setLoginOpen(true);
       setUser(null);
     } else {
       setUser(userInfo);
     }
-  }, [isEmployeeProfileRoute]);
+  }, [isEmployeeProfileRoute, isPublicEmployeeProfile]);
 
   const handleLogin = (userData) => {
     setUser(userData);
@@ -240,7 +256,8 @@ function App() {
           >
             <ErrorBoundary>
               <Routes>
-                <Route path="/employee-profile/:userId" element={<EmployeeProfile />} />
+                <Route path="/employee-profile/:userId" element={<PrivateRoute element={<EmployeeProfile />}/>}  />
+                
               </Routes>
             </ErrorBoundary>
           </Box>
@@ -330,7 +347,7 @@ function App() {
                 <Route path="/users" element={<PrivateRoute element={<UserManagement />} />} />
                 <Route path="/user-evaluation/:userId" element={<PrivateRoute element={<UserEvaluation />} />} />
                 <Route path="/user-evaluation-summary/:userId" element={<PrivateRoute element={<UserEvaluationSummary />} />} />
-                <Route path="/employee-profile/:userId" element={<EmployeeProfile />} />
+                <Route path="/employee-profile/:userId${publicUrl}"   element={<EmployeeProfile />}  />
               </Routes>
             </ErrorBoundary>
           </Box>

@@ -17,7 +17,8 @@ const api = axios.create({
 api.interceptors.request.use(
   async (config) => {
     // 检查是否是公开路由
-    const isPublicRoute = config.url.includes('/employee-profile');
+    const isPublicRoute = config.url.includes('/profile');
+    console.log('onfig.url:', config.url);
     const token = getToken();
     
     // 如果不是公开路由且没有token，拒绝请求
