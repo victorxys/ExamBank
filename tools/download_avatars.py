@@ -71,6 +71,12 @@ def main():
             
             logging.info(f"Processing {processed}/{total_users}: {avatar_url}")
             
+            # 检查文件是否已存在，存在则跳过下载
+            if os.path.exists(output_path):
+                logging.info(f"File already exists, skipping: {output_path}")
+                success += 1
+                continue
+                
             if download_and_convert_avatar(avatar_url, output_path):
                 success += 1
                 
