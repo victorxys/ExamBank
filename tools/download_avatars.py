@@ -34,8 +34,20 @@ def download_and_convert_avatar(avatar_url, output_path):
             background.paste(image, mask=image.split()[-1])
             image = background
         
+        # 调整图片尺寸为256x256，保持宽高比
+        target_size = (512, 512)
+        ratio = min(target_size[0] / image.size[0], target_size[1] / image.size[1])
+        new_size = tuple(int(dim * ratio) for dim in image.size)
+        resized_image = image.resize(new_size, Image.Resampling.LANCZOS)
+        
+        # 创建白色背景
+        final_image = Image.new('RGB', target_size, (255, 255, 255))
+        # 将调整后的图片居中放置
+        paste_pos = ((target_size[0] - new_size[0]) // 2, (target_size[1] - new_size[1]) // 2)
+        final_image.paste(resized_image, paste_pos)
+        
         # 保存为JPG格式
-        image.save(output_path, 'JPEG', quality=95)
+        final_image.save(output_path, 'JPEG', quality=100)
         return True
     except Exception as e:
         logging.error(f"Error processing {avatar_url}: {str(e)}")
@@ -72,10 +84,10 @@ def main():
             logging.info(f"Processing {processed}/{total_users}: {avatar_url}")
             
             # 检查文件是否已存在，存在则跳过下载
-            if os.path.exists(output_path):
-                logging.info(f"File already exists, skipping: {output_path}")
-                success += 1
-                continue
+            # if os.path.exists(output_path):
+            #     logging.info(f"File already exists, skipping: {output_path}")
+            #     success += 1
+            #     continue
                 
             if download_and_convert_avatar(avatar_url, output_path):
                 success += 1

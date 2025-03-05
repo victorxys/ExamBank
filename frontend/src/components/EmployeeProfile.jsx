@@ -570,61 +570,63 @@ const EmployeeProfile = () => {
           ))}
         </Box>
 
-        <Box sx={{ mb: 3 }}>
-          <Box
-            sx={{
-              width: 80,
-              height: 4,
-              background: 'linear-gradient(90deg, #26A69A 0%, #80CBC4 100%)',
-              mb: 1,
-              borderRadius: 2
-            }}
-          />
-          <Typography
-            variant="h5"
-            sx={{
-              color: '#263339',
-              fontWeight: 600,
-              mb: 2
-            }}
-          >
-            专业技能
-          </Typography>
-
-          {employeeData.skills.map((skill, index) => (
-            <Box
-              key={index}
-              sx={{
-                p: 3,
-                bgcolor: '#F5F5F5',
-                borderRadius: '10px',
-                mb: 2
-              }}
-            >
+        {employeeData.skills && employeeData.skills.length > 0 && (
+            <Box sx={{ mb: 3 }}>
               <Box
                 sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  mb: 1
+                  width: 80,
+                  height: 4,
+                  background: 'linear-gradient(90deg, #26A69A 0%, #80CBC4 100%)',
+                  mb: 1,
+                  borderRadius: 2
+                }}
+              />
+              <Typography
+                variant="h5"
+                sx={{
+                  color: '#263339',
+                  fontWeight: 600,
+                  mb: 2
                 }}
               >
-                <Typography variant="body1" color="#263339">
-                  {skill.name}
-                </Typography>
-                <Rating
-                  value={skill.level}
-                  readOnly
+                专业技能
+              </Typography>
+            
+              {employeeData.skills.map((skill, index) => (
+                <Box
+                  key={index}
                   sx={{
-                    '& .MuiRating-iconFilled': {
-                      color: theme.palette.primary.main
-                    }
+                    p: 3,
+                    bgcolor: '#F5F5F5',
+                    borderRadius: '10px',
+                    mb: 2
                   }}
-                />
-              </Box>
+                >
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      mb: 1
+                    }}
+                  >
+                    <Typography variant="body1" color="#263339">
+                      {skill.name}
+                    </Typography>
+                    <Rating
+                      value={skill.level}
+                      readOnly
+                      sx={{
+                        '& .MuiRating-iconFilled': {
+                          color: theme.palette.primary.main
+                        }
+                      }}
+                    />
+                  </Box>
+                </Box>
+              ))}
             </Box>
-          ))}
-        </Box>
+        )}
 
         <Box sx={{ mb: 3 }}>
           <Box
@@ -707,53 +709,55 @@ const EmployeeProfile = () => {
             </Box>
           ))}
         </Box>
-
         {/* 客户评价 */}
-        <Box sx={{ mb: 3 }}>
-          <Box
-            sx={{
-              width: 80,
-              height: 4,
-              background: 'linear-gradient(90deg, #26A69A 0%, #80CBC4 100%)',
-              mb: 1,
-              borderRadius: 2
-            }}
-          />
-          <Typography
-            variant="h5"
-            sx={{
-              color: '#263339',
-              fontWeight: 600,
-              mb: 2
-            }}
-          >
-            客户评价
-          </Typography>
+        {employeeData.reviews && employeeData.reviews.length > 0 && (
+          
+          <Box sx={{ mb: 3 }}>
+            <Box
+              sx={{
+                width: 80,
+                height: 4,
+                background: 'linear-gradient(90deg, #26A69A 0%, #80CBC4 100%)',
+                mb: 1,
+                borderRadius: 2
+              }}
+            />
+            <Typography
+              variant="h5"
+              sx={{
+                color: '#263339',
+                fontWeight: 600,
+                mb: 2
+              }}
+            >
+              客户评价
+            </Typography>
 
-          <Grid container spacing={2}>
-            {employeeData.reviews.map((review, index) => (
-              <Grid item xs={12} sm={6} key={index}>
-                <Paper
-                  elevation={0}
-                  sx={{
-                    p: 3,
-                    height: '100%',
-                    backgroundColor: 'rgba(0, 0, 0, 0.02)',
-                    borderRadius: '8px'
-                  }}
-                >
-                  <Rating value={review.rating} readOnly sx={{ mb: 2 }} />
-                  <Typography variant="body1" gutterBottom>
-                    {review.content}
-                  </Typography>
-                  <Typography variant="subtitle2" color="text.secondary">
-                    — {review.author}
-                  </Typography>
-                </Paper>
-              </Grid>
-            ))}
-          </Grid>
-        </Box>
+            <Grid container spacing={2}>
+              {employeeData.reviews.map((review, index) => (
+                <Grid item xs={12} sm={6} key={index}>
+                  <Paper
+                    elevation={0}
+                    sx={{
+                      p: 3,
+                      height: '100%',
+                      backgroundColor: 'rgba(0, 0, 0, 0.02)',
+                      borderRadius: '8px'
+                    }}
+                  >
+                    <Rating value={review.rating} readOnly sx={{ mb: 2 }} />
+                    <Typography variant="body1" gutterBottom>
+                      {review.content}
+                    </Typography>
+                    <Typography variant="subtitle2" color="text.secondary">
+                      — {review.author}
+                    </Typography>
+                  </Paper>
+                </Grid>
+              ))}
+            </Grid>
+          </Box>
+          )}
       </Paper>
       </Box>
       </Container>
