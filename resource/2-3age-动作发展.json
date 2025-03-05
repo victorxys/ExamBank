@@ -1,0 +1,185 @@
+{
+  "course_name": "2-3岁幼儿早教动作发展",
+  "knowledge_points": [
+    {
+      "point_name": "早教-动作发展-掌握了各种大肌肉动作",
+      "questions": [
+        {
+          "question_text": "在设计户外活动时，你会选择哪种类型的活动来促进2-3岁孩子的大肌肉动作发展？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "让孩子们安静地坐在椅子上听故事。", "is_correct": false},
+            {"option_text": "提供各种球类、攀爬架、滑梯等，让孩子们自由活动。", "is_correct": true},
+            {"option_text": "让孩子们进行精细的手工制作。", "is_correct": false},
+            {"option_text": "让孩子们进行智力问答游戏。", "is_correct": false}
+          ],
+          "answer_explanation": "2-3岁孩子已经掌握了走、跑、跳、攀爬等大肌肉动作，提供相应的器械和场地，让他们自由活动，能更好地促进这些动作的发展和协调。"
+        },
+        {
+          "question_text": "在观察孩子们的活动时，你发现有个孩子还不太敢独立走平衡木，你会怎么做？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "批评孩子：“你怎么这么胆小！”", "is_correct": false},
+            {"option_text": "鼓励孩子：“你可以先扶着我的手试试，慢慢来。”", "is_correct": true},
+            {"option_text": "不理孩子，让孩子自己想办法。", "is_correct": false},
+            {"option_text": "强迫孩子走过去。", "is_correct": false}
+          ],
+          "answer_explanation": "提供支持和鼓励，帮助孩子逐步克服困难，建立自信心。"
+        },
+        {
+          "question_text": "下面哪种活动不太适合用来发展2-3岁孩子的大肌肉动作？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "玩“老鹰捉小鸡”的游戏。", "is_correct": false},
+            {"option_text": "进行跳绳比赛。", "is_correct": true},
+            {"option_text": "让孩子们在垫子上翻滚。", "is_correct": false},
+            {"option_text": "进行钻山洞游戏。", "is_correct": false}
+          ],
+          "answer_explanation": "2-3岁孩子的手脚协调能力还不足以进行跳绳，跳绳更适合年龄稍大的孩子。"
+        },
+        {
+          "question_text": "你可以通过哪些方式来评估2-3岁孩子的大肌肉动作发展水平？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "观察孩子们在自由活动中的表现，如跑、跳、攀爬的姿势和能力。", "is_correct": true},
+            {"option_text": "设计一些简单的游戏，如单脚站立、跳过障碍物等，观察孩子们的完成情况。", "is_correct": true},
+            {"option_text": "与家长沟通，了解孩子在家中的活动情况。", "is_correct": true},
+            {"option_text": "只看孩子的身高体重。", "is_correct": false}
+          ],
+          "answer_explanation": "观察自由活动、设计游戏、与家长沟通，都能帮助老师全面评估孩子的大肌肉动作发展水平。"
+        },
+        {
+          "question_text": "在设计大肌肉活动时，你需要注意哪些安全事项？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "确保活动场地平整、无障碍物。", "is_correct": true},
+            {"option_text": "提供足够的活动空间，避免孩子们互相碰撞。", "is_correct": true},
+            {"option_text": "在孩子们进行攀爬等活动时，进行适当的保护。", "is_correct": true},
+            {"option_text": "让孩子们随意玩耍，不用管他们。", "is_correct": false}
+          ],
+          "answer_explanation": "确保场地安全、提供足够空间、进行适当保护，都是保障大肌肉活动安全的重要措施。"
+        }
+      ]
+    },
+    {
+      "point_name": "早教-动作发展-小肌肉的动作逐渐精细",
+      "questions": [
+        {
+          "question_text": "你会提供哪些材料来促进2-3岁孩子的小肌肉动作发展？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "提供大块的积木。", "is_correct": false},
+            {"option_text": "提供串珠、橡皮泥、蜡笔、剪刀（幼儿专用）等。", "is_correct": true},
+            {"option_text": "提供各种球类。", "is_correct": false},
+            {"option_text": "提供攀爬架。", "is_correct": false}
+          ],
+          "answer_explanation": "串珠、橡皮泥、蜡笔、剪刀等都需要运用手指和手腕的小肌肉进行操作，能有效促进小肌肉动作的精细化。"
+        },
+        {
+          "question_text": "在孩子们进行串珠活动时，你发现有个孩子总是串不进去，你会怎么做？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "批评孩子：“你怎么这么笨！”", "is_correct": false},
+            {"option_text": "帮孩子把珠子串好。", "is_correct": false},
+            {"option_text": "鼓励孩子：“你可以先试试把线捏紧，再慢慢穿过去。”", "is_correct": true},
+            {"option_text": "不理孩子，让孩子自己想办法。", "is_correct": false}
+          ],
+          "answer_explanation": "提供具体的操作指导，帮助孩子掌握技巧。"
+        },
+        {
+          "question_text": "下面哪种活动不太适合用来发展2-3岁孩子的小肌肉动作？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "玩撕纸游戏。", "is_correct": false},
+            {"option_text": "进行系鞋带比赛。", "is_correct": true},
+            {"option_text": "玩捡豆子游戏。", "is_correct": false},
+            {"option_text": "进行涂色练习。", "is_correct": false}
+          ],
+          "answer_explanation": "系鞋带需要较强的手指灵活性和协调性，对2-3岁孩子来说难度较大。"
+        },
+        {
+          "question_text": "你可以通过哪些方式来评估2-3岁孩子的小肌肉动作发展水平？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "观察孩子们在日常活动中对小物品的操作能力，如扣扣子、拉拉链、拿勺子等。", "is_correct": true},
+            {"option_text": "设计一些简单的手工活动，如撕纸、粘贴、涂色等，观察孩子们的完成情况。", "is_correct": true},
+            {"option_text": "与家长沟通，了解孩子在家中是否能自己完成一些简单的生活自理任务。", "is_correct": true},
+            {"option_text": "只看孩子的手指长度。", "is_correct": false}
+          ],
+          "answer_explanation": "观察日常操作、设计手工活动、与家长沟通，都能帮助老师全面评估孩子的小肌肉动作发展水平。"
+        },
+        {
+          "question_text": "在设计小肌肉活动时，你需要注意哪些安全事项？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "提供符合安全标准的材料和工具，如圆头剪刀、无毒橡皮泥等。", "is_correct": true},
+            {"option_text": "提醒孩子们不要把小物品放入口中、鼻中。", "is_correct": true},
+            {"option_text": "在孩子们使用剪刀等工具时，进行适当的指导和监督。", "is_correct": true},
+            {"option_text": "让孩子们随意使用任何材料和工具。", "is_correct": false}
+          ],
+          "answer_explanation": "提供安全材料、提醒安全事项、进行适当指导，都是保障小肌肉活动安全的重要措施。"
+        }
+      ]
+    },
+    {
+      "point_name": "早教-动作发展-活动最有目的性和模仿性",
+      "questions": [
+        {
+          "question_text": "在进行角色扮演游戏时，你会如何利用2-3岁孩子动作的模仿性来引导他们？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "让孩子们自由发挥，不做任何干预。", "is_correct": false},
+            {"option_text": "自己扮演一个角色，示范一些动作和行为，引导孩子们模仿。", "is_correct": true},
+            {"option_text": "告诉孩子们应该怎么做，但不做示范。", "is_correct": false},
+            {"option_text": "让孩子们看动画片，然后模仿。", "is_correct": false}
+          ],
+          "answer_explanation": "2-3岁孩子喜欢模仿，老师通过亲身示范，能更好地引导孩子进入角色，学习角色的动作和行为。"
+        },
+        {
+          "question_text": "在进行“过家家”游戏时，你发现孩子们只是在随意摆弄玩具，没有明确的目的性，你会怎么做？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "批评孩子们：“你们怎么玩得这么乱！”", "is_correct": false},
+            {"option_text": "给孩子们设定一个情境，如“今天我们要给娃娃做饭”，并示范一些相关的动作。", "is_correct": true},
+            {"option_text": "不理孩子们，让他们自己想办法。", "is_correct": false},
+            {"option_text": "直接告诉孩子们应该怎么玩。", "is_correct": false}
+          ],
+          "answer_explanation": "通过设定情境、示范动作，帮助孩子明确活动的目的性。"
+        },
+        {
+          "question_text": "下面哪种活动更能体现2-3岁孩子动作的目的性和模仿性？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "让孩子们自由玩耍。", "is_correct": false},
+            {"option_text": "和孩子们一起玩“模仿动物”的游戏。", "is_correct": true},
+            {"option_text": "让孩子们进行跑步比赛。", "is_correct": false},
+            {"option_text": "让孩子们进行搭积木比赛。", "is_correct": false}
+          ],
+          "answer_explanation": "“模仿动物”的游戏既需要孩子模仿动物的动作，又有明确的目的性（模仿得像）。"
+        },
+        {
+          "question_text": "你可以通过哪些方式来引导2-3岁孩子进行有目的性的活动？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "给活动设定一个明确的主题或目标。", "is_correct": true},
+            {"option_text": "在活动前，和孩子们一起讨论活动的内容和规则。", "is_correct": true},
+            {"option_text": "在活动中，及时给予孩子反馈和指导。", "is_correct": true},
+            {"option_text": "让孩子们随意玩耍，不加干预。", "is_correct": false}
+          ],
+          "answer_explanation": "设定主题、讨论内容、及时指导，都能帮助孩子明确活动的目的性。"
+        },
+        {
+          "question_text": "在观察孩子们的活动时，你可以从哪些方面来判断他们的活动是否具有目的性？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "观察孩子们的动作是否有明确的目标，如搭积木是为了搭房子，还是随意堆放。", "is_correct": true},
+            {"option_text": "观察孩子们在活动中是否专注，是否容易分心。", "is_correct": true},
+            {"option_text": "观察孩子们在遇到困难时，是会尝试解决，还是轻易放弃。", "is_correct": true},
+            {"option_text": "只看孩子们玩了多久。", "is_correct": false}
+          ],
+          "answer_explanation": "观察动作目标、专注程度、解决问题的态度，都能帮助老师判断孩子的活动是否具有目的性。"
+        }
+      ]
+    }
+  ]
+}

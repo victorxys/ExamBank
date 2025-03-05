@@ -1,0 +1,125 @@
+{
+  "course_name": "2-3岁幼儿早教语言发展",
+  "knowledge_points": [
+    {
+      "point_name": "早教-语言-以简单句为主",
+      "questions": [
+        {
+          "question_text": "当一个2岁左右的孩子说“狗狗，跑”时，你应该如何回应？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "纠正孩子：“你应该说‘狗狗在跑’。”", "is_correct": false},
+            {"option_text": "扩展孩子的句子：“对，狗狗在跑。”", "is_correct": true},
+            {"option_text": "不理会孩子，让他自己说。", "is_correct": false},
+            {"option_text": "批评孩子：“你怎么说得这么简单！”", "is_correct": false}
+          ],
+          "answer_explanation": "2岁左右的孩子以简单句为主，你应该在理解孩子意思的基础上，扩展孩子的句子，帮助他学习更完整的表达。"
+        },
+        {
+          "question_text": "在与以简单句为主的幼儿交流时，你应该注意什么？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "只使用复杂的长句。", "is_correct": false},
+            {"option_text": "多使用简单句，语速放慢，并配合手势、表情等。", "is_correct": true},
+            {"option_text": "只使用孩子已经掌握的词汇。", "is_correct": false},
+            {"option_text": "避免与孩子进行眼神交流。", "is_correct": false}
+          ],
+          "answer_explanation": "与以简单句为主的幼儿交流时，你应该使用简单、清晰的语言，放慢语速，并借助非语言信息帮助孩子理解。"
+        },
+        {
+          "question_text": "当孩子用简单句表达一个请求时（如“妈妈，抱”），你应该怎么做？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "直接满足孩子的请求。", "is_correct": false},
+            {"option_text": "用完整的句子回应并满足请求：“好的，妈妈抱你。”", "is_correct": true},
+            {"option_text": "让孩子自己想办法。", "is_correct": false},
+            {"option_text": "批评孩子：“你怎么不会说完整的话？”", "is_correct": false}
+          ],
+          "answer_explanation": "在满足孩子需求的同时，用完整的句子回应，可以帮助孩子学习更完整的表达。"
+        },
+        {
+          "question_text": "你可以通过哪些活动来帮助以简单句为主的幼儿发展语言？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "看图说话，引导孩子用简单句描述图片内容。", "is_correct": true},
+            {"option_text": "玩角色扮演游戏，鼓励孩子用简单句进行对话。", "is_correct": true},
+            {"option_text": "给孩子读绘本，并鼓励他复述故事中的简单句。", "is_correct": true},
+            {"option_text": "让孩子背诵复杂的古诗词。", "is_correct": false}
+          ],
+          "answer_explanation": "看图说话、角色扮演、复述绘本中的简单句，都能帮助孩子练习和扩展简单句。背诵复杂古诗词对这个阶段的孩子来说太难了。"
+        },
+        {
+          "question_text": "当孩子说出一个不完整的简单句时（如“车车，红色”），你可以如何引导？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "用完整的句子复述：“哦，你看到了一辆红色的车。”", "is_correct": true},
+            {"option_text": "提问引导：“什么东西是红色的？”", "is_correct": true},
+            {"option_text": "扩展句子：“对，这是一辆红色的车，它有四个轮子。”", "is_correct": true},
+            {"option_text": "直接纠正孩子：“你应该说‘这是一辆红色的车’。”", "is_correct": false}
+          ],
+          "answer_explanation": "复述、提问、扩展都是帮助孩子完善简单句的有效方法，直接纠正可能会打击孩子的积极性。"
+        }
+      ]
+    },
+    {
+      "point_name": "早教-语言-复合句比例增加",
+      "questions": [
+        {
+          "question_text": "当一个孩子开始使用一些简单的复合句时（如“我玩积木，因为我喜欢”），这表明孩子的语言发展到了什么阶段？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "单词句阶段", "is_correct": false},
+            {"option_text": "简单句阶段", "is_correct": false},
+            {"option_text": "复合句萌芽阶段", "is_correct": true},
+            {"option_text": "完整句阶段", "is_correct": false}
+          ],
+          "answer_explanation": "开始使用简单的复合句，说明孩子的语言发展已经进入复合句萌芽阶段。"
+        },
+        {
+          "question_text": "当孩子尝试说一个复合句，但表达不够流畅或完整时（如“我想吃苹果，因为...因为...”），你应该怎么做？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "打断孩子，让他重新说。", "is_correct": false},
+            {"option_text": "耐心等待，并适当提示：“因为什么呢？”", "is_correct": true},
+            {"option_text": "直接告诉孩子正确的说法。", "is_correct": false},
+            {"option_text": "批评孩子：“你怎么说不清楚？”", "is_correct": false}
+          ],
+          "answer_explanation": "耐心等待、适当提示，可以鼓励孩子继续尝试表达，帮助他完善复合句。"
+        },
+        {
+          "question_text": "为了促进幼儿复合句的发展，你在讲故事时应该注意什么？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "只使用简单句。", "is_correct": false},
+            {"option_text": "多使用一些包含因果、转折、递进等关系的复合句。", "is_correct": true},
+            {"option_text": "只使用孩子已经完全掌握的句型。", "is_correct": false},
+            {"option_text": "避免使用任何连词。", "is_correct": false}
+          ],
+          "answer_explanation": "在讲故事时多使用复合句，可以为孩子提供复合句的语言环境，帮助他学习和模仿。"
+        },
+        {
+          "question_text": "你可以通过哪些方式来引导幼儿使用复合句？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "在日常对话中，多使用“因为...所以...”、 “如果...就...”等句式。", "is_correct": true},
+            {"option_text": "玩“造句游戏”，鼓励孩子用指定的连词造句。", "is_correct": true},
+            {"option_text": "给孩子提供一些需要用复合句才能表达清楚的情境，如描述一个事件的前因后果。", "is_correct": true},
+            {"option_text": "只让孩子复述简单句。", "is_correct": false}
+          ],
+          "answer_explanation": "使用复合句句式、玩造句游戏、提供复合句情境，都能引导孩子使用复合句。"
+        },
+        {
+          "question_text": "当孩子说出一个结构不太正确的复合句时（如“我喜欢玩，和妈妈”），你可以如何回应？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "用正确的句式复述：“哦，你喜欢和妈妈一起玩。”", "is_correct": true},
+            {"option_text": "提问引导：“你和妈妈一起玩什么？”", "is_correct": true},
+            {"option_text": "扩展句子：“你喜欢和妈妈一起玩，我也喜欢和妈妈一起玩。”", "is_correct": true},
+            {"option_text": "直接纠正孩子：“你应该说‘我喜欢和妈妈一起玩’。”", "is_correct": false}
+          ],
+          "answer_explanation": "复述、提问、扩展都能帮助孩子理解正确的复合句结构，直接纠正可能会打击孩子的积极性。"
+        }
+      ]
+    }
+  ]
+}

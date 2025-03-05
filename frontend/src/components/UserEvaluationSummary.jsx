@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   Container,
   Paper,
+  Avatar,
   Typography,
   Box,
   Card,
@@ -27,8 +28,11 @@ import api from '../api/axios';
 import { hasToken } from '../api/auth-utils';
 import ai from '../api/ai';
 import PageHeader from './PageHeader'
+import { useTheme } from '@mui/material/styles';
+
 
 const UserEvaluationSummary = () => {
+  const theme = useTheme();
   const { userId } = useParams();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -89,13 +93,31 @@ const UserEvaluationSummary = () => {
         <CardContent>
           <Grid container spacing={3}>
             <Grid item xs={12} md={6}>
-              <Typography variant="h2" gutterBottom>{userInfo?.username}</Typography>
-              <Typography variant="body1" color="text.secondary">
-                手机号码：{userInfo?.phone_number || '未设置'}
-              </Typography>
-              <Typography variant="body1" color="text.secondary">
-                角色：{userInfo?.role === 'admin' ? '管理员' : '普通用户'}
-              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, mb: 2 }}>
+                <Avatar
+                  sx={{
+                    width: 100,
+                    height: 100,
+                    border: '4px solid white',
+                    boxShadow: '0 8px 16px rgba(38, 166, 154, 0.1)',
+                    bgcolor: '#F5F5F5',
+                    color: theme.palette.primary.main
+                  }}
+                  alt={userInfo?.username}
+                  src={`/avatar/${userId}-avatar.jpg`}
+                >
+                  {userInfo?.username?.[0]?.toUpperCase()}
+                </Avatar>
+                <Box>
+                  <Typography variant="h2" gutterBottom>{userInfo?.username}</Typography>
+                  <Typography variant="body1" color="text.secondary">
+                    手机号码：{userInfo?.phone_number || '未设置'}
+                  </Typography>
+                  <Typography variant="body1" color="text.secondary">
+                    角色：{userInfo?.role === 'admin' ? '管理员' : '普通用户'}
+                  </Typography>
+                </Box>
+              </Box>
             </Grid>
             <Grid item xs={12} md={6}>
               <Box display="flex" justifyContent="flex-end" gap={2}>

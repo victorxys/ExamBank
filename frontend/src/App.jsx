@@ -207,19 +207,19 @@ function App() {
     // 检查是否有有效的token
     const userInfo = hasToken();
     // 只在非员工介绍页面或非公开访问模式时检查登录状态
-    console.log('userInfo', userInfo);
-    console.log('isPublicEmployeeProfile', isPublicEmployeeProfile)
+    // console.log('userInfo', userInfo);
+    // console.log('isPublicEmployeeProfile', isPublicEmployeeProfile)
     // console.log('urlParams', urlParams)
     // console.log('url',url)
     
     if(isPublicEmployeeProfile){
-      console.log('isPublicEmployeeProfile',isPublicEmployeeProfile)
-      console.log('gongkaiyemian no loging')
+      // console.log('isPublicEmployeeProfile',isPublicEmployeeProfile)
+      // console.log('gongkaiyemian no loging')
     }
    
   
     if (!userInfo && !isPublicEmployeeProfile) {
-      console.log('no token需要登录')
+      // console.log('no token需要登录')
       setLoginOpen(true);
       setUser(null);
     } else {

@@ -67,7 +67,7 @@ const EmployeeProfile = () => {
       fetchEmployeeData();
     }
   }, [userId]);
-  console.log('isPublic',isPublic)
+  // console.log('isPublic',isPublic)
   const handleOpenDialog = (title, content) => {
     setDialogContent({ title, content });
     setDialogOpen(true);
@@ -92,8 +92,9 @@ const EmployeeProfile = () => {
       </Box>
     );
   }
-  console.log('employeeData:', employeeData);
+  console.log('employee_show_url',employeeData.employee_show_url)
   if (!employeeData || !employeeData.introduction) {
+    
     return (
       <Box sx={{ p: 3, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
         <Alert severity="info" sx={{ width: '100%' }}>暂无员工介绍，请先评价员工，然后再生成相应评价</Alert>
@@ -785,6 +786,7 @@ const EmployeeProfile = () => {
           </Button>
         </DialogActions>
       </Dialog>
+      
       {employeeData.employee_show_url && (
         <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3, mb: 4 }}>
           <Button

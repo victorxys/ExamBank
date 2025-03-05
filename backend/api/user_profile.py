@@ -32,7 +32,9 @@ def get_user_profile(user_id):
         # 构建返回数据
         response_data = {}
         response_data.update(result['profile_data'])
-        response_data['avatar'] = result['avatar']
+        # 从avatar文件夹获取头像
+        avatar_path = f"/avatar/{user_id}-avatar.jpg"
+        response_data['avatar'] = avatar_path
         if result['myms_user_id']:
             response_data['employee_show_url'] = f"https://www.mengyimengsao.com/employee_show.php?id={result['myms_user_id']}"
             

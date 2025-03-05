@@ -1,0 +1,125 @@
+{
+  "course_name": "2-3岁幼儿早教逻辑思维发展",
+  "knowledge_points": [
+    {
+      "point_name": "早教-逻辑思维-推理能力",
+      "questions": [
+        {
+          "question_text": "宝宝把饼干弄碎了，你递给他一张纸巾，你希望他接下来做什么？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "把纸巾撕碎。", "is_correct": false},
+            {"option_text": "用纸巾擦嘴。", "is_correct": false},
+            {"option_text": "用纸巾擦饼干屑。", "is_correct": true},
+            {"option_text": "把纸巾扔掉。", "is_correct": false}
+          ],
+          "answer_explanation": "你希望宝宝能根据“饼干碎了”和“纸巾”这两个线索，推断出“用纸巾擦饼干屑”这个行为。"
+        },
+        {
+          "question_text": "你在给宝宝穿鞋，宝宝却指着门外，你觉得宝宝可能是什么意思？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "宝宝不想穿鞋。", "is_correct": false},
+            {"option_text": "宝宝想出去玩。", "is_correct": true},
+            {"option_text": "宝宝饿了。", "is_correct": false},
+            {"option_text": "宝宝困了。", "is_correct": false}
+          ],
+          "answer_explanation": "穿鞋通常是出门前的准备，宝宝指着门外，很可能是想出去玩。"
+        },
+        {
+          "question_text": "你和宝宝玩球，你把球滚向宝宝，你期望宝宝做什么？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "拍手", "is_correct": false},
+            {"option_text": "伸手接球，或者把球踢回来。", "is_correct": true},
+            {"option_text": "转身走开。", "is_correct": false},
+            {"option_text": "哭", "is_correct": false}
+          ],
+          "answer_explanation": "这是对互动行为的预期，也是对宝宝反应能力的观察。"
+        },
+        {
+          "question_text": "你可以通过观察宝宝的哪些行为，来判断他是否具备初步的推理能力？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "宝宝看到你拿奶瓶，就知道要喝奶了。", "is_correct": true},
+            {"option_text": "宝宝看到下雨，就知道不能出去玩了。", "is_correct": true},
+            {"option_text": "宝宝会模仿大人的动作。", "is_correct": false},
+            {"option_text": "宝宝会说简单的词语。", "is_correct": false}
+          ],
+          "answer_explanation": "A和B选项都体现了宝宝根据熟悉事物进行简单推理的能力。C选项是模仿能力，D选项是语言能力。"
+        },
+        {
+          "question_text": "你可以怎样引导宝宝进行简单的推理？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "多问宝宝“为什么”。", "is_correct": true},
+            {"option_text": "多问宝宝“接下来会发生什么”。", "is_correct": true},
+            {"option_text": "多给宝宝讲有因果关系的故事。", "is_correct": true},
+            {"option_text": "不让宝宝思考，直接告诉他答案。", "is_correct": false}
+          ],
+          "answer_explanation": "提问、讲故事都能引导宝宝思考事物之间的联系，培养推理能力。"
+        }
+      ]
+    },
+    {
+      "point_name": "早教-逻辑思维-简单推理",
+      "questions": [
+        {
+          "question_text": "你发现宝宝把水倒在了地上，你应该怎么引导他？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "严厉批评宝宝。", "is_correct": false},
+            {"option_text": "帮宝宝把水擦干，并告诉他以后不要这样做了。", "is_correct": true},
+            {"option_text": "让宝宝自己把水擦干。", "is_correct": false},
+            {"option_text": "不管他。", "is_correct": false}
+          ],
+          "answer_explanation": "既要处理问题，又要告诉宝宝行为的后果，引导他下次注意。"
+        },
+        {
+          "question_text": "宝宝想拿桌子上的苹果，但是够不着，他开始哭，你应该怎么做？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "直接把苹果拿给宝宝。", "is_correct": false},
+            {"option_text": "告诉宝宝：“哭是没有用的，想想怎么才能拿到苹果。”", "is_correct": true},
+            {"option_text": "不理宝宝。", "is_correct": false},
+            {"option_text": "对宝宝发脾气。", "is_correct": false}
+          ],
+          "answer_explanation": "引导宝宝思考解决问题的方法，而不是直接满足他的需求。"
+        },
+        {
+          "question_text": "你和宝宝玩积木，你故意把积木搭得很高，而且不稳，然后问宝宝：“你看，这样搭会怎么样？” 你希望宝宝回答什么？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "“会很漂亮。”", "is_correct": false},
+            {"option_text": "“会倒塌。”", "is_correct": true},
+            {"option_text": "“会飞起来。”", "is_correct": false},
+            {"option_text": "不知道", "is_correct": false}
+          ],
+          "answer_explanation": "这是对行为结果的预测，考察宝宝的推理能力。"
+        },
+        {
+          "question_text": "哪些情境可以用来训练宝宝的简单推理能力？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "给宝宝看两张图片，一张是脏脏的手，一张是洗手的动作，问宝宝发生了什么。", "is_correct": true},
+            {"option_text": "给宝宝看一张小猫在睡觉的图片，问宝宝小猫在干什么。", "is_correct": false},
+            {"option_text": "给宝宝看一张空空的碗，问宝宝碗里的东西去哪了。", "is_correct": true},
+            {"option_text": "让宝宝背唐诗。", "is_correct": false}
+          ],
+          "answer_explanation": "A和C选项都需要宝宝根据图片内容进行简单的推理。B选项是观察和描述，D选项是记忆训练。"
+        },
+        {
+          "question_text": "在日常生活中，你可以如何利用机会训练宝宝的推理能力？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "吃饭前，指着碗和勺子，问宝宝：“我们要用这些东西做什么？”", "is_correct": true},
+            {"option_text": "睡觉前，指着床和枕头，问宝宝：“我们要在这里做什么？”", "is_correct": true},
+            {"option_text": "出门前，指着鞋子和外套，问宝宝：“我们要穿上这些东西去哪里？”", "is_correct": true},
+            {"option_text": "只和宝宝进行简单的指令性对话，如“吃饭”、“睡觉”、“出去玩”。", "is_correct": false}
+          ],
+          "answer_explanation": "利用生活中的常见场景，引导宝宝进行简单的推理，能更自然地培养他的推理能力。"
+        }
+      ]
+    }
+  ]
+}
