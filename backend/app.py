@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 import uuid
 from dateutil import parser
 import logging
+import json
 from werkzeug.security import generate_password_hash, check_password_hash
 
 # 配置密码加密方法为pbkdf2
@@ -72,19 +73,42 @@ def login():
         cur.close()
         conn.close()
 
-@app.route('/api/users/<user_id>/profile', methods=['GET'])
-
+@app.route('/api/users/<user_id>/profile', methods=['GET', 'PUT'])
 @jwt_required(optional=True)
-def get_profile(user_id):
-    print("开始获取用户详细信息，用户ID：", user_id)
-    public_param = request.args.get('public', 'false').lower() == 'true'
-    print("public_param:", request)
-    
-    public_value = request.args.get('public')
-    print(f"public 参数的值：{public_value}")
-    if not public_param and (not get_jwt_identity() and not public_param):
-        return jsonify({'msg': 'Missing authorization'}), 401
-    return get_user_profile(user_id)
+def user_profile(user_id):
+    if request.method == 'GET':
+        print("开始获取用户详细信息，用户ID：", user_id)
+        public_param = request.args.get('public', 'false').lower() == 'true'
+        if not public_param and (not get_jwt_identity() and not public_param):
+            return jsonify({'msg': 'Missing authorization'}), 401
+        return get_user_profile(user_id)
+    elif request.method == 'PUT':
+        if not get_jwt_identity():
+            return jsonify({'msg': 'Missing authorization'}), 401
+        data = request.get_json()
+        data_str = json.dumps(data)
+        print("更新用户详细信息，用户data：", data)
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        try:
+            # 更新user_profile表中的profile_data
+            cur.execute("""
+                INSERT INTO user_profile (user_id, profile_data)
+                VALUES (%s, %s)
+                ON CONFLICT (user_id)
+                DO UPDATE SET profile_data = %s
+                RETURNING profile_data
+            """, (user_id, data_str, data_str))
+            updated_profile = cur.fetchone()
+            conn.commit()
+            return jsonify(updated_profile['profile_data'])
+        except Exception as e:
+            conn.rollback()
+            print('Error in update_user_profile:', str(e))
+            return jsonify({'error': str(e)}), 500
+        finally:
+            cur.close()
+            conn.close()
 
 @app.route('/api/register', methods=['POST'])
 def register():
@@ -2657,6 +2681,32 @@ def update_evaluation_route(evaluation_id):
     if not data:
         return jsonify({'error': '缺少必要的评价数据'}), 400
     return update_evaluation(evaluation_id, data)
+
+@app.route('/api/evaluation/<evaluation_id>', methods=['DELETE'])
+def delete_evaluation_route(evaluation_id):
+    conn = get_db_connection()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    try:
+        # 检查评价是否存在
+        cur.execute('SELECT id FROM evaluation WHERE id = %s', (evaluation_id,))
+        if not cur.fetchone():
+            return jsonify({'error': '评价记录不存在'}), 404
+
+        # 删除评价详情记录
+        cur.execute('DELETE FROM evaluation_detail WHERE evaluation_id = %s', (evaluation_id,))
+        
+        # 删除评价主记录
+        cur.execute('DELETE FROM evaluation WHERE id = %s', (evaluation_id,))
+        
+        conn.commit()
+        return jsonify({'message': '评价删除成功'})
+    except Exception as e:
+        conn.rollback()
+        print('Error in delete_evaluation:', str(e))
+        return jsonify({'error': str(e)}), 500
+    finally:
+        cur.close()
+        conn.close()
 
 @app.route('/api/ai-generate', methods=['POST'])
 def ai_generate_route():

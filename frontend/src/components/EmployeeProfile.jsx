@@ -5,6 +5,7 @@ import {
   Container,
   Avatar,
   Typography,
+  TextField,
   Paper,
   Grid,
   Chip,
@@ -25,7 +26,7 @@ import {
   Menu,
   MenuItem
 } from '@mui/material';
-import { Add as AddIcon, Share as ShareIcon } from '@mui/icons-material';
+import { Add as AddIcon, Share as ShareIcon, Edit as EditIcon, Delete as DeleteIcon} from '@mui/icons-material';
 import html2canvas from 'html2canvas';
 import { useTheme } from '@mui/material/styles';
 import api from '../api/axios';
@@ -41,6 +42,19 @@ const EmployeeProfile = () => {
   const [error, setError] = useState(null);
   const [anchorEl, setAnchorEl] = useState(null);
   const [employeeData, setEmployeeData] = useState(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editFormData, setEditFormData] = useState({
+    name: '',
+    title: '',
+    experience: '',
+    introduction: {
+      description: '',
+      more: ''
+    },
+    advantages: [],
+    skills: [],
+    qualities: []
+  });
   const [isPublic] = useState(() => {
   // const searchParams = new URLSearchParams(window.location.search);
   const publicParams = new URL(window.location.href).searchParams.get('public')
@@ -75,6 +89,39 @@ const EmployeeProfile = () => {
 
   const handleCloseDialog = () => {
     setDialogOpen(false);
+  };
+
+  const handleEditClick = () => {
+    setEditFormData({
+      name: employeeData.name,
+      title: employeeData.title,
+      experience: employeeData.experience,
+      introduction: {
+        description: employeeData.introduction.description,
+        more: employeeData.introduction.more
+      },
+      advantages: employeeData.advantages,
+      skills: employeeData.skills,
+      qualities: employeeData.qualities,
+      reviews: employeeData.reviews
+    });
+    setEditDialogOpen(true);
+  };
+
+  const handleEditClose = () => {
+    setEditDialogOpen(false);
+  };
+
+  const handleEditSave = async () => {
+    try {
+      const response = await api.put(`/users/${userId}/profile`, editFormData);
+      setEmployeeData(response.data);
+      setEditDialogOpen(false);
+      alert('保存成功');
+    } catch (error) {
+      console.error('保存失败:', error);
+      alert('保存失败，请重试');
+    }
   };
 
   if (loading) {
@@ -180,7 +227,21 @@ const EmployeeProfile = () => {
       
       <Container maxWidth="lg" sx={{ py: 3, position: 'relative' }}>        
         {!isPublic && (
-          <Box sx={{ position: 'absolute', top: 88, right: 24, zIndex: 1000, pointerEvents: 'auto' }}>
+          <Box sx={{ display: 'flex', gap: 2, position: 'absolute', top: 88, right: 24, zIndex: 1000, pointerEvents: 'auto' }}>
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={<EditIcon />}
+              onClick={handleEditClick}
+              sx={{
+                background: 'linear-gradient(87deg, #26A69A 0, #56aea2 100%)',
+                '&:hover': {
+                  background: 'linear-gradient(87deg, #1a8c82 0, #408d86 100%)'
+                }
+              }}
+            >
+              编辑
+            </Button>
             <Button
               variant="contained"
               color="primary"
@@ -761,6 +822,237 @@ const EmployeeProfile = () => {
       </Paper>
       </Box>
       </Container>
+
+      {/* 编辑对话框 */}
+      <Dialog
+        open={editDialogOpen}
+        onClose={handleEditClose}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: '20px',
+            bgcolor: 'white',
+            boxShadow: '0 8px 16px rgba(38, 166, 154, 0.1)'
+          }
+        }}
+      >
+        <DialogTitle sx={{ color: '#263339', fontWeight: 600 , fontSize: theme.typography.h3.fontSize}}>
+          编辑个人信息
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 , fontSize: theme.typography.h3.fontSize}}>
+            <Typography variant="h4" sx={{ mb: 1 }}>基本信息</Typography>
+            <TextField
+              label="姓名"
+              fullWidth
+              value={editFormData.name}
+              onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+            />
+            <TextField
+              label="职位"
+              fullWidth
+              value={editFormData.title}
+              onChange={(e) => setEditFormData({ ...editFormData, title: e.target.value })}
+            />
+            <TextField
+              label="工作经验"
+              fullWidth
+              value={editFormData.experience}
+              onChange={(e) => setEditFormData({ ...editFormData, experience: e.target.value })}
+            />
+            
+            <Typography variant="h4" sx={{ mt: 2, mb: 1 }}>个人介绍</Typography>
+            <TextField
+              label="个人介绍"
+              fullWidth
+              multiline
+              rows={4}
+              value={editFormData.introduction.description}
+              onChange={(e) => setEditFormData({
+                ...editFormData,
+                introduction: {
+                  ...editFormData.introduction,
+                  description: e.target.value
+                }
+              })}
+            />
+            <TextField
+              label="详细介绍"
+              fullWidth
+              multiline
+              rows={4}
+              value={editFormData.introduction.more}
+              onChange={(e) => setEditFormData({
+                ...editFormData,
+                introduction: {
+                  ...editFormData.introduction,
+                  more: e.target.value
+                }
+              })}
+            />
+
+            <Typography variant="h4" sx={{ mt: 2, mb: 1 }}>服务优势</Typography>
+            {editFormData.advantages.map((advantage, index) => (
+              <Box key={index} sx={{ display: 'flex', flexDirection: 'column', gap: 2, mb: 2 }}>
+                <TextField
+                  label="优势名称"
+                  fullWidth
+                  value={advantage.name}
+                  onChange={(e) => {
+                    const newAdvantages = [...editFormData.advantages];
+                    newAdvantages[index] = { ...advantage, name: e.target.value };
+                    setEditFormData({ ...editFormData, advantages: newAdvantages });
+                  }}
+                />
+                <TextField
+                  label="优势描述"
+                  fullWidth
+                  multiline
+                  rows={2}
+                  value={advantage.description}
+                  onChange={(e) => {
+                    const newAdvantages = [...editFormData.advantages];
+                    newAdvantages[index] = { ...advantage, description: e.target.value };
+                    setEditFormData({ ...editFormData, advantages: newAdvantages });
+                  }}
+                />
+                <TextField
+                  label="详细说明"
+                  fullWidth
+                  multiline
+                  rows={3}
+                  value={advantage.more}
+                  onChange={(e) => {
+                    const newAdvantages = [...editFormData.advantages];
+                    newAdvantages[index] = { ...advantage, more: e.target.value };
+                    setEditFormData({ ...editFormData, advantages: newAdvantages });
+                  }}
+                />
+              </Box>
+            ))}
+
+            <Typography variant="h4" sx={{ mt: 2, mb: 1 }}>专业技能</Typography>
+            {editFormData.skills.map((skill, index) => (
+              <Box key={index} sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+                <TextField
+                  label="技能名称"
+                  fullWidth
+                  value={skill.name}
+                  onChange={(e) => {
+                    const newSkills = [...editFormData.skills];
+                    newSkills[index] = { ...skill, name: e.target.value };
+                    setEditFormData({ ...editFormData, skills: newSkills });
+                  }}
+                />
+                <Rating
+                  value={skill.level}
+                  onChange={(e, newValue) => {
+                    const newSkills = [...editFormData.skills];
+                    newSkills[index] = { ...skill, level: newValue };
+                    setEditFormData({ ...editFormData, skills: newSkills });
+                  }}
+                />
+              </Box>
+            ))}
+
+            <Typography variant="h4" sx={{ mt: 2, mb: 1 }}>职业素养</Typography>
+            {editFormData.qualities.map((quality, index) => (
+              <Box key={index} sx={{ display: 'flex', flexDirection: 'column', gap: 2, mb: 2 }}>
+                <TextField
+                  label="素养名称"
+                  fullWidth
+                  value={quality.name}
+                  onChange={(e) => {
+                    const newQualities = [...editFormData.qualities];
+                    newQualities[index] = { ...quality, name: e.target.value };
+                    setEditFormData({ ...editFormData, qualities: newQualities });
+                  }}
+                />
+                <TextField
+                  label="素养描述"
+                  fullWidth
+                  multiline
+                  rows={2}
+                  value={quality.description}
+                  onChange={(e) => {
+                    const newQualities = [...editFormData.qualities];
+                    newQualities[index] = { ...quality, description: e.target.value };
+                    setEditFormData({ ...editFormData, qualities: newQualities });
+                  }}
+                />
+                <TextField
+                  label="详细说明"
+                  fullWidth
+                  multiline
+                  rows={3}
+                  value={quality.more}
+                  onChange={(e) => {
+                    const newQualities = [...editFormData.qualities];
+                    newQualities[index] = { ...quality, more: e.target.value };
+                    setEditFormData({ ...editFormData, qualities: newQualities });
+                  }}
+                />
+              </Box>
+            ))}
+
+            <Typography variant="h4" sx={{ mt: 2, mb: 1 }}>客户评价</Typography>
+            {editFormData.reviews && editFormData.reviews.map((review, index) => (
+              <Box key={index} sx={{ display: 'flex', flexDirection: 'column', gap: 2, mb: 2 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <IconButton
+                    onClick={() => {
+                      const newReviews = editFormData.reviews.filter((_, i) => i !== index);
+                      setEditFormData({ ...editFormData, reviews: newReviews });
+                    }}
+                    size="small"
+                    color="error"
+                  >
+                    <DeleteIcon />
+                  </IconButton>
+                </Box>
+                <Rating
+                  value={review.rating}
+                  onChange={(e, newValue) => {
+                    const newReviews = [...editFormData.reviews];
+                    newReviews[index] = { ...review, rating: newValue };
+                    setEditFormData({ ...editFormData, reviews: newReviews });
+                  }}
+                />
+                <TextField
+                  label="评价内容"
+                  fullWidth
+                  multiline
+                  rows={3}
+                  value={review.content}
+                  onChange={(e) => {
+                    const newReviews = [...editFormData.reviews];
+                    newReviews[index] = { ...review, content: e.target.value };
+                    setEditFormData({ ...editFormData, reviews: newReviews });
+                  }}
+                />
+                <TextField
+                  label="评价人"
+                  fullWidth
+                  value={review.author}
+                  onChange={(e) => {
+                    const newReviews = [...editFormData.reviews];
+                    newReviews[index] = { ...review, author: e.target.value };
+                    setEditFormData({ ...editFormData, reviews: newReviews });
+                  }}
+                />
+              </Box>
+            ))}
+            
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleEditClose}>取消</Button>
+          <Button onClick={handleEditSave} variant="contained" color="primary">
+            保存
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* 详情弹窗 */}
       <Dialog
