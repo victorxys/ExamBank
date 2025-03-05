@@ -91,14 +91,19 @@ const UserEvaluation = () => {
     try {
       const endpoint = editEvaluationId ? `/evaluation/${editEvaluationId}` : '/evaluation';
       const method = editEvaluationId ? 'put' : 'post';
-
+      const filteredEvaluations = Object.entries(evaluations)
+        .filter(([, score]) => {
+          const parsedScore = parseInt(score);
+          return !isNaN(parsedScore) && parsedScore != null;
+        })
+        .map(([itemId, score]) => ({
+          item_id: itemId,
+          score: parseInt(score),
+        }));
       const response = await api[method](endpoint, {
         evaluated_user_id: userId,
         evaluator_user_id: evaluator_user_id,
-        evaluations: Object.entries(evaluations).map(([itemId, score]) => ({
-          item_id: itemId,
-          score: parseInt(score)
-        }))
+        evaluations: filteredEvaluations
       });
       
       if (response.data && response.data.success) {
