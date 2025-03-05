@@ -1,0 +1,307 @@
+{
+  "course_name": "1-2岁幼儿早教认知发展",
+  "knowledge_points": [
+    {
+      "point_name": "早教-认知-视觉",
+      "questions": [
+        {
+          "question_text": "为了促进宝宝的视觉发展，家长应该选择什么样的玩具？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "颜色单一、图案简单的玩具", "is_correct": false},
+            {"option_text": "颜色鲜艳、对比度高、图案清晰的玩具", "is_correct": true},
+            {"option_text": "体积小巧、细节丰富的玩具", "is_correct": false},
+            {"option_text": "黑白色的玩具", "is_correct": false}
+          ],
+          "answer_explanation": "鲜艳的颜色、高对比度和清晰的图案更能吸引宝宝的注意力，刺激视觉发育。A选项过于单调；C选项细节过于丰富，不易被宝宝感知；D选项黑白色玩具适合新生儿，对于1-2岁的宝宝来说过于简单。"
+        },
+        {
+          "question_text": "哪些活动可以帮助宝宝发展视觉追踪能力？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "用手电筒在暗处移动，让宝宝的目光追随光点", "is_correct": true},
+            {"option_text": "让宝宝观察快速移动的物体", "is_correct": false},
+            {"option_text": "吹泡泡，让宝宝的目光追随泡泡", "is_correct": true},
+            {"option_text": "给宝宝看镜子中的自己", "is_correct": false}
+          ],
+          "answer_explanation": "A和C选项都能锻炼宝宝的视觉追踪能力。B选项快速移动的物体可能超出宝宝的视觉追踪范围；D选项看镜子主要是发展自我认知。"
+        },
+        {
+          "question_text": "宝宝喜欢盯着明亮的灯光看，家长应该怎么做？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "让宝宝尽情看，满足他的好奇心", "is_correct": false},
+            {"option_text": "避免让宝宝长时间注视强光，以免损伤视力", "is_correct": true},
+            {"option_text": "用手遮挡宝宝的眼睛，不让他看", "is_correct": false},
+            {"option_text": "严厉批评宝宝，让他不要看", "is_correct": false}
+          ],
+          "answer_explanation": "长时间注视强光会对宝宝的视力造成伤害，应尽量避免。A选项不顾宝宝的健康；C选项过于粗暴；D选项会给宝宝带来负面情绪。"
+        },
+        {
+          "question_text": "哪些绘本适合1-2岁的宝宝阅读，以促进视觉发展？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "图画大、色彩鲜艳、内容简单的绘本", "is_correct": true},
+            {"option_text": "有立体效果或触摸材质的绘本", "is_correct": true},
+            {"option_text": "文字较多、情节复杂的绘本", "is_correct": false},
+            {"option_text": "黑白图片为主的绘本", "is_correct": false}
+          ],
+          "answer_explanation": "大图、鲜艳色彩、简单内容以及立体或触摸材质的绘本更能吸引宝宝的注意力，促进视觉发展。C选项文字过多，不适合这个年龄段的宝宝；D选项黑白绘本更适合新生儿。"
+        },
+        {
+          "question_text": "如何判断宝宝的视觉发展是否正常？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "只看宝宝是否能看清远处的物体", "is_correct": false},
+            {"option_text": "观察宝宝的目光是否能追随物体、是否对颜色和图案有反应等", "is_correct": true},
+            {"option_text": "只看宝宝是否喜欢看书", "is_correct": false},
+            {"option_text": "与其他宝宝比较", "is_correct": false}
+          ],
+          "answer_explanation": "观察宝宝的目光追随、对颜色和图案的反应等多方面表现，综合评估宝宝的视觉发展。A选项过于片面；C选项不能作为唯一标准；D选项每个宝宝的发育速度不同，不宜直接比较。"
+        }
+      ]
+    },
+    {
+      "point_name": "早教-认知-味觉",
+      "questions": [
+        {
+          "question_text": "何时开始为宝宝添加辅食，引入不同的味道？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "出生后立即开始", "is_correct": false},
+            {"option_text": "4-6个月左右，根据宝宝的发育情况", "is_correct": true},
+            {"option_text": "1岁以后", "is_correct": false},
+            {"option_text": "2岁以后", "is_correct": false}
+          ],
+          "answer_explanation": "4-6个月左右是添加辅食的适宜时机，可以逐步引入不同的味道。A选项过早；C和D选项过晚。"
+        },
+        {
+          "question_text": "在为宝宝准备辅食时，应该注意哪些方面以促进味觉发展？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "从单一味道开始，逐渐增加食物种类", "is_correct": true},
+            {"option_text": "避免添加盐、糖等调味品", "is_correct": true},
+            {"option_text": "提供不同质地的食物，如泥状、块状等", "is_correct": true},
+            {"option_text": "只提供宝宝喜欢的食物", "is_correct": false}
+          ],
+          "answer_explanation": "从单一到多样、避免调味品、提供不同质地，都有助于宝宝的味觉发展。D选项只提供喜欢的食物会导致宝宝挑食。"
+        },
+        {
+          "question_text": "宝宝拒绝尝试新的食物，家长应该怎么做？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "强迫宝宝吃下", "is_correct": false},
+            {"option_text": "耐心引导，多次尝试，可以搭配宝宝喜欢的食物一起", "is_correct": true},
+            {"option_text": "以后不再给宝宝提供这种食物", "is_correct": false},
+            {"option_text": "批评宝宝挑食", "is_correct": false}
+          ],
+          "answer_explanation": "耐心引导和多次尝试是应对宝宝拒食的正确方法。A选项会适得其反；C选项过于轻易放弃；D选项会给宝宝带来负面情绪。"
+        },
+        {
+          "question_text": "哪些食物可以作为宝宝味觉开发的良好选择？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "天然的水果和蔬菜", "is_correct": true},
+            {"option_text": "自制无添加的肉泥、鱼泥", "is_correct": true},
+            {"option_text": "各种口味的饼干、糖果", "is_correct": false},
+            {"option_text": "各种口味的酸奶", "is_correct": false}
+          ],
+          "answer_explanation": "天然食材和无添加辅食更安全，更利于宝宝的味觉发育；C选项含糖、添加剂多；D选项要注意选择原味酸奶"
+        },
+        {
+          "question_text": "如何判断宝宝的味觉发展是否正常？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "只看宝宝是否喜欢吃甜食", "is_correct": false},
+            {"option_text": "观察宝宝对不同味道的食物是否有不同的反应", "is_correct": true},
+            {"option_text": "只看宝宝是否喜欢吃辅食", "is_correct": false},
+            {"option_text": "与其他宝宝比较", "is_correct": false}
+          ],
+          "answer_explanation": "观察宝宝对不同味道的反应是评估味觉发展的重要方面。A选项过于片面；C选项不能作为唯一标准；D选项每个宝宝的发育速度不同，不宜直接比较。"
+        }
+      ]
+    },
+    {
+      "point_name": "早教-认知-听觉",
+      "questions": [
+        {
+          "question_text": "为了保护宝宝的听力，家长应该避免让宝宝长时间处于什么样的环境中？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "安静的环境", "is_correct": false},
+            {"option_text": "嘈杂、高分贝的环境", "is_correct": true},
+            {"option_text": "有轻柔音乐的环境", "is_correct": false},
+            {"option_text": "有自然声音的环境", "is_correct": false}
+          ],
+          "answer_explanation": "长时间处于嘈杂、高分贝的环境会对宝宝的听力造成损害。A、C、D选项的环境对宝宝的听力影响较小。"
+        },
+        {
+          "question_text": "哪些活动可以帮助宝宝发展听觉辨识能力？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "让宝宝听不同乐器的声音", "is_correct": true},
+            {"option_text": "让宝宝听不同动物的叫声", "is_correct": true},
+            {"option_text": "让宝宝听不同交通工具的声音", "is_correct": true},
+            {"option_text": "让宝宝长时间听儿歌", "is_correct": false}
+          ],
+          "answer_explanation": "A、B、C选项都能让宝宝接触到不同的声音，有助于发展听觉辨识能力。D选项长时间听儿歌可能导致听觉疲劳。"
+        },
+        {
+          "question_text": "宝宝对突然的巨响表现出害怕，家长应该怎么做？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "不理睬宝宝，让他自己适应", "is_correct": false},
+            {"option_text": "安抚宝宝，并告诉他声音的来源，帮助他消除恐惧", "is_correct": true},
+            {"option_text": "责备宝宝胆小", "is_correct": false},
+            {"option_text": "以后避免让宝宝接触任何声音", "is_correct": false}
+          ],
+          "answer_explanation": "安抚和解释可以帮助宝宝克服恐惧。A选项会让宝宝缺乏安全感；C选项会伤害宝宝的自尊心；D选项会限制宝宝的认知发展。"
+        },
+        {
+          "question_text": "哪些声音环境对宝宝的听觉发展有益？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "轻柔的音乐", "is_correct": true},
+            {"option_text": "父母的说话声和唱歌声", "is_correct": true},
+            {"option_text": "自然的鸟鸣、风声、雨声", "is_correct": true},
+            {"option_text": "持续不断的电视声或收音机声", "is_correct": false}
+          ],
+          "answer_explanation": "轻柔音乐、父母的声音和自然声音都能给宝宝带来积极的听觉刺激。D选项持续的背景噪音可能干扰宝宝的听觉。"
+        },
+        {
+          "question_text": "如何判断宝宝的听觉发展是否正常？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "只看宝宝是否能听到远处的声音", "is_correct": false},
+            {"option_text": "观察宝宝是否对声音有反应、是否能辨别声音来源等", "is_correct": true},
+            {"option_text": "只看宝宝是否喜欢听音乐", "is_correct": false},
+            {"option_text": "与其他宝宝比较", "is_correct": false}
+          ],
+          "answer_explanation": "观察宝宝对声音的反应、辨别能力等多方面表现，综合评估宝宝的听觉发展。A选项过于片面；C选项不能作为唯一标准；D选项每个宝宝的发育速度不同，不宜直接比较。"
+        }
+      ]
+    },
+    {
+      "point_name": "早教-认知-触觉",
+      "questions": [
+        {
+          "question_text": "为了促进宝宝的触觉发展，家长可以提供哪些不同材质的物品让宝宝触摸？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "只提供柔软的物品", "is_correct": false},
+            {"option_text": "提供柔软、粗糙、光滑、坚硬等不同材质的物品", "is_correct": true},
+            {"option_text": "只提供坚硬的物品", "is_correct": false},
+            {"option_text": "只提供光滑的物品", "is_correct": false}
+          ],
+          "answer_explanation": "不同材质的物品可以给宝宝带来丰富的触觉刺激，促进触觉发展。A、C、D选项都过于单一。"
+        },
+        {
+          "question_text": "哪些活动可以帮助宝宝发展触觉感知能力？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "让宝宝玩沙子、玩水", "is_correct": true},
+            {"option_text": "让宝宝触摸不同温度的物体（在安全范围内）", "is_correct": true},
+            {"option_text": "给宝宝进行抚触按摩", "is_correct": true},
+            {"option_text": "让宝宝只穿一种材质的衣服", "is_correct": false}
+          ],
+          "answer_explanation": "A、B、C选项都能提供不同的触觉刺激，有助于发展触觉感知能力。D选项只穿一种材质的衣服会限制宝宝的触觉体验。"
+        },
+        {
+          "question_text": "宝宝喜欢用手抓食物吃，家长应该怎么做？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "严厉禁止宝宝用手抓", "is_correct": false},
+            {"option_text": "在保证卫生的情况下，允许宝宝用手抓，这是触觉探索的一种方式", "is_correct": true},
+            {"option_text": "每次都喂宝宝吃，不让他自己动手", "is_correct": false},
+            {"option_text": "只给宝宝提供不需要用手抓的食物", "is_correct": false}
+          ],
+          "answer_explanation": "在卫生前提下，允许宝宝用手抓食物可以促进触觉和精细动作的发展。A选项过于严厉；C选项剥夺了宝宝自主进食的机会；D选项限制了宝宝的食物选择。"
+        },
+        {
+          "question_text": "哪些玩具可以作为宝宝触觉开发的良好选择？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "不同材质的布书、触摸书", "is_correct": true},
+            {"option_text": "有不同纹理的球类", "is_correct": true},
+            {"option_text": "质地柔软的毛绒玩具", "is_correct": true},
+            {"option_text": "光滑的塑料玩具", "is_correct": true}
+          ],
+          "answer_explanation": "解析：这四项选择都可",
+          "answer_explanation_edited": "这四项选择都可以作为宝宝触觉开发的良好选择，它们提供了不同的触觉体验。"
+        },
+        {
+          "question_text": "如何判断宝宝的触觉发展是否正常？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "只看宝宝是否喜欢触摸柔软的物品", "is_correct": false},
+            {"option_text": "观察宝宝对不同材质、温度的物品是否有不同的反应", "is_correct": true},
+            {"option_text": "只看宝宝是否喜欢玩水", "is_correct": false},
+            {"option_text": "与其他宝宝比较", "is_correct": false}
+          ],
+          "answer_explanation": "观察宝宝对不同触觉刺激的反应是评估触觉发展的重要方面。A选项过于片面；C选项不能作为唯一标准；D选项每个宝宝的发育速度不同，不宜直接比较。"
+        }
+      ]
+    },
+    {
+      "point_name": "早教-认知-嗅觉",
+      "questions": [
+        {
+          "question_text": "如何为宝宝创造一个良好的嗅觉环境？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "经常使用空气清新剂", "is_correct": false},
+            {"option_text": "保持室内空气流通，避免刺激性气味", "is_correct": true},
+            {"option_text": "经常使用香水", "is_correct": false},
+            {"option_text": "不经常开窗通风", "is_correct": false}
+          ],
+          "answer_explanation": "清新、自然的空气对宝宝的嗅觉发展更有益。A和C选项中的化学物质可能对宝宝的嗅觉和呼吸系统造成刺激；D选项不利于空气流通。"
+        },
+        {
+          "question_text": "哪些气味可以帮助宝宝发展嗅觉辨识能力？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "不同水果的香味", "is_correct": true},
+            {"option_text": "不同花草的香味", "is_correct": true},
+            {"option_text": "不同食物的香味", "is_correct": true},
+            {"option_text": "各种化学清洁剂的气味", "is_correct": false}
+          ],
+          "answer_explanation": "解析：自然的味道是最佳选择。",
+          "answer_explanation_edited": "自然的味道是最佳选择。水果、花草和食物的香味都是安全且有益于宝宝嗅觉发展的。"
+        },
+        {
+          "question_text": "宝宝闻到难闻的气味表现出厌恶，家长应该怎么做？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "不理睬宝宝，让他自己适应", "is_correct": false},
+            {"option_text": "告诉宝宝气味的来源，并尽量消除或远离气味源", "is_correct": true},
+            {"option_text": "责备宝宝娇气", "is_correct": false},
+            {"option_text": "以后避免让宝宝接触任何气味", "is_correct": false}
+          ],
+          "answer_explanation": "解释和消除气味源可以帮助宝宝了解并应对。A选项会让宝宝感到不适；C选项会伤害宝宝的自尊心；D选项会限制宝宝的认知发展。"
+        },
+        {
+          "question_text": "哪些活动可以融入嗅觉体验？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "让宝宝闻一闻不同种类的花", "is_correct": true},
+            {"option_text": "在烹饪时，让宝宝闻一闻食材的香味（在安全距离内）", "is_correct": true},
+            {"option_text": "让宝宝闻一闻不同味道的水果", "is_correct": true},
+            {"option_text": "让宝宝闻各种香水、空气清新剂", "is_correct": false}
+          ],
+          "answer_explanation": "A、B、C选项都能提供自然、安全的嗅觉刺激。D选项中的化学物质可能对宝宝有害。"
+        },
+        {
+          "question_text": "如何判断宝宝的嗅觉发展是否正常？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "只看宝宝是否喜欢闻香味", "is_correct": false},
+            {"option_text": "观察宝宝对不同气味是否有不同的反应，如喜欢、厌恶、好奇等", "is_correct": true},
+            {"option_text": "只看宝宝是否能辨别不同的香水味", "is_correct": false},
+            {"option_text": "与其他宝宝比较", "is_correct": false}
+          ],
+          "answer_explanation": "观察宝宝对不同气味的反应是评估嗅觉发展的重要方面。A选项过于片面；C选项对于1-2岁的宝宝来说要求过高；D选项每个宝宝的发育速度不同，不宜直接比较。"
+        }
+      ]
+    }
+  ]
+}

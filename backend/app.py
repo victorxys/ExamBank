@@ -25,6 +25,7 @@ def create_token_with_role(user_id, role):
 from backend.api.evaluation import get_evaluation_items, get_user_evaluations, update_evaluation
 from backend.api.user_profile import get_user_profile
 from backend.db import get_db_connection
+from backend.api.evaluation_visibility import bp as evaluation_visibility_bp
 
 
 load_dotenv()
@@ -37,6 +38,9 @@ app.config['JWT_SECRET_KEY'] = os.environ['SECRET_KEY']  # JWT密钥
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=30)  # Token过期时间
 
 jwt = JWTManager(app)  # 初始化JWT管理器
+
+# 注册评价管理相关的蓝图
+app.register_blueprint(evaluation_visibility_bp, url_prefix='/api')
 
 @app.route('/api/login', methods=['POST'])
 def login():
@@ -1070,7 +1074,8 @@ def get_evaluation_structure():
                 id,
                 item_name,
                 description,
-                category_id
+                category_id,
+                is_visible_to_client
             FROM evaluation_item
             ORDER BY created_at DESC
         """)
@@ -1105,6 +1110,7 @@ def get_evaluation_structure():
                                 'id': item['id'],
                                 'name': item['item_name'],
                                 'description': item['description'],
+                                'is_visible_to_client': item['is_visible_to_client'],
                                 'type': 'item'
                             }
                             category_data['children'].append(item_data)

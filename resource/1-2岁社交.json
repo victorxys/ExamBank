@@ -1,0 +1,185 @@
+{
+  "course_name": "1-2岁幼儿早教社交发展",
+  "knowledge_points": [
+    {
+      "point_name": "早教-社交-综合",
+      "questions": [
+        {
+          "question_text": "1-2岁的宝宝看到其他小朋友玩玩具，也想凑过去，这表明宝宝： [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "喜欢抢玩具", "is_correct": false},
+            {"option_text": "对小伙伴感兴趣", "is_correct": true},
+            {"option_text": "想学习新技能", "is_correct": false},
+            {"option_text": "想炫耀自己", "is_correct": false}
+          ],
+          "answer_explanation": "想凑过去是宝宝对同伴产生兴趣的表现，是社交发展的开始。A选项过于负面；C和D选项对于这个年龄段的宝宝来说，可能性较小。"
+        },
+        {
+          "question_text": "宝宝什么事情都喜欢自己做，比如自己吃饭、穿衣服，这反映了宝宝的什么心理？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "独立心理", "is_correct": true},
+            {"option_text": "逆反心理", "is_correct": false},
+            {"option_text": "表现欲", "is_correct": false},
+            {"option_text": "自我中心", "is_correct": true}
+          ],
+          "answer_explanation": "喜欢自己做是宝宝独立性发展的表现，同时也体现了幼儿的自我中心特点，认为“我”可以做到。B选项逆反心理通常在2岁后更明显；C选项表现欲在这个年龄段也有，但不像独立性那么突出。"
+        },
+        {
+          "question_text": "家长让宝宝把玩具给妈妈，宝宝照做了，这说明宝宝： [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "害怕家长", "is_correct": false},
+            {"option_text": "能按照成人的指示做事", "is_correct": true},
+            {"option_text": "特别听话", "is_correct": false},
+            {"option_text": "喜欢这个玩具", "is_correct": false}
+          ],
+          "answer_explanation": "照做表明宝宝能理解并执行成人的简单指示，这是社交互动的基础。A选项过于负面；C选项“特别听话”过于绝对；D选项与行为无关。"
+        },
+        {
+          "question_text": "宝宝做了不应该做的事情（比如打人），家长批评后，宝宝表现出难过，这说明宝宝： [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "有初步的是非观念", "is_correct": true},
+            {"option_text": "害怕被惩罚", "is_correct": false},
+            {"option_text": "能理解家长的情绪", "is_correct": true},
+            {"option_text": "知道自己做错了", "is_correct": true}
+          ],
+          "answer_explanation": "难过表明宝宝能理解家长的情绪，并意识到自己的行为可能是不对的，有初步的是非观念。B选项害怕惩罚是可能的原因之一，但不全面。"
+        },
+        {
+          "question_text": "在社交方面，1-2岁的宝宝处于什么阶段？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "合作游戏阶段", "is_correct": false},
+            {"option_text": "平行游戏阶段", "is_correct": true},
+            {"option_text": "单独游戏阶段", "is_correct": false},
+            {"option_text": "旁观游戏阶段", "is_correct": false}
+          ],
+          "answer_explanation": "平行游戏是指宝宝们各自玩耍，虽然可能在同一空间，但没有真正的互动和合作，这是1-2岁宝宝常见的游戏方式。A选项合作游戏通常在3岁后更常见；C和D选项虽然也存在，但平行游戏更具代表性。"
+        }
+      ]
+    },
+    {
+      "point_name": "早教-社交-对小伙伴感兴趣",
+      "questions": [
+        {
+          "question_text": "宝宝看到其他小朋友在玩，会主动靠近，这说明宝宝： [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "想加入游戏", "is_correct": true},
+            {"option_text": "想抢玩具", "is_correct": false},
+            {"option_text": "想交朋友", "is_correct": false},
+            {"option_text": "想模仿", "is_correct": false}
+          ],
+          "answer_explanation": "主动靠近是想参与游戏的表现。"
+        },
+        {
+          "question_text": "为了鼓励宝宝与其他小朋友互动，家长可以做什么？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "带宝宝去公园、游乐场等有小朋友的地方", "is_correct": true},
+            {"option_text": "邀请小朋友来家里玩", "is_correct": true},
+            {"option_text": "强迫宝宝和其他小朋友一起玩", "is_correct": false},
+            {"option_text": "教宝宝一些简单的社交用语，如“你好”、“一起玩”", "is_correct": true}
+          ],
+          "answer_explanation": "提供机会、创造环境、教社交用语都能促进宝宝的社交互动。C选项强迫会适得其反。"
+        },
+        {
+          "question_text": "宝宝和其他小朋友一起玩时，发生了争抢玩具的情况，家长应该怎么做？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "立即制止，批评自己的宝宝", "is_correct": false},
+            {"option_text": "引导宝宝们分享或轮流玩，教他们解决冲突的方法", "is_correct": true},
+            {"option_text": "让宝宝把玩具让给其他小朋友", "is_correct": false},
+            {"option_text": "不干预，让宝宝们自己解决", "is_correct": false}
+          ],
+          "answer_explanation": "引导分享、轮流玩，教解决冲突的方法，是培养宝宝社交能力的好机会。A选项过于严厉；C选项会让宝宝觉得委屈；D选项对于这个年龄段的宝宝来说，可能难以自行解决。"
+        },
+        {
+          "question_text": "哪些游戏可以促进宝宝与小伙伴的互动？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "一起搭积木", "is_correct": true},
+            {"option_text": "一起玩球", "is_correct": true},
+            {"option_text": "一起看书", "is_correct": false},
+            {"option_text": "一起玩过家家", "is_correct": true}
+          ],
+          "answer_explanation": "搭积木、玩球、过家家都需要一定的互动和合作。C选项看书更多是独立活动。"
+        },
+        {
+          "question_text": "宝宝不愿意和其他小朋友玩，总是自己玩，家长应该怎么做？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "强迫宝宝融入集体", "is_correct": false},
+            {"option_text": "耐心引导，可以先从旁观、模仿开始，逐渐鼓励宝宝参与", "is_correct": true},
+            {"option_text": "责备宝宝不合群", "is_correct": false},
+            {"option_text": "放弃，让宝宝自己玩", "is_correct": false}
+          ],
+          "answer_explanation": "耐心引导、循序渐进是帮助宝宝融入集体的好方法。A选项会适得其反；C选项会伤害宝宝的自尊心；D选项过于消极。"
+        }
+      ]
+    },
+    {
+      "point_name": "早教-社交-独立心理 & 按照指示做事 & 是非观念",
+      "questions": [
+        {
+          "question_text": "宝宝坚持要自己吃饭，即使弄得到处都是，家长应该怎么做？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "为了干净，还是喂宝宝吃", "is_correct": false},
+            {"option_text": "允许宝宝自己吃，提供帮助，并鼓励他", "is_correct": true},
+            {"option_text": "批评宝宝弄脏衣服", "is_correct": false},
+            {"option_text": "只给宝宝提供不容易弄脏的食物", "is_correct": false}
+          ],
+          "answer_explanation": "允许、提供帮助、鼓励，是支持宝宝独立性的正确做法。A选项剥夺了宝宝练习的机会；C选项会打击宝宝的积极性；D选项限制了宝宝的食物选择。"
+        },
+        {
+          "question_text": "为了培养宝宝的独立性，家长可以做什么？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "给宝宝提供自己动手的机会，如自己穿衣服、穿鞋子", "is_correct": true},
+            {"option_text": "对宝宝的尝试给予鼓励和肯定", "is_correct": true},
+            {"option_text": "包办一切，不让宝宝动手", "is_correct": false},
+            {"option_text": "在宝宝遇到困难时，及时提供帮助，但不完全代替", "is_correct": true}
+          ],
+          "answer_explanation": "提供机会、鼓励肯定、适时帮助，都能培养宝宝的独立性。C选项包办一切会阻碍宝宝的独立性发展。"
+        },
+        {
+          "question_text": "家长让宝宝把玩具收好，宝宝不愿意，家长应该怎么做？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "帮宝宝收拾好", "is_correct": false},
+            {"option_text": "坚持让宝宝自己收拾，可以和宝宝一起收拾", "is_correct": true},
+            {"option_text": "批评宝宝不听话", "is_correct": false},
+            {"option_text": "以后不再让宝宝玩玩具", "is_correct": false}
+          ],
+          "answer_explanation": "坚持原则，并和宝宝一起收拾，可以培养宝宝的责任感和执行力。A选项会让宝宝养成依赖性；C选项过于严厉；D选项因噎废食。"
+        },
+        {
+          "question_text": "如何帮助宝宝建立初步的是非观念？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "对宝宝的良好行为给予表扬和肯定", "is_correct": true},
+            {"option_text": "对宝宝的不良行为进行及时、明确的制止和引导", "is_correct": true},
+            {"option_text": "对宝宝的所有行为都放任不管", "is_correct": false},
+            {"option_text": "通过讲故事、做游戏等方式，让宝宝了解什么是对的、什么是错的", "is_correct": true}
+          ],
+          "answer_explanation": "表扬好行为、制止坏行为、通过故事游戏引导，都能帮助宝宝建立是非观念。C选项放任不管会让宝宝无法分辨对错。"
+        },
+        {
+          "question_text": "宝宝不小心弄坏了玩具，表现出沮丧，家长应该怎么做？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "责备宝宝不爱惜玩具", "is_correct": false},
+            {"option_text": "安慰宝宝，并告诉他下次要小心", "is_correct": true},
+            {"option_text": "马上给宝宝买一个新的", "is_correct": false},
+            {"option_text": "不理睬宝宝，让他自己反省", "is_correct": false}
+          ],
+          "answer_explanation": "安慰和提醒是更合适的做法，可以帮助宝宝学会承担责任和吸取教训。A选项会加重宝宝的负面情绪；C选项可能会让宝宝养成不珍惜物品的习惯；D选项会让宝宝感到被忽视。"
+        }
+      ]
+    }
+  ]
+}

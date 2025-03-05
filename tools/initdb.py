@@ -111,7 +111,7 @@ def import_json_to_db(json_file_path, dbname, user, password, host="localhost", 
             conn.close()
 
 if __name__ == "__main__":
-    json_file = '../resource/2-3age.json'  # Replace with your JSON file path
+    json_file = '../resource/1-2岁语言.json'  # Replace with your JSON file path
     db_name = 'ExamDB'      # Replace with your database name
     db_user = 'postgres'      # Replace with your database user
     db_password = 'xys131313' # Replace with your database password

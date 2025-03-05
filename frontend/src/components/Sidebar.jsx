@@ -66,6 +66,11 @@ const allMenuItems = [
     icon: <PeopleIcon />,
     path: '/users',
   },
+  {
+    text: '评价管理',
+    icon: <AssignmentIcon />,
+    path: '/evaluation-management',
+  },
 ]
 
 const studentMenuItems = [

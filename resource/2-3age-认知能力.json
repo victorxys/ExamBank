@@ -1,0 +1,305 @@
+{
+  "course_name": "2-3岁幼儿早教认知能力发展",
+  "knowledge_points": [
+    {
+      "point_name": "早教-认知能力-感知觉与动作",
+      "questions": [
+        {
+          "question_text": "宝宝在玩沙子，你会怎么做来促进他的感知觉发展？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "告诉宝宝沙子是黄色的。", "is_correct": false},
+            {"option_text": "让宝宝用铲子把沙子装进桶里。", "is_correct": false},
+            {"option_text": "鼓励宝宝用手抓沙子、感受沙子的流动、粗细。", "is_correct": true},
+            {"option_text": "给宝宝看沙滩城堡的图片。", "is_correct": false}
+          ],
+          "answer_explanation": "鼓励孩子亲手触摸、感受沙子，能更好地刺激触觉，促进感知觉发展。"
+        },
+        {
+          "question_text": "宝宝在听音乐，你会如何引导他用动作感知音乐？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "告诉宝宝音乐的名字。", "is_correct": false},
+            {"option_text": "和宝宝一起随着音乐拍手、摇摆身体。", "is_correct": true},
+            {"option_text": "让宝宝安静地坐着听。", "is_correct": false},
+            {"option_text": "给宝宝看乐器的图片。", "is_correct": false}
+          ],
+          "answer_explanation": "通过身体动作感受音乐的节奏和韵律，能更好地促进孩子对音乐的感知。"
+        },
+        {
+          "question_text": "宝宝拿到一个新玩具，你会怎么引导他探索？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "直接告诉宝宝玩具的玩法。", "is_correct": false},
+            {"option_text": "鼓励宝宝自己摸一摸、摇一摇、听一听玩具的声音。", "is_correct": true},
+            {"option_text": "给宝宝看其他小朋友玩这个玩具的视频。", "is_correct": false},
+            {"option_text": "把玩具拆开给宝宝看里面的构造。", "is_correct": false}
+          ],
+          "answer_explanation": "鼓励孩子通过多种感官探索新玩具，能更全面地认识玩具。"
+        },
+        {
+          "question_text": "下面哪些活动可以促进宝宝的感知觉和动作发展？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "玩手指游戏（如“点点虫虫飞”）", "is_correct": true},
+            {"option_text": "撕纸、揉纸团", "is_correct": true},
+            {"option_text": "玩泡泡水，追逐泡泡", "is_correct": true},
+            {"option_text": "看动画片", "is_correct": false}
+          ],
+          "answer_explanation": "手指游戏、撕纸揉纸、追逐泡泡都能锻炼孩子的手眼协调、精细动作和感知觉。"
+        },
+        {
+          "question_text": "你会如何利用日常生活用品来锻炼宝宝的感知觉？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "让宝宝闻一闻不同水果的味道。", "is_correct": true},
+            {"option_text": "让宝宝摸一摸不同材质的衣服（如棉布、丝绸）。", "is_correct": true},
+            {"option_text": "让宝宝听一听不同容器发出的声音（如玻璃杯、塑料碗）。", "is_correct": true},
+            {"option_text": "给宝宝看各种颜色鲜艳的图片。", "is_correct": false}
+          ],
+          "answer_explanation": "利用生活中的不同物品，让孩子通过嗅觉、触觉、听觉等多种感官进行感知，能更自然地促进感知觉发展。"
+        }
+      ]
+    },
+    {
+      "point_name": "早教-认知能力-提问与探索",
+      "questions": [
+        {
+          "question_text": "宝宝指着路边的花问：“这是什么？” 你会怎么做？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "直接告诉宝宝花的名字。", "is_correct": false},
+            {"option_text": "反问宝宝：“你觉得它像什么？是什么颜色的？”", "is_correct": true},
+            {"option_text": "告诉宝宝这个问题太简单了，不用问。", "is_correct": false},
+            {"option_text": "让宝宝去看别的东西。", "is_correct": false}
+          ],
+          "answer_explanation": "通过反问引导孩子观察、思考，培养探索精神。"
+        },
+        {
+          "question_text": "宝宝玩积木时遇到困难，搭不好，你会怎么做？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "直接帮宝宝搭好。", "is_correct": false},
+            {"option_text": "鼓励宝宝：“你再试试看，想想怎么搭才能不倒。”", "is_correct": true},
+            {"option_text": "告诉宝宝搭积木太难了，不要玩了。", "is_correct": false},
+            {"option_text": "给宝宝看搭积木的教程。", "is_correct": false}
+          ],
+          "answer_explanation": "鼓励孩子独立思考、解决问题，培养探索能力。"
+        },
+        {
+          "question_text": "宝宝看到一个没见过的玩具，问你：“这个怎么玩？” 你会怎么做？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "直接演示给宝宝看。", "is_correct": false},
+            {"option_text": "和宝宝一起研究：“我们一起来看看它有什么按钮、有什么机关。”", "is_correct": true},
+            {"option_text": "告诉宝宝这个玩具太复杂了，不适合他玩。", "is_correct": false},
+            {"option_text": "让宝宝去问其他小朋友。", "is_correct": false}
+          ],
+          "answer_explanation": "和孩子一起探索，能激发孩子的好奇心和探索欲。"
+        },
+        {
+          "question_text": "你会如何鼓励宝宝提出问题？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "经常带宝宝去不同的地方（如公园、博物馆），让他接触新事物。", "is_correct": true},
+            {"option_text": "给宝宝读绘本时，鼓励他提问：“你有什么问题想问吗？”", "is_correct": true},
+            {"option_text": "认真回答宝宝的问题，即使问题很幼稚。", "is_correct": true},
+            {"option_text": "对宝宝提出的问题表示不耐烦。", "is_correct": false}
+          ],
+          "answer_explanation": "创造提问的环境、鼓励提问、认真对待问题，都能鼓励孩子积极提问。"
+        },
+        {
+          "question_text": "当宝宝提出一个你不知道答案的问题时，你会怎么做？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "和宝宝一起查阅图书、上网搜索。", "is_correct": true},
+            {"option_text": "告诉宝宝：“妈妈也不知道，我们一起去找答案吧。”", "is_correct": true},
+            {"option_text": "敷衍宝宝，随便说一个答案。", "is_correct": false},
+            {"option_text": "告诉宝宝这个问题不重要，不用知道。", "is_correct": false}
+          ],
+          "answer_explanation": "和孩子一起寻找答案，能让孩子感受到探索的乐趣，培养学习能力。"
+        }
+      ]
+    },
+    {
+      "point_name": "早教-认知能力-词语概括",
+      "questions": [
+        {
+          "question_text": "你和宝宝一起看动物图片，有狗、猫、兔子，你会怎么引导他概括？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "问宝宝：“这些动物都有什么共同点？”", "is_correct": false},
+            {"option_text": "问宝宝：“这些都是什么呀？” 引导宝宝说出“动物”。", "is_correct": true},
+            {"option_text": "告诉宝宝：“这些都是宠物。”", "is_correct": false},
+            {"option_text": "分别问宝宝每种动物的名字。", "is_correct": false}
+          ],
+          "answer_explanation": "引导孩子用“动物”这个词来概括，帮助理解共同特征。"
+        },
+        {
+          "question_text": "你和宝宝一起吃水果，有苹果、香蕉、橘子，你会怎么引导他概括？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "问：“这些都是什么呀？”", "is_correct": true},
+            {"option_text": "问：“你最喜欢吃哪个？”", "is_correct": false},
+            {"option_text": "问：“这些都是什么颜色的？”", "is_correct": false},
+            {"option_text": "分别告诉宝宝每种水果的名字。", "is_correct": false}
+          ],
+          "answer_explanation": "引导宝宝说出“水果”进行概括。"
+        },
+        {
+          "question_text": "宝宝玩了很多玩具后，你会怎么引导他用一个词来概括这些东西？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "直接告诉宝宝这些都是玩具。", "is_correct": false},
+            {"option_text": "让宝宝把玩具分类放好。", "is_correct": false},
+            {"option_text": "问宝宝：“这些都是用来做什么的呀？” 引导宝宝说出“玩的”或“玩具”。", "is_correct": true},
+            {"option_text": "让宝宝说出每件玩具的名字。", "is_correct": false}
+          ],
+          "answer_explanation": "通过提问引导孩子思考玩具的共同用途，从而进行概括。"
+        },
+        {
+          "question_text": "下面哪些方法可以帮助宝宝学习词语概括？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "玩分类游戏，让宝宝把不同类别的物品（如水果、蔬菜、玩具）分开。", "is_correct": true},
+            {"option_text": "读绘本时，指出同类事物，让宝宝说出它们的总称。", "is_correct": true},
+            {"option_text": "让宝宝反复背诵各种物品的名称。", "is_correct": false},
+            {"option_text": "鼓励宝宝用自己的话说出不同物品的相同点。", "is_correct": true}
+          ],
+          "answer_explanation": "分类游戏、指出同类事物、鼓励用自己的话说，都能帮助孩子理解和运用概括性词语。"
+        },
+        {
+          "question_text": "你和宝宝在户外，看到各种各样的交通工具，你会怎么引导他概括？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "指着汽车、自行车、公交车问：“这些都是用来做什么的？”", "is_correct": true},
+            {"option_text": "让宝宝说出每种交通工具的名字。", "is_correct": false},
+            {"option_text": "告诉宝宝：“这些都是交通工具，可以载我们去不同的地方。”", "is_correct": true},
+            {"option_text": "问宝宝：“你最喜欢哪种交通工具？”", "is_correct": false}
+          ],
+          "answer_explanation": "通过提问引导孩子思考交通工具的共同功能，并直接告诉孩子概括性词语，都能帮助孩子学习概括。"
+        }
+      ]
+    },
+    {
+      "point_name": "早教-认知能力-思维与想象",
+      "questions": [
+        {
+          "question_text": "你和宝宝一起画画，你会怎么做来培养他的想象力？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "给宝宝一张画，让他照着画。", "is_correct": false},
+            {"option_text": "让宝宝画他想画的任何东西。", "is_correct": true},
+            {"option_text": "告诉宝宝画画的步骤和技巧。", "is_correct": false},
+            {"option_text": "给宝宝看一些绘画作品。", "is_correct": false}
+          ],
+          "answer_explanation": "让孩子自由发挥，能更好地激发想象力。"
+        },
+        {
+          "question_text": "宝宝在玩过家家，你会怎么做来培养他的思维能力？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "告诉宝宝应该怎么玩。", "is_correct": false},
+            {"option_text": "参与到游戏中，和宝宝一起设定角色、编故事。", "is_correct": true},
+            {"option_text": "让宝宝自己玩。", "is_correct": false},
+            {"option_text": "给宝宝看一些过家家的视频。", "is_correct": false}
+          ],
+          "answer_explanation": "参与游戏、共同编故事，能锻炼孩子的逻辑思维和表达能力。"
+        },
+        {
+          "question_text": "你给宝宝讲故事，你会怎么做来培养他的想象力？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "只讲故事的文字部分。", "is_correct": false},
+            {"option_text": "讲完故事后，问宝宝：“你觉得接下来会发生什么？”", "is_correct": true},
+            {"option_text": "让宝宝复述故事。", "is_correct": false},
+            {"option_text": "给宝宝看故事的插图。", "is_correct": false}
+          ],
+          "answer_explanation": "鼓励孩子预测故事发展，能激发想象力和推理能力。"
+        },
+        {
+          "question_text": "下面哪些活动可以培养宝宝的思维能力和想象力？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "玩积木，搭各种造型。", "is_correct": true},
+            {"option_text": "玩角色扮演游戏。", "is_correct": true},
+            {"option_text": "听故事，续编故事结尾。", "is_correct": true},
+            {"option_text": "反复背诵儿歌。", "is_correct": false}
+          ],
+          "answer_explanation": "搭积木、角色扮演、续编故事都能锻炼孩子的创造性思维和想象力。"
+        },
+        {
+          "question_text": "你会如何利用日常对话来培养宝宝的思维能力？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "经常问宝宝“为什么”。", "is_correct": true},
+            {"option_text": "鼓励宝宝描述他看到、听到、感受到的事物。", "is_correct": true},
+            {"option_text": "和宝宝讨论一些简单的问题，如“如果我们有翅膀会怎么样？”", "is_correct": true},
+            {"option_text": "只和宝宝进行简单的指令性对话。", "is_correct": false}
+          ],
+          "answer_explanation": "鼓励提问、描述事物、讨论问题，都能促进孩子思考和表达。"
+        }
+      ]
+    },
+    {
+      "point_name": "早教-认知能力-数、量、形、时、空",
+      "questions": [
+        {
+          "question_text": "吃饭时，你会怎么做来帮助宝宝建立数的概念？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "让宝宝自己吃。", "is_correct": false},
+            {"option_text": "和宝宝一起数一数有几块饼干、几个饺子。", "is_correct": true},
+            {"option_text": "告诉宝宝要吃饱。", "is_correct": false},
+            {"option_text": "给宝宝看吃饭的图片。", "is_correct": false}
+          ],
+          "answer_explanation": "通过数数，让孩子在实际生活中感知数量。"
+        },
+        {
+          "question_text": "玩积木时，你会怎么做来帮助宝宝认识形状？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "让宝宝把积木堆高。", "is_correct": false},
+            {"option_text": "指出不同形状的积木，告诉宝宝：“这是圆形，这是方形。”", "is_correct": true},
+            {"option_text": "让宝宝按照颜色分类积木。", "is_correct": false},
+            {"option_text": "给宝宝看积木的说明书。", "is_correct": false}
+          ],
+          "answer_explanation": "直接指出并命名不同形状，帮助孩子建立形状概念。"
+        },
+        {
+          "question_text": "你会怎么做来帮助宝宝区分“白天”和“晚上”？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "告诉宝宝白天可以玩，晚上要睡觉。", "is_correct": false},
+            {"option_text": "让宝宝看太阳和月亮的图片。", "is_correct": false},
+            {"option_text": "白天拉开窗帘，晚上关上窗帘，并告诉宝宝：“现在是白天/晚上。”", "is_correct": true},
+            {"option_text": "给宝宝看关于白天和晚上的动画片。", "is_correct": false}
+          ],
+          "answer_explanation": "将时间概念与具体的生活场景联系起来，帮助孩子理解。"
+        },
+        {
+          "question_text": "下面哪些方法可以帮助宝宝建立空间概念？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "玩捉迷藏游戏。", "is_correct": true},
+            {"option_text": "让宝宝把玩具放到指定的位置（如“桌子下面”、“椅子上面”）。", "is_correct": true},
+            {"option_text": "和宝宝一起看地图。", "is_correct": false},
+            {"option_text": "给宝宝指认身体部位（如“头”、“手”、“脚”）。", "is_correct": false}
+          ],
+          "answer_explanation": "捉迷藏、指定位置摆放物品，都能帮助孩子理解空间方位。"
+        },
+        {
+          "question_text": "你会如何利用日常活动来帮助宝宝感知大小、多少？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "给宝宝两个大小不同的苹果，让他比较哪个大。", "is_correct": true},
+            {"option_text": "给宝宝不同数量的糖果，让他比较哪个多。", "is_correct": true},
+            {"option_text": "和宝宝一起整理玩具，让他把大的玩具放进大箱子，小的玩具放进小箱子。", "is_correct": true},
+            {"option_text": "给宝宝看各种大小不同的物品图片。", "is_correct": false}
+          ],
+          "answer_explanation": "通过比较实物的大小、多少，让孩子在实际操作中感知这些概念。"
+        }
+      ]
+    }
+  ]
+}

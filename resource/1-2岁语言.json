@@ -1,0 +1,185 @@
+{
+  "course_name": "1-2岁幼儿早教语言发展",
+  "knowledge_points": [
+    {
+      "point_name": "早教-语言-综合",
+      "questions": [
+        {
+          "question_text": "幼儿语言发展通常经历哪三个阶段？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "听觉、视觉、触觉", "is_correct": false},
+            {"option_text": "语音、理解、表达", "is_correct": true},
+            {"option_text": "模仿、创造、应用", "is_correct": false},
+            {"option_text": "单词、短语、句子", "is_correct": false}
+          ],
+          "answer_explanation": "语音、理解、表达是语言发展的三个基本阶段。A选项是感知觉发展；C选项是语言学习的方式；D选项是语言表达的形式。"
+        },
+        {
+          "question_text": "1-1.5岁宝宝的语言活动处于什么时期？有哪些特点？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "主动言语活动期", "is_correct": false},
+            {"option_text": "被动言语活动期", "is_correct": true},
+            {"option_text": "听得多、说得少", "is_correct": true},
+            {"option_text": "以词代句，一词多意", "is_correct": true}
+          ],
+          "answer_explanation": "1-1.5岁是“被动”言语活动期，特点是听和理解多于说和表达，常用一个词表达多种意思。A选项是1.5-2岁的特点。"
+        },
+        {
+          "question_text": "宝宝用“抱抱”表示要妈妈抱，这是哪种语言表达方式？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "以音代词", "is_correct": false},
+            {"option_text": "以词代句", "is_correct": true},
+            {"option_text": "小短句", "is_correct": false},
+            {"option_text": "奇怪的字词", "is_correct": false}
+          ],
+          "answer_explanation": "“以词代句”是指用一个词表达一个完整句子的意思，符合题干描述。A选项“以音代词”是用不准确的发音代替词语；C选项“小短句”是由多个词组成的句子；D选项“奇怪的字词”是宝宝自创的、大人听不懂的词语。"
+        },
+        {
+          "question_text": "1.5-2岁宝宝的语言发展有哪些重要变化？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "开始说小短句", "is_correct": true},
+            {"option_text": "会说些奇怪的、大人听不懂的字词", "is_correct": true},
+            {"option_text": "开始学会与人交流", "is_correct": true},
+            {"option_text": "仍然以听和理解为主", "is_correct": false}
+          ],
+          "answer_explanation": "1.5-2岁是从“被动”转向“主动”的言语活动期，开始说短句、自创词语，并开始真正意义上的交流。D选项是1-1.5岁的特点。"
+        },
+        {
+          "question_text": "婴幼儿口头语言开始发展、形成的关键期大约在什么时候？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "12个月", "is_correct": false},
+            {"option_text": "18个月", "is_correct": true},
+            {"option_text": "24个月", "is_correct": false},
+            {"option_text": "30个月", "is_correct": false}
+          ],
+          "answer_explanation": "18个月左右是婴幼儿口头语言发展的关键期。"
+        }
+      ]
+    },
+    {
+      "point_name": "早教-语言-1-1.5岁",
+      "questions": [
+        {
+          "question_text": "1-1.5岁的宝宝常常用手指着东西，同时发出“嗯嗯”的声音，这是在做什么？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "表达需求", "is_correct": false},
+            {"option_text": "练习发音", "is_correct": false},
+            {"option_text": "吸引注意", "is_correct": false},
+            {"option_text": "以上都是", "is_correct": true}
+          ],
+          "answer_explanation": "这个年龄段的宝宝语言表达能力有限，会通过动作、表情和简单的发音来表达需求、练习发音和吸引注意。"
+        },
+        {
+          "question_text": "家长应该如何回应1-1.5岁宝宝的“以词代句”？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "理解宝宝的意图，并用完整的句子复述", "is_correct": true},
+            {"option_text": "纠正宝宝的发音", "is_correct": false},
+            {"option_text": "忽略宝宝，让他自己表达清楚", "is_correct": false},
+            {"option_text": "用丰富的肢体语言和宝宝互动", "is_correct": true}
+          ],
+          "answer_explanation": "理解并复述可以帮助宝宝学习正确的表达方式，丰富的肢体语言可以增强互动。B选项过早纠正发音可能打击宝宝的积极性；C选项会阻碍宝宝的语言发展。"
+        },
+        {
+          "question_text": "宝宝经常重复说同一个词，比如“车车”，家长应该怎么做？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "制止宝宝重复", "is_correct": false},
+            {"option_text": "用不同的方式回应，如“这是什么车？”、“车车要去哪里？”", "is_correct": true},
+            {"option_text": "不理睬宝宝", "is_correct": false},
+            {"option_text": "只重复宝宝说的词", "is_correct": false}
+          ],
+          "answer_explanation": "用不同的方式回应可以扩展宝宝的词汇和句式。A选项会限制宝宝的表达；C选项会阻碍互动；D选项过于单调。"
+        },
+        {
+          "question_text": "为了促进1-1.5岁宝宝的语言理解，家长可以做什么？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "多和宝宝说话，用清晰、简单的语言描述周围的事物", "is_correct": true},
+            {"option_text": "给宝宝读绘本，指认图画中的事物", "is_correct": true},
+            {"option_text": "给宝宝看电视或听录音", "is_correct": false},
+            {"option_text": "让宝宝多和同龄人玩耍", "is_correct": false}
+          ],
+          "answer_explanation": "多说话、读绘本可以提供丰富的语言输入，帮助宝宝理解。C选项电视或录音的互动性较差；D选项同龄人玩耍主要促进社交发展。"
+        },
+        {
+          "question_text": "1-1.5岁的宝宝虽然说得少，但能听懂很多话，这说明什么？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "宝宝的听力很好", "is_correct": false},
+            {"option_text": "宝宝的理解能力在发展", "is_correct": true},
+            {"option_text": "宝宝的表达能力很差", "is_correct": false},
+            {"option_text": "宝宝不喜欢说话", "is_correct": false}
+          ],
+          "answer_explanation": "能听懂很多话表明宝宝的语言理解能力在发展。A选项听力好是基础，但不完全等同于理解能力；C和D选项过于片面。"
+        }
+      ]
+    },
+    {
+      "point_name": "早教-语言-1.5-2岁",
+      "questions": [
+        {
+          "question_text": "1.5-2岁的宝宝开始说一些大人听不懂的“奇怪的字词”，这是为什么？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "宝宝在故意捣乱", "is_correct": false},
+            {"option_text": "宝宝在尝试创造自己的语言", "is_correct": true},
+            {"option_text": "宝宝的听力有问题", "is_correct": false},
+            {"option_text": "宝宝的发音器官有问题", "is_correct": false}
+          ],
+          "answer_explanation": "这是宝宝语言发展过程中的正常现象，是创造性的一种体现。A、C、D选项都是不正确的。"
+        },
+        {
+          "question_text": "当宝宝说出“奇怪的字词”时，家长应该如何回应？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "表现出兴趣，鼓励宝宝继续说", "is_correct": true},
+            {"option_text": "尝试理解宝宝的意思，并用正确的语言复述", "is_correct": true},
+            {"option_text": "直接纠正宝宝的发音", "is_correct": false},
+            {"option_text": "忽略宝宝，不予理睬", "is_correct": false}
+          ],
+          "answer_explanation": "鼓励和尝试理解可以激发宝宝的表达欲望，并帮助他学习正确的语言。C选项过早纠正发音可能打击宝宝的积极性；D选项会阻碍宝宝的语言发展。"
+        },
+        {
+          "question_text": "1.5-2岁的宝宝开始说小短句，比如“妈妈抱抱”，这说明什么？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "宝宝的词汇量增加了", "is_correct": false},
+            {"option_text": "宝宝开始掌握简单的语法规则", "is_correct": false},
+            {"option_text": "宝宝的表达能力提高了", "is_correct": false},
+            {"option_text": "以上都是", "is_correct": true}
+          ],
+          "answer_explanation": "说小短句表明宝宝的词汇量、语法和表达能力都在提高。"
+        },
+        {
+          "question_text": "为了促进1.5-2岁宝宝的语言表达，家长可以做什么？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "和宝宝玩角色扮演游戏，鼓励他用语言表达想法", "is_correct": true},
+            {"option_text": "给宝宝讲故事，鼓励他复述或续编", "is_correct": true},
+            {"option_text": "只和宝宝说简单的词语", "is_correct": false},
+            {"option_text": "让宝宝多看电视", "is_correct": false}
+          ],
+          "answer_explanation": "角色扮演和讲故事可以提供丰富的语言表达场景。C选项过于限制；D选项电视的互动性较差，不利于语言表达的发展。"
+        },
+        {
+          "question_text": "1.5-2岁的宝宝开始学会与人交流，这主要体现在哪些方面？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "能听懂大人的指令", "is_correct": false},
+            {"option_text": "能用语言表达自己的需求和感受", "is_correct": false},
+            {"option_text": "能主动发起对话", "is_correct": false},
+            {"option_text": "以上都是", "is_correct": true}
+          ],
+          "answer_explanation": "听懂指令、表达需求感受、主动发起对话，都是真正意义上交流的体现。"
+        }
+      ]
+    }
+  ]
+}

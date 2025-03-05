@@ -23,6 +23,7 @@ import "./styles/argon-theme.css";
 import PrivateRoute from './components/PrivateRoute';
 import UserEvaluationSummary from './components/UserEvaluationSummary'
 import EmployeeProfile from './components/EmployeeProfile'
+import EvaluationManagement from './components/EvaluationManagement';
 
 const theme = createTheme({
   palette: {
@@ -348,6 +349,7 @@ function App() {
                 <Route path="/user-evaluation/:userId" element={<PrivateRoute element={<UserEvaluation />} />} />
                 <Route path="/user-evaluation-summary/:userId" element={<PrivateRoute element={<UserEvaluationSummary />} />} />
                 <Route path="/employee-profile/:userId${publicUrl}"   element={<EmployeeProfile />}  />
+                <Route path="/evaluation-management" element={<PrivateRoute element={<EvaluationManagement />} />} />
               </Routes>
             </ErrorBoundary>
           </Box>

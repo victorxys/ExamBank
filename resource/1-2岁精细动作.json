@@ -1,0 +1,185 @@
+{
+  "course_name": "1-2岁幼儿早教精细动作发展",
+  "knowledge_points": [
+    {
+      "point_name": "早教-精细动作-随意涂鸦",
+      "questions": [
+        {
+          "question_text": "为宝宝选择涂鸦工具时，应优先考虑哪一项？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "笔尖细长的彩色笔", "is_correct": false},
+            {"option_text": "粗杆、无毒、可水洗的蜡笔或手指画颜料", "is_correct": true},
+            {"option_text": "颜色鲜艳的油画棒", "is_correct": false},
+            {"option_text": "普通的铅笔和钢笔", "is_correct": false}
+          ],
+          "answer_explanation": "粗杆蜡笔或手指画颜料更适合小宝宝抓握，无毒可水洗的特性保证了安全性和清洁的便利。A选项笔尖过细，不适合小宝宝；C选项油画棒不易清洗；D选项铅笔和钢笔有安全隐患。"
+        },
+        {
+          "question_text": "鼓励宝宝涂鸦时，家长可以提供哪些支持？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "提供大幅的纸张或画板，让宝宝有充足的创作空间。", "is_correct": true},
+            {"option_text": "和宝宝一起涂鸦，激发他的兴趣。", "is_correct": true},
+            {"option_text": "只允许宝宝使用一种颜色的笔。", "is_correct": false},
+            {"option_text": "给宝宝设定主题，让他按照要求画。", "is_correct": false}
+          ],
+          "answer_explanation": "提供大纸张和共同参与能激发宝宝的涂鸦兴趣。C选项会限制宝宝的创造力；D选项对于1-2岁的宝宝来说要求过高，这个阶段应以随意涂鸦为主。"
+        },
+        {
+          "question_text": "宝宝把颜料弄到衣服或家具上，家长应该怎么做？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "严厉批评宝宝，让他记住教训。", "is_correct": false},
+            {"option_text": "选择可水洗的颜料，并及时清洗。", "is_correct": true},
+            {"option_text": "以后不再让宝宝进行涂鸦活动。", "is_correct": false},
+            {"option_text": "只允许宝宝在特定区域涂鸦。", "is_correct": false}
+          ],
+          "answer_explanation": "选择可水洗颜料是预防措施，及时清洗是补救措施。A选项会打击宝宝的积极性；C选项因噎废食；D选项虽然可以考虑，但更重要的是培养宝宝的良好习惯。"
+        },
+        {
+          "question_text": "涂鸦活动对宝宝有哪些好处？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "锻炼手眼协调能力。", "is_correct": true},
+            {"option_text": "培养想象力和创造力。", "is_correct": true},
+            {"option_text": "促进小肌肉发育。", "is_correct": true},
+            {"option_text": "提高语言表达能力。", "is_correct": false}
+          ],
+          "answer_explanation": "涂鸦可以锻炼手眼协调、小肌肉发育，并培养想象力和创造力。D选项语言表达能力更多通过口头交流来提高。"
+        },
+        {
+          "question_text": "宝宝不愿意涂鸦，家长应该如何引导？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "强迫宝宝必须画画。", "is_correct": false},
+            {"option_text": "通过做示范、提供有趣的涂鸦材料等方式激发兴趣。", "is_correct": true},
+            {"option_text": "放弃涂鸦，选择其他活动。", "is_correct": false},
+            {"option_text": "批评宝宝不爱学习。", "is_correct": false}
+          ],
+          "answer_explanation": "激发兴趣是最好的引导方式。A选项会适得其反；C选项过于轻易放弃；D选项会给宝宝带来负面情绪。"
+        }
+      ]
+    },
+    {
+      "point_name": "早教-精细动作-贴画",
+      "questions": [
+        {
+          "question_text": "为宝宝选择贴画材料时，应注意什么？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "选择图案复杂、细节丰富的贴纸。", "is_correct": false},
+            {"option_text": "选择大块、易撕、无毒、可重复粘贴的贴纸。", "is_correct": true},
+            {"option_text": "选择粘性很强的贴纸。", "is_correct": false},
+            {"option_text": "选择各种材质的贴纸，让宝宝体验不同触感。", "is_correct": false}
+          ],
+          "answer_explanation": "大块、易撕、无毒、可重复粘贴的贴纸更适合小宝宝操作，安全性也更高。A选项图案过于复杂；C选项粘性过强不易撕下；D选项各种材质虽好，但要注意安全性。"
+        },
+        {
+          "question_text": "如何引导宝宝进行贴画活动？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "示范如何撕下和粘贴贴纸。", "is_correct": true},
+            {"option_text": "鼓励宝宝自由粘贴，不限制他的创意。", "is_correct": true},
+            {"option_text": "让宝宝按照指定的图案粘贴。", "is_correct": false},
+            {"option_text": "和宝宝一起制作贴画作品。", "is_correct": true}
+          ],
+          "answer_explanation": "示范、鼓励自由创作和共同参与都能激发宝宝的兴趣。C选项对于1-2岁的宝宝来说要求过高，这个阶段应以自由探索为主。"
+        },
+        {
+          "question_text": "宝宝把贴纸贴到不该贴的地方，家长应该怎么做？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "严厉批评宝宝。", "is_correct": false},
+            {"option_text": "告诉宝宝贴纸应该贴在哪里，并一起清理。", "is_correct": true},
+            {"option_text": "以后不再让宝宝玩贴纸。", "is_correct": false},
+            {"option_text": "只允许宝宝在固定区域玩贴纸。", "is_correct": false}
+          ],
+          "answer_explanation": "耐心引导和共同清理是更好的做法。A选项会打击宝宝的积极性；C选项因噎废食；D选项可以考虑，但更重要的是培养宝宝的良好习惯。"
+        },
+        {
+          "question_text": "贴画活动可以锻炼宝宝的哪些能力？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "手眼协调能力。", "is_correct": true},
+            {"option_text": "精细动作能力。", "is_correct": true},
+            {"option_text": "空间感知能力。", "is_correct": true},
+            {"option_text": "语言表达能力。", "is_correct": false}
+          ],
+          "answer_explanation": "贴画可以锻炼手眼协调、精细动作和空间感知能力。D选项语言表达能力更多通过口头交流来提高。"
+        },
+        {
+          "question_text": "宝宝对贴画不感兴趣，家长应该如何引导？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "强迫宝宝玩贴纸。", "is_correct": false},
+            {"option_text": "选择宝宝喜欢的图案，或者将贴画与其他游戏结合。", "is_correct": true},
+            {"option_text": "放弃贴画，选择其他活动。", "is_correct": false},
+            {"option_text": "批评宝宝不爱动手。", "is_correct": false}
+          ],
+          "answer_explanation": "选择宝宝喜欢的图案或与其他游戏结合可以提高宝宝的兴趣。A选项会适得其反；C选项过于轻易放弃；D选项会给宝宝带来负面情绪。"
+        }
+      ]
+    },
+    {
+      "point_name": "早教-精细动作-搭积木",
+      "questions": [
+        {
+          "question_text": "为宝宝选择积木时，应优先考虑哪一项？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "体积小、零件多的积木。", "is_correct": false},
+            {"option_text": "大块、无毒、边角圆润的积木。", "is_correct": true},
+            {"option_text": "颜色单一的积木。", "is_correct": false},
+            {"option_text": "材质坚硬的积木。", "is_correct": false}
+          ],
+          "answer_explanation": "大块、无毒、边角圆润的积木更安全，适合小宝宝抓握和操作。A选项有误吞风险；C选项颜色过于单调；D选项材质过硬可能造成伤害。"
+        },
+        {
+          "question_text": "如何引导宝宝玩积木？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "示范如何堆叠、拼接积木。", "is_correct": true},
+            {"option_text": "鼓励宝宝自由搭建，不限制他的创意。", "is_correct": true},
+            {"option_text": "只允许宝宝按照图纸搭建。", "is_correct": false},
+            {"option_text": "和宝宝一起搭建，共同完成作品。", "is_correct": true}
+          ],
+          "answer_explanation": "示范、鼓励自由创作和共同参与都能激发宝宝的兴趣。C选项对于1-2岁的宝宝来说要求过高，这个阶段应以自由探索为主。"
+        },
+        {
+          "question_text": "宝宝搭的积木倒塌了，家长应该怎么做？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "责备宝宝搭不好。", "is_correct": false},
+            {"option_text": "鼓励宝宝再试一次，并可以提供帮助。", "is_correct": true},
+            {"option_text": "以后不再让宝宝玩积木。", "is_correct": false},
+            {"option_text": "帮宝宝把积木搭好。", "is_correct": false}
+          ],
+          "answer_explanation": "鼓励和提供帮助可以培养宝宝的抗挫能力。A选项会打击宝宝的积极性；C选项因噎废食；D选项剥夺了宝宝自己尝试的机会。"
+        },
+        {
+          "question_text": "搭积木可以锻炼宝宝的哪些能力？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "手眼协调能力。", "is_correct": true},
+            {"option_text": "空间想象力。", "is_correct": true},
+            {"option_text": "解决问题的能力。", "is_correct": true},
+            {"option_text": "语言表达能力。", "is_correct": false}
+          ],
+          "answer_explanation": "搭积木可以锻炼手眼协调、空间想象力和解决问题的能力。D选项语言表达能力更多通过口头交流来提高。"
+        },
+        {
+          "question_text": "宝宝不愿意玩积木，家长应该如何引导？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "强迫宝宝玩。", "is_correct": false},
+            {"option_text": "选择宝宝喜欢的积木类型，或者将积木与其他游戏结合。", "is_correct": true},
+            {"option_text": "放弃积木，选择其他活动。", "is_correct": false},
+            {"option_text": "批评宝宝不爱动脑。", "is_correct": false}
+          ],
+          "answer_explanation": "选择宝宝喜欢的积木类型或与其他游戏结合可以提高宝宝的兴趣。A选项会适得其反；C选项过于轻易放弃；D选项会给宝宝带来负面情绪。"
+        }
+      ]
+    }
+  ]
+}

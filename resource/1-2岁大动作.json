@@ -1,0 +1,245 @@
+{
+  "course_name": "1-2岁幼儿早教大动作发展",
+  "knowledge_points": [
+    {
+      "point_name": "早教-大动作-走",
+      "questions": [
+        {
+          "question_text": "当宝宝刚开始练习走路时，家长应该如何提供安全的帮助？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "使用学步车，让宝宝自由探索。", "is_correct": false},
+            {"option_text": "在宝宝前方放置有吸引力的玩具，鼓励他迈步。", "is_correct": true},
+            {"option_text": "紧紧抓住宝宝的双手，不让他有摔倒的机会。", "is_correct": false},
+            {"option_text": "让宝宝光脚在地板上行走，避免提供任何支撑。", "is_correct": false}
+          ],
+          "answer_explanation": "在宝宝前方放置玩具可以激发他走路的兴趣，同时家长可以在一旁保护。A选项的学步车可能影响宝宝平衡感的发展；C选项过度保护不利于宝宝独立行走；D选项光脚走路虽好，但在初期提供适当支撑更安全。"
+        },
+        {
+          "question_text": "宝宝能够独立行走后，家长应该如何进一步鼓励？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "只允许在平坦的地面行走，避免任何挑战。", "is_correct": false},
+            {"option_text": "设置一些小障碍物，如软垫、小枕头，让宝宝练习跨越。", "is_correct": true},
+            {"option_text": "每天进行长时间的行走训练，以增强腿部力量。", "is_correct": false},
+            {"option_text": "不再提供任何帮助，让宝宝完全自主。", "is_correct": false}
+          ],
+          "answer_explanation": "设置小障碍物可以增加行走的趣味性和挑战性，帮助宝宝提高平衡感和协调性。A选项过于限制；C选项过度训练可能导致疲劳；D选项在早期仍需适当引导。"
+        },
+        {
+          "question_text": "为了促进宝宝走路的稳定性和协调性，家长可以和宝宝一起做哪些游戏？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "“开火车”游戏，家长在前面走，宝宝在后面模仿。", "is_correct": true},
+            {"option_text": "“踢球”游戏，用软球让宝宝练习踢的动作。", "is_correct": false},
+            {"option_text": "“追逐”游戏，在安全范围内和宝宝互相追逐。", "is_correct": true},
+            {"option_text": "“跳舞”游戏，随着音乐节奏一起走动和摇摆。", "is_correct": true}
+          ],
+          "answer_explanation": "A、C、D选项都能在游戏中锻炼宝宝的行走能力，同时增加亲子互动。B选项的踢球动作更适合稍大一些的宝宝。"
+        },
+        {
+          "question_text": "宝宝走路时出现内八字或外八字，家长应该怎么办？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "立即进行矫正训练。", "is_correct": false},
+            {"option_text": "观察一段时间，大部分情况会随着发育自行改善。", "is_correct": true},
+            {"option_text": "购买矫正鞋给宝宝穿。", "is_correct": false},
+            {"option_text": "严厉批评宝宝，让他注意走路姿势。", "is_correct": false}
+          ],
+          "answer_explanation": "轻微的内八字或外八字在幼儿早期较常见，通常会自行改善。A选项过于激进；C选项矫正鞋需在医生指导下使用；D选项会给宝宝带来负面情绪。"
+        },
+        {
+          "question_text": "哪些环境因素有助于宝宝练习走路？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "平坦、宽敞、安全的空间。", "is_correct": true},
+            {"option_text": "柔软的地毯或草地。", "is_correct": true},
+            {"option_text": "色彩鲜艳、有图案的地面。", "is_correct": true},
+            {"option_text": "有其他小朋友一起玩耍的环境。", "is_correct": true}
+          ],
+          "answer_explanation": "A、B选项提供了安全的行走环境；C选项可以增加视觉刺激；D选项可以激发宝宝的模仿和互动欲望。"
+        }
+      ]
+    },
+    {
+      "point_name": "早教-大动作-跑",
+      "questions": [
+        {
+          "question_text": "宝宝开始尝试跑动时，家长应该如何引导？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "一开始就要求宝宝跑得快。", "is_correct": false},
+            {"option_text": "选择柔软的地面，鼓励宝宝迈开步子。", "is_correct": true},
+            {"option_text": "让宝宝独自练习，避免干预。", "is_correct": false},
+            {"option_text": "只在户外进行跑步练习。", "is_correct": false}
+          ],
+          "answer_explanation": "柔软的地面可以减少摔倒时的伤害，鼓励迈步是让宝宝体验跑动的感觉。A选项操之过急；C选项在初期需要适当引导；D选项室内也可进行。"
+        },
+        {
+          "question_text": "哪些游戏可以帮助宝宝练习跑动？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "“追泡泡”游戏。", "is_correct": true},
+            {"option_text": "“红绿灯”游戏。", "is_correct": true},
+            {"option_text": "“捉迷藏”游戏。", "is_correct": true},
+            {"option_text": "“过家家”游戏。", "is_correct": false}
+          ],
+          "answer_explanation": "A、B、C选项都包含了跑动的元素，可以在游戏中锻炼宝宝的跑动能力。D选项“过家家”更多是角色扮演，跑动不是主要活动。"
+        },
+        {
+          "question_text": "宝宝跑步时容易摔倒，家长应该如何应对？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "立即停止跑步练习，避免受伤。", "is_correct": false},
+            {"option_text": "鼓励宝宝站起来，继续尝试。", "is_correct": true},
+            {"option_text": "严厉批评宝宝，让他注意安全。", "is_correct": false},
+            {"option_text": "每次都扶起宝宝，不让他自己站起来。", "is_correct": false}
+          ],
+          "answer_explanation": "鼓励宝宝自己站起来可以培养他的独立性和克服困难的能力。A选项过于保护；C选项会打击宝宝的积极性；D选项不利于宝宝独立性的发展。"
+        },
+        {
+          "question_text": "为了提高宝宝跑步的协调性和平衡感，可以进行哪些训练？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "单脚站立练习。", "is_correct": true},
+            {"option_text": "走平衡木（低矮、宽大的）。", "is_correct": true},
+            {"option_text": "跳跃练习。", "is_correct": true},
+            {"option_text": "上下楼梯练习。", "is_correct": true}
+          ],
+          "answer_explanation": "这四项练习都能锻炼宝宝的平衡感和协调性，为跑步打下基础。"
+        },
+        {
+          "question_text": "宝宝多大时开始练习跑步比较合适？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "能够独立行走后。", "is_correct": false},
+            {"option_text": "能够稳步行走一段时间后。", "is_correct": true},
+            {"option_text": "能够跳跃后。", "is_correct": false},
+            {"option_text": "能够上下楼梯后。", "is_correct": false}
+          ],
+          "answer_explanation": "稳步行走一段时间后，宝宝的腿部力量和平衡感都有所增强，这时开始尝试跑步更安全、更有效。"
+        }
+      ]
+    },
+    {
+      "point_name": "早教-大动作-上下楼梯",
+      "questions": [
+        {
+          "question_text": "宝宝刚开始学习上下楼梯时，家长应该如何提供帮助？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "让宝宝独自尝试，培养独立性。", "is_correct": false},
+            {"option_text": "让宝宝扶着栏杆或墙壁，家长在一旁保护。", "is_correct": true},
+            {"option_text": "抱着宝宝上下楼梯，避免危险。", "is_correct": false},
+            {"option_text": "只允许宝宝上楼梯，不允许下楼梯。", "is_correct": false}
+          ],
+          "answer_explanation": "提供支撑物并在一旁保护是确保安全的前提下，鼓励宝宝尝试。A选项过于冒险；C选项过度保护；D选项限制了宝宝的全面发展。"
+        },
+        {
+          "question_text": "在宝宝学习上下楼梯的过程中，家长应该注意哪些安全事项？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "确保楼梯干净、干燥、无杂物。", "is_correct": true},
+            {"option_text": "在楼梯口安装安全门。", "is_correct": true},
+            {"option_text": "让宝宝穿着防滑的袜子或鞋子。", "is_correct": true},
+            {"option_text": "鼓励宝宝快速上下楼梯。", "is_correct": false}
+          ],
+          "answer_explanation": "A、B、C选项都是为了确保宝宝上下楼梯时的安全。D选项快速上下楼梯容易发生危险。"
+        },
+        {
+          "question_text": "宝宝能够独立上下楼梯后，家长应该如何进一步引导？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "不再提供任何帮助，让宝宝完全自主。", "is_correct": false},
+            {"option_text": "鼓励宝宝尝试不同高度的台阶。", "is_correct": true},
+            {"option_text": "只允许在熟悉的楼梯上练习。", "is_correct": false},
+            {"option_text": "每次都紧紧跟随宝宝，防止意外。", "is_correct": false}
+          ],
+          "answer_explanation": "尝试不同高度的台阶可以提高宝宝的适应能力和协调性。A选项在早期仍需适当关注；C选项过于限制；D选项过度保护。"
+        },
+        {
+          "question_text": "哪些游戏可以融入上下楼梯的练习中？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "“送玩具回家”游戏，让宝宝把玩具放在不同的台阶上。", "is_correct": true},
+            {"option_text": "“数台阶”游戏，边上楼梯边数数。", "is_correct": true},
+            {"option_text": "“爬楼梯比赛”游戏，和宝宝一起比赛谁先上到顶。", "is_correct": true},
+            {"option_text": "“跳房子”游戏。", "is_correct": false}
+          ],
+          "answer_explanation": "A、B、C选项都将上下楼梯融入游戏中，增加了趣味性。D选项“跳房子”更适合在平地上进行。"
+        },
+        {
+          "question_text": "宝宝上下楼梯时出现害怕情绪，家长应该如何处理？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "强迫宝宝继续练习。", "is_correct": false},
+            {"option_text": "耐心安抚宝宝，可以先从较低的台阶开始尝试。", "is_correct": true},
+            {"option_text": "责备宝宝胆小。", "is_correct": false},
+            {"option_text": "以后都避免让宝宝接触楼梯。", "is_correct": false}
+          ],
+          "answer_explanation": "耐心安抚和循序渐进的引导可以帮助宝宝克服恐惧。A选项会加重宝宝的恐惧；C选项会伤害宝宝的自尊心；D选项会限制宝宝的发展。"
+        }
+      ]
+    },
+    {
+      "point_name": "早教-大动作-跳",
+      "questions": [
+        {
+          "question_text": "宝宝刚开始尝试跳跃时，家长应该如何引导？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "直接让宝宝跳高。", "is_correct": false},
+            {"option_text": "从双脚离地的小跳开始，逐渐增加高度。", "is_correct": true},
+            {"option_text": "让宝宝独自练习，避免干预。", "is_correct": false},
+            {"option_text": "只在柔软的垫子上练习。", "is_correct": false}
+          ],
+          "answer_explanation": "从小跳开始，循序渐进地增加难度更符合宝宝的发育规律。A选项过于激进；C选项在初期需要适当引导；D选项过于限制。"
+        },
+        {
+          "question_text": "哪些游戏可以帮助宝宝练习跳跃？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "“跳过小河”游戏，在地板上画两条线代表小河。", "is_correct": true},
+            {"option_text": "“跳格子”游戏。", "is_correct": true},
+            {"option_text": "“跳绳”游戏（家长拿着绳子，宝宝跳）。", "is_correct": true},
+            {"option_text": "“蹦床”游戏（在安全的蹦床上）。", "is_correct": true}
+          ],
+          "answer_explanation": "这四项游戏都包含了跳跃的动作，可以在游戏中锻炼宝宝的跳跃能力。"
+        },
+        {
+          "question_text": "宝宝跳跃时容易摔倒，家长应该如何应对？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "立即停止跳跃练习，避免受伤。", "is_correct": false},
+            {"option_text": "鼓励宝宝站起来，继续尝试，并在旁边保护。", "is_correct": true},
+            {"option_text": "严厉批评宝宝，让他注意安全。", "is_correct": false},
+            {"option_text": "每次都扶起宝宝，不让他自己站起来。", "is_correct": false}
+          ],
+          "answer_explanation": "鼓励宝宝自己站起来可以培养他的独立性和克服困难的能力，同时家长在一旁保护可以确保安全。A选项过于保护；C选项会打击宝宝的积极性；D选项不利于宝宝独立性的发展。"
+        },
+        {
+          "question_text": "为了提高宝宝跳跃的高度和协调性，可以进行哪些训练？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "单脚跳练习。", "is_correct": true},
+            {"option_text": "立定跳远练习。", "is_correct": true},
+            {"option_text": "摸高练习。", "is_correct": true},
+            {"option_text": "上下台阶练习。", "is_correct": true}
+          ],
+          "answer_explanation": "这四项练习都能锻炼宝宝的腿部力量、爆发力和协调性，为跳跃打下基础。"
+        },
+        {
+          "question_text": "宝宝多大时开始练习跳跃比较合适？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "能够独立行走后。", "is_correct": false},
+            {"option_text": "能够稳步行走和跑动后。", "is_correct": true},
+            {"option_text": "能够单脚站立后。", "is_correct": false},
+            {"option_text": "能够上下楼梯后。", "is_correct": false}
+          ],
+          "answer_explanation": "稳步行走和跑动后，宝宝的腿部力量和平衡感都有了较好的发展，这时开始尝试跳跃更安全、更有效。"
+        }
+      ]
+    }
+  ]
+}

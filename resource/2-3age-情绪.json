@@ -1,0 +1,365 @@
+{
+  "course_name": "2-3岁幼儿早教情绪发展",
+  "knowledge_points": [
+    {
+      "point_name": "早教-情绪-情绪分化",
+      "questions": [
+        {
+          "question_text": "宝宝看到别的小朋友有新玩具，表现出羡慕的表情，你会怎么做？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "告诉宝宝：“不要羡慕别人，我们也有玩具。”", "is_correct": false},
+            {"option_text": "对宝宝说：“你是不是也想要一个？我们可以下次再买。”", "is_correct": true},
+            {"option_text": "直接给宝宝买一个一样的玩具。", "is_correct": false},
+            {"option_text": "转移宝宝的注意力，让他去看别的东西。", "is_correct": false}
+          ],
+          "answer_explanation": "选项B既认可了宝宝的情绪（羡慕），又提出了一个合理的解决方案，有助于宝宝学习处理情绪。"
+        },
+        {
+          "question_text": "宝宝因为搭不好积木而生气，把积木扔到地上，你会怎么做？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "批评宝宝：“你怎么能乱扔东西！”", "is_correct": false},
+            {"option_text": "帮宝宝把积木捡起来，一起搭。", "is_correct": false},
+            {"option_text": "对宝宝说：“搭不好积木让你很生气，是吗？我们可以一起试试。”", "is_correct": true},
+            {"option_text": "让宝宝自己冷静一下。", "is_correct": false}
+          ],
+          "answer_explanation": "选项C先共情宝宝的情绪（生气），然后提供帮助，引导宝宝用更合适的方式表达情绪。"
+        },
+        {
+          "question_text": "宝宝因为不想睡觉而哭闹，你会怎么做？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "严厉地告诉宝宝：“必须睡觉！”", "is_correct": false},
+            {"option_text": "温柔地抱抱宝宝，轻声说：“我知道你不想睡觉，但是睡觉才能长大。”", "is_correct": true},
+            {"option_text": "让宝宝一个人哭，哭累了就睡了。", "is_correct": false},
+            {"option_text": "给宝宝看动画片，哄他睡觉。", "is_correct": false}
+          ],
+          "answer_explanation": "选项B用温柔的方式安抚宝宝的情绪，同时解释了睡觉的重要性。"
+        },
+        {
+          "question_text": "你会如何帮助宝宝识别和表达不同的情绪？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "和宝宝一起看情绪绘本，认识不同的情绪表情。", "is_correct": true},
+            {"option_text": "当宝宝有情绪时，帮助他说出自己的感受，如“你现在很开心/难过/生气”。", "is_correct": true},
+            {"option_text": "当宝宝表现出某种情绪时，模仿他的表情，让他意识到自己的情绪。", "is_correct": true},
+            {"option_text": "告诉宝宝不要哭、不要生气。", "is_correct": false}
+          ],
+          "answer_explanation": "认识情绪表情、帮助说出感受、模仿表情，都能帮助孩子更好地识别和表达情绪。"
+        },
+        {
+          "question_text": "当宝宝表现出害怕的情绪时，你会怎么做？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "告诉宝宝：“这有什么好怕的，不要怕。”", "is_correct": false},
+            {"option_text": "抱抱宝宝，给他安全感。", "is_correct": true},
+            {"option_text": "和宝宝一起面对让他害怕的事物，如慢慢靠近、轻轻触摸。", "is_correct": true},
+            {"option_text": "强迫宝宝去面对让他害怕的事物。", "is_correct": false}
+          ],
+          "answer_explanation": "提供安全感、逐步引导，能帮助孩子克服恐惧。"
+        }
+      ]
+    },
+    {
+      "point_name": "早教-情绪-情感萌芽",
+      "questions": [
+        {
+          "question_text": "宝宝看到你受伤了，表现出担心的表情，你会怎么做？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "告诉宝宝：“没事，我不疼。”", "is_correct": false},
+            {"option_text": "对宝宝说：“谢谢你关心我，妈妈/爸爸有点疼，但是没关系。”", "is_correct": true},
+            {"option_text": "不理宝宝。", "is_correct": false},
+            {"option_text": "对宝宝发脾气：“都怪你，害我受伤。”", "is_correct": false}
+          ],
+          "answer_explanation": "感谢宝宝的关心，让宝宝感受到自己的情感被重视。"
+        },
+        {
+          "question_text": "宝宝主动把自己的玩具分享给别的小朋友，你会怎么做？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "告诉宝宝：“你真乖，真懂事。”", "is_correct": false},
+            {"option_text": "表扬宝宝：“你真棒，懂得分享，妈妈/爸爸为你感到骄傲。”", "is_correct": true},
+            {"option_text": "不理宝宝。", "is_correct": false},
+            {"option_text": "告诉宝宝：“不要把玩具给别人，自己玩。”", "is_correct": false}
+          ],
+          "answer_explanation": "具体地表扬宝宝的行为（分享），让宝宝知道什么样的行为是好的。"
+        },
+        {
+          "question_text": "宝宝看到小动物受伤了，表现出难过的表情，你会怎么做？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "告诉宝宝：“小动物没事，不用难过。”", "is_correct": false},
+            {"option_text": "和宝宝一起安慰小动物，或者想办法帮助小动物。", "is_correct": true},
+            {"option_text": "不理宝宝。", "is_correct": false},
+            {"option_text": "告诉宝宝：“不要管小动物，我们走吧。”", "is_correct": false}
+          ],
+          "answer_explanation": "和宝宝一起表达同情心，培养宝宝的爱心。"
+        },
+        {
+          "question_text": "你会如何培养宝宝的同理心？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "给宝宝讲一些关于帮助别人、关心别人的故事。", "is_correct": true},
+            {"option_text": "当宝宝和别的小朋友发生冲突时，引导他站在对方的角度想一想。", "is_correct": true},
+            {"option_text": "鼓励宝宝做一些力所能及的帮助别人的事情，如给长辈倒水、帮妈妈拿东西。", "is_correct": true},
+            {"option_text": "告诉宝宝只要自己开心就好，不用管别人。", "is_correct": false}
+          ],
+          "answer_explanation": "讲故事、换位思考、鼓励助人，都能培养孩子的同理心。"
+        },
+        {
+          "question_text": "你会如何让宝宝感受到你的爱？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "经常抱抱宝宝、亲亲宝宝。", "is_correct": true},
+            {"option_text": "经常对宝宝说“我爱你”。", "is_correct": true},
+            {"option_text": "花时间陪伴宝宝，和他一起玩耍、聊天。", "is_correct": true},
+            {"option_text": "只给宝宝买很多玩具，但不陪伴他。", "is_correct": false}
+          ],
+          "answer_explanation": "肢体接触、语言表达、陪伴，都能让孩子感受到爱。"
+        }
+      ]
+    },
+    {
+      "point_name": "早教-情绪-发脾气争取",
+      "questions": [
+        {
+          "question_text": "宝宝因为想要一个玩具而大哭大闹，你会怎么做？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "立刻满足宝宝的要求。", "is_correct": false},
+            {"option_text": "对宝宝发脾气：“再哭就不给你买了！”", "is_correct": false},
+            {"option_text": "平静地告诉宝宝：“我知道你想要这个玩具，但是哭闹是不能解决问题的。”", "is_correct": true},
+            {"option_text": "不理宝宝，让他哭。", "is_correct": false}
+          ],
+          "answer_explanation": "既不满足宝宝的不合理要求，也不对宝宝发脾气，而是平静地告诉宝宝哭闹是没用的。"
+        },
+        {
+          "question_text": "宝宝在超市里看到糖果，一定要买，不买就坐在地上哭，你会怎么做？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "为了避免尴尬，赶紧给宝宝买糖。", "is_correct": false},
+            {"option_text": "严厉地批评宝宝：“不许哭！再哭就不带你出来了！”", "is_correct": false},
+            {"option_text": "把宝宝抱起来，离开现场，平静地告诉他：“我们今天不买糖，如果你再哭，我们就回家。”", "is_correct": true},
+            {"option_text": "当众打骂宝宝。", "is_correct": false}
+          ],
+          "answer_explanation": "离开现场、避免围观，平静地告诉宝宝不买的原因和哭闹的后果。"
+        },
+        {
+          "question_text": "宝宝不想吃饭，把饭菜扔到地上，你会怎么做？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "强迫宝宝把饭菜捡起来吃掉。", "is_correct": false},
+            {"option_text": "对宝宝发脾气：“你怎么这么不听话！”", "is_correct": false},
+            {"option_text": "平静地告诉宝宝：“把饭菜扔到地上是不对的，我们一起收拾干净，然后好好吃饭。”", "is_correct": true},
+            {"option_text": "不理宝宝，让宝宝饿着。", "is_correct": false}
+          ],
+          "answer_explanation": "告诉宝宝错误行为，并引导宝宝一起改正。"
+        },
+        {
+          "question_text": "当宝宝因为得不到想要的东西而发脾气时，你可以怎么做？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "保持冷静，不要对宝宝发脾气。", "is_correct": true},
+            {"option_text": "尝试转移宝宝的注意力，给他一个替代品，或者让他做一些别的事情。", "is_correct": true},
+            {"option_text": "告诉宝宝：“我知道你很想要，但是我们现在不能买/不能做，等你...的时候，我们再...”", "is_correct": true},
+            {"option_text": "立刻满足宝宝的要求，避免他哭闹。", "is_correct": false}
+          ],
+          "answer_explanation": "保持冷静、转移注意力、延迟满足，都是应对孩子发脾气的有效方法。"
+        },
+        {
+          "question_text": "你会如何帮助宝宝学会用正确的方式表达需求？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "当宝宝用哭闹的方式表达需求时，告诉他：“哭是没有用的，你要用说的。”", "is_correct": true},
+            {"option_text": "当宝宝用语言表达需求时，及时回应他，即使不能满足，也要告诉他原因。", "is_correct": true},
+            {"option_text": "鼓励宝宝用语言表达自己的感受，如“我想要”、“我不喜欢”。", "is_correct": true},
+            {"option_text": "当宝宝用哭闹的方式表达需求时，立刻满足他。", "is_correct": false}
+          ],
+          "answer_explanation": "引导宝宝用语言表达需求、及时回应、鼓励表达感受，都能帮助孩子学会正确表达。"
+        }
+      ]
+    },
+    {
+      "point_name": "早教-情绪-道德感、理智感",
+      "questions": [
+        {
+          "question_text": "宝宝不小心打翻了水杯，把水洒了一地，他看着你，有点害怕，你会怎么做？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "严厉地批评宝宝：“你怎么这么不小心！”", "is_correct": false},
+            {"option_text": "平静地告诉宝宝：“没关系，我们一起把水擦干净。”", "is_correct": true},
+            {"option_text": "不理宝宝，自己把水擦干净。", "is_correct": false},
+            {"option_text": "对宝宝发脾气：“看你干的好事！”", "is_correct": false}
+          ],
+          "answer_explanation": "让宝宝参与到收拾残局的过程中，培养责任感。"
+        },
+        {
+          "question_text": "宝宝看到别的小朋友摔倒了，主动去扶他，你会怎么做？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "告诉宝宝：“不要多管闲事。”", "is_correct": false},
+            {"option_text": "表扬宝宝：“你真棒，知道帮助别人。”", "is_correct": true},
+            {"option_text": "不理宝宝。", "is_correct": false},
+            {"option_text": "告诉宝宝：“下次不要去扶，小心自己也摔倒。”", "is_correct": false}
+          ],
+          "answer_explanation": "表扬宝宝的助人行为，强化道德感。"
+        },
+        {
+          "question_text": "宝宝想玩别的小朋友的玩具，但是小朋友不愿意，宝宝开始抢，你会怎么做？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "帮宝宝把玩具抢过来。", "is_correct": false},
+            {"option_text": "告诉宝宝：“不能抢别人的玩具，如果你想玩，要跟小朋友商量。”", "is_correct": true},
+            {"option_text": "不理宝宝，让宝宝自己解决。", "is_correct": false},
+            {"option_text": "批评别的小朋友：“你怎么这么小气！”", "is_correct": false}
+          ],
+          "answer_explanation": "告诉宝宝正确的行为规范，培养理智感。"
+        },
+        {
+          "question_text": "你会如何帮助宝宝建立初步的道德感？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "给宝宝讲一些关于诚实、守信、友爱、互助的故事。", "is_correct": true},
+            {"option_text": "在日常生活中，以身作则，做宝宝的榜样。", "is_correct": true},
+            {"option_text": "当宝宝做了错事时，及时指出，并告诉他正确的做法。", "is_correct": true},
+            {"option_text": "对宝宝的错误行为视而不见。", "is_correct": false}
+          ],
+          "answer_explanation": "讲故事、以身作则、及时纠正，都能帮助孩子建立道德感。"
+        },
+        {
+          "question_text": "你会如何培养宝宝的理智感，让他学会控制自己的情绪和行为？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "当宝宝发脾气时，帮助他冷静下来，并引导他用语言表达自己的需求。", "is_correct": true},
+            {"option_text": "给宝宝制定一些简单的规则，并让他遵守。", "is_correct": true},
+            {"option_text": "当宝宝做了错事时，让他承担相应的后果，如取消看动画片的权利。", "is_correct": true},
+            {"option_text": "对宝宝百依百顺，不让他受一点委屈。", "is_correct": false}
+          ],
+          "answer_explanation": "帮助冷静、制定规则、承担后果，都能培养孩子的理智感。"
+        }
+      ]
+    },
+    {
+      "point_name": "早教-情绪-美感萌芽",
+      "questions": [
+        {
+          "question_text": "你和宝宝一起看绘本，看到一幅色彩鲜艳的图画，你会怎么做？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "直接翻到下一页。", "is_correct": false},
+            {"option_text": "问宝宝：“你觉得这幅画漂亮吗？你喜欢什么颜色？”", "is_correct": true},
+            {"option_text": "告诉宝宝这幅画的名字和作者。", "is_correct": false},
+            {"option_text": "让宝宝自己看。", "is_correct": false}
+          ],
+          "answer_explanation": "引导宝宝欣赏图画的美，并表达自己的感受。"
+        },
+        {
+          "question_text": "你和宝宝一起听音乐，听到一段优美的旋律，你会怎么做？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "告诉宝宝音乐的名字。", "is_correct": false},
+            {"option_text": "和宝宝一起随着音乐轻轻摇摆，或者哼唱。", "is_correct": false},
+            {"option_text": "让宝宝安静地听。", "is_correct": false},
+            {"option_text": "问宝宝：“你觉得这首音乐好听吗？”", "is_correct": true}
+          ],
+          "answer_explanation": "问宝宝是否觉得好听，是在问宝宝的感受，D更优"
+        },
+        {
+          "question_text": "你带宝宝去公园，看到盛开的花朵，你会怎么做？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "告诉宝宝花的名字。", "is_correct": false},
+            {"option_text": "让宝宝闻一闻花的香味，看看花的颜色。", "is_correct": true},
+            {"option_text": "摘一朵花给宝宝。", "is_correct": false},
+            {"option_text": "不理宝宝，自己看花。", "is_correct": false}
+          ],
+          "answer_explanation": "让宝宝通过多种感官感受花的美。"
+        },
+        {
+          "question_text": "你会如何培养宝宝的美感？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "带宝宝去博物馆、美术馆、音乐厅等场所。", "is_correct": true},
+            {"option_text": "和宝宝一起欣赏美丽的图画、音乐、舞蹈等艺术作品。", "is_correct": true},
+            {"option_text": "鼓励宝宝用自己的方式表达美，如画画、唱歌、跳舞。", "is_correct": true},
+            {"option_text": "告诉宝宝只有名贵的艺术品才是美的。", "is_correct": false}
+          ],
+          "answer_explanation": "接触艺术、欣赏艺术、表达美，都能培养孩子的美感。"
+        },
+        {
+          "question_text": "你会如何利用日常生活中的事物来培养宝宝的美感？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "和宝宝一起观察美丽的日出、日落、彩虹等自然景观。", "is_correct": true},
+            {"option_text": "和宝宝一起布置房间，选择漂亮的装饰品。", "is_correct": true},
+            {"option_text": "给宝宝穿色彩搭配和谐的衣服。", "is_correct": true},
+            {"option_text": "告诉宝宝只有名牌的东西才是美的。", "is_correct": false}
+          ],
+          "answer_explanation": "发现自然美、创造环境美、注重仪表美，都能培养孩子的美感。"
+        }
+      ]
+    },
+    {
+      "point_name": "早教-情绪-开始问问题",
+      "questions": [
+        {
+          "question_text": "宝宝指着绘本上的哭脸问：“他为什么哭？” 你会怎么回答？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "直接告诉宝宝：“因为他不开心。”", "is_correct": false},
+            {"option_text": "反问宝宝：“你觉得他为什么哭呢？他可能发生了什么事？”", "is_correct": true},
+            {"option_text": "告诉宝宝：“这个问题不重要，我们看下一个。”", "is_correct": false},
+            {"option_text": "让宝宝自己猜。", "is_correct": false}
+          ],
+          "answer_explanation": "引导宝宝思考情绪产生的原因，培养同理心和情绪理解能力。"
+        },
+        {
+          "question_text": "宝宝看到别的小朋友在笑，问你：“他为什么笑得这么开心？” 你会怎么回答？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "直接告诉宝宝：“因为他得到了一个新玩具。”", "is_correct": false},
+            {"option_text": "和宝宝一起观察：“你看，他好像在玩一个很好玩的游戏，所以很开心。”", "is_correct": true},
+            {"option_text": "告诉宝宝：“我也不知道，你去问他。”", "is_correct": false},
+            {"option_text": "让宝宝不要管别人。", "is_correct": false}
+          ],
+          "answer_explanation": "引导宝宝观察情境，推测情绪产生的原因。"
+        },
+        {
+          "question_text": "宝宝问你：“妈妈，你为什么生气？” 你会怎么回答？ [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "告诉宝宝：“我没有生气。”", "is_correct": false},
+            {"option_text": "对宝宝发脾气：“不要问这么多！”", "is_correct": false},
+            {"option_text": "诚实地告诉宝宝：“因为...，所以我有点生气，但是现在好多了。”", "is_correct": true},
+            {"option_text": "转移宝宝的注意力。", "is_correct": false}
+          ],
+          "answer_explanation": "诚实地表达自己的情绪，并让宝宝了解情绪产生的原因。"
+        },
+        {
+          "question_text": "你可以问宝宝哪些关于情绪的问题，来促进他的情绪认知？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "“你今天最开心的事情是什么？”", "is_correct": true},
+            {"option_text": "“你觉得这个故事里的小动物是什么心情？”", "is_correct": true},
+            {"option_text": "“如果你是...，你会是什么感觉？”", "is_correct": true},
+            {"option_text": "“你今天吃了什么？”", "is_correct": false}
+          ],
+          "answer_explanation": "引导宝宝回忆、描述、理解自己和他人的情绪。"
+        },
+        {
+          "question_text": "当宝宝问你关于情绪的问题时，你应该怎么做？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "认真倾听宝宝的问题。", "is_correct": true},
+            {"option_text": "用简单易懂的语言回答宝宝。", "is_correct": true},
+            {"option_text": "鼓励宝宝表达自己的想法和感受。", "is_correct": true},
+            {"option_text": "对宝宝的问题表示不耐烦。", "is_correct": false}
+          ],
+          "answer_explanation": "认真倾听、耐心解答、鼓励表达，都能帮助孩子更好地理解情绪。"
+        }
+      ]
+    }
+  ]
+}

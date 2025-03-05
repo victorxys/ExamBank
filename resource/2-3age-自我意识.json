@@ -1,0 +1,233 @@
+{
+  "course_name": "2-3岁幼儿早教自我意识发展",
+  "knowledge_points": [
+    {
+      "point_name": "早教-自我意识-喜欢坚持己见",
+      "questions": [
+        {
+          "question_text": "孩子坚持要穿红色的衣服，而你认为蓝色的更适合今天的天气，你应该： [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "强迫孩子穿蓝色的衣服。", "is_correct": false},
+            {"option_text": "告诉孩子红色衣服不好看。", "is_correct": false},
+            {"option_text": "尊重孩子的选择，让他穿红色的衣服，同时带上蓝色的外套备用。", "is_correct": true}
+          ],
+          "answer_explanation": "尊重孩子的选择，同时提供备选方案，既满足了孩子的意愿，又解决了实际问题。"
+        },
+        {
+          "question_text": "孩子坚持要用自己的方式搭积木，即使搭得不稳固，你应该： [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "立即阻止孩子，并告诉他正确的方法。", "is_correct": false},
+            {"option_text": "允许孩子尝试，并在旁边观察，适时提供建议。", "is_correct": true},
+            {"option_text": "直接帮孩子搭好。", "is_correct": false}
+          ],
+          "answer_explanation": "允许孩子尝试，并在旁边观察和引导，可以培养孩子的自主性和解决问题的能力。"
+        },
+        {
+          "question_text": "孩子在吃饭时坚持要自己用勺子，即使弄得到处都是，你应该： [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "责备孩子弄脏了衣服和桌子。", "is_correct": false},
+            {"option_text": "允许孩子尝试，并耐心指导他正确使用勺子。", "is_correct": true},
+            {"option_text": "直接喂孩子吃饭。", "is_correct": false}
+          ],
+          "answer_explanation": "允许孩子尝试，并耐心指导，可以培养孩子的自理能力和自信心。"
+        },
+        {
+          "question_text": "当孩子坚持己见时，家长可以怎么做？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "尊重孩子的选择，但在必要时进行引导。", "is_correct": true},
+            {"option_text": "尝试理解孩子的想法和感受。", "is_correct": true},
+            {"option_text": "用积极的语言和孩子沟通。", "is_correct": true},
+            {"option_text": "完全按照孩子的意愿行事。", "is_correct": false}
+          ],
+          "answer_explanation": "尊重、理解和积极沟通是处理孩子坚持己见的关键，完全按照孩子意愿行事有时并不可取。"
+        },
+        {
+          "question_text": "哪些情况下，家长可以适当坚持自己的意见，而不是完全顺从孩子？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "孩子的选择可能存在安全隐患时。", "is_correct": true},
+            {"option_text": "孩子的选择不符合基本的社会规范时。", "is_correct": true},
+            {"option_text": "孩子的选择会影响到他人时。", "is_correct": true},
+            {"option_text": "孩子只是单纯地想要某个东西时。", "is_correct": false}
+          ],
+          "answer_explanation": "在涉及安全、社会规范和他人利益的情况下，家长需要坚持原则，引导孩子做出正确的选择。"
+        }
+      ]
+    },
+    {
+      "point_name": "早教-自我意识-自我尝试，不愿成人帮忙",
+      "questions": [
+        {
+          "question_text": "孩子尝试自己穿鞋，但总是穿反，你应该： [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "立即帮孩子把鞋穿好。", "is_correct": false},
+            {"option_text": "耐心指导孩子正确穿鞋的方法，并鼓励他再次尝试。", "is_correct": true},
+            {"option_text": "批评孩子笨手笨脚。", "is_correct": false}
+          ],
+          "answer_explanation": "耐心指导和鼓励可以帮助孩子掌握技能，并建立自信心。"
+        },
+        {
+          "question_text": "孩子尝试自己搭积木，但总是搭不好，他拒绝你的帮助，你应该： [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "强行帮孩子搭好。", "is_correct": false},
+            {"option_text": "在旁边观察，并在孩子遇到困难时提供建议，但不直接动手。", "is_correct": true},
+            {"option_text": "放弃帮助孩子。", "is_correct": false}
+          ],
+          "answer_explanation": "在孩子遇到困难时提供建议，但不直接动手，可以培养孩子的独立性和解决问题的能力。"
+        },
+        {
+          "question_text": "孩子尝试自己吃饭，但弄得到处都是，他拒绝你喂他，你应该： [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "强行喂孩子吃饭。", "is_correct": false},
+            {"option_text": "允许孩子自己吃，并在旁边提供帮助，如递纸巾、清理桌面等。", "is_correct": true},
+            {"option_text": "责备孩子弄脏了衣服和桌子。", "is_correct": false}
+          ],
+          "answer_explanation": "允许孩子自己吃，并在旁边提供必要的帮助，可以培养孩子的自理能力。"
+        },
+        {
+          "question_text": "当孩子拒绝成人的帮助时，家长可以怎么做？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "尊重孩子的意愿，允许他独立尝试。", "is_correct": true},
+            {"option_text": "在旁边观察，并在孩子遇到困难时提供支持和鼓励。", "is_correct": true},
+            {"option_text": "用积极的语言鼓励孩子，如“你可以的”、“我相信你”。", "is_correct": true},
+            {"option_text": "直接帮孩子完成任务。", "is_correct": false}
+          ],
+          "answer_explanation": "尊重、观察、支持和鼓励是处理孩子拒绝帮助的关键。"
+        },
+        {
+          "question_text": "哪些活动可以鼓励孩子进行自我尝试？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "提供一些需要孩子独立完成的任务，如穿衣服、收拾玩具等。", "is_correct": true},
+            {"option_text": "鼓励孩子参与家务劳动，如擦桌子、扫地等。", "is_correct": true},
+            {"option_text": "鼓励孩子自己解决问题，如积木搭不稳、玩具找不到等。", "is_correct": true},
+            {"option_text": "事事都替孩子代劳。", "is_correct": false}
+          ],
+          "answer_explanation": "提供独立任务、参与家务和自己解决问题都能鼓励孩子进行自我尝试。"
+        }
+      ]
+    },
+    {
+      "point_name": "早教-自我意识-成人应给予鼓励，耐心指导",
+      "questions": [
+        {
+          "question_text": "孩子尝试自己穿衣服，但扣子扣错了，你应该： [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "批评孩子粗心大意。", "is_correct": false},
+            {"option_text": "耐心指导孩子正确扣扣子的方法，并鼓励他重新尝试。", "is_correct": true},
+            {"option_text": "直接帮孩子把扣子扣好。", "is_correct": false}
+          ],
+          "answer_explanation": "耐心指导和鼓励可以帮助孩子掌握技能，并建立自信心。"
+        },
+        {
+          "question_text": "孩子尝试自己画画，但画得不好看，你应该： [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "批评孩子的画作。", "is_correct": false},
+            {"option_text": "肯定孩子的努力，并鼓励他继续尝试不同的画法。", "is_correct": true},
+            {"option_text": "直接帮孩子画好。", "is_correct": false}
+          ],
+          "answer_explanation": "肯定孩子的努力，并鼓励他继续尝试，可以培养孩子的创造力和自信心。"
+        },
+        {
+          "question_text": "孩子尝试自己收拾玩具，但收拾得不够整齐，你应该： [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "责备孩子没有收拾干净。", "is_correct": false},
+            {"option_text": "肯定孩子的努力，并和他一起把玩具收拾整齐。", "is_correct": true},
+            {"option_text": "直接帮孩子把玩具收拾好。", "is_correct": false}
+          ],
+          "answer_explanation": "肯定孩子的努力，并和他一起完成任务，可以培养孩子的责任感和合作意识。"
+        },
+        {
+          "question_text": "家长应该如何鼓励孩子？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "肯定孩子的努力和进步，而不仅仅是结果。", "is_correct": true},
+            {"option_text": "使用积极的语言，如“你真棒”、“我相信你”。", "is_correct": true},
+            {"option_text": "给孩子提供具体的反馈，如“你今天比昨天进步了”。", "is_correct": true},
+            {"option_text": "总是给孩子物质奖励。", "is_correct": false}
+          ],
+          "answer_explanation": "肯定努力、积极语言和具体反馈都能有效地鼓励孩子。物质奖励应适度。"
+        },
+        {
+          "question_text": "家长应该如何耐心指导孩子？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "把复杂的任务分解成简单的步骤，一步一步地教孩子。", "is_correct": true},
+            {"option_text": "给孩子足够的时间去尝试和练习。", "is_correct": true},
+            {"option_text": "在孩子遇到困难时，及时提供帮助和支持。", "is_correct": true},
+            {"option_text": "对孩子失去耐心，催促孩子快点完成。", "is_correct": false}
+          ],
+          "answer_explanation": "分解任务、给予时间和提供支持都是耐心指导的关键。"
+        }
+      ]
+    },
+    {
+      "point_name": "早教-自我意识-增强独立生活能力的锻炼",
+      "questions": [
+        {
+          "question_text": "为了培养孩子的独立生活能力，你应该： [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "事事都替孩子代劳。", "is_correct": false},
+            {"option_text": "鼓励孩子自己穿衣服、吃饭、收拾玩具等。", "is_correct": true},
+            {"option_text": "让孩子完全独立，不给予任何帮助。", "is_correct": false}
+          ],
+          "answer_explanation": "鼓励孩子自己完成力所能及的事情，是培养独立生活能力的关键。"
+        },
+        {
+          "question_text": "在培养孩子独立生活能力的过程中，你应该： [单选题]",
+          "question_type": "单选题",
+          "options": [
+            {"option_text": "对孩子的要求过于严格，追求完美。", "is_correct": false},
+            {"option_text": "对孩子有耐心，允许他犯错，并从中学习。", "is_correct": true},
+            {"option_text": "对孩子放任自流，不管他做得好不好。", "is_correct": false}
+          ],
+          "answer_explanation": "耐心、允许犯错和从中学习是培养孩子独立生活能力的重要原则。"
+        },
+        {
+          "question_text": "哪些活动可以帮助孩子增强独立生活能力？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "让孩子参与家务劳动，如擦桌子、摆碗筷等。", "is_correct": true},
+            {"option_text": "让孩子自己选择穿什么衣服、吃什么食物。", "is_correct": true},
+            {"option_text": "让孩子自己决定什么时候睡觉、什么时候起床。", "is_correct": false}
+          ],
+          "answer_explanation": "参与家务和自己做选择都能增强孩子的独立生活能力。决定作息时间对于2-3岁的孩子来说还为时过早。"
+        },
+        {
+          "question_text": "在培养孩子独立生活能力的过程中，家长应该注意什么？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "根据孩子的能力和年龄，逐步增加任务的难度。", "is_correct": true},
+            {"option_text": "给孩子提供必要的支持和帮助，但不包办代替。", "is_correct": true},
+            {"option_text": "肯定孩子的努力和进步，即使他做得不够完美。", "is_correct": true},
+            {"option_text": "事事追求完美", "is_correct": false}
+          ],
+          "answer_explanation": "逐步增加难度、提供支持和肯定努力都是培养孩子独立生活能力的重要方面。"
+        },
+        {
+          "question_text": "哪些是独立生活能力的重要组成部分？ [多选题]",
+          "question_type": "多选题",
+          "options": [
+            {"option_text": "自理能力，如穿衣、吃饭、洗漱等。", "is_correct": true},
+            {"option_text": "社交能力，如与人交往、合作等。", "is_correct": true},
+            {"option_text": "解决问题的能力，如遇到困难时自己想办法解决。", "is_correct": true},
+            {"option_text": "学习能力，如看书、写字等。", "is_correct": true}
+          ],
+          "answer_explanation": "自理、社交、解决问题和学习能力都是独立生活能力的重要组成部分。"
+        }
+      ]
+    }
+  ]
+}
