@@ -15,6 +15,7 @@ import {
   CardContent,
   Divider,
   CircularProgress,
+  TextField,
 } from '@mui/material';
 import AlertMessage from './AlertMessage';
 import api from '../api/axios';
@@ -28,6 +29,7 @@ const UserEvaluation = () => {
   const [alertMessage, setAlertMessage] = useState(null);
   const [alertOpen, setAlertOpen] = useState(false);
   const [evaluations, setEvaluations] = useState({});
+  const [additionalComments, setAdditionalComments] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [evaluationStructure, setEvaluationStructure] = useState([]);
   const [userInfo, setUserInfo] = useState(null);
@@ -67,6 +69,11 @@ const UserEvaluation = () => {
             });
 
             setEvaluations(formattedEvaluations);
+            
+            // 设置额外评论
+            if (evaluationData.additional_comments) {
+              setAdditionalComments(evaluationData.additional_comments);
+            }
           }
         } else {
           throw new Error('评价结构数据格式不正确');
@@ -103,7 +110,8 @@ const UserEvaluation = () => {
       const response = await api[method](endpoint, {
         evaluated_user_id: userId,
         evaluator_user_id: evaluator_user_id,
-        evaluations: filteredEvaluations
+        evaluations: filteredEvaluations,
+        additional_comments: additionalComments
       });
       
       if (response.data && response.data.success) {
@@ -251,6 +259,27 @@ const UserEvaluation = () => {
           </CardContent>
         </Card>
       ))}
+      
+      {/* 添加文字描述输入框 */}
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <Typography variant="h2" gutterBottom textAlign={'center'}>补充评价</Typography>
+          <TextField
+            fullWidth
+            multiline
+            rows={4}
+            label="补充评价内容"
+            placeholder="请在此处添加对该员工的补充评价内容..."
+            value={additionalComments}
+            onChange={(e) => setAdditionalComments(e.target.value)}
+            variant="outlined"
+            sx={{ mb: 2 }}
+          />
+          <Typography variant="body2" color="text.secondary">
+            请在此处添加对员工的补充评价，可以包括优点、需要改进的地方或其他建议。
+          </Typography>
+        </CardContent>
+      </Card>
       
       <Box display="flex" justifyContent="center" mt={4}>
         <Button

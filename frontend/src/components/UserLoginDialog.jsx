@@ -224,7 +224,7 @@ function UserLoginDialog({ open, onClose, onLogin }) {
             variant="contained"
             disabled={loading || checkingPhone}
           >
-            开始考试
+            登录
           </Button>
         </DialogActions>
       </form>

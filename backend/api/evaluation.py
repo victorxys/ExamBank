@@ -101,7 +101,8 @@ def get_user_evaluations(user_id):
                             'id', e.id,
                             'evaluator_name', u1.username,
                             'evaluation_time', e.evaluation_time,
-                            'average_score', COALESCE(eval_avg.avg_score, 0)
+                            'average_score', COALESCE(eval_avg.avg_score, 0),
+                            'additional_comments', e.additional_comments
                         )
                         ORDER BY e.evaluation_time DESC
                     )
@@ -154,12 +155,13 @@ def update_evaluation(evaluation_id, data):
                evaluation['score'] < 0 or evaluation['score'] > 100:
                 return jsonify({'error': f'评分值无效：{evaluation["score"]}，分数必须在0-100之间'}), 400
 
-        # 更新评价时间
+        # 更新评价时间和补充说明
         cur.execute("""
             UPDATE evaluation 
-            SET updated_at = NOW()
+            SET updated_at = NOW(),
+                additional_comments = %s
             WHERE id = %s
-        """, (evaluation_id,))
+        """, (data.get('additional_comments'), evaluation_id))
 
         # 更新评价项目分数
         if 'evaluations' in data:

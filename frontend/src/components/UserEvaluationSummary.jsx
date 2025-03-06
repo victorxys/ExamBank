@@ -160,7 +160,16 @@ const UserEvaluationSummary = () => {
                         });
                       });
                     });
-
+                    // 添加历次补充说明
+                    if (evaluationSummary.evaluations?.length > 0) {
+                      markdown += `\n## 补充说明\n\n`;
+                      evaluationSummary.evaluations.forEach(evaluation => {
+                        if (evaluation.additional_comments) {
+                          // markdown += `- ${new Date(evaluation.evaluation_time).toLocaleString()}：${evaluation.additional_comments}\n`;
+                          markdown += `- ${evaluation.additional_comments}\n`;
+                        }
+                      });
+                    }
                     // 复制到剪贴板
                     navigator.clipboard.writeText(markdown).then(() => {
                       alert('评价内容已复制到剪贴板');
@@ -204,6 +213,17 @@ const UserEvaluationSummary = () => {
                         });
                       });
                     });
+
+                     // 添加历次补充说明
+                     if (evaluationSummary.evaluations?.length > 0) {
+                      markdown += `\n## 补充说明\n\n`;
+                      evaluationSummary.evaluations.forEach(evaluation => {
+                        if (evaluation.additional_comments) {
+                          // markdown += `- ${new Date(evaluation.evaluation_time).toLocaleString()}：${evaluation.additional_comments}\n`;
+                          markdown += `- ${evaluation.additional_comments}\n`;
+                        }
+                      });
+                    }
 
                     try {
                       setAiGenerating(true);
@@ -269,8 +289,8 @@ const UserEvaluationSummary = () => {
                       <ListItemText
                         primary={item.name}
                         secondary={
-                          <Typography component="div" variant="body2" color="text.secondary">
-                            <Typography component="div" variant="body2" color="text.secondary">
+                          <>
+                            <Typography variant="body2" color="text.secondary" component="div" sx={{ mb: 1 }}>
                               平均得分：
                               <Chip
                                 label={`${item.average_score?.toFixed(1) || '暂无'}`}
@@ -280,11 +300,11 @@ const UserEvaluationSummary = () => {
                               />
                             </Typography>
                             {item.description && (
-                              <Typography component="div" variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                              <Typography variant="body2" color="text.secondary" component="div">
                                 {item.description}
                               </Typography>
                             )}
-                          </Typography>
+                          </>
                         }
                       />
                     </ListItem>
@@ -315,9 +335,16 @@ const UserEvaluationSummary = () => {
               >
                 {/* 评价基本信息 */}
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                  <Typography variant="subtitle1">
-                    评价人：{evaluation.evaluator_name}
-                  </Typography>
+                  <Box>
+                    <Typography variant="subtitle1">
+                      评价人：{evaluation.evaluator_name}
+                    </Typography>
+                    {evaluation.additional_comments && (
+                      <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                        补充说明：{evaluation.additional_comments}
+                      </Typography>
+                    )}
+                  </Box>
                   <Typography variant="body2" color="text.secondary">
                     {new Date(evaluation.evaluation_time).toLocaleString()}
                   </Typography>
@@ -407,25 +434,25 @@ const UserEvaluationSummary = () => {
                                 py: 1
                               }}
                             >
-                              <ListItemText
-                                primary={
-                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                    <Typography variant="body1">{item.name}</Typography>
-                                    <Chip
-                                      label={`${item.score?.toFixed(1) || '暂无'}`}
-                                      color={item.score >= 80 ? 'success' : item.score >= 60 ? 'warning' : 'error'}
-                                      size="small"
-                                    />
-                                  </Box>
-                                }
-                                secondary={
-                                  item.description && (
-                                    <Typography variant="body2" color="text.secondary" component="div" sx={{ mt: 0.5 }}>
-                                      {item.description}
-                                    </Typography>
-                                  )
-                                }
-                              />
+                            <ListItemText
+                              primary={
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                  <Typography variant="body1" component="span">{item.name}</Typography>
+                                  <Chip
+                                    label={`${item.score?.toFixed(1) || '暂无'}`}
+                                    color={item.score >= 80 ? 'success' : item.score >= 60 ? 'warning' : 'error'}
+                                    size="small"
+                                  />
+                                </Box>
+                              }
+                              secondary={
+                                item.description && (
+                                  <Typography variant="body2" color="text.secondary">
+                                    {item.description}
+                                  </Typography>
+                                )
+                              }
+                            />
                             </ListItem>
                           ))}
                         </List>
@@ -438,7 +465,7 @@ const UserEvaluationSummary = () => {
           </List>
         </CardContent>
       </Card>
-
+      
       {/* 评价详情对话框 */}
       <Dialog
         open={detailDialogOpen}
@@ -493,6 +520,7 @@ const UserEvaluationSummary = () => {
                           <ListItem
                             key={item.id}
                             sx={{
+                              p: 1,
                               borderRadius: 1,
                               mb: 1,
                               backgroundColor: 'background.default',
@@ -525,6 +553,15 @@ const UserEvaluationSummary = () => {
                   ))}
                 </Box>
               ))}
+              {selectedEvaluation.additional_comments && (
+                <Box sx={{ mt: 3 }}>
+                  <Typography variant="h3" gutterBottom>补充说明</Typography>
+                    
+                  <Typography variant="body1" color="text.secondary">
+                    {selectedEvaluation.additional_comments}
+                  </Typography>
+                </Box>
+              )}
             </Box>
           )}
         </DialogContent>

@@ -2577,6 +2577,7 @@ def get_evaluation_detail(evaluation_id):
                 'id', e.id,
                 'evaluator_name', u.username,
                 'evaluation_time', e.evaluation_time,
+                'additional_comments', e.additional_comments,
                 'average_score', COALESCE((SELECT AVG(score) FROM evaluation_detail WHERE evaluation_id = e.id), 0),
                 'aspects', COALESCE(
                     (SELECT json_agg(
@@ -2659,10 +2660,10 @@ def create_evaluation():
         # 插入评价记录
         cur.execute("""
             INSERT INTO evaluation 
-            (evaluator_user_id, evaluated_user_id, updated_at)
-            VALUES (%s, %s, NOW())
+            (evaluator_user_id, evaluated_user_id, additional_comments, updated_at)
+            VALUES (%s, %s, %s, NOW())
             RETURNING id
-        """, (evaluator_id, data['evaluated_user_id']))
+        """, (evaluator_id, data['evaluated_user_id'],data['additional_comments']))
         evaluation_id = cur.fetchone()['id']
 
         # 插入评价项目分数
