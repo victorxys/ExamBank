@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
+  Avatar,
   Container,
   Paper,
   Table,
@@ -204,13 +205,14 @@ const UserManagement = () => {
             <Table>
               <TableHead>
                 <TableRow >
+                  <TableCell >头像</TableCell>
                   <TableCell >用户名</TableCell>
                   <TableCell >手机号</TableCell>
                   <TableCell >角色</TableCell>
-                  <TableCell >邮箱</TableCell>
+                  
                   <TableCell >状态</TableCell>
-                  <TableCell >创建时间</TableCell>
-                  <TableCell >更新时间</TableCell>
+                  <TableCell >评价次数</TableCell>
+                  <TableCell >评价人</TableCell>
                   <TableCell sx={{textAlign:'center'}}>操作</TableCell>
                 </TableRow>
               </TableHead>
@@ -224,13 +226,26 @@ const UserManagement = () => {
                       }
                     }}
                   >
+                    <TableCell>
+                      <Avatar
+                        sx={{
+                          width: 40,
+                          height: 40,
+                          bgcolor: theme.palette.primary.main
+                        }}
+                        alt={user.username}
+                        src={`/avatar/${user.id}-avatar.jpg`}
+                      >
+                        {user.username?.[0]?.toUpperCase()}
+                      </Avatar>
+                    </TableCell>
                     <TableCell sx={{ color: '#525f7f' }}>{user.username}</TableCell>
                     <TableCell sx={{ color: '#525f7f' }}>{user.phone_number}</TableCell>
                     <TableCell sx={{ color: '#525f7f' }}>{user.role}</TableCell>
-                    <TableCell sx={{ color: '#525f7f' }}>{user.email || '-'}</TableCell>
+                    
                     <TableCell sx={{ color: '#525f7f' }}>{user.status}</TableCell>
-                    <TableCell sx={{ color: '#525f7f' }}>{new Date(user.created_at).toLocaleString()}</TableCell>
-                    <TableCell sx={{ color: '#525f7f' }}>{new Date(user.updated_at).toLocaleString()}</TableCell>
+                    <TableCell sx={{ color: '#525f7f' }}>{user.evaluation_count || 0}</TableCell>
+                    <TableCell sx={{ color: '#525f7f' }}>{user.evaluator_names?.join(', ') || '-'}</TableCell>
                     <TableCell align="right">
                       <IconButton
                         color="primary"

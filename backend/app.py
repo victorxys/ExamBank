@@ -932,16 +932,21 @@ def get_users():
     try:
         cur.execute('''
             SELECT
-                id,
-                username,
-                phone_number,
-                role,
-                email,
-                status,
-                created_at,
-                updated_at
-            FROM "user"
-            ORDER BY created_at DESC
+                u.id,
+                u.username,
+                u.phone_number,
+                u.role,
+                u.email,
+                u.status,
+                u.created_at,
+                u.updated_at,
+                COUNT(DISTINCT e.id) as evaluation_count,
+                ARRAY_AGG(DISTINCT eu.username) FILTER (WHERE eu.username IS NOT NULL) as evaluator_names
+            FROM "user" u
+            LEFT JOIN evaluation e ON u.id = e.evaluated_user_id
+            LEFT JOIN "user" eu ON e.evaluator_user_id = eu.id
+            GROUP BY u.id, u.username, u.phone_number, u.role, u.email, u.status, u.created_at, u.updated_at
+            ORDER BY u.created_at DESC
         ''')
         users = cur.fetchall()
         return jsonify(users)
