@@ -1,7 +1,12 @@
 from flask import Blueprint, jsonify, request
+from psycopg2.extras import RealDictCursor
 from ..db import get_db_connection
+from psycopg2.extras import RealDictCursor, register_uuid  # 导入 register_uuid
+import uuid  # 导入 uuid 模块
+import json
+register_uuid()
 
-bp = Blueprint('evaluation_item', __name__, url_prefix='/api/evaluation_item')
+bp = Blueprint('evaluation_item', __name__)
 
 @bp.route('/', methods=['GET'])
 def get_evaluation_items():
@@ -33,8 +38,9 @@ def get_evaluation_items():
 @bp.route('/', methods=['POST'])
 def create_evaluation_item():
     data = request.get_json()
+    print('data:', data)
     conn = get_db_connection()
-    cur = conn.cursor()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
     try:
         cur.execute("""
             INSERT INTO evaluation_item 
@@ -42,7 +48,7 @@ def create_evaluation_item():
             VALUES (%s, %s, %s, %s)
             RETURNING id
         """, (data['category_id'], data['item_name'], data['description'], data['is_visible_to_client']))
-        item_id = cur.fetchone()[0]
+        item_id = cur.fetchone()['id']
         conn.commit()
         return jsonify({'id': item_id}), 201
     except Exception as e:

@@ -10,6 +10,7 @@ import logging
 import json
 from werkzeug.security import generate_password_hash, check_password_hash
 
+
 # 配置密码加密方法为pbkdf2
 from werkzeug.security import generate_password_hash as _generate_password_hash
 
@@ -27,12 +28,13 @@ from backend.api.evaluation import get_evaluation_items, get_user_evaluations, u
 from backend.api.user_profile import get_user_profile
 from backend.db import get_db_connection
 from backend.api.evaluation_visibility import bp as evaluation_visibility_bp
+from backend.api.evaluation_item import bp as evaluation_item_bp
 
 
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app)
+CORS(app) # 注册 CORS，允许所有源
 
 app.config['SECRET_KEY'] = os.environ['SECRET_KEY']  # 设置 SECRET_KEY
 app.config['JWT_SECRET_KEY'] = os.environ['SECRET_KEY']  # JWT密钥
@@ -42,6 +44,7 @@ jwt = JWTManager(app)  # 初始化JWT管理器
 
 # 注册评价管理相关的蓝图
 app.register_blueprint(evaluation_visibility_bp, url_prefix='/api')
+app.register_blueprint(evaluation_item_bp, url_prefix='/api/evaluation_item')
 
 @app.route('/api/login', methods=['POST'])
 def login():
@@ -165,8 +168,13 @@ log.addHandler(handler)
 # 全局错误处理
 @app.errorhandler(Exception)
 def handle_exception(e):
+    print('未处理的异常:', str(e))
+    print('异常类型:', type(e).__name__)
+    import traceback
+    print('异常堆栈:')
+    traceback.print_exc()
     log.exception("An unhandled exception occurred:")
-    return jsonify({'error': 'Internal Server Error'}), 500
+    return jsonify({'error': str(e)}), 500
 
 
 @app.route('/api/courses', methods=['GET'])
@@ -2635,6 +2643,7 @@ def get_evaluation_detail(evaluation_id):
 
 @app.route('/api/evaluation', methods=['POST'])
 def create_evaluation():
+    print("开始创建评价记录")
     data = request.get_json()
     if not data or 'evaluated_user_id' not in data or 'evaluations' not in data:
         return jsonify({'error': '缺少必要的评价数据'}), 400

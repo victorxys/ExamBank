@@ -12,7 +12,17 @@ import {
   CardContent,
   Divider,
   CircularProgress,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
+  TextField,
+  IconButton,
 } from '@mui/material';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
+import AddIcon from '@mui/icons-material/Add';
 import AlertMessage from './AlertMessage';
 import api from '../api/axios';
 import PageHeader from './PageHeader';
@@ -24,6 +34,15 @@ const EvaluationManagement = () => {
   const [alertOpen, setAlertOpen] = useState(false);
   const [evaluationStructure, setEvaluationStructure] = useState([]);
   const [visibilitySettings, setVisibilitySettings] = useState({});
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [selectedAspect, setSelectedAspect] = useState(null);
+  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [newItemData, setNewItemData] = useState({
+    name: '',
+    description: ''
+  });
 
   useEffect(() => {
     const fetchData = async () => {
@@ -97,6 +116,114 @@ const EvaluationManagement = () => {
     setAlertOpen(false);
   };
 
+  const handleEditClick = (aspect, category, item) => {
+    setSelectedAspect(aspect);
+    setSelectedCategory(category);
+    setSelectedItem(item);
+    setNewItemData({
+      name: item.name,
+      description: item.description || ''
+    });
+    setEditDialogOpen(true);
+  };
+
+  const handleDeleteClick = (aspect, category, item) => {
+    setSelectedAspect(aspect);
+    setSelectedCategory(category);
+    setSelectedItem(item);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleAddItem = (aspect, category) => {
+    setSelectedAspect(aspect);
+    setSelectedCategory(category);
+    setSelectedItem(null);
+    setNewItemData({
+      name: '',
+      description: ''
+    });
+    setEditDialogOpen(true);
+  };
+
+  const handleEditSave = async () => {
+    try {
+      if (!newItemData.name.trim()) {
+        setAlertMessage({
+          severity: 'error',
+          message: '请输入评价项名称'
+        });
+        setAlertOpen(true);
+        return;
+      }
+
+      const endpoint = selectedItem ? `/evaluation_item/${selectedItem.id}` : '/evaluation_item/';
+      const method = selectedItem ? 'put' : 'post';
+      const requestData = JSON.stringify({
+        item_name: newItemData.name.trim(),
+        description: newItemData.description.trim(),
+        aspect_id: selectedAspect.id,
+        category_id: selectedCategory.id,
+        is_visible_to_client: false
+      });
+      console.log('完整请求URL:', `${api.defaults.baseURL}${endpoint}`);
+      console.log('请求方法:', method);
+      console.log('请求数据:', requestData);
+      await api[method](endpoint, requestData, {
+  headers: {
+    'Content-Type': 'application/json'
+  }
+});
+
+      setAlertMessage({
+        severity: 'success',
+        message: selectedItem ? '评价项更新成功' : '评价项创建成功'
+      });
+      setAlertOpen(true);
+      setEditDialogOpen(false);
+
+      // 重新获取评价结构
+      const response = await api.get('/evaluation/structure');
+      if (Array.isArray(response.data)) {
+        setEvaluationStructure(response.data);
+      }
+    } catch (error) {
+      console.error('保存失败:', error);
+      setAlertMessage({
+        severity: 'error',
+        message: error.response?.data?.message || error.message || '保存失败，请稍后重试'
+      });
+      setAlertOpen(true);
+    }
+  };
+
+  const handleDelete = async () => {
+    try {
+        await api.delete(`/evaluation_item/${selectedItem.id}`); // 使用 DELETE 方法和正确的 URL
+        // console.log(`Item ${item_id} 删除成功`);
+        
+
+      setAlertMessage({
+        severity: 'success',
+        message: '评价项删除成功'
+      });
+      setAlertOpen(true);
+      setDeleteDialogOpen(false);
+
+      // 重新获取评价结构
+      const response = await api.get('/evaluation/structure');
+      if (Array.isArray(response.data)) {
+        setEvaluationStructure(response.data);
+      }
+    } catch (error) {
+      console.error('删除失败:', error);
+      setAlertMessage({
+        severity: 'error',
+        message: error.response?.data?.message || error.message || '删除失败，请稍后重试'
+      });
+      setAlertOpen(true);
+    }
+  };
+
   return (
     <Container maxWidth="100%">
       <AlertMessage
@@ -119,7 +246,21 @@ const EvaluationManagement = () => {
                 {category.children?.map(item => (
                   <Box key={item.id} sx={{ mb: 2 }}>
                     <Box display="flex" justifyContent="space-between" alignItems="center">
-                      <Typography variant="body1">{item.name}</Typography>
+                      <Box display="flex" alignItems="center" gap={2}>
+                        <Typography variant="body1">{item.name}</Typography>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleEditClick(aspect, category, item)}
+                        >
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleDeleteClick(aspect, category, item)}
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </Box>
                       <FormControlLabel
                         control={
                           <Checkbox
@@ -137,6 +278,15 @@ const EvaluationManagement = () => {
                     )}
                   </Box>
                 ))}
+                <Button
+                  variant="outlined"
+                  size="small"
+                  startIcon={<AddIcon />}
+                  onClick={() => handleAddItem(aspect, category)}
+                  sx={{ mt: 2 }}
+                >
+                  添加评价项
+                </Button>
                 <Divider sx={{ my: 2 }} />
               </Box>
             ))}
@@ -152,6 +302,51 @@ const EvaluationManagement = () => {
           保存设置
         </Button>
       </Box>
+      {/* 编辑对话框 */}
+      <Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)}>
+        <DialogTitle>{selectedItem ? '编辑评价项' : '添加评价项'}</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="评价项名称"
+            fullWidth
+            value={newItemData.name}
+            onChange={(e) => setNewItemData({ ...newItemData, name: e.target.value })}
+          />
+          <TextField
+            margin="dense"
+            label="评价项描述"
+            fullWidth
+            multiline
+            rows={4}
+            value={newItemData.description}
+            onChange={(e) => setNewItemData({ ...newItemData, description: e.target.value })}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEditDialogOpen(false)}>取消</Button>
+          <Button onClick={handleEditSave} variant="contained" color="primary">
+            保存
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* 删除确认对话框 */}
+      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
+        <DialogTitle>确认删除</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            确定要删除评价项 {selectedItem?.name} 吗？此操作不可撤销。
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialogOpen(false)}>取消</Button>
+          <Button onClick={handleDelete} variant="contained" color="error">
+            删除
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 };
