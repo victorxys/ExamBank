@@ -187,7 +187,7 @@ function UserLoginDialog({ open, onClose, onLogin }) {
           fontWeight: 600
         }}
       >
-        用户信息
+        用户信息1
       </DialogTitle>
       <form onSubmit={handleSubmit}>
         <DialogContent>

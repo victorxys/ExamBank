@@ -49,16 +49,18 @@ app.register_blueprint(evaluation_item_bp, url_prefix='/api/evaluation_item')
 @app.route('/api/login', methods=['POST'])
 def login():
     data = request.get_json()
-    if not data or 'username' not in data or 'password' not in data:
+    # print("开始登录，登录数据：", data)
+    if not data or 'phone_number' not in data or 'password' not in data:
         return jsonify({'error': '请提供用户名和密码'}), 400
 
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
     try:
-        cur.execute('SELECT * FROM users WHERE username = %s', (data['username'],))
+        cur.execute('SELECT * FROM "user" WHERE "phone_number" = %s', (data['phone_number'],))
         user = cur.fetchone()
 
         if user and check_password_hash(user['password'], data['password']):
+            print("登录成功，用户ID：", user['id'])
             access_token = create_token_with_role(user['id'], user['role'])
             return jsonify({
                 'access_token': access_token,
@@ -68,7 +70,7 @@ def login():
                     'role': user['role']
                 }
             })
-        return jsonify({'error': '用户名或密码错误'}), 401
+        return jsonify({'error': '用户名或密码错误,初始密码是”身份证后6位“'}), 401
     except Exception as e:
         print('Error in login:', str(e))
         return jsonify({'error': str(e)}), 500
@@ -1757,7 +1759,7 @@ def get_exam_for_taking(exam_id):
 def submit_exam_answer(exam_id):
     logger = logging.getLogger(__name__)
     logger.info(f"Starting exam submission for exam_id: {exam_id}")
-    
+    print("开始提交",exam_id)
     conn = None
     cur = None
     try:
@@ -1781,7 +1783,7 @@ def submit_exam_answer(exam_id):
         except ValueError as e:
             logger.error(f"Invalid UUID format: {str(e)}")
             return jsonify({'error': 'Invalid exam ID or user ID format'}), 400
-            
+        
         # Establish database connection
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=RealDictCursor)
@@ -1795,7 +1797,7 @@ def submit_exam_answer(exam_id):
         user_info = cur.fetchone()
         if not user_info:
             raise ValueError(f"User with ID {user_id} not found")
-
+        
         # 获取考试开始时间（从临时答案表中获取第一次保存的时间）
         cur.execute('''
             SELECT MIN(created_at) as start_time
@@ -1840,7 +1842,7 @@ def submit_exam_answer(exam_id):
             except ValueError as e:
                 logger.error(f"Invalid UUID in selected_options: {str(e)}")
                 continue
-
+            
             # Get question info and correct answers
             cur.execute('''
                 WITH option_with_index AS (
@@ -1887,7 +1889,7 @@ def submit_exam_answer(exam_id):
             
             question_info = cur.fetchone()
 
-            # print("question_info:",question_info)
+            
             if not question_info:
                 logger.warning(f"No question info found for question_id: {question_id}")
                 continue
@@ -1897,27 +1899,39 @@ def submit_exam_answer(exam_id):
             score = 0
 
             if question_info['question_type'] == '单选题':
-                is_correct = len(selected_options) == 1 and selected_options[0] in question_info['correct_option_ids']
+                if isinstance(selected_options[0], uuid.UUID):
+                    selected_option_uuid = selected_options[0] # 如果是 UUID 对象，直接使用
+                else:
+                    selected_option_uuid = uuid.UUID(selected_options[0]) # 如果不是，则转换为 UUID 对象
+                    
+                is_correct = len(selected_options) == 1 and selected_option_uuid in question_info['correct_option_ids']
                 score = 1 if is_correct else 0
             elif question_info['question_type'] == '多选题':
                 # 确保 correct_option_ids 是列表格式
+                
                 if isinstance(question_info['correct_option_ids'], str):
+                    
                     # 如果是字符串，去掉首尾的 {} 并分割
                     correct_options = question_info['correct_option_ids'].strip('{}').split(',')
+                    
                     # 过滤掉空字符串并转换为UUID字符串
                     correct_options = [str(uuid.UUID(opt.strip())) for opt in correct_options if opt.strip()]
+                    
                 else:
-                    correct_options = [str(uuid.UUID(opt)) for opt in question_info['correct_option_ids']]
+                    
+                    correct_options = [str(opt) for opt in question_info['correct_option_ids']]
+                    
+                    
 
                 # 确保 selected_options 也是UUID字符串格式
                 selected_options = [str(uuid.UUID(opt)) for opt in selected_options]
-
+                
                 selected_set = set(selected_options)
                 correct_set = set(correct_options)
                 
                 is_correct = selected_set == correct_set
                 score = 2 if is_correct else 0
-
+            
             # Record answer
             try:
                 # Convert selected_options to a PostgreSQL array literal
@@ -1927,6 +1941,7 @@ def submit_exam_answer(exam_id):
                 # 确保所有选项都是有效的UUID字符串
                 selected_options = [str(uuid.UUID(opt)) for opt in selected_options]
                 selected_options_literal = '{' + ','.join(selected_options) + '}'
+                print("selected_options_literal",selected_options_literal)
                 cur.execute('''
                     INSERT INTO answerrecord (
                         exam_paper_id,
@@ -1941,6 +1956,8 @@ def submit_exam_answer(exam_id):
                 
                 answer_record_id = cur.fetchone()['id']
                 
+
+
                 # 构建结果对象
                 result = {
                     'id': question_id,
@@ -1955,7 +1972,7 @@ def submit_exam_answer(exam_id):
                 
                 results.append(result)
                 total_score += score
-                
+                # print("total_score",total_score)
             except Exception as e:
                 logger.error(f"Error recording answer: {str(e)}")
                 conn.rollback()

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { ThemeProvider, createTheme } from '@mui/material/styles'
 import { Box, CssBaseline } from '@mui/material'
+import logoSvg from './assets/logo.svg'
 import Questions from './components/Questions'
 import KnowledgePoints from './components/KnowledgePoints'
 import ExamList from './components/ExamList'
@@ -21,6 +22,7 @@ import { hasToken } from './api/auth-utils'
 import "@fortawesome/fontawesome-free/css/all.min.css";
 import "./styles/argon-theme.css";
 import PrivateRoute from './components/PrivateRoute';
+import LoginPage from './components/LoginPage';
 import UserEvaluationSummary from './components/UserEvaluationSummary'
 import EmployeeProfile from './components/EmployeeProfile'
 import EvaluationManagement from './components/EvaluationManagement';
@@ -194,11 +196,11 @@ const theme = createTheme({
 
 function App() {
   const location = useLocation();
+  const isLoginRoute = location.pathname === '/login';
   const isExamRoute = location.pathname.includes('/exams/') && location.pathname.includes('/take');
   const isEmployeeProfileRoute = location.pathname.includes('/employee-profile/');
   const isPublicEmployeeProfile = isEmployeeProfileRoute && new URL(window.location.href).searchParams.get('public') === 'true';
 
-  const [loginOpen, setLoginOpen] = useState(false);
   const [user, setUser] = useState(null);
   // 根据 isPublicEmployeeProfile 的值动态生成 publicUrl
   const publicUrl = isPublicEmployeeProfile ? '?public=true' : '';
@@ -218,22 +220,22 @@ function App() {
     }
    
   
-    if (!userInfo && !isPublicEmployeeProfile) {
-      // console.log('no token需要登录')
-      setLoginOpen(true);
-      setUser(null);
-    } else {
+    if (userInfo) {
       setUser(userInfo);
     }
   }, [isEmployeeProfileRoute, isPublicEmployeeProfile]);
 
-  const handleLogin = (userData) => {
-    setUser(userData);
-    setLoginOpen(false);
-  };
+
 
   // 员工介绍页面使用独立布局
   if (isEmployeeProfileRoute) {
+    const userInfo = hasToken();
+    if (!userInfo && !isPublicEmployeeProfile) {
+      const currentUrl = new URL(window.location.href);
+      currentUrl.searchParams.set('public', 'true');
+      window.location.href = currentUrl.toString();
+      return null;
+    }
     return (
       <ThemeProvider theme={theme}>
         <CssBaseline />
@@ -257,7 +259,7 @@ function App() {
           >
             <ErrorBoundary>
               <Routes>
-                <Route path="/employee-profile/:userId" element={<PrivateRoute element={<EmployeeProfile />}/>}  />
+                <Route path="/employee-profile/:userId" element={isPublicEmployeeProfile ? <EmployeeProfile /> : <PrivateRoute element={<EmployeeProfile />}/>} />
                 
               </Routes>
             </ErrorBoundary>
@@ -296,11 +298,33 @@ function App() {
             </ErrorBoundary>
           </Box>
         </Box>
-        <UserLoginDialog
-          open={loginOpen}
-          onClose={() => setLoginOpen(false)}
-          onLogin={handleLogin}
-        />
+      </ThemeProvider>
+    );
+  }
+
+  if (isLoginRoute) {
+    return (
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <Box sx={{ display: 'flex', minHeight: '100vh', width: '100%' }}>
+          <Box
+            component="main"
+            sx={{
+              flexGrow: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              minHeight: '100vh',
+              width: '100%',
+              backgroundColor: 'background.default',
+            }}
+          >
+            <ErrorBoundary>
+              <Routes>
+                <Route path="/login" element={<LoginPage />} />
+              </Routes>
+            </ErrorBoundary>
+          </Box>
+        </Box>
       </ThemeProvider>
     );
   }
@@ -335,7 +359,8 @@ function App() {
           >
             <ErrorBoundary>
               <Routes>
-                <Route path="/" element={<Navigate to="/exams" />} />
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/" element={<PrivateRoute  element={<Navigate to="/exams" />} />} />
                 <Route path="/exams" element={<PrivateRoute element={<ExamList />} />} />
                 <Route path="/exams/:examId" element={<PrivateRoute element={<ExamDetail />} />} />
                 <Route path="/knowledge-points" element={<PrivateRoute element={<KnowledgePoints />} />} />
@@ -348,18 +373,14 @@ function App() {
                 <Route path="/users" element={<PrivateRoute element={<UserManagement />} />} />
                 <Route path="/user-evaluation/:userId" element={<PrivateRoute element={<UserEvaluation />} />} />
                 <Route path="/user-evaluation-summary/:userId" element={<PrivateRoute element={<UserEvaluationSummary />} />} />
-                <Route path="/employee-profile/:userId${publicUrl}"   element={<EmployeeProfile />}  />
+                {/* <Route path="/employee-profile/:userId${publicUrl}"   element={<EmployeeProfile />}  /> */}
                 <Route path="/evaluation-management" element={<PrivateRoute element={<EvaluationManagement />} />} />
               </Routes>
             </ErrorBoundary>
           </Box>
         </Box>
       </Box>
-      <UserLoginDialog
-        open={loginOpen}
-        onClose={() => setLoginOpen(false)}
-        onLogin={handleLogin}
-      />
+
     </ThemeProvider>
   );
 }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams ,useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import logoSvg from '../assets/logo.svg';
@@ -54,6 +54,7 @@ const MarkdownTypography = ({ children, ...props }) => {
 
 const ExamTake = () => {
   const { examId } = useParams();
+  const navigate = useNavigate(); // 添加useNavigate钩子
   const previousActiveElement = React.useRef(null);
   const mainContentRef = React.useRef(null);
   const [exam, setExam] = useState(null);
@@ -74,6 +75,12 @@ const ExamTake = () => {
   const [userInfo, setUserInfo] = useState(null);
 
   useEffect(() => {
+    // 检查登录状态
+    if (!tokenData) {
+      navigate('/login', { state: { from: { pathname: `/exams/${examId}/take` } } });
+      return;
+    }
+
     if (!examId) {
       setError('试卷ID不能为空');
       setLoading(false);
@@ -160,12 +167,16 @@ const ExamTake = () => {
           if (!question) return;
           
           console.log('题目类型：', answer);
-          // 处理PostgreSQL数组格式：去掉花括号并分割，同时去掉空格
-          const optionIds = answer.selected_option_ids
-            .replace(/[{}]/g, '')
-            .split(',')
-            .map(id => id.trim())
-            .filter(id => id);
+          // 处理PostgreSQL数组格式：确保selected_option_ids是字符串类型
+          const optionIds = typeof answer.selected_option_ids === 'string'
+            ? answer.selected_option_ids
+                .replace(/[{}]/g, '')
+                .split(',')
+                .map(id => id.trim())
+                .filter(id => id)
+            : Array.isArray(answer.selected_option_ids)
+              ? answer.selected_option_ids
+              : [];
 
           if (question.question_type === '多选题') {
             // 多选题：将选项ID数组转换为对象格式
