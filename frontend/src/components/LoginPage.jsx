@@ -89,7 +89,8 @@ function LoginPage() {
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        justifyContent: 'center',
+        justifyContent: 'flex-start',
+        paddingTop: { xs: '10vh', sm: '15vh' }
         // background: 'linear-gradient(87deg, #D0EBEA 0, #E0F2F1 100%)'
       }}
     >
