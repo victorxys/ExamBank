@@ -943,7 +943,8 @@ def get_users():
                 u.created_at,
                 u.updated_at,
                 COUNT(DISTINCT e.id) as evaluation_count,
-                ARRAY_AGG(DISTINCT eu.username) FILTER (WHERE eu.username IS NOT NULL) as evaluator_names
+                ARRAY_AGG(DISTINCT eu.username) FILTER (WHERE eu.username IS NOT NULL) as evaluator_names,
+                MAX(e.evaluation_time) AS last_evaluation_time  -- 添加这一行，获取最后一次评价时间
             FROM "user" u
             LEFT JOIN evaluation e ON u.id = e.evaluated_user_id
             LEFT JOIN "user" eu ON e.evaluator_user_id = eu.id
@@ -1081,6 +1082,8 @@ def get_evaluation_items_route():
 
 @app.route('/api/evaluation/structure', methods=['GET'])
 def get_evaluation_structure():
+    client_visible_param = request.args.get('client_visible', default='false') # 设置默认值为 'false'
+
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
     try:
@@ -1107,17 +1110,32 @@ def get_evaluation_structure():
         """)
         categories = cur.fetchall()
         
-        # 获取所有评价项
-        cur.execute("""
-            SELECT 
+        # 构建基础 SQL 查询语句
+        base_sql = """
+            SELECT
                 id,
                 item_name,
                 description,
                 category_id,
                 is_visible_to_client
             FROM evaluation_item
-            ORDER BY created_at DESC
-        """)
+        """
+
+        where_clause = ""  # 初始化 WHERE 子句
+        params = []
+
+        if client_visible_param == 'true':
+            where_clause = "WHERE is_visible_to_client = TRUE"
+        elif client_visible_param == 'false':
+            where_clause = "WHERE 1=1"
+
+        order_by_clause = "ORDER BY created_at DESC" # 定义 ORDER BY 子句
+
+        # 拼接完整的 SQL 查询语句，确保 WHERE 在 ORDER BY 之前
+        sql = base_sql + " " + where_clause.strip() + " " + order_by_clause.strip()
+
+        # print("执行的 SQL 语句:", cur.mogrify(sql).decode('utf-8'))
+        cur.execute(sql, params) #  params 列表目前为空，因为示例中没有参数化查询条件
         items = cur.fetchall()
         
         # 构建层级结构
@@ -1759,7 +1777,7 @@ def get_exam_for_taking(exam_id):
 def submit_exam_answer(exam_id):
     logger = logging.getLogger(__name__)
     logger.info(f"Starting exam submission for exam_id: {exam_id}")
-    print("开始提交",exam_id)
+    print(exam_id)
     conn = None
     cur = None
     try:
@@ -1783,7 +1801,7 @@ def submit_exam_answer(exam_id):
         except ValueError as e:
             logger.error(f"Invalid UUID format: {str(e)}")
             return jsonify({'error': 'Invalid exam ID or user ID format'}), 400
-        
+            
         # Establish database connection
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=RealDictCursor)
@@ -1797,7 +1815,7 @@ def submit_exam_answer(exam_id):
         user_info = cur.fetchone()
         if not user_info:
             raise ValueError(f"User with ID {user_id} not found")
-        
+
         # 获取考试开始时间（从临时答案表中获取第一次保存的时间）
         cur.execute('''
             SELECT MIN(created_at) as start_time
@@ -1842,7 +1860,7 @@ def submit_exam_answer(exam_id):
             except ValueError as e:
                 logger.error(f"Invalid UUID in selected_options: {str(e)}")
                 continue
-            
+
             # Get question info and correct answers
             cur.execute('''
                 WITH option_with_index AS (
@@ -1889,7 +1907,7 @@ def submit_exam_answer(exam_id):
             
             question_info = cur.fetchone()
 
-            
+            # print("question_info:",question_info)
             if not question_info:
                 logger.warning(f"No question info found for question_id: {question_id}")
                 continue
@@ -1899,39 +1917,27 @@ def submit_exam_answer(exam_id):
             score = 0
 
             if question_info['question_type'] == '单选题':
-                if isinstance(selected_options[0], uuid.UUID):
-                    selected_option_uuid = selected_options[0] # 如果是 UUID 对象，直接使用
-                else:
-                    selected_option_uuid = uuid.UUID(selected_options[0]) # 如果不是，则转换为 UUID 对象
-                    
-                is_correct = len(selected_options) == 1 and selected_option_uuid in question_info['correct_option_ids']
+                is_correct = len(selected_options) == 1 and selected_options[0] in question_info['correct_option_ids']
                 score = 1 if is_correct else 0
             elif question_info['question_type'] == '多选题':
                 # 确保 correct_option_ids 是列表格式
-                
                 if isinstance(question_info['correct_option_ids'], str):
-                    
                     # 如果是字符串，去掉首尾的 {} 并分割
                     correct_options = question_info['correct_option_ids'].strip('{}').split(',')
-                    
                     # 过滤掉空字符串并转换为UUID字符串
                     correct_options = [str(uuid.UUID(opt.strip())) for opt in correct_options if opt.strip()]
-                    
                 else:
-                    
-                    correct_options = [str(opt) for opt in question_info['correct_option_ids']]
-                    
-                    
+                    correct_options = [str(uuid.UUID(opt)) for opt in question_info['correct_option_ids']]
 
                 # 确保 selected_options 也是UUID字符串格式
                 selected_options = [str(uuid.UUID(opt)) for opt in selected_options]
-                
+
                 selected_set = set(selected_options)
                 correct_set = set(correct_options)
                 
                 is_correct = selected_set == correct_set
                 score = 2 if is_correct else 0
-            
+
             # Record answer
             try:
                 # Convert selected_options to a PostgreSQL array literal
@@ -1941,7 +1947,6 @@ def submit_exam_answer(exam_id):
                 # 确保所有选项都是有效的UUID字符串
                 selected_options = [str(uuid.UUID(opt)) for opt in selected_options]
                 selected_options_literal = '{' + ','.join(selected_options) + '}'
-                print("selected_options_literal",selected_options_literal)
                 cur.execute('''
                     INSERT INTO answerrecord (
                         exam_paper_id,
@@ -1956,8 +1961,6 @@ def submit_exam_answer(exam_id):
                 
                 answer_record_id = cur.fetchone()['id']
                 
-
-
                 # 构建结果对象
                 result = {
                     'id': question_id,
@@ -1972,7 +1975,7 @@ def submit_exam_answer(exam_id):
                 
                 results.append(result)
                 total_score += score
-                # print("total_score",total_score)
+                
             except Exception as e:
                 logger.error(f"Error recording answer: {str(e)}")
                 conn.rollback()
@@ -2046,7 +2049,7 @@ def login_or_register_user():
     phone_number = data.get('phone_number')
     username = data.get('username', '')
 
-    print("Received data====>:", data)
+    # print("Received data====>:", data)
 
     if not phone_number:
         return jsonify({'error': '手机号不能为空'}), 400
@@ -2597,7 +2600,9 @@ def get_evaluation_detail(evaluation_id):
             )
             SELECT json_build_object(
                 'id', e.id,
-                'evaluator_name', u.username,
+                'evaluator_name', COALESCE(u.username, c.first_name),
+                'evaluator_title', CASE WHEN e.evaluator_customer_id IS NOT NULL THEN c.title ELSE NULL END,
+                'evaluation_type', CASE WHEN e.evaluator_customer_id IS NOT NULL THEN 'client' ELSE 'internal' END,
                 'evaluation_time', e.evaluation_time,
                 'additional_comments', e.additional_comments,
                 'average_score', COALESCE((SELECT AVG(score) FROM evaluation_detail WHERE evaluation_id = e.id), 0),
@@ -2648,7 +2653,8 @@ def get_evaluation_detail(evaluation_id):
                     ) a), '[]'::json)
             ) as result
             FROM evaluation e
-            JOIN "user" u ON e.evaluator_user_id = u.id
+            LEFT JOIN "user" u ON e.evaluator_user_id = u.id
+            LEFT JOIN customer c ON e.evaluator_customer_id = c.id
             WHERE e.id = %s
         """, (evaluation_id, evaluation_id))
         
@@ -2666,26 +2672,49 @@ def get_evaluation_detail(evaluation_id):
 
 @app.route('/api/evaluation', methods=['POST'])
 def create_evaluation():
-    print("开始创建评价记录")
+    
+    print("Content-Type:", request.content_type) # 打印 Content-Type
+
     data = request.get_json()
     if not data or 'evaluated_user_id' not in data or 'evaluations' not in data:
         return jsonify({'error': '缺少必要的评价数据'}), 400
-    print("开始创建评价记录",data)
+    
+    evaluation_type = data.get('evaluation_type', 'internal')  # 默认内部评价
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
     try:
-        # 获取当前用户ID（评价者ID）
-        evaluator_id = data['evaluator_user_id']
-        if not evaluator_id:
-            return jsonify({'error': '未授权的操作'}), 401
+        # 根据评价类型设置 evaluator_user_id 和 evaluator_customer_id
+        if evaluation_type == 'internal':
+            evaluator_user_id = data.get('evaluator_user_id')  # 从 data 中获取
+            evaluator_customer_id = None  # 客户评价 ID 设置为 None
+            if not evaluator_user_id:
+                return jsonify({'error': 'evaluator_user_id is required for internal evaluations'}), 400
+        elif evaluation_type == 'client':
+            
+            evaluator_user_id = None  # 员工评价 ID 设置为 None
+            # 检查是否提供了客户信息
+            if 'client_name' not in data:
+                return jsonify({'error': '缺少客户信息'}), 400      
+            # 创建或更新客户记录
+            cur.execute("""
+                INSERT INTO customer (first_name, title, created_at)
+                VALUES (%s, %s, NOW())
+                RETURNING id
+            """, (data.get('client_name'), data.get('title','')))
+            evaluator_customer_id = cur.fetchone()['id']
+            
+            if not evaluator_customer_id:
+                return jsonify({'error': 'evaluator_customer_id is required for client evaluations'}), 400
+        else:
+            return jsonify({'error': 'Invalid evaluation_type'}), 400 # 错误的类型
 
         # 插入评价记录
         cur.execute("""
             INSERT INTO evaluation 
-            (evaluator_user_id, evaluated_user_id, additional_comments, updated_at)
-            VALUES (%s, %s, %s, NOW())
+            (evaluated_user_id, evaluator_user_id, evaluator_customer_id, additional_comments, updated_at)
+            VALUES (%s, %s, %s, %s, NOW())
             RETURNING id
-        """, (evaluator_id, data['evaluated_user_id'],data['additional_comments']))
+        """, ( data['evaluated_user_id'], evaluator_user_id, evaluator_customer_id, data['additional_comments']))
         evaluation_id = cur.fetchone()['id']
 
         # 插入评价项目分数

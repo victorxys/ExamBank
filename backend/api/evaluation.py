@@ -99,7 +99,9 @@ def get_user_evaluations(user_id):
                     (SELECT json_agg(
                         json_build_object(
                             'id', e.id,
-                            'evaluator_name', u1.username,
+                            'evaluator_name', COALESCE(u1.username, c.first_name),
+                            'evaluator_title', CASE WHEN e.evaluator_customer_id IS NOT NULL THEN c.title ELSE NULL END,
+                            'evaluation_type', CASE WHEN e.evaluator_customer_id IS NOT NULL THEN 'client' ELSE 'internal' END,
                             'evaluation_time', e.evaluation_time,
                             'average_score', COALESCE(eval_avg.avg_score, 0),
                             'additional_comments', e.additional_comments
@@ -108,6 +110,7 @@ def get_user_evaluations(user_id):
                     )
                     FROM evaluation e
                     LEFT JOIN "user" u1 ON e.evaluator_user_id = u1.id
+                    LEFT JOIN customer c ON e.evaluator_customer_id = c.id
                     LEFT JOIN LATERAL (
                         SELECT AVG(ed.score) as avg_score
                         FROM evaluation_detail ed
@@ -135,10 +138,11 @@ def update_evaluation(evaluation_id, data):
 
         # 验证评价记录是否存在
         cur.execute("""
-            SELECT id FROM evaluation 
+            SELECT id, evaluator_customer_id FROM evaluation 
             WHERE id = %s
         """, (evaluation_id,))
-        if not cur.fetchone():
+        evaluation_record = cur.fetchone()
+        if not evaluation_record:
             return jsonify({'error': '未找到评价记录'}), 404
 
         # 验证数据格式
@@ -154,6 +158,17 @@ def update_evaluation(evaluation_id, data):
             if not isinstance(evaluation['score'], (int, float)) or \
                evaluation['score'] < 0 or evaluation['score'] > 100:
                 return jsonify({'error': f'评分值无效：{evaluation["score"]}，分数必须在0-100之间'}), 400
+
+        # 如果是客户评价，更新客户信息
+        if evaluation_record['evaluator_customer_id']:
+            if 'client_name' in data:
+                cur.execute("""
+                    UPDATE customer
+                    SET first_name = %s,
+                        title = %s,
+                        updated_at = NOW()
+                    WHERE id = %s
+                """, (data.get('client_name'), data.get('client_title', ''), evaluation_record['evaluator_customer_id']))
 
         # 更新评价时间和补充说明
         cur.execute("""

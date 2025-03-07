@@ -315,13 +315,171 @@ const UserEvaluationSummary = () => {
           </CardContent>
         </Card>
       ))}
+      
+      {/* 客户评价区域 */}
+      {evaluationSummary?.evaluations?.some(evaluation => evaluation.evaluation_type === "client") && (
+        <Card sx={{ mb: 4 }}>
+          <CardContent>
+            <Typography variant="h2" gutterBottom>客户评价</Typography>
+            <List>
+              {evaluationSummary.evaluations
+                .filter(evaluation => evaluation.evaluation_type === "client")
+                .map(evaluation => (
+                  <ListItem
+                    key={evaluation.id}
+                    sx={{
+                      borderRadius: 1,
+                      mb: 2,
+                      backgroundColor: 'background.paper',
+                      flexDirection: 'column',
+                      alignItems: 'stretch',
+                      p: 2
+                    }}
+                  >
+                    {/* 评价基本信息 */}
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                      <Box>
+                        <Typography variant="subtitle1">
+                          评价人：{evaluation.evaluator_name || '匿名客户'}{evaluation.evaluator_title || ''}
+                        </Typography>
+                        {evaluation.additional_comments && (
+                          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                            补充说明：{evaluation.additional_comments}
+                          </Typography>
+                        )}
+                      </Box>
+                      <Typography variant="body2" color="text.secondary">
+                        {new Date(evaluation.evaluation_time).toLocaleString()}
+                      </Typography>
+                    </Box>
+
+                    {/* 总体评分 */}
+                    <Box sx={{ mb: 2 }}>                  
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>                    
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          <Typography variant="body2" component="span" color="text.secondary">
+                            总体评分：
+                          </Typography>
+                          <Chip
+                            label={`${evaluation.average_score?.toFixed(1) || '暂无'}`}
+                            color={evaluation.average_score >= 80 ? 'success' : evaluation.average_score >= 60 ? 'warning' : 'error'}
+                            size="small"
+                            sx={{ ml: 1 }}
+                          />
+                        </Box>
+                        <Box sx={{ display: 'flex', gap: 1 }}>
+                          <Button
+                            startIcon={<VisibilityIcon />}
+                            size="small"
+                            onClick={async () => {
+                              try {
+                                const response = await api.get(`/evaluation/${evaluation.id}`);
+                                setSelectedEvaluation(response.data);
+                                setDetailDialogOpen(true);
+                              } catch (error) {
+                                console.error('获取评价详情失败:', error);
+                              }
+                            }}
+                          >
+                            查看详情
+                          </Button>
+                          <Button
+                            startIcon={<EditIcon />}
+                            size="small"
+                            color="primary"
+                            onClick={() => navigate(`/client-evaluation/${userId}?edit=${evaluation.id}`)}
+                          >
+                            编辑
+                          </Button>
+                          <Button
+                            startIcon={<DeleteIcon />}
+                            size="small"
+                            color="error"
+                            onClick={() => {
+                              setEvaluationToDelete(evaluation);
+                              setDeleteDialogOpen(true);
+                            }}
+                          >
+                            删除
+                          </Button>
+                        </Box>
+                      </Box>
+                    </Box>
+
+                    {/* 评价详情 */}
+                    {evaluation.aspects?.map(aspect => (
+                      <Box key={aspect.id} sx={{ mb: 2 }}>
+                        <Typography variant="h3" gutterBottom>
+                          {aspect.name}
+                          <Chip
+                            label={`${aspect.score?.toFixed(1) || '暂无'}`}
+                            color={aspect.score >= 80 ? 'success' : aspect.score >= 60 ? 'warning' : 'error'}
+                            size="small"
+                            sx={{ ml: 2 }}
+                          />
+                        </Typography>
+
+                        {aspect.categories?.map(category => (
+                          <Box key={category.id} sx={{ ml: 2, mb: 2 }}>
+                            <Typography variant="h4" gutterBottom>
+                              {category.name}
+                            </Typography>
+
+                            <List dense>
+                              {category.items?.filter(item => item.score !== null && item.score !== undefined).map(item => (
+                                <ListItem
+                                  key={item.id}
+                                  sx={{
+                                    borderRadius: 1,
+                                    mb: 1,
+                                    backgroundColor: 'background.default',
+                                    py: 1
+                                  }}
+                                >
+                                <ListItemText
+                                  primary={
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                      <Typography variant="body1" component="span">{item.name}</Typography>
+                                      <Chip
+                                        label={`${item.score?.toFixed(1) || '暂无'}`}
+                                        color={item.score >= 80 ? 'success' : item.score >= 60 ? 'warning' : 'error'}
+                                        size="small"
+                                      />
+                                    </Box>
+                                  }
+                                  secondary={
+                                    item.description && (
+                                      <Typography variant="body2" color="text.secondary">
+                                        {item.description}
+                                      </Typography>
+                                    )
+                                  }
+                                />
+                                </ListItem>
+                              ))}
+                            </List>
+                          </Box>
+                        ))}
+                      </Box>
+                    ))}
+                  </ListItem>
+                ))}
+            </List>
+          </CardContent>
+        </Card>
+      )}
 
       {/* 评价历史记录 */}
       <Card>
         <CardContent>
-          <Typography variant="h2" gutterBottom>评价历史</Typography>
+          <Typography variant="h2" gutterBottom>内部评价</Typography>
           <List>
-            {evaluationSummary?.evaluations?.map(evaluation => (
+            
+
+            {evaluationSummary?.evaluations
+                ?.filter(evaluation => evaluation.evaluation_type === 'internal')
+                ?.map(evaluation => (
+
               <ListItem
                 key={evaluation.id}
                 sx={{

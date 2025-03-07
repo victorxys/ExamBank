@@ -25,6 +25,10 @@ import {
 import { Edit as EditIcon, Delete as DeleteIcon, Add as AddIcon, Assessment as AssessmentIcon } from '@mui/icons-material';
 import { MenuItem } from '@mui/material';
 import api from '../api/axios';
+// 假设你的dateUtils.js和MyComponent.jsx在同一个文件夹
+import { formatRelativeTime } from '../api/dateUtils'; // 确保路径正确
+
+
 import { useTheme } from '@mui/material';
 import {  
   Person as PersonIcon,
@@ -213,6 +217,7 @@ const UserManagement = () => {
                   <TableCell >状态</TableCell>
                   <TableCell >评价次数</TableCell>
                   <TableCell >评价人</TableCell>
+                  <TableCell >评价时间</TableCell>
                   <TableCell sx={{textAlign:'center'}}>操作</TableCell>
                 </TableRow>
               </TableHead>
@@ -244,8 +249,12 @@ const UserManagement = () => {
                     <TableCell sx={{ color: '#525f7f' }}>{user.role}</TableCell>
                     
                     <TableCell sx={{ color: '#525f7f' }}>{user.status}</TableCell>
+                    
                     <TableCell sx={{ color: '#525f7f' }}>{user.evaluation_count || 0}</TableCell>
                     <TableCell sx={{ color: '#525f7f' }}>{user.evaluator_names?.join(', ') || '-'}</TableCell>
+                    <TableCell sx={{ color: '#525f7f' }}>
+                      {user.last_evaluation_time ? formatRelativeTime(user.last_evaluation_time) : '-'}
+                    </TableCell>
                     <TableCell align="right">
                       <IconButton
                         color="primary"

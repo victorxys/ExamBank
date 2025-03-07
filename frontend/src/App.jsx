@@ -26,6 +26,8 @@ import LoginPage from './components/LoginPage';
 import UserEvaluationSummary from './components/UserEvaluationSummary'
 import EmployeeProfile from './components/EmployeeProfile'
 import EvaluationManagement from './components/EvaluationManagement';
+import ClientEvaluation from './components/ClientEvaluation';
+import ThankYouPage from './components/ThankYouPage'
 
 const theme = createTheme({
   palette: {
@@ -302,7 +304,8 @@ function App() {
     );
   }
 
-  if (isLoginRoute) {
+  // 检查是否是登录页面或客户评价页面
+  if (isLoginRoute || location.pathname.includes('/client-evaluation/')) {
     return (
       <ThemeProvider theme={theme}>
         <CssBaseline />
@@ -321,6 +324,7 @@ function App() {
             <ErrorBoundary>
               <Routes>
                 <Route path="/login" element={<LoginPage />} />
+                <Route path="/client-evaluation/:userId" element={<ClientEvaluation />} />
               </Routes>
             </ErrorBoundary>
           </Box>
@@ -375,6 +379,8 @@ function App() {
                 <Route path="/user-evaluation-summary/:userId" element={<PrivateRoute element={<UserEvaluationSummary />} />} />
                 {/* <Route path="/employee-profile/:userId${publicUrl}"   element={<EmployeeProfile />}  /> */}
                 <Route path="/evaluation-management" element={<PrivateRoute element={<EvaluationManagement />} />} />
+                <Route path="/client-evaluation/:userId" element={<ClientEvaluation />} />
+                <Route path="/thank-you" element={<ThankYouPage />} />
               </Routes>
             </ErrorBoundary>
           </Box>
