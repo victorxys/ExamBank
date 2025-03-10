@@ -1,12 +1,13 @@
 import React, { useEffect } from 'react';
 import wx from 'weixin-js-sdk';
 import axios from 'axios';
+import { API_BASE_URL } from '../config';
 
 const WechatShare = ({ shareTitle, shareDesc, shareImgUrl, shareLink }) => {
   useEffect(() => {
     const configureWechatShare = async () => {
       try {
-        const configData = await axios.get('/api/wechat/jssdk-config', {
+        const configData = await axios.get(`${API_BASE_URL}/wechat/jssdk-config`, {
           params: { url: shareLink || window.location.href },
         });
 

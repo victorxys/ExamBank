@@ -361,13 +361,15 @@ const EmployeeProfile = () => {
             }}>
               分享到微信
             </MenuItem>
+          </Menu>
+          {employeeData && (
             <WechatShare
               shareTitle={`${employeeData.name}的个人介绍`}
               shareDesc={employeeData.introduction.description}
               shareImgUrl={`/avatar/${userId}-avatar.jpg`}
               shareLink={`${window.location.origin}/employee-profile/${userId}?public=true`}
             />
-          </Menu>
+          )}
         </Box>
         )}
       <Box id="employee-profile-content" sx={{ px: 3 }}>
