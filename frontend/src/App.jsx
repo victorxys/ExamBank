@@ -303,8 +303,9 @@ function App() {
       </ThemeProvider>
     );
   }
-  // 检查是否是登录页面、客户评价页面或感谢页面
-  if (isLoginRoute || location.pathname.includes('/client-evaluation/') || location.pathname.includes('/thank-you')) {
+
+  // 检查是否是登录页面或客户评价页面
+  if (isLoginRoute || location.pathname.includes('/client-evaluation/')) {
     return (
       <ThemeProvider theme={theme}>
         <CssBaseline />
@@ -324,8 +325,6 @@ function App() {
               <Routes>
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/client-evaluation/:userId" element={<ClientEvaluation />} />
-                <Route path="/thank-you" element={<ThankYouPage />} />
-
               </Routes>
             </ErrorBoundary>
           </Box>
@@ -381,7 +380,7 @@ function App() {
                 {/* <Route path="/employee-profile/:userId${publicUrl}"   element={<EmployeeProfile />}  /> */}
                 <Route path="/evaluation-management" element={<PrivateRoute element={<EvaluationManagement />} />} />
                 <Route path="/client-evaluation/:userId" element={<ClientEvaluation />} />
-
+                <Route path="/thank-you" element={<ThankYouPage />} />
               </Routes>
             </ErrorBoundary>
           </Box>

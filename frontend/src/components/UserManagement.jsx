@@ -27,7 +27,6 @@ import { MenuItem } from '@mui/material';
 import api from '../api/axios';
 // 假设你的dateUtils.js和MyComponent.jsx在同一个文件夹
 import { formatRelativeTime } from '../api/dateUtils'; // 确保路径正确
-import AlertMessage from './AlertMessage';
 
 
 import { useTheme } from '@mui/material';
@@ -53,8 +52,6 @@ const UserManagement = () => {
     email: '',
     status: 'active'
   });
-  const [alertMessage, setAlertMessage] = useState(null);
-  const [alertOpen, setAlertOpen] = useState(false);
 
   useEffect(() => {
     fetchUsers();
@@ -148,12 +145,6 @@ const UserManagement = () => {
 
   return (
     <Box sx={{ width: '100%', height: '100%' }}>
-      <AlertMessage
-        open={alertOpen}
-        message={alertMessage?.message}
-        severity={alertMessage?.severity || 'info'}
-        onClose={() => setAlertOpen(false)}
-      />
       <PageHeader
         title="用户管理"
         description="这里列出了所有的用户，您可以添加、编辑或删除用户。此处用户与员工平台关联"
@@ -300,32 +291,6 @@ const UserManagement = () => {
                         sx={{ ml: 1 }}
                       >
                         <PersonIcon />
-                      </IconButton>
-                      <IconButton
-                        color="success"
-                        onClick={async () => {
-                          try {
-                            const evaluationUrl = `${window.location.origin}/client-evaluation/${user.id}`;
-                            await navigator.clipboard.writeText(evaluationUrl);
-                            setAlertMessage({
-                              severity: 'success',
-                              message: '客户评价链接已复制到剪贴板'
-                            });
-                            setAlertOpen(true);
-                          } catch (error) {
-                            console.error('复制链接失败:', error);
-                            setAlertMessage({
-                              severity: 'error',
-                              message: '复制链接失败，请重试'
-                            });
-                            setAlertOpen(true);
-                          }
-                        }}
-                        size="small"
-                        sx={{ ml: 1 }}
-                        title="复制客户评价链接"
-                      >
-                        <NotificationsIcon />
                       </IconButton>
                     </TableCell>
                   </TableRow>
