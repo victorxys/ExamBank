@@ -31,6 +31,7 @@ import html2canvas from 'html2canvas';
 import { useTheme } from '@mui/material/styles';
 import api from '../api/axios';
 import logoSvg from '../assets/logo.svg';
+import WechatShare from './WechatShare';
 
 const EmployeeProfile = () => {
   const theme = useTheme();
@@ -355,19 +356,17 @@ const EmployeeProfile = () => {
             }}>
               下载图片
             </MenuItem>
-            <MenuItem onClick={async () => {
-              try {
-                const shareUrl = `${window.location.origin}/employee-profile/${userId}?public=true`;
-                await navigator.clipboard.writeText(shareUrl);
-                alert('链接已复制到剪贴板');
-              } catch (error) {
-                console.error('复制链接失败:', error);
-                alert('复制链接失败，请稍后重试');
-              }
+            <MenuItem onClick={() => {
               setAnchorEl(null);
             }}>
-              复制链接
+              分享到微信
             </MenuItem>
+            <WechatShare
+              shareTitle={`${employeeData.name}的个人介绍`}
+              shareDesc={employeeData.introduction.description}
+              shareImgUrl={`/avatar/${userId}-avatar.jpg`}
+              shareLink={`${window.location.origin}/employee-profile/${userId}?public=true`}
+            />
           </Menu>
         </Box>
         )}
