@@ -2,6 +2,7 @@
 from flask import Blueprint, request, jsonify
 from wechatpy import WeChatClient
 import os
+import time
 
 wechat_share_bp = Blueprint('wechat_share', __name__)
 
@@ -21,14 +22,29 @@ def get_jssdk_config():
         return jsonify({'success': False, 'message': '缺少 url 参数'}), 400
 
     try:
-        jsapi_config = client.jsapi.get_jsapi_signature(url)
+        # 获取jsapi_ticket
+        jsapi_ticket = client.jsapi.get_jsapi_ticket()
+        timestamp = int(time.time())
+        
+        # 获取jsapi签名
+        jsapi_config = client.jsapi.get_jsapi_signature(
+            jsapi_ticket['ticket'],
+            timestamp,
+            url
+        )
+        
         return jsonify({
             'success': True,
             'config': {
+                'debug': False,
                 'appId': WECHAT_APP_ID,
                 'timestamp': jsapi_config['timestamp'],
                 'nonceStr': jsapi_config['nonce_str'],
-                'signature': jsapi_config['signature']
+                'signature': jsapi_config['signature'],
+                'jsApiList': [
+                    'updateAppMessageShareData',
+                    'updateTimelineShareData'
+                ]
             }
         })
     except Exception as e:
