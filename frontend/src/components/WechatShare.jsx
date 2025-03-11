@@ -5,6 +5,10 @@ import { API_BASE_URL } from '../config';
 
 const WechatShare = ({ shareTitle, shareDesc, shareImgUrl, shareLink }) => {
   const handleShareToFriend = useCallback(() => {
+    // 主动触发分享界面
+    if (typeof wx.showOptionMenu === 'function') {
+      wx.showOptionMenu();
+    }
     wx.updateAppMessageShareData({
       title: shareTitle,
       desc: shareDesc,
@@ -46,8 +50,23 @@ const WechatShare = ({ shareTitle, shareDesc, shareImgUrl, shareLink }) => {
           console.log('正在配置wx.config...', config);
           wx.config(config);
 
+          // 添加checkJsApi调用
+          wx.checkJsApi({
+            jsApiList: ['updateAppMessageShareData', 'updateTimelineShareData', 'showOptionMenu'],
+            success: (res) => {
+              console.log('checkJsApi结果:', res);
+            },
+            fail: (err) => {
+              console.error('checkJsApi失败:', err);
+            }
+          });
+
           wx.ready(() => {
             console.log('wx.ready被触发，开始设置分享数据...');
+            // 显示分享按钮
+            if (typeof wx.showOptionMenu === 'function') {
+              wx.showOptionMenu();
+            }
             wx.updateAppMessageShareData({
               title: shareTitle,
               desc: shareDesc,

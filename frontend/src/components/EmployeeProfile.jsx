@@ -269,7 +269,7 @@ const EmployeeProfile = () => {
                 const newShareData = {
                   shareTitle: `${employeeData?.name || '员工介绍'} - 萌姨萌嫂`,
                   shareDesc: employeeData?.introduction?.description || '查看员工的详细介绍、技能和评价。',
-                  shareImgUrl: employeeData?.employee_show_url || logoSvg,
+                  shareImgUrl: `/avatar/${userId}-avatar.jpg` || logoSvg,
                   shareLink: window.location.href
                 };
                 setShareData(newShareData);
