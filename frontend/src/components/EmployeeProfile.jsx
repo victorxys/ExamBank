@@ -273,6 +273,21 @@ const EmployeeProfile = () => {
                   shareLink: window.location.href
                 };
                 setShareData(newShareData);
+                // 直接调用微信分享
+                if (window.wx) {
+                  window.wx.updateAppMessageShareData({
+                    title: newShareData.shareTitle,
+                    desc: newShareData.shareDesc,
+                    link: newShareData.shareLink,
+                    imgUrl: newShareData.shareImgUrl,
+                    success: () => {
+                      console.log('分享设置成功');
+                    },
+                    fail: (err) => {
+                      console.error('分享设置失败:', err);
+                    }
+                  });
+                }
                 setAnchorEl(null);
               }}>
                 分享到微信

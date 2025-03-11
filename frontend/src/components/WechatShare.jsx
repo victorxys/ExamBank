@@ -1,9 +1,24 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import wx from 'weixin-js-sdk';
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
 
 const WechatShare = ({ shareTitle, shareDesc, shareImgUrl, shareLink }) => {
+  const handleShareToFriend = useCallback(() => {
+    wx.updateAppMessageShareData({
+      title: shareTitle,
+      desc: shareDesc,
+      link: shareLink || window.location.href,
+      imgUrl: shareImgUrl,
+      success: () => {
+        console.log('分享给朋友成功');
+      },
+      fail: (err) => {
+        console.error('分享给朋友失败:', err);
+      }
+    });
+  }, [shareTitle, shareDesc, shareImgUrl, shareLink]);
+
   useEffect(() => {
     const configureWechatShare = async () => {
       if (!shareTitle || !shareDesc || !shareImgUrl) {
@@ -82,7 +97,7 @@ const WechatShare = ({ shareTitle, shareDesc, shareImgUrl, shareLink }) => {
     configureWechatShare();
   }, [shareTitle, shareDesc, shareImgUrl, shareLink]);
 
-  return <></>;
+  return <div style={{ display: 'none' }} onClick={handleShareToFriend} />;
 };
 
 export default WechatShare;
