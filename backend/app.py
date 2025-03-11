@@ -29,7 +29,6 @@ from backend.api.user_profile import get_user_profile
 from backend.db import get_db_connection
 from backend.api.evaluation_visibility import bp as evaluation_visibility_bp
 from backend.api.evaluation_item import bp as evaluation_item_bp
-from backend.api.wechatshare import wechat_share_bp # 导入 wechat_share_bp 蓝图
 
 
 load_dotenv()
@@ -46,9 +45,6 @@ jwt = JWTManager(app)  # 初始化JWT管理器
 # 注册评价管理相关的蓝图
 app.register_blueprint(evaluation_visibility_bp, url_prefix='/api')
 app.register_blueprint(evaluation_item_bp, url_prefix='/api/evaluation_item')
-# 注册微信分享链接相关蓝图
-app.register_blueprint(wechat_share_bp, url_prefix='/api/wechat')
-
 
 @app.route('/api/login', methods=['POST'])
 def login():

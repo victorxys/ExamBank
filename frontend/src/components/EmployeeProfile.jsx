@@ -33,6 +33,7 @@ import api from '../api/axios';
 import logoSvg from '../assets/logo.svg';
 import WechatShare from './WechatShare';
 
+
 const EmployeeProfile = () => {
   const theme = useTheme();
   const { userId } = useParams();
@@ -140,7 +141,7 @@ const EmployeeProfile = () => {
       </Box>
     );
   }
-  console.log('employee_show_url',employeeData.employee_show_url)
+  // console.log('employee_show_url',employeeData.employee_show_url)
   if (!employeeData || !employeeData.introduction) {
     
     return (
@@ -167,6 +168,7 @@ const EmployeeProfile = () => {
         pb: 8
       }}
     >
+
       {/* 装饰性元素 */}
       <Box
         sx={{
@@ -262,116 +264,131 @@ const EmployeeProfile = () => {
               open={Boolean(anchorEl)}
               onClose={() => setAnchorEl(null)}
             >
-            <MenuItem onClick={async () => {
-              try {
-                const element = document.getElementById('employee-profile-content');
-                if (!element) return;
+              <MenuItem onClick={() => {
+                // 配置微信分享
+                const shareData = {
+                  shareTitle: `${employeeData?.name || '员工介绍'} - 萌姨萌嫂`,
+                  shareDesc: employeeData?.introduction?.description || '查看员工的详细介绍、技能和评价。',
+                  shareImgUrl: employeeData?.employee_show_url || logoSvg,
+                  shareLink: window.location.href
+                };
+                // 使用 WechatShare 组件
+                return (
+                  <WechatShare {...shareData} />
+                );
+              }}>
+                分享到微信
+              </MenuItem>
+              <MenuItem onClick={async () => {
+                try {
+                  const element = document.getElementById('employee-profile-content');
+                  if (!element) return;
 
-                const canvas = await html2canvas(element, {
-                  scale: window.devicePixelRatio,
-                  useCORS: true,
-                  allowTaint: true,
-                  logging: false,
-                  backgroundColor: '#E0F2F1',
-                  x: -24, // 添加左边距
-                  width: element.offsetWidth + 48, // 增加总宽度以包含边距
-                  onclone: function(clonedDoc) {
-                    const clonedElement = clonedDoc.getElementById('employee-profile-content');
-                    if (clonedElement) {
-                      const boxes = clonedElement.getElementsByClassName('logo-box');
-                      for (let box of boxes) {
-                        box.style.backgroundImage = `url(${logoSvg})`;
-                        box.style.backgroundSize = 'contain';
-                        box.style.backgroundRepeat = 'no-repeat';
-                        box.style.backgroundPosition = 'left center';
-                        box.style.opacity = '0.9';
+                  const canvas = await html2canvas(element, {
+                    scale: window.devicePixelRatio,
+                    useCORS: true,
+                    allowTaint: true,
+                    logging: false,
+                    backgroundColor: '#E0F2F1',
+                    x: -24, // 添加左边距
+                    width: element.offsetWidth + 48, // 增加总宽度以包含边距
+                    onclone: function(clonedDoc) {
+                      const clonedElement = clonedDoc.getElementById('employee-profile-content');
+                      if (clonedElement) {
+                        const boxes = clonedElement.getElementsByClassName('logo-box');
+                        for (let box of boxes) {
+                          box.style.backgroundImage = `url(${logoSvg})`;
+                          box.style.backgroundSize = 'contain';
+                          box.style.backgroundRepeat = 'no-repeat';
+                          box.style.backgroundPosition = 'left center';
+                          box.style.opacity = '0.9';
+                        }
                       }
                     }
-                  }
-                });
+                  });
 
-                // 将canvas转换为Blob
-                canvas.toBlob(async (blob) => {
-                  try {
-                    // 使用新的ClipboardAPI复制图片
-                    await navigator.clipboard.write([
-                      new ClipboardItem({
-                        'image/png': blob
-                      })
-                    ]);
-                    alert('图片已复制到剪贴板');
-                  } catch (error) {
-                    console.error('复制图片失败:', error);
-                    alert('复制图片失败，请稍后重试');
-                  }
-                }, 'image/png');
-              } catch (error) {
-                console.error('生成图片失败:', error);
-                alert('生成图片失败，请稍后重试');
-              }
-              setAnchorEl(null);
-            }}>
-              复制图片
-            </MenuItem>
-            <MenuItem onClick={async () => {
-              try {
-                const element = document.getElementById('employee-profile-content');
-                if (!element) return;
+                  // 将canvas转换为Blob
+                  canvas.toBlob(async (blob) => {
+                    try {
+                      // 使用新的ClipboardAPI复制图片
+                      await navigator.clipboard.write([
+                        new ClipboardItem({
+                          'image/png': blob
+                        })
+                      ]);
+                      alert('图片已复制到剪贴板');
+                    } catch (error) {
+                      console.error('复制图片失败:', error);
+                      alert('复制图片失败，请稍后重试');
+                    }
+                  }, 'image/png');
+                } catch (error) {
+                  console.error('生成图片失败:', error);
+                  alert('生成图片失败，请稍后重试');
+                }
+                setAnchorEl(null);
+              }}>
+                复制图片
+              </MenuItem>
+              <MenuItem onClick={async () => {
+                try {
+                  const element = document.getElementById('employee-profile-content');
+                  if (!element) return;
 
-                const canvas = await html2canvas(element, {
-                  scale: window.devicePixelRatio,
-                  useCORS: true,
-                  allowTaint: true,
-                  logging: false,
-                  backgroundColor: '#E0F2F1',
-                  x: -24, // 添加左边距
-                  width: element.offsetWidth + 48, // 增加总宽度以包含边距
-                  onclone: function(clonedDoc) {
-                    const clonedElement = clonedDoc.getElementById('employee-profile-content');
-                    if (clonedElement) {
-                      const boxes = clonedElement.getElementsByClassName('logo-box');
-                      for (let box of boxes) {
-                        box.style.backgroundImage = `url(${logoSvg})`;
-                        // box.style.backgroundSize = 'contain';
-                        box.style.backgroundRepeat = 'no-repeat';
-                        box.style.backgroundPosition = 'left center';
-                        box.style.opacity = '0.9';
-                        box.style.backgroundSize = 'auto 150%'; // 设置宽度为 100px，高度自动调整
+                  const canvas = await html2canvas(element, {
+                    scale: window.devicePixelRatio,
+                    useCORS: true,
+                    allowTaint: true,
+                    logging: false,
+                    backgroundColor: '#E0F2F1',
+                    x: -24, // 添加左边距
+                    width: element.offsetWidth + 48, // 增加总宽度以包含边距
+                    onclone: function(clonedDoc) {
+                      const clonedElement = clonedDoc.getElementById('employee-profile-content');
+                      if (clonedElement) {
+                        const boxes = clonedElement.getElementsByClassName('logo-box');
+                        for (let box of boxes) {
+                          box.style.backgroundImage = `url(${logoSvg})`;
+                          // box.style.backgroundSize = 'contain';
+                          box.style.backgroundRepeat = 'no-repeat';
+                          box.style.backgroundPosition = 'left center';
+                          box.style.opacity = '0.9';
+                          box.style.backgroundSize = 'auto 150%'; // 设置宽度为 100px，高度自动调整
 
+                        }
                       }
                     }
-                  }
-                });
+                  });
 
-                const image = canvas.toDataURL('image/png', 1.0);
-                const link = document.createElement('a');
-                link.download = `${employeeData.name}-档案.png`;
-                link.href = image;
-                link.click();
-              } catch (error) {
-                console.error('下载图片失败:', error);
-                alert('下载图片失败，请稍后重试');
-              }
-              setAnchorEl(null);
-            }}>
-              下载图片
-            </MenuItem>
-            <MenuItem onClick={() => {
-              setAnchorEl(null);
-            }}>
-              分享到微信
-            </MenuItem>
-          </Menu>
-          {employeeData && (
-            <WechatShare
-              shareTitle={`${employeeData.name}的个人介绍`}
-              shareDesc={employeeData.introduction.description}
-              shareImgUrl={`/avatar/${userId}-avatar.jpg`}
-              shareLink={`${window.location.origin}/employee-profile/${userId}?public=true`}
-            />
+                  const image = canvas.toDataURL('image/png', 1.0);
+                  const link = document.createElement('a');
+                  link.download = `${employeeData.name}-档案.png`;
+                  link.href = image;
+                  link.click();
+                } catch (error) {
+                  console.error('下载图片失败:', error);
+                  alert('下载图片失败，请稍后重试');
+                }
+                setAnchorEl(null);
+              }}>
+                下载图片
+              </MenuItem>
+              <MenuItem onClick={async () => {
+                try {
+                  const shareUrl = `${window.location.origin}/employee-profile/${userId}?public=true`;
+                  await navigator.clipboard.writeText(shareUrl);
+                  alert('链接已复制到剪贴板');
+                } catch (error) {
+                  console.error('复制链接失败:', error);
+                  alert('复制链接失败，请稍后重试');
+                }
+                setAnchorEl(null);
+              }}>
+                复制链接
+              </MenuItem>
+            </Menu>
+          </Box>
           )}
-        </Box>
-        )}
       <Box id="employee-profile-content" sx={{ px: 3 }}>
       {/* 基本信息部分 */}
       <Box

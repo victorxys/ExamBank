@@ -195,7 +195,11 @@ frontend/src/components 2
 
 config.js
 
-vite.config.js
+frontend/vite.config.js
 
 logs/
 frontend/public/avatar
+
+deploy.sh
+frontend/src/components/TestHelmetComponent.jsx
+gunicorn_config.py

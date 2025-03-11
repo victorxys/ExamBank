@@ -28,6 +28,8 @@ import EmployeeProfile from './components/EmployeeProfile'
 import EvaluationManagement from './components/EvaluationManagement';
 import ClientEvaluation from './components/ClientEvaluation';
 import ThankYouPage from './components/ThankYouPage'
+import TestHelmetComponent from './components/TestHelmetComponent'; // 确保路径正确
+
 
 const theme = createTheme({
   palette: {
@@ -206,7 +208,7 @@ function App() {
   const [user, setUser] = useState(null);
   // 根据 isPublicEmployeeProfile 的值动态生成 publicUrl
   const publicUrl = isPublicEmployeeProfile ? '?public=true' : '';
-
+  
   useEffect(() => {
     // 检查是否有有效的token
     const userInfo = hasToken();
