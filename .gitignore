@@ -198,8 +198,12 @@ config.js
 frontend/vite.config.js
 
 logs/
+
 frontend/public/avatar
 
-deploy.sh
 frontend/src/components/TestHelmetComponent.jsx
+
+# 生产环境特定文件，不纳入版本控制
+deploy.sh
 gunicorn_config.py
+logs/nginx/nginx.pid
