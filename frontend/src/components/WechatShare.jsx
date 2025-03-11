@@ -6,24 +6,49 @@ import { API_BASE_URL } from '../config';
 const WechatShare = ({ shareTitle, shareDesc, shareImgUrl, shareLink }) => {
   useEffect(() => {
     const configureWechatShare = async () => {
+      if (!shareTitle || !shareDesc || !shareImgUrl) {
+        console.error('分享参数不完整');
+        return;
+      }
+
+      console.log('开始配置微信分享...', {
+        shareTitle,
+        shareDesc,
+        shareImgUrl,
+        shareLink: shareLink || window.location.href
+      });
+
       try {
+        console.log('正在获取JSSDK配置...');
         const configData = await axios.get(`${API_BASE_URL}/wechat/jssdk-config`, {
           params: { url: shareLink || window.location.href },
         });
 
+        console.log('获取到JSSDK配置数据:', configData.data);
+
         if (configData.data.success) {
           const config = configData.data.config;
+          console.log('正在配置wx.config...', config);
           wx.config(config);
 
           wx.ready(() => {
+            console.log('wx.ready被触发，开始设置分享数据...');
             wx.updateAppMessageShareData({
               title: shareTitle,
               desc: shareDesc,
               link: shareLink || window.location.href,
               imgUrl: shareImgUrl,
               success: () => {
-                console.log('分享给朋友成功');
+                console.log('分享给朋友配置成功，参数:', {
+                  title: shareTitle,
+                  desc: shareDesc,
+                  link: shareLink || window.location.href,
+                  imgUrl: shareImgUrl
+                });
               },
+              fail: (err) => {
+                console.error('分享给朋友配置失败:', err);
+              }
             });
 
             wx.updateTimelineShareData({
@@ -31,26 +56,33 @@ const WechatShare = ({ shareTitle, shareDesc, shareImgUrl, shareLink }) => {
               link: shareLink || window.location.href,
               imgUrl: shareImgUrl,
               success: () => {
-                console.log('分享到朋友圈成功');
+                console.log('分享到朋友圈配置成功，参数:', {
+                  title: shareTitle,
+                  link: shareLink || window.location.href,
+                  imgUrl: shareImgUrl
+                });
               },
+              fail: (err) => {
+                console.error('分享到朋友圈配置失败:', err);
+              }
             });
           });
 
           wx.error((err) => {
-            console.error('JSSDK config error:', err);
+            console.error('JSSDK配置错误:', err);
           });
         } else {
-          console.error('Failed to fetch JSSDK config:', configData.data.message);
+          console.error('获取JSSDK配置失败:', configData.data.message);
         }
       } catch (error) {
-        console.error('Error fetching JSSDK config:', error);
+        console.error('配置微信分享时发生错误:', error);
       }
     };
 
     configureWechatShare();
-  }, [shareTitle, shareDesc, shareImgUrl, shareLink]); // 依赖项变化时重新配置
+  }, [shareTitle, shareDesc, shareImgUrl, shareLink]);
 
-  return <></>; // 此组件不渲染任何 видимый DOM 元素
+  return <></>;
 };
 
 export default WechatShare;

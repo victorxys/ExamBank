@@ -43,6 +43,7 @@ const EmployeeProfile = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [anchorEl, setAnchorEl] = useState(null);
+  const [shareData, setShareData] = useState(null);
   const [employeeData, setEmployeeData] = useState(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editFormData, setEditFormData] = useState({
@@ -265,17 +266,14 @@ const EmployeeProfile = () => {
               onClose={() => setAnchorEl(null)}
             >
               <MenuItem onClick={() => {
-                // 配置微信分享
-                const shareData = {
+                const newShareData = {
                   shareTitle: `${employeeData?.name || '员工介绍'} - 萌姨萌嫂`,
                   shareDesc: employeeData?.introduction?.description || '查看员工的详细介绍、技能和评价。',
                   shareImgUrl: employeeData?.employee_show_url || logoSvg,
                   shareLink: window.location.href
                 };
-                // 使用 WechatShare 组件
-                return (
-                  <WechatShare {...shareData} />
-                );
+                setShareData(newShareData);
+                setAnchorEl(null);
               }}>
                 分享到微信
               </MenuItem>
@@ -840,6 +838,14 @@ const EmployeeProfile = () => {
       </Paper>
       </Box>
       </Container>
+      {shareData && (
+        <WechatShare
+          shareTitle={shareData.shareTitle}
+          shareDesc={shareData.shareDesc}
+          shareImgUrl={shareData.shareImgUrl}
+          shareLink={shareData.shareLink}
+        />
+      )}
 
       {/* 编辑对话框 */}
       <Dialog
