@@ -22,6 +22,8 @@ import {
   CardHeader,
   CardContent,
   useMediaQuery,
+  TablePagination,
+  CircularProgress,
 } from '@mui/material';
 import { Edit as EditIcon, Delete as DeleteIcon, Add as AddIcon, Assessment as AssessmentIcon } from '@mui/icons-material';
 import { MenuItem } from '@mui/material';
@@ -54,37 +56,83 @@ const UserManagement = () => {
     email: '',
     status: 'active'
   });
+  
+  // 监听搜索条件变化，重置页码
+  useEffect(() => {
+    setPage(0);
+  }, [searchTerm]);
   const [alertMessage, setAlertMessage] = useState(null);
   const [alertOpen, setAlertOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [totalUsers, setTotalUsers] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [sortBy, setSortBy] = useState('created_at');
+  const [sortOrder, setSortOrder] = useState('desc');
   
   // 使用媒体查询检测是否为移动设备
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
   useEffect(() => {
     fetchUsers();
-  }, [searchTerm]);
+  }, [page, rowsPerPage, searchTerm, sortBy, sortOrder]);
 
   const fetchUsers = async () => {
     try {
-      const response = await api.get('/users');
-      // console.log('Users API response:', response.data);
-      if (response.data && Array.isArray(response.data)) {
-        let filteredUsers = response.data;
-        if (searchTerm) {
-          filteredUsers = filteredUsers.filter(user =>
-            user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            user.phone_number.includes(searchTerm)
-          );
-        }
-        setUsers(filteredUsers);
+      setLoading(true);
+      // 构建查询参数
+      const params = new URLSearchParams({
+        page: page + 1, // API使用1-based索引，而MUI使用0-based索引
+        per_page: rowsPerPage,
+        sort_by: sortBy,
+        sort_order: sortOrder
+      });
+      
+      if (searchTerm) {
+        params.append('search', searchTerm);
+      }
+      
+      const response = await api.get(`/users?${params.toString()}`);
+      
+      if (response.data && response.data.items) {
+        setUsers(response.data.items);
+        setTotalUsers(response.data.total);
+        setTotalPages(response.data.total_pages);
       } else {
         console.error('Invalid users data format:', response.data);
         setUsers([]);
+        setTotalUsers(0);
+        setTotalPages(0);
       }
     } catch (error) {
       console.error('Error fetching users:', error.response || error);
       setUsers([]);
+      setTotalUsers(0);
+      setTotalPages(0);
+      setAlertMessage({
+        severity: 'error',
+        message: '获取用户列表失败，请稍后重试'
+      });
+      setAlertOpen(true);
+    } finally {
+      setLoading(false);
     }
+  };
+  
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage);
+  };
+
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
+  
+  const handleSort = (column) => {
+    const isAsc = sortBy === column && sortOrder === 'asc';
+    setSortOrder(isAsc ? 'desc' : 'asc');
+    setSortBy(column);
   };
 
   const handleOpen = (user = null) => {
@@ -220,134 +268,197 @@ const UserManagement = () => {
               maxWidth: '100%'
             }}
           >
-            <Table sx={{ minWidth: isMobile ? 300 : 650 }}>
-              <TableHead>
-                <TableRow >
-                  {!isMobile && (
-                    <TableCell sx={{ whiteSpace: 'nowrap', padding: { xs: '8px', sm: '16px' } }}>头像</TableCell>
-                  )}
-                  <TableCell sx={{ whiteSpace: 'nowrap', padding: { xs: '8px', sm: '16px' } }}>用户名</TableCell>
-                  {!isMobile && (
-                    <>
-                      <TableCell sx={{ whiteSpace: 'nowrap', padding: { xs: '8px', sm: '16px' } }}>手机号</TableCell>
-                      <TableCell sx={{ whiteSpace: 'nowrap', padding: { xs: '8px', sm: '16px' } }}>评价次数</TableCell>
-                      <TableCell sx={{ whiteSpace: 'nowrap', padding: { xs: '8px', sm: '16px' } }}>评价人</TableCell>
-                      <TableCell sx={{ whiteSpace: 'nowrap', padding: { xs: '8px', sm: '16px' } }}>评价时间</TableCell>
-                    </>
-                  )}
-                  <TableCell sx={{ textAlign: isMobile ? 'center' : 'center', whiteSpace: 'nowrap', padding: { xs: '8px', sm: '16px' } }}>操作</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {users.map((user) => (
-                  <TableRow 
-                    key={user.id}
-                    sx={{
-                      '&:hover': {
-                        backgroundColor: '#f6f9fc'
-                      }
-                    }}
-                  >
-                    {!isMobile && (
-                      <TableCell sx={{ whiteSpace: 'nowrap', padding: { xs: '8px', sm: '16px' } }}>
-                        <Avatar
-                          sx={{
-                            width: { xs: 30, sm: 40 },
-                            height: { xs: 30, sm: 40 },
-                            bgcolor: theme.palette.primary.main
-                          }}
-                          alt={user.username}
-                          src={`/avatar/${user.id}-avatar.jpg`}
-                        >
-                          {user.username?.[0]?.toUpperCase()}
-                        </Avatar>
+            {loading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+                <CircularProgress />
+              </Box>
+            ) : (
+              <>
+                <Table sx={{ minWidth: isMobile ? 300 : 650 }}>
+                  <TableHead>
+                    <TableRow>
+                      {!isMobile && (
+                        <TableCell sx={{ whiteSpace: 'nowrap', padding: { xs: '8px', sm: '16px' } }}>头像</TableCell>
+                      )}
+                      <TableCell 
+                        sx={{ whiteSpace: 'nowrap', padding: { xs: '8px', sm: '16px' }, cursor: 'pointer' }}
+                        onClick={() => handleSort('username')}
+                      >
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          用户名
+                          {sortBy === 'username' && (
+                            <Box component="span" sx={{ ml: 0.5 }}>
+                              {sortOrder === 'asc' ? '↑' : '↓'}
+                            </Box>
+                          )}
+                        </Box>
                       </TableCell>
-                    )}
-                    <TableCell sx={{ color: '#525f7f', whiteSpace: 'nowrap', padding: { xs: '8px', sm: '16px' } }}>{user.username}</TableCell>
-                    {!isMobile && (
-                      <>
-                        <TableCell sx={{ color: '#525f7f', whiteSpace: 'nowrap', padding: { xs: '8px', sm: '16px' } }}>{user.phone_number}</TableCell>
-                        <TableCell sx={{ color: '#525f7f', whiteSpace: 'nowrap', padding: { xs: '8px', sm: '16px' } }}>{user.evaluation_count || 0}</TableCell>
-                        <TableCell sx={{ color: '#525f7f', whiteSpace: 'nowrap', padding: { xs: '8px', sm: '16px' }, maxWidth: { xs: '100px', sm: '150px' }, overflow: 'hidden', textOverflow: 'ellipsis' }}>{user.evaluator_names?.join(', ') || '-'}</TableCell>
-                        <TableCell sx={{ color: '#525f7f', whiteSpace: 'nowrap', padding: { xs: '8px', sm: '16px' } }}>
-                          {user.last_evaluation_time ? formatRelativeTime(user.last_evaluation_time) : '-'}
+                      {!isMobile && (
+                        <>
+                          <TableCell sx={{ whiteSpace: 'nowrap', padding: { xs: '8px', sm: '16px' } }}>手机号</TableCell>
+                          <TableCell 
+                            sx={{ whiteSpace: 'nowrap', padding: { xs: '8px', sm: '16px' }, cursor: 'pointer' }}
+                            onClick={() => handleSort('evaluation_count')}
+                          >
+                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                              评价次数
+                              {sortBy === 'evaluation_count' && (
+                                <Box component="span" sx={{ ml: 0.5 }}>
+                                  {sortOrder === 'asc' ? '↑' : '↓'}
+                                </Box>
+                              )}
+                            </Box>
+                          </TableCell>
+                          <TableCell sx={{ whiteSpace: 'nowrap', padding: { xs: '8px', sm: '16px' } }}>评价人</TableCell>
+                          <TableCell 
+                            sx={{ whiteSpace: 'nowrap', padding: { xs: '8px', sm: '16px' }, cursor: 'pointer' }}
+                            onClick={() => handleSort('created_at')}
+                          >
+                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                              评价时间
+                              {sortBy === 'created_at' && (
+                                <Box component="span" sx={{ ml: 0.5 }}>
+                                  {sortOrder === 'asc' ? '↑' : '↓'}
+                                </Box>
+                              )}
+                            </Box>
+                          </TableCell>
+                        </>
+                      )}
+                      <TableCell sx={{ textAlign: isMobile ? 'center' : 'center', whiteSpace: 'nowrap', padding: { xs: '8px', sm: '16px' } }}>操作</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {users.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={isMobile ? 3 : 7} align="center" sx={{ py: 3 }}>
+                          没有找到匹配的用户
                         </TableCell>
-                      </>
-                    )}
-                    <TableCell align={isMobile ? "right" : "center"} sx={{ whiteSpace: 'nowrap', padding: { xs: '4px', sm: '16px' } }}>
-                      <Box sx={{ display: 'flex', flexWrap: 'wrap', justifyContent: isMobile ? 'flex-end' : 'center', gap: { xs: '2px', sm: '4px' } }}>
-                        <IconButton
-                          color="primary"
-                          onClick={() => handleOpen(user)}
-                          size="small"
-                          sx={{ padding: { xs: '4px', sm: '8px' } }}
-                        >
-                          <EditIcon fontSize={isMobile ? "small" : "medium"} />
-                        </IconButton>
-                        <IconButton
-                          color="error"
-                          onClick={() => handleDelete(user.id)}
-                          size="small"
-                          sx={{ padding: { xs: '4px', sm: '8px' } }}
-                        >
-                          <DeleteIcon fontSize={isMobile ? "small" : "medium"} />
-                        </IconButton>
-                        <IconButton
-                          color="info"
-                          onClick={() => navigate(`/user-evaluation/${user.id}`)}
-                          size="small"
-                          sx={{ padding: { xs: '4px', sm: '8px' } }}
-                        >
-                          <AssessmentIcon fontSize={isMobile ? "small" : "medium"} />
-                        </IconButton>
-                        <IconButton
-                          color="success"
-                          onClick={() => navigate(`/user-evaluation-summary/${user.id}`)}
-                          size="small"
-                          sx={{ padding: { xs: '4px', sm: '8px' } }}
-                        >
-                          <AssessmentIcon fontSize={isMobile ? "small" : "medium"} />
-                        </IconButton>
-                        <IconButton
-                          color="info"
-                          onClick={() => navigate(`/employee-profile/${user.id}`)}
-                          size="small"
-                          sx={{ padding: { xs: '4px', sm: '8px' } }}
-                        >
-                          <PersonIcon fontSize={isMobile ? "small" : "medium"} />
-                        </IconButton>
-                        <IconButton
-                          color="success"
-                          onClick={async () => {
-                            try {
-                              const evaluationUrl = `${window.location.origin}/client-evaluation/${user.id}`;
-                              await navigator.clipboard.writeText(evaluationUrl);
-                              setAlertMessage({
-                                severity: 'success',
-                                message: '客户评价链接已复制到剪贴板'
-                              });
-                              setAlertOpen(true);
-                            } catch (error) {
-                              console.error('复制链接失败:', error);
-                              setAlertMessage({
-                                severity: 'error',
-                                message: '复制链接失败，请重试'
-                              });
-                              setAlertOpen(true);
+                      </TableRow>
+                    ) : (
+                      users.map((user) => (
+                        <TableRow 
+                          key={user.id}
+                          sx={{
+                            '&:hover': {
+                              backgroundColor: '#f6f9fc'
                             }
                           }}
-                          size="small"
-                          title="复制客户评价链接"
-                          sx={{ padding: { xs: '4px', sm: '8px' } }}
                         >
-                          <NotificationsIcon fontSize={isMobile ? "small" : "medium"} />
-                        </IconButton>
-                      </Box>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                          {!isMobile && (
+                            <TableCell sx={{ whiteSpace: 'nowrap', padding: { xs: '8px', sm: '16px' } }}>
+                              <Avatar
+                                sx={{
+                                  width: { xs: 30, sm: 40 },
+                                  height: { xs: 30, sm: 40 },
+                                  bgcolor: theme.palette.primary.main
+                                }}
+                                alt={user.username}
+                                src={`/avatar/${user.id}-avatar.jpg`}
+                              >
+                                {user.username?.[0]?.toUpperCase()}
+                              </Avatar>
+                            </TableCell>
+                          )}
+                          <TableCell sx={{ color: '#525f7f', whiteSpace: 'nowrap', padding: { xs: '8px', sm: '16px' } }}>{user.username}</TableCell>
+                          {!isMobile && (
+                            <>
+                              <TableCell sx={{ color: '#525f7f', whiteSpace: 'nowrap', padding: { xs: '8px', sm: '16px' } }}>{user.phone_number}</TableCell>
+                              <TableCell sx={{ color: '#525f7f', whiteSpace: 'nowrap', padding: { xs: '8px', sm: '16px' } }}>{user.evaluation_count || 0}</TableCell>
+                              <TableCell sx={{ color: '#525f7f', whiteSpace: 'nowrap', padding: { xs: '8px', sm: '16px' }, maxWidth: { xs: '100px', sm: '150px' }, overflow: 'hidden', textOverflow: 'ellipsis' }}>{user.evaluator_names?.join(', ') || '-'}</TableCell>
+                              <TableCell sx={{ color: '#525f7f', whiteSpace: 'nowrap', padding: { xs: '8px', sm: '16px' } }}>
+                                {user.last_evaluation_time ? formatRelativeTime(user.last_evaluation_time) : '-'}
+                              </TableCell>
+                            </>
+                          )}
+                          <TableCell align={isMobile ? "right" : "center"} sx={{ whiteSpace: 'nowrap', padding: { xs: '4px', sm: '16px' } }}>
+                            <Box sx={{ display: 'flex', flexWrap: 'wrap', justifyContent: isMobile ? 'flex-end' : 'center', gap: { xs: '2px', sm: '4px' } }}>
+                              <IconButton
+                                color="primary"
+                                onClick={() => handleOpen(user)}
+                                size="small"
+                                sx={{ padding: { xs: '4px', sm: '8px' } }}
+                              >
+                                <EditIcon fontSize={isMobile ? "small" : "medium"} />
+                              </IconButton>
+                              <IconButton
+                                color="error"
+                                onClick={() => handleDelete(user.id)}
+                                size="small"
+                                sx={{ padding: { xs: '4px', sm: '8px' } }}
+                              >
+                                <DeleteIcon fontSize={isMobile ? "small" : "medium"} />
+                              </IconButton>
+                              <IconButton
+                                color="info"
+                                onClick={() => navigate(`/user-evaluation/${user.id}`)}
+                                size="small"
+                                sx={{ padding: { xs: '4px', sm: '8px' } }}
+                              >
+                                <AssessmentIcon fontSize={isMobile ? "small" : "medium"} />
+                              </IconButton>
+                              <IconButton
+                                color="success"
+                                onClick={() => navigate(`/user-evaluation-summary/${user.id}`)}
+                                size="small"
+                                sx={{ padding: { xs: '4px', sm: '8px' } }}
+                              >
+                                <AssessmentIcon fontSize={isMobile ? "small" : "medium"} />
+                              </IconButton>
+                              <IconButton
+                                color="info"
+                                onClick={() => navigate(`/employee-profile/${user.id}`)}
+                                size="small"
+                                sx={{ padding: { xs: '4px', sm: '8px' } }}
+                              >
+                                <PersonIcon fontSize={isMobile ? "small" : "medium"} />
+                              </IconButton>
+                              <IconButton
+                                color="success"
+                                onClick={async () => {
+                                  try {
+                                    const evaluationUrl = `${window.location.origin}/client-evaluation/${user.id}`;
+                                    await navigator.clipboard.writeText(evaluationUrl);
+                                    setAlertMessage({
+                                      severity: 'success',
+                                      message: '客户评价链接已复制到剪贴板'
+                                    });
+                                    setAlertOpen(true);
+                                  } catch (error) {
+                                    console.error('复制链接失败:', error);
+                                    setAlertMessage({
+                                      severity: 'error',
+                                      message: '复制链接失败，请重试'
+                                    });
+                                    setAlertOpen(true);
+                                  }
+                                }}
+                                size="small"
+                                title="复制客户评价链接"
+                                sx={{ padding: { xs: '4px', sm: '8px' } }}
+                              >
+                                <NotificationsIcon fontSize={isMobile ? "small" : "medium"} />
+                              </IconButton>
+                            </Box>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+                <TablePagination
+                  component="div"
+                  count={totalUsers}
+                  page={page}
+                  onPageChange={handleChangePage}
+                  rowsPerPage={rowsPerPage}
+                  onRowsPerPageChange={handleChangeRowsPerPage}
+                  rowsPerPageOptions={[5, 10, 25, 50]}
+                  labelRowsPerPage="每页行数:"
+                  labelDisplayedRows={({ from, to, count }) => `${from}-${to} 共 ${count}`}
+                />
+              </>
+            )}
           </TableContainer>
         </CardContent>
       </Card>

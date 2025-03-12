@@ -936,10 +936,53 @@ def delete_question(question_id):
 @app.route('/api/users', methods=['GET'])
 def get_users():
     log.debug("开始获取用户列表")
+    
+    # 获取分页参数
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 10, type=int)
+    search = request.args.get('search', '')
+    sort_by = request.args.get('sort_by', 'created_at')
+    sort_order = request.args.get('sort_order', 'desc')
+    
+    # 验证排序字段
+    valid_sort_fields = ['username', 'phone_number', 'role', 'created_at', 'evaluation_count']
+    if sort_by not in valid_sort_fields:
+        sort_by = 'created_at'
+    
+    # 验证排序顺序
+    sort_order = sort_order.upper()
+    if sort_order not in ['ASC', 'DESC']:
+        sort_order = 'DESC'
+    
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
     try:
-        cur.execute('''
+        # 构建WHERE条件
+        where_conditions = []
+        params = []
+        
+        if search:
+            where_conditions.append("(u.username ILIKE %s OR u.phone_number ILIKE %s)")
+            params.extend([f'%{search}%', f'%{search}%'])
+        
+        where_clause = " AND ".join(where_conditions) if where_conditions else "TRUE"
+        
+        # 获取总记录数
+        count_sql = f'''
+            SELECT COUNT(*) 
+            FROM "user" u
+            WHERE {where_clause}
+        '''
+        cur.execute(count_sql, params)
+        total = cur.fetchone()['count']
+        
+        # 构建排序条件
+        order_clause = f"{sort_by} {sort_order}"
+        if sort_by == 'evaluation_count':
+            order_clause = f"COUNT(DISTINCT e.id) {sort_order}, u.created_at DESC"
+        
+        # 获取分页数据
+        query = f'''
             SELECT
                 u.id,
                 u.username,
@@ -951,15 +994,31 @@ def get_users():
                 u.updated_at,
                 COUNT(DISTINCT e.id) as evaluation_count,
                 ARRAY_AGG(DISTINCT eu.username) FILTER (WHERE eu.username IS NOT NULL) as evaluator_names,
-                MAX(e.evaluation_time) AS last_evaluation_time  -- 添加这一行，获取最后一次评价时间
+                MAX(e.evaluation_time) AS last_evaluation_time
             FROM "user" u
             LEFT JOIN evaluation e ON u.id = e.evaluated_user_id
             LEFT JOIN "user" eu ON e.evaluator_user_id = eu.id
+            WHERE {where_clause}
             GROUP BY u.id, u.username, u.phone_number, u.role, u.email, u.status, u.created_at, u.updated_at
-            ORDER BY u.created_at DESC
-        ''')
+            ORDER BY {order_clause}
+            LIMIT %s OFFSET %s
+        '''
+        
+        # 计算偏移量
+        offset = (page - 1) * per_page
+        
+        # 添加分页参数
+        params.extend([per_page, offset])
+        cur.execute(query, params)
         users = cur.fetchall()
-        return jsonify(users)
+        
+        return jsonify({
+            'items': users,
+            'total': total,
+            'page': page,
+            'per_page': per_page,
+            'total_pages': (total + per_page - 1) // per_page
+        })
     except Exception as e:
         print('Error in get_users:', str(e))
         log.exception('Error in get_users:')
