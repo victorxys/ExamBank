@@ -21,6 +21,7 @@ import {
   Card,
   CardHeader,
   CardContent,
+  useMediaQuery,
 } from '@mui/material';
 import { Edit as EditIcon, Delete as DeleteIcon, Add as AddIcon, Assessment as AssessmentIcon } from '@mui/icons-material';
 import { MenuItem } from '@mui/material';
@@ -55,6 +56,9 @@ const UserManagement = () => {
   });
   const [alertMessage, setAlertMessage] = useState(null);
   const [alertOpen, setAlertOpen] = useState(false);
+  
+  // 使用媒体查询检测是否为移动设备
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
   useEffect(() => {
     fetchUsers();
@@ -212,22 +216,26 @@ const UserManagement = () => {
               boxShadow: 'none',
               border: '1px solid rgba(0, 0, 0, 0.1)',
               borderRadius: '0.375rem',
-              overflow: 'hidden'
+              overflow: 'auto',
+              maxWidth: '100%'
             }}
           >
-            <Table>
+            <Table sx={{ minWidth: isMobile ? 300 : 650 }}>
               <TableHead>
                 <TableRow >
-                  <TableCell >头像</TableCell>
-                  <TableCell >用户名</TableCell>
-                  <TableCell >手机号</TableCell>
-                  <TableCell >角色</TableCell>
-                  
-                  <TableCell >状态</TableCell>
-                  <TableCell >评价次数</TableCell>
-                  <TableCell >评价人</TableCell>
-                  <TableCell >评价时间</TableCell>
-                  <TableCell sx={{textAlign:'center'}}>操作</TableCell>
+                  {!isMobile && (
+                    <TableCell sx={{ whiteSpace: 'nowrap', padding: { xs: '8px', sm: '16px' } }}>头像</TableCell>
+                  )}
+                  <TableCell sx={{ whiteSpace: 'nowrap', padding: { xs: '8px', sm: '16px' } }}>用户名</TableCell>
+                  {!isMobile && (
+                    <>
+                      <TableCell sx={{ whiteSpace: 'nowrap', padding: { xs: '8px', sm: '16px' } }}>手机号</TableCell>
+                      <TableCell sx={{ whiteSpace: 'nowrap', padding: { xs: '8px', sm: '16px' } }}>评价次数</TableCell>
+                      <TableCell sx={{ whiteSpace: 'nowrap', padding: { xs: '8px', sm: '16px' } }}>评价人</TableCell>
+                      <TableCell sx={{ whiteSpace: 'nowrap', padding: { xs: '8px', sm: '16px' } }}>评价时间</TableCell>
+                    </>
+                  )}
+                  <TableCell sx={{ textAlign: isMobile ? 'center' : 'center', whiteSpace: 'nowrap', padding: { xs: '8px', sm: '16px' } }}>操作</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -240,93 +248,101 @@ const UserManagement = () => {
                       }
                     }}
                   >
-                    <TableCell>
-                      <Avatar
-                        sx={{
-                          width: 40,
-                          height: 40,
-                          bgcolor: theme.palette.primary.main
-                        }}
-                        alt={user.username}
-                        src={`/avatar/${user.id}-avatar.jpg`}
-                      >
-                        {user.username?.[0]?.toUpperCase()}
-                      </Avatar>
-                    </TableCell>
-                    <TableCell sx={{ color: '#525f7f' }}>{user.username}</TableCell>
-                    <TableCell sx={{ color: '#525f7f' }}>{user.phone_number}</TableCell>
-                    <TableCell sx={{ color: '#525f7f' }}>{user.role}</TableCell>
-                    
-                    <TableCell sx={{ color: '#525f7f' }}>{user.status}</TableCell>
-                    
-                    <TableCell sx={{ color: '#525f7f' }}>{user.evaluation_count || 0}</TableCell>
-                    <TableCell sx={{ color: '#525f7f' }}>{user.evaluator_names?.join(', ') || '-'}</TableCell>
-                    <TableCell sx={{ color: '#525f7f' }}>
-                      {user.last_evaluation_time ? formatRelativeTime(user.last_evaluation_time) : '-'}
-                    </TableCell>
-                    <TableCell align="right">
-                      <IconButton
-                        color="primary"
-                        onClick={() => handleOpen(user)}
-                        size="small"
-                      >
-                        <EditIcon />
-                      </IconButton>
-                      <IconButton
-                        color="error"
-                        onClick={() => handleDelete(user.id)}
-                        size="small"
-                      >
-                        <DeleteIcon />
-                      </IconButton>
-                      <IconButton
-                        color="info"
-                        onClick={() => navigate(`/user-evaluation/${user.id}`)}
-                        size="small"
-                      >
-                        <AssessmentIcon />
-                      </IconButton>
-                      <IconButton
-                        color="success"
-                        onClick={() => navigate(`/user-evaluation-summary/${user.id}`)}
-                        size="small"
-                      >
-                        <AssessmentIcon />
-                      </IconButton>
-                      <IconButton
-                        color="info"
-                        onClick={() => navigate(`/employee-profile/${user.id}`)}
-                        size="small"
-                        sx={{ ml: 1 }}
-                      >
-                        <PersonIcon />
-                      </IconButton>
-                      <IconButton
-                        color="success"
-                        onClick={async () => {
-                          try {
-                            const evaluationUrl = `${window.location.origin}/client-evaluation/${user.id}`;
-                            await navigator.clipboard.writeText(evaluationUrl);
-                            setAlertMessage({
-                              severity: 'success',
-                              message: '客户评价链接已复制到剪贴板'
-                            });
-                            setAlertOpen(true);
-                          } catch (error) {
-                            console.error('复制链接失败:', error);
-                            setAlertMessage({
-                              severity: 'error',
-                              message: '复制链接失败，请重试'
-                            });
-                            setAlertOpen(true);
-                          }
-                        }}
-                        size="small"
-                        sx={{ ml: 1 }}
-                        title="复制客户评价链接"
-                      >
-                        <NotificationsIcon />
-                      </IconButton>
+                    {!isMobile && (
+                      <TableCell sx={{ whiteSpace: 'nowrap', padding: { xs: '8px', sm: '16px' } }}>
+                        <Avatar
+                          sx={{
+                            width: { xs: 30, sm: 40 },
+                            height: { xs: 30, sm: 40 },
+                            bgcolor: theme.palette.primary.main
+                          }}
+                          alt={user.username}
+                          src={`/avatar/${user.id}-avatar.jpg`}
+                        >
+                          {user.username?.[0]?.toUpperCase()}
+                        </Avatar>
+                      </TableCell>
+                    )}
+                    <TableCell sx={{ color: '#525f7f', whiteSpace: 'nowrap', padding: { xs: '8px', sm: '16px' } }}>{user.username}</TableCell>
+                    {!isMobile && (
+                      <>
+                        <TableCell sx={{ color: '#525f7f', whiteSpace: 'nowrap', padding: { xs: '8px', sm: '16px' } }}>{user.phone_number}</TableCell>
+                        <TableCell sx={{ color: '#525f7f', whiteSpace: 'nowrap', padding: { xs: '8px', sm: '16px' } }}>{user.evaluation_count || 0}</TableCell>
+                        <TableCell sx={{ color: '#525f7f', whiteSpace: 'nowrap', padding: { xs: '8px', sm: '16px' }, maxWidth: { xs: '100px', sm: '150px' }, overflow: 'hidden', textOverflow: 'ellipsis' }}>{user.evaluator_names?.join(', ') || '-'}</TableCell>
+                        <TableCell sx={{ color: '#525f7f', whiteSpace: 'nowrap', padding: { xs: '8px', sm: '16px' } }}>
+                          {user.last_evaluation_time ? formatRelativeTime(user.last_evaluation_time) : '-'}
+                        </TableCell>
+                      </>
+                    )}
+                    <TableCell align={isMobile ? "right" : "center"} sx={{ whiteSpace: 'nowrap', padding: { xs: '4px', sm: '16px' } }}>
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', justifyContent: isMobile ? 'flex-end' : 'center', gap: { xs: '2px', sm: '4px' } }}>
+                        <IconButton
+                          color="primary"
+                          onClick={() => handleOpen(user)}
+                          size="small"
+                          sx={{ padding: { xs: '4px', sm: '8px' } }}
+                        >
+                          <EditIcon fontSize={isMobile ? "small" : "medium"} />
+                        </IconButton>
+                        <IconButton
+                          color="error"
+                          onClick={() => handleDelete(user.id)}
+                          size="small"
+                          sx={{ padding: { xs: '4px', sm: '8px' } }}
+                        >
+                          <DeleteIcon fontSize={isMobile ? "small" : "medium"} />
+                        </IconButton>
+                        <IconButton
+                          color="info"
+                          onClick={() => navigate(`/user-evaluation/${user.id}`)}
+                          size="small"
+                          sx={{ padding: { xs: '4px', sm: '8px' } }}
+                        >
+                          <AssessmentIcon fontSize={isMobile ? "small" : "medium"} />
+                        </IconButton>
+                        <IconButton
+                          color="success"
+                          onClick={() => navigate(`/user-evaluation-summary/${user.id}`)}
+                          size="small"
+                          sx={{ padding: { xs: '4px', sm: '8px' } }}
+                        >
+                          <AssessmentIcon fontSize={isMobile ? "small" : "medium"} />
+                        </IconButton>
+                        <IconButton
+                          color="info"
+                          onClick={() => navigate(`/employee-profile/${user.id}`)}
+                          size="small"
+                          sx={{ padding: { xs: '4px', sm: '8px' } }}
+                        >
+                          <PersonIcon fontSize={isMobile ? "small" : "medium"} />
+                        </IconButton>
+                        <IconButton
+                          color="success"
+                          onClick={async () => {
+                            try {
+                              const evaluationUrl = `${window.location.origin}/client-evaluation/${user.id}`;
+                              await navigator.clipboard.writeText(evaluationUrl);
+                              setAlertMessage({
+                                severity: 'success',
+                                message: '客户评价链接已复制到剪贴板'
+                              });
+                              setAlertOpen(true);
+                            } catch (error) {
+                              console.error('复制链接失败:', error);
+                              setAlertMessage({
+                                severity: 'error',
+                                message: '复制链接失败，请重试'
+                              });
+                              setAlertOpen(true);
+                            }
+                          }}
+                          size="small"
+                          title="复制客户评价链接"
+                          sx={{ padding: { xs: '4px', sm: '8px' } }}
+                        >
+                          <NotificationsIcon fontSize={isMobile ? "small" : "medium"} />
+                        </IconButton>
+                      </Box>
                     </TableCell>
                   </TableRow>
                 ))}

@@ -3,6 +3,7 @@ import TablePagination from '@mui/material/TablePagination'
 import { useNavigate, Link } from 'react-router-dom'
 import { useTheme } from '@mui/material/styles'
 import { API_BASE_URL } from '../config';
+import useMediaQuery from '@mui/material/useMediaQuery';
 import {
   Box,
   Button,
@@ -10,6 +11,7 @@ import {
   Card,
   CardContent,
   CardActions,
+  Divider,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -56,6 +58,7 @@ import PageHeader from './PageHeader';
 function ExamList() {
   const navigate = useNavigate()
   const theme = useTheme()
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [exams, setExams] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -215,7 +218,6 @@ function ExamList() {
       setNewExamDialogOpen(false)
       resetForm()
       await fetchExams()
-      fetchExamRecords()
       setAlert({
         show: true,
         message: '考卷创建成功',
@@ -548,27 +550,14 @@ function ExamList() {
     setEditDescription('');
   };
 
-  const renderExamRecords = () => {
-    return examRecords.map((record) => {
-      const recordKey = `record-${record.exam_id}-${record.user_id}-${record.exam_time}`;
-      return (
-        <TableRow key={recordKey}>
-          <TableCell>{record.exam_title}</TableCell>
-          <TableCell>{record.user_phone}</TableCell>
-          <TableCell>{record.score}</TableCell>
-          <TableCell>{record.exam_time}</TableCell>
-          <TableCell>
-            <Button
-              variant="contained"
-              size="small"
-              onClick={() => handleViewExamRecord(record.exam_id, record.user_id, record.exam_time)}
-            >
-              查看详情
-            </Button>
-          </TableCell>
-        </TableRow>
-      );
-    });
+  const handleMenuOpen = (event, exam) => {
+    setAnchorEl(event.currentTarget);
+    setSelectedExam(exam);
+  };
+
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+    setSelectedExam(null);
   };
 
   if (loading) {
@@ -607,7 +596,7 @@ function ExamList() {
           variant="contained"
           startIcon={<AddIcon />}
           onClick={() => setNewExamDialogOpen(true)}
-          
+          size={isMobile ? "small" : "medium"}
         >
           新建考卷
         </Button>
@@ -623,7 +612,7 @@ function ExamList() {
             onChange={(e) => setSearchText(e.target.value)}
             size="small"
             sx={{
-              width: '300px',
+              width: isMobile ? '100%' : '300px',
               '& .MuiOutlinedInput-root': {
                 borderRadius: '0.375rem',
                 '&:hover fieldset': {
@@ -636,7 +625,7 @@ function ExamList() {
             }}
             placeholder="输入考卷标题或描述"
           />
-          <FormControl size="small" sx={{ width: '200px' }}>
+          <FormControl size="small" sx={{ width: isMobile ? '100%' : '200px' }}>
             <InputLabel>按课程筛选</InputLabel>
             <Select
               multiple
@@ -653,6 +642,77 @@ function ExamList() {
           </FormControl>
 
         </Box>
+
+        {/* 移动端使用卡片布局，桌面端使用表格布局 */}
+        {isMobile ? (
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {filteredExams.length === 0 ? (
+              <Typography variant="body1" sx={{ py: 2, color: '#8898aa', textAlign: 'center' }}>
+                暂无考卷
+              </Typography>
+            ) : (
+              filteredExams.map((exam) => (
+                <Card key={exam.id} sx={{ mb: 2, boxShadow: '0 2px 12px 0 rgba(0,0,0,0.1)' }}>
+                  <CardContent>
+                    <Typography variant="h2" gutterBottom>
+                      {exam.title}
+                    </Typography>
+                    
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mt: 2 }}>
+                      <Typography variant="body2" color="text.secondary">
+                        <strong>课程:</strong> {exam.course_names?.join(', ') || '无'}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        <strong>题目数量:</strong> 单选题 {exam.single_count || 0}题, 多选题 {exam.multiple_count || 0}题
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        <strong>创建时间:</strong> {exam.created_at ? new Date(exam.created_at).toLocaleString('zh-CN', {
+                          year: 'numeric',
+                          month: '2-digit',
+                          day: '2-digit',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        }) : '未知'}
+                      </Typography>
+                    </Box>
+                  </CardContent>
+                  <Divider />
+                  <CardActions sx={{ justifyContent: 'space-between', flexWrap: 'wrap', gap: 1, p: 2 }}>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      onClick={() => handlePreview(exam.id)}
+                      startIcon={<VisibilityIcon />}
+                    >
+                    </Button>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      onClick={() => handleShare(exam.id)}
+                      startIcon={<ShareIcon />}
+                    >
+                    </Button>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      color="primary"
+                      onClick={() => handleEditClick(exam)}
+                      startIcon={<EditIcon />}
+                    >
+                    </Button>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      color="error"
+                      onClick={() => handleDeleteClick(exam)}
+                      startIcon={<DeleteIcon />}
+                    ></Button>
+                  </CardActions>
+                </Card>
+              ))
+            )}
+          </Box>
+        ) : (
           <TableContainer
             component={Paper}
             sx={{
@@ -711,6 +771,15 @@ function ExamList() {
                         }) : '未知'}
                       </TableCell>
                       <TableCell>
+                        {exam.created_at ? new Date(exam.created_at).toLocaleString('zh-CN', {
+                          year: 'numeric',
+                          month: '2-digit',
+                          day: '2-digit',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        }) : '未知'}
+                      </TableCell>
+                      <TableCell>
                         <Box sx={{ display: 'flex', gap: 1 }}>
                           <Button
                             size="small"
@@ -754,25 +823,24 @@ function ExamList() {
               </TableBody>
             </Table>
           </TableContainer>
-
-      
+        )}
         </CardContent>
       </Card>
 
       <Menu
         anchorEl={anchorEl}
         open={Boolean(anchorEl)}
-        onClose={() => setAnchorEl(null)}
+        onClose={handleMenuClose}
       >
         <MenuItem onClick={() => {
-          setAnchorEl(null);
+          handleMenuClose();
           handlePreview(selectedExam.id);
         }}>
           <VisibilityIcon sx={{ mr: 1 }} />
           预览
         </MenuItem>
         <MenuItem onClick={() => {
-          setAnchorEl(null);
+          handleMenuClose();
           handleShare(selectedExam.id);
         }}>
           <ShareIcon sx={{ mr: 1 }} />
@@ -780,7 +848,7 @@ function ExamList() {
         </MenuItem>
         <MenuItem 
           onClick={() => {
-            setAnchorEl(null);
+            handleMenuClose();
             handleDeleteClick(selectedExam);
           }} 
           sx={{ color: 'error.main' }}
@@ -791,7 +859,7 @@ function ExamList() {
       </Menu>
 
       {/* 删除确认对话框 */}
-      <Dialog open={deleteDialogOpen} onClose={handleDeleteCancel}>
+      <Dialog open={deleteDialogOpen} onClose={handleDeleteCancel} fullWidth={isMobile}>
         <DialogTitle>删除考卷</DialogTitle>
         <DialogContent>
           <DialogContentText>
@@ -812,8 +880,22 @@ function ExamList() {
         onClose={() => setNewExamDialogOpen(false)}
         maxWidth="md"
         fullWidth
+        fullScreen={isMobile}
       >
-        <DialogTitle>新建考卷</DialogTitle>
+        <DialogTitle>
+          {isMobile && (
+            <IconButton
+              edge="start"
+              color="inherit"
+              onClick={() => setNewExamDialogOpen(false)}
+              aria-label="close"
+              sx={{ mr: 2 }}
+            >
+              <MoreVertIcon />
+            </IconButton>
+          )}
+          新建考卷
+        </DialogTitle>
         <DialogContent>
           <Box sx={{ mt: 2 }}>
             <TextField
@@ -872,7 +954,7 @@ function ExamList() {
                 </Typography>
                 
                 {/* 全选按钮 */}
-                <Box sx={{ mb: 2, display: 'flex', gap: 1 }}>
+                <Box sx={{ mb: 2, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                   <Button
                     variant="outlined"
                     onClick={handleSelectAllPoints}
@@ -890,7 +972,7 @@ function ExamList() {
                 </Box>
 
                 {/* 已选知识点计数 */}
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 1, mb: 2 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 1, mb: 2, flexWrap: 'wrap' }}>
                   <Typography variant="body2" color="text.secondary">
                     已选择 {selectedPoints.length} 个知识点
                   </Typography>
@@ -912,6 +994,7 @@ function ExamList() {
                         size="small"
                         label="搜索知识点"
                         variant="outlined"
+                        fullWidth={isMobile}
                         onChange={(e) => {
                           const searchValue = e.target.value.toLowerCase();
                           if (searchValue === '') {
@@ -966,7 +1049,7 @@ function ExamList() {
                   <Box>
                     
                     <TableContainer component={Paper}>
-                      <Table>
+                      <Table size={isMobile ? "small" : "medium"}>
                         <TableHead>
                           <TableRow>
                             <TableCell padding="checkbox">
@@ -983,9 +1066,13 @@ function ExamList() {
                               />
                             </TableCell>
                             <TableCell>知识点名称</TableCell>
-                            <TableCell align="right">单选题数量</TableCell>
-                            <TableCell align="right">多选题数量</TableCell>
-                            <TableCell>所属课程</TableCell>
+                            {!isMobile && (
+                              <>
+                                <TableCell align="right">单选题数量</TableCell>
+                                <TableCell align="right">多选题数量</TableCell>
+                                <TableCell>所属课程</TableCell>
+                              </>
+                            )}
                           </TableRow>
                         </TableHead>
                         <TableBody>
@@ -1011,9 +1098,13 @@ function ExamList() {
                                   />
                                 </TableCell>
                                 <TableCell>{point.point_name}</TableCell>
-                                <TableCell align="right">{point.single_count || 0}</TableCell>
-                                <TableCell align="right">{point.multiple_count || 0}</TableCell>
-                                <TableCell>{point.course_name}</TableCell>
+                                {!isMobile && (
+                                  <>
+                                    <TableCell align="right">{point.single_count || 0}</TableCell>
+                                    <TableCell align="right">{point.multiple_count || 0}</TableCell>
+                                    <TableCell>{point.course_name}</TableCell>
+                                  </>
+                                )}
                               </TableRow>
                           ))}
                         </TableBody>
@@ -1028,7 +1119,7 @@ function ExamList() {
                           setRowsPerPage(parseInt(e.target.value, 10));
                           setPage(0);
                         }}
-                        labelRowsPerPage="每页行数"
+                        labelRowsPerPage={isMobile ? "行数" : "每页行数"}
                       />
                     </TableContainer>
                   </Box>
@@ -1080,7 +1171,7 @@ function ExamList() {
             )}
           </Box>
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ p: 2, flexWrap: 'wrap', gap: 1 }}>
           <Button onClick={() => {
             setNewExamDialogOpen(false)
             resetForm()
@@ -1099,10 +1190,24 @@ function ExamList() {
         onClose={handleEditCancel}
         maxWidth="sm"
         fullWidth
+        fullScreen={isMobile}
         disableEnforceFocus={false}
         disablePortal={false}
       >
-        <DialogTitle>编辑考卷</DialogTitle>
+        <DialogTitle>
+          {isMobile && (
+            <IconButton
+              edge="start"
+              color="inherit"
+              onClick={handleEditCancel}
+              aria-label="close"
+              sx={{ mr: 2 }}
+            >
+              <MoreVertIcon />
+            </IconButton>
+          )}
+          编辑考卷
+        </DialogTitle>
         <DialogContent>
           <Box sx={{ mt: 2 }}>
             <TextField
@@ -1123,7 +1228,7 @@ function ExamList() {
             />
           </Box>
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ p: 2 }}>
           <Button onClick={handleEditCancel}>取消</Button>
           <Button onClick={handleEditSave} variant="contained" color="primary">
             保存

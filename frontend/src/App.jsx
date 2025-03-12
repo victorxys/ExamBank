@@ -355,7 +355,7 @@ function App() {
             sx={{
               flex: 1,
               p: { xs: 2, sm: 3 },
-              mt: 0,
+              mt: { xs: 7, sm: 0 }, // 在移动端添加顶部空间，避免内容被顶部导航栏遮挡
               width: '100%',
               height: '100vh',
               overflow: 'auto',

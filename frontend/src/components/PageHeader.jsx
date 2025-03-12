@@ -36,13 +36,7 @@ const PageHeader = ({
       </Box>
       <Box sx={{ display: 'flex', gap: 2 }}>
         {actions}
-        {showDefaultActions && (
-          <>
-            <IconButton sx={{ color: 'white' }}>
-              <PersonIcon />
-            </IconButton>
-          </>
-        )}
+        {showDefaultActions}
       </Box>
     </Box>
   );

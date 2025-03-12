@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link as RouterLink, useLocation } from 'react-router-dom'
 import {
   Box,
@@ -9,6 +9,11 @@ import {
   Drawer,
   Typography,
   Divider,
+  IconButton,
+  useMediaQuery,
+  useTheme,
+  AppBar,
+  Toolbar,
 } from '@mui/material'
 import {
   Home as HomeIcon,
@@ -20,6 +25,8 @@ import {
   Assignment as AssignmentIcon,
   AssignmentTurnedIn as AssignmentTurnedInIcon,
   People as PeopleIcon,
+  Menu as MenuIcon,
+  Close as CloseIcon,
 } from '@mui/icons-material'
 import logo from '../assets/logo.svg'
 import UserInfo from './UserInfo'
@@ -85,10 +92,19 @@ function Sidebar() {
   const location = useLocation()
   const [mobileOpen, setMobileOpen] = useState(false)
   const userInfo = hasToken()
+  const theme = useTheme()
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen)
   }
+
+  // 监听窗口大小变化，在大屏幕时自动关闭移动菜单
+  useEffect(() => {
+    if (!isMobile && mobileOpen) {
+      setMobileOpen(false)
+    }
+  }, [isMobile])
 
   const drawer = (
     <Box className="sidenav bg-white">
@@ -163,30 +179,96 @@ function Sidebar() {
   )
 
   return (
-    <Box
-      component="nav"
-      sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
-      className="sidenav-container"
-    >
-      <Drawer
-        variant="permanent"
-        className="sidenav shadow-sm"
-        sx={{
-          display: { xs: 'none', sm: 'block' },
-          '& .MuiDrawer-paper': {
-            boxSizing: 'border-box',
-            width: drawerWidth,
-            borderRight: 0,
+    <>
+      {/* 移动端顶部菜单按钮 */}
+      {isMobile && (
+        <AppBar
+          position="fixed"
+          sx={{
+            display: { sm: 'none' },
             backgroundColor: 'white',
-            backgroundImage: 'none',
-            boxShadow: '0 0 2rem 0 rgba(136, 152, 170, .15)',
-          },
-        }}
-        open
+            boxShadow: '0 0 2rem 0 rgba(136, 152, 170, .1)',
+            zIndex: (theme) => theme.zIndex.drawer + 1,
+          }}
+        >
+          <Toolbar>
+            <IconButton
+              color="primary"
+              aria-label="open drawer"
+              edge="start"
+              onClick={handleDrawerToggle}
+              sx={{ mr: 2 }}
+            >
+              <MenuIcon />
+            </IconButton>
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexGrow: 1,
+              }}
+            >
+              <img src={logo} alt="萌姨萌嫂考试苑" style={{ height: '40px' }} />
+            </Box>
+          </Toolbar>
+        </AppBar>
+      )}
+
+      <Box
+        component="nav"
+        sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
+        className="sidenav-container"
       >
-        {drawer}
-      </Drawer>
-    </Box>
+        {/* 移动端临时抽屉 */}
+        <Drawer
+          variant="temporary"
+          open={mobileOpen}
+          onClose={handleDrawerToggle}
+          ModalProps={{
+            keepMounted: true, // 为了更好的移动端性能
+          }}
+          sx={{
+            display: { xs: 'block', sm: 'none' },
+            '& .MuiDrawer-paper': {
+              boxSizing: 'border-box',
+              width: drawerWidth,
+              borderRight: 0,
+              backgroundColor: 'white',
+              backgroundImage: 'none',
+              boxShadow: '0 0 2rem 0 rgba(136, 152, 170, .15)',
+            },
+          }}
+        >
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', p: 1 }}>
+            <IconButton onClick={handleDrawerToggle}>
+              <CloseIcon />
+            </IconButton>
+          </Box>
+          {drawer}
+        </Drawer>
+
+        {/* 桌面端永久抽屉 */}
+        <Drawer
+          variant="permanent"
+          className="sidenav shadow-sm"
+          sx={{
+            display: { xs: 'none', sm: 'block' },
+            '& .MuiDrawer-paper': {
+              boxSizing: 'border-box',
+              width: drawerWidth,
+              borderRight: 0,
+              backgroundColor: 'white',
+              backgroundImage: 'none',
+              boxShadow: '0 0 2rem 0 rgba(136, 152, 170, .15)',
+            },
+          }}
+          open
+        >
+          {drawer}
+        </Drawer>
+      </Box>
+    </>
   )
 }
 
