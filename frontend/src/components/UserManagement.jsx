@@ -342,6 +342,10 @@ const UserManagement = () => {
                           sx={{
                             '&:hover': {
                               backgroundColor: '#f6f9fc'
+                            },
+                            '& > td': {
+                              padding: { xs: '16px 8px', sm: '20px 16px' },
+                              fontSize: { xs: '0.875rem', sm: '1rem' }
                             }
                           }}
                         >

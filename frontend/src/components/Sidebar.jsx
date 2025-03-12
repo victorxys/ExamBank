@@ -182,92 +182,76 @@ function Sidebar() {
     <>
       {/* 移动端顶部菜单按钮 */}
       {isMobile && (
-        <AppBar
-          position="fixed"
+        <Box
           sx={{
-            display: { sm: 'none' },
-            backgroundColor: 'white',
-            boxShadow: '0 0 2rem 0 rgba(136, 152, 170, .1)',
-            zIndex: (theme) => theme.zIndex.drawer + 1,
+            position: 'fixed',
+            bottom: 16,
+            left: 16,
+            zIndex: (theme) => theme.zIndex.drawer + 2,
           }}
         >
-          <Toolbar>
-            <IconButton
-              color="primary"
-              aria-label="open drawer"
-              edge="start"
-              onClick={handleDrawerToggle}
-              sx={{ mr: 2 }}
-            >
-              <MenuIcon />
-            </IconButton>
-            <Box
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexGrow: 1,
-              }}
-            >
-              <img src={logo} alt="萌姨萌嫂考试苑" style={{ height: '40px' }} />
-            </Box>
-          </Toolbar>
-        </AppBar>
+          <IconButton
+            color="primary"
+            aria-label="open drawer"
+            onClick={handleDrawerToggle}
+            sx={{
+              backgroundColor: 'white',
+              boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
+              '&:hover': {
+                backgroundColor: 'white',
+              },
+            }}
+          >
+            <MenuIcon />
+          </IconButton>
+        </Box>
       )}
 
-      <Box
-        component="nav"
-        sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
-        className="sidenav-container"
+      {/* 移动端抽屉 */}
+      <Drawer
+        variant="temporary"
+        open={mobileOpen}
+        onClose={handleDrawerToggle}
+        ModalProps={{
+          keepMounted: true,
+        }}
+        sx={{
+          display: { xs: 'block', sm: 'none' },
+          '& .MuiDrawer-paper': {
+            boxSizing: 'border-box',
+            width: drawerWidth,
+            borderRight: 0,
+            backgroundColor: 'white',
+            backgroundImage: 'none',
+            boxShadow: '0 0 2rem 0 rgba(136, 152, 170, .15)',
+            '& .sidenav-header': {
+              display: { xs: 'none', sm: 'flex' } // 在移动端隐藏logo
+            }
+          }
+        }}
       >
-        {/* 移动端临时抽屉 */}
-        <Drawer
-          variant="temporary"
-          open={mobileOpen}
-          onClose={handleDrawerToggle}
-          ModalProps={{
-            keepMounted: true, // 为了更好的移动端性能
-          }}
-          sx={{
-            display: { xs: 'block', sm: 'none' },
-            '& .MuiDrawer-paper': {
-              boxSizing: 'border-box',
-              width: drawerWidth,
-              borderRight: 0,
-              backgroundColor: 'white',
-              backgroundImage: 'none',
-              boxShadow: '0 0 2rem 0 rgba(136, 152, 170, .15)',
-            },
-          }}
-        >
-          <Box sx={{ display: 'flex', justifyContent: 'flex-end', p: 1 }}>
-            <IconButton onClick={handleDrawerToggle}>
-              <CloseIcon />
-            </IconButton>
-          </Box>
-          {drawer}
-        </Drawer>
+        {drawer}
+      </Drawer>
 
-        {/* 桌面端永久抽屉 */}
-        <Drawer
-          variant="permanent"
-          className="sidenav shadow-sm"
-          sx={{
-            display: { xs: 'none', sm: 'block' },
-            '& .MuiDrawer-paper': {
-              boxSizing: 'border-box',
-              width: drawerWidth,
-              borderRight: 0,
-              backgroundColor: 'white',
-              backgroundImage: 'none',
-              boxShadow: '0 0 2rem 0 rgba(136, 152, 170, .15)',
-            },
-          }}
-          open
-        >
-          {drawer}
-        </Drawer>
-      </Box>
+      {/* 桌面端永久抽屉 */}
+      <Drawer
+        variant="permanent"
+        className="sidenav shadow-sm"
+        sx={{
+          display: { xs: 'none', sm: 'block' },
+          '& .MuiDrawer-paper': {
+            boxSizing: 'border-box',
+            width: drawerWidth,
+            borderRight: 0,
+            backgroundColor: 'white',
+            backgroundImage: 'none',
+            boxShadow: '0 0 2rem 0 rgba(136, 152, 170, .15)',
+          },
+        }}
+        open
+      >
+        {drawer}
+      </Drawer>
     </>
   )
 }

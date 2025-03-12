@@ -346,7 +346,8 @@ function App() {
             display: 'flex',
             flexDirection: 'column',
             minHeight: '100vh',
-            width: '100%',
+            width: { xs: '100%', sm: 'calc(100% - 260px)' },
+            marginLeft: { xs: 0, sm: '260px' },
             backgroundColor: 'background.default',
           }}
         >
@@ -355,7 +356,7 @@ function App() {
             sx={{
               flex: 1,
               p: { xs: 2, sm: 3 },
-              mt: { xs: 7, sm: 0 }, // 在移动端添加顶部空间，避免内容被顶部导航栏遮挡
+              mt: { xs: 7, sm: 0 },
               width: '100%',
               height: '100vh',
               overflow: 'auto',

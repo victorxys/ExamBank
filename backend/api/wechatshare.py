@@ -22,9 +22,9 @@ if not WECHAT_APP_ID or not WECHAT_APP_SECRET:
     raise ValueError(error_msg)
 
 # 添加微信验证文件路由
-@wechat_share_bp.route('/MP_verify_IWP8lQlrqOWgUVSn.txt')
+@wechat_share_bp.route('/RiytwalDyY.txt')
 def mp_verify():
-    return 'IWP8lQlrqOWgUVSn'
+    return 'ec03f8357f153cf6c66f9c8a9ba0a303'
 
 
 @wechat_share_bp.route('/jssdk-config')
