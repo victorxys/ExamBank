@@ -366,7 +366,7 @@ function App() {
             <ErrorBoundary>
               <Routes>
                 <Route path="/login" element={<LoginPage />} />
-                <Route path="/" element={<PrivateRoute  element={<Navigate to="/exams" />} />} />
+                <Route path="/" element={<PrivateRoute  element={<Navigate to="/users" />} />} />
                 <Route path="/exams" element={<PrivateRoute element={<ExamList />} />} />
                 <Route path="/exams/:examId" element={<PrivateRoute element={<ExamDetail />} />} />
                 <Route path="/knowledge-points" element={<PrivateRoute element={<KnowledgePoints />} />} />

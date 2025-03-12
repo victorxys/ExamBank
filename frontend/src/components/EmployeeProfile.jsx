@@ -72,6 +72,21 @@ const EmployeeProfile = () => {
         const publicParam = new URL(window.location.href).searchParams.get('public');
         const response = await api.get(`/users/${userId}/profile${publicParam ? `?public=${publicParam}` : ''}`);
         setEmployeeData(response.data);
+
+        // 在数据加载完成后自动配置微信分享
+        const host = window.location.origin;
+        const imgUrl = `${host}/avatar/${userId}-avatar.jpg`;
+        const shareUrl = `${window.location.origin}/employee-profile/${userId}?public=true`;
+        
+        const newShareData = {
+          shareTitle: `${response.data?.name || '员工介绍'} - 萌姨萌嫂`,
+          shareDesc: response.data?.introduction?.description || '查看员工的详细介绍、技能和评价。',
+          shareImgUrl: imgUrl,
+          shareLink: shareUrl
+        };
+        
+        console.log('设置微信分享数据:', newShareData);
+        setShareData(newShareData);
       } catch (error) {
         console.error('获取员工信息失败:', error);
         setError(error.response?.data?.error || '获取员工信息失败');
@@ -84,6 +99,7 @@ const EmployeeProfile = () => {
       fetchEmployeeData();
     }
   }, [userId]);
+
   // console.log('isPublic',isPublic)
   const handleOpenDialog = (title, content) => {
     setDialogContent({ title, content });
@@ -865,6 +881,7 @@ const EmployeeProfile = () => {
       </Container>
       {/* 使用WechatShare组件进行微信分享 */}
       {shareData && (
+
         <WechatShare
           shareTitle={shareData.shareTitle}
           shareDesc={shareData.shareDesc}

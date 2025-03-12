@@ -364,7 +364,21 @@ const UserManagement = () => {
                               </Avatar>
                             </TableCell>
                           )}
-                          <TableCell sx={{ color: '#525f7f', whiteSpace: 'nowrap', padding: { xs: '8px', sm: '16px' } }}>{user.username}</TableCell>
+                          <TableCell 
+                            sx={{ 
+                              color: '#525f7f', 
+                              whiteSpace: 'nowrap', 
+                              padding: { xs: '8px', sm: '16px' },
+                              cursor: 'pointer',
+                              '&:hover': {
+                                color: 'primary.main',
+                                textDecoration: 'underline'
+                              }
+                            }}
+                            onClick={() => navigate(`/employee-profile/${user.id}?public=true`)}
+                          >
+                            {user.username}
+                          </TableCell>
                           {!isMobile && (
                             <>
                               <TableCell sx={{ color: '#525f7f', whiteSpace: 'nowrap', padding: { xs: '8px', sm: '16px' } }}>{user.phone_number}</TableCell>
