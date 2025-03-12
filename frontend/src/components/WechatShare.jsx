@@ -4,6 +4,7 @@ import axios from 'axios';
 import { API_BASE_URL } from '../config';
 
 const WechatShare = ({ shareTitle, shareDesc, shareImgUrl, shareLink }) => {
+
   const handleShareToFriend = useCallback(() => {
     // 主动触发分享界面
     if (typeof wx.showOptionMenu === 'function') {
@@ -23,6 +24,7 @@ const WechatShare = ({ shareTitle, shareDesc, shareImgUrl, shareLink }) => {
     });
   }, [shareTitle, shareDesc, shareImgUrl, shareLink]);
 
+
   useEffect(() => {
     const configureWechatShare = async () => {
       if (!shareTitle || !shareDesc || !shareImgUrl) {
@@ -30,17 +32,24 @@ const WechatShare = ({ shareTitle, shareDesc, shareImgUrl, shareLink }) => {
         return;
       }
 
+      // 确保图片URL是完整的绝对路径
+      const fullImgUrl = shareImgUrl.startsWith('http') ? shareImgUrl : 
+                        window.location.origin + shareImgUrl;
+      
+      // 确保分享链接是完整的URL
+      const fullShareLink = shareLink || window.location.href;
+
       console.log('开始配置微信分享...', {
         shareTitle,
         shareDesc,
-        shareImgUrl,
-        shareLink: shareLink || window.location.href
+        shareImgUrl: fullImgUrl,
+        shareLink: fullShareLink
       });
 
       try {
         console.log('正在获取JSSDK配置...');
         const configData = await axios.get(`${API_BASE_URL}/wechat/jssdk-config`, {
-          params: { url: shareLink || window.location.href },
+          params: { url: fullShareLink },
         });
 
         console.log('获取到JSSDK配置数据:', configData.data);
@@ -70,14 +79,14 @@ const WechatShare = ({ shareTitle, shareDesc, shareImgUrl, shareLink }) => {
             wx.updateAppMessageShareData({
               title: shareTitle,
               desc: shareDesc,
-              link: shareLink || window.location.href,
-              imgUrl: shareImgUrl,
+              link: fullShareLink,
+              imgUrl: fullImgUrl,
               success: () => {
                 console.log('分享给朋友配置成功，参数:', {
                   title: shareTitle,
                   desc: shareDesc,
-                  link: shareLink || window.location.href,
-                  imgUrl: shareImgUrl
+                  link: fullShareLink,
+                  imgUrl: fullImgUrl
                 });
               },
               fail: (err) => {
@@ -87,13 +96,13 @@ const WechatShare = ({ shareTitle, shareDesc, shareImgUrl, shareLink }) => {
 
             wx.updateTimelineShareData({
               title: shareTitle,
-              link: shareLink || window.location.href,
-              imgUrl: shareImgUrl,
+              link: fullShareLink,
+              imgUrl: fullImgUrl,
               success: () => {
                 console.log('分享到朋友圈配置成功，参数:', {
                   title: shareTitle,
-                  link: shareLink || window.location.href,
-                  imgUrl: shareImgUrl
+                  link: fullShareLink,
+                  imgUrl: fullImgUrl
                 });
               },
               fail: (err) => {
@@ -116,7 +125,7 @@ const WechatShare = ({ shareTitle, shareDesc, shareImgUrl, shareLink }) => {
     configureWechatShare();
   }, [shareTitle, shareDesc, shareImgUrl, shareLink]);
 
-  return <div style={{ display: 'none' }} onClick={handleShareToFriend} />;
+  return <></>;
 };
 
 export default WechatShare;

@@ -35,7 +35,7 @@ def download_and_convert_avatar(avatar_url, output_path):
             image = background
         
         # 调整图片尺寸为256x256，保持宽高比
-        target_size = (512, 512)
+        target_size = (300, 300)
         ratio = min(target_size[0] / image.size[0], target_size[1] / image.size[1])
         new_size = tuple(int(dim * ratio) for dim in image.size)
         resized_image = image.resize(new_size, Image.Resampling.LANCZOS)
@@ -45,9 +45,25 @@ def download_and_convert_avatar(avatar_url, output_path):
         # 将调整后的图片居中放置
         paste_pos = ((target_size[0] - new_size[0]) // 2, (target_size[1] - new_size[1]) // 2)
         final_image.paste(resized_image, paste_pos)
+
+        # 初始质量设置为100（最高质量）
+        quality = 100
+        max_size_kb = 32  # 最大允许的文件大小（KB）
+
+        # 使用临时内存缓冲区检查文件大小
+        temp_buffer = io.BytesIO()
+        final_image.save(temp_buffer, format='JPEG', quality=quality)
+        file_size_kb = len(temp_buffer.getvalue()) / 1024
         
-        # 保存为JPG格式
-        final_image.save(output_path, 'JPEG', quality=100)
+        # 如果文件大小超过32KB，降低质量到80
+        if file_size_kb > max_size_kb:
+            quality = 95
+            logging.info(f"图片大小 {file_size_kb:.2f}KB 超过 {max_size_kb}KB，降低质量至 {quality}")
+        else:
+            logging.info(f"图片大小 {file_size_kb:.2f}KB，保持最高质量 {quality}")
+        
+        # 保存为JPG格式，使用动态质量参数
+        final_image.save(output_path, 'JPEG', quality=quality)
         return True
     except Exception as e:
         logging.error(f"Error processing {avatar_url}: {str(e)}")
