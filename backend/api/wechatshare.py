@@ -52,31 +52,30 @@ def get_jssdk_config():
             timestamp = int(time.time())
             # 生成签名
             logger.debug(f"URL 参数值 (调用 get_jsapi_signature 前): {url}") # 添加这行日志
-            jsapi_config = client.jsapi.get_jsapi_signature(
+            signature = client.jsapi.get_jsapi_signature(
                 nonce_str,
                 jsapi_ticket,
                 timestamp,
                 url
             )
-            logger.debug(f"成功生成jsapi签名: {jsapi_config}")
+            logger.debug(f"成功生成jsapi签名: {signature}")
         except WeChatException as e:
             error_msg = f"生成签名失败: {str(e)}"
             logger.error(error_msg)
             return jsonify({'success': False, 'message': error_msg}), 500
-        logger.debug(f"jsapi_config 类型: {type(jsapi_config)}")  #  新增日志： 打印 jsapi_config 的类型
-        logger.debug(f"jsapi_config 内容: {jsapi_config}")    #  新增日志： 打印 jsapi_config 的内容
 
         config = {
             'success': True,
             'config': {
                 'debug': True,  # 开启调试模式
                 'appId': WECHAT_APP_ID,
-                'timestamp': timestamp, #  直接使用之前生成的 timestamp 变量
-                'nonceStr': nonce_str, #  直接使用之前生成的 nonce_str 变量
-                'signature': jsapi_config, #  直接使用 jsapi_config 变量 (现在它就是签名字符串)
+                'timestamp': timestamp,
+                'nonceStr': nonce_str,
+                'signature': signature,
                 'jsApiList': [
                     'updateAppMessageShareData',
-                    'updateTimelineShareData'
+                    'updateTimelineShareData',
+                    'showOptionMenu'
                 ]
             }
         }

@@ -39,17 +39,21 @@ const WechatShare = ({ shareTitle, shareDesc, shareImgUrl, shareLink }) => {
       // 确保分享链接是完整的URL
       const fullShareLink = shareLink || window.location.href;
 
+      // 获取当前页面的完整URL，不包含hash部分
+      const currentUrl = window.location.href.split('#')[0];
+
       console.log('开始配置微信分享...', {
         shareTitle,
         shareDesc,
         shareImgUrl: fullImgUrl,
-        shareLink: fullShareLink
+        shareLink: fullShareLink,
+        currentUrl: currentUrl // 记录用于签名的URL
       });
 
       try {
         console.log('正在获取JSSDK配置...');
         const configData = await axios.get(`${API_BASE_URL}/wechat/jssdk-config`, {
-          params: { url: fullShareLink },
+          params: { url: currentUrl }, // 使用不含hash的URL请求签名
         });
 
         console.log('获取到JSSDK配置数据:', configData.data);
@@ -57,6 +61,16 @@ const WechatShare = ({ shareTitle, shareDesc, shareImgUrl, shareLink }) => {
         if (configData.data.success) {
           const config = configData.data.config;
           console.log('正在配置wx.config...', config);
+          
+          // 确保jsApiList包含所有需要使用的API
+          if (!config.jsApiList) {
+            config.jsApiList = [
+              'updateAppMessageShareData', 
+              'updateTimelineShareData', 
+              'showOptionMenu'
+            ];
+          }
+          
           wx.config(config);
 
           // 添加checkJsApi调用
