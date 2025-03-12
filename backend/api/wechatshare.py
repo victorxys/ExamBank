@@ -21,6 +21,10 @@ if not WECHAT_APP_ID or not WECHAT_APP_SECRET:
     logger.error(error_msg)
     raise ValueError(error_msg)
 
+# 添加微信验证文件路由
+@wechat_share_bp.route('/MP_verify_IWP8lQlrqOWgUVSn.txt')
+def mp_verify():
+    return 'IWP8lQlrqOWgUVSn'
 
 
 @wechat_share_bp.route('/jssdk-config')
@@ -67,7 +71,7 @@ def get_jssdk_config():
         config = {
             'success': True,
             'config': {
-                'debug': True,  # 开启调试模式
+                'debug': False,  # 开启调试模式
                 'appId': WECHAT_APP_ID,
                 'timestamp': timestamp,
                 'nonceStr': nonce_str,
