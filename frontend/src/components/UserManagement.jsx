@@ -40,6 +40,62 @@ import {
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import PageHeader from './PageHeader';
+import wx from 'weixin-js-sdk';
+
+// 辅助函数：检测是否在微信小程序WebView中
+const isInWechatMiniProgram = () => {
+  try {
+    // 第一种检测方法：通过 URL 参数
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('is_mini_program') === '1') {
+      console.log('通过 URL 参数检测到小程序环境');
+      try {
+        localStorage.setItem('isInMiniProgram', 'true');
+      } catch (e) {}
+      return true;
+    }
+    
+    // 第二种检测方法：通过 user agent
+    const ua = navigator.userAgent.toLowerCase();
+    if (ua.indexOf('micromessenger') !== -1 && ua.indexOf('miniprogram') !== -1) {
+      console.log('通过 UserAgent 检测到小程序环境:', ua);
+      try {
+        localStorage.setItem('isInMiniProgram', 'true');
+      } catch (e) {}
+      return true;
+    }
+    
+    // 第三种检测方法：通过 localStorage 标记
+    if (localStorage.getItem('isInMiniProgram') === 'true') {
+      console.log('通过 localStorage 标记检测到小程序环境');
+      return true;
+    }
+    
+    // 第四种方法：尝试检测 window.wx 对象（不太可靠）
+    if (window.wx && window.wx.miniProgram) {
+      console.log('通过 window.wx.miniProgram 检测到小程序环境');
+      return true;
+    }
+    
+    return false;
+  } catch (error) {
+    console.error('检测小程序环境时出错:', error);
+    return false;
+  }
+};
+
+// 使用 postMessage 向父窗口发送消息（小程序可以监听这些消息）
+const postMessageToMiniProgram = (data) => {
+  try {
+    console.log('尝试向小程序发送消息:', data);
+    // 向父窗口发送消息
+    window.parent.postMessage(data, '*');
+    return true;
+  } catch (error) {
+    console.error('向小程序发送消息出错:', error);
+    return false;
+  }
+};
 
 const UserManagement = () => {
   const theme = useTheme();
@@ -197,6 +253,19 @@ const UserManagement = () => {
       }
     }
   };
+
+  useEffect(() => {
+    console.log('UserManagement - 检测环境');
+    const inMiniProgram = isInWechatMiniProgram();
+    console.log('是否在小程序环境中:', inMiniProgram);
+    
+    // 如果在小程序环境中，记录当前页面URL
+    if (inMiniProgram) {
+      try {
+        localStorage.setItem('currentPageUrl', window.location.href);
+      } catch (e) {}
+    }
+  }, []);
 
   return (
     <Box sx={{ width: '100%', height: '100%' }}>
@@ -424,36 +493,56 @@ const UserManagement = () => {
                                 <AssessmentIcon fontSize={isMobile ? "small" : "medium"} />
                               </IconButton>
                               <IconButton
-                                
                                 color="info"
                                 onClick={() => {
                                   const targetUrl = `/employee-profile/${user.id}`;
-                                  console.log('targetUrl:', targetUrl);
-                                  console.log('wx.config:', wx.config);
-                                  console.log('window.wx:', window.wx);
-                                  console.log('window.wx.miniProgram:', window.wx.miniProgram);
+                                  console.log('targetUrl', targetUrl);
+                                  
+                                  // 使用辅助函数检测小程序环境
+                                  const inMiniProgram = isInWechatMiniProgram();
+                                  console.log('是否在小程序环境中:', inMiniProgram);
+                                  
                                   // 检查是否在微信小程序WebView中
-                                  if (window.wx && window.wx.miniProgram) {
+                                  if (inMiniProgram) {
                                     console.log('在微信小程序WebView中, 发送URL到小程序:', targetUrl);
                                     
                                     // 构建完整的URL
                                     const fullUrl = window.location.origin + targetUrl;
                                     
-                                    // 向小程序发送当前页面完整URL
-                                    window.wx.miniProgram.postMessage({
-                                      data: {
+                                    try {
+                                      // 尝试使用 window.parent.postMessage 发送消息
+                                      postMessageToMiniProgram({
                                         type: 'navigate',
                                         url: fullUrl
-                                      }
-                                    });
-                                    
-                                    // 给消息处理一些时间
-                                    setTimeout(() => {
-                                      // 使用小程序的导航方法，确保URL被编码
-                                      window.wx.miniProgram.navigateTo({
-                                        url: `/pages/webview/webview?url=${encodeURIComponent(fullUrl)}`
                                       });
-                                    }, 100);
+                                      
+                                      // 使用 localStorage 存储跳转信息，小程序可以查询此信息
+                                      try {
+                                        localStorage.setItem('navigateToUrl', fullUrl);
+                                        localStorage.setItem('navigateTime', Date.now().toString());
+                                        localStorage.setItem('currentPageUrl', fullUrl);
+                                      } catch (e) {
+                                        console.error('无法使用 localStorage:', e);
+                                      }
+                                      
+                                      // 作为备选，尝试 window.wx.miniProgram
+                                      if (window.wx && window.wx.miniProgram) {
+                                        window.wx.miniProgram.postMessage({
+                                          data: {
+                                            type: 'navigate',
+                                            url: fullUrl
+                                          }
+                                        });
+                                        
+                                        setTimeout(() => {
+                                          window.wx.miniProgram.navigateTo({
+                                            url: `/pages/webview/webview?url=${encodeURIComponent(fullUrl)}`
+                                          });
+                                        }, 100);
+                                      }
+                                    } catch (error) {
+                                      console.error('向小程序发送消息出错:', error);
+                                    }
                                     
                                     // 在本地也进行导航，以保持用户体验的连续性
                                     navigate(targetUrl);

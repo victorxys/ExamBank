@@ -30,6 +30,7 @@ from backend.db import get_db_connection
 from backend.api.evaluation_visibility import bp as evaluation_visibility_bp
 from backend.api.evaluation_item import bp as evaluation_item_bp
 from backend.api.wechatshare import wechat_share_bp
+from backend.api.user_sync import sync_user
 
 
 load_dotenv()
@@ -2834,6 +2835,11 @@ def delete_evaluation_route(evaluation_id):
     finally:
         cur.close()
         conn.close()
+
+@app.route('/api/users/sync', methods=['POST'])
+def user_sync_api():
+    """用户数据同步API，供其他业务系统调用"""
+    return sync_user()
 
 @app.route('/api/ai-generate', methods=['POST'])
 def ai_generate_route():
