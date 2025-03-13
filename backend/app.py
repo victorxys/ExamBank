@@ -1984,22 +1984,46 @@ def submit_exam_answer(exam_id):
             score = 0
 
             if question_info['question_type'] == '单选题':
-                is_correct = len(selected_options) == 1 and selected_options[0] in question_info['correct_option_ids']
+                # Ensure correct_option_ids are strings
+                correct_option_ids = []
+                for opt in question_info['correct_option_ids']:
+                    if isinstance(opt, uuid.UUID):
+                        correct_option_ids.append(str(opt))
+                    else:
+                        correct_option_ids.append(str(uuid.UUID(opt)))
+                
+                # Convert selected option to string
+                selected_option_str = ""
+                if selected_options:
+                    if isinstance(selected_options[0], uuid.UUID):
+                        selected_option_str = str(selected_options[0])
+                    else:
+                        selected_option_str = str(uuid.UUID(selected_options[0]))
+                        
+                is_correct = len(selected_options) == 1 and selected_option_str in correct_option_ids
                 score = 1 if is_correct else 0
             elif question_info['question_type'] == '多选题':
-                # 确保 correct_option_ids 是列表格式
+                # Handle correct_option_ids
                 if isinstance(question_info['correct_option_ids'], str):
-                    # 如果是字符串，去掉首尾的 {} 并分割
                     correct_options = question_info['correct_option_ids'].strip('{}').split(',')
-                    # 过滤掉空字符串并转换为UUID字符串
                     correct_options = [str(uuid.UUID(opt.strip())) for opt in correct_options if opt.strip()]
                 else:
-                    correct_options = [str(uuid.UUID(opt)) for opt in question_info['correct_option_ids']]
+                    correct_options = []
+                    for opt in question_info['correct_option_ids']:
+                        if isinstance(opt, uuid.UUID):
+                            correct_options.append(str(opt))
+                        else:
+                            correct_options.append(str(uuid.UUID(opt)))
 
-                # 确保 selected_options 也是UUID字符串格式
-                selected_options = [str(uuid.UUID(opt)) for opt in selected_options]
-
-                selected_set = set(selected_options)
+                # Handle selected_options
+                selected_options_str = []
+                for opt in selected_options:
+                    if isinstance(opt, uuid.UUID):
+                        selected_options_str.append(str(opt))
+                    else:
+                        selected_options_str.append(str(uuid.UUID(opt)))
+                
+                selected_set = set(selected_options_str)
                 correct_set = set(correct_options)
                 
                 is_correct = selected_set == correct_set
@@ -2007,13 +2031,19 @@ def submit_exam_answer(exam_id):
 
             # Record answer
             try:
-                # Convert selected_options to a PostgreSQL array literal
-                # 确保 selected_options 是列表格式
+                # Convert selected_options to PostgreSQL array literal
                 if not isinstance(selected_options, list):
                     selected_options = [selected_options]
-                # 确保所有选项都是有效的UUID字符串
-                selected_options = [str(uuid.UUID(opt)) for opt in selected_options]
-                selected_options_literal = '{' + ','.join(selected_options) + '}'
+
+                # Ensure all options are valid UUID strings
+                selected_options_array = []
+                for opt in selected_options:
+                    if isinstance(opt, uuid.UUID):
+                        selected_options_array.append(str(opt))
+                    else:
+                        selected_options_array.append(str(uuid.UUID(opt)))
+
+                selected_options_literal = '{' + ','.join(selected_options_array) + '}'
                 cur.execute('''
                     INSERT INTO answerrecord (
                         exam_paper_id,
