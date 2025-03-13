@@ -1,8 +1,8 @@
 from flask import jsonify, request
-from werkzeug.security import generate_password_hash
 from backend.db import get_db_connection
 from psycopg2.extras import RealDictCursor
 import logging
+from backend.app import generate_password_hash
 
 log = logging.getLogger(__name__)
 

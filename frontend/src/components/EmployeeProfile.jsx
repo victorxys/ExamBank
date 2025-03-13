@@ -1,38 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import {
-  Box,
-  Container,
-  Avatar,
-  Typography,
-  TextField,
-  Paper,
-  Grid,
-  Chip,
-  Rating,
-  Divider,
-  Card,
-  CardContent,
-  IconButton,
-  BottomNavigation,
-  BottomNavigationAction,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Button,
-  CircularProgress,
-  Alert,
-  Menu,
-  MenuItem
-} from '@mui/material';
-import { Add as AddIcon, Share as ShareIcon, Edit as EditIcon, Delete as DeleteIcon} from '@mui/icons-material';
-import html2canvas from 'html2canvas';
-import { useTheme } from '@mui/material/styles';
-import api from '../api/axios';
-import logoSvg from '../assets/logo.svg';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import axios from 'axios';
+import { Avatar, Box, Button, Container, Grid, Paper, Typography, Rating, Divider, Stack, Tooltip, CircularProgress } from '@mui/material';
+import CommentSection from './CommentSection';
+import EmployeeSkills from './EmployeeSkills';
 import WechatShare from './WechatShare';
-
+import EmployeeService from './EmployeeService';
+// 导入小程序通信工具类
+import MiniProgramTools from '../utils/MiniProgramTools';
 
 const EmployeeProfile = () => {
   const theme = useTheme();
@@ -70,7 +45,7 @@ const EmployeeProfile = () => {
         setLoading(true);
         setError(null);
         const publicParam = new URL(window.location.href).searchParams.get('public');
-        const response = await api.get(`/users/${userId}/profile${publicParam ? `?public=${publicParam}` : ''}`);
+        const response = await axios.get(`/users/${userId}/profile${publicParam ? `?public=${publicParam}` : ''}`);
         setEmployeeData(response.data);
       } catch (error) {
         console.error('获取员工信息失败:', error);
@@ -117,7 +92,7 @@ const EmployeeProfile = () => {
 
   const handleEditSave = async () => {
     try {
-      const response = await api.put(`/users/${userId}/profile`, editFormData);
+      const response = await axios.put(`/users/${userId}/profile`, editFormData);
       setEmployeeData(response.data);
       setEditDialogOpen(false);
       alert('保存成功');
@@ -134,6 +109,68 @@ const EmployeeProfile = () => {
     }
   }, [shareData]);
 
+  // 在数据加载完成后，自动设置分享数据
+  useEffect(() => {
+    if (employeeData && !loading) {
+      try {
+        console.log('=== 员工详情页面加载完成，准备向小程序发送数据 ===');
+        
+        // 构建分享数据，包括完整的图片URL
+        const host = window.location.origin;
+        
+        // 获取员工头像URL (直接从DOM中获取)
+        let imgUrl = '';
+        const avatarElement = document.querySelector('.MuiAvatar-img');
+        if (avatarElement && avatarElement.src) {
+          imgUrl = avatarElement.src;
+          console.log('从DOM获取到员工头像:', imgUrl);
+        } else if (employeeData.avatar) {
+          imgUrl = employeeData.avatar;
+        } else if (employeeData.avatar_url) {
+          imgUrl = employeeData.avatar_url;
+        }
+        
+        // 如果头像URL是相对路径，转换为绝对路径
+        if (imgUrl && !imgUrl.startsWith('http')) {
+          imgUrl = `${host}${imgUrl.startsWith('/') ? '' : '/'}${imgUrl}`;
+        }
+        
+        // 如果没有有效的头像，使用默认图片
+        if (!imgUrl) {
+          imgUrl = `${host}/avatar/${userId}-avatar.jpg`;
+        }
+        
+        console.log('最终员工头像URL:', imgUrl);
+
+        // 构建分享链接和标题
+        const currentUrl = window.location.href;
+        const shareTitle = `${employeeData?.name || '员工介绍'} - 萌姨萌嫂`;
+        const shareDesc = employeeData?.introduction?.description || '查看员工详情';
+        
+        // 使用MiniProgramTools发送分享数据
+        MiniProgramTools.setShareData({
+          title: shareTitle,
+          desc: shareDesc,
+          imgUrl: imgUrl,
+          url: currentUrl
+        });
+        
+        console.log('已使用MiniProgramTools设置分享数据');
+        
+        // 更新组件状态
+        setShareData({
+          shareTitle,
+          shareDesc,
+          shareImgUrl: imgUrl,
+          shareLink: currentUrl
+        });
+        
+      } catch (error) {
+        console.error('向小程序发送数据失败:', error);
+      }
+    }
+  }, [employeeData, loading, userId]);
+
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
@@ -145,7 +182,7 @@ const EmployeeProfile = () => {
   if (error) {
     return (
       <Box sx={{ p: 3 }}>
-        <Alert severity="error">{error}</Alert>
+        <Typography variant="h5" color="error">{error}</Typography>
       </Box>
     );
   }
@@ -154,12 +191,11 @@ const EmployeeProfile = () => {
     
     return (
       <Box sx={{ p: 3, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-        <Alert severity="info" sx={{ width: '100%' }}>暂无员工介绍，请先评价员工，然后再生成相应评价</Alert>
+        <Typography variant="h5" color="info">暂无员工介绍，请先评价员工，然后再生成相应评价</Typography>
         <Button
           variant="contained"
           color="primary"
           onClick={() => navigate(`/user-evaluation/${userId}`)}
-          
         >
           去评价
         </Button>
@@ -677,7 +713,7 @@ const EmployeeProfile = () => {
               <Box
                 sx={{
                   width: 80,
-                  height: 4,
+                height: 4,
                   background: 'linear-gradient(90deg, #26A69A 0%, #80CBC4 100%)',
                   mb: 1,
                   borderRadius: 2

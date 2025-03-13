@@ -270,6 +270,49 @@ const UserManagement = () => {
     }
   };
 
+  const handleViewEmployeeProfile = (userId) => {
+    const targetUrl = `/employee-profile/${userId}`;
+    console.log('点击了用户详情按钮，用户ID:', userId);
+    
+    // 构建完整URL
+    const fullUrl = window.location.origin + targetUrl;
+    console.log('完整URL:', fullUrl);
+    
+    // 检查是否在小程序环境中
+    if (window.MiniProgramTools && window.MiniProgramTools.isInMiniProgram()) {
+      console.log('检测到小程序环境，准备通知小程序跳转');
+      
+      // 使用全局工具发送导航请求
+      window.MiniProgramTools.navigate(fullUrl);
+      
+      // 使用多种通信方式通知小程序
+      try {
+        // 方法1: 通过postMessage
+        window.postMessage({
+          type: 'navigate',
+          url: fullUrl
+        }, '*');
+        
+        // 方法2: 通过localStorage
+        localStorage.setItem('navigateToUrl', fullUrl);
+        localStorage.setItem('navigateTime', String(Date.now()));
+        
+        // 方法3: 通过parent.postMessage (WebView内)
+        window.parent.postMessage({
+          type: 'navigate',
+          url: fullUrl
+        }, '*');
+        
+        console.log('已发送导航请求:', fullUrl);
+      } catch (e) {
+        console.error('发送导航请求失败:', e);
+      }
+    }
+    
+    // 本地导航 (无论是否小程序环境都执行)
+    navigate(targetUrl);
+  };
+
   useEffect(() => {
     console.log('UserManagement - 检测环境');
     const inMiniProgram = isInWechatMiniProgram();
@@ -510,29 +553,7 @@ const UserManagement = () => {
                               </IconButton>
                               <IconButton
                                 color="info"
-                                onClick={() => {
-                                  const targetUrl = `/employee-profile/${user.id}`;
-                                  console.log('点击了用户信息按钮, 用户ID:', user.id);
-                                  
-                                  // 构建完整URL
-                                  const fullUrl = window.location.origin + targetUrl;
-                                  console.log('完整URL:', fullUrl);
-                                  
-                                  // 检查是否有全局小程序工具
-                                  if (window.MiniProgramTools && window.MiniProgramTools.isInMiniProgram()) {
-                                    console.log('检测到小程序环境，使用MiniProgramTools处理导航');
-                                    
-                                    // 使用全局工具处理导航
-                                    window.MiniProgramTools.navigate(fullUrl);
-                                    
-                                    // 在本地也进行导航，以保持用户体验的连续性
-                                    navigate(targetUrl);
-                                  } else {
-                                    // 普通环境下的导航
-                                    console.log('普通环境，正常导航:', targetUrl);
-                                    navigate(targetUrl);
-                                  }
-                                }}
+                                onClick={() => handleViewEmployeeProfile(user.id)}
                                 size="small"
                                 sx={{ padding: { xs: '4px', sm: '8px' } }}
                               >

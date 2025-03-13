@@ -2,6 +2,7 @@ import React, { useEffect, useCallback, useState } from 'react';
 import wx from 'weixin-js-sdk';
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
+import MiniProgramTools from '../utils/MiniProgramTools';
 
 const WechatShare = ({ shareTitle, shareDesc, shareImgUrl, shareLink }) => {
   const [isInMiniProgram, setIsInMiniProgram] = useState(false);
@@ -173,7 +174,6 @@ const WechatShare = ({ shareTitle, shareDesc, shareImgUrl, shareLink }) => {
     });
   }, [shareTitle, shareDesc, shareImgUrl, shareLink]);
 
-
   useEffect(() => {
     const configureWechatShare = async () => {
       if (isInMiniProgram) {
@@ -308,6 +308,63 @@ const WechatShare = ({ shareTitle, shareDesc, shareImgUrl, shareLink }) => {
 
     configureWechatShare();
   }, [shareTitle, shareDesc, shareImgUrl, shareLink, isInMiniProgram]);
+
+  useEffect(() => {
+    const shareData = {
+      shareTitle: shareTitle,
+      shareDesc: shareDesc,
+      shareImgUrl: shareImgUrl,
+      shareLink: shareLink
+    };
+
+    if (!shareData) return;
+    
+    console.log('WechatShare组件收到新的分享数据:', shareData);
+    
+    // 使用MiniProgramTools设置分享数据
+    if (MiniProgramTools && MiniProgramTools.isInMiniProgram()) {
+      console.log('检测到小程序环境，使用MiniProgramTools设置分享数据');
+      
+      MiniProgramTools.setShareData({
+        title: shareData.shareTitle,
+        desc: shareData.shareDesc,
+        imgUrl: shareData.shareImgUrl,
+        url: shareData.shareLink || window.location.href
+      });
+      
+      console.log('WechatShare: 已通过MiniProgramTools发送分享数据');
+    } else {
+      console.log('非小程序环境，使用常规方式设置分享数据');
+      
+      // 常规网页环境下，仍然保留原有的设置方式
+      try {
+        // 使用localStorage保存分享信息
+        localStorage.setItem('currentTitle', shareData.shareTitle);
+        localStorage.setItem('currentDesc', shareData.shareDesc);
+        localStorage.setItem('currentImgUrl', shareData.shareImgUrl);
+        localStorage.setItem('currentPageUrl', shareData.shareLink || window.location.href);
+        
+        console.log('WechatShare: 已保存分享数据到localStorage');
+      } catch (e) {
+        console.error('设置localStorage失败:', e);
+      }
+      
+      // 尝试其他通信方式
+      try {
+        window.parent.postMessage({
+          type: 'currentPage',
+          title: shareData.shareTitle,
+          desc: shareData.shareDesc,
+          imgUrl: shareData.shareImgUrl,
+          url: shareData.shareLink || window.location.href
+        }, '*');
+        
+        console.log('WechatShare: 已通过postMessage发送分享数据');
+      } catch (e) {
+        console.error('postMessage失败:', e);
+      }
+    }
+  }, [shareTitle, shareDesc, shareImgUrl, shareLink]);
 
   // 添加全局监听URL变化的函数
   useEffect(() => {
