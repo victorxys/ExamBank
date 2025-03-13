@@ -84,55 +84,7 @@ const EmployeeProfile = () => {
       fetchEmployeeData();
     }
   }, [userId]);
-
-  useEffect(() => {
-    if (shareData) {
-      console.log('WechatShare组件已激活，分享数据:', shareData);
-    }
-  }, [shareData]);
-
-  useEffect(() => {
-    if (employeeData && !loading) {
-      try {
-        console.log('设置员工分享数据');
-        
-        // 获取当前URL和域名
-        const currentUrl = window.location.href;
-        const host = window.location.origin;
-        
-        // 获取员工头像URL
-        let imgUrl = '';
-        if (employeeData.avatar) {
-          imgUrl = employeeData.avatar;
-        } else if (employeeData.avatar_url) {
-          imgUrl = employeeData.avatar_url;
-        }
-        
-        // 如果头像URL是相对路径，转换为绝对路径
-        if (imgUrl && !imgUrl.startsWith('http')) {
-          imgUrl = `${host}${imgUrl.startsWith('/') ? '' : '/'}${imgUrl}`;
-        }
-        
-        // 如果没有有效的头像，使用默认图片
-        if (!imgUrl) {
-          imgUrl = `${host}/logo192.png`;
-        }
-        
-        // 设置分享数据
-        setShareData({
-          shareTitle: `${employeeData.name || '员工介绍'} - 萌姨萌嫂`,
-          shareDesc: employeeData.introduction?.description || '查看员工详情',
-          shareImgUrl: imgUrl,
-          shareLink: currentUrl
-        });
-        
-        console.log('分享数据已设置');
-      } catch (error) {
-        console.error('设置分享数据失败:', error);
-      }
-    }
-  }, [employeeData, loading]);
-
+  // console.log('isPublic',isPublic)
   const handleOpenDialog = (title, content) => {
     setDialogContent({ title, content });
     setDialogOpen(true);
@@ -174,6 +126,13 @@ const EmployeeProfile = () => {
       alert('保存失败，请重试');
     }
   };
+
+  // 监听分享数据变化
+  useEffect(() => {
+    if (shareData) {
+      console.log('WechatShare组件已激活，分享数据:', shareData);
+    }
+  }, [shareData]);
 
   if (loading) {
     return (
