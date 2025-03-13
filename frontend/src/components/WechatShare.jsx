@@ -59,13 +59,43 @@ const WechatShare = ({ shareTitle, shareDesc, shareImgUrl, shareLink }) => {
       const hostname = window.location.hostname;
       const protocol = window.location.protocol;
       const imgHostPath = `${protocol}//${hostname}`;
-      const fullImgUrl = shareImgUrl?.startsWith('http') 
-                      ? shareImgUrl 
-                      : shareImgUrl
-                        ? imgHostPath + shareImgUrl
-                        : imgHostPath + '/logo192.png';
       
-      console.log('向小程序发送当前页面信息:', currentUrl);
+      // 首先检查是否是员工资料页面
+      const isEmployeeProfile = currentUrl.includes('employee-profile');
+      let fullImgUrl;
+      
+      if (isEmployeeProfile) {
+        // 员工资料页面使用特殊处理获取员工头像
+        const employeeImg = document.querySelector('.MuiAvatar-img')?.src || 
+                           document.querySelector('.employee-avatar img')?.src;
+        
+        console.log('检测到员工资料页面，获取头像:', employeeImg);
+        
+        if (employeeImg) {
+          fullImgUrl = employeeImg.startsWith('http') ? employeeImg : imgHostPath + employeeImg;
+        } else {
+          // 如果无法获取员工头像，使用默认值
+          fullImgUrl = shareImgUrl?.startsWith('http') 
+                    ? shareImgUrl 
+                    : shareImgUrl
+                      ? imgHostPath + shareImgUrl
+                      : imgHostPath + '/logo192.png';
+        }
+      } else {
+        // 非员工资料页面
+        fullImgUrl = shareImgUrl?.startsWith('http') 
+                  ? shareImgUrl 
+                  : shareImgUrl
+                    ? imgHostPath + shareImgUrl
+                    : imgHostPath + '/logo192.png';
+      }
+      
+      console.log('向小程序发送当前页面信息:', {
+        url: currentUrl,
+        title: title,
+        desc: desc,
+        imgUrl: fullImgUrl
+      });
       
       window.wx.miniProgram.postMessage({
         data: {
@@ -79,8 +109,26 @@ const WechatShare = ({ shareTitle, shareDesc, shareImgUrl, shareLink }) => {
       
       // 额外通过 localStorage 同步状态
       try {
-        localStorage.setItem('currentWebviewUrl', currentUrl);
+        localStorage.setItem('currentPageUrl', currentUrl);
         localStorage.setItem('currentTitle', title);
+        localStorage.setItem('currentImgUrl', fullImgUrl);
+        localStorage.setItem('currentDesc', desc);
+      } catch (e) {
+        console.error('无法使用 localStorage:', e);
+      }
+    } else {
+      // 如果 wx 对象不存在，尝试通过 localStorage 通信
+      try {
+        const currentUrl = window.location.href;
+        console.log('wx对象不可用，通过localStorage发送页面信息:', currentUrl);
+        
+        localStorage.setItem('currentPageUrl', currentUrl);
+        
+        // 如果是导航操作，同时设置导航标记
+        if (window.location.href.includes('employee-profile')) {
+          localStorage.setItem('navigateToUrl', currentUrl);
+          localStorage.setItem('navigateTime', String(Date.now()));
+        }
       } catch (e) {
         console.error('无法使用 localStorage:', e);
       }
