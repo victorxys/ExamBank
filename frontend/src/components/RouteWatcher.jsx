@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import React, { useEffect, useState, useRef } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import WechatShare from './WechatShare';
 
 /**
@@ -8,64 +8,141 @@ import WechatShare from './WechatShare';
  */
 const RouteWatcher = () => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const lastPathRef = useRef(location.pathname);
   const [pageInfo, setPageInfo] = useState({
-    title: document.title,
-    desc: document.querySelector('meta[name="description"]')?.content || '员工介绍平台',
-    imgUrl: '/path/to/default-share-image.png', // 替换为您的默认分享图片
+    title: document.title || '员工介绍平台',
+    desc: document.querySelector('meta[name="description"]')?.content || '员工介绍与管理系统',
+    imgUrl: '/logo192.png', // 可访问的默认分享图片，确保此文件存在
     link: window.location.href
   });
 
+  // 获取路由中的用户ID (如果存在)
+  const getUserIdFromPath = (path) => {
+    const matches = path.match(/\/([^\/]+)\/(\d+)$/);
+    return matches ? matches[2] : null;
+  };
+
+  // 向小程序发送页面信息
+  const sendPageInfoToMiniProgram = (info) => {
+    if (window.wx && window.wx.miniProgram) {
+      const messageData = {
+        type: 'routeChange',
+        url: info.link || window.location.href,
+        title: info.title || document.title,
+        desc: info.desc || document.querySelector('meta[name="description"]')?.content,
+        imgUrl: info.imgUrl || '/logo192.png'
+      };
+      
+      console.log('RouteWatcher: 向小程序发送页面信息:', messageData);
+      
+      // 发送消息到小程序
+      window.wx.miniProgram.postMessage({
+        data: messageData
+      });
+      
+      return true;
+    }
+    return false;
+  };
+
   // 监听路由变化，更新分享信息
   useEffect(() => {
-    console.log('路由变化:', location.pathname);
+    console.log('路由变化:', location.pathname, '之前路径:', lastPathRef.current);
     
-    // 根据不同路由设置不同的分享信息
-    let newTitle = document.title;
-    let newDesc = document.querySelector('meta[name="description"]')?.content || '员工介绍平台';
-    let newImgUrl = '/path/to/default-share-image.png';
-    
-    // 判断当前路由，设置对应的分享信息
-    if (location.pathname.includes('/employee-profile/')) {
-      const userId = location.pathname.split('/').pop();
-      newTitle = `员工详细介绍 - ID: ${userId}`;
-      newDesc = '查看员工的详细介绍、专业技能和项目经验';
-    } else if (location.pathname.includes('/users')) {
-      newTitle = '员工管理';
-      newDesc = '浏览和管理所有员工信息';
-    } else if (location.pathname.includes('/user-evaluation/')) {
-      newTitle = '员工评价';
-      newDesc = '查看和提交员工评价信息';
+    // 如果路径真的变了才处理
+    if (location.pathname !== lastPathRef.current) {
+      lastPathRef.current = location.pathname;
+      
+      // 根据不同路由设置不同的分享信息
+      let newTitle = document.title || '员工介绍平台';
+      let newDesc = document.querySelector('meta[name="description"]')?.content || '员工介绍与管理系统';
+      let newImgUrl = '/logo192.png';
+      
+      // 判断当前路由，设置对应的分享信息
+      if (location.pathname.includes('/employee-profile/')) {
+        const userId = getUserIdFromPath(location.pathname);
+        newTitle = `员工详细介绍 - ID: ${userId || ''}`;
+        newDesc = '查看员工的详细介绍、专业技能和项目经验';
+      } else if (location.pathname.includes('/users')) {
+        newTitle = '员工管理';
+        newDesc = '浏览和管理所有员工信息';
+      } else if (location.pathname.includes('/user-evaluation/')) {
+        const userId = getUserIdFromPath(location.pathname);
+        newTitle = `员工评价 - ID: ${userId || ''}`;
+        newDesc = '查看和提交员工评价信息';
+      } else if (location.pathname.includes('/user-evaluation-summary/')) {
+        const userId = getUserIdFromPath(location.pathname);
+        newTitle = `员工评价总结 - ID: ${userId || ''}`;
+        newDesc = '员工评价汇总与分析';
+      } else if (location.pathname.includes('/evaluation-management')) {
+        newTitle = '评价管理';
+        newDesc = '管理员工评价系统';
+      } else if (location.pathname.includes('/client-evaluation/')) {
+        const userId = getUserIdFromPath(location.pathname);
+        newTitle = `客户评价 - ID: ${userId || ''}`;
+        newDesc = '提交您对员工的评价和反馈';
+      }
+      
+      // 检查是否在微信环境中
+      const isWechatBrowser = /MicroMessenger/i.test(navigator.userAgent);
+      const isInMiniProgram = window.wx && window.wx.miniProgram;
+      
+      // 优先使用真实的分享图片URL
+      const hostname = window.location.hostname;
+      const protocol = window.location.protocol;
+      const imgHostPath = `${protocol}//${hostname}`;
+      const fullImgUrl = newImgUrl.startsWith('http') 
+                        ? newImgUrl 
+                        : `${imgHostPath}${newImgUrl}`;
+      
+      // 更新分享信息
+      const newPageInfo = {
+        title: newTitle,
+        desc: newDesc,
+        imgUrl: fullImgUrl,
+        link: window.location.href
+      };
+      
+      setPageInfo(newPageInfo);
+      
+      // 通知小程序当前页面信息（如果在小程序WebView中）
+      if (isInMiniProgram) {
+        sendPageInfoToMiniProgram(newPageInfo);
+      }
+      
+      // 如果在微信浏览器中但不在小程序中，可以添加微信环境特定处理
+      if (isWechatBrowser && !isInMiniProgram) {
+        console.log('在微信浏览器中，非小程序环境');
+        // 可以添加微信浏览器特定的处理逻辑
+      }
     }
+  }, [location.pathname, location.search]);
+  
+  // 定期检查并同步URL（解决某些情况下路由变化没被检测到的问题）
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      const currentFullUrl = window.location.href;
+      
+      // 如果当前URL与分享链接不同，发送更新
+      if (currentFullUrl !== pageInfo.link && window.wx && window.wx.miniProgram) {
+        console.log('定期检查: 检测到URL变化，从', pageInfo.link, '到', currentFullUrl);
+        
+        const updatedInfo = {
+          ...pageInfo,
+          link: currentFullUrl
+        };
+        
+        // 更新状态
+        setPageInfo(updatedInfo);
+        
+        // 向小程序发送更新
+        sendPageInfoToMiniProgram(updatedInfo);
+      }
+    }, 2000); // 每2秒检查一次
     
-    // 检查是否在微信环境中
-    const isWechatBrowser = /MicroMessenger/i.test(navigator.userAgent);
-    
-    // 更新分享信息
-    setPageInfo({
-      title: newTitle,
-      desc: newDesc,
-      imgUrl: newImgUrl,
-      link: window.location.href
-    });
-    
-    // 通知小程序当前页面信息（如果在小程序WebView中）
-    if (window.wx && window.wx.miniProgram) {
-      window.wx.miniProgram.postMessage({
-        data: {
-          type: 'routeChange',
-          url: window.location.href,
-          title: newTitle,
-          desc: newDesc,
-          imgUrl: newImgUrl
-        }
-      });
-    }
-    
-    // 如果在微信浏览器中，添加微信环境特定处理
-    if (isWechatBrowser) {
-      // 可以在这里添加微信环境特定的处理逻辑
-    }
-  }, [location]);
+    return () => clearInterval(intervalId);
+  }, [pageInfo]);
   
   // 使用 WechatShare 组件进行微信分享配置
   return (

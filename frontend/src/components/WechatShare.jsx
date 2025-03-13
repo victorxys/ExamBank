@@ -15,6 +15,16 @@ const WechatShare = ({ shareTitle, shareDesc, shareImgUrl, shareLink }) => {
         
         // 通知小程序当前页面的路径
         sendPageInfoToMiniProgram();
+        
+        // 增加监听 URL 变化的事件
+        window.addEventListener('popstate', handleUrlChange);
+        window.addEventListener('hashchange', handleUrlChange);
+        
+        // 订阅来自小程序的消息
+        window.__WEBVIEW_MESSAGE_CALLBACK = (event) => {
+          console.log('收到来自小程序的消息:', event);
+          // 处理消息...
+        };
       } else {
         console.log('当前环境不在微信小程序WebView中');
         setIsInMiniProgram(false);
@@ -23,39 +33,57 @@ const WechatShare = ({ shareTitle, shareDesc, shareImgUrl, shareLink }) => {
     
     checkIfInMiniProgram();
     
-    // 监听 URL 变化
-    const handleUrlChange = () => {
-      console.log('URL 变化:', window.location.href);
-      if (isInMiniProgram) {
-        sendPageInfoToMiniProgram();
-      }
-    };
-    
-    // 监听 popstate 和 hashchange 事件
-    window.addEventListener('popstate', handleUrlChange);
-    window.addEventListener('hashchange', handleUrlChange);
-    
     return () => {
       window.removeEventListener('popstate', handleUrlChange);
       window.removeEventListener('hashchange', handleUrlChange);
+      delete window.__WEBVIEW_MESSAGE_CALLBACK;
     };
+  }, []);
+  
+  // 监听 URL 变化
+  const handleUrlChange = useCallback(() => {
+    console.log('URL 变化:', window.location.href);
+    if (isInMiniProgram) {
+      sendPageInfoToMiniProgram();
+    }
   }, [isInMiniProgram]);
   
   // 向小程序发送当前页面信息
   const sendPageInfoToMiniProgram = useCallback(() => {
     if (window.wx && window.wx.miniProgram) {
       const currentUrl = window.location.href;
+      const title = shareTitle || document.title || '分享页面';
+      const desc = shareDesc || document.querySelector('meta[name="description"]')?.content || '页面描述';
+      
+      // 确保图片 URL 是完整路径
+      const hostname = window.location.hostname;
+      const protocol = window.location.protocol;
+      const imgHostPath = `${protocol}//${hostname}`;
+      const fullImgUrl = shareImgUrl?.startsWith('http') 
+                      ? shareImgUrl 
+                      : shareImgUrl
+                        ? imgHostPath + shareImgUrl
+                        : imgHostPath + '/logo192.png';
+      
       console.log('向小程序发送当前页面信息:', currentUrl);
       
       window.wx.miniProgram.postMessage({
         data: {
           type: 'currentPage',
           url: currentUrl,
-          title: document.title || shareTitle || '分享页面',
-          desc: shareDesc || document.querySelector('meta[name="description"]')?.content || '页面描述',
-          imgUrl: shareImgUrl || '/path/to/default-share-image.png'
+          title: title,
+          desc: desc,
+          imgUrl: fullImgUrl
         }
       });
+      
+      // 额外通过 localStorage 同步状态
+      try {
+        localStorage.setItem('currentWebviewUrl', currentUrl);
+        localStorage.setItem('currentTitle', title);
+      } catch (e) {
+        console.error('无法使用 localStorage:', e);
+      }
     }
   }, [shareTitle, shareDesc, shareImgUrl]);
 

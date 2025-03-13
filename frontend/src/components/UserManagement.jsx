@@ -430,17 +430,28 @@ const UserManagement = () => {
                                   // 检查是否在微信小程序WebView中
                                   if (window.wx && window.wx.miniProgram) {
                                     console.log('在微信小程序WebView中, 发送URL到小程序:', targetUrl);
+                                    
+                                    // 构建完整的URL
+                                    const fullUrl = window.location.origin + targetUrl;
+                                    
                                     // 向小程序发送当前页面完整URL
                                     window.wx.miniProgram.postMessage({
                                       data: {
                                         type: 'navigate',
-                                        url: window.location.origin + targetUrl
+                                        url: fullUrl
                                       }
                                     });
-                                    // 使用小程序的导航方法
-                                    window.wx.miniProgram.navigateTo({
-                                      url: `/pages/webview/webview?url=${encodeURIComponent(window.location.origin + targetUrl)}`
-                                    });
+                                    
+                                    // 给消息处理一些时间
+                                    setTimeout(() => {
+                                      // 使用小程序的导航方法，确保URL被编码
+                                      window.wx.miniProgram.navigateTo({
+                                        url: `/pages/webview/webview?url=${encodeURIComponent(fullUrl)}`
+                                      });
+                                    }, 100);
+                                    
+                                    // 在本地也进行导航，以保持用户体验的连续性
+                                    navigate(targetUrl);
                                   } else {
                                     // 正常网页中的导航
                                     console.log('在普通网页中, 正常导航:', targetUrl);
