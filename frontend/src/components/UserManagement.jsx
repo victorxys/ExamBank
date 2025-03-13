@@ -424,9 +424,14 @@ const UserManagement = () => {
                                 <AssessmentIcon fontSize={isMobile ? "small" : "medium"} />
                               </IconButton>
                               <IconButton
+                                
                                 color="info"
                                 onClick={() => {
                                   const targetUrl = `/employee-profile/${user.id}`;
+                                  console.log('targetUrl:', targetUrl);
+                                  console.log('wx.config:', wx.config);
+                                  console.log('window.wx:', window.wx);
+                                  console.log('window.wx.miniProgram:', window.wx.miniProgram);
                                   // 检查是否在微信小程序WebView中
                                   if (window.wx && window.wx.miniProgram) {
                                     console.log('在微信小程序WebView中, 发送URL到小程序:', targetUrl);
