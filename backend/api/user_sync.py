@@ -2,7 +2,9 @@ from flask import jsonify, request
 from backend.db import get_db_connection
 from psycopg2.extras import RealDictCursor
 import logging
+import os
 from backend.app import generate_password_hash
+from backend.api.download_avatars import download_and_convert_avatar
 
 log = logging.getLogger(__name__)
 
@@ -79,6 +81,25 @@ def sync_user():
             updated_user = cur.fetchone()
             conn.commit()
             log.debug(f"Updated existing user: {updated_user}")
+            
+            # 如果有头像URL，下载并转换头像
+            if 'avatar' in data and data['avatar']:
+                try:
+                    # 确保输出目录存在
+                    output_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 
+                                            'frontend', 'public', 'avatar')
+                    os.makedirs(output_dir, exist_ok=True)
+                    
+                    output_path = os.path.join(output_dir, f"{existing_user['id']}-avatar.jpg")
+                    log.info(f"Downloading avatar for user {existing_user['id']} from {data['avatar']}")
+                    
+                    if download_and_convert_avatar(data['avatar'], output_path):
+                        log.info(f"Avatar downloaded and converted successfully for user {existing_user['id']}")
+                    else:
+                        log.warning(f"Failed to download avatar for user {existing_user['id']}")
+                except Exception as e:
+                    log.error(f"Error downloading avatar for user {existing_user['id']}: {str(e)}")
+            
             return jsonify({
                 'message': 'User updated successfully',
                 'user': updated_user
@@ -110,6 +131,25 @@ def sync_user():
         new_user = cur.fetchone()
         conn.commit()
         log.debug(f"Created new user through sync: {new_user}")
+        
+        # 如果有头像URL，下载并转换头像
+        if 'avatar' in data and data['avatar']:
+            try:
+                # 确保输出目录存在
+                output_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 
+                                        'frontend', 'public', 'avatar')
+                os.makedirs(output_dir, exist_ok=True)
+                
+                output_path = os.path.join(output_dir, f"{new_user['id']}-avatar.jpg")
+                log.info(f"Downloading avatar for new user {new_user['id']} from {data['avatar']}")
+                
+                if download_and_convert_avatar(data['avatar'], output_path):
+                    log.info(f"Avatar downloaded and converted successfully for new user {new_user['id']}")
+                else:
+                    log.warning(f"Failed to download avatar for new user {new_user['id']}")
+            except Exception as e:
+                log.error(f"Error downloading avatar for new user {new_user['id']}: {str(e)}")
+        
         return jsonify({
             'message': 'User created successfully',
             'user': new_user
