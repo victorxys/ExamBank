@@ -459,7 +459,7 @@ const UserManagement = () => {
                                   } else {
                                     // 正常网页中的导航
                                     console.log('在普通网页中, 正常导航:', targetUrl);
-                                    console.log('wx.config:',wx.config)
+                                    // console.log('wx.config:',wx.config)
                                     navigate(targetUrl);
                                   }
                                 }}
