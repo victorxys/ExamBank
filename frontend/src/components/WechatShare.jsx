@@ -1,25 +1,98 @@
-import React, { useEffect, useCallback } from 'react';
+import React, { useEffect, useCallback, useState } from 'react';
 import wx from 'weixin-js-sdk';
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
 
 const WechatShare = ({ shareTitle, shareDesc, shareImgUrl, shareLink }) => {
+  const [isInMiniProgram, setIsInMiniProgram] = useState(false);
+
+  // 检测当前是否在微信小程序中
+  useEffect(() => {
+    const checkIfInMiniProgram = () => {
+      if (window.wx && window.wx.miniProgram) {
+        console.log('检测到当前环境在微信小程序WebView中');
+        setIsInMiniProgram(true);
+        
+        // 通知小程序当前页面的路径
+        sendPageInfoToMiniProgram();
+      } else {
+        console.log('当前环境不在微信小程序WebView中');
+        setIsInMiniProgram(false);
+      }
+    };
+    
+    checkIfInMiniProgram();
+    
+    // 监听 URL 变化
+    const handleUrlChange = () => {
+      console.log('URL 变化:', window.location.href);
+      if (isInMiniProgram) {
+        sendPageInfoToMiniProgram();
+      }
+    };
+    
+    // 监听 popstate 和 hashchange 事件
+    window.addEventListener('popstate', handleUrlChange);
+    window.addEventListener('hashchange', handleUrlChange);
+    
+    return () => {
+      window.removeEventListener('popstate', handleUrlChange);
+      window.removeEventListener('hashchange', handleUrlChange);
+    };
+  }, [isInMiniProgram]);
+  
+  // 向小程序发送当前页面信息
+  const sendPageInfoToMiniProgram = useCallback(() => {
+    if (window.wx && window.wx.miniProgram) {
+      const currentUrl = window.location.href;
+      console.log('向小程序发送当前页面信息:', currentUrl);
+      
+      window.wx.miniProgram.postMessage({
+        data: {
+          type: 'currentPage',
+          url: currentUrl,
+          title: document.title || shareTitle || '分享页面',
+          desc: shareDesc || document.querySelector('meta[name="description"]')?.content || '页面描述',
+          imgUrl: shareImgUrl || '/path/to/default-share-image.png'
+        }
+      });
+    }
+  }, [shareTitle, shareDesc, shareImgUrl]);
 
   const handleShareToFriend = useCallback(() => {
     // 主动触发分享界面
     if (typeof wx.showOptionMenu === 'function') {
       wx.showOptionMenu();
     }
-    wx.updateAppMessageShareData({
-      title: shareTitle,
-      desc: shareDesc,
-      link: shareLink || window.location.href,
-      imgUrl: shareImgUrl,
+    
+    const currentUrl = window.location.href;
+    const shareOptions = {
+      title: shareTitle || document.title || '分享页面',
+      desc: shareDesc || document.querySelector('meta[name="description"]')?.content || '页面描述',
+      link: shareLink || currentUrl,
+      imgUrl: shareImgUrl || '/path/to/default-share-image.png',
       success: () => {
         console.log('分享给朋友成功');
       },
       fail: (err) => {
         console.error('分享给朋友失败:', err);
+      }
+    };
+    
+    console.log('配置分享选项:', shareOptions);
+    
+    wx.updateAppMessageShareData(shareOptions);
+    
+    // 分享到朋友圈
+    wx.updateTimelineShareData({
+      title: shareOptions.title,
+      link: shareOptions.link,
+      imgUrl: shareOptions.imgUrl,
+      success: () => {
+        console.log('分享到朋友圈配置成功');
+      },
+      fail: (err) => {
+        console.error('分享到朋友圈配置失败:', err);
       }
     });
   }, [shareTitle, shareDesc, shareImgUrl, shareLink]);
@@ -27,14 +100,27 @@ const WechatShare = ({ shareTitle, shareDesc, shareImgUrl, shareLink }) => {
 
   useEffect(() => {
     const configureWechatShare = async () => {
-      if (!shareTitle || !shareDesc || !shareImgUrl) {
-        console.error('分享参数不完整');
+      if (isInMiniProgram) {
+        console.log('在小程序中，不需要配置网页JSSDK');
         return;
+      }
+      
+      if (!shareTitle && !shareDesc && !shareImgUrl) {
+        // 尝试从页面元数据获取分享信息
+        const defaultTitle = document.title;
+        const defaultDesc = document.querySelector('meta[name="description"]')?.content;
+        
+        if (!defaultTitle && !defaultDesc) {
+          console.log('页面未提供足够的分享信息，使用默认值');
+        }
       }
 
       // 确保图片URL是完整的绝对路径
-      const fullImgUrl = shareImgUrl.startsWith('http') ? shareImgUrl : 
-                        window.location.origin + shareImgUrl;
+      const fullImgUrl = shareImgUrl?.startsWith('http') 
+                        ? shareImgUrl 
+                        : shareImgUrl
+                          ? window.location.origin + shareImgUrl
+                          : window.location.origin + '/path/to/default-share-image.png';
       
       // 确保分享链接是完整的URL
       const fullShareLink = shareLink || window.location.href;
@@ -43,8 +129,8 @@ const WechatShare = ({ shareTitle, shareDesc, shareImgUrl, shareLink }) => {
       const currentUrl = window.location.href.split('#')[0];
 
       console.log('开始配置微信分享...', {
-        shareTitle,
-        shareDesc,
+        shareTitle: shareTitle || document.title || '分享页面',
+        shareDesc: shareDesc || document.querySelector('meta[name="description"]')?.content || '页面描述',
         shareImgUrl: fullImgUrl,
         shareLink: fullShareLink,
         currentUrl: currentUrl // 记录用于签名的URL
@@ -67,7 +153,9 @@ const WechatShare = ({ shareTitle, shareDesc, shareImgUrl, shareLink }) => {
             config.jsApiList = [
               'updateAppMessageShareData', 
               'updateTimelineShareData', 
-              'showOptionMenu'
+              'showOptionMenu',
+              'onMenuShareAppMessage',
+              'onMenuShareTimeline'
             ];
           }
           
@@ -75,7 +163,13 @@ const WechatShare = ({ shareTitle, shareDesc, shareImgUrl, shareLink }) => {
 
           // 添加checkJsApi调用
           wx.checkJsApi({
-            jsApiList: ['updateAppMessageShareData', 'updateTimelineShareData', 'showOptionMenu'],
+            jsApiList: [
+              'updateAppMessageShareData', 
+              'updateTimelineShareData', 
+              'showOptionMenu',
+              'onMenuShareAppMessage',
+              'onMenuShareTimeline'
+            ],
             success: (res) => {
               console.log('checkJsApi结果:', res);
             },
@@ -90,38 +184,38 @@ const WechatShare = ({ shareTitle, shareDesc, shareImgUrl, shareLink }) => {
             if (typeof wx.showOptionMenu === 'function') {
               wx.showOptionMenu();
             }
-            wx.updateAppMessageShareData({
-              title: shareTitle,
-              desc: shareDesc,
+            
+            const shareData = {
+              title: shareTitle || document.title || '分享页面',
+              desc: shareDesc || document.querySelector('meta[name="description"]')?.content || '页面描述',
               link: fullShareLink,
               imgUrl: fullImgUrl,
               success: () => {
-                console.log('分享给朋友配置成功，参数:', {
-                  title: shareTitle,
-                  desc: shareDesc,
-                  link: fullShareLink,
-                  imgUrl: fullImgUrl
-                });
+                console.log('分享配置成功');
               },
               fail: (err) => {
-                console.error('分享给朋友配置失败:', err);
+                console.error('分享配置失败:', err);
               }
-            });
-
+            };
+            
+            // 使用新版API
+            wx.updateAppMessageShareData(shareData);
             wx.updateTimelineShareData({
-              title: shareTitle,
-              link: fullShareLink,
-              imgUrl: fullImgUrl,
-              success: () => {
-                console.log('分享到朋友圈配置成功，参数:', {
-                  title: shareTitle,
-                  link: fullShareLink,
-                  imgUrl: fullImgUrl
-                });
-              },
-              fail: (err) => {
-                console.error('分享到朋友圈配置失败:', err);
-              }
+              title: shareData.title,
+              link: shareData.link,
+              imgUrl: shareData.imgUrl,
+              success: shareData.success,
+              fail: shareData.fail
+            });
+            
+            // 兼容旧版API
+            wx.onMenuShareAppMessage && wx.onMenuShareAppMessage(shareData);
+            wx.onMenuShareTimeline && wx.onMenuShareTimeline({
+              title: shareData.title,
+              link: shareData.link,
+              imgUrl: shareData.imgUrl,
+              success: shareData.success,
+              fail: shareData.fail
             });
           });
 
@@ -137,9 +231,46 @@ const WechatShare = ({ shareTitle, shareDesc, shareImgUrl, shareLink }) => {
     };
 
     configureWechatShare();
-  }, [shareTitle, shareDesc, shareImgUrl, shareLink]);
+  }, [shareTitle, shareDesc, shareImgUrl, shareLink, isInMiniProgram]);
 
-  return <></>;
+  // 添加全局监听URL变化的函数
+  useEffect(() => {
+    // 监听并拦截所有的导航事件
+    const originalPushState = window.history.pushState;
+    const originalReplaceState = window.history.replaceState;
+    
+    window.history.pushState = function() {
+      const result = originalPushState.apply(this, arguments);
+      window.dispatchEvent(new Event('locationchange'));
+      return result;
+    };
+    
+    window.history.replaceState = function() {
+      const result = originalReplaceState.apply(this, arguments);
+      window.dispatchEvent(new Event('locationchange'));
+      return result;
+    };
+    
+    const handleLocationChange = () => {
+      console.log('检测到location变化, 当前URL:', window.location.href);
+      // 如果在小程序中，通知小程序
+      if (window.wx && window.wx.miniProgram) {
+        sendPageInfoToMiniProgram();
+      }
+    };
+    
+    window.addEventListener('locationchange', handleLocationChange);
+    window.addEventListener('popstate', handleLocationChange);
+    
+    return () => {
+      window.history.pushState = originalPushState;
+      window.history.replaceState = originalReplaceState;
+      window.removeEventListener('locationchange', handleLocationChange);
+      window.removeEventListener('popstate', handleLocationChange);
+    };
+  }, [sendPageInfoToMiniProgram]);
+
+  return null;
 };
 
 export default WechatShare;

@@ -425,7 +425,28 @@ const UserManagement = () => {
                               </IconButton>
                               <IconButton
                                 color="info"
-                                onClick={() => navigate(`/employee-profile/${user.id}`)}
+                                onClick={() => {
+                                  const targetUrl = `/employee-profile/${user.id}`;
+                                  // 检查是否在微信小程序WebView中
+                                  if (window.wx && window.wx.miniProgram) {
+                                    console.log('在微信小程序WebView中, 发送URL到小程序:', targetUrl);
+                                    // 向小程序发送当前页面完整URL
+                                    window.wx.miniProgram.postMessage({
+                                      data: {
+                                        type: 'navigate',
+                                        url: window.location.origin + targetUrl
+                                      }
+                                    });
+                                    // 使用小程序的导航方法
+                                    window.wx.miniProgram.navigateTo({
+                                      url: `/pages/webview/webview?url=${encodeURIComponent(window.location.origin + targetUrl)}`
+                                    });
+                                  } else {
+                                    // 正常网页中的导航
+                                    console.log('在普通网页中, 正常导航:', targetUrl);
+                                    navigate(targetUrl);
+                                  }
+                                }}
                                 size="small"
                                 sx={{ padding: { xs: '4px', sm: '8px' } }}
                               >

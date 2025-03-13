@@ -28,7 +28,7 @@ import EmployeeProfile from './components/EmployeeProfile'
 import EvaluationManagement from './components/EvaluationManagement';
 import ClientEvaluation from './components/ClientEvaluation';
 import ThankYouPage from './components/ThankYouPage'
-
+import RouteWatcher from './components/RouteWatcher'
 
 const theme = createTheme({
   palette: {
@@ -242,6 +242,7 @@ function App() {
     return (
       <ThemeProvider theme={theme}>
         <CssBaseline />
+        <RouteWatcher />
         <Box
           sx={{
             display: 'flex',
@@ -276,6 +277,7 @@ function App() {
     return (
       <ThemeProvider theme={theme}>
         <CssBaseline />
+        <RouteWatcher />
         <Box
           sx={{
             display: 'flex',
@@ -310,6 +312,7 @@ function App() {
     return (
       <ThemeProvider theme={theme}>
         <CssBaseline />
+        <RouteWatcher />
         <Box sx={{ display: 'flex', minHeight: '100vh', width: '100%' }}>
           <Box
             component="main"
@@ -337,6 +340,7 @@ function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
+      <RouteWatcher />
       <Box sx={{ display: 'flex', minHeight: '100vh', width: '100%' }}>
         <Sidebar />
         <Box
