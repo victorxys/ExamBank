@@ -2,7 +2,6 @@ import React, { useEffect, useCallback, useState } from 'react';
 import wx from 'weixin-js-sdk';
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
-import MiniProgramTools from '../utils/MiniProgramTools';
 
 const WechatShare = ({ shareTitle, shareDesc, shareImgUrl, shareLink }) => {
   const [isInMiniProgram, setIsInMiniProgram] = useState(false);
@@ -60,43 +59,13 @@ const WechatShare = ({ shareTitle, shareDesc, shareImgUrl, shareLink }) => {
       const hostname = window.location.hostname;
       const protocol = window.location.protocol;
       const imgHostPath = `${protocol}//${hostname}`;
+      const fullImgUrl = shareImgUrl?.startsWith('http') 
+                      ? shareImgUrl 
+                      : shareImgUrl
+                        ? imgHostPath + shareImgUrl
+                        : imgHostPath + '/logo192.png';
       
-      // 首先检查是否是员工资料页面
-      const isEmployeeProfile = currentUrl.includes('employee-profile');
-      let fullImgUrl;
-      
-      if (isEmployeeProfile) {
-        // 员工资料页面使用特殊处理获取员工头像
-        const employeeImg = document.querySelector('.MuiAvatar-img')?.src || 
-                           document.querySelector('.employee-avatar img')?.src;
-        
-        console.log('检测到员工资料页面，获取头像:', employeeImg);
-        
-        if (employeeImg) {
-          fullImgUrl = employeeImg.startsWith('http') ? employeeImg : imgHostPath + employeeImg;
-        } else {
-          // 如果无法获取员工头像，使用默认值
-          fullImgUrl = shareImgUrl?.startsWith('http') 
-                    ? shareImgUrl 
-                    : shareImgUrl
-                      ? imgHostPath + shareImgUrl
-                      : imgHostPath + '/logo192.png';
-        }
-      } else {
-        // 非员工资料页面
-        fullImgUrl = shareImgUrl?.startsWith('http') 
-                  ? shareImgUrl 
-                  : shareImgUrl
-                    ? imgHostPath + shareImgUrl
-                    : imgHostPath + '/logo192.png';
-      }
-      
-      console.log('向小程序发送当前页面信息:', {
-        url: currentUrl,
-        title: title,
-        desc: desc,
-        imgUrl: fullImgUrl
-      });
+      console.log('向小程序发送当前页面信息:', currentUrl);
       
       window.wx.miniProgram.postMessage({
         data: {
@@ -110,26 +79,8 @@ const WechatShare = ({ shareTitle, shareDesc, shareImgUrl, shareLink }) => {
       
       // 额外通过 localStorage 同步状态
       try {
-        localStorage.setItem('currentPageUrl', currentUrl);
+        localStorage.setItem('currentWebviewUrl', currentUrl);
         localStorage.setItem('currentTitle', title);
-        localStorage.setItem('currentImgUrl', fullImgUrl);
-        localStorage.setItem('currentDesc', desc);
-      } catch (e) {
-        console.error('无法使用 localStorage:', e);
-      }
-    } else {
-      // 如果 wx 对象不存在，尝试通过 localStorage 通信
-      try {
-        const currentUrl = window.location.href;
-        console.log('wx对象不可用，通过localStorage发送页面信息:', currentUrl);
-        
-        localStorage.setItem('currentPageUrl', currentUrl);
-        
-        // 如果是导航操作，同时设置导航标记
-        if (window.location.href.includes('employee-profile')) {
-          localStorage.setItem('navigateToUrl', currentUrl);
-          localStorage.setItem('navigateTime', String(Date.now()));
-        }
       } catch (e) {
         console.error('无法使用 localStorage:', e);
       }
@@ -173,6 +124,7 @@ const WechatShare = ({ shareTitle, shareDesc, shareImgUrl, shareLink }) => {
       }
     });
   }, [shareTitle, shareDesc, shareImgUrl, shareLink]);
+
 
   useEffect(() => {
     const configureWechatShare = async () => {
@@ -308,63 +260,6 @@ const WechatShare = ({ shareTitle, shareDesc, shareImgUrl, shareLink }) => {
 
     configureWechatShare();
   }, [shareTitle, shareDesc, shareImgUrl, shareLink, isInMiniProgram]);
-
-  useEffect(() => {
-    const shareData = {
-      shareTitle: shareTitle,
-      shareDesc: shareDesc,
-      shareImgUrl: shareImgUrl,
-      shareLink: shareLink
-    };
-
-    if (!shareData) return;
-    
-    console.log('WechatShare组件收到新的分享数据:', shareData);
-    
-    // 使用MiniProgramTools设置分享数据
-    if (MiniProgramTools && MiniProgramTools.isInMiniProgram()) {
-      console.log('检测到小程序环境，使用MiniProgramTools设置分享数据');
-      
-      MiniProgramTools.setShareData({
-        title: shareData.shareTitle,
-        desc: shareData.shareDesc,
-        imgUrl: shareData.shareImgUrl,
-        url: shareData.shareLink || window.location.href
-      });
-      
-      console.log('WechatShare: 已通过MiniProgramTools发送分享数据');
-    } else {
-      console.log('非小程序环境，使用常规方式设置分享数据');
-      
-      // 常规网页环境下，仍然保留原有的设置方式
-      try {
-        // 使用localStorage保存分享信息
-        localStorage.setItem('currentTitle', shareData.shareTitle);
-        localStorage.setItem('currentDesc', shareData.shareDesc);
-        localStorage.setItem('currentImgUrl', shareData.shareImgUrl);
-        localStorage.setItem('currentPageUrl', shareData.shareLink || window.location.href);
-        
-        console.log('WechatShare: 已保存分享数据到localStorage');
-      } catch (e) {
-        console.error('设置localStorage失败:', e);
-      }
-      
-      // 尝试其他通信方式
-      try {
-        window.parent.postMessage({
-          type: 'currentPage',
-          title: shareData.shareTitle,
-          desc: shareData.shareDesc,
-          imgUrl: shareData.shareImgUrl,
-          url: shareData.shareLink || window.location.href
-        }, '*');
-        
-        console.log('WechatShare: 已通过postMessage发送分享数据');
-      } catch (e) {
-        console.error('postMessage失败:', e);
-      }
-    }
-  }, [shareTitle, shareDesc, shareImgUrl, shareLink]);
 
   // 添加全局监听URL变化的函数
   useEffect(() => {

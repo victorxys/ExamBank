@@ -40,78 +40,6 @@ import {
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import PageHeader from './PageHeader';
-import wx from 'weixin-js-sdk';
-
-// 辅助函数：从URL中获取参数值
-const getUrlParam = (paramName) => {
-  try {
-    const url = window.location.href;
-    paramName = paramName.replace(/[\[\]]/g, '\\$&');
-    const regex = new RegExp('[?&]' + paramName + '(=([^&#]*)|&|#|$)');
-    const results = regex.exec(url);
-    if (!results) return null;
-    if (!results[2]) return '';
-    return decodeURIComponent(results[2].replace(/\+/g, ' '));
-  } catch (error) {
-    console.error('获取URL参数出错:', error);
-    return null;
-  }
-};
-
-// 辅助函数：检测是否在微信小程序WebView中
-const isInWechatMiniProgram = () => {
-  try {
-    // 第一种检测方法：通过 URL 参数
-    const isMiniProgramParam = getUrlParam('is_mini_program');
-    if (isMiniProgramParam === '1') {
-      console.log('通过 URL 参数检测到小程序环境');
-      try {
-        localStorage.setItem('isInMiniProgram', 'true');
-      } catch (e) {}
-      return true;
-    }
-    
-    // 第二种检测方法：通过 user agent
-    const ua = navigator.userAgent.toLowerCase();
-    if (ua.indexOf('micromessenger') !== -1 && ua.indexOf('miniprogram') !== -1) {
-      console.log('通过 UserAgent 检测到小程序环境:', ua);
-      try {
-        localStorage.setItem('isInMiniProgram', 'true');
-      } catch (e) {}
-      return true;
-    }
-    
-    // 第三种检测方法：通过 localStorage 标记
-    if (localStorage.getItem('isInMiniProgram') === 'true') {
-      console.log('通过 localStorage 标记检测到小程序环境');
-      return true;
-    }
-    
-    // 第四种方法：尝试检测 window.wx 对象（不太可靠）
-    if (window.wx && window.wx.miniProgram) {
-      console.log('通过 window.wx.miniProgram 检测到小程序环境');
-      return true;
-    }
-    
-    return false;
-  } catch (error) {
-    console.error('检测小程序环境时出错:', error);
-    return false;
-  }
-};
-
-// 使用 postMessage 向父窗口发送消息（小程序可以监听这些消息）
-const postMessageToMiniProgram = (data) => {
-  try {
-    console.log('尝试向小程序发送消息:', data);
-    // 向父窗口发送消息
-    window.parent.postMessage(data, '*');
-    return true;
-  } catch (error) {
-    console.error('向小程序发送消息出错:', error);
-    return false;
-  }
-};
 
 const UserManagement = () => {
   const theme = useTheme();
@@ -269,62 +197,6 @@ const UserManagement = () => {
       }
     }
   };
-
-  const handleViewEmployeeProfile = (userId) => {
-    const targetUrl = `/employee-profile/${userId}`;
-    console.log('点击了用户详情按钮，用户ID:', userId);
-    
-    // 构建完整URL
-    const fullUrl = window.location.origin + targetUrl;
-    console.log('完整URL:', fullUrl);
-    
-    // 检查是否在小程序环境中
-    if (window.MiniProgramTools && window.MiniProgramTools.isInMiniProgram()) {
-      console.log('检测到小程序环境，准备通知小程序跳转');
-      
-      // 使用全局工具发送导航请求
-      window.MiniProgramTools.navigate(fullUrl);
-      
-      // 使用多种通信方式通知小程序
-      try {
-        // 方法1: 通过postMessage
-        window.postMessage({
-          type: 'navigate',
-          url: fullUrl
-        }, '*');
-        
-        // 方法2: 通过localStorage
-        localStorage.setItem('navigateToUrl', fullUrl);
-        localStorage.setItem('navigateTime', String(Date.now()));
-        
-        // 方法3: 通过parent.postMessage (WebView内)
-        window.parent.postMessage({
-          type: 'navigate',
-          url: fullUrl
-        }, '*');
-        
-        console.log('已发送导航请求:', fullUrl);
-      } catch (e) {
-        console.error('发送导航请求失败:', e);
-      }
-    }
-    
-    // 本地导航 (无论是否小程序环境都执行)
-    navigate(targetUrl);
-  };
-
-  useEffect(() => {
-    console.log('UserManagement - 检测环境');
-    const inMiniProgram = isInWechatMiniProgram();
-    console.log('是否在小程序环境中:', inMiniProgram);
-    
-    // 如果在小程序环境中，记录当前页面URL
-    if (inMiniProgram) {
-      try {
-        localStorage.setItem('currentPageUrl', window.location.href);
-      } catch (e) {}
-    }
-  }, []);
 
   return (
     <Box sx={{ width: '100%', height: '100%' }}>
@@ -552,8 +424,45 @@ const UserManagement = () => {
                                 <AssessmentIcon fontSize={isMobile ? "small" : "medium"} />
                               </IconButton>
                               <IconButton
+                                
                                 color="info"
-                                onClick={() => handleViewEmployeeProfile(user.id)}
+                                onClick={() => {
+                                  const targetUrl = `/employee-profile/${user.id}`;
+                                  console.log('targetUrl',targetUrl)
+                                  // console.log('window.wx:', window.wx);
+                                  // console.log('window.wx.miniProgram:', window.wx.miniProgram);
+                                  // 检查是否在微信小程序WebView中
+                                  if (window.wx && window.wx.miniProgram) {
+                                    console.log('在微信小程序WebView中, 发送URL到小程序:', targetUrl);
+                                    
+                                    // 构建完整的URL
+                                    const fullUrl = window.location.origin + targetUrl;
+                                    
+                                    // 向小程序发送当前页面完整URL
+                                    window.wx.miniProgram.postMessage({
+                                      data: {
+                                        type: 'navigate',
+                                        url: fullUrl
+                                      }
+                                    });
+                                    
+                                    // 给消息处理一些时间
+                                    setTimeout(() => {
+                                      // 使用小程序的导航方法，确保URL被编码
+                                      window.wx.miniProgram.navigateTo({
+                                        url: `/pages/webview/webview?url=${encodeURIComponent(fullUrl)}`
+                                      });
+                                    }, 100);
+                                    
+                                    // 在本地也进行导航，以保持用户体验的连续性
+                                    navigate(targetUrl);
+                                  } else {
+                                    // 正常网页中的导航
+                                    console.log('在普通网页中, 正常导航:', targetUrl);
+                                    console.log('wx.config:',wx.config)
+                                    navigate(targetUrl);
+                                  }
+                                }}
                                 size="small"
                                 sx={{ padding: { xs: '4px', sm: '8px' } }}
                               >

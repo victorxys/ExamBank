@@ -197,88 +197,6 @@ const theme = createTheme({
   },
 })
 
-// 微信小程序环境工具
-const MiniProgramTools = {
-  // 检测是否在小程序中
-  isInMiniProgram: () => {
-    try {
-      // 通过URL参数检测
-      const url = window.location.href;
-      if (url.indexOf('is_mini_program=1') > -1) {
-        console.log('通过URL参数检测到小程序环境');
-        return true;
-      }
-      
-      // 通过UserAgent检测
-      const ua = navigator.userAgent.toLowerCase();
-      if (ua.indexOf('micromessenger') !== -1 && ua.indexOf('miniprogram') !== -1) {
-        console.log('通过UserAgent检测到小程序环境');
-        return true;
-      }
-      
-      // 通过localStorage检测
-      if (localStorage.getItem('isInMiniProgram') === 'true') {
-        console.log('通过localStorage检测到小程序环境');
-        return true;
-      }
-      
-      // 通过wx对象检测（不可靠）
-      if (window.wx && window.wx.miniProgram) {
-        console.log('通过wx对象检测到小程序环境');
-        return true;
-      }
-      
-      return false;
-    } catch (error) {
-      console.error('检测小程序环境出错:', error);
-      return false;
-    }
-  },
-  
-  // 发送导航消息到小程序
-  navigate: (url) => {
-    try {
-      console.log('MiniProgramTools: 发送导航消息:', url);
-      
-      // 策略1: 通过postMessage发送
-      window.parent.postMessage({
-        type: 'navigate',
-        url: url
-      }, '*');
-      
-      // 策略2: 通过localStorage存储导航信息
-      localStorage.setItem('navigateToUrl', url);
-      localStorage.setItem('navigateTime', String(Date.now()));
-      localStorage.setItem('currentPageUrl', url);
-      
-      // 策略3: 如果wx对象存在，则使用wx.miniProgram
-      if (window.wx && window.wx.miniProgram) {
-        window.wx.miniProgram.postMessage({
-          data: {
-            type: 'navigate',
-            url: url
-          }
-        });
-        
-        setTimeout(() => {
-          window.wx.miniProgram.navigateTo({
-            url: `/pages/webview/webview?url=${encodeURIComponent(url)}`
-          });
-        }, 100);
-      }
-      
-      console.log('MiniProgramTools: 导航消息发送完成');
-      return true;
-    } catch (error) {
-      console.error('发送导航消息失败:', error);
-      return false;
-    }
-  }
-};
-
-// 全局导出小程序工具
-window.MiniProgramTools = MiniProgramTools;
-
 function App() {
   const location = useLocation();
   const isLoginRoute = location.pathname === '/login';
@@ -310,21 +228,7 @@ function App() {
     }
   }, [isEmployeeProfileRoute, isPublicEmployeeProfile]);
 
-  // 在应用加载时初始化小程序环境检测
-  React.useEffect(() => {
-    const isInMiniProgram = MiniProgramTools.isInMiniProgram();
-    console.log('应用初始化: 是否在小程序环境:', isInMiniProgram);
-    
-    if (isInMiniProgram) {
-      try {
-        // 标记小程序环境
-        localStorage.setItem('isInMiniProgram', 'true');
-        console.log('已记录小程序环境标记到localStorage');
-      } catch (e) {
-        console.error('设置localStorage失败:', e);
-      }
-    }
-  }, []);
+
 
   // 员工介绍页面使用独立布局
   if (isEmployeeProfileRoute) {
