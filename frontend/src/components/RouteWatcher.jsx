@@ -18,7 +18,7 @@ const RouteWatcher = () => {
   });
 
   // 获取路由中的用户ID (如果存在)
-  const getUuidFromPath = (path) => {
+  const getUserIdFromPath = (path) => {
     const matches = path.match(/\/([^\/]+)\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i);
     return matches ? matches[2] : null;
   };
