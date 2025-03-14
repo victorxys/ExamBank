@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import WechatShare from './WechatShare';
+import api from '../api/axios';
 
 /**
  * RouteWatcher 组件用于监听路由变化，
@@ -16,11 +17,26 @@ const RouteWatcher = () => {
     imgUrl: window.location.origin + '/logo.svg', // 可访问的默认分享图片，确保此文件存在
     link: window.location.href
   });
+  const [employeeData, setEmployeeData] = useState(null);
 
   // 获取路由中的用户ID (如果存在)
   const getUserIdFromPath = (path) => {
     const matches = path.match(/\/([^\/]+)\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i);
     return matches ? matches[2] : null;
+  };
+
+  // 获取员工数据
+  const fetchEmployeeData = async (userId) => {
+    if (!userId) return null;
+    
+    try {
+      const publicParam = new URL(window.location.href).searchParams.get('public');
+      const response = await api.get(`/users/${userId}/profile${publicParam ? `?public=${publicParam}` : ''}`);
+      return response.data;
+    } catch (error) {
+      console.error('获取员工信息失败:', error);
+      return null;
+    }
   };
 
   // 向小程序发送页面信息
@@ -51,6 +67,7 @@ const RouteWatcher = () => {
     console.log('路由变化:', location.pathname, '之前路径:', lastPathRef.current);
     const userId = getUserIdFromPath(location.pathname);
     console.log('获取到的用户ID:', userId);
+    
     // 根据不同路由设置不同的分享信息
     let newTitle = document.title || '萌星库';
     let newDesc = document.querySelector('meta[name="description"]')?.content || '萌姨萌嫂萌星库';
@@ -58,9 +75,38 @@ const RouteWatcher = () => {
     
     // 判断当前路由，设置对应的分享信息
     if (location.pathname.includes('/employee-profile/')) {
-      const userId = getUserIdFromPath(location.pathname);
-      console.log('获取到的用户ID:', userId);
-      newTitle = `员工详细介绍 : ${userId || '萌星'}`;
+      // 获取员工数据
+      const updateWithEmployeeData = async () => {
+        const data = await fetchEmployeeData(userId);
+        if (data) {
+          setEmployeeData(data);
+          
+          // 使用员工姓名更新分享信息
+          const employeeName = data.name || '员工';
+          const employeeDesc = data.introduction?.description || '查看员工的详细介绍、专业技能和项目经验!';
+          
+          const updatedPageInfo = {
+            title: `${employeeName} - 萌姨萌嫂`,
+            desc: employeeDesc,
+            imgUrl: `${window.location.origin}/avatar/${userId}-avatar.jpg`,
+            link: window.location.href
+          };
+          
+          console.log('更新员工分享信息:', updatedPageInfo);
+          setPageInfo(updatedPageInfo);
+          
+          // 如果在微信小程序中，发送更新后的信息
+          const isInMiniProgram = window.wx && window.wx.miniProgram;
+          if (isInMiniProgram) {
+            sendPageInfoToMiniProgram(updatedPageInfo);
+          }
+        }
+      };
+      
+      updateWithEmployeeData();
+      
+      // 设置初始值，稍后会被异步更新
+      newTitle = `员工详细介绍 - 萌姨萌嫂`;
       newDesc = '查看员工的详细介绍、专业技能和项目经验!';
       newImgUrl = `${window.location.origin}/avatar/${userId}-avatar.jpg`;
     } else if (location.pathname.includes('/users')) {
