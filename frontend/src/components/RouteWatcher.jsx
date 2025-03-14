@@ -14,7 +14,7 @@ const RouteWatcher = () => {
   const [pageInfo, setPageInfo] = useState({
     title: document.title || '员工介绍平台',
     desc: document.querySelector('meta[name="description"]')?.content || '员工介绍与管理系统',
-    imgUrl: window.location.origin + '/logo.svg', // 可访问的默认分享图片，确保此文件存在
+    imgUrl: window.location.origin + '/logo.png', // 可访问的默认分享图片，确保此文件存在
     link: window.location.href
   });
   const [employeeData, setEmployeeData] = useState(null);
@@ -47,7 +47,7 @@ const RouteWatcher = () => {
         url: info.link || window.location.href,
         title: info.title || document.title,
         desc: info.desc || document.querySelector('meta[name="description"]')?.content,
-        imgUrl: info.imgUrl || window.location.origin + '/logo.svg'
+        imgUrl: info.imgUrl || window.location.origin + '/logo.png'
       };
       
       console.log('RouteWatcher: 向小程序发送页面信息:', messageData);
@@ -71,7 +71,7 @@ const RouteWatcher = () => {
     // 根据不同路由设置不同的分享信息
     let newTitle = document.title || '萌星库';
     let newDesc = document.querySelector('meta[name="description"]')?.content || '萌姨萌嫂萌星库';
-    let newImgUrl = window.location.origin + '/logo.svg';
+    let newImgUrl = window.location.origin + '/logo.png';
     
     // 判断当前路由，设置对应的分享信息
     if (location.pathname.includes('/employee-profile/')) {
