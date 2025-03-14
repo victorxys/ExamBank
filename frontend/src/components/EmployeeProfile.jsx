@@ -31,7 +31,7 @@ import html2canvas from 'html2canvas';
 import { useTheme } from '@mui/material/styles';
 import api from '../api/axios';
 import logoSvg from '../assets/logo.svg';
-// import WechatShare from './WechatShare';
+import WechatShare from './WechatShare';
 
 
 const EmployeeProfile = () => {
@@ -85,12 +85,12 @@ const EmployeeProfile = () => {
     }
   }, [userId]);
 
-  // // 监听分享数据变化
-  // useEffect(() => {
-  //   if (shareData) {
-  //     console.log('WechatShare组件已激活，分享数据:', shareData);
-  //   }
-  // }, [shareData]);
+  // 监听分享数据变化
+  useEffect(() => {
+    if (shareData) {
+      console.log('WechatShare组件已激活，分享数据:', shareData);
+    }
+  }, [shareData]);
 
   // 页面加载时自动配置微信分享
   useEffect(() => {
@@ -869,14 +869,14 @@ const EmployeeProfile = () => {
       </Box>
       </Container>
       {/* 使用WechatShare组件进行微信分享 */}
-      {/* {shareData && (
+      {shareData && (
         <WechatShare
           shareTitle={shareData.shareTitle}
           shareDesc={shareData.shareDesc}
           shareImgUrl={shareData.shareImgUrl}
           shareLink={shareData.shareLink}
         />
-      )} */}
+      )}
 
       {/* 编辑对话框 */}
       <Dialog
