@@ -13,13 +13,13 @@ const RouteWatcher = () => {
   const [pageInfo, setPageInfo] = useState({
     title: document.title || '员工介绍平台',
     desc: document.querySelector('meta[name="description"]')?.content || '员工介绍与管理系统',
-    imgUrl: '/logo192.png', // 可访问的默认分享图片，确保此文件存在
+    imgUrl: '/logo.svg', // 可访问的默认分享图片，确保此文件存在
     link: window.location.href
   });
 
   // 获取路由中的用户ID (如果存在)
-  const getUserIdFromPath = (path) => {
-    const matches = path.match(/\/([^\/]+)\/(\d+)$/);
+  const getUuidFromPath = (path) => {
+    const matches = path.match(/\/([^\/]+)\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i);
     return matches ? matches[2] : null;
   };
 
@@ -31,7 +31,7 @@ const RouteWatcher = () => {
         url: info.link || window.location.href,
         title: info.title || document.title,
         desc: info.desc || document.querySelector('meta[name="description"]')?.content,
-        imgUrl: info.imgUrl || '/logo192.png'
+        imgUrl: info.imgUrl || '/logo.svg'
       };
       
       console.log('RouteWatcher: 向小程序发送页面信息:', messageData);
@@ -57,13 +57,14 @@ const RouteWatcher = () => {
       // 根据不同路由设置不同的分享信息
       let newTitle = document.title || '员工介绍平台';
       let newDesc = document.querySelector('meta[name="description"]')?.content || '员工介绍与管理系统';
-      let newImgUrl = '/logo192.png';
+      let newImgUrl = '/logo.svg';
       
       // 判断当前路由，设置对应的分享信息
       if (location.pathname.includes('/employee-profile/')) {
         const userId = getUserIdFromPath(location.pathname);
         newTitle = `员工详细介绍 - ID: ${userId || ''}`;
         newDesc = '查看员工的详细介绍、专业技能和项目经验';
+        newImgUrl = `${window.location.origin}/avatar/${userId}-avatar.jpg`;
       } else if (location.pathname.includes('/users')) {
         newTitle = '员工管理';
         newDesc = '浏览和管理所有员工信息';
