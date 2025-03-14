@@ -12,8 +12,8 @@ const RouteWatcher = () => {
   const navigate = useNavigate();
   const lastPathRef = useRef(location.pathname);
   const [pageInfo, setPageInfo] = useState({
-    title: document.title || '员工介绍平台',
-    desc: document.querySelector('meta[name="description"]')?.content || '员工介绍与管理系统',
+    title: document.title || '萌星资料平台',
+    desc: document.querySelector('meta[name="description"]')?.content || '对萌员工进行介绍与了解',
     imgUrl: window.location.origin + '/logo.png', // 可访问的默认分享图片，确保此文件存在
     link: window.location.href
   });

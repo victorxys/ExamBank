@@ -771,15 +771,6 @@ function ExamList() {
                         }) : '未知'}
                       </TableCell>
                       <TableCell>
-                        {exam.created_at ? new Date(exam.created_at).toLocaleString('zh-CN', {
-                          year: 'numeric',
-                          month: '2-digit',
-                          day: '2-digit',
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        }) : '未知'}
-                      </TableCell>
-                      <TableCell>
                         <Box sx={{ display: 'flex', gap: 1 }}>
                           <Button
                             size="small"

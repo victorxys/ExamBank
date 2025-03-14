@@ -296,17 +296,7 @@ const EmployeeProfile = () => {
               open={Boolean(anchorEl)}
               onClose={() => setAnchorEl(null)}
             >
-              <MenuItem onClick={() => {
-                // 分享已经在页面加载时配置，这里只需显示提示
-                setAnchorEl(null);
-                
-                // 显示分享提示
-                setTimeout(() => {
-                  alert('微信分享已配置，请点击右上角的"..."按钮进行分享');
-                }, 500);
-              }}>
-                分享到微信
-              </MenuItem>
+              
               <MenuItem onClick={async () => {
                 try {
                   const element = document.getElementById('employee-profile-content');
