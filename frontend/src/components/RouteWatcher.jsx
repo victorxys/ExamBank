@@ -49,21 +49,23 @@ const RouteWatcher = () => {
   // 监听路由变化，更新分享信息
   useEffect(() => {
     console.log('路由变化:', location.pathname, '之前路径:', lastPathRef.current);
-    
+    const userId = getUserIdFromPath(location.pathname);
+    console.log('获取到的用户ID:', userId);
     // 如果路径真的变了才处理
     if (location.pathname !== lastPathRef.current) {
       lastPathRef.current = location.pathname;
       
       // 根据不同路由设置不同的分享信息
-      let newTitle = document.title || '员工介绍平台';
-      let newDesc = document.querySelector('meta[name="description"]')?.content || '员工介绍与管理系统';
+      let newTitle = document.title || '萌星库';
+      let newDesc = document.querySelector('meta[name="description"]')?.content || '萌姨萌嫂萌星库';
       let newImgUrl = '/logo.svg';
       
       // 判断当前路由，设置对应的分享信息
       if (location.pathname.includes('/employee-profile/')) {
         const userId = getUserIdFromPath(location.pathname);
+        console.log('获取到的用户ID:', userId);
         newTitle = `员工详细介绍 - ID: ${userId || ''}`;
-        newDesc = '查看员工的详细介绍、专业技能和项目经验';
+        newDesc = '查看员工的详细介绍、专业技能和项目经验!';
         newImgUrl = `${window.location.origin}/avatar/${userId}-avatar.jpg`;
       } else if (location.pathname.includes('/users')) {
         newTitle = '员工管理';
@@ -104,6 +106,7 @@ const RouteWatcher = () => {
         imgUrl: fullImgUrl,
         link: window.location.href
       };
+      console.log('更新分享信息:', newPageInfo);
       
       setPageInfo(newPageInfo);
       
