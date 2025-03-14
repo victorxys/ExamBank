@@ -85,12 +85,12 @@ const EmployeeProfile = () => {
     }
   }, [userId]);
 
-  // 监听分享数据变化
-  useEffect(() => {
-    if (shareData) {
-      console.log('WechatShare组件已激活，分享数据:', shareData);
-    }
-  }, [shareData]);
+  // // 监听分享数据变化
+  // useEffect(() => {
+  //   if (shareData) {
+  //     console.log('WechatShare组件已激活，分享数据:', shareData);
+  //   }
+  // }, [shareData]);
 
   // 页面加载时自动配置微信分享
   useEffect(() => {
