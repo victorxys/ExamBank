@@ -84,7 +84,38 @@ const EmployeeProfile = () => {
       fetchEmployeeData();
     }
   }, [userId]);
-  // console.log('isPublic',isPublic)
+
+  // 监听分享数据变化
+  useEffect(() => {
+    if (shareData) {
+      console.log('WechatShare组件已激活，分享数据:', shareData);
+    }
+  }, [shareData]);
+
+  // 页面加载时自动配置微信分享
+  useEffect(() => {
+    if (employeeData && !loading) {
+      try {
+        // 构建分享数据，包括完整的图片URL
+        const host = window.location.origin;
+        const imgUrl = `${host}/avatar/${userId}-avatar.jpg`;
+        const shareUrl = `${window.location.origin}/employee-profile/${userId}?public=true`;
+        
+        const newShareData = {
+          shareTitle: `${employeeData?.name || '员工介绍'}阿姨 - 萌姨萌嫂`,
+          shareDesc: employeeData?.introduction?.description || '查看员工的详细介绍、技能和评价。',
+          shareImgUrl: imgUrl,
+          shareLink: shareUrl
+        };
+        
+        console.log('自动设置微信分享数据:', newShareData);
+        setShareData(newShareData);
+      } catch (error) {
+        console.error('自动配置微信分享失败:', error);
+      }
+    }
+  }, [employeeData, loading, userId]);
+
   const handleOpenDialog = (title, content) => {
     setDialogContent({ title, content });
     setDialogOpen(true);
@@ -127,13 +158,6 @@ const EmployeeProfile = () => {
     }
   };
 
-  // 监听分享数据变化
-  useEffect(() => {
-    if (shareData) {
-      console.log('WechatShare组件已激活，分享数据:', shareData);
-    }
-  }, [shareData]);
-
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
@@ -149,7 +173,7 @@ const EmployeeProfile = () => {
       </Box>
     );
   }
-  // console.log('employee_show_url',employeeData.employee_show_url)
+
   if (!employeeData || !employeeData.introduction) {
     
     return (
@@ -273,33 +297,14 @@ const EmployeeProfile = () => {
               onClose={() => setAnchorEl(null)}
             >
               <MenuItem onClick={() => {
-                try {
-                  // 构建分享数据，包括完整的图片URL
-                  const host = window.location.origin;
-                  const imgUrl = `${host}/avatar/${userId}-avatar.jpg`;
-                  const shareUrl = `${window.location.origin}/employee-profile/${userId}?public=true`;
-                  
-                  const newShareData = {
-                    shareTitle: `${employeeData?.name || '员工介绍'} - 萌姨萌嫂`,
-                    shareDesc: employeeData?.introduction?.description || '查看员工的详细介绍、技能和评价。',
-                    shareImgUrl: imgUrl,
-                    shareLink: shareUrl
-                  };
-                  
-                  console.log('设置微信分享数据:', newShareData);
-                  setShareData(newShareData);
-                  setAnchorEl(null);
-                  
-                  // 显示分享提示
-                  setTimeout(() => {
-                    alert('微信分享已配置，请点击右上角的"..."按钮进行分享');
-                  }, 500);
-                } catch (error) {
-                  console.error('配置微信分享失败:', error);
-                  alert('配置微信分享失败，请稍后重试');
-                }
+                // 分享已经在页面加载时配置，这里只需显示提示
+                setAnchorEl(null);
+                
+                // 显示分享提示
+                setTimeout(() => {
+                  alert('微信分享已配置，请点击右上角的"..."按钮进行分享');
+                }, 500);
               }}>
-
                 分享到微信
               </MenuItem>
               <MenuItem onClick={async () => {
@@ -677,7 +682,7 @@ const EmployeeProfile = () => {
               <Box
                 sx={{
                   width: 80,
-                  height: 4,
+                height: 4,
                   background: 'linear-gradient(90deg, #26A69A 0%, #80CBC4 100%)',
                   mb: 1,
                   borderRadius: 2
