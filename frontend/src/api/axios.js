@@ -2,8 +2,11 @@ import axios from 'axios';
 import { API_BASE_URL } from '../config';
 import { getToken, getRefreshToken, saveToken, clearTokens, shouldRefreshToken } from './auth-utils';
 
+// 如果API_BASE_URL未定义，使用默认值
+const baseURL = API_BASE_URL || 'http://127.0.0.1:5000/api';
+
 const api = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: baseURL,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -17,7 +20,9 @@ const api = axios.create({
 api.interceptors.request.use(
   async (config) => {
     // 检查是否是公开路由
-    const isPublicRoute = config.url.includes('/profile');
+    const isPublicRoute = config.url.includes('/profile') || 
+                          config.url.includes('/evaluation-items') || 
+                          config.url.includes('/employee-self-evaluation');
     // console.log('onfig.url:', config.url);
     const token = getToken();
     
@@ -33,7 +38,7 @@ api.interceptors.request.use(
       if (shouldRefreshToken()) {
         try {
           const refreshToken = getRefreshToken();
-          const response = await axios.post(`${API_BASE_URL}/users/refresh-token`, {
+          const response = await axios.post(`${baseURL}/users/refresh-token`, {
             refresh_token: refreshToken
           });
           
@@ -71,7 +76,7 @@ api.interceptors.response.use(
           throw new Error('No refresh token');
         }
 
-        const response = await axios.post(`${API_BASE_URL}/users/refresh-token`, {
+        const response = await axios.post(`${baseURL}/users/refresh-token`, {
           refresh_token: refreshToken
         });
 

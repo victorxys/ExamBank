@@ -80,6 +80,34 @@ const UserEvaluationSummary = () => {
     return <Alert severity="error">{error}</Alert>;
   }
 
+  // 计算总平均分
+  const calculateTotalAverage = (aspects) => {
+    if (!aspects || aspects.length === 0) return 'N/A';
+    
+    const validScores = aspects
+      .map(aspect => aspect.average_score)
+      .filter(score => score !== null && score !== undefined);
+    
+    if (validScores.length === 0) return 'N/A';
+    
+    const sum = validScores.reduce((acc, score) => acc + score, 0);
+    return (sum / validScores.length).toFixed(1);
+  };
+  
+  // 根据分数获取颜色
+  const getScoreColor = (score) => {
+    if (score >= 80) return 'success';
+    if (score >= 60) return 'primary';
+    if (score >= 40) return 'warning';
+    return 'error';
+  };
+  
+  // 获取总分颜色
+  const getTotalScoreColor = (score) => {
+    if (score === 'N/A') return 'default';
+    return getScoreColor(parseFloat(score));
+  };
+
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
       <PageHeader
@@ -87,6 +115,68 @@ const UserEvaluationSummary = () => {
         description="展示此员工的平均评价分数，同时可查看历史评价结果"
       />
       
+      {/* 总体评价分数卡片 */}
+      {evaluationSummary?.aspects?.length > 0 && (
+        <Card sx={{ mb: 4 }}>
+          <CardContent sx={{ p: 3 }}>
+            <Typography variant="h2" gutterBottom>
+              总体评价
+            </Typography>
+            <Box sx={{ display: 'flex', flexWrap: 'nowrap', overflowX: 'auto', gap: 2, py: 1 }}>
+              {/* 总平均分 */}
+              <Box 
+                sx={{ 
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  minWidth: '120px',
+                  p: 1,
+                  borderRight: '1px solid rgba(0, 0, 0, 0.12)',
+                  pr: 2
+                }}
+              >
+                <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 'medium', textAlign: 'center' }}>
+                  总平均分
+                </Typography>
+                <Chip
+                  label={calculateTotalAverage(evaluationSummary.aspects)}
+                  color={getTotalScoreColor(calculateTotalAverage(evaluationSummary.aspects))}
+                  sx={{ 
+                    fontWeight: 'bold',
+                    minWidth: '60px'
+                  }}
+                />
+              </Box>
+              
+              {/* 各项平均分 */}
+              {evaluationSummary.aspects.map(aspect => (
+                <Box 
+                  key={aspect.id} 
+                  sx={{ 
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    minWidth: '120px',
+                    p: 1
+                  }}
+                >
+                  <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 'medium', textAlign: 'center' }}>
+                    {aspect.name}
+                  </Typography>
+                  <Chip
+                    label={aspect.average_score?.toFixed(1) || 'N/A'}
+                    color={getScoreColor(aspect.average_score)}
+                    sx={{ 
+                      fontWeight: 'bold',
+                      minWidth: '60px'
+                    }}
+                  />
+                </Box>
+              ))}
+            </Box>
+          </CardContent>
+        </Card>
+      )}
       
       {/* 用户基本信息卡片 */}
       <Card sx={{ mb: 4 }}>
@@ -672,7 +762,7 @@ const UserEvaluationSummary = () => {
                       <Typography variant="h4" gutterBottom>
                         {category.name}
                       </Typography>
-                      
+
                       <List>
                         {category.items?.filter(item => item.score !== null && item.score !== undefined).map(item => (
                           <ListItem

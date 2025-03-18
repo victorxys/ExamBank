@@ -29,6 +29,9 @@ import EvaluationManagement from './components/EvaluationManagement';
 import ClientEvaluation from './components/ClientEvaluation';
 import ThankYouPage from './components/ThankYouPage'
 import RouteWatcher from './components/RouteWatcher'
+import PublicEmployeeSelfEvaluation from './components/PublicEmployeeSelfEvaluation'
+import EmployeeSelfEvaluationList from './components/EmployeeSelfEvaluationList'
+import EmployeeSelfEvaluationDetail from './components/EmployeeSelfEvaluationDetail'
 
 const theme = createTheme({
   palette: {
@@ -308,7 +311,7 @@ function App() {
   }
 
   // 检查是否是登录页面或客户评价页面
-  if (isLoginRoute || location.pathname.includes('/client-evaluation/')) {
+  if (isLoginRoute || location.pathname.includes('/client-evaluation/') || location.pathname.includes('/public-employee-self-evaluation')) {
     return (
       <ThemeProvider theme={theme}>
         <CssBaseline />
@@ -329,6 +332,7 @@ function App() {
               <Routes>
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/client-evaluation/:userId" element={<ClientEvaluation />} />
+                <Route path="/public-employee-self-evaluation" element={<PublicEmployeeSelfEvaluation />} />
               </Routes>
             </ErrorBoundary>
           </Box>
@@ -383,7 +387,9 @@ function App() {
                 <Route path="/users" element={<PrivateRoute element={<UserManagement />} />} />
                 <Route path="/user-evaluation/:userId" element={<PrivateRoute element={<UserEvaluation />} />} />
                 <Route path="/user-evaluation-summary/:userId" element={<PrivateRoute element={<UserEvaluationSummary />} />} />
-                {/* <Route path="/employee-profile/:userId${publicUrl}"   element={<EmployeeProfile />}  /> */}
+                <Route path="/employee-self-evaluations" element={<PrivateRoute element={<EmployeeSelfEvaluationList />} />} />
+                <Route path="/employee-self-evaluations/:evaluationId" element={<PrivateRoute element={<EmployeeSelfEvaluationDetail />} />} />
+                <Route path="/public-employee-self-evaluation" element={<PublicEmployeeSelfEvaluation />} />
                 <Route path="/evaluation-management" element={<PrivateRoute element={<EvaluationManagement />} />} />
                 <Route path="/client-evaluation/:userId" element={<ClientEvaluation />} />
                 <Route path="/thank-you" element={<ThankYouPage />} />

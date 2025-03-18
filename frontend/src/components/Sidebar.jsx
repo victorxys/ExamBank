@@ -74,6 +74,11 @@ const allMenuItems = [
     path: '/users',
   },
   {
+    text: '员工自评',
+    icon: <AssignmentTurnedInIcon />,
+    path: '/employee-self-evaluations',
+  },
+  {
     text: '评价管理',
     icon: <AssignmentIcon />,
     path: '/evaluation-management',

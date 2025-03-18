@@ -31,6 +31,7 @@ from backend.api.evaluation_visibility import bp as evaluation_visibility_bp
 from backend.api.evaluation_item import bp as evaluation_item_bp
 from backend.api.wechatshare import wechat_share_bp
 from backend.api.user_sync import sync_user
+from backend.api.employee_self_evaluation import employee_self_evaluation_bp
 
 
 load_dotenv()
@@ -49,6 +50,8 @@ app.register_blueprint(evaluation_visibility_bp, url_prefix='/api')
 app.register_blueprint(evaluation_item_bp, url_prefix='/api/evaluation_item')
 # 注册微信分享相关的蓝图
 app.register_blueprint(wechat_share_bp, url_prefix='/api/wechat')
+# 注册员工自评相关的蓝图
+app.register_blueprint(employee_self_evaluation_bp)
  # 打印所有注册的路由
 print("Registered Routes:")
 for rule in app.url_map.iter_rules():
