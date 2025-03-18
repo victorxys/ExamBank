@@ -197,7 +197,8 @@ const EmployeeProfile = () => {
         minHeight: '100vh',
         background: 'linear-gradient(180deg, #FFFFFF 0%, #E0F2F1 100%)',
         position: 'relative',
-        pb: 8
+        pb: 8,
+        px: { xs: 1, sm: 2 }  // 减少两边边距
       }}
     >
 
@@ -262,35 +263,35 @@ const EmployeeProfile = () => {
       
       <Container maxWidth="lg" sx={{ py: 3, position: 'relative' }}>        
         {!isPublic && (
-          <Box sx={{ display: 'flex', gap: 2, position: 'absolute', top: 88, right: 24, zIndex: 1000, pointerEvents: 'auto' }}>
-            <Button
-              variant="contained"
-              color="primary"
-              startIcon={<EditIcon />}
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, position: 'absolute', top: 88, right: 34, zIndex: 1000, pointerEvents: 'auto' }}>
+            <IconButton
+              size="small"
               onClick={handleEditClick}
               sx={{
                 background: 'linear-gradient(87deg, #26A69A 0, #56aea2 100%)',
+                color: '#fff',
+                padding: 1,
                 '&:hover': {
                   background: 'linear-gradient(87deg, #1a8c82 0, #408d86 100%)'
                 }
               }}
             >
-              编辑
-            </Button>
-            <Button
-              variant="contained"
-              color="primary"
-              startIcon={<ShareIcon />}
+              <EditIcon fontSize="small" />
+            </IconButton>
+            <IconButton
+              size="small"
               onClick={(event) => setAnchorEl(event.currentTarget)}
               sx={{
                 background: 'linear-gradient(87deg, #26A69A 0, #56aea2 100%)',
+                color: '#fff',
+                padding: 1,
                 '&:hover': {
                   background: 'linear-gradient(87deg, #1a8c82 0, #408d86 100%)'
                 }
               }}
             >
-              分享
-            </Button>
+              <ShareIcon fontSize="small" />
+            </IconButton>
             <Menu
               anchorEl={anchorEl}
               open={Boolean(anchorEl)}
@@ -702,9 +703,11 @@ const EmployeeProfile = () => {
                   <Box
                     sx={{
                       display: 'flex',
-                      alignItems: 'center',
+                      flexDirection: { xs: 'column', sm: 'row' },
+                      alignItems: { xs: 'flex-start', sm: 'center' },
                       justifyContent: 'space-between',
-                      mb: 1
+                      mb: 1,
+                      gap: { xs: 1, sm: 0 }
                     }}
                   >
                     <Typography variant="body1" color="#263339">
@@ -997,6 +1000,7 @@ const EmployeeProfile = () => {
                     newSkills[index] = { ...skill, level: newValue };
                     setEditFormData({ ...editFormData, skills: newSkills });
                   }}
+                  sx={{ mt: { xs: 1, sm: 0 } }}  // 手机端增加上边距
                 />
               </Box>
             ))}
