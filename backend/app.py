@@ -53,9 +53,56 @@ app.register_blueprint(wechat_share_bp, url_prefix='/api/wechat')
 # 注册员工自评相关的蓝图
 app.register_blueprint(employee_self_evaluation_bp)
  # 打印所有注册的路由
-print("Registered Routes:")
-for rule in app.url_map.iter_rules():
-    print(f"输出 rule===>  {rule}")
+# print("Registered Routes:")
+# for rule in app.url_map.iter_rules():
+#     print(f"输出 rule===>  {rule}")
+
+
+flask_log = os.environ['FLASK_LOG_FILE'] # 设置flask log地址
+
+# 配置日志记录
+log = logging.getLogger(__name__)
+log.setLevel(logging.DEBUG)
+handler = logging.FileHandler(flask_log)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+handler.setFormatter(formatter)
+log.addHandler(handler)
+
+def insert_exam_knowledge_points(exam_id, total_score, data):
+    """
+    将知识点摘要插入到 exam 表的 knowledge_point_summary 字段中。
+    """
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+
+        merge_kp_result_json = json.dumps(data, ensure_ascii=False)
+        sql = """
+            UPDATE exam
+            SET knowledge_point_summary = %s, total_score = %s
+            WHERE id = %s;
+        """
+        # sql = """
+        #     INSERT INTO exam (id, knowledge_point_summary)
+        #     VALUES (%s, %s)
+        #     ON CONFLICT (id) DO UPDATE
+        #     SET knowledge_point_summary = %s, updated_at = NOW();
+        # """
+
+        cur.execute(sql, (merge_kp_result_json, total_score, exam_id))
+        conn.commit()
+
+        logging.info(f"成功插入或更新 exam_id: {exam_id} 的知识点摘要。")
+
+    except json.JSONDecodeError as e:
+        logging.error(f"JSON 编码错误，exam_id: {exam_id}, 错误信息: {e}")
+    except Exception as e:
+        logging.error(f"未知错误，exam_id: {exam_id}, 错误信息: {e}")
+    finally:
+        if conn:
+            cur.close()
+            conn.close()
+
 
 @app.route('/api/login', methods=['POST'])
 def login():
@@ -168,15 +215,7 @@ def register():
         cur.close()
         conn.close()
 
-flask_log = os.environ['FLASK_LOG_FILE'] # 设置flask log地址
 
-# 配置日志记录
-log = logging.getLogger(__name__)
-log.setLevel(logging.DEBUG)
-handler = logging.FileHandler(flask_log)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-handler.setFormatter(formatter)
-log.addHandler(handler)
 
 # 全局错误处理
 @app.errorhandler(Exception)
@@ -1907,8 +1946,27 @@ def submit_exam_answer(exam_id):
             raise ValueError(f"Exam with ID {exam_id} not found")
 
         results = []
+        kp_coreects = []
         total_score = 0
 
+        
+        # 插入 Exam 表
+        cur.execute('''
+            INSERT INTO exam (
+                exam_paper_id,
+                user_id,
+                total_score,
+                single_choice_count,
+                multiple_choice_count,
+                created_at
+            ) VALUES (%s, %s, 0, 0, 0, NOW())
+            RETURNING id;
+        ''', (exam_uuid, user_uuid))
+        # 此处返回的是 此次参与考试的id
+        exam_take_id = cur.fetchone()['id'] 
+
+        # print("answer====",answers)
+       
         for answer in answers:
             question_id = answer.get('question_id')
             selected_options = answer.get('selected_options', [])
@@ -1959,6 +2017,7 @@ def submit_exam_answer(exam_id):
                     a.explanation,
                     co.correct_answer_chars,
                     co.correct_option_ids,
+                    kp.point_name as knowledge_point_name,   -- 添加知识点名称
                     json_agg(
                         json_build_object(
                             'id', owi.id,
@@ -1971,8 +2030,9 @@ def submit_exam_answer(exam_id):
                 LEFT JOIN answer a ON q.id = a.question_id
                 LEFT JOIN option_with_index owi ON q.id = owi.question_id
                 LEFT JOIN correct_options co ON q.id = co.question_id
+                LEFT JOIN knowledgepoint kp ON q.knowledge_point_id = kp.id  -- 直接 JOIN knowledge_point 表
                 WHERE q.id = %s
-                GROUP BY q.id, q.question_type, q.question_text, a.explanation, co.correct_answer_chars, co.correct_option_ids;
+                GROUP BY q.id, q.question_type, q.question_text, a.explanation, co.correct_answer_chars, co.correct_option_ids, kp.point_name;
             ''', (question_id, question_id))
             
             question_info = cur.fetchone()
@@ -2050,30 +2110,45 @@ def submit_exam_answer(exam_id):
                 cur.execute('''
                     INSERT INTO answerrecord (
                         exam_paper_id,
+                        exam_id,
                         question_id,
                         selected_option_ids,
                         user_id,
                         score,
                         created_at
-                    ) VALUES (%s, %s, %s, %s, %s, NOW())
+                    ) VALUES (%s, %s, %s, %s, %s, %s, NOW())
                     RETURNING id;
-                ''', (exam_uuid, question_id, selected_options_literal, user_uuid, score))
+                ''', (exam_uuid, exam_take_id, question_id, selected_options_literal, user_uuid, score))
                 
                 answer_record_id = cur.fetchone()['id']
+
+
                 
                 # 构建结果对象
                 result = {
                     'id': question_id,
                     'question_text': question_info['question_text'],
                     'question_type': question_info['question_type'],
+                    'knowledge_point_name': question_info['knowledge_point_name'],
                     'selected_option_ids': selected_options,
                     'options': question_info['options'],
                     'score': score,
                     'is_correct': is_correct,
                     'explanation': question_info['explanation']
                 }
+                if is_correct:
+                    kp_coreect = {
+                        'knowledge_point_name' : question_info['knowledge_point_name'],
+                        'if_get' : '已掌握',
+                    }
+                else:
+                    kp_coreect = {
+                        'knowledge_point_name' : question_info['knowledge_point_name'],
+                        'if_get' : '未掌握',
+                    }
                 
                 results.append(result)
+                kp_coreects.append(kp_coreect)
                 total_score += score
                 
             except Exception as e:
@@ -2083,7 +2158,15 @@ def submit_exam_answer(exam_id):
 
         # Commit the transaction
         conn.commit()
+
+        # AI根据考试结果对知识点掌握情况进行汇总
+        from backend.api.ai_generate import merge_kp_name
+        merge_kp_result = merge_kp_name(kp_coreects)
+        merge_kp_result_json = json.dumps(merge_kp_result, ensure_ascii=False)
         
+
+        insert_exam_knowledge_points(exam_take_id,total_score,merge_kp_result_json)
+
         # 在返回结果中添加用户信息和考试时间信息
         response_data = {
             'exam_id': exam_id,
@@ -2093,6 +2176,7 @@ def submit_exam_answer(exam_id):
             'start_time': start_time.isoformat() if start_time else None,
             'submit_time': submit_time.isoformat(),
             'total_score': total_score,
+            'merge_kp_result': merge_kp_result,
             'questions': results
         }
         
@@ -2480,7 +2564,7 @@ def get_exam_record_detail(exam_id, user_id):
                 u.id as user_id,
                 u.username,
                 u.phone_number,
-                to_char(ar.created_at, 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as exam_time,
+                to_char(ar.created_at, 'YYYY-MM-DD"T"HH24:MI:SS.MS"TZH:TZM"') as exam_time,
                 ROUND(CAST(AVG(ar.score)::float / COUNT(*) * 100 as numeric), 2) as total_score,
                 COUNT(*) OVER (PARTITION BY e.id, u.id) as attempt_number,
                 COALESCE(
@@ -2927,6 +3011,123 @@ def ai_generate_route():
         print('Error in ai_generate:', str(e))
         log.debug('Error in ai_generate:', str(e))
         return jsonify({'error': str(e)}), 500
+
+@app.route('/api/user-exams/knowledge-point-summary/<exam_id>', methods=['GET'])
+def get_knowledge_point_summary(exam_id):
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        query = """
+            SELECT knowledge_point_summary from exam WHERE id = %s
+        """
+        cur.execute(query, (exam_id,))
+        records = cur.fetchall()
+        return jsonify(records)
+    except Exception as e:
+        raise
+    else:
+        pass
+    finally:
+        pass
+
+@app.route('/api/user-exams/<user_id>', methods=['GET'])
+@jwt_required()
+def get_user_exams(user_id):
+    print("开始获取用户考试记录，用户ID：", user_id)
+    try:
+        # 获取当前用户信息
+        current_user_id = get_jwt_identity()
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # 获取用户角色
+        cur.execute('SELECT "role" FROM "user" WHERE id = %s', (current_user_id,))
+        user_role = cur.fetchone()['role']
+        
+        # 如果不是管理员且不是查询自己的记录，则返回权限错误
+        if user_role != 'admin' and str(current_user_id) != user_id:
+            return jsonify({'error': '没有权限访问其他用户的考试记录'}), 403
+
+        query = """
+            WITH ExamPaperQuestionCounts AS (
+                SELECT
+                    epq.exam_paper_id,
+                    COUNT(DISTINCT epq.question_id) AS total_questions,
+                    COUNT(DISTINCT CASE WHEN q.question_type = '单选题' THEN epq.question_id END) AS single_choice_total,
+                    COUNT(DISTINCT CASE WHEN q.question_type = '多选题' THEN epq.question_id END) AS multi_choice_total
+                FROM exampaperquestion epq
+                JOIN question q ON epq.question_id = q.id
+                GROUP BY epq.exam_paper_id
+            )
+            SELECT DISTINCT
+                ep.id as exam_paper_id,
+                ep.title as exam_title,
+                ep.description as exam_description,
+                ar.exam_id as exam_id,
+                ar.created_at as exam_time,
+                SUM(ar.score) AS total_score,
+                SUM(CASE WHEN ar.score > 0 THEN 1 ELSE 0 END) AS correct_count,
+                epqc.total_questions,
+                CASE
+                    WHEN epqc.total_questions = 0 THEN 0.00
+                    ELSE ROUND((CAST(SUM(CASE WHEN ar.score > 0 THEN 1 ELSE 0 END) AS DECIMAL) / epqc.total_questions) * 100, 2)
+                END AS accuracy_rate,
+                array_agg(DISTINCT tc.course_name) as course_names,
+                epqc.single_choice_total,
+                SUM(CASE WHEN q.question_type = '单选题' AND ar.score = 1 THEN 1 ELSE 0 END) AS single_choice_correct,
+                COALESCE(epqc.single_choice_total, 0) - SUM(CASE WHEN q.question_type = '单选题' AND ar.score = 1 THEN 1 ELSE 0 END) AS single_choice_incorrect,
+                epqc.multi_choice_total,
+                SUM(CASE WHEN q.question_type = '多选题' AND ar.score = 2 THEN 1 ELSE 0 END) AS multi_choice_correct,
+                COALESCE(epqc.multi_choice_total, 0) - SUM(CASE WHEN q.question_type = '多选题' AND ar.score = 2 THEN 1 ELSE 0 END) AS multi_choice_incorrect
+            FROM answerrecord ar
+            JOIN exampaper ep ON ar.exam_paper_id = ep.id
+            JOIN question q ON q.id = ar.question_id
+            LEFT JOIN exampapercourse epc ON ep.id = epc.exam_paper_id
+            LEFT JOIN trainingcourse tc ON epc.course_id = tc.id
+            JOIN ExamPaperQuestionCounts epqc ON ep.id = epqc.exam_paper_id
+            WHERE ar.user_id = %s
+            GROUP BY ep.id, ep.title, ep.description, ar.created_at, epqc.total_questions, epqc.single_choice_total, epqc.multi_choice_total, ar.exam_id
+            ORDER BY ar.created_at DESC
+        """
+        
+
+
+        cur.execute(query, (user_id,))
+        records = cur.fetchall()
+        
+        result = []
+        for record in records:
+            exam_record = {
+                'exam_paper_id': record['exam_paper_id'],
+                'exam_id': record['exam_id'],
+                'exam_title': record['exam_title'],
+                'exam_description': record['exam_description'],
+                'exam_time': record['exam_time'].isoformat() if record['exam_time'] else None,
+                'total_score': float(record['total_score']) if record['total_score'] is not None else 0.0,
+                'correct_count': record['correct_count'],
+                'total_questions': record['total_questions'],
+                'accuracy_rate': float(record['accuracy_rate'])/100 if record['accuracy_rate'] is not None else 0.0,
+                'course_names': [course for course in record['course_names'] if course is not None],
+                'single_choice': {
+                    'total': record['single_choice_total'],
+                    'correct': record['single_choice_correct'],
+                    'incorrect': record['single_choice_incorrect']
+                },
+                'multi_choice': {
+                    'total': record['multi_choice_total'],
+                    'correct': record['multi_choice_correct'],
+                    'incorrect': record['multi_choice_incorrect']
+                }
+            }
+            result.append(exam_record)
+            
+        return jsonify(result)
+    except Exception as e:
+        print('Error in get_user_exams:', str(e))
+        return jsonify({'error': str(e)}), 500
+    finally:
+        cur.close()
+        conn.close()
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)

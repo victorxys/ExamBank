@@ -169,6 +169,7 @@ function ExamRecords() {
                   <TableCell>考试时间</TableCell>
                   <TableCell>分数</TableCell>
                   <TableCell>正确率</TableCell>
+                  <TableCell>课程</TableCell>
                   <TableCell>题目数量</TableCell>
                   <TableCell>操作</TableCell>
                 </TableRow>
@@ -229,14 +230,13 @@ function ExamRecords() {
                             display: 'inline-block'
                           }}
                         >
-                          {(typeof record.total_score === 'number' ? record.total_score.toFixed(2) : '0.00')}分
+                          {record.total_score ? record.total_score.toFixed(1) : '0.0'}分
                         </Typography>
                       </TableCell>
                       <TableCell>
                         <Typography
                           variant="body1"
                           sx={{
-                            
                             color: record.accuracy_rate >= 0.6 ? '#2dce89' : '#f5365c',
                             fontWeight: 600,
                             backgroundColor: record.accuracy_rate >= 0.6 ? 'rgba(45, 206, 137, 0.1)' : 'rgba(245, 54, 92, 0.1)',
@@ -246,7 +246,12 @@ function ExamRecords() {
                             display: 'inline-block'
                           }}
                         >
-                          {(record.accuracy_rate * 100).toFixed(1)}%
+                          {record.accuracy_rate ? (record.accuracy_rate * 100).toFixed(1) : '0.0'}%
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" sx={{ color: '#525f7f' }}>
+                          {record.courses && record.courses.length > 0 ? record.courses.join(', ') : '未分配课程'}
                         </Typography>
                       </TableCell>
                       <TableCell>

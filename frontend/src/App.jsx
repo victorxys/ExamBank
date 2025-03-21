@@ -267,7 +267,8 @@ function App() {
             <ErrorBoundary>
               <Routes>
                 <Route path="/employee-profile/:userId" element={isPublicEmployeeProfile ? <EmployeeProfile /> : <PrivateRoute element={<EmployeeProfile />}/>} />
-                
+                <Route path="/employee-profile/:userId/exam-records" element={isPublicEmployeeProfile ? <ExamRecords /> : <PrivateRoute element={<ExamRecords />}/>} />
+                <Route path="/employee-profile/:userId/exam-records/:examId" element={isPublicEmployeeProfile ? <ExamRecordDetail /> : <PrivateRoute element={<ExamRecordDetail />}/>} />
               </Routes>
             </ErrorBoundary>
           </Box>
@@ -297,6 +298,7 @@ function App() {
               flexDirection: 'column',
               minHeight: '100vh',
               width: '100%',
+              p: { xs: 1, sm: 3 }
             }}
           >
             <ErrorBoundary>

@@ -24,18 +24,29 @@ import {
   CircularProgress,
   Alert,
   Menu,
-  MenuItem
+  MenuItem,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow
 } from '@mui/material';
-import { Add as AddIcon, Share as ShareIcon, Edit as EditIcon, Delete as DeleteIcon} from '@mui/icons-material';
+import { Add as AddIcon, Share as ShareIcon, Edit as EditIcon, Delete as DeleteIcon, Visibility as VisibilityIcon } from '@mui/icons-material';
 import html2canvas from 'html2canvas';
 import { useTheme } from '@mui/material/styles';
+import { useMediaQuery } from '@mui/material';
 import api from '../api/axios';
 import logoSvg from '../assets/logo.svg';
 import WechatShare from './WechatShare';
+import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts';
 
 
 const EmployeeProfile = () => {
   const theme = useTheme();
+  const knowledge_point_summary_array = '';
+
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const { userId } = useParams();
   const navigate = useNavigate();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -46,6 +57,13 @@ const EmployeeProfile = () => {
   const [shareData, setShareData] = useState(null);
   const [employeeData, setEmployeeData] = useState(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [records, setRecords] = useState([]);
+  const [loadingRecords, setLoadingRecords] = useState(false);
+  const [recordsError, setRecordsError] = useState(null);
+  const [examDetailDialogOpen, setExamDetailDialogOpen] = useState(false);
+  const [examDetail, setExamDetail] = useState(null);
+  const [loadingExamDetail, setLoadingExamDetail] = useState(false);
+  const [knowledgeReport, setKnowledgeReport] = useState(false);
   const [editFormData, setEditFormData] = useState({
     name: '',
     title: '',
@@ -59,9 +77,8 @@ const EmployeeProfile = () => {
     qualities: []
   });
   const [isPublic] = useState(() => {
-  // const searchParams = new URLSearchParams(window.location.search);
-  const publicParams = new URL(window.location.href).searchParams.get('public')
-  return publicParams; // 使用 return 返回 publicParams
+    const publicParams = new URL(window.location.href).searchParams.get('public')
+    return publicParams;
   });
 
   useEffect(() => {
@@ -72,6 +89,11 @@ const EmployeeProfile = () => {
         const publicParam = new URL(window.location.href).searchParams.get('public');
         const response = await api.get(`/users/${userId}/profile${publicParam ? `?public=${publicParam}` : ''}`);
         setEmployeeData(response.data);
+        // console.log("开始获取考试记录")
+        // 获取考试记录
+        const recordsResponse = await api.get(`/user-exams/${userId}`);
+        // console.log("获取考试记录完毕")
+        setRecords(recordsResponse.data || []);
       } catch (error) {
         console.error('获取员工信息失败:', error);
         setError(error.response?.data?.error || '获取员工信息失败');
@@ -178,19 +200,56 @@ const EmployeeProfile = () => {
     
     return (
       <Box sx={{ p: 3, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-        <Alert severity="info" sx={{ width: '100%' }}>暂无员工介绍，请先评价员工，然后再生成相应评价</Alert>
+        <Alert severity="info" sx={{ width: '100%' }}>尚未通过AI生成员工评价，请点击“AI员工介绍”按钮</Alert>
         <Button
           variant="contained"
           color="primary"
-          onClick={() => navigate(`/user-evaluation/${userId}`)}
+          onClick={() => navigate(`/user-evaluation-summary/${userId}`)}
           
         >
-          去评价
+          前往“员工评价汇总”页面
         </Button>
       </Box>
     );
   }
+  const handleViewExamDetail = async (examId) => {
+    try {
+      setLoadingExamDetail(true);
+      const response = await api.get(`/user-exams/knowledge-point-summary/${examId}`);
+      if (response.data && response.data.length > 0 && response.data[0].knowledge_point_summary) {
+        let knowledge_point_summary_array = null; // 在try...catch外部声明
+        try {
+          knowledge_point_summary_array = JSON.parse(response.data[0].knowledge_point_summary);
+        } catch (error) {
+          console.error("解析 JSON 失败:", error);
+        }
+        if (knowledge_point_summary_array){ //确保成功解析JSON后，再赋值
+                setKnowledgeReport(knowledge_point_summary_array);
+            } else{
+                setKnowledgeReport([]); //如果解析JSON失败，则设置为空数组
+            }
+      } else {
+        setKnowledgeReport([]);
+      }
+      setExamDetailDialogOpen(true);
+    } catch (error) {
+      console.error('获取考试详情失败:', error);
+      alert('获取考试详情失败，请稍后重试');
+    } finally {
+      setLoadingExamDetail(false);
+    }
+  };
 
+
+  
+
+  const handleExamDetailClose = () => {
+    setExamDetailDialogOpen(false);
+    setExamDetail(null);
+  };
+
+      
+      
   return (
     <Box
       sx={{
@@ -198,7 +257,13 @@ const EmployeeProfile = () => {
         background: 'linear-gradient(180deg, #FFFFFF 0%, #E0F2F1 100%)',
         position: 'relative',
         pb: 8,
-        px: { xs: 1, sm: 2 }  // 减少两边边距
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'flex-start',
+        // paddingTop: { xs: '2vh', sm: '15vh' },
+        // paddingX: { xs: '16px', sm: '24px' }
+        padding: '0px'
       }}
     >
 
@@ -408,7 +473,7 @@ const EmployeeProfile = () => {
             </Menu>
           </Box>
           )}
-      <Box id="employee-profile-content" sx={{ px: 3 }}>
+      <Box id="employee-profile-content" >
       {/* 基本信息部分 */}
       <Box
         sx={{
@@ -523,10 +588,11 @@ const EmployeeProfile = () => {
         />
       </Box>
 
+      {/* 考试记录部分 */}
       <Paper
         elevation={0}
         sx={{
-          p: 4,
+          p: 2,
           borderRadius: '20px',
           bgcolor: 'white',
           boxShadow: '0 8px 16px rgba(38, 166, 154, 0.1)',
@@ -556,7 +622,7 @@ const EmployeeProfile = () => {
 
         <Box
           sx={{
-            p: 3,
+            p: 1.5,
             bgcolor: '#F5F5F5',
             borderRadius: '10px',
             mb: 3
@@ -611,7 +677,7 @@ const EmployeeProfile = () => {
             <Box
               key={index}
               sx={{
-                p: 3,
+                p: 1.5,
                 bgcolor: '#F5F5F5',
                 borderRadius: '10px',
                 mb: 2
@@ -694,7 +760,7 @@ const EmployeeProfile = () => {
                 <Box
                   key={index}
                   sx={{
-                    p: 3,
+                    p: 1.5,
                     bgcolor: '#F5F5F5',
                     borderRadius: '10px',
                     mb: 2
@@ -728,6 +794,149 @@ const EmployeeProfile = () => {
             </Box>
         )}
 
+
+        <Box sx={{ mb: 3 }}>
+          <Box
+            sx={{
+              width: 80,
+              height: 4,
+              background: 'linear-gradient(90deg, #26A69A 0%, #80CBC4 100%)',
+              mb: 1.5,
+              borderRadius: 2
+            }}
+          />
+          <Typography
+            variant="h5"
+            sx={{
+              color: '#263339',
+              fontWeight: 600,
+              mb: 2
+            }}
+          >
+            考试记录
+          </Typography>
+          <TableContainer
+          component={Paper}
+          sx={{
+            boxShadow: 'none',
+            border: '1px solid rgba(0, 0, 0, 0.1)',
+            borderRadius: '0.375rem',
+            overflow: 'auto',
+            whiteSpace: 'nowrap'
+          }}
+        >
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>课程名称</TableCell>
+                {!isMobile && <TableCell>考试时间</TableCell>}
+                <TableCell>分数</TableCell>
+                {!isMobile && <TableCell>正确率</TableCell>}
+                <TableCell>操作</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {records.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={isMobile ? 3 : 5} align="center">
+                    <Typography variant="body1" sx={{ py: 2, color: '#8898aa' }}>
+                      暂无考试记录
+                    </Typography>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                records.map((record) => (
+                  <TableRow
+                    key={`${record.exam_paper_id}-${record.exam_time}`}
+                    sx={{
+                      '&:hover': {
+                        backgroundColor: '#f6f9fc'
+                      }
+                    }}
+                  >
+                    <TableCell>
+                      <Box>
+                        <Typography variant="subtitle1" sx={{ color: '#32325d', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                        {record.course_names.join(', ')}
+                        </Typography>
+                        {record.exam_description && (
+                          <Typography variant="body2" sx={{ color: '#8898aa', whiteSpace: 'nowrap' }}>
+                            {record.exam_description}
+                          </Typography>
+                        )}
+                      </Box>
+                    </TableCell>
+                    {!isMobile && (
+                      <TableCell sx={{ color: '#525f7f' }}>
+                        {record.exam_time
+                          ? new Date(record.exam_time).toLocaleString('zh-CN', {
+                              year: 'numeric',
+                              month: '2-digit',
+                              day: '2-digit',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })
+                          : '无效日期'}
+                      </TableCell>
+                    )}
+                    <TableCell>
+                      <Typography
+                        variant="body1"
+                        sx={{
+                          color: record.total_score >= 60 ? '#2dce89' : '#f5365c',
+                          fontWeight: 600,
+                          backgroundColor: record.total_score >= 60 ? 'rgba(45, 206, 137, 0.1)' : 'rgba(245, 54, 92, 0.1)',
+                          borderRadius: '0.25rem',
+                          px: 1,
+                          py: 0.5,
+                          display: 'inline-block',
+                          whiteSpace: 'nowrap'
+                        }}
+                      >
+                        {(typeof record.total_score === 'number' ? record.total_score.toFixed(1) : '0.0')}分
+                      </Typography>
+                    </TableCell>
+                    {!isMobile && (
+                      <TableCell>
+                        <Typography
+                          variant="body1"
+                          sx={{
+                            color: record.accuracy_rate >= 0.6 ? '#2dce89' : '#f5365c',
+                            fontWeight: 600,
+                            backgroundColor: record.accuracy_rate >= 0.6 ? 'rgba(45, 206, 137, 0.1)' : 'rgba(245, 54, 92, 0.1)',
+                            borderRadius: '0.25rem',
+                            px: 1,
+                            py: 0.5,
+                            display: 'inline-block',
+                            whiteSpace: 'nowrap'
+                          }}
+                        >
+                          {(record.accuracy_rate * 100).toFixed(1)}%
+                        </Typography>
+                      </TableCell>
+                    )}
+                    <TableCell>
+                      <IconButton
+                        size="small"
+                        onClick={() => handleViewExamDetail(record.exam_id)}
+                        sx={{
+                          color: '#5e72e4',
+                          '&:hover': {
+                            backgroundColor: 'rgba(94, 114, 228, 0.1)'
+                          }
+                        }}
+                      >
+                        <VisibilityIcon fontSize="small" />
+                      </IconButton>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+          </TableContainer>
+        </Box>
+
         <Box sx={{ mb: 3 }}>
           <Box
             sx={{
@@ -753,7 +962,7 @@ const EmployeeProfile = () => {
             <Box
               key={index}
               sx={{
-                p: 3,
+                p: 1.5,
                 bgcolor: '#F5F5F5',
                 borderRadius: '10px',
                 mb: 2
@@ -839,7 +1048,7 @@ const EmployeeProfile = () => {
                   <Paper
                     elevation={0}
                     sx={{
-                      p: 3,
+                      p: 1.5,
                       height: '100%',
                       backgroundColor: 'rgba(0, 0, 0, 0.02)',
                       borderRadius: '8px'
@@ -1105,8 +1314,8 @@ const EmployeeProfile = () => {
 
       {/* 详情弹窗 */}
       <Dialog
-        open={dialogOpen}
-        onClose={handleCloseDialog}
+        open={examDetailDialogOpen}
+        onClose={() => setExamDetailDialogOpen(false)}
         maxWidth="sm"
         fullWidth
         PaperProps={{
@@ -1120,17 +1329,74 @@ const EmployeeProfile = () => {
         <DialogTitle sx={{ color: '#263339', fontWeight: 600, fontSize: theme.typography.h3.fontSize }}>
           {dialogContent.title}
         </DialogTitle>
-        <DialogContent>
-          <Typography variant="body1" color="#728f9e">
-            {dialogContent.content}
-          </Typography>
+        <DialogContent sx={{padding:0, borderWidth:0}}>
+            {console.log("knowledgeReport",knowledgeReport)}
+            {/*知识点掌握情况*/}
+            {knowledgeReport && (
+              <Paper sx={{ p: 4, backgroundColor: theme.palette.background.paper, borderRadius: 2, boxShadow: theme.shadows[2]}}>
+                <Typography variant="h3" sx={{ mb: 3, fontWeight: 600, color: theme.palette.primary.main, textAlign: 'center' }}>
+                  知识点掌握情况分析
+                </Typography>
+                <Box sx={{ height: 300, mb: 4 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RadarChart data={knowledgeReport}>
+                        <PolarGrid stroke={theme.palette.divider} />
+                        <PolarAngleAxis dataKey="subject" tick={{ fill: theme.palette.text.primary }} />
+                        <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fill: theme.palette.text.secondary }} />
+                        <Radar
+                          name="掌握程度"
+                          dataKey="value"
+                          stroke={theme.palette.primary.main}
+                          fill={theme.palette.primary.main}
+                          fillOpacity={0.2}
+                        />
+                    </RadarChart>
+                  </ResponsiveContainer>
+                </Box>
+                <Grid container spacing={2}>
+                    {knowledgeReport.sort((a, b) => b.value - a.value).map((item) => (
+                      <Grid item xs={12} sx={{ mb: 2 }} key={item.subject}>
+                          <Paper elevation={1} sx={{ p: 3, height: '100%', backgroundColor: theme.palette.background.default, borderRadius: 2 }}>
+                            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', sm: 'center' }, mb: 2 }}>
+                                <Typography variant="h3" sx={{ fontWeight: 600, color: theme.palette.text.primary, mb: { xs: 1, sm: 0 } }}>
+                                  {item.subject}
+                                </Typography>
+                                <Typography
+                                  variant="subtitle1"
+                                  sx={{
+                                    fontWeight: 500,
+                                    color: item.value >= 80 ? theme.palette.success.main :
+                                            item.value >= 60 ? theme.palette.warning.main :
+                                            theme.palette.error.main
+                                  }}
+                                >
+                                  {item.value}% - {item.value >= 80 ? '掌握良好' : item.value >= 60 ? '掌握一般' : '未掌握'}
+                                </Typography>
+                            </Box>
+                            <Box component="ul" sx={{ listStyleType: 'disc', pl: 3, m: 0 }}>
+                                {item.details.map((detail, index) => (
+                                  <Typography component="li" variant="body1" key={index} sx={{ color: theme.palette.text.secondary, mb: 1 }}>
+                                      {detail}
+                                  </Typography>
+                                ))}
+                            </Box>
+                          </Paper>
+                      </Grid>
+                    ))}
+                </Grid>
+              </Paper>
+            )}
+          
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseDialog} color="primary">
+          <Button onClick={() => setExamDetailDialogOpen(false)} color="primary">
             关闭
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* 考试详情弹窗 */}
+      
       
       {employeeData.employee_show_url && (
         <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3, mb: 4 }}>
@@ -1148,7 +1414,7 @@ const EmployeeProfile = () => {
               px: 4,
               py: 1.5,
               borderRadius: '0.5rem',
-              boxShadow: '0 4px 6px rgba(50, 50, 93, 0.11), 0 1px 3px rgba(0, 0, 0, 0.08)'
+              boxShadow: '0 8px 16px rgba(50, 50, 93, 0.11), 0 1px 3px rgba(0, 0, 0, 0.08)'
             }}
           >
             查看详细信息

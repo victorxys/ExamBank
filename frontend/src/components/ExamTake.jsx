@@ -29,6 +29,7 @@ import { API_BASE_URL } from '../config';
 import { hasToken } from '../api/auth-utils';
 import { useTheme } from '@mui/material/styles';
 import userApi from '../api/user';
+import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts';
 
 // 自定义 Markdown 样式组件
 const MarkdownTypography = ({ children, ...props }) => {
@@ -73,6 +74,7 @@ const ExamTake = () => {
   const [examStartTime, setExamStartTime] = useState(null);
   const [examDuration, setExamDuration] = useState(null);
   const [userInfo, setUserInfo] = useState(null);
+  const [knowledgeReport, setKnowledgeReport] = useState(null); // 新增知识点报告状态
 
   useEffect(() => {
     // 检查登录状态
@@ -134,7 +136,7 @@ const ExamTake = () => {
   useEffect(() => {
     const loadTempAnswersIfNeeded = async () => {
       if (exam && tokenData && tokenData.sub && !preview) {
-        console.log('exam已加载，开始加载临时答案');
+        // console.log('exam已加载，开始加载临时答案');
         await loadTempAnswers(tokenData.sub);
         
         const response = await userApi.getUserDetails(tokenData.sub);
@@ -147,7 +149,7 @@ const ExamTake = () => {
 
   const loadTempAnswers = async (userId) => {
     if (!exam) {
-      console.log('exam 对象尚未加载，暂不处理临时答案');
+      // console.log('exam 对象尚未加载，暂不处理临时答案');
       return;
     }
 
@@ -160,13 +162,13 @@ const ExamTake = () => {
       const data = await response.json();
       if (data.success && data.temp_answers) {
         const tempAnswers = {};
-        console.log('临时答案数据：', data.temp_answers);
+        // console.log('临时答案数据：', data.temp_answers);
         data.temp_answers.forEach(answer => {
           // 获取题目类型
           const question = exam.questions.find(q => q.id === answer.question_id);
           if (!question) return;
           
-          console.log('题目类型：', answer);
+          // console.log('题目类型：', answer);
           // 处理PostgreSQL数组格式：确保selected_option_ids是字符串类型
           const optionIds = typeof answer.selected_option_ids === 'string'
             ? answer.selected_option_ids
@@ -196,7 +198,7 @@ const ExamTake = () => {
             };
           }
         });
-        console.log('处理后的临时答案：', tempAnswers);
+        // console.log('处理后的临时答案：', tempAnswers);
         setAnswers(tempAnswers);
       }
     } catch (error) {
@@ -207,7 +209,7 @@ const ExamTake = () => {
   
 
   const handleAnswerChange = (questionId, optionId, type) => {
-    console.log('答案变更：', { questionId, optionId, type });
+    // console.log('答案变更：', { questionId, optionId, type });
     if (type === '多选题') {
       setAnswers(prev => {
         const newAnswers = {
@@ -220,8 +222,8 @@ const ExamTake = () => {
             }
           }
         };
-        console.log('用户信息：', user);
-        console.log('更新后的答案状态11：', newAnswers);
+        // console.log('用户信息：', user);
+        // console.log('更新后的答案状态11：', newAnswers);
         // 只有在用户已登录时才保存答案
         
         if (user && user.sub) {
@@ -239,7 +241,7 @@ const ExamTake = () => {
           }
         };
         
-        console.log('更新后的答案状态：', newAnswers);
+        // console.log('更新后的答案状态：', newAnswers);
         // 只有在用户已登录时才保存答案
         if (user && user.sub) {
           saveAnswerToServer(questionId, newAnswers[questionId]);
@@ -262,12 +264,12 @@ const ExamTake = () => {
             .filter(([_, selected]) => selected)
             .map(([optionId]) => optionId);
 
-      console.log('准备发送自动保存请求：', {
-        examId,
-        questionId,
-        userId: user.sub,
-        selected_options
-      });
+      // console.log('准备发送自动保存请求：', {
+      //   examId,
+      //   questionId,
+      //   userId: user.sub,
+      //   selected_options
+      // });
 
       const response = await fetch(`${API_BASE_URL}/exams/${examId}/temp-answers`, {
         method: 'POST',
@@ -287,7 +289,7 @@ const ExamTake = () => {
       }
 
       const result = await response.json();
-      console.log('自动保存成功：', result);
+      // console.log('自动保存成功：', result);
     } catch (err) {
       console.error('自动保存失败：', err);
     }
@@ -352,11 +354,11 @@ const ExamTake = () => {
               .filter(([_, selected]) => selected)
               .map(([optionId]) => optionId);
       
-      console.log('格式化答案：', {
-        questionId,
-        answer,
-        selected_options
-      });
+      // console.log('格式化答案：', {
+      //   questionId,
+      //   answer,
+      //   selected_options
+      // });
       
       return {
         question_id: questionId,
@@ -364,13 +366,13 @@ const ExamTake = () => {
       };
     });
   
-    console.log('提交的答案数据：', {
-      answers,
-      formattedAnswers,
-      user_id: user.sub,
-      API_BASE_URL:API_BASE_URL,
-      examId:examId
-    });
+    // console.log('提交的答案数据：', {
+    //   answers,
+    //   formattedAnswers,
+    //   user_id: user.sub,
+    //   API_BASE_URL:API_BASE_URL,
+    //   examId:examId
+    // });
   
     const response = await fetch(`${API_BASE_URL}/exams/${examId}/submit`, {
       method: 'POST',
@@ -389,7 +391,12 @@ const ExamTake = () => {
     }
   
     const result = await response.json();
-    console.log('提交答案结果：', result);
+    // console.log('提交答案结果：', result);
+
+    // 获取知识点报告
+    if(result.merge_kp_result){
+         setKnowledgeReport(result.merge_kp_result);
+    }
     
     // 计算考试用时
     if (result.start_time && result.submit_time) {
@@ -677,7 +684,61 @@ const ExamTake = () => {
                 </Grid>
               </Paper>
 
-              
+              {/*知识点掌握情况*/}
+              {knowledgeReport && (
+                <Paper sx={{ p: 4, backgroundColor: theme.palette.background.paper, borderRadius: 2, boxShadow: theme.shadows[2], mb: 4 }}>
+                   <Typography variant="h3" sx={{ mb: 3, fontWeight: 600, color: theme.palette.primary.main, textAlign: 'center' }}>
+                      知识点掌握情况分析
+                   </Typography>
+                   <Box sx={{ height: 300, mb: 4 }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                         <RadarChart data={knowledgeReport}>
+                            <PolarGrid stroke={theme.palette.divider} />
+                            <PolarAngleAxis dataKey="subject" tick={{ fill: theme.palette.text.primary }} />
+                            <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fill: theme.palette.text.secondary }} />
+                            <Radar
+                               name="掌握程度"
+                               dataKey="value"
+                               stroke={theme.palette.primary.main}
+                               fill={theme.palette.primary.main}
+                               fillOpacity={0.2}
+                            />
+                         </RadarChart>
+                      </ResponsiveContainer>
+                   </Box>
+                   <Grid container spacing={2}>
+                      {knowledgeReport.sort((a, b) => b.value - a.value).map((item) => (
+                         <Grid item xs={12} sx={{ mb: 2 }} key={item.subject}>
+                            <Paper elevation={1} sx={{ p: 3, height: '100%', backgroundColor: theme.palette.background.default, borderRadius: 2 }}>
+                               <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', sm: 'center' }, mb: 2 }}>
+                                  <Typography variant="h3" sx={{ fontWeight: 600, color: theme.palette.text.primary, mb: { xs: 1, sm: 0 } }}>
+                                     {item.subject}
+                                  </Typography>
+                                  <Typography
+                                     variant="subtitle1"
+                                     sx={{
+                                       fontWeight: 500,
+                                       color: item.value >= 80 ? theme.palette.success.main :
+                                              item.value >= 60 ? theme.palette.warning.main :
+                                              theme.palette.error.main
+                                     }}
+                                  >
+                                     {item.value}% - {item.value >= 80 ? '掌握良好' : item.value >= 60 ? '掌握一般' : '未掌握'}
+                                  </Typography>
+                               </Box>
+                               <Box component="ul" sx={{ listStyleType: 'disc', pl: 3, m: 0 }}>
+                                  {item.details.map((detail, index) => (
+                                     <Typography component="li" variant="body1" key={index} sx={{ color: theme.palette.text.secondary, mb: 1 }}>
+                                        {detail}
+                                     </Typography>
+                                  ))}
+                               </Box>
+                            </Paper>
+                         </Grid>
+                      ))}
+                   </Grid>
+                </Paper>
+              )}
 
               {examResult.questions
                 .filter(question => !question.is_correct)
@@ -930,11 +991,11 @@ const ExamTake = () => {
                           <RadioGroup
                             value={answers[question.id]?.selected || ''}
                             onChange={(e) => {
-                              console.log('单选题选择：', {
-                                questionId: question.id,
-                                optionId: e.target.value,
-                                type: '单选题'
-                              });
+                              // console.log('单选题选择：', {
+                              //   questionId: question.id,
+                              //   optionId: e.target.value,
+                              //   type: '单选题'
+                              // });
                               handleAnswerChange(question.id, e.target.value, '单选题');
                             }}
                           >
@@ -1026,11 +1087,11 @@ const ExamTake = () => {
                                   <Checkbox
                                     checked={answers[question.id]?.selected?.[option.id] || false}
                                     onChange={() => {
-                                      console.log('多选题选择：', {
-                                        questionId: question.id,
-                                        optionId: option.id,
-                                        type: '多选题'
-                                      });
+                                      // console.log('多选题选择：', {
+                                      //   questionId: question.id,
+                                      //   optionId: option.id,
+                                      //   type: '多选题'
+                                      // });
                                       handleAnswerChange(question.id, option.id, '多选题');
                                     }}
                                     sx={{

@@ -30,12 +30,12 @@ function UserLoginDialog({ open, onClose, onLogin }) {
       previousFocusRef.current = document.activeElement;
       const mainContent = getMainContent();
       if (mainContent) {
-        mainContent.setAttribute('aria-hidden', 'true');
+        mainContent.inert = true;
       }
     } else {
       const mainContent = getMainContent();
       if (mainContent) {
-        mainContent.removeAttribute('aria-hidden');
+        mainContent.inert = false;
       }
       if (previousFocusRef.current) {
         previousFocusRef.current.focus();

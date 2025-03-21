@@ -143,3 +143,144 @@ json格式如下：
         print('JSON解析失败:', str(e))
         print('无效的JSON文本:', result)
         raise Exception('AI生成的结果不是有效的JSON格式')
+
+def merge_kp_name(exam_results):
+    client = genai.Client(
+        api_key=os.environ['GEMINI_API_KEY'],
+    )
+    
+    # 将评价数据转换为markdown格式
+    # evaluation_text = "# 评价数据\n\n"
+    evaluation_text = str(exam_results)
+    print("evaluation_text, 用来调试提示词:",evaluation_text)
+    model = "gemini-2.0-flash-lite"
+    contents = [
+        types.Content(
+            role="user",
+            parts=[
+                types.Part.from_text(
+                    text=evaluation_text
+                ),
+            ],
+        ),
+    ]
+    generate_content_config = types.GenerateContentConfig(
+        temperature=1,
+        top_p=0.95,
+        top_k=40,
+        max_output_tokens=8192,
+        response_mime_type="application/json",
+        system_instruction=[
+            types.Part.from_text(
+                text="""你的主要功能合并、整理知识点的掌握情况。至少合并为5个最多8个知识点，每个知识点下最少有3条数据
+
+基本要求
+我将按以下格式提供我的数据：
+[{'knowledge_point_name': '10～12个月婴儿身高体重参考范围', 'if_get': '未掌握'}, {'knowledge_point_name': '习惯 & 早教 - 睡眠习惯 - 养成良好的睡前习惯', 'if_get': '未掌握'}]
+将我提供的知识点{knowledge_point_name}进行汇总合并生成{subject},并将原{knowledge_point_name} 作为 {details}。
+汇总与合并要求：
+先理解所有的 {knowledge_point_name}, 并尽量按以下大类进行归类：
+生长发育、辅食添加、睡眠、意外伤害、营养性疾病、喂养、早教、常见问题
+如果{knowledge_point_name} 不符合以上任何归类，则创造一个相应的{subject}
+如果某个 {subject} 下没有任何 {details} 则不汇总这个 {subject}
+汇总合并后的 {subject} 数量为最少6个，最多8个。
+每个 {subject} 下的 {detials} 数量不得少于3个。
+
+
+Subject Count: Ensure that the total number of subjects generated is strictly between 6 and 8. If initially, you create more or fewer subjects, you MUST adjust by either merging or further dividing subjects to meet this constraint. Aim for the most logical and comprehensive grouping within this subject count range.
+
+Minimum Details per Subject: Each subject MUST contain a minimum of 3 details. Subjects with fewer than 3 details are not acceptable. If a subject ends up with fewer than 3 details after initial grouping, it MUST be merged with another relevant subject to ensure all subjects meet this minimum detail requirement. Prioritize merging with subjects that are semantically related.
+
+Simultaneous Compliance: Crucially, ensure BOTH of these conditions are met simultaneously. Do not prioritize one constraint over the other; both the subject count and the detail count per subject are equally important and must be satisfied in the final output.
+
+Merging Strategy: When merging subjects to meet the minimum detail count or subject count requirements, intelligently combine related subjects. Do not simply discard details to reduce subject count. Focus on creating broader, yet still coherent, subject categories.
+
+根据数据中的{if_get}来判断每个知识点的掌握情况，累积到合并后的知识点中。按百分比展示合并后知识点的掌握情况。
+例如 ：
+subject:A
+    detials1:已掌握
+    detials2:已掌握
+    detials3:未掌握
+    detials4:已掌握
+
+那么，合并后“subjectA”掌握情况就是75%.
+
+数据处理要求：
+1. 请将同一个{subject}中各个{details}进行简化，使得{details}中文字内容无需再重复体现{subject}中的意思或内容
+2. 对于{details}相同的条目只保留一个即可，并且同一个{details}不可以出现在不同的{knowledge_point_name}中。
+3. 在汇总{subject} 和 {details} 时请注意，如果{details}条目数量少于3条，则不要汇总这个{subject}，并将这些较少的的{details} 合并到其他的{subjcet}中。
+4. 精简{details}的文字，保留原意即可，尽量减少各个{details}中重复的文字。
+        例如：
+        subjcet: 常见问题与护理
+              detials: 常见问题 - 疱疹性咽炎 - 定义及特点
+            detials: 常见问题 - 疱疹性咽炎 - 症状及护理
+            detials: 常见问题 - 疱疹性咽炎 - 定义及特点
+            detials: 常见问题 - 幼儿急疹 - 定义及表现 (阶段)
+        
+        
+        精简后是：
+        subjcet: 汇总后知识点：常见问题与护理
+            detials: 疱疹性咽炎 - 定义及特点
+            detials: 疱疹性咽炎 - 症状及护理
+            detials: 幼儿急疹 - 定义及表现 (阶段) 
+5. 数组中要对 details 内容按文字内容排序
+
+
+数据格式要求
+最终整理为以下json数组格式并输出
+[
+  {
+    subject: '合并后知识点名称1',
+    value: 掌握程度数值1,
+    details: [
+      '知识点详细内容1',
+      '知识点详细内容2',
+      // ...
+    ]
+  },
+  {
+    subject: '合并后知识点名称2',
+    value: 掌握程度数值2,
+    details: [
+      '知识点详细内容1',
+      '知识点详细内容2',
+      // ...
+    ]
+  },
+  // ...
+]
+"""
+            ),
+        ],
+    )
+
+    response = ""
+    for chunk in client.models.generate_content_stream(
+        model=model,
+        contents=contents,
+        config=generate_content_config,
+    ):
+        response += chunk.text
+    
+    # 移除可能存在的Markdown代码块标记
+    result = response.strip()
+    if result.startswith('```json'):
+        result = result[7:]
+    if result.startswith('```'):
+        result = result[3:]
+    if result.endswith('```'):
+        result = result[:-3:]
+    result = result.strip()
+
+    # 尝试解析JSON结果
+    try:
+        import json
+        parsed_result = json.loads(result)
+        print('成功解析JSON结果:', parsed_result)
+        return parsed_result
+    except json.JSONDecodeError as e:
+        print('JSON解析失败:', str(e))
+        print('无效的JSON文本:', result)
+        raise Exception('AI生成的结果不是有效的JSON格式')
+
+
