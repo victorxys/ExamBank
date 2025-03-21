@@ -2345,7 +2345,8 @@ def get_exam_records():
                 COALESCE(epqc.single_choice_total, 0) - SUM(CASE WHEN q.question_type = '单选题' AND ar.score = 1 THEN 1 ELSE 0 END) AS single_choice_incorrect,
                 epqc.multi_choice_total,
                 SUM(CASE WHEN q.question_type = '多选题' AND ar.score = 2 THEN 1 ELSE 0 END) AS multi_choice_correct,
-                COALESCE(epqc.multi_choice_total, 0) - SUM(CASE WHEN q.question_type = '多选题' AND ar.score = 2 THEN 1 ELSE 0 END) AS multi_choice_incorrect
+                COALESCE(epqc.multi_choice_total, 0) - SUM(CASE WHEN q.question_type = '多选题' AND ar.score = 2 THEN 1 ELSE 0 END) AS multi_choice_incorrect,
+                ar.exam_id AS exam_id
             FROM answerrecord ar
             JOIN exampaper ep ON ar.exam_paper_id = ep.id
             JOIN "user" u ON ar.user_id = u.id
@@ -2369,6 +2370,7 @@ def get_exam_records():
                 ep.title,
                 ep.description,
                 ar.user_id,
+                ar.exam_id,
                 ar.created_at,  -- 加入到 GROUP BY
                 u.username,
                 u.phone_number,
@@ -2405,6 +2407,7 @@ def get_exam_records():
                     'multi_choice_total': record[15],
                     'multi_choice_correct': record[16],
                     'multi_choice_incorrect': record[17],
+                    'exam_id': record[18],
                 }
                 result.append(exam_record)
 
@@ -3014,6 +3017,7 @@ def ai_generate_route():
 
 @app.route('/api/user-exams/knowledge-point-summary/<exam_id>', methods=['GET'])
 def get_knowledge_point_summary(exam_id):
+    print("exam_id===",exam_id)
     try:
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=RealDictCursor)
@@ -3030,23 +3034,27 @@ def get_knowledge_point_summary(exam_id):
     finally:
         pass
 
-@app.route('/api/user-exams/<user_id>', methods=['GET'])
-@jwt_required()
+
+
+
+
+@app.route('/api/user-exams/employee-profile/<user_id>', methods=['GET'])
+# @jwt_required()
 def get_user_exams(user_id):
     print("开始获取用户考试记录，用户ID：", user_id)
     try:
         # 获取当前用户信息
-        current_user_id = get_jwt_identity()
+        # current_user_id = get_jwt_identity()
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=RealDictCursor)
         
-        # 获取用户角色
-        cur.execute('SELECT "role" FROM "user" WHERE id = %s', (current_user_id,))
-        user_role = cur.fetchone()['role']
+        # # 获取用户角色
+        # cur.execute('SELECT "role" FROM "user" WHERE id = %s', (current_user_id,))
+        # user_role = cur.fetchone()['role']
         
-        # 如果不是管理员且不是查询自己的记录，则返回权限错误
-        if user_role != 'admin' and str(current_user_id) != user_id:
-            return jsonify({'error': '没有权限访问其他用户的考试记录'}), 403
+        # # 如果不是管理员且不是查询自己的记录，则返回权限错误
+        # if user_role != 'admin' and str(current_user_id) != user_id:
+        #     return jsonify({'error': '没有权限访问其他用户的考试记录'}), 403
 
         query = """
             WITH ExamPaperQuestionCounts AS (

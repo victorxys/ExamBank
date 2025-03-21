@@ -32,6 +32,7 @@ import {
 } from '@mui/icons-material'
 import debounce from 'lodash/debounce'
 import PageHeader from './PageHeader';
+import KnowledgeReportDialog from './KnowledgeReportDialog';
 // console.log('API_BASE_URL:', API_BASE_URL); // 输出 API_BASE_URL 的值
 // console.log('url:', url); // 输出 url 的值
 // console.log('url.toString():', url.toString()); // 输出 url 的字符串形式
@@ -44,6 +45,9 @@ function ExamRecords() {
   const [error, setError] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('')
+  const [examDetailDialogOpen, setExamDetailDialogOpen] = useState(false);
+  const [examDetail, setExamDetail] = useState(null);
+
 
   // 创建一个防抖的搜索函数
   const debouncedSetSearch = useCallback(
@@ -66,6 +70,23 @@ function ExamRecords() {
     fetchRecords()
   }, [debouncedSearchTerm])
 
+
+  const handleViewReportButtonClick = (examId, isPublic) => {
+    // 在点击按钮时设置 examDetail 的值
+    if (examId) {
+      setExamDetail({ exam_id: examId, isPublic: isPublic });
+      // 打开 KnowledgeReportDialog
+      setExamDetailDialogOpen(true);  
+    } else{
+
+    }
+    
+  };
+
+  const handleExamDetailClose = () => {
+    setExamDetailDialogOpen(false);
+    setExamDetail(null);
+  };
 
   const fetchRecords = async () => {
     // console.log('fetchRecords 被调用');
@@ -308,6 +329,18 @@ function ExamRecords() {
                         >
                           查看详情
                         </Button>
+                        <Button
+                        size="small"
+                        sx={{
+                          // color: '#5e72e4',
+                          '&:hover': {
+                            backgroundColor: 'rgba(94, 114, 228, 0.1)'
+                          }
+                        }}
+                        onClick={() => handleViewReportButtonClick(record.exam_id, true)} // 替换 123 和 true 为你实际的 exam_id 和 ispublic 值
+                      >
+                        查看概况
+                      </Button>
                       </TableCell>
                     </TableRow>
                   ))
@@ -317,6 +350,15 @@ function ExamRecords() {
           </TableContainer>
         </CardContent>
       </Card>
+
+      {/* 知识点报告对话框 */}
+      <KnowledgeReportDialog
+        open={examDetailDialogOpen}
+        onClose={handleExamDetailClose}
+        examId={examDetail?.exam_id}
+        isPublic={examDetail?.ispublic} // 修改为 isPublic
+
+      />
 
       {loading && (
         <Box

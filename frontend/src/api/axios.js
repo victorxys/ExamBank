@@ -23,7 +23,9 @@ api.interceptors.request.use(
   async (config) => {
     // 检查是否是公开路由
     const isPublicRoute = config.url.includes('/profile') || 
+                          config.url.includes('/employee-profile/') || 
                           config.url.includes('/evaluation-items') || 
+                          config.url.includes('/knowledge-point-summary') || 
                           config.url.includes('/employee-self-evaluation');
     // console.log('onfig.url:', config.url);
     const token = getToken();

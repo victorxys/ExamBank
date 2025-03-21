@@ -40,6 +40,7 @@ import api from '../api/axios';
 import logoSvg from '../assets/logo.svg';
 import WechatShare from './WechatShare';
 import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts';
+import KnowledgeReportDialog from './KnowledgeReportDialog';
 
 
 const EmployeeProfile = () => {
@@ -89,10 +90,10 @@ const EmployeeProfile = () => {
         const publicParam = new URL(window.location.href).searchParams.get('public');
         const response = await api.get(`/users/${userId}/profile${publicParam ? `?public=${publicParam}` : ''}`);
         setEmployeeData(response.data);
-        // console.log("开始获取考试记录")
+        console.log("开始获取考试记录")
         // 获取考试记录
-        const recordsResponse = await api.get(`/user-exams/${userId}`);
-        // console.log("获取考试记录完毕")
+        const recordsResponse = await api.get(`/user-exams/employee-profile/${userId}`);
+        console.log("获取考试记录完毕")
         setRecords(recordsResponse.data || []);
       } catch (error) {
         console.error('获取员工信息失败:', error);
@@ -138,13 +139,27 @@ const EmployeeProfile = () => {
     }
   }, [employeeData, loading, userId]);
 
-  const handleOpenDialog = (title, content) => {
-    setDialogContent({ title, content });
-    setDialogOpen(true);
-  };
+  
+  
+  
+  
+
+ 
 
   const handleCloseDialog = () => {
     setDialogOpen(false);
+  };
+
+  const handleViewReportButtonClick = (examId, isPublic) => {
+    // 在点击按钮时设置 examDetail 的值
+    setExamDetail({ exam_id: examId, isPublic: isPublic });
+    // 打开 KnowledgeReportDialog
+    setExamDetailDialogOpen(true);
+  };
+
+  const handleOpenDialog = (title, content) => {
+    setDialogContent({ title, content });
+    setDialogOpen(true);
   };
 
   const handleEditClick = () => {
@@ -217,31 +232,32 @@ const EmployeeProfile = () => {
       setLoadingExamDetail(true);
       const response = await api.get(`/user-exams/knowledge-point-summary/${examId}`);
       if (response.data && response.data.length > 0 && response.data[0].knowledge_point_summary) {
-        let knowledge_point_summary_array = null; // 在try...catch外部声明
+        let knowledge_point_summary_array = null;
         try {
           knowledge_point_summary_array = JSON.parse(response.data[0].knowledge_point_summary);
+          setKnowledgeReport(knowledge_point_summary_array);
+          setExamDetail(response.data[0]);
         } catch (error) {
-          console.error("解析 JSON 失败:", error);
+          console.error("解析知识点总结JSON失败:", error);
+          setKnowledgeReport([]);
+          setExamDetail(null);
         }
-        if (knowledge_point_summary_array){ //确保成功解析JSON后，再赋值
-                setKnowledgeReport(knowledge_point_summary_array);
-            } else{
-                setKnowledgeReport([]); //如果解析JSON失败，则设置为空数组
-            }
       } else {
         setKnowledgeReport([]);
+        setExamDetail(null);
       }
       setExamDetailDialogOpen(true);
     } catch (error) {
       console.error('获取考试详情失败:', error);
       alert('获取考试详情失败，请稍后重试');
+      setKnowledgeReport([]);
+      setExamDetail(null);
     } finally {
       setLoadingExamDetail(false);
     }
   };
 
 
-  
 
   const handleExamDetailClose = () => {
     setExamDetailDialogOpen(false);
@@ -832,7 +848,7 @@ const EmployeeProfile = () => {
                 {!isMobile && <TableCell>考试时间</TableCell>}
                 <TableCell>分数</TableCell>
                 {!isMobile && <TableCell>正确率</TableCell>}
-                <TableCell>操作</TableCell>
+                <TableCell>查看知识点</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -918,16 +934,17 @@ const EmployeeProfile = () => {
                     <TableCell>
                       <IconButton
                         size="small"
-                        onClick={() => handleViewExamDetail(record.exam_id)}
                         sx={{
                           color: '#5e72e4',
                           '&:hover': {
                             backgroundColor: 'rgba(94, 114, 228, 0.1)'
                           }
                         }}
+                        onClick={() => handleViewReportButtonClick(record.exam_id, true)} // 替换 123 和 true 为你实际的 exam_id 和 ispublic 值
                       >
                         <VisibilityIcon fontSize="small" />
                       </IconButton>
+                      
                     </TableCell>
                   </TableRow>
                 ))
@@ -1312,11 +1329,20 @@ const EmployeeProfile = () => {
         </DialogActions>
       </Dialog>
 
-      {/* 详情弹窗 */}
-      <Dialog
+      {/* 知识点报告对话框 */}
+      <KnowledgeReportDialog
         open={examDetailDialogOpen}
-        onClose={() => setExamDetailDialogOpen(false)}
-        maxWidth="sm"
+        onClose={handleExamDetailClose}
+        examId={examDetail?.exam_id}
+        isPublic={examDetail?.ispublic} // 修改为 isPublic
+
+      />
+
+      {/* 详情对话框 */}
+      <Dialog
+        open={dialogOpen}
+        onClose={handleCloseDialog}
+        maxWidth="md"
         fullWidth
         PaperProps={{
           sx: {
@@ -1326,101 +1352,18 @@ const EmployeeProfile = () => {
           }
         }}
       >
-        <DialogTitle sx={{ color: '#263339', fontWeight: 600, fontSize: theme.typography.h3.fontSize }}>
+        <DialogTitle sx={{ color: '#263339', fontWeight: 600 }}>
           {dialogContent.title}
         </DialogTitle>
-        <DialogContent sx={{padding:0, borderWidth:0}}>
-            {console.log("knowledgeReport",knowledgeReport)}
-            {/*知识点掌握情况*/}
-            {knowledgeReport && (
-              <Paper sx={{ p: 4, backgroundColor: theme.palette.background.paper, borderRadius: 2, boxShadow: theme.shadows[2]}}>
-                <Typography variant="h3" sx={{ mb: 3, fontWeight: 600, color: theme.palette.primary.main, textAlign: 'center' }}>
-                  知识点掌握情况分析
-                </Typography>
-                <Box sx={{ height: 300, mb: 4 }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <RadarChart data={knowledgeReport}>
-                        <PolarGrid stroke={theme.palette.divider} />
-                        <PolarAngleAxis dataKey="subject" tick={{ fill: theme.palette.text.primary }} />
-                        <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fill: theme.palette.text.secondary }} />
-                        <Radar
-                          name="掌握程度"
-                          dataKey="value"
-                          stroke={theme.palette.primary.main}
-                          fill={theme.palette.primary.main}
-                          fillOpacity={0.2}
-                        />
-                    </RadarChart>
-                  </ResponsiveContainer>
-                </Box>
-                <Grid container spacing={2}>
-                    {knowledgeReport.sort((a, b) => b.value - a.value).map((item) => (
-                      <Grid item xs={12} sx={{ mb: 2 }} key={item.subject}>
-                          <Paper elevation={1} sx={{ p: 3, height: '100%', backgroundColor: theme.palette.background.default, borderRadius: 2 }}>
-                            <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', sm: 'center' }, mb: 2 }}>
-                                <Typography variant="h3" sx={{ fontWeight: 600, color: theme.palette.text.primary, mb: { xs: 1, sm: 0 } }}>
-                                  {item.subject}
-                                </Typography>
-                                <Typography
-                                  variant="subtitle1"
-                                  sx={{
-                                    fontWeight: 500,
-                                    color: item.value >= 80 ? theme.palette.success.main :
-                                            item.value >= 60 ? theme.palette.warning.main :
-                                            theme.palette.error.main
-                                  }}
-                                >
-                                  {item.value}% - {item.value >= 80 ? '掌握良好' : item.value >= 60 ? '掌握一般' : '未掌握'}
-                                </Typography>
-                            </Box>
-                            <Box component="ul" sx={{ listStyleType: 'disc', pl: 3, m: 0 }}>
-                                {item.details.map((detail, index) => (
-                                  <Typography component="li" variant="body1" key={index} sx={{ color: theme.palette.text.secondary, mb: 1 }}>
-                                      {detail}
-                                  </Typography>
-                                ))}
-                            </Box>
-                          </Paper>
-                      </Grid>
-                    ))}
-                </Grid>
-              </Paper>
-            )}
-          
+        <DialogContent>
+          <Typography variant="body1">{dialogContent.content}</Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setExamDetailDialogOpen(false)} color="primary">
+          <Button onClick={handleCloseDialog} color="primary">
             关闭
           </Button>
         </DialogActions>
       </Dialog>
-
-      {/* 考试详情弹窗 */}
-      
-      
-      {employeeData.employee_show_url && (
-        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3, mb: 4 }}>
-          <Button
-            variant="contained"
-            size="large"
-            href={employeeData.employee_show_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            sx={{
-              background: 'linear-gradient(87deg, #26A69A 0, #56aea2 100%)',
-              '&:hover': {
-                background: 'linear-gradient(87deg, #1a8c82 0, #408d86 100%)'
-              },
-              px: 4,
-              py: 1.5,
-              borderRadius: '0.5rem',
-              boxShadow: '0 8px 16px rgba(50, 50, 93, 0.11), 0 1px 3px rgba(0, 0, 0, 0.08)'
-            }}
-          >
-            查看详细信息
-          </Button>
-        </Box>
-      )}
     </Box>
   );
 };
