@@ -626,7 +626,7 @@ const EmployeeProfile = () => {
             }}
           />
           <Typography
-            variant="h5"
+            variant="h4"
             sx={{
               color: '#263339',
               fontWeight: 600
@@ -680,7 +680,7 @@ const EmployeeProfile = () => {
             }}
           />
           <Typography
-            variant="h5"
+            variant="h4"
             sx={{
               color: '#263339',
               fontWeight: 600,
@@ -762,7 +762,7 @@ const EmployeeProfile = () => {
                 }}
               />
               <Typography
-                variant="h5"
+                variant="h4"
                 sx={{
                   color: '#263339',
                   fontWeight: 600,
@@ -822,7 +822,7 @@ const EmployeeProfile = () => {
             }}
           />
           <Typography
-            variant="h5"
+            variant="h4"
             sx={{
               color: '#263339',
               fontWeight: 600,
@@ -965,7 +965,7 @@ const EmployeeProfile = () => {
             }}
           />
           <Typography
-            variant="h5"
+            variant="h4"
             sx={{
               color: '#263339',
               fontWeight: 600,
@@ -1049,7 +1049,7 @@ const EmployeeProfile = () => {
               }}
             />
             <Typography
-              variant="h5"
+              variant="h4"
               sx={{
                 color: '#263339',
                 fontWeight: 600,
@@ -1352,7 +1352,7 @@ const EmployeeProfile = () => {
           }
         }}
       >
-        <DialogTitle sx={{ color: '#263339', fontWeight: 600 }}>
+        <DialogTitle sx={{ color: '#263339', fontWeight: 600, fontSize:15}}>
           {dialogContent.title}
         </DialogTitle>
         <DialogContent>
