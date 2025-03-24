@@ -14,6 +14,7 @@ import {
   useTheme,
   AppBar,
   Toolbar,
+  Tooltip,
 } from '@mui/material'
 import {
   Home as HomeIcon,
@@ -27,6 +28,8 @@ import {
   People as PeopleIcon,
   Menu as MenuIcon,
   Close as CloseIcon,
+  ChevronLeft as ChevronLeftIcon,
+  ChevronRight as ChevronRightIcon,
 } from '@mui/icons-material'
 import logo from '../assets/logo.svg'
 import UserInfo from './UserInfo'
@@ -35,7 +38,8 @@ import { hasToken } from '../api/auth-utils'
 // 使用CDN方式引入Argon Dashboard样式
 // @creative-tim-official/argon-dashboard-free/assets/css/argon-dashboard.min.css
 
-const drawerWidth = 260
+const expandedWidth = 260
+const collapsedWidth = 65
 
 const allMenuItems = [
   {
@@ -93,7 +97,7 @@ const studentMenuItems = [
   },
 ]
 
-function Sidebar() {
+function Sidebar({ isCollapsed, setIsCollapsed }) {
   const location = useLocation()
   const [mobileOpen, setMobileOpen] = useState(false)
   const userInfo = hasToken()
@@ -102,6 +106,10 @@ function Sidebar() {
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen)
+  }
+
+  const handleCollapseToggle = () => {
+    setIsCollapsed(!isCollapsed)
   }
 
   // 监听窗口大小变化，在大屏幕时自动关闭移动菜单
@@ -121,13 +129,21 @@ function Sidebar() {
           alignItems: 'center',
           justifyContent: 'center',
           flexDirection: 'column',
-          mb:-5
+          mb: 2,
+          position: 'relative',
         }}
       >
-        <img src={logo} alt="萌姨萌嫂考试苑" style={{ width: '80%', marginBottom: '1rem' }} />
+        <img 
+          src={logo} 
+          alt="萌姨萌嫂考试苑" 
+          style={{ 
+            width: isCollapsed ? '40px' : '80%', 
+            marginBottom: '1rem',
+            transition: 'width 0.3s ease'
+          }} 
+        />
       </Box>
-      <UserInfo />
-      {/*<Divider />*/}
+      {!isCollapsed && <UserInfo collapsed={isCollapsed} />}
       <List className="navbar-nav">
         {(userInfo?.role === 'student' ? studentMenuItems : allMenuItems).map((item) => (
           <ListItem
@@ -138,12 +154,13 @@ function Sidebar() {
             className={`nav-item ${location.pathname === item.path ? 'active' : ''}`}
             sx={{
               py: 1.5,
-              px: 3,
+              px: isCollapsed ? 1 : 3,
               borderRadius: 1,
-              mx: 2,
+              mx: isCollapsed ? 0.5 : 2,
               mb: 0.5,
               textDecoration: 'none',
               transition: 'all 0.15s ease',
+              justifyContent: isCollapsed ? 'center' : 'flex-start',
               '&.active': {
                 background: 'linear-gradient(87deg, #26A69A 0%, #56aea2 100%)',
                 boxShadow: '0 7px 14px rgba(50, 50, 93, 0.1), 0 3px 6px rgba(0, 0, 0, 0.08)',
@@ -165,21 +182,52 @@ function Sidebar() {
               },
             }}
           >
-            <ListItemIcon
-              sx={{
-                minWidth: 40,
-                color: location.pathname === item.path ? 'white' : 'inherit',
-              }}
-            >
-              {item.icon}
-            </ListItemIcon>
-            <ListItemText
-              primary={item.text}
-              className={location.pathname === item.path ? 'text-white' : 'text-primary'}
-            />
+            <Tooltip title={isCollapsed ? item.text : ""}>
+              <ListItemIcon
+                sx={{
+                  minWidth: isCollapsed ? 0 : 40,
+                  mr: isCollapsed ? 0 : 2,
+                  color: location.pathname === item.path ? 'white' : 'inherit',
+                }}
+              >
+                {item.icon}
+              </ListItemIcon>
+            </Tooltip>
+            {!isCollapsed && (
+              <ListItemText
+                primary={item.text}
+                className={location.pathname === item.path ? 'text-white' : 'text-primary'}
+              />
+            )}
           </ListItem>
         ))}
       </List>
+      {!isMobile && (
+        <Box sx={{
+          position: 'absolute',
+          bottom: 16,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: theme.zIndex.drawer + 1,
+        }}>
+          <IconButton
+            onClick={handleCollapseToggle}
+            sx={{
+              backgroundColor: theme.palette.background.paper,
+              '&:hover': {
+                backgroundColor: theme.palette.background.paper,
+              },
+              border: `1px solid ${theme.palette.divider}`,
+              borderRadius: '50%',
+              boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
+            }}
+          >
+            <Tooltip title={isCollapsed ? "展开" : "收起"}>
+              {isCollapsed ? <ChevronRightIcon /> : <ChevronLeftIcon />}
+            </Tooltip>
+          </IconButton>
+        </Box>
+      )}
     </Box>
   )
 
@@ -224,7 +272,7 @@ function Sidebar() {
           display: { xs: 'block', sm: 'none' },
           '& .MuiDrawer-paper': {
             boxSizing: 'border-box',
-            width: drawerWidth,
+            width: expandedWidth,
             borderRight: 0,
             backgroundColor: 'white',
             backgroundImage: 'none',
@@ -246,11 +294,13 @@ function Sidebar() {
           display: { xs: 'none', sm: 'block' },
           '& .MuiDrawer-paper': {
             boxSizing: 'border-box',
-            width: drawerWidth,
+            width: isCollapsed ? collapsedWidth : expandedWidth,
             borderRight: 0,
             backgroundColor: 'white',
             backgroundImage: 'none',
             boxShadow: '0 0 2rem 0 rgba(136, 152, 170, .15)',
+            transition: 'width 0.3s ease',
+            overflowX: 'hidden',
           },
         }}
         open

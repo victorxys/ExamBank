@@ -332,12 +332,12 @@ function ExamRecords() {
                         <Button
                         size="small"
                         sx={{
-                          // color: '#5e72e4',
+                          marginLeft: 2,
                           '&:hover': {
                             backgroundColor: 'rgba(94, 114, 228, 0.1)'
                           }
                         }}
-                        onClick={() => handleViewReportButtonClick(record.exam_id, true)} // 替换 123 和 true 为你实际的 exam_id 和 ispublic 值
+                        onClick={() => handleViewReportButtonClick(record.exam_id, true)}
                       >
                         查看概况
                       </Button>

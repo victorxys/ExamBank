@@ -810,7 +810,7 @@ const EmployeeProfile = () => {
             </Box>
         )}
 
-
+        {records && records.length > 0 && (
         <Box sx={{ mb: 3 }}>
           <Box
             sx={{
@@ -953,6 +953,7 @@ const EmployeeProfile = () => {
           </Table>
           </TableContainer>
         </Box>
+        )}
 
         <Box sx={{ mb: 3 }}>
           <Box

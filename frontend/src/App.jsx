@@ -206,7 +206,7 @@ function App() {
   const isExamRoute = location.pathname.includes('/exams/') && location.pathname.includes('/take');
   const isEmployeeProfileRoute = location.pathname.includes('/employee-profile/');
   const isPublicEmployeeProfile = isEmployeeProfileRoute && new URL(window.location.href).searchParams.get('public') === 'true';
-
+  const [isCollapsed, setIsCollapsed] = useState(false);
   const [user, setUser] = useState(null);
   // 根据 isPublicEmployeeProfile 的值动态生成 publicUrl
   const publicUrl = isPublicEmployeeProfile ? '?public=true' : '';
@@ -348,7 +348,7 @@ function App() {
       <CssBaseline />
       <RouteWatcher />
       <Box sx={{ display: 'flex', minHeight: '100vh', width: '100%' }}>
-        <Sidebar />
+        <Sidebar isCollapsed={isCollapsed} setIsCollapsed={setIsCollapsed} />
         <Box
           component="main"
           sx={{
@@ -356,8 +356,9 @@ function App() {
             display: 'flex',
             flexDirection: 'column',
             minHeight: '100vh',
-            width: { xs: '100%', sm: 'calc(100% - 260px)' },
-            marginLeft: { xs: 0, sm: '260px' },
+            width: '100%',
+            marginLeft: { xs: 0, sm: isCollapsed ? '65px' : '260px' },
+            transition: 'margin-left 0.3s ease',
             backgroundColor: 'background.default',
           }}
         >
@@ -400,7 +401,6 @@ function App() {
           </Box>
         </Box>
       </Box>
-
     </ThemeProvider>
   );
 }
