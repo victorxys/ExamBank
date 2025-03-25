@@ -68,7 +68,7 @@ function LoginPage() {
       })
       
       // 登录成功后重定向到之前的页面，如果没有则跳转到首页
-      const from = location.state?.from?.pathname || '/'
+      const from = location.state?.from?.pathname || '/users'
       navigate(from, { replace: true })
     } catch (error) {
       console.error('Login error:', error)
