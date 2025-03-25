@@ -1085,6 +1085,29 @@ const EmployeeProfile = () => {
             </Grid>
           </Box>
           )}
+        {employeeData.employee_show_url && (
+        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3, mb: 4 }}>
+          <Button
+            variant="contained"
+            size="large"
+            href={employeeData.employee_show_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            sx={{
+              background: 'linear-gradient(87deg, #26A69A 0, #56aea2 100%)',
+              '&:hover': {
+                background: 'linear-gradient(87deg, #1a8c82 0, #408d86 100%)'
+              },
+              px: 4,
+              py: 1.5,
+              borderRadius: '0.5rem',
+              boxShadow: '0 4px 6px rgba(50, 50, 93, 0.11), 0 1px 3px rgba(0, 0, 0, 0.08)'
+            }}
+          >
+            查看详细信息
+          </Button>
+        </Box>
+      )}
       </Paper>
       </Box>
       </Container>
@@ -1365,6 +1388,8 @@ const EmployeeProfile = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+
     </Box>
   );
 };
