@@ -773,6 +773,7 @@ const EmployeeProfile = () => {
               </Typography>
             
               {employeeData.skills.map((skill, index) => (
+                skill.level >1 && (
                 <Box
                   key={index}
                   sx={{
@@ -806,6 +807,7 @@ const EmployeeProfile = () => {
                     />
                   </Box>
                 </Box>
+                )
               ))}
             </Box>
         )}
@@ -1232,6 +1234,7 @@ const EmployeeProfile = () => {
 
             <Typography variant="h4" sx={{ mt: 2, mb: 1 }}>专业技能</Typography>
             {editFormData.skills.map((skill, index) => (
+              
               <Box key={index} sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
                 <TextField
                   label="技能名称"
@@ -1253,6 +1256,7 @@ const EmployeeProfile = () => {
                   sx={{ mt: { xs: 1, sm: 0 } }}  // 手机端增加上边距
                 />
               </Box>
+
             ))}
 
             <Typography variant="h4" sx={{ mt: 2, mb: 1 }}>职业素养</Typography>

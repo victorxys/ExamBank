@@ -136,6 +136,57 @@ def login():
         cur.close()
         conn.close()
 
+
+# API key 用来确保来源系统的可靠性。
+AUTHORIZED_KEYS = {
+    "api_key_123":"ai_mengyimengsao" # 目前用于 聊天机器人的登录与认证。
+}
+
+@app.route('/api/auth/login', methods=['POST'])
+def login_api():
+    api_key = request.headers.get('X-API-Key')
+    print("api_key:",api_key)
+    if not api_key or api_key not in AUTHORIZED_KEYS:
+        return jsonify({"error": "Invalid API Key"}), 401
+
+    # API Key is valid, proceed with username and password verification
+    data = request.get_json()
+    phone_number = data.get('phone_number')
+    password = data.get('password')
+    chat_id = data.get('chat_id')
+    # print("data:",data)
+
+    # ... 进行用户名和密码验证的逻辑 ...
+    conn = get_db_connection()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    try:
+        cur.execute('SELECT * FROM "user" WHERE "phone_number" = %s', (data['phone_number'],))
+        user = cur.fetchone()
+
+        if user and check_password_hash(user['password'], password):
+            print("登录成功，用户ID：", user['id'])
+            access_token = create_token_with_role(user['id'], user['role'])
+            return jsonify({
+                'access_token': access_token,
+                'user': {
+                    'id': user['id'],
+                    'username': user['username'],
+                    'role': user['role']
+                }
+            })
+        return jsonify({'error': '用户名或密码错误,初始密码是”身份证后6位“'}), 401
+    except Exception as e:
+        print('Error in login:', str(e))
+        return jsonify({'error': str(e)}), 500
+    finally:
+        cur.close()
+        conn.close()
+
+    # if is_authenticated(username, password):
+    #     return jsonify({"success": True, "message": "Login successful"})
+    # else:
+    #     return jsonify({"error": "Invalid username or password"}), 401
+
 @app.route('/api/users/<user_id>/profile', methods=['GET', 'PUT'])
 @jwt_required(optional=True)
 def user_profile(user_id):
