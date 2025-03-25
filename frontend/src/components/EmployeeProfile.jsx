@@ -750,7 +750,7 @@ const EmployeeProfile = () => {
           ))}
         </Box>
 
-        {employeeData.skills && employeeData.skills.length > 0 && (
+        {employeeData.skills && employeeData.skills.length > 0 && employeeData.skills.some(skill => skill.level > 1) && (
             <Box sx={{ mb: 3 }}>
               <Box
                 sx={{
