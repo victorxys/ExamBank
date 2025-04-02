@@ -141,7 +141,7 @@ def login():
 AUTHORIZED_KEYS = {
     "api_key_123":"ai_mengyimengsao" # 目前用于 聊天机器人的登录与认证。
 }
-
+# 外部用户登录的api 为 ai系统提供的配额和 AUTHORIZED_KEYS 来配置使用
 @app.route('/api/auth/login', methods=['POST'])
 def login_api():
     api_key = request.headers.get('X-API-Key')

@@ -153,7 +153,8 @@ def merge_kp_name(exam_results):
     # evaluation_text = "# 评价数据\n\n"
     evaluation_text = str(exam_results)
     print("evaluation_text, 用来调试提示词:",evaluation_text)
-    model = "gemini-2.0-flash-lite"
+    # model = "gemini-2.0-flash-lite"
+    model = "gemini-2.5-pro-exp-03-25"
     contents = [
         types.Content(
             role="user",

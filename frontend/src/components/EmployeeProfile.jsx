@@ -90,10 +90,10 @@ const EmployeeProfile = () => {
         const publicParam = new URL(window.location.href).searchParams.get('public');
         const response = await api.get(`/users/${userId}/profile${publicParam ? `?public=${publicParam}` : ''}`);
         setEmployeeData(response.data);
-        console.log("开始获取考试记录")
+        // console.log("开始获取考试记录")
         // 获取考试记录
         const recordsResponse = await api.get(`/user-exams/employee-profile/${userId}`);
-        console.log("获取考试记录完毕")
+        // console.log("获取考试记录完毕")
         setRecords(recordsResponse.data || []);
       } catch (error) {
         console.error('获取员工信息失败:', error);
@@ -111,7 +111,7 @@ const EmployeeProfile = () => {
   // 监听分享数据变化
   useEffect(() => {
     if (shareData) {
-      console.log('WechatShare组件已激活，分享数据:', shareData);
+      console.log('WechatShare组件已激活');
     }
   }, [shareData]);
 
@@ -131,7 +131,7 @@ const EmployeeProfile = () => {
           shareLink: shareUrl
         };
         
-        console.log('自动设置微信分享数据:', newShareData);
+        console.log('自动设置微信分享数据');
         setShareData(newShareData);
       } catch (error) {
         console.error('自动配置微信分享失败:', error);

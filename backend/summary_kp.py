@@ -166,7 +166,7 @@ def summary_knowledge_by_ai(exam_date,exam_take_id):
 
 
 
-get_exam_detail_byid("6a10d30e-7a09-457e-8d31-948897a7c368")    
+get_exam_detail_byid("96e146d4-d5ad-4337-a3ff-5069c095152b")    
 
 
 

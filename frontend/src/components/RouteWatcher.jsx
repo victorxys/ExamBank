@@ -50,7 +50,7 @@ const RouteWatcher = () => {
         imgUrl: info.imgUrl || window.location.origin + '/logo.png'
       };
       
-      console.log('RouteWatcher: 向小程序发送页面信息:', messageData);
+      // console.log('RouteWatcher: 向小程序发送页面信息:', messageData);
       
       // 发送消息到小程序
       window.wx.miniProgram.postMessage({
@@ -64,9 +64,9 @@ const RouteWatcher = () => {
 
   // 监听路由变化，更新分享信息
   useEffect(() => {
-    console.log('路由变化:', location.pathname, '之前路径:', lastPathRef.current);
+    // console.log('路由变化:', location.pathname, '之前路径:', lastPathRef.current);
     const userId = getUserIdFromPath(location.pathname);
-    console.log('获取到的用户ID:', userId);
+    // console.log('获取到的用户ID:', userId);
     
     // 根据不同路由设置不同的分享信息
     let newTitle = document.title || '萌星库';
@@ -92,7 +92,7 @@ const RouteWatcher = () => {
             link: window.location.href
           };
           
-          console.log('更新员工分享信息:', updatedPageInfo);
+          // console.log('更新员工分享信息:', updatedPageInfo);
           setPageInfo(updatedPageInfo);
           
           // 如果在微信小程序中，发送更新后的信息
@@ -148,7 +148,7 @@ const RouteWatcher = () => {
       imgUrl: fullImgUrl,
       link: window.location.href
     };
-    console.log('更新分享信息:', newPageInfo);
+    // console.log('更新分享信息:', newPageInfo);
     
     setPageInfo(newPageInfo);
     
@@ -159,7 +159,7 @@ const RouteWatcher = () => {
     
     // 如果在微信浏览器中但不在小程序中，可以添加微信环境特定处理
     if (isWechatBrowser && !isInMiniProgram) {
-      console.log('在微信浏览器中，非小程序环境');
+      // console.log('在微信浏览器中，非小程序环境');
       // 可以添加微信浏览器特定的处理逻辑
     }
   }, [location.pathname, location.search]);
@@ -171,7 +171,7 @@ const RouteWatcher = () => {
       
       // 如果当前URL与分享链接不同，发送更新
       if (currentFullUrl !== pageInfo.link && window.wx && window.wx.miniProgram) {
-        console.log('定期检查: 检测到URL变化，从', pageInfo.link, '到', currentFullUrl);
+        // console.log('定期检查: 检测到URL变化，从', pageInfo.link, '到', currentFullUrl);
         
         const updatedInfo = {
           ...pageInfo,
@@ -190,14 +190,14 @@ const RouteWatcher = () => {
   }, [pageInfo]);
   
   // 使用 WechatShare 组件进行微信分享配置
-  return (
-    <WechatShare 
-      shareTitle={pageInfo.title}
-      shareDesc={pageInfo.desc}
-      shareImgUrl={pageInfo.imgUrl}
-      shareLink={pageInfo.link}
-    />
-  );
+  // return (
+  //   <WechatShare 
+  //     shareTitle={pageInfo.title}
+  //     shareDesc={pageInfo.desc}
+  //     shareImgUrl={pageInfo.imgUrl}
+  //     shareLink={pageInfo.link}
+  //   />
+  // );
 };
 
 export default RouteWatcher;

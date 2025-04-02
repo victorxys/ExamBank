@@ -10,7 +10,7 @@ const WechatShare = ({ shareTitle, shareDesc, shareImgUrl, shareLink }) => {
   useEffect(() => {
     const checkIfInMiniProgram = () => {
       if (window.wx && window.wx.miniProgram) {
-        console.log('检测到当前环境在微信小程序WebView中');
+        // console.log('检测到当前环境在微信小程序WebView中');
         setIsInMiniProgram(true);
         
         // 通知小程序当前页面的路径
@@ -22,11 +22,11 @@ const WechatShare = ({ shareTitle, shareDesc, shareImgUrl, shareLink }) => {
         
         // 订阅来自小程序的消息
         window.__WEBVIEW_MESSAGE_CALLBACK = (event) => {
-          console.log('收到来自小程序的消息:', event);
+          // console.log('收到来自小程序的消息:', event);
           // 处理消息...
         };
       } else {
-        console.log('当前环境不在微信小程序WebView中');
+        // console.log('当前环境不在微信小程序WebView中');
         setIsInMiniProgram(false);
       }
     };
@@ -42,7 +42,7 @@ const WechatShare = ({ shareTitle, shareDesc, shareImgUrl, shareLink }) => {
   
   // 监听 URL 变化
   const handleUrlChange = useCallback(() => {
-    console.log('URL 变化:', window.location.href);
+    // console.log('URL 变化:', window.location.href);
     if (isInMiniProgram) {
       sendPageInfoToMiniProgram();
     }
@@ -65,7 +65,7 @@ const WechatShare = ({ shareTitle, shareDesc, shareImgUrl, shareLink }) => {
                         ? imgHostPath + shareImgUrl
                         : imgHostPath + '/logo192.png';
       
-      console.log('向小程序发送当前页面信息:', currentUrl);
+      // console.log('向小程序发送当前页面信息:', currentUrl);
       
       window.wx.miniProgram.postMessage({
         data: {
@@ -156,25 +156,25 @@ const WechatShare = ({ shareTitle, shareDesc, shareImgUrl, shareLink }) => {
       // 获取当前页面的完整URL，不包含hash部分
       const currentUrl = window.location.href.split('#')[0];
 
-      console.log('开始配置微信分享...', {
-        shareTitle: shareTitle || document.title || '分享页面',
-        shareDesc: shareDesc || document.querySelector('meta[name="description"]')?.content || '页面描述',
-        shareImgUrl: fullImgUrl,
-        shareLink: fullShareLink,
-        currentUrl: currentUrl // 记录用于签名的URL
-      });
+      // console.log('开始配置微信分享...', {
+      //   shareTitle: shareTitle || document.title || '分享页面',
+      //   shareDesc: shareDesc || document.querySelector('meta[name="description"]')?.content || '页面描述',
+      //   shareImgUrl: fullImgUrl,
+      //   shareLink: fullShareLink,
+      //   currentUrl: currentUrl // 记录用于签名的URL
+      // });
 
       try {
-        console.log('正在获取JSSDK配置...');
+        // console.log('正在获取JSSDK配置...');
         const configData = await axios.get(`${API_BASE_URL}/wechat/jssdk-config`, {
           params: { url: currentUrl }, // 使用不含hash的URL请求签名
         });
 
-        console.log('获取到JSSDK配置数据:', configData.data);
+        // console.log('获取到JSSDK配置数据:', configData.data);
 
         if (configData.data.success) {
           const config = configData.data.config;
-          console.log('正在配置wx.config...', config);
+          // console.log('正在配置wx.config...', config);
           
           // 确保jsApiList包含所有需要使用的API
           if (!config.jsApiList) {
@@ -207,7 +207,7 @@ const WechatShare = ({ shareTitle, shareDesc, shareImgUrl, shareLink }) => {
           });
 
           wx.ready(() => {
-            console.log('wx.ready被触发，开始设置分享数据...');
+            // console.log('wx.ready被触发，开始设置分享数据...');
             // 显示分享按钮
             if (typeof wx.showOptionMenu === 'function') {
               wx.showOptionMenu();
@@ -280,7 +280,7 @@ const WechatShare = ({ shareTitle, shareDesc, shareImgUrl, shareLink }) => {
     };
     
     const handleLocationChange = () => {
-      console.log('检测到location变化, 当前URL:', window.location.href);
+      // console.log('检测到location变化, 当前URL:', window.location.href);
       // 如果在小程序中，通知小程序
       if (window.wx && window.wx.miniProgram) {
         sendPageInfoToMiniProgram();

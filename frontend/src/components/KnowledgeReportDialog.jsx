@@ -23,8 +23,8 @@ const KnowledgeReportDialog = ({ open, onClose, examId, isPublic }) => {
 
   useEffect(() => {
     const fetchKnowledgeReport = async () => {
-      console.log("examId:",examId);
-      console.log("open:",open);
+      // console.log("examId:",examId);
+      // console.log("open:",open);
       if (!examId || !open) return;
       
       let knowledge_point_summary_array = null; // 在try...catch外部声明
