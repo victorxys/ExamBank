@@ -9,29 +9,38 @@ from dateutil import parser
 import logging
 import json
 from werkzeug.security import generate_password_hash, check_password_hash
+from psycopg2.extras import RealDictCursor, register_uuid # 确保导入
+register_uuid() # 确保 UUID 适配器已注册
 
 
 # 配置密码加密方法为pbkdf2
 from werkzeug.security import generate_password_hash as _generate_password_hash
-
-def generate_password_hash(password):
-    return _generate_password_hash(password, method='pbkdf2:sha256')
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 from datetime import timedelta, datetime
 import datetime as dt
 from backend.api.temp_answer import save_temp_answer, get_temp_answers, mark_temp_answers_submitted  # 使用绝对导入
+from backend.api.evaluation import get_evaluation_items, get_user_evaluations, update_evaluation
+from backend.api.user_profile import get_user_profile
+from backend.db import get_db_connection
+# from backend.api.evaluation_visibility import bp as evaluation_visibility_bp
+# from backend.api.evaluation_item import bp as evaluation_item_bp
+from backend.api.wechatshare import wechat_share_bp
+from backend.api.user_sync import sync_user
+from backend.api.employee_self_evaluation import employee_self_evaluation_bp
+from backend.api.evaluation_aspect import bp as evaluation_aspect_bp # 新增
+from backend.api.evaluation_category import bp as evaluation_category_bp # 新增
+from backend.api.evaluation_item import bp as evaluation_item_api_bp # 保留或确认蓝图名称未冲突
+from backend.api.evaluation_visibility import bp as evaluation_visibility_bp # 保留
+from backend.api.evaluation_order import bp as evaluation_order_bp # 新增
+
+
+def generate_password_hash(password):
+    return _generate_password_hash(password, method='pbkdf2:sha256')
 
 # 创建带有角色信息的访问令牌
 def create_token_with_role(user_id, role):
     return create_access_token(identity=user_id, additional_claims={'role': role})
-from backend.api.evaluation import get_evaluation_items, get_user_evaluations, update_evaluation
-from backend.api.user_profile import get_user_profile
-from backend.db import get_db_connection
-from backend.api.evaluation_visibility import bp as evaluation_visibility_bp
-from backend.api.evaluation_item import bp as evaluation_item_bp
-from backend.api.wechatshare import wechat_share_bp
-from backend.api.user_sync import sync_user
-from backend.api.employee_self_evaluation import employee_self_evaluation_bp
+
 
 
 load_dotenv()
@@ -47,7 +56,7 @@ jwt = JWTManager(app)  # 初始化JWT管理器
 
 # 注册评价管理相关的蓝图
 app.register_blueprint(evaluation_visibility_bp, url_prefix='/api')
-app.register_blueprint(evaluation_item_bp, url_prefix='/api/evaluation_item')
+# app.register_blueprint(evaluation_item_bp, url_prefix='/api/evaluation_item')
 # 注册微信分享相关的蓝图
 app.register_blueprint(wechat_share_bp, url_prefix='/api/wechat')
 # 注册员工自评相关的蓝图
@@ -56,6 +65,13 @@ app.register_blueprint(employee_self_evaluation_bp)
 # print("Registered Routes:")
 # for rule in app.url_map.iter_rules():
 #     print(f"输出 rule===>  {rule}")
+# 注册新的蓝图
+app.register_blueprint(evaluation_aspect_bp)
+app.register_blueprint(evaluation_category_bp)
+app.register_blueprint(evaluation_item_api_bp) # 确认蓝图名称
+# app.register_blueprint(evaluation_visibility_bp) # 保留
+app.register_blueprint(evaluation_order_bp) # 新增注册
+
 
 
 flask_log = os.environ['FLASK_LOG_FILE'] # 设置flask log地址
@@ -1242,107 +1258,115 @@ def get_evaluation_items_route():
 
 @app.route('/api/evaluation/structure', methods=['GET'])
 def get_evaluation_structure():
-    client_visible_param = request.args.get('client_visible', default='false') # 设置默认值为 'false'
-
-    conn = get_db_connection()
-    cur = conn.cursor(cursor_factory=RealDictCursor)
+    """
+    获取完整的评价体系结构，供管理页面使用。
+    始终返回所有方面、类别和项目，并包含每个项目的 is_visible_to_client 状态。
+    """
+    conn = None # 初始化
+    cur = None  # 初始化
     try:
-        # 获取所有评价方面
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+
+        # 1. 获取所有评价方面 (按排序字段排序)
         cur.execute("""
-            SELECT 
-                id,
-                aspect_name,
-                description
+            SELECT id, aspect_name, description, created_at, sort_order
             FROM evaluation_aspect
-            ORDER BY created_at DESC
+            ORDER BY sort_order ASC, created_at DESC
         """)
         aspects = cur.fetchall()
-        
-        # 获取所有评价类别
+
+        # 2. 获取所有评价类别 (按排序字段排序)
         cur.execute("""
-            SELECT 
-                id,
-                category_name,
-                description,
-                aspect_id
+            SELECT id, category_name, description, aspect_id, created_at, sort_order
             FROM evaluation_category
-            ORDER BY created_at DESC
+            ORDER BY sort_order ASC, created_at DESC
         """)
         categories = cur.fetchall()
-        
-        # 构建基础 SQL 查询语句
-        base_sql = """
-            SELECT
-                id,
-                item_name,
-                description,
-                category_id,
-                is_visible_to_client
+
+        # 3. 获取 *所有* 评价项 (按排序字段排序) - *** 确保这里没有 WHERE 子句 ***
+        cur.execute("""
+            SELECT id, item_name, description, category_id, is_visible_to_client, created_at, sort_order
             FROM evaluation_item
-        """
-
-        where_clause = ""  # 初始化 WHERE 子句
-        params = []
-
-        if client_visible_param == 'true':
-            where_clause = "WHERE is_visible_to_client = TRUE"
-        elif client_visible_param == 'false':
-            where_clause = "WHERE 1=1"
-
-        order_by_clause = "ORDER BY created_at DESC" # 定义 ORDER BY 子句
-
-        # 拼接完整的 SQL 查询语句，确保 WHERE 在 ORDER BY 之前
-        sql = base_sql + " " + where_clause.strip() + " " + order_by_clause.strip()
-
-        # print("执行的 SQL 语句:", cur.mogrify(sql).decode('utf-8'))
-        cur.execute(sql, params) #  params 列表目前为空，因为示例中没有参数化查询条件
+            ORDER BY sort_order ASC, created_at DESC
+        """)
         items = cur.fetchall()
-        
-        # 构建层级结构
+
+        # 4. 构建完整的层级结构 (此部分逻辑应保持不变)
         structure = []
+        category_map = {str(cat['id']): {**cat, 'items': []} for cat in categories}
+        item_map = {}
+
+        for item in items:
+            cat_id_str = str(item['category_id'])
+            if cat_id_str not in item_map:
+                item_map[cat_id_str] = []
+
+            aspect_id_for_item = None
+            if cat_id_str in category_map:
+                 aspect_id_for_item = str(category_map[cat_id_str]['aspect_id'])
+
+            item_map[cat_id_str].append({
+                'id': str(item['id']),
+                'name': item['item_name'],
+                'description': item['description'],
+                'type': 'item',
+                'category_id': cat_id_str,
+                'aspect_id': aspect_id_for_item,
+                'is_visible_to_client': item['is_visible_to_client'],
+                'sort_order': item.get('sort_order', 0) # 包含 sort_order
+            })
+
+        for category_id, category_items in item_map.items():
+            if category_id in category_map:
+                 # 对 items 再次排序（虽然 SQL 已排序，以防万一）
+                category_map[category_id]['items'] = sorted(category_items, key=lambda x: x.get('sort_order', 0))
+
+
         for aspect in aspects:
             aspect_data = {
-                'id': aspect['id'],
+                'id': str(aspect['id']),
                 'name': aspect['aspect_name'],
                 'description': aspect['description'],
                 'type': 'aspect',
+                'sort_order': aspect.get('sort_order', 0), # 包含 sort_order
                 'children': []
             }
-            
-            # 添加该方面下的类别
+
+            aspect_categories_sorted = []
             for category in categories:
-                if category['aspect_id'] == aspect['id']:
-                    category_data = {
-                        'id': category['id'],
-                        'name': category['category_name'],
-                        'description': category['description'],
-                        'type': 'category',
-                        'children': []
-                    }
-                    
-                    # 添加该类别下的评价项
-                    for item in items:
-                        if item['category_id'] == category['id']:
-                            item_data = {
-                                'id': item['id'],
-                                'name': item['item_name'],
-                                'description': item['description'],
-                                'is_visible_to_client': item['is_visible_to_client'],
-                                'type': 'item'
-                            }
-                            category_data['children'].append(item_data)
-                    
-                    aspect_data['children'].append(category_data)
-            
+                if str(category['aspect_id']) == str(aspect['id']):
+                    processed_category = category_map.get(str(category['id']))
+                    if processed_category:
+                        category_data = {
+                            'id': str(processed_category['id']),
+                            'name': processed_category['category_name'],
+                            'description': processed_category['description'],
+                            'type': 'category',
+                            'aspect_id': str(aspect['id']),
+                            'sort_order': processed_category.get('sort_order', 0), # 包含 sort_order
+                            'children': processed_category.get('items', [])
+                        }
+                        aspect_categories_sorted.append(category_data)
+
+            # 对 categories 再次排序（虽然 SQL 已排序，以防万一）
+            aspect_data['children'] = sorted(aspect_categories_sorted, key=lambda x: x.get('sort_order', 0))
             structure.append(aspect_data)
-        
+
+         # 对 aspects 再次排序（虽然 SQL 已排序，以防万一）
+        structure.sort(key=lambda x: x.get('sort_order', 0))
+
         return jsonify(structure)
+
     except Exception as e:
+        import traceback
         print('Error in get_evaluation_structure:', str(e))
-        return jsonify({'error': str(e)}), 500
+        print(traceback.format_exc()) # 打印更详细的错误堆栈
+        return jsonify({'error': '获取评价结构失败: ' + str(e)}), 500
     finally:
-        cur.close()
-        conn.close()
+        # 确保游标和连接总是关闭
+        if cur: cur.close()
+        if conn: conn.close()
 
 @app.route('/api/users/<user_id>/evaluations', methods=['GET'])
 def get_user_evaluations_route(user_id):
