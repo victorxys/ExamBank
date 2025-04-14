@@ -45,12 +45,15 @@ def sync_user():
             update_fields = [
                 'username = %s',
                 'phone_number = %s',
-                'myms_user_id = %s'
+                'myms_user_id = %s',
+                'password = %s'
             ]
             params = [
                 data['username'],
                 data['phone_number'],
-                data['myms_user_id']
+                data['myms_user_id'],
+                generate_password_hash(password),
+
             ]
             
             # 可选字段
