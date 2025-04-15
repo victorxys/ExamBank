@@ -10,14 +10,18 @@ import logging
 import json
 from werkzeug.security import generate_password_hash, check_password_hash
 from psycopg2.extras import RealDictCursor, register_uuid # 确保导入
+# from flask_sqlalchemy import SQLAlchemy # 如果你打算用 ORM，虽然 Flask-Migrate 不强制
+# from flask_migrate import Migrate # 导入 Migrate
 register_uuid() # 确保 UUID 适配器已注册
-
 
 # 配置密码加密方法为pbkdf2
 from werkzeug.security import generate_password_hash as _generate_password_hash
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 from datetime import timedelta, datetime
 import datetime as dt
+# --- 从 extensions 导入 ---
+from .extensions import db, migrate
+# -----------------------
 from backend.api.temp_answer import save_temp_answer, get_temp_answers, mark_temp_answers_submitted  # 使用绝对导入
 from backend.api.evaluation import get_evaluation_items, get_user_evaluations, update_evaluation
 from backend.api.user_profile import get_user_profile
@@ -53,6 +57,23 @@ app.config['JWT_SECRET_KEY'] = os.environ['SECRET_KEY']  # JWT密钥
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=30)  # Token过期时间
 
 jwt = JWTManager(app)  # 初始化JWT管理器
+# --- 导入模型 ---
+from . import models # 或者 from . import models (如果 app.py 和 models.py 在同一级)
+
+
+# --- 配置数据库连接 (SQLAlchemy 方式，推荐与 Alembic 配合) ---
+# 即使你不完全使用 SQLAlchemy 的 ORM 功能，配置它对 Alembic 也有帮助
+# 确保你的 DATABASE_URL 环境变量设置正确
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ['DATABASE_URL']
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False # 建议关闭
+
+# db = SQLAlchemy(app) # 初始化 SQLAlchemy
+# migrate = Migrate(app, db) # 初始化 Flask-Migrate
+# --- 初始化扩展 ---
+db.init_app(app)
+migrate.init_app(app, db)
+# -----------------
+
 
 # 注册评价管理相关的蓝图
 app.register_blueprint(evaluation_visibility_bp, url_prefix='/api')
