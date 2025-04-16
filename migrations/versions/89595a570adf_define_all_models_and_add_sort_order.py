@@ -84,6 +84,15 @@ def upgrade():
         batch_op.create_index(batch_op.f('idx_evaluation_item_category_id_sort_order'), ['category_id', 'sort_order'], unique=False)
 
     with op.batch_alter_table('exam', schema=None) as batch_op:
+        # --- 只尝试删除已知的、确实存在的约束 ---
+        try:
+            # 尝试删除 exam_paper_id 的外键 (这个我们知道存在)
+            batch_op.drop_constraint('exam_exam_paper_id_fkey', type_='foreignkey')
+            print("Dropped existing constraint: exam_exam_paper_id_fkey")
+        except Exception as e:
+            # 如果因为某种原因删除失败，打印警告但继续
+            print(f"Warning: Could not drop constraint exam_exam_paper_id_fkey: {e}")
+            pass
         # Explicitly named foreign keys (using DDL names where available)
         batch_op.create_foreign_key('fk_exam_user_id', 'user', ['user_id'], ['id'], ondelete='RESTRICT')
         batch_op.create_foreign_key('exam_exam_paper_id_fkey', 'exampaper', ['exam_paper_id'], ['id'], ondelete='RESTRICT')
@@ -166,8 +175,8 @@ def downgrade():
         # op.create_foreign_key('exampapercourse_exam_paper_id_fkey', 'exampapercourse', 'exampaper', ['exam_paper_id'], ['id'], ondelete='CASCADE')
 
     with op.batch_alter_table('exam', schema=None) as batch_op:
-        batch_op.drop_constraint('exam_exam_paper_id_fkey', type_='foreignkey') # Use name from upgrade
-        batch_op.drop_constraint('fk_exam_user_id', type_='foreignkey') # Use name from upgrade
+        batch_op.drop_constraint('exam_exam_paper_id_fkey', type_='foreignkey') # Matches name in upgrade
+        batch_op.drop_constraint('fk_exam_user_id', type_='foreignkey')       # Matches name in upgrade
 
     with op.batch_alter_table('evaluation_item', schema=None) as batch_op:
         batch_op.drop_constraint('evaluation_item_category_id_fkey', type_='foreignkey')
