@@ -163,7 +163,7 @@ const EvaluationManagement = () => {
             });
         } else { // 'create'
              setFormData({
-                name: '', description: '', parentId: null, aspect_id: null, category_id: null, allow_manual_input: false, is_visible_to_client: false,
+                name: '', description: '', parentId: null, allow_manual_input: false, is_visible_to_client: false,
                 aspect_id: level === 'category' ? data?.id : (level === 'item' ? parentData?.id : null), // 创建 Category 父是 Aspect, 创建 Item 需要父 Category 的 aspect_id
                 category_id: level === 'item' ? data?.id : null, // 创建 Item 父是 Category
              });
