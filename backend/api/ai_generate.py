@@ -15,8 +15,10 @@ def generate(evaluations):
     # 将评价数据转换为markdown格式
     evaluation_text = "# 评价数据\n\n"
     evaluation_text += str(evaluations)
+    print("evaluation_text, 用来调试提示词:",evaluation_text)
 
-    model = "gemini-2.0-pro-exp-02-05"
+    # model = "gemini-2.0-pro-exp-02-05"
+    model = "gemini-2.5-pro-preview-03-25"
     contents = [
         types.Content(
             role="user",
@@ -40,6 +42,7 @@ def generate(evaluations):
 请汇总此员工的“个人介绍”(introduction),并对汇总后的个人介绍进行详细描述(more),之后再提炼为简单介绍(description).
 请注意我提供的分数满分是80分（对应评价项为“好”），及格为60分（对一个评价项为“一般”，请以此为参考进行描述。
 如果我提供信息中有“补充说明”，请在进行员工介绍时着重考虑“补充说明”中的内容。
+如果评价信息中的 manual_inputs 字段 不为空，请在评价信息中着重体现manual_inputs中的内容.
 
 在下述对员工的称呼中，除了“姓名”，其他时候全部使用员工的”姓“称呼员工为 “某阿姨”
 对于客户评价(reviews)中，请随机使用“某阿姨“、”某姐“等称呼，也要避免使用员工的”全名“
@@ -152,7 +155,7 @@ def merge_kp_name(exam_results):
     # 将评价数据转换为markdown格式
     # evaluation_text = "# 评价数据\n\n"
     evaluation_text = str(exam_results)
-    print("evaluation_text, 用来调试提示词:",evaluation_text)
+    # print("evaluation_text, 用来调试提示词:",evaluation_text)
     # model = "gemini-2.0-flash-lite"
     model = "gemini-2.5-pro-exp-03-25"
     contents = [

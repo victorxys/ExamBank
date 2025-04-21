@@ -8,6 +8,7 @@ from sqlalchemy import (
 
 )
 from sqlalchemy.orm import relationship
+from datetime import datetime # 仍然需要 datetime
 
 # Import the 'db' instance from your extensions file
 from .extensions import db
@@ -179,7 +180,7 @@ class EvaluationAspect(db.Model):
     description = db.Column(db.Text, nullable=True, comment='方面描述')
     created_at = db.Column(db.DateTime(timezone=True), server_default=func.now(), comment='创建时间')
     updated_at = db.Column(db.DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), comment='更新时间')
-    sort_order = db.Column(db.Integer, default=0, nullable=False, server_default='0') # Added
+    sort_order = db.Column(db.Integer, default=0, nullable=True, server_default='0') # Added
 
     categories = db.relationship('EvaluationCategory', backref='aspect', lazy=True, cascade="all, delete-orphan", order_by='EvaluationCategory.sort_order')
 
@@ -202,8 +203,8 @@ class EvaluationCategory(db.Model):
     description = db.Column(db.Text, nullable=True, comment='类别描述')
     created_at = db.Column(db.DateTime(timezone=True), server_default=func.now(), comment='创建时间')
     updated_at = db.Column(db.DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), comment='更新时间')
-    sort_order = db.Column(db.Integer, default=0, nullable=False, server_default='0') # Added
-
+    sort_order = db.Column(db.Integer, default=0, nullable=True, server_default='0') # Added
+    allow_manual_input = db.Column(db.Boolean, nullable=False, default=False, server_default='false', comment='是否允许对该类别进行手动文字输入 (TRUE: 允许, FALSE: 不允许)')
     items = db.relationship('EvaluationItem', backref='category', lazy=True, cascade="all, delete-orphan", order_by='EvaluationItem.sort_order')
     # aspect relationship defined by backref
 
@@ -247,7 +248,7 @@ class EvaluationItem(db.Model):
     is_visible_to_client = db.Column(db.Boolean, nullable=False, default=False, server_default='false', comment='是否展示给客户 (TRUE: 展示, FALSE: 不展示)')
     created_at = db.Column(db.DateTime(timezone=True), server_default=func.now(), comment='创建时间')
     updated_at = db.Column(db.DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), comment='更新时间')
-    sort_order = db.Column(db.Integer, default=0, nullable=False, server_default='0') # Added
+    sort_order = db.Column(db.Integer, default=0, nullable=True, server_default='0') # Added
 
     # evaluation_details relationship defined by backref
     # self_evaluation_details relationship defined by backref
@@ -338,7 +339,7 @@ class Option(db.Model):
     id = db.Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, comment='主键')
     question_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('question.id', ondelete='CASCADE'), nullable=False, comment='外键，关联到 Question 表')
     option_text = db.Column(db.Text, nullable=False, comment='选项文本')
-    is_correct = db.Column(db.Boolean, default=False, nullable=False, server_default='false', comment='是否为正确答案')
+    is_correct = db.Column(db.Boolean, default=False, nullable=True, server_default='false', comment='是否为正确答案')
     created_at = db.Column(db.DateTime(timezone=True), server_default=func.now(), comment='创建时间')
     updated_at = db.Column(db.DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), comment='更新时间')
 
@@ -425,7 +426,7 @@ class User(db.Model):
     __tablename__ = 'user'
     __table_args__ = (
         UniqueConstraint('phone_number', name='user_phone_number_key'),
-        UniqueConstraint('email', name='user_email_key'), # Assuming email should be unique
+        # UniqueConstraint('email', name='user_email_key'), # Assuming email should be unique
         {'comment': '用户表'}
     )
 
@@ -470,3 +471,23 @@ class UserProfile(db.Model):
 
     def __repr__(self):
         return f'<UserProfile for User {self.user_id}>'
+
+class EvaluationManualInput(db.Model):
+    __tablename__ = 'evaluation_manual_input'
+    # 如果表已存在且有自己的主键，可以不定义 id
+    # id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    evaluation_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('evaluation.id', ondelete='CASCADE'), primary_key=True, nullable=False) # 与 evaluation_id, category_id 组成联合主键更常见
+    category_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('evaluation_category.id', ondelete='CASCADE'), primary_key=True, nullable=False)
+    manual_input = db.Column(db.Text, nullable=True) # 允许为空，因为不是所有类别都有手动输入
+    created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
+
+    # 定义关系 (可选，但推荐)
+    evaluation = db.relationship('Evaluation', backref=db.backref('manual_inputs', lazy=True, cascade='all, delete-orphan'))
+    category = db.relationship('EvaluationCategory')
+
+    # 如果使用联合主键，则不需要单独的 id 列
+    # 如果 evaluation_id 和 category_id 不是主键，确保有 UNIQUE 约束
+    # __table_args__ = (db.UniqueConstraint('evaluation_id', 'category_id', name='uq_evaluation_manual_input_eval_cat'),)
+
+    def __repr__(self):
+        return f'<EvaluationManualInput Eval:{self.evaluation_id} Cat:{self.category_id}>'

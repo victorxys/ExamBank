@@ -1,7 +1,6 @@
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 import psycopg2
-from psycopg2.extras import RealDictCursor
 import os
 from dotenv import load_dotenv
 import uuid
@@ -13,6 +12,7 @@ from psycopg2.extras import RealDictCursor, register_uuid # 确保导入
 # from flask_sqlalchemy import SQLAlchemy # 如果你打算用 ORM，虽然 Flask-Migrate 不强制
 # from flask_migrate import Migrate # 导入 Migrate
 register_uuid() # 确保 UUID 适配器已注册
+import traceback
 
 # 配置密码加密方法为pbkdf2
 from werkzeug.security import generate_password_hash as _generate_password_hash
@@ -1279,17 +1279,13 @@ def get_evaluation_items_route():
 
 @app.route('/api/evaluation/structure', methods=['GET'])
 def get_evaluation_structure():
-    """
-    获取完整的评价体系结构，供管理页面使用。
-    始终返回所有方面、类别和项目，并包含每个项目的 is_visible_to_client 状态。
-    """
-    conn = None # 初始化
-    cur = None  # 初始化
+    conn = None
+    cur = None
     try:
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=RealDictCursor)
 
-        # 1. 获取所有评价方面 (按排序字段排序)
+        # 1. 获取 Aspects (不再需要 allow_manual_input)
         cur.execute("""
             SELECT id, aspect_name, description, created_at, sort_order
             FROM evaluation_aspect
@@ -1297,15 +1293,15 @@ def get_evaluation_structure():
         """)
         aspects = cur.fetchall()
 
-        # 2. 获取所有评价类别 (按排序字段排序)
+        # 2. 获取 Categories (需要 allow_manual_input)
         cur.execute("""
-            SELECT id, category_name, description, aspect_id, created_at, sort_order
+            SELECT id, category_name, description, aspect_id, created_at, sort_order, allow_manual_input -- *** 包含 allow_manual_input ***
             FROM evaluation_category
             ORDER BY sort_order ASC, created_at DESC
         """)
         categories = cur.fetchall()
 
-        # 3. 获取 *所有* 评价项 (按排序字段排序) - *** 确保这里没有 WHERE 子句 ***
+        # 3. 获取 Items
         cur.execute("""
             SELECT id, item_name, description, category_id, is_visible_to_client, created_at, sort_order
             FROM evaluation_item
@@ -1313,44 +1309,34 @@ def get_evaluation_structure():
         """)
         items = cur.fetchall()
 
-        # 4. 构建完整的层级结构 (此部分逻辑应保持不变)
+        # 4. 构建层级结构
         structure = []
-        category_map = {str(cat['id']): {**cat, 'items': []} for cat in categories}
+        # *** 修改 category_map 以包含 allow_manual_input ***
+        category_map = {str(cat['id']): {**cat, 'allow_manual_input': cat['allow_manual_input'], 'items': []} for cat in categories}
         item_map = {}
-
+        # ... (填充 item_map 的逻辑不变) ...
         for item in items:
             cat_id_str = str(item['category_id'])
             if cat_id_str not in item_map:
                 item_map[cat_id_str] = []
-
             aspect_id_for_item = None
             if cat_id_str in category_map:
                  aspect_id_for_item = str(category_map[cat_id_str]['aspect_id'])
-
             item_map[cat_id_str].append({
-                'id': str(item['id']),
-                'name': item['item_name'],
-                'description': item['description'],
-                'type': 'item',
-                'category_id': cat_id_str,
-                'aspect_id': aspect_id_for_item,
-                'is_visible_to_client': item['is_visible_to_client'],
-                'sort_order': item.get('sort_order', 0) # 包含 sort_order
+                'id': str(item['id']), 'name': item['item_name'], 'description': item['description'],
+                'type': 'item', 'category_id': cat_id_str, 'aspect_id': aspect_id_for_item,
+                'is_visible_to_client': item['is_visible_to_client'], 'sort_order': item.get('sort_order', 0)
             })
-
         for category_id, category_items in item_map.items():
             if category_id in category_map:
-                 # 对 items 再次排序（虽然 SQL 已排序，以防万一）
                 category_map[category_id]['items'] = sorted(category_items, key=lambda x: x.get('sort_order', 0))
 
 
         for aspect in aspects:
             aspect_data = {
-                'id': str(aspect['id']),
-                'name': aspect['aspect_name'],
-                'description': aspect['description'],
-                'type': 'aspect',
-                'sort_order': aspect.get('sort_order', 0), # 包含 sort_order
+                'id': str(aspect['id']), 'name': aspect['aspect_name'], 'description': aspect['description'],
+                'type': 'aspect', 'sort_order': aspect.get('sort_order', 0),
+                # *** 移除 allow_manual_input ***
                 'children': []
             }
 
@@ -1360,37 +1346,34 @@ def get_evaluation_structure():
                     processed_category = category_map.get(str(category['id']))
                     if processed_category:
                         category_data = {
-                            'id': str(processed_category['id']),
-                            'name': processed_category['category_name'],
-                            'description': processed_category['description'],
-                            'type': 'category',
+                            'id': str(processed_category['id']), 'name': processed_category['category_name'],
+                            'description': processed_category['description'], 'type': 'category',
                             'aspect_id': str(aspect['id']),
-                            'sort_order': processed_category.get('sort_order', 0), # 包含 sort_order
+                            'allow_manual_input': processed_category['allow_manual_input'], # *** 添加 allow_manual_input ***
+                            'sort_order': processed_category.get('sort_order', 0),
                             'children': processed_category.get('items', [])
                         }
                         aspect_categories_sorted.append(category_data)
 
-            # 对 categories 再次排序（虽然 SQL 已排序，以防万一）
             aspect_data['children'] = sorted(aspect_categories_sorted, key=lambda x: x.get('sort_order', 0))
             structure.append(aspect_data)
 
-         # 对 aspects 再次排序（虽然 SQL 已排序，以防万一）
         structure.sort(key=lambda x: x.get('sort_order', 0))
 
         return jsonify(structure)
 
     except Exception as e:
-        import traceback
         print('Error in get_evaluation_structure:', str(e))
-        print(traceback.format_exc()) # 打印更详细的错误堆栈
+        traceback.print_exc()
         return jsonify({'error': '获取评价结构失败: ' + str(e)}), 500
     finally:
-        # 确保游标和连接总是关闭
         if cur: cur.close()
         if conn: conn.close()
 
 @app.route('/api/users/<user_id>/evaluations', methods=['GET'])
 def get_user_evaluations_route(user_id):
+    # *** 假设 get_user_evaluations 函数已移至 evaluation.py 并已修改 ***
+    from backend.api.evaluation import get_user_evaluations
     return get_user_evaluations(user_id)
 
 @app.route('/api/user-evaluation/<user_id>', methods=['POST'])
@@ -2859,172 +2842,356 @@ def patch_exam(exam_id):
 
 @app.route('/api/evaluation/<evaluation_id>', methods=['GET'])
 def get_evaluation_detail(evaluation_id):
-    conn = get_db_connection()
-    cur = conn.cursor(cursor_factory=RealDictCursor)
+    conn = None
+    cur = None
     try:
-        # 获取评价基本信息和详细评分
-        cur.execute("""
-            WITH evaluation_scores AS (
-                SELECT 
-                    ei.id as item_id,
-                    ei.item_name,
-                    ei.description,
-                    ec.id as category_id,
-                    ec.category_name,
-                    ea.id as aspect_id,
-                    ea.aspect_name,
-                    ed.score
-                FROM evaluation e
-                JOIN evaluation_detail ed ON e.id = ed.evaluation_id
-                JOIN evaluation_item ei ON ed.item_id = ei.id
-                JOIN evaluation_category ec ON ei.category_id = ec.id
-                JOIN evaluation_aspect ea ON ec.aspect_id = ea.id
-                WHERE e.id = %s
-            )
-            SELECT json_build_object(
-                'id', e.id,
-                'evaluator_name', COALESCE(u.username, c.first_name),
-                'evaluator_title', CASE WHEN e.evaluator_customer_id IS NOT NULL THEN c.title ELSE NULL END,
-                'evaluation_type', CASE WHEN e.evaluator_customer_id IS NOT NULL THEN 'client' ELSE 'internal' END,
-                'evaluation_time', e.evaluation_time,
-                'additional_comments', e.additional_comments,
-                'average_score', COALESCE((SELECT AVG(score) FROM evaluation_detail WHERE evaluation_id = e.id), 0),
-                'aspects', COALESCE(
-                    (SELECT json_agg(
-                        json_build_object(
-                            'id', a.aspect_id,
-                            'name', a.aspect_name,
-                            'score', a.avg_score,
-                            'categories', COALESCE(
-                                (SELECT json_agg(
-                                    json_build_object(
-                                        'id', c.category_id,
-                                        'name', c.category_name,
-                                        'score', c.avg_score,
-                                        'items', COALESCE(
-                                            (SELECT json_agg(
-                                                json_build_object(
-                                                    'id', es.item_id,
-                                                    'name', es.item_name,
-                                                    'description', es.description,
-                                                    'score', es.score
-                                                )
-                                            )
-                                            FROM evaluation_scores es
-                                            WHERE es.category_id = c.category_id
-                                            GROUP BY c.category_id), '[]'::json)
-                                    )
-                                )
-                                FROM (
-                                    SELECT 
-                                        category_id,
-                                        category_name,
-                                        AVG(score) as avg_score
-                                    FROM evaluation_scores
-                                    WHERE aspect_id = a.aspect_id
-                                    GROUP BY category_id, category_name
-                                ) c), '[]'::json)
-                        )
-                    )
-                    FROM (
-                        SELECT 
-                            aspect_id,
-                            aspect_name,
-                            AVG(score) as avg_score
-                        FROM evaluation_scores
-                        GROUP BY aspect_id, aspect_name
-                    ) a), '[]'::json)
-            ) as result
-            FROM evaluation e
-            LEFT JOIN "user" u ON e.evaluator_user_id = u.id
-            LEFT JOIN customer c ON e.evaluator_customer_id = c.id
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+
+        # --- 第 1 步: 获取评价主信息和层级评分结构 ---
+        # (这里的 SQL 假设是您原来用于构建层级结构的 SQL，可能很复杂)
+        # 我们需要确保这个 SQL 能正确获取 evaluation 主信息 和 aspects/categories/items/scores
+        # 为了演示，这里使用一个简化的方式，先获取主信息，再获取层级结构
+        sql_main = """
+            SELECT
+                e.id,
+                e.evaluation_time,
+                e.additional_comments,
+                COALESCE(u1.username, c.first_name) AS evaluator_name,
+                COALESCE(u1.role, c.title) AS evaluator_title,
+                CASE
+                    WHEN e.evaluator_user_id IS NOT NULL THEN 'internal'
+                    WHEN e.evaluator_customer_id IS NOT NULL THEN 'client'
+                    ELSE 'unknown'
+                END AS evaluation_type,
+                COALESCE(AVG(ed.score), 0.0) AS average_score
+            FROM evaluation AS e
+            LEFT JOIN evaluation_detail AS ed ON e.id = ed.evaluation_id
+            LEFT JOIN "user" AS u1 ON e.evaluator_user_id = u1.id
+            LEFT JOIN customer AS c ON e.evaluator_customer_id = c.id
             WHERE e.id = %s
-        """, (evaluation_id, evaluation_id))
-        
-        result = cur.fetchone()
-        if not result:
+            GROUP BY e.id, e.evaluation_time, e.additional_comments, evaluator_name, evaluator_title, evaluation_type
+        """
+        params_main = (evaluation_id,)
+        print(f"--- Executing SQL for main evaluation info ---")
+        print(f"SQL: {sql_main}")
+        print(f"Params: {params_main}")
+        cur.execute(sql_main, params_main)
+        evaluation_main = cur.fetchone()
+        print(f"Main info fetched: {evaluation_main}")
+
+        if not evaluation_main:
             return jsonify({'error': '未找到评价记录'}), 404
-            
-        return jsonify(result['result'])
-    except Exception as e:
-        print('Error in get_evaluation_detail:', str(e))
-        return jsonify({'error': str(e)}), 500
-    finally:
-        cur.close()
-        conn.close()
 
-@app.route('/api/evaluation', methods=['POST'])
-def create_evaluation():
-    
-    print("Content-Type:", request.content_type) # 打印 Content-Type
+        # --- Step 2: Fetch data in separate queries ---
 
-    data = request.get_json()
-    if not data or 'evaluated_user_id' not in data or 'evaluations' not in data:
-        return jsonify({'error': '缺少必要的评价数据'}), 400
-    
-    evaluation_type = data.get('evaluation_type', 'internal')  # 默认内部评价
-    conn = get_db_connection()
-    cur = conn.cursor(cursor_factory=RealDictCursor)
-    try:
-        # 根据评价类型设置 evaluator_user_id 和 evaluator_customer_id
-        if evaluation_type == 'internal':
-            evaluator_user_id = data.get('evaluator_user_id')  # 从 data 中获取
-            evaluator_customer_id = None  # 客户评价 ID 设置为 None
-            if not evaluator_user_id:
-                return jsonify({'error': 'evaluator_user_id is required for internal evaluations'}), 400
-        elif evaluation_type == 'client':
-            
-            evaluator_user_id = None  # 员工评价 ID 设置为 None
-            # 检查是否提供了客户信息
-            if 'client_name' not in data:
-                return jsonify({'error': '缺少客户信息'}), 400      
-            # 创建或更新客户记录
-            cur.execute("""
-                INSERT INTO customer (first_name, title, created_at)
-                VALUES (%s, %s, NOW())
-                RETURNING id
-            """, (data.get('client_name'), data.get('title','')))
-            evaluator_customer_id = cur.fetchone()['id']
-            
-            if not evaluator_customer_id:
-                return jsonify({'error': 'evaluator_customer_id is required for client evaluations'}), 400
-        else:
-            return jsonify({'error': 'Invalid evaluation_type'}), 400 # 错误的类型
-
-        # 插入评价记录
+        # Step 2.1: Fetch base structure (Aspects and Categories relevant to this evaluation)
+        # Relevant categories are those containing items with scores OR those with manual input for this evaluation.
         cur.execute("""
-            INSERT INTO evaluation 
-            (evaluated_user_id, evaluator_user_id, evaluator_customer_id, additional_comments, updated_at)
-            VALUES (%s, %s, %s, %s, NOW())
-            RETURNING id
-        """, ( data['evaluated_user_id'], evaluator_user_id, evaluator_customer_id, data['additional_comments']))
-        evaluation_id = cur.fetchone()['id']
+            SELECT DISTINCT
+                ea.id as aspect_id, ea.aspect_name, ea.sort_order as aspect_sort_order,
+                ec.id as category_id, ec.category_name, ec.allow_manual_input, ec.sort_order as category_sort_order
+            FROM evaluation_aspect ea
+            JOIN evaluation_category ec ON ea.id = ec.aspect_id
+            WHERE ec.id IN (
+                SELECT DISTINCT ei.category_id
+                FROM evaluation_item ei
+                JOIN evaluation_detail ed ON ei.id = ed.item_id
+                WHERE ed.evaluation_id = %s AND ed.score IS NOT NULL
+            ) OR ec.id IN (
+                SELECT DISTINCT emi.category_id
+                FROM evaluation_manual_input emi
+                WHERE emi.evaluation_id = %s
+            )
+            ORDER BY aspect_sort_order, category_sort_order
+        """, (evaluation_id, evaluation_id))
+        structure_rows = cur.fetchall()
 
-        # 插入评价项目分数
-        for evaluation in data['evaluations']:
-            cur.execute("""
-                INSERT INTO evaluation_detail
-                (evaluation_id, item_id, score)
-                VALUES (%s, %s, %s)
-            """, (evaluation_id, evaluation['item_id'], evaluation['score']))
+        # Step 2.2: Fetch only scored items for this evaluation
+        cur.execute("""
+            SELECT ei.category_id, ei.id as item_id, ei.item_name, ei.description as item_description, ed.score
+            FROM evaluation_item ei
+            JOIN evaluation_detail ed ON ei.id = ed.item_id
+            WHERE ed.evaluation_id = %s AND ed.score IS NOT NULL
+            ORDER BY ei.sort_order
+        """, (evaluation_id,))
+        scored_items_rows = cur.fetchall()
+        # Group scored items by category_id for easier lookup
+        scored_items_by_category = {}
+        for item_row in scored_items_rows:
+            cat_id = str(item_row['category_id'])
+            if cat_id not in scored_items_by_category:
+                scored_items_by_category[cat_id] = []
+            scored_items_by_category[cat_id].append({
+                "id": str(item_row['item_id']),
+                "name": item_row['item_name'],
+                "description": item_row['item_description'],
+                "average_score": item_row['score']
+            })
 
-        conn.commit()
-        return jsonify({'success': True, 'message': '评价提交成功', 'id': evaluation_id})
+        # Step 2.3: Fetch manual inputs for this evaluation
+        cur.execute("""
+            SELECT category_id, manual_input
+            FROM evaluation_manual_input
+            WHERE evaluation_id = %s
+        """, (evaluation_id,))
+        manual_inputs_raw = cur.fetchall()
+        # Group manual inputs by category_id
+        manual_inputs_for_category = {str(row['category_id']): row['manual_input'] for row in manual_inputs_raw}
+
+        # Step 2.4: Build the final hierarchical structure in Python
+        final_aspects_map = {}
+        for row in structure_rows:
+            aspect_id = str(row['aspect_id'])
+            category_id = str(row['category_id'])
+
+            # Initialize aspect if not present
+            if aspect_id not in final_aspects_map:
+                final_aspects_map[aspect_id] = {
+                    "id": aspect_id,
+                    "name": row['aspect_name'],
+                    "sort_order": row['aspect_sort_order'],
+                    "categories": {}
+                }
+
+            # Initialize category if not present within the aspect
+            if category_id not in final_aspects_map[aspect_id]['categories']:
+                 # Get scored items for this category (defaults to empty list if none)
+                items_for_this_category = scored_items_by_category.get(category_id, [])
+                 # Calculate average score for the category based *only* on scored items
+                valid_scores = [item['average_score'] for item in items_for_this_category]
+                avg_score = sum(valid_scores) / len(valid_scores) if valid_scores else 0.0
+
+                final_aspects_map[aspect_id]['categories'][category_id] = {
+                    "id": category_id,
+                    "name": row['category_name'],
+                    "allow_manual_input": row['allow_manual_input'],
+                    "sort_order": row['category_sort_order'],
+                    "items": items_for_this_category, # Assign the list of scored items
+                    "manual_input": manual_inputs_for_category.get(category_id), # Assign manual input
+                    "average_score": avg_score
+                }
+
+        # Step 2.5: Convert map to list and calculate overall aspect average scores
+        aspects_list = []
+        for aspect_id, aspect_data in final_aspects_map.items():
+            # Convert categories dict to sorted list
+            categories_list = sorted(list(aspect_data['categories'].values()), key=lambda x: x.get('sort_order', 0))
+            aspect_data['categories'] = categories_list
+
+            # Calculate aspect average score based on the scored items within its categories
+            all_aspect_scores = [item['average_score'] for cat in categories_list for item in cat['items']]
+            aspect_data['average_score'] = sum(all_aspect_scores) / len(all_aspect_scores) if all_aspect_scores else 0.0
+            aspects_list.append(aspect_data)
+
+        # --- Step 3: Combine main info with processed structure and return ---
+        result = {
+            # **evaluation_main, # Merge main evaluation info
+            "aspects": sorted(aspects_list, key=lambda x: x.get('sort_order', 0)) # Add the processed aspects list
+        }
+
+        return jsonify(result)
 
     except Exception as e:
-        conn.rollback()
-        print('Error in create_evaluation:', str(e))
+        print(f"Error in get_evaluation_detail: {str(e)}")
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
     finally:
-        cur.close()
-        conn.close()
+        if cur: cur.close()
+        if conn: conn.close()
+
+# --- 修改 POST /api/evaluation 路由 ---
+@app.route('/api/evaluation', methods=['POST'])
+def create_evaluation_route():
+    data = request.get_json()
+    print("--- Received Evaluation Data ---") # 打印请求体
+    print(data)
+    print("-------------------------------")
+
+    # 验证基础数据
+    if not data or 'evaluated_user_id' not in data or \
+       ('item_scores' not in data and 'category_manual_inputs' not in data): # *** 使用 category_manual_inputs ***
+        print("Validation Error: Missing required data")
+        return jsonify({'error': '缺少必要的评价数据'}), 400
+
+    evaluated_user_id = data['evaluated_user_id']
+    evaluation_type = data.get('evaluation_type', 'internal')
+    additional_comments = data.get('additional_comments', '')
+    item_scores = data.get('item_scores', [])
+    category_manual_inputs = data.get('category_manual_inputs', {}) # *** 获取 category 手动输入 ***
+
+    conn = None
+    cur = None
+    try:
+        conn = get_db_connection()
+        print("Database connection obtained.")
+        # 使用事务确保原子性
+        with conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                print("Transaction started.")
+
+                evaluator_user_id = None
+                evaluator_customer_id = None
+
+                # 处理评价者信息
+                if evaluation_type == 'internal':
+                    evaluator_user_id = data.get('evaluator_user_id')
+                    if not evaluator_user_id:
+                        print("Validation Error: Missing evaluator_user_id for internal evaluation.")
+                        return jsonify({'error': '内部评价需要评价者用户ID'}), 400
+                    print(f"Internal evaluation by user: {evaluator_user_id}")
+                elif evaluation_type == 'client':
+                    client_name = data.get('client_name')
+                    if not client_name:
+                         print("Validation Error: Missing client_name for client evaluation.")
+                         return jsonify({'error': '客户评价需要客户姓名'}), 400
+                    # 创建客户记录 (如果需要创建)
+                    cur.execute("""
+                        INSERT INTO customer (first_name, title) VALUES (%s, %s) RETURNING id
+                    """, (client_name, data.get('client_title', '')))
+                    evaluator_customer_id = cur.fetchone()['id']
+                    print(f"Client evaluation, created/found customer: {evaluator_customer_id}")
+                else:
+                    print(f"Validation Error: Invalid evaluation_type: {evaluation_type}")
+                    return jsonify({'error': '无效的评价类型'}), 400
+
+                # 1. 插入 evaluation 主记录
+                print("Inserting into evaluation table...")
+                sql_evaluation = """
+                    INSERT INTO evaluation
+                    (evaluated_user_id, evaluator_user_id, evaluator_customer_id, additional_comments, evaluation_time, updated_at)
+                    VALUES (%s, %s, %s, %s, NOW(), NOW())
+                    RETURNING id
+                """
+                params_evaluation = (evaluated_user_id, evaluator_user_id, evaluator_customer_id, additional_comments)
+                print(f"  SQL: {sql_evaluation}")
+                print(f"  Params: {params_evaluation}")
+                cur.execute(sql_evaluation, params_evaluation)
+                evaluation_id = cur.fetchone()['id']
+                print(f"Inserted evaluation record with ID: {evaluation_id}")
+
+                # 2. 插入 item scores 到 evaluation_detail
+                if item_scores:
+                    print("Processing item scores...")
+                    values_str_detail = []
+                    params_detail = []
+                    for score_data in item_scores:
+                        score_val = score_data.get('score')
+                        item_id = score_data.get('item_id')
+                        if item_id is not None and score_val is not None and score_val != '':
+                             try:
+                                score_int = int(score_val)
+                                print(f"  Adding item score: item_id={item_id}, score={score_int}")
+                                values_str_detail.append("(%s, %s, %s)")
+                                params_detail.extend([evaluation_id, item_id, score_int])
+                             except (ValueError, TypeError):
+                                 print(f"  Skipping invalid score for item {item_id}: {score_val}")
+                                 continue
+                        else:
+                            print(f"  Skipping empty score for item {item_id}")
+
+                    if params_detail:
+                        sql_detail = "INSERT INTO evaluation_detail (evaluation_id, item_id, score) VALUES " + ", ".join(values_str_detail)
+                        # *** 打印最终的 SQL 和 参数 ***
+                        print(f"  Executing SQL for evaluation_detail:")
+                        print(f"    SQL: {sql_detail}")
+                        print(f"    Params: {tuple(params_detail)}")
+                        cur.execute(sql_detail, tuple(params_detail))
+                        print(f"  Inserted {len(values_str_detail)} item score(s).")
+                    else:
+                        print("  No valid item scores to insert.")
+                else:
+                    print("No item scores provided.")
+
+                # 3. 插入 category manual inputs 到 evaluation_manual_input
+                if category_manual_inputs: # *** 检查 category_manual_inputs ***
+                    print("Processing category manual inputs...")
+                    allowed_category_ids = set() # *** 重命名变量 ***
+                    print("  Fetching allowed category IDs...")
+                    cur.execute("SELECT id FROM evaluation_category WHERE allow_manual_input = TRUE")
+                    fetched_allowed_ids = cur.fetchall()
+                    for row in fetched_allowed_ids:
+                        allowed_category_ids.add(str(row['id']))
+                    print(f"  Allowed category IDs: {allowed_category_ids}")
+
+                    values_str_manual = []
+                    params_manual = []
+                    for category_id, input_data in category_manual_inputs.items(): # *** 确认是 category_id ***
+                        category_id_str = str(category_id)
+                        is_allowed = category_id_str in allowed_category_ids
+                        print(f"  Processing category_id: {category_id_str}, Allowed: {is_allowed}, Input: {input_data}")
+
+                        # *** 处理输入可能是单个字符串或字符串列表 ***
+                        input_list = []
+                        if isinstance(input_data, str): # 如果前端只传单个字符串
+                             input_list = [input_data]
+                        elif isinstance(input_data, list): # 如果前端传列表 (为未来多条评论做准备)
+                             input_list = input_data
+                        else:
+                             print(f"  Skipping invalid input type for category {category_id_str}")
+                             continue
+
+                        if is_allowed:
+                            for manual_input in input_list:
+                                if manual_input and manual_input.strip():
+                                    print(f"    Adding manual input: '{manual_input.strip()}'")
+                                    values_str_manual.append("(%s, %s, %s)")
+                                    params_manual.extend([evaluation_id, category_id, manual_input.strip()]) # *** 使用 category_id ***
+                                else:
+                                    print(f"    Skipping empty manual input.")
+                        else:
+                            print(f"    Skipping category {category_id_str} as manual input is not allowed.")
+
+
+                    if params_manual:
+                        sql_manual = "INSERT INTO evaluation_manual_input (evaluation_id, category_id, manual_input) VALUES " + ", ".join(values_str_manual)
+                        # *** 打印最终的 SQL 和 参数 ***
+                        print(f"  Executing SQL for evaluation_manual_input:")
+                        print(f"    SQL: {sql_manual}")
+                        print(f"    Params: {tuple(params_manual)}")
+                        cur.execute(sql_manual, tuple(params_manual))
+                        print(f"  Inserted {len(values_str_manual)} manual input(s).")
+                    else:
+                        print("  No valid manual inputs to insert.")
+                else:
+                    print("No category manual inputs provided.")
+
+        print("Transaction committed.")
+        # conn.commit() # 由 with conn 处理
+        return jsonify({'success': True, 'message': '评价提交成功', 'id': evaluation_id}), 201
+
+    except Exception as e:
+        # if conn: conn.rollback() # 由 with conn 处理
+        print(f'Error in create_evaluation_route: {str(e)}') # 打印简洁错误
+        traceback.print_exc() # 打印完整堆栈
+        return jsonify({'error': '评价提交失败: ' + str(e)}), 500
+    finally:
+        # if conn: conn.close() # 由 with conn 处理
+        print("Finishing create_evaluation_route.")
+        pass
 
 @app.route('/api/evaluation/<evaluation_id>', methods=['PUT'])
 def update_evaluation_route(evaluation_id):
     data = request.get_json()
     if not data:
         return jsonify({'error': '缺少必要的评价数据'}), 400
-    return update_evaluation(evaluation_id, data)
+
+    print("--- Received Update Evaluation Data ---") # 打印请求体
+    print(data)
+    print("---------------------------------------")
+
+    try:
+        result =  update_evaluation(evaluation_id, data)
+        return result # 直接返回 update_evaluation 的结果 (可能是成功消息或错误)
+
+    except Exception as e:
+        # if conn: conn.rollback() # 由 with conn 处理
+        print(f'Error in update_evaluation_route: {str(e)}')
+        traceback.print_exc()
+        return jsonify({'error': '评价更新失败: ' + str(e)}), 500
+    finally:
+        # if conn: conn.close() # 由 with conn 处理
+        pass
 
 @app.route('/api/evaluation/<evaluation_id>', methods=['DELETE'])
 def delete_evaluation_route(evaluation_id):
