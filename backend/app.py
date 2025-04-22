@@ -3228,7 +3228,7 @@ def user_sync_api():
 def ai_generate_route():
     try:
         data = request.get_json()
-        # print('后端接收到的AI评价数据:', data)
+        print('后端接收到的AI评价数据:', data)
         # log.debug('后端接收到的AI评价数据:', data)
         if not data or 'evaluations' not in data:
             return jsonify({'error': '缺少评价数据'}), 400
@@ -3239,7 +3239,7 @@ def ai_generate_route():
             return jsonify({'error': '缺少用户ID'}), 400
 
         from backend.api.ai_generate import generate
-        result = generate(data['evaluations']['evaluations'])
+        result = generate(data['evaluations'])
         
         # 将AI生成的结果保存到user_profile表
         if result:
