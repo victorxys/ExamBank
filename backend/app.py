@@ -182,47 +182,81 @@ AUTHORIZED_KEYS = {
 @app.route('/api/auth/login', methods=['POST'])
 def login_api():
     api_key = request.headers.get('X-API-Key')
-    print("api_key:",api_key)
+    log.debug(f"Received API login request with API Key: {'*' * len(api_key) if api_key else 'None'}") 
+    
     if not api_key or api_key not in AUTHORIZED_KEYS:
+        log.warning("Invalid or missing API Key received.")
         return jsonify({"error": "Invalid API Key"}), 401
 
-    # API Key is valid, proceed with username and password verification
     data = request.get_json()
+    if not data:
+         log.warning("API login request received no JSON data.")
+         return jsonify({"error": "Missing request body"}), 400
+         
     phone_number = data.get('phone_number')
     password = data.get('password')
-    chat_id = data.get('chat_id')
-    # print("data:",data)
+    
+    if not phone_number or not password:
+         log.warning("API login request missing phone_number or password.")
+         return jsonify({"error": "Missing phone_number or password"}), 400
 
-    # ... 进行用户名和密码验证的逻辑 ...
-    conn = get_db_connection()
-    cur = conn.cursor(cursor_factory=RealDictCursor)
+    log.info(f"Attempting API login for phone number: {phone_number}")
+
+    # --- 恢复手动管理连接和游标 ---
+    conn = None
+    cur = None
     try:
-        cur.execute('SELECT * FROM "user" WHERE "phone_number" = %s', (data['phone_number'],))
-        user = cur.fetchone()
+        conn = get_db_connection() # 直接获取连接
+        cur = conn.cursor(cursor_factory=RealDictCursor) # 手动创建游标
+        
+        log.debug(f"Executing user lookup for phone: {phone_number}")
+        # 查询 status 列
+        cur.execute('SELECT id, username, password, role, status FROM "user" WHERE "phone_number" = %s', (phone_number,))
+        user = cur.fetchone() 
+        log.debug(f"User lookup completed for phone: {phone_number}. User found: {bool(user)}")
 
-        if user and check_password_hash(user['password'], password):
-            print("登录成功，用户ID：", user['id'])
-            access_token = create_token_with_role(user['id'], user['role'])
+        # --- 检查逻辑保持不变 ---
+        if user is None:
+            log.warning(f"API login failed: Phone number {phone_number} not found in database.")
+            # 注意：因为没有连接池，不需要在这里 return 后关闭连接，finally会处理
+        elif user['status'] != 'active':
+            log.warning(f"API login failed for phone number: {phone_number}. User status is '{user['status']}' (not active).")
+            # 同上，finally 会处理关闭
+        elif check_password_hash(user['password'], password):
+            log.info(f"API login successful for user ID: {user['id']} (Phone: {phone_number})")
+            access_token = create_token_with_role(user['id'], user['role']) 
+            # 成功时，在 finally 关闭前返回
             return jsonify({
                 'access_token': access_token,
                 'user': {
                     'id': user['id'],
                     'username': user['username'],
-                    'role': user['role']
                 }
             })
-        return jsonify({'error': '用户名或密码错误,初始密码是”身份证后6位“'}), 401
-    except Exception as e:
-        print('Error in login:', str(e))
-        return jsonify({'error': str(e)}), 500
-    finally:
-        cur.close()
-        conn.close()
+        else:
+            # 密码错误
+            log.warning(f"API login failed for phone number: {phone_number} (Incorrect password)")
+            # 同上，finally 会处理关闭
 
-    # if is_authenticated(username, password):
-    #     return jsonify({"success": True, "message": "Login successful"})
-    # else:
-    #     return jsonify({"error": "Invalid username or password"}), 401
+        # --- 如果上面的检查有失败的，会执行到这里，需要返回错误 ---
+        # （根据上面的逻辑，这里只可能是 手机号不存在、状态不对 或 密码错误）
+        if user is None:
+             return jsonify({"error": "手机号不正确，请与管理员确认手机号"}), 401 
+        elif user['status'] != 'active':
+             return jsonify({"error": "用户未激活，请联系管理员"}), 401
+        else: # 密码错误
+             return jsonify({'error': '密码错误,默认密码为身份证号后6位'}), 401
+
+    except Exception as e:
+        log.exception(f"API login process failed unexpectedly for phone {phone_number}") 
+        return jsonify({'error': f'登录过程中发生错误: {str(e)}'}), 500
+    finally:
+        # --- 确保无论如何都关闭游标和连接 ---
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
+        log.debug(f"Database connection closed for API login attempt (phone: {phone_number})")
 
 @app.route('/api/users/<user_id>/profile', methods=['GET', 'PUT'])
 @jwt_required(optional=True)

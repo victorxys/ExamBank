@@ -407,6 +407,56 @@ const UserEvaluationSummary = () => {
         <Card>
           <CardContent>
             <Typography variant="h2" gutterBottom>历史评价</Typography>
+            {/* 客户评价 */}
+            {evaluationSummary.evaluations.filter(e => e.evaluation_type === 'client').length > 0 && (
+              <>
+                <Typography variant="h3" gutterBottom sx={{ mt: 3 }}>客户评价</Typography>
+                <List>
+                  {evaluationSummary.evaluations
+                    .filter(e => e.evaluation_type === 'client')
+                    .map(evaluation => (
+                        <ListItem
+                          key={evaluation.id}
+                          sx={{
+                            borderRadius: 1,
+                            mb: 2,
+                            backgroundColor: 'background.paper',
+                            flexDirection: 'column', // 恢复为列布局
+                            alignItems: 'stretch',   // 恢复为拉伸对齐
+                            p: 2
+                          }}
+                        >
+                          {/* 恢复原始布局：评价人信息和时间在上面 */}
+                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                             <Box>
+                                <Typography variant="subtitle1">评价人：{evaluation.evaluator_name || '匿名客户'}{evaluation.evaluator_title}</Typography>
+                                {evaluation.additional_comments && (
+                                    <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>补充说明：{evaluation.additional_comments}</Typography>
+                                )}
+                            </Box>
+                            <Typography variant="body2" color="text.secondary">{new Date(evaluation.evaluation_time).toLocaleString()}</Typography>
+                         </Box>
+                          {/* 恢复原始布局：总分和操作按钮在下面 */}
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                           <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                <Typography variant="body2" component="span" color="text.secondary">总体评分：</Typography>
+                                <Chip
+                                    label={evaluation.average_score ? Number(evaluation.average_score).toFixed(1) : '暂无'}
+                                    color={getTotalScoreColor(evaluation.average_score)}
+                                    size="small" sx={{ ml: 1 }}
+                                />
+                            </Box>
+                           <Box sx={{ display: 'flex', gap: 1 }}>
+                              <Button startIcon={<VisibilityIcon />} size="small" onClick={() => handleViewDetailsClick(evaluation)}>查看详情</Button>
+                              <Button startIcon={<EditIcon />} size="small" color="primary" onClick={() => navigate(`/client-evaluation/${userId}?edit=${evaluation.id}`)}>编辑</Button>
+                              <Button startIcon={<DeleteIcon />} size="small" color="error" onClick={() => { setEvaluationToDelete(evaluation); setDeleteDialogOpen(true); }}>删除</Button>
+                           </Box>
+                         </Box>
+                      </ListItem>
+                    ))}
+                </List>
+              </>
+            )}
             {/* 内部评价 */}
             {evaluationSummary.evaluations.filter(e => e.evaluation_type === 'internal').length > 0 && (
               <>
@@ -464,46 +514,7 @@ const UserEvaluationSummary = () => {
                 </List>
               </>
             )}
-            {/* 客户评价 */}
-            {evaluationSummary.evaluations.filter(e => e.evaluation_type === 'client').length > 0 && (
-              <>
-                <Typography variant="h3" gutterBottom sx={{ mt: 3 }}>客户评价</Typography>
-                <List>
-                  {evaluationSummary.evaluations
-                    .filter(e => e.evaluation_type === 'client')
-                    .map(evaluation => (
-                      <ListItem key={evaluation.id} sx={{ /* 恢复样式 */ }}>
-                          {/* 恢复原始布局：评价人信息和时间在上面 */}
-                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                             <Box>
-                                <Typography variant="subtitle1">评价人：{evaluation.evaluator_name || '匿名客户'}{evaluation.evaluator_title}</Typography>
-                                {evaluation.additional_comments && (
-                                    <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>补充说明：{evaluation.additional_comments}</Typography>
-                                )}
-                            </Box>
-                            <Typography variant="body2" color="text.secondary">{new Date(evaluation.evaluation_time).toLocaleString()}</Typography>
-                         </Box>
-                          {/* 恢复原始布局：总分和操作按钮在下面 */}
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                           <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                <Typography variant="body2" component="span" color="text.secondary">总体评分：</Typography>
-                                <Chip
-                                    label={evaluation.average_score ? Number(evaluation.average_score).toFixed(1) : '暂无'}
-                                    color={getTotalScoreColor(evaluation.average_score)}
-                                    size="small" sx={{ ml: 1 }}
-                                />
-                            </Box>
-                           <Box sx={{ display: 'flex', gap: 1 }}>
-                              <Button startIcon={<VisibilityIcon />} size="small" onClick={() => handleViewDetailsClick(evaluation)}>查看详情</Button>
-                              <Button startIcon={<EditIcon />} size="small" color="primary" onClick={() => navigate(`/client-evaluation/${userId}?edit=${evaluation.id}`)}>编辑</Button>
-                              <Button startIcon={<DeleteIcon />} size="small" color="error" onClick={() => { setEvaluationToDelete(evaluation); setDeleteDialogOpen(true); }}>删除</Button>
-                           </Box>
-                         </Box>
-                      </ListItem>
-                    ))}
-                </List>
-              </>
-            )}
+            
           </CardContent>
         </Card>
       )}

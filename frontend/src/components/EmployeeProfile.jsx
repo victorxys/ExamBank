@@ -83,6 +83,7 @@ const EmployeeProfile = () => {
   });
 
   useEffect(() => {
+    console.log('Fetching profile data, userId:', userId); 
     const fetchEmployeeData = async () => {
       try {
         setLoading(true);
@@ -114,9 +115,20 @@ const EmployeeProfile = () => {
       console.log('WechatShare组件已激活');
     }
   }, [shareData]);
+  // 在 EmployeeProfile.jsx 组件内部，和其他 useState, useEffect 并列
 
+  useEffect(() => {
+    // 这个 effect 只在组件挂载时运行一次
+    console.log('>>>>>>>>>> EmployeeProfile Component Mounted <<<<<<<<<<');
+
+    // 这个 cleanup 函数只在组件卸载时运行一次
+    return () => {
+      console.log('<<<<<<<<<< EmployeeProfile Component Unmounted >>>>>>>>>>');
+    };
+  }, []); // 空依赖数组确保只在挂载和卸载时运行
   // 页面加载时自动配置微信分享
   useEffect(() => {
+    console.log('Fetching profile data, userId:', userId, 'loading:', loading,'employeeData',employeeData); 
     if (employeeData && !loading) {
       try {
         // 构建分享数据，包括完整的图片URL
