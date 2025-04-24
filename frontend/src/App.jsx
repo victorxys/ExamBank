@@ -35,7 +35,7 @@ import RouteWatcher from './components/RouteWatcher';
 // --- Auth Utils ---
 import { hasToken } from './api/auth-utils';
 // --- Global Styles ---
-import "@fortawesome/fontawesome-free/css/all.min.css";
+// import "@fortawesome/fontawesome-free/css/all.min.css";
 import "./styles/argon-theme.css";
 
 const theme = createTheme({
