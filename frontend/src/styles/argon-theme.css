@@ -1,6 +1,10 @@
 /* Argon Dashboard Core Styles */
-@import url('https://fonts.googleapis.com/css?family=Open+Sans:300,400,600,700');
-@import url('https://use.fontawesome.com/releases/v5.15.4/css/all.css');
+/* @import url('https://use.fontawesome.com/releases/v5.15.4/css/all.css'); */
+/* 替换前 */
+/* @import url('https://fonts.googleapis.com/css?family=Open+Sans:300,400,600,700&display=swap'); */
+
+/* 替换后 */
+@import url('https://google-fonts.mirrors.sjtug.sjtu.edu.cn/css?family=Open+Sans:300,400,600,700&display=swap');
 
 :root {
   /* Colors */

@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react'; // 添加 lazy 和 Suspense
+
 // --- React Router ---
 import { Routes, Route, Navigate, useLocation, Outlet } from 'react-router-dom'; // 确保导入 Outlet
 // --- Material UI ---
@@ -11,26 +12,26 @@ import ErrorBoundary from './components/ErrorBoundary';
 import PrivateRoute from './components/PrivateRoute';
 import RouteWatcher from './components/RouteWatcher';
 // --- Page Components ---
-import LoginPage from './components/LoginPage';
-import CourseList from './components/CourseList';
-import KnowledgePoints from './components/KnowledgePoints';
-import Questions from './components/Questions';
-import ExamList from './components/ExamList';
-import ExamDetail from './components/ExamDetail';
-import ExamTake from './components/ExamTake';
-import ExamRecords from './components/ExamRecords';
-import ExamRecordDetail from './components/ExamRecordDetail';
-import UserManagement from './components/UserManagement';
+// import LoginPage from './components/LoginPage';
+// import CourseList from './components/CourseList';
+// import KnowledgePoints from './components/KnowledgePoints';
+// import Questions from './components/Questions';
+// import ExamList from './components/ExamList';
+// import ExamDetail from './components/ExamDetail';
+// import ExamTake from './components/ExamTake';
+// import ExamRecords from './components/ExamRecords';
+// import ExamRecordDetail from './components/ExamRecordDetail';
+// import UserManagement from './components/UserManagement';
 // import UserLoginDialog from './components/UserLoginDialog'; // 对话框通常不由路由直接渲染
-import UserEvaluation from './components/UserEvaluation';
-import UserEvaluationSummary from './components/UserEvaluationSummary';
-import EmployeeProfile from './components/EmployeeProfile';
-import EvaluationManagement from './components/EvaluationManagement';
-import ClientEvaluation from './components/ClientEvaluation';
-import ThankYouPage from './components/ThankYouPage';
-import PublicEmployeeSelfEvaluation from './components/PublicEmployeeSelfEvaluation';
-import EmployeeSelfEvaluationList from './components/EmployeeSelfEvaluationList';
-import EmployeeSelfEvaluationDetail from './components/EmployeeSelfEvaluationDetail';
+// import UserEvaluation from './components/UserEvaluation';
+// import UserEvaluationSummary from './components/UserEvaluationSummary';
+// import EmployeeProfile from './components/EmployeeProfile';
+// import EvaluationManagement from './components/EvaluationManagement';
+// import ClientEvaluation from './components/ClientEvaluation';
+// import ThankYouPage from './components/ThankYouPage';
+// import PublicEmployeeSelfEvaluation from './components/PublicEmployeeSelfEvaluation';
+// import EmployeeSelfEvaluationList from './components/EmployeeSelfEvaluationList';
+// import EmployeeSelfEvaluationDetail from './components/EmployeeSelfEvaluationDetail';
 // --- Auth Utils ---
 import { hasToken } from './api/auth-utils';
 // --- Global Styles ---
@@ -274,11 +275,36 @@ const SimpleLayoutInternal = () => (
   </Box>
 );
 
-// --- 3. App 组件主体 ---
-function App() {
-  // 移除了 App 级别的 user 状态，因为它不直接影响布局选择
-  // 认证状态由 PrivateRoute 或页面组件内部处理
+// --- 3. 定义加载状态组件 ---
+const LoadingFallback = () => (
+  <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 'calc(100vh - 128px)' }}> 
+    <CircularProgress />
+  </Box>
+);
 
+// --- 4. 使用 React.lazy 动态导入页面组件 ---
+const LoginPage = lazy(() => import('./components/LoginPage'));
+const CourseList = lazy(() => import('./components/CourseList'));
+const KnowledgePoints = lazy(() => import('./components/KnowledgePoints'));
+const Questions = lazy(() => import('./components/Questions'));
+const ExamList = lazy(() => import('./components/ExamList'));
+const ExamDetail = lazy(() => import('./components/ExamDetail'));
+const ExamTake = lazy(() => import('./components/ExamTake'));
+const ExamRecords = lazy(() => import('./components/ExamRecords'));
+const ExamRecordDetail = lazy(() => import('./components/ExamRecordDetail'));
+const UserManagement = lazy(() => import('./components/UserManagement'));
+const UserEvaluation = lazy(() => import('./components/UserEvaluation'));
+const UserEvaluationSummary = lazy(() => import('./components/UserEvaluationSummary'));
+const EmployeeProfile = lazy(() => import('./components/EmployeeProfile'));
+const EvaluationManagement = lazy(() => import('./components/EvaluationManagement'));
+const ClientEvaluation = lazy(() => import('./components/ClientEvaluation'));
+const ThankYouPage = lazy(() => import('./components/ThankYouPage'));
+const PublicEmployeeSelfEvaluation = lazy(() => import('./components/PublicEmployeeSelfEvaluation'));
+const EmployeeSelfEvaluationList = lazy(() => import('./components/EmployeeSelfEvaluationList'));
+const EmployeeSelfEvaluationDetail = lazy(() => import('./components/EmployeeSelfEvaluationDetail'));
+
+// --- 5. App 组件主体 ---
+function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
@@ -286,42 +312,42 @@ function App() {
       {/* 唯一的 Routes 实例 */}
       <Routes>
         {/* 应用主布局的路由 */}
-        <Route element={<MainLayoutInternal />}> {/* 使用内部定义的布局 */}
+        <Route element={<MainLayoutInternal />}>
+          {/* --- 5. 使用 Suspense 包裹懒加载组件 --- */}
           <Route path="/" element={<PrivateRoute element={<Navigate to="/users" />} />} />
-          <Route path="/exams" element={<PrivateRoute element={<ExamList />} />} />
-          <Route path="/exams/:examId" element={<PrivateRoute element={<ExamDetail />} />} />
-          <Route path="/knowledge-points" element={<PrivateRoute element={<KnowledgePoints />} />} />
-          <Route path="/courses" element={<PrivateRoute element={<CourseList />} />} />
-          <Route path="/courses/:courseId/knowledge_points" element={<PrivateRoute element={<KnowledgePoints />} />} />
-          <Route path="/courses/:courseId/knowledge_points/:knowledgePointId/questions" element={<PrivateRoute element={<Questions />} />} />
-          <Route path="/questions" element={<PrivateRoute element={<Questions />} />} />
-          <Route path="/exam-records" element={<PrivateRoute element={<ExamRecords />} />} />
-          <Route path="/exam-records/:examId/:userId" element={<PrivateRoute element={<ExamRecordDetail />} />} />
-          <Route path="/users" element={<PrivateRoute element={<UserManagement />} />} />
-          <Route path="/user-evaluation/:userId" element={<PrivateRoute element={<UserEvaluation />} />} />
-          <Route path="/user-evaluation-summary/:userId" element={<PrivateRoute element={<UserEvaluationSummary />} />} />
-          <Route path="/employee-self-evaluations" element={<PrivateRoute element={<EmployeeSelfEvaluationList />} />} />
-          <Route path="/employee-self-evaluations/:evaluationId" element={<PrivateRoute element={<EmployeeSelfEvaluationDetail />} />} />
-          <Route path="/evaluation-management" element={<PrivateRoute element={<EvaluationManagement />} />} />
-          
+          <Route path="/exams" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <ExamList /> </Suspense>} />} />
+          <Route path="/exams/:examId" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <ExamDetail /> </Suspense>} />} />
+          <Route path="/knowledge-points" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <KnowledgePoints /> </Suspense>} />} />
+          <Route path="/courses" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <CourseList /> </Suspense>} />} />
+          <Route path="/courses/:courseId/knowledge_points" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <KnowledgePoints /> </Suspense>} />} />
+          <Route path="/courses/:courseId/knowledge_points/:knowledgePointId/questions" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <Questions /> </Suspense>} />} />
+          <Route path="/questions" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <Questions /> </Suspense>} />} />
+          <Route path="/exam-records" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <ExamRecords /> </Suspense>} />} />
+          <Route path="/exam-records/:examId/:userId" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <ExamRecordDetail /> </Suspense>} />} /> 
+          <Route path="/users" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <UserManagement /> </Suspense>} />} />
+          <Route path="/user-evaluation/:userId" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <UserEvaluation /> </Suspense>} />} />
+          <Route path="/user-evaluation-summary/:userId" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <UserEvaluationSummary /> </Suspense>} />} />
+          <Route path="/employee-self-evaluations" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <EmployeeSelfEvaluationList /> </Suspense>} />} />
+          <Route path="/employee-self-evaluations/:evaluationId" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <EmployeeSelfEvaluationDetail /> </Suspense>} />} />
+          <Route path="/evaluation-management" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <EvaluationManagement /> </Suspense>} />} />
         </Route>
 
         {/* 应用简单布局的路由 */}
-        <Route element={<SimpleLayoutInternal />}> {/* 使用内部定义的布局 */}
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/client-evaluation/:userId" element={<ClientEvaluation />} />
-          <Route path="/public-employee-self-evaluation" element={<PublicEmployeeSelfEvaluation />} />
-          <Route path="/thank-you" element={<ThankYouPage />} />
-          <Route path="/exams/:examId/take" element={<ExamTake />} />
-          <Route path="/employee-profile/:userId" element={<PrivateRoute element={<EmployeeProfile />} />} />
-          <Route path="/employee-profile/:userId/exam-records" element={<PrivateRoute element={<ExamRecords />} />} /> 
-          <Route path="/employee-profile/:userId/exam-records/:examId" element={<PrivateRoute element={<ExamRecordDetail />} />} />
-          {/* EmployeeProfile 和其子路由使用 SimpleLayout */}
-          {/* 注意：EmployeeProfile 及其子路由已移到 MainLayout 下由 PrivateRoute 处理 */}
+        <Route element={<SimpleLayoutInternal />}>
+          {/* --- 5. 使用 Suspense 包裹懒加载组件 --- */}
+          <Route path="/login" element={<Suspense fallback={<LoadingFallback />}> <LoginPage /> </Suspense>} />
+          <Route path="/client-evaluation/:userId" element={<Suspense fallback={<LoadingFallback />}> <ClientEvaluation /> </Suspense>} />
+          <Route path="/public-employee-self-evaluation" element={<Suspense fallback={<LoadingFallback />}> <PublicEmployeeSelfEvaluation /> </Suspense>} />
+          <Route path="/thank-you" element={<Suspense fallback={<LoadingFallback />}> <ThankYouPage /> </Suspense>} />
+          <Route path="/exams/:examId/take" element={<Suspense fallback={<LoadingFallback />}> <ExamTake /> </Suspense>} /> 
+          <Route path="/employee-profile/:userId" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <EmployeeProfile /> </Suspense>} />} />
+          <Route path="/employee-profile/:userId/exam-records" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <ExamRecords /> </Suspense>} />} /> 
+          <Route path="/employee-profile/:userId/exam-records/:examId" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <ExamRecordDetail /> </Suspense>} />} /> 
+
+          {/* EmployeeProfile 和其子路由已移到 MainLayout 下，这里不再需要 */}
         </Route>
 
-         {/* 404 路由可以放在这里 */}
-         {/* <Route path="*" element={<NotFound />} /> */}
+         {/* ... 404 路由 ... */}
       </Routes>
     </ThemeProvider>
   );

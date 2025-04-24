@@ -180,14 +180,14 @@ const RouteWatcher = () => {
   }, [pageInfo,sendPageInfoToMiniProgram]);
   
   // 使用 WechatShare 组件进行微信分享配置
-  return (
-    <WechatShare 
-      shareTitle={pageInfo.title}
-      shareDesc={pageInfo.desc}
-      shareImgUrl={pageInfo.imgUrl}
-      shareLink={pageInfo.link}
-    />
-  );
+  // return (
+  //   <WechatShare 
+  //     shareTitle={pageInfo.title}
+  //     shareDesc={pageInfo.desc}
+  //     shareImgUrl={pageInfo.imgUrl}
+  //     shareLink={pageInfo.link}
+  //   />
+  // );
 };
 
 export default RouteWatcher;
