@@ -1248,7 +1248,7 @@ def update_user(user_id):
     if not data:
         return jsonify({'error': 'No data provided'}), 400
     print("更新数据：", data)
-    log.debug("更新数据：", data)
+    log.debug(f"开始更新用户:{data}")
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
     try:
