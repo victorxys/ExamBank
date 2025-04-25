@@ -1142,8 +1142,26 @@ const ExamTake = () => {
                   color="primary"
                   onClick={handleSubmit}
                   disabled={isSubmitting}
+                  sx={{
+                    position: 'relative',
+                    minWidth: '240px',
+                    height: '36px',
+                    '&.Mui-disabled': {
+                      color: '#fff',
+                      backgroundColor: '#1976d2'
+                    }
+                  }}
                 >
-                  {isSubmitting ? <CircularProgress size={24} /> : '提交答案'}
+                  {isSubmitting ? (
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <CircularProgress size={20} sx={{ color: '#fff', mr: 1 }} />
+                      <Typography sx={{ color: '#fff', fontSize: '0.875rem' }}>
+                        正在提交考卷，请勿重复点击
+                      </Typography>
+                    </Box>
+                  ) : (
+                    '提交答案'
+                  )}
                 </Button>
               </Box>
             </Box>

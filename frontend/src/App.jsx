@@ -1,7 +1,7 @@
-import React, { useState, useEffect, lazy, Suspense } from 'react'; // 添加 lazy 和 Suspense
+import React, { useState, lazy, Suspense } from 'react'; // 添加 lazy 和 Suspense
 
 // --- React Router ---
-import { Routes, Route, Navigate, useLocation, Outlet } from 'react-router-dom'; // 确保导入 Outlet
+import { Routes, Route, Navigate, Outlet } from 'react-router-dom'; // 确保导入 Outlet
 // --- Material UI ---
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import { Box, CssBaseline, CircularProgress, Alert } from '@mui/material';
@@ -32,8 +32,7 @@ import RouteWatcher from './components/RouteWatcher';
 // import PublicEmployeeSelfEvaluation from './components/PublicEmployeeSelfEvaluation';
 // import EmployeeSelfEvaluationList from './components/EmployeeSelfEvaluationList';
 // import EmployeeSelfEvaluationDetail from './components/EmployeeSelfEvaluationDetail';
-// --- Auth Utils ---
-import { hasToken } from './api/auth-utils';
+
 // --- Global Styles ---
 // import "@fortawesome/fontawesome-free/css/all.min.css";
 import "./styles/argon-theme.css";

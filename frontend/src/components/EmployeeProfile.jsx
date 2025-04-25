@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react'; // 1. Ensure lazy, Suspense are imported
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -7,15 +7,9 @@ import {
   Typography,
   TextField,
   Paper,
-  Grid,
-  Chip,
+  Grid, 
   Rating,
-  Divider,
-  Card,
-  CardContent,
   IconButton,
-  BottomNavigation,
-  BottomNavigationAction,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -39,8 +33,19 @@ import { useMediaQuery } from '@mui/material';
 import api from '../api/axios';
 import logoSvg from '../assets/logo.svg';
 import WechatShare from './WechatShare';
-import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts';
-import KnowledgeReportDialog from './KnowledgeReportDialog';
+// import KnowledgeReportDialog from './KnowledgeReportDialog';
+
+// 3. Use React.lazy to dynamically import KnowledgeReportDialog
+const KnowledgeReportDialog = lazy(() => import('./KnowledgeReportDialog'));
+// --- 2. Define LoadingFallback ---
+// You can customize this further if needed
+const LoadingFallback = () => (
+  <Dialog open={true}> {/* Optional: Render fallback inside a minimal Dialog structure */}
+    <DialogContent sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100px' }}>
+      <CircularProgress />
+    </DialogContent>
+  </Dialog>
+);
 
 
 const EmployeeProfile = () => {
@@ -1369,14 +1374,17 @@ const EmployeeProfile = () => {
         </DialogActions>
       </Dialog>
 
-      {/* 知识点报告对话框 */}
-      <KnowledgeReportDialog
-        open={examDetailDialogOpen}
-        onClose={handleExamDetailClose}
-        examId={examDetail?.exam_id}
-        isPublic={examDetail?.ispublic} // 修改为 isPublic
-
-      />
+      {/* --- 4. Conditionally render KnowledgeReportDialog with Suspense --- */}
+      {examDetailDialogOpen && ( // Only render Suspense when dialog should be open
+        <Suspense fallback={<LoadingFallback />}>
+          <KnowledgeReportDialog
+            open={examDetailDialogOpen} // Pass open prop
+            onClose={handleExamDetailClose}
+            examId={examDetail?.exam_id}
+            isPublic={examDetail?.isPublic} 
+          />
+        </Suspense>
+      )}
 
       {/* 详情对话框 */}
       <Dialog

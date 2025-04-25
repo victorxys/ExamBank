@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, lazy, Suspense } from 'react'; // 1. 导入 lazy, Suspense
 import { useNavigate } from 'react-router-dom'
 import { useTheme } from '@mui/material'
 import { API_BASE_URL } from '../config';
@@ -19,23 +19,37 @@ import {
   IconButton,
   InputAdornment,
   CircularProgress,
-  Button
+  Button,
+  Dialog,       // 可能需要导入 Dialog, DialogContent 用于 fallback
+  DialogContent 
 } from '@mui/material'
 import AlertMessage from './AlertMessage'
 import {
   Search as SearchIcon,
   Visibility as VisibilityIcon,
-  School as SchoolIcon,
-  Lightbulb as LightbulbIcon,
-  Person as PersonIcon,
-  Notifications as NotificationsIcon
+  // School as SchoolIcon,
+  // Lightbulb as LightbulbIcon,
+  // Person as PersonIcon,
+  // Notifications as NotificationsIcon
 } from '@mui/icons-material'
 import debounce from 'lodash/debounce'
 import PageHeader from './PageHeader';
-import KnowledgeReportDialog from './KnowledgeReportDialog';
+// import KnowledgeReportDialog from './KnowledgeReportDialog';
 // console.log('API_BASE_URL:', API_BASE_URL); // 输出 API_BASE_URL 的值
 // console.log('url:', url); // 输出 url 的值
 // console.log('url.toString():', url.toString()); // 输出 url 的字符串形式
+
+// 3. 使用 React.lazy 动态导入 KnowledgeReportDialog
+const KnowledgeReportDialog = lazy(() => import('./KnowledgeReportDialog'));
+
+// 2. 定义加载状态组件 (可以与 App.jsx 中的类似或自定义)
+const LoadingFallback = () => (
+  <Dialog open={true}> 
+    <DialogContent sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100px' }}>
+      <CircularProgress />
+    </DialogContent>
+  </Dialog>
+);
 
 function ExamRecords() {
   const navigate = useNavigate()
@@ -351,14 +365,18 @@ function ExamRecords() {
         </CardContent>
       </Card>
 
-      {/* 知识点报告对话框 */}
-      <KnowledgeReportDialog
-        open={examDetailDialogOpen}
-        onClose={handleExamDetailClose}
-        examId={examDetail?.exam_id}
-        isPublic={examDetail?.ispublic} // 修改为 isPublic
-
-      />
+      {/* --- 4. 条件渲染和 Suspense 包裹 --- */}
+      {examDetailDialogOpen && (
+        <Suspense fallback={<LoadingFallback />}>
+          <KnowledgeReportDialog
+            open={examDetailDialogOpen}
+            onClose={handleExamDetailClose}
+            examId={examDetail?.exam_id}
+            // isPublic prop 可能不再需要，取决于 KnowledgeReportDialog 内部是否使用
+            // isPublic={examDetail?.isPublic} 
+          />
+        </Suspense>
+      )}
 
       {loading && (
         <Box
