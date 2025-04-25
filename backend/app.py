@@ -1247,29 +1247,34 @@ def update_user(user_id):
     data = request.get_json()
     if not data:
         return jsonify({'error': 'No data provided'}), 400
-
+    print("更新数据：", data)
+    log.debug("更新数据：", data)
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
     try:
         # 构建更新字段
         update_fields = []
         params = []
-        if 'username' in data:
+        if 'username' in data and data['username']:
+            # print("更新用户名")
             update_fields.append('username = %s')
             params.append(data['username'])
-        if 'password' in data:
+        if 'password' in data and data['password']:
+            # print("更新密码")
+            log.debug("更新密码")
             update_fields.append('password = %s')
             params.append(generate_password_hash(data['password']))
-        if 'phone_number' in data:
+        if 'phone_number' in data and data['phone_number']:
             update_fields.append('phone_number = %s')
             params.append(data['phone_number'])
-        if 'role' in data:
+        if 'role' in data and data['role']:
             update_fields.append('role = %s')
             params.append(data['role'])
-        if 'email' in data:
+        if 'email' in data and data['email']:
             update_fields.append('email = %s')
             params.append(data['email'])
-        if 'status' in data:
+        if 'status' in data and data['status']:
+            # print("更新状态")
             update_fields.append('status = %s')
             params.append(data['status'])
 
@@ -2249,16 +2254,10 @@ def submit_exam_answer(exam_id):
                     'is_correct': is_correct,
                     'explanation': question_info['explanation']
                 }
-                if is_correct:
-                    kp_coreect = {
-                        'knowledge_point_name' : question_info['knowledge_point_name'],
-                        'if_get' : '已掌握',
-                    }
-                else:
-                    kp_coreect = {
-                        'knowledge_point_name' : question_info['knowledge_point_name'],
-                        'if_get' : '未掌握',
-                    }
+                kp_coreect = {
+                    'knowledge_point_name': question_info.get('knowledge_point_name', '未知知识点'),
+                    'if_get': '已掌握' if is_correct else '未掌握' # Python 的三元条件表达式
+                }
                 
                 results.append(result)
                 kp_coreects.append(kp_coreect)

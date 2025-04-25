@@ -148,6 +148,10 @@ json格式如下：
         raise Exception('AI生成的结果不是有效的JSON格式')
 
 def merge_kp_name(exam_results):
+    if not exam_results or not isinstance(exam_results, list):
+        return []
+    
+    
     client = genai.Client(
         api_key=os.environ['GEMINI_API_KEY'],
     )
@@ -158,6 +162,7 @@ def merge_kp_name(exam_results):
     # print("evaluation_text, 用来调试提示词:",evaluation_text)
     # model = "gemini-2.0-flash-lite"
     model = "gemini-2.5-pro-exp-03-25"
+    # model = "gemini-2.5-flash-preview-04-17"
     contents = [
         types.Content(
             role="user",
@@ -257,14 +262,20 @@ subject:A
             ),
         ],
     )
-
     response = ""
-    for chunk in client.models.generate_content_stream(
-        model=model,
-        contents=contents,
-        config=generate_content_config,
-    ):
-        response += chunk.text
+    try:
+        for chunk in client.models.generate_content_stream(
+            model=model,
+            contents=contents,
+            config=generate_content_config,
+        ):
+            if chunk and chunk.text:  # 添加空值检查
+                response += chunk.text
+                print('chunk.text:', chunk.text)
+    except Exception as e:
+        print('生成内容时出错:', str(e))
+        return [{"subject": "知识点处理失败", "value": 0, "details": ["处理过程出现错误"]}]
+
     
     # 移除可能存在的Markdown代码块标记
     result = response.strip()
