@@ -11,31 +11,16 @@ import Navbar from './components/Navbar';
 import ErrorBoundary from './components/ErrorBoundary';
 import PrivateRoute from './components/PrivateRoute';
 import RouteWatcher from './components/RouteWatcher';
-// --- Page Components ---
-// import LoginPage from './components/LoginPage';
-// import CourseList from './components/CourseList';
-// import KnowledgePoints from './components/KnowledgePoints';
-// import Questions from './components/Questions';
-// import ExamList from './components/ExamList';
-// import ExamDetail from './components/ExamDetail';
-// import ExamTake from './components/ExamTake';
-// import ExamRecords from './components/ExamRecords';
-// import ExamRecordDetail from './components/ExamRecordDetail';
-// import UserManagement from './components/UserManagement';
-// import UserLoginDialog from './components/UserLoginDialog'; // 对话框通常不由路由直接渲染
-// import UserEvaluation from './components/UserEvaluation';
-// import UserEvaluationSummary from './components/UserEvaluationSummary';
-// import EmployeeProfile from './components/EmployeeProfile';
-// import EvaluationManagement from './components/EvaluationManagement';
-// import ClientEvaluation from './components/ClientEvaluation';
-// import ThankYouPage from './components/ThankYouPage';
-// import PublicEmployeeSelfEvaluation from './components/PublicEmployeeSelfEvaluation';
-// import EmployeeSelfEvaluationList from './components/EmployeeSelfEvaluationList';
-// import EmployeeSelfEvaluationDetail from './components/EmployeeSelfEvaluationDetail';
-
-// --- Global Styles ---
-// import "@fortawesome/fontawesome-free/css/all.min.css";
 import "./styles/argon-theme.css";
+
+// import { Box } from '@mui/material'; // 删除这一行
+
+function MyComponent() {
+  return (
+    // 使用 Box 组件
+    <Box>Hello</Box> // ESLint 应该报告 Box 未定义
+  );
+}
 
 const theme = createTheme({
   palette: {
