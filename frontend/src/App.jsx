@@ -258,7 +258,7 @@ const SimpleLayoutInternal = () => (
     </Box>
   </Box>
 );
-
+ 
 // --- 3. 定义加载状态组件 ---
 const LoadingFallback = () => (
   <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 'calc(100vh - 128px)' }}> 

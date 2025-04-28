@@ -33,6 +33,8 @@ export default [
         'warn',
         { allowConstantExport: true },
       ],
+      'react/jsx-no-undef': 'error',
+      'no-undef': 'error'
     },
   },
 ]
