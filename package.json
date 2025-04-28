@@ -24,13 +24,11 @@
   },
   "lint-staged": {
        "frontend/**/*.{js,jsx}": [
-      "cd frontend && eslint --fix", 
-      "git add" 
+      "cd frontend && eslint --fix"
     ],
     
     "backend/**/*.py": [
-      "cd backend && ruff check --fix", 
-      "git add" 
+      "cd backend && ruff check --fix"
     ]
   }
 }
