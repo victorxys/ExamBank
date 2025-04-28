@@ -1,0 +1,36 @@
+{
+  "name": "examdb",
+  "version": "1.0.0",
+  "description": "题库及在线考试",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "prepare": "husky install" 
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/victorxys/ExamBank.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/victorxys/ExamBank/issues"
+  },
+  "homepage": "https://github.com/victorxys/ExamBank#readme",
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^15.2.0" 
+  },
+  "lint-staged": {
+       "frontend/**/*.{js,jsx}": [
+      "cd frontend && eslint --fix", 
+      "git add" 
+    ],
+    
+    "backend/**/*.py": [
+      "cd backend && ruff check --fix", 
+      "git add" 
+    ]
+  }
+}

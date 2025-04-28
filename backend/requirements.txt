@@ -7,7 +7,7 @@ gunicorn==23.0.0 # For production deployment
 
 # Database & ORM & Migration
 psycopg2-binary==2.9.9 # PostgreSQL driver
-SQLAlchemy>=1.4,<2.0 # Or specific version, e.g., SQLAlchemy==1.4.46 (Check your 'pip freeze') - ORM Core
+SQLAlchemy>=2.0.23 # Or specific version, e.g., SQLAlchemy==1.4.46 (Check your 'pip freeze') - ORM Core
 Flask-SQLAlchemy>=2.5 # Or specific version, e.g., Flask-SQLAlchemy==2.5.1 (Check your 'pip freeze') - Flask integration
 Flask-Migrate>=4.0 # Or specific version, e.g., Flask-Migrate==4.0.4 (Check your 'pip freeze') - Migrations
 Alembic>=1.7 # Usually installed as a dependency of Flask-Migrate
@@ -25,4 +25,7 @@ python-dateutil # For date parsing
 google-generativeai==0.3.2
 
 # Other (Verify if needed in backend runtime)
-playwright==4.12.2 # Is this really needed for the backend server runtime? Or just for scripts/tests?
+# playwright==4.12.2 # Is this really needed for the backend server runtime? Or just for scripts/tests?
+
+
+ruff==0.4.4
