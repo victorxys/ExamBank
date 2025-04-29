@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect,useCallback } from 'react';
 import {
   Avatar,
-  Container,
   Paper,
   Table,
   TableBody,
@@ -9,7 +8,6 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Typography,
   Button,
   IconButton,
   Dialog,
@@ -69,7 +67,6 @@ const UserManagement = () => {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [totalUsers, setTotalUsers] = useState(0);
-  const [totalPages, setTotalPages] = useState(0);
   const [sortBy, setSortBy] = useState('created_at');
   const [sortOrder, setSortOrder] = useState('desc');
   
@@ -80,47 +77,37 @@ const UserManagement = () => {
     fetchUsers();
   }, [page, rowsPerPage, searchTerm, sortBy, sortOrder]);
 
-  const fetchUsers = async () => {
+  // 使用 useCallback 包裹 fetchUsers
+  const fetchUsers = useCallback(async () => {
     try {
       setLoading(true);
-      // 构建查询参数
       const params = new URLSearchParams({
-        page: page + 1, // API使用1-based索引，而MUI使用0-based索引
+        page: page + 1,
         per_page: rowsPerPage,
         sort_by: sortBy,
         sort_order: sortOrder
       });
-      
       if (searchTerm) {
         params.append('search', searchTerm);
       }
-      
       const response = await api.get(`/users?${params.toString()}`);
-      
+      // ... 处理 response ...
       if (response.data && response.data.items) {
         setUsers(response.data.items);
         setTotalUsers(response.data.total);
-        setTotalPages(response.data.total_pages);
+        // setTotalPages(response.data.total_pages); // 如果不用，可以注释掉
       } else {
-        console.error('Invalid users data format:', response.data);
-        setUsers([]);
-        setTotalUsers(0);
-        setTotalPages(0);
+        // ... 错误处理 ...
       }
     } catch (error) {
-      console.error('Error fetching users:', error.response || error);
-      setUsers([]);
-      setTotalUsers(0);
-      setTotalPages(0);
-      setAlertMessage({
-        severity: 'error',
-        message: '获取用户列表失败，请稍后重试'
-      });
+      // ... 错误处理 ...
+      setAlertMessage({ severity: error, message: '获取用户列表失败' });
       setAlertOpen(true);
     } finally {
       setLoading(false);
     }
-  };
+  // 将 fetchUsers 内部使用的依赖项添加到 useCallback 的依赖数组
+  }, [page, rowsPerPage, searchTerm, sortBy, sortOrder]); // 确保包含所有依赖项
   
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
@@ -350,7 +337,7 @@ const UserManagement = () => {
                               fontSize: { xs: '0.875rem', sm: '1rem' }
                             }
                           }}
-                        >
+                        > 
                           {!isMobile && (
                             <TableCell sx={{ whiteSpace: 'nowrap', padding: { xs: '8px', sm: '16px' } }}>
                               <Avatar

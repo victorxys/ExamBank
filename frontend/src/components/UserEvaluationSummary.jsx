@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   Container,
@@ -20,12 +20,10 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
-  DialogActions,
-  IconButton,
+  DialogActions
 } from '@mui/material';
 import { Visibility as VisibilityIcon, Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import api from '../api/axios'; // 确保路径正确
-import { hasToken } from '../api/auth-utils'; // 确保路径正确
 import ai from '../api/ai'; // 确保路径正确
 import PageHeader from './PageHeader'; // 确保路径正确
 import { useTheme } from '@mui/material/styles';
@@ -45,7 +43,7 @@ const UserEvaluationSummary = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [evaluationToDelete, setEvaluationToDelete] = useState(null);
   const [aiGenerating, setAiGenerating] = useState(false);
-  const tokenData = hasToken();
+
   const navigate = useNavigate();
 
   // 获取基础用户和评价汇总数据
@@ -218,7 +216,7 @@ const UserEvaluationSummary = () => {
 
     try {
         setAiGenerating(true);
-        const response = await ai.generateAIEvaluation(aiInputData, userId);
+        await ai.generateAIEvaluation(aiInputData, userId);
         alert('AI员工介绍已生成');
         navigate(`/employee-profile/${userId}`);
     } catch (error) {
@@ -295,7 +293,6 @@ const UserEvaluationSummary = () => {
           </CardContent>
         </Card>
       )}
-
       {/* 用户基本信息卡片 */}
       <Card sx={{ mb: 4 }}>
           <CardContent>
@@ -610,7 +607,7 @@ const UserEvaluationSummary = () => {
         <DialogTitle>确认删除</DialogTitle>
         <DialogContent>
           <Typography variant="body1">
-            确定要删除这条由 "{evaluationToDelete?.evaluator_name || '匿名'}" 在 {evaluationToDelete?.evaluation_time ? new Date(evaluationToDelete.evaluation_time).toLocaleString() : ''} 进行的评价吗？此操作无法撤销。
+            确定要删除这条由 {'"'}{evaluationToDelete?.evaluator_name || '匿名'}{'"'} 在 {evaluationToDelete?.evaluation_time ? new Date(evaluationToDelete.evaluation_time).toLocaleString() : ''} 进行的评价吗？此操作无法撤销。
           </Typography>
         </DialogContent>
         <DialogActions>
