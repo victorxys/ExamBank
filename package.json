@@ -21,13 +21,14 @@
     "husky": "^9.1.7",
     "lint-staged": "^15.2.0" 
   },
+  
   "lint-staged": {
-       "frontend/**/*.{js,jsx}": [
-      "cd frontend && eslint --fix"
+    "frontend/**/*.{js,jsx}": [
+      "npx eslint --fix --no-warn-ignored --config frontend/eslint.config.js" 
     ],
-    
     "backend/**/*.py": [
-      "cd backend && ruff check --fix"
+      "cd backend && ruff check --fix" 
     ]
   }
+  
 }
