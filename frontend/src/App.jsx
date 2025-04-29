@@ -1,10 +1,10 @@
-import React, { useState, lazy, Suspense } from 'react'; // 添加 lazy 和 Suspense
+import { useState, lazy, Suspense } from 'react'; // 添加 lazy 和 Suspense
 
 // --- React Router ---
 import { Routes, Route, Navigate, Outlet } from 'react-router-dom'; // 确保导入 Outlet
 // --- Material UI ---
 import { ThemeProvider, createTheme } from '@mui/material/styles';
-import { Box, CssBaseline, CircularProgress, Alert } from '@mui/material';
+import { Box, CssBaseline, CircularProgress} from '@mui/material';
 // --- Custom Components (假设这些都已正确导入) ---
 import Sidebar from './components/Sidebar';
 import Navbar from './components/Navbar';
@@ -12,16 +12,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import PrivateRoute from './components/PrivateRoute';
 import RouteWatcher from './components/RouteWatcher';
 import "./styles/argon-theme.css";
-
-// import { Box } from '@mui/material'; // 删除这一行
-
-function MyComponent() {
-  return (
-    // 使用 Box 组件
-    <Box>Hello</Box> // ESLint 应该报告 Box 未定义
-  );
-}
-
+ 
 const theme = createTheme({
   palette: {
     mode: 'light',
