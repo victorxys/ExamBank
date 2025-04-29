@@ -204,15 +204,22 @@ const MainLayoutInternal = () => {
       >
         <Navbar />
         <Box
-          sx={{
-            flex: 1,
-            p: { xs: 2, sm: 3 },
-            mt: { xs: '56px', sm: '64px' }, // Adjust based on Navbar height
-            overflowY: 'auto',
-            width: '100%',
-            maxWidth: '100%'
-          }}
-        >
+            sx={{
+              flex: 1,
+              // --- 在这里修改 padding 设置 ---
+              // 旧: p: { xs: 2, sm: 3 }, 
+              // 新示例 (移除顶部内边距):
+              px: { xs: 2, sm: 3 }, // 左右内边距
+              pb: { xs: 2, sm: 3 }, // 底部内边距
+              pt: { xs: 7, sm: 2 }, // 顶部内边距 (sm 设为 0)
+              // --- -------------------------- ---
+              mt: { xs: 7, sm: 0 }, 
+              width: '100%',
+              height: '100vh',
+              overflow: 'auto',
+              maxWidth: '100%'
+            }}
+          >
           <ErrorBoundary>
             <Outlet /> {/* 子路由会渲染在这里 */}
           </ErrorBoundary>
