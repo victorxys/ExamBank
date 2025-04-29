@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request, send_from_directory
+from flask import Flask, jsonify, request, send_from_directory, current_app
 from flask_cors import CORS
 import psycopg2
 import os
@@ -7,7 +7,7 @@ import uuid
 from dateutil import parser
 import logging
 import json
-from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.security import check_password_hash
 from psycopg2.extras import RealDictCursor, register_uuid # 确保导入
 # from flask_sqlalchemy import SQLAlchemy # 如果你打算用 ORM，虽然 Flask-Migrate 不强制
 # from flask_migrate import Migrate # 导入 Migrate
@@ -143,6 +143,13 @@ def insert_exam_knowledge_points(exam_id, total_score, data):
             cur.close()
             conn.close()
 
+# 定义头像数据存储目录
+# 使用 current_app.root_path 获取应用根目录，更稳健
+def get_avatar_folder():
+    folder = os.path.join(current_app.root_path, 'data', 'avatars')
+    # 确保目录存在，可以在应用启动时调用此函数并创建目录
+    # 例如，在 create_app 函数内部调用 os.makedirs(folder, exist_ok=True)
+    return folder
 
 @app.route('/api/login', methods=['POST'])
 def login():
@@ -3443,17 +3450,24 @@ def serve_avatar_data(filename):
     """
     从后端数据目录服务用户头像文件
     """
+    avatar_folder = get_avatar_folder()
+    user_avatar_path = os.path.join(avatar_folder, filename)
     try:
         # 安全检查：确保请求的文件名格式正确，防止路径遍历攻击
         # 这里的检查是基于您的文件名约定 "<user_id>-avatar.jpg"
         if not filename.endswith('-avatar.jpg'):
              return jsonify({'error': '无效的文件名格式'}), 400
-        # 可以进一步验证文件名中的UUID部分是否有效，但对于简单服务来说，send_from_directory的安全性已足够阻止路径遍历
-
-        # 使用 send_from_directory 从指定目录安全地发送文件
-        # as_attachment=False 表示作为内联文件显示（即浏览器直接打开或显示图片）
-        # mimetype='image/jpeg' 设置正确的MIME类型
-        return send_from_directory(AVATAR_DATA_FOLDER, filename, as_attachment=False, mimetype='image/jpeg')
+        # 1. 检查特定用户头像文件是否存在
+        if os.path.exists(user_avatar_path):
+            # 如果文件存在，服务它
+            current_app.logger.info(f"Serving avatar: {filename}")
+            # send_from_directory 会处理文件的读取和发送，
+            # 如果过程中发生其他文件系统错误，它会抛出异常，被下面的 Exception 捕获
+            return send_from_directory(avatar_folder, filename, as_attachment=False, mimetype='image/jpeg')
+        else:
+            # 2. 如果文件不存在，快速返回 404
+            current_app.logger.info(f"Avatar not found: {filename}. Returning 404.")
+            return jsonify({'error': 'Avatar not found'}), 404 # Explicitly return 404
 
     except FileNotFoundError:
         # 如果文件不存在，返回默认头像或404
