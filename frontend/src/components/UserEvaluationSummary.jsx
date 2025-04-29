@@ -29,6 +29,8 @@ import { hasToken } from '../api/auth-utils'; // 确保路径正确
 import ai from '../api/ai'; // 确保路径正确
 import PageHeader from './PageHeader'; // 确保路径正确
 import { useTheme } from '@mui/material/styles';
+import { API_BASE_URL } from '../config'; // Assuming API_BASE_URL is exported from config.js
+
 
 const UserEvaluationSummary = () => {
   const theme = useTheme();
@@ -301,7 +303,11 @@ const UserEvaluationSummary = () => {
               <Grid container spacing={3}>
                 <Grid item xs={12} md={6}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, mb: 2 }}>
-                    <Avatar sx={{ /* ... 样式 ... */ }} alt={userInfo?.username} src={`/avatar/${userId}-avatar.jpg`}>
+                    <Avatar sx={{
+                                  width: { xs: 30, sm: 40 },
+                                  height: { xs: 30, sm: 40 },
+                                  bgcolor: theme.palette.primary.main
+                                }} alt={userInfo?.username} s src={`${API_BASE_URL}/avatars/${userId}-avatar.jpg`}>
                       {userInfo?.username?.[0]?.toUpperCase()}
                     </Avatar>
                     <Box>

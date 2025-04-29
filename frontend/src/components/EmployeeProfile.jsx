@@ -34,6 +34,8 @@ import api from '../api/axios';
 import logoSvg from '../assets/logo.svg';
 import WechatShare from './WechatShare';
 // import KnowledgeReportDialog from './KnowledgeReportDialog';
+import { API_BASE_URL } from '../config'; // Assuming API_BASE_URL is exported from config.js
+
 
 // 3. Use React.lazy to dynamically import KnowledgeReportDialog
 const KnowledgeReportDialog = lazy(() => import('./KnowledgeReportDialog'));
@@ -138,7 +140,9 @@ const EmployeeProfile = () => {
       try {
         // 构建分享数据，包括完整的图片URL
         const host = window.location.origin;
-        const imgUrl = `${host}/avatar/${userId}-avatar.jpg`;
+
+        const imgUrl = `${API_BASE_URL}/avatars/${userId}-avatar.jpg`; // Use the new avatar path
+        console.log('imgUrl:', imgUrl);
         const shareUrl = `${window.location.origin}/employee-profile/${userId}?public=true`;
         
         const newShareData = {
@@ -563,7 +567,7 @@ const EmployeeProfile = () => {
               color: theme.palette.primary.main
             }}
             alt={employeeData?.name}
-            src={`/avatar/${userId}-avatar.jpg`}
+            src={`${API_BASE_URL}/avatars/${userId}-avatar.jpg`}
           >
             {employeeData?.name?.[0]}
           </Avatar>

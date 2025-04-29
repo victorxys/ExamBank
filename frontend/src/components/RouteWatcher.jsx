@@ -1,6 +1,8 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import WechatShare from './WechatShare';
+// import WechatShare from './WechatShare';
+import { API_BASE_URL } from '../config'; // Assuming API_BASE_URL is exported from config.js
+
 // import api from '../api/axios';
 
 /**
@@ -60,43 +62,16 @@ const RouteWatcher = () => {
     let newImgUrl = window.location.origin + '/logo.png';
     
     // 判断当前路由，设置对应的分享信息
-    if (location.pathname.includes('/employee-profile/')) {
-      // 获取员工数据
-      // const updateWithEmployeeData = async () => {
-      //   const data = await fetchEmployeeData(userId);
-      //   if (data) {
-      //     setEmployeeData(data);
-          
-      //     // 使用员工姓名更新分享信息
-      //     const employeeName = data.name || '员工';
-      //     const employeeDesc = data.introduction?.description || '查看员工的详细介绍、专业技能和项目经验!';
-          
-      //     const updatedPageInfo = {
-      //       title: `${employeeName} - 萌姨萌嫂`,
-      //       desc: employeeDesc,
-      //       imgUrl: `${window.location.origin}/avatar/${userId}-avatar.jpg`,
-      //       link: window.location.href
-      //     };
-          
-      //     // console.log('更新员工分享信息:', updatedPageInfo);
-      //     setPageInfo(updatedPageInfo);
-          
-      //     // 如果在微信小程序中，发送更新后的信息
-      //     const isInMiniProgram = window.wx && window.wx.miniProgram;
-      //     if (isInMiniProgram) {
-      //       sendPageInfoToMiniProgram(updatedPageInfo);
-      //     }
-      //   }
-      // };
-      
-      // updateWithEmployeeData();
-      
+    if (location.pathname.includes('/employee-profile/')) {      
+
       // 设置初始值，稍后会被异步更新
       newTitle = `员工详细介绍 - 萌姨萌嫂`;
       newDesc = '查看员工的详细介绍、专业技能和项目经验!';
       // 尝试使用 userId 构建头像 URL，如果 userId 存在
       if (userId) {
-        newImgUrl = `${window.location.origin}/avatar/${userId}-avatar.jpg`; 
+        // newImgUrl = `${window.location.origin}/avatar/${userId}-avatar.jpg`; 
+        newImgUrl = `${API_BASE_URL}/avatars/${userId}-avatar.jpg`;
+
       }
       
     } else if (location.pathname.includes('/users')) {

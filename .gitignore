@@ -198,7 +198,7 @@ frontend/vite.config.js
 
 logs/
 
-frontend/public/avatar
+# frontend/public/avatar
 
 frontend/src/components/TestHelmetComponent.jsx
 
@@ -206,3 +206,6 @@ frontend/src/components/TestHelmetComponent.jsx
 deploy.sh
 gunicorn_config.py
 logs/nginx/nginx.pid
+
+
+backend/data/

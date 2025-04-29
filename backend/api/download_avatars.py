@@ -45,7 +45,7 @@ def download_and_convert_avatar(avatar_url, output_path):
         # 将调整后的图片居中放置
         paste_pos = ((target_size[0] - new_size[0]) // 2, (target_size[1] - new_size[1]) // 2)
         final_image.paste(resized_image, paste_pos)
-
+ 
         # 初始质量设置为100（最高质量）
         quality = 100
         max_size_kb = 32  # 最大允许的文件大小（KB）
@@ -108,7 +108,7 @@ def main():
             if download_and_convert_avatar(avatar_url, output_path):
                 success += 1
                 
-        logging.info(f"\nProcessing completed:\n")
+        logging.info("\nProcessing completed:\n")
         logging.info(f"Total users processed: {total_users}")
         logging.info(f"Successfully downloaded and converted: {success}")
         logging.info(f"Failed: {total_users - success}")

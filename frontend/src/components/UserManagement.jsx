@@ -31,6 +31,8 @@ import api from '../api/axios';
 // 假设你的dateUtils.js和MyComponent.jsx在同一个文件夹
 import { formatRelativeTime } from '../api/dateUtils'; // 确保路径正确
 import AlertMessage from './AlertMessage';
+import { API_BASE_URL } from '../config'; // Assuming API_BASE_URL is exported from config.js
+
 
 
 import { useTheme } from '@mui/material';
@@ -358,7 +360,7 @@ const UserManagement = () => {
                                   bgcolor: theme.palette.primary.main
                                 }}
                                 alt={user.username}
-                                src={`/avatar/${user.id}-avatar.jpg`}
+                                src={`${API_BASE_URL}/avatars/${user.id}-avatar.jpg`}
                               >
                                 {user.username?.[0]?.toUpperCase()}
                               </Avatar>

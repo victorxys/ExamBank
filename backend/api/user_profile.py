@@ -56,7 +56,7 @@ def get_user_profile(user_id):
         
         if not result:
             return jsonify({'error': '未找到用户详细信息'}), 404
-
+ 
         # --- 计时开始：数据处理 ---
         start_processing_time = time.time()
         # 构建返回数据
