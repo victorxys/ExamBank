@@ -3,7 +3,11 @@ from backend.db import get_db_connection
 from psycopg2.extras import RealDictCursor
 import logging
 import os
-from backend.app import generate_password_hash
+
+# from backend.app import generate_password_hash
+from backend.security_utils import generate_password_hash  # <--- 添加这行
+
+
 from backend.api.download_avatars import download_and_convert_avatar
 
 log = logging.getLogger(__name__)
@@ -14,6 +18,7 @@ AVATAR_DATA_FOLDER_SYNC = os.path.join(
 
 def sync_user():
     """
+
     同步用户数据API
     接收其他业务系统传递的用户信息，并创建用户
     必须参数：myms_user_id, phone_number, username, id_card

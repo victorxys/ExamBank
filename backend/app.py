@@ -7,7 +7,10 @@ import uuid
 from dateutil import parser
 import logging
 import json
-from werkzeug.security import check_password_hash
+
+from backend.security_utils import generate_password_hash
+from werkzeug.security import check_password_hash 
+
 from psycopg2.extras import RealDictCursor, register_uuid # 确保导入
 # from flask_sqlalchemy import SQLAlchemy # 如果你打算用 ORM，虽然 Flask-Migrate 不强制
 # from flask_migrate import Migrate # 导入 Migrate
@@ -15,7 +18,7 @@ register_uuid() # 确保 UUID 适配器已注册
 import traceback
 
 # 配置密码加密方法为pbkdf2
-from werkzeug.security import generate_password_hash as _generate_password_hash
+
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 from datetime import timedelta, datetime
 import datetime as dt
@@ -37,9 +40,6 @@ from backend.api.evaluation_item import bp as evaluation_item_api_bp # 保留或
 from backend.api.evaluation_visibility import bp as evaluation_visibility_bp # 保留
 from backend.api.evaluation_order import bp as evaluation_order_bp # 新增
 
-
-def generate_password_hash(password):
-    return _generate_password_hash(password, method='pbkdf2:sha256')
 
 # 创建带有角色信息的访问令牌
 def create_token_with_role(user_id, role):
