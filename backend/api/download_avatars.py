@@ -71,9 +71,9 @@ def download_and_convert_avatar(avatar_url, output_path):
 
 def main():
     # 确保输出目录存在
-    output_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 
-                             'frontend', 'public', 'avatar')
-    os.makedirs(output_dir, exist_ok=True)
+    output_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+                             'backend', 'data', 'avatars')
+    os.makedirs(output_dir, exist_ok=True) # 确保新目录存在
     
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
@@ -100,10 +100,10 @@ def main():
             logging.info(f"Processing {processed}/{total_users}: {avatar_url}")
             
             # 检查文件是否已存在，存在则跳过下载
-            # if os.path.exists(output_path):
-            #     logging.info(f"File already exists, skipping: {output_path}")
-            #     success += 1
-            #     continue
+            if os.path.exists(output_path):
+                logging.info(f"File already exists, skipping: {output_path}")
+                success += 1
+                continue
                 
             if download_and_convert_avatar(avatar_url, output_path):
                 success += 1

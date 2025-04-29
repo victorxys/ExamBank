@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 import psycopg2
 import os
@@ -60,6 +60,9 @@ jwt = JWTManager(app)  # 初始化JWT管理器
 # --- 导入模型 ---
 from . import models # 或者 from . import models (如果 app.py 和 models.py 在同一级)
 
+# 定义头像数据存储目录 (与 download_avatars.py 中的 output_dir 相同)
+AVATAR_DATA_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data', 'avatars')
+os.makedirs(AVATAR_DATA_FOLDER, exist_ok=True) # 确保目录存在
 
 # --- 配置数据库连接 (SQLAlchemy 方式，推荐与 Alembic 配合) ---
 # 即使你不完全使用 SQLAlchemy 的 ORM 功能，配置它对 Alembic 也有帮助
@@ -3432,6 +3435,36 @@ def get_user_exams(user_id):
     finally:
         cur.close()
         conn.close()
+
+@app.route('/api/avatars/<string:filename>', methods=['GET'])
+# 这个路由通常不需要认证，因为头像是公开展示的
+# @jwt_required(optional=True)
+def serve_avatar_data(filename):
+    """
+    从后端数据目录服务用户头像文件
+    """
+    try:
+        # 安全检查：确保请求的文件名格式正确，防止路径遍历攻击
+        # 这里的检查是基于您的文件名约定 "<user_id>-avatar.jpg"
+        if not filename.endswith('-avatar.jpg'):
+             return jsonify({'error': '无效的文件名格式'}), 400
+        # 可以进一步验证文件名中的UUID部分是否有效，但对于简单服务来说，send_from_directory的安全性已足够阻止路径遍历
+
+        # 使用 send_from_directory 从指定目录安全地发送文件
+        # as_attachment=False 表示作为内联文件显示（即浏览器直接打开或显示图片）
+        # mimetype='image/jpeg' 设置正确的MIME类型
+        return send_from_directory(AVATAR_DATA_FOLDER, filename, as_attachment=False, mimetype='image/jpeg')
+
+    except FileNotFoundError:
+        # 如果文件不存在，返回默认头像或404
+        # 你可以在这里返回一个默认头像图片文件
+        # 例如: return send_from_directory(app.static_folder, 'default-avatar.jpg'), 404
+        # 为了简单，这里先返回一个JSON错误
+        print(f"头像文件未找到: {os.path.join(AVATAR_DATA_FOLDER, filename)}")
+        return jsonify({'error': '头像未找到'}), 404
+    except Exception as e:
+        print(f"Error serving avatar data: {str(e)}")
+        return jsonify({'error': f'服务头像失败: {str(e)}'}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
