@@ -1354,6 +1354,7 @@ def get_evaluation_structure():
         cur.execute("""
             SELECT id, item_name, description, category_id, is_visible_to_client, created_at, sort_order
             FROM evaluation_item
+            WHERE is_visible_to_client = TRUE
             ORDER BY sort_order ASC, created_at DESC
         """)
         items = cur.fetchall()
