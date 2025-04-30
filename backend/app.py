@@ -1333,7 +1333,10 @@ def get_evaluation_structure():
     try:
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=RealDictCursor)
-
+        # 获取是否客户可见参数
+        client_visible_param = request.args.get('client_visible')
+        # 检查参数值是否为 'true' (忽略大小写)
+        filter_by_visibility = client_visible_param and client_visible_param.lower() == 'true'
         # 1. 获取 Aspects (不再需要 allow_manual_input)
         cur.execute("""
             SELECT id, aspect_name, description, created_at, sort_order
@@ -1350,14 +1353,41 @@ def get_evaluation_structure():
         """)
         categories = cur.fetchall()
 
-        # 3. 获取 Items
-        cur.execute("""
+        # 3. 动态构建获取 Items 的 SQL 查询
+        base_item_sql = """
             SELECT id, item_name, description, category_id, is_visible_to_client, created_at, sort_order
             FROM evaluation_item
-            WHERE is_visible_to_client = TRUE
-            ORDER BY sort_order ASC, created_at DESC
-        """)
+        """
+        where_clauses = []
+        sql_params = []
+
+        # 如果需要根据可见性过滤
+        if filter_by_visibility:
+            where_clauses.append("is_visible_to_client = %s")
+            sql_params.append(True)
+            print("Filtering evaluation items by visibility: TRUE") # 添加日志
+        else:
+            print("Not filtering evaluation items by visibility.") # 添加日志
+
+
+        # -- 这里可以添加其他潜在的 WHERE 条件 --
+        # 例如: if some_other_filter:
+        #           where_clauses.append("some_column = %s")
+        #           sql_params.append(some_value)
+
+        where_sql = ""
+        if where_clauses:
+            where_sql = "WHERE " + " AND ".join(where_clauses)
+
+        order_by_sql = "ORDER BY sort_order ASC, created_at DESC"
+
+        final_item_sql = f"{base_item_sql} {where_sql} {order_by_sql}"
+
+        # print("Executing item SQL:", cur.mogrify(final_item_sql, sql_params).decode('utf-8')) # 打印最终执行的 SQL (调试用)
+
+        cur.execute(final_item_sql, sql_params)
         items = cur.fetchall()
+        # print(f"Fetched {len(items)} evaluation items.") # 添加日志，查看获取了多少条目
 
         # 4. 构建层级结构
         structure = []
