@@ -1,4 +1,3 @@
-import base64
 import os
 from google import genai
 from google.genai import types
@@ -9,13 +8,13 @@ load_dotenv()
 
 def generate(evaluations):
     client = genai.Client(
-        api_key=os.environ['GEMINI_API_KEY'],
+        api_key=os.environ["GEMINI_API_KEY"],
     )
-    
+
     # 将评价数据转换为markdown格式
     evaluation_text = "# 评价数据\n\n"
     evaluation_text += str(evaluations)
-    print("evaluation_text, 用来调试提示词:",evaluation_text)
+    print("evaluation_text, 用来调试提示词:", evaluation_text)
 
     # model = "gemini-2.0-pro-exp-02-05"
     model = "gemini-2.5-pro-preview-03-25"
@@ -23,9 +22,7 @@ def generate(evaluations):
         types.Content(
             role="user",
             parts=[
-                types.Part.from_text(
-                    text=evaluation_text
-                ),
+                types.Part.from_text(text=evaluation_text),
             ],
         ),
     ]
@@ -68,6 +65,7 @@ def generate(evaluations):
 	评分(rating):
 
 在上述描述详细评价过程中使用描述用的生动的语言，不要任何生硬的表述，也不要评价项的列举。我将用你润色后的内容作为员工介绍，并发送给客户。因此，既不要夸大也不要遗漏员工的优点，让客户觉得我们的员工介绍很专业，通过这个介绍可以很好的了解我们的员工，也了解公司对员工的要求是来自多方面的。在使用辞藻的时候要在用吸引人的、让人印象深刻但是又不夸张、不绝对的方式。对于评价项分数较低没有达到基本要求的评价项，不需要体现在介绍中。
+请注意：评价中不要体现任何分数数值！
 
 对于“精简描述”在100个中文字符以内json数据中不要显示”总结“字样。
 json格式如下：
@@ -113,7 +111,6 @@ json格式如下：
 };
 
 ***注意，输出时只输出上述json数据，不输出其他任何内容，例如“说明”、“建议”等等。请务必确保返回的数据符合json数据格式。"""
-
             ),
         ],
     )
@@ -125,37 +122,38 @@ json格式如下：
         config=generate_content_config,
     ):
         response += chunk.text
-    
+
     # 移除可能存在的Markdown代码块标记
     result = response.strip()
-    if result.startswith('```json'):
+    if result.startswith("```json"):
         result = result[7:]
-    if result.startswith('```'):
+    if result.startswith("```"):
         result = result[3:]
-    if result.endswith('```'):
+    if result.endswith("```"):
         result = result[:-3:]
     result = result.strip()
 
     # 尝试解析JSON结果
     try:
         import json
+
         parsed_result = json.loads(result)
-        print('成功解析JSON结果:', parsed_result)
+        print("成功解析JSON结果:", parsed_result)
         return parsed_result
     except json.JSONDecodeError as e:
-        print('JSON解析失败:', str(e))
-        print('无效的JSON文本:', result)
-        raise Exception('AI生成的结果不是有效的JSON格式')
+        print("JSON解析失败:", str(e))
+        print("无效的JSON文本:", result)
+        raise Exception("AI生成的结果不是有效的JSON格式")
+
 
 def merge_kp_name(exam_results):
     if not exam_results or not isinstance(exam_results, list):
         return []
-    
-    
+
     client = genai.Client(
-        api_key=os.environ['GEMINI_API_KEY'],
+        api_key=os.environ["GEMINI_API_KEY"],
     )
-    
+
     # 将评价数据转换为markdown格式
     # evaluation_text = "# 评价数据\n\n"
     evaluation_text = str(exam_results)
@@ -167,9 +165,7 @@ def merge_kp_name(exam_results):
         types.Content(
             role="user",
             parts=[
-                types.Part.from_text(
-                    text=evaluation_text
-                ),
+                types.Part.from_text(text=evaluation_text),
             ],
         ),
     ]
@@ -271,31 +267,31 @@ subject:A
         ):
             if chunk and chunk.text:  # 添加空值检查
                 response += chunk.text
-                print('chunk.text:', chunk.text)
+                print("chunk.text:", chunk.text)
     except Exception as e:
-        print('生成内容时出错:', str(e))
-        return [{"subject": "知识点处理失败", "value": 0, "details": ["处理过程出现错误"]}]
+        print("生成内容时出错:", str(e))
+        return [
+            {"subject": "知识点处理失败", "value": 0, "details": ["处理过程出现错误"]}
+        ]
 
-    
     # 移除可能存在的Markdown代码块标记
     result = response.strip()
-    if result.startswith('```json'):
+    if result.startswith("```json"):
         result = result[7:]
-    if result.startswith('```'):
+    if result.startswith("```"):
         result = result[3:]
-    if result.endswith('```'):
+    if result.endswith("```"):
         result = result[:-3:]
     result = result.strip()
 
     # 尝试解析JSON结果
     try:
         import json
+
         parsed_result = json.loads(result)
-        print('成功解析JSON结果:', parsed_result)
+        print("成功解析JSON结果:", parsed_result)
         return parsed_result
     except json.JSONDecodeError as e:
-        print('JSON解析失败:', str(e))
-        print('无效的JSON文本:', result)
-        raise Exception('AI生成的结果不是有效的JSON格式')
-
-
+        print("JSON解析失败:", str(e))
+        print("无效的JSON文本:", result)
+        raise Exception("AI生成的结果不是有效的JSON格式")
