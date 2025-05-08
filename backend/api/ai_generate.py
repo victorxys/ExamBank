@@ -3,6 +3,7 @@ from google import genai
 from google.genai import types
 from dotenv import load_dotenv
 
+
 load_dotenv()
 
 
@@ -27,11 +28,7 @@ def generate(evaluations):
         ),
     ]
     generate_content_config = types.GenerateContentConfig(
-        temperature=1,
-        top_p=0.95,
-        top_k=64,
-        max_output_tokens=8192,
-        response_mime_type="text/plain",
+        response_mime_type="application/json",
         system_instruction=[
             types.Part.from_text(
                 text="""你是一位资深的月嫂/育儿嫂管理人员，对与客户寻找月嫂/育儿嫂的需求十分了解，同时也对公司内的月嫂/育儿嫂的特点、特征有清晰的认识。我将向你提供公司内员工的评价结果。
@@ -158,8 +155,8 @@ def merge_kp_name(exam_results):
     # evaluation_text = "# 评价数据\n\n"
     evaluation_text = str(exam_results)
     # print("evaluation_text, 用来调试提示词:",evaluation_text)
-    # model = "gemini-2.0-flash-lite"
-    model = "gemini-2.5-pro-exp-03-25"
+    model = "gemini-2.0-flash-lite"
+    # model = "gemini-2.5-pro-exp-03-25"
     # model = "gemini-2.5-flash-preview-04-17"
     contents = [
         types.Content(
@@ -170,10 +167,6 @@ def merge_kp_name(exam_results):
         ),
     ]
     generate_content_config = types.GenerateContentConfig(
-        temperature=1,
-        top_p=0.95,
-        top_k=40,
-        max_output_tokens=8192,
         response_mime_type="application/json",
         system_instruction=[
             types.Part.from_text(
@@ -259,20 +252,28 @@ subject:A
         ],
     )
     response = ""
-    try:
-        for chunk in client.models.generate_content_stream(
-            model=model,
-            contents=contents,
-            config=generate_content_config,
-        ):
-            if chunk and chunk.text:  # 添加空值检查
-                response += chunk.text
-                print("chunk.text:", chunk.text)
-    except Exception as e:
-        print("生成内容时出错:", str(e))
-        return [
-            {"subject": "知识点处理失败", "value": 0, "details": ["处理过程出现错误"]}
-        ]
+    for chunk in client.models.generate_content_stream(
+        model=model,
+        contents=contents,
+        config=generate_content_config,
+    ):
+        print(chunk.text, end="")
+        response += chunk.text
+    # response = ""
+    # try:
+    #     for chunk in client.models.generate_content_stream(
+    #         model=model,
+    #         contents=contents,
+    #         config=generate_content_config,
+    #     ):
+    #         if chunk and chunk.text:  # 添加空值检查
+    #             response += chunk.text
+    #             print("chunk.text:", chunk.text)
+    # except Exception as e:
+    #     print("生成内容时出错:", str(e))
+    #     return [
+    #         {"subject": "知识点处理失败", "value": 0, "details": ["处理过程出现错误"]}
+    #     ]
 
     # 移除可能存在的Markdown代码块标记
     result = response.strip()
@@ -283,7 +284,7 @@ subject:A
     if result.endswith("```"):
         result = result[:-3:]
     result = result.strip()
-
+    print("整理后的result准备读取JSON:", result)
     # 尝试解析JSON结果
     try:
         import json
