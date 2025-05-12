@@ -29,3 +29,5 @@ google-generativeai==0.3.2
 
 
 ruff==0.4.4
+
+cryptography>=3.4

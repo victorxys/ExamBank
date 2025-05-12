@@ -90,7 +90,7 @@ const EmployeeProfile = () => {
   });
 
   useEffect(() => {
-    console.log('Fetching profile data, userId:', userId); 
+    // console.log('Fetching profile data, userId:', userId); 
     const fetchEmployeeData = async () => {
       try {
         setLoading(true);
@@ -124,25 +124,25 @@ const EmployeeProfile = () => {
   }, [shareData]);
   // 在 EmployeeProfile.jsx 组件内部，和其他 useState, useEffect 并列
 
-  useEffect(() => {
-    // 这个 effect 只在组件挂载时运行一次
-    console.log('>>>>>>>>>> EmployeeProfile Component Mounted <<<<<<<<<<');
+  // useEffect(() => {
+  //   // 这个 effect 只在组件挂载时运行一次
+  //   console.log('>>>>>>>>>> EmployeeProfile Component Mounted <<<<<<<<<<');
 
-    // 这个 cleanup 函数只在组件卸载时运行一次
-    return () => {
-      console.log('<<<<<<<<<< EmployeeProfile Component Unmounted >>>>>>>>>>');
-    };
-  }, []); // 空依赖数组确保只在挂载和卸载时运行
+  //   // 这个 cleanup 函数只在组件卸载时运行一次
+  //   return () => {
+  //     console.log('<<<<<<<<<< EmployeeProfile Component Unmounted >>>>>>>>>>');
+  //   };
+  // }, []); // 空依赖数组确保只在挂载和卸载时运行
   // 页面加载时自动配置微信分享
   useEffect(() => {
-    console.log('Fetching profile data, userId:', userId, 'loading:', loading,'employeeData',employeeData); 
+    // console.log('Fetching profile data, userId:', userId, 'loading:', loading,'employeeData',employeeData); 
     if (employeeData && !loading) {
       try {
         // 构建分享数据，包括完整的图片URL
         const host = window.location.origin;
 
         const imgUrl = `${API_BASE_URL}/avatars/${userId}-avatar.jpg`; // Use the new avatar path
-        console.log('imgUrl:', imgUrl);
+        // console.log('imgUrl:', imgUrl);
         const shareUrl = `${window.location.origin}/employee-profile/${userId}?public=true`;
         
         const newShareData = {
@@ -152,7 +152,7 @@ const EmployeeProfile = () => {
           shareLink: shareUrl
         };
         
-        console.log('自动设置微信分享数据');
+        // console.log('自动设置微信分享数据');
         setShareData(newShareData);
       } catch (error) {
         console.error('自动配置微信分享失败:', error);

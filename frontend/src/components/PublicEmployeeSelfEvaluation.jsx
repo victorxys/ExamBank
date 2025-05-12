@@ -46,7 +46,7 @@ const PublicEmployeeSelfEvaluation = () => {
       // Get evaluation items that are visible to clients/employees
       const response = await api.get('/evaluation-items?visible=true');
 
-      console.log('Evaluation items:', response.data);
+      // console.log('Evaluation items:', response.data);
       // Group items by aspect and category
       const groupedItems = {};
       // Check if response.data is an array (direct items) or has an items property
@@ -100,7 +100,7 @@ const PublicEmployeeSelfEvaluation = () => {
 
 
   const handleRadioClick = (e, itemId, value) => {
-    console.log("handleRadioClick triggered");
+    // console.log("handleRadioClick triggered");
 
     const currentValue = String(value); // 统一转换为字符串进行比较
     const existingValue = String(evaluations[itemId]?.score); // 统一转换为字符串进行比较

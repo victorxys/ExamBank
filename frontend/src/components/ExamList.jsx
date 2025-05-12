@@ -129,7 +129,7 @@ function ExamList() {
         throw new Error('获取课程列表失败')
       }
       const data = await response.json()
-      console.log('获取到的课程列表：', data)  // 添加日志
+      // console.log('获取到的课程列表：', data)  // 添加日志
       if (Array.isArray(data)) {
         setCourses(data)
       } else {

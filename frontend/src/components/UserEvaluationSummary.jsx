@@ -304,7 +304,7 @@ const UserEvaluationSummary = () => {
                                   width: { xs: 30, sm: 40 },
                                   height: { xs: 30, sm: 40 },
                                   bgcolor: theme.palette.primary.main
-                                }} alt={userInfo?.username} s src={`${API_BASE_URL}/avatars/${userId}-avatar.jpg`}>
+                                }} alt={userInfo?.username} src={`${API_BASE_URL}/avatars/${userId}-avatar.jpg`}>
                       {userInfo?.username?.[0]?.toUpperCase()}
                     </Avatar>
                     <Box>

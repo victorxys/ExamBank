@@ -32,16 +32,16 @@ const PrivateRoute = ({ element }) => {
     // 用户未登录或 Token 无效
     if (isEmployeeProfilePath && isPublic) {
        // 如果是员工档案路径，且明确带有 ?public=true，允许访问
-       console.log("PrivateRoute: 公开访问员工档案，允许");
+      //  console.log("PrivateRoute: 公开访问员工档案，允许");
        return element;
     } else if (isEmployeeProfilePath && !isPublic) {
       // 如果是员工档案路径，但没有 ?public=true，重定向到公开版本
       const newUrl = `${location.pathname}?public=true${location.hash}`;
-      console.log("PrivateRoute: 未登录访问私有员工档案，重定向到:", newUrl);
+      // console.log("PrivateRoute: 未登录访问私有员工档案，重定向到:", newUrl);
       return <Navigate to={newUrl} replace />;
     } else {
       // 其他所有未登录情况，重定向到登录页
-      console.log("PrivateRoute: 未登录访问受保护页面，重定向到登录页");
+      // console.log("PrivateRoute: 未登录访问受保护页面，重定向到登录页");
       return <Navigate to="/login" state={{ from: location }} replace />;
     }
   }
@@ -53,13 +53,13 @@ const PrivateRoute = ({ element }) => {
   const isAllowedForStudent = allowedStudentPathPrefixes.some(p => location.pathname.startsWith(p));
 
   if (userInfo.role === 'student' && !isAllowedForStudent) {
-     console.log("PrivateRoute: 学生用户访问非授权页面，重定向到考试记录");
+    //  console.log("PrivateRoute: 学生用户访问非授权页面，重定向到考试记录");
      // 可以考虑重定向到更合适的学生首页，比如 /exam-records
      return <Navigate to="/exam-records" replace />; 
   }
 
   // 用户已登录且有权限，渲染目标组件
-  console.log("PrivateRoute: 用户已登录且有权限，渲染目标组件");
+  // console.log("PrivateRoute: 用户已登录且有权限，渲染目标组件");
   return element;
 };
 

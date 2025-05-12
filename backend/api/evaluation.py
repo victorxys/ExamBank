@@ -95,10 +95,10 @@ def get_user_evaluations(user_id):
             GROUP BY e.id, u1.username, c.first_name, u1.role, c.title -- 确保 GROUP BY 包含所有非聚合列
             ORDER BY e.evaluation_time DESC
         """
-        print(f"Executing SQL for evaluations list:\n{sql_evaluations}") # 打印 SQL
+        # print(f"Executing SQL for evaluations list:\n{sql_evaluations}") # 打印 SQL
         cur.execute(sql_evaluations, (user_id,))
         evaluations_list = cur.fetchall()
-        print(f"Found {len(evaluations_list)} evaluation(s).")
+        # print(f"Found {len(evaluations_list)} evaluation(s).")
 
         # 如果没有评价记录，提前返回
         if not evaluations_list:
@@ -107,7 +107,7 @@ def get_user_evaluations(user_id):
 
         # --- 第 2 步: 获取所有相关的评价项分数 ---
         evaluation_ids = [str(e['id']) for e in evaluations_list]
-        print(f"Fetching item scores for evaluation IDs: {evaluation_ids}")
+        # print(f"Fetching item scores for evaluation IDs: {evaluation_ids}")
         item_scores_map = {}
         if evaluation_ids:
             sql_item_scores = """
@@ -132,10 +132,10 @@ def get_user_evaluations(user_id):
                     "item_name": row['item_name'],
                     "score": row['score']
                 })
-            print(f"Fetched item scores for {len(item_scores_map)} evaluation(s).")
+            # print(f"Fetched item scores for {len(item_scores_map)} evaluation(s).")
 
         # --- 第 3 步: 获取所有相关的手动输入 ---
-        print(f"Fetching manual inputs for evaluation IDs: {evaluation_ids}")
+        # print(f"Fetching manual inputs for evaluation IDs: {evaluation_ids}")
         manual_inputs_map = {}
         if evaluation_ids:
             sql_manual_inputs = """
@@ -155,11 +155,11 @@ def get_user_evaluations(user_id):
                 if category_id_str not in manual_inputs_map[eval_id_str]:
                     manual_inputs_map[eval_id_str][category_id_str] = []
                 manual_inputs_map[eval_id_str][category_id_str].append(row['manual_input'])
-            print(f"Fetched manual inputs for {len(manual_inputs_map)} evaluation(s).")
+            # print(f"Fetched manual inputs for {len(manual_inputs_map)} evaluation(s).")
 
 
         # 3. Process results into required structure
-        print("Processing results into required structure...")
+        # print("Processing results into required structure...")
         
         aspects_dict = {}  # 使用字典来存储基于name的aspects
         current_category = None

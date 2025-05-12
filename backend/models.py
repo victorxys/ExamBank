@@ -491,3 +491,89 @@ class EvaluationManualInput(db.Model):
 
     def __repr__(self):
         return f'<EvaluationManualInput Eval:{self.evaluation_id} Cat:{self.category_id}>'
+
+# 新增关于LLM管理的相关数据结构与关联关系 Llmxxx   
+class LlmModel(db.Model):
+    __tablename__ = 'llm_models'
+    __table_args__ = (
+        UniqueConstraint('model_name', name='uq_llm_model_name'),
+        UniqueConstraint('model_identifier', name='uq_llm_model_identifier'),
+        {'comment': '大语言模型表'}
+    )
+    id = db.Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    model_name = db.Column(db.String(255), nullable=False)
+    model_identifier = db.Column(db.String(255), nullable=False)
+    provider = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    status = db.Column(db.String(50), nullable=False, default='active') # active, inactive
+    created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
+    updated_at = db.Column(db.DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    prompts = db.relationship('LlmPrompt', backref='llm_model_ref', lazy='dynamic', foreign_keys='LlmPrompt.model_identifier', primaryjoin="LlmModel.model_identifier == LlmPrompt.model_identifier") # 注意这里的 primaryjoin
+    call_logs = db.relationship('LlmCallLog', backref='llm_model_log_ref', lazy='dynamic')
+
+    def __repr__(self):
+        return f'<LlmModel {self.model_name}>'
+
+class LlmApiKey(db.Model):
+    __tablename__ = 'llm_api_keys'
+    __table_args__ = (
+        UniqueConstraint('key_name', name='uq_llm_api_key_name'),
+        {'comment': 'LLM API Key 表'}
+    )
+    id = db.Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    key_name = db.Column(db.String(255), nullable=False)
+    api_key_encrypted = db.Column(db.Text, nullable=False) # 存储加密后的Key
+    provider = db.Column(db.String(100), nullable=False)
+    status = db.Column(db.String(50), nullable=False, default='active') # active, inactive
+    notes = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
+    updated_at = db.Column(db.DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    def __repr__(self):
+        return f'<LlmApiKey {self.key_name}>'
+
+class LlmPrompt(db.Model):
+    __tablename__ = 'llm_prompts'
+    __table_args__ = (
+        UniqueConstraint('prompt_identifier', 'version', name='uq_llm_prompt_identifier_version'),
+        {'comment': '提示词模板表'}
+    )
+    id = db.Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    prompt_name = db.Column(db.String(255), nullable=False) # 用户友好的名称
+    prompt_identifier = db.Column(db.String(255), nullable=False, index=True) # 程序中使用的标识符
+    prompt_template = db.Column(db.Text, nullable=False)
+    model_identifier = db.Column(db.String(255), db.ForeignKey('llm_models.model_identifier', name='fk_llm_prompt_model_identifier'), nullable=True)
+    version = db.Column(db.Integer, nullable=False, default=1)
+    status = db.Column(db.String(50), nullable=False, default='active') # active, draft, archived
+    description = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
+    updated_at = db.Column(db.DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    call_logs = db.relationship('LlmCallLog', backref='llm_prompt_log_ref', lazy='dynamic')
+
+    def __repr__(self):
+        return f'<LlmPrompt {self.prompt_name} (v{self.version})>'
+
+class LlmCallLog(db.Model):
+    __tablename__ = 'llm_call_logs'
+    __table_args__ = ({'comment': 'LLM 调用日志表'})
+
+    id = db.Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    timestamp = db.Column(db.DateTime(timezone=True), server_default=func.now())
+    function_name = db.Column(db.String(255), nullable=False)
+    llm_model_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('llm_models.id', name='fk_llm_call_log_model_id'), nullable=True)
+    llm_prompt_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('llm_prompts.id', name='fk_llm_call_log_prompt_id'), nullable=True)
+    api_key_name = db.Column(db.String(255), nullable=True) # 不直接存Key，存关联的Key的名称
+    input_data = db.Column(PG_JSONB, nullable=True)
+    output_data = db.Column(PG_JSONB, nullable=True)
+    parsed_output_data = db.Column(PG_JSONB, nullable=True)
+    status = db.Column(db.String(50), nullable=False) # success, error
+    error_message = db.Column(db.Text, nullable=True)
+    duration_ms = db.Column(db.Integer, nullable=True)
+    user_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('user.id', name='fk_llm_call_log_user_id'), nullable=True)
+
+    user_ref = db.relationship('User', backref='llm_call_logs') # 添加与User模型的关系
+
+    def __repr__(self):
+        return f'<LlmCallLog {self.id} for {self.function_name}>'

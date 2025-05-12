@@ -284,6 +284,13 @@ const ThankYouPage = lazy(() => import('./components/ThankYouPage'));
 const PublicEmployeeSelfEvaluation = lazy(() => import('./components/PublicEmployeeSelfEvaluation'));
 const EmployeeSelfEvaluationList = lazy(() => import('./components/EmployeeSelfEvaluationList'));
 const EmployeeSelfEvaluationDetail = lazy(() => import('./components/EmployeeSelfEvaluationDetail'));
+// LLM管理 相关内容
+const LlmModelManagement = lazy(() => import('./components/LlmModelManagement')); // 新建
+const LlmApiKeyManagement = lazy(() => import('./components/LlmApiKeyManagement')); // 新建
+const LlmPromptManagement = lazy(() => import('./components/LlmPromptManagement')); // 新建
+const LlmCallLogList = lazy(() => import('./components/LlmCallLogList')); // 修改为列表页
+const LlmCallLogDetail = lazy(() => import('./components/LlmCallLogDetail')); // 新建日志详情页
+
 
 // --- 5. App 组件主体 ---
 function App() {
@@ -312,6 +319,11 @@ function App() {
           <Route path="/employee-self-evaluations" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <EmployeeSelfEvaluationList /> </Suspense>} />} />
           <Route path="/employee-self-evaluations/:evaluationId" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <EmployeeSelfEvaluationDetail /> </Suspense>} />} />
           <Route path="/evaluation-management" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <EvaluationManagement /> </Suspense>} />} />
+          <Route path="/admin/llm/models" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <LlmModelManagement /> </Suspense>} />} />
+          <Route path="/admin/llm/api-keys" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <LlmApiKeyManagement /> </Suspense>} />} />
+          <Route path="/admin/llm/prompts" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <LlmPromptManagement /> </Suspense>} />} />
+          <Route path="/admin/llm/call-logs" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <LlmCallLogList /> </Suspense>} />} />
+          <Route path="/admin/llm/call-logs/:logId" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <LlmCallLogDetail /> </Suspense>} />} />
         </Route>
 
         {/* 应用简单布局的路由 */}

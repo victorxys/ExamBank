@@ -14,12 +14,15 @@ from werkzeug.security import check_password_hash
 from psycopg2.extras import RealDictCursor, register_uuid # 确保导入
 # from flask_sqlalchemy import SQLAlchemy # 如果你打算用 ORM，虽然 Flask-Migrate 不强制
 # from flask_migrate import Migrate # 导入 Migrate
-register_uuid() # 确保 UUID 适配器已注册
-import traceback
 
+import traceback
+# --- 导入模型 ---
+from . import models # 或者 from . import models (如果 app.py 和 models.py 在同一级)
 # 配置密码加密方法为pbkdf2
 
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
+from flask_cors import cross_origin # 导入 cross_origin
+
 from datetime import timedelta, datetime
 import datetime as dt
 # --- 从 extensions 导入 ---
@@ -39,8 +42,20 @@ from backend.api.evaluation_category import bp as evaluation_category_bp # 新�
 from backend.api.evaluation_item import bp as evaluation_item_api_bp # 保留或确认蓝图名称未冲突
 from backend.api.evaluation_visibility import bp as evaluation_visibility_bp # 保留
 from backend.api.evaluation_order import bp as evaluation_order_bp # 新增
+from backend.api.llm_config_api import llm_config_bp # 修改导入
+from backend.api.llm_log_api import llm_log_bp # 新增导入
+app = Flask(__name__)
+CORS(
+    app,
+    resources={r"/api/*": {"origins": "http://localhost:5175"}}, # 只允许特定源访问 /api/* 路径
+    supports_credentials=True, # 如果你将来需要发送 cookies 或认证凭据
+    allow_headers=["Authorization", "Content-Type", "X-Requested-With"], # 添加 X-Requested-With (有些库会用)
+    methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"], # 明确允许这些 HTTP 方法
+    expose_headers=["Content-Type", "Authorization"] # 明确暴露一些头部给前端JS访问
 
+)
 
+register_uuid() # 确保 UUID 适配器已注册
 # 创建带有角色信息的访问令牌
 def create_token_with_role(user_id, role):
     return create_access_token(identity=user_id, additional_claims={'role': role})
@@ -49,16 +64,74 @@ def create_token_with_role(user_id, role):
 
 load_dotenv()
 
-app = Flask(__name__)
-CORS(app) # 注册 CORS，允许所有源
+
+
 
 app.config['SECRET_KEY'] = os.environ['SECRET_KEY']  # 设置 SECRET_KEY
 app.config['JWT_SECRET_KEY'] = os.environ['SECRET_KEY']  # JWT密钥
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=30)  # Token过期时间
 
 jwt = JWTManager(app)  # 初始化JWT管理器
-# --- 导入模型 ---
-from . import models # 或者 from . import models (如果 app.py 和 models.py 在同一级)
+# --- JWT 错误处理器 ---
+def add_cors_headers_to_response(response):
+    # 这个函数可以被多个错误处理器调用
+    response.headers.add("Access-Control-Allow-Origin", "http://localhost:5175") # 你的前端源
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+    response.headers.add('Access-Control-Allow-Credentials', 'true')
+    return response
+
+@jwt.unauthorized_loader
+def unauthorized_response(callback):
+    response = jsonify({
+        'status': 401,
+        'sub_status': 42, # 自定义子状态码
+        'msg': '请求未包含有效的访问令牌 (Missing Authorization Header or Invalid Token)'
+    })
+    response.status_code = 401
+    return add_cors_headers_to_response(response) # 添加CORS头
+
+@jwt.invalid_token_loader
+def invalid_token_response(callback): # callback is the error message string
+    response = jsonify({
+        'status': 401, # 或者 422 Unprocessable Entity
+        'sub_status': 43,
+        'msg': '无效的令牌 (Invalid Token)' ,
+        'error_detail': callback
+    })
+    response.status_code = 401 # 或者 422
+    return add_cors_headers_to_response(response)
+
+@jwt.expired_token_loader
+def expired_token_response(jwt_header, jwt_payload):
+    response = jsonify({
+        'status': 401,
+        'sub_status': 44,
+        'msg': '令牌已过期 (Token has expired)'
+    })
+    response.status_code = 401
+    return add_cors_headers_to_response(response)
+
+@jwt.revoked_token_loader
+def revoked_token_response(jwt_header, jwt_payload):
+    response = jsonify({
+        'status': 401,
+        'sub_status': 45,
+        'msg': '令牌已被撤销 (Token has been revoked)'
+    })
+    response.status_code = 401
+    return add_cors_headers_to_response(response)
+
+@jwt.needs_fresh_token_loader
+def token_not_fresh_response(jwt_header, jwt_payload):
+    response = jsonify({
+        'status': 401,
+        'sub_status': 46,
+        'msg': '需要新的令牌 (Fresh token required)'
+    })
+    response.status_code = 401
+    return add_cors_headers_to_response(response)
+# --- JWT 错误处理器结束 ---
 
 # 定义头像数据存储目录 (与 download_avatars.py 中的 output_dir 相同)
 AVATAR_DATA_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data', 'avatars')
@@ -95,6 +168,8 @@ app.register_blueprint(evaluation_category_bp)
 app.register_blueprint(evaluation_item_api_bp) # 确认蓝图名称
 # app.register_blueprint(evaluation_visibility_bp) # 保留
 app.register_blueprint(evaluation_order_bp) # 新增注册
+app.register_blueprint(llm_config_bp) # 修改注册
+app.register_blueprint(llm_log_bp)   # 新增注册
 
 
 
@@ -165,7 +240,7 @@ def login():
         user = cur.fetchone()
 
         if user and check_password_hash(user['password'], data['password']):
-            print("登录成功，用户ID：", user['id'])
+            # print("登录成功，用户ID：", user['id'])
             access_token = create_token_with_role(user['id'], user['role'])
             return jsonify({
                 'access_token': access_token,
@@ -177,7 +252,7 @@ def login():
             })
         return jsonify({'error': '用户名或密码错误,初始密码是”身份证后6位“'}), 401
     except Exception as e:
-        print('Error in login:', str(e))
+        # print('Error in login:', str(e))
         return jsonify({'error': str(e)}), 500
     finally:
         cur.close()
@@ -272,7 +347,7 @@ def login_api():
 @jwt_required(optional=True)
 def user_profile(user_id):
     if request.method == 'GET':
-        print("开始获取用户详细信息，用户ID：", user_id)
+        # print("开始获取用户详细信息，用户ID：", user_id)
         public_param = request.args.get('public', 'false').lower() == 'true'
         if not public_param and (not get_jwt_identity() and not public_param):
             return jsonify({'msg': 'Missing authorization'}), 401
@@ -282,7 +357,7 @@ def user_profile(user_id):
             return jsonify({'msg': 'Missing authorization'}), 401
         data = request.get_json()
         data_str = json.dumps(data)
-        print("更新用户详细信息，用户data：", data)
+        # print("更新用户详细信息，用户data：", data)
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=RealDictCursor)
         try:
@@ -352,10 +427,10 @@ def register():
 # 全局错误处理
 @app.errorhandler(Exception)
 def handle_exception(e):
-    print('未处理的异常:', str(e))
-    print('异常类型:', type(e).__name__)
+    # print('未处理的异常:', str(e))
+    # print('异常类型:', type(e).__name__)
     import traceback
-    print('异常堆栈:')
+    # print('异常堆栈:')
     traceback.print_exc()
     log.exception("An unhandled exception occurred:")
     return jsonify({'error': str(e)}), 500
@@ -395,7 +470,7 @@ def get_courses():
 
 @app.route('/api/courses', methods=['POST'])
 def create_course():
-    print("开始创建课程")
+    # print("开始创建课程")
     data = request.get_json()
     if not data or 'course_name' not in data:
         return jsonify({'error': 'Missing required fields'}), 400
@@ -416,7 +491,7 @@ def create_course():
             data.get('description', '')
         ))
         new_course = cur.fetchone()
-        print("创建课程结果：", new_course)
+        # print("创建课程结果：", new_course)
         conn.commit()
         return jsonify(new_course)
     except Exception as e:
@@ -429,7 +504,7 @@ def create_course():
 
 @app.route('/api/courses/<course_id>', methods=['GET'])
 def get_course(course_id):
-    print("开始获取课程详情，课程ID：", course_id)
+    # print("开始获取课程详情，课程ID：", course_id)
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
     try:
@@ -463,7 +538,7 @@ def get_course(course_id):
 
 @app.route('/api/courses/<course_id>/check-deleteable', methods=['GET'])
 def check_course_deleteable(course_id):
-    print("检查课程是否可删除，课程ID：", course_id)
+    # print("检查课程是否可删除，课程ID：", course_id)
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
     try:
@@ -484,7 +559,7 @@ def check_course_deleteable(course_id):
 
 @app.route('/api/courses/<course_id>', methods=['DELETE'])
 def delete_course(course_id):
-    print("开始删除课程，课程ID：", course_id)
+    # print("开始删除课程，课程ID：", course_id)
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
     try:
@@ -513,7 +588,7 @@ def delete_course(course_id):
 
 @app.route('/api/courses/<course_id>/knowledge_points', methods=['GET'])
 def get_course_knowledge_points(course_id):
-    print("开始获取课程知识点，课程ID：", course_id)
+    # print("开始获取课程知识点，课程ID：", course_id)
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
     try:
@@ -536,7 +611,7 @@ def get_course_knowledge_points(course_id):
             ORDER BY kp.created_at DESC;
         ''', (course_id,))
         points = cur.fetchall()
-        print("SQL查询结果：", points)
+        # print("SQL查询结果：", points)
         return jsonify(points)
     except Exception as e:
         print("Error in get_course_knowledge_points:", str(e))
@@ -547,7 +622,7 @@ def get_course_knowledge_points(course_id):
 
 @app.route('/api/knowledge-points', methods=['POST'])
 def create_knowledge_point():
-    print("开始创建知识点")
+    # print("开始创建知识点")
     data = request.json
     # print("创建数据：", data)
     conn = get_db_connection()
@@ -579,7 +654,7 @@ def create_knowledge_point():
         return jsonify(point)
     except ValueError as e:
         conn.rollback()
-        print(f"Validation error: {str(e)}")
+        # print(f"Validation error: {str(e)}")
         return jsonify({'error': str(e)}), 400
     except Exception as e:
         conn.rollback()
@@ -591,7 +666,7 @@ def create_knowledge_point():
 
 @app.route('/api/knowledge-points', methods=['GET'])
 def get_knowledge_points():
-    print("开始获取知识点列表")
+    # print("开始获取知识点列表")
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 20, type=int)
     point_name = request.args.get('point_name', '')
@@ -664,7 +739,7 @@ def get_knowledge_points():
 
 @app.route('/api/knowledge_points/<point_id>', methods=['GET'])
 def get_knowledge_point(point_id):
-    print("开始获取知识点详情，知识点ID：", point_id)
+    # print("开始获取知识点详情，知识点ID：", point_id)
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
     try:
@@ -695,7 +770,7 @@ def get_knowledge_point(point_id):
 
 @app.route('/api/knowledge_points/<point_id>', methods=['PUT'])
 def update_knowledge_point(point_id):
-    print("开始更新知识点，知识点ID：", point_id)
+    # print("开始更新知识点，知识点ID：", point_id)
     data = request.json
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
@@ -2045,15 +2120,21 @@ def get_exam_for_taking(exam_id):
 def submit_exam_answer(exam_id):
     logger = logging.getLogger(__name__)
     logger.info(f"Starting exam submission for exam_id: {exam_id}")
-    print(exam_id)
+    # print(exam_id)
     conn = None
     cur = None
+    data = request.json
+    user_id_from_request = data.get('user_id') # 从请求中获取 user_id
+    user_uuid_for_log = None
+    if user_id_from_request:
+        try:
+            user_uuid_for_log = uuid.UUID(user_id_from_request)
+        except ValueError:
+            logger.warning(f"提交考试时，请求中的user_id '{user_id_from_request}' 格式无效。")
     try:
         # Input validation
         if not exam_id:
             raise ValueError("Exam ID is required")
-            
-        data = request.json
         user_id = data.get('user_id')
         answers = data.get('answers', [])
         
@@ -2314,7 +2395,8 @@ def submit_exam_answer(exam_id):
 
         # AI根据考试结果对知识点掌握情况进行汇总
         from backend.api.ai_generate import merge_kp_name
-        merge_kp_result = merge_kp_name(kp_coreects)
+        # merge_kp_result = merge_kp_name(kp_coreects)
+        merge_kp_result = merge_kp_name(kp_coreects, user_id=user_uuid_for_log) # 传递 user_id
         merge_kp_result_json = json.dumps(merge_kp_result, ensure_ascii=False)
         
 
@@ -3299,7 +3381,15 @@ def user_sync_api():
     return sync_user()
 
 @app.route('/api/ai-generate', methods=['POST'])
+@jwt_required() # <--- 这个装饰器是关键
 def ai_generate_route():
+    current_user_id_str = get_jwt_identity() 
+    current_user_id_for_log = None
+    if current_user_id_str:
+        try:
+            current_user_id_for_log = uuid.UUID(current_user_id_str) 
+        except ValueError:
+            current_app.logger.warning(f"无法将JWT identity '{current_user_id_str}' 转换为UUID")
     try:
         data = request.get_json()
         print('后端接收到的AI评价数据:', data)
@@ -3313,7 +3403,9 @@ def ai_generate_route():
             return jsonify({'error': '缺少用户ID'}), 400
 
         from backend.api.ai_generate import generate
-        result = generate(data['evaluations'])
+        # result = generate(data['evaluations'])
+        result = generate(data['evaluations'], user_id=current_user_id_for_log) # 传递 user_id
+
         
         # 将AI生成的结果保存到user_profile表
         if result:
