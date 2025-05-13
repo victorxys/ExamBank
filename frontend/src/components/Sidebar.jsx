@@ -260,7 +260,6 @@ function Sidebar({ isCollapsed, setIsCollapsed }) {
           sx={{
             position: 'absolute',
             bottom: '20px',
-            right: 0, 
             transform: 'translateX(0)', // 先让按钮完全在侧边栏内部，以便观察图标
             right: '-16px', // 尝试将按钮稍微向右移出一点，但其主体仍在侧边栏内
                            // 这个值需要根据按钮的实际大小和图标大小调整

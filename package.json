@@ -23,8 +23,8 @@
   },
   
   "lint-staged": {
-    "frontend/**/*.{js,jsx}": [
-      "npx eslint --fix --no-warn-ignored --config frontend/eslint.config.js" 
+    "frontend/**/*.{js,jsx}": [ 
+      "./frontend/node_modules/.bin/eslint --fix --no-warn-ignored --config frontend/eslint.config.js"
     ],
     "backend/**/*.py": [
       "cd backend && ruff check --fix" 
