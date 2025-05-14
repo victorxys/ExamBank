@@ -26,7 +26,7 @@ current_script_directory = os.path.dirname(os.path.abspath(__file__))
 # .env 文件与 security_utils.py 在同一级目录 (backend/)
 dotenv_path = os.path.join(current_script_directory, '.env') 
 # --- 路径计算修改结束 ---
-print(f"DEBUG: Attempting to load .env from: {dotenv_path}") # 添加调试信息
+# print(f"DEBUG: Attempting to load .env from: {dotenv_path}") # 添加调试信息
 
 if os.path.exists(dotenv_path):
     load_dotenv(dotenv_path=dotenv_path)

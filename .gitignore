@@ -209,3 +209,5 @@ logs/nginx/nginx.pid
 
 
 backend/data/
+
+resource/

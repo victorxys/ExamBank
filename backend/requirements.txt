@@ -22,7 +22,7 @@ python-dotenv==1.0.0
 python-dateutil # For date parsing
 
 # AI
-google-generativeai==0.3.2
+google-generativeai>=0.5.0
 
 # Other (Verify if needed in backend runtime)
 # playwright==4.12.2 # Is this really needed for the backend server runtime? Or just for scripts/tests?
@@ -31,3 +31,9 @@ google-generativeai==0.3.2
 ruff==0.4.4
 
 cryptography>=3.4
+
+gradio_client>=0.2.0
+
+celery>=5.3.0
+
+radis>=4.0.0

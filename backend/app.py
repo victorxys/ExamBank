@@ -7,24 +7,17 @@ import uuid
 from dateutil import parser
 import logging
 import json
-
 from backend.security_utils import generate_password_hash
 from werkzeug.security import check_password_hash 
-
 from psycopg2.extras import RealDictCursor, register_uuid # 确保导入
 # from flask_sqlalchemy import SQLAlchemy # 如果你打算用 ORM，虽然 Flask-Migrate 不强制
 # from flask_migrate import Migrate # 导入 Migrate
-
 import traceback
-# --- 导入模型 ---
-from . import models # 或者 from . import models (如果 app.py 和 models.py 在同一级)
 # 配置密码加密方法为pbkdf2
-
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
-from flask_cors import cross_origin # 导入 cross_origin
-
 from datetime import timedelta, datetime
 import datetime as dt
+
 # --- 从 extensions 导入 ---
 from .extensions import db, migrate
 # -----------------------
@@ -44,16 +37,11 @@ from backend.api.evaluation_visibility import bp as evaluation_visibility_bp # �
 from backend.api.evaluation_order import bp as evaluation_order_bp # 新增
 from backend.api.llm_config_api import llm_config_bp # 修改导入
 from backend.api.llm_log_api import llm_log_bp # 新增导入
-app = Flask(__name__)
-CORS(
-    app,
-    resources={r"/api/*": {"origins": "http://localhost:5175"}}, # 只允许特定源访问 /api/* 路径
-    supports_credentials=True, # 如果你将来需要发送 cookies 或认证凭据
-    allow_headers=["Authorization", "Content-Type", "X-Requested-With"], # 添加 X-Requested-With (有些库会用)
-    methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"], # 明确允许这些 HTTP 方法
-    expose_headers=["Content-Type", "Authorization"] # 明确暴露一些头部给前端JS访问
+from backend.api.tts_api import tts_bp # 新增导入
 
-)
+app = Flask(__name__)
+CORS(app) # 注册 CORS，允许所有源
+
 
 register_uuid() # 确保 UUID 适配器已注册
 # 创建带有角色信息的访问令牌
@@ -70,6 +58,14 @@ load_dotenv()
 app.config['SECRET_KEY'] = os.environ['SECRET_KEY']  # 设置 SECRET_KEY
 app.config['JWT_SECRET_KEY'] = os.environ['SECRET_KEY']  # JWT密钥
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=30)  # Token过期时间
+app.config['TTS_AUDIO_STORAGE_PATH'] = os.path.join(app.root_path, 'static', 'tts_audio')
+# 如果前端需要通过 /static/tts_audio/... 这样的URL访问，确保这个路径配置正确
+# 并且 Flask (或 Nginx) 配置为可以服务这个目录下的文件。
+# 对于API返回的URL，您可能还需要一个基础URL
+app.config['TTS_AUDIO_BASE_URL_FOR_API'] = '/static/tts_audio' # 前端拼接时用的基础路径
+
+os.makedirs(app.config['TTS_AUDIO_STORAGE_PATH'], exist_ok=True)
+
 
 jwt = JWTManager(app)  # 初始化JWT管理器
 # --- JWT 错误处理器 ---
@@ -149,27 +145,24 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False # 建议关闭
 db.init_app(app)
 migrate.init_app(app, db)
 # -----------------
+# --- 导入模型 ---
+# print("DEBUG [app.py]: About to import models...")
 
+from . import models # 或者 from . import models (如果 app.py 和 models.py 在同一级)
+# print(f"DEBUG [app.py]: Models imported. db.metadata.tables keys: {list(db.metadata.tables.keys())}")
 
 # 注册评价管理相关的蓝图
 app.register_blueprint(evaluation_visibility_bp, url_prefix='/api')
-# app.register_blueprint(evaluation_item_bp, url_prefix='/api/evaluation_item')
-# 注册微信分享相关的蓝图
 app.register_blueprint(wechat_share_bp, url_prefix='/api/wechat')
-# 注册员工自评相关的蓝图
 app.register_blueprint(employee_self_evaluation_bp)
- # 打印所有注册的路由
-# print("Registered Routes:")
-# for rule in app.url_map.iter_rules():
-#     print(f"输出 rule===>  {rule}")
-# 注册新的蓝图
 app.register_blueprint(evaluation_aspect_bp)
 app.register_blueprint(evaluation_category_bp)
 app.register_blueprint(evaluation_item_api_bp) # 确认蓝图名称
-# app.register_blueprint(evaluation_visibility_bp) # 保留
 app.register_blueprint(evaluation_order_bp) # 新增注册
 app.register_blueprint(llm_config_bp) # 修改注册
 app.register_blueprint(llm_log_bp)   # 新增注册
+app.register_blueprint(tts_bp) # 注册 TTS 蓝图
+
 
 
 
@@ -3602,6 +3595,48 @@ def serve_avatar_data(filename):
     except Exception as e:
         print(f"Error serving avatar data: {str(e)}")
         return jsonify({'error': f'服务头像失败: {str(e)}'}), 500
+
+# 获取 TTS 音频文件的存储基路径的函数
+def get_tts_audio_storage_path():
+    return current_app.config.get('TTS_AUDIO_STORAGE_PATH', os.path.join(current_app.root_path, 'static', 'tts_audio'))
+@app.route('/media/tts_audio/<path:filepath>') # 使用一个新的基础路径，例如 /media/tts_audio
+@jwt_required(optional=True) # 可选：如果需要认证才能访问音频
+def serve_tts_audio(filepath):
+    # 安全性：严格控制 filepath，防止路径遍历
+    # filepath 应该是 TtsAudio.file_path 中存储的相对路径
+    # 例如：<uuid:training_content_id>/<uuid:sentence_id>/sentence_v1_timestamp.wav
+    
+    storage_base_path = get_tts_audio_storage_path()
+    
+    # 进一步的路径安全检查 (非常重要)
+    # 确保 filepath 不包含 '..' 等可能导致目录遍历的字符
+    # normpath 会处理 '..' 但不能完全防止恶意输入
+    safe_path = os.path.normpath(filepath)
+    if '..' in safe_path or safe_path.startswith('/'): # 检查是否尝试跳出允许的目录
+        current_app.logger.warning(f"潜在的路径遍历尝试: {filepath}")
+        return jsonify({'error': '无效的文件路径'}), 400
+
+    full_path_to_file = os.path.join(storage_base_path, safe_path)
+    
+    # 再次确认文件在预期的目录下 (额外的安全层)
+    if not full_path_to_file.startswith(os.path.abspath(storage_base_path)):
+        current_app.logger.warning(f"路径遍历攻击检测: 请求路径 {full_path_to_file} 超出基础路径 {storage_base_path}")
+        return jsonify({'error': '非法文件访问'}), 403
+
+    if not os.path.exists(full_path_to_file):
+        current_app.logger.warning(f"请求的音频文件未找到: {full_path_to_file}")
+        return jsonify({'error': '文件未找到'}), 404
+        
+    try:
+        # send_from_directory 会自动处理 Content-Type
+        # directory 参数应该是文件的父目录，filename 是文件名
+        directory = os.path.dirname(full_path_to_file)
+        filename = os.path.basename(full_path_to_file)
+        current_app.logger.info(f"Serving audio file: directory='{directory}', filename='{filename}'")
+        return send_from_directory(directory, filename, as_attachment=False) # as_attachment=False 表示浏览器直接播放
+    except Exception as e:
+        current_app.logger.error(f"服务音频文件 {filepath} 时出错: {e}", exc_info=True)
+        return jsonify({'error': '服务文件时出错'}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)

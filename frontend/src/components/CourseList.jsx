@@ -30,6 +30,7 @@ import {
   Delete as DeleteIcon,
   Add as AddIcon,
   MoreVert as MoreVertIcon,
+  Audiotrack as AudiotrackIcon,
 } from '@mui/icons-material'
 
 function CourseList() {
@@ -43,6 +44,14 @@ function CourseList() {
   const navigate = useNavigate()
   const theme = useTheme()
   const [alert, setAlert] = useState({ show: false, message: '', severity: 'info' });
+
+  // 新增一个处理函数，用于导航到培训内容列表
+  const handleManageTtsContents = () => {
+    handleMenuClose(); // 关闭当前菜单
+    if (selectedCourse && selectedCourse.id) {
+      navigate(`/courses/${selectedCourse.id}/tts-contents`);
+    }
+  };
 
   const handleMenuClick = (event, course) => {
     event.stopPropagation()
@@ -349,6 +358,12 @@ function CourseList() {
           <EditIcon sx={{ mr: 1 }} />
           编辑
         </MenuItem>
+        {/* **** 新增菜单项 **** */}
+        <MenuItem onClick={handleManageTtsContents}> 
+          <AudiotrackIcon sx={{ mr: 1 }} /> {/* 或者您选择的其他图标 */}
+          培训音频管理
+        </MenuItem>
+        {/* **** 结束新增 **** */}
         <MenuItem onClick={handleMenuDelete} sx={{ color: 'error.main' }}>
           <DeleteIcon sx={{ mr: 1 }} />
           删除

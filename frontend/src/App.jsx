@@ -290,6 +290,9 @@ const LlmApiKeyManagement = lazy(() => import('./components/LlmApiKeyManagement'
 const LlmPromptManagement = lazy(() => import('./components/LlmPromptManagement')); // 新建
 const LlmCallLogList = lazy(() => import('./components/LlmCallLogList')); // 修改为列表页
 const LlmCallLogDetail = lazy(() => import('./components/LlmCallLogDetail')); // 新建日志详情页
+// 课程TTS相关内容
+const TrainingContentList = lazy(() => import('./components/TrainingContentList'));
+const TrainingContentDetail = lazy(() => import('./components/TrainingContentDetail'));
 
 
 // --- 5. App 组件主体 ---
@@ -324,6 +327,8 @@ function App() {
           <Route path="/admin/llm/prompts" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <LlmPromptManagement /> </Suspense>} />} />
           <Route path="/admin/llm/call-logs" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <LlmCallLogList /> </Suspense>} />} />
           <Route path="/admin/llm/call-logs/:logId" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <LlmCallLogDetail /> </Suspense>} />} />
+          <Route path="/courses/:courseId/tts-contents" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}><TrainingContentList /></Suspense>} />} />
+          <Route path="/tts/content/:contentId" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}><TrainingContentDetail /></Suspense>} />} />
         </Route>
 
         {/* 应用简单布局的路由 */}
