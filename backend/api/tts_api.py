@@ -12,10 +12,15 @@ from backend.api.ai_generate import transform_text_with_llm, log_llm_call # 确�
 import requests
 import json
 from celery_worker import celery_app as celery_app_instance
+
 from backend.tasks import generate_single_sentence_audio_async # 导入新的Celery任务
+from backend.tasks import batch_generate_audio_task # <--- 新增导入
+
 # from backend.tasks import generate_merged_audio_async # 导入新的Celery任务``
 from backend.tasks import trigger_tts_refine_async # 导入新的Celery任务
 from celery.result import AsyncResult # 可以显式导入 AsyncResult
+from sqlalchemy import func, or_ # 导入 SQLAlchemy 的函数和操作符
+
 
 
 tts_bp = Blueprint('tts', __name__, url_prefix='/api/tts')
@@ -139,7 +144,7 @@ def get_training_content_detail(content_id):
         scripts_data = []
         # 3. 仔细检查这里的循环和属性访问
         for script in content.tts_scripts.order_by(TtsScript.script_type, TtsScript.version.desc()).all():
-            current_app.logger.debug(f"Processing script: ID {script.id}, Type {script.script_type}, Version {script.version}")
+            # current_app.logger.debug(f"Processing script: ID {script.id}, Type {script.script_type}, Version {script.version}")
             script_info = {
                 'id': str(script.id),
                 'script_type': script.script_type,
@@ -159,9 +164,9 @@ def get_training_content_detail(content_id):
 
         if latest_final_script:
             for sentence in latest_final_script.tts_sentences.order_by(TtsSentence.order_index).all():
-                current_app.logger.debug(f"Processing sentence: ID {sentence.id}, Order {sentence.order_index}")
+                # current_app.logger.debug(f"Processing sentence: ID {sentence.id}, Order {sentence.order_index}")
                 latest_audio = sentence.audios.filter_by(is_latest_for_sentence=True).order_by(TtsAudio.created_at.desc()).first()
-                current_app.logger.debug(f"Latest audio for sentence {sentence.id}: {latest_audio.id if latest_audio else 'None'}")
+                # current_app.logger.debug(f"Latest audio for sentence {sentence.id}: {latest_audio.id if latest_audio else 'None'}")
                 sentences_data.append({
                     'id': str(sentence.id),
                     'text': sentence.sentence_text,
@@ -172,14 +177,14 @@ def get_training_content_detail(content_id):
                     'audio_duration_ms': latest_audio.duration_ms if latest_audio else None,
                 })
         
-        current_app.logger.info(f"Processed {len(sentences_data)} sentences.") # 6. 确认句子处理数量
+        # current_app.logger.info(f"Processed {len(sentences_data)} sentences.") # 6. 确认句子处理数量
 
         merged_audio_info = None
         # 注意：`content.merged_audios` 是一个 relationship，需要调用 .all() 或 .first()
         latest_merged_audio_query = content.merged_audios.filter_by(is_latest_for_content=True).order_by(TtsAudio.created_at.desc())
-        current_app.logger.debug(f"Merged audio query: {str(latest_merged_audio_query)}")
+        # current_app.logger.debug(f"Merged audio query: {str(latest_merged_audio_query)}")
         latest_merged_audio = latest_merged_audio_query.first()
-        current_app.logger.info(f"Latest merged audio: {latest_merged_audio.id if latest_merged_audio else 'None'}") # 7. 确认合并语音
+        # current_app.logger.info(f"Latest merged audio: {latest_merged_audio.id if latest_merged_audio else 'None'}") # 7. 确认合并语音
 
         if latest_merged_audio:
             merged_audio_info = {
@@ -333,32 +338,48 @@ def get_script_content(script_id):
 
 # --- TTS 句子 (TtsSentence) 的基础 API ---
 @tts_bp.route('/sentences/<uuid:sentence_id>', methods=['PUT'])
-@admin_required 
+@admin_required
 def update_sentence_text(sentence_id):
-    """手动编辑单个句子的文本"""
     data = request.get_json()
     sentence = TtsSentence.query.get(str(sentence_id))
     if not sentence:
         return jsonify({'error': '句子未找到'}), 404
     
-    if 'sentence_text' not in data or not data['sentence_text'].strip():
-        return jsonify({'error': '句子内容不能为空'}), 400
+    # 检查 sentence_text 是否存在且为字符串
+    sentence_text_value = data.get('sentence_text') # 使用 .get() 避免 KeyError
+
+    if sentence_text_value is None:
+        return jsonify({'error': '缺少句子内容 (sentence_text is missing)'}), 400
+    
+    if not isinstance(sentence_text_value, str):
+        current_app.logger.error(f"更新句子 {sentence_id} 失败: sentence_text 期望是字符串，实际得到类型 {type(sentence_text_value)}，值为: {sentence_text_value}")
+        return jsonify({'error': f'句子内容格式错误 (sentence_text should be a string, got {type(sentence_text_value).__name__})'}), 400
+        
+    new_text_stripped = sentence_text_value.strip()
+
+    if not new_text_stripped: # 检查 strip 之后是否为空
+        return jsonify({'error': '句子内容不能为空 (sentence_text cannot be empty after stripping)'}), 400
     
     try:
         original_text = sentence.sentence_text
-        sentence.sentence_text = data['sentence_text'].strip()
-        sentence.audio_status = 'pending_regeneration' 
         
-        # 将与此句子关联的所有音频文件的 is_latest_for_sentence 设为 False
-        TtsAudio.query.filter_by(tts_sentence_id=sentence.id, is_latest_for_sentence=True).update({'is_latest_for_sentence': False})
-        
-        db.session.commit()
-        current_app.logger.info(f"句子 {sentence_id} 内容已从 '{original_text[:50]}...' 更新为 '{sentence.sentence_text[:50]}...'，音频状态更新为待重新生成。")
-        return jsonify({'message': '句子更新成功，请重新生成语音', 'id': str(sentence.id)})
+        if original_text != new_text_stripped:
+            sentence.sentence_text = new_text_stripped
+            sentence.audio_status = 'pending_regeneration'
+            sentence.updated_at = func.now()
+
+            # 标记旧语音为非最新 (确保事务性)
+            TtsAudio.query.filter_by(tts_sentence_id=sentence.id, is_latest_for_sentence=True).update({'is_latest_for_sentence': False}, synchronize_session=False) # 添加 synchronize_session=False
+            
+            db.session.commit()
+            return jsonify({'message': '句子更新成功，语音状态已重置为待重新生成', 'id': str(sentence.id)}) # 确保返回 str(uuid)
+        else:
+            return jsonify({'message': '句子内容未改变', 'id': str(sentence.id)}), 200
+            
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"更新句子 {sentence_id} 失败: {e}", exc_info=True)
-        return jsonify({'error': '更新句子时发生服务器错误: ' + str(e)}), 500
+        return jsonify({'error': str(e)}), 500
 
 
 # --- TTS 音频 (TtsAudio) 的基础 API ---
@@ -763,48 +784,81 @@ def get_task_status(task_id):
     # 直接使用导入的 celery_app_instance，而不是 celery.current_app (除非你特别配置了 current_app)
     task = celery_app_instance.AsyncResult(task_id)
     
-    task_info = {
+    response_data = {
         'task_id': task_id,
         'status': task.status,
-        'result': None, # 先初始化为 None
+        'result': None,
+        'meta': {}, 
         'error_message': None,
-        'error_type': None,
-        'meta': task.info if isinstance(task.info, dict) else {} # 确保 meta 是字典
+        'error_type': None
     }
 
-    if task.successful():
-        task_info['result'] = task.result
-        # 如果任务成功，但 result 内部有错误状态，也应该反映出来
-        if isinstance(task.result, dict) and task.result.get('status') == 'Error':
-            task_info['status'] = 'FAILURE' # 将外部状态也标记为 FAILURE
-            task_info['error_message'] = task.result.get('message', '任务执行返回错误状态')
-    elif task.failed():
-        # task.result 在失败时是异常对象
-        # task.info (或 task. traceback) 包含堆栈信息
-        task_info['error_message'] = str(task.result) # 将异常对象转为字符串
+    task_info_dict = task.info if isinstance(task.info, dict) else {}
+
+    # 1. 基础填充 meta (所有状态通用)
+    if task_info_dict:
+        response_data['meta'] = task_info_dict.copy()
+
+    # 2. 特定状态的处理
+    if task.status == 'SUCCESS':
+        response_data['result'] = task.result
+        if isinstance(task.result, dict):
+            # 合并 result 中的最终计数到 meta
+            final_counts = {
+                'message': task.result.get('message', response_data['meta'].get('message', '任务成功完成')),
+                'total_in_batch': task.result.get('total_in_batch', task.result.get('total', response_data['meta'].get('total_in_batch', 0))),
+                'processed_in_batch': task.result.get('processed_in_batch', response_data['meta'].get('processed_in_batch', (task.result.get('succeeded', 0) + task.result.get('failed', 0)))),
+                'succeeded_in_batch': task.result.get('succeeded_in_batch', task.result.get('succeeded', response_data['meta'].get('succeeded_in_batch', 0))),
+                'failed_in_batch': task.result.get('failed_in_batch', task.result.get('failed', response_data['meta'].get('failed_in_batch', 0))),
+            }
+            response_data['meta'].update(final_counts)
+            if task.result.get('status') in ['Error', 'FAILURE']:
+                response_data['status'] = 'FAILURE'
+                response_data['error_message'] = task.result.get('message', '任务执行返回错误状态')
+        elif 'message' not in response_data['meta']: # 如果 result 不是字典，但 meta 中没有消息
+            response_data['meta']['message'] = '任务成功完成'
+            
+    elif task.status == 'FAILURE':
+        response_data['error_message'] = str(task.result)
         if hasattr(task.result, '__class__'):
-             task_info['error_type'] = task.result.__class__.__name__
-        
-        # 尝试从 task.info 获取更详细的错误（如果任务中 update_state 时设置了）
-        if isinstance(task.info, dict):
-            task_info['error_message'] = task.info.get('exc_message', task_info['error_message'])
-            task_info['error_type'] = task.info.get('exc_type', task_info['error_type'])
-        elif isinstance(task.info, Exception): # 有时 info 也可能是异常
-             task_info['error_message'] = str(task.info)
-             task_info['error_type'] = task.info.__class__.__name__
+            response_data['error_type'] = task.result.__class__.__name__
+        # meta 中可能已经包含了 task.info 的内容，这里可以补充 error message
+        if 'message' not in response_data['meta'] and response_data['error_message']:
+            response_data['meta']['message'] = response_data['error_message']
+        elif 'message' not in response_data['meta']:
+            response_data['meta']['message'] = '任务失败'
 
+    # 对于 PROGRESS, PENDING, STARTED 等状态, task.info 应该就是我们需要的 meta
+    # 如果这些状态下 task_info_dict 为空，或者缺少 message，再进行补充
+    elif not response_data['meta'].get('message'):
+        if task.status == 'PROGRESS':
+            total = response_data['meta'].get('total_in_batch', response_data['meta'].get('total', 0))
+            processed = response_data['meta'].get('processed_in_batch', response_data['meta'].get('current', 0))
+            if total > 0:
+                response_data['meta']['message'] = f"正在处理: {processed}/{total}"
+            else:
+                response_data['meta']['message'] = "正在初始化..."
+        elif task.status == 'PENDING' or task.status == 'STARTED':
+            response_data['meta']['message'] = '任务正在等待或刚开始...'
+        else:
+            response_data['meta']['message'] = f'任务状态: {task.status}'
 
-    # 如果任务成功且 result 包含特定成功信息，可以进一步处理
-    if task_info['status'] == 'SUCCESS' and isinstance(task_info['result'], dict):
-        if task_info['result'].get('status') == 'Success':
-            task_info['new_script_id'] = task_info['result'].get('new_script_id')
-            task_info['audio_id'] = task_info['result'].get('audio_id')
-            task_info['file_path'] = task_info['result'].get('file_path')
-        # else: # 任务内部逻辑返回了非 'Success' 的 status
-            # 保留 task.result 中的 message 给前端判断
-
-    current_app.logger.debug(f"Task status response for {task_id}: {task_info}")
-    return jsonify(task_info)
+    # 确保所有前端期望的键在 meta 中都有默认值，以防万一
+    default_keys_for_meta = {
+        'total_in_batch': 0, 'processed_in_batch': 0, 'succeeded_in_batch': 0, 
+        'failed_in_batch': 0, 'current_sentence_text': None, 'message': '状态加载中...',
+        'last_processed_sentence_id': None, 'last_processed_sentence_status': None,
+        'current_sentence_id': None # 从日志看，这个字段在PROGRESS时是有的
+    }
+    for key, default_val in default_keys_for_meta.items():
+        if key not in response_data['meta'] or response_data['meta'][key] is None:
+             # 仅当 meta 中确实没有这个 key，或者值为 None 时才设置默认值
+             # 避免用默认值覆盖掉从 task.info 中获取到的有效值（比如 0）
+            if response_data['meta'].get(key) is None:
+                 response_data['meta'][key] = default_val
+    
+    # current_app.logger.debug(f"API Task status response for {task_id}: {response_data}")
+    return jsonify(response_data)
 
 @tts_bp.route('/sentences/<uuid:sentence_id>/generate-audio', methods=['POST'])
 @admin_required # 或 @jwt_required()
@@ -840,3 +894,53 @@ def generate_sentence_audio_route(sentence_id):
              db.session.commit()
         current_app.logger.error(f"提交单句语音生成任务失败 for sentence {sentence_id}: {e}", exc_info=True)
         return jsonify({'error': '提交单句语音生成任务时发生服务器错误: ' + str(e)}), 500
+    
+@tts_bp.route('/training-contents/<uuid:content_id>/batch-generate-audio', methods=['POST'])
+@admin_required
+def batch_generate_audio_for_content_route(content_id):
+    # ... (获取 content 和 latest_final_script) ...
+    content = TrainingContent.query.get(str(content_id))
+    if not content: return jsonify({'error': '培训内容未找到'}), 404
+    latest_final_script = content.tts_scripts.filter_by(script_type='final_tts_script').order_by(TtsScript.version.desc()).first()
+    if not latest_final_script: return jsonify({'error': '未找到该内容的最终TTS脚本'}), 400
+
+    # 只检查是否有需要处理的，具体列表由Celery任务自己查，避免数据不一致
+    has_sentences_to_process = TtsSentence.query.filter(
+        TtsSentence.tts_script_id == latest_final_script.id,
+        or_(
+            TtsSentence.audio_status == 'pending_generation',
+            TtsSentence.audio_status == 'error_generation',
+            TtsSentence.audio_status == 'pending_regeneration',
+            TtsSentence.audio_status == 'error_submission',
+            TtsSentence.audio_status == 'error_polling',
+            TtsSentence.audio_status == 'processing_request' # API可能已标记
+        )
+    ).first()
+
+    if not has_sentences_to_process:
+        return jsonify({'message': '所有句子的语音都已生成或正在生成中。'}), 200
+    
+    try:
+        # 将所有符合条件的句子的状态更新为 'queued' 或 'processing_request'
+        # 这样前端下次刷新时能看到这些句子正在排队或准备处理
+        TtsSentence.query.filter(
+            TtsSentence.tts_script_id == latest_final_script.id,
+             or_(
+                TtsSentence.audio_status == 'pending_generation',
+                TtsSentence.audio_status == 'error_generation',
+                TtsSentence.audio_status == 'pending_regeneration',
+                TtsSentence.audio_status == 'error_submission',
+                TtsSentence.audio_status == 'error_polling'
+            )
+        ).update({'audio_status': 'processing_request'}, synchronize_session=False)
+
+        content.status = 'audio_processing_queued' # 标记内容正在处理
+        db.session.commit()
+
+        task = batch_generate_audio_task.delay(str(latest_final_script.id))
+        current_app.logger.info(f"批量语音生成任务已提交到 Celery，任务ID: {task.id}，处理脚本ID: {latest_final_script.id}")
+        return jsonify({'message': '批量语音生成任务已成功提交，正在后台处理。', 'task_id': task.id, 'initial_status_set_to': 'processing_request'}), 202
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"提交批量语音生成任务失败 (内容ID: {content_id}): {e}", exc_info=True)
+        return jsonify({'error': f'提交批量语音生成任务失败: {str(e)}'}), 500

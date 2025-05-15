@@ -1,15 +1,18 @@
 # backend/tasks.py
-from celery_worker import celery_app  # 导入在 celery_app.py 中创建的 Celery 实例
-from flask import Flask # 需要 Flask 来创建应用上下文
-from backend.models import db, TtsScript, TrainingContent, TtsSentence, TtsAudio 
+from celery_worker import celery_app
+from flask import Flask, current_app # 导入 current_app
+from backend.models import db, TtsScript, TrainingContent, TtsSentence, TtsAudio
+import sqlalchemy as sa # <--- 添加这一行
+from sqlalchemy import or_ # 也可以只导入 or_，但如果后面还用到 sa.func 等，还是导入整个 sqlalchemy 好
 
-from backend.api.ai_generate import transform_text_with_llm # 导入已有的 LLM 调用函数
-from gradio_client import Client as GradioClient
+# from backend.api.ai_generate import transform_text_with_llm # 如果其他任务需要
+from gradio_client import Client as GradioClient # GradioClient 已导入
 import logging
 import os
-from datetime import datetime # <--- 新增这一行
-import requests # <--- 新增这一行
-import json # <--- 新增这一行
+from datetime import datetime
+import requests
+import json
+import uuid # 导入 uuid
 
 # 为了在 Celery 任务中使用 Flask 应用上下文（例如数据库会话、current_app.config）
 # 我们需要一种方式来访问或创建 Flask app 实例。
@@ -173,10 +176,11 @@ def generate_single_sentence_audio_async(self, sentence_id_str, tts_engine_param
             # 这些参数应该可以从 LlmPrompt 的元数据或系统配置中获取，或者前端传递
             # 以下是基于您提供的示例的默认值
             default_params = {
-                "num_seeds": 1, "seed": 3, "speed": 5, "oral": 2, "laugh": 0,
-                "bk": 4, "min_length": 80, "batch_size": 3, "temperature": 0.1,
+                "num_seeds": 1, "seed": 9716, "speed": 3, "oral": 2, "laugh": 0,
+                "bk": 4, "min_length": 80, "batch_size": 6, "temperature": 0.1,
                 "top_P": 0.7, "top_K": 20, "roleid": "1", "refine_text": True, "pt_file": None
             }
+            
             actual_params = {**default_params, **(tts_engine_params or {})}
             
             # predict 调用
@@ -284,11 +288,222 @@ def generate_single_sentence_audio_async(self, sentence_id_str, tts_engine_param
             self.update_state(state='FAILURE', meta={'exc_type': type(e).__name__, 'exc_message': str(e)})
             return {'status': 'Error', 'message': '生成单句语音时发生服务器错误: ' + str(e)}
         
-# TODO: 类似地为 generate_oral_script 和 llm_refine_script 创建异步任务
-# @celery_app.task(bind=True, name='tasks.trigger_generate_oral_script_async')
-# def trigger_generate_oral_script_async(self, content_id_str):
-#     app = create_flask_app_for_task()
-#     with app.app_context():
-#         # ... (调用 transform_text_with_llm 的逻辑) ...
-#         # ... (更新数据库状态) ...
-#         pass
+# --- 新增：批量语音生成任务 ---
+# backend/tasks.py
+# ... (imports as before) ...
+
+# backend/tasks.py
+# ... (imports) ...
+
+@celery_app.task(bind=True, name='tasks.batch_generate_audio_task', max_retries=1)
+def batch_generate_audio_task(self, final_script_id_str):
+    # print(f"Batch task ID=========: {self.request.id}")
+    app = create_flask_app_for_task()
+    with app.app_context():
+        final_script_id = uuid.UUID(final_script_id_str)
+        logger.info(f"[BatchTask:{self.request.id}] 开始处理批量语音生成，脚本ID: {final_script_id}")
+
+        script = TtsScript.query.get(final_script_id)
+        if not script or script.script_type != 'final_tts_script':
+            meta_error = {'error': '脚本未找到或类型不正确', 'total_in_batch': 0, 'processed_in_batch': 0, 'succeeded_in_batch': 0, 'failed_in_batch': 0}
+            self.update_state(state='FAILURE', meta=meta_error)
+            return {'status': 'Error', 'message': '脚本未找到或类型不正确', **meta_error}
+
+        training_content = script.training_content
+        if not training_content:
+            meta_error = {'error': '脚本没有关联的培训内容', 'total_in_batch': 0, 'processed_in_batch': 0, 'succeeded_in_batch': 0, 'failed_in_batch': 0}
+            self.update_state(state='FAILURE', meta=meta_error)
+            return {'status': 'Error', 'message': '脚本没有关联的培训内容', **meta_error}
+        
+        if training_content.status != 'generating_audio':
+            training_content.status = 'generating_audio' # 标记整体状态
+            # db.session.commit() # 可以在循环开始前提交一次，或在任务开始时就更新
+
+        sentences_to_process = TtsSentence.query.filter(
+            TtsSentence.tts_script_id == final_script_id,
+            sa.or_( # 使用 SQLAlchemy 的 or_
+                TtsSentence.audio_status == 'pending_generation',
+                TtsSentence.audio_status == 'error_generation',
+                TtsSentence.audio_status == 'pending_regeneration',
+                TtsSentence.audio_status == 'error_submission',
+                TtsSentence.audio_status == 'error_polling',
+                TtsSentence.audio_status == 'processing_request', # 也可以加入处理中但超时的
+                TtsSentence.audio_status == 'queued'
+            )
+        ).order_by(TtsSentence.order_index).all()
+        
+        initially_to_process_count = len(sentences_to_process)
+
+        if initially_to_process_count == 0:
+            logger.info(f"[BatchTask:{self.request.id}] 脚本 {final_script_id} 没有需要生成语音的句子。")
+            all_sentences_in_script = script.tts_sentences.all()
+            all_generated = all(s.audio_status == 'generated' for s in all_sentences_in_script)
+            if all_generated and all_sentences_in_script:
+                 training_content.status = 'audio_generation_complete'
+            elif all_sentences_in_script:
+                 training_content.status = 'partial_audio_generated' # 或保持 generating_audio 直到用户手动确认
+            else:
+                 training_content.status = 'audio_generation_complete' 
+            db.session.commit()
+            meta_no_sentences = {
+                'total_in_batch': 0, 'processed_in_batch': 0, 
+                'succeeded_in_batch': 0, 'failed_in_batch': 0, 
+                'message': '没有需要处理的句子。'
+            }
+            self.update_state(state='SUCCESS', meta=meta_no_sentences)
+            return {'status': 'Success', **meta_no_sentences} # 返回包含计数的字典
+
+        processed_count = 0
+        successful_generations = 0
+        failed_generations = 0
+        
+        initial_meta = {
+            'total_in_batch': initially_to_process_count,
+            'processed_in_batch': 0,
+            'succeeded_in_batch': 0,
+            'failed_in_batch': 0,
+            'message': f'初始化任务：准备处理 {initially_to_process_count} 个句子...'
+        }
+        self.update_state(state='PROGRESS', meta=initial_meta)
+        # logger.debug(f"[BatchTask:{self.request.id}] Initial meta sent: {initial_meta}")
+        # chattts-seed_9716speed_3oral_2laugh_0break_42025-05-15_155558
+        gradio_tts_client = GradioClient(app.config.get('TTS_SERVICE_BASE_URL', "http://test.mengyimengsao.com:37860/"), hf_token=app.config.get('GRADIO_HF_TOKEN', None))
+        default_tts_params = {
+            "num_seeds": 1, "seed": 9716, "speed": 3, "oral": 2, "laugh": 0,
+            "bk": 4, "min_length": 80, "batch_size": 6, "temperature": 0.1,
+            "top_P": 0.7, "top_K": 20, "roleid": "1", "refine_text": True, "pt_file": None
+        }
+
+        for index, sentence in enumerate(sentences_to_process):
+            sentence_id_str = str(sentence.id)
+            sentence.audio_status = 'generating' # 标记单个句子开始生成
+            db.session.commit() 
+            # logger.info(f"[BatchTask:{self.request.id}] ({processed_count + 1}/{initially_to_process_count}) 开始为句子ID {sentence_id_str} 生成语音...")
+
+            current_sentence_processed_status = 'error_generation' # 默认为失败
+
+            try:
+                actual_params = {**default_tts_params} 
+                job_result = gradio_tts_client.predict(
+                    text_file=sentence.sentence_text,
+                    **actual_params,
+                    api_name="/generate_tts_audio"
+                )
+                
+                audio_file_path_from_gradio = None
+                # ... (Gradio 结果解析逻辑，同上次) ...
+                if isinstance(job_result, dict) and job_result.get("name") and job_result.get("is_file"):
+                    audio_file_path_from_gradio = job_result["name"]
+                elif isinstance(job_result, str):
+                    audio_file_path_from_gradio = job_result
+                elif isinstance(job_result, tuple) and len(job_result) > 0:
+                    first_output = job_result[0]
+                    if isinstance(first_output, dict) and first_output.get("name") and first_output.get("is_file"):
+                        audio_file_path_from_gradio = first_output["name"]
+                    elif isinstance(first_output, str):
+                        audio_file_path_from_gradio = first_output
+
+                if not audio_file_path_from_gradio:
+                    raise Exception(f"Gradio TTS API 未返回音频文件路径. Result: {job_result}")
+
+                audio_binary_content = None
+                # ... (文件读取逻辑，同上次) ...
+                if os.path.exists(audio_file_path_from_gradio):
+                    with open(audio_file_path_from_gradio, 'rb') as af: audio_binary_content = af.read()
+                elif audio_file_path_from_gradio.startswith('http'):
+                    response = requests.get(audio_file_path_from_gradio, timeout=60); response.raise_for_status(); audio_binary_content = response.content
+                else:
+                    if isinstance(job_result, tuple) and len(job_result) > 0 and hasattr(job_result[0], 'path') and os.path.exists(job_result[0].path):
+                        with open(job_result[0].path, 'rb') as af: audio_binary_content = af.read()
+                    else: raise Exception(f"无法读取或文件不存在: {audio_file_path_from_gradio}")
+                if not audio_binary_content: raise Exception("未能获取音频内容")
+                
+                # --- 核心修改：在创建 Audio 记录前，确保更新旧记录的 is_latest_for_sentence ---
+                TtsAudio.query.filter_by(tts_sentence_id=sentence.id, is_latest_for_sentence=True).update({'is_latest_for_sentence': False})
+                # --- 结束核心修改 ---
+
+                new_version = 1
+                latest_audio = TtsAudio.query.filter_by(tts_sentence_id=sentence.id).order_by(TtsAudio.version.desc()).first()
+                if latest_audio: new_version = latest_audio.version + 1
+                
+                relative_path, file_size = _save_audio_file(audio_binary_content, training_content.id, sentence.id, new_version)
+                
+                new_audio_record = TtsAudio(
+                    tts_sentence_id=sentence.id,
+                    training_content_id=training_content.id,
+                    audio_type='sentence_audio',
+                    file_path=relative_path,
+                    file_size_bytes=file_size,
+                    tts_engine="GradioTTS_Mengyimengsao_Batch", # 区分一下引擎来源
+                    voice_name=actual_params.get("roleid", "default"),
+                    generation_params=actual_params,
+                    version=new_version,
+                    is_latest_for_sentence=True # 新生成的自然是最新
+                )
+                db.session.add(new_audio_record)
+                current_sentence_processed_status = 'generated' # 标记成功
+                successful_generations += 1
+                # logger.info(f"[BatchTask:{self.request.id}] 句子 {sentence_id_str} 语音成功。")
+                
+            except Exception as e_sent:
+                # current_sentence_processed_status 保持 'error_generation'
+                failed_generations += 1
+                logger.error(f"[BatchTask:{self.request.id}] 处理句子 {sentence_id_str} 失败: {e_sent}", exc_info=True)
+            
+            sentence.audio_status = current_sentence_processed_status # 更新数据库中句子的最终状态
+            db.session.commit() 
+            processed_count += 1
+            
+            
+            # **简化 meta，只包含 Celery 能可靠更新的字段 和 整体计数**
+            current_meta_for_celery = {
+                'current': processed_count, # Celery 倾向于使用 current/total
+                'total': initially_to_process_count,
+                # 仍然尝试传递这些，看是否能被 API 读取到
+                'total_in_batch': initially_to_process_count,
+                'processed_in_batch': processed_count,
+                'succeeded_in_batch': successful_generations,
+                'failed_in_batch': failed_generations,
+                'current_sentence_id': str(sentence.id), # 这个似乎能被传递
+                'message': f'已处理 {processed_count}/{initially_to_process_count}' # 简洁的消息
+            }
+            # print(f"[BatchTask============》:{self.request.id}] Updating Celery task state with meta: {current_meta_for_celery}")
+            self.update_state(state='PROGRESS', meta=current_meta_for_celery)
+            updated_task_info_in_celery = self.AsyncResult(self.request.id).info
+            # print(f"[BatchTask=========》:{self.request.id}] Meta immediately after update_state in Celery: {updated_task_info_in_celery}")
+        
+        
+        # 任务结束
+        all_sentences_in_script = script.tts_sentences.order_by(TtsSentence.order_index).all()
+        # all_succeeded = all(s.audio_status == 'generated' for s in all_processed_sentences if s in sentences_to_process) # 只检查本次处理的
+        
+        final_message_summary = ""
+        if failed_generations == 0 and successful_generations == initially_to_process_count:
+            training_content.status = 'audio_generation_complete' 
+            final_task_status_celery = 'SUCCESS'
+            final_message_summary = f"所有 {initially_to_process_count} 个句子的语音已成功生成。"
+        elif successful_generations > 0:
+            training_content.status = 'partial_audio_generation_error' # 部分成功，部分失败
+            final_task_status_celery = 'SUCCESS' # 任务本身算成功完成（但有部分内容失败）
+            final_message_summary = f"{successful_generations} 个句子语音生成成功，{failed_generations} 个失败。"
+        else: # 所有都失败了
+            training_content.status = 'audio_generation_failed'
+            final_task_status_celery = 'FAILURE'
+            final_message_summary = f"所有尝试处理的 {initially_to_process_count} 个句子的语音生成均失败。"
+        
+        db.session.commit()
+        # logger.info(f"[BatchTask:{self.request.id}] {final_message_summary}")
+
+        final_meta_for_celery = {
+            'total_in_batch': initially_to_process_count,
+            'processed_in_batch': processed_count,
+            'succeeded_in_batch': successful_generations,
+            'failed_in_batch': failed_generations,
+            'message': final_message_summary
+        }
+        self.update_state(state=final_task_status_celery, meta=final_meta_for_celery)
+        
+        return { 
+            'status': final_task_status_celery, 
+            **final_meta_for_celery # 直接展开 final_meta_for_celery
+        }

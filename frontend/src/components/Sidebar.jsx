@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link as RouterLink, useLocation } from 'react-router-dom';
 import {
   Box, List, ListItemButton, ListItemIcon, ListItemText, Drawer, Typography,
-  Divider, IconButton, useMediaQuery, Tooltip, Collapse
+  Divider, IconButton, useMediaQuery, Tooltip, Collapse, AppBar, Toolbar
 } from '@mui/material'; // ListItemButton 替换 ListItem
 import { useTheme, alpha } from '@mui/material/styles'; // 确保 alpha 已导入
 import {

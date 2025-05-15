@@ -27,9 +27,11 @@ export const ttsApi = {
 
   // --- 按句子生成语音 API ---
   generateSentenceAudio: (sentenceId, params = {}) => api.post(`/tts/sentences/${sentenceId}/generate-audio`, params),
+  // 批量生成语音
+  batchGenerateAudioForContent: (contentId) => api.post(`/tts/training-contents/${contentId}/batch-generate-audio`),
 
   // TtsSentence - 手动更新句子文本
-  updateSentenceText: (sentenceId, sentenceText) => api.put(`/tts/sentences/${sentenceId}`, { sentence_text: sentenceText }),
+  updateSentence: (sentenceId, data) => api.put(`/tts/sentences/${sentenceId}`, data),
 
   // TtsAudio - 列表和删除 (其他如生成、合并的触发在上面)
   getAudiosByContent: (contentId, params) => api.get(`/tts/audios/by-content/${contentId}`, { params }),
