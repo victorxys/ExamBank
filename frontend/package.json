@@ -20,6 +20,7 @@
     "@mui/lab": "^6.0.0-beta.27",
     "@mui/material": "^6.4.4",
     "axios": "^1.7.9",
+    "github-markdown-css": "^5.8.1",
     "html2canvas": "^1.4.1",
     "jwt-decode": "^4.0.0",
     "lodash": "^4.17.21",

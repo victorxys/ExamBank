@@ -1,4 +1,4 @@
-// frontend/src/api/tts.js (新增或修改)
+// frontend/src/api/tts.js
 import api from './axios'; // 您的 axios 实例
 
 export const ttsApi = {
@@ -12,9 +12,12 @@ export const ttsApi = {
 
   // TtsScript - 获取脚本内容
   getScriptContent: (scriptId) => api.get(`/tts/scripts/${scriptId}`),
-  // TtsScript - 手动更新最终脚本内容
-  updateFinalTtsScriptContent: (scriptId, content) => api.put(`/tts/scripts/${scriptId}`, { content }),
+  // TtsScript - 手动更新脚本内容 (renamed for general use)
+  updateScriptContent: (scriptId, content) => api.put(`/tts/scripts/${scriptId}`, { content }),
 
+  // 新增：专门用于更新原始培训内容的 API
+  updateOriginalTrainingContent: (contentId, originalContent) => 
+    api.put(`/tts/training-contents/${contentId}/original-content`, { original_content: originalContent }),
 
   // --- 触发处理流程的 API ---
   generateOralScript: (contentId) => api.post(`/tts/scripts/${contentId}/generate-oral-script`),
@@ -22,7 +25,7 @@ export const ttsApi = {
   triggerLlmRefine: (refinedScriptId) => api.post(`/tts/scripts/${refinedScriptId}/llm-refine`),
   splitSentences: (finalScriptId) => api.post(`/tts/scripts/${finalScriptId}/split-sentences`),
 
-  // TtsSentence - 列表和删除
+  // Task Status
   getTaskStatus: (taskId) => api.get(`/tts/task-status/${taskId}`),
 
   // --- 按句子生成语音 API ---
@@ -32,6 +35,9 @@ export const ttsApi = {
 
   // TtsSentence - 手动更新句子文本
   updateSentence: (sentenceId, data) => api.put(`/tts/sentences/${sentenceId}`, data),
+
+  // 新增：删除句子及其语音
+  deleteSentence: (sentenceId) => api.delete(`/tts/sentences/${sentenceId}`),
 
   // TtsAudio - 列表和删除 (其他如生成、合并的触发在上面)
   getAudiosByContent: (contentId, params) => api.get(`/tts/audios/by-content/${contentId}`, { params }),

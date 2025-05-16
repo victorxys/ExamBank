@@ -138,6 +138,14 @@ def get_training_content_detail(content_id):
         if not content:
             current_app.logger.warning(f"TrainingContent with ID {content_id} not found.")
             return jsonify({'error': '培训内容未找到'}), 404
+        # --- 关键的调试步骤：强制刷新对象 ---
+       
+        current_app.logger.info(f"获取到 TrainingContent 对象: {content.id}, 尝试从数据库刷新...")
+        db.session.refresh(content)
+        current_app.logger.info(f"使 content.tts_scripts 关系过期...")
+        db.session.expire(content, ['tts_scripts']) # 显式使 tts_scripts 关系过期
+        current_app.logger.info(f"TrainingContent 对象 {content.id} 及其 tts_scripts 关系已处理。")
+        # --- 调试步骤结束 ---
 
         current_app.logger.info(f"Found TrainingContent: {content.id}, status: {content.status}") # 2. 确认内容找到
 
@@ -149,6 +157,7 @@ def get_training_content_detail(content_id):
                 'id': str(script.id),
                 'script_type': script.script_type,
                 'version': script.version,
+                'content': script.content,
                 'created_at': script.created_at.isoformat() if script.created_at else None,
                 'content_preview': script.content[:200] + ('...' if len(script.content) > 200 else ''),
                 'llm_call_log_id': str(script.llm_call_log_id) if script.llm_call_log_id else None,
@@ -159,10 +168,23 @@ def get_training_content_detail(content_id):
         current_app.logger.info(f"Processed {len(scripts_data)} scripts.") # 4. 确认脚本处理数量
 
         sentences_data = []
-        latest_final_script = content.tts_scripts.filter_by(script_type='final_tts_script').order_by(TtsScript.version.desc()).first()
-        current_app.logger.info(f"Latest final script: {latest_final_script.id if latest_final_script else 'None'}") # 5. 确认最终脚本
-
+        current_app.logger.info(f"--- 开始直接查询 TtsScript 表获取最新的 final_tts_script for content_id: {content.id} ---")
+        # --- 直接从 TtsScript 表查询最新的 final_tts_script ---
+        latest_final_script = TtsScript.query.filter_by(
+            training_content_id=content.id,  # 直接使用 content.id 作为过滤条件
+            script_type='final_tts_script'
+        ).order_by(TtsScript.version.desc()).first()
+        # --- 直接查询结束 ---
         if latest_final_script:
+            current_app.logger.info(
+                f"[API_GET_SENTENCES_V3] (直接查询得到) 使用的 final_tts_script: ID={latest_final_script.id}, "
+                f"Version={latest_final_script.version}, CreatedAt={latest_final_script.created_at}"
+            )
+            # ... (后续获取句子的逻辑使用这个 directly_queried_latest_script) ...
+            db_sentences = latest_final_script.tts_sentences.order_by(TtsSentence.order_index).all() # 这里仍然可以用关系
+            current_app.logger.info(
+                f"[API_GET_SENTENCES_V3] (直接查询得到) 为脚本 ID {latest_final_script.id} 从数据库查询到 {len(db_sentences)} 个句子。"
+            )
             for sentence in latest_final_script.tts_sentences.order_by(TtsSentence.order_index).all():
                 # current_app.logger.debug(f"Processing sentence: ID {sentence.id}, Order {sentence.order_index}")
                 latest_audio = sentence.audios.filter_by(is_latest_for_sentence=True).order_by(TtsAudio.created_at.desc()).first()
@@ -177,7 +199,7 @@ def get_training_content_detail(content_id):
                     'audio_duration_ms': latest_audio.duration_ms if latest_audio else None,
                 })
         
-        # current_app.logger.info(f"Processed {len(sentences_data)} sentences.") # 6. 确认句子处理数量
+        current_app.logger.info(f"Processed {len(sentences_data)} sentences.") # 6. 确认句子处理数量
 
         merged_audio_info = None
         # 注意：`content.merged_audios` 是一个 relationship，需要调用 .all() 或 .first()
@@ -199,6 +221,7 @@ def get_training_content_detail(content_id):
         response_payload = {
             'id': str(content.id),
             'content_name': content.content_name,
+            'original_content': content.original_content,
             'original_content_preview': content.original_content[:500] + ('...' if len(content.original_content) > 500 else ''),
             'status': content.status,
             'created_at': content.created_at.isoformat() if content.created_at else None,
@@ -335,6 +358,53 @@ def get_script_content(script_id):
         return jsonify({'error': '获取脚本内容时发生服务器错误: ' + str(e)}), 500
 
 # PUT /api/tts/scripts/<script_id> (手动更新 final_tts_script 内容的 API) 将在第2步细化
+@tts_bp.route('/scripts/<uuid:script_id>', methods=['PUT'])
+@admin_required
+def update_script_content_route(script_id): # Renamed to avoid conflict with get_script_content
+    data = request.get_json()
+    script = TtsScript.query.get(str(script_id))
+    if not script: return jsonify({'error': '脚本未找到'}), 404
+    
+    new_content = data.get('content')
+    if new_content is None or not isinstance(new_content, str):
+        return jsonify({'error': '脚本内容 (content) 缺失或格式不正确'}), 400
+    
+    new_content_stripped = new_content.strip()
+    if not new_content_stripped:
+        return jsonify({'error': '脚本内容不能为空'}), 400
+
+    try:
+        if script.content == new_content_stripped:
+            return jsonify({'message': '脚本内容未改变', 'id': str(script.id)}), 200
+
+        script.content = new_content_stripped
+        script.version += 1 # 更新版本号
+        script.updated_at = func.now() # SQLAlchemy会自动处理 onupdate, 但显式设置也没问题
+
+        # 如果是 final_tts_script 被修改，需要特殊处理
+        if script.script_type == 'final_tts_script':
+            current_app.logger.info(f"最终TTS脚本 {script.id} 内容被手动更新，版本升至 {script.version}.")
+            # 1. 删除旧的句子和它们关联的语音（包括物理文件）
+            old_sentences = TtsSentence.query.filter_by(tts_script_id=script.id).all()
+            for old_sentence in old_sentences:
+                audios_to_delete = TtsAudio.query.filter_by(tts_sentence_id=old_sentence.id).all()
+                for audio_record in audios_to_delete:
+                    # TODO: 实际物理文件删除
+                    current_app.logger.warning(f"TODO: 物理删除文件 {audio_record.file_path} for audio {audio_record.id} due to final script update.")
+                    db.session.delete(audio_record)
+                db.session.delete(old_sentence)
+            
+            # 2. 更新 TrainingContent 状态，以便前端或后续流程知道需要重新拆分句子
+            if script.training_content:
+                script.training_content.status = 'pending_sentence_split' # 或更明确的状态
+                current_app.logger.info(f"内容 {script.training_content_id} 状态更新为 {script.training_content.status}，因最终脚本被编辑。")
+
+        db.session.commit()
+        return jsonify({'message': '脚本更新成功', 'id': str(script.id), 'new_version': script.version})
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"更新脚本 {script_id} 失败: {e}", exc_info=True)
+        return jsonify({'error': f'更新脚本时发生服务器错误: {str(e)}'}), 500
 
 # --- TTS 句子 (TtsSentence) 的基础 API ---
 @tts_bp.route('/sentences/<uuid:sentence_id>', methods=['PUT'])
@@ -721,61 +791,92 @@ def llm_refine_script_route(refined_script_id):
         return jsonify({'error': 'LLM最终修订脚本时发生错误: ' + error_message_str}), 500
 
 
-@tts_bp.route('/scripts/<uuid:final_script_id>/split-sentences', methods=['POST'])
+@tts_bp.route('/scripts/<uuid:source_final_script_id>/split-sentences', methods=['POST'])
 @admin_required
-def split_script_into_sentences_route(final_script_id):
-    """将最终TTS脚本拆分为句子 (骨架)"""
-    final_script = TtsScript.query.get(str(final_script_id))
-    if not final_script or final_script.script_type != 'final_tts_script':
-        return jsonify({'error': '无效的最终TTS脚本ID或类型不匹配'}), 400
+def split_script_into_sentences_route(source_final_script_id):
+    source_final_script_id_str = str(source_final_script_id)
+    current_app.logger.info(f"开始为源 final_script_id: {source_final_script_id_str} 执行句子重新拆分并创建新版本。")
+
+    source_final_script = TtsScript.query.get(source_final_script_id_str)
+    if not source_final_script or source_final_script.script_type != 'final_tts_script':
+        current_app.logger.warning(f"句子拆分失败：无效的源 final_script_id {source_final_script_id_str} 或脚本类型不匹配 ({source_final_script.script_type if source_final_script else 'None'})。")
+        return jsonify({'error': '无效的源最终TTS脚本ID或类型不匹配'}), 400
         
-    training_content = final_script.training_content
+    training_content = source_final_script.training_content
     if not training_content:
+         current_app.logger.error(f"句子拆分失败：源脚本 {source_final_script_id_str} 找不到关联的培训内容。")
          return jsonify({'error': '找不到关联的培训内容'}), 404
 
     try:
-        # 模拟句子拆分
-        # TODO: 替换为真实的句子拆分逻辑 (例如，按换行符、句号、问号、感叹号拆分)
-        # sentences_text_list = split_text_into_sentences(final_script.content)
+        current_app.logger.info(f"开始处理源脚本 ID: {source_final_script.id}, Version: {source_final_script.version} 的内容拆分。")
         
-        sentences_text_list = [s.strip() for s in final_script.content.split('\n') if s.strip()]
-        if not sentences_text_list: # 如果换行符分割后为空，尝试用句号分割
-            sentences_text_list = [s.strip() + '。' for s in final_script.content.split('。') if s.strip()]
+        # 1. 获取当前 TrainingContent 下 'final_tts_script' 的最大版本号
+        current_max_version_obj = db.session.query(func.max(TtsScript.version)).filter_by(
+            training_content_id=training_content.id,
+            script_type='final_tts_script'
+        ).one_or_none() # 使用 one_or_none() 获取结果，它可能为 (None,) 或 (max_version,)
         
-        if not sentences_text_list: # 如果还是空，返回错误
-             current_app.logger.warning(f"最终脚本 {final_script_id} 内容为空或无法拆分句子。")
-             return jsonify({'error': '脚本内容为空或无法拆分句子'}), 400
+        current_max_version = 0
+        if current_max_version_obj and current_max_version_obj[0] is not None:
+            current_max_version = current_max_version_obj[0]
+        
+        new_version_number = current_max_version + 1
+        current_app.logger.info(f"当前内容 {training_content.id} 的 final_tts_script 最大版本号为: {current_max_version}. 新版本将是: {new_version_number}")
 
-        # 清除该脚本下旧的句子 (如果存在且逻辑需要如此，或者通过版本控制处理)
-        # TtsSentence.query.filter_by(tts_script_id=final_script.id).delete()
-        # db.session.flush()
+        # 2. 创建一个新的 TtsScript 记录作为新版本
+        new_final_script = TtsScript(
+            training_content_id=training_content.id,
+            script_type='final_tts_script',
+            content=source_final_script.content, # 内容与源脚本相同
+            version=new_version_number,
+            source_script_id=source_final_script.id # 记录源脚本
+        )
+        db.session.add(new_final_script)
+        db.session.flush() # 立即执行插入以获取 new_final_script.id
+        current_app.logger.info(f"已创建新的 final_tts_script 记录: ID={new_final_script.id}, Version={new_final_script.version}")
 
-        created_sentences = []
+        # 3. 拆分句子 (使用新脚本的内容，这里与源脚本内容一样)
+        sentences_text_list = [s.strip() for s in new_final_script.content.split('\n') if s.strip()]
+        if not sentences_text_list:
+            sentences_text_list = [s.strip() + '。' for s in new_final_script.content.split('。') if s.strip()]
+        
+        if not sentences_text_list:
+             current_app.logger.warning(f"新脚本 {new_final_script.id} 内容为空或无法拆分出任何句子。")
+             # 即使无法拆分，新版本的脚本也已创建，这里可以选择是回滚还是保留空句子脚本
+             # 为了简单，这里我们允许创建一个没有句子的新版本脚本，但实际可能需要更复杂的处理
+             # db.session.rollback() # 如果不希望创建没有句子的脚本版本，可以回滚
+             # return jsonify({'error': '脚本内容为空或无法拆分句子，未创建新版本。'}), 400
+        
+        created_sentences_count = 0
         for index, text in enumerate(sentences_text_list):
             new_sentence = TtsSentence(
-                tts_script_id=final_script.id,
+                tts_script_id=new_final_script.id, # <--- 关联到新创建的脚本 ID
                 sentence_text=text,
                 order_index=index,
-                audio_status='pending_generation' # 新句子状态为待生成语音
+                audio_status='pending_generation'
             )
             db.session.add(new_sentence)
-            created_sentences.append(new_sentence)
+            created_sentences_count += 1
         
         training_content.status = 'pending_audio_generation' # 更新培训内容状态
         db.session.commit()
         
-        current_app.logger.info(f"为最终脚本 {final_script_id} 成功拆分并创建了 {len(created_sentences)} 个句子。")
+        current_app.logger.info(
+            f"为新脚本 ID {new_final_script.id} (Version {new_final_script.version}) 成功创建了 {created_sentences_count} 个句子。"
+            f"TrainingContent status 更新为 {training_content.status}。"
+        )
         return jsonify({
-            'message': f'脚本成功拆分为 {len(created_sentences)} 个句子。',
-            'final_script_id': str(final_script.id),
-            'num_sentences': len(created_sentences),
+            'message': f'脚本成功重新拆分为 {created_sentences_count} 个句子，并创建了新的最终脚本版本 (v{new_final_script.version})。',
+            'new_final_tts_script_id': str(new_final_script.id), # 返回新脚本的ID
+            'new_version': new_final_script.version,
+            'num_sentences': created_sentences_count,
             'next_step': 'Batch Generate Audio or Single Sentence Generate'
-        }), 200
+        }), 201 # 201 Created，因为创建了新资源
 
     except Exception as e:
         db.session.rollback()
-        current_app.logger.error(f"拆分脚本 {final_script_id} 为句子失败: {e}", exc_info=True)
-        return jsonify({'error': '拆分脚本为句子时发生服务器错误: ' + str(e)}), 500
+        current_app.logger.error(f"为源脚本 {source_final_script_id_str} 重新拆分并创建新版本失败: {e}", exc_info=True)
+        return jsonify({'error': '重新拆分脚本并创建新版本时发生服务器错误: ' + str(e)}), 500
 
 # 异步任务状态查询
 @tts_bp.route('/task-status/<task_id>', methods=['GET'])
@@ -901,7 +1002,14 @@ def batch_generate_audio_for_content_route(content_id):
     # ... (获取 content 和 latest_final_script) ...
     content = TrainingContent.query.get(str(content_id))
     if not content: return jsonify({'error': '培训内容未找到'}), 404
-    latest_final_script = content.tts_scripts.filter_by(script_type='final_tts_script').order_by(TtsScript.version.desc()).first()
+    # --- 修改：直接从 TtsScript 表查询最新的 final_tts_script ---
+    current_app.logger.info(f"开始直接查询 TtsScript 表以获取最新的 final_tts_script for content_id: {content.id}")
+    latest_final_script = TtsScript.query.filter_by(
+        training_content_id=content.id,  # 使用 content.id 进行过滤
+        script_type='final_tts_script'
+    ).order_by(TtsScript.version.desc()).first()
+    # --- 修改结束 ---
+    # latest_final_script = content.tts_scripts.filter_by(script_type='final_tts_script').order_by(TtsScript.version.desc()).first()
     if not latest_final_script: return jsonify({'error': '未找到该内容的最终TTS脚本'}), 400
 
     # 只检查是否有需要处理的，具体列表由Celery任务自己查，避免数据不一致
@@ -944,3 +1052,97 @@ def batch_generate_audio_for_content_route(content_id):
         db.session.rollback()
         current_app.logger.error(f"提交批量语音生成任务失败 (内容ID: {content_id}): {e}", exc_info=True)
         return jsonify({'error': f'提交批量语音生成任务失败: {str(e)}'}), 500
+    
+@tts_bp.route('/sentences/<uuid:sentence_id>', methods=['DELETE'])
+@admin_required
+def delete_sentence_route(sentence_id):
+    sentence_id_str = str(sentence_id)
+    sentence = TtsSentence.query.get(sentence_id_str)
+    if not sentence:
+        return jsonify({'error': '句子未找到'}), 404
+
+    try:
+        # 1. 找到所有关联的语音文件记录
+        audios_to_delete = TtsAudio.query.filter_by(tts_sentence_id=sentence_id_str).all()
+        audio_paths_to_delete_physically = []
+
+        for audio_record in audios_to_delete:
+            # 假设 file_path 存储的是需要删除的文件的标识符或相对路径
+            # 例如：'course_abc/content_xyz/sentence_audio_xyz.mp3'
+            if audio_record.file_path: # 确保有路径才尝试删除
+                audio_paths_to_delete_physically.append(audio_record.file_path)
+            db.session.delete(audio_record)
+        
+        db.session.delete(sentence)
+        db.session.commit() # 先提交数据库更改，确保记录被删除
+
+        # 2. 删除物理文件 (如果数据库操作成功)
+        # 这里的 StorageService 是一个假设的例子，你需要根据你的实际存储实现
+        # from ..services.storage_service import StorageService # 假设的导入
+        # storage_service = StorageService() 
+        # for path in audio_paths_to_delete_physically:
+        #     try:
+        #         # storage_service.delete_file(path) # 调用删除物理文件的方法
+        #         current_app.logger.info(f"拟删除物理语音文件 (需实现): {path}") # 替换为实际删除
+        #     except Exception as e_file:
+        #         current_app.logger.error(f"删除物理语音文件失败 {path}: {e_file}")
+        #         # 这里可以考虑是否要记录这个失败，但数据库记录已删除
+
+        # 临时日志，提示需要实现物理删除
+        if audio_paths_to_delete_physically:
+            current_app.logger.warning(f"TODO: 实现物理删除以下文件: {audio_paths_to_delete_physically}")
+
+
+        current_app.logger.info(f"句子 {sentence_id_str} 及其数据库中的语音记录已删除。")
+        return jsonify({'message': '句子及其关联语音记录已成功删除。请确保物理文件也已处理。'})
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"删除句子 {sentence_id_str} 失败: {e}", exc_info=True)
+        return jsonify({'error': f'删除句子失败: {str(e)}'}), 500
+    
+
+@tts_bp.route('/training-contents/<uuid:content_id>/original-content', methods=['PUT'])
+@admin_required # 通常编辑原文需要管理员权限
+def update_training_content_original_text(content_id):
+    """专门更新培训内容的原始文本"""
+    data = request.get_json()
+    content = TrainingContent.query.get(str(content_id))
+    if not content:
+        return jsonify({'error': '培训内容未找到'}), 404
+
+    new_original_content = data.get('original_content')
+    if new_original_content is None: # 检查是否提供了 original_content
+        return jsonify({'error': '缺少 original_content 字段'}), 400
+    
+    if not isinstance(new_original_content, str):
+        return jsonify({'error': 'original_content 必须是字符串'}), 400
+
+    # 考虑原始文本是否允许为空，如果不能为空，添加 strip() 和空值检查
+    # new_original_content_stripped = new_original_content.strip()
+    # if not new_original_content_stripped:
+    #     return jsonify({'error': '原始培训内容不能为空'}), 400
+
+    try:
+        if content.original_content != new_original_content:
+            content.original_content = new_original_content
+            # 当原始文本被修改时，可能需要重置后续所有脚本的状态，
+            # 或者至少将 TrainingContent 的状态更新为一个表示需要重新处理的状态，
+            # 例如 'pending_oral_script'，并可能需要删除或标记旧的衍生脚本为过时。
+            # 这是一个重要的业务逻辑决策。
+            # 简单处理：仅更新文本，并可能重置状态。
+            content.status = 'pending_oral_script' # 示例：重置状态以便重新生成口播稿
+            
+            # 可选：更彻底的清理 - 删除所有已生成的脚本和句子
+            # TtsScript.query.filter_by(training_content_id=content.id).delete(synchronize_session=False)
+            # TtsSentence 和 TtsAudio 会因为级联删除而被处理 (如果模型配置了)
+
+            db.session.commit()
+            current_app.logger.info(f"培训内容 {content_id} 的原始文本已更新。状态重置为 {content.status}。")
+            return jsonify({'message': '原始培训内容更新成功，后续处理流程可能需要重新执行。', 'id': str(content.id)})
+        else:
+            return jsonify({'message': '原始培训内容未发生改变。', 'id': str(content.id)}), 200
+            
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"更新培训内容 {content_id} 的原始文本失败: {e}", exc_info=True)
+        return jsonify({'error': '更新原始培训内容时发生服务器错误: ' + str(e)}), 500
