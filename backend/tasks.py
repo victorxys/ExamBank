@@ -1,9 +1,9 @@
 # backend/tasks.py
 from celery_worker import celery_app
 from flask import Flask, current_app # 导入 current_app
-from backend.models import db, TtsScript, TrainingContent, TtsSentence, TtsAudio
+from backend.models import db, TtsScript, TrainingContent, TtsSentence, TtsAudio, MergedAudioSegment
 import sqlalchemy as sa # <--- 添加这一行
-from sqlalchemy import or_ # 也可以只导入 or_，但如果后面还用到 sa.func 等，还是导入整个 sqlalchemy 好
+from sqlalchemy import or_, func # 也可以只导入 or_，但如果后面还用到 sa.func 等，还是导入整个 sqlalchemy 好
 
 # from backend.api.ai_generate import transform_text_with_llm # 如果其他任务需要
 from gradio_client import Client as GradioClient # GradioClient 已导入
@@ -13,6 +13,11 @@ from datetime import datetime
 import requests
 import json
 import uuid # 导入 uuid
+
+from pydub import AudioSegment # For audio manipulation
+from pydub.exceptions import CouldntDecodeError
+import shutil # For safely cleaning up temporary files if any
+
 
 # 为了在 Celery 任务中使用 Flask 应用上下文（例如数据库会话、current_app.config）
 # 我们需要一种方式来访问或创建 Flask app 实例。
@@ -30,6 +35,31 @@ def create_flask_app_for_task():
     return flask_app_instance
 
 logger = logging.getLogger(__name__)
+
+def _save_merged_audio_file(audio_segment_obj, training_content_id_str, version_number):
+    """Saves a Pydub AudioSegment object for a merged audio."""
+    app = create_flask_app_for_task()
+    with app.app_context():
+        storage_base_path = app.config.get('TTS_AUDIO_STORAGE_PATH', os.path.join(app.root_path, 'static', 'tts_audio'))
+        # Merged files go into the training_content_id directory directly
+        relative_dir = str(training_content_id_str)
+        full_dir_path = os.path.join(storage_base_path, relative_dir)
+        os.makedirs(full_dir_path, exist_ok=True)
+        
+        timestamp_str = datetime.now().strftime("%Y%m%d%H%M%S%f")
+        file_name = f"merged_audio_v{version_number}_{timestamp_str}.mp3" # Saving as MP3 for potentially smaller size
+        full_file_path = os.path.join(full_dir_path, file_name)
+        relative_file_path = os.path.join(relative_dir, file_name)
+
+        try:
+            # Export as MP3. You can choose .wav if preferred, but MP3 is often better for web.
+            # Ensure ffmpeg is installed and in PATH for pydub to export non-wav formats.
+            audio_segment_obj.export(full_file_path, format="mp3")
+            logger.info(f"Merged audio file saved to: {full_file_path} (relative: {relative_file_path})")
+            return relative_file_path, os.path.getsize(full_file_path)
+        except Exception as e:
+            logger.error(f"Saving merged audio file failed {full_file_path}: {e}", exc_info=True)
+            raise
 
 
 def _create_new_script_version_task(source_script_id, training_content_id, new_script_type, new_content, llm_log_id=None):
@@ -176,8 +206,8 @@ def generate_single_sentence_audio_async(self, sentence_id_str, tts_engine_param
             # 这些参数应该可以从 LlmPrompt 的元数据或系统配置中获取，或者前端传递
             # 以下是基于您提供的示例的默认值
             default_params = {
-                "num_seeds": 1, "seed": 9716, "speed": 3, "oral": 2, "laugh": 0,
-                "bk": 4, "min_length": 80, "batch_size": 6, "temperature": 0.1,
+                "num_seeds": 1, "seed": 1029, "speed": 2, "oral": 2, "laugh": 0,
+                "bk": 6, "min_length": 80, "batch_size": 6, "temperature": 0.1,
                 "top_P": 0.7, "top_K": 20, "roleid": "1", "refine_text": True, "pt_file": None
             }
             
@@ -369,8 +399,8 @@ def batch_generate_audio_task(self, final_script_id_str):
         # chattts-seed_9716speed_3oral_2laugh_0break_42025-05-15_155558
         gradio_tts_client = GradioClient(app.config.get('TTS_SERVICE_BASE_URL', "http://test.mengyimengsao.com:37860/"), hf_token=app.config.get('GRADIO_HF_TOKEN', None))
         default_tts_params = {
-            "num_seeds": 1, "seed": 9716, "speed": 3, "oral": 2, "laugh": 0,
-            "bk": 4, "min_length": 80, "batch_size": 6, "temperature": 0.1,
+           "num_seeds": 1, "seed": 1029, "speed": 2, "oral": 2, "laugh": 0,
+            "bk": 6, "min_length": 80, "batch_size": 6, "temperature": 0.1,
             "top_P": 0.7, "top_K": 20, "roleid": "1", "refine_text": True, "pt_file": None
         }
 
@@ -507,3 +537,219 @@ def batch_generate_audio_task(self, final_script_id_str):
             'status': final_task_status_celery, 
             **final_meta_for_celery # 直接展开 final_meta_for_celery
         }
+
+@celery_app.task(bind=True, name='tasks.merge_all_audios_for_content', max_retries=1)
+def merge_all_audios_for_content(self, training_content_id_str):
+    app = create_flask_app_for_task()
+    with app.app_context():
+        task_id = self.request.id
+        logger.info(f"[MergeTask:{task_id}] Starting audio merge for TrainingContent ID: {training_content_id_str}")
+        
+        content = TrainingContent.query.get(training_content_id_str)
+        if not content:
+            logger.error(f"[MergeTask:{task_id}] TrainingContent {training_content_id_str} not found.")
+            self.update_state(state='FAILURE', meta={'error': 'Content not found'})
+            return {'status': 'Error', 'message': 'TrainingContent not found'}
+
+        latest_final_script = TtsScript.query.filter_by(
+            training_content_id=content.id,
+            script_type='final_tts_script'
+        ).order_by(TtsScript.version.desc()).first()
+
+        if not latest_final_script:
+            logger.warning(f"[MergeTask:{task_id}] No final_tts_script found for content {content.id}.")
+            content.status = 'merge_failed_no_script'
+            db.session.commit()
+            self.update_state(state='FAILURE', meta={'error': 'No final script'})
+            return {'status': 'Error', 'message': 'No final script found'}
+
+        sentences_in_order = latest_final_script.tts_sentences.order_by(TtsSentence.order_index).all()
+        if not sentences_in_order:
+            logger.warning(f"[MergeTask:{task_id}] No sentences in final_tts_script {latest_final_script.id}.")
+            content.status = 'merge_failed_no_sentences'
+            db.session.commit()
+            self.update_state(state='SUCCESS', meta={'message': 'No sentences to merge', 'total_segments': 0}) # Success, as nothing to do
+            return {'status': 'Success', 'message': 'No sentences to merge', 'total_segments': 0}
+
+        all_audios_generated = True
+        sentence_audio_paths = []
+        sentence_audio_objects = [] # To store {sentence, audio_record, pydub_segment}
+
+        self.update_state(state='PROGRESS', meta={
+            'current_step': 'checking_sentence_audios',
+            'total_sentences': len(sentences_in_order),
+            'checked_sentences': 0,
+            'message': 'Checking sentence audio files...'
+        })
+
+        for i, sentence_obj in enumerate(sentences_in_order):
+            latest_audio_for_sentence = TtsAudio.query.filter_by(
+                tts_sentence_id=sentence_obj.id,
+                is_latest_for_sentence=True,
+                audio_type='sentence_audio' # Ensure it's a sentence audio
+            ).order_by(TtsAudio.created_at.desc()).first()
+
+            if not latest_audio_for_sentence or sentence_obj.audio_status != 'generated':
+                all_audios_generated = False
+                logger.error(f"[MergeTask:{task_id}] Sentence {sentence_obj.id} (Order: {sentence_obj.order_index}) audio not generated or not found. Status: {sentence_obj.audio_status}")
+                content.status = 'merge_failed_audio_missing'
+                db.session.commit()
+                self.update_state(state='FAILURE', meta={'error': f'Audio for sentence order {sentence_obj.order_index + 1} is not ready.'})
+                return {'status': 'Error', 'message': f'Audio for sentence (Order: {sentence_obj.order_index + 1}) "{sentence_obj.sentence_text[:30]}..." is not ready.'}
+            
+            # Construct full path to the audio file
+            storage_base_path = app.config.get('TTS_AUDIO_STORAGE_PATH', os.path.join(app.root_path, 'static', 'tts_audio'))
+            audio_full_path = os.path.join(storage_base_path, latest_audio_for_sentence.file_path)
+            
+            if not os.path.exists(audio_full_path):
+                all_audios_generated = False
+                logger.error(f"[MergeTask:{task_id}] Audio file {audio_full_path} for sentence {sentence_obj.id} not found on disk.")
+                content.status = 'merge_failed_file_missing'
+                db.session.commit()
+                self.update_state(state='FAILURE', meta={'error': f'Audio file for sentence order {sentence_obj.order_index + 1} missing on disk.'})
+                return {'status': 'Error', 'message': f'Audio file for sentence (Order: {sentence_obj.order_index + 1}) missing on disk.'}
+
+            sentence_audio_paths.append(audio_full_path)
+            sentence_audio_objects.append({
+                'sentence_id': str(sentence_obj.id),
+                'order_index': sentence_obj.order_index,
+                'text_ref': sentence_obj.sentence_text,
+                'audio_record': latest_audio_for_sentence, # Keep the DB record for duration etc.
+                'file_path': audio_full_path
+            })
+            self.update_state(state='PROGRESS', meta={
+                'current_step': 'checking_sentence_audios',
+                'total_sentences': len(sentences_in_order),
+                'checked_sentences': i + 1,
+                'message': f'Checked audio for sentence {i+1}/{len(sentences_in_order)}'
+            })
+
+        if not all_audios_generated: # Should have been caught above, but as a safeguard
+            return # Already handled
+
+        logger.info(f"[MergeTask:{task_id}] All {len(sentence_audio_paths)} sentence audios are ready for merging.")
+        content.status = 'merging_audio'
+        db.session.commit()
+
+        merged_sound = None
+        current_total_duration_ms = 0
+        new_segments_data = []
+
+        self.update_state(state='PROGRESS', meta={
+            'current_step': 'merging_files',
+            'total_sentences': len(sentence_audio_objects),
+            'merged_count': 0,
+            'message': 'Starting audio file concatenation...'
+        })
+
+        try:
+            for i, audio_info in enumerate(sentence_audio_objects):
+                try:
+                    # pydub will infer format from extension, or you can specify format
+                    segment_sound = AudioSegment.from_file(audio_info['file_path'])
+                except CouldntDecodeError:
+                    logger.error(f"[MergeTask:{task_id}] Could not decode audio file: {audio_info['file_path']}. Skipping or failing.")
+                    content.status = f'merge_failed_decode_error_sent_{audio_info["order_index"]+1}'
+                    db.session.commit()
+                    self.update_state(state='FAILURE', meta={'error': f'Could not decode audio for sentence order {audio_info["order_index"] + 1}'})
+                    return {'status': 'Error', 'message': f'Error decoding audio for sentence {audio_info["order_index"] + 1}'}
+
+
+                segment_duration_ms = len(segment_sound) # Duration in milliseconds
+
+                start_time_ms = current_total_duration_ms
+                end_time_ms = current_total_duration_ms + segment_duration_ms
+
+                new_segments_data.append({
+                    'tts_sentence_id': audio_info['sentence_id'],
+                    'original_order_index': audio_info['order_index'],
+                    'original_sentence_text_ref': audio_info['text_ref'],
+                    'start_ms': start_time_ms,
+                    'end_ms': end_time_ms,
+                    'duration_ms': segment_duration_ms
+                })
+
+                if merged_sound is None:
+                    merged_sound = segment_sound
+                else:
+                    merged_sound = merged_sound + segment_sound
+                
+                current_total_duration_ms = end_time_ms
+                
+                self.update_state(state='PROGRESS', meta={
+                    'current_step': 'merging_files',
+                    'total_sentences': len(sentence_audio_objects),
+                    'merged_count': i + 1,
+                    'message': f'Merged sentence {i+1}/{len(sentence_audio_objects)}. Current duration: {current_total_duration_ms / 1000:.2f}s'
+                })
+
+            if merged_sound is None:
+                logger.warning(f"[MergeTask:{task_id}] No audio segments were actually merged (e.g., empty list).")
+                content.status = 'merge_failed_no_segments_processed'
+                db.session.commit()
+                self.update_state(state='SUCCESS', meta={'message': 'No audio segments to merge.'})
+                return {'status': 'Success', 'message': 'No audio segments processed.'}
+
+            # Mark previous merged audios for this content as not latest
+            TtsAudio.query.filter_by(
+                training_content_id=content.id,
+                audio_type='merged_audio',
+                is_latest_for_content=True
+            ).update({'is_latest_for_content': False})
+
+            # Determine new version for the merged audio
+            latest_merged_version_obj = TtsAudio.query.with_entities(func.max(TtsAudio.version)).filter_by(
+                training_content_id=content.id, audio_type='merged_audio'
+            ).scalar()
+            new_merged_version = (latest_merged_version_obj or 0) + 1
+
+            # Save the merged audio file
+            merged_relative_path, merged_file_size = _save_merged_audio_file(merged_sound, content.id, new_merged_version)
+            
+            # Create TtsAudio record for the new merged file
+            new_merged_audio_record = TtsAudio(
+                training_content_id=content.id,
+                audio_type='merged_audio',
+                file_path=merged_relative_path,
+                duration_ms=current_total_duration_ms,
+                file_size_bytes=merged_file_size,
+                tts_engine="SystemMerge", # Or a more descriptive name
+                version=new_merged_version,
+                is_latest_for_content=True
+            )
+            db.session.add(new_merged_audio_record)
+            db.session.flush() # Get the ID for new_merged_audio_record
+
+            # Create MergedAudioSegment records
+            for seg_data in new_segments_data:
+                segment_entry = MergedAudioSegment(
+                    merged_audio_id=new_merged_audio_record.id,
+                    **seg_data
+                )
+                db.session.add(segment_entry)
+            
+            content.status = 'audio_merge_complete'
+            db.session.commit()
+
+            logger.info(f"[MergeTask:{task_id}] Audio merge successful for content {content.id}. New merged audio ID: {new_merged_audio_record.id}")
+            self.update_state(state='SUCCESS', meta={
+                'message': 'Audio merge successful!',
+                'merged_audio_id': str(new_merged_audio_record.id),
+                'total_duration_ms': current_total_duration_ms,
+                'total_segments': len(new_segments_data)
+            })
+            return {
+                'status': 'Success',
+                'message': 'Audio merge successful!',
+                'merged_audio_id': str(new_merged_audio_record.id),
+                'total_duration_ms': current_total_duration_ms,
+                'num_segments': len(new_segments_data)
+            }
+
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"[MergeTask:{task_id}] Error during audio merging process for {content.id}: {e}", exc_info=True)
+            content.status = 'merge_failed_exception'
+            db.session.commit()
+            self.update_state(state='FAILURE', meta={'error': str(e), 'exc_type': type(e).__name__})
+            return {'status': 'Error', 'message': f'Merging process failed: {str(e)}'}

@@ -32,6 +32,8 @@ export const ttsApi = {
   generateSentenceAudio: (sentenceId, params = {}) => api.post(`/tts/sentences/${sentenceId}/generate-audio`, params),
   // 批量生成语音
   batchGenerateAudioForContent: (contentId) => api.post(`/tts/training-contents/${contentId}/batch-generate-audio`),
+  mergeAudio: (contentId) => api.post(`/tts/training-contents/${contentId}/merge-audio`),
+  getMergedAudioSegments: (mergedAudioId) => api.get(`/tts/audios/${mergedAudioId}/segments`), // New API call
 
   // TtsSentence - 手动更新句子文本
   updateSentence: (sentenceId, data) => api.put(`/tts/sentences/${sentenceId}`, data),

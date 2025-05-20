@@ -636,3 +636,30 @@ class TtsAudio(db.Model):
         elif self.training_content_id:
             return f'<TtsAudio Merged for Content {self.training_content_id} v{self.version}>'
         return f'<TtsAudio {self.id}>'
+    
+class MergedAudioSegment(db.Model):
+    __tablename__ = 'merged_audio_segment'
+    __table_args__ = (
+        db.Index('idx_merged_audio_segment_audio_order', 'merged_audio_id', 'original_order_index'),
+        {'comment': 'Segments of a merged TTS audio, mapping to original sentences and their timings.'}
+    )
+    id = db.Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    # FK to the merged TtsAudio record (the one with audio_type='merged_audio')
+    merged_audio_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('tts_audio.id', ondelete='CASCADE'), nullable=False, index=True)
+    # FK to the original TtsSentence (can be null if the original sentence was deleted after merging)
+    tts_sentence_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('tts_sentence.id', ondelete='SET NULL'), nullable=True, index=True)
+    original_order_index = db.Column(db.Integer, nullable=False, comment='The order_index of the sentence in its original TtsScript at the time of merging')
+    # Store a copy of the text for reference, as sentence text might change later
+    original_sentence_text_ref = db.Column(db.Text, nullable=True, comment='Sentence text at the time of merging')
+    start_ms = db.Column(db.Integer, nullable=False, comment='Start time of this segment in the merged audio (milliseconds)')
+    end_ms = db.Column(db.Integer, nullable=False, comment='End time of this segment in the merged audio (milliseconds)')
+    duration_ms = db.Column(db.Integer, nullable=False, comment='Duration of this segment in milliseconds (calculated as end_ms - start_ms)')
+    created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
+
+    # Relationship to the TtsAudio entry that represents the merged file
+    merged_audio = db.relationship('TtsAudio', backref=backref('segments', lazy='dynamic', cascade='all, delete-orphan'))
+    # Relationship to the original TtsSentence
+    tts_sentence = db.relationship('TtsSentence') # No complex backref needed on TtsSentence for this
+
+    def __repr__(self):
+        return f'<MergedAudioSegment for Audio {self.merged_audio_id}, Order {self.original_order_index}, Time {self.start_ms}-{self.end_ms}>'

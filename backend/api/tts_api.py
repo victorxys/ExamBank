@@ -1,7 +1,7 @@
 # backend/api/tts_api.py
 
 from flask import Blueprint, request, jsonify, current_app
-from backend.models import db, TrainingCourse, TrainingContent, TtsScript, TtsSentence, TtsAudio, LlmPrompt, User
+from backend.models import db, TrainingCourse, TrainingContent, TtsScript, TtsSentence, TtsAudio, LlmPrompt, User, MergedAudioSegment
 # 假设您已经将 @admin_required 放在了 security_utils.py 或者您希望从其他地方导入
 # from backend.security_utils import admin_required 
 # 如果还没有，我们可以先简单地使用 @jwt_required()，并后续根据需要替换或增强
@@ -15,11 +15,14 @@ from celery_worker import celery_app as celery_app_instance
 
 from backend.tasks import generate_single_sentence_audio_async # 导入新的Celery任务
 from backend.tasks import batch_generate_audio_task # <--- 新增导入
+from backend.tasks import merge_all_audios_for_content # Import the new task
 
 # from backend.tasks import generate_merged_audio_async # 导入新的Celery任务``
 from backend.tasks import trigger_tts_refine_async # 导入新的Celery任务
 from celery.result import AsyncResult # 可以显式导入 AsyncResult
 from sqlalchemy import func, or_ # 导入 SQLAlchemy 的函数和操作符
+from datetime import datetime
+
 
 
 
@@ -215,8 +218,24 @@ def get_training_content_detail(content_id):
                 'duration_ms': latest_merged_audio.duration_ms,
                 'file_size_bytes': latest_merged_audio.file_size_bytes,
                 'created_at': latest_merged_audio.created_at.isoformat() if latest_merged_audio.created_at else None,
-                'version': latest_merged_audio.version
+                'version': latest_merged_audio.version,
+                'segments': [] # Initialize segments array
             }
+            # Fetch and add segments
+            segments_for_merged = MergedAudioSegment.query.filter_by(
+                merged_audio_id=latest_merged_audio.id
+            ).order_by(MergedAudioSegment.original_order_index).all()
+            
+            for seg in segments_for_merged:
+                merged_audio_info['segments'].append({
+                    'segment_id': str(seg.id),
+                    'tts_sentence_id': str(seg.tts_sentence_id) if seg.tts_sentence_id else None,
+                    'original_order_index': seg.original_order_index,
+                    'original_sentence_text_ref': seg.original_sentence_text_ref,
+                    'start_ms': seg.start_ms,
+                    'end_ms': seg.end_ms,
+                    'duration_ms': seg.duration_ms,
+                })
 
         response_payload = {
             'id': str(content.id),
@@ -791,91 +810,196 @@ def llm_refine_script_route(refined_script_id):
         return jsonify({'error': 'LLM最终修订脚本时发生错误: ' + error_message_str}), 500
 
 
+# backend/api/tts_api.py -> split_script_into_sentences_route
+
 @tts_bp.route('/scripts/<uuid:source_final_script_id>/split-sentences', methods=['POST'])
 @admin_required
 def split_script_into_sentences_route(source_final_script_id):
     source_final_script_id_str = str(source_final_script_id)
-    current_app.logger.info(f"开始为源 final_script_id: {source_final_script_id_str} 执行句子重新拆分并创建新版本。")
+    current_app.logger.info(f"--- [SplitTask Start] 源 final_script_id: {source_final_script_id_str} ---")
 
     source_final_script = TtsScript.query.get(source_final_script_id_str)
     if not source_final_script or source_final_script.script_type != 'final_tts_script':
-        current_app.logger.warning(f"句子拆分失败：无效的源 final_script_id {source_final_script_id_str} 或脚本类型不匹配 ({source_final_script.script_type if source_final_script else 'None'})。")
+        # ... (返回错误) ...
+        current_app.logger.warning(f"[SplitTask Fail] 无效的源脚本 ID 或类型不匹配。")
         return jsonify({'error': '无效的源最终TTS脚本ID或类型不匹配'}), 400
         
     training_content = source_final_script.training_content
     if not training_content:
-         current_app.logger.error(f"句子拆分失败：源脚本 {source_final_script_id_str} 找不到关联的培训内容。")
+         # ... (返回错误) ...
+         current_app.logger.error(f"[SplitTask Fail] 源脚本 {source_final_script_id_str} 找不到关联的培训内容。")
          return jsonify({'error': '找不到关联的培训内容'}), 404
 
     try:
-        current_app.logger.info(f"开始处理源脚本 ID: {source_final_script.id}, Version: {source_final_script.version} 的内容拆分。")
+        current_app.logger.info(f"[SplitTask] 开始处理源脚本 ID: {source_final_script.id}, Version: {source_final_script.version} 的内容拆分。")
         
-        # 1. 获取当前 TrainingContent 下 'final_tts_script' 的最大版本号
-        current_max_version_obj = db.session.query(func.max(TtsScript.version)).filter_by(
-            training_content_id=training_content.id,
-            script_type='final_tts_script'
-        ).one_or_none() # 使用 one_or_none() 获取结果，它可能为 (None,) 或 (max_version,)
-        
-        current_max_version = 0
-        if current_max_version_obj and current_max_version_obj[0] is not None:
-            current_max_version = current_max_version_obj[0]
-        
-        new_version_number = current_max_version + 1
-        current_app.logger.info(f"当前内容 {training_content.id} 的 final_tts_script 最大版本号为: {current_max_version}. 新版本将是: {new_version_number}")
+        current_training_content_id = training_content.id # 提前获取，避免在循环中反复访问关系
 
-        # 2. 创建一个新的 TtsScript 记录作为新版本
+        # 1. 确定新版本号
+        current_max_version_obj = db.session.query(func.max(TtsScript.version)).filter_by(
+            training_content_id=current_training_content_id, # 使用获取到的ID
+            script_type='final_tts_script'
+        ).one_or_none()
+        current_max_version = current_max_version_obj[0] if current_max_version_obj and current_max_version_obj[0] is not None else 0
+        new_version_number = current_max_version + 1
+        current_app.logger.info(f"[SplitTask] 内容 {current_training_content_id} 的 final_tts_script 最大版本号为: {current_max_version}. 新版本将是: {new_version_number}")
+
+        # 2. 创建新的 TtsScript 记录
         new_final_script = TtsScript(
-            training_content_id=training_content.id,
+            training_content_id=current_training_content_id,
             script_type='final_tts_script',
-            content=source_final_script.content, # 内容与源脚本相同
+            content=source_final_script.content,
             version=new_version_number,
-            source_script_id=source_final_script.id # 记录源脚本
+            source_script_id=source_final_script.id
         )
         db.session.add(new_final_script)
-        db.session.flush() # 立即执行插入以获取 new_final_script.id
-        current_app.logger.info(f"已创建新的 final_tts_script 记录: ID={new_final_script.id}, Version={new_final_script.version}")
+        current_app.logger.info(f"[SplitTask] 新的 final_tts_script (Version {new_version_number}) 已添加到 session。尝试 flush...")
+        
+        try:
+            db.session.flush() # ⭐ 关键：尝试在这里 flush 以暴露早期问题
+            current_app.logger.info(f"[SplitTask] Flush 成功。新脚本内存中 ID: {new_final_script.id} (如果数据库生成了)。")
+            if not new_final_script.id: # 对于 UUID，SQLAlchemy 应该在 add 后就能填充，但 flush 是一个检查点
+                 current_app.logger.warning(f"[SplitTask] Flush 后 new_final_script 仍然没有 ID (这对于自增ID是正常的，但对于UUID可能意味着问题或延迟填充)。")
+        except Exception as e_flush_script:
+            db.session.rollback()
+            current_app.logger.error(f"[SplitTask Fail] Flush new_final_script 时出错: {e_flush_script}", exc_info=True)
+            return jsonify({'error': f'创建新脚本版本时内部错误 (flush script): {str(e_flush_script)}'}), 500
 
-        # 3. 拆分句子 (使用新脚本的内容，这里与源脚本内容一样)
+        # 3. 拆分句子并尝试复用语音
         sentences_text_list = [s.strip() for s in new_final_script.content.split('\n') if s.strip()]
+        if not sentences_text_list: # 尝试用句号分割作为备选
+            sentences_text_list = [s.strip() + '。' for s in new_final_script.content.split('。') if s.strip()] # 保留句号
+            if not sentences_text_list and new_final_script.content.strip(): # 如果还有内容但无法分割，则视为一句
+                sentences_text_list = [new_final_script.content.strip()]
+
         if not sentences_text_list:
-            sentences_text_list = [s.strip() + '。' for s in new_final_script.content.split('。') if s.strip()]
-        
-        if not sentences_text_list:
-             current_app.logger.warning(f"新脚本 {new_final_script.id} 内容为空或无法拆分出任何句子。")
-             # 即使无法拆分，新版本的脚本也已创建，这里可以选择是回滚还是保留空句子脚本
-             # 为了简单，这里我们允许创建一个没有句子的新版本脚本，但实际可能需要更复杂的处理
-             # db.session.rollback() # 如果不希望创建没有句子的脚本版本，可以回滚
-             # return jsonify({'error': '脚本内容为空或无法拆分句子，未创建新版本。'}), 400
-        
+             current_app.logger.warning(f"[SplitTask] 新脚本 {new_final_script.id if new_final_script.id else '未知ID'} 内容为空或无法拆分出任何句子。")
+             # 即使无法拆分，新版本的脚本也已创建。后续可以考虑是否回滚或保留。
+             # 为保持简单，这里继续，让它创建一个没有句子的脚本版本。
+
         created_sentences_count = 0
-        for index, text in enumerate(sentences_text_list):
+        reused_audio_count = 0
+
+        for index, new_sentence_text in enumerate(sentences_text_list):
+            # ⭐ 将 new_sentence 的创建和 add 推迟到确定其状态之后
+            # new_sentence_obj_for_audio = None # 用于 TtsAudio 的关联
+
+            # --- 查找历史语音逻辑 ---
+            found_audio_to_reuse = None
+            # ... (您的历史语音查找逻辑，确保它不会意外地修改 session 或触发过早的 flush 失败)
+            # 假设您的查找逻辑是只读的，并且能正确返回 found_audio_to_reuse 或 None
+            historical_final_scripts_query = TtsScript.query.filter(
+                TtsScript.training_content_id == current_training_content_id,
+                TtsScript.script_type == 'final_tts_script',
+                TtsScript.id != new_final_script.id 
+            ).order_by(TtsScript.version.desc())
+
+            for old_script in historical_final_scripts_query.all():
+                matching_old_sentence = TtsSentence.query.filter(
+                    TtsSentence.tts_script_id == old_script.id,
+                    TtsSentence.sentence_text == new_sentence_text
+                ).first()
+                if matching_old_sentence:
+                    latest_valid_audio_for_old_sentence = TtsAudio.query.filter(
+                        TtsAudio.tts_sentence_id == matching_old_sentence.id,
+                        TtsAudio.audio_type == 'sentence_audio',
+                        TtsAudio.is_latest_for_sentence == True
+                    ).join(TtsSentence, TtsAudio.tts_sentence_id == TtsSentence.id)\
+                     .filter(TtsSentence.audio_status == 'generated').order_by(TtsAudio.created_at.desc()).first()
+                    if latest_valid_audio_for_old_sentence:
+                        found_audio_to_reuse = latest_valid_audio_for_old_sentence
+                        break
+            # --- 查找结束 ---
+
+            # 创建 TtsSentence 对象
             new_sentence = TtsSentence(
-                tts_script_id=new_final_script.id, # <--- 关联到新创建的脚本 ID
-                sentence_text=text,
-                order_index=index,
-                audio_status='pending_generation'
+                tts_script_id=new_final_script.id, # 此时 new_final_script.id 应该是有效的 (如果是UUID)
+                sentence_text=new_sentence_text,
+                order_index=index
             )
-            db.session.add(new_sentence)
+
+            if found_audio_to_reuse:
+                new_sentence.audio_status = 'generated'
+                db.session.add(new_sentence)
+                try:
+                    db.session.flush() # Flush new_sentence 以获取其 ID
+                    current_app.logger.debug(f"[SplitTask] Sentence flushed, ID: {new_sentence.id}")
+                except Exception as e_flush_sent:
+                    current_app.logger.error(f"[SplitTask] Flush new_sentence (reused audio) 时出错: {e_flush_sent}", exc_info=True)
+                    # 这里如果单个句子 flush 失败，是否要回滚整个操作？这是一个决策点。
+                    # 为简单起见，先继续，但标记错误。
+                    # db.session.rollback() # 如果要严格，这里应该回滚
+                    # return jsonify({'error': f'创建句子时内部错误 (flush sentence): {str(e_flush_sent)}'}), 500
+                    new_sentence.audio_status = 'error_creating_sentence_record' # 标记一个错误状态
+                    # continue # 或者跳过这个句子的语音记录创建
+
+
+                if new_sentence.id and new_sentence.audio_status == 'generated': # 确保句子已成功 flush 且状态正确
+                    reused_audio_entry = TtsAudio(
+                        tts_sentence_id=new_sentence.id, 
+                        training_content_id=current_training_content_id,
+                        audio_type='sentence_audio',
+                        file_path=found_audio_to_reuse.file_path,
+                        duration_ms=found_audio_to_reuse.duration_ms,
+                        file_size_bytes=found_audio_to_reuse.file_size_bytes,
+                        tts_engine="ReusedHistoricalAudio", # 更明确的引擎名
+                        voice_name=found_audio_to_reuse.voice_name,
+                        generation_params={"reused_from_audio_id": str(found_audio_to_reuse.id), "reused_at": datetime.utcnow().isoformat()},
+                        version=1, 
+                        is_latest_for_sentence=True
+                    )
+                    db.session.add(reused_audio_entry)
+                    reused_audio_count += 1
+                    current_app.logger.info(f"[SplitTask] 句子 (新ID: {new_sentence.id}) '{new_sentence_text[:30]}...' 复用了历史语音 {found_audio_to_reuse.id}")
+                elif new_sentence.audio_status != 'error_creating_sentence_record': # 如果句子创建失败，就不尝试关联语音了
+                    new_sentence.audio_status = 'pending_generation' # 如果句子创建成功但语音关联失败
+                    current_app.logger.warning(f"[SplitTask] 句子 '{new_sentence_text[:30]}...' 未能成功关联复用语音，状态设为 pending_generation。")
+
+            else: # 没有找到可复用的语音
+                new_sentence.audio_status = 'pending_generation'
+                db.session.add(new_sentence) # 添加到 session
+                # 可以选择在这里也 flush 一下，以尽早发现问题
+                # try:
+                #     db.session.flush()
+                # except Exception as e_flush_new_sent:
+                #     current_app.logger.error(f"[SplitTask] Flush new_sentence (pending gen) 时出错: {e_flush_new_sent}", exc_info=True)
+                #     new_sentence.audio_status = 'error_creating_sentence_record_no_reuse'
+            
             created_sentences_count += 1
         
-        training_content.status = 'pending_audio_generation' # 更新培训内容状态
-        db.session.commit()
+        training_content.status = 'pending_audio_generation' 
+        db.session.add(training_content) # 确保状态更新也被加入
+
+        current_app.logger.info(f"[SplitTask] 即将提交所有更改到数据库 (新脚本版本、句子、复用语音记录、内容状态)...")
+        db.session.commit() # ⭐ 最终提交
+        current_app.logger.info(f"[SplitTask] 数据库提交成功。")
         
+        # 在 commit 后再次确认新脚本是否真的写入了
+        persisted_script = TtsScript.query.get(new_final_script.id if new_final_script.id else '00000000-0000-0000-0000-000000000000') # 用一个无效UUID避免None错误
+        if persisted_script:
+            current_app.logger.info(f"[SplitTask] 确认：新脚本 ID {persisted_script.id} (Version {persisted_script.version}) 已成功持久化到数据库。")
+        else:
+            current_app.logger.error(f"[SplitTask Fail] 严重错误：Commit后，新脚本 ID {new_final_script.id if new_final_script.id else '未知ID'} 在数据库中未找到！事务可能未生效！")
+            # 这种情况非常严重，意味着 commit 可能静默失败了
+            return jsonify({'error': '拆分脚本后数据未能正确保存，请联系管理员。'}), 500
+
+
         current_app.logger.info(
-            f"为新脚本 ID {new_final_script.id} (Version {new_final_script.version}) 成功创建了 {created_sentences_count} 个句子。"
+            f"[SplitTask] 为新脚本 ID {new_final_script.id if new_final_script.id else '未知ID'} (Version {new_version_number}) 成功创建了 {created_sentences_count} 个句子。其中 {reused_audio_count} 个句子的语音被成功复用。"
             f"TrainingContent status 更新为 {training_content.status}。"
         )
         return jsonify({
-            'message': f'脚本成功重新拆分为 {created_sentences_count} 个句子，并创建了新的最终脚本版本 (v{new_final_script.version})。',
-            'new_final_tts_script_id': str(new_final_script.id), # 返回新脚本的ID
-            'new_version': new_final_script.version,
+            'message': f'脚本成功重新拆分为 {created_sentences_count} 个句子，并创建了新的最终脚本版本 (v{new_version_number})。其中 {reused_audio_count} 个语音被复用。',
+            'new_final_tts_script_id': str(new_final_script.id) if new_final_script.id else None,
+            'new_version': new_version_number,
             'num_sentences': created_sentences_count,
+            'num_reused_audio': reused_audio_count,
             'next_step': 'Batch Generate Audio or Single Sentence Generate'
-        }), 201 # 201 Created，因为创建了新资源
+        }), 201
 
     except Exception as e:
         db.session.rollback()
-        current_app.logger.error(f"为源脚本 {source_final_script_id_str} 重新拆分并创建新版本失败: {e}", exc_info=True)
+        current_app.logger.error(f"[SplitTask Fail] 在主 try 块中捕获到异常，已回滚: {e}", exc_info=True)
         return jsonify({'error': '重新拆分脚本并创建新版本时发生服务器错误: ' + str(e)}), 500
 
 # 异步任务状态查询
@@ -1146,3 +1270,65 @@ def update_training_content_original_text(content_id):
         db.session.rollback()
         current_app.logger.error(f"更新培训内容 {content_id} 的原始文本失败: {e}", exc_info=True)
         return jsonify({'error': '更新原始培训内容时发生服务器错误: ' + str(e)}), 500
+
+@tts_bp.route('/training-contents/<uuid:content_id>/merge-audio', methods=['POST'])
+@admin_required # Or jwt_required()
+def merge_content_audio_route(content_id):
+    """
+    Triggers an asynchronous task to merge all latest sentence audios for a training content.
+    """
+    content = TrainingContent.query.get(str(content_id))
+    if not content:
+        return jsonify({'error': '培训内容未找到'}), 404
+
+    # Optional: Basic check if there's a final script, or let the task handle it
+    latest_final_script = TtsScript.query.filter_by(
+        training_content_id=content.id, script_type='final_tts_script'
+    ).order_by(TtsScript.version.desc()).first()
+    if not latest_final_script:
+        return jsonify({'error': '该内容没有最终脚本可供合并语音。'}), 400
+    if not latest_final_script.tts_sentences.first(): # Check if script has any sentences
+        return jsonify({'error': '最终脚本中没有句子可供合并。'}), 400
+
+    try:
+        # Update content status to indicate merging has been queued/requested
+        content.status = 'audio_merge_queued' # Or 'pending_merge'
+        db.session.commit()
+
+        task = merge_all_audios_for_content.delay(str(content.id))
+        
+        current_app.logger.info(f"语音合并任务已提交 (Task ID: {task.id}) for TrainingContent {content_id}")
+        return jsonify({
+            'message': '语音合并任务已成功提交，正在后台处理。',
+            'task_id': task.id,
+            'status_polling_url': f'/api/tts/task-status/{task.id}'
+        }), 202 # Accepted
+
+    except Exception as e:
+        db.session.rollback()
+        # Revert status if task submission failed
+        # content.status = 'merge_submit_failed' 
+        # db.session.commit()
+        current_app.logger.error(f"提交语音合并任务失败 for content {content_id}: {e}", exc_info=True)
+        return jsonify({'error': f'提交语音合并任务失败: {str(e)}'}), 500
+
+# API to get segments for a merged audio
+@tts_bp.route('/audios/<uuid:merged_audio_id>/segments', methods=['GET'])
+@jwt_required()
+def get_merged_audio_segments_route(merged_audio_id):
+    merged_audio_record = TtsAudio.query.get(str(merged_audio_id))
+    if not merged_audio_record or merged_audio_record.audio_type != 'merged_audio':
+        return jsonify({'error': '指定的合并语音记录未找到或类型不正确'}), 404
+
+    segments = MergedAudioSegment.query.filter_by(merged_audio_id=merged_audio_record.id).order_by(MergedAudioSegment.original_order_index).all()
+    
+    return jsonify([{
+        'id': str(seg.id),
+        'tts_sentence_id': str(seg.tts_sentence_id) if seg.tts_sentence_id else None,
+        'original_order_index': seg.original_order_index,
+        'original_sentence_text_ref': seg.original_sentence_text_ref,
+        'start_ms': seg.start_ms,
+        'end_ms': seg.end_ms,
+        'duration_ms': seg.duration_ms,
+        'sentence_current_text': seg.tts_sentence.sentence_text if seg.tts_sentence else None # Get current text if sentence still exists
+    } for seg in segments])
