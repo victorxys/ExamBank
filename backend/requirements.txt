@@ -36,6 +36,6 @@ gradio_client>=0.2.0
 
 celery>=5.3.0
 
-radis>=4.0.0
+redis>=4.0.0
 
 pydub>=0.25.1

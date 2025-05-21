@@ -45,7 +45,10 @@ from backend.api.permission_api import permission_bp # <--- 新增导入
 
 app = Flask(__name__)
 # CORS(app) # 注册 CORS，允许所有源
-CORS(app, supports_credentials=True, origins="*") # <<<--- 临时修改为允许所有源
+CORS(app, 
+     supports_credentials=True, 
+     origins=["http://localhost:5175", "https://mengyimengsao.com"]
+)
 
 
 
