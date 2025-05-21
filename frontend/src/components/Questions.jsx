@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
-import { API_BASE_URL } from '../config'
+// import { API_BASE_URL } from '../config'
 import {
   Box,
   Button,
@@ -48,6 +48,8 @@ import {
   Notifications as NotificationsIcon,
 } from '@mui/icons-material'
 import PageHeader from './PageHeader'
+import api from '../api/axios'; // <<<--- 新增：导入 api 实例
+
 
 function Questions() {
   const navigate = useNavigate()
@@ -71,78 +73,64 @@ function Questions() {
   const [filteredKnowledgePoints, setFilteredKnowledgePoints] = useState([])
   const [aiGenerating, setAiGenerating] = useState(false)
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
+  // fetchData 函数需要使用 useCallback 并包含所有依赖项
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const params = {}; // Axios 会自动处理 URLSearchParams
+      if (searchText) params.title = searchText;
+      if (selectedCourse) params.course = selectedCourse;
+      if (selectedKnowledgePoint) params.knowledgePoint = selectedKnowledgePoint;
 
-        // 构建查询参数
-        const params = new URLSearchParams();
-        if (searchText) params.append('title', searchText);
-        if (selectedCourse) params.append('course', selectedCourse);
-        if (selectedKnowledgePoint) params.append('knowledgePoint', selectedKnowledgePoint);
+      // 获取所有题目列表
+      const questionsResponse = await api.get('/questions', { params }); // <<<--- 修改
+      setQuestions(questionsResponse.data.data || []); // 假设后端返回 { data: [...] }
 
-        // 获取所有题目列表
-        const questionsResponse = await fetch(
-          `${API_BASE_URL}/questions?${params.toString()}`
-        );
-        if (!questionsResponse.ok) {
-          throw new Error(`获取题目列表失败: ${questionsResponse.status}`);
-        }
-        const questionsData = await questionsResponse.json();
-        setQuestions(questionsData.data || []);
+      // 获取课程列表
+      const coursesResponse = await api.get('/courses'); // <<<--- 修改
+      setCourses(coursesResponse.data || []);
 
-        // 获取课程列表
-        const coursesResponse = await fetch(`${API_BASE_URL}/courses`);
-        if (!coursesResponse.ok) {
-          throw new Error(`获取课程列表失败: ${coursesResponse.status}`);
-        }
-        const coursesData = await coursesResponse.json();
-        setCourses(coursesData);
-
-        // 如果选择了课程，获取该课程下的知识点
-        if (selectedCourse) {
-          const pointsResponse = await fetch(`${API_BASE_URL}/courses/${selectedCourse}/knowledge_points`);
-          if (!pointsResponse.ok) {
-            throw new Error(`获取知识点列表失败: ${pointsResponse.status}`);
-          }
-          const pointsData = await pointsResponse.json();
-          setKnowledgePoints(pointsData || []);
-          setFilteredKnowledgePoints(pointsData || []);
-        } else {
-          setKnowledgePoints([]);
-          setFilteredKnowledgePoints([]);
-        }
-      } catch (error) {
-        console.error('Error:', error);
-        setError(error.message);
-      } finally {
-        setLoading(false);
+      // 如果选择了课程，获取该课程下的知识点
+      if (selectedCourse) {
+        // 假设后端 /api/courses/:courseId/knowledge_points 返回该课程所有知识点
+        // 或者，如果 /knowledge-points 接口支持按 course_id 过滤，则不需要额外调用
+        // 这里我们假设 /knowledge-points 已经可以通过 params.course 过滤，所以上面的调用已足够
+        // 如果后端是 /courses/:id/knowledge_points，则需要像 KnowledgePoints.jsx 那样单独调用
+        const pointsResponse = await api.get(`/courses/${selectedCourse}/knowledge_points`); // <<<--- 修改
+        setKnowledgePoints(pointsResponse.data || []);
+        setFilteredKnowledgePoints(pointsResponse.data || []);
+      } else {
+        setKnowledgePoints([]);
+        setFilteredKnowledgePoints([]);
       }
-    };
-    
-    const timeoutId = setTimeout(fetchData, 300);
-    return () => clearTimeout(timeoutId);
-  }, [searchText, selectedCourse, selectedKnowledgePoint]);
+    } catch (error) {
+      console.error('Error fetching data in Questions.jsx:', error);
+      setError(error.response?.data?.error || error.message || '获取数据失败');
+    } finally {
+      setLoading(false);
+    }
+  }, [searchText, selectedCourse, selectedKnowledgePoint]); // <<<--- 添加依赖
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]); // 依赖 fetchData
+
 
   // 当编辑对话框打开时，如果有选中的课程，加载该课程的知识点列表
+  // 当编辑对话框打开时，加载知识点 (如果 course_id 存在)
   useEffect(() => {
     const loadKnowledgePoints = async () => {
       if (editingQuestion?.course_id) {
         try {
-          const response = await fetch(`${API_BASE_URL}/courses/${editingQuestion.course_id}/knowledge_points`);
-          if (!response.ok) {
-            throw new Error(`获取知识点列表失败: ${response.status}`);
-          }
-          const data = await response.json();
-          setKnowledgePoints(data || []);
+          // 假设后端 /api/courses/:courseId/knowledge_points 返回该课程所有知识点
+          const response = await api.get(`/courses/${editingQuestion.course_id}/knowledge_points`); // <<<--- 修改
+          setKnowledgePoints(response.data || []);
         } catch (error) {
-          console.error('Error loading knowledge points:', error);
+          console.error('Error loading knowledge points for edit:', error);
         }
       }
     };
-
     if (editDialogOpen) {
       loadKnowledgePoints();
     }
@@ -190,31 +178,16 @@ function Questions() {
   const handleDeleteQuestion = async () => {
     try {
       if (!questionToDelete) return;
-
-      // 检查题目是否被试卷引用
-      const checkResponse = await fetch(`${API_BASE_URL}/questions/${questionToDelete.id}/check-usage`);
-      const checkData = await checkResponse.json();
-      
-      if (checkData.is_used_in_exam) {
-        throw new Error('该题目已被试卷引用，无法删除');
-      }
-
-      const response = await fetch(`${API_BASE_URL}/questions/${questionToDelete.id}`, {
-        method: 'DELETE',
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `删除题目失败: ${response.status}`);
-      }
-
-      // 从列表中移除被删除的题目
+      const checkResponse = await api.get(`/questions/${questionToDelete.id}/check-usage`); // <<<--- 修改
+      // ...
+      await api.delete(`/questions/${questionToDelete.id}`); // <<<--- 修改
+      // ...
       setQuestions(questions.filter(q => q.id !== questionToDelete.id));
       setDeleteDialogOpen(false);
       setQuestionToDelete(null);
     } catch (error) {
       console.error('删除题目失败:', error);
-      alert(error.message);
+      alert(error.response?.data?.error || error.message || '删除题目失败');
     }
   };
 
@@ -294,56 +267,34 @@ function Questions() {
       let response;
       if (editingQuestion.id) {
         // 更新现有题目
-        response = await fetch(`${API_BASE_URL}/questions/${editingQuestion.id}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(questionData),
-        });
+        response = await api.put(`/questions/${editingQuestion.id}`, questionData); 
       } else {
         // 创建新题目
-        response = await fetch(`${API_BASE_URL}/questions`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(questionData),
-        });
+        response = await api.post('/questions', questionData); 
       }
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `Failed to ${editingQuestion.id ? 'update' : 'create'} question: ${response.status}`);
-      }
+      const updatedOrNewQuestion = response.data; // Axios 响应数据在 response.data
 
-      const updatedQuestion = await response.json();
-      
-      // 重新获取题目列表以确保显示最新的知识点和课程信息
-      const params = new URLSearchParams();
-      if (searchText) params.append('title', searchText);
-      if (selectedCourse) params.append('course', selectedCourse);
-      if (selectedKnowledgePoint) params.append('knowledgePoint', selectedKnowledgePoint);
-
-      const questionsResponse = await fetch(`${API_BASE_URL}/questions?${params.toString()}`);
-      if (questionsResponse.ok) {
-        const data = await questionsResponse.json();
-        setQuestions(data.data || []);
+      if (editingQuestion.id) {
+        setQuestions(questions.map(q => q.id === updatedOrNewQuestion.id ? updatedOrNewQuestion : q));
       } else {
-        // 如果获取最新列表失败，至少更新当前编辑的题目
-        setQuestions(questions.map(q =>
-          q.id === updatedQuestion.id ? updatedQuestion : q
-        ));
+        setQuestions(prevQuestions => [updatedOrNewQuestion, ...prevQuestions]);
       }
 
       setEditDialogOpen(false);
       setEditingQuestion(null);
     } catch (error) {
       console.error('Failed to save question:', error);
-      alert(error.message);
+      alert(error.response?.data?.error || error.message || '保存题目失败');
     }
   };
-
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', width: '100%', maxWidth: '100%' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
   // 在搜索栏部分添加课程和知识点选择
   return (
   <Box sx={{ width: '100%', height: '100%' }}>

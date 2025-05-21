@@ -23,14 +23,14 @@ import {
   TablePagination,
   CircularProgress,
 } from '@mui/material';
-import { Edit as EditIcon, Delete as DeleteIcon, Add as AddIcon, Assessment as AssessmentIcon } from '@mui/icons-material';
+import { Edit as EditIcon, Delete as DeleteIcon, Add as AddIcon, Assessment as AssessmentIcon, VpnKey as PermissionsIcon} from '@mui/icons-material';
 import { MenuItem } from '@mui/material';
 import api from '../api/axios';
 // 假设你的dateUtils.js和MyComponent.jsx在同一个文件夹
 import { formatRelativeTime } from '../api/dateUtils'; // 确保路径正确
 import AlertMessage from './AlertMessage';
 import { API_BASE_URL } from '../config'; // Assuming API_BASE_URL is exported from config.js
-
+import UserPermissionDialog from './UserPermissionDialog';
 
 
 import { useTheme } from '@mui/material';
@@ -69,6 +69,11 @@ const UserManagement = () => {
   const [totalUsers, setTotalUsers] = useState(0);
   const [sortBy, setSortBy] = useState('created_at');
   const [sortOrder, setSortOrder] = useState('desc');
+
+  // --- 新增权限管理相关状态 ---
+  const [permissionDialogOpen, setPermissionDialogOpen] = useState(false);
+  const [userForPermissions, setUserForPermissions] = useState(null); // { id: string, username: string }
+  // --- 结束新增 ---
   
   // 使用媒体查询检测是否为移动设备
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -108,6 +113,21 @@ const UserManagement = () => {
     }
   // 将 fetchUsers 内部使用的依赖项添加到 useCallback 的依赖数组
   }, [page, rowsPerPage, searchTerm, sortBy, sortOrder]); // 确保包含所有依赖项
+
+  const handleOpenPermissionDialog = (user) => {
+    setUserForPermissions({ id: user.id, username: user.username });
+    setPermissionDialogOpen(true);
+  };
+
+  const handleClosePermissionDialog = (saved) => {
+    setPermissionDialogOpen(false);
+    setUserForPermissions(null);
+    if (saved) {
+      setAlertMessage({ severity: 'success', message: '用户权限保存成功！' });
+      setAlertOpen(true);
+      // 可以考虑是否需要刷新用户列表或其他操作
+    }
+  };
   
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
@@ -483,6 +503,15 @@ const UserManagement = () => {
                               >
                                 <NotificationsIcon fontSize={isMobile ? "small" : "medium"} />
                               </IconButton>
+                              <IconButton
+                                color="primary" // 或其他合适的颜色
+                                onClick={() => handleOpenPermissionDialog(user)}
+                                size="small"
+                                title="设置权限" // 添加 Tooltip 提示
+                                sx={{ padding: { xs: '4px', sm: '8px' }}}
+                              >
+                                <PermissionsIcon fontSize={isMobile ? "small" : "medium"} />
+                              </IconButton>
                             </Box>
                           </TableCell>
                         </TableRow>
@@ -592,6 +621,16 @@ const UserManagement = () => {
           </Button>
         </DialogActions>
       </Dialog>
+      {/* --- 新增权限设置对话框 --- */}
+      {userForPermissions && (
+        <UserPermissionDialog
+          open={permissionDialogOpen}
+          onClose={handleClosePermissionDialog}
+          userId={userForPermissions.id}
+          userName={userForPermissions.username}
+        />
+      )}
+      {/* --- 结束新增 --- */}
     </Box>
   );
 };

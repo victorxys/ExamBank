@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { API_BASE_URL } from '../config';
 import AlertMessage from './AlertMessage';
 import {
@@ -39,13 +39,14 @@ import {
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTheme } from '@mui/material';
 import PageHeader from './PageHeader';
+import api from '../api/axios'; // 假设 axios.js 在上一级目录的 api 文件夹中
 
 function KnowledgePoints() {
   const { courseId } = useParams();
   const navigate = useNavigate();
   const theme = useTheme();
   const [knowledgePoints, setKnowledgePoints] = useState([]);
-  const [loading, setLoading] = useState(false);
+  
   const [openEditDialog, setOpenEditDialog] = useState(false);
   const [selectedKnowledgePoint, setSelectedKnowledgePoint] = useState(null);
   const [courses, setCourses] = useState([]);
@@ -65,6 +66,8 @@ function KnowledgePoints() {
     point_name: '',
     course_id: courseId || ''
   });
+
+  const [loading, setLoading] = useState(true);
 
   // 用于跟踪对话框打开之前获得焦点的元素
   const previousActiveElement = useRef(null);
@@ -102,56 +105,70 @@ function KnowledgePoints() {
   }, [openEditDialog, openCreateDialog, openDeleteDialog]);
   useEffect(() => {
     const fetchCourses = async () => {
+      // setLoading(true); // setLoading 应该在 fetchKnowledgePoints 中统一处理，或者各自处理
       try {
-        const response = await fetch(`${API_BASE_URL}/courses`);
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const data = await response.json();
-        setCourses(data || []);
+        const response = await api.get('/courses');
+        // Axios 成功响应 (status 2xx) 会直接进入这里
+        // 响应数据在 response.data
+        setCourses(response.data || []);
       } catch (error) {
         console.error('获取课程列表失败:', error);
         setAlert({
           show: true,
-          message: '获取课程列表失败，请稍后重试',
+          // error.response?.data?.error 适用于 Axios 错误对象
+          message: '获取课程列表失败: ' + (error.response?.data?.error || error.message),
           severity: 'error'
         });
-      }
+      } 
+      // finally { setLoading(false); } // setLoading 应该在 fetchKnowledgePoints 中统一处理
     };
 
     fetchCourses();
-  }, []); // 空依赖数组意味着这个效果只在组件挂载时运行一次
+  }, []); // 这个 useEffect 仍然只获取课程列表，没问题
 
   useEffect(() => {
     fetchKnowledgePoints();
   }, [page, rowsPerPage, searchParams]);
 
-  const fetchKnowledgePoints = async () => {
-    setLoading(true);
+  const fetchKnowledgePoints = useCallback(async () => {
+    setLoading(true); // 请求开始前设置 loading
     try {
-      const queryParams = new URLSearchParams({
+      const params = {
         page: page + 1,
         per_page: rowsPerPage,
-        ...searchParams
-      });
-      const response = await fetch(`${API_BASE_URL}/knowledge-points?${queryParams}`);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      };
+      if (searchParams.point_name) params.point_name = searchParams.point_name;
+      // <<<--- 修改：确保 searchParams.course_id 即使为空字符串也传递，或在后端处理
+      // 或者在这里判断，如果为空则不添加到 params
+      if (searchParams.course_id) {
+          params.course_id = searchParams.course_id;
+      } else if (courseId) { // 如果 URL 路径中有 courseId，优先使用它
+          params.course_id = courseId;
       }
-      const data = await response.json();
-      setKnowledgePoints(data.items || []);
-      setTotal(data.total || 0);
+
+
+      const response = await api.get('/knowledge-points', { params });
+      // Axios 成功响应 (status 2xx) 会直接进入这里
+      // 响应数据在 response.data
+      setKnowledgePoints(response.data.items || []);
+      setTotal(response.data.total || 0);
     } catch (error) {
       console.error('获取知识点列表失败:', error);
       setAlert({
         show: true,
-        message: '获取知识点列表失败，请稍后重试',
+        message: '获取知识点列表失败: ' + (error.response?.data?.error || error.message),
         severity: 'error'
       });
     } finally {
-      setLoading(false);
+      setLoading(false); // 请求结束后（无论成功或失败）设置 loading 为 false
     }
-  };
+  }, [page, rowsPerPage, searchParams, courseId]); // <<<--- 添加 courseId 到依赖数组
+
+  // 这个 useEffect 负责在 courseId (来自 useParams) 变化时，更新 searchParams
+  // 从而触发上面的 fetchKnowledgePoints 重新获取数据
+  useEffect(() => {
+    setSearchParams(prev => ({ ...prev, course_id: courseId || '' }));
+  }, [courseId]);
 
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
@@ -173,13 +190,14 @@ function KnowledgePoints() {
     if (!selectedKnowledgePoint) return;
 
     try {
-      const response = await fetch(`${API_BASE_URL}/knowledge_points/${selectedKnowledgePoint.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(selectedKnowledgePoint),
-      });
+      const response = await api.put(`/knowledge_points/${selectedKnowledgePoint.id}`, selectedKnowledgePoint);
+      // const response = await fetch(`${API_BASE_URL}/knowledge_points/${selectedKnowledgePoint.id}`, {
+      //   method: 'PUT',
+      //   headers: {
+      //     'Content-Type': 'application/json',
+      //   },
+      //   body: JSON.stringify(selectedKnowledgePoint),
+      // });
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -227,66 +245,27 @@ function KnowledgePoints() {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/knowledge-points`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(newKnowledgePoint),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      setAlert({
-        show: true,
-        message: '知识点创建成功',
-        severity: 'success'
-      });
+      await api.post('/knowledge-points', newKnowledgePoint);
+      setAlert({ show: true, message: '知识点创建成功', severity: 'success' });
       setOpenCreateDialog(false);
-      setNewKnowledgePoint({
-        point_name: '',
-        course_id: courseId || ''
-      });
-      fetchKnowledgePoints();
+      setNewKnowledgePoint({ point_name: '', course_id: courseId || '' });
+      fetchKnowledgePoints(); // 重新获取数据
     } catch (error) {
       console.error('创建知识点失败:', error);
-      setAlert({
-        show: true,
-        message: '创建知识点失败，请稍后重试',
-        severity: 'error'
-      });
+      setAlert({ show: true, message: '创建知识点失败: ' + (error.response?.data?.error || error.message), severity: 'error'});
     }
   };
 
   const confirmDelete = async () => {
     if (!deletePointId) return;
-
     try {
-      const response = await fetch(`${API_BASE_URL}/knowledge_points/${deletePointId}`, {
-        method: 'DELETE',
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || `HTTP error! status: ${response.status}`);
-      }
-
-      setAlert({
-        show: true,
-        message: '知识点删除成功',
-        severity: 'success'
-      });
+      await api.delete(`/knowledge_points/${deletePointId}`);
+      setAlert({ show: true, message: '知识点删除成功', severity: 'success' });
       setOpenDeleteDialog(false);
-      fetchKnowledgePoints();
+      fetchKnowledgePoints(); // 重新获取数据
     } catch (error) {
       console.error('删除知识点失败:', error);
-      setAlert({
-        show: true,
-        message: error.message || '删除知识点失败，请稍后重试',
-        severity: 'error'
-      });
+      setAlert({ show: true, message: (error.response?.data?.error || error.message || '删除知识点失败'), severity: 'error'});
     } finally {
       setDeletePointId(null);
     }

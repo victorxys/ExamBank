@@ -11,6 +11,7 @@ const api = axios.create({
     'Content-Type': 'application/json',
   },
   timeout: 30000, // 增加超时时间到30秒
+  withCredentials: true, // <<<--- 添加这一行
   validateStatus: function (status) {
     return status >= 200 && status < 500; // 只有状态码大于等于500时才会reject
   },
@@ -36,8 +37,9 @@ api.interceptors.request.use(
     }
     
     if (token) {
+      console.log('[Axios Interceptor] Token found:', token.substring(0, 20) + "..."); // 只打印部分 token
       config.headers.Authorization = `Bearer ${token}`;
-
+      console.log('[Axios Interceptor] Authorization header set:', config.headers.Authorization.substring(0, 30) + "...");
       // 检查Token是否需要刷新
       if (shouldRefreshToken()) {
         try {
@@ -60,6 +62,7 @@ api.interceptors.request.use(
     return config;
   },
   (error) => {
+    console.warn('[Axios Interceptor] No token found for URL:', config.url);
     return Promise.reject(error);
   }
 );

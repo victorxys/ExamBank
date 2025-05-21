@@ -39,7 +39,7 @@ class TrainingCourse(db.Model):
     knowledge_points = db.relationship('KnowledgePoint', backref='course', lazy='dynamic', cascade="all, delete-orphan")
     exam_papers = db.relationship('ExamPaper', secondary=exampapercourse_table, back_populates='courses', lazy='dynamic')
     # training_contents 关系将由 TrainingContent 模型中通过 backref='course' 定义
-
+    course_resources = db.relationship('CourseResource', backref='course', lazy='dynamic', cascade='all, delete-orphan', order_by='CourseResource.sort_order')
     def __repr__(self):
         return f'<TrainingCourse {self.course_name}>'
 
@@ -182,7 +182,8 @@ class User(db.Model):
     evaluations_given = db.relationship('Evaluation', backref='evaluator_user', lazy='dynamic', foreign_keys='Evaluation.evaluator_user_id')
     llm_call_logs = db.relationship('LlmCallLog', backref='user_ref', lazy='dynamic')
     # REMOVED: tts_uploaded_contents relationship, it's handled by TrainingContent.uploader's backref
-
+    uploaded_course_resources = db.relationship('CourseResource', backref='uploader', lazy='dynamic', foreign_keys='CourseResource.uploaded_by_user_id')
+    resource_play_logs = db.relationship('UserResourcePlayLog', backref='user', lazy='dynamic', cascade='all, delete-orphan')
     def __repr__(self):
         return f'<User {self.username}>'
 
@@ -663,3 +664,125 @@ class MergedAudioSegment(db.Model):
 
     def __repr__(self):
         return f'<MergedAudioSegment for Audio {self.merged_audio_id}, Order {self.original_order_index}, Time {self.start_ms}-{self.end_ms}>'
+    
+class CourseResource(db.Model):
+    __tablename__ = 'course_resource' # 新表名
+    __table_args__ = (
+        {'comment': '课程的媒体和文档资源表'}
+    )
+
+    id = db.Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, comment='资源ID')
+    # course_id = db.Column(PG_UUID(as_uuid=True), nullable=False, index=True, comment='所属课程ID')
+    name = db.Column(db.String(255), nullable=False, comment='资源原始文件名或显示名称')
+    description = db.Column(db.Text, nullable=True, comment='资源描述')
+    file_path = db.Column(db.String(1024), nullable=False, comment='文件在服务器上的存储路径或云存储的key')
+    file_type = db.Column(db.String(50), nullable=False, comment='文件主类型 (video, audio, document)') # 例如: 'video', 'audio', 'document'
+    mime_type = db.Column(db.String(100), nullable=True, comment='MIME类型 (e.g., video/mp4)')
+    size_bytes = db.Column(db.BigInteger, nullable=True, comment='文件大小 (字节)')
+    duration_seconds = db.Column(db.Float, nullable=True, comment='音视频时长 (秒)')
+    course_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('trainingcourse.id', name='fk_courseresource_course_id', ondelete='CASCADE'), nullable=False, index=True, comment='所属课程ID')
+    uploaded_by_user_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('user.id', name='fk_courseresource_uploader_id', ondelete='SET NULL'), nullable=True, index=True, comment='上传用户ID')
+    
+    play_count = db.Column(db.Integer, default=0, nullable=False, server_default='0', comment='播放次数')
+    sort_order = db.Column(db.Integer, default=0, nullable=False, server_default='0', comment='资源在课程内的显示顺序')
+    
+    # uploaded_by_user_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('user.id', name='fk_courseresource_uploader_id', ondelete='SET NULL'), nullable=True, index=True, comment='上传用户ID')
+    created_at = db.Column(db.DateTime(timezone=True), server_default=func.now(), comment='创建时间')
+    updated_at = db.Column(db.DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), comment='更新时间')
+
+    # Relationships
+    # course = db.relationship('TrainingCourse', back_populates='course_resources') # 在 TrainingCourse 中定义 back_populates
+    # uploader = db.relationship('User', back_populates='uploaded_course_resources') # 在 User 中定义 back_populates
+    # play_logs 和 user_access_permissions 将在其他模型中定义关系
+
+    def __repr__(self):
+        return f'<CourseResource {self.name}>'
+
+    def to_dict(self, include_uploader=False):
+        data = {
+            'id': str(self.id),
+            'course_id': str(self.course_id),
+            'name': self.name,
+            'description': self.description,
+            'file_path': self.file_path, # 考虑是否要暴露完整路径
+            'file_type': self.file_type,
+            'mime_type': self.mime_type,
+            'size_bytes': self.size_bytes,
+            'duration_seconds': self.duration_seconds,
+            'play_count': self.play_count,
+            'sort_order': self.sort_order,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+            'uploaded_by_user_id': str(self.uploaded_by_user_id) if self.uploaded_by_user_id else None,
+        }
+        if include_uploader and self.uploader: # 假设 User 模型中定义了 uploader 关系
+            data['uploader_name'] = self.uploader.username
+        return data
+
+class UserResourcePlayLog(db.Model):
+    __tablename__ = 'user_resource_play_log' # 新表名
+    __table_args__ = (
+        db.ForeignKeyConstraint(['user_id'], ['user.id'], name='fk_userresourceplaylog_user_id', ondelete='CASCADE'),
+        db.ForeignKeyConstraint(['resource_id'], ['course_resource.id'], name='fk_userresourceplaylog_resource_id', ondelete='CASCADE'),
+        {'comment': '用户资源播放日志表'}
+    )
+    id = db.Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, comment='日志ID')
+    user_id = db.Column(PG_UUID(as_uuid=True), nullable=False, index=True, comment='用户ID')
+    resource_id = db.Column(PG_UUID(as_uuid=True), nullable=False, index=True, comment='资源ID')
+    played_at = db.Column(db.DateTime(timezone=True), server_default=func.now(), comment='播放时间')
+    watch_time_seconds = db.Column(db.Integer, nullable=True, comment='本次观看时长 (秒)')
+    percentage_watched = db.Column(db.Float, nullable=True, comment='本次观看百分比')
+
+    # Relationships
+    # user = db.relationship('User', back_populates='resource_play_logs') # 在 User 中定义
+    # resource = db.relationship('CourseResource', back_populates='play_logs') # 在 CourseResource 中定义
+
+    def __repr__(self):
+        return f'<UserResourcePlayLog User:{self.user_id} Resource:{self.resource_id}>'
+
+    def to_dict(self):
+        return {
+            'id': str(self.id),
+            'user_id': str(self.user_id),
+            'resource_id': str(self.resource_id),
+            'played_at': self.played_at.isoformat() if self.played_at else None,
+            'watch_time_seconds': self.watch_time_seconds,
+            'percentage_watched': self.percentage_watched,
+        }
+class UserCourseAccess(db.Model):
+    __tablename__ = 'user_course_access'
+    __table_args__ = (
+        db.PrimaryKeyConstraint('user_id', 'course_id', name='pk_user_course_access'),
+        db.ForeignKeyConstraint(['user_id'], ['user.id'], name='fk_usercourseaccess_user_id', ondelete='CASCADE'),
+        db.ForeignKeyConstraint(['course_id'], ['trainingcourse.id'], name='fk_usercourseaccess_course_id', ondelete='CASCADE'),
+        {'comment': '用户课程访问权限表 (哪些用户可以访问哪些课程)'}
+    )
+    user_id = db.Column(PG_UUID(as_uuid=True), nullable=False, comment='用户ID')
+    course_id = db.Column(PG_UUID(as_uuid=True), nullable=False, comment='课程ID')
+    granted_at = db.Column(db.DateTime(timezone=True), server_default=func.now(), comment='授权时间')
+
+    # Relationships (optional if primarily using association object pattern)
+    # user = db.relationship('User', back_populates='course_access_permissions') # 在 User 模型中定义
+    # course = db.relationship('TrainingCourse', back_populates='user_access_permissions') # 在 TrainingCourse 模型中定义
+
+    def __repr__(self):
+        return f'<UserCourseAccess User:{self.user_id} Course:{self.course_id}>'
+
+class UserResourceAccess(db.Model):
+    __tablename__ = 'user_resource_access'
+    __table_args__ = (
+        db.PrimaryKeyConstraint('user_id', 'resource_id', name='pk_user_resource_access'),
+        db.ForeignKeyConstraint(['user_id'], ['user.id'], name='fk_userresourceaccess_user_id', ondelete='CASCADE'),
+        db.ForeignKeyConstraint(['resource_id'], ['course_resource.id'], name='fk_userresourceaccess_resource_id', ondelete='CASCADE'),
+        {'comment': '用户课程资源访问权限表 (哪些用户可以访问特定课程下的哪些资源)'}
+    )
+    user_id = db.Column(PG_UUID(as_uuid=True), nullable=False, comment='用户ID')
+    resource_id = db.Column(PG_UUID(as_uuid=True), nullable=False, comment='课程资源ID')
+    granted_at = db.Column(db.DateTime(timezone=True), server_default=func.now(), comment='授权时间')
+
+    # Relationships (optional)
+    # user = db.relationship('User', back_populates='resource_access_permissions') # 在 User 模型中定义
+    # resource = db.relationship('CourseResource', back_populates='user_access_permissions') # 在 CourseResource 模型中定义
+
+    def __repr__(self):
+        return f'<UserResourceAccess User:{self.user_id} Resource:{self.resource_id}>'

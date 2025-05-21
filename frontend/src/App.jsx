@@ -267,6 +267,8 @@ const LoadingFallback = () => (
 // --- 4. 使用 React.lazy 动态导入页面组件 ---
 const LoginPage = lazy(() => import('./components/LoginPage'));
 const CourseList = lazy(() => import('./components/CourseList'));
+const MyCoursesPage = lazy(() => import('./components/MyCoursesPage')); // <<<--- 新增导入 (假设放在 pages 目录)
+const MediaPlayerPage = lazy(() => import('./components/MediaPlayerPage')); // <<<--- 新增导入
 const KnowledgePoints = lazy(() => import('./components/KnowledgePoints'));
 const Questions = lazy(() => import('./components/Questions'));
 const ExamList = lazy(() => import('./components/ExamList'));
@@ -329,6 +331,9 @@ function App() {
           <Route path="/admin/llm/call-logs/:logId" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <LlmCallLogDetail /> </Suspense>} />} />
           <Route path="/courses/:courseId/tts-contents" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}><TrainingContentList /></Suspense>} />} />
           <Route path="/tts/content/:contentId" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}><TrainingContentDetail /></Suspense>} />} />
+          <Route path="/my-courses" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <MyCoursesPage /> </Suspense>} />} />
+          <Route path="/courses/:courseId/resource/:resourceId/play" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <MediaPlayerPage /> </Suspense>} />} />
+
         </Route>
 
         {/* 应用简单布局的路由 */}

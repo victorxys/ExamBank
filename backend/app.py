@@ -14,7 +14,7 @@ from psycopg2.extras import RealDictCursor, register_uuid # 确保导入
 # from flask_migrate import Migrate # 导入 Migrate
 import traceback
 # 配置密码加密方法为pbkdf2
-from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
+from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity,get_jwt
 from datetime import timedelta, datetime
 import datetime as dt
 
@@ -25,6 +25,7 @@ from backend.api.temp_answer import save_temp_answer, get_temp_answers, mark_tem
 from backend.api.evaluation import get_evaluation_items, get_user_evaluations, update_evaluation
 from backend.api.user_profile import get_user_profile
 from backend.db import get_db_connection
+from backend.models import db, TrainingCourse, User, UserCourseAccess # 
 # from backend.api.evaluation_visibility import bp as evaluation_visibility_bp
 # from backend.api.evaluation_item import bp as evaluation_item_bp
 from backend.api.wechatshare import wechat_share_bp
@@ -38,9 +39,14 @@ from backend.api.evaluation_order import bp as evaluation_order_bp # 新增
 from backend.api.llm_config_api import llm_config_bp # 修改导入
 from backend.api.llm_log_api import llm_log_bp # 新增导入
 from backend.api.tts_api import tts_bp # 新增导入
+from backend.api.course_resource_api import course_resource_bp # <--- 新增导入
+from backend.api.permission_api import permission_bp # <--- 新增导入
+
 
 app = Flask(__name__)
-CORS(app) # 注册 CORS，允许所有源
+# CORS(app) # 注册 CORS，允许所有源
+CORS(app, supports_credentials=True, origins="*") # <<<--- 临时修改为允许所有源
+
 
 
 register_uuid() # 确保 UUID 适配器已注册
@@ -63,6 +69,13 @@ app.config['TTS_AUDIO_STORAGE_PATH'] = os.path.join(app.root_path, 'static', 'tt
 # 并且 Flask (或 Nginx) 配置为可以服务这个目录下的文件。
 # 对于API返回的URL，您可能还需要一个基础URL
 app.config['TTS_AUDIO_BASE_URL_FOR_API'] = '/static/tts_audio' # 前端拼接时用的基础路径
+
+app.config["JWT_ACCESS_COOKIE_NAME"] = "auth_token"
+app.config["JWT_TOKEN_LOCATION"] = ["headers", "cookies"] # 允许从请求头和 Cookie 中获取 Token
+app.config["JWT_COOKIE_SECURE"] = False # 开发环境可以设为 False，生产环境应为 True (HTTPS)
+app.config["JWT_COOKIE_SAMESITE"] = "Lax" # 或 "Strict"
+# 如果您的 Token Cookie 不是 HttpOnly，那么前端 JS 可以访问它，但这里主要是为了让浏览器自动发送
+# 如果您在登录时通过后端设置了 HttpOnly Cookie 来存储 Token，那是最好的
 
 os.makedirs(app.config['TTS_AUDIO_STORAGE_PATH'], exist_ok=True)
 
@@ -144,12 +157,20 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False # 建议关闭
 # --- 初始化扩展 ---
 db.init_app(app)
 migrate.init_app(app, db)
-# -----------------
-# --- 导入模型 ---
-# print("DEBUG [app.py]: About to import models...")
-
-from . import models # 或者 from . import models (如果 app.py 和 models.py 在同一级)
-# print(f"DEBUG [app.py]: Models imported. db.metadata.tables keys: {list(db.metadata.tables.keys())}")
+# --- 将模型导入移到这里，并在应用上下文中 ---
+with app.app_context():
+    from . import models # <<--- 模型导入在这里
+    print("DEBUG [app.py]: Checking db.metadata after app context and model import...")
+    print(f"DEBUG [app.py]: db.metadata.tables keys: {list(db.metadata.tables.keys())}")
+    if 'course_resource' in db.metadata.tables:
+        print("DEBUG [app.py]: 'course_resource' table IS IN metadata.")
+    else:
+        print("DEBUG [app.py]: 'course_resource' table IS NOT IN metadata.")
+    if 'user_resource_play_log' in db.metadata.tables:
+        print("DEBUG [app.py]: 'user_resource_play_log' table IS IN metadata.")
+    else:
+        print("DEBUG [app.py]: 'user_resource_play_log' table IS NOT IN metadata.")
+# --- 模型导入结束 ---
 
 # 注册评价管理相关的蓝图
 app.register_blueprint(evaluation_visibility_bp, url_prefix='/api')
@@ -162,6 +183,9 @@ app.register_blueprint(evaluation_order_bp) # 新增注册
 app.register_blueprint(llm_config_bp) # 修改注册
 app.register_blueprint(llm_log_bp)   # 新增注册
 app.register_blueprint(tts_bp) # 注册 TTS 蓝图
+app.register_blueprint(course_resource_bp) # <--- 新增注册
+app.register_blueprint(permission_bp) # <--- 新增注册
+
 
 
 
@@ -429,37 +453,60 @@ def handle_exception(e):
     return jsonify({'error': str(e)}), 500
 
 
-@app.route('/api/courses', methods=['GET'])
+@app.route('/api/courses', methods=['GET']) # 或者蓝图注册的 @course_bp.route(...)
+@jwt_required() # 假设获取课程列表需要登录
 def get_courses():
-    # print("开始获取课程列表")
-    conn = get_db_connection()
+    current_user_id = get_jwt_identity()
+    user = User.query.get(current_user_id)
+    is_admin = (get_jwt().get('role') == 'admin')
+
+    conn = get_db_connection() # 您现有的方式
     cur = conn.cursor(cursor_factory=RealDictCursor)
     try:
-        cur.execute('''
+        base_query = """
             SELECT DISTINCT
-                c.id,
-                c.course_name,
-                c.age_group,
-                c.description,
-                c.created_at,
-                c.updated_at,
+                c.id, c.course_name, c.age_group, c.description, c.created_at, c.updated_at,
                 COUNT(DISTINCT kp.id) as knowledge_point_count,
                 COUNT(DISTINCT q.id) as question_count
             FROM trainingcourse c
             LEFT JOIN knowledgepoint kp ON kp.course_id = c.id
             LEFT JOIN question q ON q.knowledge_point_id = kp.id
+        """
+        
+        params = []
+        
+        if not is_admin:
+            # 普通用户：只选择他们有权限的课程
+            # 我们需要获取该用户有权限的 course_ids
+            # 注意：如果 UserCourseAccess 是通过 SQLAlchemy ORM 查询，会更简洁
+            # 这里我们假设您可能也想用原生 SQL 或扩展现有查询
+            user_course_ids_query = UserCourseAccess.query.with_entities(UserCourseAccess.course_id).filter_by(user_id=current_user_id).all()
+            # allowed_course_ids = [str(row[0]) for row in user_course_ids_query]
+            allowed_course_ids = [row[0] for row in user_course_ids_query if row[0] is not None] # <<<--- 直接使用 UUID 对象，并过滤 None (如果有的话)
+
+
+            if not allowed_course_ids: # 如果用户没有任何课程权限
+                return jsonify([]) # 返回空列表
+
+            # 将 UUID 列表转换为适合 IN 子句的格式
+            # psycopg2 需要元组或列表作为参数
+            base_query += " WHERE c.id = ANY(%s)"
+            params.append(allowed_course_ids) # 直接传递列表
+
+        base_query += """
             GROUP BY c.id, c.course_name, c.age_group, c.description, c.created_at, c.updated_at
             ORDER BY c.created_at DESC
-        ''')
+        """
+        
+        cur.execute(base_query, tuple(params) if params else None) # 将列表转为元组（如果非空）
         courses = cur.fetchall()
-        # print("SQL查询结果：", courses)
         return jsonify(courses)
     except Exception as e:
-        print('Error in get_courses:', str(e))
+        current_app.logger.error(f"Error in get_courses: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
     finally:
-        cur.close()
-        conn.close()
+        if cur: cur.close()
+        if conn: conn.close()
 
 @app.route('/api/courses', methods=['POST'])
 def create_course():
