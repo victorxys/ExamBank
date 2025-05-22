@@ -433,69 +433,64 @@ def stream_course_resource(resource_id_str):
 
     current_app.logger.info(f"Stream: Final access check GRANTED for user {current_user_id_uuid} on resource {resource_id_uuid}")
         
+    # --- 3. Range 处理和流式传输逻辑 (与之前提供的版本一致) ---
     file_absolute_path = os.path.join(INSTANCE_FOLDER_PATH, resource.file_path)
     if not os.path.exists(file_absolute_path):
+        current_app.logger.error(f"Stream: File not found on server: {file_absolute_path}")
         return jsonify({'error': 'File not found on server'}), 404
-    # --- End boilerplate ---
-
+    
     file_size = resource.size_bytes or os.path.getsize(file_absolute_path)
     range_header = request.headers.get('Range', None)
     
     start = 0
-    end = file_size - 1 # 默认是整个文件
+    end = file_size - 1 
     status_code = 200
     content_length = file_size
     headers = {
         'Content-Type': resource.mime_type or 'application/octet-stream',
         'Content-Disposition': f'inline; filename="{secure_filename(resource.name)}"',
-        'Accept-Ranges': 'bytes', # 始终声明支持 Range
+        'Accept-Ranges': 'bytes', # 非常重要，告知客户端支持 Range
     }
 
     if range_header:
+        current_app.logger.info(f"Stream: Received Range header: {range_header}")
         try:
-            # 解析 "bytes=start-end" 或 "bytes=start-"
-            # 更复杂的 Range (如 "bytes=-suffix" 或多段) 此处未完全处理
-            ranges = re.match(r'bytes=(\d*)-(\d*)', range_header)
-            if ranges:
-                range_start_str, range_end_str = ranges.groups()
-                
-                if range_start_str: # bytes=start- 或 bytes=start-end
-                    start = int(range_start_str)
-                
-                if range_end_str: # bytes=start-end
-                    end = int(range_end_str)
-                elif range_start_str: # bytes=start- (end 设为文件末尾)
-                    end = file_size - 1
-                else: # 无效的 range (例如 bytes=- 或 bytes=)
-                    raise ValueError("Invalid Range format")
+            # 尝试解析 bytes=start-end 和 bytes=start-
+            range_match = re.match(r'bytes=(\d*)-(\d*)', range_header)
+            if range_match:
+                g = range_match.groups()
+                range_start_str = g[0]
+                range_end_str = g[1]
 
-                # 校验 Range 的有效性
-                if start >= file_size or start > end:
-                    # Requested range not satisfiable
+                if range_start_str: start = int(range_start_str)
+                if range_end_str: end = int(range_end_str)
+                elif range_start_str: end = file_size - 1 # 如果只有 start，则到末尾
+                else: raise ValueError("Invalid Range format (no start)") # 例如 "bytes=-100" 暂时不处理
+
+                if start < 0 or start >= file_size or start > end:
+                    current_app.logger.warning(f"Stream: Range Not Satisfiable. Range: {range_header}, FileSize: {file_size}")
+                    # 对于不满足的 Range，返回 416
                     return Response(status=416, headers={'Content-Range': f'bytes */{file_size}'})
-
-                # 确保 end 不超过文件大小
-                end = min(end, file_size - 1)
                 
-                status_code = 206 # Partial Content
+                end = min(end, file_size - 1) # 确保 end 不超过文件边界
+                status_code = 206 
                 content_length = (end - start) + 1
-                headers['Content-Length'] = str(content_length)
                 headers['Content-Range'] = f'bytes {start}-{end}/{file_size}'
-            else:
-                # 如果 Range 格式无法解析，忽略它，发送整个文件
-                current_app.logger.warning(f"Could not parse Range header: {range_header}")
-                # start, end, status_code, content_length 保持默认 (整个文件)
-                pass
-
-        except ValueError as e_range_parse:
-            current_app.logger.warning(f"Invalid Range header '{range_header}': {e_range_parse}")
-            # 回退到发送整个文件
-            start = 0
-            end = file_size - 1
-            status_code = 200
-            content_length = file_size
+                current_app.logger.info(f"Stream: Responding with 206. Content-Range: {headers['Content-Range']}, Content-Length: {content_length}")
+            else: # 如果 Range 格式不匹配我们解析的，忽略它，发送整个文件
+                current_app.logger.warning(f"Stream: Could not parse Range header with regex: {range_header}, sending full content.")
+                start = 0; end = file_size - 1; status_code = 200; content_length = file_size
+        except ValueError as e_val: # 捕获 int() 转换错误等
+             current_app.logger.warning(f"Stream: ValueError parsing Range header '{range_header}': {e_val}. Sending full content.")
+             start = 0; end = file_size - 1; status_code = 200; content_length = file_size
+        except Exception as e_range: # 其他 Range 处理错误
+            current_app.logger.error(f"Stream: Error processing Range header '{range_header}': {e_range}", exc_info=True)
+            start = 0; end = file_size - 1; status_code = 200; content_length = file_size
+    else:
+        current_app.logger.info("Stream: No Range header, sending full content.")
     
-    headers['Content-Length'] = str(content_length) # 最终确认 Content-Length
+    headers['Content-Length'] = str(content_length)
+    current_app.logger.debug(f"Stream: Final response headers: {headers}, Status: {status_code}")
 
     def generate_file_stream(path, offset, length_to_read, chunk_size=8192):
         with open(path, 'rb') as f:
@@ -504,8 +499,7 @@ def stream_course_resource(resource_id_str):
             while bytes_remaining > 0:
                 read_size = min(chunk_size, bytes_remaining)
                 data = f.read(read_size)
-                if not data:
-                    break # 文件提前结束
+                if not data: break
                 yield data
                 bytes_remaining -= len(data)
     
@@ -513,7 +507,7 @@ def stream_course_resource(resource_id_str):
         stream_with_context(generate_file_stream(file_absolute_path, start, content_length)),
         status=status_code,
         headers=headers,
-        mimetype=resource.mime_type or 'application/octet-stream' # Response 也有 mimetype 参数
+        mimetype=resource.mime_type or 'application/octet-stream'
     )
 
 

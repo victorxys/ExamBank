@@ -49,6 +49,8 @@ const allMenuItems = [
 
 const studentMenuItems = [
   { text: '考试记录', icon: <AssignmentTurnedInIcon />, path: '/exam-records', adminOnly: false },
+  { text: '我的课程', icon: <SchoolIcon />, path: '/my-courses', adminOnly: false }, // 假设所有用户都能看自己的课程
+
 ];
 
 

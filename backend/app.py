@@ -50,13 +50,7 @@ CORS(app,
      origins=[
          "http://localhost:5175",
          "https://ai.mengyimengsao.com"
-     ],
-     allow_headers=[ # 显式声明允许的请求头
-         "Content-Type", 
-         "Authorization", # 如果您的认证服务也可能使用 Bearer Token
-         "X-Api-Key"      # 如果您的前端会发送这个头部
-         # 根据需要添加其他自定义头部
-     ],
+     ]
 )
 
 

@@ -332,7 +332,7 @@ function App() {
           <Route path="/courses/:courseId/tts-contents" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}><TrainingContentList /></Suspense>} />} />
           <Route path="/tts/content/:contentId" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}><TrainingContentDetail /></Suspense>} />} />
           <Route path="/my-courses" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <MyCoursesPage /> </Suspense>} />} />
-          <Route path="/courses/:courseId/resource/:resourceId/play" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <MediaPlayerPage /> </Suspense>} />} />
+          <Route path="/my-courses/:courseId/resource/:resourceId/play" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <MediaPlayerPage /> </Suspense>} />} />
 
         </Route>
 

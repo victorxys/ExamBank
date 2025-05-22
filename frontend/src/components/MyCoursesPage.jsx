@@ -138,7 +138,7 @@ const MyCoursesPage = () => {
                               aria-label="play"
                               onClick={(e) => {
                                 e.stopPropagation(); // 阻止事件冒泡到 CardActionArea
-                                navigate(`/courses/${course.id}/resource/${resource.id}/play`);
+                                navigate(`/my-courses/${course.id}/resource/${resource.id}/play`);
                               }}
                               title={`播放 ${resource.name}`}
                             >

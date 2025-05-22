@@ -37,9 +37,9 @@ api.interceptors.request.use(
     }
     
     if (token) {
-      console.log('[Axios Interceptor] Token found:', token.substring(0, 20) + "..."); // 只打印部分 token
+      // console.log('[Axios Interceptor] Token found:', token.substring(0, 20) + "..."); // 只打印部分 token
       config.headers.Authorization = `Bearer ${token}`;
-      console.log('[Axios Interceptor] Authorization header set:', config.headers.Authorization.substring(0, 30) + "...");
+      // console.log('[Axios Interceptor] Authorization header set:', config.headers.Authorization.substring(0, 30) + "...");
       // 检查Token是否需要刷新
       if (shouldRefreshToken()) {
         try {

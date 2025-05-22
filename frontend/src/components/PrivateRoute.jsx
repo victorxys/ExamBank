@@ -49,13 +49,13 @@ const PrivateRoute = ({ element }) => {
   // 用户已登录
   // 如果是学生角色，并且访问的不是允许的路径，重定向到考试记录
   // **你需要根据实际情况定义学生可以访问的所有路径前缀**
-  const allowedStudentPathPrefixes = ['/exam-records', '/employee-profile']; // 示例：允许访问考试记录和员工档案
+  const allowedStudentPathPrefixes = ['/exam-records', '/my-courses', '/employee-profile']; // 示例：允许访问考试记录和员工档案
   const isAllowedForStudent = allowedStudentPathPrefixes.some(p => location.pathname.startsWith(p));
 
   if (userInfo.role === 'student' && !isAllowedForStudent) {
     //  console.log("PrivateRoute: 学生用户访问非授权页面，重定向到考试记录");
      // 可以考虑重定向到更合适的学生首页，比如 /exam-records
-    //  return <Navigate to="/exam-records" replace />; 
+    return <Navigate to="/exam-records" replace />; 
   }
 
   // 用户已登录且有权限，渲染目标组件

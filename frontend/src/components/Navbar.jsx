@@ -24,6 +24,7 @@ function Navbar() {
     const path = location.pathname
     if (path === '/') return '仪表盘'
     if (path.includes('/courses')) return '课程管理'
+    if (path.includes('/my-courses')) return '我的课程'
     if (path.includes('/knowledge-points')) return '知识点'
     if (path.includes('/questions')) return '题库管理'
     if (path.includes('/exams')) return '考试管理'
