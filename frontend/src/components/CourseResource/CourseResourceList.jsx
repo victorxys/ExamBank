@@ -32,6 +32,9 @@ const CourseResourceList = ({ courseId, onResourceDeleted, onResourceUpdated }) 
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [resourceToDelete, setResourceToDelete] = useState(null);
+  const [alert, setAlert] = useState({ open: false, message: '', severity: 'info' });
+
+
 
   const fetchResources = useCallback(async () => {
     if (!courseId) {

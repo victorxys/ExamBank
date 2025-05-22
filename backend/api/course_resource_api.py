@@ -4,8 +4,9 @@ import uuid
 import re
 from flask import (
     Blueprint, request, jsonify, current_app,
-    send_from_directory, Response, stream_with_context # <<<--- 确保 Response, stream_with_context 已导入
+    send_from_directory, Response, stream_with_context
 )
+
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt, decode_token, verify_jwt_in_request
 from jwt import PyJWTError # 用于捕获 decode_token 可能的错误
 
@@ -44,8 +45,15 @@ def get_file_type_from_extension(filename):
 
 # --- 权限检查辅助函数 (如果还没添加，请添加) ---
 def check_resource_access(user_id, resource_id):
-    print(f"Checking resource access for user {user_id} and resource {resource_id}")
-    return UserResourceAccess.query.filter_by(user_id=user_id, resource_id=resource_id).first() is not None
+    print(f"DATABASE QUERY in check_resource_access for user {user_id} and resource {resource_id}")
+    query_obj = UserResourceAccess.query.filter(
+        UserResourceAccess.user_id == user_id,
+        UserResourceAccess.resource_id == resource_id
+    )
+    print(f"SQL for check_resource_access: {query_obj.statement.compile(dialect=postgresql.dialect(), compile_kwargs={'literal_binds': True})}") # 如果需要看SQL
+    result = query_obj.first()
+    print(f"DB Result for direct resource access: {result}")
+    return result is not None
 
 def check_course_access_for_resource(user_id, resource):
     if not resource or not resource.course_id:
@@ -196,7 +204,7 @@ def get_course_resource_detail(resource_id_str):
         can_access = True
     
     if not can_access:
-        return jsonify({'error': '没有权限访问此资源，请联系管理员开通或学习此课程。'}), 403
+        return jsonify({'error': '没有权限访问此课程，请联系管理员开通或学习此课程。'}), 403
            
     return jsonify(resource.to_dict(include_uploader=True))
 
@@ -208,6 +216,10 @@ def update_course_resource(resource_id_str):
     # TODO: 将来在这里加入权限检查，确保操作者有权修改此资源
     # --- 权限校验 ---
     can_access = False
+    current_user_id = get_jwt_identity()
+    user = User.query.get(current_user_id)
+    if not user: return jsonify({'error': 'User not found for token'}), 401
+    is_admin = (get_jwt().get('role') == 'admin')
     if is_admin:
         can_access = True
     else:
@@ -300,135 +312,209 @@ def delete_course_resource(resource_id_str):
 # ======================================================================
 
 @course_resource_bp.route('/resources/<uuid:resource_id_str>/stream', methods=['GET'])
-# @jwt_required()
+# @jwt_required() # 我们之前注释掉了这个，因为要手动处理 URL token
 def stream_course_resource(resource_id_str):
-    resource_id = str(resource_id_str)
-    current_user_id = None
+    resource_id_uuid = resource_id_str
+
+    current_user_id_from_token_str = None
     user_jwt_claims = {} # 用于存储解析后的 JWT claims
 
-    # 尝试从 Authorization header 获取 Token
-    auth_header = request.headers.get('Authorization', None)
-    if auth_header and auth_header.startswith('Bearer '):
-        token = auth_header.split(' ')[1]
-        try:
-            # 尝试验证请求头中的 JWT
-            verify_jwt_in_request(locations=['headers']) # 这会验证并设置 JWT 上下文
-            current_user_id = get_jwt_identity()
-            user_jwt_claims = get_jwt()
-            current_app.logger.info(f"Stream: Token validated from Header for user {current_user_id}")
-        except Exception as e: # 包括 NoAuthorizationError, InvalidHeaderError 等
-            current_app.logger.warning(f"Stream: Header token validation failed: {e}")
-            # 如果 Header Token 验证失败，尝试从 URL 参数获取
+    # 1. 尝试从 Authorization header 获取并验证 Token (如果存在)
+    # Flask-JWT-Extended 的 verify_jwt_in_request 会处理这个
+    # 但由于我们可能依赖 URL token，这里需要更灵活
+    header_token_valid = False
+    try:
+        # optional=True 意味着如果 Header 中没有 Token，它不会立即抛出错误
+        # locations=['headers'] 只检查头部
+        verify_jwt_in_request(optional=True, locations=['headers']) 
+        temp_identity = get_jwt_identity() # 如果验证成功，这个会有值
+        if temp_identity:
+            current_user_id_from_token_str = temp_identity
+            user_jwt_claims = get_jwt() # 获取完整的 claims
+            header_token_valid = True
+            current_app.logger.info(f"Stream: Token validated from Header for user {current_user_id_from_token_str}")
+    except Exception as e_header_jwt:
+        current_app.logger.info(f"Stream: No valid token in header or header validation failed: {e_header_jwt}")
+        # 继续尝试 URL token
 
-    # 如果 Header 中没有有效 Token，尝试从 URL 参数获取 (仅用于调试)
-    if not current_user_id:
+    # 2. 如果 Header 中没有有效 Token (或我们优先URL token)，尝试从 URL 参数获取
+    if not header_token_valid: # 只有当 Header Token 无效或不存在时才检查 URL Token
         url_token = request.args.get('access_token', None)
         if url_token:
-            current_app.logger.info(f"Stream: Attempting to validate token from URL parameter.")
+            current_app.logger.info(f"Stream: Attempting to validate token from URL parameter: {url_token[:20]}...")
             try:
-                # 注意：直接 decode_token 不会像 jwt_required 那样处理所有类型的 JWT 错误
-                # 并且它不会自动设置 get_jwt_identity() 和 get_jwt() 的上下文
-                # 我们需要手动解码并获取 claims
-                decoded_jwt = decode_token(url_token) # 这需要您的 JWT secret key 已配置
-                current_user_id = decoded_jwt.get('sub') # 'sub' 通常是 identity
-                user_jwt_claims = decoded_jwt # 将整个解码后的 token 作为 claims
-                if not current_user_id:
-                    raise PyJWTError("Token from URL is missing 'sub' claim.")
-                current_app.logger.info(f"Stream: Token validated from URL parameter for user {current_user_id}")
-            except PyJWTError as e_jwt: # 捕获 JWT 解码或验证错误
-                current_app.logger.error(f"Stream: Invalid token from URL parameter: {e_jwt}")
+                # 使用 decode_token 来解码和验证 URL Token
+                # 这需要您的 Flask app 配置了 JWT_SECRET_KEY
+                decoded_jwt = decode_token(url_token) 
+                # current_app.config.get("JWT_IDENTITY_CLAIM", "sub") 通常是 'sub'
+                identity_claim_key = current_app.config.get("JWT_IDENTITY_CLAIM", "sub")
+                current_user_id_from_token_str = decoded_jwt.get(identity_claim_key)
+                
+                if not current_user_id_from_token_str:
+                    current_app.logger.error(f"Stream: Token from URL is missing identity claim ('{identity_claim_key}'). Decoded: {decoded_jwt}")
+                    raise PyJWTError(f"Token from URL is missing identity claim ('{identity_claim_key}').")
+                
+                # 对于手动解码的 Token，我们需要手动构建 user_jwt_claims
+                # get_jwt() 依赖于 Flask-JWT-Extended 的上下文，这里可能没有
+                # 所以直接使用 decoded_jwt 作为 user_jwt_claims
+                user_jwt_claims = decoded_jwt
+                
+                current_app.logger.info(f"Stream: Token from URL parameter validated for user {current_user_id_from_token_str}")
+            except PyJWTError as e_jwt: # 捕获 JWT 解码、签名或过期错误
+                current_app.logger.error(f"Stream: Invalid or expired token from URL parameter: {e_jwt}")
                 return jsonify({'error': 'Invalid or expired token from URL'}), 401
-            except Exception as e_other:
-                current_app.logger.error(f"Stream: Error processing token from URL: {e_other}")
+            except Exception as e_other_url_token:
+                current_app.logger.error(f"Stream: Error processing token from URL: {e_other_url_token}", exc_info=True)
                 return jsonify({'error': 'Error processing token from URL'}), 401
         else:
             # 如果 Header 和 URL 参数都没有 Token
-            current_app.logger.warning("Stream: No token provided in headers or URL params.")
-            return jsonify({'error': 'Missing Authorization'}), 401
+            if not header_token_valid: # 再次确认 header 确实没有token
+                current_app.logger.warning("Stream: No token provided in headers or URL params for stream.")
+                return jsonify({'error': 'Missing Authorization for stream'}), 401
     
-    # --- 后续逻辑使用 current_user_id 和 user_jwt_claims ---
-    user = User.query.get(current_user_id)
-    if not user:
-        return jsonify({'error': 'User not found for token identity'}), 401
-    is_admin = (user_jwt_claims.get('role') == 'admin') # 从解析的 claims 中获取 role
+    # 如果 current_user_id_from_token_str 仍然是 None，说明两种方式都失败了
+    if not current_user_id_from_token_str:
+        current_app.logger.error("Stream: Failed to establish user identity from any token source.")
+        return jsonify({'error': 'Authentication required.'}), 401
 
-    resource = CourseResource.query.get(resource_id)
-    if not resource:
-        return jsonify({'error': 'Resource not found'}), 404
+    # --- 将获取到的用户ID字符串转换为UUID ---
+    try:
+        current_user_id_uuid = uuid.UUID(current_user_id_from_token_str)
+    except (ValueError, TypeError) as e_uuid:
+        current_app.logger.error(f"Stream: Invalid UUID format for user identity '{current_user_id_from_token_str}': {e_uuid}")
+        return jsonify({'error': f"Invalid user identity format in token: {current_user_id_from_token_str}"}), 400
+
+    user = User.query.get(current_user_id_uuid)
+    if not user: return jsonify({'error': 'User from token not found.'}), 401
+
+    # current_app.logger.info(f"DEBUG Stream: Value of user_jwt_claims before checking role: {user_jwt_claims}")
+    # current_app.logger.info(f"DEBUG Stream: Type of user_jwt_claims: {type(user_jwt_claims)}")
+    # if isinstance(user_jwt_claims, dict):
+    #     current_app.logger.info(f"DEBUG Stream: Keys in user_jwt_claims: {list(user_jwt_claims.keys())}")
+
+    # is_admin = (get_jwt().get('role') == 'admin')
+    is_admin = (user_jwt_claims.get('role') == 'admin')
+    
+    # role_from_claims = user_jwt_claims.get('role') if isinstance(user_jwt_claims, dict) else "user_jwt_claims_is_not_dict"
+    # is_admin_result = (role_from_claims == 'admin')
+    # is_admin = (role_from_claims == 'admin')
+
+    # current_app.logger.info(f"DEBUG Stream: Role retrieved from claims: '{role_from_claims}', Is Admin: {is_admin_result}")
+    # is_admin = is_admin_result # 确保 is_admin 被正确赋值
+
+
+
+    print(f"=====current user role from token_str=====: {get_jwt().get('role')}")
+    resource = CourseResource.query.get(resource_id_uuid)
+    current_app.logger.info(f"Stream: User ID (UUID): {current_user_id_uuid}, Is Admin: {is_admin}")
+
+    if not resource: return jsonify({'error': 'Resource not found'}), 404
 
     can_access = False
-    # if is_admin or check_resource_access(current_user_id, resource_id) or check_course_access_for_resource(current_user_id, resource):
-    if is_admin or check_resource_access(current_user_id, resource_id):
+    if is_admin:
         can_access = True
-    
+        current_app.logger.info(f"Stream: Access granted via admin role.")
+    else:
+        direct_resource_access = check_resource_access(current_user_id_uuid, resource_id_uuid)
+        current_app.logger.info(f"Stream: Result of check_resource_access: {direct_resource_access}")
+        if direct_resource_access:
+            can_access = True
+            current_app.logger.info(f"Stream: Access granted via direct resource permission.")
+        else:
+            course_context_access = check_course_access_for_resource(current_user_id_uuid, resource)
+            current_app.logger.info(f"Stream: Result of check_course_access_for_resource: {course_context_access}")
+            if course_context_access:
+                can_access = True
+                current_app.logger.info(f"Stream: Access granted via course context permission.")
+
     if not can_access:
-        current_app.logger.warning(f"User {current_user_id} denied access to stream resource {resource_id}")
-        return jsonify({'error': 'Access denied to this resource'}), 403
+        current_app.logger.warning(f"Stream: Final access check DENIED for user {current_user_id_uuid} on resource {resource_id_uuid}")
+        return jsonify({'error': 'Access denied to this resource stream'}), 403
 
-    # INSTANCE_FOLDER_PATH 应该在文件顶部定义
+    current_app.logger.info(f"Stream: Final access check GRANTED for user {current_user_id_uuid} on resource {resource_id_uuid}")
+        
     file_absolute_path = os.path.join(INSTANCE_FOLDER_PATH, resource.file_path)
-
     if not os.path.exists(file_absolute_path):
-        current_app.logger.error(f"File not found on server for resource {resource_id}: {file_absolute_path}")
         return jsonify({'error': 'File not found on server'}), 404
+    # --- End boilerplate ---
 
-    def generate_chunks(path, chunk_size=8192): # 增加 chunk_size
-        with open(path, 'rb') as f:
-            while True:
-                chunk = f.read(chunk_size)
-                if not chunk:
-                    break
-                yield chunk
-    
-    # Range header 处理 (简化版，仅支持 bytes=start-)
-    range_header = request.headers.get('Range', None)
     file_size = resource.size_bytes or os.path.getsize(file_absolute_path)
-    start_byte = 0
+    range_header = request.headers.get('Range', None)
     
+    start = 0
+    end = file_size - 1 # 默认是整个文件
+    status_code = 200
+    content_length = file_size
+    headers = {
+        'Content-Type': resource.mime_type or 'application/octet-stream',
+        'Content-Disposition': f'inline; filename="{secure_filename(resource.name)}"',
+        'Accept-Ranges': 'bytes', # 始终声明支持 Range
+    }
+
     if range_header:
         try:
-            range_match = re.match(r'bytes=(\d+)-', range_header)
-            if range_match:
-                start_byte = int(range_match.group(1))
-        except ValueError:
-            pass # 如果 range 格式不对，从头开始流式传输
+            # 解析 "bytes=start-end" 或 "bytes=start-"
+            # 更复杂的 Range (如 "bytes=-suffix" 或多段) 此处未完全处理
+            ranges = re.match(r'bytes=(\d*)-(\d*)', range_header)
+            if ranges:
+                range_start_str, range_end_str = ranges.groups()
+                
+                if range_start_str: # bytes=start- 或 bytes=start-end
+                    start = int(range_start_str)
+                
+                if range_end_str: # bytes=start-end
+                    end = int(range_end_str)
+                elif range_start_str: # bytes=start- (end 设为文件末尾)
+                    end = file_size - 1
+                else: # 无效的 range (例如 bytes=- 或 bytes=)
+                    raise ValueError("Invalid Range format")
 
-    if start_byte >= file_size:
-        return Response(status=416) # Range Not Satisfiable
+                # 校验 Range 的有效性
+                if start >= file_size or start > end:
+                    # Requested range not satisfiable
+                    return Response(status=416, headers={'Content-Range': f'bytes */{file_size}'})
 
-    def generate_ranged_chunks(path, start, chunk_size=8192):
+                # 确保 end 不超过文件大小
+                end = min(end, file_size - 1)
+                
+                status_code = 206 # Partial Content
+                content_length = (end - start) + 1
+                headers['Content-Length'] = str(content_length)
+                headers['Content-Range'] = f'bytes {start}-{end}/{file_size}'
+            else:
+                # 如果 Range 格式无法解析，忽略它，发送整个文件
+                current_app.logger.warning(f"Could not parse Range header: {range_header}")
+                # start, end, status_code, content_length 保持默认 (整个文件)
+                pass
+
+        except ValueError as e_range_parse:
+            current_app.logger.warning(f"Invalid Range header '{range_header}': {e_range_parse}")
+            # 回退到发送整个文件
+            start = 0
+            end = file_size - 1
+            status_code = 200
+            content_length = file_size
+    
+    headers['Content-Length'] = str(content_length) # 最终确认 Content-Length
+
+    def generate_file_stream(path, offset, length_to_read, chunk_size=8192):
         with open(path, 'rb') as f:
-            f.seek(start)
-            while True:
-                chunk = f.read(chunk_size)
-                if not chunk:
-                    break
-                yield chunk
-
-    if range_header and start_byte > 0:
-        resp_length = file_size - start_byte
-        headers = {
-            'Content-Range': f'bytes {start_byte}-{file_size-1}/{file_size}',
-            'Accept-Ranges': 'bytes',
-            'Content-Length': str(resp_length),
-            'Content-Disposition': f'inline; filename="{secure_filename(resource.name)}"'
-        }
-        return Response(
-            stream_with_context(generate_ranged_chunks(file_absolute_path, start_byte)), 
-            status=206, # Partial Content
-            mimetype=resource.mime_type or 'application/octet-stream',
-            headers=headers
-        )
-    else:
-        return Response(
-            stream_with_context(generate_chunks(file_absolute_path)), 
-            mimetype=resource.mime_type or 'application/octet-stream',
-            headers={
-                'Content-Disposition': f'inline; filename="{secure_filename(resource.name)}"',
-                'Content-Length': str(file_size),
-                'Accept-Ranges': 'bytes' # 表明支持 Range 请求
-            }
-        )
+            f.seek(offset)
+            bytes_remaining = length_to_read
+            while bytes_remaining > 0:
+                read_size = min(chunk_size, bytes_remaining)
+                data = f.read(read_size)
+                if not data:
+                    break # 文件提前结束
+                yield data
+                bytes_remaining -= len(data)
+    
+    return Response(
+        stream_with_context(generate_file_stream(file_absolute_path, start, content_length)),
+        status=status_code,
+        headers=headers,
+        mimetype=resource.mime_type or 'application/octet-stream' # Response 也有 mimetype 参数
+    )
 
 
 @course_resource_bp.route('/resources/<uuid:resource_id_str>/play-log', methods=['POST'])
