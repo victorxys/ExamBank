@@ -55,7 +55,7 @@ const PrivateRoute = ({ element }) => {
   if (userInfo.role === 'student' && !isAllowedForStudent) {
     //  console.log("PrivateRoute: 学生用户访问非授权页面，重定向到考试记录");
      // 可以考虑重定向到更合适的学生首页，比如 /exam-records
-     return <Navigate to="/exam-records" replace />; 
+    //  return <Navigate to="/exam-records" replace />; 
   }
 
   // 用户已登录且有权限，渲染目标组件
