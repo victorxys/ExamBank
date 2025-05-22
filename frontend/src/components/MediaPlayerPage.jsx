@@ -784,7 +784,6 @@ const MediaPlayerPage = () => {
           sx={{ 
             position: 'relative', 
             width: '100%', 
-            height: isMobile ? '60px' : '80px', 
             p: isMobile ? 1: 0, 
             boxSizing: 'border-box' ,
             paddingTop: isVideo ? '56.25%' : '0',
