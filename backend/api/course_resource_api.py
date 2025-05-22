@@ -247,9 +247,14 @@ def update_course_resource(resource_id_str):
 @jwt_required() # 通常需要权限
 def delete_course_resource(resource_id_str):
     resource_id = str(resource_id_str)
-    # TODO: 将来在这里加入权限检查
-    # --- 权限校验 ---
+    #) # 或者 resource_id_uuid = resource_id_str 如果路由转换了
+    # --- 权限 --- 新增：获取当前用户信息和角色 ---
     can_access = False
+    current_user_id = get_jwt_identity()
+    user = User.query.get(current_user_id)
+    if not user: return jsonify({'error': 'User not found for token'}), 401
+    is_admin = (get_jwt().get('role') == 'admin')
+    
     if is_admin:
         can_access = True
     else:
