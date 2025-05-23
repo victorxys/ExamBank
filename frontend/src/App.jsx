@@ -202,20 +202,20 @@ const MainLayoutInternal = () => {
           backgroundColor: 'background.default',
         }}
       >
-        <Navbar />
-        <Box
+        <Navbar /> {/* Navbar (您的 AppBar) 在这里 */}
+        <Box // <<<--- 这个 Box 包裹 <Outlet />
             sx={{
               flex: 1,
               // --- 在这里修改 padding 设置 ---
               // 旧: p: { xs: 2, sm: 3 }, 
               // 新示例 (移除顶部内边距):
-              px: { xs: 2, sm: 3 }, // 左右内边距
-              pb: { xs: 2, sm: 3 }, // 底部内边距
-              pt: { xs: 7, sm: 2 }, // 顶部内边距 (sm 设为 0)
+              px: { xs: 2, sm: 1 }, // 左右内边距
+              pb: { xs: 2, sm: 1 }, // 底部内边距
+              pt: { xs: 2, sm: 1 }, // 顶部内边距 (sm 设为 0) <<<<----- 这里可能是 pt: 7 的来源
               // --- -------------------------- ---
-              mt: { xs: 7, sm: 0 }, 
+              // mt: { xs: 2, sm: 0 }, // <<<<----- 这里也可能是 mt: 7 的来源
               width: '100%',
-              height: '100vh',
+              height: '100vh', // 这一行可能有问题，见下方说明
               overflow: 'auto',
               maxWidth: '100%'
             }}

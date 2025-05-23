@@ -13,7 +13,7 @@ from jwt import PyJWTError # 用于捕获 decode_token 可能的错误
 from werkzeug.utils import secure_filename
 from datetime import datetime
 from sqlalchemy.exc import IntegrityError # <<<--- 新增：导入 IntegrityError
-from sqlalchemy import func
+from sqlalchemy import func, or_
 
 
 # 从 backend.models 导入所有需要的模型
@@ -48,14 +48,28 @@ def get_file_type_from_extension(filename):
 
 # --- 权限检查辅助函数 (如果还没添加，请添加) ---
 def check_resource_access(user_id, resource_id):
-    print(f"DATABASE QUERY in check_resource_access for user {user_id} and resource {resource_id}")
+    # print(f"DATABASE QUERY in check_resource_access for user {user_id} and resource {resource_id}")
     query_obj = UserResourceAccess.query.filter(
         UserResourceAccess.user_id == user_id,
-        UserResourceAccess.resource_id == resource_id
+        UserResourceAccess.resource_id == resource_id,
+        or_( # <<<--- 新增 OR 条件
+            UserResourceAccess.expires_at == None, # 永久有效
+            UserResourceAccess.expires_at >= datetime.now(UserResourceAccess.expires_at.type.timezone_convert_expressions[0].type.timezone if hasattr(UserResourceAccess.expires_at.type, 'timezone_convert_expressions') and UserResourceAccess.expires_at.type.timezone_convert_expressions else None) # 确保比较时区一致性
+        )
     )
-    print(f"SQL for check_resource_access: {query_obj.statement.compile(dialect=postgresql.dialect(), compile_kwargs={'literal_binds': True})}") # 如果需要看SQL
+    # 为了更清晰地调试时区问题，可以这样写：
+    # now_in_utc = datetime.now(timezone.utc) # 如果你的 expires_at 存储的是 UTC
+    # query_obj = UserResourceAccess.query.filter(
+    #     UserResourceAccess.user_id == user_id,
+    #     UserResourceAccess.resource_id == resource_id,
+    #     or_(
+    #         UserResourceAccess.expires_at == None,
+    #         UserResourceAccess.expires_at >= now_in_utc
+    #     )
+    # )
+    # print(f"SQL for check_resource_access: {str(query_obj.statement.compile(dialect=postgresql.dialect(), compile_kwargs={'literal_binds': True}))}")
     result = query_obj.first()
-    print(f"DB Result for direct resource access: {result}")
+    # print(f"DB Result for direct resource access: {result}")
     return result is not None
 
 def check_course_access_for_resource(user_id, resource):

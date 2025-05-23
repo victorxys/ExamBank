@@ -778,15 +778,24 @@ class UserResourceAccess(db.Model):
         db.PrimaryKeyConstraint('user_id', 'resource_id', name='pk_user_resource_access'),
         db.ForeignKeyConstraint(['user_id'], ['user.id'], name='fk_userresourceaccess_user_id', ondelete='CASCADE'),
         db.ForeignKeyConstraint(['resource_id'], ['course_resource.id'], name='fk_userresourceaccess_resource_id', ondelete='CASCADE'),
-        {'comment': '用户课程资源访问权限表 (哪些用户可以访问特定课程下的哪些资源)'}
+        {'comment': '用户课程资源访问权限表'}
     )
     user_id = db.Column(PG_UUID(as_uuid=True), nullable=False, comment='用户ID')
     resource_id = db.Column(PG_UUID(as_uuid=True), nullable=False, comment='课程资源ID')
     granted_at = db.Column(db.DateTime(timezone=True), server_default=func.now(), comment='授权时间')
-
-    # Relationships (optional)
-    # user = db.relationship('User', back_populates='resource_access_permissions') # 在 User 模型中定义
-    # resource = db.relationship('CourseResource', back_populates='user_access_permissions') # 在 CourseResource 模型中定义
+    
+    # +++++ 新增字段 +++++
+    expires_at = db.Column(db.DateTime(timezone=True), nullable=True, comment='权限过期时间 (NULL表示永久)')
+    # +++++++++++++++++++++
 
     def __repr__(self):
-        return f'<UserResourceAccess User:{self.user_id} Resource:{self.resource_id}>'
+        return f'<UserResourceAccess User:{self.user_id} Resource:{self.resource_id} Expires:{self.expires_at}>'
+
+    # 如果需要，可以在 to_dict 方法中添加 expires_at
+    def to_dict(self):
+        return {
+            'user_id': str(self.user_id),
+            'resource_id': str(self.resource_id),
+            'granted_at': self.granted_at.isoformat() if self.granted_at else None,
+            'expires_at': self.expires_at.isoformat() if self.expires_at else None, # 新增
+        }

@@ -61,7 +61,7 @@ function UserInfo() {
   }
 
   return (
-    <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100px' }}>
+    <Box sx={{ p: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'}}>
       <Box sx={{
         display: 'flex',
         alignItems: 'center',

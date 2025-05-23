@@ -1,6 +1,6 @@
 // frontend/src/components/Sidebar.jsx
 import React, { useState, useEffect, useRef } from 'react';
-import { Link as RouterLink, useLocation } from 'react-router-dom';
+import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   Box, List, ListItemButton, ListItemIcon, ListItemText, Drawer, Typography,
   Divider, IconButton, useMediaQuery, Tooltip, Collapse, AppBar, Toolbar
@@ -62,6 +62,8 @@ function Sidebar({ isCollapsed, setIsCollapsed }) {
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [openMenus, setOpenMenus] = useState({});
   const parentMenuRefs = useRef({});
+  const navigate = useNavigate(); // <<<--- 使用 useNavigate 进行导航
+
 
   const menuItemsToRender = userInfo?.role === 'admin' ? allMenuItems : studentMenuItems;
 
@@ -93,6 +95,82 @@ function Sidebar({ isCollapsed, setIsCollapsed }) {
   const handleDrawerToggle = () => setMobileOpen(!mobileOpen);
   const handleCollapseToggle = () => setIsCollapsed(!isCollapsed);
 
+  // --- 渲染菜单项的函数，方便复用和添加关闭抽屉逻辑 ---
+  const renderMenuItem = (item, isSubItem = false) => {
+    const currentPath = location.pathname;
+    const isSelected = !item.subItems && (currentPath === item.path || (item.path !== '/' && currentPath.startsWith(item.path + '/')));
+    const isSubSelected = isSubItem && (currentPath === item.path || currentPath.startsWith(item.path + '/'));
+
+    const handleItemClick = (e) => {
+      if (item.subItems) {
+        handleParentMenuClick(e, item.path);
+      } else if (item.path) {
+        // 对于非父菜单项，在手机端点击后关闭抽屉
+        if (isMobile && handleDrawerToggle) {
+          handleDrawerToggle();
+        }
+        // 使用 navigate 进行导航，而不是直接用 RouterLink 的 to prop (如果 RouterLink 本身不触发关闭)
+        // 但 ListItemButton component={RouterLink} to={...} 通常就够了
+        // 如果上面这种方式在点击后 Drawer 不关闭，可以尝试手动导航并关闭
+        // navigate(item.path);
+      }
+    };
+
+    return (
+      <ListItemButton
+        ref={el => { 
+          if (item.subItems && item.path) {
+            parentMenuRefs.current[item.path] = el;
+          }
+        }}
+        // 如果是父菜单，component 是 'div'，点击事件由 onClick 处理
+        // 如果是子菜单或无子菜单的顶级菜单，component 是 RouterLink
+        component={item.subItems ? 'div' : RouterLink}
+        to={item.subItems ? undefined : item.path} // 只有非父菜单才有 to prop
+        selected={isSubItem ? isSubSelected : isSelected}
+        onClick={handleItemClick} // 所有菜单项都通过这个函数处理点击
+        sx={{
+          // ... (您现有的 sx 样式)
+          py: isCollapsed && !isMobile ? 1.5 : 1.2,
+          px: isCollapsed && !isMobile ? 'auto' : (isSubItem ? 1.5 : 2),
+          justifyContent: isCollapsed && !isMobile ? 'center' : 'flex-start',
+          borderRadius: 1, 
+          mx: isCollapsed && !isMobile ? 0.5 : (isSubItem ? 0 : 1),
+          mb: 0.5,
+          textDecoration: 'none', 
+          transition: 'all 0.15s ease',
+          color: theme.palette.text.primary,
+          '& .MuiListItemIcon-root': {
+            color: theme.palette.grey[700],
+            minWidth: 0,
+            mr: isCollapsed && !isMobile ? 0 : 1.5,
+            justifyContent: 'center',
+          },
+          '&.Mui-selected': {
+            background: `linear-gradient(87deg, ${theme.palette.primary.main} 0%, ${alpha(theme.palette.primary.dark, 0.85)} 100%)`,
+            boxShadow: theme.shadows[3],
+            '& .MuiListItemIcon-root, & .MuiListItemText-primary': { color: 'white' },
+            '&:hover': {
+               background: `linear-gradient(87deg, ${theme.palette.primary.dark} 0%, ${alpha(theme.palette.primary.main, 0.9)} 100%)`,
+            }
+          },
+          '&:hover': {
+            backgroundColor: alpha(theme.palette.primary.main, 0.08),
+          },
+          ...(isSubItem && { pl: isCollapsed && !isMobile ? 'auto' : 3.5 }), // 子菜单的缩进
+        }}
+      >
+        <Tooltip title={isCollapsed && !isMobile ? item.text : ""} placement="right">
+          <ListItemIcon>
+            {item.icon}
+          </ListItemIcon>
+        </Tooltip>
+        {!(isCollapsed && !isMobile) && <ListItemText primary={item.text} primaryTypographyProps={{ fontWeight: 500,  whiteSpace: 'nowrap', fontSize: isSubItem ? '0.875rem' : 'inherit' }} />}
+        {!(isCollapsed && !isMobile) && item.subItems && (openMenus[item.path] ? <ExpandLess /> : <ExpandMore />)}
+      </ListItemButton>
+    );
+  };
+
   const handleParentMenuClick = (e, itemPath) => {
     e.stopPropagation();
     e.preventDefault();
@@ -119,12 +197,12 @@ function Sidebar({ isCollapsed, setIsCollapsed }) {
       <Box
         className="sidenav-header"
         sx={{ 
-          p: 2, 
+          p: 0, 
           display: 'flex', 
           alignItems: 'center', 
           justifyContent: 'center', 
           flexDirection: 'column', 
-          mb: isCollapsed ? 0 : 0.5 
+          mb: isCollapsed ? 0 : 0 
         }}
       >
         <img 
@@ -144,113 +222,27 @@ function Sidebar({ isCollapsed, setIsCollapsed }) {
       
       <List 
         className="navbar-nav" 
-        sx={{ 
-          flexGrow: 1, 
-          overflowY: 'auto', 
-          overflowX: 'hidden', 
-          p: isCollapsed ? 0.5 : 1,
-          pt: isCollapsed && userInfo ? 1 : (isCollapsed ? 0.5 : 1) // 如果折叠且有用户信息，稍微增加上边距
-        }}
+        sx={{ flexGrow: 1, overflowY: 'auto', overflowX: 'hidden', p: isCollapsed && !isMobile ? 0.5 : 1, pt: isCollapsed && !isMobile && userInfo ? 1 : (isCollapsed && !isMobile ? 0.5 : 1) }}
       >
         {menuItemsToRender
           .filter(item => userInfo?.role === 'admin' || !item.adminOnly)
           .map((item) => (
-          <React.Fragment key={item.path || item.text}> {/* 使用 item.path 作为更稳定的key */}
-            <ListItemButton
-              ref={el => { 
-                if (item.subItems && item.path) {
-                  parentMenuRefs.current[item.path] = el;
-                }
-              }}
-              component={item.subItems ? 'div' : RouterLink}
-              to={item.subItems ? undefined : item.path}
-              selected={!item.subItems && (location.pathname === item.path || (item.path !== '/' && location.pathname.startsWith(item.path + '/')))}
-              onClick={item.subItems ? (e) => handleParentMenuClick(e, item.path) : undefined}
-              sx={{
-                py: isCollapsed ? 1.5 : 1.2, // 折叠时垂直内边距可以大一些
-                px: isCollapsed ? 'auto' : 2, // 折叠时图标会自动居中，展开时用px
-                justifyContent: isCollapsed ? 'center' : 'flex-start',
-                borderRadius: 1, 
-                mx: isCollapsed ? 0.5 : 1, 
-                mb: 0.5,
-                textDecoration: 'none', 
-                transition: 'all 0.15s ease',
-                color: theme.palette.text.primary, // 默认文字颜色
-                '& .MuiListItemIcon-root': { // 统一图标颜色
-                  color: theme.palette.grey[700],
-                  minWidth: 0, // 移除默认的最小宽度
-                  mr: isCollapsed ? 0 : 1.5,
-                  justifyContent: 'center',
-                },
-                '&.Mui-selected': {
-                  background: `linear-gradient(87deg, ${theme.palette.primary.main} 0%, ${alpha(theme.palette.primary.dark, 0.85)} 100%)`,
-                  boxShadow: theme.shadows[3],
-                  '& .MuiListItemIcon-root, & .MuiListItemText-primary': { color: 'white' },
-                  '&:hover': {
-                     background: `linear-gradient(87deg, ${theme.palette.primary.dark} 0%, ${alpha(theme.palette.primary.main, 0.9)} 100%)`,
-                  }
-                },
-                '&:hover': {
-                  backgroundColor: alpha(theme.palette.primary.main, 0.08),
-                },
-              }}
-            >
-              <Tooltip title={isCollapsed ? item.text : ""} placement="right">
-                <ListItemIcon>
-                  {item.icon}
-                </ListItemIcon>
-              </Tooltip>
-              {!isCollapsed && <ListItemText primary={item.text} primaryTypographyProps={{ fontWeight: 500,  whiteSpace: 'nowrap' }} />}
-              {!isCollapsed && item.subItems && (openMenus[item.path] ? <ExpandLess /> : <ExpandMore />)}
-            </ListItemButton>
+          <React.Fragment key={item.path || item.text}>
+            {renderMenuItem(item)} {/* 使用 renderMenuItem 函数 */}
             
-            {!isCollapsed && item.subItems && (
+            {!(isCollapsed && !isMobile) && item.subItems && (
               <Collapse 
-                in={openMenus[item.path] || false} // 确保 in 属性总是一个布尔值
+                in={openMenus[item.path] || false}
                 timeout="auto" 
                 unmountOnExit
               >
-                <List component="div" disablePadding sx={{ pl: 2.5, pr:1 }}> {/* 调整子菜单缩进 */}
+                <List component="div" disablePadding sx={{ pr:1 }}> {/* 移除 pl，让子菜单的 ListItemButton 控制缩进 */}
                   {item.subItems
                     .filter(subItem => userInfo?.role === 'admin' || !subItem.adminOnly)
-                    .map((subItem) => (
-                    <ListItemButton
-                      key={subItem.path || subItem.text} // 使用 subItem.path
-                      component={RouterLink}
-                      to={subItem.path}
-                      selected={location.pathname === subItem.path || location.pathname.startsWith(subItem.path + '/')}
-                       sx={{
-                        py: 1, 
-                        px: 1.5, 
-                        borderRadius: 1, 
-                        mb: 0.5,
-                        color: theme.palette.text.secondary,
-                        '& .MuiListItemIcon-root': {
-                          color: theme.palette.grey[600],
-                           minWidth: 0,
-                           mr: 1.5,
-                           justifyContent: 'center',
-                        },
-                        '&.Mui-selected': {
-                            background: alpha(theme.palette.primary.main, 0.15),
-                            color: theme.palette.primary.main,
-                            fontWeight: 'bold',
-                            '& .MuiListItemIcon-root': { color: theme.palette.primary.main },
-                            '&:hover': {
-                                background: alpha(theme.palette.primary.main, 0.25),
-                            }
-                        },
-                        '&:hover': { backgroundColor: alpha(theme.palette.action.hover, 0.04) },
-                      }}
-                    >
-                       <Tooltip title={isCollapsed ? subItem.text : ""} placement="right">
-                         <ListItemIcon>
-                           {subItem.icon}
-                         </ListItemIcon>
-                       </Tooltip>
-                       {!isCollapsed && <ListItemText primary={subItem.text} primaryTypographyProps={{ fontSize: '0.875rem', whiteSpace: 'nowrap' }} />}
-                    </ListItemButton>
-                  ))}
+                    .map((subItem) => 
+                    <React.Fragment key={subItem.path || subItem.text}> 
+                        {renderMenuItem(subItem, true)}
+                      </React.Fragment>)} 
                 </List>
               </Collapse>
             )}
@@ -343,7 +335,9 @@ function Sidebar({ isCollapsed, setIsCollapsed }) {
           display: { xs: isMobile ? 'block' : 'none', sm: 'block' },
           '& .MuiDrawer-paper': {
             boxSizing: 'border-box',
-            width: isCollapsed && !isMobile ? collapsedWidth : expandedWidth,
+            // width: isCollapsed && !isMobile ? collapsedWidth : expandedWidth,
+            width: isMobile ? expandedWidth : (isCollapsed ? collapsedWidth : expandedWidth), // 手机端总是展开宽度
+
             borderRight: 'none', // 通常去掉Drawer本身的右边框
             backgroundColor: 'white', 
             backgroundImage: 'none',
