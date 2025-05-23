@@ -11,7 +11,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt, decode_t
 from jwt import PyJWTError # 用于捕获 decode_token 可能的错误
 
 from werkzeug.utils import secure_filename
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy.exc import IntegrityError # <<<--- 新增：导入 IntegrityError
 from sqlalchemy import func, or_
 
@@ -47,30 +47,18 @@ def get_file_type_from_extension(filename):
     return 'other'
 
 # --- 权限检查辅助函数 (如果还没添加，请添加) ---
-def check_resource_access(user_id, resource_id):
-    # print(f"DATABASE QUERY in check_resource_access for user {user_id} and resource {resource_id}")
-    query_obj = UserResourceAccess.query.filter(
-        UserResourceAccess.user_id == user_id,
-        UserResourceAccess.resource_id == resource_id,
-        or_( # <<<--- 新增 OR 条件
-            UserResourceAccess.expires_at == None, # 永久有效
-            UserResourceAccess.expires_at >= datetime.now(UserResourceAccess.expires_at.type.timezone_convert_expressions[0].type.timezone if hasattr(UserResourceAccess.expires_at.type, 'timezone_convert_expressions') and UserResourceAccess.expires_at.type.timezone_convert_expressions else None) # 确保比较时区一致性
+def check_resource_access(user_id_uuid, resource_id_uuid): # 参数改为 uuid 类型以明确
+    # 假设 expires_at 存储的是 UTC 时间
+    now_utc = datetime.now(timezone.utc)
+    access_record = UserResourceAccess.query.filter(
+        UserResourceAccess.user_id == user_id_uuid,
+        UserResourceAccess.resource_id == resource_id_uuid,
+        or_(
+            UserResourceAccess.expires_at == None,
+            UserResourceAccess.expires_at >= now_utc
         )
-    )
-    # 为了更清晰地调试时区问题，可以这样写：
-    # now_in_utc = datetime.now(timezone.utc) # 如果你的 expires_at 存储的是 UTC
-    # query_obj = UserResourceAccess.query.filter(
-    #     UserResourceAccess.user_id == user_id,
-    #     UserResourceAccess.resource_id == resource_id,
-    #     or_(
-    #         UserResourceAccess.expires_at == None,
-    #         UserResourceAccess.expires_at >= now_in_utc
-    #     )
-    # )
-    # print(f"SQL for check_resource_access: {str(query_obj.statement.compile(dialect=postgresql.dialect(), compile_kwargs={'literal_binds': True}))}")
-    result = query_obj.first()
-    # print(f"DB Result for direct resource access: {result}")
-    return result is not None
+    ).first()
+    return access_record is not None
 
 def check_course_access_for_resource(user_id, resource):
     if not resource or not resource.course_id:
@@ -147,82 +135,177 @@ def upload_course_resource(course_id_str):
 @course_resource_bp.route('/courses/<uuid:course_id_str>/resources', methods=['GET'])
 @jwt_required()
 def get_course_resources(course_id_str):
-    course_id = str(course_id_str)
-    current_user_id = get_jwt_identity()
-    user = User.query.get(current_user_id)
+    course_id = str(course_id_str) # 或者直接使用 course_id_str 如果它是 UUID 对象
+    current_user_id_str = get_jwt_identity()
+    try:
+        current_user_id_uuid = uuid.UUID(current_user_id_str)
+    except ValueError:
+        return jsonify({'error': 'Invalid user ID format in token'}), 400
+        
+    user = User.query.get(current_user_id_uuid)
     if not user: return jsonify({'error': 'User not found'}), 401
     
     is_admin = (get_jwt().get('role') == 'admin')
 
-    course = TrainingCourse.query.get(course_id)
+    course = TrainingCourse.query.get(course_id_str) # 使用原始的 course_id_str (UUID 对象)
     if not course:
         return jsonify({'error': 'Course not found'}), 404
 
+    resource_list_to_return = []
+
     if is_admin:
         # 管理员可以看到该课程下的所有资源
-        resources = CourseResource.query.filter_by(course_id=course_id)\
-            .order_by(CourseResource.sort_order, CourseResource.created_at).all()
-        return jsonify([res.to_dict(include_uploader=True) for res in resources])
-    else:
-        # 普通用户：
-        # 1. 首先检查用户是否至少有权“接触”到这个课程（或者说，这个课程是否应该出现在他的视野里）
-        #    这可以通过 UserCourseAccess 或者其下是否有任何一个授权资源来判断。
-        #    如果一个用户对课程A没有任何形式的授权（既没有课程级授权，也没有任何一个课程A下资源的授权），
-        #    那么他请求课程A的资源列表时，应该直接返回 403。
+        resources_in_course = CourseResource.query.filter_by(course_id=course.id).order_by(CourseResource.sort_order, CourseResource.created_at).all()
         
-        has_any_access_to_course_context = UserCourseAccess.query.filter_by(
-            user_id=current_user_id, course_id=course_id
+        for res_obj in resources_in_course:
+            res_dict = res_obj.to_dict(include_uploader=True)
+            # 管理员也需要 user_access_expires_at 吗？如果需要，也查询
+            admin_access = UserResourceAccess.query.filter_by(
+                user_id=current_user_id_uuid,
+                resource_id=res_obj.id
+            ).first()
+            res_dict['user_access_expires_at'] = admin_access.expires_at.isoformat() if admin_access and admin_access.expires_at else None
+            resource_list_to_return.append(res_dict)
+        
+    else: # 非管理员用户
+        # 1. 检查用户是否有权访问此课程上下文 (可选，但良好实践)
+        has_course_context_access = UserCourseAccess.query.filter_by(
+            user_id=current_user_id_uuid, course_id=course.id
         ).first() is not None
 
-        # 2. 获取用户在该课程下被明确授权的资源ID列表
-        granted_resource_ids_query = db.session.query(UserResourceAccess.resource_id)\
-            .join(CourseResource, UserResourceAccess.resource_id == CourseResource.id)\
-            .filter(UserResourceAccess.user_id == current_user_id, CourseResource.course_id == course_id)
+        # 2. 获取用户在该课程下被明确授权的资源及其有效期
+        # 我们需要连接 CourseResource 和 UserResourceAccess
+        now_utc = datetime.now(timezone.utc)
         
-        granted_resource_ids = [str(row[0]) for row in granted_resource_ids_query.all()]
+        # 查询用户有权访问且未过期的资源，并获取其 UserResourceAccess 记录以提取 expires_at
+        granted_resources_query = db.session.query(
+                CourseResource, 
+                UserResourceAccess.expires_at
+            ).join(
+                UserResourceAccess, CourseResource.id == UserResourceAccess.resource_id
+            ).filter(
+                CourseResource.course_id == course.id, # 确保是当前课程的资源
+                UserResourceAccess.user_id == current_user_id_uuid,
+                or_(
+                    UserResourceAccess.expires_at == None,
+                    UserResourceAccess.expires_at >= now_utc
+                )
+            ).order_by(CourseResource.sort_order, CourseResource.created_at)
+            
+        accessible_resources_with_expiry = granted_resources_query.all()
 
-        if not has_any_access_to_course_context and not granted_resource_ids:
-            # 如果既没有课程级访问权限，也没有任何该课程下的资源访问权限，则拒绝
-            current_app.logger.info(f"User {current_user_id} has no access whatsoever to course {course_id} or its resources.")
-            return jsonify({'error': 'Access denied to this course and its resources'}), 403
+        if not has_course_context_access and not accessible_resources_with_expiry:
+            # 如果既没有课程级访问权限，也没有任何该课程下的有效资源访问权限，则拒绝
+            # (或者根据您的业务逻辑，如果只想显示有具体资源权限的，可以只判断 accessible_resources_with_expiry)
+            # return jsonify({'error': 'Access denied to this course and its resources'}), 403
+            pass # 允许返回空列表，让前端显示“无资源”
 
-        # 即使有课程权限 (has_any_access_to_course_context is True)，也只返回 granted_resource_ids 中的资源。
-        # 如果 granted_resource_ids 为空，意味着虽然他可能在“我的课程”里看到这个课程，但课程下没有他能看的具体资源。
-        if not granted_resource_ids:
-            current_app.logger.info(f"User {current_user_id} has access to course {course_id} context, but no specific resources are granted to them under this course.")
-            return jsonify([]) # 返回空列表
-
-        # 根据授权的资源ID列表获取资源
-        resources = CourseResource.query.filter(
-            CourseResource.id.in_(granted_resource_ids) # 确保 CourseResource.id 也是 UUID 类型进行比较
-        ).order_by(CourseResource.sort_order, CourseResource.created_at).all()
-        
-        return jsonify([res.to_dict(include_uploader=True) for res in resources])
+        for res_obj, expires_at_val in accessible_resources_with_expiry:
+            res_dict = res_obj.to_dict(include_uploader=True)
+            res_dict['user_access_expires_at'] = expires_at_val.isoformat() if expires_at_val else None
+            resource_list_to_return.append(res_dict)
+            
+    return jsonify(resource_list_to_return)
 
 
 @course_resource_bp.route('/resources/<uuid:resource_id_str>', methods=['GET'])
 @jwt_required()
 def get_course_resource_detail(resource_id_str):
-    # ... 您的获取单个资源详情的代码，确保加入了权限校验 ...
-    # (参考上一条回复中的 get_course_resource_detail 实现)
-    resource_id = str(resource_id_str)
-    current_user_id = get_jwt_identity()
-    user = User.query.get(current_user_id)
+    # try:
+    #     resource_id_uuid = uuid.UUID(resource_id_str)
+    # except ValueError:
+    #     return jsonify({'error': 'Invalid resource ID format'}), 400
+    resource_id_uuid = resource_id_str # <<<--- 直接使用，或者为了明确可以重命名
+
+    current_user_id_str = get_jwt_identity()
+    try:
+        current_user_id_uuid = uuid.UUID(current_user_id_str)
+    except ValueError:
+        return jsonify({'error': 'Invalid user ID format in token'}), 400
+
+    user = User.query.get(current_user_id_uuid)
+    if not user: 
+        return jsonify({'error': 'User not found for token'}), 401
+    
     is_admin = (get_jwt().get('role') == 'admin')
 
-    resource = CourseResource.query.get(resource_id)
+    resource = CourseResource.query.get(resource_id_uuid)
     if not resource:
         return jsonify({'error': 'Resource not found'}), 404
 
-    can_access = False
-    # if is_admin or check_resource_access(current_user_id, resource_id) or check_course_access_for_resource(current_user_id, resource):
-    if is_admin or check_resource_access(current_user_id, resource_id):
-        can_access = True
+    resource_data = resource.to_dict(include_uploader=True)
+    user_specific_expires_at = None
+    can_access_now = False
+
+    # 检查管理员权限
+    if is_admin:
+        can_access_now = True
+        # 管理员访问资源时，是否显示“针对其自身”的有效期？
+        # 如果管理员也有 UserResourceAccess 记录，可以获取并显示
+        admin_access_record = UserResourceAccess.query.filter_by(
+            user_id=current_user_id_uuid, 
+            resource_id=resource_id_uuid
+        ).first()
+        if admin_access_record and admin_access_record.expires_at:
+            user_specific_expires_at = admin_access_record.expires_at
+        # 如果管理员没有特定记录，或记录中 expires_at 为 None，则视为永久（对于播放器显示而言）
+        # 或者，我们也可以让管理员总是看到 "长期有效"
+        # 为了简单，如果 user_specific_expires_at 仍为 None，前端会显示 "长期有效"
+    else:
+        # 普通用户，查询其特定的 UserResourceAccess 记录
+        # current_app.logger.info(f"Non-admin user. Querying UserResourceAccess for user_id: {current_user_id_uuid}, resource_id: {resource_id_uuid}")
+        user_access_record = UserResourceAccess.query.filter_by(
+            user_id=current_user_id_uuid,
+            resource_id=resource_id_uuid
+        ).first()
+
+        if user_access_record:
+            # current_app.logger.info(f"Found UserResourceAccess record. ID: {user_access_record.user_id}/{user_access_record.resource_id}, Expires At from DB: {user_access_record.expires_at}")
+            user_specific_expires_at = user_access_record.expires_at
+            # --- 修改这里的时区处理 ---
+            if user_specific_expires_at:
+                # 假设 user_specific_expires_at 是 aware datetime (带有 tzinfo)
+                # 或者如果它是 naive 但代表 UTC，我们需要确保 datetime.now() 也是 UTC
+                now_for_compare = datetime.now(timezone.utc) # 获取当前的 UTC 时间
+                
+                # 如果 user_specific_expires_at 是 naive datetime，我们需要假设它是 UTC
+                # 如果它是 aware datetime，比较时会自动处理时区转换
+                if user_specific_expires_at.tzinfo is None:
+                    # 如果 expires_at 是 naive，我们假设它存储的是 UTC 时间
+                    # 为了比较，最好将其本地化为 UTC (如果 SQLAlchemy 没有自动做这件事)
+                    # 但通常如果列是 TIMESTAMPTZ，SQLAlchemy 返回的是 aware datetime
+                    # 如果列是 TIMESTAMP (naive)，SQLAlchemy 返回 naive datetime
+                    # 为简单起见，直接与 aware 的 now_utc 比较，如果 expires_at 是 naive，
+                    # Python 会抛出 TypeError。所以最好确保 expires_at 是 aware。
+                    # 如果您的 UserResourceAccess.expires_at 是 DateTime(timezone=True)，
+                    # 那么 user_specific_expires_at 应该已经是 aware 的了。
+                    pass # 假设 SQLAlchemy 返回的是 aware datetime 或者我们统一按 UTC 处理
+
+                if user_specific_expires_at >= now_for_compare:
+                    can_access_now = True
+            elif user_specific_expires_at is None: # 永久有效
+                can_access_now = True
+        else:
+            # 如果没有直接的资源授权，检查是否有课程级授权
+            # 注意：课程级授权 UserCourseAccess 不包含 expires_at，所以如果依赖这个，有效期是“课程级”的，可能视为永久
+            # 但通常，播放资源应该依赖 UserResourceAccess 的有效期
+            # current_app.logger.info(f"No UserResourceAccess record found for user_id: {current_user_id_uuid}, resource_id: {resource_id_uuid}")
+            if check_course_access_for_resource(current_user_id_uuid, resource):
+                can_access_now = True # 有课程权限，视为可访问（但没有特定资源有效期）
+                # user_specific_expires_at 保持 None，前端会显示 "长期有效"
     
-    if not can_access:
-        return jsonify({'error': '没有权限访问此课程，请联系管理员开通或学习此课程。'}), 403
-           
-    return jsonify(resource.to_dict(include_uploader=True))
+    resource_data['user_access_expires_at'] = user_specific_expires_at.isoformat() if user_specific_expires_at else None
+    resource_data['can_access_now'] = can_access_now
+
+    # 最终权限校验：如果不能访问，则不返回详情（除非是管理员）
+    if not can_access_now and not is_admin:
+        # 即使不能播放，如果用户曾有权限，但已过期，前端可能仍想显示“已过期”信息
+        # 所以，如果 can_access_now 为 false 但 user_specific_expires_at 存在，我们仍然返回数据
+        # 真正阻止播放的应该是流媒体端点的权限检查
+        # 但如果这里就想阻止看到详情，可以取消下面的注释
+        # return jsonify({'error': 'Access to this resource detail is denied or has expired.'}), 403
+        pass # 允许返回数据，让前端根据 can_access_now 和 expires_at 自行处理显示
+    return jsonify(resource_data)
 
 # ... (您现有的 update_course_resource 和 delete_course_resource 接口，也确保有权限校验)
 @course_resource_bp.route('/resources/<uuid:resource_id_str>', methods=['PUT'])
@@ -269,7 +352,7 @@ def update_course_resource(resource_id_str):
 
 
         if new_file and allowed_file(new_file.filename):
-            current_app.logger.info(f"Updating resource {resource.id} with new file: {new_file.filename}")
+            # current_app.logger.info(f"Updating resource {resource.id} with new file: {new_file.filename}")
             
             old_file_path_absolute = None
             if resource.file_path:
@@ -277,7 +360,7 @@ def update_course_resource(resource_id_str):
                 if os.path.exists(old_file_path_absolute):
                     try:
                         os.remove(old_file_path_absolute)
-                        current_app.logger.info(f"Old file deleted: {old_file_path_absolute}")
+                        # current_app.logger.info(f"Old file deleted: {old_file_path_absolute}")
                     except OSError as e_remove:
                         current_app.logger.error(f"Failed to delete old file {old_file_path_absolute}: {e_remove}")
                         # 不中断，继续尝试保存新文件
@@ -295,7 +378,7 @@ def update_course_resource(resource_id_str):
             new_file_save_path_relative_to_instance = os.path.join(course_upload_folder_relative, unique_filename)
             
             new_file.save(new_file_save_path_absolute)
-            current_app.logger.info(f"New file saved to: {new_file_save_path_absolute}")
+            # current_app.logger.info(f"New file saved to: {new_file_save_path_absolute}")
 
             resource.file_path = new_file_save_path_relative_to_instance
             resource.mime_type = new_file.mimetype
@@ -466,7 +549,7 @@ def stream_course_resource(resource_id_str):
 
 
 
-    print(f"=====current user role from token_str=====: {get_jwt().get('role')}")
+    # print(f"=====current user role from token_str=====: {get_jwt().get('role')}")
     resource = CourseResource.query.get(resource_id_uuid)
     current_app.logger.info(f"Stream: User ID (UUID): {current_user_id_uuid}, Is Admin: {is_admin}")
 

@@ -13,6 +13,8 @@ import {
 import api from '../api/axios';
 import PageHeader from './PageHeader';
 import { useTheme } from '@mui/material/styles';
+import { format, parseISO, isValid, isFuture } from 'date-fns';
+import { zhCN } from 'date-fns/locale';
 
 const MyCoursesPage = () => {
   const [courses, setCourses] = useState([]);
@@ -37,6 +39,7 @@ const MyCoursesPage = () => {
     setLoadingResourcesForCourse(prev => ({ ...prev, [courseId]: true }));
     try {
       const response = await api.get(`/courses/${courseId}/resources`);
+      // console.log(`====[MyCoursesPage] fetchResourcesForCourse - Response for course ${courseId}:`, JSON.stringify(response.data, null, 2));
       setCourseResourcesMap(prev => ({
         ...prev,
         [courseId]: response.data || []
@@ -109,6 +112,18 @@ const MyCoursesPage = () => {
      return <Article color="disabled" />;
   };
 
+  const formatExpiryDisplayForList = (isoString) => {
+    if (!isoString) return null; // 如果没有有效期，则不显示任何内容，或者返回 "长期"
+    const expiryDate = parseISO(isoString);
+    if (!isValid(expiryDate)) return null; // 日期无效也不显示
+
+    if (isFuture(expiryDate)) {
+      // 可以选择一种简洁的显示方式，例如只显示日期
+      return `有效期至: ${format(expiryDate, 'yyyy-MM-dd', { locale: zhCN })}`;
+    } else {
+      return `已过期: ${format(expiryDate, 'yyyy-MM-dd', { locale: zhCN })}`;
+    }
+  };
   if (loading && courses.length === 0) { // 只有在首次加载课程列表时显示主加载动画
     return <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}><CircularProgress /></Box>;
   }
@@ -175,35 +190,70 @@ const MyCoursesPage = () => {
                   )}
                   {!loadingResourcesForCourse[course.id] && courseResourcesMap[course.id] && courseResourcesMap[course.id].length > 0 ? (
                     <List dense>
-                      {courseResourcesMap[course.id].map(resource => (
-                        <ListItem
-                          key={resource.id}
-                          secondaryAction={
-                            <IconButton 
-                              edge="end" 
-                              aria-label="play"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                navigate(`/my-courses/${course.id}/resource/${resource.id}/play`);
-                              }}
-                              title={`播放 ${resource.name}`}
-                            >
-                              <PlayCircleOutline color="primary" />
-                            </IconButton>
-                          }
-                          sx={{ '&:hover': { backgroundColor: theme.palette.action.hover }, borderRadius: 1, mb: 0.5 }} // 增加一点间距
-                        >
-                          <ListItemIcon sx={{minWidth: 36}}>
-                            {getResourceIcon(resource.file_type)}
-                          </ListItemIcon>
-                          <ListItemText 
-                            primary={resource.name} 
-                            secondary={`类型: ${resource.file_type} ${resource.duration_seconds ? `| 时长: ${Math.floor(resource.duration_seconds/60)}分${Math.round(resource.duration_seconds%60)}秒` : ''}`} 
-                            primaryTypographyProps={{variant: 'body2'}} // 可以让资源名称小一点
-                            secondaryTypographyProps={{variant: 'caption'}}
-                          />
-                        </ListItem>
-                      ))}
+                      {courseResourcesMap[course.id].map(resource => {
+                        // console.log(`[MyCoursesPage] Rendering resource: ${resource.name}, Expires At from map:`, resource.user_access_expires_at);
+                        
+                        const expiryText = formatExpiryDisplayForList(resource.user_access_expires_at);
+                        const isExpired = resource.user_access_expires_at && !isFuture(parseISO(resource.user_access_expires_at));
+                        
+                        // console.log(`[MyCoursesPage] Resource: ${resource.name}, Calculated expiryText:`, expiryText, ", Is Expired:", isExpired);
+                        return (
+                          <ListItem
+                            key={resource.id}
+                            secondaryAction={
+                              <IconButton 
+                                edge="end" aria-label="play"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigate(`/my-courses/${course.id}/resource/${resource.id}/play`);
+                                }}
+                                title={`播放 ${resource.name}`}
+                                disabled={isExpired} // 如果已过期，禁用播放按钮
+                              >
+                                <PlayCircleOutline color={isExpired ? "disabled" : "primary"} />
+                              </IconButton>
+                            }
+                            sx={{ 
+                                '&:hover': { backgroundColor: theme.palette.action.hover }, 
+                                borderRadius: 1, 
+                                mb: 0.5,
+                                opacity: isExpired ? 0.6 : 1, // 过期资源变淡
+                                pointerEvents: isExpired ? 'none' : 'auto' // 过期资源不可交互
+                            }}
+                            // component={RouterLink} // 如果想让整个 ListItem 可点击导航
+                            // to={isExpired ? '#' : `/my-courses/${course.id}/resource/${resource.id}/play`}
+                          >
+                            <ListItemIcon sx={{minWidth: 36}}>
+                              {getResourceIcon(resource.file_type)}
+                            </ListItemIcon>
+                            <ListItemText 
+                              primary={resource.name} 
+                              secondary={
+                                <Box component="span" sx={{display: 'flex', flexDirection: 'column'}}>
+                                  <Typography variant="caption" color="text.secondary">
+                                    {`类型: ${resource.file_type} ${resource.duration_seconds ? `| 时长: ${Math.floor(resource.duration_seconds/60)}分${Math.round(resource.duration_seconds%60)}秒` : ''}`}
+                                  </Typography>
+                                  {/* --- 显示有效期 --- */}
+                                  {expiryText && (
+                                    <Typography 
+                                        variant="caption" 
+                                        sx={{
+                                            color: isExpired ? theme.palette.error.main : theme.palette.grey.main, 
+                                            fontWeight: 'medium',
+                                            // mt: 0.3 // 可选的小间距
+                                        }}
+                                    >
+                                      {expiryText}
+                                    </Typography>
+                                  )}
+                                  {/* -------------------- */}
+                                </Box>
+                              }
+                              primaryTypographyProps={{variant: 'body2', color: isExpired ? 'text.disabled' : 'text.primary'}}
+                            />
+                          </ListItem>
+                        );
+                      })}
                     </List>
                   ) : (
                     !loadingResourcesForCourse[course.id] && // 仅在非加载状态下显示无资源

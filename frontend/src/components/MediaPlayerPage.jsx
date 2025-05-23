@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box, Typography, CircularProgress, Alert, Paper, IconButton,
-  Select, MenuItem, FormControl, InputLabel, Slider, Grid, Tooltip,
+  Select, MenuItem, FormControl, InputLabel, Slider, Grid, Tooltip,Chip,
   useTheme, useMediaQuery,Container // <<<--- 新增 useMediaQuery
 } from '@mui/material';
 import {
@@ -17,6 +17,9 @@ import WaveSurfer from 'wavesurfer.js'; // <<<--- 新增导入 Wavesurfer.js
 import PageHeader from './PageHeader';
 import { API_BASE_URL } from '../config';
 import { getToken } from '../api/auth-utils';
+import { format, parseISO, isValid, isFuture, differenceInDays, differenceInHours, differenceInMinutes } from 'date-fns';
+import { zhCN } from 'date-fns/locale';
+
 
 // 时间格式化辅助函数
 const formatTime = (totalSecondsValue) => { // 参数名改为 totalSecondsValue 以示区分
@@ -99,26 +102,26 @@ const MediaPlayerPage = () => {
     };
   }, []); // 空依赖，只在挂载和卸载时执行
 
-  const fetchResourceDetailsAndCheckAccess = useCallback(async () => {
-    // ... (与之前基本相同，确保设置 streamUrlWithToken) ...
-    if (!resourceId) return;
-    setLoading(true); setError('');
-    try {
-      const detailsRes = await api.get(`/resources/${resourceId}`);
-      setResourceInfo(detailsRes.data);
-      setCanAccess(true);
-      const token = getToken();
-      // console.log("[MediaPlayerPage fetchData] Token for stream URL:", token ? "Exists" : "NOT FOUND");
-      if (token) {
-        setStreamUrlWithToken(`${API_BASE_URL}/resources/${resourceId}/stream?access_token=${token}`);
-      } else {
-        setError("无法获取认证Token进行播放。请先登录。"); setCanAccess(false);
-      }
-    } catch (err) {
-      setError(err.response?.data?.error || err.message || '加载资源失败。');
-      setCanAccess(false);
-    } finally { setLoading(false); }
-  }, [resourceId]);
+  // const fetchResourceDetailsAndCheckAccess = useCallback(async () => {
+  //   // ... (与之前基本相同，确保设置 streamUrlWithToken) ...
+  //   if (!resourceId) return;
+  //   setLoading(true); setError('');
+  //   try {
+  //     const detailsRes = await api.get(`/resources/${resourceId}`);
+  //     setResourceInfo(detailsRes.data);
+  //     setCanAccess(true);
+  //     const token = getToken();
+  //     // console.log("[MediaPlayerPage fetchData] Token for stream URL:", token ? "Exists" : "NOT FOUND");
+  //     if (token) {
+  //       setStreamUrlWithToken(`${API_BASE_URL}/resources/${resourceId}/stream?access_token=${token}`);
+  //     } else {
+  //       setError("无法获取认证Token进行播放。请先登录。"); setCanAccess(false);
+  //     }
+  //   } catch (err) {
+  //     setError(err.response?.data?.error || err.message || '加载资源失败。');
+  //     setCanAccess(false);
+  //   } finally { setLoading(false); }
+  // }, [resourceId]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -140,6 +143,8 @@ const MediaPlayerPage = () => {
             const detailsRes = await api.get(`/resources/${resourceId}`, {
                 signal: controller.signal 
             });
+            // console.log("[MediaPlayerPage] API Response Data:", JSON.stringify(detailsRes.data, null, 2)); // <<<--- 打印这里
+
             
             // console.log("[MediaPlayerPage fetchData] API response status:", detailsRes.status);
             // console.log("[MediaPlayerPage fetchData] API response data:", JSON.stringify(detailsRes.data, null, 2)); // 打印完整的响应数据
@@ -710,12 +715,49 @@ const MediaPlayerPage = () => {
       if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
     };
   }, [playing,isVideo]);
+  
+  // +++++ 格式化和显示有效期相关的函数和逻辑 +++++
+  const formatExpiryDisplay = (isoString) => {
+    if (!isoString) return "长期有效";
+    const expiryDate = parseISO(isoString);
+    if (!isValid(expiryDate)) return "长期有效 (日期无效)";
+
+    if (isFuture(expiryDate)) {
+      const now = new Date();
+      const days = differenceInDays(expiryDate, now);
+      if (days > 7) {
+        return `至 ${format(expiryDate, 'yyyy-MM-dd HH:mm', { locale: zhCN })}`;
+      } else if (days > 0) {
+        return `剩余 ${days}天 (至 ${format(expiryDate, 'MM-dd HH:mm')})`;
+      } else {
+        const hours = differenceInHours(expiryDate, now);
+        if (hours > 0) return `剩余 ${hours}小时`;
+        const minutes = differenceInMinutes(expiryDate, now);
+        return minutes > 0 ? `剩余 ${minutes}分钟` : "即将过期";
+      }
+    } else {
+      return `已于 ${format(expiryDate, 'yyyy-MM-dd HH:mm', { locale: zhCN })} 过期`;
+    }
+  };
+  // ++++++++++++++++++++++++++++++++++++++++++++++++++
 
   if (loading) {
     return <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '80vh' }}><CircularProgress /></Box>;
   }
+  // 优先处理错误状态
   if (error) {
-    return <Container sx={{py:3}}><Alert severity="error">{error}</Alert></Container>;
+    return (
+        <Container sx={{py:3, textAlign: 'center'}}>
+            <Alert severity="error" sx={{mb:2}}>{error}</Alert>
+            {/* 如果 resourceInfo 存在且有过期信息，即使出错也显示 */}
+            {resourceInfo?.user_access_expires_at && (
+                <Typography variant="caption" color="text.secondary" component="div" sx={{mt:1}}>
+                    资源有效期: {formatExpiryDisplay(resourceInfo.user_access_expires_at)}
+                </Typography>
+            )}
+            <Button variant="outlined" onClick={() => navigate(-1)} sx={{mt:2}}>返回</Button>
+        </Container>
+    );
   }
   
  
@@ -760,7 +802,15 @@ const MediaPlayerPage = () => {
     >
        
       <Typography variant={isMobile ? "h5" : "h4"} gutterBottom sx={{mt: 2, textAlign:'center'}}>{resourceInfo?.name}</Typography>
-      
+      {/* --- 显示到期时间 --- */}
+      <Chip 
+        label={`授权有效期: ${formatExpiryDisplay(resourceInfo.user_access_expires_at)}`} 
+        size="small"
+        color={resourceInfo.user_access_expires_at && !isFuture(parseISO(resourceInfo.user_access_expires_at)) ? "error" : "info"}
+        variant="outlined"
+        sx={{ fontWeight: 'medium', mb: 2 }}
+      />
+      {/* -------------------- */}
       <Paper 
         elevation={3} 
         ref={playerContainerRef}
