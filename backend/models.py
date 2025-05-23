@@ -8,8 +8,6 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import relationship, backref
 from datetime import datetime
-
-# Import the 'db' instance from your extensions file
 from .extensions import db
 
 # --- Association Tables (Defined using db.Table) ---
@@ -666,17 +664,18 @@ class MergedAudioSegment(db.Model):
         return f'<MergedAudioSegment for Audio {self.merged_audio_id}, Order {self.original_order_index}, Time {self.start_ms}-{self.end_ms}>'
     
 class CourseResource(db.Model):
-    __tablename__ = 'course_resource' # 新表名
+    __tablename__ = 'course_resource'
     __table_args__ = (
+        # 如果希望 share_slug 在课程内部唯一，而不是全局唯一，可以使用下面的约束
+        # db.UniqueConstraint('course_id', 'share_slug', name='uq_course_resource_course_slug'),
         {'comment': '课程的媒体和文档资源表'}
     )
 
     id = db.Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, comment='资源ID')
-    # course_id = db.Column(PG_UUID(as_uuid=True), nullable=False, index=True, comment='所属课程ID')
     name = db.Column(db.String(255), nullable=False, comment='资源原始文件名或显示名称')
     description = db.Column(db.Text, nullable=True, comment='资源描述')
     file_path = db.Column(db.String(1024), nullable=False, comment='文件在服务器上的存储路径或云存储的key')
-    file_type = db.Column(db.String(50), nullable=False, comment='文件主类型 (video, audio, document)') # 例如: 'video', 'audio', 'document'
+    file_type = db.Column(db.String(50), nullable=False, comment='文件主类型 (video, audio, document)')
     mime_type = db.Column(db.String(100), nullable=True, comment='MIME类型 (e.g., video/mp4)')
     size_bytes = db.Column(db.BigInteger, nullable=True, comment='文件大小 (字节)')
     duration_seconds = db.Column(db.Float, nullable=True, comment='音视频时长 (秒)')
@@ -686,14 +685,17 @@ class CourseResource(db.Model):
     play_count = db.Column(db.Integer, default=0, nullable=False, server_default='0', comment='播放次数')
     sort_order = db.Column(db.Integer, default=0, nullable=False, server_default='0', comment='资源在课程内的显示顺序')
     
-    # uploaded_by_user_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('user.id', name='fk_courseresource_uploader_id', ondelete='SET NULL'), nullable=True, index=True, comment='上传用户ID')
     created_at = db.Column(db.DateTime(timezone=True), server_default=func.now(), comment='创建时间')
     updated_at = db.Column(db.DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), comment='更新时间')
 
-    # Relationships
-    # course = db.relationship('TrainingCourse', back_populates='course_resources') # 在 TrainingCourse 中定义 back_populates
-    # uploader = db.relationship('User', back_populates='uploaded_course_resources') # 在 User 中定义 back_populates
-    # play_logs 和 user_access_permissions 将在其他模型中定义关系
+    # # +++++ 新增字段 +++++
+    # share_slug = db.Column(db.String(128), nullable=True, unique=True, index=True, comment='固定分享链接的唯一标识符 (slug)')
+    # is_latest_for_slug = db.Column(db.Boolean, default=False, nullable=False, server_default='false', comment='是否是此 share_slug 的最新版本')
+    # # +++++++++++++++++++++
+
+    # Relationships (保持不变)
+    # course = db.relationship('TrainingCourse', back_populates='course_resources')
+    # uploader = db.relationship('User', back_populates='uploaded_course_resources')
 
     def __repr__(self):
         return f'<CourseResource {self.name}>'
@@ -704,7 +706,7 @@ class CourseResource(db.Model):
             'course_id': str(self.course_id),
             'name': self.name,
             'description': self.description,
-            'file_path': self.file_path, # 考虑是否要暴露完整路径
+            'file_path': self.file_path,
             'file_type': self.file_type,
             'mime_type': self.mime_type,
             'size_bytes': self.size_bytes,
@@ -713,9 +715,11 @@ class CourseResource(db.Model):
             'sort_order': self.sort_order,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
-            'uploaded_by_user_id': str(self.uploaded_by_user_id) if self.uploaded_by_user_id else None,
+            'uploaded_by_user_id': str(self.uploaded_by_user_id) if self.uploaded_by_user_id else None
+            # 'share_slug': self.share_slug,                  # <-- 新增
+            # 'is_latest_for_slug': self.is_latest_for_slug   # <-- 新增
         }
-        if include_uploader and self.uploader: # 假设 User 模型中定义了 uploader 关系
+        if include_uploader and self.uploader:
             data['uploader_name'] = self.uploader.username
         return data
 

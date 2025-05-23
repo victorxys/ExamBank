@@ -6,12 +6,15 @@ from flask import (
     Blueprint, request, jsonify, current_app,
     send_from_directory, Response, stream_with_context
 )
-
+from werkzeug.exceptions import NotFound # 可以用来抛出标准的404
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt, decode_token, verify_jwt_in_request
 from jwt import PyJWTError # 用于捕获 decode_token 可能的错误
 
 from werkzeug.utils import secure_filename
 from datetime import datetime
+from sqlalchemy.exc import IntegrityError # <<<--- 新增：导入 IntegrityError
+from sqlalchemy import func
+
 
 # 从 backend.models 导入所有需要的模型
 from backend.models import (
@@ -69,8 +72,6 @@ def check_course_access_for_resource(user_id, resource):
 @course_resource_bp.route('/courses/<uuid:course_id_str>/resources', methods=['POST'])
 @jwt_required()
 def upload_course_resource(course_id_str):
-    # ... 您的上传资源代码 ...
-    # (请确保这里能正常工作)
     course_id = str(course_id_str)
     current_user_id = get_jwt_identity()
 
@@ -106,13 +107,14 @@ def upload_course_resource(course_id_str):
                 course_id=course_id,
                 name=request.form.get('name', filename.split('.')[0]),
                 description=request.form.get('description'),
-                file_path=file_save_path_relative_to_instance,
+                file_path=file_save_path_relative_to_instance, # 指向新上传的文件
                 file_type=file_main_type,
                 mime_type=mime_type,
                 size_bytes=file_size,
                 duration_seconds=duration,
                 uploaded_by_user_id=current_user_id,
                 sort_order=int(request.form.get('sort_order', 0))
+                # 移除了 share_slug 和 is_latest_for_slug
             )
             db.session.add(new_resource)
             db.session.commit()
@@ -210,49 +212,95 @@ def get_course_resource_detail(resource_id_str):
 
 # ... (您现有的 update_course_resource 和 delete_course_resource 接口，也确保有权限校验)
 @course_resource_bp.route('/resources/<uuid:resource_id_str>', methods=['PUT'])
-@jwt_required() # 通常需要权限
+@jwt_required()
 def update_course_resource(resource_id_str):
     resource_id = str(resource_id_str)
-    # TODO: 将来在这里加入权限检查，确保操作者有权修改此资源
-    # --- 权限校验 ---
-    can_access = False
-    current_user_id = get_jwt_identity()
-    user = User.query.get(current_user_id)
+    # --- 权限校验逻辑 ---
+    current_user_id_uuid = uuid.UUID(get_jwt_identity()) # 确保是UUID对象
+    user = User.query.get(current_user_id_uuid)
     if not user: return jsonify({'error': 'User not found for token'}), 401
     is_admin = (get_jwt().get('role') == 'admin')
-    if is_admin:
-        can_access = True
-    else:
-        if check_resource_access(current_user_id, resource_id):
-            can_access = True
-        elif check_course_access_for_resource(current_user_id, resource):
-            can_access = True
-    
-    if not can_access:
-        current_app.logger.warning(f"User {current_user_id} denied access to stream resource {resource_id}")
-        return jsonify({'error': 'Access denied to this resource'}), 403
-    # --- 权限校验结束 ---
     
     resource = CourseResource.query.get(resource_id)
     if not resource:
         return jsonify({'error': 'Resource not found'}), 404
 
-    data = request.get_json()
-    if not data:
-        return jsonify({'error': 'No data provided for update'}), 400
+    can_manage = False
+    if is_admin:
+        can_manage = True
+    # else: # 也可以添加非管理员但有特定课程管理权限的逻辑
+    #     if check_course_access_for_resource(current_user_id_uuid, resource): # 假设有课程权限即可编辑资源
+    #         can_manage = True
+    
+    if not can_manage: # 简化：只有管理员可以编辑
+        current_app.logger.warning(f"User {current_user_id_uuid} denied access to update resource {resource_id}")
+        return jsonify({'error': 'Access denied to update this resource'}), 403
+    # --- 权限校验结束 ---
+    
+    # multipart/form-data 请求，非文件字段在 request.form 中
+    # 文件字段在 request.files 中
+    data_name = request.form.get('name')
+    data_description = request.form.get('description')
+    data_sort_order = request.form.get('sort_order')
+    new_file = request.files.get('file') # 获取名为 'file' 的上传文件
 
     try:
-        if 'name' in data: resource.name = data['name']
-        if 'description' in data: resource.description = data['description']
-        if 'sort_order' in data: resource.sort_order = int(data['sort_order'])
-        # file_path, file_type, mime_type, size_bytes, duration_seconds 通常在上传时确定，不轻易修改
-        # uploaded_by_user_id, created_at 也不应在此修改
+        if data_name is not None: resource.name = data_name.strip()
+        if data_description is not None: resource.description = data_description.strip()
+        if data_sort_order is not None:
+            try:
+                resource.sort_order = int(data_sort_order)
+            except ValueError:
+                return jsonify({'error': 'Sort order must be an integer'}), 400
+
+
+        if new_file and allowed_file(new_file.filename):
+            current_app.logger.info(f"Updating resource {resource.id} with new file: {new_file.filename}")
+            
+            old_file_path_absolute = None
+            if resource.file_path:
+                old_file_path_absolute = os.path.join(INSTANCE_FOLDER_PATH, resource.file_path)
+                if os.path.exists(old_file_path_absolute):
+                    try:
+                        os.remove(old_file_path_absolute)
+                        current_app.logger.info(f"Old file deleted: {old_file_path_absolute}")
+                    except OSError as e_remove:
+                        current_app.logger.error(f"Failed to delete old file {old_file_path_absolute}: {e_remove}")
+                        # 不中断，继续尝试保存新文件
+                else:
+                    current_app.logger.warning(f"Old file path for resource {resource.id} not found: {old_file_path_absolute}")
+
+            filename = secure_filename(new_file.filename)
+            course_upload_folder_relative = os.path.join(UPLOAD_FOLDER_RELATIVE, str(resource.course_id))
+            course_upload_folder_absolute = os.path.join(INSTANCE_FOLDER_PATH, course_upload_folder_relative)
+            os.makedirs(course_upload_folder_absolute, exist_ok=True)
+            
+            timestamp = datetime.now().strftime("%Y%m%d%H%M%S%f")
+            unique_filename = f"{timestamp}_{filename}"
+            new_file_save_path_absolute = os.path.join(course_upload_folder_absolute, unique_filename)
+            new_file_save_path_relative_to_instance = os.path.join(course_upload_folder_relative, unique_filename)
+            
+            new_file.save(new_file_save_path_absolute)
+            current_app.logger.info(f"New file saved to: {new_file_save_path_absolute}")
+
+            resource.file_path = new_file_save_path_relative_to_instance
+            resource.mime_type = new_file.mimetype
+            resource.size_bytes = os.path.getsize(new_file_save_path_absolute)
+            resource.file_type = get_file_type_from_extension(filename)
+            # resource.duration_seconds = ... 
+            resource.updated_at = func.now()
         
+        elif new_file and not allowed_file(new_file.filename):
+             return jsonify({'error': 'New file type not allowed'}), 400
+
         db.session.commit()
         return jsonify({'message': 'Resource updated successfully', 'resource': resource.to_dict(include_uploader=True)})
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"Error updating resource {resource_id}: {e}", exc_info=True)
+        if 'new_file_save_path_absolute' in locals() and os.path.exists(new_file_save_path_absolute):
+            try: os.remove(new_file_save_path_absolute)
+            except OSError: pass
         return jsonify({'error': f'Failed to update resource: {str(e)}'}), 500
 
 @course_resource_bp.route('/resources/<uuid:resource_id_str>', methods=['DELETE'])
@@ -577,6 +625,151 @@ def get_resource_stats(resource_id_str):
         'resource_id': str(resource.id),
         'play_count': resource.play_count,
     })
+
+@course_resource_bp.route('/s/<path:share_slug_str>', methods=['GET'])
+# 此接口的认证方式可以与 stream_course_resource 保持一致或根据需求调整
+# 如果是公开分享，可能不需要 @jwt_required()，或者需要不同的权限检查逻辑
+# 为了安全，我们先假设它需要和原 stream 接口一样的认证和权限
+def stream_shared_resource_by_slug(share_slug_str):
+    current_app.logger.info(f"ShareStreamBySlug: Accessing resource with slug: {share_slug_str}")
+    
+    clean_slug = secure_filename(share_slug_str.strip().lower())
+    if not clean_slug:
+        return jsonify({'error': '无效的分享链接标识符'}), 400
+
+    resource = CourseResource.query.filter_by(
+        share_slug=clean_slug,
+        is_latest_for_slug=True
+    ).first()
+
+    if not resource:
+        current_app.logger.warning(f"ShareStreamBySlug: No latest sharable resource found for slug '{clean_slug}'")
+        # return jsonify({'error': '分享的资源未找到或链接已失效。'}), 404
+        raise NotFound('分享的资源未找到或链接已失效。') # 使用 werkzeug 异常
+
+    # === 复用 stream_course_resource 中的权限检查和流式传输逻辑 ===
+    # 为避免代码重复，最好将 stream_course_resource 的核心逻辑提取到一个辅助函数中
+    # _stream_file_content(resource_obj, request_headers, current_user_id_uuid, user_jwt_claims)
+    # 这里为了快速演示，我们直接调用，并传递 resource.id
+    # 注意：这需要 stream_course_resource 能够正确处理这种情况，或者对其进行修改。
+    # 一个更简单的方法是直接在这里复制粘贴 stream_course_resource 后半部分的流式逻辑。
+    
+    # --- (以下代码段是从 stream_course_resource 复制并修改的) ---
+    # 1. 权限检查逻辑 (需要 current_user_id_uuid 和 user_jwt_claims)
+    #    这部分逻辑与 stream_course_resource 中的 token 处理和权限检查完全相同，
+    #    只是我们已经通过 slug 找到了 `resource` 对象。
+
+    current_user_id_from_token_str = None
+    user_jwt_claims = {}
+    header_token_valid = False
+    try:
+        verify_jwt_in_request(optional=True, locations=['headers']) 
+        temp_identity = get_jwt_identity()
+        if temp_identity:
+            current_user_id_from_token_str = temp_identity
+            user_jwt_claims = get_jwt()
+            header_token_valid = True
+    except Exception as e_header_jwt:
+        pass # 继续
+
+    if not header_token_valid:
+        url_token = request.args.get('access_token', None)
+        if url_token:
+            try:
+                decoded_jwt = decode_token(url_token) 
+                identity_claim_key = current_app.config.get("JWT_IDENTITY_CLAIM", "sub")
+                current_user_id_from_token_str = decoded_jwt.get(identity_claim_key)
+                if not current_user_id_from_token_str: raise PyJWTError("Token missing identity.")
+                user_jwt_claims = decoded_jwt
+            except PyJWTError as e_jwt:
+                return jsonify({'error': '访问令牌无效或已过期'}), 401
+            except Exception as e_other_url_token:
+                return jsonify({'error': '处理访问令牌时出错'}), 401
+    
+    if not current_user_id_from_token_str: # 必须有用户身份才能进行权限检查
+        return jsonify({'error': '需要认证才能访问此分享资源'}), 401
+
+    try:
+        current_user_id_uuid = uuid.UUID(current_user_id_from_token_str)
+    except (ValueError, TypeError):
+        return jsonify({'error': f"无效的用户身份格式"}), 400
+
+    user = User.query.get(current_user_id_uuid)
+    if not user: return jsonify({'error': '用户不存在'}), 401
+    is_admin = (user_jwt_claims.get('role') == 'admin')
+    
+    can_access = False
+    if is_admin or check_resource_access(current_user_id_uuid, resource.id) or \
+       check_course_access_for_resource(current_user_id_uuid, resource):
+        can_access = True
+    
+    if not can_access:
+        current_app.logger.warning(f"ShareStreamBySlug: Access denied for slug '{clean_slug}' (User: {current_user_id_uuid})")
+        return jsonify({'error': '您没有权限访问此分享资源。'}), 403
+    
+    current_app.logger.info(f"ShareStreamBySlug: Access GRANTED for slug '{clean_slug}' (User: {current_user_id_uuid})")
+
+    # 2. 流式传输逻辑 (与 stream_course_resource 后半部分相同, 使用 `resource` 对象)
+    file_absolute_path = os.path.join(INSTANCE_FOLDER_PATH, resource.file_path)
+    if not os.path.exists(file_absolute_path):
+        current_app.logger.error(f"ShareStreamBySlug: File not found on server: {file_absolute_path}")
+        raise NotFound('分享的资源文件在服务器上未找到。')
+
+    file_size = resource.size_bytes or os.path.getsize(file_absolute_path)
+    range_header = request.headers.get('Range', None)
+    
+    start = 0
+    end = file_size - 1 
+    status_code = 200
+    content_length = file_size
+    headers = {
+        'Content-Type': resource.mime_type or 'application/octet-stream',
+        'Content-Disposition': f'inline; filename="{secure_filename(resource.name)}"',
+        'Accept-Ranges': 'bytes',
+    }
+
+    if range_header:
+        # (此处省略 Range 处理逻辑，与 stream_course_resource 中的相同)
+        # 务必复制粘贴并确保正确性
+        try:
+            range_match = re.match(r'bytes=(\d*)-(\d*)', range_header)
+            if range_match:
+                g = range_match.groups()
+                range_start_str, range_end_str = g[0], g[1]
+                if range_start_str: start = int(range_start_str)
+                if range_end_str: end = int(range_end_str)
+                elif range_start_str: end = file_size - 1
+                else: raise ValueError("Invalid Range")
+                if start < 0 or start >= file_size or start > end:
+                    return Response(status=416, headers={'Content-Range': f'bytes */{file_size}'})
+                end = min(end, file_size - 1)
+                status_code = 206
+                content_length = (end - start) + 1
+                headers['Content-Range'] = f'bytes {start}-{end}/{file_size}'
+        except ValueError: pass # Ignore invalid range header
+        except Exception as e_range_parse:
+            current_app.logger.warning(f"ShareStreamBySlug: Error parsing Range header '{range_header}': {e_range_parse}")
+
+
+    headers['Content-Length'] = str(content_length)
+
+    def generate_file_stream_slug(path, offset, length_to_read, chunk_size=8192):
+        with open(path, 'rb') as f:
+            f.seek(offset)
+            bytes_remaining = length_to_read
+            while bytes_remaining > 0:
+                read_size = min(chunk_size, bytes_remaining)
+                data = f.read(read_size)
+                if not data: break
+                yield data
+                bytes_remaining -= len(data)
+    
+    return Response(
+        stream_with_context(generate_file_stream_slug(file_absolute_path, start, content_length)),
+        status=status_code,
+        headers=headers,
+        mimetype=resource.mime_type or 'application/octet-stream'
+    )
 
 # (确保现有的 update_course_resource 和 delete_course_resource 也添加了权限校验)
 # ...

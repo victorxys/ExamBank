@@ -12,17 +12,17 @@ const CourseResourceUploader = ({ courseId, onUploadSuccess, onUploadError }) =>
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
-  const [uploadProgress, setUploadProgress] = useState(0); // <<<--- 新增：上传进度状态 (0-100)
+  const [uploadProgress, setUploadProgress] = useState(0);
 
 
   const handleFileChange = (event) => {
     const file = event.target.files[0];
     if (file) {
       setSelectedFile(file);
-      setResourceName(file.name.split('.').slice(0, -1).join('.')); // 默认使用文件名（不含扩展名）
+      setResourceName(file.name.split('.').slice(0, -1).join('.'));
       setError('');
       setSuccessMessage('');
-      setUploadProgress(0); // <<<--- 重置进度
+      setUploadProgress(0);
     }
   };
 
@@ -52,8 +52,7 @@ const CourseResourceUploader = ({ courseId, onUploadSuccess, onUploadError }) =>
     setUploading(true);
     setError('');
     setSuccessMessage('');
-    setUploadProgress(0); // <<<--- 开始上传前重置进度
-
+    setUploadProgress(0);
 
     const formData = new FormData();
     formData.append('file', selectedFile);
@@ -66,14 +65,11 @@ const CourseResourceUploader = ({ courseId, onUploadSuccess, onUploadError }) =>
         headers: {
           'Content-Type': 'multipart/form-data',
         },
-        timeout: 300000, // 300秒 (5分钟) 超时
+        timeout: 300000,
         onUploadProgress: (progressEvent) => {
-          if (progressEvent.total) { // 确保 total 有效
+          if (progressEvent.total) {
               const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-              setUploadProgress(percentCompleted); // <<<--- 更新上传进度状态
-
-              console.log(`Upload Progress: ${percentCompleted}%`);
-              // TODO: 更新一个 state 来在 UI 中显示上传进度，例如 setUploadProgress(percentCompleted);
+              setUploadProgress(percentCompleted);
           }
         }
       });
@@ -92,12 +88,13 @@ const CourseResourceUploader = ({ courseId, onUploadSuccess, onUploadError }) =>
       }
     } catch (err) {
       console.error('上传资源失败:', err);
-      // 处理 Axios 超时错误 (err.code === 'ECONNABORTED' 且 err.message.includes('timeout'))
       let errMsg = '';
       if (err.code === 'ECONNABORTED' && err.message.includes('timeout')) {
           errMsg = `文件上传超时 (超过 ${300000 / 1000 / 60} 分钟)，请检查您的网络连接或尝试上传较小的文件。`;
+      } else if (err.response?.data?.error) {
+          errMsg = err.response.data.error;
       } else {
-          errMsg = err.response?.data?.error || err.message || '上传过程中发生错误。';
+          errMsg = err.message || '上传过程中发生错误。';
       }
       setError(errMsg);
       if (typeof onUploadError === 'function') {
@@ -105,8 +102,8 @@ const CourseResourceUploader = ({ courseId, onUploadSuccess, onUploadError }) =>
       }
     } finally {
       setUploading(false);
-      setUploadProgress(100); // <<<--- 上传完成后设置进度为100%
-
+      // 不需要在这里将 setUploadProgress(100)，因为成功的上传会通过 onUploadProgress 自然达到100
+      // 如果失败，保持当前的进度或重置为0可能更好
     }
   };
 
@@ -156,7 +153,6 @@ const CourseResourceUploader = ({ courseId, onUploadSuccess, onUploadError }) =>
             type="file"
             hidden
             onChange={handleFileChange}
-            // accept=".mp4,.mov,.mp3,.wav,.pdf,.doc,.docx" // 根据您的 ALLOWED_EXTENSIONS 调整
           />
         </Button>
         {selectedFile && (
@@ -165,7 +161,6 @@ const CourseResourceUploader = ({ courseId, onUploadSuccess, onUploadError }) =>
           </Typography>
         )}
       </Box>
-      {/* <<<--- 新增：显示上传进度条 ---<<< */}
       {uploading && (
         <Box sx={{ width: '100%', mt: 1, mb: 1 }}>
           <LinearProgress variant="determinate" value={uploadProgress} />
@@ -180,7 +175,7 @@ const CourseResourceUploader = ({ courseId, onUploadSuccess, onUploadError }) =>
         onClick={handleUpload}
         disabled={!selectedFile || uploading || !courseId}
         sx={{ mt: 2 }}
-        startIcon={uploading && uploadProgress === 0 ? <CircularProgress size={20} color="inherit" /> : null} // 只在刚开始上传且无进度时显示菊花图
+        startIcon={uploading && uploadProgress === 0 ? <CircularProgress size={20} color="inherit" /> : null}
       >
         {uploading ? (uploadProgress > 0 ? `上传中... ${uploadProgress}%` : '准备上传...') : '开始上传'}
       </Button>
