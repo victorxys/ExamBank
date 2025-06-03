@@ -13,7 +13,9 @@ from jwt import PyJWTError # 用于捕获 decode_token 可能的错误
 from werkzeug.utils import secure_filename
 from datetime import datetime, timezone
 from sqlalchemy.exc import IntegrityError # <<<--- 新增：导入 IntegrityError
-from sqlalchemy import func, or_
+from sqlalchemy import func, or_ ,desc
+
+
 
 
 # 从 backend.models 导入所有需要的模型
@@ -876,3 +878,72 @@ def stream_shared_resource_by_slug(share_slug_str):
 
 # (确保现有的 update_course_resource 和 delete_course_resource 也添加了权限校验)
 # ...
+
+@course_resource_bp.route('/resources/<uuid:resource_id_str>/play-history', methods=['GET'])
+@jwt_required()
+def get_resource_play_history(resource_id_str):
+    # resource_id_uuid = uuid.UUID(resource_id_str) # 确保转换
+    resource_id_uuid = resource_id_str # <<<--- 直接使用，或者为了清晰可以重命名
+
+    current_user_id_str = get_jwt_identity()
+    user_jwt_claims = get_jwt()
+
+    # --- 权限校验：只允许 teacher 或 admin 查看播放历史 ---
+    requesting_user_role = user_jwt_claims.get('role')
+    if requesting_user_role not in ['admin', 'teacher']:
+        current_app.logger.warning(f"User {current_user_id_str} (role: {requesting_user_role}) denied access to play history for resource {resource_id_uuid}.")
+        return jsonify({'error': 'Access denied to view play history.'}), 403
+    # --- 权限校验结束 ---
+
+    resource = CourseResource.query.get(resource_id_uuid)
+    if not resource:
+        return jsonify({'error': 'Resource not found'}), 404
+
+    # (可选) 再次确认请求者对该资源本身是否有基础访问权限（虽然上面角色已限制）
+    # current_user_id_uuid = uuid.UUID(current_user_id_str)
+    # is_admin = (requesting_user_role == 'admin')
+    # can_view_resource = False
+    # if is_admin or check_resource_access(current_user_id_uuid, resource_id_uuid) or \
+    #    check_course_access_for_resource(current_user_id_uuid, resource):
+    #     can_view_resource = True
+    # if not can_view_resource:
+    #     return jsonify({'error': 'You do not have permission to view this resource, hence no history.'}), 403
+    
+    try:
+        # 分页获取播放日志 (可选，如果日志很多)
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 20, type=int) # 每页显示20条
+
+        play_logs_query = UserResourcePlayLog.query.filter_by(resource_id=resource_id_uuid)\
+            .join(User, UserResourcePlayLog.user_id == User.id)\
+            .add_columns( # 添加用户名字段以便显示
+                User.username.label('username'), 
+                # User.name.label('user_real_name') # 假设 User 模型有 name 字段存真实姓名
+            )\
+            .order_by(desc(UserResourcePlayLog.played_at))
+        
+        paginated_logs = play_logs_query.paginate(page=page, per_page=per_page, error_out=False)
+        
+        logs_data = []
+        for play_log_entry, username in paginated_logs.items:
+            logs_data.append({
+                'log_id': str(play_log_entry.id),
+                'user_id': str(play_log_entry.user_id),
+                'username': username, # 用户名
+                # 'user_real_name': user_real_name or username, # 显示真实姓名，如果无则用用户名
+                'played_at': play_log_entry.played_at.isoformat() if play_log_entry.played_at else None,
+                'watch_time_seconds': play_log_entry.watch_time_seconds,
+                'percentage_watched': play_log_entry.percentage_watched
+            })
+        
+        return jsonify({
+            'logs': logs_data,
+            'total': paginated_logs.total,
+            'page': paginated_logs.page,
+            'per_page': paginated_logs.per_page,
+            'pages': paginated_logs.pages
+        })
+
+    except Exception as e:
+        current_app.logger.error(f"Error fetching play history for resource {resource_id_uuid}: {e}", exc_info=True)
+        return jsonify({'error': 'Failed to fetch play history'}), 500

@@ -6,6 +6,10 @@ import {
   Select, MenuItem, FormControl, InputLabel, Slider, Grid, Tooltip, Chip,
   useTheme, useMediaQuery, Container
 } from '@mui/material';
+import { Accordion, AccordionSummary, AccordionDetails, List, ListItem, ListItemText, ListItemAvatar, Avatar, Divider, TablePagination } from '@mui/material'; // <<<--- 新增 Accordion 相关和 List/Avatar
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore'; // 用于 Accordion
+import PersonIcon from '@mui/icons-material/Person'; // 用于显示用户头像或图标
+
 import {
   PlayArrow, Pause, Replay10, Forward10,
   VolumeUp, VolumeOff, VolumeDown, VolumeMute,
@@ -18,6 +22,8 @@ import PageHeader from './PageHeader'; // 确保路径正确
 import { API_BASE_URL } from '../config'; // 确保路径正确
 // getToken is not directly used for streamUrl anymore, but might be for other things
 import { getToken } from '../api/auth-utils'; 
+import { jwtDecode } from 'jwt-decode'; // <<<--- 新增导入
+
 import { format, parseISO, isValid, isFuture, differenceInDays, differenceInHours, differenceInMinutes } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 
@@ -70,6 +76,29 @@ const MediaPlayerPage = () => {
   const [isMediaReady, setIsMediaReady] = useState(false);
   const [buffering, setBuffering] = useState(true);
 
+  const [userRole, setUserRole] = useState(null);
+  useEffect(() => {
+    const token = getToken(); // 获取当前存储的 access_token
+    if (token) {
+      try {
+        const decodedToken = jwtDecode(token); // 解码 Token
+        setUserRole(decodedToken?.role);
+        console.log("[MediaPlayerPage] User role from decoded JWT:", decodedToken?.role);
+      } catch (e) {
+        console.error("Failed to decode JWT", e);
+      }
+    } else {
+        console.warn("[MediaPlayerPage] No JWT token found to decode role.");
+    }
+  }, []); // 只在挂载时执行
+
+  const [playHistory, setPlayHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState('');
+  const [historyPage, setHistoryPage] = useState(0); // 分页状态
+  const [historyRowsPerPage, setHistoryRowsPerPage] = useState(10); // 每页10条
+  const [historyTotal, setHistoryTotal] = useState(0);
+  const [showPlayHistory, setShowPlayHistory] = useState(false); // 控制是否显示历史记录
 
   const isAudio = resourceInfo?.file_type === 'audio';
   const isVideo = resourceInfo?.file_type === 'video';
@@ -92,6 +121,50 @@ const MediaPlayerPage = () => {
       document.removeEventListener('MSFullscreenChange', handleActualFullscreenChange);
     };
   }, []);
+
+  const fetchPlayHistory = useCallback(async (pageToFetch = 0, rows = 10) => {
+    if (!resourceId || (userRole !== 'admin' && userRole !== 'teacher')) {
+      setPlayHistory([]);
+      return;
+    }
+    setHistoryLoading(true);
+    setHistoryError('');
+    try {
+      const response = await api.get(`/resources/${resourceId}/play-history`, {
+        params: {
+          page: pageToFetch + 1, // API 是 1-based page
+          per_page: rows
+        }
+      });
+      setPlayHistory(response.data.logs || []);
+      setHistoryTotal(response.data.total || 0);
+      setHistoryPage(response.data.page -1); // 更新当前页 (0-based)
+      setHistoryRowsPerPage(response.data.per_page || rows);
+    } catch (err) {
+      console.error("获取播放历史失败:", err);
+      setHistoryError(err.response?.data?.error || err.message || "获取播放历史失败。");
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, [resourceId, userRole]);
+
+  // 当资源ID变化或者显示历史记录的开关变化时，获取第一页数据
+  useEffect(() => {
+    if (showPlayHistory && resourceId && (userRole === 'admin' || userRole === 'teacher')) {
+      fetchPlayHistory(0, historyRowsPerPage); // 默认加载第一页
+    } else {
+      setPlayHistory([]); // 如果不显示或无权限，清空历史
+    }
+  }, [showPlayHistory, resourceId, userRole, fetchPlayHistory, historyRowsPerPage]); // 添加依赖
+
+  const handleChangeHistoryPage = (event, newPage) => {
+    fetchPlayHistory(newPage, historyRowsPerPage);
+  };
+
+  const handleChangeHistoryRowsPerPage = (event) => {
+    const newRowsPerPage = parseInt(event.target.value, 10);
+    fetchPlayHistory(0, newRowsPerPage); // 切换每页行数时回到第一页
+  };
 
   useEffect(() => {
     const controller = new AbortController();
@@ -607,6 +680,87 @@ const MediaPlayerPage = () => {
             </Grid>
           </Box>
         </Paper>
+        {/* --- 新增：播放历史记录区域 --- */}
+        {(userRole === 'admin' || userRole === 'teacher') && resourceId && (
+          <Paper elevation={2} sx={{ width: '100%', maxWidth: '960px', mt: 3, mb: 2 }}>
+            <Accordion expanded={showPlayHistory} onChange={() => setShowPlayHistory(!showPlayHistory)}>
+              <AccordionSummary
+                expandIcon={<ExpandMoreIcon />}
+                aria-controls="play-history-content"
+                id="play-history-header"
+              >
+                <Typography variant="h6">播放记录 ({historyTotal} 条)</Typography>
+              </AccordionSummary>
+              <AccordionDetails sx={{ p: 0 }}> {/* 移除AccordionDetails的默认padding */}
+                {historyLoading && (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}><CircularProgress size={24} /></Box>
+                )}
+                {historyError && !historyLoading && (
+                  <Alert severity="error" sx={{ m: 2 }}>{historyError}</Alert>
+                )}
+                {!historyLoading && !historyError && playHistory.length === 0 && (
+                  <Typography sx={{ p: 2, textAlign: 'center' }} color="textSecondary">暂无播放记录。</Typography>
+                )}
+                {!historyLoading && !historyError && playHistory.length > 0 && (
+                  <List dense sx={{ width: '100%', bgcolor: 'background.paper', pt:0 }}>
+                    {playHistory.map((log) => (
+                      <React.Fragment key={log.log_id}>
+                        <ListItem alignItems="flex-start">
+                          <ListItemAvatar sx={{mt:0.5}}>
+                            <Avatar sx={{ bgcolor: theme.palette.secondary.light, color: theme.palette.secondary.contrastText }}>
+                              <PersonIcon />
+                            </Avatar>
+                          </ListItemAvatar>
+                          <ListItemText
+                            primary={
+                              <Typography variant="body2">
+                                用户: <strong>{log.user_real_name || log.username || log.user_id.substring(0,8)}</strong>
+                              </Typography>
+                            }
+                            secondary={
+                              <>
+                                <Typography component="span" variant="caption" color="textSecondary">
+                                  播放于: {log.played_at ? format(parseISO(log.played_at), 'yyyy-MM-dd HH:mm:ss', { locale: zhCN }) : '未知时间'}
+                                </Typography>
+                                <br />
+                                {log.watch_time_seconds !== null && (
+                                  <Typography component="span" variant="caption" color="textSecondary">
+                                    {resourceInfo?.file_type === 'audio' ? '收听时长' : '观看时长'}: {formatTime(log.watch_time_seconds)} 
+                                  </Typography>
+                                )}
+                                {log.percentage_watched !== null && (
+                                  <Typography component="span" variant="caption" color="textSecondary" sx={{ml:1}}>
+                                    | {resourceInfo?.file_type === 'audio' ? '收听比例' : '观看比例'}: {(log.percentage_watched * 100).toFixed(1)}%
+                                  </Typography>
+                                )}
+                              </>
+                            }
+                          />
+                        </ListItem>
+                        <Divider variant="inset" component="li" />
+                      </React.Fragment>
+                    ))}
+                  </List>
+                )}
+                {/* 分页控件 */}
+                {historyTotal > 0 && !historyLoading && !historyError && (
+                    <TablePagination
+                        component="div"
+                        count={historyTotal}
+                        page={historyPage}
+                        onPageChange={handleChangeHistoryPage}
+                        rowsPerPage={historyRowsPerPage}
+                        onRowsPerPageChange={handleChangeHistoryRowsPerPage}
+                        rowsPerPageOptions={[5, 10, 20, 50]}
+                        labelRowsPerPage="每页条数:"
+                        sx={{borderTop: '1px solid rgba(224, 224, 224, 1)'}}
+                    />
+                )}
+              </AccordionDetails>
+            </Accordion>
+          </Paper>
+        )}
+        {/* --- 播放历史记录区域结束 --- */}
       </Box>
     );
   }
