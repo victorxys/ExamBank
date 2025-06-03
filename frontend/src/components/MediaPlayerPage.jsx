@@ -575,11 +575,15 @@ const MediaPlayerPage = () => {
     return ( 
       <Box sx={{ pt: { xs: 1, sm: 2 }, pb: { xs: 1, sm: 2 }, display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', minHeight: 'calc(100vh - 56px)', boxSizing: 'border-box' }}>
         <Typography variant={isMobile ? "h6" : "h4"} gutterBottom sx={{mt: 2, textAlign:'center'}}>{resourceInfo?.name}</Typography>
-        {resourceInfo.user_access_expires_at && ( // 显示有效期 Chip
-            <Chip label={`授权有效期: ${formatExpiryDisplay(resourceInfo.user_access_expires_at)}`} size="small"
-                color={!isFuture(parseISO(resourceInfo.user_access_expires_at)) ? "error" : "info"}
-                variant="outlined" sx={{ fontWeight: 'medium', mb: 2 }} />
-        )}
+        
+        <Chip 
+          label={`授权有效期: ${formatExpiryDisplay(resourceInfo.user_access_expires_at)}`} 
+          size="small"
+          color={resourceInfo.user_access_expires_at && !isFuture(parseISO(resourceInfo.user_access_expires_at)) ? "error" : "info"}
+          variant="outlined"
+          sx={{ fontWeight: 'medium', mb: 2 }}
+        />
+        
         
         <Paper elevation={isMobile ? 0 : 3} ref={playerContainerRef} onMouseMove={showControls} onMouseLeave={hideControlsIfVideoPlaying}
           sx={{ width: '100%', maxWidth: '960px', bgcolor: '#000', borderRadius: isMobile ? 0 : '8px', overflow: 'hidden', position: 'relative'}}>
