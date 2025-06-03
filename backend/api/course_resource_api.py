@@ -37,13 +37,19 @@ def allowed_file(filename):
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def get_file_type_from_extension(filename):
-    ext = filename.rsplit('.', 1)[1].lower()
-    if ext in ['mp4', 'mov', 'webm', 'avi', 'mkv']:
-        return 'video'
-    elif ext in ['mp3', 'wav', 'ogg', 'aac', 'flac']:
-        return 'audio'
-    elif ext in ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'txt', 'xls', 'xlsx']:
-        return 'document'
+    if not filename: # 以防万一传入空文件名
+        return 'other'
+    parts = filename.rsplit('.', 1)
+    # 检查分割后列表是否有至少两个元素，并且第二个元素（扩展名）不为空
+    if len(parts) > 1 and parts[1]:
+        ext = parts[1].lower()
+        if ext in ['mp4', 'mov', 'webm', 'avi', 'mkv']:
+            return 'video'
+        elif ext in ['mp3', 'wav', 'ogg', 'aac', 'flac']:
+            return 'audio'
+        elif ext in ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'txt', 'xls', 'xlsx']:
+            return 'document'
+    # 如果没有找到有效的扩展名，或者文件名本身就没有'.'，则返回'other'
     return 'other'
 
 # --- 权限检查辅助函数 (如果还没添加，请添加) ---

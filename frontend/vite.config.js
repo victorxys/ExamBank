@@ -7,6 +7,12 @@ export default defineConfig({
   server: {
     host: '0.0.0.0',
     port: 5175,
+    proxy: {
+      '/api': { // 所有以 /api 开头的请求
+        target: 'http://localhost:5000', // 代理到您的后端
+        changeOrigin: true, // 需要改变请求头中的 Origin，使其看起来像是从代理服务器发出的
+      }
+    },
     allowedHosts: [
       // 'allin.xys.one',   // 允许通过 allin.xys.one 访问
       'dev.mengyimengsao.top',
