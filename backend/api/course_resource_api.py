@@ -1,4 +1,5 @@
 # backend/api/course_resource_api.py
+# ... (existing imports) ...
 import os
 import uuid
 import re
@@ -276,18 +277,22 @@ def get_course_resource_detail(resource_id_str):
                 # 或者如果它是 naive 但代表 UTC，我们需要确保 datetime.now() 也是 UTC
                 now_for_compare = datetime.now(timezone.utc) # 获取当前的 UTC 时间
                 
-                # 如果 user_specific_expires_at 是 naive datetime，我们需要假设它是 UTC
-                # 如果它是 aware datetime，比较时会自动处理时区转换
-                if user_specific_expires_at.tzinfo is None:
-                    # 如果 expires_at 是 naive，我们假设它存储的是 UTC 时间
-                    # 为了比较，最好将其本地化为 UTC (如果 SQLAlchemy 没有自动做这件事)
-                    # 但通常如果列是 TIMESTAMPTZ，SQLAlchemy 返回的是 aware datetime
-                    # 如果列是 TIMESTAMP (naive)，SQLAlchemy 返回 naive datetime
-                    # 为简单起见，直接与 aware 的 now_utc 比较，如果 expires_at 是 naive，
-                    # Python 会抛出 TypeError。所以最好确保 expires_at 是 aware。
-                    # 如果您的 UserResourceAccess.expires_at 是 DateTime(timezone=True)，
-                    # 那么 user_specific_expires_at 应该已经是 aware 的了。
-                    pass # 假设 SQLAlchemy 返回的是 aware datetime 或者我们统一按 UTC 处理
+                # 如果 user_specific_expires_at 是 naive datetime，我们需要假设它存储的是 UTC 时间
+                # 为了比较，最好将其本地化为 UTC (如果 SQLAlchemy 没有自动做这件事)
+                # 如果列是 TIMESTAMPTZ，SQLAlchemy 返回的是 aware datetime
+                # 如果列是 TIMESTAMP (naive)，SQLAlchemy 返回 naive datetime
+                # 为简单起见，直接与 aware 的 now_utc 比较，如果 expires_at 是 naive，
+                # Python 会抛出 TypeError。所以最好确保 expires_at 是 aware。
+                # 如果您的 UserResourceAccess.expires_at 是 DateTime(timezone=True)，
+                # 那么 user_specific_expires_at 应该已经是 aware 的了。
+                
+                # 显式处理 naive -> aware，以防数据库列类型是 TIMESTAMP 而不是 TIMESTAMPTZ
+                # if user_specific_expires_at.tzinfo is None:
+                #     # 假设它是 UTC naive，并将其转换为 aware UTC
+                #     # 这需要安装 pytz 或 dateutil
+                #     # from dateutil import tz
+                #     # user_specific_expires_at = user_specific_expires_at.replace(tzinfo=tz.tzutc())
+                #     pass # 如果数据库配置了时区，或者 SQLAlchemy 处理了，这里不需要手动转换
 
                 if user_specific_expires_at >= now_for_compare:
                     can_access_now = True
@@ -315,7 +320,7 @@ def get_course_resource_detail(resource_id_str):
         pass # 允许返回数据，让前端根据 can_access_now 和 expires_at 自行处理显示
     return jsonify(resource_data)
 
-# ... (您现有的 update_course_resource 和 delete_course_resource 接口，也确保有权限校验)
+# ... (您现有的 update_course_resource 和 delete_course_resource接口，也确保有权限校验)
 @course_resource_bp.route('/resources/<uuid:resource_id_str>', methods=['PUT'])
 @jwt_required()
 def update_course_resource(resource_id_str):
@@ -465,7 +470,7 @@ def delete_course_resource(resource_id_str):
 # ======================================================================
 
 @course_resource_bp.route('/resources/<uuid:resource_id_str>/stream', methods=['GET'])
-# @jwt_required() # 我们之前注释掉了这个，因为要手动处理 URL token
+# @jwt_required() # 我们之前注释掉了这个, 因为要手动处理 URL token, 现在主要依赖 Header Token
 def stream_course_resource(resource_id_str):
     resource_id_uuid = resource_id_str
 
@@ -479,6 +484,9 @@ def stream_course_resource(resource_id_str):
     try:
         # optional=True 意味着如果 Header 中没有 Token，它不会立即抛出错误
         # locations=['headers'] 只检查头部
+        # verify_jwt_in_request() # 使用默认，如果 Header 有 Token 就验证，否则失败
+        
+        # 允许没有 header token，我们稍后检查 URL token
         verify_jwt_in_request(optional=True, locations=['headers']) 
         temp_identity = get_jwt_identity() # 如果验证成功，这个会有值
         if temp_identity:
@@ -487,11 +495,14 @@ def stream_course_resource(resource_id_str):
             header_token_valid = True
             current_app.logger.info(f"Stream: Token validated from Header for user {current_user_id_from_token_str}")
     except Exception as e_header_jwt:
-        current_app.logger.info(f"Stream: No valid token in header or header validation failed: {e_header_jwt}")
-        # 继续尝试 URL token
+        # 如果 Header Token 验证失败 (例如过期, 签名无效等)
+        current_app.logger.warning(f"Stream: Header token validation failed: {e_header_jwt}")
+        # header_token_valid 保持 False，继续尝试 URL token
 
-    # 2. 如果 Header 中没有有效 Token (或我们优先URL token)，尝试从 URL 参数获取
-    if not header_token_valid: # 只有当 Header Token 无效或不存在时才检查 URL Token
+    # 2. 如果 Header 中没有有效 Token (或 Header 中根本没有 Token)，尝试从 URL 参数获取
+    # 注意：即使 Header Token 存在但无效，我们可能也想尝试 URL Token，但业务上通常只接受一种方式
+    # 这里我们优先使用 Header Token，只有 Header Token 不存在时才检查 URL Token
+    if not current_user_id_from_token_str: # 只有当 Header Token 没有提供身份时才检查 URL Token
         url_token = request.args.get('access_token', None)
         if url_token:
             current_app.logger.info(f"Stream: Attempting to validate token from URL parameter: {url_token[:20]}...")
@@ -513,21 +524,21 @@ def stream_course_resource(resource_id_str):
                 user_jwt_claims = decoded_jwt
                 
                 current_app.logger.info(f"Stream: Token from URL parameter validated for user {current_user_id_from_token_str}")
-            except PyJWTError as e_jwt: # 捕获 JWT 解码、签名或过期错误
+            except PyJWTError as e_jwt: # 捕获 JWT 解码, 签名, 过期, 或 identity 缺失错误
                 current_app.logger.error(f"Stream: Invalid or expired token from URL parameter: {e_jwt}")
-                return jsonify({'error': 'Invalid or expired token from URL'}), 401
+                return jsonify({'error': 'Invalid or expired token'}), 401
             except Exception as e_other_url_token:
                 current_app.logger.error(f"Stream: Error processing token from URL: {e_other_url_token}", exc_info=True)
-                return jsonify({'error': 'Error processing token from URL'}), 401
+                return jsonify({'error': 'Error processing token'}), 401
         else:
-            # 如果 Header 和 URL 参数都没有 Token
-            if not header_token_valid: # 再次确认 header 确实没有token
-                current_app.logger.warning("Stream: No token provided in headers or URL params for stream.")
-                return jsonify({'error': 'Missing Authorization for stream'}), 401
+            # 如果 Header 和 URL 参数都没有 Token，且 Header Token 验证没有提供身份
+            # This indicates no valid authentication method was found.
+            current_app.logger.warning("Stream: No token provided in headers or URL params for stream.")
+            return jsonify({'error': 'Authentication required.'}), 401
     
-    # 如果 current_user_id_from_token_str 仍然是 None，说明两种方式都失败了
+    # 如果 current_user_id_from_token_str 仍然是 None，说明认证失败
     if not current_user_id_from_token_str:
-        current_app.logger.error("Stream: Failed to establish user identity from any token source.")
+        current_app.logger.error("Stream: Failed to establish user identity from any token source after processing both header and URL.")
         return jsonify({'error': 'Authentication required.'}), 401
 
     # --- 将获取到的用户ID字符串转换为UUID ---
@@ -538,30 +549,17 @@ def stream_course_resource(resource_id_str):
         return jsonify({'error': f"Invalid user identity format in token: {current_user_id_from_token_str}"}), 400
 
     user = User.query.get(current_user_id_uuid)
-    if not user: return jsonify({'error': 'User from token not found.'}), 401
+    if not user: 
+        current_app.logger.error(f"Stream: User ID {current_user_id_uuid} from token not found in database.")
+        return jsonify({'error': 'User from token not found.'}), 401
 
-    # current_app.logger.info(f"DEBUG Stream: Value of user_jwt_claims before checking role: {user_jwt_claims}")
-    # current_app.logger.info(f"DEBUG Stream: Type of user_jwt_claims: {type(user_jwt_claims)}")
-    # if isinstance(user_jwt_claims, dict):
-    #     current_app.logger.info(f"DEBUG Stream: Keys in user_jwt_claims: {list(user_jwt_claims.keys())}")
-
-    # is_admin = (get_jwt().get('role') == 'admin')
     is_admin = (user_jwt_claims.get('role') == 'admin')
-    
-    # role_from_claims = user_jwt_claims.get('role') if isinstance(user_jwt_claims, dict) else "user_jwt_claims_is_not_dict"
-    # is_admin_result = (role_from_claims == 'admin')
-    # is_admin = (role_from_claims == 'admin')
+    current_app.logger.info(f"Stream: User ID (UUID): {current_user_id_uuid}, Role: {user_jwt_claims.get('role')}, Is Admin: {is_admin}")
 
-    # current_app.logger.info(f"DEBUG Stream: Role retrieved from claims: '{role_from_claims}', Is Admin: {is_admin_result}")
-    # is_admin = is_admin_result # 确保 is_admin 被正确赋值
-
-
-
-    # print(f"=====current user role from token_str=====: {get_jwt().get('role')}")
     resource = CourseResource.query.get(resource_id_uuid)
-    current_app.logger.info(f"Stream: User ID (UUID): {current_user_id_uuid}, Is Admin: {is_admin}")
-
-    if not resource: return jsonify({'error': 'Resource not found'}), 404
+    if not resource: 
+        current_app.logger.warning(f"Stream: Resource {resource_id_uuid} not found.")
+        return jsonify({'error': 'Resource not found'}), 404
 
     can_access = False
     if is_admin:
@@ -569,16 +567,21 @@ def stream_course_resource(resource_id_str):
         current_app.logger.info(f"Stream: Access granted via admin role.")
     else:
         direct_resource_access = check_resource_access(current_user_id_uuid, resource_id_uuid)
-        current_app.logger.info(f"Stream: Result of check_resource_access: {direct_resource_access}")
+        current_app.logger.info(f"Stream: Result of check_resource_access for user {current_user_id_uuid} on resource {resource_id_uuid}: {direct_resource_access}")
         if direct_resource_access:
             can_access = True
             current_app.logger.info(f"Stream: Access granted via direct resource permission.")
         else:
             course_context_access = check_course_access_for_resource(current_user_id_uuid, resource)
-            current_app.logger.info(f"Stream: Result of check_course_access_for_resource: {course_context_access}")
+            current_app.logger.info(f"Stream: Result of check_course_access_for_resource for user {current_user_id_uuid} on resource {resource_id_uuid}: {course_context_access}")
+            # NOTE: Relying on course access for *streaming* a specific resource might ignore resource-level expiry.
+            # Ensure your business logic intends this. If resource access expiry should override course access,
+            # the logic should be adjusted (e.g., course access only grants visibility, but resource access grants playback).
+            # For now, we grant playback if either applies.
             if course_context_access:
-                can_access = True
-                current_app.logger.info(f"Stream: Access granted via course context permission.")
+                 can_access = True
+                 current_app.logger.info(f"Stream: Access granted via course context permission.")
+
 
     if not can_access:
         current_app.logger.warning(f"Stream: Final access check DENIED for user {current_user_id_uuid} on resource {resource_id_uuid}")
@@ -586,7 +589,7 @@ def stream_course_resource(resource_id_str):
 
     current_app.logger.info(f"Stream: Final access check GRANTED for user {current_user_id_uuid} on resource {resource_id_uuid}")
         
-    # --- 3. Range 处理和流式传输逻辑 (与之前提供的版本一致) ---
+    # --- 3. Range处理和流式传输逻辑 (与之前提供的版本一致) ---
     file_absolute_path = os.path.join(INSTANCE_FOLDER_PATH, resource.file_path)
     if not os.path.exists(file_absolute_path):
         current_app.logger.error(f"Stream: File not found on server: {file_absolute_path}")
@@ -665,48 +668,64 @@ def stream_course_resource(resource_id_str):
 
 
 @course_resource_bp.route('/resources/<uuid:resource_id_str>/play-log', methods=['POST'])
-@jwt_required()
+@jwt_required() # 确保需要登录才能记录播放日志
 def log_resource_play(resource_id_str):
     resource_id = str(resource_id_str)
-    current_user_id = get_jwt_identity()
+    current_user_id_str = get_jwt_identity() # 从 JWT 中获取用户ID
+    
+    try:
+        current_user_id_uuid = uuid.UUID(current_user_id_str)
+    except ValueError:
+        return jsonify({'error': 'Invalid user ID format in token'}), 400
 
+    # 权限检查是必要的，但为了日志记录，可以放宽：只要是登录用户，且资源存在，就可以记录
+    # 更严格的权限检查可能需要确认用户对该资源有播放权限
     resource = CourseResource.query.get(resource_id)
     if not resource:
+        current_app.logger.warning(f"Play log attempt for non-existent resource {resource_id} by user {current_user_id_str}")
         return jsonify({'error': 'Resource not found'}), 404
-
-    user = User.query.get(current_user_id)
-    if not user: return jsonify({'error': 'User not found for token'}), 401
-    is_admin = (get_jwt().get('role') == 'admin')
-    
-    can_access = is_admin or check_resource_access(current_user_id, resource_id) or \
-                 check_course_access_for_resource(current_user_id, resource)
-    if not can_access:
-        return jsonify({'error': 'Access denied to log play for this resource'}), 403
 
     data = request.get_json() or {}
     watch_time = data.get('watch_time_seconds')
     percentage = data.get('percentage_watched')
+    session_id = data.get('session_id')       # <<<--- 从请求 JSON 中读取 session_id
+    event_type = data.get('event_type')       # <<<--- 从请求 JSON 中读取 event_type
+
+    # 验证必要的日志数据
+    if session_id is None or event_type is None:
+        current_app.logger.warning(f"Play log attempt missing session_id or event_type from user {current_user_id_str} for resource {resource_id}")
+        return jsonify({'error': 'Missing session_id or event_type in log payload'}), 400
 
     try:
-        # 使用 SQLAlchemy 的 ORM 进行原子更新（如果数据库支持）
-        # 对于简单的计数器，直接赋值然后 commit 也可以，但需要注意并发
-        # 更安全的方式是使用 session.query(CourseResource).filter_by(id=resource_id).update({CourseResource.play_count: CourseResource.play_count + 1})
-        # 但这需要设置 synchronize_session=False 或其他处理。简单起见：
-        resource.play_count = (resource.play_count or 0) + 1 # 确保 play_count 不是 None
-        
+        # 可选：根据 event_type 更新资源的总播放次数
+        if event_type == 'start_play':
+            # 确保 play_count 不是 None
+            resource.play_count = (resource.play_count or 0) + 1 
+            db.session.add(resource) # 标记资源对象已修改
+
         play_log_entry = UserResourcePlayLog(
-            user_id=current_user_id,
-            resource_id=resource_id,
+            user_id=current_user_id_uuid, # 使用从 JWT 获取的 UUID 用户ID
+            resource_id=uuid.UUID(resource_id), # 将资源ID转换为 UUID
             watch_time_seconds=watch_time if watch_time is not None else None,
-            percentage_watched=percentage if percentage is not None else None
+            percentage_watched=percentage if percentage is not None else None,
+            session_id=session_id, # <<<--- 保存 session_id
+            event_type=event_type  # <<<--- 保存 event_type
         )
         db.session.add(play_log_entry)
         db.session.commit()
-        return jsonify({'message': 'Play logged successfully', 'new_play_count': resource.play_count}), 200
+
+        # Update log message format
+        current_app.logger.info(
+            f"Play Log Recorded: User={current_user_id_uuid}, Resource={resource_id}, "
+            f"Session='{session_id}', Event='{event_type}', "
+            f"Time={watch_time}s, Percent={percentage}%"
+        )
+
+        return jsonify({'message': 'Play log recorded successfully', 'new_play_count': resource.play_count}), 200
     except Exception as e:
         db.session.rollback()
-        current_app.logger.error(f"Error logging play for resource {resource_id}: {e}", exc_info=True)
-        return jsonify({'error': 'Failed to log play event'}), 500
+        current_app.logger.error(f"Error recording play log for resource {resource_id} (User: {current_user_id_str}): {e}", exc_info=True)
+        return jsonify({'error': 'Failed to record play log event'}), 500
 
 @course_resource_bp.route('/resources/<uuid:resource_id_str>/stats', methods=['GET'])
 @jwt_required()
@@ -721,6 +740,7 @@ def get_resource_stats(resource_id_str):
     if not resource:
         return jsonify({'error': 'Resource not found'}), 404
 
+    # 权限检查：只有有权限查看资源的管理员/用户才能看统计
     can_access = is_admin or check_resource_access(current_user_id, resource_id) or \
                  check_course_access_for_resource(current_user_id, resource)
     if not can_access:
@@ -762,7 +782,7 @@ def stream_shared_resource_by_slug(share_slug_str):
     # --- (以下代码段是从 stream_course_resource 复制并修改的) ---
     # 1. 权限检查逻辑 (需要 current_user_id_uuid 和 user_jwt_claims)
     #    这部分逻辑与 stream_course_resource 中的 token 处理和权限检查完全相同，
-    #    只是我们已经通过 slug 找到了 `resource` 对象。
+    #    只是我们已经通过 slug 找到了 `resource` 对象.
 
     current_user_id_from_token_str = None
     user_jwt_claims = {}
@@ -777,7 +797,7 @@ def stream_shared_resource_by_slug(share_slug_str):
     except Exception as e_header_jwt:
         pass # 继续
 
-    if not header_token_valid:
+    if not current_user_id_from_token_str:
         url_token = request.args.get('access_token', None)
         if url_token:
             try:
@@ -914,6 +934,7 @@ def get_resource_play_history(resource_id_str):
         page = request.args.get('page', 1, type=int)
         per_page = request.args.get('per_page', 20, type=int) # 每页显示20条
 
+        # 修改查询，添加用户名称，并按播放时间倒序
         play_logs_query = UserResourcePlayLog.query.filter_by(resource_id=resource_id_uuid)\
             .join(User, UserResourcePlayLog.user_id == User.id)\
             .add_columns( # 添加用户名字段以便显示
@@ -925,15 +946,18 @@ def get_resource_play_history(resource_id_str):
         paginated_logs = play_logs_query.paginate(page=page, per_page=per_page, error_out=False)
         
         logs_data = []
-        for play_log_entry, username in paginated_logs.items:
+        # paginated_logs.items 现在是 (UserResourcePlayLog, username) 的元组列表
+        for log_entry, username in paginated_logs.items:
             logs_data.append({
-                'log_id': str(play_log_entry.id),
-                'user_id': str(play_log_entry.user_id),
+                'log_id': str(log_entry.id),
+                'user_id': str(log_entry.user_id),
                 'username': username, # 用户名
                 # 'user_real_name': user_real_name or username, # 显示真实姓名，如果无则用用户名
-                'played_at': play_log_entry.played_at.isoformat() if play_log_entry.played_at else None,
-                'watch_time_seconds': play_log_entry.watch_time_seconds,
-                'percentage_watched': play_log_entry.percentage_watched
+                'played_at': log_entry.played_at.isoformat() if log_entry.played_at else None,
+                'watch_time_seconds': log_entry.watch_time_seconds,
+                'percentage_watched': log_entry.percentage_watched,
+                'session_id': log_entry.session_id, # 包含 session_id
+                'event_type': log_entry.event_type # 包含 event_type
             })
         
         return jsonify({

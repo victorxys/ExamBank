@@ -736,6 +736,8 @@ class UserResourcePlayLog(db.Model):
     played_at = db.Column(db.DateTime(timezone=True), server_default=func.now(), comment='播放时间')
     watch_time_seconds = db.Column(db.Integer, nullable=True, comment='本次观看时长 (秒)')
     percentage_watched = db.Column(db.Float, nullable=True, comment='本次观看百分比')
+    session_id = db.Column(db.String(100), nullable=True, index=True, comment='播放会话ID')
+    event_type = db.Column(db.String(50), nullable=True, comment='事件类型 (e.g., session_start, heartbeat, session_end)')
 
     # Relationships
     # user = db.relationship('User', back_populates='resource_play_logs') # 在 User 中定义
@@ -752,6 +754,8 @@ class UserResourcePlayLog(db.Model):
             'played_at': self.played_at.isoformat() if self.played_at else None,
             'watch_time_seconds': self.watch_time_seconds,
             'percentage_watched': self.percentage_watched,
+            'session_id': self.session_id,
+            'event_type': self.event_type
         }
 class UserCourseAccess(db.Model):
     __tablename__ = 'user_course_access'
