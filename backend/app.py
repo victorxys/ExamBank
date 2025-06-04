@@ -49,7 +49,8 @@ CORS(app,
      supports_credentials=True, 
      origins=[
          "http://localhost:5175",
-         "https://ai.mengyimengsao.com"
+         "https://ai.mengyimengsao.com",
+         "https://www.mengyimengsao.com"
      ]
 )
 
