@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   Container,
@@ -20,7 +20,8 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
-  DialogActions
+  DialogActions,
+  LinearProgress
 } from '@mui/material';
 import { Visibility as VisibilityIcon, Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import api from '../api/axios'; // 确保路径正确
@@ -28,6 +29,9 @@ import ai from '../api/ai'; // 确保路径正确
 import PageHeader from './PageHeader'; // 确保路径正确
 import { useTheme } from '@mui/material/styles';
 import { API_BASE_URL } from '../config'; // Assuming API_BASE_URL is exported from config.js
+import useTaskPolling from '../utils/useTaskPolling';
+
+
 
 
 const UserEvaluationSummary = () => {
@@ -43,8 +47,25 @@ const UserEvaluationSummary = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [evaluationToDelete, setEvaluationToDelete] = useState(null);
   const [aiGenerating, setAiGenerating] = useState(false);
+  const [alert, setAlert] = useState({ open: false, message: '', severity: 'info' });
 
   const navigate = useNavigate();
+  // --- 关键修改：使用 useTaskPolling Hook ---
+  const handleTaskCompletion = (taskData, taskType) => {
+    if (taskType === 'generate_employee_summary') {
+      setAlert({ open: true, message: 'AI员工介绍已成功生成！正在跳转...', severity: 'success' });
+      setTimeout(() => {
+        navigate(`/employee-profile/${userId}`);
+      }, 1500);
+    }
+    // 这里可以添加对其他任务类型的处理
+  };
+
+  const handleTaskFailure = (taskData, taskType) => {
+    setAlert({ open: true, message: `任务 (${taskType}) 失败: ${taskData.meta?.message || '请稍后重试'}`, severity: 'error' });
+  };
+
+  const { pollingTask, isPolling, startPolling } = useTaskPolling(handleTaskCompletion, handleTaskFailure);
 
   // 获取基础用户和评价汇总数据
   useEffect(() => {
@@ -202,7 +223,7 @@ const UserEvaluationSummary = () => {
   // 处理 AI 介绍生成
   const handleGenerateAIProfile = async () => {
     if (!evaluationSummary || !userInfo) {
-        alert('评价汇总数据或用户信息缺失');
+        setAlert({ open: true, message: '评价汇总数据或用户信息缺失', severity: 'warning' });
         return;
     }
     // 构建发送给 AI 的数据，与之前类似，但确保使用最新的 evaluationSummary
@@ -213,17 +234,42 @@ const UserEvaluationSummary = () => {
         // 如果需要补充说明历史，可以从 evaluationSummary.evaluations 提取
         // additional_comments_history: evaluationSummary.evaluations?.map(...)
     };
+    
 
     try {
-        setAiGenerating(true);
-        await ai.generateAIEvaluation(aiInputData, userId);
-        alert('AI员工介绍已生成');
-        navigate(`/employee-profile/${userId}`);
+        setAiGenerating(true); // 开始生成，设置加载状态
+        
+        // 调用API，这里现在是异步任务触发
+        const response = await ai.generateAIEvaluation(aiInputData, userId);
+
+        // 假设后端返回202和任务ID
+        if (response.status === 202 && response.data.task_id) {
+          // **启动轮询**
+          startPolling(
+              response.data.task_id, 
+              'generate_employee_summary', // 任务类型
+              'AI介绍生成任务已提交，正在处理...' // 初始消息
+          );
+          // 显示一个临时的、非阻塞的提示
+          setAlert({ open: true, message: '任务已提交，正在后台处理...', severity: 'info' });
+        } else {
+            // 如果API同步返回了结果（虽然我们改成了异步，但以防万一）
+            // 或者返回了非202的成功状态
+            alert('AI员工介绍已生成'); // 这是一个临时的同步成功提示
+            navigate(`/employee-profile/${userId}`);
+        }
+
     } catch (error) {
+        // **在这里捕获错误并调用 setAlert**
         console.error('AI生成失败:', error);
-        alert('AI生成失败，请稍后重试: ' + (error.response?.data?.error || error.message));
+        setAlert({ 
+            open: true, 
+            // 从 Axios 错误对象中提取更具体的后端错误信息
+            message: '提交AI生成任务失败: ' + (error.response?.data?.error || error.message), 
+            severity: 'error' 
+        });
     } finally {
-        setAiGenerating(false);
+        setAiGenerating(false); // 无论成功或失败，都结束加载状态
     }
   };
 
@@ -262,7 +308,7 @@ const UserEvaluationSummary = () => {
         title="员工评价汇总"
         description="展示此员工的平均评价分数，同时可查看历史评价结果"
       />
-
+     
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
       {/* 总体评价分数卡片 */}
@@ -318,14 +364,37 @@ const UserEvaluationSummary = () => {
                   <Box display="flex" justifyContent="flex-end" gap={2} flexWrap="wrap">
                       <Button variant="contained" color="primary" component={Link} to={`/user-evaluation/${userId}`}>添加新评价</Button>
                       <Button variant="outlined" color="primary" /* onClick for Copy */ >复制评价</Button>
-                      <Button variant="outlined" color="primary" disabled={aiGenerating} onClick={handleGenerateAIProfile}>
-                          {aiGenerating ? <CircularProgress size={20} sx={{ mr: 1 }} /> : 'AI员工介绍'}
+                      <Button
+                        variant="outlined"
+                        color="primary"
+                        disabled={isPolling} // 使用 isPolling
+                        onClick={handleGenerateAIProfile}
+                      >
+                        {isPolling ? <CircularProgress size={20} sx={{ mr: 1 }} /> : null}
+                        {isPolling ? '正在生成中...' : 'AI员工介绍'}
                       </Button>
                   </Box>
                 </Grid>
             </Grid>
           </CardContent>
       </Card>
+      {isPolling && pollingTask?.type === 'generate_employee_summary' && (
+        <Paper elevation={2} sx={{ p: 2, mb: 3, backgroundColor: 'info.lightest', border: `1px solid ${theme.palette.info.main}` }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <CircularProgress size={24} />
+            <Box>
+                <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+                    正在由AI根据员工评价生成员工简介，请稍候......
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                    {pollingTask.message}
+                </Typography>
+            </Box>
+          </Box>
+          <LinearProgress variant="indeterminate" sx={{ mt: 1.5, borderRadius: 2 }}/>
+        </Paper>
+      )}
+
 
       {/* 评价汇总信息 */}
       {evaluationSummary?.aspects?.map(aspect => (

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect,useCallback } from 'react'
 import TablePagination from '@mui/material/TablePagination'
 import { useNavigate, Link } from 'react-router-dom'
 import { useTheme } from '@mui/material/styles'
@@ -54,6 +54,8 @@ import {
 } from '@mui/icons-material'
 import AlertMessage from './AlertMessage';
 import PageHeader from './PageHeader';
+import api from '../api/axios';
+
 
 function ExamList() {
   const navigate = useNavigate()
@@ -87,40 +89,32 @@ function ExamList() {
   const [editDescription, setEditDescription] = useState('');
   const [selectedPointsQuestionCounts, setSelectedPointsQuestionCounts] = useState({ single: 0, multiple: 0 });
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true)
-        const [examsResponse, coursesResponse] = await Promise.all([
-          fetch(`${API_BASE_URL}/exams`),
-          fetch(`${API_BASE_URL}/courses`),
-          // fetch(`${API_BASE_URL}/exam-records`)
-        ])
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const [examsResponse, coursesResponse] = await Promise.all([
+        api.get('/exams'),
+        api.get('/courses')
+      ]);
 
-        if (!examsResponse.ok || !coursesResponse.ok ) {
-          throw new Error('获取数据失败')
-        }
+      // **核心修改点**：直接从 response.data 获取数据
+      setExams(examsResponse.data || []);
+      setCourses(coursesResponse.data || []);
 
-        const [examsData, coursesData] = await Promise.all([
-          examsResponse.json(),
-          coursesResponse.json(),
-          // recordsResponse.json()
-        ])
-
-
-
-        setExams(examsData)
-        setCourses(coursesData)
-      } catch (error) {
-        console.error('Error fetching data:', error)
-        setError(error.message)
-      } finally {
-        setLoading(false)
-      }
+    } catch (error) {
+      console.error('Error fetching data:', error);
+      // **核心修改点**：从 error.response.data 获取后端错误信息
+      setError(error.response?.data?.error || error.message || '获取数据失败');
+    } finally {
+      setLoading(false);
     }
-
-    fetchData()
-  }, [])
+  }, []);
+  
+  
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+    
 
   const fetchCourses = async () => {
     try {
@@ -195,22 +189,19 @@ function ExamList() {
         return
       }
 
-      const response = await fetch(`${API_BASE_URL}/exams`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          title,
-          description,
-          course_ids: selectedCourses,
-          point_ids: selectedPoints,
-          single_count: parseInt(singleCount),
-          multiple_count: parseInt(multipleCount),
-        }),
-      })
+      const payload = {
+        title,
+        description,
+        course_ids: selectedCourses,
+        point_ids: selectedPoints,
+        single_count: parseInt(singleCount) || 0,
+        multiple_count: parseInt(multipleCount) || 0,
+      };
 
       const data = await response.json()
+
+      const response = await api.post('/exams', payload);
+
       if (!response.ok) {
         throw new Error(data.error || '创建考卷失败')
       }
@@ -256,8 +247,7 @@ function ExamList() {
       try {
         // 获取所有选中课程的知识点
         const promises = courseIds.map(courseId =>
-          fetch(`${API_BASE_URL}/courses/${courseId}/knowledge_points`)
-            .then(res => res.json())
+          api.get(`/courses/${courseId}/knowledge_points`).then(res => res.data) 
         )
         
         const allPointsData = await Promise.all(promises)
@@ -430,9 +420,8 @@ function ExamList() {
     if (!examToDelete) return;
 
     try {
-      const response = await fetch(`${API_BASE_URL}/exams/${examToDelete.id}`, {
-        method: 'DELETE',
-      });
+        const response = await api.delete(`/exams/${examToDelete.id}`); // <<<--- 使用 api.delete
+
 
       if (!response.ok) {
         throw new Error('删除试卷失败');
@@ -504,16 +493,7 @@ function ExamList() {
         return;
       }
 
-      const response = await fetch(`${API_BASE_URL}/exams/${editingExam.id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          title: editTitle,
-          description: editDescription,
-        }),
-      });
+      const response = await api.patch(`/exams/${editingExam.id}`, payload);
 
       if (!response.ok) {
         throw new Error('更新考卷失败');

@@ -38,6 +38,8 @@ import AlertMessage from './AlertMessage';
 import PageHeader from './PageHeader';
 import { formatRelativeTime } from '../api/dateUtils';
 import { API_BASE_URL } from '../config';
+import useTaskPolling from '../utils/useTaskPolling';
+
 
 // 时间格式化辅助函数
 const formatMsToTime = (ms) => {
@@ -335,6 +337,20 @@ const TrainingContentDetail = () => {
   const pollingIntervalsRef = useRef({}); // 用于存储所有轮询的 interval ID
   const [overallProgress, setOverallProgress] = useState(null); // 用于批量语音生成
   const [mergeProgress, setMergeProgress] = useState(null); // 新增：用于语音合并进度
+
+  const handleTaskCompletion = (taskData, taskType) => {
+    setAlert({ open: true, message: `任务 (${taskType}) 已成功完成！`, severity: 'success' });
+    fetchContentDetail(false); // 刷新数据
+  };
+
+  const handleTaskFailure = (taskData, taskType) => {
+    setAlert({ open: true, message: `任务 (${taskType}) 失败: ${taskData.meta?.message || taskData.error_message}`, severity: 'error' });
+    fetchContentDetail(false); // 同样刷新以获取最终的错误状态
+  };
+  
+  const { pollingTask, isPolling, startPolling } = useTaskPolling(handleTaskCompletion, handleTaskFailure);
+
+
 
   const workflowSteps = useMemo(() => [
     { 
@@ -662,66 +678,54 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
     setActionLoading(prev => ({ ...prev, [loadingKey]: true }));
 
     try {
-        let response;
-        let successMessage = '';
-        let isNonBatchProgressTask = false; // 用于普通脚本处理任务
-        let taskTypeForPolling = 'default'; // 用于 pollTaskStatus
-
+        let apiCall;
+        let taskType = actionType; // 用于轮询分类
         switch (actionType) {
             case 'generateOralScript':
-                response = await ttsApi.generateOralScript(currentContentId);
-                successMessage = response.data.message || '口播稿生成任务已启动。';
-                isNonBatchProgressTask = true; // 后端返回 task_id 用于轮询
-                taskTypeForPolling = 'script_processing';
+                apiCall = ttsApi.generateOralScript(currentContentId);
                 break;
             case 'triggerTtsRefine':
                 if (!scriptIdForAction) throw new Error("需要口播稿ID来优化");
-                response = await ttsApi.triggerTtsRefine(scriptIdForAction);
-                successMessage = response.data.message || 'TTS Refine 任务已启动。';
-                isNonBatchProgressTask = true;
-                taskTypeForPolling = 'script_processing';
+                apiCall = ttsApi.triggerTtsRefine(scriptIdForAction);
                 break;
             case 'triggerLlmRefine':
                 if (!scriptIdForAction) throw new Error("需要TTS Refine稿ID来进行LLM润色");
-                response = await ttsApi.triggerLlmRefine(scriptIdForAction);
-                successMessage = response.data.message || 'LLM最终修订任务已启动。';
-                isNonBatchProgressTask = true;
-                taskTypeForPolling = 'script_processing';
+                apiCall = ttsApi.triggerLlmRefine(scriptIdForAction);
                 break;
-            case 'splitSentences':
-                if (!scriptIdForAction) throw new Error("需要最终脚本ID来拆分句子");
-                response = await ttsApi.splitSentences(scriptIdForAction);
-                successMessage = response.data.message || '句子拆分任务已启动。';
-                isNonBatchProgressTask = true;
-                taskTypeForPolling = 'script_processing';
-                break;
+            // ... (其他 cases)
             default:
                 throw new Error("未知的操作类型");
         }
-        setAlert({ open: true, message: successMessage, severity: 'success' });
         
-        if (isNonBatchProgressTask && response.data.task_id) {
-            if (contentDetail) { // 更新本地状态以反映任务正在进行
+        const response = await apiCall; // 等待API调用返回任务ID
+        
+        setAlert({ open: true, message: response.data.message || '任务已提交', severity: 'info' });
+
+        if (response.data.task_id) {
+            // 使用 startPolling 启动轮询
+            startPolling(response.data.task_id, taskType, `正在处理: ${actionType}`);
+            // 立即更新UI状态
+            if (contentDetail) {
                 let newStatus = contentDetail.status;
                 if(actionType === 'generateOralScript') newStatus = 'processing_oral_script';
-                else if(actionType === 'triggerTtsRefine') newStatus = 'processing_tts_refine';
-                else if(actionType === 'triggerLlmRefine') newStatus = 'processing_llm_final_refine';
-                else if(actionType === 'splitSentences') newStatus = 'processing_sentence_split';
+                if(actionType === 'triggerTtsRefine') newStatus = 'processing_tts_refine';
+                if(actionType === 'triggerLlmRefine') newStatus = 'processing_llm_final_refine';
                 setContentDetail(prev => ({...prev, status: newStatus}));
             }
-            pollTaskStatus(response.data.task_id, false, taskTypeForPolling); // false 表示非批量，taskTypeForPolling
-        } else if (response.status >= 200 && response.status < 300 && !response.data.task_id) { // 同步成功
-            setTimeout(() => fetchContentDetail(false), 1000); 
+        } else {
+            fetchContentDetail(false); // 如果没有task_id，直接刷新
         }
 
     } catch (error) {
         console.error(`操作 ${actionType} 失败:`, error);
         const apiError = error.response?.data?.error || error.message;
         setAlert({ open: true, message: `操作失败: ${apiError}`, severity: 'error' });
+        fetchContentDetail(false); // 失败时也刷新状态
     } finally {
         setActionLoading(prev => ({ ...prev, [loadingKey]: false }));
     }
-  };
+};
+
   
   const handlePlayAudio = (sentenceIdOrMergedUrl, audioUrlOrType) => {
     let fullAudioUrl;
@@ -1101,6 +1105,25 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
             <Button onClick={() => navigate(-1)} startIcon={<ArrowBackIcon />}>返回</Button>
         }
       />
+      {isPolling && pollingTask && (
+        <Paper elevation={2} sx={{ p: 2, mb: 2, backgroundColor: '#e3f2fd' }}>
+            <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold' }}>
+                后台任务处理中...
+            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <CircularProgress size={20} />
+                <Box>
+                    <Typography variant="body2">
+                        任务类型: <strong>{pollingTask.type}</strong>
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                        状态: {pollingTask.message}
+                    </Typography>
+                </Box>
+            </Box>
+            <LinearProgress variant="indeterminate" sx={{ mt: 1 }} />
+        </Paper>
+    )}
       
       {/* 批量语音生成进度条 (仅当不处于合并步骤时显示，避免重复) */}
       {overallProgress && activeStepKey !== 'generateAndMergeAudio' && (
@@ -1480,9 +1503,10 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
                             size="small"
                             startIcon={actionLoading[`${currentActiveStepDetails.actionName}_${currentInputScriptId}`] ? <CircularProgress size={16} color="inherit"/> : <CachedIcon />}
                             onClick={() => handleRecreateOutput(currentActiveStepDetails.actionName, currentInputScriptId)}
-                            disabled={actionLoading[`${currentActiveStepDetails.actionName}_${currentInputScriptId}`] || (currentActiveStepDetails.inputScriptTypeKey !== 'original_content' && !currentInputScriptId && currentActiveStepDetails.actionName !== 'generateOralScript')} // generateOralScript 不需要 inputScriptId
+                            disabled={isPolling || actionLoading[`${currentActiveStepDetails.actionName}_${currentInputScriptId}`] || (currentActiveStepDetails.inputScriptTypeKey !== 'original_content' && !currentInputScriptId && currentActiveStepDetails.actionName !== 'generateOralScript')} // generateOralScript 不需要 inputScriptId
                         >
-                            重新生成输出
+                            {isPolling ? '任务处理中' : '重新生成输出'}
+
                         </Button>
                     </Box>
                     <Box sx={{ flexGrow: 1, overflowY: 'auto', whiteSpace: 'pre-wrap', p:1, border: '1px solid #eee', borderRadius: 1, minHeight: 300, backgroundColor: '#f9f9f9' }}>

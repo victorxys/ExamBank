@@ -41,6 +41,11 @@ from backend.api.llm_log_api import llm_log_bp # 新增导入
 from backend.api.tts_api import tts_bp # 新增导入
 from backend.api.course_resource_api import course_resource_bp # <--- 新增导入
 from backend.api.permission_api import permission_bp # <--- 新增导入
+from backend.tasks import run_llm_function_async # <<<--- 确保导入通用任务
+
+
+
+
 
 
 app = Flask(__name__)
@@ -2440,26 +2445,38 @@ def submit_exam_answer(exam_id):
         # Commit the transaction
         conn.commit()
 
-        # AI根据考试结果对知识点掌握情况进行汇总
-        from backend.api.ai_generate import merge_kp_name
-        # merge_kp_result = merge_kp_name(kp_coreects)
-        merge_kp_result = merge_kp_name(kp_coreects, user_id=user_uuid_for_log) # 传递 user_id
-        merge_kp_result_json = json.dumps(merge_kp_result, ensure_ascii=False)
+        # 将知识点掌握情况转换为字符串，作为 transform_text_with_llm 的 input_text
+        input_text_for_llm = json.dumps(kp_coreects, ensure_ascii=False)
         
-
-        insert_exam_knowledge_points(exam_take_id,total_score,merge_kp_result_json)
-
-        # 在返回结果中添加用户信息和考试时间信息
+        logger.info(f"为考试记录 {exam_take_id} 提交知识点总结异步任务...")
+        task = run_llm_function_async.delay(
+            llm_function_identifier='transform_text_with_llm',
+            callback_identifier='handle_kp_summary',
+            context={
+                'exam_take_id': str(exam_take_id),
+                'user_id': str(user_uuid),
+                'total_score': total_score 
+            },
+            input_text=input_text_for_llm,
+            prompt_identifier='KNOWLEDGE_POINT_MERGING',
+            user_id=user_uuid_for_log
+        )
+        
+        # 立即返回基础结果给前端
         response_data = {
             'exam_id': exam_id,
+            'exam_take_id': str(exam_take_id),
             'user_id': user_id,
             'username': user_info['username'],
             'phone_number': user_info['phone_number'],
             'start_time': start_time.isoformat() if start_time else None,
             'submit_time': submit_time.isoformat(),
             'total_score': total_score,
-            'merge_kp_result': merge_kp_result,
-            'questions': results
+            'merge_kp_result': None,
+            'knowledge_summary_status': 'generating',
+            'questions': results,
+            'task_id': task.id  # <<<--- 关键：在这里把任务ID添加到响应中
+
         }
         
         return jsonify(response_data)
@@ -3428,68 +3445,46 @@ def user_sync_api():
     return sync_user()
 
 @app.route('/api/ai-generate', methods=['POST'])
-@jwt_required() # <--- 这个装饰器是关键
+@jwt_required()
 def ai_generate_route():
     current_user_id_str = get_jwt_identity() 
-    current_user_id_for_log = None
-    if current_user_id_str:
-        try:
-            current_user_id_for_log = uuid.UUID(current_user_id_str) 
-        except ValueError:
-            current_app.logger.warning(f"无法将JWT identity '{current_user_id_str}' 转换为UUID")
+    current_user_id_for_log = uuid.UUID(current_user_id_str) if current_user_id_str else None
+
+    data = request.get_json()
+    if not data or 'evaluations' not in data:
+        return jsonify({'error': '缺少评价数据'}), 400
+
+    evaluated_user_id = data['evaluations'].get('evaluated_user_id')
+    if not evaluated_user_id:
+        return jsonify({'error': '缺少被评价的用户ID'}), 400
+
     try:
-        data = request.get_json()
-        print('后端接收到的AI评价数据:', data)
-        # log.debug('后端接收到的AI评价数据:', data)
-        if not data or 'evaluations' not in data:
-            return jsonify({'error': '缺少评价数据'}), 400
+        # 将复杂的评价数据转换为字符串，作为 transform_text_with_llm 的 input_text
+        input_text_for_llm = json.dumps(data['evaluations'], ensure_ascii=False)
 
-        # 从evaluations对象中提取evaluated_user_id
-        evaluated_user_id = data['evaluations'].get('evaluated_user_id')
-        if not evaluated_user_id:
-            return jsonify({'error': '缺少用户ID'}), 400
-
-        from backend.api.ai_generate import generate
-        # result = generate(data['evaluations'])
-        result = generate(data['evaluations'], user_id=current_user_id_for_log) # 传递 user_id
-
+        # 触发异步任务
+        task = run_llm_function_async.delay(
+            llm_function_identifier='transform_text_with_llm', # <-- 统一调用
+            callback_identifier='handle_employee_summary',
+            context={
+                'user_id': str(evaluated_user_id),
+                'triggered_by_user_id': str(current_user_id_for_log) if current_user_id_for_log else None
+            },
+            # --- 以下是 transform_text_with_llm 的参数 ---
+            input_text=input_text_for_llm,
+            prompt_identifier='EMPLOYEE_SELF_EVALUATION_SUMMARY', # <-- 明确指定 prompt
+            user_id=current_user_id_for_log
+        )
         
-        # 将AI生成的结果保存到user_profile表
-        if result:
-            # print('AI生成结果，准备写入数据库:', result)
-            # log.debug('AI生成结果，准备写入数据库:', result)
-            conn = get_db_connection()
-            cur = conn.cursor(cursor_factory=RealDictCursor)
-            try:
-                # 检查是否已存在用户记录
-                # 将Python字典转换为JSON字符串
-                import json
-                profile_data = json.dumps(result)
-                
-                cur.execute("""
-                    INSERT INTO user_profile (user_id, profile_data)
-                    VALUES (%s, %s)
-                    ON CONFLICT (user_id)
-                    DO UPDATE SET profile_data = %s
-                    RETURNING user_id
-                """, (evaluated_user_id, profile_data, profile_data))
-                
-                conn.commit()
-                # print('AI生成结果已保存到user_profile')
-                return jsonify(result)
-            except Exception as db_error:
-                conn.rollback()
-                print('Error saving to user_profile:', str(db_error))
-                log.debug('Error saving to user_profile:', str(db_error))
-                return jsonify({'error': '保存用户资料失败'}), 500
-            finally:
-                cur.close()
-                conn.close()
-        return jsonify({'error': 'AI生成结果为空'}), 500
+        log.info(f"AI员工总结生成任务已提交 (Task ID: {task.id}) for user {evaluated_user_id}")
+        return jsonify({
+            'message': 'AI员工介绍生成任务已在后台开始，请稍后在员工档案页面查看结果。',
+            'task_id': task.id
+        }), 202
+
     except Exception as e:
-        print('Error in ai_generate:', str(e))
-        log.debug('Error in ai_generate:', str(e))
-        return jsonify({'error': str(e)}), 500
+        log.exception('Error submitting AI generation task:')
+        return jsonify({'error': f'提交AI生成任务时出错: {str(e)}'}), 500
 
 @app.route('/api/user-exams/knowledge-point-summary/<exam_id>', methods=['GET'])
 def get_knowledge_point_summary(exam_id):
@@ -3692,5 +3687,20 @@ def serve_tts_audio(filepath):
         current_app.logger.error(f"服务音频文件 {filepath} 时出错: {e}", exc_info=True)
         return jsonify({'error': '服务文件时出错'}), 500
 
+@app.route('/api/test-celery-gemini')
+def trigger_test_gemini_task():
+    """
+    一个用于手动触发 Gemini 连通性测试的临时端点。
+    """
+    current_app.logger.info("收到触发 Gemini 连通性测试的请求...")
+    task = test_gemini_connectivity.delay()
+    message = f"已触发 Celery 任务以测试 Gemini 连通性。任务 ID: {task.id}. 请检查 Celery worker 日志获取详细信息。"
+    current_app.logger.info(message)
+    return jsonify({"message": message, "task_id": task.id}), 202
+
+
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
+
+

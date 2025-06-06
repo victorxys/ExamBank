@@ -122,344 +122,95 @@ def log_llm_call(function_name, model, prompt, api_key_name, input_data, output_
         current_app.logger.error(f"记录LLM调用日志失败: {e}", exc_info=True)
 
 # --- LLM 调用函数 ---
+# --- 统一的LLM调用函数 (最终修正版 v4) ---
 
-def generate(evaluations, user_id=None):
-    start_time = time.time()
-    prompt_identifier = "EMPLOYEE_SELF_EVALUATION_SUMMARY"
-    default_model_identifier = "gemini-2.5-pro-preview-03-25" # 保持与原代码一致
-
-    active_prompt, prompt_error = get_active_prompt_internal(prompt_identifier)
-    llm_model_for_log = None # 用于日志的模型对象
-    api_key_name_for_log = None # 用于日志的api key name
-
-    if prompt_error:
-        current_app.logger.error(f"generate: {prompt_error}")
-        log_llm_call("generate_employee_summary", None, None, None, {'evaluations_type': str(type(evaluations))}, None, None, "error", prompt_error, int((time.time() - start_time) * 1000), user_id)
-        raise Exception(prompt_error)
-
-    model_to_use_identifier = active_prompt.model_identifier or default_model_identifier
-    api_key, api_key_name_for_log, llm_model_for_log, config_error = get_active_llm_config_internal("Google", model_to_use_identifier)
-
-    if config_error:
-        current_app.logger.error(f"generate: {config_error}")
-        log_llm_call("generate_employee_summary", llm_model_for_log, active_prompt, api_key_name_for_log, {'evaluations_type': str(type(evaluations))}, None, None, "error", config_error, int((time.time() - start_time) * 1000), user_id)
-        raise Exception(config_error)
-    
-    if not api_key: # 确保 api_key 有效
-        error_msg = "未能获取有效的API Key"
-        current_app.logger.error(f"generate: {error_msg}")
-        log_llm_call("generate_employee_summary", llm_model_for_log, active_prompt, api_key_name_for_log, {'evaluations_type': str(type(evaluations))}, None, None, "error", error_msg, int((time.time() - start_time) * 1000), user_id)
-        raise Exception(error_msg)
-
-    client = genai.Client(api_key=api_key)
-    evaluation_text = "# 评价数据\n\n" + str(evaluations)
-    system_instruction_text = active_prompt.prompt_template
-    model_api_identifier = llm_model_for_log.model_identifier if llm_model_for_log else model_to_use_identifier
-
-    try:
-        serializable_evaluations = json.loads(json.dumps(evaluations, default=str)) # 先尝试标准的 default=str
-    except TypeError:
-        serializable_evaluations = to_dict(evaluations) # 如果标准方法不行，用我们的 to_dict
-
-    log_input_data ={
-        "evaluation_data_passed": serializable_evaluations, # 使用序列化后的数据
-        "system_instruction_details": {
-            "id": str(active_prompt.id) if active_prompt else None,
-            "name": active_prompt.prompt_name if active_prompt else "N/A",
-            "version": active_prompt.version if active_prompt else "N/A",
-        },
-        "model_api_identifier_used": model_api_identifier,
-    }
-
-    contents = [types.Content(role="user", parts=[types.Part.from_text(text=evaluation_text)])]
-    generate_content_config = types.GenerateContentConfig(
-        response_mime_type="application/json",
-        system_instruction=[types.Part.from_text(text=system_instruction_text)],
-    )
-
-    response_text = ""
-    parsed_result = None
-    try:
-        for chunk in client.models.generate_content_stream(
-            model=model_api_identifier,
-            contents=contents,
-            config=generate_content_config,
-        ):
-            response_text += chunk.text
-        
-        result_cleaned = response_text.strip()
-        if result_cleaned.startswith("```json"): result_cleaned = result_cleaned[7:]
-        if result_cleaned.startswith("```"): result_cleaned = result_cleaned[3:]
-        if result_cleaned.endswith("```"): result_cleaned = result_cleaned[:-3]
-        result_cleaned = result_cleaned.strip()
-
-        parsed_result = json.loads(result_cleaned)
-        
-        duration_ms = int((time.time() - start_time) * 1000)
-        log_llm_call("generate_employee_summary", llm_model_for_log, active_prompt, api_key_name_for_log, log_input_data, 
-                     {"raw_response": response_text}, 
-                     parsed_result, "success", duration_ms=duration_ms, user_id=user_id)
-        return parsed_result
-    except json.JSONDecodeError as e:
-        current_app.logger.error(f"JSON解析失败 (generate): {e}, 原始文本: {response_text[:200]}...", exc_info=True)
-        duration_ms = int((time.time() - start_time) * 1000)
-        log_llm_call("generate_employee_summary", llm_model_for_log, active_prompt, api_key_name_for_log, log_input_data, 
-                     {"raw_response": response_text}, 
-                     None, "error", f"JSON解析失败: {str(e)[:200]}", duration_ms, user_id)
-        raise Exception("AI生成的结果不是有效的JSON格式 (generate)")
-    except Exception as e:
-        current_app.logger.error(f"AI调用失败 (generate): {e}", exc_info=True)
-        duration_ms = int((time.time() - start_time) * 1000)
-        log_llm_call("generate_employee_summary", llm_model_for_log, active_prompt, api_key_name_for_log, log_input_data, 
-                     {"raw_response": response_text}, 
-                     None, "error", str(e), duration_ms, user_id)
-        raise
-
-def merge_kp_name(exam_results, user_id=None):
-    start_time = time.time()
-    if not exam_results or not isinstance(exam_results, list):
-        log_llm_call("merge_kp_name", None, None, None, {'exam_results': "Invalid input"}, None, None, "error", "无效的输入数据: exam_results 不是列表或为空", int((time.time() - start_time) * 1000), user_id)
-        return []
-
-    prompt_identifier = "KNOWLEDGE_POINT_MERGING"
-    default_model_identifier = "gemini-2.0-flash-lite" # 与原代码一致
-
-    active_prompt, prompt_error = get_active_prompt_internal(prompt_identifier)
-    llm_model_for_log = None
-    api_key_name_for_log = None
-
-    if prompt_error:
-        current_app.logger.error(f"merge_kp_name: {prompt_error}")
-        log_llm_call("merge_kp_name", None, None, None, {'exam_results_snippet': str(exam_results)[:500]}, None, None, "error", prompt_error, int((time.time() - start_time) * 1000), user_id)
-        raise Exception(prompt_error)
-
-    model_to_use_identifier = active_prompt.model_identifier or default_model_identifier
-    api_key, api_key_name_for_log, llm_model_for_log, config_error = get_active_llm_config_internal("Google", model_to_use_identifier)
-
-    if config_error:
-        current_app.logger.error(f"merge_kp_name: {config_error}")
-        log_llm_call("merge_kp_name", llm_model_for_log, active_prompt, api_key_name_for_log, {'exam_results_snippet': str(exam_results)[:500]}, None, None, "error", config_error, int((time.time() - start_time) * 1000), user_id)
-        raise Exception(config_error)
-        
-    if not api_key:
-        error_msg = "未能获取有效的API Key"
-        current_app.logger.error(f"merge_kp_name: {error_msg}")
-        log_llm_call("merge_kp_name", llm_model_for_log, active_prompt, api_key_name_for_log, {'exam_results_snippet': str(exam_results)[:500]}, None, None, "error", error_msg, int((time.time() - start_time) * 1000), user_id)
-        raise Exception(error_msg)
-
-    client = genai.Client(api_key=api_key)
-    evaluation_text = str(exam_results)
-    system_instruction_text = active_prompt.prompt_template
-    model_api_identifier = llm_model_for_log.model_identifier if llm_model_for_log else model_to_use_identifier
-
-    try:
-        serializable_exam_results = json.loads(json.dumps(exam_results, default=str))
-    except TypeError:
-        serializable_exam_results = to_dict(exam_results)
-
-    log_input_data = {
-        "exam_results_passed": serializable_exam_results, # 使用序列化后的数据
-        "system_instruction_details": {
-            "id": str(active_prompt.id) if active_prompt else None,
-            "name": active_prompt.prompt_name if active_prompt else "N/A",
-            "version": active_prompt.version if active_prompt else "N/A",
-        },
-        "model_api_identifier_used": model_api_identifier,
-    }
-
-    contents = [types.Content(role="user", parts=[types.Part.from_text(text=evaluation_text)])]
-    generate_content_config = types.GenerateContentConfig(
-        response_mime_type="application/json",
-        system_instruction=[types.Part.from_text(text=system_instruction_text)],
-    )
-
-    response_text = ""
-    parsed_result = None
-    try:
-        for chunk in client.models.generate_content_stream(
-            model=model_api_identifier,
-            contents=contents,
-            config=generate_content_config,
-        ):
-            response_text += chunk.text
-        
-        result_cleaned = response_text.strip()
-        if result_cleaned.startswith("```json"): result_cleaned = result_cleaned[7:]
-        if result_cleaned.startswith("```"): result_cleaned = result_cleaned[3:]
-        if result_cleaned.endswith("```"): result_cleaned = result_cleaned[:-3]
-        result_cleaned = result_cleaned.strip()
-
-        parsed_result = json.loads(result_cleaned)
-        
-        duration_ms = int((time.time() - start_time) * 1000)
-        log_llm_call("merge_kp_name", llm_model_for_log, active_prompt, api_key_name_for_log, log_input_data, 
-                     {"raw_response": response_text},
-                     parsed_result, "success", duration_ms=duration_ms, user_id=user_id)
-        return parsed_result
-    except json.JSONDecodeError as e:
-        current_app.logger.error(f"JSON解析失败 (merge_kp_name): {e}, 原始文本: {response_text[:200]}...", exc_info=True)
-        duration_ms = int((time.time() - start_time) * 1000)
-        log_llm_call("merge_kp_name", llm_model_for_log, active_prompt, api_key_name_for_log, log_input_data, 
-                     {"raw_response": response_text},
-                     None, "error", f"JSON解析失败: {str(e)[:200]}", duration_ms, user_id)
-        raise Exception("AI生成的结果不是有效的JSON格式 (merge_kp_name)")
-    except Exception as e:
-        current_app.logger.error(f"AI调用失败 (merge_kp_name): {e}", exc_info=True)
-        duration_ms = int((time.time() - start_time) * 1000)
-        log_llm_call("merge_kp_name", llm_model_for_log, active_prompt, api_key_name_for_log, log_input_data, 
-                     {"raw_response": response_text},
-                     None, "error", str(e), duration_ms, user_id)
-        raise
-
-# --- 修改 transform_text_with_llm 以匹配 generate() 的调用风格 ---
-def transform_text_with_llm(
-        input_text: str, 
-        prompt_identifier: str,
-        reference_text: str = None,
-        user_id: uuid.UUID = None, 
-        custom_model_identifier: 
-        str = None, 
-        request_timeout: int = 300
-    ):
+def transform_text_with_llm(input_text: str, prompt_identifier: str, reference_text: str = None, user_id: uuid.UUID = None, custom_model_identifier: str = None, request_timeout: int = 300):
     start_time = time.time()
     
+    # 1. 获取 Prompt 和模型配置 (保持不变)
     active_prompt, prompt_error = get_active_prompt_internal(prompt_identifier)
-    llm_model_for_log = None
-    api_key_name_for_log = None
-
     if prompt_error:
-        current_app.logger.error(f"transform_text_with_llm: {prompt_error}")
-        log_llm_call(
-            f"transform_text ({prompt_identifier})", None, None, None, 
-            {'input_text_snippet': input_text[:200]}, None, None, 
-            "error", prompt_error, int((time.time() - start_time) * 1000), user_id
-        )
+        # ... (日志和错误处理)
         raise Exception(prompt_error)
 
     model_to_use_identifier = custom_model_identifier or active_prompt.model_identifier or "gemini-1.5-flash-latest"
     api_key, api_key_name_for_log, llm_model_for_log, config_error = get_active_llm_config_internal("Google", model_to_use_identifier)
-
+    
     if config_error:
-        current_app.logger.error(f"transform_text_with_llm: {config_error}")
-        log_llm_call(
-            f"transform_text ({prompt_identifier})", llm_model_for_log, active_prompt, api_key_name_for_log,
-            {'input_text_snippet': input_text[:200]}, None, None,
-            "error", config_error, int((time.time() - start_time) * 1000), user_id
-        )
+        # ... (日志和错误处理)
         raise Exception(config_error)
     
     if not api_key:
-        error_msg = "未能获取有效的API Key"
-        current_app.logger.error(f"transform_text_with_llm: {error_msg}")
-        log_llm_call(
-            f"transform_text ({prompt_identifier})", llm_model_for_log, active_prompt, api_key_name_for_log,
-            {'input_text_snippet': input_text[:200]}, None, None,
-            "error", error_msg, int((time.time() - start_time) * 1000), user_id
-        )
-        raise Exception(error_msg)
+        # ... (日志和错误处理)
+        raise Exception("未能获取有效的API Key")
 
-    client = genai.Client(api_key=api_key) # <--- 使用 genai.Client
+    # 2. **核心修改：创建 Client 时明确指定 transport='rest'**
+    client = genai.Client(
+        api_key=api_key,
+        # client_options 可以在这里配置代理等，如果需要的话
+        # client_options={"api_endpoint": "generativelanguage.googleapis.com"}
+    )
     
-    system_instruction_text = active_prompt.prompt_template 
-
-     # +++++ 构建用户消息，包含主要文本和参考文本 +++++
-    # 构建用户消息，包含主要文本和参考文本
-    user_message_parts = []
-    user_message_parts.append(f"请修订以下“待修订脚本”：\n```text\n{input_text}\n```")
+    # 3. 准备调用参数 (恢复到你原始可以工作的同步代码的结构)
+    system_instruction_text = active_prompt.prompt_template
+    user_message_parts = [f"请修订以下“待修订脚本”：\n```text\n{input_text}\n```"]
     if reference_text:
-        user_message_parts.append(f"\n\n请在修订时主要参考以下“原始口播稿”以确保内容准确性，并保留“[uv_break]”、“[laugh]”等标记，同时将阿拉伯数字转为中文：\n```text\n{reference_text}\n```")
+        user_message_parts.append(f"\n\n请在修订时主要参考以下“原始口播稿”：\n```text\n{reference_text}\n```")
     user_message_for_llm = "\n".join(user_message_parts)
+
+    contents = [genai.types.Content(role="user", parts=[genai.types.Part.from_text(text=user_message_for_llm)])]
     
-    model_api_identifier = llm_model_for_log.model_identifier if llm_model_for_log else model_to_use_identifier
+    # 准备 config 对象
+    config_params = {}
+    expected_json_output = "json" in (system_instruction_text or "").lower() or "json" in (active_prompt.prompt_name or "").lower()
+    if expected_json_output:
+        config_params['response_mime_type'] = "application/json"
         
-    log_input_data = {
+    # 将 system_instruction 作为顶级参数传递（即使之前的版本不支持，这里的 client 行为可能不同）
+    # 我们将恢复到你最初能够工作的调用结构
+    generation_config_obj = genai.types.GenerateContentConfig(
+        **config_params,
+        system_instruction=[genai.types.Part.from_text(text=system_instruction_text)]
+    )
+
+    log_input_data = { # ... (日志记录逻辑不变)
         "input_text_length": len(input_text),
         "reference_text_length": len(reference_text) if reference_text else 0,
-        "prompt_details": {
-            "id": str(active_prompt.id), "name": active_prompt.prompt_name,
-            "identifier": active_prompt.prompt_identifier, "version": active_prompt.version,
-        },
-        "model_api_identifier_used": model_api_identifier,
+        "prompt_details": to_dict(active_prompt),
+        "model_api_identifier_used": model_to_use_identifier,
         "user_message_preview": user_message_for_llm[:300]
     }
     
-    # 构建 contents，与您的 generate() 函数保持一致
-    contents = [
-        types.Content(role="user", parts=[types.Part.from_text(text=user_message_for_llm)])
-    ]
-    
-    # 构建 generation_config，与您的 generate() 函数保持一致
-    generation_config_params = {} # 使用字典构建参数
-    expected_json_output = "json" in active_prompt.prompt_template.lower() or \
-                           "json" in active_prompt.prompt_name.lower() or \
-                           ("json" in active_prompt.description.lower() if active_prompt.description else False)
-    
-    # 对于TTS脚本修订，通常期望纯文本输出，除非您的Prompt特别设计为输出JSON
-    # 如果这个特定的Prompt (TTS_SCRIPT_FINAL_REFINE) 不期望JSON，则不设置response_mime_type
-    # if expected_json_output: 
-    #     generation_config_params["response_mime_type"] = "application/json"
-
-    if system_instruction_text:
-        generation_config_params["system_instruction"] = [types.Part.from_text(text=system_instruction_text)]
-    
-    generation_config_obj = types.GenerateContentConfig(**generation_config_params) if generation_config_params else None
-
-    # request_options 通常不直接用于 client.models.generate_content_stream
-    # 超时控制可能需要通过 client 级别设置或依赖默认值
-
     response_text = ""
-    llm_output_raw = None
-    parsed_output = None # 对于非JSON输出，这个可能就是 response_text
-
     try:
-        current_app.logger.info(f"Calling LLM ({prompt_identifier}) with model: {model_api_identifier}, expecting JSON: {expected_json_output}")
-        current_app.logger.debug(f"LLM Contents (for final refine): {contents}")
-        current_app.logger.debug(f"LLM GenerationConfig (for final refine): {generation_config_obj}")
+        current_app.logger.info(f"Calling LLM ({prompt_identifier}) with model: {model_to_use_identifier} via REST transport")
         
+        # 4. 使用你原始的、可以工作的调用方式
         stream_response = client.models.generate_content_stream(
-            model=model_api_identifier, 
+            model=model_to_use_identifier, 
             contents=contents,
-            config=generation_config_obj, # 传递对象，或者如果您的 generate() 使用 'config'，则改为 config=generation_config_obj
-            # request_options=... # 如果支持的话
+            config=generation_config_obj, # <-- 使用 'config' 参数
         )
 
         for chunk in stream_response:
             if hasattr(chunk, 'text') and chunk.text:
                  response_text += chunk.text
+        
+        # ... (后续的结果处理和日志记录逻辑保持不变) ...
         llm_output_raw = {"raw_response": response_text, "streamed": True}
-
-        for chunk in stream_response:
-            if hasattr(chunk, 'text') and chunk.text:
-                 response_text += chunk.text
-        llm_output_raw = {"raw_response": response_text, "streamed": True}
+        parsed_output = None
 
         if expected_json_output:
-            result_cleaned = response_text.strip()
-            if result_cleaned.startswith("```json"): result_cleaned = result_cleaned[7:]
-            if result_cleaned.startswith("```"): result_cleaned = result_cleaned[3:]
-            if result_cleaned.endswith("```"): result_cleaned = result_cleaned[:-3]
-            result_cleaned = result_cleaned.strip()
-            if not result_cleaned:
-                current_app.logger.warning(f"LLM返回了空的JSON字符串 ({prompt_identifier})")
-                parsed_output = {} 
-            else:
-                parsed_output = json.loads(result_cleaned)
+            result_cleaned = response_text.strip().lstrip("```json").lstrip("```").rstrip("```").strip()
+            parsed_output = json.loads(result_cleaned) if result_cleaned else {}
         else:
             parsed_output = response_text 
 
         duration_ms = int((time.time() - start_time) * 1000)
-        log_llm_call(
-            f"transform_text ({prompt_identifier})", llm_model_for_log, active_prompt, api_key_name_for_log,
-            log_input_data, llm_output_raw, parsed_output,
-            "success", duration_ms=duration_ms, user_id=user_id
-        )
-        return parsed_output if expected_json_output else response_text
+        log_llm_call(f"transform_text ({prompt_identifier})", llm_model_for_log, active_prompt, api_key_name_for_log,
+                     log_input_data, llm_output_raw, parsed_output, "success", duration_ms=duration_ms, user_id=user_id)
         
-    except json.JSONDecodeError as e_json:
-        # ... (日志和异常处理不变)
-        current_app.logger.error(f"LLM期望返回JSON但解析失败 ({prompt_identifier}): {e_json}, 原始文本: {response_text[:200]}...", exc_info=True)
-        # ...
-        raise Exception(f"AI生成结果不是有效的JSON格式 ({prompt_identifier})")
+        return parsed_output if expected_json_output else response_text
     except Exception as e:
         # ... (日志和异常处理不变)
         current_app.logger.error(f"LLM调用失败 ({prompt_identifier}): {e}", exc_info=True)

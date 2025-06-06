@@ -1,68 +1,242 @@
 # backend/tasks.py
-from celery_worker import celery_app
-from flask import Flask, current_app # 导入 current_app
-from backend.models import db, TtsScript, TrainingContent, TtsSentence, TtsAudio, MergedAudioSegment
-import sqlalchemy as sa # <--- 添加这一行
-from sqlalchemy import or_, func # 也可以只导入 or_，但如果后面还用到 sa.func 等，还是导入整个 sqlalchemy 好
-
-# from backend.api.ai_generate import transform_text_with_llm # 如果其他任务需要
-from gradio_client import Client as GradioClient, file as gradio_file # 确保导入 file
-
 import logging
 import os
+import uuid
 from datetime import datetime
 import requests
-import json
-import uuid # 导入 uuid
-
-from pydub import AudioSegment # For audio manipulation
+from pydub import AudioSegment
 from pydub.exceptions import CouldntDecodeError
-import shutil # For safely cleaning up temporary files if any
 
+from celery_worker import celery_app
+from flask import current_app
+from sqlalchemy import or_, func
 
-# 为了在 Celery 任务中使用 Flask 应用上下文（例如数据库会话、current_app.config）
-# 我们需要一种方式来访问或创建 Flask app 实例。
-# 如果你的 Flask app 是通过工厂函数创建的，可以在这里导入工厂并创建实例。
-# 或者，如果你的 app 实例是全局可导入的（不推荐用于大型应用），可以直接导入。
-# 这里我们假设有一个可以创建或获取 app 实例的方式。
+from backend.extensions import db
+from backend.models import TrainingContent, TtsScript, TtsSentence, TtsAudio, MergedAudioSegment, UserProfile, Exam
 
-# 简单的 Flask app 创建函数，用于任务上下文
-# 这只是一个示例，您需要根据您的项目结构调整
-def create_flask_app_for_task():
-    from backend.app import app as flask_app_instance # 尝试直接导入已创建的 app 实例
-    # 或者如果使用工厂模式:
-    # from backend.app import create_app
-    # flask_app_instance = create_app()
-    return flask_app_instance
+# 导入需要异步执行的LLM函数和TTS相关的外部客户端
+from backend.api.ai_generate import (
+    transform_text_with_llm
+)
+from gradio_client import Client as GradioClient
 
 logger = logging.getLogger(__name__)
 
-def _save_merged_audio_file(audio_segment_obj, training_content_id_str, version_number):
-    """Saves a Pydub AudioSegment object for a merged audio."""
+# --- 辅助函数：创建Flask应用上下文 ---
+def create_flask_app_for_task():
+    from backend.app import app as flask_app_instance
+    return flask_app_instance
+
+# ==============================================================================
+# SECTION 1: 通用异步LLM任务处理器
+# (用于处理文本生成、总结等无复杂I/O的LLM调用)
+# ==============================================================================
+
+# 1.1: 注册可被异步调用的LLM函数
+LLM_FUNCTION_REGISTRY = {
+    'transform_text_with_llm': transform_text_with_llm
+}
+
+# 1.2: 注册异步任务成功后的回调函数
+def _handle_oral_script_result(result, context):
+    """处理“生成口播稿”任务的结果。"""
+    training_content_id = context.get('training_content_id')
+    source_script_id = context.get('source_script_id')
+    
+    if not training_content_id or not source_script_id:
+        raise ValueError("缺少 training_content_id 或 source_script_id 上下文信息")
+
+    content = TrainingContent.query.get(training_content_id)
+    if not content:
+        raise ValueError(f"TrainingContent with id {training_content_id} not found.")
+
+    latest_oral_script = TtsScript.query.filter_by(
+        training_content_id=training_content_id,
+        script_type='oral_script'
+    ).order_by(TtsScript.version.desc()).first()
+    new_version = (latest_oral_script.version + 1) if latest_oral_script else 1
+
+    new_script = TtsScript(
+        training_content_id=training_content_id,
+        script_type='oral_script',
+        content=result,
+        version=new_version,
+        source_script_id=source_script_id
+    )
+    db.session.add(new_script)
+    content.status = 'pending_tts_refine'
+    logger.info(f"口播稿已生成并保存，内容 {training_content_id} 状态更新为 pending_tts_refine。")
+
+def _handle_employee_summary_result(result, context):
+    """处理“员工总结”任务的结果。"""
+    user_id = context.get('user_id')
+    if not user_id:
+        raise ValueError("缺少 user_id 上下文信息")
+
+    profile = UserProfile.query.get(user_id)
+    if profile:
+        profile.profile_data = result
+    else:
+        profile = UserProfile(user_id=user_id, profile_data=result)
+        db.session.add(profile)
+    logger.info(f"AI生成的员工总结已为用户 {user_id} 保存/更新。")
+
+def _handle_kp_summary_result(result, context):
+    """处理“知识点总结”任务的结果。"""
+    exam_take_id = context.get('exam_take_id')
+    total_score = context.get('total_score') # 从上下文中获取总分
+    if not exam_take_id:
+        raise ValueError("缺少 exam_take_id 上下文信息")
+
+    exam_record = Exam.query.get(exam_take_id)
+    if not exam_record:
+        raise ValueError(f"Exam record with id {exam_take_id} not found.")
+        
+    exam_record.knowledge_point_summary = result
+    if total_score is not None:
+        exam_record.total_score = total_score # 同时更新总分
+    logger.info(f"AI生成的知识点总结已为考试记录 {exam_take_id} 保存。")
+
+def _handle_final_refine_result(result, context):
+    """处理 LLM 最终修订任务的结果。"""
+    training_content_id = context.get('training_content_id')
+    source_script_id = context.get('source_script_id')
+
+    if not training_content_id or not source_script_id:
+        raise ValueError("缺少 handle_final_refine_result 的上下文信息")
+
+    content = TrainingContent.query.get(training_content_id)
+    if not content:
+        raise ValueError(f"TrainingContent {training_content_id} not found.")
+
+    final_content_str = ""
+    if isinstance(result, dict) and 'revised_text' in result:
+        final_content_str = result['revised_text']
+    elif isinstance(result, str):
+        final_content_str = result
+    else:
+        # 如果格式不符合预期，也记录下来，但不要让任务崩溃
+        logger.warning(f"LLM最终修订返回了非预期的格式: {type(result)}")
+        final_content_str = str(result) # 尽力保存为字符串
+
+    if not final_content_str.strip():
+        logger.warning(f"LLM最终修订脚本为空 for content {training_content_id}")
+        content.status = 'error_llm_final_refine' # 标记一个特定的错误状态
+        return # 不创建空脚本，直接返回
+
+    latest_final_script = TtsScript.query.filter_by(
+        training_content_id=training_content_id,
+        script_type='final_tts_script'
+    ).order_by(TtsScript.version.desc()).first()
+    new_version = (latest_final_script.version + 1) if latest_final_script else 1
+
+    new_script = TtsScript(
+        training_content_id=training_content_id,
+        script_type='final_tts_script',
+        content=final_content_str,
+        version=new_version,
+        source_script_id=source_script_id
+    )
+    db.session.add(new_script)
+    content.status = 'pending_sentence_split'
+    logger.info(f"最终TTS脚本已生成 (ID: {new_script.id})，内容 {training_content_id} 状态更新为 pending_sentence_split。")
+
+CALLBACK_REGISTRY = {
+    'handle_oral_script': _handle_oral_script_result,
+    'handle_employee_summary': _handle_employee_summary_result,
+    'handle_kp_summary': _handle_kp_summary_result,
+    'handle_final_refine': _handle_final_refine_result,
+}
+
+# 1.3: 通用LLM任务执行器
+@celery_app.task(bind=True, name='tasks.run_llm_function_async', max_retries=2, default_retry_delay=60)
+def run_llm_function_async(self, llm_function_identifier, callback_identifier, context, *args, **kwargs):
+    app = create_flask_app_for_task()
+    with app.app_context():
+        llm_function = LLM_FUNCTION_REGISTRY.get(llm_function_identifier)
+        callback_function = CALLBACK_REGISTRY.get(callback_identifier)
+
+        if not llm_function or not callback_function:
+            error_msg = f"未找到标识符为 '{llm_function_identifier}' 或 '{callback_identifier}' 的注册函数。"
+            logger.error(error_msg)
+            self.update_state(state='FAILURE', meta={'error': error_msg})
+            return {'status': 'Error', 'message': error_msg}
+
+        try:
+            logger.info(f"任务 {self.request.id}: 开始执行 LLM 函数 '{llm_function_identifier}'...")
+            self.update_state(state='PROGRESS', meta={'message': f'正在调用LLM ({llm_function_identifier})...', 'context': context})
+
+            llm_result = llm_function(*args, **kwargs)
+            logger.info(f"任务 {self.request.id}: LLM 函数 '{llm_function_identifier}' 执行成功。")
+            self.update_state(state='PROGRESS', meta={'message': 'LLM调用成功，正在处理结果...', 'context': context})
+
+            callback_function(llm_result, context)
+            
+            db.session.commit()
+            logger.info(f"任务 {self.request.id}: 回调 '{callback_identifier}' 执行完毕，数据已提交。")
+            return {'status': 'Success', 'message': '任务成功完成', 'result_preview':llm_result}
+            # return {'status': 'Success', 'message': '任务成功完成', 'result_preview': str(llm_result)[:100] + '...'}
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"任务 {self.request.id} 在执行 '{llm_function_identifier}' 或回调 '{callback_identifier}' 时失败: {e}", exc_info=True)
+            try:
+                # 触发Celery的重试机制
+                self.retry(exc=e)
+            except self.MaxRetriesExceededError:
+                logger.error(f"任务 {self.request.id} 已达到最大重试次数，不再重试。")
+                # 可在此处添加最终失败处理逻辑，例如更新数据库状态
+            raise e
+
+# ==============================================================================
+# SECTION 2: 专用的TTS和文件处理异步任务
+# (这些任务涉及复杂I/O和多步骤流程，保留专用任务更清晰)
+# ==============================================================================
+
+# 2.1: TTS相关辅助函数 (从您原有的tasks.py中保留)
+def _save_audio_file(audio_binary_content, training_content_id_str, sentence_id_str, version):
     app = create_flask_app_for_task()
     with app.app_context():
         storage_base_path = app.config.get('TTS_AUDIO_STORAGE_PATH', os.path.join(app.root_path, 'static', 'tts_audio'))
-        # Merged files go into the training_content_id directory directly
+        relative_dir = os.path.join(str(training_content_id_str), str(sentence_id_str))
+        full_dir_path = os.path.join(storage_base_path, relative_dir)
+        os.makedirs(full_dir_path, exist_ok=True)
+        
+        timestamp_str = datetime.now().strftime("%Y%m%d%H%M%S%f")
+        file_name = f"sentence_v{version}_{timestamp_str}.wav"
+        full_file_path = os.path.join(full_dir_path, file_name)
+        relative_file_path = os.path.join(relative_dir, file_name)
+
+        try:
+            with open(full_file_path, 'wb') as f:
+                f.write(audio_binary_content)
+            logger.info(f"音频文件已保存到: {full_file_path}")
+            return relative_file_path, os.path.getsize(full_file_path)
+        except Exception as e:
+            logger.error(f"保存音频文件失败 {full_file_path}: {e}", exc_info=True)
+            raise
+
+def _save_merged_audio_file(audio_segment_obj, training_content_id_str, version_number):
+    app = create_flask_app_for_task()
+    with app.app_context():
+        storage_base_path = app.config.get('TTS_AUDIO_STORAGE_PATH', os.path.join(app.root_path, 'static', 'tts_audio'))
         relative_dir = str(training_content_id_str)
         full_dir_path = os.path.join(storage_base_path, relative_dir)
         os.makedirs(full_dir_path, exist_ok=True)
         
         timestamp_str = datetime.now().strftime("%Y%m%d%H%M%S%f")
-        file_name = f"merged_audio_v{version_number}_{timestamp_str}.mp3" # Saving as MP3 for potentially smaller size
+        file_name = f"merged_audio_v{version_number}_{timestamp_str}.mp3"
         full_file_path = os.path.join(full_dir_path, file_name)
         relative_file_path = os.path.join(relative_dir, file_name)
 
         try:
-            # Export as MP3. You can choose .wav if preferred, but MP3 is often better for web.
-            # Ensure ffmpeg is installed and in PATH for pydub to export non-wav formats.
             audio_segment_obj.export(full_file_path, format="mp3")
-            logger.info(f"Merged audio file saved to: {full_file_path} (relative: {relative_file_path})")
+            logger.info(f"合并的音频文件已保存: {full_file_path}")
             return relative_file_path, os.path.getsize(full_file_path)
         except Exception as e:
-            logger.error(f"Saving merged audio file failed {full_file_path}: {e}", exc_info=True)
+            logger.error(f"保存合并的音频文件失败 {full_file_path}: {e}", exc_info=True)
             raise
 
-
+# 2.2: 你的专用TTS任务 (保留并确保它们能正确运行)
 def _create_new_script_version_task(source_script_id, training_content_id, new_script_type, new_content, llm_log_id=None):
     # 这个函数与 tts_api.py 中的类似，但它在 Celery 任务中运行，需要自己的数据库会话管理
     # 注意：Celery 任务中不能直接依赖 Flask 的请求上下文 (request, g)
@@ -91,33 +265,23 @@ def _create_new_script_version_task(source_script_id, training_content_id, new_s
         # db.session.commit() # 通常在任务成功完成后提交
         return new_script # 返回创建的对象，但不立即提交
 
-
-@celery_app.task(bind=True, name='tasks.trigger_tts_refine_async') # bind=True 可以让任务访问 self (任务实例)
+@celery_app.task(bind=True, name='tasks.trigger_tts_refine_async')
 def trigger_tts_refine_async(self, oral_script_id_str):
-    app = create_flask_app_for_task() # 为任务创建 Flask 应用上下文
+    app = create_flask_app_for_task()
     with app.app_context():
         oral_script = TtsScript.query.get(oral_script_id_str)
         if not oral_script or oral_script.script_type != 'oral_script':
-            logger.error(f"TTS Refine Task: 无效的口播脚本ID {oral_script_id_str} 或类型不匹配")
-            self.update_state(state='FAILURE', meta={'exc_type': 'ValueError', 'exc_message': '无效的脚本ID'})
-            # 可以考虑更新数据库中 TrainingContent 的状态为 error
+            # ... (错误处理)
             return {'status': 'Error', 'message': '无效的脚本ID'}
 
         training_content = oral_script.training_content
         if not training_content:
-            logger.error(f"TTS Refine Task: 找不到关联的培训内容 for script {oral_script_id_str}")
-            self.update_state(state='FAILURE', meta={'exc_type': 'ValueError', 'exc_message': '找不到关联内容'})
+            # ... (错误处理)
             return {'status': 'Error', 'message': '找不到关联内容'}
         
         try:
-            # 更新状态为处理中，如果需要的话
-            # training_content.status = 'processing_tts_refine_async'
-            # db.session.commit()
-
             tts_service_base_url = app.config.get('TTS_SERVICE_BASE_URL', "http://test.mengyimengsao.com:37860/")
             gradio_tts_client = GradioClient(tts_service_base_url)
-            
-            logger.info(f"TTS Refine Task: 向 Gradio TTS 服务 API '/generate_refine' 发送请求 for script {oral_script_id_str}")
             
             job = gradio_tts_client.predict(
                 text_file=oral_script.content, oral=2, laugh=0, bk=4,
@@ -130,57 +294,37 @@ def trigger_tts_refine_async(self, oral_script_id_str):
             elif isinstance(job, str): refined_content = job
             else: raise Exception("Gradio TTS API 返回格式未知")
 
+
             if not isinstance(refined_content, str) or not refined_content.strip():
                 raise Exception("Gradio TTS API 未返回有效的文本结果或结果为空")
 
-            logger.info(f"TTS Refine Task: Gradio TTS API 响应成功 for script {oral_script_id_str}")
-
-            new_refined_script = _create_new_script_version_task(
-                source_script_id=oral_script.id,
+            latest_refined = TtsScript.query.filter_by(
                 training_content_id=training_content.id,
-                new_script_type='tts_refined_script',
-                new_content=refined_content
-            )
-            training_content.status = 'pending_llm_final_refine'
-            db.session.add(new_refined_script) # 添加到会话
-            db.session.commit() # 提交数据库更改
+                script_type='tts_refined_script'
+            ).order_by(TtsScript.version.desc()).first()
+            new_version = (latest_refined.version + 1) if latest_refined else 1
 
-            logger.info(f"TTS Refine Task: TTS Refine脚本 (ID: {new_refined_script.id}) 已为口播脚本 {oral_script_id_str} 生成。")
+            new_refined_script = TtsScript(
+                training_content_id=training_content.id,
+                script_type='tts_refined_script',
+                content=refined_content,
+                version=new_version,
+                source_script_id=oral_script.id
+            )
+
+            training_content.status = 'pending_llm_final_refine'
+            db.session.add(new_refined_script)
+            db.session.commit()
+
+            logger.info(f"TTS Refine脚本已生成 (ID: {new_refined_script.id})")
             return {'status': 'Success', 'new_script_id': str(new_refined_script.id)}
 
-        # ++++++ 修改异常捕获 ++++++
-        except Exception as e: # 捕获更通用的 Exception
-            logger.error(f"TTS Refine Task: Exception for script {oral_script_id_str}: {e}", exc_info=True)
-            # 可以尝试检查 e 的类型或内容来判断是否是 Gradio 特有的错误，但通常 Exception 足够
-            # if "gradio" in str(e).lower() or isinstance(e, ...): # 如果需要更精确的判断
-            
+        except Exception as e:
+            logger.error(f"TTS Refine Task 失败 for script {oral_script_id_str}: {e}", exc_info=True)
             training_content.status = 'error_tts_refine'
             db.session.commit()
             self.update_state(state='FAILURE', meta={'exc_type': type(e).__name__, 'exc_message': str(e)})
-            return {'status': 'Error', 'message': 'TTS Refine脚本处理时发生服务器错误: ' + str(e)}
-        # ++++++++++++++++++++++++++
-def _save_audio_file(audio_binary_content, training_content_id_str, sentence_id_str, version): # 参数改为字符串
-    app = create_flask_app_for_task()
-    with app.app_context():
-        storage_base_path = app.config.get('TTS_AUDIO_STORAGE_PATH', os.path.join(app.root_path, 'static', 'tts_audio'))
-        # 确保 training_content_id 和 sentence_id 是字符串，以便用于路径拼接
-        relative_dir = os.path.join(str(training_content_id_str), str(sentence_id_str))
-        full_dir_path = os.path.join(storage_base_path, relative_dir)
-        os.makedirs(full_dir_path, exist_ok=True)
-        
-        timestamp_str = datetime.now().strftime("%Y%m%d%H%M%S%f") # 现在 datetime 已定义
-        file_name = f"sentence_v{version}_{timestamp_str}.wav"
-        full_file_path = os.path.join(full_dir_path, file_name)
-        relative_file_path = os.path.join(relative_dir, file_name)
-
-        try:
-            with open(full_file_path, 'wb') as f:
-                f.write(audio_binary_content)
-            logger.info(f"音频文件已保存到: {full_file_path} (相对路径: {relative_file_path})")
-            return relative_file_path, os.path.getsize(full_file_path)
-        except Exception as e:
-            logger.error(f"保存音频文件失败 {full_file_path}: {e}", exc_info=True)
-            raise
+            return {'status': 'Error', 'message': str(e)}
 
 @celery_app.task(bind=True, name='tasks.generate_single_sentence_audio_async', max_retries=2)
 def generate_single_sentence_audio_async(self, sentence_id_str, pt_file_path_relative=None, tts_engine_params=None):

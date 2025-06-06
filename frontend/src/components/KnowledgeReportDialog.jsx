@@ -22,39 +22,60 @@ const KnowledgeReportDialog = ({ open, onClose, examId, isPublic }) => {
   const knowledge_point_summary_array = null;
 
   useEffect(() => {
-    const fetchKnowledgeReport = async () => {
-      // console.log("examId:",examId);
-      // console.log("open:",open);
-      if (!examId || !open) return;
+  const fetchKnowledgeReport = async () => {
+    if (!examId || !open) return;
+    
+    setLoading(true);
+    setError(null);
+    setKnowledgeReport(null); // 每次打开时重置
+
+    try {
+      const response = await api.get(`/user-exams/knowledge-point-summary/${examId}${isPublic ? '?public=true' : ''}`);
       
-      let knowledge_point_summary_array = null; // 在try...catch外部声明
-      try {
-        setLoading(true);
-        setError(null);
+      const responseData = response.data;
+      if (responseData && responseData.length > 0 && responseData[0].knowledge_point_summary) {
+        let summaryData = responseData[0].knowledge_point_summary;
+
+        // <<<--- 核心修正：健壮地处理数据 ---<<<
+        if (typeof summaryData === 'string') {
+          // 如果是字符串，尝试解析它。这处理了第一种错误情况。
+          try {
+            summaryData = JSON.parse(summaryData);
+            // 再次检查，如果解析后还是字符串，说明是双重编码
+            if (typeof summaryData === 'string') {
+                summaryData = JSON.parse(summaryData);
+            }
+          } catch (e) {
+            console.error("解析 knowledge_point_summary 字符串失败:", e);
+            throw new Error("报告数据格式损坏，无法解析。");
+          }
+        }
         
-        const response = await api.get(`/user-exams/knowledge-point-summary/${examId}${isPublic ? '?public=true' : ''}`);
-        // console.log("开始====2")  
-        try {
-                knowledge_point_summary_array = JSON.parse(response.data[0].knowledge_point_summary);
-            } catch (error) {
-                console.error("解析 JSON 失败:", error);
-            }
-        if (knowledge_point_summary_array){ //确保成功解析JSON后，再赋值
-                setKnowledgeReport(knowledge_point_summary_array);
-            } else{
-                setKnowledgeReport([]); //如果解析JSON失败，则设置为空数组
-            }
+        // 现在，summaryData 应该是一个对象或数组了
+        if (Array.isArray(summaryData)) {
+          setKnowledgeReport(summaryData);
+        } else if (summaryData && Array.isArray(summaryData.knowledge_points)) {
+          // 如果是对象，我们提取其中的数组
+          setKnowledgeReport(summaryData.knowledge_points);
+        } else {
+          throw new Error("报告数据结构不符合预期。");
+        }
+        // --- 修正结束 ---
 
-      } catch (error) {
-        console.error('获取知识点报告失败', error);
-        setError(error.response?.data?.error || '获取知识点报告失败');
-      } finally {
-        setLoading(false);
+      } else {
+        // 如果后端没有返回总结，可以显示一个提示
+        setError("暂无知识点分析报告。");
       }
-    };
+    } catch (err) {
+      console.error('获取知识点报告失败', err);
+      setError(err.response?.data?.error || '获取知识点报告失败');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    fetchKnowledgeReport();
-  }, [examId, open]);
+  fetchKnowledgeReport();
+}, [examId, open, isPublic]);
 
   // 在弹窗关闭时清空 knowledgeReport
   useEffect(() => {

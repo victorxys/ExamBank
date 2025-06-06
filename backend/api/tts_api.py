@@ -16,6 +16,7 @@ from celery_worker import celery_app as celery_app_instance
 from backend.tasks import generate_single_sentence_audio_async # 导入新的Celery任务
 from backend.tasks import batch_generate_audio_task # <--- 新增导入
 from backend.tasks import merge_all_audios_for_content # Import the new task
+from backend.tasks import run_llm_function_async # 导入新的Celery任务
 
 # from backend.tasks import generate_merged_audio_async # 导入新的Celery任务``
 from backend.tasks import trigger_tts_refine_async # 导入新的Celery任务
@@ -604,26 +605,17 @@ def generate_oral_script_route(content_id):
     if not content:
         return jsonify({'error': '培训内容未找到'}), 404
     
-    prompt_identifier_oral = "TRAINING_TO_ORAL_SCRIPT" # 假设这是您在 LlmPrompt 表中配置的标识符
-    # 也可以从 content.llm_oral_prompt_id 获取，如果前端允许用户选择
-    if content.llm_oral_prompt_id:
-        prompt_obj = LlmPrompt.query.get(str(content.llm_oral_prompt_id))
-        if prompt_obj:
-            prompt_identifier_oral = prompt_obj.prompt_identifier
-            current_app.logger.info(f"使用用户为内容 {content_id} 指定的口语化Prompt: {prompt_obj.prompt_name} ({prompt_identifier_oral})")
-        else:
-            current_app.logger.warning(f"内容 {content_id} 指定的口语化Prompt ID {content.llm_oral_prompt_id} 无效, 将使用默认Prompt: {prompt_identifier_oral}")
-    else:
-        current_app.logger.info(f"内容 {content_id} 未指定口语化Prompt, 使用默认Prompt: {prompt_identifier_oral}")
-
+    prompt_identifier_oral = "TRAINING_TO_ORAL_SCRIPT"
+    if content.llm_oral_prompt:
+        prompt_identifier_oral = content.llm_oral_prompt.prompt_identifier
+        current_app.logger.info(f"使用用户为内容 {content_id} 指定的口语化Prompt: {content.llm_oral_prompt.prompt_name}")
 
     try:
-        # 确保有一个 original_text 类型的脚本作为源
+        # 确保有原始脚本记录
         original_text_script = TtsScript.query.filter_by(
             training_content_id=content.id,
             script_type='original_text'
-        ).first() # 通常只有一个原始版本，或者取最新的
-
+        ).first()
         if not original_text_script:
             original_text_script = TtsScript(
                 training_content_id=content.id,
@@ -632,48 +624,40 @@ def generate_oral_script_route(content_id):
                 version=1
             )
             db.session.add(original_text_script)
-            db.session.flush() # 获取ID
+            db.session.flush()
 
-        oral_script_content = transform_text_with_llm(
+        # 更新状态为“正在处理中”
+        content.status = 'processing_oral_script'
+        db.session.commit()
+        
+        # 触发异步任务
+        task = run_llm_function_async.delay(
+            llm_function_identifier='transform_text_with_llm',
+            callback_identifier='handle_oral_script',
+            context={
+                'training_content_id': str(content.id),
+                'source_script_id': str(original_text_script.id),
+                'user_id': str(current_user_uuid) if current_user_uuid else None
+            },
+            # --- 以下是 transform_text_with_llm 的参数 ---
             input_text=content.original_content,
             prompt_identifier=prompt_identifier_oral,
             user_id=current_user_uuid
         )
         
-        # LLM 调用成功后，transform_text_with_llm 内部已记录日志
-        # 我们需要获取该日志的ID来关联到 TtsScript
-        # 假设 log_llm_call 返回了 log_id，或者我们需要查询最新的一个相关日志
-        # 为简化，暂时不直接关联llm_call_log_id，但实际应该关联
-        
-        new_oral_script = _create_new_script_version(
-            source_script_id=original_text_script.id,
-            training_content_id=content.id,
-            new_script_type='oral_script',
-            new_content=oral_script_content
-            # llm_log_id=retrieved_llm_log_id 
-        )
-        
-        content.status = 'pending_tts_refine'
-        db.session.commit()
-        
-        current_app.logger.info(f"口播脚本 (ID: {new_oral_script.id}) 已为内容 {content_id} 生成。")
+        current_app.logger.info(f"口播稿生成任务已提交 (Task ID: {task.id}) for content {content_id}")
         return jsonify({
-            'message': '口播脚本已成功生成。',
-            'oral_script_id': str(new_oral_script.id),
-            'next_step': 'TTS Refine'
-        }), 201
+            'message': '口播稿生成任务已成功提交处理。',
+            'task_id': task.id,
+            'status': 'processing_oral_script'
+        }), 202
 
     except Exception as e:
         db.session.rollback()
-        current_app.logger.error(f"生成口播脚本失败 for content {content_id}: {e}", exc_info=True)
-        # 确保错误信息是字符串
-        error_message_str = str(e)
-        if hasattr(e, 'response') and hasattr(e.response, 'data') and 'error' in e.response.data:
-            error_message_str = e.response.data['error']
-        elif hasattr(e, 'message'):
-             error_message_str = e.message
-
-        return jsonify({'error': '生成口播脚本时发生错误: ' + error_message_str}), 500
+        current_app.logger.error(f"提交口播稿生成任务失败 for content {content_id}: {e}", exc_info=True)
+        content.status = 'error_submitting_oral_script'
+        db.session.commit()
+        return jsonify({'error': '提交任务时发生服务器错误: ' + str(e)}), 500
 
 # 异步处理
 @tts_bp.route('/scripts/<uuid:oral_script_id>/tts-refine', methods=['POST'])
@@ -722,92 +706,53 @@ def llm_refine_script_route(refined_script_id):
     
     training_content = tts_refined_script.training_content
     if not training_content:
-         return jsonify({'error': '找不到关联的培训内容'}), 404
+        return jsonify({'error': '找不到关联的培训内容'}), 404
          
-    # +++++ 获取作为参考的 oral_script +++++
-    # 假设 oral_script 是 tts_refined_script 的直接源头
-    # 或者，如果 oral_script 总是 training_content 下最新的 oral_script
-    source_oral_script = None
-    if tts_refined_script.source_script_id:
-        temp_source = TtsScript.query.get(str(tts_refined_script.source_script_id))
-        if temp_source and temp_source.script_type == 'oral_script':
-            source_oral_script = temp_source
-    
+    source_oral_script = TtsScript.query.filter_by(
+        training_content_id=training_content.id,
+        script_type='oral_script'
+    ).order_by(TtsScript.version.desc()).first()
     if not source_oral_script:
-        # 如果 tts_refined_script 没有直接的 oral_script 源，
-        # 尝试从 training_content 查找最新的 oral_script
-        source_oral_script = TtsScript.query.filter_by(
-            training_content_id=training_content.id,
-            script_type='oral_script'
-        ).order_by(TtsScript.version.desc()).first()
-
-    if not source_oral_script:
-        current_app.logger.error(f"LLM最终修订失败：找不到有效的 oral_script 作为参考 for tts_refined_script {refined_script_id}")
         return jsonify({'error': '找不到用于参考的口播脚本 (oral_script)'}), 400
     
-    oral_script_content_for_reference = source_oral_script.content
-    # ++++++++++++++++++++++++++++++++++++++
-         
     prompt_identifier_final_refine = "TTS_SCRIPT_FINAL_REFINE" 
-    if training_content.llm_refine_prompt_id:
-        prompt_obj = LlmPrompt.query.get(str(training_content.llm_refine_prompt_id))
-        if prompt_obj:
-            prompt_identifier_final_refine = prompt_obj.prompt_identifier
-            current_app.logger.info(f"使用用户为内容 {training_content.id} 指定的LLM最终修订Prompt: {prompt_obj.prompt_name} ({prompt_identifier_final_refine})")
-        else:
-            current_app.logger.warning(f"内容 {training_content.id} 指定的LLM最终修订Prompt ID {training_content.llm_refine_prompt_id} 无效, 将使用默认Prompt: {prompt_identifier_final_refine}")
-    else:
-         current_app.logger.info(f"内容 {training_content.id} 未指定LLM最终修订Prompt, 使用默认Prompt: {prompt_identifier_final_refine}")
+    if training_content.llm_refine_prompt:
+        prompt_identifier_final_refine = training_content.llm_refine_prompt.prompt_identifier
+        current_app.logger.info(f"使用用户为内容 {training_content.id} 指定的LLM最终修订Prompt: {training_content.llm_refine_prompt.prompt_name}")
 
     try:
-        final_tts_script_content_or_obj = transform_text_with_llm( # 注意这里接收的可能是对象或字符串
+        training_content.status = 'processing_llm_final_refine'
+        db.session.commit()
+
+        # 触发异步任务
+        task = run_llm_function_async.delay(
+            llm_function_identifier='transform_text_with_llm',
+            callback_identifier='handle_final_refine',
+            context={
+                'training_content_id': str(training_content.id),
+                'source_script_id': str(tts_refined_script.id),
+                'user_id': str(current_user_uuid) if current_user_uuid else None
+            },
+            # --- 以下是 transform_text_with_llm 的参数 ---
             input_text=tts_refined_script.content,
             prompt_identifier=prompt_identifier_final_refine,
-            reference_text=oral_script_content_for_reference, # <--- 传递参考文本
+            reference_text=source_oral_script.content,
             user_id=current_user_uuid
         )
         
-        final_content_str = ""
-        if isinstance(final_tts_script_content_or_obj, dict) and 'revised_text' in final_tts_script_content_or_obj:
-            # 如果 LLM 配置为返回包含修订文本的JSON对象
-            final_content_str = final_tts_script_content_or_obj['revised_text']
-        elif isinstance(final_tts_script_content_or_obj, str):
-            final_content_str = final_tts_script_content_or_obj
-        else:
-            current_app.logger.error(f"LLM最终修订返回了非预期的格式: {type(final_tts_script_content_or_obj)}")
-            raise Exception("LLM最终修订返回格式不正确")
-
-        if not final_content_str.strip():
-            current_app.logger.warning(f"LLM最终修订脚本为空 for tts_refined_script {refined_script_id}")
-            # 可以选择是报错还是创建一个空的final script
-            # raise Exception("LLM最终修订脚本内容为空")
-
-        new_final_script = _create_new_script_version(
-            source_script_id=tts_refined_script.id,
-            training_content_id=training_content.id,
-            new_script_type='final_tts_script',
-            new_content=final_content_str 
-        )
-        
-        training_content.status = 'pending_sentence_split'
-        db.session.commit()
-
-        current_app.logger.info(f"最终TTS脚本 (ID: {new_final_script.id}) 已为TTS Refine脚本 {refined_script_id} 生成。")
+        current_app.logger.info(f"LLM最终修订任务已提交 (Task ID: {task.id}) for script {refined_script_id}")
         return jsonify({
-            'message': 'LLM最终修订脚本已成功生成。',
-            'final_tts_script_id': str(new_final_script.id),
-            'next_step': 'Split Sentences'
-        }), 201
+            'message': 'LLM最终修订任务已成功提交处理。',
+            'task_id': task.id,
+            'status': 'processing_llm_final_refine'
+        }), 202
 
     except Exception as e:
         db.session.rollback()
-        current_app.logger.error(f"LLM最终修订脚本失败 for tts_refined_script {refined_script_id}: {e}", exc_info=True)
-        error_message_str = str(e)
-        if hasattr(e, 'response') and hasattr(e.response, 'data') and 'error' in e.response.data:
-            error_message_str = e.response.data['error']
-        elif hasattr(e, 'message'):
-             error_message_str = e.message
-        return jsonify({'error': 'LLM最终修订脚本时发生错误: ' + error_message_str}), 500
+        current_app.logger.error(f"提交LLM最终修订任务失败 for script {refined_script_id}: {e}", exc_info=True)
+        training_content.status = 'error_submitting_llm_refine'
+        db.session.commit()
+        return jsonify({'error': '提交任务时发生服务器错误: ' + str(e)}), 500
 
 
 # backend/api/tts_api.py -> split_script_into_sentences_route

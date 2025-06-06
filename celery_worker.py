@@ -16,6 +16,10 @@ else:
     if os.path.exists(backend_dotenv_path):
         load_dotenv(dotenv_path=backend_dotenv_path)
         print(f"Celery App (root): Loaded .env file from: {backend_dotenv_path}")
+        # 打印代理设置以供调试
+        print(f"Celery Worker: HTTP_PROXY is set to '{os.environ.get('HTTP_PROXY')}'")
+        print(f"Celery Worker: HTTPS_PROXY is set to '{os.environ.get('HTTPS_PROXY')}'")
+        
     else:
         print(f"Warning: .env file not found for Celery app at root or backend/.env")
 
