@@ -1094,23 +1094,40 @@ def generate_sentence_audio_route(sentence_id):
         return jsonify({'error': '句子未找到'}), 404
 
     try:
-        # (可选) 获取前端可能传递的特定TTS引擎参数
-        # tts_engine_params = request.get_json() if request.is_json else {}
-        tts_engine_params = request.json or {} # 更简洁
+        # --- 确定 PT 文件路径 ---
+        # 方案1: 从请求中获取 (如果用户可以选择音色)
+        # request_data = request.json or {}
+        # pt_file_relative_path_from_request = request_data.get("pt_file")
 
-        # 更新句子状态为处理中
-        sentence.audio_status = 'processing_request' # 或 'queued'
+        # 方案2: 基于某些后端逻辑确定，或使用固定路径
+        # 例如，所有内容都使用同一个音色文件
+        # 注意：这个路径是相对于 Flask app.instance_path 的
+        default_pt_file_relative_path = "uploads/tts_pt/seed_1397_restored_emb.pt" 
+        
+        # 实际使用的 PT 文件路径 (这里简单使用默认值)
+        # 您可以根据需要实现更复杂的逻辑来选择 pt_file_relative_path
+        pt_file_to_use = default_pt_file_relative_path 
+        # -------------------------
+
+        tts_engine_params = request.json or {} # 其他 TTS 参数
+
+        sentence.audio_status = 'processing_request'
         db.session.commit()
 
-        # 调用异步任务
-        task = generate_single_sentence_audio_async.delay(str(sentence.id), tts_engine_params)
+        # 将 pt_file_to_use 传递给 Celery 任务
+        task = generate_single_sentence_audio_async.delay(
+            str(sentence.id), 
+            pt_file_path_relative=pt_file_to_use, # <--- 新增参数
+            tts_engine_params=tts_engine_params
+        )
         
-        current_app.logger.info(f"单句语音生成异步任务已启动 (Task ID: {task.id}) for sentence {sentence_id}")
+        current_app.logger.info(f"单句语音生成异步任务已启动 (Task ID: {task.id}) for sentence {sentence_id} using PT file: {pt_file_to_use}")
         return jsonify({
             'message': '单句语音生成任务已成功提交处理。',
             'task_id': task.id,
             'status_polling_url': f'/api/tts/task-status/{task.id}' 
         }), 202
+
 
     except Exception as e:
         db.session.rollback()
@@ -1153,6 +1170,11 @@ def batch_generate_audio_for_content_route(content_id):
         return jsonify({'message': '所有句子的语音都已生成或正在生成中。'}), 200
     
     try:
+        default_pt_file_relative_path = "uploads/tts_pt/seed_1397_restored_emb.pt" 
+        
+        # 实际使用的 PT 文件路径 (这里简单使用默认值)
+        # 您可以根据需要实现更复杂的逻辑来选择 pt_file_relative_path
+        pt_file_to_use = default_pt_file_relative_path 
         # 将所有符合条件的句子的状态更新为 'queued' 或 'processing_request'
         # 这样前端下次刷新时能看到这些句子正在排队或准备处理
         TtsSentence.query.filter(
@@ -1169,7 +1191,7 @@ def batch_generate_audio_for_content_route(content_id):
         content.status = 'audio_processing_queued' # 标记内容正在处理
         db.session.commit()
 
-        task = batch_generate_audio_task.delay(str(latest_final_script.id))
+        task = batch_generate_audio_task.delay(str(latest_final_script.id),pt_file_path_relative=pt_file_to_use)
         current_app.logger.info(f"批量语音生成任务已提交到 Celery，任务ID: {task.id}，处理脚本ID: {latest_final_script.id}")
         return jsonify({'message': '批量语音生成任务已成功提交，正在后台处理。', 'task_id': task.id, 'initial_status_set_to': 'processing_request'}), 202
     except Exception as e:
