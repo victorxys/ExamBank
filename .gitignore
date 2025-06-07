@@ -211,6 +211,6 @@ logs/nginx/nginx.pid
 backend/data/
 
 resource/
-backend/static/
+backend/static/tts_audio/
 
 testcase/

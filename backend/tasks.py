@@ -10,6 +10,7 @@ from pydub.exceptions import CouldntDecodeError
 from celery_worker import celery_app
 from flask import current_app
 from sqlalchemy import or_, func
+import sqlalchemy as sa
 
 from backend.extensions import db
 from backend.models import TrainingContent, TtsScript, TtsSentence, TtsAudio, MergedAudioSegment, UserProfile, Exam
@@ -353,39 +354,30 @@ def generate_single_sentence_audio_async(self, sentence_id_str, pt_file_path_rel
             default_params = {
                 "num_seeds": 1, "seed": 1029, "speed": 5, "oral": 2, "laugh": 0,
                 "bk": 4, "min_length": 80, "batch_size": 3, "temperature": 0.1,
-                "top_P": 0.7, "top_K": 20, "roleid": "1", "refine_text": True
+                "top_P": 0.7, "top_K": 20, "roleid": "1", "refine_text": True, "pt_file": None
             }
             
             actual_params = {**default_params, **(tts_engine_params or {})}
 
-            # --- 处理 pt_file_path ---
-            pt_file_to_send = None
+            # --- 核心修改：根据传入的参数构造文件对象 ---
             if pt_file_path_relative:
-                # 将相对路径（相对于项目实例路径）转换为绝对路径
-                # Flask 的 app.instance_path 通常指向项目根目录下的 'instance' 文件夹
-                # 如果您的 PT 文件在 项目根目录/instance/uploads/tts_pt/
-                # 那么 pt_file_path_relative 应该是 "uploads/tts_pt/seed_1397_restored_emb.pt"
-                absolute_pt_file_path = os.path.join(app.instance_path, pt_file_path_relative)
+                pt_folder = os.path.join(app.root_path, 'static', 'tts_pt')
+                absolute_pt_file_path = os.path.join(pt_folder, pt_file_path_relative)
                 
                 if os.path.exists(absolute_pt_file_path):
-                    logger.info(f"Using PT file: {absolute_pt_file_path}")
-                    # 对于 gradio_client，如果 pt_file 是文件路径，可以直接传递字符串
-                    # 或者使用 gradio_client.file() 包装，这在需要上传文件时更常见
-                    # pt_file_to_send = gradio_file(absolute_pt_file_path) 
-                    # pt_file_to_send = absolute_pt_file_path # 直接传递路径字符串
-                    pt_file_to_send = gradio_file(absolute_pt_file_path)
+                    logger.info(f"[SingleAudioTask] 使用指定的音色文件: {absolute_pt_file_path}")
+                    actual_params['pt_file'] = {
+                        "path": absolute_pt_file_path,
+                        "meta": {"_type": "gradio.FileData"}
+                    }
                 else:
-                    logger.warning(f"PT file not found at {absolute_pt_file_path}. Proceeding without custom PT file.")
+                    logger.warning(f"[SingleAudioTask] 指定的音色文件不存在: {absolute_pt_file_path}，将使用默认音色。")
             else:
-                logger.info("No custom PT file specified. Using default voice from TTS service.")
+                 logger.info(f"[SingleAudioTask] 未指定音色文件，使用默认音色。")
 
-            actual_params["pt_file"] = pt_file_to_send # 添加到参数字典
-            # -------------------------
-            
-            # predict 调用
             job_result = gradio_tts_client.predict(
-                text_file=sentence.sentence_text, # 这是需要转换为语音的文本
-                **actual_params, # 将其他参数解包传入
+                text_file=sentence.sentence_text,
+                **actual_params,
                 api_name="/generate_tts_audio"
             )
             
@@ -573,28 +565,22 @@ def batch_generate_audio_task(self, final_script_id_str, pt_file_path_relative):
             "top_P": 0.7, "top_K": 20, "roleid": "1", "refine_text": True, "pt_file": None
         }
 
-        # --- 处理 pt_file_path ---
-        pt_file_to_send = None
+        # --- 核心修改：根据传入的参数构造文件对象 ---
+        pt_file_to_use_obj = None
         if pt_file_path_relative:
-            # 将相对路径（相对于项目实例路径）转换为绝对路径
-            # Flask 的 app.instance_path 通常指向项目根目录下的 'instance' 文件夹
-            # 如果您的 PT 文件在 项目根目录/instance/uploads/tts_pt/
-            # 那么 pt_file_path_relative 应该是 "uploads/tts_pt/seed_1397_restored_emb.pt"
-            absolute_pt_file_path = os.path.join(app.instance_path, pt_file_path_relative)
-            
-            if os.path.exists(absolute_pt_file_path):
-                logger.info(f"Using PT file: {absolute_pt_file_path}")
-                # 对于 gradio_client，如果 pt_file 是文件路径，可以直接传递字符串
-                # 或者使用 gradio_client.file() 包装，这在需要上传文件时更常见
-                # pt_file_to_send = gradio_file(absolute_pt_file_path) 
-                # pt_file_to_send = absolute_pt_file_path # 直接传递路径字符串
-                pt_file_to_send = gradio_file(absolute_pt_file_path)
-            else:
-                logger.warning(f"PT file not found at {absolute_pt_file_path}. Proceeding without custom PT file.")
-        else:
-            logger.info("No custom PT file specified. Using default voice from TTS service.")
+            pt_folder = os.path.join(app.root_path, 'static', 'tts_pt')
+            absolute_pt_file_path = os.path.join(pt_folder, pt_file_path_relative)
 
-        default_tts_params["pt_file"] = pt_file_to_send # 添加到参数字典
+            if os.path.exists(absolute_pt_file_path):
+                logger.info(f"[BatchTask:{self.request.id}] 使用指定的音色文件: {absolute_pt_file_path}")
+                pt_file_to_use_obj = {
+                    "path": absolute_pt_file_path,
+                    "meta": {"_type": "gradio.FileData"}
+                }
+            else:
+                logger.warning(f"[BatchTask:{self.request.id}] 指定的音色文件不存在: {absolute_pt_file_path}，将使用默认音色。")
+        else:
+            logger.info(f"[BatchTask:{self.request.id}] 未指定音色文件，使用默认音色。")
         # -------------------------
         
 
@@ -608,6 +594,8 @@ def batch_generate_audio_task(self, final_script_id_str, pt_file_path_relative):
 
             try:
                 actual_params = {**default_tts_params} 
+                if pt_file_to_use_obj:
+                    actual_params['pt_file'] = pt_file_to_use_obj
                 job_result = gradio_tts_client.predict(
                     text_file=sentence.sentence_text,
                     **actual_params,

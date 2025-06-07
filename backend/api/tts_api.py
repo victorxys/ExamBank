@@ -1047,7 +1047,7 @@ def generate_sentence_audio_route(sentence_id):
         # 方案2: 基于某些后端逻辑确定，或使用固定路径
         # 例如，所有内容都使用同一个音色文件
         # 注意：这个路径是相对于 Flask app.instance_path 的
-        default_pt_file_relative_path = "uploads/tts_pt/seed_1397_restored_emb.pt" 
+        default_pt_file_relative_path = "seed_1397_restored_emb.pt" 
         
         # 实际使用的 PT 文件路径 (这里简单使用默认值)
         # 您可以根据需要实现更复杂的逻辑来选择 pt_file_relative_path
