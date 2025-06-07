@@ -680,19 +680,28 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
     try {
         let apiCall;
         let taskType = actionType; // 用于轮询分类
+        let successMessage = ''; // 将 successMessage 定义在 switch 外部
+
         switch (actionType) {
             case 'generateOralScript':
                 apiCall = ttsApi.generateOralScript(currentContentId);
+                successMessage = '口播稿生成任务已提交。';
                 break;
             case 'triggerTtsRefine':
                 if (!scriptIdForAction) throw new Error("需要口播稿ID来优化");
                 apiCall = ttsApi.triggerTtsRefine(scriptIdForAction);
+                successMessage = 'LLM最终修订任务已提交。';
                 break;
             case 'triggerLlmRefine':
                 if (!scriptIdForAction) throw new Error("需要TTS Refine稿ID来进行LLM润色");
                 apiCall = ttsApi.triggerLlmRefine(scriptIdForAction);
+                successMessage = 'TTS Refine 任务已提交。';
                 break;
-            // ... (其他 cases)
+            case 'splitSentences':
+                if (!scriptIdForAction) throw new Error("需要最终脚本ID来拆分句子");
+                apiCall = ttsApi.splitSentences(scriptIdForAction);
+                successMessage = '句子拆分任务已提交。'; // 后端是同步的，但前端可以先显示这个
+                break;
             default:
                 throw new Error("未知的操作类型");
         }
