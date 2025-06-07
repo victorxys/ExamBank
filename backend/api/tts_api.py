@@ -1115,7 +1115,7 @@ def batch_generate_audio_for_content_route(content_id):
         return jsonify({'message': '所有句子的语音都已生成或正在生成中。'}), 200
     
     try:
-        default_pt_file_relative_path = "uploads/tts_pt/seed_1397_restored_emb.pt" 
+        default_pt_file_relative_path = "seed_1397_restored_emb.pt" 
         
         # 实际使用的 PT 文件路径 (这里简单使用默认值)
         # 您可以根据需要实现更复杂的逻辑来选择 pt_file_relative_path
