@@ -31,6 +31,7 @@ import {
     Search as SearchIcon,
     Delete as DeleteIcon,
     Cached as CachedIcon,
+    Subtitles as SubtitlesIcon // 新增字幕图标
 } from '@mui/icons-material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { ttsApi } from '../api/tts';
@@ -313,6 +314,17 @@ const SentenceList = ({
     );
 };
 
+// 时间格式化辅助函数 (毫秒转 HH:MM:SS,mmm)
+const formatMsToSrtTime = (ms) => {
+    if (typeof ms !== 'number' || isNaN(ms) || ms < 0) return '00:00:00,000';
+    const totalSeconds = Math.floor(ms / 1000);
+    const milliseconds = String(ms % 1000).padStart(3, '0');
+    const seconds = String(totalSeconds % 60).padStart(2, '0');
+    const totalMinutes = Math.floor(totalSeconds / 60);
+    const minutes = String(totalMinutes % 60).padStart(2, '0');
+    const hours = String(Math.floor(totalMinutes / 60)).padStart(2, '0');
+    return `${hours}:${minutes}:${seconds},${milliseconds}`;
+};
 
 // Main Component
 const TrainingContentDetail = () => {
@@ -1051,6 +1063,53 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
     }
   };
 
+  const handleExportSrt = () => {
+    if (!contentDetail || !contentDetail.final_script_sentences || !contentDetail.latest_merged_audio?.segments) {
+        setAlert({ open: true, message: '没有足够的数扰生成SRT文件。', severity: 'warning' });
+        return;
+    }
+
+    let srtContent = '';
+    let counter = 1;
+
+    // 确保句子按 order_index 排序，以匹配 segments 的顺序 (如果 segments 保证了这一点)
+    const sortedSentences = [...contentDetail.final_script_sentences].sort((a, b) => a.order_index - b.order_index);
+
+    sortedSentences.forEach(sentence => {
+        const segment = contentDetail.latest_merged_audio.segments.find(
+            seg => seg.tts_sentence_id === sentence.id && seg.original_order_index === sentence.order_index
+        );
+
+        if (segment) {
+            const startTime = formatMsToSrtTime(segment.start_ms);
+            const endTime = formatMsToSrtTime(segment.end_ms);
+            // 使用 segment 中的 original_sentence_text_ref，因为它是在合并时记录的文本
+            const text = segment.original_sentence_text_ref || sentence.text; // Fallback to current text if ref is missing
+
+            srtContent += `${counter}\n`;
+            srtContent += `${startTime} --> ${endTime}\n`;
+            srtContent += `${text}\n\n`;
+            counter++;
+        }
+    });
+
+    if (!srtContent) {
+        setAlert({ open: true, message: '未能生成SRT内容，可能是时间戳信息不完整。', severity: 'warning' });
+        return;
+    }
+
+    const blob = new Blob([srtContent], { type: 'text/srt;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `${contentDetail.content_name || 'audio_subtitle'}.srt`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    setAlert({ open: true, message: 'SRT字幕文件已开始下载。', severity: 'success' });
+  };
+
   // TODO: 实现 handleRemergeAudio 函数
   const handleRemergeAudio = async () => {
     setAlert({open: true, message: "智能重新合并功能待实现。", severity: "info"});
@@ -1356,7 +1415,16 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
                     >
                         {(mergeProgress && (mergeProgress.status === 'PROGRESS' || mergeProgress.status === 'PENDING')) ? '合并中...' : '合并所有语音'}
                     </Button>
-                    {/* 重新合并按钮，暂时仅为占位 */}
+                    {/* 新增导出 SRT 按钮 */}
+                    <Button
+                        variant="outlined"
+                        color="info"
+                        startIcon={<SubtitlesIcon />}
+                        onClick={handleExportSrt}
+                        disabled={!mergedAudioExists || loading || (mergeProgress && (mergeProgress.status === 'PROGRESS' || mergeProgress.status === 'PENDING'))}
+                    >
+                        导出 SRT 字幕
+                    </Button>
                     
                 </Stack>
                 {/* 合并音频的播放器 */}
