@@ -1457,17 +1457,18 @@ def trigger_video_synthesis(synthesis_id):
         current_app.logger.error(f"提交视频合成任务时出错: {e}", exc_info=True)
         return jsonify({'error': '提交合成任务时发生服务器内部错误'}), 500
 
-@tts_bp.route('/synthesis/<uuid:synthesis_id>/reset', methods=['POST'])
+# @tts_bp.route('/synthesis/<uuid:synthesis_id>/reset', methods=['POST'])
 # <<<--- 将上面这行暂时注释掉，并用下面这行替换 ---<<<
 # @tts_bp.route('/synthesis/reset_test', methods=['POST'])
 # ----------------------------------------------------->>>
-@jwt_required()
+# @jwt_required()
 # <<<--- 同时，函数的参数也需要临时修改 ---<<<
+@tts_bp.route('/synthesis/<uuid:synthesis_id>/reset', methods=['POST'])
+@jwt_required()
 def reset_synthesis_task(synthesis_id):
     """
-    重置一个视频合成任务的状态。
-    目前的设计是将其状态重置回 'analysis_complete'，
-    允许用户重新触发合成，而无需重新上传和分析PDF。
+    重置一个视频合成任务的状态，允许用户重新开始。
+    这会清除已有的分析结果和生成的视频资源链接。
     """
     synthesis_task = VideoSynthesis.query.get(str(synthesis_id))
     if not synthesis_task:
@@ -1476,14 +1477,15 @@ def reset_synthesis_task(synthesis_id):
     try:
         # 清理旧的生成结果
         if synthesis_task.generated_resource_id:
-            # 可选：在这里添加逻辑来删除旧的视频物理文件和CourseResource记录
+            # 可选：在这里可以添加逻辑来删除旧的视频物理文件和CourseResource记录
             # 为了简化，我们暂时只断开链接
             old_resource_id = synthesis_task.generated_resource_id
             synthesis_task.generated_resource_id = None
             current_app.logger.info(f"任务 {synthesis_id} 与旧资源 {old_resource_id} 的关联已解除。")
-            
-        # 将状态重置回分析完成
-        synthesis_task.status = 'analysis_complete'
+        
+        # 清空分析结果，并将状态重置回初始状态
+        synthesis_task.video_script_json = None
+        synthesis_task.status = 'idle' # 或者 'pending_analysis'
         
         db.session.commit()
         
@@ -1491,11 +1493,11 @@ def reset_synthesis_task(synthesis_id):
 
         # 返回更新后的任务对象，以便前端立即更新UI
         return jsonify({
-            'message': '任务状态已重置，您可以重新合成视频。',
+            'message': '任务状态已重置，您可以重新开始。',
             'updated_task': {
                 'id': str(synthesis_task.id),
                 'status': synthesis_task.status,
-                'video_script_json': synthesis_task.video_script_json, # 重新发送分析结果
+                'video_script_json': None,
                 'generated_resource_id': None,
             }
         }), 200

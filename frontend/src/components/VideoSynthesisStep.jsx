@@ -15,7 +15,9 @@ import {
   PlayCircleOutline as PlayCircleOutlineIcon,
   FilePresent as FilePresentIcon,
   Movie as MovieIcon,
-  Replay as ReplayIcon // <<<--- 新增：导入重试图标
+  Replay as ReplayIcon, // <<<--- 新增：导入重试图标
+  RestartAlt as RestartAltIcon // <<<--- 新增：一个更适合“重置/重新开始”的图标
+
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { ttsApi } from '../api/tts';
@@ -86,23 +88,6 @@ const VideoSynthesisStep = ({ contentId, synthesisTask, progressData, isSubmitti
             }
         }, []); // 这个回调本身没有依赖，是稳定的
 
-        const handleTaskCompletion = (taskData, taskType) => {
-            onAlert({ open: true, message: `任务 (${taskType}) 已成功完成！`, severity: 'success' });
-            // 成功后，用后端返回的完整任务数据更新状态
-            if (taskData.result) {
-                setSynthesisTask(prev => ({
-                    ...prev,
-                    status: 'complete', // 标记为完成
-                    generated_resource_id: taskData.result.resource_id,
-                    progress: 100,
-                    message: '视频合成完毕！'
-                }));
-            } else {
-                // 如果没有 result，也标记为完成，但提示可能需要刷新
-                setSynthesisTask(prev => ({ ...prev, status: 'complete', message: '任务完成，数据稍后刷新' }));
-            }
-        };
-
         const handleTaskFailure = (taskData, taskType) => {
             onAlert({ open: true, message: `任务 (${taskType}) 失败: ${taskData.meta?.message || '请稍后重试'}`, severity: 'error' });
             setSynthesisTask(prev => ({...prev, status: `error_${taskType}`}));
@@ -148,15 +133,11 @@ const VideoSynthesisStep = ({ contentId, synthesisTask, progressData, isSubmitti
         };
 
         
-        const handleReset = async () => {
+        const handleReset = () => {
             if (!synthesisTask || !synthesisTask.id) return;
-            // ... (这里的逻辑可以移到父组件，或者仍然在这里调用API然后通过onResetTask通知父组件刷新)
-            try {
-                await ttsApi.resetSynthesisTask(synthesisTask.id);
-                onAlert({ open: true, message: '任务已重置。', severity: 'success' });
-                if (onResetTask) onResetTask(); // 调用父组件传递的刷新函数
-            } catch(error) {
-                onAlert({ open: true, message: `重置失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
+            // 直接调用从父组件传入的 onResetTask 函数
+            if (onResetTask) {
+                onResetTask();
             }
         };
         
@@ -264,13 +245,18 @@ const VideoSynthesisStep = ({ contentId, synthesisTask, progressData, isSubmitti
                                         <Box sx={{display: 'flex', justifyContent: 'center', gap: 2, flexWrap: 'wrap'}}>
                                             <Button variant="contained" startIcon={<PlayCircleOutlineIcon />} onClick={() => navigate(`/my-courses/${contentId}/resource/${finalVideoResourceId}/play`)}>在线预览</Button>
                                             {/* <<< 新增重置按钮 >>> */}
-                                            <Button variant="outlined" color="primary" onClick={handleReset} startIcon={<ReplayIcon />} disabled={isSubmitting}>
-                                                重新生成
+                                            {/* <<<--- 新增“重新分析”按钮 ---<<< */}
+                                            <Button variant="outlined" color="primary" onClick={handleReset} startIcon={<RestartAltIcon />} disabled={isSubmitting}>
+                                                {isSubmitting ? '处理中...' : '重新分析脚本'}
                                             </Button>
                                         </Box>
                                     </Box>
                                 ) : (
-                                    <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+                                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, alignItems: 'center' }}>
+                                        {/* <<<--- 新增“重新分析”按钮 ---<<< */}
+                                        <Button variant="outlined" color="primary" onClick={handleReset} startIcon={<RestartAltIcon />} disabled={isSubmitting}>
+                                            {isSubmitting ? '处理中...' : '重新分析'}
+                                        </Button>
                                         <Button 
                                             variant="contained" color="success" onClick={handleSynthesize} 
                                             disabled={isSubmitting || status === 'synthesizing'} startIcon={<SynthesizeIcon />}

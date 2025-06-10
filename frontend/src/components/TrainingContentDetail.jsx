@@ -547,16 +547,29 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
 
 // 现在一个 hook 处理所有类型的任务
     const handleTaskCompletion = useCallback((taskData, taskType) => {
+        // 使用 setAlert 而不是 onAlert
         setAlert({ open: true, message: `任务 (${taskType}) 已成功完成！`, severity: 'success' });
-        // 关键：不立即刷新，而是先更新进度条到完成状态
+        
+        // 步骤1: 更新进度条到100%，让用户看到明确的完成状态
         setSynthesisProgress({ status: 'completed', progress: 100, message: '处理完成！' });
 
-        // 稍等片刻，让用户看到“完成”的状态，然后再获取最终数据
+        // 步骤2: 稍作停留，然后更新最终的UI
         setTimeout(() => {
-            fetchContentDetail(false); // 刷新数据以获取 generated_resource_id 等
-            setIsSynthesizing(false); // 结束“提交中”的状态
-        }, 1500); // 延迟1.5秒
-    }, [fetchContentDetail]); // fetchContentDetail 应该用 useCallback 包裹
+            // 步骤2a: 获取最新的数据（包含视频资源ID等）
+            fetchContentDetail(false); 
+            
+            // 步骤2b: 结束“提交中”的通用加载状态
+            setIsSynthesizing(false);
+            
+            // <<<--- 关键新增：重置进度条UI状态 ---<<<
+            // 这一步会告诉 VideoSynthesisStep 组件：“我的进度条使命完成了，
+            // 请根据父组件传下来的最新的 synthesisTask 状态来决定下一步显示什么。”
+            setSynthesisProgress({ status: 'idle', progress: 0, message: '' }); 
+            // ------------------------------------->>>
+
+        }, 1500); // 延迟1.5秒，给用户看“完成”状态的时间
+
+    }, [fetchContentDetail]); // 依赖项现在是正确的
 
    const handleTaskFailure = useCallback((taskData, taskType) => {
         const errorMessage = taskData.meta?.message || taskData.error_message || '未知错误，请检查后台日志。';
@@ -585,12 +598,20 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
 
     const handleResetTask = async () => {
         if (!synthesisTask || !synthesisTask.id) return;
-        setIsSynthesizing(true);
+        
+        setIsSynthesizing(true); // 使用通用加载状态，防止用户重复点击
+        
         try {
             const response = await ttsApi.resetSynthesisTask(synthesisTask.id);
+            
+            // 用后端返回的已重置的状态来更新UI
             setSynthesisTask(response.data.updated_task);
-            setSynthesisProgress({ status: 'idle', progress: 0, message: '' }); // 重置进度状态
-            setAlert({ open: true, message: '任务已重置。', severity: 'success' });
+            
+            // 重置进度条状态
+            setSynthesisProgress({ status: 'idle', progress: 0, message: '' });
+            
+            setAlert({ open: true, message: '任务已重置，您可以重新开始。', severity: 'success' });
+
         } catch (error) {
             setAlert({ open: true, message: `重置失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
         } finally {
@@ -1758,8 +1779,8 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
                         synthesisTask={synthesisTask}
                         progressData={synthesisProgress}
                         isSubmitting={isSynthesizing}
-                        onStartTask={handleStartTask} // 传递统一的启动函数
-                        onResetTask={handleResetTask} // 传递重置函数
+                        onStartTask={handleStartTask}
+                        onResetTask={handleResetTask}
                         onAlert={setAlert}
                     />
             ) : ( // 默认的网格布局，用于步骤 1, 2, 3 (口播稿, TTS优化, LLM修订)
