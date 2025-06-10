@@ -353,88 +353,46 @@ const TrainingContentDetail = () => {
   const [overallProgress, setOverallProgress] = useState(null); // 用于批量语音生成
   const [mergeProgress, setMergeProgress] = useState(null); // 新增：用于语音合并进度
 
-  // --- 新增: 视频合成相关的状态 ---
+  // 视频合成相关的状态 ---
   const [pptFile, setPptFile] = useState(null); // 存储用户选择的PDF文件
   const [selectedPromptId, setSelectedPromptId] = useState(''); // 存储用户选择的提示词ID
   const [synthesisTask, setSynthesisTask] = useState(null); // 存储整个视频合成任务的状态和结果
 
   const [isAnalyzing, setIsAnalyzing] = useState(false); // 控制分析按钮的加载状态
   const [isSynthesizing, setIsSynthesizing] = useState(false); // 控制合成按钮的加载状态
+
+  // -- 进度相关的 state ---
+  const [synthesisProgress, setSynthesisProgress] = useState({
+    progress: 0,
+    message: '',
+    status: 'idle' // 'idle', 'in_progress', 'completed', 'failed'
+  });
   
-  // <<<--- 新增 onProgress 回调函数 ---<<<
-    const handleTaskProgress = useCallback((taskData, taskType) => {
-        if (taskType === 'synthesis' || taskType === 'analysis') {
-            // 用轮询到的最新数据更新我们的主状态
-            setSynthesisTask(prev => ({
-                ...(prev || {}),
-                id: taskData.task_id,
-                status: taskData.status === 'PROGRESS' ? (prev?.status || 'synthesizing') : taskData.status, // 保持 'synthesizing' 状态
-                progress: taskData.meta?.progress || 0,
-                message: taskData.meta?.message || prev?.message
-            }));
-        }
-        // 这里可以为其他任务类型添加进度处理
-        // <<<--- 确保这段逻辑存在 ---<<<
-        if (taskType === 'analysis' || taskType === 'synthesis') {
-            setSynthesisTask(prev => ({
-                ...(prev || {}),
-                id: taskData.task_id, // 或者 synthesis_id，取决于后端返回
-                status: taskData.status === 'PROGRESS' 
-                    ? (taskType === 'analysis' ? 'analyzing' : 'synthesizing') 
-                    : taskData.status.toLowerCase(), // 'SUCCESS' -> 'success'
-                progress: taskData.meta?.progress,
-                message: taskData.meta?.message,
-                // 保留之前可能存在的其他数据
-                video_script_json: prev?.video_script_json,
-                generated_resource_id: prev?.generated_resource_id
-            }));
-        }
-        // ----------------------------->>>
-    }, []); // 这个回调没有外部依赖
-    // ------------------------------------>>>
+//   // onProgress 回调函数 ---<<<
+//     const handleTaskProgress = useCallback((taskData, taskType) => {
+//     // console.log(`[Parent] Progress for ${taskType}:`, taskData);
+//     if (taskType === 'synthesis' || taskType === 'analysis') {
+//       setSynthesisTask(prev => {
+//         // 如果 prev 不存在，从 taskData 初始化
+//         if (!prev) return { 
+//             id: taskData.task_id, 
+//             status: taskData.status.toLowerCase(), 
+//             progress: taskData.meta?.progress || 0,
+//             message: taskData.meta?.message || ''
+//         };
+//         // 否则，更新现有状态
+//         return {
+//             ...prev,
+//             status: taskData.status.toLowerCase(),
+//             progress: taskData.meta?.progress !== undefined ? taskData.meta.progress : prev.progress,
+//             message: taskData.meta?.message || prev.message
+//         }
+//       });
+//     }
+//     // 这里可以添加对其他任务类型的进度处理
+//   }, []); // 这个回调没有外部依赖，是安全的
 
-
-// 现在一个 hook 处理所有类型的任务
-    const handleTaskCompletion = useCallback((taskData, taskType) => {
-        // ... (您现有的 handleTaskCompletion 逻辑)
-        setAlert({ open: true, message: `任务 (${taskType}) 已成功完成！`, severity: 'success' });
-        fetchContentDetail(false); // 任务完成后，无论如何都刷新一次数据
-        // 特别处理合成任务的完成
-        if (taskType === 'analysis' || taskType === 'synthesis') {
-            // 直接更新synthesisTask状态，而不是整个刷新，避免UI闪烁
-            setSynthesisTask(prev => ({
-                ...prev, 
-                status: taskData.status === 'SUCCESS' ? (taskType === 'analysis' ? 'analysis_complete' : 'complete') : `error_${taskType}`,
-                video_script_json: taskData.result?.result, // 假设分析结果在result.result中
-                generated_resource_id: taskData.result?.generated_resource_id,
-            }));
-        } else {
-             fetchContentDetail(false); // 其他任务完成时，刷新整个详情
-        }
-    }, []); // 依赖项可能需要调整，暂时为空
-
-    const handleTaskFailure = useCallback((taskData, taskType) => {
-        // ... (您现有的 handleTaskFailure 逻辑)
-        setAlert({ open: true, message: `任务 (${taskType}) 失败: ${taskData.meta?.message || '请稍后重试'}`, severity: 'error' });
-        if (taskType === 'analysis' || taskType === 'synthesis') {
-            setSynthesisTask(prev => ({...prev, status: `error_${taskType}`}));
-        } else {
-            fetchContentDetail(false);
-        }
-    }, []);
-  
-  const { pollingTask, isPolling, startPolling } = useTaskPolling(handleTaskCompletion, handleTaskFailure, handleTaskProgress);
-
-    // --- 判断是否可以开始视频合成 ---
-    // const canStartVideoSynthesis = useMemo(() => {
-    //     // 条件：内容状态是 'audio_merge_complete' 并且有合并后的音频
-    //     // 或者，已经存在一个合成任务了 (无论什么状态)
-    //     console.log('Checking if video synthesis can start:', contentDetail, synthesisTask);
-    //     return (contentDetail?.status === 'audio_merge_complete' && contentDetail?.latest_merged_audio) || !!synthesisTask;
-    // }, [contentDetail, synthesisTask]); // 依赖 synthesisTask
-    // const canStartVideoSynthesis = (contentDetail?.status === 'audio_merge_complete' && contentDetail?.latest_merged_audio) || !!synthesisTask;
-
-  const workflowSteps = useMemo(() => [
+const workflowSteps = useMemo(() => [
     { 
       key: 'generateOralScript', label: '1. 生成口播稿', actionName: 'generateOralScript',
       inputLabel: '原始培训文档', outputLabel: '口播稿',
@@ -491,6 +449,8 @@ const TrainingContentDetail = () => {
     }
   ], [contentDetail]); // 确保 contentDetail 在依赖中，以便 isEnabled/isCompleted 正确响应变化
 
+
+
 const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
     if (!contentId) return;
     if (showLoadingIndicator) setLoading(true);
@@ -542,10 +502,14 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
             setSynthesisTask(synthesisRes.data);
             // 可以在这里添加如果任务正在进行中，则自动开始轮询的逻辑
             if (synthesisRes.data.status === 'analyzing' || synthesisRes.data.status === 'synthesizing') {
-                // startPolling(synthesisRes.data.celery_task_id, synthesisRes.data.status);
+                setIsSynthesizing(true);
+                startPolling(synthesisRes.data.celery_task_id, synthesisRes.data.status); // 假设后端返回 celery_task_id
+            } else {
+                setIsSynthesizing(false);
             }
         } else {
             setSynthesisTask(null); // 确保如果没有任务，状态被清空
+            setIsSynthesizing(false);
         }
 
     } catch (err) {
@@ -581,6 +545,107 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
   }, [contentDetail, synthesisTask, workflowSteps]);
   // ------------------------------------------------------------>>>
 
+// 现在一个 hook 处理所有类型的任务
+    const handleTaskCompletion = useCallback((taskData, taskType) => {
+        setAlert({ open: true, message: `任务 (${taskType}) 已成功完成！`, severity: 'success' });
+        // 关键：不立即刷新，而是先更新进度条到完成状态
+        setSynthesisProgress({ status: 'completed', progress: 100, message: '处理完成！' });
+
+        // 稍等片刻，让用户看到“完成”的状态，然后再获取最终数据
+        setTimeout(() => {
+            fetchContentDetail(false); // 刷新数据以获取 generated_resource_id 等
+            setIsSynthesizing(false); // 结束“提交中”的状态
+        }, 1500); // 延迟1.5秒
+    }, [fetchContentDetail]); // fetchContentDetail 应该用 useCallback 包裹
+
+   const handleTaskFailure = useCallback((taskData, taskType) => {
+        const errorMessage = taskData.meta?.message || taskData.error_message || '未知错误，请检查后台日志。';
+        setAlert({ open: true, message: `任务 (${taskType}) 失败: ${errorMessage}`, severity: 'error' });
+        setSynthesisProgress({ status: 'failed', progress: synthesisProgress.progress, message: `失败: ${errorMessage}` });
+        setIsSynthesizing(false);
+    }, [synthesisProgress.progress]); // 依赖上一次的进度
+
+    const handleTaskProgress = useCallback((taskData, taskType) => {
+        if (taskData.meta) {
+            setSynthesisProgress(prev => ({
+                ...prev,
+                status: 'in_progress',
+                progress: taskData.meta.progress || prev.progress,
+                message: taskData.meta.message || prev.message
+            }));
+        }
+    }, []);
+
+    // --- 新增：专门用于启动任务的回调函数 ---
+    const handleStartTask = (taskId, taskType, initialMessage) => {
+        setIsSynthesizing(true);
+        setSynthesisProgress({ status: 'in_progress', progress: 0, message: initialMessage });
+        startPolling(taskId, taskType, initialMessage);
+    };
+
+    const handleResetTask = async () => {
+        if (!synthesisTask || !synthesisTask.id) return;
+        setIsSynthesizing(true);
+        try {
+            const response = await ttsApi.resetSynthesisTask(synthesisTask.id);
+            setSynthesisTask(response.data.updated_task);
+            setSynthesisProgress({ status: 'idle', progress: 0, message: '' }); // 重置进度状态
+            setAlert({ open: true, message: '任务已重置。', severity: 'success' });
+        } catch (error) {
+            setAlert({ open: true, message: `重置失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
+        } finally {
+            setIsSynthesizing(false);
+        }
+    };
+  
+  const { pollingTask, isPolling, startPolling } = useTaskPolling(handleTaskCompletion, handleTaskFailure, handleTaskProgress);
+
+    // --- 判断是否可以开始视频合成 ---
+    // const canStartVideoSynthesis = useMemo(() => {
+    //     // 条件：内容状态是 'audio_merge_complete' 并且有合并后的音频
+    //     // 或者，已经存在一个合成任务了 (无论什么状态)
+    //     console.log('Checking if video synthesis can start:', contentDetail, synthesisTask);
+    //     return (contentDetail?.status === 'audio_merge_complete' && contentDetail?.latest_merged_audio) || !!synthesisTask;
+    // }, [contentDetail, synthesisTask]); // 依赖 synthesisTask
+    // const canStartVideoSynthesis = (contentDetail?.status === 'audio_merge_complete' && contentDetail?.latest_merged_audio) || !!synthesisTask;
+
+
+    // --- 新增：传递给子组件的回调函数 ---
+    const handleStartAnalysis = async (pptFile, promptId) => {
+        setIsSynthesizing(true);
+        setSynthesisProgress({ progress: 0, message: '正在提交分析任务...', status: 'in_progress' });
+        try {
+        const response = await ttsApi.startVideoAnalysis(contentId, pptFile, promptId);
+        setSynthesisTask({ status: 'analyzing', id: response.data.synthesis_id, ...response.data });
+        if (response.data.task_id) {
+            startPolling(response.data.task_id, 'analysis', 'AI 脚本分析中...');
+        }setAlert
+        setAlert({ open: true, message: '分析任务已提交...', severity: 'info' });
+        } catch (error) {
+        setAlert({ open: true, message: `分析任务提交失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
+        setIsSynthesizing(false);
+        setSynthesisProgress({ progress: 0, message: '提交失败', status: 'failed' });
+        }
+    };
+
+    const handleStartSynthesis = async (synthesisId, finalScriptData) => {
+        setIsSynthesizing(true);
+        setSynthesisProgress({ progress: 0, message: '正在提交合成任务...', status: 'in_progress' });
+        try {
+        const response = await ttsApi.startVideoSynthesis(synthesisId, finalScriptData);
+        setSynthesisTask(prev => ({ ...prev, status: 'synthesizing' }));
+        if (response.data.task_id) {
+            startPolling(response.data.task_id, 'synthesis', '视频合成中...');
+        }
+        setAlert({ open: true, message: '视频合成任务已提交...', severity: 'info' });
+        } catch (error) {
+        setAlert({ open: true, message: `合成任务提交失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
+        setIsSynthesizing(false);
+        setSynthesisProgress({ progress: 0, message: '提交失败', status: 'failed' });
+        }
+    };
+
+  
   const initializeStepInput = useCallback((step, detail) => {
     if (!step || !detail) {
       setEditingStepInputContent('');
@@ -1240,6 +1305,10 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
     // 例如： ttsApi.remergeAudio(contentId, { modified_sentence_id: '...' })
   };
 
+  const handleVideoTaskStart = (taskId, taskType, initialMessage) => {
+      // 当 VideoSynthesisStep 调用 onTaskStart 时，我们在这里启动轮询
+      startPolling(taskId, taskType, initialMessage);
+  };
 
   const currentActiveStepDetails = workflowSteps.find(s => s.key === activeStepKey);
   
@@ -1687,9 +1756,11 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
                     <VideoSynthesisStep 
                         contentId={contentId}
                         synthesisTask={synthesisTask}
-                        setSynthesisTask={setSynthesisTask}
-                        onTaskStart={startPolling}
-                        onAlert={(alertConfig) => setAlert(alertConfig)}
+                        progressData={synthesisProgress}
+                        isSubmitting={isSynthesizing}
+                        onStartTask={handleStartTask} // 传递统一的启动函数
+                        onResetTask={handleResetTask} // 传递重置函数
+                        onAlert={setAlert}
                     />
             ) : ( // 默认的网格布局，用于步骤 1, 2, 3 (口播稿, TTS优化, LLM修订)
               <Grid container spacing={2}>

@@ -11,6 +11,8 @@ import sys # <<< 新增
 from io import StringIO # <<< 新增
 import contextlib # <<< 新增
 import time # <<< 新增
+from celery.utils.log import get_task_logger # 使用 Celery 的 logger
+
 
 
 from celery_worker import celery_app
@@ -27,7 +29,7 @@ from backend.api.ai_generate import generate_video_script # 导入新函数
 
 # 合成视频
 from pdf2image import convert_from_path
-from moviepy.editor import ImageClip, AudioFileClip, concatenate_videoclips, vfx
+from moviepy.editor import ImageClip, AudioFileClip, concatenate_videoclips
 from PIL import Image # <<<--- 关键：导入Pillow的Image模块
 import numpy as np
 import threading
@@ -1138,10 +1140,110 @@ def extract_text_from_pdf(pdf_path: str) -> str:
 #     return moviepy_logger
 # ----------------------------------------------------->>>
 
-# <<<--- 新增：视频合成任务 ---<<<
+task_context = threading.local()
+# --- 新增：自定义日志处理器，用于解析 FFMPEG 进度 ---
+class CeleryProgressLogger:
+    """
+    一个更健壮的自定义日志处理器，用于捕获 moviepy/ffmpeg 的进度
+    并更新 Celery 任务状态。
+    """
+    def __init__(self, task, total_duration):
+        self.task = task
+        self.total_duration = total_duration
+        self.logger = get_task_logger(__name__)
+        self.duration_regex = re.compile(r"time=(\d{2}):(\d{2}):(\d{2})\.(\d{2})")
+        self.last_update_time = 0
+        self.last_progress = 0
+
+    def __call__(self, *args, **kwargs):
+        # 这个 __call__ 方法保持不变
+        line = None
+        if 'message' in kwargs:
+            line = kwargs['message']
+            mapped_progress = self.last_progress
+            if 'writing audio' in line.lower(): mapped_progress = 46 # 音频写入阶段
+            elif 'building video' in line.lower(): mapped_progress = 48 # 视频构建阶段
+            self.task.update_state(
+                state='PROGRESS',
+                meta={'current_step': 'encoding_video', 'progress': mapped_progress, 'message': line}
+            )
+            return
+        elif len(args) >= 2 and args[0] == 'bar':
+            line = args[1]
+        
+        if not line: return
+
+        current_time = time.time()
+        if current_time - self.last_update_time < 1: return
+
+        match = self.duration_regex.search(line)
+        if match and self.total_duration > 0:
+            try:
+                hours, minutes, seconds, hundredths = map(int, match.groups())
+                processed_seconds = hours * 3600 + minutes * 60 + seconds + hundredths / 100.0
+                percent = (processed_seconds / self.total_duration) * 100
+                mapped_progress = 50 + int((percent / 100) * 45)
+                self.last_progress = mapped_progress
+                self.task.update_state(
+                    state='PROGRESS',
+                    meta={'current_step': 'encoding_video', 'progress': min(mapped_progress, 95), 'message': f'视频编码合成中... {int(percent)}%'}
+                )
+                self.last_update_time = current_time
+            except Exception as e:
+                self.logger.warning(f"解析 FFMPEG 进度行失败: {line} - 错误: {e}")
+
+    def bars_callback(self, bar, attr, value, old_value=None):
+        pass
+
+    # --- 新增：实现 iter_bar 方法 ---
+    def iter_bar(self, **kwargs):
+        """
+        终极版 iter_bar，可以处理 moviepy 的多种调用方式：
+        - logger.iter_bar(chunk=..., total=...)  (用于音频)
+        - logger.iter_bar(t=...)                 (用于视频)
+        """
+        # 判断是音频迭代还是视频迭代
+        iterable = kwargs.get('chunk') or kwargs.get('t')
+        if iterable is None:
+            # 如果没有可迭代的对象，直接返回一个空迭代器，避免崩溃
+            return
+        
+        total = kwargs.get('total', len(iterable))
+        
+        for i, elt in enumerate(iterable):
+            yield elt
+            
+            # 限制更新频率
+            current_time = time.time()
+            if current_time - self.last_update_time < 1:
+                continue
+
+            if total > 0:
+                percent = (i + 1) / total * 100
+                
+                # 根据迭代的参数名判断是音频还是视频阶段
+                if 'chunk' in kwargs: # 音频处理
+                    mapped_progress = 45 + int((percent / 100) * 5) # 映射到 45-50%
+                    message = f'步骤 4.5: 正在处理音频... {int(percent)}%'
+                else: # 视频处理 (t in kwargs)
+                    mapped_progress = 50 + int((percent / 100) * 45) # 映射到 50-95%
+                    message = f'视频编码合成中... {int(percent)}%'
+
+                self.last_progress = mapped_progress
+                self.task.update_state(
+                    state='PROGRESS',
+                    meta={
+                        'current_step': 'encoding_video', # 统一阶段名
+                        'progress': min(mapped_progress, 95),
+                        'message': message
+                    }
+                )
+                self.last_update_time = current_time
+
+# --- 视频合成任务 ---<<<
 @celery_app.task(bind=True, name='tasks.synthesize_video_task')
 def synthesize_video_task(self, synthesis_id_str):
-    
+    task_context.task_instance = self # 存储任务实例供 logger 使用
     app = create_flask_app_for_task()
     with app.app_context():
         task_id = self.request.id
@@ -1155,6 +1257,7 @@ def synthesize_video_task(self, synthesis_id_str):
 
         try:
             # 1. 准备素材路径
+            self.update_state(state='PROGRESS', meta={'current_step': 'prepare_assets', 'progress': 0, 'message': '步骤 1: 准备素材...'})
             pdf_path = synthesis_task.ppt_pdf_path
             audio_path = os.path.join(
                 app.config.get('TTS_AUDIO_STORAGE_PATH'),
@@ -1169,13 +1272,13 @@ def synthesize_video_task(self, synthesis_id_str):
 
             # 2. 将PDF转换为图片
             logger.info(f"[VideoSynthTask:{task_id}] 步骤 2: 将PDF转换为图片...")
-            self.update_state(state='PROGRESS', meta={'current_step': 'pdf_conversion', 'message': '步骤 2: 正在将PDF转换为图片...'})
+            self.update_state(state='PROGRESS', meta={'current_step': 'pdf_conversion', 'progress': 10, 'message': '步骤 2: 正在将PDF转换为图片...'})
             
 
             pdf_images_dir = os.path.join(os.path.dirname(pdf_path), 'images')
             os.makedirs(pdf_images_dir, exist_ok=True)
             images = convert_from_path(pdf_path, output_folder=pdf_images_dir, fmt='png', output_file='slide_')
-            # <<<--- 这是关键的修复点 ---<<<
+            
             def get_page_number_from_filename(filename):
                 """使用正则表达式从文件名中安全地提取页码。"""
                 # 匹配 'slide_' 之后的一串或多串由连字符连接的数字中的第一个数字
@@ -1192,14 +1295,14 @@ def synthesize_video_task(self, synthesis_id_str):
 
             # 使用新的、更健壮的 key 函数进行排序
             image_paths = sorted([img.filename for img in images], key=get_page_number_from_filename)
-            # ----------------------------------->>>
+            
             # image_paths = sorted([img.filename for img in images], key=lambda x: int(os.path.basename(x).split('_')[1].split('.')[0]))
             logger.info(f"[VideoSynthTask:{task_id}] 已成功转换 {len(image_paths)} 页PDF。")
             self.update_state(state='PROGRESS', meta={'current_step': 'pdf_conversion', 'message': f'已成功转换 {len(image_paths)} 页PDF。'})
             
             
             # 3. 加载音频
-            self.update_state(state='PROGRESS', meta={'current_step': 'audio_loading', 'message': '步骤 3: 正在加载音频...'})
+            self.update_state(state='PROGRESS', meta={'current_step': 'clips_creation', 'progress': 20, 'message': '步骤 3: 正在创建视频剪辑...'})
             audio_clip = AudioFileClip(audio_path)
             
             # 4. 创建视频剪辑
@@ -1209,7 +1312,7 @@ def synthesize_video_task(self, synthesis_id_str):
             with Image.open(first_image_path) as img:
                 initial_width, initial_height = img.size
 
-            # <<<--- 这是最关键的最终修复点 ---<<<
+            
             # 确保视频尺寸的宽和高都是偶数
             width = initial_width if initial_width % 2 == 0 else initial_width - 1
             height = initial_height if initial_height % 2 == 0 else initial_height - 1
@@ -1222,7 +1325,7 @@ def synthesize_video_task(self, synthesis_id_str):
                 )
             else:
                 logger.info(f"[VideoSynthTask:{self.request.id}] 视频标准尺寸确定为: {video_size}")
-            # ------------------------------------->>>
+            
             self.update_state(state='PROGRESS', meta={'current_step': 'audio_loading', 'message': '步骤 3: 正在加载音频...'})
 
             for script_item in video_scripts:
@@ -1264,90 +1367,56 @@ def synthesize_video_task(self, synthesis_id_str):
                 raise ValueError("没有有效的视频剪辑可以拼接。")
 
             logger.info(f"[VideoSynthTask:{task_id}] 正在拼接 {len(clips)} 个视频剪辑...")
-            self.update_state(state='PROGRESS', meta={'current_step': 'concatenation', 'message': f'正在拼接 {len(clips)} 个视频剪辑...'})
-
-            final_video = concatenate_videoclips(clips, method="compose")
+            self.update_state(state='PROGRESS', meta={'current_step': 'concatenation', 'progress': 40, 'message': f'正在拼接 {len(clips)} 个视频剪辑...'})
             
-            logger.info(f"[VideoSynthTask:{task_id}] 视频流拼接完成。正在设置音频...")
-            self.update_state(state='PROGRESS', meta={'current_step': 'set_audio', 'message': '正在设置音频...'})
-            final_video = final_video.set_audio(audio_clip)
-            logger.info(f"[VideoSynthTask:{task_id}] 音频设置完成。")
 
-            # <<<--- 在这里添加调试截取逻辑 ---<<<
-            # 调试开关，设为 True 时只生成视频的前几秒
+            final_video = concatenate_videoclips(clips, method="compose").set_audio(audio_clip)
+            
+            # --- 调试代码 ---
             IS_DEBUG_MODE = True 
-            DEBUG_DURATION_SECONDS = 4 # 设置你想要的调试时长，比如2秒
+            DEBUG_DURATION_SECONDS = 4
+            final_video_to_write = final_video.subclip(0, DEBUG_DURATION_SECONDS) if IS_DEBUG_MODE else final_video
+            # --------------
 
-            if IS_DEBUG_MODE:
-                logger.warning(f"[VideoSynthTask:{self.request.id}] *** 调试模式开启：将只生成前 {DEBUG_DURATION_SECONDS} 秒的视频。***")
-                # 使用 subclip 方法截取视频片段
-                # subclip(start_time, end_time)
-                debug_video = final_video.subclip(0, DEBUG_DURATION_SECONDS)
-            else:
-                debug_video = final_video # 在非调试模式下，使用完整的视频
-            # ------------------------------------->>>
-
-            
+            self.update_state(state='PROGRESS', meta={'current_step': 'set_audio', 'message': '正在设置音频...'})
+            # final_video = final_video.set_audio(audio_clip)
             
             # 5. 保存最终视频文件
+            self.update_state(state='PROGRESS', meta={'current_step': 'encoding_video', 'progress': 50, 'message': '步骤 5: 开始视频编码...'})
             video_output_dir = os.path.join(current_app.instance_path, 'uploads', 'course_resources', str(synthesis_task.training_content.course_id))
             os.makedirs(video_output_dir, exist_ok=True)
             video_filename = f"{uuid.uuid4().hex}_{secure_filename(synthesis_task.training_content.content_name)}.mp4"
             video_save_path = os.path.join(video_output_dir, video_filename)
             
-            progress_stream = StringIO() # 内存中的文本流
-
-            @contextlib.contextmanager
-            def redirect_stream(target_stream, new_target):
-                original_stream = getattr(sys, target_stream)
-                setattr(sys, target_stream, new_target)
-                try:
-                    yield
-                finally:
-                    setattr(sys, target_stream, original_stream)
-
-            def progress_reader():
-                percent_regex = re.compile(r"(\d+)%")
-                while not video_writing_done.is_set():
-                    output = progress_stream.getvalue()
-                    # tqdm 通常使用回车符 \r 来在同一行更新，所以我们按 \r 分割
-                    last_line = output.strip().split('\r')[-1]
-                    match = percent_regex.search(last_line)
-                    if match and task_context.task_instance:
-                        percent = int(match.group(1))
-                        task_context.task_instance.update_state(
-                            state='PROGRESS',
-                            meta={'current_step': 'encoding_video', 'progress': percent, 'message': f'视频编码合成中...'}
-                        )
-                    time.sleep(0.5) # 每0.5秒检查一次
-
-            video_writing_done = threading.Event()
-            reader_thread = threading.Thread(target=progress_reader)
-            reader_thread.start()
-
-            logger.info(f"[VideoSynthTask:{task_id}] 正在将最终视频写入磁盘: {video_save_path}")
-            self.update_state(state='PROGRESS', meta={'current_step': 'encoding_video', 'progress': 0, 'message': '开始视频编码...'})
+            buffersize = 2000 # 这是 moviepy 的默认值之一
+            nbytes = 2 # 16-bit audio
+            audio_fps = audio_clip.fps
+            total_audio_chunks = int(audio_clip.duration * audio_fps / buffersize) + 1
             
-            try:
-                # 将 stdout 和 stderr 都重定向到我们的流中
-                with redirect_stream('stdout', progress_stream), redirect_stream('stderr', progress_stream):
-                    debug_video.write_videofile(
-                        video_save_path, 
-                        codec='libx264', audio_codec='aac',
-                        threads=4, fps=24,
-                        preset='medium',
-                        logger='bar', # 'bar' 会将进度打印到 stdout/stderr
-                        ffmpeg_params=['-pix_fmt', 'yuv420p']
-                    )
-            finally:
-                video_writing_done.set()
-                reader_thread.join()
+            # 实例化 logger，但不需要手动计算音频块数，让 moviepy 在内部处理
+            custom_logger = CeleryProgressLogger(self, final_video_to_write.duration)
+            
+            # 执行写入，移除 buffersize 参数
+            final_video_to_write.write_videofile(
+                video_save_path, 
+                codec='libx264', 
+                audio_codec='aac',
+                threads=4, 
+                fps=24,
+                preset='medium',
+                logger=custom_logger,
+                ffmpeg_params=['-pix_fmt', 'yuv420p']
+                # <<<--- 移除 'buffersize=buffersize' 参数 ---<<<
+            )
+
+            logger.info(f"[VideoSynthTask:{task_id}] 视频文件写入成功！")
+            # --- 进度捕获逻辑结束 ---<<<
             # ----------------------------------------------------->>>
 
             logger.info(f"[VideoSynthTask:{self.request.id}] 视频文件写入成功！")
             
             # 6. 在 CourseResource 表中创建记录
-            self.update_state(state='PROGRESS', meta={'current_step': 'saving_to_db', 'message': '正在保存记录到数据库...'})
+            self.update_state(state='PROGRESS', meta={'current_step': 'saving_to_db', 'progress': 98, 'message': '步骤 6: 正在保存记录到数据库...'})
             course_id_str = str(synthesis_task.training_content.course_id)
             relative_file_path = os.path.join('uploads', 'course_resources', course_id_str, video_filename)
 
@@ -1360,7 +1429,7 @@ def synthesize_video_task(self, synthesis_id_str):
                 mime_type='video/mp4',
                 size_bytes=os.path.getsize(video_save_path),
                 # duration_seconds=float(final_video.duration),
-                duration_seconds=float(debug_video.duration), 
+                duration_seconds=float(final_video_to_write.duration), 
 
                 uploaded_by_user_id=synthesis_task.training_content.uploaded_by_user_id
             )
@@ -1377,7 +1446,7 @@ def synthesize_video_task(self, synthesis_id_str):
 
         except Exception as e:
             db.session.rollback()
-            synthesis_task.status = 'error_synthesis'
+            synthesis_task.status = 'analysis_complete'
             db.session.commit()
             logger.error(f"视频合成任务失败 (ID: {synthesis_id_str}): {e}", exc_info=True)
             self.update_state(state='FAILURE', meta={'exc_type': type(e).__name__, 'exc_message': str(e)})

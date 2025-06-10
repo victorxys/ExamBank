@@ -14,7 +14,7 @@ const useTaskPolling = (onTaskCompletion, onTaskFailure, onProgress) => {
             pollingIntervalRef.current = null;
         }
         setIsPolling(false);
-        setPollingTask(null);
+        // setPollingTask(null);
     }, []);
 
     const startPolling = useCallback((taskId, taskType = 'default', initialMessage = '...') => {
@@ -38,6 +38,11 @@ const useTaskPolling = (onTaskCompletion, onTaskFailure, onProgress) => {
 
                 // 更新内部状态，用于驱动 isPolling 等
                 setPollingTask(prev => ({ ...prev, ...currentTaskState }));
+                // <<<--- 关键修改：处理 PROGRESS 状态 ---<<<
+                if (currentTaskState.status === 'PROGRESS' && typeof onProgress === 'function') {
+                    onProgress(currentTaskState, taskType);
+                }
+                // ------------------------------------------>>>
 
                 if (currentTaskState.status === 'SUCCESS' || currentTaskState.status === 'FAILURE') {
                     stopPolling();
