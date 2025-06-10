@@ -1,19 +1,41 @@
 # backend/tasks.py
 import logging
 import os
+import re
 import uuid
 from datetime import datetime
 import requests
 from pydub import AudioSegment
 from pydub.exceptions import CouldntDecodeError
+import sys # <<< 新增
+from io import StringIO # <<< 新增
+import contextlib # <<< 新增
+import time # <<< 新增
+
 
 from celery_worker import celery_app
 from flask import current_app
 from sqlalchemy import or_, func
 import sqlalchemy as sa
+from werkzeug.utils import secure_filename
+
+import fitz  # PyMuPDF 库的导入名是 fitz
 
 from backend.extensions import db
-from backend.models import TrainingContent, TtsScript, TtsSentence, TtsAudio, MergedAudioSegment, UserProfile, Exam
+from backend.models import TrainingContent, TtsScript, TtsSentence, TtsAudio, MergedAudioSegment, UserProfile, Exam, VideoSynthesis, CourseResource
+from backend.api.ai_generate import generate_video_script # 导入新函数
+
+# 合成视频
+from pdf2image import convert_from_path
+from moviepy.editor import ImageClip, AudioFileClip, concatenate_videoclips, vfx
+from PIL import Image # <<<--- 关键：导入Pillow的Image模块
+import numpy as np
+import threading
+
+
+
+
+
 
 # 导入需要异步执行的LLM函数和TTS相关的外部客户端
 from backend.api.ai_generate import (
@@ -27,6 +49,17 @@ logger = logging.getLogger(__name__)
 def create_flask_app_for_task():
     from backend.app import app as flask_app_instance
     return flask_app_instance
+
+# 新增：格式化毫秒为SRT时间戳的辅助函数
+def format_ms_to_srt_time(ms):
+    if not isinstance(ms, (int, float)) or ms < 0:
+        return '00:00:00,000'
+    total_seconds = int(ms / 1000)
+    milliseconds = int(ms % 1000)
+    hours = int(total_seconds / 3600)
+    minutes = int((total_seconds % 3600) / 60)
+    seconds = int(total_seconds % 60)
+    return f"{hours:02d}:{minutes:02d}:{seconds:02d},{milliseconds:03d}"
 
 # ==============================================================================
 # SECTION 1: 通用异步LLM任务处理器
@@ -725,7 +758,8 @@ def merge_all_audios_for_content(self, training_content_id_str):
     app = create_flask_app_for_task()
     with app.app_context():
         task_id = self.request.id
-        logger.info(f"[MergeTask:{task_id}] Starting audio merge for TrainingContent ID: {training_content_id_str}")
+        logger.info(f"[MergeTask:{task_id}] ------------------------------------------")
+        logger.info(f"[MergeTask:{task_id}] 开始音频合并任务 for TrainingContent ID: {training_content_id_str}")
         
         content = TrainingContent.query.get(training_content_id_str)
         if not content:
@@ -886,8 +920,61 @@ def merge_all_audios_for_content(self, training_content_id_str):
             new_merged_version = (latest_merged_version_obj or 0) + 1
 
             # Save the merged audio file
+            # 1. 保存合并后的音频文件 (这部分逻辑不变)
+            logger.info(f"[MergeTask:{task_id}] 准备保存合并后的音频文件...")
             merged_relative_path, merged_file_size = _save_merged_audio_file(merged_sound, content.id, new_merged_version)
+            logger.info(f"[MergeTask:{task_id}] 合并音频已保存，相对路径: {merged_relative_path}")
+
+            # 2. 生成SRT文件内容
+            srt_content_lines = []
+            logger.info(f"[MergeTask:{task_id}] 正在生成SRT内容...")
+            for i, segment_data in enumerate(new_segments_data):
+                srt_content_lines.append(str(i + 1))
+                start_time_srt = format_ms_to_srt_time(segment_data['start_ms'])
+                end_time_srt = format_ms_to_srt_time(segment_data['end_ms'])
+                srt_content_lines.append(f"{start_time_srt} --> {end_time_srt}")
+                # 使用 segment 中记录的文本引用
+                srt_content_lines.append(segment_data['original_sentence_text_ref'] or '')
+                srt_content_lines.append('') # 每个字幕块后的空行
             
+            srt_content = "\n".join(srt_content_lines)
+            logger.info(f"[MergeTask:{task_id}] SRT内容已生成，共 {len(new_segments_data)} 条字幕。")
+
+
+            # 3. 准备写入 .txt 文件
+            storage_base_path = app.config.get('TTS_AUDIO_STORAGE_PATH')
+            if not storage_base_path:
+                raise ValueError("配置错误: TTS_AUDIO_STORAGE_PATH 未设置。")
+
+            srt_txt_relative_path = os.path.splitext(merged_relative_path)[0] + '.txt'
+            srt_txt_full_path = os.path.join(storage_base_path, srt_txt_relative_path)
+            
+            logger.info(f"[MergeTask:{task_id}] 准备将SRT内容写入TXT文件。")
+            logger.info(f"[MergeTask:{task_id}]   - 基础存储路径: {storage_base_path}")
+            logger.info(f"[MergeTask:{task_id}]   - 最终完整路径: {srt_txt_full_path}")
+
+            # 确保目标目录存在
+            srt_txt_dir = os.path.dirname(srt_txt_full_path)
+            if not os.path.exists(srt_txt_dir):
+                logger.info(f"[MergeTask:{task_id}] 目标目录不存在，正在创建: {srt_txt_dir}")
+                os.makedirs(srt_txt_dir, exist_ok=True)
+            
+            # 写入文件
+            try:
+                with open(srt_txt_full_path, 'w', encoding='utf-8') as f:
+                    f.write(srt_content)
+                logger.info(f"[MergeTask:{task_id}] 成功！TXT字幕文件已写入磁盘。")
+                
+                # 验证文件是否真的创建成功
+                if not os.path.exists(srt_txt_full_path):
+                     logger.error(f"[MergeTask:{task_id}] 严重错误：文件写入后，os.path.exists() 检查失败！路径: {srt_txt_full_path}")
+                else:
+                     logger.info(f"[MergeTask:{task_id}] os.path.exists() 确认文件已在磁盘上。")
+                     
+            except (IOError, OSError) as e_write:
+                logger.error(f"[MergeTask:{task_id}] 写入TXT文件时发生IO错误: {e_write}", exc_info=True)
+                raise  # 将异常重新抛出，让外层 aiohttp.hdrs.TEcatch 块处理
+
             # Create TtsAudio record for the new merged file
             new_merged_audio_record = TtsAudio(
                 training_content_id=content.id,
@@ -935,3 +1022,363 @@ def merge_all_audios_for_content(self, training_content_id_str):
             db.session.commit()
             self.update_state(state='FAILURE', meta={'error': str(e), 'exc_type': type(e).__name__})
             return {'status': 'Error', 'message': f'Merging process failed: {str(e)}'}
+
+@celery_app.task(bind=True, name='tasks.analyze_video_script_task')
+def analyze_video_script_task(self, synthesis_id_str):
+    app = create_flask_app_for_task()
+    with app.app_context():
+        synthesis_task = VideoSynthesis.query.get(synthesis_id_str)
+        if not synthesis_task:
+            # ... 错误处理
+            return {'status': 'Error', 'message': '任务记录未找到'}
+
+        try:
+            # 1. 获取输入内容
+            # 假设 srt_file_path 和 ppt_pdf_path 存储的是服务器上的完整路径
+            with open(synthesis_task.srt_file_path, 'r', encoding='utf-8') as f:
+                srt_content = f.read()
+            
+            pdf_summary = extract_text_from_pdf(synthesis_task.ppt_pdf_path)
+
+            # 2. 调用新的专用LLM函数
+            video_script_json = generate_video_script(
+                srt_content=srt_content,
+                pdf_summary=pdf_summary,
+                prompt_identifier='VIDEO_SCRIPT_GENERATION', # 使用新的Prompt标识符
+                user_id=synthesis_task.training_content.uploaded_by_user_id # 传递用户ID
+            )
+            
+            # 3. 更新数据库
+            synthesis_task.video_script_json = video_script_json
+            synthesis_task.status = 'analysis_complete'
+            db.session.commit()
+            
+            return {'status': 'Success', 'synthesis_id': synthesis_id_str}
+
+        except Exception as e:
+            db.session.rollback()
+            synthesis_task.status = 'error_analysis'
+            db.session.commit()
+            logger.error(f"视频脚本分析任务失败 (ID: {synthesis_id_str}): {e}", exc_info=True)
+            self.update_state(state='FAILURE', meta={'exc_type': type(e).__name__, 'exc_message': str(e)})
+            return {'status': 'Error', 'message': str(e)}
+
+# --- 新增：PDF 解析辅助函数 ---
+def extract_text_from_pdf(pdf_path: str) -> str:
+    """
+    从PDF文件中提取每页的主要文本内容，生成一个带页码的文本大纲。
+    这个大纲将作为输入给LLM。
+    """
+    summary_lines = []
+    try:
+        doc = fitz.open(pdf_path)
+        summary_lines.append(f"PDF文件共有 {len(doc)} 页。")
+        
+        for page_num, page in enumerate(doc):
+            # 提取文本块，并按位置排序，这有助于保持阅读顺序
+            blocks = page.get_text("blocks")
+            blocks.sort(key=lambda b: (b[1], b[0])) # 按 y, x 坐标排序
+            
+            page_text = "\n".join([block[4].strip() for block in blocks if block[4].strip()])
+            
+            # 为了给LLM更简洁的输入，我们可以只取每页的前N个字符作为摘要
+            # 或者，您可以实现更复杂的逻辑，比如提取标题、要点等
+            # 这里我们采用简化但有效的方式：提供页码和清理后的文本
+            if page_text:
+                summary_lines.append(f"\n--- 第 {page_num + 1} 页 内容开始 ---")
+                summary_lines.append(page_text)
+                summary_lines.append(f"--- 第 {page_num + 1} 页 内容结束 ---")
+
+        doc.close()
+        return "\n".join(summary_lines)
+    except Exception as e:
+        logger.error(f"解析PDF文件失败: {pdf_path}, 错误: {e}", exc_info=True)
+        # 即使解析失败，也返回一个错误信息，而不是让任务崩溃
+        return f"错误：无法解析PDF文件 '{os.path.basename(pdf_path)}'。"
+
+
+# # <<<--- 新增：用于解析 FFMPEG 进度的 Logger 和 Handler ---<<<
+# # 创建一个线程局部变量来存储当前任务实例 self
+# task_self = threading.local()
+# class CeleryProgressHandler(logging.Handler):
+#     """一个自定义的日志处理器，用于捕获和解析 ffmpeg 的进度，并更新 Celery 任务状态。"""
+#     def __init__(self):
+#         super().__init__()
+#         # 正则表达式用于匹配 tqdm/ffmpeg 的进度行，例如: "frame= 123 ..." 或 "  2%|..."
+#         # 我们主要关注百分比
+#         self.percent_regex = re.compile(r"(\d+)\%")
+
+#     def emit(self, record):
+#         if not hasattr(task_self, 'instance') or task_self.instance is None:
+#             return
+
+#         msg = self.format(record)
+#         match = self.percent_regex.search(msg)
+#         if match:
+#             percent = int(match.group(1))
+            
+#             # 使用 self.instance 来调用 update_state
+#             task_self.instance.update_state(
+#                 state='PROGRESS',
+#                 meta={
+#                     'current_step': 'encoding_video',
+#                     'progress': percent,
+#                     'message': f'视频编码中... {percent}%'
+#                 }
+#             )
+
+# def get_moviepy_logger():
+#     """创建一个配置了自定义处理器的 logger 供 moviepy 使用。"""
+#     moviepy_logger = logging.getLogger("moviepy_progress")
+#     moviepy_logger.setLevel(logging.INFO)
+#     # 清除可能存在的旧handler，防止重复打印
+#     if moviepy_logger.hasHandlers():
+#         moviepy_logger.handlers.clear()
+#     moviepy_logger.addHandler(CeleryProgressHandler())
+#     return moviepy_logger
+# ----------------------------------------------------->>>
+
+# <<<--- 新增：视频合成任务 ---<<<
+@celery_app.task(bind=True, name='tasks.synthesize_video_task')
+def synthesize_video_task(self, synthesis_id_str):
+    
+    app = create_flask_app_for_task()
+    with app.app_context():
+        task_id = self.request.id
+        logger.info(f"[VideoSynthTask:{task_id}] ------------------------------------------")
+        logger.info(f"[VideoSynthTask:{task_id}] 开始视频合成任务 for Synthesis ID: {synthesis_id_str}")
+        
+        synthesis_task = VideoSynthesis.query.get(synthesis_id_str)
+        if not synthesis_task:
+            logger.error(f"[VideoSynthTask:{task_id}] 任务记录未找到。")
+            return {'status': 'Error', 'message': '任务记录未找到'}
+
+        try:
+            # 1. 准备素材路径
+            pdf_path = synthesis_task.ppt_pdf_path
+            audio_path = os.path.join(
+                app.config.get('TTS_AUDIO_STORAGE_PATH'),
+                synthesis_task.merged_audio.file_path
+            )
+            video_scripts = synthesis_task.video_script_json.get('video_scripts', [])
+            logger.info(f"[VideoSynthTask:{task_id}]   - PDF路径: {pdf_path}")
+            logger.info(f"[VideoSynthTask:{task_id}]   - 音频路径: {audio_path}")
+            
+            if not os.path.exists(pdf_path) or not os.path.exists(audio_path):
+                raise FileNotFoundError("PDF或音频素材文件不存在。")
+
+            # 2. 将PDF转换为图片
+            logger.info(f"[VideoSynthTask:{task_id}] 步骤 2: 将PDF转换为图片...")
+            self.update_state(state='PROGRESS', meta={'current_step': 'pdf_conversion', 'message': '步骤 2: 正在将PDF转换为图片...'})
+            
+
+            pdf_images_dir = os.path.join(os.path.dirname(pdf_path), 'images')
+            os.makedirs(pdf_images_dir, exist_ok=True)
+            images = convert_from_path(pdf_path, output_folder=pdf_images_dir, fmt='png', output_file='slide_')
+            # <<<--- 这是关键的修复点 ---<<<
+            def get_page_number_from_filename(filename):
+                """使用正则表达式从文件名中安全地提取页码。"""
+                # 匹配 'slide_' 之后的一串或多串由连字符连接的数字中的第一个数字
+                # 例如，从 'slide_0001-01.png' 中匹配到 '0001'
+                match = re.search(r'slide_(\d+)', os.path.basename(filename))
+                if match:
+                    return int(match.group(1))
+                # 如果上面的正则没匹配到，尝试一个更宽松的，只找数字
+                match_fallback = re.search(r'(\d+)', os.path.basename(filename))
+                if match_fallback:
+                    return int(match_fallback.group(1))
+                # 如果完全找不到数字，返回一个极大值，让它排在最后，避免排序崩溃
+                return float('inf')
+
+            # 使用新的、更健壮的 key 函数进行排序
+            image_paths = sorted([img.filename for img in images], key=get_page_number_from_filename)
+            # ----------------------------------->>>
+            # image_paths = sorted([img.filename for img in images], key=lambda x: int(os.path.basename(x).split('_')[1].split('.')[0]))
+            logger.info(f"[VideoSynthTask:{task_id}] 已成功转换 {len(image_paths)} 页PDF。")
+            self.update_state(state='PROGRESS', meta={'current_step': 'pdf_conversion', 'message': f'已成功转换 {len(image_paths)} 页PDF。'})
+            
+            
+            # 3. 加载音频
+            self.update_state(state='PROGRESS', meta={'current_step': 'audio_loading', 'message': '步骤 3: 正在加载音频...'})
+            audio_clip = AudioFileClip(audio_path)
+            
+            # 4. 创建视频剪辑
+            clips = []
+            # 使用第一张图片来确定视频的初始尺寸
+            first_image_path = image_paths[0]
+            with Image.open(first_image_path) as img:
+                initial_width, initial_height = img.size
+
+            # <<<--- 这是最关键的最终修复点 ---<<<
+            # 确保视频尺寸的宽和高都是偶数
+            width = initial_width if initial_width % 2 == 0 else initial_width - 1
+            height = initial_height if initial_height % 2 == 0 else initial_height - 1
+            video_size = (width, height)
+            
+            if (width != initial_width) or (height != initial_height):
+                logger.warning(
+                    f"[VideoSynthTask:{self.request.id}] 视频尺寸已从 "
+                    f"({initial_width}x{initial_height}) 调整为 ({width}x{height}) 以满足编码器要求。"
+                )
+            else:
+                logger.info(f"[VideoSynthTask:{self.request.id}] 视频标准尺寸确定为: {video_size}")
+            # ------------------------------------->>>
+            self.update_state(state='PROGRESS', meta={'current_step': 'audio_loading', 'message': '步骤 3: 正在加载音频...'})
+
+            for script_item in video_scripts:
+                ppt_page_num = script_item['ppt_page']
+                time_range_str = script_item['time_range']
+                
+                # 解析时间范围
+                start_str, end_str = [t.strip() for t in time_range_str.split('~')]
+                start_seconds = sum(x * float(t) for x, t in zip([3600, 60, 1], start_str.replace(',', '.').split(':')))
+                end_seconds = sum(x * float(t) for x, t in zip([3600, 60, 1], end_str.replace(',', '.').split(':')))
+                duration = end_seconds - start_seconds
+                
+                if duration <= 0: continue
+
+                image_path_index = ppt_page_num - 1
+                if 0 <= image_path_index < len(image_paths):
+                    img_path = image_paths[image_path_index]
+                    logger.debug(f"[VideoSynthTask:{task_id}]   - 处理剪辑: 页码 {ppt_page_num}, 路径 {img_path}, 时长 {duration}s")
+                    
+                    # <<<--- 关键修改：预处理图片 ---<<<
+                    # 1. 用Pillow打开图片
+                    with Image.open(img_path) as pil_img:
+                        # 2. 确保它是RGB格式 (移除alpha通道)
+                        rgb_img = pil_img.convert('RGB')
+                        # 3. 将Pillow图像对象转换为Numpy数组
+                        img_array = np.array(rgb_img)
+                    
+                    # 4. 使用处理后的Numpy数组创建ImageClip
+                    clip = ImageClip(img_array).set_duration(duration)
+                    
+                    # 5. (可选但推荐) 确保每个剪辑的尺寸都与标准尺寸一致
+                    if clip.size != video_size:
+                        clip = clip.resize(video_size)
+                    # ----------------------------------->>>
+                    
+                    clips.append(clip)
+            
+            if not clips:
+                raise ValueError("没有有效的视频剪辑可以拼接。")
+
+            logger.info(f"[VideoSynthTask:{task_id}] 正在拼接 {len(clips)} 个视频剪辑...")
+            self.update_state(state='PROGRESS', meta={'current_step': 'concatenation', 'message': f'正在拼接 {len(clips)} 个视频剪辑...'})
+
+            final_video = concatenate_videoclips(clips, method="compose")
+            
+            logger.info(f"[VideoSynthTask:{task_id}] 视频流拼接完成。正在设置音频...")
+            self.update_state(state='PROGRESS', meta={'current_step': 'set_audio', 'message': '正在设置音频...'})
+            final_video = final_video.set_audio(audio_clip)
+            logger.info(f"[VideoSynthTask:{task_id}] 音频设置完成。")
+
+            # <<<--- 在这里添加调试截取逻辑 ---<<<
+            # 调试开关，设为 True 时只生成视频的前几秒
+            IS_DEBUG_MODE = True 
+            DEBUG_DURATION_SECONDS = 4 # 设置你想要的调试时长，比如2秒
+
+            if IS_DEBUG_MODE:
+                logger.warning(f"[VideoSynthTask:{self.request.id}] *** 调试模式开启：将只生成前 {DEBUG_DURATION_SECONDS} 秒的视频。***")
+                # 使用 subclip 方法截取视频片段
+                # subclip(start_time, end_time)
+                debug_video = final_video.subclip(0, DEBUG_DURATION_SECONDS)
+            else:
+                debug_video = final_video # 在非调试模式下，使用完整的视频
+            # ------------------------------------->>>
+
+            
+            
+            # 5. 保存最终视频文件
+            video_output_dir = os.path.join(current_app.instance_path, 'uploads', 'course_resources', str(synthesis_task.training_content.course_id))
+            os.makedirs(video_output_dir, exist_ok=True)
+            video_filename = f"{uuid.uuid4().hex}_{secure_filename(synthesis_task.training_content.content_name)}.mp4"
+            video_save_path = os.path.join(video_output_dir, video_filename)
+            
+            progress_stream = StringIO() # 内存中的文本流
+
+            @contextlib.contextmanager
+            def redirect_stream(target_stream, new_target):
+                original_stream = getattr(sys, target_stream)
+                setattr(sys, target_stream, new_target)
+                try:
+                    yield
+                finally:
+                    setattr(sys, target_stream, original_stream)
+
+            def progress_reader():
+                percent_regex = re.compile(r"(\d+)%")
+                while not video_writing_done.is_set():
+                    output = progress_stream.getvalue()
+                    # tqdm 通常使用回车符 \r 来在同一行更新，所以我们按 \r 分割
+                    last_line = output.strip().split('\r')[-1]
+                    match = percent_regex.search(last_line)
+                    if match and task_context.task_instance:
+                        percent = int(match.group(1))
+                        task_context.task_instance.update_state(
+                            state='PROGRESS',
+                            meta={'current_step': 'encoding_video', 'progress': percent, 'message': f'视频编码合成中...'}
+                        )
+                    time.sleep(0.5) # 每0.5秒检查一次
+
+            video_writing_done = threading.Event()
+            reader_thread = threading.Thread(target=progress_reader)
+            reader_thread.start()
+
+            logger.info(f"[VideoSynthTask:{task_id}] 正在将最终视频写入磁盘: {video_save_path}")
+            self.update_state(state='PROGRESS', meta={'current_step': 'encoding_video', 'progress': 0, 'message': '开始视频编码...'})
+            
+            try:
+                # 将 stdout 和 stderr 都重定向到我们的流中
+                with redirect_stream('stdout', progress_stream), redirect_stream('stderr', progress_stream):
+                    debug_video.write_videofile(
+                        video_save_path, 
+                        codec='libx264', audio_codec='aac',
+                        threads=4, fps=24,
+                        preset='medium',
+                        logger='bar', # 'bar' 会将进度打印到 stdout/stderr
+                        ffmpeg_params=['-pix_fmt', 'yuv420p']
+                    )
+            finally:
+                video_writing_done.set()
+                reader_thread.join()
+            # ----------------------------------------------------->>>
+
+            logger.info(f"[VideoSynthTask:{self.request.id}] 视频文件写入成功！")
+            
+            # 6. 在 CourseResource 表中创建记录
+            self.update_state(state='PROGRESS', meta={'current_step': 'saving_to_db', 'message': '正在保存记录到数据库...'})
+            course_id_str = str(synthesis_task.training_content.course_id)
+            relative_file_path = os.path.join('uploads', 'course_resources', course_id_str, video_filename)
+
+            new_resource = CourseResource(
+                course_id=synthesis_task.training_content.course_id,
+                name=f"{synthesis_task.training_content.content_name} (视频)",
+                description=f"由 '{synthesis_task.training_content.content_name}' 内容自动合成的视频。",
+                file_path=relative_file_path,
+                file_type='video',
+                mime_type='video/mp4',
+                size_bytes=os.path.getsize(video_save_path),
+                # duration_seconds=float(final_video.duration),
+                duration_seconds=float(debug_video.duration), 
+
+                uploaded_by_user_id=synthesis_task.training_content.uploaded_by_user_id
+            )
+            db.session.add(new_resource)
+            db.session.flush() # 获取新资源的ID
+
+            # 7. 更新 VideoSynthesis 任务状态
+            synthesis_task.status = 'complete'
+            synthesis_task.generated_resource_id = new_resource.id
+            db.session.commit()
+            
+            logger.info(f"[VideoSynthTask:{task_id}] 视频合成成功！新的资源ID: {new_resource.id}")
+            return {'status': 'Success', 'resource_id': str(new_resource.id)}
+
+        except Exception as e:
+            db.session.rollback()
+            synthesis_task.status = 'error_synthesis'
+            db.session.commit()
+            logger.error(f"视频合成任务失败 (ID: {synthesis_id_str}): {e}", exc_info=True)
+            self.update_state(state='FAILURE', meta={'exc_type': type(e).__name__, 'exc_message': str(e)})
+            return {'status': 'Error', 'message': str(e)}

@@ -214,3 +214,6 @@ resource/
 backend/static/tts_audio/
 
 testcase/
+
+*.mp4
+*.mp3

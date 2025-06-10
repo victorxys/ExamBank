@@ -19,7 +19,6 @@ import {
     SpeakerNotes as SpeakerNotesIcon,
     Audiotrack as AudiotrackIcon,
     PlaylistPlay as PlaylistPlayIcon,
-    CloudUpload as CloudUploadIcon, // 用于合并
     DynamicFeed as DynamicFeedIcon, // 用于重新合并
     Article as ArticleIcon,
     StopCircleOutlined as StopCircleOutlinedIcon,
@@ -31,6 +30,8 @@ import {
     Search as SearchIcon,
     Delete as DeleteIcon,
     Cached as CachedIcon,
+    CloudUpload as CloudUploadIcon,
+    Movie as MovieIcon, // 用于视频合成步骤
     Subtitles as SubtitlesIcon // 新增字幕图标
 } from '@mui/icons-material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -40,6 +41,8 @@ import PageHeader from './PageHeader';
 import { formatRelativeTime } from '../api/dateUtils';
 import { API_BASE_URL } from '../config';
 import useTaskPolling from '../utils/useTaskPolling';
+import VideoSynthesisStep from './VideoSynthesisStep'; // <<<--- 导入新组件
+
 
 
 // 时间格式化辅助函数
@@ -350,19 +353,86 @@ const TrainingContentDetail = () => {
   const [overallProgress, setOverallProgress] = useState(null); // 用于批量语音生成
   const [mergeProgress, setMergeProgress] = useState(null); // 新增：用于语音合并进度
 
-  const handleTaskCompletion = (taskData, taskType) => {
-    setAlert({ open: true, message: `任务 (${taskType}) 已成功完成！`, severity: 'success' });
-    fetchContentDetail(false); // 刷新数据
-  };
+  // --- 新增: 视频合成相关的状态 ---
+  const [pptFile, setPptFile] = useState(null); // 存储用户选择的PDF文件
+  const [selectedPromptId, setSelectedPromptId] = useState(''); // 存储用户选择的提示词ID
+  const [synthesisTask, setSynthesisTask] = useState(null); // 存储整个视频合成任务的状态和结果
 
-  const handleTaskFailure = (taskData, taskType) => {
-    setAlert({ open: true, message: `任务 (${taskType}) 失败: ${taskData.meta?.message || taskData.error_message}`, severity: 'error' });
-    fetchContentDetail(false); // 同样刷新以获取最终的错误状态
-  };
+  const [isAnalyzing, setIsAnalyzing] = useState(false); // 控制分析按钮的加载状态
+  const [isSynthesizing, setIsSynthesizing] = useState(false); // 控制合成按钮的加载状态
   
-  const { pollingTask, isPolling, startPolling } = useTaskPolling(handleTaskCompletion, handleTaskFailure);
+  // <<<--- 新增 onProgress 回调函数 ---<<<
+    const handleTaskProgress = useCallback((taskData, taskType) => {
+        if (taskType === 'synthesis' || taskType === 'analysis') {
+            // 用轮询到的最新数据更新我们的主状态
+            setSynthesisTask(prev => ({
+                ...(prev || {}),
+                id: taskData.task_id,
+                status: taskData.status === 'PROGRESS' ? (prev?.status || 'synthesizing') : taskData.status, // 保持 'synthesizing' 状态
+                progress: taskData.meta?.progress || 0,
+                message: taskData.meta?.message || prev?.message
+            }));
+        }
+        // 这里可以为其他任务类型添加进度处理
+        // <<<--- 确保这段逻辑存在 ---<<<
+        if (taskType === 'analysis' || taskType === 'synthesis') {
+            setSynthesisTask(prev => ({
+                ...(prev || {}),
+                id: taskData.task_id, // 或者 synthesis_id，取决于后端返回
+                status: taskData.status === 'PROGRESS' 
+                    ? (taskType === 'analysis' ? 'analyzing' : 'synthesizing') 
+                    : taskData.status.toLowerCase(), // 'SUCCESS' -> 'success'
+                progress: taskData.meta?.progress,
+                message: taskData.meta?.message,
+                // 保留之前可能存在的其他数据
+                video_script_json: prev?.video_script_json,
+                generated_resource_id: prev?.generated_resource_id
+            }));
+        }
+        // ----------------------------->>>
+    }, []); // 这个回调没有外部依赖
+    // ------------------------------------>>>
 
 
+// 现在一个 hook 处理所有类型的任务
+    const handleTaskCompletion = useCallback((taskData, taskType) => {
+        // ... (您现有的 handleTaskCompletion 逻辑)
+        setAlert({ open: true, message: `任务 (${taskType}) 已成功完成！`, severity: 'success' });
+        fetchContentDetail(false); // 任务完成后，无论如何都刷新一次数据
+        // 特别处理合成任务的完成
+        if (taskType === 'analysis' || taskType === 'synthesis') {
+            // 直接更新synthesisTask状态，而不是整个刷新，避免UI闪烁
+            setSynthesisTask(prev => ({
+                ...prev, 
+                status: taskData.status === 'SUCCESS' ? (taskType === 'analysis' ? 'analysis_complete' : 'complete') : `error_${taskType}`,
+                video_script_json: taskData.result?.result, // 假设分析结果在result.result中
+                generated_resource_id: taskData.result?.generated_resource_id,
+            }));
+        } else {
+             fetchContentDetail(false); // 其他任务完成时，刷新整个详情
+        }
+    }, []); // 依赖项可能需要调整，暂时为空
+
+    const handleTaskFailure = useCallback((taskData, taskType) => {
+        // ... (您现有的 handleTaskFailure 逻辑)
+        setAlert({ open: true, message: `任务 (${taskType}) 失败: ${taskData.meta?.message || '请稍后重试'}`, severity: 'error' });
+        if (taskType === 'analysis' || taskType === 'synthesis') {
+            setSynthesisTask(prev => ({...prev, status: `error_${taskType}`}));
+        } else {
+            fetchContentDetail(false);
+        }
+    }, []);
+  
+  const { pollingTask, isPolling, startPolling } = useTaskPolling(handleTaskCompletion, handleTaskFailure, handleTaskProgress);
+
+    // --- 判断是否可以开始视频合成 ---
+    // const canStartVideoSynthesis = useMemo(() => {
+    //     // 条件：内容状态是 'audio_merge_complete' 并且有合并后的音频
+    //     // 或者，已经存在一个合成任务了 (无论什么状态)
+    //     console.log('Checking if video synthesis can start:', contentDetail, synthesisTask);
+    //     return (contentDetail?.status === 'audio_merge_complete' && contentDetail?.latest_merged_audio) || !!synthesisTask;
+    // }, [contentDetail, synthesisTask]); // 依赖 synthesisTask
+    // const canStartVideoSynthesis = (contentDetail?.status === 'audio_merge_complete' && contentDetail?.latest_merged_audio) || !!synthesisTask;
 
   const workflowSteps = useMemo(() => [
     { 
@@ -412,6 +482,12 @@ const TrainingContentDetail = () => {
       isEnabled: (status, prevCompleted, sentences) => 
             prevCompleted && sentences && sentences.length > 0 && 
             (status === 'pending_audio_generation' || status === 'audio_generation_complete' || status === 'partial_audio_generated' || status === 'audio_merge_queued' || status === 'merging_audio' || status === 'audio_merge_complete' || status === 'merge_failed_no_script' || status === 'merge_failed_no_sentences' || status === 'merge_failed_audio_missing' || status === 'merge_failed_file_missing' || status === 'merge_failed_decode_error_sent_' || status === 'merge_failed_no_segments_processed' || status === 'merge_failed_exception'),
+    },
+    { // 新增第六步
+      key: 'synthesizeVideo',
+      label: '6. 合成视频',
+      isCompleted: (s) => s === 'complete',
+      isEnabled: (s, prevCompleted) => prevCompleted,
     }
   ], [contentDetail]); // 确保 contentDetail 在依赖中，以便 isEnabled/isCompleted 正确响应变化
 
@@ -420,34 +496,58 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
     if (showLoadingIndicator) setLoading(true);
     setErrorStateForDisplay(null);
     try {
-      const response = await ttsApi.getTrainingContentDetail(contentId);
-      let fullOriginalContent = response.data.original_content;
-      if (!fullOriginalContent && response.data.id && response.data.original_content_preview && response.data.original_content_preview.endsWith('...')) {
-        try {
-          const originalContentRes = await ttsApi.getOriginalTrainingContent(response.data.id);
-          fullOriginalContent = originalContentRes.data.original_content;
-        } catch (originalErr) {
-          console.warn("获取完整原始文本失败:", originalErr);
-          fullOriginalContent = response.data.original_content_preview || '';
+    //   const response = await ttsApi.getTrainingContentDetail(contentId);
+        const [response, synthesisRes] = await Promise.all([
+                    ttsApi.getTrainingContentDetail(contentId),
+                    ttsApi.getLatestSynthesisTask(contentId) // <<<--- 调用新接口
+                ]);
+                
+        let fullOriginalContent = response.data.original_content;
+        if (!fullOriginalContent && response.data.id && response.data.original_content_preview && response.data.original_content_preview.endsWith('...')) {
+            try {
+                const originalContentRes = await ttsApi.getOriginalTrainingContent(response.data.id);
+                fullOriginalContent = originalContentRes.data.original_content;
+            } catch (originalErr) {
+                console.warn("获取完整原始文本失败:", originalErr);
+                fullOriginalContent = response.data.original_content_preview || '';
+            }
         }
-      }
-  
-      const sortedData = {
-        ...response.data,
-        original_content: fullOriginalContent,
-        scripts: response.data.scripts ? [...response.data.scripts].sort((a, b) => {
-          const typeOrder = { 'original_text': 0, 'oral_script': 1, 'tts_refined_script': 2, 'final_tts_script': 3 }; // original_text 是隐式的
-          if (typeOrder[a.script_type] !== undefined && typeOrder[b.script_type] !== undefined && typeOrder[a.script_type] !== typeOrder[b.script_type]) {
-            return typeOrder[a.script_type] - typeOrder[b.script_type];
-          }
-          return b.version - a.version; // 同类型内，版本高的在前
-        }) : [],
-        final_script_sentences: response.data.final_script_sentences // 后端应该返回已排序的
-          ? [...response.data.final_script_sentences].sort((a, b) => a.order_index - b.order_index) 
-          : [],
-        latest_merged_audio: response.data.latest_merged_audio // 确保 segments 也包含在内
-      };
-      setContentDetail(sortedData);
+    
+        const sortedData = {
+            ...response.data,
+            original_content: fullOriginalContent,
+            scripts: response.data.scripts ? [...response.data.scripts].sort((a, b) => {
+            const typeOrder = { 'original_text': 0, 'oral_script': 1, 'tts_refined_script': 2, 'final_tts_script': 3 }; // original_text 是隐式的
+            if (typeOrder[a.script_type] !== undefined && typeOrder[b.script_type] !== undefined && typeOrder[a.script_type] !== typeOrder[b.script_type]) {
+                return typeOrder[a.script_type] - typeOrder[b.script_type];
+            }
+            return b.version - a.version; // 同类型内，版本高的在前
+            }) : [],
+            final_script_sentences: response.data.final_script_sentences // 后端应该返回已排序的
+            ? [...response.data.final_script_sentences].sort((a, b) => a.order_index - b.order_index) 
+            : [],
+            latest_merged_audio: response.data.latest_merged_audio // 确保 segments 也包含在内
+        };
+        setContentDetail(sortedData);
+
+        // <<< 新增逻辑：获取最新的视频合成任务状态 >>>
+        // 假设后端提供了一个接口来获取某个内容最新的合成任务
+        // 例如：GET /api/tts/content/{contentId}/video-synthesis/latest
+        // const synthesisResponse = await ttsApi.getLatestSynthesisTask(contentId);
+        // if (synthesisResponse.data) {
+        //   setSynthesisTask(synthesisResponse.data);
+        // }
+        // 设置合成任务状态
+        if (synthesisRes.data) {
+            setSynthesisTask(synthesisRes.data);
+            // 可以在这里添加如果任务正在进行中，则自动开始轮询的逻辑
+            if (synthesisRes.data.status === 'analyzing' || synthesisRes.data.status === 'synthesizing') {
+                // startPolling(synthesisRes.data.celery_task_id, synthesisRes.data.status);
+            }
+        } else {
+            setSynthesisTask(null); // 确保如果没有任务，状态被清空
+        }
+
     } catch (err) {
       console.error("获取培训内容详情失败:", err.response || err);
       const extractedErrorMessage = err.response?.data?.error || err.message || '获取详情失败，请稍后重试';
@@ -457,6 +557,29 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
       if (showLoadingIndicator) setLoading(false);
     }
   }, [contentId]); 
+
+  // <<<--- 新增：useEffect 用于在数据加载后设置默认激活的步骤 ---<<<
+  useEffect(() => {
+    if (contentDetail) {
+      // 从后往前找到第一个未完成的步骤并激活它
+      let lastCompletedIndex = -1;
+      for (let i = 0; i < workflowSteps.length; i++) {
+        const step = workflowSteps[i];
+        const prevStep = i > 0 ? workflowSteps[i - 1] : null;
+        const prevCompleted = prevStep ? prevStep.isCompleted(contentDetail.status, contentDetail.scripts, contentDetail.final_script_sentences, contentDetail.latest_merged_audio) : true;
+        
+        if (step.isCompleted(contentDetail.status, contentDetail.scripts, contentDetail.final_script_sentences, contentDetail.latest_merged_audio, synthesisTask) && prevCompleted) {
+          lastCompletedIndex = i;
+        } else {
+          break; // 找到第一个未完成的就停止
+        }
+      }
+      // 激活下一个未完成的步骤，如果所有都完成了，则激活最后一个
+      const nextStepIndex = Math.min(lastCompletedIndex + 1, workflowSteps.length - 1);
+      setActiveStepKey(workflowSteps[nextStepIndex].key);
+    }
+  }, [contentDetail, synthesisTask, workflowSteps]);
+  // ------------------------------------------------------------>>>
 
   const initializeStepInput = useCallback((step, detail) => {
     if (!step || !detail) {
@@ -1270,6 +1393,47 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
             </Box>
         </Paper>
       )}
+      {/* <<<--- 在这里新增视频合成任务的进度条 ---<<< */}
+        {synthesisTask && (synthesisTask.status === 'analyzing' || synthesisTask.status === 'synthesizing') && (
+            <Paper 
+                elevation={2} 
+                sx={{ 
+                    p: 2, 
+                    mb: 3, 
+                    border: 1,
+                    borderColor: 'info.light',
+                    backgroundColor: 'info.lightest',
+                }}
+            >
+                <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold' }}>
+                    视频生成进度
+                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <CircularProgress size={24} color="info" />
+                    <Box sx={{ width: '100%' }}>
+                        <Typography variant="body2" color="text.secondary">
+                            {synthesisTask.status === 'analyzing' ? 'AI脚本分析中...' : '视频编码合成中...'}
+                        </Typography>
+                        {/* 检查是否有具体的进度信息可以显示 */}
+                        {synthesisTask.status === 'synthesizing' && typeof pollingTask.meta?.progress === 'number' ? (
+                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
+                                <LinearProgress 
+                                    variant="determinate" 
+                                    value={pollingTask.meta.progress} 
+                                    sx={{ flexGrow: 1, height: 8, borderRadius: 4 }} 
+                                />
+                                <Typography variant="caption" sx={{ fontWeight: 'bold' }}>
+                                    {`${pollingTask.meta.progress}%`}
+                                </Typography>
+                            </Box>
+                        ) : (
+                            <LinearProgress variant="indeterminate" sx={{ mt: 1.5, borderRadius: 2 }} color="info"/>
+                        )}
+                    </Box>
+                </Box>
+            </Paper>
+        )}
+        {/* ---------------------------------------------------->>> */}
 
 
       <Paper sx={{ p: 2, mb: 3 }}>
@@ -1517,7 +1681,16 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
                   />
                 )}
               </Box>
-
+            // ) : currentActiveStepDetails.key === 'generateAndMergeAudio' ? (
+            
+            ) : activeStepKey === 'synthesizeVideo' ?(
+                    <VideoSynthesisStep 
+                        contentId={contentId}
+                        synthesisTask={synthesisTask}
+                        setSynthesisTask={setSynthesisTask}
+                        onTaskStart={startPolling}
+                        onAlert={(alertConfig) => setAlert(alertConfig)}
+                    />
             ) : ( // 默认的网格布局，用于步骤 1, 2, 3 (口播稿, TTS优化, LLM修订)
               <Grid container spacing={2}>
                 <Grid item xs={12} md={6}>
@@ -1624,7 +1797,10 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
             )}
           </Box>
         )}
+        
       </Paper>
+        
+      
     
       <Dialog 
         open={showFullScriptDialog.open} 

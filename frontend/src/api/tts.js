@@ -47,4 +47,26 @@ export const ttsApi = {
   
   // 获取 LLM Prompts (用于上传内容时的选择器)
   getLlmPrompts: () => api.get('/llm-config/prompts'), 
+
+  // 新增：获取最新的视频合成任务状态
+  getLatestSynthesisTask: (contentId) => api.get(`/tts/content/${contentId}/video-synthesis/latest`),
+
+  // 新增：触发视频合成分析
+  startVideoAnalysis: (contentId, pptFile, promptId) => {
+    const formData = new FormData();
+    formData.append('ppt_pdf', pptFile);
+    formData.append('prompt_id', promptId);
+    return api.post(`/tts/content/${contentId}/video-synthesis/analyze`, formData);
+    // 注意：axios 会自动处理 multipart/form-data 的 Content-Type
+  },
+
+  // 新增：触发最终视频合成
+  startVideoSynthesis: (synthesisId, finalScriptData) => {
+    // 注意蓝图前缀 /api/tts 会被axios自动加上
+    return api.post(`/tts/synthesis/${synthesisId}/synthesize`, finalScriptData);
+  },
+
+  resetSynthesisTask: (synthesisId) => {
+        return api.post(`/tts/synthesis/${synthesisId}/reset`);
+    },
 };

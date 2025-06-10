@@ -541,7 +541,7 @@ class LlmCallLog(db.Model):
     __tablename__ = 'llm_call_logs'
     __table_args__ = ({'comment': 'LLM 调用日志表'})
     id = db.Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    timestamp = db.Column(db.DateTime(timezone=True), server_default=func.now())
+    timestamp = db.Column(db.DateTime(timezone=True), server_default=func.now(), comment="调用开始时间") # 明确其为开始时间
     function_name = db.Column(db.String(255), nullable=False)
     llm_model_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('llm_models.id', name='fk_llm_call_log_model_id'), nullable=True)
     llm_prompt_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('llm_prompts.id', name='fk_llm_call_log_prompt_id'), nullable=True)
@@ -549,13 +549,15 @@ class LlmCallLog(db.Model):
     input_data = db.Column(PG_JSONB, nullable=True)
     output_data = db.Column(PG_JSONB, nullable=True)
     parsed_output_data = db.Column(PG_JSONB, nullable=True)
-    status = db.Column(db.String(50), nullable=False)
+    status = db.Column(db.String(50), nullable=False, comment="success, error, pending") # 增加 pending 状态
     error_message = db.Column(db.Text, nullable=True)
     duration_ms = db.Column(db.Integer, nullable=True)
     user_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('user.id', name='fk_llm_call_log_user_id'), nullable=True)
+    created_at = db.Column(db.DateTime(timezone=True), server_default=func.now()) # 可以用这个作为初始记录时间
+    updated_at = db.Column(db.DateTime(timezone=True), server_default=func.now(), onupdate=func.now()) # 记录更新时间
 
     def __repr__(self):
-        return f'<LlmCallLog {self.id} for {self.function_name}>'
+        return f'<LlmCallLog {self.id} for {self.function_name} - {self.status}>'
 
 
 # --- TTS Module Models ---
@@ -803,3 +805,36 @@ class UserResourceAccess(db.Model):
             'granted_at': self.granted_at.isoformat() if self.granted_at else None,
             'expires_at': self.expires_at.isoformat() if self.expires_at else None, # 新增
         }
+
+# backend/models.py (新增模型)
+
+class VideoSynthesis(db.Model):
+    __tablename__ = 'video_synthesis'
+    __table_args__ = (
+        {'comment': '视频合成任务表'}
+    )
+    id = db.Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    training_content_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('training_content.id', ondelete='CASCADE'), nullable=False, index=True)
+    
+    # 输入文件
+    merged_audio_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('tts_audio.id', ondelete='SET NULL'), nullable=True)
+    srt_file_path = db.Column(db.String(1024), nullable=True, comment='生成的SRT文件路径')
+    ppt_pdf_path = db.Column(db.String(1024), nullable=False, comment='用户上传的PPT导出的PDF文件路径')
+    
+    # LLM 分析
+    llm_prompt_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('llm_prompts.id', ondelete='SET NULL'), nullable=True)
+    video_script_json = db.Column(PG_JSONB, nullable=True, comment='LLM生成的视频脚本JSON')
+    
+    # 任务状态
+    status = db.Column(db.String(50), nullable=False, default='pending_analysis', index=True, comment='合成状态 (pending_analysis, analysis_complete, synthesizing, complete, error)')
+    
+    # 最终产物
+    generated_resource_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('course_resource.id', ondelete='SET NULL'), nullable=True, comment='最终生成的视频资源ID')
+    
+    created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
+    updated_at = db.Column(db.DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    training_content = db.relationship('TrainingContent', backref=backref('video_syntheses', lazy='dynamic', cascade='all, delete-orphan'))
+    # ... 其他关系 ...
+    merged_audio = db.relationship('TtsAudio', foreign_keys=[merged_audio_id])
+    generated_resource = db.relationship('CourseResource', foreign_keys=[generated_resource_id])

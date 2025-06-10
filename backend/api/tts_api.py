@@ -1,7 +1,7 @@
 # backend/api/tts_api.py
 
 from flask import Blueprint, request, jsonify, current_app
-from backend.models import db, TrainingCourse, TrainingContent, TtsScript, TtsSentence, TtsAudio, LlmPrompt, User, MergedAudioSegment
+from backend.models import db, TrainingCourse, TrainingContent, TtsScript, TtsSentence, TtsAudio, LlmPrompt, User, MergedAudioSegment, VideoSynthesis
 # 假设您已经将 @admin_required 放在了 security_utils.py 或者您希望从其他地方导入
 # from backend.security_utils import admin_required 
 # 如果还没有，我们可以先简单地使用 @jwt_required()，并后续根据需要替换或增强
@@ -17,6 +17,8 @@ from backend.tasks import generate_single_sentence_audio_async # 导入新的Cel
 from backend.tasks import batch_generate_audio_task # <--- 新增导入
 from backend.tasks import merge_all_audios_for_content # Import the new task
 from backend.tasks import run_llm_function_async # 导入新的Celery任务
+from backend.tasks import synthesize_video_task # <<< 确保从 tasks 导入新任务
+
 
 # from backend.tasks import generate_merged_audio_async # 导入新的Celery任务``
 from backend.tasks import trigger_tts_refine_async # 导入新的Celery任务
@@ -1299,3 +1301,206 @@ def get_merged_audio_segments_route(merged_audio_id):
         'duration_ms': seg.duration_ms,
         'sentence_current_text': seg.tts_sentence.sentence_text if seg.tts_sentence else None # Get current text if sentence still exists
     } for seg in segments])
+
+@tts_bp.route('/content/<uuid:content_id>/video-synthesis/latest', methods=['GET'])
+@jwt_required() # 或者 @admin_required，根据您的权限设计
+def get_latest_synthesis_task_for_content(content_id):
+    """
+    获取指定培训内容最新的一次视频合成任务状态。
+    """
+    content = TrainingContent.query.get(str(content_id))
+    if not content:
+        return jsonify({'error': '培训内容未找到'}), 404
+
+    try:
+        # 按创建时间降序排序，找到最新的一个任务记录
+        latest_task = VideoSynthesis.query.filter_by(
+            training_content_id=str(content_id)
+        ).order_by(VideoSynthesis.created_at.desc()).first()
+
+        if not latest_task:
+            return jsonify(None), 200 # 返回 null 或空对象，表示还没有任务
+
+        # 返回任务的关键信息
+        return jsonify({
+            'id': str(latest_task.id),
+            'status': latest_task.status,
+            'video_script_json': latest_task.video_script_json,
+            'generated_resource_id': str(latest_task.generated_resource_id) if latest_task.generated_resource_id else None,
+            'created_at': latest_task.created_at.isoformat(),
+        }), 200
+
+    except Exception as e:
+        current_app.logger.error(f"获取最新合成任务失败 for content {content_id}: {e}", exc_info=True)
+        return jsonify({'error': '服务器内部错误'}), 500
+
+
+@tts_bp.route('/content/<uuid:content_id>/video-synthesis/analyze', methods=['POST'])
+@jwt_required()
+def start_video_synthesis_analysis(content_id):
+    """
+    接收用户上传的PPT(PDF)和选择的Prompt，创建视频合成任务，并触发异步分析。
+    """
+    # 1. 验证和获取输入
+    if 'ppt_pdf' not in request.files:
+        return jsonify({'error': '缺少名为 "ppt_pdf" 的文件部分'}), 400
+    
+    ppt_file = request.files['ppt_pdf']
+    if ppt_file.filename == '':
+        return jsonify({'error': '未选择任何文件'}), 400
+
+    prompt_id = request.form.get('prompt_id')
+    if not prompt_id:
+        return jsonify({'error': '缺少提示词ID (prompt_id)'}), 400
+
+    content = TrainingContent.query.get(str(content_id))
+    if not content:
+        return jsonify({'error': '指定的培训内容不存在'}), 404
+        
+    # 2. 定位合并后的音频和对应的字幕文件（.txt）
+    latest_merged_audio = content.merged_audios.filter_by(is_latest_for_content=True).order_by(TtsAudio.created_at.desc()).first()
+    if not latest_merged_audio:
+        return jsonify({'error': '找不到用于分析的合并后音频文件'}), 404
+    
+    # 构建字幕文件路径 (.txt)
+    audio_path_relative = latest_merged_audio.file_path
+    srt_txt_path_relative = os.path.splitext(audio_path_relative)[0] + '.txt'
+    
+    storage_base_path = current_app.config.get('TTS_AUDIO_STORAGE_PATH')
+    srt_txt_full_path = os.path.join(storage_base_path, srt_txt_path_relative)
+
+    if not os.path.exists(srt_txt_full_path):
+        current_app.logger.error(f"无法找到预期的字幕文件，路径: {srt_txt_full_path}")
+        return jsonify({'error': f'找不到对应的字幕文件({srt_txt_path_relative})，请确认第五步已成功生成。'}), 404
+
+    # 3. 保存上传的PDF文件
+    from werkzeug.utils import secure_filename
+    video_synthesis_dir = os.path.join(current_app.instance_path, 'uploads', 'video_synthesis', str(content_id))
+    os.makedirs(video_synthesis_dir, exist_ok=True)
+    
+    pdf_filename = secure_filename(ppt_file.filename)
+    # 使用UUID确保文件名唯一，防止覆盖
+    unique_pdf_filename = f"{uuid.uuid4().hex}_{pdf_filename}"
+    pdf_save_path = os.path.join(video_synthesis_dir, unique_pdf_filename)
+    ppt_file.save(pdf_save_path)
+    current_app.logger.info(f"PDF文件已保存至: {pdf_save_path}")
+
+    try:
+        # 4. 创建 VideoSynthesis 任务记录
+        new_synthesis_task = VideoSynthesis(
+            training_content_id=str(content_id),
+            merged_audio_id=latest_merged_audio.id,
+            srt_file_path=srt_txt_full_path, # 存储 .txt 文件的绝对路径
+            ppt_pdf_path=pdf_save_path,     # 存储 PDF 文件的绝对路径
+            llm_prompt_id=prompt_id,
+            status='analyzing'             # 初始状态
+        )
+        db.session.add(new_synthesis_task)
+        db.session.commit()
+        current_app.logger.info(f"已创建视频合成任务记录: {new_synthesis_task.id}")
+        
+        # 5. 触发异步任务
+        from backend.tasks import analyze_video_script_task
+        async_task = analyze_video_script_task.delay(str(new_synthesis_task.id))
+        current_app.logger.info(f"已触发视频脚本分析的异步任务，Celery Task ID: {async_task.id}")
+
+        # 6. 返回成功响应
+        return jsonify({
+            'message': '视频分析任务已成功提交，正在后台处理...',
+            'synthesis_id': str(new_synthesis_task.id),
+            'task_id': async_task.id
+        }), 202
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"创建视频分析任务时出错: {e}", exc_info=True)
+        return jsonify({'error': '创建任务时发生服务器内部错误'}), 500
+    
+@tts_bp.route('/synthesis/<uuid:synthesis_id>/synthesize', methods=['POST'])
+@jwt_required()
+def trigger_video_synthesis(synthesis_id):
+    """
+    接收用户确认，触发最终的视频合成异步任务。
+    """
+    synthesis_task = VideoSynthesis.query.get(str(synthesis_id))
+    if not synthesis_task:
+        return jsonify({'error': '视频合成任务记录未找到'}), 404
+
+    # 验证当前状态是否适合开始合成
+    if synthesis_task.status != 'analysis_complete':
+        return jsonify({'error': f'任务当前状态为 "{synthesis_task.status}"，无法开始合成。请先完成分析。'}), 400
+    
+    # 可选：如果前端允许用户修改脚本，可以从请求体中获取并更新
+    # data = request.get_json()
+    # if data and 'video_scripts' in data:
+    #     synthesis_task.video_script_json = data 
+    
+    try:
+        synthesis_task.status = 'synthesizing' # 更新状态为“合成中”
+        db.session.commit()
+        
+        # 触发视频合成的异步任务
+        async_task = synthesize_video_task.delay(str(synthesis_task.id))
+        current_app.logger.info(f"已触发视频合成异步任务，Celery Task ID: {async_task.id}")
+        
+        return jsonify({
+            'message': '视频合成任务已成功提交，后台正在处理...',
+            'synthesis_id': str(synthesis_task.id),
+            'task_id': async_task.id
+        }), 202
+
+    except Exception as e:
+        db.session.rollback()
+        # 出错时回滚状态
+        synthesis_task.status = 'error_synthesis' # 可以定义一个专用的错误状态
+        db.session.commit()
+        current_app.logger.error(f"提交视频合成任务时出错: {e}", exc_info=True)
+        return jsonify({'error': '提交合成任务时发生服务器内部错误'}), 500
+
+@tts_bp.route('/synthesis/<uuid:synthesis_id>/reset', methods=['POST'])
+# <<<--- 将上面这行暂时注释掉，并用下面这行替换 ---<<<
+# @tts_bp.route('/synthesis/reset_test', methods=['POST'])
+# ----------------------------------------------------->>>
+@jwt_required()
+# <<<--- 同时，函数的参数也需要临时修改 ---<<<
+def reset_synthesis_task(synthesis_id):
+    """
+    重置一个视频合成任务的状态。
+    目前的设计是将其状态重置回 'analysis_complete'，
+    允许用户重新触发合成，而无需重新上传和分析PDF。
+    """
+    synthesis_task = VideoSynthesis.query.get(str(synthesis_id))
+    if not synthesis_task:
+        return jsonify({'error': '视频合成任务记录未找到'}), 404
+
+    try:
+        # 清理旧的生成结果
+        if synthesis_task.generated_resource_id:
+            # 可选：在这里添加逻辑来删除旧的视频物理文件和CourseResource记录
+            # 为了简化，我们暂时只断开链接
+            old_resource_id = synthesis_task.generated_resource_id
+            synthesis_task.generated_resource_id = None
+            current_app.logger.info(f"任务 {synthesis_id} 与旧资源 {old_resource_id} 的关联已解除。")
+            
+        # 将状态重置回分析完成
+        synthesis_task.status = 'analysis_complete'
+        
+        db.session.commit()
+        
+        current_app.logger.info(f"视频合成任务 {synthesis_id} 已被重置。")
+
+        # 返回更新后的任务对象，以便前端立即更新UI
+        return jsonify({
+            'message': '任务状态已重置，您可以重新合成视频。',
+            'updated_task': {
+                'id': str(synthesis_task.id),
+                'status': synthesis_task.status,
+                'video_script_json': synthesis_task.video_script_json, # 重新发送分析结果
+                'generated_resource_id': None,
+            }
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"重置合成任务 {synthesis_id} 时出错: {e}", exc_info=True)
+        return jsonify({'error': '重置任务状态时发生服务器内部错误'}), 500

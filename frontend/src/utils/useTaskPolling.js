@@ -1,65 +1,74 @@
 // frontend/src/utils/useTaskPolling.js
+
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { ttsApi } from '../api/tts'; // 假设你的API客户端在这里
+import { ttsApi } from '../api/tts';
 
-const useTaskPolling = (onTaskCompletion, onTaskFailure) => {
-  const [pollingTask, setPollingTask] = useState(null); // { id, type, message }
-  const [isPolling, setIsPolling] = useState(false);
-  const pollingIntervalRef = useRef(null);
+const useTaskPolling = (onTaskCompletion, onTaskFailure, onProgress) => {
+    const [pollingTask, setPollingTask] = useState(null);
+    const [isPolling, setIsPolling] = useState(false);
+    const pollingIntervalRef = useRef(null);
 
-  const stopPolling = useCallback(() => {
-    if (pollingIntervalRef.current) {
-      clearInterval(pollingIntervalRef.current);
-      pollingIntervalRef.current = null;
-    }
-    setIsPolling(false);
-    setPollingTask(null);
-  }, []);
-
-  const startPolling = useCallback((taskId, taskType = 'default', initialMessage = '任务已提交，等待处理...') => {
-    stopPolling(); // 先停止任何可能在运行的轮询
-
-    const newTask = { id: taskId, type: taskType, message: initialMessage, status: 'PENDING' };
-    setPollingTask(newTask);
-    setIsPolling(true);
-    
-    pollingIntervalRef.current = setInterval(async () => {
-      try {
-        const response = await ttsApi.getTaskStatus(taskId);
-        const taskData = response.data;
-
-        setPollingTask(prev => ({ ...prev, ...taskData, message: taskData.meta?.message || taskData.result?.message || prev.message }));
-
-        if (taskData.status === 'SUCCESS' || taskData.status === 'FAILURE') {
-          stopPolling();
-          if (taskData.status === 'SUCCESS') {
-            if (onTaskCompletion) onTaskCompletion(taskData, taskType);
-          } else {
-            if (onTaskFailure) onTaskFailure(taskData, taskType);
-          }
+    const stopPolling = useCallback(() => {
+        if (pollingIntervalRef.current) {
+            clearInterval(pollingIntervalRef.current);
+            pollingIntervalRef.current = null;
         }
-      } catch (error) {
-        console.error(`轮询任务 ${taskId} 状态失败:`, error);
+        setIsPolling(false);
+        setPollingTask(null);
+    }, []);
+
+    const startPolling = useCallback((taskId, taskType = 'default', initialMessage = '...') => {
         stopPolling();
-        if (onTaskFailure) {
-          onTaskFailure({ 
-            status: 'FAILURE', 
-            error_message: '轮询任务状态时网络或服务器错误。',
-            meta: { message: '轮询任务状态时出错。' }
-          }, taskType);
-        }
-      }
-    }, 2500); // 每2.5秒轮询一次
-  }, [onTaskCompletion, onTaskFailure, stopPolling]);
 
-  // 组件卸载时自动停止轮询
-  useEffect(() => {
-    return () => {
-      stopPolling();
-    };
-  }, [stopPolling]);
+        const initialTaskState = { id: taskId, type: taskType, message: initialMessage, status: 'PENDING', meta: {} };
+        setPollingTask(initialTaskState);
+        setIsPolling(true);
+        
+        pollingIntervalRef.current = setInterval(async () => {
+            let currentTaskState = null; // 用于临时存储当前轮询获取的状态
+            try {
+                const response = await ttsApi.getTaskStatus(taskId);
+                currentTaskState = response.data;
 
-  return { pollingTask, isPolling, startPolling, stopPolling };
+                // <<<--- 关键修改：直接用最新的 taskData 调用 onProgress ---<<<
+                if (currentTaskState.status === 'PROGRESS' && onProgress) {
+                    onProgress(currentTaskState, taskType);
+                }
+                // -------------------------------------------------------->>>
+
+                // 更新内部状态，用于驱动 isPolling 等
+                setPollingTask(prev => ({ ...prev, ...currentTaskState }));
+
+                if (currentTaskState.status === 'SUCCESS' || currentTaskState.status === 'FAILURE') {
+                    stopPolling();
+                    if (currentTaskState.status === 'SUCCESS') {
+                        if (onTaskCompletion) onTaskCompletion(currentTaskState, taskType);
+                    } else {
+                        if (onTaskFailure) onTaskFailure(currentTaskState, taskType);
+                    }
+                }
+            } catch (error) {
+                console.error(`轮询任务 ${taskId} 状态失败:`, error);
+                stopPolling();
+                if (onTaskFailure) {
+                  onTaskFailure({ 
+                    status: 'FAILURE', 
+                    error_message: '轮询任务状态时网络或服务器错误。',
+                    meta: { message: '轮询任务状态时出错。' }
+                  }, taskType);
+                }
+              }
+        }, 2000);
+    }, [onTaskCompletion, onTaskFailure, onProgress, stopPolling]);
+
+    // 组件卸载时自动停止轮询
+    useEffect(() => {
+      return () => {
+        stopPolling();
+      };
+    }, [stopPolling]);
+
+    return { pollingTask, isPolling, startPolling, stopPolling };
 };
 
 export default useTaskPolling;

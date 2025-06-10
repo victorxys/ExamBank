@@ -194,7 +194,9 @@ app.register_blueprint(evaluation_item_api_bp) # 确认蓝图名称
 app.register_blueprint(evaluation_order_bp) # 新增注册
 app.register_blueprint(llm_config_bp) # 修改注册
 app.register_blueprint(llm_log_bp)   # 新增注册
-app.register_blueprint(tts_bp) # 注册 TTS 蓝图
+# \app.register_blueprint(tts_bp) # 注册 TTS 蓝图
+app.register_blueprint(tts_bp, url_prefix='/api/tts')
+
 app.register_blueprint(course_resource_bp) # <--- 新增注册
 app.register_blueprint(permission_bp) # <--- 新增注册
 
