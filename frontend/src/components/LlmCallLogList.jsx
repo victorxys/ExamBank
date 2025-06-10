@@ -12,6 +12,32 @@ import AlertMessage from './AlertMessage';
 import PageHeader from './PageHeader';
 import { useTheme } from '@mui/material/styles';
 
+// 将日期格式化函数放在组件外部或一个 utils 文件中
+const formatDateForListDisplay = (isoTimestamp) => {
+  if (!isoTimestamp) return 'N/A';
+  try {
+    const date = new Date(isoTimestamp);
+    // 验证日期是否有效
+    if (isNaN(date.getTime())) {
+        console.warn("Invalid date timestamp for formatting:", isoTimestamp);
+        return 'Invalid Date';
+    }
+    
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    // toLocaleTimeString 会根据用户的区域设置来格式化时间，通常包含 AM/PM
+    // 如果你想要固定的 24 小时制，可以像下面这样手动构建
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    const seconds = date.getSeconds().toString().padStart(2, '0');
+    
+    return `${month}-${day} ${hours}:${minutes}:${seconds}`;
+  } catch (error) {
+    console.error("Error formatting date:", isoTimestamp, error);
+    return 'Error';
+  }
+};
+
 const LlmCallLogList = () => {
   const theme = useTheme();
   const navigate = useNavigate();
@@ -29,7 +55,18 @@ const LlmCallLogList = () => {
     user_id: ''
   });
   const [filterDialogOpen, setFilterDialogOpen] = useState(false); // 用于控制筛选弹窗（如果需要更复杂的筛选）
-
+  const formatDateForList = (isoTimestamp) => {
+    if (!isoTimestamp) return 'N/A';
+    const date = new Date(isoTimestamp);
+    
+    const month = (date.getMonth() + 1).toString().padStart(2, '0'); // getMonth() 返回 0-11
+    const day = date.getDate().toString().padStart(2, '0');
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    const seconds = date.getSeconds().toString().padStart(2, '0');
+    
+    return `${month}-${day} ${hours}:${minutes}:${seconds}`;
+  };
   // 用于筛选下拉框的数据
   const [availableModels, setAvailableModels] = useState([]);
   const [availablePrompts, setAvailablePrompts] = useState([]);
@@ -105,6 +142,8 @@ const LlmCallLogList = () => {
     navigate(`/admin/llm/call-logs/${logId}`);
   };
 
+  
+
   return (
     <Box>
       <AlertMessage open={alert.open} message={alert.message} severity={alert.severity} onClose={() => setAlert(prev => ({ ...prev, open: false }))} />
@@ -122,6 +161,8 @@ const LlmCallLogList = () => {
                 <MenuItem value=""><em>全部</em></MenuItem>
                 <MenuItem value="success">成功</MenuItem>
                 <MenuItem value="error">失败</MenuItem>
+                <MenuItem value="pending">处理中</MenuItem> {/* 增加了 pending 状态的筛选 */}
+
               </Select>
             </FormControl>
           </Grid>
@@ -159,9 +200,11 @@ const LlmCallLogList = () => {
                 <TableBody>
                   {logs.map((log) => (
                     <TableRow hover key={log.id}>
-                      <TableCell>
-                        <Tooltip title={new Date(log.timestamp).toLocaleString()} placement="top">
-                            <span>{new Date(log.timestamp).toLocaleTimeString()}</span>
+                     <TableCell>
+                        {/* Tooltip 仍然显示完整的本地化日期时间 */}
+                        <Tooltip title={log.timestamp ? new Date(log.timestamp).toLocaleString() : 'N/A'} placement="top">
+                            {/* 显示格式化后的 月-日 时:分:秒 */}
+                            <span>{formatDateForListDisplay(log.timestamp)}</span> 
                         </Tooltip>
                       </TableCell>
                       <TableCell>{log.function_name}</TableCell>
