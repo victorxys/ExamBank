@@ -4,8 +4,23 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { ttsApi } from '../api/tts';
 
 const useTaskPolling = (onTaskCompletion, onTaskFailure, onProgress) => {
-    const [pollingTask, setPollingTask] = useState(null);
+    // 内部状态，只由这个钩子管理
     const [isPolling, setIsPolling] = useState(false);
+    const [pollingTask, setPollingTask] = useState(null); // 存储当前轮询任务的信息
+    
+    // 使用 useRef 来存储回调函数，确保 setInterval 中总能拿到最新的函数引用，
+    // 同时避免它们成为 useEffect 的依赖项。
+    const onTaskCompletionRef = useRef(onTaskCompletion);
+    const onTaskFailureRef = useRef(onTaskFailure);
+    const onProgressRef = useRef(onProgress);
+
+    // 每次组件渲染时，都更新 ref 中的函数引用
+    useEffect(() => {
+        onTaskCompletionRef.current = onTaskCompletion;
+        onTaskFailureRef.current = onTaskFailure;
+        onProgressRef.current = onProgress;
+    });
+
     const pollingIntervalRef = useRef(null);
 
     const stopPolling = useCallback(() => {
@@ -14,57 +29,51 @@ const useTaskPolling = (onTaskCompletion, onTaskFailure, onProgress) => {
             pollingIntervalRef.current = null;
         }
         setIsPolling(false);
-        // setPollingTask(null);
+        // 保留 pollingTask 的最终状态，直到下一次 startPolling
+        // setPollingTask(null); 
     }, []);
 
     const startPolling = useCallback((taskId, taskType = 'default', initialMessage = '...') => {
+        // 先确保停止任何正在进行的轮询
         stopPolling();
 
         const initialTaskState = { id: taskId, type: taskType, message: initialMessage, status: 'PENDING', meta: {} };
-        setPollingTask(initialTaskState);
+        setPollingTask(initialTaskState); // 设置初始任务状态
         setIsPolling(true);
         
         pollingIntervalRef.current = setInterval(async () => {
-            let currentTaskState = null; // 用于临时存储当前轮询获取的状态
             try {
                 const response = await ttsApi.getTaskStatus(taskId);
-                currentTaskState = response.data;
+                const taskData = response.data;
 
-                // <<<--- 关键修改：直接用最新的 taskData 调用 onProgress ---<<<
-                if (currentTaskState.status === 'PROGRESS' && onProgress) {
-                    onProgress(currentTaskState, taskType);
-                }
-                // -------------------------------------------------------->>>
+                // 更新内部状态
+                setPollingTask(prev => ({ ...prev, ...taskData }));
 
-                // 更新内部状态，用于驱动 isPolling 等
-                setPollingTask(prev => ({ ...prev, ...currentTaskState }));
-                // <<<--- 关键修改：处理 PROGRESS 状态 ---<<<
-                if (currentTaskState.status === 'PROGRESS' && typeof onProgress === 'function') {
-                    onProgress(currentTaskState, taskType);
-                }
-                // ------------------------------------------>>>
-
-                if (currentTaskState.status === 'SUCCESS' || currentTaskState.status === 'FAILURE') {
+                // 根据任务状态调用对应的外部回调函数
+                if (taskData.status === 'SUCCESS') {
                     stopPolling();
-                    if (currentTaskState.status === 'SUCCESS') {
-                        if (onTaskCompletion) onTaskCompletion(currentTaskState, taskType);
-                    } else {
-                        if (onTaskFailure) onTaskFailure(currentTaskState, taskType);
-                    }
+                    onTaskCompletionRef.current?.(taskData, taskType);
+                } else if (taskData.status === 'FAILURE') {
+                    stopPolling();
+                    onTaskFailureRef.current?.(taskData, taskType);
+                } else if (taskData.status === 'PROGRESS') {
+                    onProgressRef.current?.(taskData, taskType);
                 }
+                // 其他状态（PENDING, STARTED）会继续轮询
+
             } catch (error) {
                 console.error(`轮询任务 ${taskId} 状态失败:`, error);
                 stopPolling();
-                if (onTaskFailure) {
-                  onTaskFailure({ 
+                const failureData = { 
                     status: 'FAILURE', 
                     error_message: '轮询任务状态时网络或服务器错误。',
                     meta: { message: '轮询任务状态时出错。' }
-                  }, taskType);
-                }
-              }
-        }, 2000);
-    }, [onTaskCompletion, onTaskFailure, onProgress, stopPolling]);
+                  };
+                setPollingTask(prev => ({...prev, ...failureData}));
+                onTaskFailureRef.current?.(failureData, taskType);
+            }
+        }, 2500); // 轮询间隔设为2.5秒
+    }, [stopPolling]); // startPolling 只依赖于 stopPolling，是稳定的
 
     // 组件卸载时自动停止轮询
     useEffect(() => {

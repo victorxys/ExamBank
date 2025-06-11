@@ -1373,7 +1373,7 @@ def synthesize_video_task(self, synthesis_id_str):
             final_video = concatenate_videoclips(clips, method="compose").set_audio(audio_clip)
             
             # --- 调试代码 ---
-            IS_DEBUG_MODE = False 
+            IS_DEBUG_MODE = True 
             DEBUG_DURATION_SECONDS = 4
             final_video_to_write = final_video.subclip(0, DEBUG_DURATION_SECONDS) if IS_DEBUG_MODE else final_video
             # --------------

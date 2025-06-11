@@ -239,6 +239,22 @@ def get_training_content_detail(content_id):
                     'end_ms': seg.end_ms,
                     'duration_ms': seg.duration_ms,
                 })
+         # --- 新增：获取最新的视频合成任务状态 ---<<<
+        latest_synthesis_task = VideoSynthesis.query.filter_by(
+            training_content_id=str(content_id)
+        ).order_by(VideoSynthesis.updated_at.desc()).first()
+
+        synthesis_task_data = None
+        if latest_synthesis_task:
+            synthesis_task_data = {
+                'id': str(latest_synthesis_task.id),
+                'celery_task_id': latest_synthesis_task.celery_task_id, # <<< 假设你在模型中添加了 celery_task_id
+                'status': latest_synthesis_task.status,
+                'video_script_json': latest_synthesis_task.video_script_json,
+                'generated_resource_id': str(latest_synthesis_task.generated_resource_id) if latest_synthesis_task.generated_resource_id else None,
+                'created_at': latest_synthesis_task.created_at.isoformat(),
+                'latest_synthesis_task': synthesis_task_data # --- 新增：将任务信息附加到响应中
+            }
 
         response_payload = {
             'id': str(content.id),
@@ -252,7 +268,9 @@ def get_training_content_detail(content_id):
             'llm_refine_prompt_name': content.llm_refine_prompt.prompt_name if content.llm_refine_prompt else None, # 8. 检查关联对象是否存在
             'scripts': scripts_data,
             'final_script_sentences': sentences_data,
-            'latest_merged_audio': merged_audio_info
+            'latest_merged_audio': merged_audio_info,
+            'latest_synthesis_task': synthesis_task_data
+
         }
         current_app.logger.info(f"Successfully prepared response for content {content_id}.") # 9. 确认响应准备完毕
         return jsonify(response_payload)

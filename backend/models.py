@@ -834,6 +834,9 @@ class VideoSynthesis(db.Model):
     created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
     updated_at = db.Column(db.DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
+    celery_task_id = db.Column(db.String(255), nullable=True, index=True, comment='Celery任务ID')
+
+
     training_content = db.relationship('TrainingContent', backref=backref('video_syntheses', lazy='dynamic', cascade='all, delete-orphan'))
     # ... 其他关系 ...
     merged_audio = db.relationship('TtsAudio', foreign_keys=[merged_audio_id])
