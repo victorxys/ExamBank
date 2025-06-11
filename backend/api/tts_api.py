@@ -1506,3 +1506,36 @@ def reset_synthesis_task(synthesis_id):
         db.session.rollback()
         current_app.logger.error(f"重置合成任务 {synthesis_id} 时出错: {e}", exc_info=True)
         return jsonify({'error': '重置任务状态时发生服务器内部错误'}), 500
+
+
+@tts_bp.route('/synthesis/<uuid:synthesis_id>/script', methods=['PUT'])
+@jwt_required()
+def update_video_script(synthesis_id):
+    synthesis_task = VideoSynthesis.query.get(str(synthesis_id))
+    if not synthesis_task:
+        return jsonify({'error': '视频合成任务记录未找到'}), 404
+
+    data = request.get_json()
+    if not data or 'video_script_json' not in data:
+        return jsonify({'error': '缺少 video_script_json 数据'}), 400
+
+    try:
+        # 只更新 video_script_json 和 updated_at 字段
+        synthesis_task.video_script_json = data['video_script_json']
+        synthesis_task.updated_at = func.now() # 手动更新时间戳
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': '视频脚本更新成功。',
+            'updated_task': {
+                'id': str(synthesis_task.id),
+                'status': synthesis_task.status,
+                'video_script_json': synthesis_task.video_script_json,
+                'updated_at': synthesis_task.updated_at.isoformat()
+            }
+        }), 200
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"更新视频脚本 {synthesis_id} 时出错: {e}", exc_info=True)
+        return jsonify({'error': '更新视频脚本时发生服务器内部错误'}), 500

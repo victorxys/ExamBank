@@ -69,4 +69,9 @@ export const ttsApi = {
   resetSynthesisTask: (synthesisId) => {
         return api.post(`/tts/synthesis/${synthesisId}/reset`);
     },
+  
+  updateVideoScript: (synthesisId, scriptData) => {
+    return api.put(`/tts/synthesis/${synthesisId}/script`, { video_script_json: scriptData });
+  },
+
 };

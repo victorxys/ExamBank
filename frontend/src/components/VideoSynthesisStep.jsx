@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box, Button, Typography, Paper, CircularProgress, Select, MenuItem, FormControl, InputLabel,
-  Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Tooltip,
+  Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Tooltip,TextField,
   Grid, Alert, Chip, Avatar,LinearProgress
 } from '@mui/material';
 import {
@@ -15,6 +15,9 @@ import {
   PlayCircleOutline as PlayCircleOutlineIcon,
   FilePresent as FilePresentIcon,
   Movie as MovieIcon,
+  Edit as EditIcon,
+  Save as SaveIcon,
+  Cancel as CancelIcon, // 新增：取消图标
   Replay as ReplayIcon, // <<<--- 新增：导入重试图标
   RestartAlt as RestartAltIcon // <<<--- 新增：一个更适合“重置/重新开始”的图标
 
@@ -40,7 +43,7 @@ const ResultRow = ({ icon, title, data, renderItem }) => {
 };
 
 
-const VideoSynthesisStep = ({ contentId, synthesisTask, progressData, isSubmitting, onStartTask, onResetTask, onAlert 
+const VideoSynthesisStep = ({ contentId, setSynthesisTask, synthesisTask, progressData, isSubmitting, onStartTask, onResetTask, onAlert 
     }) => {
         const navigate = useNavigate();
         const theme = useTheme();
@@ -49,6 +52,11 @@ const VideoSynthesisStep = ({ contentId, synthesisTask, progressData, isSubmitti
         const [prompts, setPrompts] = useState([]);
         const [selectedPromptId, setSelectedPromptId] = useState('');
         const [loadingPrompts, setLoadingPrompts] = useState(true);
+
+        // ---用于编辑视频脚本的 state ---
+        const [isEditingScript, setIsEditingScript] = useState(false);
+        const [editableScript, setEditableScript] = useState([]);
+        const [isSavingScript, setIsSavingScript] = useState(false);
 
         const status = synthesisTask?.status || 'idle';
         const analysisResult = synthesisTask?.video_script_json;
@@ -80,6 +88,20 @@ const VideoSynthesisStep = ({ contentId, synthesisTask, progressData, isSubmitti
             };
             fetchPrompts();
         }, []); // 这个 effect 只在组件挂载时运行一次，是安全的
+
+        // 当分析结果从父组件更新时，初始化可编辑脚本的状态
+        useEffect(() => {
+            const scripts = analysisResult?.video_scripts;
+            if (scripts && Array.isArray(scripts)) {
+            setEditableScript(JSON.parse(JSON.stringify(scripts)));
+            } else {
+            setEditableScript([]);
+            }
+            // 如果进入编辑模式后，父组件的 analysisResult 更新了（例如重新分析），则退出编辑模式
+            if (isEditingScript) {
+                setIsEditingScript(false);
+            }
+        }, [analysisResult]);
 
         const handleSynthesisProgress = useCallback((taskData) => {
             if (taskData && taskData.meta) {
@@ -140,6 +162,43 @@ const VideoSynthesisStep = ({ contentId, synthesisTask, progressData, isSubmitti
                 onResetTask();
             }
         };
+
+        // --- 处理脚本编辑的函数 ---
+        const handleScriptChange = (index, field, value) => {
+            const newScript = [...editableScript];
+            if (field === 'ppt_page') {
+            newScript[index][field] = parseInt(value, 10) || 0;
+            } else {
+            newScript[index][field] = value;
+            }
+            setEditableScript(newScript);
+        };
+
+        const handleCancelEdit = () => {
+            // 恢复为原始脚本数据
+            setEditableScript(JSON.parse(JSON.stringify(analysisResult?.video_scripts || [])));
+            setIsEditingScript(false);
+        };
+
+        const handleSaveScript = async () => {
+            if (!synthesisTask?.id) return;
+            setIsSavingScript(true);
+            try {
+                const updatedAnalysisResult = { ...analysisResult, video_scripts: editableScript };
+                // 调用新的 API 来保存脚本
+                const response = await ttsApi.updateVideoScript(synthesisTask.id, updatedAnalysisResult);
+                
+                // 用后端返回的最新数据更新父组件的状态
+                setSynthesisTask(response.data.updated_task);
+                
+                setIsEditingScript(false);
+                onAlert({ open: true, message: "视频脚本已保存！", severity: "success" });
+            } catch (error) {
+                onAlert({ open: true, message: `保存脚本失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
+            } finally {
+                setIsSavingScript(false);
+            }
+        };
         
 
         // UI渲染逻辑现在完全依赖于从props传入的status，并且是正确的
@@ -198,20 +257,34 @@ const VideoSynthesisStep = ({ contentId, synthesisTask, progressData, isSubmitti
                     }
                     return (
                         <Box>
-                            <Typography variant="h6" gutterBottom>分析结果预览</Typography>
-                            <Paper variant="outlined" sx={{ p: 2, mb: 3 }}>
-                                <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mb: 1 }}>已匹配视频脚本</Typography>
-                                <TableContainer sx={{ maxHeight: 300 }}>
-                                    <Table stickyHeader size="small">
-                                        <TableHead><TableRow><TableCell>PPT页码</TableCell><TableCell>时间范围</TableCell></TableRow></TableHead>
-                                        <TableBody>
-                                            {(analysisResult.video_scripts || []).map((script, i) => (
-                                                <TableRow key={i}><TableCell>{script.ppt_page}</TableCell><TableCell>{script.time_range}</TableCell></TableRow>
-                                            ))}
-                                        </TableBody>
-                                    </Table>
-                                </TableContainer>
-                            </Paper>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                                <Typography variant="h6">分析结果预览</Typography>
+                                {isEditingScript ? (
+                                <Box>
+                                    <Button size="small" startIcon={<CancelIcon />} onClick={handleCancelEdit} disabled={isSavingScript}>取消</Button>
+                                    <Button size="small" variant="contained" startIcon={isSavingScript ? <CircularProgress size={16}/> : <SaveIcon />} onClick={handleSaveScript} disabled={isSavingScript}>保存脚本</Button>
+                                </Box>
+                                ) : (
+                                <Button size="small" variant="outlined" startIcon={<EditIcon />} onClick={() => setIsEditingScript(true)} disabled={isSubmitting}>编辑脚本</Button>
+                                )}
+                            </Box>
+                            <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: 300 }}>
+                                <Table stickyHeader size="small">
+                                    <TableHead><TableRow><TableCell>PPT页码</TableCell><TableCell>时间范围 (HH:MM:SS,ms)</TableCell></TableRow></TableHead>
+                                    <TableBody>
+                                        {editableScript.map((script, i) => (
+                                            <TableRow key={i}>
+                                                <TableCell>
+                                                    {isEditingScript ? <TextField size="small" type="number" sx={{width: '80px'}} value={script.ppt_page} onChange={(e) => handleScriptChange(i, 'ppt_page', e.target.value)} /> : script.ppt_page}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {isEditingScript ? <TextField size="small" fullWidth value={script.time_range} onChange={(e) => handleScriptChange(i, 'time_range', e.target.value)} /> : script.time_range}
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </TableContainer>
                             <Grid container spacing={3}>
                                 <Grid item xs={12} md={6}>
                                     <ResultRow
@@ -242,26 +315,15 @@ const VideoSynthesisStep = ({ contentId, synthesisTask, progressData, isSubmitti
                                 {status === 'complete' && finalVideoResourceId ? (
                                     <Box textAlign="center" py={2}>
                                         <Chip icon={<CheckCircleIcon />} label="视频已生成！" color="success" sx={{mb: 3, fontSize: '1rem', p: 2}}/>
-                                        <Box sx={{display: 'flex', justifyContent: 'center', gap: 2, flexWrap: 'wrap'}}>
+                                        <Box sx={{display: 'flex', justifyContent: 'center', gap: 2}}>
                                             <Button variant="contained" startIcon={<PlayCircleOutlineIcon />} onClick={() => navigate(`/my-courses/${contentId}/resource/${finalVideoResourceId}/play`)}>在线预览</Button>
-                                            {/* <<< 新增重置按钮 >>> */}
-                                            {/* <<<--- 新增“重新分析”按钮 ---<<< */}
-                                            <Button variant="outlined" color="primary" onClick={handleReset} startIcon={<RestartAltIcon />} disabled={isSubmitting}>
-                                                {isSubmitting ? '处理中...' : '重新分析脚本'}
-                                            </Button>
+                                            <Button variant="outlined" color="primary" onClick={onResetTask} startIcon={<RestartAltIcon />} disabled={isSubmitting}>重新分析</Button>
                                         </Box>
                                     </Box>
                                 ) : (
-                                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, alignItems: 'center' }}>
-                                        {/* <<<--- 新增“重新分析”按钮 ---<<< */}
-                                        <Button variant="outlined" color="primary" onClick={handleReset} startIcon={<RestartAltIcon />} disabled={isSubmitting}>
-                                            {isSubmitting ? '处理中...' : '重新分析'}
-                                        </Button>
-                                        <Button 
-                                            variant="contained" color="success" onClick={handleSynthesize} 
-                                            disabled={isSubmitting || status === 'synthesizing'} startIcon={<SynthesizeIcon />}
-                                        >
-                                            {isSubmitting || status === 'synthesizing' ? '合成中...' : '确认并合成视频'}
+                                    <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+                                        <Button variant="contained" color="success" onClick={handleSynthesize} disabled={isSubmitting || isEditingScript} startIcon={isSubmitting ? <CircularProgress size={20}/> : <SynthesizeIcon />}>
+                                            {isSubmitting ? '处理中...' : '确认并合成视频'}
                                         </Button>
                                     </Box>
                                 )}

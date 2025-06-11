@@ -1782,6 +1782,8 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
                         onStartTask={handleStartTask}
                         onResetTask={handleResetTask}
                         onAlert={setAlert}
+                        setSynthesisTask={setSynthesisTask} // <<<--- 确保传递这个 prop
+
                     />
             ) : ( // 默认的网格布局，用于步骤 1, 2, 3 (口播稿, TTS优化, LLM修订)
               <Grid container spacing={2}>
