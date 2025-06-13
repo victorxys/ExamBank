@@ -68,17 +68,25 @@ api.interceptors.request.use(
 
     // +++++ 新增: 根据请求数据类型设置或清除 Content-Type +++++
     if (config.data instanceof FormData) {
-      // 当数据是 FormData 时，axios 会自动设置正确的 Content-Type (multipart/form-data)
-      // 并包含正确的 boundary。我们应该删除任何可能冲突的全局 Content-Type 设置。
       delete config.headers['Content-Type'];
-    } else if (config.headers && !config.headers['Content-Type']) {
-      // 如果不是 FormData，并且请求头中没有显式设置 Content-Type，
-      // 那么我们可以默认它是 JSON。
-      // (如果您的应用主要使用 JSON API 的话)
-      config.headers['Content-Type'] = 'application/json';
-    }
-    // +++++++++++++++++++++++++++++++++++++++++++++++++++++
+    } else if (config.method === 'post' || config.method === 'put' || config.method === 'patch') {
+      // 对于 POST, PUT, PATCH 请求，如果数据不是 FormData，
+      // 我们期望 Content-Type 是 application/json (或相关的，如 application/merge-patch+json)
+      // 除非它已经被显式设置为了其他非 application/json 的有效类型（例如，如果某个API需要 text/xml）
+      
+      const currentContentType = config.headers['Content-Type'] ? String(config.headers['Content-Type']).toLowerCase() : null;
 
+      if (!currentContentType || !currentContentType.includes('application/json')) {
+        // 如果没有 Content-Type，或者当前的 Content-Type 不是 application/json，
+        // 并且我们不是在发送 FormData，那么将其设置为 application/json。
+        // 这会覆盖掉 axios 可能设置的默认 text/plain (如果数据是字符串) 
+        // 或 application/x-www-form-urlencoded (如果数据是 URLSearchParams)。
+        // 确保您的 data 确实是要作为 JSON 发送的对象。
+        if (typeof config.data === 'object' && config.data !== null && !(config.data instanceof URLSearchParams)) {
+            config.headers['Content-Type'] = 'application/json';
+        }
+      }
+    }
     return config;
   },
   (error) => {

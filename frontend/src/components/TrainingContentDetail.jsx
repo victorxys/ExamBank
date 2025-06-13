@@ -4,7 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box, Button, Typography, Paper, CircularProgress, Chip, Grid, Card, CardHeader, CardContent,
   TableContainer, Table, TableHead, TableRow, TableCell, TableBody, Tooltip,
-  Dialog, DialogTitle, DialogContent, DialogActions,
+  Dialog, DialogTitle, DialogContent, DialogActions,  FormControl, InputLabel, Select, MenuItem, // 用于引擎选择
   List, ListItem, ListItemText, Divider, IconButton, TextField, Stack, TextareaAutosize,
   LinearProgress, // 确保导入 LinearProgress
   TablePagination // 确保导入 TablePagination
@@ -31,6 +31,7 @@ import {
     Delete as DeleteIcon,
     Cached as CachedIcon,
     CloudUpload as CloudUploadIcon,
+    GraphicEq as GraphicEqIcon, // 一个示例图标 for Gemini
     Movie as MovieIcon, // 用于视频合成步骤
     Subtitles as SubtitlesIcon // 新增字幕图标
 } from '@mui/icons-material';
@@ -251,7 +252,7 @@ const SentenceList = ({
                                                         </Tooltip>
                                                     )}
                                                     {(['pending_generation', 'error_generation', 'pending_regeneration', 'error_submission', 'error_polling', 'queued'].includes(sentence.audio_status) || !sentence.audio_status) && (
-                                                        <Button size="small" variant="outlined" onClick={() => onGenerateAudio(sentence.id)} disabled={actionLoading[`sentence_${sentence.id}`] || sentence.audio_status === 'processing_request' || sentence.audio_status === 'generating'} startIcon={(actionLoading[`sentence_${sentence.id}`] || sentence.audio_status === 'processing_request' || sentence.audio_status === 'generating') ? <CircularProgress size={16} /> : <AudiotrackIcon />}>
+                                                        <Button size="small" variant="outlined" onClick={() => onGenerateAudio(sentence.id,'gemini_tts')} disabled={actionLoading[`sentence_${sentence.id}`] || sentence.audio_status === 'processing_request' || sentence.audio_status === 'generating'} startIcon={(actionLoading[`sentence_${sentence.id}`] || sentence.audio_status === 'processing_request' || sentence.audio_status === 'generating') ? <CircularProgress size={16} /> : <AudiotrackIcon />}>
                                                             {sentence.audio_status?.startsWith('error') ? '重试' : '生成'}
                                                         </Button>
                                                     )}
@@ -1012,7 +1013,7 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
     }
   };
 
-  const pollTaskStatus = useCallback((taskId, isBatchTask = false, taskType = 'default') => {
+  const pollTaskStatus = useCallback((taskId, isBatchTask = false, taskType = 'default', associatedSentenceId = null) => {
     const pollingKey = `${taskType}_${taskId}`;
     stopPollingForTask(taskId, taskType); // 确保使用正确的 key 停止
     
@@ -1041,67 +1042,64 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
                 });
                 fetchContentDetail(false); 
             }
-        } else if (isBatchTask) { // 批量语音生成
-            if (taskData.meta && typeof taskData.meta === 'object') {
-                const currentMeta = taskData.meta;
-                setOverallProgress(prev => ({
-                  total_in_batch: currentMeta.total_in_batch ?? prev?.total_in_batch ?? 0,
-                  processed_in_batch: currentMeta.processed_in_batch ?? prev?.processed_in_batch ?? 0,
-                  succeeded_in_batch: currentMeta.succeeded_in_batch ?? prev?.succeeded_in_batch ?? 0,
-                  failed_in_batch: currentMeta.failed_in_batch ?? prev?.failed_in_batch ?? 0,
-                  current_sentence_text: currentMeta.current_sentence_text || currentMeta.current_sentence_id || prev?.current_sentence_text, // 使用 current_sentence_id 作为备选
-                  message: currentMeta.message || prev?.message || '状态更新中...'
-                }));
-                // ... (您原有的批量任务中更新单个句子状态的逻辑，如果后端 meta 中包含)
-                const { last_processed_sentence_id, last_processed_sentence_status, current_sentence_id } = currentMeta;
-                if (last_processed_sentence_id && last_processed_sentence_status) {
-                    setContentDetail(prevDetail => {
-                        if (!prevDetail || !prevDetail.final_script_sentences) return prevDetail;
-                        return {
+        } else if (taskType === 'batch_audio_main') { // 特殊处理批量主任务
+            setOverallProgress(prev => ({ // 更新整体批量进度UI
+                // ... (使用 taskData.meta 更新 overallProgress state)
+                total_in_batch: taskData.meta?.total_sentences ?? prev?.total_in_batch ?? 0,
+                processed_in_batch: taskData.meta?.submitted_subtasks ?? prev?.processed_in_batch ?? 0,
+                // succeeded_in_batch: 批量主任务不直接知道成功数，由子任务轮询更新
+                // failed_in_batch: 批量主任务不直接知道失败数
+                message: taskData.meta?.message || prev?.message || '批量任务状态更新中...'
+            }));
+
+            if (taskData.status === 'SUCCESS') {
+                stopPollingForTask(taskId, taskType);
+                setAlert({
+                    open: true,
+                    message: `批量任务 ${taskId.substring(0,6)}... 派发完成: ${taskData.result?.message || taskData.meta?.message || ''}`,
+                    severity: 'success'
+                });
+                // 批量主任务成功后，从其结果中获取子任务列表并开始轮询它们
+                if (taskData.result && taskData.result.sub_tasks && Array.isArray(taskData.result.sub_tasks)) {
+                    taskData.result.sub_tasks.forEach(subTask => {
+                        console.log(`Starting polling for sub_task: ${subTask.task_id} for sentence: ${subTask.sentence_id}`);
+                        pollTaskStatus(subTask.task_id, false, 'single_sentence_audio', subTask.sentence_id); // 为每个子任务启动轮询
+                    });
+                }
+                // 初始刷新一次，让句子的 queued_for_generation 状态显示出来
+                fetchContentDetail(false); 
+            } else if (taskData.status === 'FAILURE') {
+                stopPollingForTask(taskId, taskType);
+                // ... (处理批量主任务失败的情况)
+                setAlert({ /* ... */ });
+                fetchContentDetail(false);
+            }
+
+        } else if (taskType === 'single_sentence_audio') { // 处理单句语音生成子任务 (或手动触发的单句)
+            if (taskData.status === 'SUCCESS' || taskData.status === 'FAILURE') {
+                stopPollingForTask(taskId, taskType);
+                // 当单个子任务完成时，我们期望数据库中对应的句子状态已更新
+                // 所以调用 fetchContentDetail() 来刷新整个列表是最可靠的
+                fetchContentDetail(false); 
+                setAlert({
+                    open: true,
+                    message: `句子 ${associatedSentenceId ? associatedSentenceId.substring(0,6) : taskId.substring(0,6)}... 语音处理 ${taskData.status === 'SUCCESS' ? '成功' : '失败'}。${taskData.result?.message || taskData.meta?.error_message || taskData.error || ''}`,
+                    severity: taskData.status === 'SUCCESS' ? 'success' : 'error'
+                });
+            } else if (taskData.status === 'PROGRESS' && taskData.meta && associatedSentenceId) {
+                // 如果子任务的 meta 中有更详细的进度，可以在这里乐观更新UI
+                // 但通常依赖 fetchContentDetail 来获取后端更新的 audio_status
+                 setContentDetail(prevDetail => {
+                    if (!prevDetail || !prevDetail.final_script_sentences) return prevDetail;
+                    return {
                         ...prevDetail,
                         final_script_sentences: prevDetail.final_script_sentences.map(s =>
-                            s.id === last_processed_sentence_id
-                            ? { ...s, audio_status: last_processed_sentence_status }
+                            s.id === associatedSentenceId
+                            ? { ...s, audio_status: taskData.meta.current_sentence_status || 'generating' } // 假设 meta 中有状态
                             : s
                         )
-                        };
-                    });
-                } else if (current_sentence_id && taskData.status === 'PROGRESS' && overallProgress && currentMeta.processed_in_batch !== overallProgress.processed_in_batch) {
-                    // 如果只有 current_sentence_id，且进度有变化，也刷新一下列表，以便单句状态（如 generating）能更新
-                    fetchContentDetail(false);
-                }
-            }
-            if (taskData.status === 'SUCCESS' || taskData.status === 'FAILURE') {
-                stopPollingForTask(taskId, taskType);
-                const finalStats = taskData.result || taskData.meta;
-                setOverallProgress({
-                    total_in_batch: finalStats?.total_in_batch ?? 0,
-                    processed_in_batch: finalStats?.processed_in_batch ?? 0,
-                    succeeded_in_batch: finalStats?.succeeded_in_batch ?? 0,
-                    failed_in_batch: finalStats?.failed_in_batch ?? 0,
-                    message: finalStats?.message || (taskData.status === 'FAILURE' ? (taskData.error_message || '任务处理失败') : '处理完毕')
+                    };
                 });
-                setAlert({
-                    open: true,
-                    message: `批量语音生成任务 ${taskId.substring(0,6)}... ${taskData.status === 'SUCCESS' ? '完成' : '失败'}: ${finalStats?.message || taskData.error_message || ''}`,
-                    severity: taskData.status === 'SUCCESS' ? 'success' : 'error'
-                });
-                fetchContentDetail(false); 
-            }
-        } else { // 普通脚本处理, 单句语音生成
-            if (taskData.status === 'SUCCESS' || taskData.status === 'FAILURE') {
-                stopPollingForTask(taskId, taskType);
-                fetchContentDetail(false); // 总是刷新以获取最新状态
-                setAlert({
-                    open: true,
-                    message: `${taskData.task_name || '处理操作'} ${taskData.status === 'SUCCESS' ? '成功' : '失败'}。${taskData.result?.message || taskData.error_message || ''}`,
-                    severity: taskData.status === 'SUCCESS' ? 'success' : 'error'
-                });
-            } else if (taskData.status === 'PROGRESS' && taskData.meta) {
-                 // 对于这类任务，如果进度有变化，也可能需要刷新列表
-                 if (taskType === 'single_audio_gen' && overallProgress && taskData.meta?.current_sentence_id !== overallProgress.current_sentence_id) {
-                    fetchContentDetail(false);
-                 }
             }
         }
       } catch (error) {
@@ -1119,69 +1117,61 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
     console.log(`Started polling for task: ${pollingKey}`);
   }, [fetchContentDetail, overallProgress]); // 移除 mergeProgress
 
-  const handleBatchGenerateAudio = async () => {
-    if (!contentId || !contentDetail || !contentDetail.final_script_sentences) {
-        setAlert({ open: true, message: '无法启动批量任务：内容数据不完整。', severity: 'error' });
-        return;
-    }
-    const loadingKey = `batch_generate_${contentId}`;
-    setActionLoading(prev => ({ ...prev, [loadingKey]: true }));
-    const sentencesForBatch = contentDetail.final_script_sentences.filter(s =>
-        ['pending_generation', 'error_generation', 'pending_regeneration', 'error_submission', 'error_polling', 'queued', undefined, null, ''].includes(s.audio_status)
-    );
-    const initialTotalInBatch = sentencesForBatch.length;
+  const handleBatchGenerateAudio = async (engineToUse = 'gradio_default') => {
+    if (!contentDetail || !contentDetail.id) return;
 
-    if (initialTotalInBatch === 0) {
-        setOverallProgress({ 
-            total_in_batch: 0, processed_in_batch: 0, succeeded_in_batch: 0,
-            failed_in_batch: 0, message: "没有需要生成语音的句子。"
-        });
-        setAlert({ open: true, message: "所有句子的语音都已是最新或正在处理中。", severity: 'info' });
-        setActionLoading(prev => ({ ...prev, [loadingKey]: false }));
-        return;
+    const apiParams = {
+      tts_engine: engineToUse,
+      tts_params: {}, 
+    };
+
+    if (engineToUse === 'gemini_tts') {
+      // apiParams.tts_params.voice_name = "gemini-voice-for-batch";
+    } else if (engineToUse === 'gradio_default') {
+      // apiParams.tts_params.roleid = "batch-role";
+      // apiParams.pt_file_path_relative = "uploads/tts_pt/your_default_voice.pt"; // 如果Gradio批量需要特定PT
     }
-    setOverallProgress({ // 初始化进度条
-        total_in_batch: initialTotalInBatch, processed_in_batch: 0, succeeded_in_batch: 0,
-        failed_in_batch: 0, current_sentence_text: null,
-        message: `正在提交 ${initialTotalInBatch} 个句子的生成任务...`
-    });
-    setContentDetail(prev => { // 立即更新前端句子状态为 "queued"
-        if (!prev || !prev.final_script_sentences) return prev;
-        return {
-            ...prev,
-            final_script_sentences: prev.final_script_sentences.map(s =>
-                sentencesForBatch.find(sfb => sfb.id === s.id)
-                    ? { ...s, audio_status: 'queued' } // 或 'processing_request'
-                    : s
-            )
-        };
-    });
+    
+    const actionKey = `batch_generate_${engineToUse}`;
+    setActionLoading(prev => ({ ...prev, [actionKey]: true }));
+    setAlert({ open: false, message: '', severity: 'info' });
     try {
-        const response = await ttsApi.batchGenerateAudioForContent(contentId);
-        setAlert({ open: true, message: response.data.message || '批量语音生成任务已提交。', severity: 'info' });
-        if (response.data.task_id) {
-            setOverallProgress(prev => ({
-                ...prev,
-                task_id: response.data.task_id, // 保存 task_id 到进度对象
-                message: response.data.initial_message || "任务已提交，等待 Worker 处理...",
-            }));
-            pollTaskStatus(response.data.task_id, true, 'batch_audio_gen'); // true 表示批量, 指定类型
-        } else {
-            setOverallProgress(null); // 如果没有 task_id，清除进度
-            fetchContentDetail(false); // 刷新获取真实状态
-        }
+    //   console.log("Type of apiParams before sending:", typeof apiParams);
+    //   console.log("Value of apiParams before sending:", JSON.stringify(apiParams)); // 打印JSON字符串形式，看是否能正确序列化
+      const response = await ttsApi.batchGenerateAudioForContent(contentDetail.id, apiParams);
+      setAlert({ open: true, message: response.data.message || `批量语音生成任务 (${engineToUse}) 已提交。`, severity: 'info' });
+      if (response.data.task_id) {
+        pollTaskStatus(response.data.task_id, true, 'batch_audio_main'); 
+      }
     } catch (error) {
-        setAlert({ open: true, message: `批量生成语音失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
-        setOverallProgress(null);
-        fetchContentDetail(false);
+      console.error(`批量生成语音 (${engineToUse}) 失败:`, error);
+      setAlert({ open: true, message: `批量生成语音 (${engineToUse}) 失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
     } finally {
-        setActionLoading(prev => ({ ...prev, [loadingKey]: false }));
+      setActionLoading(prev => ({ ...prev, [actionKey]: false }));
     }
   };
 
-  const handleGenerateSentenceAudio = async (sentenceId) => {
+  const handleGenerateSentenceAudio = async (sentenceId, engineToUse = 'gemini_tts') => { // 参数名可以是 engineToUse 或您选择的
     const loadingKey = `sentence_${sentenceId}`;
     setActionLoading(prev => ({ ...prev, [loadingKey]: true }));
+    // 准备参数，可以根据需要从UI获取
+    let apiParams = {
+      tts_engine: engineToUse,
+      tts_params: {}, // 特定于引擎的参数
+      // pt_file_path_relative: "uploads/tts_pt/your_specific_voice.pt" // 如果Gradio引擎需要特定文件
+    };
+
+    if (engineToUse === 'gemini_tts') {
+      apiParams.tts_params = {
+        // voice_name: "gemini-voice-example", // 如果需要指定 Gemini 的音色
+        // model: "models/tts-004" // 如果要用不同的 Gemini TTS 模型
+      };
+    } else if (engineToUse === 'gradio_default') {
+      apiParams.tts_params = {
+        // roleid: "2", // 如果要为 Gradio 指定不同的 roleid
+      };
+      // 如果需要为 Gradio 指定 PT 文件，可以在这里设置 apiParams.pt_file_path_relative
+    }
     try {
       if (contentDetail) {
         setContentDetail(prev => (!prev || !prev.final_script_sentences) ? prev : {
@@ -1191,10 +1181,10 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
             )
         });
       }
-      const response = await ttsApi.generateSentenceAudio(sentenceId, {}); 
+      const response = await ttsApi.generateSentenceAudio(sentenceId, apiParams); 
       setAlert({ open: true, message: response.data.message || '单句语音生成任务已提交。', severity: 'info' });
       if (response.data.task_id) {
-        pollTaskStatus(response.data.task_id, false, 'single_audio_gen'); // false 表示非批量, 指定类型
+        pollTaskStatus(response.data.task_id, false, 'single_sentence_audio', sentenceId); // 传递句子ID
       } else {
         fetchContentDetail(false);
       }
@@ -1678,6 +1668,19 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
                         disabled={!mergedAudioExists || loading || (mergeProgress && (mergeProgress.status === 'PROGRESS' || mergeProgress.status === 'PENDING'))}
                     >
                         导出 SRT 字幕
+                    </Button>
+
+                    <Button
+                        variant="contained"
+                        onClick={() => handleBatchGenerateAudio('gemini_tts')}
+                        disabled={actionLoading['batch_generate_gemini_tts'] || !contentDetail?.final_script_sentences?.length}
+                        startIcon={actionLoading['batch_generate_gemini_tts'] ? <CircularProgress size={20} color="inherit" /> : <GraphicEqIcon />}
+                        sx={{ 
+                            backgroundColor: '#4CAF50', // 示例绿色，您可以选择您喜欢的颜色
+                            '&:hover': { backgroundColor: '#388E3C' }
+                        }}
+                    >
+                        批量生成 (Gemini)
                     </Button>
                     
                 </Stack>

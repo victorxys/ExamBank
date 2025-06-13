@@ -12,6 +12,7 @@ from io import StringIO # <<< 新增
 import contextlib # <<< 新增
 import time # <<< 新增
 from celery.utils.log import get_task_logger # 使用 Celery 的 logger
+import mimetypes # <--- ++++++ 在这里添加导入 ++++++
 
 
 
@@ -26,6 +27,10 @@ import fitz  # PyMuPDF 库的导入名是 fitz
 from backend.extensions import db
 from backend.models import TrainingContent, TtsScript, TtsSentence, TtsAudio, MergedAudioSegment, UserProfile, Exam, VideoSynthesis, CourseResource
 from backend.api.ai_generate import generate_video_script # 导入新函数
+from backend.api.ai_generate import generate_audio_with_gemini_tts # 导入新的 Gemini TTS 函数
+from backend.api.ai_generate import get_active_llm_config_internal 
+
+
 
 # 合成视频
 from pdf2image import convert_from_path
@@ -229,7 +234,7 @@ def run_llm_function_async(self, llm_function_identifier, callback_identifier, c
 # ==============================================================================
 
 # 2.1: TTS相关辅助函数 (从您原有的tasks.py中保留)
-def _save_audio_file(audio_binary_content, training_content_id_str, sentence_id_str, version):
+def _save_audio_file(audio_binary_content, training_content_id_str, sentence_id_str, version, extension=".wav"):
     app = create_flask_app_for_task()
     with app.app_context():
         storage_base_path = app.config.get('TTS_AUDIO_STORAGE_PATH', os.path.join(app.root_path, 'static', 'tts_audio'))
@@ -238,7 +243,7 @@ def _save_audio_file(audio_binary_content, training_content_id_str, sentence_id_
         os.makedirs(full_dir_path, exist_ok=True)
         
         timestamp_str = datetime.now().strftime("%Y%m%d%H%M%S%f")
-        file_name = f"sentence_v{version}_{timestamp_str}.wav"
+        file_name = f"sentence_v{version}_{timestamp_str}{extension}" # <--- 使用 extension
         full_file_path = os.path.join(full_dir_path, file_name)
         relative_file_path = os.path.join(relative_dir, file_name)
 
@@ -363,8 +368,11 @@ def trigger_tts_refine_async(self, oral_script_id_str):
             return {'status': 'Error', 'message': str(e)}
 
 @celery_app.task(bind=True, name='tasks.generate_single_sentence_audio_async', max_retries=2)
-def generate_single_sentence_audio_async(self, sentence_id_str, pt_file_path_relative=None, tts_engine_params=None):
-    app = create_flask_app_for_task()
+def generate_single_sentence_audio_async(self, sentence_id_str, tts_engine_identifier="gradio_default", pt_file_path_relative=None, tts_engine_params=None):
+    # ... (这个任务的完整实现，如之前调试好的那样，它内部处理 Gradio 和 Gemini TTS 调用) ...
+    # 它应该返回类似 {'status': 'Success', 'audio_id': ..., 'file_path': ...}
+    # 或者 {'status': 'Error', 'message': ...}
+    app = create_flask_app_for_task() # 这里定义 create_flask_app_for_task
     with app.app_context():
         sentence = TtsSentence.query.get(sentence_id_str)
         if not sentence:
@@ -372,388 +380,303 @@ def generate_single_sentence_audio_async(self, sentence_id_str, pt_file_path_rel
             self.update_state(state='FAILURE', meta={'exc_type': 'ValueError', 'exc_message': '句子未找到'})
             return {'status': 'Error', 'message': '句子未找到'}
 
-        training_content = sentence.tts_script.training_content # 获取关联的 TrainingContent
+        training_content = sentence.tts_script.training_content
+        if not training_content:
+            logger.error(f"GenerateAudio Task: 未找到句子 {sentence_id_str} 关联的 training_content。")
+            self.update_state(state='FAILURE', meta={'exc_type': 'ValueError', 'exc_message': '未找到关联的培训内容'})
+            return {'status': 'Error', 'message': '未找到关联的培训内容'}
 
         try:
             sentence.audio_status = 'generating'
             db.session.commit()
 
-            tts_service_base_url = app.config.get('TTS_SERVICE_BASE_URL', "http://test.mengyimengsao.com:37860/")
-            gradio_tts_client = GradioClient(tts_service_base_url, hf_token=None) # 确保 hf_token 正确或为 None
-            
-            logger.info(f"GenerateAudio Task: 向 Gradio TTS 服务 API '/generate_tts_audio' 发送请求 for sentence {sentence_id_str}")
-            
-            # 从 tts_engine_params 或默认值构建 predict 的参数
-            # 这些参数应该可以从 LlmPrompt 的元数据或系统配置中获取，或者前端传递
-            # 以下是基于您提供的示例的默认值
-            default_params = {
-                "num_seeds": 1, "seed": 1029, "speed": 5, "oral": 2, "laugh": 0,
-                "bk": 4, "min_length": 80, "batch_size": 3, "temperature": 0.1,
-                "top_P": 0.7, "top_K": 20, "roleid": "1", "refine_text": True, "pt_file": None
-            }
-            
-            actual_params = {**default_params, **(tts_engine_params or {})}
-
-            # --- 核心修改：根据传入的参数构造文件对象 ---
-            if pt_file_path_relative:
-                pt_folder = os.path.join(app.root_path, 'static', 'tts_pt')
-                absolute_pt_file_path = os.path.join(pt_folder, pt_file_path_relative)
-                
-                if os.path.exists(absolute_pt_file_path):
-                    logger.info(f"[SingleAudioTask] 使用指定的音色文件: {absolute_pt_file_path}")
-                    actual_params['pt_file'] = {
-                        "path": absolute_pt_file_path,
-                        "meta": {"_type": "gradio.FileData"}
-                    }
-                else:
-                    logger.warning(f"[SingleAudioTask] 指定的音色文件不存在: {absolute_pt_file_path}，将使用默认音色。")
-            else:
-                 logger.info(f"[SingleAudioTask] 未指定音色文件，使用默认音色。")
-
-            job_result = gradio_tts_client.predict(
-                text_file=sentence.sentence_text,
-                **actual_params,
-                api_name="/generate_tts_audio"
-            )
-            
-            # 处理 Gradio 返回的音频结果
-            # Gradio 对于音频输出通常会返回一个包含文件路径的字典或直接是文件路径字符串
-            # { "name": "path/to/output.wav", "data": null, "is_file": true } 或只是 "path/to/output.wav"
-            # 如果它返回的是服务器上的临时文件路径，我们需要读取它。
-            # 如果它返回的是 base64 编码的音频，需要解码。
-            # 这里假设它返回一个包含本地文件路径的字典或字符串。
-            
-            audio_file_path_from_gradio = None
-            if isinstance(job_result, dict) and job_result.get("name") and job_result.get("is_file"):
-                audio_file_path_from_gradio = job_result["name"]
-            elif isinstance(job_result, str): # 如果直接返回路径
-                audio_file_path_from_gradio = job_result
-            elif isinstance(job_result, tuple) and len(job_result) > 0 and isinstance(job_result[0], (dict, str)):
-                 # 如果输出是元组的第一个元素
-                first_output = job_result[0]
-                if isinstance(first_output, dict) and first_output.get("name") and first_output.get("is_file"):
-                     audio_file_path_from_gradio = first_output["name"]
-                elif isinstance(first_output, str):
-                     audio_file_path_from_gradio = first_output
-
-
-            if not audio_file_path_from_gradio:
-                logger.error(f"Gradio TTS API /generate_tts_audio 未返回有效的音频文件路径。原始 job_result: {job_result}")
-                raise Exception("Gradio TTS API 未返回音频文件路径")
-
-            logger.info(f"GenerateAudio Task: Gradio TTS API 响应成功，音频文件路径: {audio_file_path_from_gradio}")
-
-            # 读取 Gradio 服务生成的音频文件内容 (假设它是一个临时文件路径)
-            # 注意：这里假设 Gradio 服务和 Celery worker 可以访问同一个文件系统，或者 audio_file_path_from_gradio 是一个可下载的 URL
-            # 如果 Gradio 服务在另一台机器上，您可能需要通过 HTTP 下载这个文件，或者 Gradio Client 提供了下载方法
             audio_binary_content = None
-            if os.path.exists(audio_file_path_from_gradio): # 如果是本地路径
-                with open(audio_file_path_from_gradio, 'rb') as af:
-                    audio_binary_content = af.read()
-            elif audio_file_path_from_gradio.startswith('http'): # 如果是 URL
-                response = requests.get(audio_file_path_from_gradio, timeout=60)
-                response.raise_for_status()
-                audio_binary_content = response.content
-            else: # 尝试使用 gradio_file 打开 (如果它是 Gradio FileData 对象)
-                try:
-                    # 假设 audio_file_path_from_gradio 可能是一个可以被 gradio_file 处理的结构
-                    # 这部分可能需要根据 gradio_client 返回的具体内容调整
-                    # 如果 gradio_client.predict 返回的是 FileData 对象，可以直接用
-                    if isinstance(job_result, tuple) and len(job_result) > 0 and hasattr(job_result[0], 'path'):
-                        with open(job_result[0].path, 'rb') as af:
-                             audio_binary_content = af.read()
-                    else: # 最后尝试直接作为路径处理，如果它是相对路径，可能需要配置基础路径
-                        logger.warning(f"无法直接访问 Gradio 音频路径 {audio_file_path_from_gradio}，尝试拼接。")
-                        # 这里可能需要一个配置项来指定 Gradio 输出文件的基础目录
-                        # 这是一个复杂的点，取决于您的 Gradio 服务如何提供文件
-                        raise Exception("无法确定如何读取Gradio生成的音频文件")
+            output_audio_mime_type = "audio/mpeg" 
+            actual_generation_params_for_log = {}
 
-                except Exception as e_file:
-                    logger.error(f"无法读取Gradio生成的音频文件 {audio_file_path_from_gradio}: {e_file}")
-                    raise
+            if tts_engine_identifier == "gemini_tts":
+                logger.info(f"GenerateAudio Task: Using Gemini TTS for sentence {sentence_id_str}")
+                GEMINI_API_PROVIDER_NAME = "Google" 
+                gemini_api_key, gemini_api_key_name, _, config_error = get_active_llm_config_internal(
+                    GEMINI_API_PROVIDER_NAME
+                )
+                if config_error or not gemini_api_key:
+                    detailed_error = config_error or "API Key is missing or empty"
+                    if gemini_api_key_name and not gemini_api_key and not config_error:
+                        detailed_error = f"API Key '{gemini_api_key_name}' for provider '{GEMINI_API_PROVIDER_NAME}' is missing, empty or failed to decrypt."
+                    logger.error(f"无法获取 Gemini TTS API Key for provider '{GEMINI_API_PROVIDER_NAME}': {detailed_error}")
+                    raise Exception(f"无法获取 Gemini TTS API Key: {detailed_error}")
+                logger.info(f"Successfully retrieved API Key '{gemini_api_key_name}' for provider '{GEMINI_API_PROVIDER_NAME}'.")
+
+                gemini_voice = tts_engine_params.get("voice_name","Kore") 
+                gemini_temp = tts_engine_params.get("temperature", 0.7) 
+                gemini_model_name = tts_engine_params.get("model", "gemini-2.5-pro-preview-tts")
+
+                audio_binary_content, output_audio_mime_type = generate_audio_with_gemini_tts(
+                    text_to_speak=sentence.sentence_text,
+                    api_key=gemini_api_key,
+                    model_name=gemini_model_name,
+                    voice_name=gemini_voice,
+                    temperature=gemini_temp
+                )
+                actual_generation_params_for_log = {"engine": "gemini_tts", "voice_name": gemini_voice, "temperature": gemini_temp, "model": gemini_model_name, "api_key_name": gemini_api_key_name}
+            
+            elif tts_engine_identifier == "gradio_default":
+                logger.info(f"GenerateAudio Task: Using Gradio TTS for sentence {sentence_id_str}")
+                tts_service_base_url = app.config.get('TTS_SERVICE_BASE_URL', "http://test.mengyimengsao.com:37860/")
+                gradio_tts_client = GradioClient(src=tts_service_base_url)
+                
+                default_gradio_params = {
+                    "num_seeds": 1, "seed": 1029, "speed": 3, "oral": 2, "laugh": 0,
+                    "bk": 4, "min_length": 80, "batch_size": 3, "temperature": 1, # 您的默认值
+                    "top_P": 0.7, "top_K": 20, "roleid": "1", "refine_text": False 
+                    # pt_file 将在下面单独处理
+                }
+                gradio_predict_params = {**default_gradio_params, **(tts_engine_params or {})}
+                
+                pt_file_to_send_to_gradio = None
+                absolute_pt_file_path_for_log = None
+                if pt_file_path_relative: # pt_file_path_relative 是传给这个任务的参数
+                    absolute_pt_file_path = os.path.join(app.instance_path, pt_file_path_relative)
+                    if os.path.exists(absolute_pt_file_path):
+                        pt_file_to_send_to_gradio = gradio_file(absolute_pt_file_path)
+                        absolute_pt_file_path_for_log = absolute_pt_file_path
+                
+                gradio_predict_params["pt_file"] = pt_file_to_send_to_gradio
+                
+                job_result = gradio_tts_client.predict(
+                    text_file=sentence.sentence_text,
+                    **gradio_predict_params,
+                    api_name="/generate_tts_audio"
+                )
+                
+                # --- 从 job_result 中提取 audio_binary_content 和 output_audio_mime_type ---
+                if isinstance(job_result, tuple) and len(job_result) > 0:
+                    output_component = job_result[0]
+                    if isinstance(output_component, dict) and output_component.get("is_file") and output_component.get("name"):
+                        audio_file_path_from_gradio = output_component["name"]
+                        if os.path.exists(audio_file_path_from_gradio):
+                            with open(audio_file_path_from_gradio, 'rb') as af:
+                                audio_binary_content = af.read()
+                        # 尝试从文件名猜测MIME类型，如果Gradio不直接返回
+                        output_audio_mime_type = mimetypes.guess_type(audio_file_path_from_gradio)[0] or "audio/wav"
+                    elif isinstance(output_component, str) and output_component.startswith("data:audio/"):
+                        header, encoded = output_component.split(",", 1)
+                        audio_binary_content = base64.b64decode(encoded)
+                        output_audio_mime_type = header.split(":")[1].split(";")[0]
+                elif isinstance(job_result, str) and os.path.exists(job_result): # 如果直接返回有效路径
+                     audio_file_path_from_gradio = job_result
+                     with open(audio_file_path_from_gradio, 'rb') as af:
+                         audio_binary_content = af.read()
+                     output_audio_mime_type = mimetypes.guess_type(audio_file_path_from_gradio)[0] or "audio/wav"
+
+                # --------------------------------------------------------------------
+                actual_generation_params_for_log = {
+                    **gradio_predict_params, 
+                    "engine": "gradio_default", 
+                    "pt_file_used": absolute_pt_file_path_for_log
+                }
+                if "pt_file" in actual_generation_params_for_log and actual_generation_params_for_log["pt_file"] is not None:
+                    # 只记录路径，而不是 FileData 对象
+                    actual_generation_params_for_log["pt_file_path"] = absolute_pt_file_path_for_log
+                    del actual_generation_params_for_log["pt_file"]
+
+
+            else:
+                raise ValueError(f"未知的 TTS 引擎标识符: {tts_engine_identifier}")
 
             if not audio_binary_content:
-                raise Exception("未能获取音频文件内容")
+                raise Exception("未能从所选的TTS引擎获取有效的音频内容")
 
-            # 将旧的该句子的最新语音标记为非最新
             TtsAudio.query.filter_by(tts_sentence_id=sentence.id, is_latest_for_sentence=True).update({'is_latest_for_sentence': False})
-
-            # 保存音频文件并创建 TtsAudio 记录
             new_version = 1
             latest_audio_for_sentence = TtsAudio.query.filter_by(tts_sentence_id=sentence.id).order_by(TtsAudio.version.desc()).first()
             if latest_audio_for_sentence:
                 new_version = latest_audio_for_sentence.version + 1
             
-            relative_path, file_size = _save_audio_file(audio_binary_content, training_content.id, sentence.id, new_version)
+            file_extension = mimetypes.guess_extension(output_audio_mime_type) or ".mp3"
+            if output_audio_mime_type == "audio/wav": file_extension = ".wav"
+                
+            relative_path, file_size = _save_audio_file(audio_binary_content, training_content.id, sentence.id, new_version, file_extension)
 
             new_audio_record = TtsAudio(
                 tts_sentence_id=sentence.id,
-                training_content_id=training_content.id, # 也关联到 TrainingContent
+                training_content_id=training_content.id,
                 audio_type='sentence_audio',
                 file_path=relative_path,
                 file_size_bytes=file_size,
-                # duration_ms=... # 如果 Gradio 返回时长，可以在这里记录
-                tts_engine="GradioTTS_TestMengyimengsao", # 或从配置读取
-                voice_name=actual_params.get("roleid", "default"), # 示例
-                generation_params=actual_params,
+                tts_engine=tts_engine_identifier,
+                voice_name=actual_generation_params_for_log.get("voice_name") or actual_generation_params_for_log.get("roleid") or "default",
+                generation_params=actual_generation_params_for_log,
                 version=new_version,
-                is_latest_for_sentence=True
+                is_latest_for_sentence=True,
             )
             db.session.add(new_audio_record)
             sentence.audio_status = 'generated'
             db.session.commit()
-
-            logger.info(f"GenerateAudio Task: 句子 {sentence_id_str} 的音频 (ID: {new_audio_record.id}) 已成功生成并保存。")
-            return {'status': 'Success', 'audio_id': str(new_audio_record.id), 'file_path': relative_path}
+            logger.info(f"GenerateAudio Task (Engine: {tts_engine_identifier}): 句子 {sentence_id_str} 的音频 (ID: {new_audio_record.id}) 已成功生成并保存。")
+            return {'status': 'Success', 'audio_id': str(new_audio_record.id), 'file_path': relative_path, 'mime_type': output_audio_mime_type}
 
         except Exception as e:
-            logger.error(f"GenerateAudio Task: Exception for sentence {sentence_id_str}: {e}", exc_info=True)
-            if sentence: # 确保 sentence 对象存在
+            logger.error(f"GenerateAudio Task: Exception for sentence {sentence_id_str} (Engine: {tts_engine_identifier}): {e}", exc_info=True)
+            if sentence: 
                 sentence.audio_status = 'error_generation'
                 db.session.commit()
             self.update_state(state='FAILURE', meta={'exc_type': type(e).__name__, 'exc_message': str(e)})
-            return {'status': 'Error', 'message': '生成单句语音时发生服务器错误: ' + str(e)}
+            return {'status': 'Error', 'message': f'生成单句语音 ({tts_engine_identifier}) 时发生服务器错误: ' + str(e)}
         
-# --- 新增：批量语音生成任务 ---
-# backend/tasks.py
-# ... (imports as before) ...
 
-# backend/tasks.py
-# ... (imports) ...
 
-@celery_app.task(bind=True, name='tasks.batch_generate_audio_task', max_retries=1)
-def batch_generate_audio_task(self, final_script_id_str, pt_file_path_relative):
-    # print(f"Batch task ID=========: {self.request.id}")
+@celery_app.task(bind=True, name='tasks.batch_generate_audio_task', max_retries=1) # 保持原来的 name 或更新
+def batch_generate_audio_task(self, final_script_id_str, 
+                              tts_engine_identifier="gradio_default", # 新增：TTS 引擎标识符
+                              pt_file_path_relative_for_gradio=None, # 新增：用于 Gradio 的 PT 文件路径
+                              tts_engine_params_for_all=None):       # 新增：传递给每个子任务的引擎特定参数
     app = create_flask_app_for_task()
     with app.app_context():
-        final_script_id = uuid.UUID(final_script_id_str)
-        logger.info(f"[BatchTask:{self.request.id}] 开始处理批量语音生成，脚本ID: {final_script_id}")
+        try: # 顶层 try-except 块，用于捕获批量任务本身的初始化错误
+            final_script_id = uuid.UUID(final_script_id_str)
+            logger.info(f"[BatchTask:{self.request.id}] 开始处理批量语音生成，脚本ID: {final_script_id}, 引擎: {tts_engine_identifier}")
 
-        script = TtsScript.query.get(final_script_id)
-        if not script or script.script_type != 'final_tts_script':
-            meta_error = {'error': '脚本未找到或类型不正确', 'total_in_batch': 0, 'processed_in_batch': 0, 'succeeded_in_batch': 0, 'failed_in_batch': 0}
-            self.update_state(state='FAILURE', meta=meta_error)
-            return {'status': 'Error', 'message': '脚本未找到或类型不正确', **meta_error}
+            script = TtsScript.query.get(final_script_id)
+            if not script or script.script_type != 'final_tts_script':
+                # ... (错误处理和返回不变)
+                return {'status': 'Error', 'message': '脚本未找到或类型不正确'}
 
-        training_content = script.training_content
-        if not training_content:
-            meta_error = {'error': '脚本没有关联的培训内容', 'total_in_batch': 0, 'processed_in_batch': 0, 'succeeded_in_batch': 0, 'failed_in_batch': 0}
-            self.update_state(state='FAILURE', meta=meta_error)
-            return {'status': 'Error', 'message': '脚本没有关联的培训内容', **meta_error}
-        
-        if training_content.status != 'generating_audio':
-            training_content.status = 'generating_audio' # 标记整体状态
-            # db.session.commit() # 可以在循环开始前提交一次，或在任务开始时就更新
 
-        sentences_to_process = TtsSentence.query.filter(
-            TtsSentence.tts_script_id == final_script_id,
-            sa.or_( # 使用 SQLAlchemy 的 or_
-                TtsSentence.audio_status == 'pending_generation',
-                TtsSentence.audio_status == 'error_generation',
-                TtsSentence.audio_status == 'pending_regeneration',
-                TtsSentence.audio_status == 'error_submission',
-                TtsSentence.audio_status == 'error_polling',
-                TtsSentence.audio_status == 'processing_request', # 也可以加入处理中但超时的
-                TtsSentence.audio_status == 'queued'
-            )
-        ).order_by(TtsSentence.order_index).all()
-        
-        initially_to_process_count = len(sentences_to_process)
+            training_content = script.training_content
+            if not training_content:
+                # ... (错误处理和返回不变)
+                return {'status': 'Error', 'message': '脚本没有关联的培训内容'}
+            
+            # 更新 TrainingContent 状态以反映批量任务正在进行
+            # training_content.status = f'processing_batch_audio_{tts_engine_identifier}'
+            # db.session.commit() # 可以考虑在这里或任务开始时提交一次
 
-        if initially_to_process_count == 0:
-            logger.info(f"[BatchTask:{self.request.id}] 脚本 {final_script_id} 没有需要生成语音的句子。")
-            all_sentences_in_script = script.tts_sentences.all()
-            all_generated = all(s.audio_status == 'generated' for s in all_sentences_in_script)
-            if all_generated and all_sentences_in_script:
-                 training_content.status = 'audio_generation_complete'
-            elif all_sentences_in_script:
-                 training_content.status = 'partial_audio_generated' # 或保持 generating_audio 直到用户手动确认
-            else:
-                 training_content.status = 'audio_generation_complete' 
-            db.session.commit()
-            meta_no_sentences = {
-                'total_in_batch': 0, 'processed_in_batch': 0, 
-                'succeeded_in_batch': 0, 'failed_in_batch': 0, 
-                'message': '没有需要处理的句子。'
-            }
-            self.update_state(state='SUCCESS', meta=meta_no_sentences)
-            return {'status': 'Success', **meta_no_sentences} # 返回包含计数的字典
-
-        processed_count = 0
-        successful_generations = 0
-        failed_generations = 0
-        
-        initial_meta = {
-            'total_in_batch': initially_to_process_count,
-            'processed_in_batch': 0,
-            'succeeded_in_batch': 0,
-            'failed_in_batch': 0,
-            'message': f'初始化任务：准备处理 {initially_to_process_count} 个句子...'
-        }
-        self.update_state(state='PROGRESS', meta=initial_meta)
-        # logger.debug(f"[BatchTask:{self.request.id}] Initial meta sent: {initial_meta}")
-        # chattts-seed_9716speed_3oral_2laugh_0break_42025-05-15_155558
-        gradio_tts_client = GradioClient(app.config.get('TTS_SERVICE_BASE_URL', "http://test.mengyimengsao.com:37860/"), hf_token=app.config.get('GRADIO_HF_TOKEN', None))
-        default_tts_params = {
-           "num_seeds": 1, "seed": 1029, "speed": 2, "oral": 2, "laugh": 0,
-            "bk": 6, "min_length": 80, "batch_size": 6, "temperature": 0.1,
-            "top_P": 0.7, "top_K": 20, "roleid": "1", "refine_text": True, "pt_file": None
-        }
-
-        # --- 核心修改：根据传入的参数构造文件对象 ---
-        pt_file_to_use_obj = None
-        if pt_file_path_relative:
-            pt_folder = os.path.join(app.root_path, 'static', 'tts_pt')
-            absolute_pt_file_path = os.path.join(pt_folder, pt_file_path_relative)
-
-            if os.path.exists(absolute_pt_file_path):
-                logger.info(f"[BatchTask:{self.request.id}] 使用指定的音色文件: {absolute_pt_file_path}")
-                pt_file_to_use_obj = {
-                    "path": absolute_pt_file_path,
-                    "meta": {"_type": "gradio.FileData"}
-                }
-            else:
-                logger.warning(f"[BatchTask:{self.request.id}] 指定的音色文件不存在: {absolute_pt_file_path}，将使用默认音色。")
-        else:
-            logger.info(f"[BatchTask:{self.request.id}] 未指定音色文件，使用默认音色。")
-        # -------------------------
-        
-
-        for index, sentence in enumerate(sentences_to_process):
-            sentence_id_str = str(sentence.id)
-            sentence.audio_status = 'generating' # 标记单个句子开始生成
-            db.session.commit() 
-            # logger.info(f"[BatchTask:{self.request.id}] ({processed_count + 1}/{initially_to_process_count}) 开始为句子ID {sentence_id_str} 生成语音...")
-
-            current_sentence_processed_status = 'error_generation' # 默认为失败
-
-            try:
-                actual_params = {**default_tts_params} 
-                if pt_file_to_use_obj:
-                    actual_params['pt_file'] = pt_file_to_use_obj
-                job_result = gradio_tts_client.predict(
-                    text_file=sentence.sentence_text,
-                    **actual_params,
-                    api_name="/generate_tts_audio"
+            sentences_to_process = TtsSentence.query.filter(
+                TtsSentence.tts_script_id == final_script_id,
+                sa.or_( # 使用 SQLAlchemy 的 or_
+                    TtsSentence.audio_status == 'pending_generation',
+                    TtsSentence.audio_status == 'error_generation',
+                    TtsSentence.audio_status == 'pending_regeneration',
+                    TtsSentence.audio_status == 'error_submission',
+                    # TtsSentence.audio_status == 'error_polling', # 轮询错误可能不需要重试
+                    # TtsSentence.audio_status == 'processing_request', # 如果任务卡住，可能需要处理
+                    TtsSentence.audio_status == 'queued'
                 )
-                
-                audio_file_path_from_gradio = None
-                # ... (Gradio 结果解析逻辑，同上次) ...
-                if isinstance(job_result, dict) and job_result.get("name") and job_result.get("is_file"):
-                    audio_file_path_from_gradio = job_result["name"]
-                elif isinstance(job_result, str):
-                    audio_file_path_from_gradio = job_result
-                elif isinstance(job_result, tuple) and len(job_result) > 0:
-                    first_output = job_result[0]
-                    if isinstance(first_output, dict) and first_output.get("name") and first_output.get("is_file"):
-                        audio_file_path_from_gradio = first_output["name"]
-                    elif isinstance(first_output, str):
-                        audio_file_path_from_gradio = first_output
+            ).order_by(TtsSentence.order_index).all()
+            
+            initially_to_process_count = len(sentences_to_process)
 
-                if not audio_file_path_from_gradio:
-                    raise Exception(f"Gradio TTS API 未返回音频文件路径. Result: {job_result}")
-
-                audio_binary_content = None
-                # ... (文件读取逻辑，同上次) ...
-                if os.path.exists(audio_file_path_from_gradio):
-                    with open(audio_file_path_from_gradio, 'rb') as af: audio_binary_content = af.read()
-                elif audio_file_path_from_gradio.startswith('http'):
-                    response = requests.get(audio_file_path_from_gradio, timeout=60); response.raise_for_status(); audio_binary_content = response.content
+            if initially_to_process_count == 0:
+                logger.info(f"[BatchTask:{self.request.id}] 脚本 {final_script_id} 没有需要生成语音的句子。")
+                all_sentences_in_script = script.tts_sentences.all()
+                all_generated = all(s.audio_status == 'generated' for s in all_sentences_in_script)
+                if all_generated and all_sentences_in_script:
+                    training_content.status = 'audio_generation_complete'
+                elif all_sentences_in_script:
+                    training_content.status = 'partial_audio_generated' # 或保持 generating_audio 直到用户手动确认
                 else:
-                    if isinstance(job_result, tuple) and len(job_result) > 0 and hasattr(job_result[0], 'path') and os.path.exists(job_result[0].path):
-                        with open(job_result[0].path, 'rb') as af: audio_binary_content = af.read()
-                    else: raise Exception(f"无法读取或文件不存在: {audio_file_path_from_gradio}")
-                if not audio_binary_content: raise Exception("未能获取音频内容")
-                
-                # --- 核心修改：在创建 Audio 记录前，确保更新旧记录的 is_latest_for_sentence ---
-                TtsAudio.query.filter_by(tts_sentence_id=sentence.id, is_latest_for_sentence=True).update({'is_latest_for_sentence': False})
-                # --- 结束核心修改 ---
+                    training_content.status = 'audio_generation_complete' 
+                db.session.commit()
+                meta_no_sentences = {
+                    'total_in_batch': 0, 'processed_in_batch': 0, 
+                    'succeeded_in_batch': 0, 'failed_in_batch': 0, 
+                    'message': '没有需要处理的句子。'
+                }
+                self.update_state(state='SUCCESS', meta=meta_no_sentences)
+                return {'status': 'Success', **meta_no_sentences} # 返回包含计数的字典
 
-                new_version = 1
-                latest_audio = TtsAudio.query.filter_by(tts_sentence_id=sentence.id).order_by(TtsAudio.version.desc()).first()
-                if latest_audio: new_version = latest_audio.version + 1
-                
-                relative_path, file_size = _save_audio_file(audio_binary_content, training_content.id, sentence.id, new_version)
-                
-                new_audio_record = TtsAudio(
-                    tts_sentence_id=sentence.id,
-                    training_content_id=training_content.id,
-                    audio_type='sentence_audio',
-                    file_path=relative_path,
-                    file_size_bytes=file_size,
-                    tts_engine="GradioTTS_Mengyimengsao_Batch", # 区分一下引擎来源
-                    voice_name=actual_params.get("roleid", "default"),
-                    generation_params=actual_params,
-                    version=new_version,
-                    is_latest_for_sentence=True # 新生成的自然是最新
-                )
-                db.session.add(new_audio_record)
-                current_sentence_processed_status = 'generated' # 标记成功
-                successful_generations += 1
-                # logger.info(f"[BatchTask:{self.request.id}] 句子 {sentence_id_str} 语音成功。")
-                
-            except Exception as e_sent:
-                # current_sentence_processed_status 保持 'error_generation'
-                failed_generations += 1
-                logger.error(f"[BatchTask:{self.request.id}] 处理句子 {sentence_id_str} 失败: {e_sent}", exc_info=True)
-            
-            sentence.audio_status = current_sentence_processed_status # 更新数据库中句子的最终状态
-            db.session.commit() 
-            processed_count += 1
+
+            logger.info(f"[BatchTask:{self.request.id}] 将为 {initially_to_process_count} 个句子派发语音生成子任务 (引擎: {tts_engine_identifier})")
             
             
-            # **简化 meta，只包含 Celery 能可靠更新的字段 和 整体计数**
-            current_meta_for_celery = {
-                'current': processed_count, # Celery 倾向于使用 current/total
-                'total': initially_to_process_count,
-                # 仍然尝试传递这些，看是否能被 API 读取到
-                'total_in_batch': initially_to_process_count,
-                'processed_in_batch': processed_count,
-                'succeeded_in_batch': successful_generations,
-                'failed_in_batch': failed_generations,
-                'current_sentence_id': str(sentence.id), # 这个似乎能被传递
-                'message': f'已处理 {processed_count}/{initially_to_process_count}' # 简洁的消息
+            failed_to_submit_count = 0
+            submitted_subtasks_info = [] # 用于存储 {sentence_id: ..., task_id: ...}
+            
+            # 更新 TrainingContent 状态为正在处理，并记录总数
+            training_content.status = f'processing_batch_audio'
+            # 可以考虑将总数、已处理数等也存到 TrainingContent 的某个JSON字段，如果需要持久化进度
+            db.session.commit()
+
+            # 更新Celery任务的初始meta
+            self.update_state(state='PROGRESS', meta={
+                'total_sentences': initially_to_process_count,
+                'submitted_subtasks': 0,
+                'message': f'准备派发 {initially_to_process_count} 个语音生成子任务...'
+            })
+
+            for index, sentence in enumerate(sentences_to_process):
+                sentence_id_str_for_subtask = str(sentence.id)
+                try:
+                    sentence.audio_status = 'queued_for_generation' 
+                    db.session.commit()
+
+                    pt_file_for_this_subtask = pt_file_path_relative_for_gradio if tts_engine_identifier == "gradio_default" else None
+                    
+                    sub_task = generate_single_sentence_audio_async.delay(
+                        sentence_id_str=sentence_id_str_for_subtask,
+                        tts_engine_identifier=tts_engine_identifier,
+                        pt_file_path_relative=pt_file_for_this_subtask,
+                        tts_engine_params=(tts_engine_params_for_all or {})
+                    )
+                    submitted_subtasks_info.append({ # <--- 收集子任务信息
+                        "sentence_id": sentence_id_str_for_subtask,
+                        "task_id": sub_task.id
+                    })
+                    logger.info(f"[BatchTask:{self.request.id}] ({index + 1}/{initially_to_process_count}) 为句子 {sentence.id} 提交了子任务 {sub_task.id} (引擎: {tts_engine_identifier})")
+                    
+                    self.update_state(state='PROGRESS', meta={
+                        'total_sentences': initially_to_process_count,
+                        'submitted_subtasks': len(submitted_subtasks_info),
+                        'message': f'已派发 {len(submitted_subtasks_info)}/{initially_to_process_count} 个子任务...'
+                    })
+
+                except Exception as e_dispatch:
+                    failed_to_submit_count += 1
+                    logger.error(f"[BatchTask:{self.request.id}] 提交句子 {sentence.id} 的子任务失败: {e_dispatch}", exc_info=True)
+                    sentence.audio_status = 'error_submission' # 标记提交失败
+                    db.session.commit()
+            
+            final_message = f"批量语音生成任务已完成派发。总句子数: {initially_to_process_count}, 成功派发子任务数: {len(submitted_subtasks_info)}, 派发失败数: {failed_to_submit_count}."
+            logger.info(f"[BatchTask:{self.request.id}] {final_message}")
+            
+            # 批量任务本身到这里算“执行完毕”（即所有子任务都已派发）
+            # 最终状态由子任务的完成情况和后续轮询 TrainingContent 状态来决定
+            # 但我们可以先标记 TrainingContent 的状态
+            if failed_to_submit_count > 0 and len(submitted_subtasks_info) == 0:
+                training_content.status = 'error_batch_submission_all_failed'
+                final_task_status_celery = 'FAILURE'
+            elif failed_to_submit_count > 0:
+                training_content.status = 'warning_batch_submission_partial_failed'
+                final_task_status_celery = 'SUCCESS' # 任务本身完成了派发，但有部分失败
+            else:
+                training_content.status = 'audio_generation_in_progress' # 或保持 processing_batch_audio
+                final_task_status_celery = 'SUCCESS'
+            db.session.commit()
+
+            final_meta = {
+                'total_sentences': initially_to_process_count,
+                'submitted_subtasks': len(submitted_subtasks_info),
+                'failed_to_submit': failed_to_submit_count,
+                'message': final_message,
+                'engine_used': tts_engine_identifier,
+                'sub_tasks': submitted_subtasks_info # <--- 在最终 meta 中包含子任务信息
             }
-            # print(f"[BatchTask============》:{self.request.id}] Updating Celery task state with meta: {current_meta_for_celery}")
-            self.update_state(state='PROGRESS', meta=current_meta_for_celery)
-            updated_task_info_in_celery = self.AsyncResult(self.request.id).info
-            # print(f"[BatchTask=========》:{self.request.id}] Meta immediately after update_state in Celery: {updated_task_info_in_celery}")
-        
-        
-        # 任务结束
-        all_sentences_in_script = script.tts_sentences.order_by(TtsSentence.order_index).all()
-        # all_succeeded = all(s.audio_status == 'generated' for s in all_processed_sentences if s in sentences_to_process) # 只检查本次处理的
-        
-        final_message_summary = ""
-        if failed_generations == 0 and successful_generations == initially_to_process_count:
-            training_content.status = 'audio_generation_complete' 
-            final_task_status_celery = 'SUCCESS'
-            final_message_summary = f"所有 {initially_to_process_count} 个句子的语音已成功生成。"
-        elif successful_generations > 0:
-            training_content.status = 'partial_audio_generation_error' # 部分成功，部分失败
-            final_task_status_celery = 'SUCCESS' # 任务本身算成功完成（但有部分内容失败）
-            final_message_summary = f"{successful_generations} 个句子语音生成成功，{failed_generations} 个失败。"
-        else: # 所有都失败了
-            training_content.status = 'audio_generation_failed'
-            final_task_status_celery = 'FAILURE'
-            final_message_summary = f"所有尝试处理的 {initially_to_process_count} 个句子的语音生成均失败。"
-        
-        db.session.commit()
-        # logger.info(f"[BatchTask:{self.request.id}] {final_message_summary}")
+            if failed_to_submit_count > 0 and len(submitted_subtasks_info) == 0:
+                final_task_status_celery = 'FAILURE'
+            else: # 即使部分派发失败，主任务也算部分成功完成了派发
+                final_task_status_celery = 'SUCCESS'
 
-        final_meta_for_celery = {
-            'total_in_batch': initially_to_process_count,
-            'processed_in_batch': processed_count,
-            'succeeded_in_batch': successful_generations,
-            'failed_in_batch': failed_generations,
-            'message': final_message_summary
-        }
-        self.update_state(state=final_task_status_celery, meta=final_meta_for_celery)
-        
-        return { 
-            'status': final_task_status_celery, 
-            **final_meta_for_celery # 直接展开 final_meta_for_celery
-        }
+            return {'status': final_task_status_celery, **final_meta}
+
+        except Exception as e_batch_init: # 捕获批量任务初始化或早期错误
+            logger.error(f"[BatchTask:{self.request.id}] 批量任务初始化失败: {e_batch_init}", exc_info=True)
+            if 'training_content' in locals() and training_content:
+                training_content.status = 'error_batch_processing_init'
+                db.session.commit()
+            self.update_state(state='FAILURE', meta={'error': str(e_batch_init)})
+            return {'status': 'Error', 'message': f'批量语音生成任务失败: {str(e_batch_init)}'}
 
 @celery_app.task(bind=True, name='tasks.merge_all_audios_for_content', max_retries=1)
 def merge_all_audios_for_content(self, training_content_id_str):

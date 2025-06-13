@@ -1053,42 +1053,35 @@ def get_task_status(task_id):
 @tts_bp.route('/sentences/<uuid:sentence_id>/generate-audio', methods=['POST'])
 @admin_required # 或 @jwt_required()
 def generate_sentence_audio_route(sentence_id):
-    """为单个句子异步生成TTS语音"""
     sentence = TtsSentence.query.get(str(sentence_id))
     if not sentence:
         return jsonify({'error': '句子未找到'}), 404
 
     try:
-        # --- 确定 PT 文件路径 ---
-        # 方案1: 从请求中获取 (如果用户可以选择音色)
-        # request_data = request.json or {}
-        # pt_file_relative_path_from_request = request_data.get("pt_file")
-
-        # 方案2: 基于某些后端逻辑确定，或使用固定路径
-        # 例如，所有内容都使用同一个音色文件
-        # 注意：这个路径是相对于 Flask app.instance_path 的
-        default_pt_file_relative_path = "seed_1397_restored_emb.pt" 
+        request_data = request.json or {}
         
-        # 实际使用的 PT 文件路径 (这里简单使用默认值)
-        # 您可以根据需要实现更复杂的逻辑来选择 pt_file_relative_path
-        pt_file_to_use = default_pt_file_relative_path 
-        # -------------------------
-
-        tts_engine_params = request.json or {} # 其他 TTS 参数
+        # 从请求中获取要使用的 TTS 引擎，默认为 gradio
+        tts_engine_to_use = request_data.get("tts_engine", "gradio_default") # 前端可以传 "gemini_tts"
+        
+        # 获取特定于引擎的参数
+        tts_engine_params_from_request = request_data.get("tts_params", {})
+        default_pt_file_relative_path = "seed_1397_restored_emb.pt" 
+        # 获取 PT 文件路径 (主要用于 Gradio)
+        pt_file_to_use_for_gradio = default_pt_file_relative_path
 
         sentence.audio_status = 'processing_request'
         db.session.commit()
 
-        # 将 pt_file_to_use 传递给 Celery 任务
         task = generate_single_sentence_audio_async.delay(
-            str(sentence.id), 
-            pt_file_path_relative=pt_file_to_use, # <--- 新增参数
-            tts_engine_params=tts_engine_params
+            sentence_id_str=str(sentence.id), 
+            tts_engine_identifier=tts_engine_to_use,
+            pt_file_path_relative=pt_file_to_use_for_gradio if tts_engine_to_use == "gradio_default" else None, # Gemini TTS 不需要本地 PT 文件
+            tts_engine_params=tts_engine_params_from_request
         )
         
-        current_app.logger.info(f"单句语音生成异步任务已启动 (Task ID: {task.id}) for sentence {sentence_id} using PT file: {pt_file_to_use}")
+        current_app.logger.info(f"单句语音生成异步任务已启动 (Task ID: {task.id}, Engine: {tts_engine_to_use}) for sentence {sentence_id}")
         return jsonify({
-            'message': '单句语音生成任务已成功提交处理。',
+            'message': f'单句语音生成任务 ({tts_engine_to_use}) 已成功提交处理。',
             'task_id': task.id,
             'status_polling_url': f'/api/tts/task-status/{task.id}' 
         }), 202
@@ -1104,61 +1097,55 @@ def generate_sentence_audio_route(sentence_id):
     
 @tts_bp.route('/training-contents/<uuid:content_id>/batch-generate-audio', methods=['POST'])
 @admin_required
-def batch_generate_audio_for_content_route(content_id):
-    # ... (获取 content 和 latest_final_script) ...
+def batch_generate_audio_for_content_route(content_id): 
+    current_app.logger.info(f"API batch_generate_audio_for_content_route received content_id: {content_id}")
+
     content = TrainingContent.query.get(str(content_id))
-    if not content: return jsonify({'error': '培训内容未找到'}), 404
-    # --- 修改：直接从 TtsScript 表查询最新的 final_tts_script ---
-    current_app.logger.info(f"开始直接查询 TtsScript 表以获取最新的 final_tts_script for content_id: {content.id}")
-    latest_final_script = TtsScript.query.filter_by(
-        training_content_id=content.id,  # 使用 content.id 进行过滤
-        script_type='final_tts_script'
+    if not content:
+        return jsonify({'error': '培训内容未找到'}), 404
+    current_app.logger.info(f"API: Found TrainingContent with ID: {content.id}")
+    current_app.logger.info(f"API: TrainingContent status before processing: {content}")
+    # ++++++ 使用直接查询 ++++++
+    latest_final_script = db.session.query(TtsScript).filter(
+        TtsScript.training_content_id == content.id, # 直接使用 content.id
+        TtsScript.script_type == 'final_tts_script'
     ).order_by(TtsScript.version.desc()).first()
-    # --- 修改结束 ---
+
+    if not latest_final_script:
+        current_app.logger.error(f"API: No final_tts_script found for content {content.id} via DIRECT QUERY.")
+        return jsonify({'error': '未找到最终TTS脚本（直接查询失败），无法进行批量语音生成。'}), 404
+    current_app.logger.info(f"API: Found latest final_tts_script via ==========>DIRECT QUERY with ID: {latest_final_script.id}, Version: {latest_final_script.version}")
+
     # latest_final_script = content.tts_scripts.filter_by(script_type='final_tts_script').order_by(TtsScript.version.desc()).first()
-    if not latest_final_script: return jsonify({'error': '未找到该内容的最终TTS脚本'}), 400
+   
+    current_app.logger.info(f"API: Found latest final_tts_script with ID+>+>+>+>+>+>+>+>+>+>+>: {latest_final_script.id}, Version: {latest_final_script.version}")
 
-    # 只检查是否有需要处理的，具体列表由Celery任务自己查，避免数据不一致
-    has_sentences_to_process = TtsSentence.query.filter(
-        TtsSentence.tts_script_id == latest_final_script.id,
-        or_(
-            TtsSentence.audio_status == 'pending_generation',
-            TtsSentence.audio_status == 'error_generation',
-            TtsSentence.audio_status == 'pending_regeneration',
-            TtsSentence.audio_status == 'error_submission',
-            TtsSentence.audio_status == 'error_polling',
-            TtsSentence.audio_status == 'processing_request' # API可能已标记
-        )
-    ).first()
-
-    if not has_sentences_to_process:
-        return jsonify({'message': '所有句子的语音都已生成或正在生成中。'}), 200
-    
     try:
-        default_pt_file_relative_path = "seed_1397_restored_emb.pt" 
-        
-        # 实际使用的 PT 文件路径 (这里简单使用默认值)
-        # 您可以根据需要实现更复杂的逻辑来选择 pt_file_relative_path
-        pt_file_to_use = default_pt_file_relative_path 
-        # 将所有符合条件的句子的状态更新为 'queued' 或 'processing_request'
-        # 这样前端下次刷新时能看到这些句子正在排队或准备处理
-        TtsSentence.query.filter(
-            TtsSentence.tts_script_id == latest_final_script.id,
-             or_(
-                TtsSentence.audio_status == 'pending_generation',
-                TtsSentence.audio_status == 'error_generation',
-                TtsSentence.audio_status == 'pending_regeneration',
-                TtsSentence.audio_status == 'error_submission',
-                TtsSentence.audio_status == 'error_polling'
-            )
-        ).update({'audio_status': 'processing_request'}, synchronize_session=False)
+        request_data = request.json or {}
+        tts_engine_to_use = request_data.get("tts_engine", "gradio_default")
+        tts_engine_params = request_data.get("tts_params", {})
+        pt_file_for_gradio = request_data.get("pt_file_path_relative", 
+                                   current_app.config.get('DEFAULT_GRADIO_PT_FILE_PATH')) # 使用 current_app
 
-        content.status = 'audio_processing_queued' # 标记内容正在处理
+        content.status = f'queuing_batch_audio_{tts_engine_to_use}'
         db.session.commit()
 
-        task = batch_generate_audio_task.delay(str(latest_final_script.id),pt_file_path_relative=pt_file_to_use)
-        current_app.logger.info(f"批量语音生成任务已提交到 Celery，任务ID: {task.id}，处理脚本ID: {latest_final_script.id}")
-        return jsonify({'message': '批量语音生成任务已成功提交，正在后台处理。', 'task_id': task.id, 'initial_status_set_to': 'processing_request'}), 202
+        # ++++++ 关键修改：确保关键字参数名与任务定义匹配 ++++++
+        current_app.logger.info(f"==========latest_final_script======={str(latest_final_script.id)}")
+        task = batch_generate_audio_task.delay( # 假设任务变量名是这个
+            final_script_id_str=str(latest_final_script.id),
+            tts_engine_identifier=tts_engine_to_use,
+            pt_file_path_relative_for_gradio=pt_file_for_gradio if tts_engine_to_use == "gradio_default" else None, # <--- 修改这里
+            tts_engine_params_for_all=tts_engine_params
+        )
+        # +++++++++++++++++++++++++++++++++++++++++++++++++++++
+        
+        current_app.logger.info(f"批量语音生成异步任务已启动 (Task ID: {task.id}, Engine: {tts_engine_to_use}) for content {content_id}")
+        return jsonify({
+            'message': f'批量语音生成任务 ({tts_engine_to_use}) 已成功提交处理。',
+            'task_id': task.id,
+            'status_polling_url': f'/api/tts/task-status/{task.id}'
+        }), 202
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"提交批量语音生成任务失败 (内容ID: {content_id}): {e}", exc_info=True)

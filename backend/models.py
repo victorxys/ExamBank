@@ -214,12 +214,16 @@ class TrainingContent(db.Model):
     llm_oral_prompt = db.relationship(
         'LlmPrompt', 
         foreign_keys=[llm_oral_prompt_id], # 明确指定外键
-        backref=backref('oral_script_contents', lazy='dynamic') # 可选的反向关系名
+        # backref=backref('oral_script_contents', lazy='dynamic') # 可选的反向关系名
+        back_populates='training_contents_where_oral_prompt' # 新的反向关系名
     )
     llm_refine_prompt = db.relationship(
         'LlmPrompt', 
         foreign_keys=[llm_refine_prompt_id], # 明确指定外键
-        backref=backref('refine_script_contents', lazy='dynamic') # 可选的反向关系名
+        # backref=backref('refine_script_contents', lazy='dynamic') # 可选的反向关系名
+        back_populates='training_contents_where_oral_prompt' # 新的反向关系名
+        
+
     )
     # +++++++++++++++++++++++++++++++++++++++
     
@@ -533,7 +537,20 @@ class LlmPrompt(db.Model):
 
     llm_model_ref = db.relationship('LlmModel', foreign_keys=[model_identifier], backref=backref('prompts_associated', lazy='dynamic'))
     call_logs = db.relationship('LlmCallLog', backref='llm_prompt_log_ref', lazy='dynamic')
-
+    
+    training_contents_where_oral_prompt = db.relationship(
+        'TrainingContent', 
+        foreign_keys=[TrainingContent.llm_oral_prompt_id], # 指定外键来源
+        back_populates='llm_oral_prompt', # 对应 TrainingContent 上的关系名
+        lazy='dynamic'
+    )
+    
+    training_contents_where_refine_prompt = db.relationship(
+        'TrainingContent', 
+        foreign_keys=[TrainingContent.llm_refine_prompt_id],
+        back_populates='llm_refine_prompt',
+        lazy='dynamic'
+    )
     def __repr__(self):
         return f'<LlmPrompt {self.prompt_name} (v{self.version})>'
 
@@ -599,9 +616,15 @@ class TtsSentence(db.Model):
     created_at = db.Column(db.DateTime(timezone=True), server_default=func.now(), comment='创建时间')
     updated_at = db.Column(db.DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), comment='更新时间')
 
-    audios = db.relationship('TtsAudio', lazy='dynamic', cascade='all, delete-orphan',
-                             primaryjoin="and_(TtsSentence.id==foreign(TtsAudio.tts_sentence_id), TtsAudio.audio_type=='sentence_audio')",
-                             order_by='TtsAudio.created_at.desc()')
+    audios = db.relationship(
+        'TtsAudio', 
+        back_populates='tts_sentence', # <--- 指向 TtsAudio.tts_sentence
+        lazy='dynamic', 
+        cascade='all, delete-orphan',
+        # 确保 primaryjoin 正确定义了你想要的过滤条件
+        primaryjoin="and_(TtsSentence.id==TtsAudio.tts_sentence_id, TtsAudio.audio_type=='sentence_audio')",
+        order_by='TtsAudio.created_at.desc()'
+    )
 
     def __repr__(self):
         return f'<TtsSentence Order {self.order_index} for Script {self.tts_script_id}>'
@@ -629,7 +652,12 @@ class TtsAudio(db.Model):
     is_latest_for_sentence = db.Column(db.Boolean, default=True, nullable=True, comment='是否是对应句子的最新版本语音 (用于单句语音)')
     is_latest_for_content = db.Column(db.Boolean, default=True, nullable=True, comment='是否是对应培训内容的最新合并语音 (用于合并语音)')
 
-    tts_sentence = db.relationship('TtsSentence', backref=backref('all_audios', lazy='dynamic'))
+    # tts_sentence = db.relationship('TtsSentence', backref=backref('all_audios', lazy='dynamic'))
+    tts_sentence = db.relationship(
+        'TtsSentence', 
+        back_populates='audios', # <--- 对应 TtsSentence.audios
+        foreign_keys=[tts_sentence_id]
+    )
 
     def __repr__(self):
         if self.tts_sentence_id:

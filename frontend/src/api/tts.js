@@ -31,7 +31,10 @@ export const ttsApi = {
   // --- 按句子生成语音 API ---
   generateSentenceAudio: (sentenceId, params = {}) => api.post(`/tts/sentences/${sentenceId}/generate-audio`, params),
   // 批量生成语音
-  batchGenerateAudioForContent: (contentId) => api.post(`/tts/training-contents/${contentId}/batch-generate-audio`),
+  batchGenerateAudioForContent: (contentId, data) => api.post( // <--- 接收 data 参数
+    `/tts/training-contents/${contentId}/batch-generate-audio`, 
+    data // <--- 将 data 参数传递给 api.post
+  ),
   mergeAudio: (contentId) => api.post(`/tts/training-contents/${contentId}/merge-audio`),
   getMergedAudioSegments: (mergedAudioId) => api.get(`/tts/audios/${mergedAudioId}/segments`), // New API call
 

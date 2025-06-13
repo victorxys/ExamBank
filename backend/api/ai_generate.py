@@ -18,9 +18,49 @@ from backend.security_utils import decrypt_data # 确保能正确导入
 from sqlalchemy import inspect # 如果 to_dict 在此文件且用到 inspect
 import datetime # 如果 to_dict 在此文件且用到 datetime
 
+import struct # 用于 convert_to_wav
+
+
 _RequestOptions = None # 先定义为 None
 
 # --- Helper functions ---
+def _convert_to_wav_gemini(audio_data: bytes, mime_type: str) -> bytes:
+    parameters = _parse_audio_mime_type_gemini(mime_type)
+    bits_per_sample = parameters["bits_per_sample"]
+    sample_rate = parameters["rate"]
+    num_channels = 1
+    data_size = len(audio_data)
+    bytes_per_sample = bits_per_sample // 8
+    block_align = num_channels * bytes_per_sample
+    byte_rate = sample_rate * block_align
+    chunk_size = 36 + data_size
+    header = struct.pack(
+        "<4sI4s4sIHHIIHH4sI",
+        b"RIFF", chunk_size, b"WAVE", b"fmt ", 16, 1,
+        num_channels, sample_rate, byte_rate, block_align,
+        bits_per_sample, b"data", data_size
+    )
+    return header + audio_data
+
+def _parse_audio_mime_type_gemini(mime_type: str) -> dict[str, int | None]:
+    bits_per_sample = 16
+    rate = 24000
+    if not mime_type:
+        return {"bits_per_sample": bits_per_sample, "rate": rate}
+    parts = mime_type.split(";")
+    for param in parts:
+        param = param.strip()
+        if param.lower().startswith("rate="):
+            try:
+                rate_str = param.split("=", 1)[1]
+                rate = int(rate_str)
+            except (ValueError, IndexError): pass
+        elif param.startswith("audio/L"):
+            try:
+                bits_per_sample = int(param.split("L", 1)[1])
+            except (ValueError, IndexError): pass
+    return {"bits_per_sample": bits_per_sample, "rate": rate}
+
 def make_json_safe(data):
     if isinstance(data, dict):
         return {k: make_json_safe(v) for k, v in data.items()}
@@ -537,3 +577,120 @@ def generate_video_script(srt_content: str, pdf_summary: str, prompt_identifier:
                                    {**initial_log_input_error_context, "exception_details": str(e)},
                                    user_id)
         raise
+
+
+
+# --- Gemini TTS 生成函数 (基于您的官方示例) ---
+def generate_audio_with_gemini_tts(
+    text_to_speak: str, 
+    api_key: str, # 直接传入解密后的 API Key
+    model_name: str = "gemini-2.5-pro-preview-tts", # 官方推荐的 TTS 模型，替代 "gemini-2.5-pro-preview-tts"
+    voice_name: str = "Kore", # 示例音色，需要确认是否对 tts-001 有效或需要
+    temperature: float = 1 # 示例 temperature (官方 TTS 示例通常不强调这个)
+):
+    """
+    使用 Google Gemini TTS (基于您提供的官方示例的调用方式) 生成音频。
+    """
+    start_time = time.time()
+    current_app.logger.info(f"Gemini TTS: Starting audio generation for text (snippet): {text_to_speak[:50]}...")
+    current_app.logger.info(f"Gemini TTS: Using model '{model_name}', voice '{voice_name}', temp '{temperature}'")
+
+    # 确保 API Key 已配置 (虽然这里是传入的，但 genai.Client 还是会用到)
+    # 如果 genai.configure() 之前没有被调用，或者你想确保这个 client 使用特定的 key
+    # genai.configure(api_key=api_key) # 官方示例是 client = genai.Client(api_key=...)
+
+    client = genai.Client(api_key=api_key)
+
+    contents = [
+        types.Content(
+            role="user", # 对于 TTS，这个 role 通常是 "user" 或 "model" (如果有多轮)
+            parts=[
+                types.Part.from_text(text=text_to_speak),
+            ],
+        ),
+    ]
+    
+    # 构建 GenerateContentConfig，严格按照您的示例
+    # 注意： "gemini-2.5-pro-preview-tts" 可能已过时或为预览版名称。
+    # 官方文档现在更推荐如 "models/tts-001" (高质量) 或 "models/tts-004" (速度优化)。
+    # "Kore" 作为 voice_name 也需要确认是否适用于您选择的 tts_model。
+    # 对于 tts-001, tts-004，通常不需要指定 voice_name，模型会自动选择。
+    # 如果指定，确保它是有效的。
+    speech_config_params = {}
+    if voice_name: # 只有当 voice_name 提供时才尝试设置
+        # 查阅您使用的模型是否支持/需要 PrebuiltVoiceConfig
+        # 对于 models/tts-001, 通常不需要显式设置 voice_name
+        speech_config_params["voice_config"] = types.VoiceConfig(
+            prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name=voice_name)
+        )
+
+    generate_content_config = types.GenerateContentConfig(
+        temperature=temperature, # 官方TTS示例中 temperature 通常为 0 (更稳定) 或不设置
+        response_modalities=["audio"], # 明确要求音频输出
+        speech_config=types.SpeechConfig(**speech_config_params) if speech_config_params else None # 只有当有参数时才创建
+    )
+    
+    audio_buffer = b""
+    final_mime_type = None
+
+    try:
+        current_app.logger.debug(f"Gemini TTS: Calling client.models.generate_content_stream with model '{model_name}'")
+        current_app.logger.debug(f"Gemini TTS: Contents: {contents}")
+        current_app.logger.debug(f"Gemini TTS: Config: {generate_content_config}")
+
+        stream_response = client.models.generate_content_stream(
+            model=model_name, # 使用传入的 model_name
+            contents=contents,
+            config=generate_content_config, # 参数名是 generation_config (根据您 generate 函数)
+                                                    # 或者如果是 config (根据您 TTS 示例)，请统一
+                                                    # ** 假设您的 generate() 函数也用 generation_config **
+        )
+
+        for chunk in stream_response:
+            if (
+                chunk.candidates is None
+                or not chunk.candidates # 检查是否为空列表
+                or chunk.candidates[0].content is None
+                or not chunk.candidates[0].content.parts # 检查是否为空列表
+            ):
+                continue
+            
+            part = chunk.candidates[0].content.parts[0]
+            if part.inline_data and part.inline_data.data:
+                audio_buffer += part.inline_data.data
+                if part.inline_data.mime_type and not final_mime_type:
+                    final_mime_type = part.inline_data.mime_type
+            elif hasattr(part, 'text') and part.text: # 您的示例中有 else: print(chunk.text)
+                current_app.logger.info(f"Gemini TTS: Received text part from stream (ignoring): {part.text[:100]}...")
+
+
+        if not audio_buffer:
+            current_app.logger.error("Gemini TTS: No audio data received from stream.")
+            raise Exception("Gemini TTS 未返回音频数据")
+
+        # 处理 MIME 类型和 WAV 转换，与您的示例一致
+        if final_mime_type and final_mime_type.startswith("audio/L"):
+            current_app.logger.info(f"Gemini TTS: Received raw audio data ({final_mime_type}), converting to WAV.")
+            processed_audio_data = _convert_to_wav_gemini(audio_buffer, final_mime_type)
+            output_mime_type = "audio/wav"
+        else:
+            processed_audio_data = audio_buffer
+            output_mime_type = final_mime_type or "audio/mpeg" # 如果直接是 MP3 或 WAV，或者默认 MP3
+
+        current_app.logger.info(f"Gemini TTS: Audio generation successful. Duration: {time.time() - start_time:.2f}s. Output MIME: {output_mime_type}")
+        return processed_audio_data, output_mime_type
+
+    except Exception as e:
+        current_app.logger.error(f"Gemini TTS: API call failed for model '{model_name}': {e}", exc_info=True)
+        # 可以在这里记录更详细的请求参数用于调试
+        debug_info = {
+            "model_name": model_name,
+            "text_length": len(text_to_speak),
+            "config": str(generate_content_config)
+        }
+        current_app.logger.error(f"Gemini TTS: Debug info - {debug_info}")
+        raise
+
+
+
+    
