@@ -1,5 +1,7 @@
 import httpx
 import os
+import json
+from dotenv import load_dotenv
 
 # --- 诊断信息，帮助我们确认环境 ---
 try:
@@ -10,21 +12,30 @@ try:
 except Exception as e:
     print(f"无法获取 httpx 信息: {e}")
 
-# --- 您的代理池配置 ---
-PROXY_POOL = [
-    {
-        "id": "Server-A",
-        "proxy_url": "http://victor:xys131313@webservice-google-tw1.58789018.xyz:8888",
-    },
-    {
-        "id": "Server-B",
-        "proxy_url": "http://victor:xys131313@webservice-google-tw2.58789018.xyz:8888",
-    },
-    {
-        "id": "Server-C",
-        "proxy_url": "http://victor:xys131313@webservice-google-tw0.58789018.xyz:8888",
-    }
-]
+#from dotenv import load_dotenv
+
+dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
+if os.path.exists(dotenv_path):
+    load_dotenv(dotenv_path=dotenv_path)
+
+# --- 动态构建 PROXY_POOL ---
+def load_proxy_pool_from_env():
+    """从环境变量中加载并解析代理池配置"""
+    pool_json_string = os.environ.get('TTS_PROXY_POOL_JSON')
+    if not pool_json_string:
+        print("⚠️ 警告: 未在环境变量中找到 TTS_PROXY_POOL_JSON 配置。代理池将为空。")
+        return []
+    
+    try:
+        pool = json.loads(pool_json_string)
+        print("✅ 已成功从环境变量加载并解析代理池配置。")
+        return pool
+    except json.JSONDecodeError:
+        print("❌ 错误: 无法解析环境变量 TTS_PROXY_POOL_JSON 中的JSON字符串。请检查格式。")
+        return []
+
+# 在模块加载时，直接构建 PROXY_POOL
+PROXY_POOL = load_proxy_pool_from_env()
 
 def test_single_proxy(server_info):
     """使用 mounts 和 HTTPTransport 测试单个代理"""
