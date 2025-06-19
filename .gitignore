@@ -217,3 +217,7 @@ testcase/
 
 *.mp4
 *.mp3
+
+tools/
+
+migrations/alembic.ini
