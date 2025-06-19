@@ -425,7 +425,7 @@ def generate_single_sentence_audio_async(self, sentence_id_str, tts_engine_ident
                 # # 2. 向管理器请求下一个可用的 "身份"
                 # identity = manager.get_next_identity()
                 
-                # identity['api_key'] = "AIzaSyDCESRusL4xXMQ3lVggU0AX0pUjDl3Wl1k"
+                
                 identity = get_next_identity()
                 # 直接使用返回的身份信息
                 gemini_api_key = identity['api_key']
@@ -433,9 +433,7 @@ def generate_single_sentence_audio_async(self, sentence_id_str, tts_engine_ident
                 api_key_name = identity['id']
 
 
-                # gemini_api_key = "AIzaSyDCESRusL4xXMQ3lVggU0AX0pUjDl3Wl1k"
-                # proxy_url = "http://victor:xys131313@webservice-google-tw1.58789018.xyz:8888"
-                # api_key_name = "Server-A" # 用服务器ID作为Key的标识名
+            
 
                 logger.info(f"Successfully retrieved identity '{api_key_name}' from manager.")
                 # ++++++++++++++++ Celery 内部对照诊断 ++++++++++++++++
