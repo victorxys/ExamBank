@@ -31,12 +31,16 @@ export const ttsApi = {
   // --- 按句子生成语音 API ---
   generateSentenceAudio: (sentenceId, params = {}) => api.post(`/tts/sentences/${sentenceId}/generate-audio`, params),
   // 批量生成语音
-  batchGenerateAudioForContent: (contentId, data) => api.post( // <--- 接收 data 参数
+  batchGenerateAudioForContent: (contentId, data) => api.post( 
     `/tts/training-contents/${contentId}/batch-generate-audio`, 
     data // <--- 将 data 参数传递给 api.post
-  ),
+  ), 
+
   mergeAudio: (contentId) => api.post(`/tts/training-contents/${contentId}/merge-audio`),
   getMergedAudioSegments: (mergedAudioId) => api.get(`/tts/audios/${mergedAudioId}/segments`), // New API call
+  // 新增：合并当前生成的语音
+  mergeCurrentGeneratedAudios: (contentId) => api.post(`/tts/training-contents/${contentId}/merge-current-audio`),
+
 
   // TtsSentence - 手动更新句子文本
   updateSentence: (sentenceId, data) => api.put(`/tts/sentences/${sentenceId}`, data),

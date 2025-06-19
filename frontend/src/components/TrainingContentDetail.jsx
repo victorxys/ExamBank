@@ -31,6 +31,7 @@ import {
     Delete as DeleteIcon,
     Cached as CachedIcon,
     CloudUpload as CloudUploadIcon,
+    MergeType as MergeTypeIcon,
     GraphicEq as GraphicEqIcon, // 一个示例图标 for Gemini
     Movie as MovieIcon, // 用于视频合成步骤
     Subtitles as SubtitlesIcon // 新增字幕图标
@@ -362,6 +363,7 @@ const TrainingContentDetail = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false); // 控制分析按钮的加载状态
   const [isSynthesizing, setIsSynthesizing] = useState(false); // 控制合成按钮的加载状态
 
+
   // -- 进度相关的 state ---
   const [synthesisProgress, setSynthesisProgress] = useState({
     progress: 0,
@@ -631,6 +633,30 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
     // }, [contentDetail, synthesisTask]); // 依赖 synthesisTask
     // const canStartVideoSynthesis = (contentDetail?.status === 'audio_merge_complete' && contentDetail?.latest_merged_audio) || !!synthesisTask;
 
+    // --- 新增：处理合并当前以生成部分语音的函数 ---
+    const handleMergeCurrentAudios = async () => {
+        if (!contentDetail || !contentDetail.id) return;
+        
+        const actionKey = 'merge_current_audio';
+        setActionLoading(prev => ({ ...prev, [actionKey]: true }));
+        setMergeProgress({ task_id: null, status: 'PENDING', message: '正在提交合并任务...', total_sentences: 0, merged_count: 0 });
+        setAlert({ open: false, message: '', severity: 'info' });
+
+        try {
+        const response = await ttsApi.mergeCurrentGeneratedAudios(contentDetail.id);
+        setAlert({ open: true, message: response.data.message || '合并当前语音任务已提交。', severity: 'info' });
+        if (response.data.task_id) {
+            setMergeProgress(prev => ({ ...prev, task_id: response.data.task_id, status: 'QUEUED' }));
+            pollTaskStatus(response.data.task_id, false, 'merge'); // 传递 'merge' 作为 taskType
+        }
+        } catch (error) {
+        console.error("合并当前语音失败:", error);
+        setAlert({ open: true, message: `合并当前语音失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
+        setMergeProgress(prev => ({ ...(prev || {}), status: 'FAILURE', message: `提交合并任务失败: ${error.response?.data?.error || error.message}`}));
+        } finally {
+        setActionLoading(prev => ({ ...prev, [actionKey]: false }));
+        }
+    };
 
     // --- 新增：传递给子组件的回调函数 ---
     const handleStartAnalysis = async (pptFile, promptId) => {
@@ -1118,18 +1144,20 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
   }, [fetchContentDetail, overallProgress]); // 移除 mergeProgress
 
   const handleBatchGenerateAudio = async (engineToUse = 'gradio_default') => {
+    
     if (!contentDetail || !contentDetail.id) return;
-
     const apiParams = {
       tts_engine: engineToUse,
       tts_params: {}, 
     };
-
+    console.log("Preparing to batch generate audio with engine:", apiParams);
+    console.log("Value of apiParams before sending:", JSON.stringify(apiParams));
     if (engineToUse === 'gemini_tts') {
       // apiParams.tts_params.voice_name = "gemini-voice-for-batch";
     } else if (engineToUse === 'gradio_default') {
-      // apiParams.tts_params.roleid = "batch-role";
-      // apiParams.pt_file_path_relative = "uploads/tts_pt/your_default_voice.pt"; // 如果Gradio批量需要特定PT
+        
+    //   apiParams.tts_params.roleid = "1";
+    //   apiParams.pt_file_path_relative = "uploads/tts_pt/your_default_voice.pt"; // 如果Gradio批量需要特定PT
     }
     
     const actionKey = `batch_generate_${engineToUse}`;
@@ -1638,14 +1666,14 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
             ) : currentActiveStepDetails.key === 'generateAndMergeAudio' ? (
               <Box>
                 <Stack direction={{xs: 'column', sm: 'row'}} spacing={2} sx={{mb:2, alignItems: 'flex-start'}}>
-                    <Button 
+                    {/* <Button 
                         variant="contained" 
-                        onClick={handleBatchGenerateAudio} 
+                        onClick={() => handleBatchGenerateAudio('gradio_default')}
                         disabled={actionLoading[`batch_generate_${contentId}`] || loading || !contentDetail?.final_script_sentences?.length} 
                         startIcon={(actionLoading[`batch_generate_${contentId}`] || (overallProgress && (overallProgress.status === 'PROGRESS' || overallProgress.status === 'PENDING'))) ? <CircularProgress size={16} /> : <PlaylistPlayIcon />}
                     >
                         {overallProgress && (overallProgress.status === 'PROGRESS' || overallProgress.status === 'PENDING') ? "批量生成中..." : "批量生成所有待处理语音"}
-                    </Button>
+                    </Button> */}
                     <Button 
                         variant="contained" 
                         color="secondary" 
@@ -1658,6 +1686,24 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
                         startIcon={(actionLoading[`merge_audio_${contentId}`] || (mergeProgress && (mergeProgress.status === 'PROGRESS' || mergeProgress.status === 'PENDING'))) ? <CircularProgress size={16} /> : <CloudUploadIcon />}
                     >
                         {(mergeProgress && (mergeProgress.status === 'PROGRESS' || mergeProgress.status === 'PENDING')) ? '合并中...' : '合并所有语音'}
+                    </Button>
+
+                    {/* 新增：合并当前语音按钮 */}
+                    <Button
+                        variant="contained"
+                        color="success" // 示例颜色
+                        onClick={handleMergeCurrentAudios}
+                        disabled={
+                            actionLoading['merge_current_audio'] || 
+                            mergeProgress?.status === 'PENDING' || 
+                            mergeProgress?.status === 'QUEUED' || 
+                            mergeProgress?.status === 'PROGRESS' ||
+                            !contentDetail?.final_script_sentences?.some(s => s.audio_status === 'generated') 
+                            // 只有当至少有一个句子已生成语音时才启用
+                        }
+                        startIcon={actionLoading['merge_current_audio'] || mergeProgress?.status === 'PROGRESS' ? <CircularProgress size={20} color="inherit" /> : <MergeTypeIcon />}
+                      >
+                        合并当前已生成语音
                     </Button>
                     {/* 新增导出 SRT 按钮 */}
                     <Button

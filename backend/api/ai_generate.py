@@ -17,6 +17,11 @@ from backend.models import LlmModel, LlmApiKey, LlmPrompt, LlmCallLog, db # 确�
 from backend.security_utils import decrypt_data # 确保能正确导入
 from sqlalchemy import inspect # 如果 to_dict 在此文件且用到 inspect
 import datetime # 如果 to_dict 在此文件且用到 datetime
+import httpx
+import base64
+import wave
+import io # 用于处理音频数据
+
 
 import struct # 用于 convert_to_wav
 
@@ -130,10 +135,10 @@ def to_dict(obj):
         return obj.isoformat()
     return obj
 
-def get_active_llm_config_internal(provider_name, model_identifier=None):
-    api_key_record = LlmApiKey.query.filter_by(provider=provider_name, status='active').first()
+def get_active_llm_config_internal(key_name, model_identifier=None):
+    api_key_record = LlmApiKey.query.filter_by(key_name=key_name, status='active').first()
     if not api_key_record:
-        return None, None, None, f"未找到提供商 '{provider_name}' 的活动API Key"
+        return None, None, None, f"未找到提供商 '{key_name}' 的活动API Key"
     try:
         api_key = decrypt_data(api_key_record.api_key_encrypted)
         if not api_key:
@@ -147,7 +152,7 @@ def get_active_llm_config_internal(provider_name, model_identifier=None):
         llm_model_obj = LlmModel.query.filter_by(model_identifier=model_identifier, status='active').first()
         if not llm_model_obj:
              return api_key, api_key_record.key_name, None, f"未找到模型标识符为 '{model_identifier}' 的活动模型"
-    
+    current_app.logger.info(f"获取活动 LLM 配置成功使用key_name: {key_name},获取到key_name: {api_key_record.key_name}, 模型: {model_identifier or '默认'}")
     return api_key, api_key_record.key_name, llm_model_obj, None
 
 def get_active_prompt_internal(prompt_identifier, version=None):
@@ -363,10 +368,10 @@ def transform_text_with_llm(input_text: str, prompt_identifier: str, reference_t
                 last_api_exception = e
                 current_app.logger.error(f"JSON解析失败 (transform_text, attempt {attempt + 1}): {e}", exc_info=False)
                 break 
-            except types.StopCandidateException as e:
-                last_api_exception = e
-                current_app.logger.error(f"内容被 Gemini 阻止 (transform_text, attempt {attempt + 1}): {e}", exc_info=False)
-                break
+            # except genai.types.StopCandidateException as e:
+            #     last_api_exception = e
+            #     current_app.logger.error(f"内容被 Gemini 阻止 (transform_text, attempt {attempt + 1}): {e}", exc_info=False)
+            #     break
             except Exception as e:
                 last_api_exception = e
                 current_app.logger.warning(f"LLM API 调用失败 (transform_text, attempt {attempt + 1}): {e}", exc_info=False)
@@ -468,7 +473,7 @@ def generate_video_script(srt_content: str, pdf_summary: str, prompt_identifier:
             raise Exception(prompt_error)
 
         model_to_use_identifier = active_prompt.model_identifier or "gemini-1.5-pro-latest" # 之前是2.5，建议用标准名
-        api_key, api_key_name_for_log, llm_model_for_log, config_error = get_active_llm_config_internal("Google", model_to_use_identifier)
+        api_key, api_key_name_for_log, llm_model_for_log, config_error = get_active_llm_config_internal("generate_video_script", model_to_use_identifier)
         
         if config_error:
             initial_log_input_error_context["error_context"] = "config_fetch_failed"
@@ -549,10 +554,10 @@ def generate_video_script(srt_content: str, pdf_summary: str, prompt_identifier:
                 last_api_exception = e
                 current_app.logger.error(f"JSON解析失败 (video_script, attempt {attempt + 1}): {e}", exc_info=False)
                 break
-            except types.StopCandidateException as e: # 内容被阻止不重试
-                last_api_exception = e
-                current_app.logger.error(f"内容被 Gemini 阻止 (video_script, attempt {attempt + 1}): {e}", exc_info=False)
-                break
+            # except types.StopCandidateException as e: # 内容被阻止不重试
+            #     last_api_exception = e
+            #     current_app.logger.error(f"内容被 Gemini 阻止 (video_script, attempt {attempt + 1}): {e}", exc_info=False)
+            #     break
             except Exception as e:
                 last_api_exception = e
                 current_app.logger.warning(f"LLM API 调用失败 (video_script, attempt {attempt + 1}): {e}", exc_info=False)
@@ -583,114 +588,152 @@ def generate_video_script(srt_content: str, pdf_summary: str, prompt_identifier:
 # --- Gemini TTS 生成函数 (基于您的官方示例) ---
 def generate_audio_with_gemini_tts(
     text_to_speak: str, 
-    api_key: str, # 直接传入解密后的 API Key
-    model_name: str = "gemini-2.5-pro-preview-tts", # 官方推荐的 TTS 模型，替代 "gemini-2.5-pro-preview-tts"
-    voice_name: str = "Kore", # 示例音色，需要确认是否对 tts-001 有效或需要
-    temperature: float = 1 # 示例 temperature (官方 TTS 示例通常不强调这个)
+    api_key: str,
+    model_name: str = "models/tts-001",
+    voice_name: str = None, # 对于 tts-001 模型，通常不需要指定voice_name
+    temperature: float = 0,  # 对于TTS，更稳定的0是更好的选择
+    proxy_url=None
 ):
     """
-    使用 Google Gemini TTS (基于您提供的官方示例的调用方式) 生成音频。
+    通过手动创建httpx.Client并发送流式请求来调用Gemini TTS API。
     """
-    start_time = time.time()
-    current_app.logger.info(f"Gemini TTS: Starting audio generation for text (snippet): {text_to_speak[:50]}...")
-    current_app.logger.info(f"Gemini TTS: Using model '{model_name}', voice '{voice_name}', temp '{temperature}'")
+    prefix_prompt = "你是一名专业育儿嫂培训师，请用口语化的培训师的口吻以及标准的普通话来讲解以下内容："
+    final_text_to_speak = f"{prefix_prompt}{text_to_speak}"
 
-    # 确保 API Key 已配置 (虽然这里是传入的，但 genai.Client 还是会用到)
-    # 如果 genai.configure() 之前没有被调用，或者你想确保这个 client 使用特定的 key
-    # genai.configure(api_key=api_key) # 官方示例是 client = genai.Client(api_key=...)
-
-    client = genai.Client(api_key=api_key)
-
-    contents = [
-        types.Content(
-            role="user", # 对于 TTS，这个 role 通常是 "user" 或 "model" (如果有多轮)
-            parts=[
-                types.Part.from_text(text=text_to_speak),
-            ],
-        ),
-    ]
+    current_app.logger.info(f"Gemini TTS (Manual Client): Starting generation...")
+    if proxy_url:
+        current_app.logger.info(f"Gemini TTS (Manual Client): Using proxy: {proxy_url}")
     
-    # 构建 GenerateContentConfig，严格按照您的示例
-    # 注意： "gemini-2.5-pro-preview-tts" 可能已过时或为预览版名称。
-    # 官方文档现在更推荐如 "models/tts-001" (高质量) 或 "models/tts-004" (速度优化)。
-    # "Kore" 作为 voice_name 也需要确认是否适用于您选择的 tts_model。
-    # 对于 tts-001, tts-004，通常不需要指定 voice_name，模型会自动选择。
-    # 如果指定，确保它是有效的。
+    api_url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:streamGenerateContent"
+    headers = {'Content-Type': 'application/json', 'x-goog-api-key': api_key}
+    
+    # 构建请求体 (Body)
+    contents = [{"role": "user", "parts": [{"text": final_text_to_speak}]}]
     speech_config_params = {}
-    if voice_name: # 只有当 voice_name 提供时才尝试设置
-        # 查阅您使用的模型是否支持/需要 PrebuiltVoiceConfig
-        # 对于 models/tts-001, 通常不需要显式设置 voice_name
-        speech_config_params["voice_config"] = types.VoiceConfig(
-            prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name=voice_name)
-        )
-
-    generate_content_config = types.GenerateContentConfig(
-        temperature=temperature, # 官方TTS示例中 temperature 通常为 0 (更稳定) 或不设置
-        response_modalities=["audio"], # 明确要求音频输出
-        speech_config=types.SpeechConfig(**speech_config_params) if speech_config_params else None # 只有当有参数时才创建
-    )
-    
-    audio_buffer = b""
-    final_mime_type = None
+    if voice_name:
+         speech_config_params["voice_config"] = {"prebuilt_voice_config": {"voice_name": voice_name}}
+    generation_config = {
+        "temperature": temperature,
+        "response_modalities": ["audio"],
+        "speech_config": speech_config_params if speech_config_params else None
+    }
+    payload = {"contents": contents, "generationConfig": generation_config}
+    current_app.logger.info(f"Gemini TTS (Manual Client): =====model_name: {model_name}, voice_name: {voice_name}, temperature: {temperature}=====")
 
     try:
-        current_app.logger.debug(f"Gemini TTS: Calling client.models.generate_content_stream with model '{model_name}'")
-        current_app.logger.debug(f"Gemini TTS: Contents: {contents}")
-        current_app.logger.debug(f"Gemini TTS: Config: {generate_content_config}")
+        transport = httpx.HTTPTransport(proxy=proxy_url) if proxy_url else None
+        mounts = {"all://": transport} if transport else None
 
-        stream_response = client.models.generate_content_stream(
-            model=model_name, # 使用传入的 model_name
-            contents=contents,
-            config=generate_content_config, # 参数名是 generation_config (根据您 generate 函数)
-                                                    # 或者如果是 config (根据您 TTS 示例)，请统一
-                                                    # ** 假设您的 generate() 函数也用 generation_config **
-        )
+        with httpx.Client(mounts=mounts, timeout=180.0) as client:
+            with client.stream("POST", api_url, headers=headers, json=payload) as response:
+                # ++++++++++++++++ 关键修正 ++++++++++++++++
+                # 1. 首先检查状态码，但不立即抛出异常
+                if not response.is_success:
+                    # 2. 如果状态码是错误的，我们先安全地读取响应体
+                    error_details = response.read().decode('utf-8', errors='ignore')
+                    # 3. 记录日志
+                    current_app.logger.error(f"Gemini API returned an error: {response.status_code}. Details: {error_details}")
+                    # 4. 现在，我们再手动抛出那个我们希望Celery重试的异常
+                    response.raise_for_status()
 
-        for chunk in stream_response:
-            if (
-                chunk.candidates is None
-                or not chunk.candidates # 检查是否为空列表
-                or chunk.candidates[0].content is None
-                or not chunk.candidates[0].content.parts # 检查是否为空列表
-            ):
-                continue
+                # 如果状态码是成功的，再进行后续操作
+                full_response_bytes = response.read()
+                full_response_text = full_response_bytes.decode('utf-8')
+                # +++++++++++++++++++++++++++++++++++++++++++
+        # --- 对完整的JSON字符串进行一次性的解析 ---
+        try:
+            full_json_response = json.loads(full_response_text)
+            # current_app.logger.info(f"Gemini API Raw JSON Response: {str(full_json_response)[:500]}...")
+
+            # ++++++++++++++++ 最终的、绝对正确的解析逻辑 ++++++++++++++++
+            if not isinstance(full_json_response, list) or not full_json_response:
+                raise ValueError("API响应不是一个有效的列表")
+
+            # 1. 获取列表中的第一个主要对象
+            main_object = full_json_response[0]
+            # current_app.logger.info(f"Gemini TTS (Manual Client): main_object found: {str(main_object)[:500]}...")
             
-            part = chunk.candidates[0].content.parts[0]
-            if part.inline_data and part.inline_data.data:
-                audio_buffer += part.inline_data.data
-                if part.inline_data.mime_type and not final_mime_type:
-                    final_mime_type = part.inline_data.mime_type
-            elif hasattr(part, 'text') and part.text: # 您的示例中有 else: print(chunk.text)
-                current_app.logger.info(f"Gemini TTS: Received text part from stream (ignoring): {part.text[:100]}...")
+            # 2. 从主要对象中获取'candidates'列表
+            candidates = main_object.get("candidates", [])
+            if not candidates:
+                current_app.logger.error(f"Gemini TTS (Manual Client): No candidates found in the response. Full response: {full_json_response}")
+                # ++++++++++++++++ 增强的错误处理 ++++++++++++++++
+                # 如果连candidates都没有，说明API返回了严重错误，记录下来
+                raise ValueError(f"API响应中不包含'candidates'字段。完整响应: {full_json_response}")
 
+            # 3. 获取第一个candidate对象
+            first_candidate = candidates[0]
+            # current_app.logger.info(f"Gemini TTS (Manual Client): first_candidate found: {str(first_candidate)[:500]}...")
+            
+            # 4. 获取content对象
+            content = first_candidate.get("content")
+            # current_app.logger.info(f"Gemini TTS (Manual Client): content found: {str(content)[:500]}...")
+            if not content or "parts" not in content:
+                raise ValueError("在candidate中找不到'content'或'parts'")
 
-        if not audio_buffer:
-            current_app.logger.error("Gemini TTS: No audio data received from stream.")
-            raise Exception("Gemini TTS 未返回音频数据")
+            # 5. 获取parts列表
+            parts = content.get("parts")
+            # current_app.logger.info(f"Gemini TTS (Manual Client): parts found: {str(parts)[:500]}...")
+            if not isinstance(parts, list) or not parts:
+                raise ValueError("在content中找不到'parts'列表")
+            
+            # 6. 获取第一个part对象
+            first_part = parts[0]
+            current_app.logger.info(f"Gemini TTS (Manual Client): first_part found: {str(first_part)[:500]}...")
+            
+            # 7. 获取我们最终的目标：inlineData
+            inline_data = first_part.get("inlineData")
+            current_app.logger.info(f"Gemini TTS (Manual Client): inlineData found========: {str(inline_data)[:500]}...")
+            # {str(inline_data)[:500]}...
+            if inline_data and "data" in inline_data:
+                current_app.logger.info("✅ Audio data found! Decoding and processing...")
+                
+                decoded_audio_data = base64.b64decode(inline_data["data"])
+                real_mime_type = inline_data.get("mimeType", "")
+                
+                if "audio/L16" in real_mime_type:
+                    processed_audio_data = _convert_pcm_to_wav_bytes(decoded_audio_data)
+                    output_mime_type = "audio/wav"
+                else:
+                    processed_audio_data = decoded_audio_data
+                    output_mime_type = real_mime_type or "audio/mpeg"
+                
+                return processed_audio_data, output_mime_type
 
-        # 处理 MIME 类型和 WAV 转换，与您的示例一致
-        if final_mime_type and final_mime_type.startswith("audio/L"):
-            current_app.logger.info(f"Gemini TTS: Received raw audio data ({final_mime_type}), converting to WAV.")
-            processed_audio_data = _convert_to_wav_gemini(audio_buffer, final_mime_type)
-            output_mime_type = "audio/wav"
-        else:
-            processed_audio_data = audio_buffer
-            output_mime_type = final_mime_type or "audio/mpeg" # 如果直接是 MP3 或 WAV，或者默认 MP3
+            # 如果所有步骤都走完了，但没有找到inlineData
+            raise ValueError("在解析到最深层后，依然未找到'inlineData'字段")
+            # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-        current_app.logger.info(f"Gemini TTS: Audio generation successful. Duration: {time.time() - start_time:.2f}s. Output MIME: {output_mime_type}")
-        return processed_audio_data, output_mime_type
+        except (json.JSONDecodeError, ValueError, KeyError, IndexError) as e:
+            # 捕获所有可能的解析错误
+            current_app.logger.error(f"解析JSON响应时失败: {e}. Raw text was: {full_response_text[:500]}")
+            raise Exception(f"无法解析Gemini API返回的JSON响应: {e}") from e
 
+        except json.JSONDecodeError as e:
+            current_app.logger.error(f"Failed to decode the full JSON response: {e}. Raw text was: {full_response_text[:500]}")
+            raise Exception("无法解析Gemini API返回的JSON响应") from e
+
+    except httpx.HTTPStatusError as e:
+        raise e
+        # --- 关键：重新抛出原始异常，让Celery的autoretry机制捕获它 ---
+    except json.JSONDecodeError as e:
+        current_app.logger.error(f"Failed to decode the full JSON response: {e}. Raw text was: {full_response_text[:500]}")
+        raise Exception("无法解析Gemini API返回的JSON响应") from e
     except Exception as e:
-        current_app.logger.error(f"Gemini TTS: API call failed for model '{model_name}': {e}", exc_info=True)
-        # 可以在这里记录更详细的请求参数用于调试
-        debug_info = {
-            "model_name": model_name,
-            "text_length": len(text_to_speak),
-            "config": str(generate_content_config)
-        }
-        current_app.logger.error(f"Gemini TTS: Debug info - {debug_info}")
+        current_app.logger.error(f"Gemini TTS (Manual Client): Request failed: {e}", exc_info=True)
         raise
 
 
-
+def _convert_pcm_to_wav_bytes(pcm_data: bytes, sample_rate: int = 24000) -> bytes:
+    """一个辅助函数，将原始的L16 
+    PCM数据打包成一个内存中的WAV文件"""
+    import io
     
+    buffer = io.BytesIO()
+    with wave.open(buffer, 'wb') as wf:
+        wf.setnchannels(1)  # 单声道
+        wf.setsampwidth(2)  # 16位PCM，所以是2字节
+        wf.setframerate(sample_rate)
+        wf.writeframes(pcm_data)
+    
+    return buffer.getvalue()

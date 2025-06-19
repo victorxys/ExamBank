@@ -18,6 +18,9 @@ from backend.tasks import batch_generate_audio_task # <--- 新增导入
 from backend.tasks import merge_all_audios_for_content # Import the new task
 from backend.tasks import run_llm_function_async # 导入新的Celery任务
 from backend.tasks import synthesize_video_task # <<< 确保从 tasks 导入新任务
+from backend.tasks import merge_current_generated_audios_async # 导入新的Celery任务，合并当前已有的音频文件
+
+
 
 
 # from backend.tasks import generate_merged_audio_async # 导入新的Celery任务``
@@ -35,6 +38,10 @@ tts_bp = Blueprint('tts', __name__, url_prefix='/api/tts')
 def admin_required(fn):
     @jwt_required()
     def wrapper(*args, **kwargs):
+        if request.method == 'OPTIONS':
+            current_app.logger.debug(f"Admin_required: OPTIONS request for {request.path}, letting it pass for CORS.")
+            return current_app.make_default_options_response() # 或者让 Flask-CORS 处理
+            
         claims = get_jwt()
         if claims.get('role') != 'admin':
             return jsonify(msg="管理员权限不足"), 403
@@ -1125,7 +1132,7 @@ def batch_generate_audio_for_content_route(content_id):
         tts_engine_to_use = request_data.get("tts_engine", "gradio_default")
         tts_engine_params = request_data.get("tts_params", {})
         pt_file_for_gradio = request_data.get("pt_file_path_relative", 
-                                   current_app.config.get('DEFAULT_GRADIO_PT_FILE_PATH')) # 使用 current_app
+        current_app.config.get('DEFAULT_GRADIO_PT_FILE_PATH')) # 使用 current_app
 
         content.status = f'queuing_batch_audio_{tts_engine_to_use}'
         db.session.commit()
@@ -1544,3 +1551,34 @@ def update_video_script(synthesis_id):
         db.session.rollback()
         current_app.logger.error(f"更新视频脚本 {synthesis_id} 时出错: {e}", exc_info=True)
         return jsonify({'error': '更新视频脚本时发生服务器内部错误'}), 500
+    
+
+
+@tts_bp.route('/training-contents/<uuid:content_id>/merge-current-audio', methods=['POST'])
+@admin_required
+def merge_current_audio_route(content_id):
+    content = TrainingContent.query.get(str(content_id))
+    if not content:
+        return jsonify({'error': '培训内容未找到'}), 404
+
+    try:
+        # 更新内容状态为排队中
+        content.status = 'queuing_merge_audio'
+        db.session.commit()
+
+        task = merge_current_generated_audios_async.delay(str(content.id))
+        
+        current_app.logger.info(f"合并当前已生成语音任务已启动 (Task ID: {task.id}) for content {content_id}")
+        return jsonify({
+            'message': '合并当前已生成语音任务已成功提交处理。',
+            'task_id': task.id,
+            'status_polling_url': f'/api/tts/task-status/{task.id}' 
+        }), 202
+
+    except Exception as e:
+        db.session.rollback()
+        if content:
+            content.status = 'error_submitting_merge'
+            db.session.commit()
+        current_app.logger.error(f"提交合并当前语音任务失败 (内容ID: {content_id}): {e}", exc_info=True)
+        return jsonify({'error': f'提交合并当前语音任务失败: {str(e)}'}), 500

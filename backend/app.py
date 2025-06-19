@@ -26,6 +26,7 @@ from backend.api.evaluation import get_evaluation_items, get_user_evaluations, u
 from backend.api.user_profile import get_user_profile
 from backend.db import get_db_connection
 from backend.models import db, TrainingCourse, User, UserCourseAccess # 
+
 # from backend.api.evaluation_visibility import bp as evaluation_visibility_bp
 # from backend.api.evaluation_item import bp as evaluation_item_bp
 from backend.api.wechatshare import wechat_share_bp
@@ -61,6 +62,7 @@ CORS(app,
 
 
 
+
 register_uuid() # 确保 UUID 适配器已注册
 # 创建带有角色信息的访问令牌
 def create_token_with_role(user_id, role):
@@ -81,6 +83,15 @@ app.config['TTS_AUDIO_STORAGE_PATH'] = os.path.join(app.root_path, 'static', 'tt
 # 并且 Flask (或 Nginx) 配置为可以服务这个目录下的文件。
 # 对于API返回的URL，您可能还需要一个基础URL
 app.config['TTS_AUDIO_BASE_URL_FOR_API'] = '/static/tts_audio' # 前端拼接时用的基础路径
+app.config['DEFAULT_GRADIO_PT_FILE_PATH'] = "seed_1397_restored_emb.pt" # 默认的 Gradio 模型文件路径
+
+# 默认的 Gradio 参数
+app.config['DEFAULT_GRADIO_PARAMS'] = {
+        "num_seeds": 1, "seed": 1029, "speed": 3, "oral": 4, "laugh": 0,
+        "bk": 4, "min_length": 80, "batch_size": 3, "temperature": 0.1,
+        "top_P": 0.7, "top_K": 20, "roleid": "1", "refine_text": False
+        # pt_file 会在任务中动态处理，这里不包含
+}
 
 app.config["JWT_ACCESS_COOKIE_NAME"] = "auth_token"
 app.config["JWT_TOKEN_LOCATION"] = ["headers", "cookies"] # 允许从请求头和 Cookie 中获取 Token

@@ -29,6 +29,10 @@ from backend.models import TrainingContent, TtsScript, TtsSentence, TtsAudio, Me
 from backend.api.ai_generate import generate_video_script # 导入新函数
 from backend.api.ai_generate import generate_audio_with_gemini_tts # 导入新的 Gemini TTS 函数
 from backend.api.ai_generate import get_active_llm_config_internal 
+from .manager_module import get_next_identity
+
+
+import httpx # <<<--- 关键：导入httpx库
 
 
 
@@ -51,6 +55,7 @@ from backend.api.ai_generate import (
 from gradio_client import Client as GradioClient
 
 logger = logging.getLogger(__name__)
+
 
 # --- 辅助函数：创建Flask应用上下文 ---
 def create_flask_app_for_task():
@@ -367,7 +372,22 @@ def trigger_tts_refine_async(self, oral_script_id_str):
             self.update_state(state='FAILURE', meta={'exc_type': type(e).__name__, 'exc_message': str(e)})
             return {'status': 'Error', 'message': str(e)}
 
-@celery_app.task(bind=True, name='tasks.generate_single_sentence_audio_async', max_retries=2)
+@celery_app.task(
+    bind=True, 
+    name='tasks.generate_single_sentence_audio_async',
+    # --- 主动限流：告诉Celery，这个类型的任务，每分钟最多只能执行10个 ---
+    rate_limit='10/m', # "10/m" 表示每分钟10个。也可以是 "1/s" (每秒1个) 等。
+    # 告诉Celery，当遇到httpx.HTTPStatusError时，自动重试
+    autoretry_for=(httpx.HTTPStatusError, httpx.ReadTimeout, httpx.ProxyError), 
+    # 指数退避策略：第一次重试等1秒，第二次等2秒，第三次等4秒...
+    retry_backoff=True, 
+    # 最长等待时间不超过1分钟
+    retry_backoff_max=60, 
+    # 最多重试5次
+    max_retries=5,
+    # 如果重试5次后依然失败，不要再尝试了
+    retry_jitter=True # 防止所有任务在同一时刻重试
+)
 def generate_single_sentence_audio_async(self, sentence_id_str, tts_engine_identifier="gradio_default", pt_file_path_relative=None, tts_engine_params=None):
     # ... (这个任务的完整实现，如之前调试好的那样，它内部处理 Gradio 和 Gemini TTS 调用) ...
     # 它应该返回类似 {'status': 'Success', 'audio_id': ..., 'file_path': ...}
@@ -396,53 +416,102 @@ def generate_single_sentence_audio_async(self, sentence_id_str, tts_engine_ident
 
             if tts_engine_identifier == "gemini_tts":
                 logger.info(f"GenerateAudio Task: Using Gemini TTS for sentence {sentence_id_str}")
-                GEMINI_API_PROVIDER_NAME = "Google" 
-                gemini_api_key, gemini_api_key_name, _, config_error = get_active_llm_config_internal(
-                    GEMINI_API_PROVIDER_NAME
-                )
-                if config_error or not gemini_api_key:
-                    detailed_error = config_error or "API Key is missing or empty"
-                    if gemini_api_key_name and not gemini_api_key and not config_error:
-                        detailed_error = f"API Key '{gemini_api_key_name}' for provider '{GEMINI_API_PROVIDER_NAME}' is missing, empty or failed to decrypt."
-                    logger.error(f"无法获取 Gemini TTS API Key for provider '{GEMINI_API_PROVIDER_NAME}': {detailed_error}")
-                    raise Exception(f"无法获取 Gemini TTS API Key: {detailed_error}")
-                logger.info(f"Successfully retrieved API Key '{gemini_api_key_name}' for provider '{GEMINI_API_PROVIDER_NAME}'.")
+
+                # ++++++++++++++++ 集成代理和密钥管理器 (最终版) ++++++++++++++++
+                # 1. 从 current_app 获取全局的管理器实例
+                # manager = current_app.proxy_key_manager
+                # manager = proxy_key_manager
+
+                # # 2. 向管理器请求下一个可用的 "身份"
+                # identity = manager.get_next_identity()
+                
+                # identity['api_key'] = "AIzaSyDCESRusL4xXMQ3lVggU0AX0pUjDl3Wl1k"
+                identity = get_next_identity()
+                # 直接使用返回的身份信息
+                gemini_api_key = identity['api_key']
+                proxy_url = identity['proxy_url']
+                api_key_name = identity['id']
+
+
+                # gemini_api_key = "AIzaSyDCESRusL4xXMQ3lVggU0AX0pUjDl3Wl1k"
+                # proxy_url = "http://victor:xys131313@webservice-google-tw1.58789018.xyz:8888"
+                # api_key_name = "Server-A" # 用服务器ID作为Key的标识名
+
+                logger.info(f"Successfully retrieved identity '{api_key_name}' from manager.")
+                # ++++++++++++++++ Celery 内部对照诊断 ++++++++++++++++
+                logger.info("--- [诊断开始] 正在执行独立的 httpx 代理测试 ---")
+                try:
+                    test_url = "https://api.ipify.org?format=json"
+                    transport = httpx.HTTPTransport(proxy=proxy_url)
+                    mounts = {"all://": transport}
+                    with httpx.Client(mounts=mounts, timeout=15.0) as client:
+                        logger.info("[诊断] 独立的 httpx.Client 已创建，正在发送请求...")
+                        response = client.get(test_url)
+                        logger.info(f"[诊断] 独立的 httpx 请求已收到响应，状态码: {response.status_code}")
+                        if response.status_code == 200:
+                            logger.info(f"✅ [诊断成功] 独立的 httpx 调用{api_key_name}成功！响应: {response.json()}")
+                        else:
+                            logger.error(f"❌ [诊断失败] 独立的 httpx 调用失败！状态码: {response.status_code}")
+                except Exception as e:
+                    logger.error(f"❌ [诊断失败] 独立的 httpx 调用{api_key_name}时发生致命错误: {type(e).__name__}: {e}", exc_info=True)
+                    # 诊断失败后，可以选择直接返回，不再继续执行
+                    # raise e # 或者重新抛出异常，让Celery重试
+                logger.info("--- [诊断结束] ---")
+                # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+                
 
                 gemini_voice = tts_engine_params.get("voice_name","Kore") 
-                gemini_temp = tts_engine_params.get("temperature", 0.7) 
+                gemini_temp = tts_engine_params.get("temperature", 1) 
                 gemini_model_name = tts_engine_params.get("model", "gemini-2.5-pro-preview-tts")
+                # gemini_model_name = tts_engine_params.get("model", "gemini-2.5-flash-preview-tts")
+                # --- 调用您真正的业务逻辑 ---
+                logger.info("--- [业务逻辑开始] 正在调用 generate_audio_with_gemini_tts ---")
 
                 audio_binary_content, output_audio_mime_type = generate_audio_with_gemini_tts(
                     text_to_speak=sentence.sentence_text,
                     api_key=gemini_api_key,
                     model_name=gemini_model_name,
                     voice_name=gemini_voice,
-                    temperature=gemini_temp
+                    temperature=gemini_temp,
+                    proxy_url=proxy_url  # <--- 将代理URL作为新参数传递
+
                 )
-                actual_generation_params_for_log = {"engine": "gemini_tts", "voice_name": gemini_voice, "temperature": gemini_temp, "model": gemini_model_name, "api_key_name": gemini_api_key_name}
+                logger.info("--- [业务逻辑结束] 调用 generate_audio_with_gemini_tts 成功 ---")
+
+                actual_generation_params_for_log = {
+                    "engine": "gemini_tts", 
+                    "voice_name": gemini_voice, 
+                    "temperature": gemini_temp, 
+                    "model": gemini_model_name, 
+                    "api_key_name": api_key_name, # 记录我们用了哪个Key
+                    "proxy_used": proxy_url       # 记录我们用了哪个代理
+                }
+                # actual_generation_params_for_log = {"engine": "gemini_tts", "voice_name": gemini_voice, "temperature": gemini_temp, "model": gemini_model_name, "api_key_name": gemini_api_key_name}
             
             elif tts_engine_identifier == "gradio_default":
                 logger.info(f"GenerateAudio Task: Using Gradio TTS for sentence {sentence_id_str}")
                 tts_service_base_url = app.config.get('TTS_SERVICE_BASE_URL', "http://test.mengyimengsao.com:37860/")
                 gradio_tts_client = GradioClient(src=tts_service_base_url)
-                
-                default_gradio_params = {
-                    "num_seeds": 1, "seed": 1029, "speed": 3, "oral": 2, "laugh": 0,
-                    "bk": 4, "min_length": 80, "batch_size": 3, "temperature": 1, # 您的默认值
-                    "top_P": 0.7, "top_K": 20, "roleid": "1", "refine_text": False 
-                    # pt_file 将在下面单独处理
-                }
+                default_gradio_params = current_app.config['DEFAULT_GRADIO_PARAMS'] # 确保在当前应用上下文中设置
                 gradio_predict_params = {**default_gradio_params, **(tts_engine_params or {})}
                 
                 pt_file_to_send_to_gradio = None
                 absolute_pt_file_path_for_log = None
-                if pt_file_path_relative: # pt_file_path_relative 是传给这个任务的参数
-                    absolute_pt_file_path = os.path.join(app.instance_path, pt_file_path_relative)
+                if pt_file_path_relative:
+                    pt_folder = os.path.join(app.root_path, 'static', 'tts_pt')
+                    absolute_pt_file_path = os.path.join(pt_folder, pt_file_path_relative)
+                    
                     if os.path.exists(absolute_pt_file_path):
-                        pt_file_to_send_to_gradio = gradio_file(absolute_pt_file_path)
-                        absolute_pt_file_path_for_log = absolute_pt_file_path
-                
-                gradio_predict_params["pt_file"] = pt_file_to_send_to_gradio
+                        logger.info(f"[SingleAudioTask] 使用指定的音色文件: {absolute_pt_file_path}")
+                        default_gradio_params['pt_file'] = {
+                            "path": absolute_pt_file_path,
+                            "meta": {"_type": "gradio.FileData"}
+                        }
+                    else:
+                        logger.warning(f"[SingleAudioTask] 指定的音色文件不存在: {absolute_pt_file_path}，将使用默认音色。")
+                else:
+                    logger.info(f"[SingleAudioTask] 未指定音色文件，使用默认音色。")
                 
                 job_result = gradio_tts_client.predict(
                     text_file=sentence.sentence_text,
@@ -1374,3 +1443,179 @@ def synthesize_video_task(self, synthesis_id_str):
             logger.error(f"视频合成任务失败 (ID: {synthesis_id_str}): {e}", exc_info=True)
             self.update_state(state='FAILURE', meta={'exc_type': type(e).__name__, 'exc_message': str(e)})
             return {'status': 'Error', 'message': str(e)}
+        
+
+@celery_app.task(name='tasks.http_diagnose_task')
+def http_diagnose_task():
+    """一个绝对最小化的网络诊断任务"""
+    
+    proxy_url = "http://victor:xys131313@webservice-google-tw1.58789018.xyz:8888"
+    test_url = "https://api.ipify.org?format=json"
+
+    print("\n\n--- [诊断任务开始] ---")
+    print(f"将要通过代理: {proxy_url}")
+    print(f"访问测试URL: {test_url}")
+    
+    try:
+        print("[诊断] 步骤1: 创建 HTTPTransport...")
+        transport = httpx.HTTPTransport(proxy=proxy_url)
+        print("[诊断] HTTPTransport 已创建。")
+
+        print("[诊断] 步骤2: 创建 mounts 字典...")
+        mounts = {"all://": transport}
+        print("[诊断] mounts 字典已创建。")
+
+        print("[诊断] 步骤3: 创建 httpx.Client...")
+        with httpx.Client(mounts=mounts, timeout=15.0) as client:
+            print("[诊断] httpx.Client 已创建。")
+            print("[诊断] 步骤4: 发送 GET 请求...")
+            response = client.get(test_url)
+            print("[诊断] 步骤5: 已收到响应！")
+
+            if response.status_code == 200:
+                result = f"✅ [诊断成功] 连接成功！响应: {response.json()}"
+                print(result)
+            else:
+                result = f"❌ [诊断失败] 连接失败！状态码: {response.status_code}"
+                print(result)
+            return result
+
+    except Exception as e:
+        error_result = f"❌ [诊断致命错误]: {type(e).__name__}: {e}"
+        print(error_result)
+        # 打印完整的 traceback
+        import traceback
+        traceback.print_exc()
+        return error_result
+    
+
+
+
+@celery_app.task(bind=True, name='tasks.merge_current_generated_audios_async', max_retries=1)
+def merge_current_generated_audios_async(self, training_content_id_str):
+    app = create_flask_app_for_task()
+    with app.app_context():
+        content = TrainingContent.query.get(training_content_id_str)
+        if not content:
+            logger.error(f"[MergeCurrentTask:{self.request.id}] TrainingContent {training_content_id_str} 未找到。")
+            self.update_state(state='FAILURE', meta={'error': '培训内容未找到'})
+            return {'status': 'Error', 'message': '培训内容未找到'}
+
+        latest_final_script = db.session.query(TtsScript).filter(
+            TtsScript.training_content_id == content.id,
+            TtsScript.script_type == 'final_tts_script'
+        ).order_by(TtsScript.version.desc()).first()
+
+        if not latest_final_script:
+            logger.error(f"[MergeCurrentTask:{self.request.id}] 未找到内容 {content.id} 的最终脚本。")
+            self.update_state(state='FAILURE', meta={'error': '最终脚本未找到'})
+            return {'status': 'Error', 'message': '最终脚本未找到'}
+
+        # 找到该最终脚本下所有已成功生成语音的句子，并按顺序排列
+        generated_sentences_with_audio = db.session.query(TtsSentence, TtsAudio).join(
+            TtsAudio, TtsSentence.id == TtsAudio.tts_sentence_id
+        ).filter(
+            TtsSentence.tts_script_id == latest_final_script.id,
+            TtsSentence.audio_status == 'generated',
+            TtsAudio.is_latest_for_sentence == True # 只合并最新的音频
+        ).order_by(TtsSentence.order_index).all()
+
+        if not generated_sentences_with_audio:
+            logger.info(f"[MergeCurrentTask:{self.request.id}] 内容 {content.id} (脚本 {latest_final_script.id}) 没有已生成的语音可以合并。")
+            content.status = 'merge_failed_no_audio' # 或其他合适状态
+            db.session.commit()
+            return {'status': 'Success', 'message': '没有已生成的语音可以合并。'}
+
+        logger.info(f"[MergeCurrentTask:{self.request.id}] 找到 {len(generated_sentences_with_audio)} 个已生成的语音准备合并 for content {content.id}")
+        content.status = 'merging_audio'
+        db.session.commit()
+        
+        self.update_state(state='PROGRESS', meta={
+            'total_sentences': len(generated_sentences_with_audio),
+            'merged_count': 0,
+            'message': f'开始合并 {len(generated_sentences_with_audio)} 个音频...'
+        })
+
+        merged_sound = None
+        processed_count = 0
+        audio_storage_base = app.config.get('TTS_AUDIO_STORAGE_PATH')
+
+        try:
+            for sentence, audio_record in generated_sentences_with_audio:
+                audio_file_full_path = os.path.join(audio_storage_base, audio_record.file_path)
+                if not os.path.exists(audio_file_full_path):
+                    logger.warning(f"[MergeCurrentTask:{self.request.id}] 音频文件不存在: {audio_file_full_path} for sentence {sentence.id}。跳过此句。")
+                    continue
+                
+                try:
+                    # 根据文件扩展名加载音频
+                    file_ext = os.path.splitext(audio_record.file_path)[1].lower().lstrip('.')
+                    if not file_ext: # 如果没有扩展名，尝试根据MIME类型或默认
+                        # 这里可以添加更复杂的逻辑，例如从 audio_record.generation_params 或 mime_type 推断
+                        file_ext = "wav" # 或 "mp3"
+                        logger.warning(f"音频文件 {audio_record.file_path} 无扩展名, 尝试作为 {file_ext} 加载。")
+                    
+                    sound_segment = AudioSegment.from_file(audio_file_full_path, format=file_ext)
+                    
+                    if merged_sound is None:
+                        merged_sound = sound_segment
+                    else:
+                        merged_sound += sound_segment
+                    
+                    processed_count +=1
+                    self.update_state(state='PROGRESS', meta={
+                        'total_sentences': len(generated_sentences_with_audio),
+                        'merged_count': processed_count,
+                        'message': f'已合并 {processed_count}/{len(generated_sentences_with_audio)} 个音频...'
+                    })
+                except Exception as e_segment:
+                    logger.error(f"[MergeCurrentTask:{self.request.id}] 合并句子 {sentence.id} 的音频失败: {e_segment}", exc_info=True)
+                    # 可以选择是跳过这个句子还是中止整个合并
+                    # 这里选择跳过
+
+            if merged_sound is None:
+                raise Exception("未能成功合并任何音频片段。")
+
+            # 将旧的合并语音标记为非最新
+            TtsAudio.query.filter_by(training_content_id=content.id, audio_type='merged_audio', is_latest_for_content=True).update({'is_latest_for_content': False})
+            
+            new_merged_version = 1
+            latest_merged = TtsAudio.query.filter_by(training_content_id=content.id, audio_type='merged_audio').order_by(TtsAudio.version.desc()).first()
+            if latest_merged:
+                new_merged_version = latest_merged.version + 1
+
+            # 决定合并后的文件格式，例如 MP3
+            # merged_file_extension = ".mp3"
+
+            merged_relative_path, merged_file_size = _save_merged_audio_file(merged_sound, content.id, new_merged_version)
+
+            new_merged_audio_record = TtsAudio(
+                training_content_id=content.id,
+                audio_type='merged_audio',
+                file_path=merged_relative_path,
+                file_size_bytes=merged_file_size,
+                duration_ms=len(merged_sound), # pydub 音频长度是毫秒
+                version=new_merged_version,
+                is_latest_for_content=True,
+                tts_engine="merged" # 或记录参与合并的引擎（如果单一）
+            )
+            db.session.add(new_merged_audio_record)
+            content.status = 'audio_merge_complete'
+            db.session.commit()
+
+            logger.info(f"[MergeCurrentTask:{self.request.id}] 内容 {content.id} 的音频已成功合并到 {merged_relative_path}")
+            final_meta = {
+                'total_sentences': len(generated_sentences_with_audio),
+                'merged_count': processed_count,
+                'message': f'成功合并 {processed_count} 个音频片段。',
+                'merged_audio_id': str(new_merged_audio_record.id)
+            }
+            self.update_state(state='SUCCESS', meta=final_meta)
+            return {'status': 'Success', **final_meta}
+
+        except Exception as e:
+            logger.error(f"[MergeCurrentTask:{self.request.id}] 合并音频过程中发生错误 for content {content.id}: {e}", exc_info=True)
+            content.status = 'error_merging_audio'
+            db.session.commit()
+            self.update_state(state='FAILURE', meta={'error': str(e)})
+            return {'status': 'Error', 'message': '合并音频时发生服务器错误: ' + str(e)}

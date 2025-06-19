@@ -321,7 +321,10 @@ const VideoSynthesisStep = ({ contentId, setSynthesisTask, synthesisTask, progre
                                         </Box>
                                     </Box>
                                 ) : (
-                                    <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+                                    <Box sx={{ display: 'flex', justifyContent: 'flex-end',gap: 2 }}>
+                                        <Button variant="contained"   size="small" onClick={onResetTask} startIcon={<ReplayIcon/>} disabled={isSubmitting}>
+                                            {isSubmitting ? '...' : '重试'}
+                                        </Button>
                                         <Button variant="contained" color="success" onClick={handleSynthesize} disabled={isSubmitting || isEditingScript} startIcon={isSubmitting ? <CircularProgress size={20}/> : <SynthesizeIcon />}>
                                             {isSubmitting ? '处理中...' : '确认并合成视频'}
                                         </Button>

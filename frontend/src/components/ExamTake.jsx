@@ -59,7 +59,7 @@ const MarkdownTypography = ({ children, ...props }) => {
 };
 
 const ExamTake = () => {
-  console.log('[DEBUG] ExamTake component is rendering/re-rendering.'); // 添加一个顶级日志
+  // console.log('[DEBUG] ExamTake component is rendering/re-rendering.'); // 添加一个顶级日志
 
   const { examId } = useParams();
   const navigate = useNavigate();
@@ -87,12 +87,12 @@ const ExamTake = () => {
   };
 
   const handleTaskCompletion = useCallback((taskData, taskType) => {
-    console.log(`[DEBUG] handleTaskCompletion triggered!`, { taskType, taskData });
+    // console.log(`[DEBUG] handleTaskCompletion triggered!`, { taskType, taskData });
 
-    console.log(`[DEBUG] handleTaskCompletion 被调用!`, { taskType, taskData });
+    // console.log(`[DEBUG] handleTaskCompletion 被调用!`, { taskType, taskData });
 
     if (taskType === 'summarize_knowledge_points') {
-      console.log('[ExamTake] 轮询任务完成！收到的数据:', taskData);
+      // console.log('[ExamTake] 轮询任务完成！收到的数据:', taskData);
       setAlert({ open: true, message: '知识点总结报告已生成！', severity: 'success' });
       
       let finalResult = null;
@@ -248,7 +248,7 @@ const ExamTake = () => {
   };
 
   const handleSubmit = async () => {
-    console.log('[DEBUG] handleSubmit: 按钮被点击!');
+    // console.log('[DEBUG] handleSubmit: 按钮被点击!');
     const incomplete = checkIncompleteQuestions();
     if (incomplete.length > 0) {
       setIncompleteQuestions(incomplete);
@@ -266,14 +266,14 @@ const ExamTake = () => {
 
       const response = await api.post(`/exams/${examId}/submit`, { user_id: tokenData.sub, answers: formattedAnswers });
       const result = response.data;
-      console.log('[DEBUG] handleSubmit: 收到后端响应:', result);
+      // console.log('[DEBUG] handleSubmit: 收到后端响应:', result);
 
       
       setExamResult(result);
       setSubmitted(true);
 
       if (result.knowledge_summary_status === 'generating' && result.task_id) {
-        console.log(`[DEBUG] handleSubmit: 成功获取到任务ID: ${result.task_id}。即将调用 startPolling...`);
+        // console.log(`[DEBUG] handleSubmit: 成功获取到任务ID: ${result.task_id}。即将调用 startPolling...`);
 
         setAlert({ show: true, message: '考试结果已保存！知识点总结报告正在后台生成...', severity: 'info' });
         setKnowledgeReport(null);
@@ -384,11 +384,6 @@ const ExamTake = () => {
               <Typography variant="h3" sx={{ mb: 3, fontWeight: 600, color: 'primary.main', textAlign: 'center' }}>
                 知识点掌握情况分析
               </Typography>
-              {/* --- 在这里加入最终的调试日志 --- */}
-              {console.log('[DEBUG] Rendering Report. knowledgeReport is:', knowledgeReport)}
-              {console.log('[DEBUG] Type of knowledgeReport is:', typeof knowledgeReport)}
-              {console.log('[DEBUG] Is knowledgeReport an array?', Array.isArray(knowledgeReport))}
-              {/* ---------------------------------- */}
               {/* **核心修正：检查 knowledgeReport 是否为数组，如果不是，则使用其内部的数组** */}
               {Array.isArray(knowledgeReport) || (knowledgeReport.result_preview && Array.isArray(knowledgeReport.result_preview)) ? (
                 <>

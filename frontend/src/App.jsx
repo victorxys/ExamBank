@@ -26,16 +26,19 @@ const theme = createTheme({
       main: '#f7fafc',
       light: '#ffffff',
       dark: '#d4e1f4',
+      contrastText: '#ffffff', // <<<--- 在这里添加这一行控制字体颜色
     },
     error: {
       main: '#f5365c',
       light: '#f76e8b',
       dark: '#ea0038',
+      contrastText: '#ffffff', // <<<--- 在这里添加这一行
     },
     warning: {
       main: '#fb6340',
       light: '#fc8f73',
       dark: '#fa3a0e',
+      contrastText: '#ffffff', // <<<--- 在这里添加这一行
     },
     info: {
       main: '#11cdef',
@@ -46,6 +49,7 @@ const theme = createTheme({
       main: '#2dce89',
       light: '#54d8a1',
       dark: '#24a46d',
+      contrastText: '#ffffff', // <<<--- 在这里添加这一行
     },
     grey: {
       50: '#f8f9fa',
