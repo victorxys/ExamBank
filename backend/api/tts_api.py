@@ -207,6 +207,7 @@ def get_training_content_detail(content_id):
                     'text': sentence.sentence_text,
                     'order_index': sentence.order_index,
                     'audio_status': sentence.audio_status,
+                    'modified_after_merge': sentence.modified_after_merge, 
                     'latest_audio_url': latest_audio.file_path if latest_audio else None, 
                     'latest_audio_id': str(latest_audio.id) if latest_audio else None,
                     'audio_duration_ms': latest_audio.duration_ms if latest_audio else None,
@@ -483,6 +484,12 @@ def update_sentence_text(sentence_id):
         if original_text != new_text_stripped:
             sentence.sentence_text = new_text_stripped
             sentence.audio_status = 'pending_regeneration'
+
+            # <<<--- 新增：设置修改标记 ---<<<
+            sentence.modified_after_merge = True
+            current_app.logger.info(f"句子 {sentence.id} 被修改，标记为 'modified_after_merge=true'")
+            # ----------------------------->>>
+
             sentence.updated_at = func.now()
 
             # 标记旧语音为非最新 (确保事务性)

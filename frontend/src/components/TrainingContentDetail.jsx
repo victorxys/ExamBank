@@ -44,292 +44,8 @@ import { formatRelativeTime } from '../api/dateUtils';
 import { API_BASE_URL } from '../config';
 import useTaskPolling from '../utils/useTaskPolling';
 import VideoSynthesisStep from './VideoSynthesisStep'; // <<<--- 导入新组件
-
-
-
-// 时间格式化辅助函数
-const formatMsToTime = (ms) => {
-  if (typeof ms !== 'number' || isNaN(ms) || ms < 0) return '00:00.000';
-  const totalSeconds = Math.floor(ms / 1000);
-  const milliseconds = String(ms % 1000).padStart(3, '0');
-  const seconds = String(totalSeconds % 60).padStart(2, '0');
-  const totalMinutes = Math.floor(totalSeconds / 60);
-  const minutes = String(totalMinutes % 60).padStart(2, '0');
-  const hours = Math.floor(totalMinutes / 60);
-
-  if (hours > 0) {
-    return `${String(hours).padStart(2, '0')}:${minutes}:${seconds}.${milliseconds}`;
-  }
-  return `${minutes}:${seconds}.${milliseconds}`;
-};
-
-// SentenceList 子组件
-const SentenceList = ({ 
-    sentences, 
-    playingAudio, 
-    actionLoading, 
-    onPlayAudio, 
-    onGenerateAudio, 
-    onUpdateSentenceText, 
-    onDeleteSentence,
-    mergedAudioSegments // 新增：传递合并后的分段信息
-}) => {
-    const [page, setPage] = useState(0);
-    const [rowsPerPage, setRowsPerPage] = useState(50);
-    const [searchTerm, setSearchTerm] = useState('');
-
-    // 为所有句子预计算 segmentInfo
-    const sentencesWithSegmentInfo = useMemo(() => {
-        if (!mergedAudioSegments || mergedAudioSegments.length === 0) {
-            return sentences.map(s => ({ ...s, segmentInfo: null }));
-        }
-        return sentences.map(sentence => {
-            const segment = mergedAudioSegments.find(
-                seg => seg.tts_sentence_id === sentence.id && seg.original_order_index === sentence.order_index
-            );
-            return { ...sentence, segmentInfo: segment || null };
-        });
-    }, [sentences, mergedAudioSegments]);
-
-    const filteredSentences = useMemo(() => {
-        if (!searchTerm) return sentencesWithSegmentInfo; // 使用带有 segmentInfo 的句子
-        return sentencesWithSegmentInfo.filter(sentence =>
-            sentence.text.toLowerCase().includes(searchTerm.toLowerCase())
-        );
-    }, [sentencesWithSegmentInfo, searchTerm]); // 依赖 sentencesWithSegmentInfo
-
-    // const filteredSentences = useMemo(() => {
-    //     if (!searchTerm) return sentences;
-    //     return sentences.filter(sentence =>
-    //         sentence.text.toLowerCase().includes(searchTerm.toLowerCase())
-    //     );
-    // }, [sentences, searchTerm]);
-
-    const [editSentenceDialogOpen, setEditSentenceDialogOpen] = useState(false);
-    const [sentenceToEdit, setSentenceToEdit] = useState(null);
-    const [editingSentenceText, setEditingSentenceText] = useState('');
-    const [deleteSentenceConfirmOpen, setDeleteSentenceConfirmOpen] = useState(false);
-    const [sentenceToDelete, setSentenceToDelete] = useState(null);
-
-    const handleChangePage = (event, newPage) => setPage(newPage);
-    const handleChangeRowsPerPage = (event) => {
-        setRowsPerPage(parseInt(event.target.value, 10));
-        setPage(0);
-    };
-
-    const paginatedSentences = useMemo(() => {
-        return filteredSentences.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
-    }, [filteredSentences, page, rowsPerPage]);
-
-    const handleOpenEditSentenceDialog = (sentence) => {
-        setSentenceToEdit(sentence);
-        setEditingSentenceText(sentence.text);
-        setEditSentenceDialogOpen(true);
-    };
-    const handleCloseEditSentenceDialog = () => {
-        setEditSentenceDialogOpen(false);
-        setSentenceToEdit(null);
-        setEditingSentenceText('');
-    };
-    const handleSaveEditedSentence = async () => {
-        if (!sentenceToEdit || !editingSentenceText.trim()) {
-            alert("句子内容不能为空！");
-            return;
-        }
-        if (typeof onUpdateSentenceText === 'function') {
-            await onUpdateSentenceText(sentenceToEdit.id, editingSentenceText.trim());
-        }
-        handleCloseEditSentenceDialog();
-    };
-
-    const handleOpenDeleteSentenceDialog = (sentence) => {
-        setSentenceToDelete(sentence);
-        setDeleteSentenceConfirmOpen(true);
-    };
-
-    const handleCloseDeleteSentenceDialog = () => {
-        setDeleteSentenceConfirmOpen(false);
-        setSentenceToDelete(null);
-    };
-
-    const handleConfirmDeleteSentence = async () => {
-        if (sentenceToDelete && typeof onDeleteSentence === 'function') {
-            await onDeleteSentence(sentenceToDelete.id);
-        }
-        handleCloseDeleteSentenceDialog();
-    };
-
-    return (
-        <>
-            <Card sx={{ mt: 2 }}>
-                <CardHeader
-                    title="最终TTS脚本句子列表"
-                    action={
-                        <Box sx={{display: 'flex', gap: 1, alignItems: 'center'}}>
-                            <TextField
-                                size="small"
-                                variant="outlined"
-                                placeholder="搜索句子..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                InputProps={{
-                                    startAdornment: (
-                                        <SearchIcon fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
-                                    ),
-                                }}
-                                sx={{ width: { xs: '100%', sm: 300 } }}
-                            />
-                        </Box>
-                    }
-                />
-                <CardContent sx={{ pt: 0 }}>
-                    <TableContainer component={Paper} elevation={0}>
-                        <Table size="small" stickyHeader>
-                            <TableHead>
-                                <TableRow>
-                                    <TableCell sx={{ width: '5%', fontWeight: 'bold' }}>序号</TableCell>
-                                    <TableCell sx={{ fontWeight: 'bold' }}>句子文本</TableCell>
-                                    <TableCell sx={{ width: '10%', fontWeight: 'bold', textAlign: 'center' }}>语音状态</TableCell>
-                                    <TableCell sx={{ width: '15%', fontWeight: 'bold', textAlign: 'center' }}>合并时间戳</TableCell>
-                                    <TableCell sx={{ width: '25%', fontWeight: 'bold', textAlign: 'center' }}>操作</TableCell>
-                                </TableRow>
-                            </TableHead>
-                            <TableBody>
-                                {paginatedSentences.length === 0 ? (
-                                    <TableRow>
-                                        <TableCell colSpan={5} align="center">
-                                            <Typography color="textSecondary" sx={{ p: 2 }}>
-                                                {searchTerm ? '未找到匹配的句子' : '暂无句子，请先拆分脚本。'}
-                                            </Typography>
-                                        </TableCell>
-                                    </TableRow>
-                                ) : (
-                                    // paginatedSentences 中的每个 sentence 对象现在都预先计算了 segmentInfo
-                                    paginatedSentences.map(sentence => (
-                                        <TableRow key={sentence.id} hover>
-                                            <TableCell>{sentence.order_index + 1}</TableCell>
-                                            <TableCell sx={{whiteSpace: "pre-wrap", wordBreak: "break-word"}}>{sentence.text}</TableCell>
-                                            <TableCell align="center">
-                                                <Chip
-                                                    label={sentence.audio_status || '未知'}
-                                                    size="small"
-                                                    color={sentence.audio_status === 'generated' ? 'success' : (sentence.audio_status === 'generating' || sentence.audio_status === 'processing_request' || sentence.audio_status === 'queued' ? 'info' : (sentence.audio_status?.startsWith('error') ? 'error' : 'default'))}
-                                                />
-                                            </TableCell>
-                                            <TableCell align="center">
-                                                {/* 直接使用预计算的 sentence.segmentInfo */}
-                                                {sentence.segmentInfo ? 
-                                                    <Tooltip title={`开始: ${sentence.segmentInfo.start_ms}ms, 结束: ${sentence.segmentInfo.end_ms}ms, 时长: ${sentence.segmentInfo.duration_ms}ms`}>
-                                                        <span>{`${formatMsToTime(sentence.segmentInfo.start_ms)} - ${formatMsToTime(sentence.segmentInfo.end_ms)}`}</span>
-                                                    </Tooltip>
-                                                    : '-'}
-                                            </TableCell>
-                                            <TableCell align="right">
-                                                {/* 操作按钮部分，直接使用 sentence 对象 */}
-                                                <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-                                                    <Tooltip title="编辑句子">
-                                                        {/* 传递的是包含了 segmentInfo 的 sentence 对象，但不影响 dialog 的逻辑 */}
-                                                        <IconButton size="small" onClick={() => handleOpenEditSentenceDialog(sentence)} color="default">
-                                                            <EditIcon fontSize="small" />
-                                                        </IconButton>
-                                                    </Tooltip>
-                                                    <Tooltip title="删除句子">
-                                                        <IconButton size="small" onClick={() => handleOpenDeleteSentenceDialog(sentence)} color="error">
-                                                            <DeleteIcon fontSize="small" />
-                                                        </IconButton>
-                                                    </Tooltip>
-                                                    {sentence.audio_status === 'generated' && sentence.latest_audio_url && (
-                                                        <Tooltip title={playingAudio && playingAudio.sentenceId === sentence.id ? "停止" : "播放"}>
-                                                            <IconButton size="small" onClick={() => onPlayAudio(sentence.id, sentence.latest_audio_url)} color={playingAudio && playingAudio.sentenceId === sentence.id ? "error" : "primary"}>
-                                                                {playingAudio && playingAudio.sentenceId === sentence.id ? <StopCircleOutlinedIcon /> : <PlayArrowIcon />}
-                                                            </IconButton>
-                                                        </Tooltip>
-                                                    )}
-                                                    {sentence.audio_status === 'generated' && sentence.latest_audio_url && (
-                                                        <Tooltip title="下载">
-                                                            <IconButton size="small" href={sentence.latest_audio_url.startsWith('http') ? sentence.latest_audio_url : `${API_BASE_URL.replace('/api', '')}/media/tts_audio/${sentence.latest_audio_url}`} download={`sentence_${sentence.order_index + 1}.wav`} color="primary">
-                                                                <DownloadIcon />
-                                                            </IconButton>
-                                                        </Tooltip>
-                                                    )}
-                                                    {(['pending_generation', 'error_generation', 'pending_regeneration', 'error_submission', 'error_polling', 'queued'].includes(sentence.audio_status) || !sentence.audio_status) && (
-                                                        <Button size="small" variant="outlined" onClick={() => onGenerateAudio(sentence.id,'gemini_tts')} disabled={actionLoading[`sentence_${sentence.id}`] || sentence.audio_status === 'processing_request' || sentence.audio_status === 'generating'} startIcon={(actionLoading[`sentence_${sentence.id}`] || sentence.audio_status === 'processing_request' || sentence.audio_status === 'generating') ? <CircularProgress size={16} /> : <AudiotrackIcon />}>
-                                                            {sentence.audio_status?.startsWith('error') ? '重试' : '生成'}
-                                                        </Button>
-                                                    )}
-                                                    {sentence.audio_status === 'generated' && (
-                                                        <Tooltip title="重新生成语音">
-                                                            <span>
-                                                                <IconButton size="small" onClick={() => onGenerateAudio(sentence.id)} disabled={actionLoading[`sentence_${sentence.id}`] || sentence.audio_status === 'processing_request' || sentence.audio_status === 'generating'} sx={{ ml: 0.5 }}>
-                                                                    {(actionLoading[`sentence_${sentence.id}`] || sentence.audio_status === 'processing_request' || sentence.audio_status === 'generating') ? <CircularProgress size={20} color="inherit" /> : <RefreshIcon />}
-                                                                </IconButton>
-                                                            </span>
-                                                        </Tooltip>
-                                                    )}
-                                                    {(sentence.audio_status === 'generating' || sentence.audio_status === 'processing_request') && <CircularProgress size={20} sx={{ ml: 1 }} />}
-                                                </Box>
-                                            </TableCell>
-                                        </TableRow>
-                                    ))
-                                )}
-                            </TableBody>
-                        </Table>
-                    </TableContainer>
-                    {filteredSentences.length > 0 && (
-                        <TablePagination
-                            component="div"
-                            count={filteredSentences.length} // 使用 filteredSentences.length
-                            page={page}
-                            onPageChange={handleChangePage}
-                            rowsPerPage={rowsPerPage}
-                            onRowsPerPageChange={handleChangeRowsPerPage}
-                            rowsPerPageOptions={[10, 25, 50, 100, 200]}
-                            labelRowsPerPage="每页句数:"
-                            labelDisplayedRows={({ from, to, count }) => `${from}-${to} 共 ${count}`}
-                        />
-                    )}
-                </CardContent>
-            </Card>
-
-            <Dialog open={editSentenceDialogOpen} onClose={handleCloseEditSentenceDialog} maxWidth="sm" fullWidth>
-                <DialogTitle>编辑句子 (序号: {sentenceToEdit?.order_index != null ? sentenceToEdit.order_index + 1 : ''})</DialogTitle>
-                <DialogContent>
-                    <TextField autoFocus margin="dense" label="句子内容" type="text" fullWidth multiline rows={4} value={editingSentenceText} onChange={(e) => setEditingSentenceText(e.target.value)} sx={{ mt: 1 }}/>
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={handleCloseEditSentenceDialog}>取消</Button>
-                    <Button onClick={handleSaveEditedSentence} variant="contained">保存更改</Button>
-                </DialogActions>
-            </Dialog>
-            <Dialog open={deleteSentenceConfirmOpen} onClose={handleCloseDeleteSentenceDialog} maxWidth="xs" fullWidth>
-                <DialogTitle>确认删除句子</DialogTitle>
-                <DialogContent>
-                    <Typography>确定要删除这句话及其对应的语音文件吗？</Typography>
-                    <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
-                        序号: {sentenceToDelete?.order_index != null ? sentenceToDelete.order_index + 1 : ''} <br />
-                        内容: "{sentenceToDelete?.text}"
-                    </Typography>
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={handleCloseDeleteSentenceDialog}>取消</Button>
-                    <Button onClick={handleConfirmDeleteSentence} color="error" variant="contained">确认删除</Button>
-                </DialogActions>
-            </Dialog>
-        </>
-    );
-};
-
-// 时间格式化辅助函数 (毫秒转 HH:MM:SS,mmm)
-const formatMsToSrtTime = (ms) => {
-    if (typeof ms !== 'number' || isNaN(ms) || ms < 0) return '00:00:00,000';
-    const totalSeconds = Math.floor(ms / 1000);
-    const milliseconds = String(ms % 1000).padStart(3, '0');
-    const seconds = String(totalSeconds % 60).padStart(2, '0');
-    const totalMinutes = Math.floor(totalSeconds / 60);
-    const minutes = String(totalMinutes % 60).padStart(2, '0');
-    const hours = String(Math.floor(totalMinutes / 60)).padStart(2, '0');
-    return `${hours}:${minutes}:${seconds},${milliseconds}`;
-};
+import SentenceList from './SentenceList';
+import formatMsToTime from '../utils/timeUtils'; // 确保有这个工具函数来格式化时间戳
 
 // Main Component
 const TrainingContentDetail = () => {
@@ -541,9 +257,23 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
           break; // 找到第一个未完成的就停止
         }
       }
-      // 激活下一个未完成的步骤，如果所有都完成了，则激活最后一个
-      const nextStepIndex = Math.min(lastCompletedIndex + 1, workflowSteps.length - 1);
-      setActiveStepKey(workflowSteps[nextStepIndex].key);
+      // 计算下一个应该被激活的步骤索引
+      let nextStepIndex = lastCompletedIndex + 1;
+      
+      // *** 核心修改点：在这里添加判断逻辑 ***
+      // 如果计算出的下一个步骤是最后一个步骤（视频合成），并且当前激活的不是最后一个步骤，
+      // 那么我们就停留在倒数第二个步骤（音频合并），而不是自动跳转。
+      // 这给了用户一个明确的停留点。
+      const finalStepIndex = workflowSteps.length - 1;
+      if (nextStepIndex === finalStepIndex && activeStepKey !== workflowSteps[finalStepIndex].key) {
+        // 停留在上一步（音频合并步骤）
+        const stayAtIndex = Math.max(0, finalStepIndex - 1);
+        setActiveStepKey(workflowSteps[stayAtIndex].key);
+      } else {
+        // 对于其他所有情况（包括用户已经手动点击了第六步），保持自动激活逻辑
+        nextStepIndex = Math.min(nextStepIndex, finalStepIndex);
+        setActiveStepKey(workflowSteps[nextStepIndex].key);
+      }
     }
   }, [contentDetail, synthesisTask, workflowSteps]);
   // ------------------------------------------------------------>>>
@@ -1022,22 +752,31 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
   };
 
   const handleUpdateSentence = async (sentenceId, newText) => {
-    const loadingKey = `update_sentence_${sentenceId}`;
-    setActionLoading(prev => ({ ...prev, [loadingKey]: true }));
-    try {
-        await ttsApi.updateSentence(sentenceId, { sentence_text: newText });
-        setAlert({ open: true, message: '句子更新成功！语音状态已重置，请重新生成。', severity: 'success' });
-        fetchContentDetail(false); 
-    } catch (error) {
-        setAlert({ 
-            open: true, 
-            message: `更新句子失败: ${error.response?.data?.error || error.message || '未知错误'}`, 
-            severity: 'error' 
-        });
-    } finally {
-        setActionLoading(prev => ({ ...prev, [loadingKey]: false }));
-    }
-  };
+        const loadingKey = `update_sentence_${sentenceId}`;
+        setActionLoading(prev => ({ ...prev, [loadingKey]: true }));
+        try {
+            // 调用 API 更新句子
+            await ttsApi.updateSentence(sentenceId, { sentence_text: newText });
+            
+            // 显示成功提示
+            setAlert({ open: true, message: '句子更新成功！语音状态已重置，请重新生成。', severity: 'success' });
+            
+            // <<<--- 关键修复：在这里调用 fetchContentDetail 来刷新整个页面的数据 ---<<<
+            // 传入 false 表示不需要显示全局的 loading 菊花图，让页面内容保持可见
+            await fetchContentDetail(false); 
+            // --------------------------------------------------------------------->>>
+
+        } catch (error) {
+            setAlert({ 
+                open: true, 
+                message: `更新句子失败: ${error.response?.data?.error || error.message || '未知错误'}`, 
+                severity: 'error' 
+            });
+        } finally {
+            setActionLoading(prev => ({ ...prev, [loadingKey]: false }));
+        }
+    };
+
 
   const pollTaskStatus = useCallback((taskId, isBatchTask = false, taskType = 'default', associatedSentenceId = null) => {
     const pollingKey = `${taskType}_${taskId}`;

@@ -988,7 +988,15 @@ def merge_all_audios_for_content(self, training_content_id_str):
                     **seg_data
                 )
                 db.session.add(segment_entry)
-            
+            # <<<--- 新增：重置所有相关句子的修改标记 ---<<<
+            sentence_ids_in_script = [s.id for s in sentences_in_order]
+            if sentence_ids_in_script:
+                TtsSentence.query.filter(
+                    TtsSentence.id.in_(sentence_ids_in_script)
+                ).update({'modified_after_merge': False}, synchronize_session=False)
+                logger.info(f"[MergeTask:{task_id}] 已重置 {len(sentence_ids_in_script)} 个句子的 'modified_after_merge' 标记。")
+            # ------------------------------------------------->>>
+
             content.status = 'audio_merge_complete'
             db.session.commit()
 
@@ -1443,48 +1451,7 @@ def synthesize_video_task(self, synthesis_id_str):
             return {'status': 'Error', 'message': str(e)}
         
 
-@celery_app.task(name='tasks.http_diagnose_task')
-def http_diagnose_task():
-    """一个绝对最小化的网络诊断任务"""
-    
-    proxy_url = "http://victor:xys131313@webservice-google-tw1.58789018.xyz:8888"
-    test_url = "https://api.ipify.org?format=json"
 
-    print("\n\n--- [诊断任务开始] ---")
-    print(f"将要通过代理: {proxy_url}")
-    print(f"访问测试URL: {test_url}")
-    
-    try:
-        print("[诊断] 步骤1: 创建 HTTPTransport...")
-        transport = httpx.HTTPTransport(proxy=proxy_url)
-        print("[诊断] HTTPTransport 已创建。")
-
-        print("[诊断] 步骤2: 创建 mounts 字典...")
-        mounts = {"all://": transport}
-        print("[诊断] mounts 字典已创建。")
-
-        print("[诊断] 步骤3: 创建 httpx.Client...")
-        with httpx.Client(mounts=mounts, timeout=15.0) as client:
-            print("[诊断] httpx.Client 已创建。")
-            print("[诊断] 步骤4: 发送 GET 请求...")
-            response = client.get(test_url)
-            print("[诊断] 步骤5: 已收到响应！")
-
-            if response.status_code == 200:
-                result = f"✅ [诊断成功] 连接成功！响应: {response.json()}"
-                print(result)
-            else:
-                result = f"❌ [诊断失败] 连接失败！状态码: {response.status_code}"
-                print(result)
-            return result
-
-    except Exception as e:
-        error_result = f"❌ [诊断致命错误]: {type(e).__name__}: {e}"
-        print(error_result)
-        # 打印完整的 traceback
-        import traceback
-        traceback.print_exc()
-        return error_result
     
 
 

@@ -613,6 +613,7 @@ class TtsSentence(db.Model):
     sentence_text = db.Column(db.Text, nullable=False, comment='句子文本')
     order_index = db.Column(db.Integer, nullable=False, comment='句子在脚本中的顺序')
     audio_status = db.Column(db.String(50), nullable=False, default='pending', index=True, comment='语音生成状态 (pending, generating, completed, error)')
+    modified_after_merge = db.Column(db.Boolean, default=False, nullable=False, server_default='false', comment='在最新一次合并后是否被修改')
     created_at = db.Column(db.DateTime(timezone=True), server_default=func.now(), comment='创建时间')
     updated_at = db.Column(db.DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), comment='更新时间')
 
