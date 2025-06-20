@@ -849,6 +849,9 @@ class VideoSynthesis(db.Model):
     merged_audio_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('tts_audio.id', ondelete='SET NULL'), nullable=True)
     srt_file_path = db.Column(db.String(1024), nullable=True, comment='生成的SRT文件路径')
     ppt_pdf_path = db.Column(db.String(1024), nullable=False, comment='用户上传的PPT导出的PDF文件路径')
+
+    # PPT 转换为图片后存储的地址
+    ppt_image_paths = db.Column(PG_JSONB, nullable=True, comment='PDF转换后的图片路径列表 (JSON Array)')
     
     # LLM 分析
     llm_prompt_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('llm_prompts.id', ondelete='SET NULL'), nullable=True)

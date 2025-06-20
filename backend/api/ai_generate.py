@@ -415,10 +415,25 @@ def _get_video_script_schema() -> types.Schema:
                 description="An array of successfully matched video script entries.",
                 items=types.Schema(
                     type=types.Type.OBJECT,
-                    required=["ppt_page", "time_range"],
+                    required=["ppt_page", "time_range", "text"],
                     properties={
-                        "ppt_page": types.Schema(type=types.Type.INTEGER, description="The corresponding slide page number."),
-                        "time_range": types.Schema(type=types.Type.STRING, description="The time range in HH:MM:SS,ms ~ HH:MM:SS,ms format."),
+                        "ppt_page": types.Schema(
+                            type=types.Type.INTEGER, 
+                            description="此字幕对应的幻灯片页码。"
+                        ),
+                        "time_range": types.Schema(
+                            type=types.Type.STRING, 
+                            description="字幕的时间范围，格式为 HH:MM:SS,ms ~ HH:MM:SS,ms。"
+                        ),
+                        "text": types.Schema(
+                            type=types.Type.STRING,
+                            description="与此时间范围完全对应的原始字幕文本内容。"
+                        ),
+                        # (可选) 还可以要求返回 srt_num，关联更可靠
+                        "srt_num": types.Schema(
+                            type=types.Type.INTEGER,
+                            description="原始SRT文件中的字幕序号。"
+                        )
                     },
                 ),
             ),

@@ -1345,8 +1345,10 @@ def get_latest_synthesis_task_for_content(content_id):
             'id': str(latest_task.id),
             'status': latest_task.status,
             'video_script_json': latest_task.video_script_json,
+            'ppt_image_paths': latest_task.ppt_image_paths, 
             'generated_resource_id': str(latest_task.generated_resource_id) if latest_task.generated_resource_id else None,
             'created_at': latest_task.created_at.isoformat(),
+            'celery_task_id': latest_task.celery_task_id, # 确保也返回这个，前端轮询需要
         }), 200
 
     except Exception as e:

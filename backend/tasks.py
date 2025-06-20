@@ -16,13 +16,15 @@ import mimetypes # <--- ++++++ 在这里添加导入 ++++++
 
 
 
+
 from celery_worker import celery_app
 from flask import current_app
 from sqlalchemy import or_, func
 import sqlalchemy as sa
 from werkzeug.utils import secure_filename
 
-import fitz  # PyMuPDF 库的导入名是 fitz
+
+
 
 from backend.extensions import db
 from backend.models import TrainingContent, TtsScript, TtsSentence, TtsAudio, MergedAudioSegment, UserProfile, Exam, VideoSynthesis, CourseResource
@@ -37,6 +39,7 @@ import httpx # <<<--- 关键：导入httpx库
 
 
 # 合成视频
+import fitz  # PyMuPDF 库的导入名是 fitz
 from pdf2image import convert_from_path
 from moviepy.editor import ImageClip, AudioFileClip, concatenate_videoclips
 from PIL import Image # <<<--- 关键：导入Pillow的Image模块
@@ -1050,6 +1053,41 @@ def analyze_video_script_task(self, synthesis_id_str):
             
             # 3. 更新数据库
             synthesis_task.video_script_json = video_script_json
+
+            # 3.1 将pdf转为的图片并存储
+            logger.info(f"[AnalyzeTask:{self.request.id}] 开始将PDF转换为预览图片...")
+            
+            # 定义图片存储目录
+            # 使用 instance_path 确保路径在项目内，但通常不在版本控制中
+            preview_image_dir_name = "preview_images"
+            # synthesis_task.ppt_pdf_path 的目录是 instance/uploads/video_synthesis/{content_id}/
+            base_dir = os.path.dirname(synthesis_task.ppt_pdf_path) 
+            image_storage_path = os.path.join(base_dir, preview_image_dir_name)
+            os.makedirs(image_storage_path, exist_ok=True)
+
+            # 执行转换
+            images = convert_from_path(
+                synthesis_task.ppt_pdf_path,
+                output_folder=image_storage_path,
+                fmt='jpeg',  # 使用jpeg格式以减小文件大小
+                output_file='slide_'
+            )
+
+            # 获取相对路径用于URL访问
+            # Web访问路径应该是相对于 instance/uploads/ 的
+            base_web_path = os.path.join('video_synthesis', str(synthesis_task.training_content_id), preview_image_dir_name)
+            
+            # 使用更健壮的方式排序和获取相对路径
+            image_relative_paths = sorted(
+                [os.path.join(base_web_path, os.path.basename(img.filename)) for img in images],
+                key=lambda p: int(re.search(r'slide_(\d+)', os.path.basename(p)).group(1))
+            )
+
+            synthesis_task.ppt_image_paths = image_relative_paths # 保存路径列表
+            logger.info(f"[AnalyzeTask:{self.request.id}] PDF转换完成，共 {len(image_relative_paths)} 张图片。")
+
+            # 4. 更新任务状态
+            synthesis_task.video_script_json = video_script_json # 直接保存
             synthesis_task.status = 'analysis_complete'
             db.session.commit()
             

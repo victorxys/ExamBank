@@ -7,6 +7,7 @@ import uuid
 from dateutil import parser
 import logging
 import json
+from werkzeug.utils import safe_join
 from backend.security_utils import generate_password_hash
 from werkzeug.security import check_password_hash 
 from psycopg2.extras import RealDictCursor, register_uuid # 确保导入
@@ -3712,6 +3713,31 @@ def trigger_test_gemini_task():
     return jsonify({"message": message, "task_id": task.id}), 202
 
 
+# 这个路由用于服务所有在 instance/uploads/ 目录下的文件，包括视频合成的预览图等
+@app.route('/media/<path:filepath>')
+# @jwt_required() # 根据需要决定是否需要认证才能访问这些预览图
+def serve_uploaded_media(filepath):
+    # 构建安全的基础路径
+    # current_app.instance_path 指向 'instance' 文件夹
+    base_dir = os.path.join(current_app.instance_path, 'uploads')
+    
+    # 使用 safe_join 防止目录遍历攻击
+    # 注意：safe_join 在新版 werkzeug 中可能被移除，可自行实现或使用 os.path.normpath + startswith 检查
+    try:
+        # 现代 Werkzeug/Flask 推荐方式
+        return send_from_directory(base_dir, filepath)
+    except Exception as e:
+        # 兼容旧版 Werkzeug 的 safe_join 写法
+        # try:
+        #     secure_path = safe_join(base_dir, filepath)
+        #     if not os.path.normpath(secure_path).startswith(os.path.normpath(base_dir)):
+        #         raise FileNotFoundError()
+        #     return send_file(secure_path)
+        # except FileNotFoundError:
+        #     return jsonify({'error': 'File not found'}), 404
+        # except Exception as e:
+        current_app.logger.error(f"服务媒体文件失败: {e}", exc_info=True)
+        return jsonify({'error': 'Internal server error'}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)

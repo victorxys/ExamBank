@@ -47,6 +47,18 @@ import VideoSynthesisStep from './VideoSynthesisStep'; // <<<--- 导入新组件
 import SentenceList from './SentenceList';
 import formatMsToTime from '../utils/timeUtils'; // 确保有这个工具函数来格式化时间戳
 
+// +++ 把这个辅助函数放在组件外部或一个单独的 utils 文件中 +++
+function formatMsToSrtTime(ms) {
+    if (typeof ms !== 'number' || isNaN(ms)) return '00:00:00,000';
+    const date = new Date(ms);
+    const hours = String(date.getUTCHours()).padStart(2, '0');
+    const minutes = String(date.getUTCMinutes()).padStart(2, '0');
+    const seconds = String(date.getUTCSeconds()).padStart(2, '0');
+    const milliseconds = String(date.getUTCMilliseconds()).padStart(3, '0');
+    return `${hours}:${minutes}:${seconds},${milliseconds}`;
+}
+
+
 // Main Component
 const TrainingContentDetail = () => {
   const { contentId } = useParams();
@@ -110,6 +122,28 @@ const TrainingContentDetail = () => {
 //     }
 //     // 这里可以添加对其他任务类型的进度处理
 //   }, []); // 这个回调没有外部依赖，是安全的
+const enhancedSentences = useMemo(() => {
+    const sentences = contentDetail?.final_script_sentences;
+    const segments = contentDetail?.latest_merged_audio?.segments;
+
+    if (!sentences || !segments) {
+        return []; // 如果缺少任何一部分数据，返回空数组
+    }
+
+    // 创建一个以 tts_sentence_id 为键的 segments 映射，方便快速查找
+    const segmentsMap = new Map(segments.map(seg => [seg.tts_sentence_id, seg]));
+
+    return sentences.map(sentence => {
+        const segment = segmentsMap.get(sentence.id);
+        return {
+            ...sentence,
+            // 如果找到匹配的segment，就构造time_range，否则为null
+            time_range: segment 
+                ? `${formatMsToSrtTime(segment.start_ms)} ~ ${formatMsToSrtTime(segment.end_ms)}` 
+                : null
+        };
+    });
+}, [contentDetail]); // 依赖 contentDetail
 
 const workflowSteps = useMemo(() => [
     { 
@@ -505,13 +539,13 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
       const newIntervals = { ...pollingIntervalsRef.current };
       delete newIntervals[pollingKey];
       pollingIntervalsRef.current = newIntervals;
-      console.log(`Stopped polling for task: ${pollingKey}`);
+      // console.log(`Stopped polling for task: ${pollingKey}`);
     } else if (pollingIntervalsRef.current[taskId] && taskType === 'default') { // 兼容旧的只用 taskId 作为 key
         clearInterval(pollingIntervalsRef.current[taskId]);
         const newIntervals = { ...pollingIntervalsRef.current };
         delete newIntervals[taskId];
         pollingIntervalsRef.current = newIntervals;
-        console.log(`Stopped polling for task (legacy key): ${taskId}`);
+        // console.log(`Stopped polling for task (legacy key): ${taskId}`);
     }
   };
 
@@ -827,7 +861,7 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
                 // 批量主任务成功后，从其结果中获取子任务列表并开始轮询它们
                 if (taskData.result && taskData.result.sub_tasks && Array.isArray(taskData.result.sub_tasks)) {
                     taskData.result.sub_tasks.forEach(subTask => {
-                        console.log(`Starting polling for sub_task: ${subTask.task_id} for sentence: ${subTask.sentence_id}`);
+                        // console.log(`Starting polling for sub_task: ${subTask.task_id} for sentence: ${subTask.sentence_id}`);
                         pollTaskStatus(subTask.task_id, false, 'single_sentence_audio', subTask.sentence_id); // 为每个子任务启动轮询
                     });
                 }
@@ -879,7 +913,7 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
       }
     }, 2500); 
     pollingIntervalsRef.current = { ...pollingIntervalsRef.current, [pollingKey]: intervalId };
-    console.log(`Started polling for task: ${pollingKey}`);
+    // console.log(`Started polling for task: ${pollingKey}`);
   }, [fetchContentDetail, overallProgress]); // 移除 mergeProgress
 
   const handleBatchGenerateAudio = async (engineToUse = 'gradio_default') => {
@@ -889,8 +923,8 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
       tts_engine: engineToUse,
       tts_params: {}, 
     };
-    console.log("Preparing to batch generate audio with engine:", apiParams);
-    console.log("Value of apiParams before sending:", JSON.stringify(apiParams));
+    // console.log("Preparing to batch generate audio with engine:", apiParams);
+    // console.log("Value of apiParams before sending:", JSON.stringify(apiParams));
     if (engineToUse === 'gemini_tts') {
       // apiParams.tts_params.voice_name = "gemini-voice-for-batch";
     } else if (engineToUse === 'gradio_default') {
@@ -1132,6 +1166,12 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
                           contentDetail.final_script_sentences.every(s => s.audio_status === 'generated');
   const mergedAudioExists = !!contentDetail?.latest_merged_audio;
 
+  // if (contentDetail) {
+  //     console.log("================ 调试点 1: TrainingContentDetail ================");
+  //     console.log("父组件状态 contentDetail:", contentDetail);
+  //     console.log("父组件状态 contentDetail.final_script_sentences:", contentDetail.final_script_sentences);
+  //     console.log("==========================================================");
+  // }
 
   return (
     <Box>
@@ -1565,6 +1605,7 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
                     <VideoSynthesisStep 
                         contentId={contentId}
                         synthesisTask={synthesisTask}
+                        allSentences={enhancedSentences}
                         progressData={synthesisProgress}
                         isSubmitting={isSynthesizing}
                         onStartTask={handleStartTask}

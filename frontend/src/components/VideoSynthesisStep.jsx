@@ -17,6 +17,7 @@ import {
   Movie as MovieIcon,
   Edit as EditIcon,
   Save as SaveIcon,
+  Visibility as VisibilityIcon, // <<<--- 新增：预览图标
   Cancel as CancelIcon, // 新增：取消图标
   Replay as ReplayIcon, // <<<--- 新增：导入重试图标
   RestartAlt as RestartAltIcon // <<<--- 新增：一个更适合“重置/重新开始”的图标
@@ -24,6 +25,8 @@ import {
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { ttsApi } from '../api/tts';
+import VideoScriptPreviewDialog from './VideoScriptPreviewDialog'; 
+
 
 const ResultRow = ({ icon, title, data, renderItem }) => {
     const theme = useTheme();
@@ -43,7 +46,7 @@ const ResultRow = ({ icon, title, data, renderItem }) => {
 };
 
 
-const VideoSynthesisStep = ({ contentId, setSynthesisTask, synthesisTask, progressData, isSubmitting, onStartTask, onResetTask, onAlert 
+const VideoSynthesisStep = ({ contentId, setSynthesisTask, synthesisTask, allSentences, progressData, isSubmitting, onStartTask, onResetTask, onAlert 
     }) => {
         const navigate = useNavigate();
         const theme = useTheme();
@@ -67,7 +70,29 @@ const VideoSynthesisStep = ({ contentId, setSynthesisTask, synthesisTask, progre
         const [progressMessage, setProgressMessage] = useState(''); // <<<--- 新增：存储阶段信息
         // const { progress, message } = progressData || { progress: 0, message: '' };
         const { progress, message, status: progressStatus } = progressData || { progress: 0, message: '', status: 'idle' };
+        
+        // 用于脚本预览的 state
+        const [isPreviewDialogOpen, setIsPreviewDialogOpen] = useState(false);
 
+        const [dialogKey, setDialogKey] = useState(0);
+
+        const handleOpenPreviewDialog = () => {
+            // 每次打开时，都更新key的值，强制重新挂载Dialog
+            setDialogKey(prevKey => prevKey + 1); 
+            setIsPreviewDialogOpen(true);
+        };
+
+        // <<< --- 增加调试日志 --- >>>
+        // useEffect(() => {
+        //     console.log('[VideoSynthesisStep] 状态更新，当前的 synthesisTask:', synthesisTask);
+        // }, [synthesisTask]);
+        // <<< -------------------- >>>
+
+        // useEffect(() => {
+        //     console.log("================ 调试点 2: VideoSynthesisStep ================");
+        //     console.log("中间组件接收到的 prop allSentences:", allSentences);
+        //     console.log("==========================================================");
+        // }, [allSentences]); // 当 allSentences prop 变化时打印
 
 
         useEffect(() => {
@@ -102,6 +127,15 @@ const VideoSynthesisStep = ({ contentId, setSynthesisTask, synthesisTask, progre
                 setIsEditingScript(false);
             }
         }, [analysisResult]);
+
+        const handleScriptSave = (newScriptJson) => {
+            // 当预览对话框中保存成功后，更新这里的状态
+            setSynthesisTask(prev => ({
+                ...prev,
+                video_script_json: newScriptJson
+            }));
+            onAlert({ open: true, message: '脚本已更新，请继续操作。', severity: 'success' });
+        };
 
         const handleSynthesisProgress = useCallback((taskData) => {
             if (taskData && taskData.meta) {
@@ -200,7 +234,7 @@ const VideoSynthesisStep = ({ contentId, setSynthesisTask, synthesisTask, progre
             }
         };
         
-
+        // console.log("~~~~~~~~分析结果~~~~~~~:", editableScript);
         // UI渲染逻辑现在完全依赖于从props传入的status，并且是正确的
         const renderUIByStatus = () => {
             
@@ -265,11 +299,28 @@ const VideoSynthesisStep = ({ contentId, setSynthesisTask, synthesisTask, progre
                                     <Button size="small" variant="contained" startIcon={isSavingScript ? <CircularProgress size={16}/> : <SaveIcon />} onClick={handleSaveScript} disabled={isSavingScript}>保存脚本</Button>
                                 </Box>
                                 ) : (
+                                <Box sx={{ display: 'flex', gap: 2 }}>
+                                <Button 
+                                    variant="outlined" 
+                                    color="primary" 
+                                    startIcon={<VisibilityIcon />}
+                                    onClick={() => {
+                                        // <<< --- 增加调试日志 --- >>>
+                                        // console.log('[VideoSynthesisStep] "预览"按钮点击，准备打开Dialog，传递的synthesisTask:', synthesisTask);
+                                        // <<< -------------------- >>>
+                                        handleOpenPreviewDialog(true)
+                                    }}
+                                    disabled={isSubmitting}
+                                >
+                                    预览和调整
+                                </Button>
                                 <Button size="small" variant="outlined" startIcon={<EditIcon />} onClick={() => setIsEditingScript(true)} disabled={isSubmitting}>编辑脚本</Button>
+                                </Box>
                                 )}
                             </Box>
                             <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: 300 }}>
                                 <Table stickyHeader size="small">
+                                    
                                     <TableHead><TableRow><TableCell>PPT页码</TableCell><TableCell>时间范围 (HH:MM:SS,ms)</TableCell></TableRow></TableHead>
                                     <TableBody>
                                         {editableScript.map((script, i) => (
@@ -394,6 +445,14 @@ const VideoSynthesisStep = ({ contentId, setSynthesisTask, synthesisTask, progre
                     </Box>
                 </Box>
                 {renderUIByStatus()}
+                <VideoScriptPreviewDialog
+                    key={dialogKey}
+                    open={isPreviewDialogOpen}
+                    onClose={() => setIsPreviewDialogOpen(false)}
+                    synthesisTask={synthesisTask}
+                    allSentences={allSentences} 
+                    onScriptSave={handleScriptSave}
+                />
             </Paper>
         );
 };
