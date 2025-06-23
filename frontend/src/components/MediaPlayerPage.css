@@ -1,0 +1,58 @@
+/* frontend/src/components/MediaPlayerPage.css */
+
+.media-player-paper-container {
+  /* 可以在这里定义 Paper 容器的默认过渡效果等 (可选) */
+  transition: all 0.3s ease-out;
+}
+
+/* 当 Paper 容器进入全屏时的样式 */
+.media-player-paper-container.fullscreen-active {
+  position: fixed !important; /* 强制覆盖内联样式 */
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  max-width: none !important;
+  border-radius: 0 !important;
+  z-index: 2147483647 !important; /* 一个非常高的 z-index */
+  background-color: #000 !important;
+}
+
+/* player-wrapper 在全屏时的样式 */
+.media-player-paper-container.fullscreen-active .player-wrapper {
+  width: 100% !important;
+  height: 100% !important;
+  padding-top: 0 !important; /* 移除 paddingTop 技巧 */
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background-color: #000; /* 确保背景也是黑的 */
+}
+
+/* 非全屏视频时 player-wrapper 的默认宽高比 (如果不用内联 sx 的 aspectRatio) */
+/*
+.player-wrapper.video-mode { 
+  position: relative;
+  width: 100%;
+  padding-top: 56.25%; 
+  height: 0;
+  background-color: #000;
+}
+.player-wrapper.video-mode .react-player {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+*/
+
+
+/* ReactPlayer 内部的 video 标签的样式 */
+.react-player video {
+  display: block; /* 移除可能的额外空间 */
+  width: auto !important;   /* 允许根据 object-fit 和容器尺寸自动调整 */
+  height: auto !important;  /* 允许根据 object-fit 和容器尺寸自动调整 */
+  max-width: 100% !important; /* 确保不超过其直接父容器的宽度 */
+  max-height: 100% !important;/* 确保不超过其直接父容器的高度 */
+  object-fit: contain !important; /* 核心：保持宽高比并完整显示 */
+  margin: auto; /* 在 flex 容器中通常会自动居中，但可以保留 */
+}
