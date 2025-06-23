@@ -22,6 +22,8 @@ import { jwtDecode } from 'jwt-decode';
 
 import { format, parseISO, isValid, isFuture, differenceInDays, differenceInHours, differenceInMinutes, differenceInSeconds } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
+import './MediaPlayerPage.css'; // <--- 1. 引入一个新的 CSS 文件
+
 
 
 // 时间格式化辅助函数 (转换为 HH:MM:SS)
@@ -588,14 +590,51 @@ const MediaPlayerPage = () => {
             />
         )}
 
-        <Paper elevation={isMobile ? 0 : 3} ref={playerContainerRef} onMouseMove={showControls} onMouseLeave={hideControlsIfVideoPlaying}
-          sx={{ width: '100%', maxWidth: '960px', bgcolor: '#000', borderRadius: isMobile ? 0 : '8px', overflow: 'hidden', position: 'relative'}}>
+        <Paper 
+          elevation={isMobile ? 0 : 3} 
+          ref={playerContainerRef} 
+          onMouseMove={showControls} 
+          onMouseLeave={hideControlsIfVideoPlaying}
+          className={`media-player-paper-container ${isFullScreen ? 'fullscreen-active' : ''}`}
+          sx={{ 
+            width: '100%', 
+            maxWidth: '960px', 
+            bgcolor: '#000', 
+            borderRadius: isMobile ? 0 : '8px', 
+            overflow: 'hidden', 
+            position: 'relative',
+            // 全屏时的基础样式，主要由CSS文件控制，这里可以保留一些JS驱动的改变
+            ...(isFullScreen && {
+              maxWidth: 'none',
+              borderRadius: 0,
+            })
+          }}>
 
           <Box className="player-wrapper"
-            sx={{ position: 'relative',
-                  paddingTop: isVideo ? '56.25%' : '0',
-                  height: isAudio ? (isMobile? '50px' : '150px') : 'auto',
-                  backgroundColor: '#000' }}>
+            sx={{ 
+              position: 'relative',
+              width: '100%',
+              // 高度和 paddingTop 由 CSS 控制，以响应全屏状态
+              // backgroundColor: '#000', // 已由 Paper 控制
+              // display: 'flex', // 将在 CSS 中处理
+              // alignItems: 'center',
+              // justifyContent: 'center',
+              // 对于视频，使用aspect-ratio的CSS技巧，或让其在flex容器中自然适应
+              // 对于音频，保持原有逻辑或简化
+              ...(isVideo ? {
+                // 非全屏时保持宽高比 (如果 fullscreen-active 类不存在时生效)
+                // 全屏时，依赖 .fullscreen-active .player-wrapper 的样式
+                aspectRatio: '16 / 9', // 示例：默认16:9，全屏时CSS会覆盖
+                height: 'auto', // 与aspectRatio配合
+                display: 'flex', // 始终 flex 以便内部 ReactPlayer 居中
+                alignItems: 'center',
+                justifyContent: 'center',
+              } : { // 音频样式
+                height: isMobile ? '50px' : '150px', // 或您希望的音频播放器高度
+              }),
+              // 全屏时，CSS将优先处理尺寸和布局
+            }}
+          >
             <ReactPlayer
               ref={playerRef} className="react-player" url={streamUrlWithToken} playing={playing} controls={false}
               volume={volume} muted={muted} playbackRate={playbackRate}
@@ -604,7 +643,12 @@ const MediaPlayerPage = () => {
               onDuration={handleReactPlayerDuration} onReady={handleReactPlayerReady}
               onBuffer={handleReactPlayerBuffer} onBufferEnd={handleReactPlayerBufferEnd}
               width="100%" height="100%"
-              style={{ position: isVideo ? 'absolute' : 'relative', top: 0, left: 0 }}
+              // style={{ position: isVideo ? 'absolute' : 'relative', top: 0, left: 0 }}
+              style={{
+                // ReactPlayer 内部的 video 标签的 object-fit 将由 CSS 控制
+                // maxWidth 和 maxHeight 也由 CSS 控制
+                display: 'block', // 有助于 video 表现如预期
+              }}
               config={{ file: {
                   attributes: { controlsList: 'nodownload' },
                   forceAudio: isAudio,

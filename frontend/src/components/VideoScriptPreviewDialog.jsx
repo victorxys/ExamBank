@@ -56,7 +56,7 @@ const VideoScriptPreviewDialog = ({ open, onClose, synthesisTask, onScriptSave, 
     useEffect(() => {
         if (open) {
             console.clear();
-            console.log("======================= 最终诊断开始 (双重验证版) =======================");
+            // console.log("======================= 最终诊断开始 (双重验证版) =======================");
             
             const videoScriptsFromProp = synthesisTask?.video_script_json?.video_scripts || [];
             if (!allSentences || allSentences.length === 0 || videoScriptsFromProp.length === 0) {
@@ -64,12 +64,24 @@ const VideoScriptPreviewDialog = ({ open, onClose, synthesisTask, onScriptSave, 
                 return;
             }
 
+            // 1. 预处理原始句子，附加必要信息
+            const allSentencesWithId = allSentences.map((s, i) => ({
+                ...s,
+                ui_id: `sentence-${i}`,
+                normalizedText: normalizeText(s.text),
+                // ++++++++++++++++ 核心修复：在这里添加 srt_num ++++++++++++++++
+                // 我们将 order_index + 1 作为字幕的序号 (序号通常从1开始)
+                srt_num: (s.order_index !== undefined && s.order_index !== null) ? s.order_index + 1 : i + 1,
+                // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+            }));
+            
+
             // <<< --- 全新的、基于时间和文本双重验证的匹配算法 --- >>>
             let processedScripts = [];
             const matchedSentenceIds = new Set(); 
 
             // 1. 预处理原始句子，添加毫秒和UI-ID
-            const sentencesWithMs = allSentences.map((s, i) => {
+            const sentencesWithMs = allSentencesWithId.map((s, i) => {
                 const timeRange = s.time_range || '';
                 const [startStr, endStr] = timeRange.split('~').map(t => t.trim());
                 return { 
@@ -90,7 +102,7 @@ const VideoScriptPreviewDialog = ({ open, onClose, synthesisTask, onScriptSave, 
                 const llmStartTimeMs = timeStrToMs(llmStartStr);
                 const llmEndTimeMs = timeStrToMs(llmEndStr);
 
-                console.log(`\n--- 正在处理 PPT 第 ${pageNum} 页 (时间范围: ${llmStartTimeMs}ms ~ ${llmEndTimeMs}ms) ---`);
+                // console.log(`\n--- 正在处理 PPT 第 ${pageNum} 页 (时间范围: ${llmStartTimeMs}ms ~ ${llmEndTimeMs}ms) ---`);
 
                 // 3. 进行双重过滤
                 const matchedSentences = sentencesWithMs.filter(sentence => {
@@ -101,7 +113,7 @@ const VideoScriptPreviewDialog = ({ open, onClose, synthesisTask, onScriptSave, 
                     const isNotMatchedYet = !matchedSentenceIds.has(sentence.ui_id);
                     
                     if (isTimeMatch && isNotMatchedYet) {
-                        console.log(`    ✅ 匹配成功 (时间戳吻合): "${sentence.text}"`);
+                        // console.log(`    ✅ 匹配成功 (时间戳吻合): "${sentence.text}"`);
                         return true;
                     }
                     return false;
@@ -223,7 +235,7 @@ const VideoScriptPreviewDialog = ({ open, onClose, synthesisTask, onScriptSave, 
 
                 {/* 右侧: 字幕列表 */}
                 <Box sx={{ width: { xs: '100%', lg: '40%' }, p: 3, display: 'flex', flexDirection: 'column' }}>
-                    <Typography variant="h6" gutterBottom>对应字幕</Typography>
+                    <Typography variant="h3" gutterBottom>对应字幕</Typography>
                     <Box sx={{ flexGrow: 1, overflowY: 'auto', pr: 1 }}>
                         {currentSentences.length > 0 ? currentSentences.map((sentence, index) => {
                             const isFirst = index === 0;
@@ -297,7 +309,7 @@ const VideoScriptPreviewDialog = ({ open, onClose, synthesisTask, onScriptSave, 
         >
             <DialogTitle sx={{ p: 2, borderBottom: '1px solid #eee' }}>
                 <Box display="flex" justifyContent="space-between" alignItems="center">
-                    <Typography variant="h6" fontWeight="bold">视频脚本预览与调整</Typography>
+                    <Typography variant="h3" fontWeight="bold">视频脚本预览与调整</Typography>
                     <IconButton onClick={handleClose} size="small"><CloseIcon /></IconButton>
                 </Box>
             </DialogTitle>

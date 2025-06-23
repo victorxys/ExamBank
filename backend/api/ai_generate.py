@@ -271,7 +271,7 @@ def transform_text_with_llm(input_text: str, prompt_identifier: str, reference_t
             raise Exception(prompt_error)
 
         model_to_use_identifier = custom_model_identifier or active_prompt.model_identifier or "gemini-1.5-flash-latest"
-        api_key, api_key_name_for_log, llm_model_for_log, config_error = get_active_llm_config_internal("Google", model_to_use_identifier)
+        api_key, api_key_name_for_log, llm_model_for_log, config_error = get_active_llm_config_internal("Google Gemini TTS", model_to_use_identifier)
         
         if config_error:
             initial_log_input_error_context["error_context"] = "config_fetch_failed"

@@ -1304,7 +1304,7 @@ def synthesize_video_task(self, synthesis_id_str):
             logger.info(f"[VideoSynthTask:{task_id}]   - 音频路径: {audio_path}")
             
             if not os.path.exists(pdf_path) or not os.path.exists(audio_path):
-                raise FileNotFoundError("PDF或音频素材文件不存在。")
+                raise FileNotFoundError(f"PDF或音频素材文件pdf_path: {pdf_path} 或audio_path: {audio_path}不存在。")
 
             # 2. 将PDF转换为图片
             logger.info(f"[VideoSynthTask:{task_id}] 步骤 2: 将PDF转换为图片...")
