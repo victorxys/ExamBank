@@ -7,7 +7,7 @@ if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
 # 直接导入重置函数
-from backend.manager_module import reset_all_usage
+from manager_module import reset_all_usage
 
 def main():
     reset_all_usage()
