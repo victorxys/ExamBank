@@ -1,13 +1,13 @@
 // frontend/src/components/SentenceList.jsx
 
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box, Button, Typography, Paper, CircularProgress, Chip, Grid, Card, CardHeader, CardContent,
   TableContainer, Table, TableHead, TableRow, TableCell, TableBody, Tooltip,
   Dialog, DialogTitle, DialogContent, DialogActions,  FormControl, InputLabel, Select, MenuItem, // 用于引擎选择
-  List, ListItem, ListItemText, Divider, IconButton, TextField, Stack, TextareaAutosize,FormControlLabel,Checkbox,
-  Badge,
+  List, ListItem, ListItemText, Divider, IconButton, TextField, Stack, TextareaAutosize,FormControlLabel,Checkbox,Collapse,
+  Badge,FormHelperText,Slider,
   LinearProgress, // 确保导入 LinearProgress
   TablePagination // 确保导入 TablePagination
 } from '@mui/material';
@@ -33,6 +33,7 @@ import {
     Delete as DeleteIcon,
     Cached as CachedIcon,
     CloudUpload as CloudUploadIcon,
+    Settings as SettingsIcon,
     MergeType as MergeTypeIcon,
     GraphicEq as GraphicEqIcon, // 一个示例图标 for Gemini
     Movie as MovieIcon, // 用于视频合成步骤
@@ -47,9 +48,11 @@ const SentenceList = ({
     playingAudio, 
     actionLoading, 
     onPlayAudio, 
+    globalTtsConfig,
     onGenerateAudio, 
     onUpdateSentenceText, 
     onDeleteSentence,
+    onSaveSentenceConfig,
     mergedAudioSegments // 新增：传递合并后的分段信息
 }) => {
     // --- 1. 新增 State ---
@@ -59,6 +62,10 @@ const SentenceList = ({
     const [page, setPage] = useState(0);
     const [rowsPerPage, setRowsPerPage] = useState(50);
     const [searchTerm, setSearchTerm] = useState('');
+
+    const [expandedSentenceId, setExpandedSentenceId] = useState(null); // <-- State for expansion
+    const [editingConfig, setEditingConfig] = useState(null); // <-- State for the config being edited
+
 
     // 为所有句子预计算 segmentInfo
     const sentencesWithSegmentInfo = useMemo(() => {
@@ -160,6 +167,83 @@ const SentenceList = ({
         handleCloseDeleteSentenceDialog();
     };
 
+    const handleToggleSettings = (sentence) => {
+        const isCurrentlyExpanded = expandedSentenceId === sentence.id;
+        if (isCurrentlyExpanded) {
+            setExpandedSentenceId(null);
+            setEditingConfig(null);
+        } else {
+            // Priority: sentence.tts_config > globalTtsConfig
+            const initialConfig = {
+                ...globalTtsConfig,
+                ...(sentence.tts_config || {}),
+            };
+            initialConfig.engine = 'gemini_tts'; 
+            setEditingConfig(initialConfig);
+            setExpandedSentenceId(sentence.id);
+        }
+    };
+
+    const handleConfigChange = (field, value) => {
+        if (editingConfig) {
+            const finalValue = field === 'temperature' ? parseFloat(value) : value;
+            setEditingConfig(prev => ({ ...prev, [field]: finalValue }));
+        }
+    };
+    
+    const handleSaveConfigClick = (sentenceId) => {
+        if (editingConfig && onSaveSentenceConfig) {
+            onSaveSentenceConfig(sentenceId, editingConfig);
+            // Optionally close panel after saving
+            // setExpandedSentenceId(null); 
+        }
+    };
+
+    const handleGenerateClick = (sentenceId) => {
+        if (editingConfig && onGenerateAudio) {
+            onGenerateAudio(sentenceId,'gemini_tts', editingConfig);
+            // Optionally close panel after generating
+            // setExpandedSentenceId(null);
+        }
+    };
+
+    const renderModelChip = (modelUsed) => {
+        if (!modelUsed) {
+            return null;
+        }
+
+        let chipLabel = modelUsed;
+        let chipColor = 'info'; // 默认颜色
+        let chipVariant = 'outlined';
+
+        if (modelUsed.includes('pro')) {
+            chipLabel = 'Pro';
+            chipColor = 'primary'; // 蓝色
+            chipVariant = 'filled'; // 使用实心填充，更醒目
+        } else if (modelUsed.includes('flash')) {
+            chipLabel = 'Flash';
+            chipColor = 'success'; // 绿色
+            chipVariant = 'filled';
+        }
+
+        return (
+            <Tooltip title={`使用模型: ${modelUsed}`}>
+                <Chip
+                    label={chipLabel}
+                    size="small"
+                    color={chipColor}
+                    variant={chipVariant}
+                    sx={{ 
+                        color: chipVariant === 'filled' ? '#fff' : undefined, // 填充模式下字体设为白色
+                        fontWeight: 'bold',
+                        letterSpacing: '0.5px'
+                    }}
+                />
+            </Tooltip>
+        );
+    };
+
+
     return (
         <>
             <Card sx={{ mt: 2 }}>
@@ -213,7 +297,7 @@ const SentenceList = ({
                                 <TableRow>
                                     <TableCell sx={{ width: '5%', fontWeight: 'bold' }}>序号</TableCell>
                                     <TableCell sx={{ fontWeight: 'bold' }}>句子文本</TableCell>
-                                    <TableCell sx={{ width: '10%', fontWeight: 'bold', textAlign: 'center' }}>语音状态</TableCell>
+                                    <TableCell sx={{ width: '10%', fontWeight: 'bold', textAlign: 'center' }}>状态与模型</TableCell>
                                     <TableCell sx={{ width: '15%', fontWeight: 'bold', textAlign: 'center' }}>合并时间戳</TableCell>
                                     <TableCell sx={{ width: '25%', fontWeight: 'bold', textAlign: 'center' }}>操作</TableCell>
                                 </TableRow>
@@ -230,75 +314,160 @@ const SentenceList = ({
                                 ) : (
                                     // paginatedSentences 中的每个 sentence 对象现在都预先计算了 segmentInfo
                                     paginatedSentences.map(sentence => (
-                                        <TableRow key={sentence.id} hover>
-                                            <TableCell>
-                                                {/* --- 4. 添加小红点标记 --- */}
-                                                <Badge color="error" variant="dot" invisible={!sentence.modified_after_merge}>
-                                                    {sentence.order_index + 1}
-                                                </Badge>
-                                            </TableCell>
-                                            <TableCell sx={{whiteSpace: "pre-wrap", wordBreak: "break-word"}}>{sentence.text}</TableCell>
-                                            <TableCell align="center">
-                                                <Chip
-                                                    label={sentence.audio_status || '未知'}
-                                                    size="small"
-                                                    color={sentence.audio_status === 'generated' ? 'success' : (sentence.audio_status === 'generating' || sentence.audio_status === 'processing_request' || sentence.audio_status === 'queued' ? 'info' : (sentence.audio_status?.startsWith('error') ? 'error' : 'default'))}
-                                                />
-                                            </TableCell>
-                                            <TableCell align="center">
-                                                {/* 直接使用预计算的 sentence.segmentInfo */}
-                                                {sentence.segmentInfo ? 
-                                                    <Tooltip title={`开始: ${sentence.segmentInfo.start_ms}ms, 结束: ${sentence.segmentInfo.end_ms}ms, 时长: ${sentence.segmentInfo.duration_ms}ms`}>
-                                                        <span>{`${formatMsToTime(sentence.segmentInfo.start_ms)} - ${formatMsToTime(sentence.segmentInfo.end_ms)}`}</span>
-                                                    </Tooltip>
-                                                    : '-'}
-                                            </TableCell>
-                                            <TableCell align="right">
-                                                {/* 操作按钮部分，直接使用 sentence 对象 */}
-                                                <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-                                                    <Tooltip title="编辑句子">
-                                                        {/* 传递的是包含了 segmentInfo 的 sentence 对象，但不影响 dialog 的逻辑 */}
-                                                        <IconButton size="small" onClick={() => handleOpenEditSentenceDialog(sentence)} color="default">
-                                                            <EditIcon fontSize="small" />
-                                                        </IconButton>
-                                                    </Tooltip>
-                                                    <Tooltip title="删除句子">
-                                                        <IconButton size="small" onClick={() => handleOpenDeleteSentenceDialog(sentence)} color="error">
-                                                            <DeleteIcon fontSize="small" />
-                                                        </IconButton>
-                                                    </Tooltip>
-                                                    {sentence.audio_status === 'generated' && sentence.latest_audio_url && (
-                                                        <Tooltip title={playingAudio && playingAudio.sentenceId === sentence.id ? "停止" : "播放"}>
-                                                            <IconButton size="small" onClick={() => onPlayAudio(sentence.id, sentence.latest_audio_url)} color={playingAudio && playingAudio.sentenceId === sentence.id ? "error" : "primary"}>
-                                                                {playingAudio && playingAudio.sentenceId === sentence.id ? <StopCircleOutlinedIcon /> : <PlayArrowIcon />}
+                                        <React.Fragment key={sentence.id}>
+                                            <TableRow hover>
+                                                <TableCell>
+                                                    {/* --- 4. 添加小红点标记 --- */}
+                                                    <Badge color="error" variant="dot" invisible={!sentence.modified_after_merge}>
+                                                        {sentence.order_index + 1}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell sx={{whiteSpace: "pre-wrap", wordBreak: "break-word"}}>{sentence.text}</TableCell>
+                                                <TableCell align="center">
+                                                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5 }}>
+                                                        {/* 状态 Chip */}
+                                                        <Chip 
+                                                            label={sentence.audio_status || '未知'} 
+                                                            size="small" 
+                                                            color={sentence.audio_status === 'generated' ? 'success' : 'default'}
+                                                        />
+                                                        
+                                                        {/* --- 这里是关键修改 --- */}
+                                                        {/* 调用新的辅助函数来渲染模型Chip */}
+                                                        {renderModelChip(sentence.model_used)}
+                                                        {/* --- 修改结束 --- */}
+
+                                                        {/* 自定义配置的提示 Chip */}
+                                                        {sentence.tts_config && (
+                                                            <Tooltip title="此句有单独配置">
+                                                            <Chip label="自定义" size="small" variant="outlined" />
+                                                            </Tooltip>
+                                                        )}
+                                                    </Box>
+                                                </TableCell>
+                                                <TableCell align="center">
+                                                    {/* 直接使用预计算的 sentence.segmentInfo */}
+                                                    {sentence.segmentInfo ? 
+                                                        <Tooltip title={`开始: ${sentence.segmentInfo.start_ms}ms, 结束: ${sentence.segmentInfo.end_ms}ms, 时长: ${sentence.segmentInfo.duration_ms}ms`}>
+                                                            <span>{`${formatMsToTime(sentence.segmentInfo.start_ms)} - ${formatMsToTime(sentence.segmentInfo.end_ms)}`}</span>
+                                                        </Tooltip>
+                                                        : '-'}
+                                                </TableCell>
+                                                <TableCell align="right">
+                                                    {/* 操作按钮部分，直接使用 sentence 对象 */}
+                                                    <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                                                        <Tooltip title="编辑句子">
+                                                            {/* 传递的是包含了 segmentInfo 的 sentence 对象，但不影响 dialog 的逻辑 */}
+                                                            <IconButton size="small" onClick={() => handleOpenEditSentenceDialog(sentence)} color="default">
+                                                                <EditIcon fontSize="small" />
                                                             </IconButton>
                                                         </Tooltip>
-                                                    )}
-                                                    {sentence.audio_status === 'generated' && sentence.latest_audio_url && (
-                                                        <Tooltip title="下载">
-                                                            <IconButton size="small" href={sentence.latest_audio_url.startsWith('http') ? sentence.latest_audio_url : `${API_BASE_URL.replace('/api', '')}/media/tts_audio/${sentence.latest_audio_url}`} download={`sentence_${sentence.order_index + 1}.wav`} color="primary">
-                                                                <DownloadIcon />
+                                                        <Tooltip title="删除句子">
+                                                            <IconButton size="small" onClick={() => handleOpenDeleteSentenceDialog(sentence)} color="error">
+                                                                <DeleteIcon fontSize="small" />
                                                             </IconButton>
                                                         </Tooltip>
-                                                    )}
-                                                    {(['pending_generation', 'error_generation', 'pending_regeneration', 'error_submission', 'error_polling', 'queued'].includes(sentence.audio_status) || !sentence.audio_status) && (
-                                                        <Button size="small" variant="outlined" onClick={() => onGenerateAudio(sentence.id,'gemini_tts')} disabled={actionLoading[`sentence_${sentence.id}`] || sentence.audio_status === 'processing_request' || sentence.audio_status === 'generating'} startIcon={(actionLoading[`sentence_${sentence.id}`] || sentence.audio_status === 'processing_request' || sentence.audio_status === 'generating') ? <CircularProgress size={16} /> : <AudiotrackIcon />}>
-                                                            {sentence.audio_status?.startsWith('error') ? '重试' : '生成'}
-                                                        </Button>
-                                                    )}
-                                                    {sentence.audio_status === 'generated' && (
-                                                        <Tooltip title="重新生成语音">
-                                                            <span>
-                                                                <IconButton size="small" onClick={() => onGenerateAudio(sentence.id)} disabled={actionLoading[`sentence_${sentence.id}`] || sentence.audio_status === 'processing_request' || sentence.audio_status === 'generating'} sx={{ ml: 0.5 }}>
-                                                                    {(actionLoading[`sentence_${sentence.id}`] || sentence.audio_status === 'processing_request' || sentence.audio_status === 'generating') ? <CircularProgress size={20} color="inherit" /> : <RefreshIcon />}
+                                                        {sentence.audio_status === 'generated' && sentence.latest_audio_url && (
+                                                            <Tooltip title={playingAudio && playingAudio.sentenceId === sentence.id ? "停止" : "播放"}>
+                                                                <IconButton size="small" onClick={() => onPlayAudio(sentence.id, sentence.latest_audio_url)} color={playingAudio && playingAudio.sentenceId === sentence.id ? "error" : "primary"}>
+                                                                    {playingAudio && playingAudio.sentenceId === sentence.id ? <StopCircleOutlinedIcon /> : <PlayArrowIcon />}
                                                                 </IconButton>
-                                                            </span>
+                                                            </Tooltip>
+                                                        )}
+                                                        {sentence.audio_status === 'generated' && sentence.latest_audio_url && (
+                                                            <Tooltip title="下载">
+                                                                <IconButton size="small" href={sentence.latest_audio_url.startsWith('http') ? sentence.latest_audio_url : `${API_BASE_URL.replace('/api', '')}/media/tts_audio/${sentence.latest_audio_url}`} download={`sentence_${sentence.order_index + 1}.wav`} color="primary">
+                                                                    <DownloadIcon />
+                                                                </IconButton>
+                                                            </Tooltip>
+                                                        )}
+                                                        {(['pending_generation', 'error_generation', 'pending_regeneration', 'error_submission', 'error_polling', 'queued'].includes(sentence.audio_status) || !sentence.audio_status) && (
+                                                            <Button size="small" variant="outlined" onClick={() => onGenerateAudio(sentence.id,'gemini_tts')} disabled={actionLoading[`sentence_${sentence.id}`] || sentence.audio_status === 'processing_request' || sentence.audio_status === 'generating'} startIcon={(actionLoading[`sentence_${sentence.id}`] || sentence.audio_status === 'processing_request' || sentence.audio_status === 'generating') ? <CircularProgress size={16} /> : <AudiotrackIcon />}>
+                                                                {sentence.audio_status?.startsWith('error') ? '重试' : '生成'}
+                                                            </Button>
+                                                        )}
+                                                        <Tooltip title="生成设置">
+                                                            <IconButton size="small" onClick={() => handleToggleSettings(sentence)} color={expandedSentenceId === sentence.id ? "primary" : "default"}>
+                                                                <SettingsIcon fontSize="small" />
+                                                            </IconButton>
                                                         </Tooltip>
-                                                    )}
-                                                    {(sentence.audio_status === 'generating' || sentence.audio_status === 'processing_request') && <CircularProgress size={20} sx={{ ml: 1 }} />}
-                                                </Box>
-                                            </TableCell>
-                                        </TableRow>
+                                                        {sentence.audio_status === 'generated' && (
+                                                            <Tooltip title="重新生成语音">
+                                                                <span>
+                                                                    <IconButton size="small" onClick={() => onGenerateAudio(sentence.id,'gemini_tts')} disabled={actionLoading[`sentence_${sentence.id}`] || sentence.audio_status === 'processing_request' || sentence.audio_status === 'generating'} sx={{ ml: 0.5 }}>
+                                                                        {(actionLoading[`sentence_${sentence.id}`] || sentence.audio_status === 'processing_request' || sentence.audio_status === 'generating') ? <CircularProgress size={20} color="inherit" /> : <RefreshIcon />}
+                                                                    </IconButton>
+                                                                </span>
+                                                            </Tooltip>
+                                                        )}
+                                                        {(sentence.audio_status === 'generating' || sentence.audio_status === 'processing_request') && <CircularProgress size={20} sx={{ ml: 1 }} />}
+                                                    </Box>
+                                                </TableCell>
+                                            </TableRow>
+
+                                            <TableRow>
+                                                <TableCell style={{ padding: 0, border: 0 }} colSpan={5}>
+                                                    <Collapse in={expandedSentenceId === sentence.id} timeout="auto" unmountOnExit>
+                                                        <Box sx={{ p: 2, backgroundColor: 'rgba(0, 150, 136, 0.05)', borderTop: '1px solid', borderColor: 'divider' }}>
+                                                            <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold' }}>
+                                                                单句语音生成设置 (序号 {sentence.order_index + 1})
+                                                            </Typography>
+                                                            {editingConfig && (
+                                                                <Grid container spacing={2}>
+                                                                    <Grid item xs={12} md={6}>
+                                                                        <FormControl fullWidth size="small" margin="dense">
+                                                                            <InputLabel>TTS 模型</InputLabel>
+                                                                            <Select
+                                                                                value={editingConfig.model || ''}
+                                                                                label="TTS 模型"
+                                                                                onChange={(e) => handleConfigChange('model', e.target.value)}
+                                                                            >
+                                                                                <MenuItem value="gemini-2.5-flash-preview-tts">Gemini Flash (速度快)</MenuItem>
+                                                                                <MenuItem value="gemini-2.5-pro-preview-tts">Gemini Pro (质量高)</MenuItem>
+                                                                            </Select>
+                                                                        </FormControl>
+                                                                        <TextField
+                                                                            fullWidth multiline rows={3} margin="dense" size="small"
+                                                                            label="系统提示词 (留空则使用全局)"
+                                                                            value={editingConfig.system_prompt || ''}
+                                                                            placeholder={globalTtsConfig.system_prompt}
+                                                                            onChange={(e) => handleConfigChange('system_prompt', e.target.value)}
+                                                                        />
+                                                                    </Grid>
+                                                                    <Grid item xs={12} md={6}>
+                                                                        <Typography gutterBottom variant="body2">温度</Typography>
+                                                                        <Stack spacing={2} direction="row" alignItems="center">
+                                                                            <Slider
+                                                                                value={typeof editingConfig.temperature === 'number' ? editingConfig.temperature : 0}
+                                                                                onChange={(e, val) => handleConfigChange('temperature', val)}
+                                                                                aria-labelledby="sentence-temperature-slider"
+                                                                                valueLabelDisplay="auto"
+                                                                                // --- 修改点 ---
+                                                                                step={0.01}
+                                                                                marks={[
+                                                                                    { value: 0, label: '0.0' },
+                                                                                    { value: 1, label: '1.0' },
+                                                                                    { value: 2, label: '2.0' },
+                                                                                ]}
+                                                                                min={0}
+                                                                                max={2}
+                                                                                // --- 修改结束 ---
+                                                                            />
+                                                                            <Chip label={editingConfig.temperature.toFixed(2)} />
+                                                                        </Stack>
+                                                                    </Grid>
+                                                                    <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, pt: 1 }}>
+                                                                        <Button size="small" onClick={() => handleToggleSettings(sentence)}>取消</Button>
+                                                                        <Button size="small" variant="outlined" onClick={() => handleSaveConfigClick(sentence.id)} disabled={actionLoading[`save_config_${sentence.id}`]} startIcon={actionLoading[`save_config_${sentence.id}`] ? <CircularProgress size={16}/> : <SaveIcon />}>保存配置</Button>
+                                                                        <Button size="small" variant="contained" onClick={() => handleGenerateClick(sentence.id)} disabled={actionLoading[`sentence_${sentence.id}`]} startIcon={actionLoading[`sentence_${sentence.id}`] ? <CircularProgress size={16}/> : <AudiotrackIcon />}>使用此配置生成</Button>
+                                                                    </Grid>
+                                                                </Grid>
+                                                            )}
+                                                        </Box>
+                                                    </Collapse>
+                                                </TableCell>
+                                            </TableRow>
+                                        </React.Fragment>
                                     ))
                                 )}
                             </TableBody>

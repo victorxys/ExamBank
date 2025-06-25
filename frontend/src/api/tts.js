@@ -41,6 +41,11 @@ export const ttsApi = {
   // 新增：合并当前生成的语音
   mergeCurrentGeneratedAudios: (contentId) => api.post(`/tts/training-contents/${contentId}/merge-current-audio`),
 
+  // TtsConfig - 获取和更新配置
+  updateTrainingContentTtsConfig: (contentId, config) => api.put(`/tts/training-contents/${contentId}/tts-config`, config),
+
+  // TtsSentence - 跟新句子TTS配置
+  updateSentenceTtsConfig: (sentenceId, config) => api.put(`/tts/sentences/${sentenceId}/tts-config`, config),
 
   // TtsSentence - 手动更新句子文本
   updateSentence: (sentenceId, data) => api.put(`/tts/sentences/${sentenceId}`, data),

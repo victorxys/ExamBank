@@ -2,6 +2,10 @@
 import os
 from celery import Celery
 from dotenv import load_dotenv
+from celery.schedules import crontab # <--- 1. 导入 crontab
+from datetime import datetime 
+import pytz                 
+
 
 # 在这里加载 .env，因为它现在与 .env 文件在同一目录（项目根目录）
 # 或者您的 .env 文件确实在 backend/ 目录下，那么路径需要调整
@@ -46,6 +50,33 @@ celery_app .conf.update(
     timezone='Asia/Shanghai',
     enable_utc=True,
 )
+
+# ++++++++++++++++ 动态计算太平洋时间午夜对应的上海时间 ++++++++++++++++
+
+@celery_app.on_after_configure.connect
+def setup_periodic_tasks(sender, **kwargs):
+    """
+    这个函数会在Celery app配置完成后被自动调用。
+    sender 是Celery app实例。
+    """
+    # 1. 设置时区
+    sender.conf.timezone = 'America/Los_Angeles'
+
+    # 2. 添加定时任务
+    sender.add_periodic_task(
+        # 使用 crontab，表示太平洋时间的每天0点1分
+        crontab(hour=0, minute=1),
+        # 任务的签名，指向 'tasks.reset_daily_tts_usage'
+        sender.signature('tasks.reset_daily_tts_usage'),
+        # 任务的名字
+        name='reset-tts-usage-at-pt-midnight'
+    )
+    
+    # (可选) 演示：添加一个每30秒执行一次的测试任务
+    # sender.add_periodic_task(30.0, sender.signature('tasks.some_test_task'), name='add every 30')
+
+    print("✅ Celery Beat: 定时任务已通过 on_after_configure 信号成功设置。")
+    print(f"✅ 将在太平洋时间 (PT) 00:01 执行 'tasks.reset_daily_tts_usage'")
 
 # 可选的 FlaskTask 定义 (如果任务需要 Flask 上下文)
 # class FlaskTask(app.Task):

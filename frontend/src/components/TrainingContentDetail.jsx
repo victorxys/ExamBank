@@ -5,13 +5,15 @@ import {
   Box, Button, Typography, Paper, CircularProgress, Chip, Grid, Card, CardHeader, CardContent,
   TableContainer, Table, TableHead, TableRow, TableCell, TableBody, Tooltip,
   Dialog, DialogTitle, DialogContent, DialogActions,  FormControl, InputLabel, Select, MenuItem, // 用于引擎选择
-  List, ListItem, ListItemText, Divider, IconButton, TextField, Stack, TextareaAutosize,
+  List, ListItem, ListItemText, Divider, IconButton, TextField, Stack, TextareaAutosize,Collapse,FormHelperText,Slider,
   LinearProgress, // 确保导入 LinearProgress
   TablePagination // 确保导入 TablePagination
 } from '@mui/material';
 
 import {
     PlayArrow as PlayArrowIcon,
+    ExpandLess as ExpandLessIcon,
+    ExpandMore as ExpandMoreIcon, // 确保导入 ExpandLess
     Download as DownloadIcon,
     Refresh as RefreshIcon,
     Edit as EditIcon,
@@ -31,6 +33,7 @@ import {
     Delete as DeleteIcon,
     Cached as CachedIcon,
     CloudUpload as CloudUploadIcon,
+    Settings as SettingsIcon,
     MergeType as MergeTypeIcon,
     GraphicEq as GraphicEqIcon, // 一个示例图标 for Gemini
     Movie as MovieIcon, // 用于视频合成步骤
@@ -97,6 +100,15 @@ const TrainingContentDetail = () => {
     progress: 0,
     message: '',
     status: 'idle' // 'idle', 'in_progress', 'completed', 'failed'
+  });
+
+  // New states for Global TTS Settings
+  const [isGlobalSettingsOpen, setIsGlobalSettingsOpen] = useState(false);
+  const [globalTtsConfig, setGlobalTtsConfig] = useState({
+    engine: 'gemini_tts',
+    system_prompt: '',
+    model: 'gemini-2.5-pro-preview-tts', // <--- 新增并设置默认模型
+    temperature: 0.58
   });
   
 //   // onProgress 回调函数 ---<<<
@@ -214,6 +226,23 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
                     ttsApi.getTrainingContentDetail(contentId),
                     ttsApi.getLatestSynthesisTask(contentId) // <<<--- 调用新接口
                 ]);
+
+        const detail = response.data;
+        setContentDetail(detail);
+
+        // Initialize global TTS config from fetched data or set defaults
+        if (detail.default_tts_config) {
+          setGlobalTtsConfig(prev => ({ ...prev, ...detail.default_tts_config }));
+        } else {
+          // Reset to default if no config is saved for this content
+          setGlobalTtsConfig({
+            engine: 'gemini',
+            model: 'gemini-2.5-pro-preview-tts', // 默认模型
+            system_prompt: '你是一名专业的育儿嫂培训师，请用口语化的培训师的口吻以及标准的普通话来讲解以下内容：',
+            temperature: 0.7
+          });
+        }
+        setLoading(false);
                 
         let fullOriginalContent = response.data.original_content;
         if (!fullOriginalContent && response.data.id && response.data.original_content_preview && response.data.original_content_preview.endsWith('...')) {
@@ -270,6 +299,7 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
       const extractedErrorMessage = err.response?.data?.error || err.message || '获取详情失败，请稍后重试';
       setAlert({ open: true, message: '获取详情失败: ' + extractedErrorMessage, severity: 'error' });
       setErrorStateForDisplay(extractedErrorMessage);
+      setLoading(false);
     } finally {
       if (showLoadingIndicator) setLoading(false);
     }
@@ -546,6 +576,25 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
         delete newIntervals[taskId];
         pollingIntervalsRef.current = newIntervals;
         // console.log(`Stopped polling for task (legacy key): ${taskId}`);
+    }
+  };
+
+  // --- New Handlers for Global TTS Settings ---
+  const handleGlobalConfigChange = (field, value) => {
+    setGlobalTtsConfig(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleSaveGlobalConfig = async () => {
+    const loadingKey = 'global_config';
+    setActionLoading(prev => ({ ...prev, [loadingKey]: true }));
+    try {
+      await ttsApi.updateTrainingContentTtsConfig(contentId, globalTtsConfig);
+      setAlert({ open: true, message: '全局TTS配置已保存！', severity: 'success' });
+      setIsGlobalSettingsOpen(false); // 保存后自动收起
+    } catch (error) {
+      setAlert({ open: true, message: `保存失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
+    } finally {
+      setActionLoading(prev => ({ ...prev, [loadingKey]: false }));
     }
   };
 
@@ -952,7 +1001,7 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
     }
   };
 
-  const handleGenerateSentenceAudio = async (sentenceId, engineToUse = 'gemini_tts') => { // 参数名可以是 engineToUse 或您选择的
+  const handleGenerateSentenceAudio = async (sentenceId, engineToUse = 'gemini_tts',config) => { // 参数名可以是 engineToUse 或您选择的
     const loadingKey = `sentence_${sentenceId}`;
     setActionLoading(prev => ({ ...prev, [loadingKey]: true }));
     // 准备参数，可以根据需要从UI获取
@@ -982,7 +1031,7 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
             )
         });
       }
-      const response = await ttsApi.generateSentenceAudio(sentenceId, apiParams); 
+      const response = await ttsApi.generateSentenceAudio(sentenceId, apiParams,config); 
       setAlert({ open: true, message: response.data.message || '单句语音生成任务已提交。', severity: 'info' });
       if (response.data.task_id) {
         pollTaskStatus(response.data.task_id, false, 'single_sentence_audio', sentenceId); // 传递句子ID
@@ -1001,6 +1050,20 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
       }
     } finally {
       setActionLoading(prev => ({ ...prev, [loadingKey]: false }));
+    }
+  };
+
+  const handleSaveSentenceConfig = async (sentenceId, config) => {
+    const loadingKey = `save_config_${sentenceId}`;
+    setActionLoading(prev => ({ ...prev, [loadingKey]: true }));
+    try {
+        await ttsApi.updateSentenceTtsConfig(sentenceId, config);
+        setAlert({ open: true, message: '单句配置已保存!', severity: 'success' });
+        fetchContentDetail(false); // Refresh to show updated state
+    } catch (error) {
+        setAlert({ open: true, message: `保存配置失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
+    } finally {
+        setActionLoading(prev => ({ ...prev, [loadingKey]: false }));
     }
   };
 
@@ -1444,6 +1507,86 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
 
             ) : currentActiveStepDetails.key === 'generateAndMergeAudio' ? (
               <Box>
+                <Paper elevation={1} sx={{ mb: 3, border: '1px solid', borderColor: 'divider' }}>
+                  <Box 
+                      sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 2, cursor: 'pointer' }} 
+                      onClick={() => setIsGlobalSettingsOpen(!isGlobalSettingsOpen)}
+                  >
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                          <SettingsIcon color="primary" />
+                          <Typography variant="h3" component="h3">全局TTS生成设置</Typography>
+                      </Box>
+                      <IconButton>
+                          {isGlobalSettingsOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                      </IconButton>
+                  </Box>
+                  <Collapse in={isGlobalSettingsOpen}>
+                      <Divider />
+                      <Box sx={{ p: 2 }}>
+                          <Grid container spacing={3}>
+                              <Grid item xs={12} md={6}>
+                                  <FormControl fullWidth margin="dense">
+                                      <InputLabel>TTS 模型</InputLabel>
+                                        <Select
+                                            value={globalTtsConfig.model || 'gemini-2.5-flash-preview-tts'} // 提供一个默认值
+                                            label="TTS 模型"
+                                            onChange={(e) => handleGlobalConfigChange('model', e.target.value)}
+                                        >
+                                            <MenuItem value="gemini-2.5-flash-preview-tts">Gemini Flash (速度快)</MenuItem>
+                                            <MenuItem value="gemini-2.5-pro-preview-tts">Gemini Pro (质量高)</MenuItem>
+                                            {/* 你可以在这里添加更多模型选项 */}
+                                        </Select>
+                                        <FormHelperText>为所有未单独设置的句子选择默认的语音合成模型。</FormHelperText>
+                                  </FormControl>
+
+                                  <TextField
+                                      fullWidth
+                                      margin="dense"
+                                      label="系统提示词 (System Prompt)"
+                                      multiline
+                                      rows={4}
+                                      value={globalTtsConfig.system_prompt}
+                                      onChange={(e) => handleGlobalConfigChange('system_prompt', e.target.value)}
+                                      placeholder="例如：你是一名专业的育儿嫂培训师..."
+                                      variant="outlined"
+                                      sx={{ mt: 2 }}
+                                  />
+                              </Grid>
+                              <Grid item xs={12} md={6}>
+                                  <Typography gutterBottom>温度 (Temperature)</Typography>
+                                  <Stack spacing={2} direction="row" sx={{ alignItems: 'center' }}>
+                                      <Slider
+                                          value={typeof globalTtsConfig.temperature === 'number' ? globalTtsConfig.temperature : 0}
+                                          onChange={(e, newValue) => handleGlobalConfigChange('temperature', newValue)}
+                                          aria-labelledby="temperature-slider"
+                                          valueLabelDisplay="auto"
+                                          step={0.01} // 步长改为0.01，以支持两位小数
+                                          marks={[      // 自定义标记点，更清晰
+                                              { value: 0, label: '0.0' },
+                                              { value: 1, label: '1.0' },
+                                              { value: 2, label: '2.0' },
+                                          ]}
+                                          min={0}
+                                          max={2}       // 最大值改为2
+                                      />
+                                      <Chip label={globalTtsConfig.temperature.toFixed(2)} />
+                                  </Stack>
+                                  <FormHelperText>控制输出的随机性。值越高越随机，越低越确定。</FormHelperText>
+                              </Grid>
+                          </Grid>
+                          <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
+                              <Button 
+                                  variant="contained"
+                                  onClick={handleSaveGlobalConfig}
+                                  disabled={actionLoading['global_config']}
+                                  startIcon={actionLoading['global_config'] ? <CircularProgress size={20} color="inherit" /> : <SaveIcon />}
+                              >
+                                  保存全局设置
+                              </Button>
+                          </Box>
+                      </Box>
+                  </Collapse>
+                </Paper>
                 <Stack direction={{xs: 'column', sm: 'row'}} spacing={2} sx={{mb:2, alignItems: 'flex-start'}}>
                     {/* <Button 
                         variant="contained" 
@@ -1592,10 +1735,15 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
                 {contentDetail.final_script_sentences && contentDetail.final_script_sentences.length > 0 && (
                   <SentenceList
                       sentences={contentDetail.final_script_sentences}
-                      playingAudio={playingAudio} actionLoading={actionLoading}
-                      onPlayAudio={handlePlayAudio} onGenerateAudio={handleGenerateSentenceAudio}
+                      playingAudio={playingAudio} 
+                      actionLoading={actionLoading}
+                      onPlayAudio={handlePlayAudio} 
+                      onGenerateAudio={handleGenerateSentenceAudio}
                       onUpdateSentenceText={handleUpdateSentence} onDeleteSentence={handleDeleteSentence}
                       mergedAudioSegments={contentDetail?.latest_merged_audio?.segments}
+                      globalTtsConfig={globalTtsConfig}
+                      onSaveSentenceConfig={handleSaveSentenceConfig}
+
                   />
                 )}
               </Box>

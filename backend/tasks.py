@@ -32,6 +32,8 @@ from backend.api.ai_generate import generate_video_script # 导入新函数
 from backend.api.ai_generate import generate_audio_with_gemini_tts # 导入新的 Gemini TTS 函数
 from backend.api.ai_generate import get_active_llm_config_internal 
 from .manager_module import get_next_identity
+from .manager_module import reset_all_usage
+
 
 
 import httpx # <<<--- 关键：导入httpx库
@@ -391,7 +393,9 @@ def trigger_tts_refine_async(self, oral_script_id_str):
     # 如果重试5次后依然失败，不要再尝试了
     retry_jitter=True # 防止所有任务在同一时刻重试
 )
-def generate_single_sentence_audio_async(self, sentence_id_str, tts_engine_identifier="gradio_default", pt_file_path_relative=None, tts_engine_params=None):
+def generate_single_sentence_audio_async(self, sentence_id_str, tts_engine_identifier="gradio_default", pt_file_path_relative=None, tts_engine_params=None, override_config=None):
+# def generate_single_sentence_audio_async(self, sentence_id_str, override_config=None):
+
     # ... (这个任务的完整实现，如之前调试好的那样，它内部处理 Gradio 和 Gemini TTS 调用) ...
     # 它应该返回类似 {'status': 'Success', 'audio_id': ..., 'file_path': ...}
     # 或者 {'status': 'Error', 'message': ...}
@@ -409,6 +413,22 @@ def generate_single_sentence_audio_async(self, sentence_id_str, tts_engine_ident
             self.update_state(state='FAILURE', meta={'exc_type': 'ValueError', 'exc_message': '未找到关联的培训内容'})
             return {'status': 'Error', 'message': '未找到关联的培训内容'}
 
+        # --- 核心：配置解析逻辑 ---
+        final_config = {}
+        # 1. 从App配置加载系统默认值
+        final_config.update(current_app.config.get('DEFAULT_TTS_CONFIG', {})) # 假设你在app.py中定义了DEFAULT_TTS_CONFIG
+        # 2. 从TrainingContent加载全局配置
+        if training_content.default_tts_config:
+            final_config.update(training_content.default_tts_config)
+        # 3. 从TtsSentence加载单句特定配置
+        if sentence.tts_config:
+            final_config.update(sentence.tts_config)
+        # 4. 使用API传入的临时配置覆盖
+        if override_config and isinstance(override_config, dict):
+            final_config.update(override_config)
+        
+        logger.info(f"[AudioTask:{self.request.id}] Sentence {sentence_id_str} | Final TTS Config: {final_config}")
+
         try:
             sentence.audio_status = 'generating'
             db.session.commit()
@@ -419,7 +439,7 @@ def generate_single_sentence_audio_async(self, sentence_id_str, tts_engine_ident
 
             if tts_engine_identifier == "gemini_tts":
                 logger.info(f"GenerateAudio Task: Using Gemini TTS for sentence {sentence_id_str}")
-
+                
                 # ++++++++++++++++ 集成代理和密钥管理器 (最终版) ++++++++++++++++
                 # 1. 从 current_app 获取全局的管理器实例
                 # manager = current_app.proxy_key_manager
@@ -427,13 +447,13 @@ def generate_single_sentence_audio_async(self, sentence_id_str, tts_engine_ident
 
                 # # 2. 向管理器请求下一个可用的 "身份"
                 # identity = manager.get_next_identity()
-                
-                
-                identity = get_next_identity()
-                # 直接使用返回的身份信息
-                gemini_api_key = identity['api_key']
+
+                tts_engine = final_config.get('engine', 'gemini') # 默认使用gemini
+                text_to_speak = final_config.get('system_prompt', '') + sentence.sentence_text
+                identity = get_next_identity() # 代理和密钥轮询
                 proxy_url = identity['proxy_url']
                 api_key_name = identity['id']
+                
 
 
             
@@ -461,30 +481,30 @@ def generate_single_sentence_audio_async(self, sentence_id_str, tts_engine_ident
                 # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
                 
-
-                gemini_voice = tts_engine_params.get("voice_name","Kore") 
-                gemini_temp = tts_engine_params.get("temperature", 1) 
-                gemini_model_name = tts_engine_params.get("model", "gemini-2.5-pro-preview-tts")
+                # 配置Gemini TTS 参数
+                # gemini_voice = tts_engine_params.get("voice_name","Kore") 
+                # gemini_temp = tts_engine_params.get("temperature", 0.5) 
+                # gemini_model_name = tts_engine_params.get("model", "gemini-2.5-pro-preview-tts")
                 # gemini_model_name = tts_engine_params.get("model", "gemini-2.5-flash-preview-tts")
                 # --- 调用您真正的业务逻辑 ---
                 logger.info("--- [业务逻辑开始] 正在调用 generate_audio_with_gemini_tts ---")
 
                 audio_binary_content, output_audio_mime_type = generate_audio_with_gemini_tts(
-                    text_to_speak=sentence.sentence_text,
-                    api_key=gemini_api_key,
-                    model_name=gemini_model_name,
-                    voice_name=gemini_voice,
-                    temperature=gemini_temp,
-                    proxy_url=proxy_url  # <--- 将代理URL作为新参数传递
-
+                    text_to_speak=text_to_speak,
+                    api_key=identity['api_key'],
+                    model_name=final_config.get('model', 'gemini-2.5-flash-preview-tts'),
+                    voice_name=final_config.get('voice_name',"Kore"),
+                    temperature=final_config.get('temperature', 0.75),
+                    proxy_url=identity['proxy_url']
                 )
+                final_config['api_key_name_used'] = identity['id'] # 记录使用的key
                 logger.info("--- [业务逻辑结束] 调用 generate_audio_with_gemini_tts 成功 ---")
 
                 actual_generation_params_for_log = {
                     "engine": "gemini_tts", 
-                    "voice_name": gemini_voice, 
-                    "temperature": gemini_temp, 
-                    "model": gemini_model_name, 
+                    "voice_name": final_config.get('voice_name',"Kore"), 
+                    "temperature": final_config.get('temperature', 0.75), 
+                    "model": final_config.get('model', 'gemini-2.5-flash-preview-tts'), 
                     "api_key_name": api_key_name, # 记录我们用了哪个Key
                     "proxy_used": proxy_url       # 记录我们用了哪个代理
                 }
@@ -577,7 +597,7 @@ def generate_single_sentence_audio_async(self, sentence_id_str, tts_engine_ident
                 file_size_bytes=file_size,
                 tts_engine=tts_engine_identifier,
                 voice_name=actual_generation_params_for_log.get("voice_name") or actual_generation_params_for_log.get("roleid") or "default",
-                generation_params=actual_generation_params_for_log,
+                generation_params=final_config,
                 version=new_version,
                 is_latest_for_sentence=True,
             )
@@ -1622,3 +1642,10 @@ def merge_current_generated_audios_async(self, training_content_id_str):
             db.session.commit()
             self.update_state(state='FAILURE', meta={'error': str(e)})
             return {'status': 'Error', 'message': '合并音频时发生服务器错误: ' + str(e)}
+    
+@celery_app.task(name='tasks.reset_daily_tts_usage')
+def reset_daily_tts_usage_task():
+    """由Celery Beat调度的任务，用于重置每日使用量。"""
+    logger.info("Celery Beat triggered: Resetting daily TTS usage...")
+    reset_all_usage()
+    logger.info("Daily TTS usage has been reset successfully.")

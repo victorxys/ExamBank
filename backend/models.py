@@ -199,6 +199,9 @@ class TrainingContent(db.Model):
     uploaded_by_user_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True, index=True, comment='上传用户ID')
     llm_oral_prompt_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('llm_prompts.id', ondelete='SET NULL', name='fk_training_content_oral_prompt'), nullable=True, comment='口语化处理LLM Prompt ID') # 添加 name
     llm_refine_prompt_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('llm_prompts.id', ondelete='SET NULL', name='fk_training_content_refine_prompt'), nullable=True, comment='修订refine脚本LLM Prompt ID') # 添加 name
+    default_tts_config = db.Column(PG_JSONB, nullable=True, comment='全局默认的TTS生成配置 (e.g., engine, prompt, temperature)')
+
+
 
     course = db.relationship('TrainingCourse', backref=backref('training_contents', lazy='dynamic', cascade='all, delete-orphan'))
     uploader = db.relationship('User', backref=backref('uploaded_training_contents', lazy='dynamic'))
@@ -614,6 +617,7 @@ class TtsSentence(db.Model):
     order_index = db.Column(db.Integer, nullable=False, comment='句子在脚本中的顺序')
     audio_status = db.Column(db.String(50), nullable=False, default='pending', index=True, comment='语音生成状态 (pending, generating, completed, error)')
     modified_after_merge = db.Column(db.Boolean, default=False, nullable=False, server_default='false', comment='在最新一次合并后是否被修改')
+    tts_config = db.Column(PG_JSONB, nullable=True, comment='针对该单句的特定TTS生成配置，覆盖全局配置')  
     created_at = db.Column(db.DateTime(timezone=True), server_default=func.now(), comment='创建时间')
     updated_at = db.Column(db.DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), comment='更新时间')
 

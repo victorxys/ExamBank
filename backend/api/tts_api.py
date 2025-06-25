@@ -202,6 +202,14 @@ def get_training_content_detail(content_id):
                 # current_app.logger.debug(f"Processing sentence: ID {sentence.id}, Order {sentence.order_index}")
                 latest_audio = sentence.audios.filter_by(is_latest_for_sentence=True).order_by(TtsAudio.created_at.desc()).first()
                 # current_app.logger.debug(f"Latest audio for sentence {sentence.id}: {latest_audio.id if latest_audio else 'None'}")
+                model_used = None
+                if latest_audio:
+                    # 优先从 generation_params 中获取精确的模型标识符
+                    if isinstance(latest_audio.generation_params, dict):
+                        model_used = latest_audio.generation_params.get('model')
+                    # 如果上面没找到，则降级使用 tts_engine 字段
+                    if not model_used:
+                        model_used = latest_audio.tts_engine
                 sentences_data.append({
                     'id': str(sentence.id),
                     'text': sentence.sentence_text,
@@ -211,6 +219,10 @@ def get_training_content_detail(content_id):
                     'latest_audio_url': latest_audio.file_path if latest_audio else None, 
                     'latest_audio_id': str(latest_audio.id) if latest_audio else None,
                     'audio_duration_ms': latest_audio.duration_ms if latest_audio else None,
+                    'tts_config': sentence.tts_config, # 返回单句的保存配置
+                    'generation_params': latest_audio.generation_params if latest_audio else None, 
+                    'tts_engine_used': latest_audio.tts_engine if latest_audio else None,
+                    'model_used': model_used # 将提取出的模型信息传递给前端
                 })
         
         current_app.logger.info(f"Processed {len(sentences_data)} sentences.") # 6. 确认句子处理数量
@@ -277,7 +289,8 @@ def get_training_content_detail(content_id):
             'scripts': scripts_data,
             'final_script_sentences': sentences_data,
             'latest_merged_audio': merged_audio_info,
-            'latest_synthesis_task': synthesis_task_data
+            'latest_synthesis_task': synthesis_task_data,
+            'default_tts_config': content.default_tts_config, # 返回全局配置
 
         }
         current_app.logger.info(f"Successfully prepared response for content {content_id}.") # 9. 确认响应准备完毕
@@ -1073,10 +1086,12 @@ def generate_sentence_audio_route(sentence_id):
 
     try:
         request_data = request.json or {}
+        # 获取请求体中的临时配置，这是可选的
+        override_config = request.get_json() or {}
         
         # 从请求中获取要使用的 TTS 引擎，默认为 gradio
         tts_engine_to_use = request_data.get("tts_engine", "gradio_default") # 前端可以传 "gemini_tts"
-        
+        current_app.logger.info(f"API generate_sentence_audio_route received tts_engine: {tts_engine_to_use} for sentence {sentence_id}")
         # 获取特定于引擎的参数
         tts_engine_params_from_request = request_data.get("tts_params", {})
         default_pt_file_relative_path = "seed_1397_restored_emb.pt" 
@@ -1090,7 +1105,8 @@ def generate_sentence_audio_route(sentence_id):
             sentence_id_str=str(sentence.id), 
             tts_engine_identifier=tts_engine_to_use,
             pt_file_path_relative=pt_file_to_use_for_gradio if tts_engine_to_use == "gradio_default" else None, # Gemini TTS 不需要本地 PT 文件
-            tts_engine_params=tts_engine_params_from_request
+            tts_engine_params=tts_engine_params_from_request,
+            override_config=override_config
         )
         
         current_app.logger.info(f"单句语音生成异步任务已启动 (Task ID: {task.id}, Engine: {tts_engine_to_use}) for sentence {sentence_id}")
@@ -1591,3 +1607,48 @@ def merge_current_audio_route(content_id):
             db.session.commit()
         current_app.logger.error(f"提交合并当前语音任务失败 (内容ID: {content_id}): {e}", exc_info=True)
         return jsonify({'error': f'提交合并当前语音任务失败: {str(e)}'}), 500
+    
+@tts_bp.route('/training-contents/<uuid:content_id>/tts-config', methods=['PUT'])
+@admin_required
+def update_training_content_tts_config(content_id):
+    content = TrainingContent.query.get(str(content_id))
+    if not content:
+        return jsonify({'error': '培训内容未找到'}), 404
+    
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': '缺少配置数据'}), 400
+
+    try:
+        # data 应该包含如 { "engine": "gemini", "temperature": 0.7, "system_prompt": "..." }
+        content.default_tts_config = data
+        db.session.commit()
+        current_app.logger.info(f"内容 {content_id} 的全局TTS配置已更新。")
+        return jsonify({'message': '全局TTS配置保存成功', 'config': content.default_tts_config})
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"更新全局TTS配置失败 for content {content_id}: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+    
+# --- 新增：保存单句TTS配置的API ---
+@tts_bp.route('/sentences/<uuid:sentence_id>/tts-config', methods=['PUT'])
+@admin_required
+def update_sentence_tts_config(sentence_id):
+    sentence = TtsSentence.query.get(str(sentence_id))
+    if not sentence:
+        return jsonify({'error': '句子未找到'}), 404
+    
+    data = request.get_json()
+    # 允许传入空对象或null来清除配置
+    if data is None:
+        return jsonify({'error': '缺少配置数据'}), 400
+        
+    try:
+        sentence.tts_config = data if data else None # 如果传入空对象/null，则清空配置
+        db.session.commit()
+        current_app.logger.info(f"句子 {sentence_id} 的特定TTS配置已更新。")
+        return jsonify({'message': '单句TTS配置保存成功', 'config': sentence.tts_config})
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"更新单句TTS配置失败 for sentence {sentence_id}: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
