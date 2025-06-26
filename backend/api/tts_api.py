@@ -1689,3 +1689,49 @@ def trigger_resplit_and_match_route(final_script_id):
             db.session.commit()
         current_app.logger.error(f"手动触发展开和匹配任务失败 for script {final_script_id}: {e}", exc_info=True)
         return jsonify({'error': f'提交重新拆分任务失败: {str(e)}'}), 500
+    
+@tts_bp.route('/scripts/<uuid:oral_script_id>/skip-tts-refine', methods=['POST'])
+@admin_required
+def skip_tts_refine_route(oral_script_id):
+    oral_script = TtsScript.query.get(str(oral_script_id))
+    if not oral_script or oral_script.script_type != 'oral_script':
+        current_app.logger.warning(f"跳过TTS Refine失败：口播脚本 {oral_script_id} 未找到或类型不正确。")
+        return jsonify({'error': '无效的口播脚本ID或类型不匹配'}), 400
+    
+    training_content = oral_script.training_content
+    if not training_content:
+        current_app.logger.warning(f"跳过TTS Refine失败：口播脚本 {oral_script_id} 未关联培训内容。")
+        return jsonify({'error': '脚本未关联到培训内容'}), 404
+
+    try:
+        current_app.logger.info(f"用户请求跳过TTS Refine步骤，将口播脚本 {oral_script.id} (v{oral_script.version}) 内容直接作为 TTS Refine稿。")
+
+        # 使用 _create_new_script_version 辅助函数创建新的 tts_refined_script
+        # 内容与 oral_script 相同
+        new_tts_refined_script = _create_new_script_version(
+            source_script_id=oral_script.id, # 源脚本是口播稿
+            training_content_id=training_content.id,
+            new_script_type='tts_refined_script', # 新脚本的类型
+            new_content=oral_script.content # 内容与口播稿相同
+            # llm_log_id 可以为 None，因为这不是 LLM 生成的
+        )
+        # db.session.add(new_tts_refined_script) # _create_new_script_version 内部应该已经 add 了
+
+        training_content.status = 'pending_llm_final_refine' # 更新状态到下一步
+        db.session.commit() # 提交新脚本和状态更新
+        
+        current_app.logger.info(f"TTS Refine步骤已跳过。新的TTS Refine稿 (ID: {new_tts_refined_script.id}, v{new_tts_refined_script.version}) 已创建，内容复制自口播稿 {oral_script.id}。TrainingContent {training_content.id} 状态更新为 'pending_llm_final_refine'。")
+        
+        return jsonify({
+            'message': 'TTS初步优化步骤已跳过，口播稿内容已用作优化稿。',
+            'skipped_to_script_id': str(new_tts_refined_script.id),
+            'next_status_expected': 'pending_llm_final_refine'
+        }), 201 # 201 Created，因为我们创建了一个新的 tts_refined_script 记录
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"跳过TTS Refine步骤失败 for oral_script {oral_script_id}: {e}", exc_info=True)
+        # 可以在这里尝试恢复 training_content.status
+        # training_content.status = 'pending_tts_refine' # 或者一个错误状态
+        # db.session.commit()
+        return jsonify({'error': f'跳过TTS Refine步骤时发生服务器错误: {str(e)}'}), 500

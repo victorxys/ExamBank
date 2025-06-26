@@ -49,6 +49,7 @@ import useTaskPolling from '../utils/useTaskPolling';
 import VideoSynthesisStep from './VideoSynthesisStep'; // <<<--- 导入新组件
 import SentenceList from './SentenceList';
 import formatMsToTime from '../utils/timeUtils'; // 确保有这个工具函数来格式化时间戳
+import SkipNextIcon from '@mui/icons-material/SkipNext'
 
 // +++ 把这个辅助函数放在组件外部或一个单独的 utils 文件中 +++
 function formatMsToSrtTime(ms) {
@@ -367,6 +368,35 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
         }, 1500); // 延迟1.5秒，给用户看“完成”状态的时间
 
     }, [fetchContentDetail]); // 依赖项现在是正确的
+
+  const handleSkipStep = async (stepToSkipKey, inputScriptId) => {
+    if (!stepToSkipKey || !inputScriptId) {
+        setAlert({open: true, message: '无法执行跳过操作：缺少必要信息。', severity: 'error'});
+        return;
+    }
+
+    const actionKey = `skip_${stepToSkipKey}_${inputScriptId}`;
+    setActionLoading(prev => ({ ...prev, [actionKey]: true }));
+    setAlert({ open: false, message: '', severity: 'info' });
+
+    try {
+        let response;
+        if (stepToSkipKey === 'triggerTtsRefine') { // 我们要跳过的是 TTS 初步优化
+            response = await ttsApi.skipTtsRefine(inputScriptId); // inputScriptId 应该是 oral_script_id
+            setAlert({ open: true, message: response.data.message || 'TTS优化步骤已跳过。', severity: 'success' });
+            fetchContentDetail(false); // 跳过后直接刷新数据，UI会根据新的状态流转
+        } else {
+            // 如果将来有其他步骤也可以跳过，可以在这里添加逻辑
+            setAlert({open: true, message: '此步骤当前不支持跳过。', severity: 'warning'});
+            return;
+        }
+    } catch (error) {
+        console.error(`跳过步骤 ${stepToSkipKey} 失败:`, error);
+        setAlert({ open: true, message: `跳过步骤失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
+    } finally {
+        setActionLoading(prev => ({ ...prev, [actionKey]: false }));
+    }
+  };
 
    const handleTaskFailure = useCallback((taskData, taskType) => {
         const errorMessage = taskData.meta?.message || taskData.error_message || '未知错误，请检查后台日志。';
@@ -1423,12 +1453,13 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
             );
           })}
         </Stack>
+        
 
         {currentActiveStepDetails && contentDetail && (
           <Box mt={2}>
             <Typography variant="h5" gutterBottom sx={{mb:2}}>{currentActiveStepDetails.label}</Typography>
             
-            {currentActiveStepDetails.key === 'splitSentences' ? ( // 第四步：脚本拆分句子
+             {  currentActiveStepDetails.key === 'splitSentences' ? (
               <Box>
                 <Paper variant="outlined" sx={{ p: 2, mb: 3 }}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
@@ -1505,7 +1536,6 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
                     />
                 )}
               </Box>
-
             ) : currentActiveStepDetails.key === 'generateAndMergeAudio' ? (
               <Box>
                 <Paper elevation={1} sx={{ mb: 3, border: '1px solid', borderColor: 'divider' }}>
@@ -1764,7 +1794,54 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
 
                     />
             ) : ( // 默认的网格布局，用于步骤 1, 2, 3 (口播稿, TTS优化, LLM修订)
-              <Grid container spacing={2}>
+              <Box> {/* 外层容器 (可选) */}
+                <Grid container spacing={2}> {/* 主 Grid Container */}
+                  
+                  {/* 条件渲染“跳过”按钮区域，作为一个占据整行的 Grid item */}
+                  {currentActiveStepDetails?.key === 'triggerTtsRefine' && (
+                    <Grid item xs={12}> {/* <--- 包裹在 Grid item 中，占据12列 (整行) */}
+                      <Box sx={{ mb: 2 }}> {/* 原始的 Box，用于边距 */}
+                        {(() => {
+                          // ... (获取 latestOralScriptId 的逻辑不变)
+                          const oralScripts = contentDetail?.scripts
+                            ?.filter(s => s.script_type === 'oral_script')
+                            .sort((a, b) => b.version - a.version);
+                          const latestOralScript = (oralScripts && oralScripts.length > 0) ? oralScripts[0] : null;
+                          const latestOralScriptId = latestOralScript?.id; // 获取 ID
+                          const contentForSkipDisplay = latestOralScript?.content || "口播稿内容加载中...";
+
+
+                          return (
+                            <Paper variant="outlined" sx={{ p: 2 }}>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb:1 }}>
+                                <Typography variant="subtitle1">
+                                  可选操作:
+                                </Typography>
+                                <Button
+                                  variant="outlined"
+                                  size="small"
+                                  startIcon={<SkipNextIcon />}
+                                  onClick={() => latestOralScriptId && handleSkipStep(currentActiveStepDetails.key, latestOralScriptId)}
+                                  disabled={!latestOralScriptId || actionLoading[`skip_${currentActiveStepDetails.key}_${latestOralScriptId}`]}
+                                >
+                                  跳过 TTS 优化 (使用口播稿)
+                                </Button>
+                              </Box>
+                              {/* 可以选择是否在这里显示口播稿预览 */}
+                              <Typography variant="caption" sx={{display: 'block', mb:1}}>将使用以下口播稿内容作为优化稿：</Typography>
+                              <Box sx={{ 
+                                  flexGrow: 1, overflowY: 'auto', whiteSpace: 'pre-wrap', 
+                                  p:1, border: '1px solid #eee', borderRadius: 1, 
+                                  maxHeight: 100, backgroundColor: '#f9f9f9' // 减小预览高度
+                              }}>
+                                {contentForSkipDisplay.substring(0, 200) + (contentForSkipDisplay.length > 200 ? "..." : "")}
+                              </Box>
+                            </Paper>
+                          );
+                        })()}
+                      </Box>
+                    </Grid>
+                  )}
                 <Grid item xs={12} md={6}>
                   <Paper variant="outlined" sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
                     <Box sx={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb:1}}>
@@ -1818,7 +1895,7 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
                                 }
                                 return '';
                             })()}
-                        </Typography>
+                        </Typography> 
                         <Button
                             variant="contained"
                             color="primary"
@@ -1866,6 +1943,7 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
                   </Paper>
                 </Grid>
               </Grid>
+              </Box>
             )}
           </Box>
         )}

@@ -22,6 +22,7 @@ export const ttsApi = {
   // --- 触发处理流程的 API ---
   generateOralScript: (contentId) => api.post(`/tts/scripts/${contentId}/generate-oral-script`),
   triggerTtsRefine: (oralScriptId) => api.post(`/tts/scripts/${oralScriptId}/tts-refine`),
+  skipTtsRefine: (oralScriptId) => api.post(`/tts/scripts/${oralScriptId}/skip-tts-refine`),
   triggerLlmRefine: (refinedScriptId) => api.post(`/tts/scripts/${refinedScriptId}/llm-refine`),
   splitSentences: (finalScriptId) => api.post(`/tts/scripts/${finalScriptId}/split-sentences`),
 

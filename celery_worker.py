@@ -56,27 +56,42 @@ celery_app .conf.update(
 @celery_app.on_after_configure.connect
 def setup_periodic_tasks(sender, **kwargs):
     """
-    这个函数会在Celery app配置完成后被自动调用。
-    sender 是Celery app实例。
+    配置定时任务，并打印对用户友好的多时区时间。
     """
-    # 1. 设置时区
+    # 1. 设置Celery Beat的主时钟为太平洋时间
     sender.conf.timezone = 'America/Los_Angeles'
 
-    # 2. 添加定时任务
+    # --- 定义我们的定时任务时间 ---
+    run_hour_pt = 0   # 太平洋时间 0 点
+    run_minute_pt = 1 # 太平洋时间 1 分
+
+    # 2. 添加主要的重置任务
     sender.add_periodic_task(
-        # 使用 crontab，表示太平洋时间的每天0点1分
-        crontab(hour=0, minute=1),
-        # 任务的签名，指向 'tasks.reset_daily_tts_usage'
+        crontab(hour=run_hour_pt, minute=run_minute_pt),
         sender.signature('tasks.reset_daily_tts_usage'),
-        # 任务的名字
         name='reset-tts-usage-at-pt-midnight'
     )
     
-    # (可选) 演示：添加一个每30秒执行一次的测试任务
-    # sender.add_periodic_task(30.0, sender.signature('tasks.some_test_task'), name='add every 30')
+    # ++++++++++++++++ 增强的、对用户友好的日志输出 ++++++++++++++++
+    
+    # 3. 获取太平洋时区和北京时区对象
+    pacific_tz = pytz.timezone('America/Los_Angeles')
+    beijing_tz = pytz.timezone('Asia/Shanghai')
 
+    # 4. 创建一个代表“今天太平洋时间目标时刻”的时间对象
+    #    我们用一个虚拟的日期，因为我们只关心小时和分钟的转换
+    now_in_pt = datetime.now(pacific_tz)
+    target_time_pt = now_in_pt.replace(hour=run_hour_pt, minute=run_minute_pt, second=0, microsecond=0)
+
+    # 5. 将这个太平洋时间对象，转换为北京时间
+    target_time_beijing = target_time_pt.astimezone(beijing_tz)
+
+    # 6. 格式化输出
+    pt_time_str = target_time_pt.strftime('%H:%M')
+    beijing_time_str = target_time_beijing.strftime('%H:%M')
+    
     print("✅ Celery Beat: 定时任务已通过 on_after_configure 信号成功设置。")
-    print(f"✅ 将在太平洋时间 (PT) 00:01 执行 'tasks.reset_daily_tts_usage'")
+    print(f"✅ 'tasks.reset_daily_tts_usage' 将在每天的 太平洋时间 (PT) {pt_time_str} (即 北京时间 {beijing_time_str}) 执行。")
 
 # 可选的 FlaskTask 定义 (如果任务需要 Flask 上下文)
 # class FlaskTask(app.Task):
