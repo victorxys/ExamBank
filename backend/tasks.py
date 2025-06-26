@@ -1457,9 +1457,16 @@ def synthesize_video_task(self, synthesis_id_str):
                 video_save_path, 
                 codec='libx264', 
                 audio_codec='aac',
-                threads=4, 
+                # ++++++++++++++++ 关键优化 ++++++++++++++++
+                # 1. 将线程数设置为您CPU的核心数（原始为4）
+                threads=10, 
+
                 fps=24,
-                preset='medium',
+                # 2. (推荐) 使用更快的预设来减少CPU计算时间，会稍微影响画质的质量
+                #    ultrafast > superfast > veryfast > faster > fast > medium
+                #    可以先从 'fast' 或 'veryfast' 开始尝试
+                preset='fast', 
+                # preset='medium',
                 logger=custom_logger,
                 ffmpeg_params=['-pix_fmt', 'yuv420p']
                 # <<<--- 移除 'buffersize=buffersize' 参数 ---<<<
@@ -1649,3 +1656,135 @@ def reset_daily_tts_usage_task():
     logger.info("Celery Beat triggered: Resetting daily TTS usage...")
     reset_all_usage()
     logger.info("Daily TTS usage has been reset successfully.")
+
+
+# --- 辅助函数：保存合并后的音频文件 ---
+def _find_reusable_audio_info(text_to_match, training_content_id_to_match):
+    """
+    辅助函数：在指定 training_content_id 下查找具有相同文本且已生成音频的句子，
+    并返回其最新的 TtsAudio 记录的信息。
+    """
+    # 查询 TtsSentence，需要通过 join TtsScript 来过滤 training_content_id
+    reusable_sentence_with_audio = db.session.query(TtsSentence, TtsAudio).join(
+        TtsAudio, TtsSentence.id == TtsAudio.tts_sentence_id
+    ).join(
+        TtsScript, TtsSentence.tts_script_id == TtsScript.id # <--- 加入 TtsScript
+    ).filter(
+        TtsScript.training_content_id == training_content_id_to_match, # <--- 通过 TtsScript 过滤
+        TtsSentence.sentence_text == text_to_match,
+        TtsSentence.audio_status == 'generated',
+        TtsAudio.is_latest_for_sentence == True 
+    ).order_by(TtsAudio.created_at.desc()).first()
+
+    if reusable_sentence_with_audio:
+        _, audio_record = reusable_sentence_with_audio
+        return {
+            'file_path': audio_record.file_path,
+            'duration_ms': audio_record.duration_ms,
+            'file_size_bytes': audio_record.file_size_bytes,
+            'tts_engine': audio_record.tts_engine,
+            'voice_name': audio_record.voice_name,
+            'generation_params': audio_record.generation_params,
+        }
+    return None
+
+# 匹配拆分后的句子，看库中是否已有此音频
+@celery_app.task(bind=True, name='tasks.resplit_and_match_sentences')
+def resplit_and_match_sentences_task(self, final_tts_script_id_str):
+    app = create_flask_app_for_task()
+    with app.app_context():
+        final_script = TtsScript.query.get(final_tts_script_id_str)
+        if not final_script or final_script.script_type != 'final_tts_script':
+            logger.error(f"[ResplitTask:{self.request.id}] 脚本 {final_tts_script_id_str} 未找到或非最终脚本。")
+            # self.update_state(state='FAILURE', meta=...)
+            raise ValueError("无效的脚本ID或类型") # 让Celery标记为FAILURE
+
+        training_content = final_script.training_content
+        if not training_content:
+            logger.error(f"[ResplitTask:{self.request.id}] 脚本 {final_script.id} 未关联培训内容。")
+            raise ValueError("脚本未关联培训内容")
+
+        logger.info(f"[ResplitTask:{self.request.id}] 开始为脚本 {final_script.id} (v{final_script.version}) 重新拆分和匹配句子。")
+        
+        try:
+            # 1. (可选) 将与此脚本旧版本关联的所有句子的 is_latest_for_script 标记为 False
+            #    或者，我们直接创建新句子，旧句子如果不再被引用，自然就“过时”了。
+            #    为了简化，我们先不显式标记旧句子，而是专注于创建新句子列表。
+            #    在创建新句子之前，删除与当前 final_tts_script_id 关联的所有旧 TtsSentence 记录。
+            #    这样可以确保每个脚本版本都有自己的一套句子，避免混淆。
+            #    但这也意味着我们不能直接从“上一个版本”的句子复用，而是从整个 TrainingContent 下复用。
+            
+            # 先删除当前脚本版本已有的所有句子，以便重新创建
+            # 这样可以确保每个脚本版本下的句子列表是干净的
+            TtsSentence.query.filter_by(tts_script_id=final_script.id).delete()
+            # 注意：如果 TtsSentence 和 TtsAudio 之间没有设置 cascade delete on tts_sentence_id，
+            # 那么删除 TtsSentence 不会自动删除其关联的 TtsAudio。
+            # 但我们的目标是复用音频，所以不应该删除所有 TtsAudio。
+            # 这里的 delete() 只删除了句子与脚本的关联（如果TtsSentence表只记录句子和脚本ID），
+            # 或者删除了句子本身。我们需要的是，如果句子文本变了，旧的音频对新句子就没用了。
+
+            # 一个更安全的做法是：
+            # a. 获取新脚本拆分后的句子文本列表。
+            # b. 为新文本列表创建新的 TtsSentence 对象，并尝试从整个 TrainingContent 下的旧音频中复用。
+            # c. （可选）删除那些在旧版本脚本中存在，但在新版本脚本中不再存在的句子（如果需要清理）。
+
+            # 简化流程：基于新的脚本内容创建句子，并尝试复用音频
+            new_sentence_texts = [s.strip() for s in final_script.content.split('\n') if s.strip()]
+            if not new_sentence_texts: # 如果换行符分割后为空，尝试用标点
+                 # ... (更智能的拆分逻辑) ...
+                 pass # 保持简单
+
+            created_count = 0
+            reused_audio_count = 0
+
+            for index, text in enumerate(new_sentence_texts):
+                new_sentence = TtsSentence(
+                    tts_script_id=final_script.id,
+                    sentence_text=text,
+                    order_index=index,
+                    # audio_status 默认为 pending_generation
+                )
+                db.session.add(new_sentence)
+                db.session.flush() # 获取 new_sentence.id
+
+                reusable_audio_info = _find_reusable_audio_info(text, training_content.id)
+                
+                if reusable_audio_info:
+                    new_sentence.audio_status = 'generated' # 标记为已生成
+                    
+                    # 创建新的 TtsAudio 记录，指向复用的文件
+                    new_audio_record = TtsAudio(
+                        tts_sentence_id=new_sentence.id,
+                        training_content_id=training_content.id,
+                        audio_type='sentence_audio',
+                        file_path=reusable_audio_info['file_path'],
+                        duration_ms=reusable_audio_info['duration_ms'],
+                        file_size_bytes=reusable_audio_info['file_size_bytes'],
+                        tts_engine=reusable_audio_info['tts_engine'], # 可以记录为 "reused_from_" + original_engine
+                        voice_name=reusable_audio_info['voice_name'],
+                        generation_params=reusable_audio_info['generation_params'],
+                        version=1, # 对于这个新句子，这是第一个（复用的）音频版本
+                        is_latest_for_sentence=True
+                    )
+                    db.session.add(new_audio_record)
+                    reused_audio_count += 1
+                    logger.info(f"[ResplitTask:{self.request.id}] 句子 '{text[:30]}...' (新ID: {new_sentence.id}) 复用了音频: {reusable_audio_info['file_path']}")
+                    
+                else:
+                    new_sentence.audio_status = 'pending_generation'
+                    # logger.info(f"[ResplitTask:{self.request.id}] 句子 '{text[:30]}...' (新ID: {new_sentence.id}) 需要重新生成音频。")
+
+                created_count +=1
+            
+            training_content.status = 'pending_audio_generation' # 或 'audio_matching_complete'
+            db.session.commit()
+            logger.info(f"[ResplitTask:{self.request.id}] 脚本 {final_script.id} 重新拆分完成。创建/更新句子数: {created_count}，复用音频数: {reused_audio_count}")
+            return {'status': 'Success', 'message': f'句子已重新处理，复用音频 {reused_audio_count} 个。', 'created_sentences': created_count, 'reused_audios': reused_audio_count}
+
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"[ResplitTask:{self.request.id}] 重新拆分和匹配句子失败 for script {final_script.id}: {e}", exc_info=True)
+            if training_content:
+                training_content.status = 'error_sentence_resplit'
+                db.session.commit()
+            raise # 让Celery知道任务失败了

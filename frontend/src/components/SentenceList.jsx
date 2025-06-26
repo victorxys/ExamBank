@@ -93,7 +93,8 @@ const SentenceList = ({
                 // 状态筛选
                 const statusMatch = statusFilter === 'all' ||
                                     (statusFilter === 'generated' && sentence.audio_status === 'generated') ||
-                                    (statusFilter === 'pending' && (sentence.audio_status?.includes('pending') || sentence.audio_status?.includes('generating') || sentence.audio_status === 'queued')) ||
+                                    (statusFilter === 'not_generated' && (sentence.audio_status?.includes('pending') || sentence.audio_status?.includes('generating') || sentence.audio_status?.includes('queued') || sentence.audio_status?.startsWith('error'))) ||
+                                    (statusFilter === 'pending' && (sentence.audio_status?.includes('pending') || sentence.audio_status?.includes('generating') || sentence.audio_status?.includes('queued'))) ||
                                     (statusFilter === 'error' && sentence.audio_status?.startsWith('error'));
                 if (!statusMatch) return false;
 
@@ -271,7 +272,8 @@ const SentenceList = ({
                                     onChange={(e) => setStatusFilter(e.target.value)}
                                 >
                                     <MenuItem value="all">所有状态</MenuItem>
-                                    <MenuItem value="generated">已生成</MenuItem>
+                                    <MenuItem value="generated">已生成</MenuItem>not_generated
+                                    <MenuItem value="not_generated">未处理</MenuItem>
                                     <MenuItem value="pending">待处理</MenuItem>
                                     <MenuItem value="error">失败</MenuItem>
                                 </Select>

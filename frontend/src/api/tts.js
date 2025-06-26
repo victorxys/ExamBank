@@ -50,6 +50,10 @@ export const ttsApi = {
   // TtsSentence - 手动更新句子文本
   updateSentence: (sentenceId, data) => api.put(`/tts/sentences/${sentenceId}`, data),
 
+  // ++++++ 新增：手动触发重新拆分和匹配的 API ++++++
+  triggerResplitAndMatch: (finalScriptId) => api.post(`/tts/scripts/${finalScriptId}/resplit-and-match`),
+
+
   // 新增：删除句子及其语音
   deleteSentence: (sentenceId) => api.delete(`/tts/sentences/${sentenceId}`),
 

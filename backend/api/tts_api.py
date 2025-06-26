@@ -9,7 +9,6 @@ from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 import uuid
 import os
 from backend.api.ai_generate import transform_text_with_llm, log_llm_call # 确保也导入 log_llm_call
-import requests
 import json
 from celery_worker import celery_app as celery_app_instance
 
@@ -19,6 +18,8 @@ from backend.tasks import merge_all_audios_for_content # Import the new task
 from backend.tasks import run_llm_function_async # 导入新的Celery任务
 from backend.tasks import synthesize_video_task # <<< 确保从 tasks 导入新任务
 from backend.tasks import merge_current_generated_audios_async # 导入新的Celery任务，合并当前已有的音频文件
+from backend.tasks import resplit_and_match_sentences_task # 重新拆分后匹配历史句子
+
 
 
 
@@ -423,49 +424,49 @@ def get_script_content(script_id):
 @admin_required
 def update_script_content_route(script_id): # Renamed to avoid conflict with get_script_content
     data = request.get_json()
-    script = TtsScript.query.get(str(script_id))
-    if not script: return jsonify({'error': '脚本未找到'}), 404
+    script_object = TtsScript.query.get(str(script_id)) # 使用不同的变量名
+    if not script_object:
+        current_app.logger.warning(f"更新脚本失败：脚本 {script_id} 未找到。")
+        return jsonify({'error': '脚本未找到'}), 404
     
-    new_content = data.get('content')
-    if new_content is None or not isinstance(new_content, str):
-        return jsonify({'error': '脚本内容 (content) 缺失或格式不正确'}), 400
+    if 'content' not in data:
+        current_app.logger.warning(f"更新脚本 {script_id} 失败：请求中缺少 'content' 字段。")
+        return jsonify({'error': '缺少脚本内容'}), 400
     
-    new_content_stripped = new_content.strip()
-    if not new_content_stripped:
-        return jsonify({'error': '脚本内容不能为空'}), 400
-
     try:
-        if script.content == new_content_stripped:
-            return jsonify({'message': '脚本内容未改变', 'id': str(script.id)}), 200
-
-        script.content = new_content_stripped
-        script.version += 1 # 更新版本号
-        script.updated_at = func.now() # SQLAlchemy会自动处理 onupdate, 但显式设置也没问题
-
-        # 如果是 final_tts_script 被修改，需要特殊处理
-        if script.script_type == 'final_tts_script':
-            current_app.logger.info(f"最终TTS脚本 {script.id} 内容被手动更新，版本升至 {script.version}.")
-            # 1. 删除旧的句子和它们关联的语音（包括物理文件）
-            old_sentences = TtsSentence.query.filter_by(tts_script_id=script.id).all()
-            for old_sentence in old_sentences:
-                audios_to_delete = TtsAudio.query.filter_by(tts_sentence_id=old_sentence.id).all()
-                for audio_record in audios_to_delete:
-                    # TODO: 实际物理文件删除
-                    current_app.logger.warning(f"TODO: 物理删除文件 {audio_record.file_path} for audio {audio_record.id} due to final script update.")
-                    db.session.delete(audio_record)
-                db.session.delete(old_sentence)
+        original_content_preview = script_object.content[:50] # 用于日志
+        script_object.content = data['content']
+        
+        if script_object.script_type == 'final_tts_script':
+            script_object.version += 1 
             
-            # 2. 更新 TrainingContent 状态，以便前端或后续流程知道需要重新拆分句子
-            if script.training_content:
-                script.training_content.status = 'pending_sentence_split' # 或更明确的状态
-                current_app.logger.info(f"内容 {script.training_content_id} 状态更新为 {script.training_content.status}，因最终脚本被编辑。")
+            if script_object.training_content: # 确保关联的 training_content 存在
+                script_object.training_content.status = 'final_script_edited_pending_resplit'
+                current_app.logger.info(f"最终脚本 {script_object.id} (v{script_object.version}) 内容已更新。TrainingContent {script_object.training_content_id} 状态更新为 'final_script_edited_pending_resplit'。")
+            else:
+                current_app.logger.warning(f"最终脚本 {script_object.id} 没有关联的 training_content，无法更新其状态。")
 
-        db.session.commit()
-        return jsonify({'message': '脚本更新成功', 'id': str(script.id), 'new_version': script.version})
+            db.session.add(script_object) # 确保 script 对象的更改（包括 training_content 的状态，如果关系配置正确）被添加到会话
+            db.session.commit() 
+            
+            return jsonify({
+                'message': '最终脚本内容已成功保存。请手动“重新拆分并匹配语音”以应用更改。', 
+                'id': str(script_object.id), 
+                'new_version': script_object.version,
+                'new_content_preview': script_object.content[:100] + "...",
+                'new_training_content_status': script_object.training_content.status if script_object.training_content else None
+            })
+        else: 
+            # 对于其他类型的脚本，如果也需要版本化，可以在这里处理
+            # script_object.version +=1 
+            db.session.commit()
+            current_app.logger.info(f"脚本 {script_object.id} ({script_object.script_type}) 内容已更新。")
+            return jsonify({'message': '脚本更新成功', 'id': str(script_object.id)})
+
     except Exception as e:
         db.session.rollback()
-        current_app.logger.error(f"更新脚本 {script_id} 失败: {e}", exc_info=True)
-        return jsonify({'error': f'更新脚本时发生服务器错误: {str(e)}'}), 500
+        current_app.logger.error(f"更新脚本 {script_id} (原内容预览: {original_content_preview}...) 失败: {e}", exc_info=True)
+        return jsonify({'error': f'更新脚本失败: {str(e)}'}), 500
 
 # --- TTS 句子 (TtsSentence) 的基础 API ---
 @tts_bp.route('/sentences/<uuid:sentence_id>', methods=['PUT'])
@@ -1652,3 +1653,39 @@ def update_sentence_tts_config(sentence_id):
         db.session.rollback()
         current_app.logger.error(f"更新单句TTS配置失败 for sentence {sentence_id}: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
+    
+
+@tts_bp.route('/scripts/<uuid:final_script_id>/resplit-and-match', methods=['POST'])
+@admin_required
+def trigger_resplit_and_match_route(final_script_id):
+    script = TtsScript.query.get(str(final_script_id))
+    if not script or script.script_type != 'final_tts_script':
+        current_app.logger.warning(f"手动触发重新拆分失败：脚本 {final_script_id} 不是有效的最终脚本。")
+        return jsonify({'error': '无效的最终脚本ID或类型不匹配'}), 400
+
+    if not script.training_content:
+        current_app.logger.warning(f"手动触发重新拆分失败：脚本 {final_script_id} 未关联到培训内容。")
+        return jsonify({'error': '脚本未关联到培训内容'}), 404
+        
+    try:
+        # 更新状态，表明正在进行拆分匹配
+        # 也可以考虑在 Celery 任务开始时再更新这个状态
+        script.training_content.status = 'processing_sentence_resplit' 
+        db.session.commit()
+
+        task = resplit_and_match_sentences_task.delay(str(script.id))
+        
+        current_app.logger.info(f"手动触发：为最终脚本 {script.id} (v{script.version}) 提交重新拆分和匹配句子任务 (ID: {task.id})。")
+        return jsonify({
+            'message': '重新拆分和匹配句子任务已成功提交处理。',
+            'task_id': task.id,
+            'status_polling_url': f'/api/tts/task-status/{task.id}'
+        }), 202
+
+    except Exception as e:
+        db.session.rollback()
+        if script.training_content:
+            script.training_content.status = 'error_submitting_resplit'
+            db.session.commit()
+        current_app.logger.error(f"手动触发展开和匹配任务失败 for script {final_script_id}: {e}", exc_info=True)
+        return jsonify({'error': f'提交重新拆分任务失败: {str(e)}'}), 500
