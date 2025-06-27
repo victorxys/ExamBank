@@ -41,6 +41,7 @@ import {
 } from '@mui/icons-material';
 import { API_BASE_URL } from '../config';
 import formatMsToTime from '../utils/timeUtils'; // 确保有这个工具函数来格式化时间戳
+import { formatRelativeTime } from '../api/dateUtils';2
 
 // SentenceList 子组件
 const SentenceList = ({ 
@@ -273,7 +274,7 @@ const SentenceList = ({
                                 >
                                     <MenuItem value="all">所有状态</MenuItem>
                                     <MenuItem value="generated">已生成</MenuItem>not_generated
-                                    <MenuItem value="not_generated">未处理</MenuItem>
+                                    <MenuItem value="not_generated">未生成</MenuItem>
                                     <MenuItem value="pending">待处理</MenuItem>
                                     <MenuItem value="error">失败</MenuItem>
                                 </Select>
@@ -300,7 +301,7 @@ const SentenceList = ({
                                     <TableCell sx={{ width: '5%', fontWeight: 'bold' }}>序号</TableCell>
                                     <TableCell sx={{ fontWeight: 'bold' }}>句子文本</TableCell>
                                     <TableCell sx={{ width: '10%', fontWeight: 'bold', textAlign: 'center' }}>状态与模型</TableCell>
-                                    <TableCell sx={{ width: '15%', fontWeight: 'bold', textAlign: 'center' }}>合并时间戳</TableCell>
+                                    <TableCell sx={{ width: '15%', fontWeight: 'bold', textAlign: 'center' }}>时间信息</TableCell>
                                     <TableCell sx={{ width: '25%', fontWeight: 'bold', textAlign: 'center' }}>操作</TableCell>
                                 </TableRow>
                             </TableHead>
@@ -348,6 +349,20 @@ const SentenceList = ({
                                                     </Box>
                                                 </TableCell>
                                                 <TableCell align="center">
+                                                    {/* 第一行：语音更新时间 */}
+                                                    {sentence.latest_audio_created_at ? (
+                                                        <Tooltip title={`生成于: ${new Date(sentence.latest_audio_created_at).toLocaleString('zh-CN')}`}>
+                                                        <Typography variant="caption" color="text.secondary" display="block">
+                                                            {/* 使用一个前缀来标识，例如一个图标 */}
+                                                            <RefreshIcon sx={{ fontSize: '0.9rem', verticalAlign: 'middle', mr: 0.5, color: 'text.disabled' }} />
+                                                            {formatRelativeTime(sentence.latest_audio_created_at)}
+                                                        </Typography>
+                                                        </Tooltip>
+                                                    ) : (
+                                                        // 如果没有更新时间，可以显示一个占位符或空内容，以保持对齐
+                                                        <Typography variant="caption" color="text.disabled" display="block">-</Typography>
+                                                    )}
+                                                    
                                                     {/* 直接使用预计算的 sentence.segmentInfo */}
                                                     {sentence.segmentInfo ? 
                                                         <Tooltip title={`开始: ${sentence.segmentInfo.start_ms}ms, 结束: ${sentence.segmentInfo.end_ms}ms, 时长: ${sentence.segmentInfo.duration_ms}ms`}>

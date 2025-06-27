@@ -69,7 +69,7 @@ const MediaPlayerPage = () => {
   const [volume, setVolume] = useState(0.8);
   const [previousVolume, setPreviousVolume] = useState(0.8);
   const [muted, setMuted] = useState(false);
-  const [playbackRate, setPlaybackRate] = useState(1.25);
+  const [playbackRate, setPlaybackRate] = useState(1.0);
   const [playedRatio, setPlayedRatio] = useState(0);
   const [playedSeconds, setPlayedSeconds] = useState(0);
   const [duration, setDuration] = useState(0);

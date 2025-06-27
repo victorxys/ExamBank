@@ -494,7 +494,7 @@ def generate_single_sentence_audio_async(self, sentence_id_str, tts_engine_ident
                     api_key=identity['api_key'],
                     model_name=final_config.get('model', 'gemini-2.5-flash-preview-tts'),
                     voice_name=final_config.get('voice_name',"Kore"),
-                    temperature=final_config.get('temperature', 0.75),
+                    temperature=final_config.get('temperature', 0.1),
                     proxy_url=identity['proxy_url']
                 )
                 final_config['api_key_name_used'] = identity['id'] # 记录使用的key
@@ -503,7 +503,7 @@ def generate_single_sentence_audio_async(self, sentence_id_str, tts_engine_ident
                 actual_generation_params_for_log = {
                     "engine": "gemini_tts", 
                     "voice_name": final_config.get('voice_name',"Kore"), 
-                    "temperature": final_config.get('temperature', 0.75), 
+                    "temperature": final_config.get('temperature', 0.1), 
                     "model": final_config.get('model', 'gemini-2.5-flash-preview-tts'), 
                     "api_key_name": api_key_name, # 记录我们用了哪个Key
                     "proxy_used": proxy_url       # 记录我们用了哪个代理

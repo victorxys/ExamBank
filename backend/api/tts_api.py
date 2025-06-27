@@ -223,7 +223,8 @@ def get_training_content_detail(content_id):
                     'tts_config': sentence.tts_config, # 返回单句的保存配置
                     'generation_params': latest_audio.generation_params if latest_audio else None, 
                     'tts_engine_used': latest_audio.tts_engine if latest_audio else None,
-                    'model_used': model_used # 将提取出的模型信息传递给前端
+                    'model_used': model_used, # 将提取出的模型信息传递给前端
+                    'latest_audio_created_at': latest_audio.created_at.isoformat() if latest_audio else None
                 })
         
         current_app.logger.info(f"Processed {len(sentences_data)} sentences.") # 6. 确认句子处理数量
@@ -292,7 +293,6 @@ def get_training_content_detail(content_id):
             'latest_merged_audio': merged_audio_info,
             'latest_synthesis_task': synthesis_task_data,
             'default_tts_config': content.default_tts_config, # 返回全局配置
-
         }
         current_app.logger.info(f"Successfully prepared response for content {content_id}.") # 9. 确认响应准备完毕
         return jsonify(response_payload)
