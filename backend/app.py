@@ -520,8 +520,8 @@ def get_courses():
             params.append(allowed_course_ids) # 直接传递列表
 
         base_query += """
-            GROUP BY c.id, c.course_name, c.age_group, c.description, c.created_at, c.updated_at
-            ORDER BY c.created_at DESC
+            GROUP BY c.id, c.age_group, c.description, c.created_at, c.updated_at
+            ORDER BY c.course_name ASC
         """
         
         cur.execute(base_query, tuple(params) if params else None) # 将列表转为元组（如果非空）
