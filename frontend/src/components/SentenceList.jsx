@@ -12,6 +12,7 @@ import {
   TablePagination // 确保导入 TablePagination
 } from '@mui/material';
 
+
 import {
     PlayArrow as PlayArrowIcon,
     Download as DownloadIcon,
@@ -41,14 +42,16 @@ import {
 } from '@mui/icons-material';
 import { API_BASE_URL } from '../config';
 import formatMsToTime from '../utils/timeUtils'; // 确保有这个工具函数来格式化时间戳
-import { formatRelativeTime } from '../api/dateUtils';2
+import { formatRelativeTime } from '../api/dateUtils';
+import MiniAudioPlayer from './MiniAudioPlayer'; // 导入新的迷你播放器组件
+
 
 // SentenceList 子组件
 const SentenceList = ({ 
     sentences, 
-    playingAudio, 
+    // playingAudio, 
     actionLoading, 
-    onPlayAudio, 
+    // onPlayAudio, 
     globalTtsConfig,
     onGenerateAudio, 
     onUpdateSentenceText, 
@@ -66,6 +69,79 @@ const SentenceList = ({
 
     const [expandedSentenceId, setExpandedSentenceId] = useState(null); // <-- State for expansion
     const [editingConfig, setEditingConfig] = useState(null); // <-- State for the config being edited
+
+    
+    // 迷你播放器相关
+    const [playerDialogOpen, setPlayerDialogOpen] = useState(false);
+    const [currentPlayingSentence, setCurrentPlayingSentence] = useState(null); // 存储 { id, text, url }
+    const [activeMiniPlayerId, setActiveMiniPlayerId] = useState(null);
+    
+    const handleOpenPlayerDialog = (sentence) => {
+        const audioRelativePath = sentence.latest_audio_url; // 这是数据库中的 file_path，例如 "CONTENT_ID/SENTENCE_ID/audio.wav"
+
+        if (audioRelativePath) {
+            // ++++++ 关键修改：构建指向 /static/tts_audio/ 的 URL ++++++
+            // 假设您的 Flask 应用将 tts_audio 目录放在了其 static 文件夹下。
+            // API_BASE_URL 通常是 http://.../api
+            // API_BASE_URL.replace('/api', '') 得到 http://...
+            const baseUrl = API_BASE_URL.replace('/api', '');
+            
+            // 拼接成标准 Flask 静态文件 URL: /static/<sub-folder>/<file>
+            // 您在后端保存文件时，保存到了 'static/tts_audio'，而 file_path 是 'CONTENT_ID/SENTENCE_ID/audio.wav'
+            // 所以 URL 应该是 /static/tts_audio/CONTENT_ID/SENTENCE_ID/audio.wav
+            // 这里的 audioRelativePath 已经包含了 CONTENT_ID/SENTENCE_ID/audio.wav
+            
+            // 我们需要确保音频文件确实在 Flask 认为的 'static' 目录下的 'tts_audio' 子目录中。
+            // 您 Celery 任务中的 _save_audio_file 函数保存路径是：
+            // storage_base_path = app.config.get('TTS_AUDIO_STORAGE_PATH', os.path.join(app.root_path, 'static', 'tts_audio'))
+            // app.root_path 通常是 'backend/'，所以物理路径是 'backend/static/tts_audio'。这是正确的。
+
+            // Flask 默认会服务 'static' 文件夹下的内容，URL 路径是 '/static'
+            // 所以，我们需要构建的 URL 是: <base_url>/static/tts_audio/<relative_path_from_db>
+            
+            // 注意：您之前使用的 /media/tts_audio/ 是不正确的，因为没有对应的 Nginx location 或 Flask 路由。
+            const fullAudioUrl = `${baseUrl}/static/tts_audio/${audioRelativePath}`;
+            // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+            console.log("Corrected audio URL pointing to Flask static path:", fullAudioUrl);
+
+            setCurrentPlayingSentence({
+                id: sentence.id,
+                text: sentence.text,
+                url: fullAudioUrl
+            });
+            setPlayerDialogOpen(true);
+            } else {
+                // 如果因为某种原因没有 URL，可以给一个提示
+                // 理论上这个按钮在这种情况下不应该被渲染
+                alert('该句子没有可播放的音频URL。'); 
+            }
+        };
+
+    const handleClosePlayerDialog = () => {
+        setPlayerDialogOpen(false);
+        // 关闭对话框时，可以考虑停止音频，但这通常由 MiniAudioPlayer 的 unmount 处理
+        setCurrentPlayingSentence(null); // 清空当前播放的句子信息
+    };
+    
+    const handleToggleMiniPlayer = (sentenceId) => {
+        const currentlyActive = activeMiniPlayerId === sentenceId;
+        
+        // 如果我们即将打开一个新的迷你播放器，
+        // 最好通知父组件停止任何正在全局播放的音频。
+        if (!currentlyActive) {
+            onPlayAudio(null, null); // 传递 null 来停止全局播放器
+        }
+        
+        setActiveMiniPlayerId(currentlyActive ? null : sentenceId);
+    };
+
+    const handleMiniPlayerEnded = () => {
+        setActiveMiniPlayerId(null); // 当迷你播放器播放结束时自动关闭
+    };
+
+    
+    
 
 
     // 为所有句子预计算 segmentInfo
@@ -316,8 +392,16 @@ const SentenceList = ({
                                     </TableRow>
                                 ) : (
                                     // paginatedSentences 中的每个 sentence 对象现在都预先计算了 segmentInfo
-                                    paginatedSentences.map(sentence => (
-                                        <React.Fragment key={sentence.id}>
+                                   paginatedSentences.map(sentence => {
+                                        const isMiniPlayerActive = activeMiniPlayerId === sentence.id;
+                                        const fullAudioUrl = sentence.latest_audio_url 
+                                        ? (sentence.latest_audio_url.startsWith('http') 
+                                            ? sentence.latest_audio_url 
+                                            : `${API_BASE_URL.replace('/api', '')}/media/tts_audio/${sentence.latest_audio_url}`)
+                                        : null;
+
+                                        return (
+                                            <React.Fragment key={sentence.id}>
                                             <TableRow hover>
                                                 <TableCell>
                                                     {/* --- 4. 添加小红点标记 --- */}
@@ -371,26 +455,39 @@ const SentenceList = ({
                                                         : '-'}
                                                 </TableCell>
                                                 <TableCell align="right">
-                                                    {/* 操作按钮部分，直接使用 sentence 对象 */}
                                                     <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
                                                         <Tooltip title="编辑句子">
+                                                            <span>
                                                             {/* 传递的是包含了 segmentInfo 的 sentence 对象，但不影响 dialog 的逻辑 */}
                                                             <IconButton size="small" onClick={() => handleOpenEditSentenceDialog(sentence)} color="default">
                                                                 <EditIcon fontSize="small" />
                                                             </IconButton>
+                                                            </span>
                                                         </Tooltip>
                                                         <Tooltip title="删除句子">
-                                                            <IconButton size="small" onClick={() => handleOpenDeleteSentenceDialog(sentence)} color="error">
+                                                            <span>
+                                                            <IconButton size="small" onClick={() => handleOpenDeleteSentenceDialog(sentence)}             color={isMiniPlayerActive ? "secondary" : "primary"}
+>
                                                                 <DeleteIcon fontSize="small" />
                                                             </IconButton>
+                                                            </span>
                                                         </Tooltip>
+                                                        {/* +++++ 修改播放按钮的行为以打开对话框 +++++ */}
                                                         {sentence.audio_status === 'generated' && sentence.latest_audio_url && (
-                                                            <Tooltip title={playingAudio && playingAudio.sentenceId === sentence.id ? "停止" : "播放"}>
-                                                                <IconButton size="small" onClick={() => onPlayAudio(sentence.id, sentence.latest_audio_url)} color={playingAudio && playingAudio.sentenceId === sentence.id ? "error" : "primary"}>
-                                                                    {playingAudio && playingAudio.sentenceId === sentence.id ? <StopCircleOutlinedIcon /> : <PlayArrowIcon />}
-                                                                </IconButton>
+                                                            <Tooltip title="预览语音">
+                                                                <span> {/* 解决 disabled 按钮的 Tooltip 警告 */}
+                                                                    <IconButton 
+                                                                        size="small" 
+                                                                        onClick={() => handleOpenPlayerDialog(sentence)} 
+                                                                        color="primary"
+                                                                        disabled={!sentence.latest_audio_url} // 如果没有 URL 则禁用
+                                                                    >
+                                                                        <PlayArrowIcon />
+                                                                    </IconButton>
+                                                                </span>
                                                             </Tooltip>
                                                         )}
+                                                        {/* +++++++++++++++++++++++++++++++++++++++++++ */}
                                                         {sentence.audio_status === 'generated' && sentence.latest_audio_url && (
                                                             <Tooltip title="下载">
                                                                 <IconButton size="small" href={sentence.latest_audio_url.startsWith('http') ? sentence.latest_audio_url : `${API_BASE_URL.replace('/api', '')}/media/tts_audio/${sentence.latest_audio_url}`} download={`sentence_${sentence.order_index + 1}.wav`} color="primary">
@@ -399,9 +496,11 @@ const SentenceList = ({
                                                             </Tooltip>
                                                         )}
                                                         {(['pending_generation', 'error_generation', 'pending_regeneration', 'error_submission', 'error_polling', 'queued'].includes(sentence.audio_status) || !sentence.audio_status) && (
+                                                            <span>
                                                             <Button size="small" variant="outlined" onClick={() => onGenerateAudio(sentence.id,'gemini_tts')} disabled={actionLoading[`sentence_${sentence.id}`] || sentence.audio_status === 'processing_request' || sentence.audio_status === 'generating'} startIcon={(actionLoading[`sentence_${sentence.id}`] || sentence.audio_status === 'processing_request' || sentence.audio_status === 'generating') ? <CircularProgress size={16} /> : <AudiotrackIcon />}>
                                                                 {sentence.audio_status?.startsWith('error') ? '重试' : '生成'}
                                                             </Button>
+                                                            </span>
                                                         )}
                                                         <Tooltip title="生成设置">
                                                             <IconButton size="small" onClick={() => handleToggleSettings(sentence)} color={expandedSentenceId === sentence.id ? "primary" : "default"}>
@@ -421,7 +520,7 @@ const SentenceList = ({
                                                     </Box>
                                                 </TableCell>
                                             </TableRow>
-
+                                            
                                             <TableRow>
                                                 <TableCell style={{ padding: 0, border: 0 }} colSpan={5}>
                                                     <Collapse in={expandedSentenceId === sentence.id} timeout="auto" unmountOnExit>
@@ -485,11 +584,42 @@ const SentenceList = ({
                                                 </TableCell>
                                             </TableRow>
                                         </React.Fragment>
-                                    ))
-                                )}
+                                    )}
+                                ))}
                             </TableBody>
                         </Table>
                     </TableContainer>
+                    {/* +++++ 播放器对话框 +++++ */}
+                    <Dialog 
+                        open={playerDialogOpen} 
+                        onClose={handleClosePlayerDialog}
+                        maxWidth="sm" // 可以调整对话框宽度: 'xs', 'sm', 'md', 'lg', 'xl'
+                        fullWidth
+                    >
+                        <DialogTitle sx={{ pb: 1 }}>
+                            语音预览
+                            <Typography variant="body2" color="text.secondary">
+                                {currentPlayingSentence?.text.substring(0, 500) + (currentPlayingSentence?.text.length > 500 ? '...' : '')}
+                            </Typography>
+                        </DialogTitle>
+                        <DialogContent>
+                            {currentPlayingSentence && (
+                                <Box sx={{ pt: 2 }}> {/* 给播放器一些上边距 */}
+                                    <MiniAudioPlayer 
+                                        src={currentPlayingSentence.url} 
+                                        onEnded={handleClosePlayerDialog} // 播放结束后自动关闭对话框
+                                    />
+                                </Box>
+                            )}
+                        </DialogContent>
+                       <DialogActions>
+                            <Button onClick={handleClosePlayerDialog} autoFocus> {/* <--- 在关闭按钮上使用 autoFocus */}
+                                关闭
+                            </Button>
+                        </DialogActions>
+                    </Dialog>
+                    {/* ++++++++++++++++++++++++ */}
+                
                     {filteredSentences.length > 0 && (
                         <TablePagination
                             component="div"
