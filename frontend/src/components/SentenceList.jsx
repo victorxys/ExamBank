@@ -5,7 +5,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box, Button, Typography, Paper, CircularProgress, Chip, Grid, Card, CardHeader, CardContent,
   TableContainer, Table, TableHead, TableRow, TableCell, TableBody, Tooltip,
-  Dialog, DialogTitle, DialogContent, DialogActions,  FormControl, InputLabel, Select, MenuItem, // 用于引擎选择
+  Dialog, DialogTitle, DialogContent, DialogActions,  FormControl, InputLabel, Select, MenuItem, Menu, // 用于引擎选择
   List, ListItem, ListItemText, Divider, IconButton, TextField, Stack, TextareaAutosize,FormControlLabel,Checkbox,Collapse,
   Badge,FormHelperText,Slider,ToggleButtonGroup,ToggleButton,
   LinearProgress, // 确保导入 LinearProgress
@@ -40,10 +40,16 @@ import {
     Movie as MovieIcon, // 用于视频合成步骤
     Subtitles as SubtitlesIcon // 新增字幕图标
 } from '@mui/icons-material';
+import FormatBoldIcon from '@mui/icons-material/FormatBold'; // 导入加粗图标
+
 import { API_BASE_URL } from '../config';
 import formatMsToTime from '../utils/timeUtils'; // 确保有这个工具函数来格式化时间戳
 import { formatRelativeTime } from '../api/dateUtils';
 import MiniAudioPlayer from './MiniAudioPlayer'; // 导入新的迷你播放器组件
+import { pinyin } from 'pinyin-pro'; // 1. 导入 pinyin-pro
+import FontDownloadIcon from '@mui/icons-material/FontDownload'; // 示例图标 for 拼音
+
+
 
 
 // SentenceList 子组件
@@ -169,6 +175,7 @@ const SentenceList = ({
 
     
     
+    
 
 
     // 为所有句子预计算 segmentInfo
@@ -224,6 +231,10 @@ const SentenceList = ({
     const [deleteSentenceConfirmOpen, setDeleteSentenceConfirmOpen] = useState(false);
     const [sentenceToDelete, setSentenceToDelete] = useState(null);
 
+    // +++++ 1. 创建 ref +++++
+    const editTextAreaRef = useRef(null);
+    // +++++++++++++++++++++++
+
     const handleChangePage = (event, newPage) => setPage(newPage);
     const handleChangeRowsPerPage = (event) => {
         setRowsPerPage(parseInt(event.target.value, 10));
@@ -253,6 +264,121 @@ const SentenceList = ({
             await onUpdateSentenceText(sentenceToEdit.id, editingSentenceText.trim());
         }
         handleCloseEditSentenceDialog();
+    };
+    // 处理拼音标记的函数
+
+    const [pinyinMenu, setPinyinMenu] = useState({
+        anchorEl: null,      // 菜单的锚点元素
+        options: [],         // 多音字选项 ['chong', 'chòng']
+        selectionInfo: null, // 选中的文本信息 { start, end, text }
+    });
+    const handleApplyPinyin = (event) => {
+        const textArea = editTextAreaRef.current;
+        if (!textArea) return;
+
+        const start = textArea.selectionStart;
+        const end = textArea.selectionEnd;
+        const selectedText = editingSentenceText.substring(start, end);
+
+        // 校验：只处理单个汉字
+        if (!selectedText || !/^[\u4e00-\u9fa5]$/.test(selectedText)) {
+            // alert('请只选中一个汉字来标注拼音。'); // 可以用 AlertMessage 替代
+            return;
+        }
+
+        // 2. 获取所有可能的拼音
+        // pinyin-pro 返回类似 [['chōng'], ['chòng']] 的多音字数组
+        const pinyinResult = pinyin(selectedText, {
+            toneType: 'symbol', // 带音调符号，例如 chōng
+            multiple: true,     // 启用多音字模式
+            type: 'array'
+        });
+        
+        const pinyinOptions = Array.from(new Set(pinyinResult)); // 去重
+
+        if (pinyinOptions.length > 1) {
+            // 3. 如果是多音字，打开选择菜单
+            setPinyinMenu({
+                anchorEl: event.currentTarget, // 将“标注拼音”按钮作为锚点
+                options: pinyinOptions,
+                selectionInfo: { start, end, text: selectedText }
+            });
+        } else if (pinyinOptions.length === 1) {
+            // 4. 如果是单音字，直接替换
+            replaceTextWithPinyin(selectedText, pinyinOptions[0], start, end);
+        } else {
+            // alert('无法获取该汉字的拼音。');
+        }
+    };
+
+    const handlePinyinSelect = (selectedPinyin) => {
+        const { start, end, text } = pinyinMenu.selectionInfo;
+        handleClosePinyinMenu(); // 关闭菜单
+        replaceTextWithPinyin(text, selectedPinyin, start, end); // 执行替换
+    };
+
+    const handleClosePinyinMenu = () => {
+        setPinyinMenu({ anchorEl: null, options: [], selectionInfo: null });
+    };
+
+    const replaceTextWithPinyin = (originalText, pinyin, start, end) => {
+        // const replacement = `${originalText}:${pinyin}`;
+        const replacement = pinyin;
+        // +++++ 使用 editingSentenceText 和 setEditingSentenceText +++++
+        const newText = 
+            editingSentenceText.substring(0, start) +
+            replacement +
+            editingSentenceText.substring(end);
+
+        setEditingSentenceText(newText);
+        // +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+        
+        setTimeout(() => {
+            const textArea = editTextAreaRef.current;
+            if (textArea) {
+                textArea.focus();
+                textArea.selectionStart = textArea.selectionEnd = start + replacement.length;
+            }
+        }, 0);
+    };
+
+    // +++++ 2. 创建格式化处理函数 +++++
+    const handleApplyMarkdownToSentence = (markdownChars) => {
+        const textArea = editTextAreaRef.current; // 获取 DOM 元素
+        if (!textArea) return;
+
+        const start = textArea.selectionStart;
+        const end = textArea.selectionEnd;
+        const selectedText = editingSentenceText.substring(start, end);
+
+        if (!selectedText) {
+            const newText = 
+                editingSentenceText.substring(0, start) +
+                markdownChars + markdownChars +
+                editingSentenceText.substring(end);
+            
+            setEditingSentenceText(newText);
+            
+            setTimeout(() => {
+                textArea.focus();
+                textArea.selectionStart = textArea.selectionEnd = start + markdownChars.length;
+            }, 0);
+
+            return;
+        }
+
+        const newText = 
+            editingSentenceText.substring(0, start) +
+            markdownChars + selectedText + markdownChars +
+            editingSentenceText.substring(end);
+
+        setEditingSentenceText(newText);
+
+        setTimeout(() => {
+            textArea.focus();
+            textArea.selectionStart = start;
+            textArea.selectionEnd = end + (markdownChars.length * 2);
+        }, 0);
     };
 
     const handleOpenDeleteSentenceDialog = (sentence) => {
@@ -688,17 +814,75 @@ const SentenceList = ({
                 </CardContent>
             </Card>
 
-            <Dialog open={editSentenceDialogOpen} onClose={handleCloseEditSentenceDialog} maxWidth="sm" fullWidth>
+            <Dialog open={editSentenceDialogOpen} disableRestoreFocus onClose={handleCloseEditSentenceDialog} maxWidth="sm" fullWidth>
                 <DialogTitle>编辑句子 (序号: {sentenceToEdit?.order_index != null ? sentenceToEdit.order_index + 1 : ''})</DialogTitle>
                 <DialogContent>
-                    <TextField autoFocus margin="dense" label="句子内容" type="text" fullWidth multiline rows={4} value={editingSentenceText} onChange={(e) => setEditingSentenceText(e.target.value)} sx={{ mt: 1 }}/>
+                    {/* +++++ 3. 添加格式化工具栏 +++++ */}
+                    <Box sx={{ mt: 2, mb: 1 }}>
+                        <Tooltip title="加粗 (选中文字后点击)">
+                            <IconButton 
+                                size="small" 
+                                onClick={() => handleApplyMarkdownToSentence('**')}
+                                sx={{ border: '1px solid #ddd', borderRadius: 1 }}
+                            >
+                                <FormatBoldIcon />
+                            </IconButton>
+                        </Tooltip>
+                        {/* +++++ 5. 新增“标注拼音”按钮 +++++ */}
+                        <Tooltip title="标注拼音 (请选中单个汉字)">
+                            <IconButton size="small" onClick={handleApplyPinyin} sx={{ ml: 1, border: '1px solid #ddd', borderRadius: 1 }}>
+                                <FontDownloadIcon />
+                            </IconButton>
+                        </Tooltip>
+                        {/* ++++++++++++++++++++++++++++++ */}
+                        {/* 在这里可以添加更多按钮，例如：
+                        <Tooltip title="斜体">
+                            <IconButton size="small" onClick={() => handleApplyMarkdownToSentence('*')} sx={{ ml: 1, ... }}>
+                                <FormatItalicIcon />
+                            </IconButton>
+                        </Tooltip>
+                        */}
+                    </Box>
+                    {/* ++++++++++++++++++++++++++++++++ */}
+
+                    <TextField 
+                        autoFocus 
+                        margin="dense" 
+                        label="句子内容" 
+                        type="text" 
+                        fullWidth 
+                        multiline 
+                        rows={4} 
+                        value={editingSentenceText} 
+                        onChange={(e) => setEditingSentenceText(e.target.value)} 
+                        // sx={{ mt: 1 }} // mt 已被外层 Box 控制
+                        // +++++ 4. 附加 ref +++++
+                        inputRef={editTextAreaRef} 
+                        // +++++++++++++++++++++++
+                    />
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={handleCloseEditSentenceDialog}>取消</Button>
                     <Button onClick={handleSaveEditedSentence} variant="contained">保存更改</Button>
                 </DialogActions>
+                {/* +++++ 6. 多音字选择菜单 +++++ */}
+                <Menu
+                    anchorEl={pinyinMenu.anchorEl}
+                    open={Boolean(pinyinMenu.anchorEl)}
+                    onClose={handleClosePinyinMenu}
+                >
+                    {pinyinMenu.options.map((pinyinOption, index) => (
+                        <MenuItem 
+                            key={`${pinyinOption}_${index}`} 
+                            onClick={() => handlePinyinSelect(pinyinOption)}
+                        >
+                            {pinyinOption}
+                        </MenuItem>
+                    ))}
+                </Menu>
+                {/* +++++++++++++++++++++++++++ */}
             </Dialog>
-            <Dialog open={deleteSentenceConfirmOpen} onClose={handleCloseDeleteSentenceDialog} maxWidth="xs" fullWidth>
+            <Dialog open={deleteSentenceConfirmOpen} disableRestoreFocus onClose={handleCloseDeleteSentenceDialog} maxWidth="xs" fullWidth>
                 <DialogTitle>确认删除句子</DialogTitle>
                 <DialogContent>
                     <Typography>确定要删除这句话及其对应的语音文件吗？</Typography>
