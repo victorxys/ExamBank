@@ -14,7 +14,7 @@ const formatTime = (totalSecondsValue) => {
 };
 
 
-const MiniAudioPlayer = ({ src, onEnded }) => {
+const MiniAudioPlayer = ({ src, playbackRate = 1.0, onEnded }) => { // 接收 playbackRate prop
   const audioRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [duration, setDuration] = useState(0);
@@ -100,6 +100,14 @@ const MiniAudioPlayer = ({ src, onEnded }) => {
       audio.removeEventListener('ended', handleEnded);
     };
   }, [onEnded]);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (audio) {
+      // 应用传入的播放速度
+      audio.playbackRate = playbackRate;
+    }
+  }, [playbackRate]); // 当 playbackRate prop 变化时，更新 audio 元素的播放速度
 
   return (
     <Paper 

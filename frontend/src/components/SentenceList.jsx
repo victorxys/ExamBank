@@ -1,13 +1,13 @@
 // frontend/src/components/SentenceList.jsx
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box, Button, Typography, Paper, CircularProgress, Chip, Grid, Card, CardHeader, CardContent,
   TableContainer, Table, TableHead, TableRow, TableCell, TableBody, Tooltip,
   Dialog, DialogTitle, DialogContent, DialogActions,  FormControl, InputLabel, Select, MenuItem, // 用于引擎选择
   List, ListItem, ListItemText, Divider, IconButton, TextField, Stack, TextareaAutosize,FormControlLabel,Checkbox,Collapse,
-  Badge,FormHelperText,Slider,
+  Badge,FormHelperText,Slider,ToggleButtonGroup,ToggleButton,
   LinearProgress, // 确保导入 LinearProgress
   TablePagination // 确保导入 TablePagination
 } from '@mui/material';
@@ -75,6 +75,33 @@ const SentenceList = ({
     const [playerDialogOpen, setPlayerDialogOpen] = useState(false);
     const [currentPlayingSentence, setCurrentPlayingSentence] = useState(null); // 存储 { id, text, url }
     const [activeMiniPlayerId, setActiveMiniPlayerId] = useState(null);
+    const triggerButtonRef = useRef(null);
+
+
+    // +++++ 新增：管理播放速度的 state +++++
+    const [currentPlaybackRate, setCurrentPlaybackRate] = useState(1.0);
+    // +++++++++++++++++++++++++++++++++++++++
+
+    const handlePlaybackRateChange = (event, newRate) => {
+        if (newRate !== null) { // ToggleButton 在取消选择时可能返回 null
+            setCurrentPlaybackRate(newRate);
+        }
+    };
+    
+    const handleClosePlayerDialog = () => {
+        setPlayerDialogOpen(false);
+        // setCurrentPlayingSentence(null);
+        // setCurrentPlaybackRate(1.0); // 关闭对话框时重置播放速度
+    };
+
+    const handleDialogExited = () => {
+        // 这个函数在对话框完全消失后被调用
+        setCurrentPlayingSentence(null);
+        setCurrentPlaybackRate(1.0);
+        if (triggerButtonRef.current) {
+            triggerButtonRef.current.focus();
+        }
+    };
     
     const handleOpenPlayerDialog = (sentence) => {
         const audioRelativePath = sentence.latest_audio_url; // 这是数据库中的 file_path，例如 "CONTENT_ID/SENTENCE_ID/audio.wav"
@@ -107,10 +134,9 @@ const SentenceList = ({
             // const fullAudioUrl = `${baseUrl}/static/tts_audio/${audioRelativePath}`;
             // +++++ 使用配置化的路径构建 URL +++++
             const fullAudioUrl = `${baseUrl}${audioBasePath}/${audioRelativePath}`;
-            // ++++++++++++++++++++++++++++++++++++
-            // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+     
 
-            console.log("Corrected audio URL pointing to Flask static path:", fullAudioUrl);
+            // console.log("Corrected audio URL pointing to Flask static path:", fullAudioUrl);
 
             setCurrentPlayingSentence({
                 id: sentence.id,
@@ -124,12 +150,6 @@ const SentenceList = ({
                 alert('该句子没有可播放的音频URL。'); 
             }
         };
-
-    const handleClosePlayerDialog = () => {
-        setPlayerDialogOpen(false);
-        // 关闭对话框时，可以考虑停止音频，但这通常由 MiniAudioPlayer 的 unmount 处理
-        setCurrentPlayingSentence(null); // 清空当前播放的句子信息
-    };
     
     const handleToggleMiniPlayer = (sentenceId) => {
         const currentlyActive = activeMiniPlayerId === sentenceId;
@@ -600,6 +620,8 @@ const SentenceList = ({
                     <Dialog 
                         open={playerDialogOpen} 
                         onClose={handleClosePlayerDialog}
+                        disableRestoreFocus
+                        TransitionProps={{ onExited: handleDialogExited }}
                         maxWidth="sm" // 可以调整对话框宽度: 'xs', 'sm', 'md', 'lg', 'xl'
                         fullWidth
                     >
@@ -611,12 +633,35 @@ const SentenceList = ({
                         </DialogTitle>
                         <DialogContent>
                             {currentPlayingSentence && (
-                                <Box sx={{ pt: 2 }}> {/* 给播放器一些上边距 */}
-                                    <MiniAudioPlayer 
+                                // +++++ 使用 Flexbox 布局来并排显示播放器和速度按钮 +++++
+                                <Box sx={{ 
+                                    pt: 2, 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    gap: 2, // 播放器和按钮组之间的间距
+                                    flexWrap: 'wrap' // 在小屏幕上可以换行
+                                }}>
+                                    <Box sx={{ flexGrow: 1, minWidth: '320px' }}> {/* 让播放器占据大部分空间 */}
+                                        <MiniAudioPlayer 
                                         src={currentPlayingSentence.url} 
-                                        onEnded={handleClosePlayerDialog} // 播放结束后自动关闭对话框
-                                    />
+                                        playbackRate={currentPlaybackRate} // 传递速度
+                                        onEnded={handleClosePlayerDialog} 
+                                        />
+                                    </Box>
+                                    
+                                    <ToggleButtonGroup
+                                        value={currentPlaybackRate}
+                                        exclusive // 确保一次只能选一个
+                                        onChange={handlePlaybackRateChange}
+                                        aria-label="playback speed"
+                                        size="small"
+                                    >
+                                        <ToggleButton value={1.0} aria-label="1x speed">1.0x</ToggleButton>
+                                        <ToggleButton value={1.5} aria-label="1.5x speed">1.5x</ToggleButton>
+                                        <ToggleButton value={2.0} aria-label="2x speed">2.0x</ToggleButton>
+                                    </ToggleButtonGroup>
                                 </Box>
+                                // +++++++++++++++++++++++++++++++++++++++++++++++++++++++
                             )}
                         </DialogContent>
                        <DialogActions>
