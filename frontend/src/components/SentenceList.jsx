@@ -80,6 +80,10 @@ const SentenceList = ({
         const audioRelativePath = sentence.latest_audio_url; // 这是数据库中的 file_path，例如 "CONTENT_ID/SENTENCE_ID/audio.wav"
 
         if (audioRelativePath) {
+            // --- 从环境变量获取音频路径前缀 ---
+            const audioBasePath = import.meta.env.VITE_AUDIO_BASE_PATH || '/static/tts_audio'; 
+            // 提供一个默认值以防环境变量未设置
+            // ------------------------------------
             // ++++++ 关键修改：构建指向 /static/tts_audio/ 的 URL ++++++
             // 假设您的 Flask 应用将 tts_audio 目录放在了其 static 文件夹下。
             // API_BASE_URL 通常是 http://.../api
@@ -100,7 +104,10 @@ const SentenceList = ({
             // 所以，我们需要构建的 URL 是: <base_url>/static/tts_audio/<relative_path_from_db>
             
             // 注意：您之前使用的 /media/tts_audio/ 是不正确的，因为没有对应的 Nginx location 或 Flask 路由。
-            const fullAudioUrl = `${baseUrl}/static/tts_audio/${audioRelativePath}`;
+            // const fullAudioUrl = `${baseUrl}/static/tts_audio/${audioRelativePath}`;
+            // +++++ 使用配置化的路径构建 URL +++++
+            const fullAudioUrl = `${baseUrl}${audioBasePath}/${audioRelativePath}`;
+            // ++++++++++++++++++++++++++++++++++++
             // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
             console.log("Corrected audio URL pointing to Flask static path:", fullAudioUrl);
