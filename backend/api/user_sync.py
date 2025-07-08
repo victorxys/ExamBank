@@ -28,6 +28,11 @@ def sync_user():
     data = request.get_json()
     log.debug(f"Received user sync data: {data}")
 
+    # 配置默认邮箱
+    if data["email"] == "":
+        data["email"] = f"{data['phone_number']}@mengyimengsao.com"
+        log.debug(f"Default email set for user {data['myms_user_id']}: {data['email']}")
+
     # 验证必要字段
     required_fields = ["myms_user_id", "phone_number", "username", "id_card"]
     for field in required_fields:
