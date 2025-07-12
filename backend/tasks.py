@@ -4,15 +4,11 @@ import os
 import re
 import uuid
 from datetime import datetime
-import requests
 from pydub import AudioSegment
 from pydub.exceptions import CouldntDecodeError
-import sys # <<< 新增
-from io import StringIO # <<< 新增
-import contextlib # <<< 新增
-import time # <<< 新增
+import time 
 from celery.utils.log import get_task_logger # 使用 Celery 的 logger
-import mimetypes # <--- ++++++ 在这里添加导入 ++++++
+import mimetypes 
 
 
 
@@ -33,6 +29,10 @@ from backend.api.ai_generate import generate_audio_with_gemini_tts # 导入新�
 from backend.api.ai_generate import get_active_llm_config_internal 
 from .manager_module import get_next_identity
 from .manager_module import reset_all_usage
+from .services.data_sync_service import DataSyncService, JinshujuAPIError
+from .services.billing_engine import BillingEngine
+
+
 
 
 
@@ -1788,3 +1788,103 @@ def resplit_and_match_sentences_task(self, final_tts_script_id_str):
                 training_content.status = 'error_sentence_resplit'
                 db.session.commit()
             raise # 让Celery知道任务失败了
+
+@celery_app.task(bind=True, name='tasks.sync_all_contracts')
+def sync_all_contracts_task(self):
+    """
+    一个后台任务，用于同步所有已配置的合同表单。
+    """
+    app = create_flask_app_for_task()
+    with app.app_context():
+        logger.info(f"[ContractSyncTask:{self.request.id}] 开始执行合同同步任务...")
+        
+        # --- 使用您提供的真实数据来配置 ---
+        FORM_CONFIGS = [
+            # {
+            #     'form_token': '您的育儿嫂合同TOKEN', # <--- !!! 请替换为您的真实育儿嫂合同TOKEN !!!
+            #     'contract_type': 'nanny',
+            #     'mapping': {
+            #         # ... 育儿嫂的映射规则 ...
+            #     }
+            # },
+            {
+                'form_token': 'QlpHFA', # 月嫂合同的真实TOKEN
+                'contract_type': 'maternity_nurse',
+                'mapping': {
+                    # 客户姓名来自关联表单
+                    'customer_name': {'field_id': 'field_1', 'is_association': True, 'associated_field_id': 'field_2'},
+                    # 员工姓名是普通文本字段
+                    'employee_name': {'field_id': 'field_11'},
+                    'employee_phone': {'field_id': 'field_3'},
+                    # 月嫂的“级别”在这里指的是劳务报酬
+                    'employee_level': {'field_id': 'field_7'},
+                    # 预产期是合同的开始时间
+                    'provisional_start_date': {'field_id': 'field_8'},
+                    # 预计合同结束日期
+                    'end_date': {'field_id': 'field_9'},
+                    # 定金
+                    'deposit_amount': {'field_id': 'field_15'}, # 注意：示例数据中 field_15 是空字符串，您可能需要检查其他条目
+                    # 客交保证金
+                    'security_deposit_paid': {'field_id': 'field_14'},
+                    # 丙方管理费
+                    'management_fee_amount': {'field_id': 'field_13'},
+                }
+            }
+        ]
+
+        try:
+            sync_service = DataSyncService()
+            total_new = 0
+            total_skipped = 0
+            
+            self.update_state(state='PROGRESS', meta={'current_step': 'Initializing', 'total_forms': len(FORM_CONFIGS)})
+
+            for i, config in enumerate(FORM_CONFIGS):
+                self.update_state(state='PROGRESS', meta={
+                    'current_step': f'Syncing form {i+1}/{len(FORM_CONFIGS)}',
+                    'form_name': config.get('form_token') 
+                })
+                
+                new_count, skipped_count = sync_service.sync_contracts_from_form(
+                    form_token=config['form_token'],
+                    contract_type=config['contract_type'],
+                    mapping_rules=config['mapping']
+                )
+                total_new += new_count
+                total_skipped += skipped_count
+            
+            db.session.commit()
+            logger.info(f"[ContractSyncTask:{self.request.id}] 所有表单同步完成并已提交数据库。")
+
+            final_message = f"同步完成。新增 {total_new} 条合同，跳过 {skipped_count} 条已有记录。"
+            return {'status': 'Success', 'message': final_message, 'new': total_new, 'skipped': total_skipped}
+
+        except JinshujuAPIError as e:
+            db.session.rollback()
+            logger.error(f"[ContractSyncTask:{self.request.id}] 同步失败 (API错误): {e}", exc_info=True)
+            self.update_state(state='FAILURE', meta={'error': str(e)})
+            return {'status': 'Error', 'message': str(e)}
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"[ContractSyncTask:{self.request.id}] 同步失败 (未知错误): {e}", exc_info=True)
+            self.update_state(state='FAILURE', meta={'error': '未知内部错误，请查看日志'})
+            raise
+
+@celery_app.task(bind=True, name='tasks.calculate_monthly_billing')
+def calculate_monthly_billing_task(self, year: int, month: int):
+    """
+    后台任务，用于计算指定月份的所有账单和薪酬。
+    """
+    app = create_flask_app_for_task()
+    with app.app_context():
+        logger.info(f"[BillingTask:{self.request.id}] 开始为 {year}-{month} 执行计算...")
+        try:
+            engine = BillingEngine()
+            engine.calculate_for_month(year, month)
+            # BillingEngine 内部已经处理了提交或回滚
+            logger.info(f"[BillingTask:{self.request.id}] 计算任务执行完毕。")
+            return {'status': 'Success', 'message': f'{year}-{month} 的账单计算已完成。'}
+        except Exception as e:
+            logger.error(f"[BillingTask:{self.request.id}] 计算任务失败: {e}", exc_info=True)
+            self.update_state(state='FAILURE', meta={'error': str(e)})
+            raise e

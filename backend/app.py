@@ -27,6 +27,7 @@ from backend.api.evaluation import get_evaluation_items, get_user_evaluations, u
 from backend.api.user_profile import get_user_profile
 from backend.db import get_db_connection
 from backend.models import db, TrainingCourse, User, UserCourseAccess # 
+from backend.tasks import run_llm_function_async # <<<--- 确保导入通用任务
 
 # from backend.api.evaluation_visibility import bp as evaluation_visibility_bp
 # from backend.api.evaluation_item import bp as evaluation_item_bp
@@ -43,7 +44,8 @@ from backend.api.llm_log_api import llm_log_bp # 新增导入
 from backend.api.tts_api import tts_bp # 新增导入
 from backend.api.course_resource_api import course_resource_bp # <--- 新增导入
 from backend.api.permission_api import permission_bp # <--- 新增导入
-from backend.tasks import run_llm_function_async # <<<--- 确保导入通用任务
+from backend.api.billing_api import billing_bp # 新增导入
+
 
 
 
@@ -211,6 +213,9 @@ app.register_blueprint(tts_bp, url_prefix='/api/tts')
 
 app.register_blueprint(course_resource_bp) # <--- 新增注册
 app.register_blueprint(permission_bp) # <--- 新增注册
+
+app.register_blueprint(billing_bp)
+
 
 
 

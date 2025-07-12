@@ -1,5 +1,7 @@
 # backend/models.py
 import uuid
+import enum
+from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID, JSONB as PG_JSONB, ARRAY
 from sqlalchemy import (
     Integer, String, Text, Boolean, DateTime, ForeignKey, func,
@@ -171,6 +173,8 @@ class User(db.Model):
     status = db.Column(db.String(50), nullable=False, default='active', server_default='active', comment='用户状态（active/inactive）')
     avatar = db.Column(db.String(255), nullable=True, comment='用户头像 URL')
     myms_user_id = db.Column(db.BigInteger, nullable=True, comment='关联到另一个数据库中用户的 ID')
+    name_pinyin = db.Column(db.String(255), index=True, comment='姓名拼音，用于模糊搜索')
+
 
     profile = db.relationship('UserProfile', backref='user', uselist=False, cascade="all, delete-orphan")
     exams_taken = db.relationship('Exam', backref='user', lazy='dynamic', foreign_keys='Exam.user_id')
@@ -545,14 +549,16 @@ class LlmPrompt(db.Model):
         'TrainingContent', 
         foreign_keys=[TrainingContent.llm_oral_prompt_id], # 指定外键来源
         back_populates='llm_oral_prompt', # 对应 TrainingContent 上的关系名
-        lazy='dynamic'
+        lazy='dynamic',
+        viewonly=True
     )
     
     training_contents_where_refine_prompt = db.relationship(
         'TrainingContent', 
         foreign_keys=[TrainingContent.llm_refine_prompt_id],
         back_populates='llm_refine_prompt',
-        lazy='dynamic'
+        lazy='dynamic',
+        viewonly=True
     )
     def __repr__(self):
         return f'<LlmPrompt {self.prompt_name} (v{self.version})>'
@@ -877,3 +883,206 @@ class VideoSynthesis(db.Model):
     # ... 其他关系 ...
     merged_audio = db.relationship('TtsAudio', foreign_keys=[merged_audio_id])
     generated_resource = db.relationship('CourseResource', foreign_keys=[generated_resource_id])
+
+
+# --- 新增合同管理相关或修改的模型定义 ---
+
+class ServicePersonnel(db.Model):
+    __tablename__ = 'service_personnel'
+    __table_args__ = ({'comment': '服务人员表(月嫂/育儿嫂等非系统登录用户)'})
+
+    id = db.Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, comment='主键, UUID')
+    name = db.Column(db.String(255), nullable=False, index=True, comment='服务人员姓名')
+    name_pinyin = db.Column(db.String(255), index=True, comment='姓名拼音，用于模糊搜索')
+    phone_number = db.Column(db.String(50), nullable=True, unique=True, comment='手机号, 可选但唯一')
+    id_card_number = db.Column(db.String(100), nullable=True, comment='身份证号, 可选')
+    is_active = db.Column(db.Boolean, default=True, nullable=False, comment='是否在职')
+
+    def __repr__(self):
+        return f'<ServicePersonnel {self.name}>'
+
+
+class AdjustmentType(enum.Enum):
+    CUSTOMER_INCREASE = 'customer_increase' # 客户增款
+    CUSTOMER_DECREASE = 'customer_decrease' # 客户减款/退款
+    CUSTOMER_DISCOUNT = 'customer_discount' # 客户优惠
+    EMPLOYEE_INCREASE = 'employee_increase' # 员工增款
+    EMPLOYEE_DECREASE = 'employee_decrease' # 员工减款
+
+class FinancialAdjustment(db.Model):
+    __tablename__ = 'financial_adjustments'
+    __table_args__ = ({'comment': '财务调整项(增/减款)'})
+
+    id = db.Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    adjustment_type = db.Column(SAEnum(AdjustmentType), nullable=False, index=True)
+    amount = db.Column(db.Numeric(10, 2), nullable=False, comment='调整金额')
+    description = db.Column(db.String(500), nullable=False, comment='款项说明/原因')
+    date = db.Column(db.Date, nullable=False, index=True)
+    
+    customer_bill_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('customer_bills.id', ondelete='CASCADE'), nullable=True, index=True)
+    employee_payroll_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('employee_payrolls.id', ondelete='CASCADE'), nullable=True, index=True)
+    
+    created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
+
+
+class InvoiceRecord(db.Model):
+    __tablename__ = 'invoice_records'
+    __table_args__ = ({'comment': '发票记录表'})
+
+    id = db.Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    contract_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('contracts.id'), nullable=False, index=True)
+    amount = db.Column(db.Numeric(12, 2), nullable=False, comment='发票金额')
+    issue_date = db.Column(db.Date, nullable=False, comment='开票日期')
+    status = db.Column(db.String(50), default='pending', nullable=False, comment='状态 (pending, issued)')
+    notes = db.Column(db.Text, comment='发票备注')
+    created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
+
+
+# --- 合同多态模型 ---
+class BaseContract(db.Model):
+    __tablename__ = 'contracts'
+    __table_args__ = ({'comment': '合同基础信息表'})
+
+    id = db.Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    type = db.Column(db.String(50), nullable=False, index=True, comment='合同类型鉴别器 (nanny, maternity_nurse)')
+    
+    jinshuju_entry_id = db.Column(db.String(255), unique=True, nullable=False, index=True, comment='金数据中的原始数据Entry ID或serial_number')
+
+    customer_name = db.Column(db.String(255), nullable=False, index=True)
+    contact_person = db.Column(db.String(255), comment='客户联系人')
+    
+    # employee_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('service_personnel.id'), nullable=False, index=True)
+    # 我们不再使用一个通用的 employee_id，而是用两个可为空的外键
+    user_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True, index=True, comment='关联到系统用户 (如果是内部员工)')
+    service_personnel_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('service_personnel.id', ondelete='SET NULL'), nullable=True, index=True, comment='关联到外部服务人员')
+
+    user = db.relationship('User', backref=db.backref('contracts', lazy='dynamic'))
+    service_personnel = db.relationship('ServicePersonnel', backref=db.backref('contracts', lazy='dynamic'))
+
+    employee_level = db.Column(db.String(100), comment='级别，通常是月薪或服务价格')
+    
+    status = db.Column(db.String(50), default='active', nullable=False, index=True, comment='active, finished, terminated')
+    notes = db.Column(db.Text, comment='通用备注')
+    created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
+    updated_at = db.Column(db.DateTime(timezone=True), onupdate=func.now())
+
+    start_date = db.Column(db.Date, nullable=True, comment='合同开始日期 (育儿嫂)')
+    end_date = db.Column(db.Date, nullable=True, comment='合同结束日期 (育儿嫂和月嫂)')
+    provisional_start_date = db.Column(db.Date, nullable=True, comment='预产期 (月嫂)')
+    actual_onboarding_date = db.Column(db.Date, nullable=True, comment='实际上户日期 (月嫂)')
+    
+    __mapper_args__ = {
+        'polymorphic_on': type,
+        'polymorphic_identity': 'base'
+    }
+
+class NannyContract(BaseContract): # 育儿嫂合同
+    __mapper_args__ = {'polymorphic_identity': 'nanny'}
+    
+    is_monthly_auto_renew = db.Column(db.Boolean, default=False)
+    management_fee_paid_months = db.Column(ARRAY(db.String), default=[], comment='已缴管理费的月份列表 (e.g., ["2024-06"])')
+    is_first_month_fee_paid = db.Column(db.Boolean, default=False, comment='是否已缴首月10%上户费')
+
+class MaternityNurseContract(BaseContract): # 月嫂合同
+    __mapper_args__ = {'polymorphic_identity': 'maternity_nurse'}
+    deposit_amount = db.Column(db.Numeric(10, 2), default=0, comment='定金')
+    security_deposit_paid = db.Column(db.Numeric(10, 2), default=0, comment='客交保证金')
+    management_fee_rate = db.Column(db.Numeric(4, 2), nullable=True, comment='管理费费率, e.g., 0.15 for 15%')
+    management_fee_amount = db.Column(db.Numeric(10, 2), nullable=True, comment='从金数据同步的管理费金额')
+    discount_amount = db.Column(db.Numeric(10, 2), default=0, comment='优惠金额')
+
+# --- 财务结果模型 ---
+class CustomerBill(db.Model):
+    __tablename__ = 'customer_bills'
+    __table_args__ = (db.UniqueConstraint('contract_id', 'year', 'month', name='uq_bill_contract_month'),)
+    
+    id = db.Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    contract_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('contracts.id', ondelete='CASCADE'), nullable=False, index=True)
+    year = db.Column(db.Integer, nullable=False, index=True)
+    month = db.Column(db.Integer, nullable=False, index=True)
+    customer_name = db.Column(db.String(255), nullable=False, index=True) # 冗余客户名，方便查询
+    
+    total_payable = db.Column(db.Numeric(12, 2), nullable=False, comment='客户总应付款')
+    is_paid = db.Column(db.Boolean, default=False, index=True, comment='是否已打款')
+    payment_details = db.Column(PG_JSONB, comment='打款日期/渠道/总额/打款人等信息')
+    calculation_details = db.Column(PG_JSONB, nullable=False, comment='计算过程快照，用于展示和审计')
+    created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
+
+class EmployeePayroll(db.Model):
+    __tablename__ = 'employee_payrolls'
+    __table_args__ = (db.UniqueConstraint('contract_id', 'year', 'month', name='uq_payroll_contract_month'),)
+    
+    id = db.Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    contract_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('contracts.id', ondelete='CASCADE'), nullable=False, index=True)
+    year = db.Column(db.Integer, nullable=False, index=True)
+    month = db.Column(db.Integer, nullable=False, index=True)
+    # employee_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('service_personnel.id'), nullable=False, index=True)
+    # --- 核心修正：移除 ForeignKey 约束，但保留字段本身 ---
+    employee_id = db.Column(PG_UUID(as_uuid=True), nullable=False, index=True, comment='员工ID (可以是User或ServicePersonnel的ID)')
+
+    
+    final_payout = db.Column(db.Numeric(12, 2), nullable=False, comment='员工最终应领款')
+    is_paid = db.Column(db.Boolean, default=False, index=True, comment='是否已领款')
+    payout_details = db.Column(PG_JSONB, comment='领款人/时间/途径等信息')
+    calculation_details = db.Column(PG_JSONB, nullable=False, comment='计算过程快照')
+    created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
+
+class AttendanceRecord(db.Model):
+    __tablename__ = 'attendance_records'
+    __table_args__ = ({'comment': '考勤记录表 (可跨月)'})
+
+
+    id = db.Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    
+    # 我们不再区分 user_id 和 service_personnel_id，而是用一个通用的 employee_id
+    # 因为考勤总是针对一个具体的人，而这个人是谁已经在合同中定义了。
+    # 我们可以通过合同反查到这个人是User还是ServicePersonnel。
+    employee_id = db.Column(PG_UUID(as_uuid=True), nullable=False, index=True, comment='员工ID (可以是User或ServicePersonnel的ID)')
+    contract_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('contracts.id', ondelete='CASCADE'), nullable=False, index=True)
+    
+    # --- 核心修正：使用周期起止日期代替年月 ---
+    cycle_start_date = db.Column(db.Date, nullable=False, index=True, comment='考勤周期的开始日期')
+    cycle_end_date = db.Column(db.Date, nullable=False, index=True, comment='考勤周期的结束日期')
+    # ----------------------------------------
+    
+    total_days_worked = db.Column(db.Integer, nullable=False, comment='总出勤天数')
+    overtime_days = db.Column(db.Integer, default=0, comment='非节假日加班天数')
+    statutory_holiday_days = db.Column(db.Integer, default=0, comment='法定节假日工作天数')
+    
+    raw_data_entry_id = db.Column(db.String(255), nullable=True, comment='(如果考勤来自金数据)考勤表在金数据中的Entry ID')
+    
+    created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
+    updated_at = db.Column(db.DateTime(timezone=True), onupdate=func.now())
+    
+    contract = db.relationship('BaseContract', backref=db.backref('attendance_records', lazy='dynamic'))
+
+class SubstituteRecord(db.Model):
+    __tablename__ = 'substitute_records'
+    __table_args__ = ({'comment': '替班记录表'})
+    
+    id = db.Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    
+    # 关联到被替班的主合同
+    main_contract_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('contracts.id', ondelete='CASCADE'), nullable=False, index=True)
+    
+    # 替班人员的ID (可以是内部User或外部ServicePersonnel)
+    substitute_user_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True)
+    substitute_personnel_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('service_personnel.id', ondelete='SET NULL'), nullable=True)
+    
+    # 替班期间的薪资标准和管理费
+    substitute_salary = db.Column(db.Numeric(10, 2), nullable=False, comment='替班期间的月薪标准')
+    substitute_management_fee = db.Column(db.Numeric(10, 2), default=0, comment='替班产生的额外管理费')
+    
+    # 替班的起止日期
+    start_date = db.Column(db.Date, nullable=False)
+    end_date = db.Column(db.Date, nullable=False)
+    
+    notes = db.Column(db.Text, nullable=True, comment='替班备注')
+    created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
+
+    main_contract = db.relationship('BaseContract', backref=db.backref('substitute_records', lazy='dynamic'))
+    substitute_user = db.relationship('User')
+    substitute_personnel = db.relationship('ServicePersonnel')
+
+    def __repr__(self):
+        return f'<SubstituteRecord {self.id} for Contract {self.main_contract_id}>'

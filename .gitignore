@@ -225,3 +225,5 @@ migrations/alembic.ini
 meng/
 
 celerybeat-schedule.db
+
+start_dev.sh

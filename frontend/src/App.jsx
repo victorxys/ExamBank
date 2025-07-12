@@ -300,6 +300,10 @@ const LlmCallLogDetail = lazy(() => import('./components/LlmCallLogDetail')); //
 const TrainingContentList = lazy(() => import('./components/TrainingContentList'));
 const TrainingContentDetail = lazy(() => import('./components/TrainingContentDetail'));
 
+// 合同与账单相关内容
+const BillingDashboard = lazy(() => import('./components/BillingDashboard')); 
+
+
 
 // --- 5. App 组件主体 ---
 function App() {
@@ -337,6 +341,7 @@ function App() {
           <Route path="/tts/content/:contentId" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}><TrainingContentDetail /></Suspense>} />} />
           <Route path="/my-courses" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <MyCoursesPage /> </Suspense>} />} />
           <Route path="/my-courses/:courseId/resource/:resourceId/play" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <MediaPlayerPage /> </Suspense>} />} />
+          <Route path="/billing" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}><BillingDashboard /></Suspense>} />} />
 
         </Route>
 
