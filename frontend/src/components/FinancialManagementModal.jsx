@@ -68,6 +68,7 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
         number: '', amount: '', date: null
     });
     const [isInvoiceDialogOpen, setIsInvoiceDialogOpen] = useState(false);
+    
 
     // **固定的UI配置，定义在组件顶层**
     const fieldGroups = {
@@ -155,7 +156,7 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                 employee_payout_date: billingDetails.employee_payroll_details?.领款时间及渠道?.split('/')[0]?.trim() ? new Date(billingDetails.employee_payroll_details.领款时间及渠道.split('/')[0].trim()) : null,
                 employee_payout_channel: billingDetails.employee_payroll_details?.领款时间及渠道?.split('/')[1]?.trim() || '',
                 invoice_needed: billingDetails.customer_bill_details?.发票记录 !== '无需开票',
-                invoice_issued: billingDetails.customer_bill_details?.发票记录 === '已开票',
+                invoice_issued: String(billingDetails.customer_bill_details?.发票记录).startsWith('已开票'),
             });
         }
         setIsEditMode(false);
@@ -164,13 +165,18 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
         onSave({ 
             overtime_days: editableOvertime,
             adjustments: adjustments,
-            settlement_status: editableSettlement,
-            invoice_details: editableInvoice // 将发票详情打包
+            settlement_status: {
+                ...editableSettlement,
+                invoice_details: editableInvoice // <-- 打包发票详情
+            }
+            // invoice_details: editableInvoice // 将发票详情打包
 
         });
         setIsEditMode(false);
     };
 
+    
+    
     const handleOpenAdjustmentDialog = (adj = null, filter = 'all') => {
         setEditingAdjustment(adj);
         setAdjustmentFilter(filter);
@@ -209,6 +215,9 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
         setEditableSettlement(prev => ({ ...prev, [name]: newDate }));
     };
 
+    // --- 新增: 发票对话框的事件处理器 ---
+    const handleOpenInvoiceDialog = () => setIsInvoiceDialogOpen(true);
+    const handleCloseInvoiceDialog = () => setIsInvoiceDialogOpen(false);
     const handleSaveInvoice = (newInvoiceData) => {
         setEditableInvoice(newInvoiceData);
     };
@@ -462,9 +471,9 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
             />
             <InvoiceDetailsDialog
                 open={isInvoiceDialogOpen}
-                onClose={() => setIsInvoiceDialogOpen(false)}
+                onClose={handleCloseInvoiceDialog}
+                onSave={handleSaveInvoice}
                 invoiceData={editableInvoice}
-                onSave={(newInvoiceData) => setEditableInvoice(newInvoiceData)}
             />
         </>
     );

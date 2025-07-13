@@ -106,6 +106,10 @@ def _get_billing_details_internal(contract_id, year, month):
                 customer_bill_details['发票记录'] = '无需开票'
             else:
                 customer_bill_details['发票记录'] = '已开票' if invoice.get('issued') else '待开票'
+                inv_num = payment.get('invoice_number') or '未录入'
+                inv_date = payment.get('invoice_date') or '未录入'
+                inv_amount = payment.get('invoice_amount') or '未录入'
+                customer_bill_details['发票记录'] = f"已开票 (开票金额: {inv_amount},发票号: {inv_num}, 日期: {inv_date})"
         else:
             # 如果没有账单记录，填充“待计算”
             customer_bill_details.update({
@@ -151,7 +155,12 @@ def _get_billing_details_internal(contract_id, year, month):
     attendance_details = {'overtime_days': attendance_record.overtime_days if attendance_record else 0}
 
     current_app.logger.info(f"--- [DETAILS END] 获取详情结束 ---")
-
+    # **核心修正**: 返回完整的发票详情，供前端编辑框使用
+    invoice_details_for_edit = {
+        "number": (customer_bill.payment_details or {}).get('invoice_number', ''),
+        "amount": (customer_bill.payment_details or {}).get('invoice_amount', ''),
+        "date": (customer_bill.payment_details or {}).get('invoice_date', None),
+    }
     # 6. **核心修正 4**: 返回从数据库查询到的调整项列表
     return {
         'attendance': attendance_details,
@@ -163,7 +172,7 @@ def _get_billing_details_internal(contract_id, year, month):
                 "amount": str(adj.amount), "description": adj.description
             } for adj in customer_adjustments + employee_adjustments
         ],
-        "invoice_details": calc.get('invoice_details', {}) if customer_bill else {}
+        "invoice_details": invoice_details_for_edit
     }
 
 def admin_required(fn):
@@ -500,6 +509,7 @@ def update_single_contract(contract_id):
 @admin_required
 def batch_update_billing_details():
     data = request.get_json()
+    current_app.logger.info(f"[BATCH-UPDATE-0] 收到批量更新请求: {data}")
     required_fields = ['contract_id', 'billing_year', 'billing_month', 'overtime_days', 'adjustments', 'settlement_status', 'cycle_start_date', 'cycle_end_date']
     if not all(field in data for field in required_fields):
         return jsonify({'error': '请求体中缺少必要字段'}), 400
@@ -586,6 +596,7 @@ def batch_update_billing_details():
         # --- 5. 在重算之后，再更新结算和发票状态 (核心修正：顺序调整) ---
         settlement_status = data.get('settlement_status', {})
         invoice_details_from_frontend = settlement_status.get('invoice_details', {})
+    
 
         current_app.logger.info(f"[BATCH-UPDATE-5] 准备更新结算状态: {settlement_status}")
         current_app.logger.info(f"[BATCH-UPDATE-6] 准备更新发票详情: {invoice_details_from_frontend}")
