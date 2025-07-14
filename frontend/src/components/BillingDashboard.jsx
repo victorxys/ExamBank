@@ -16,6 +16,8 @@ import {
     ArrowDownward as ArrowDownwardIcon, // 用于减款/优惠
     TrendingDown as TrendingDownIcon, // 用于应退
     EventBusy as EventBusyIcon, // 或者 HelpOutline as HelpOutlineIcon
+    CheckCircle as CheckCircleIcon,
+    HighlightOff as HighlightOffIcon
 } from '@mui/icons-material';
 import { DatePicker, LocalizationProvider } from '@mui/x-date-pickers';
 
@@ -191,6 +193,10 @@ const ExcelStyleDetailCard = ({ title, data = {}, isCustomerBill }) => {
 
 const BillingDashboard = () => {
     const theme = useTheme();
+    const [filters, setFilters] = useState({ 
+        search: '', type: '', status: 'active', 
+        payment_status: '', payout_status: '' 
+    });
     const [contracts, setContracts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [syncing, setSyncing] = useState(false);
@@ -198,7 +204,6 @@ const BillingDashboard = () => {
     const [page, setPage] = useState(0);
     const [rowsPerPage, setRowsPerPage] = useState(10);
     const [totalContracts, setTotalContracts] = useState(0);
-    const [filters, setFilters] = useState({ search: '', type: '', status: '' });
     const [calculating, setCalculating] = useState(false);
     const [selectedBillingMonth, setSelectedBillingMonth] = useState(() => {
         const d = new Date();
@@ -511,7 +516,27 @@ const BillingDashboard = () => {
                 <Grid item xs={6} sm={3} md={2}>
                   <FormControl fullWidth size="small"><InputLabel>合同状态</InputLabel><Select name="status" value={filters.status} label="合同状态" onChange={handleFilterChange}><MenuItem value=""><em>全部</em></MenuItem><MenuItem value="active">执行中</MenuItem><MenuItem value="finished">已结束</MenuItem><MenuItem value="terminated">已终止</MenuItem></Select></FormControl>
                 </Grid>
-                
+
+                <Grid item xs={6} sm={3} md={2}>
+                    <FormControl fullWidth size="small">
+                        <InputLabel>客户付款状态</InputLabel>
+                        <Select name="payment_status" value={filters.payment_status} label="客户付款状态" onChange={handleFilterChange}>
+                            <MenuItem value=""><em>全部</em></MenuItem>
+                            <MenuItem value="paid">已付款</MenuItem>
+                            <MenuItem value="unpaid">未付款</MenuItem>
+                        </Select>
+                    </FormControl>
+                </Grid>
+                <Grid item xs={6} sm={3} md={2}>
+                    <FormControl fullWidth size="small">
+                        <InputLabel>员工领款状态</InputLabel>
+                        <Select name="payout_status" value={filters.payout_status} label="员工领款状态" onChange={handleFilterChange}>
+                            <MenuItem value=""><em>全部</em></MenuItem>
+                            <MenuItem value="paid">已领款</MenuItem>
+                            <MenuItem value="unpaid">未领款</MenuItem>
+                        </Select>
+                    </FormControl>
+                </Grid>
                 {/* 将操作按钮放在一个自适应的Grid item中 */}
                 <Grid item xs={12} md sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, flexWrap: 'wrap' }}>
                   <TextField label="账单月份" type="month" size="small" value={selectedBillingMonth} onChange={(e) => setSelectedBillingMonth(e.target.value)} InputLabelProps={{ shrink: true }} />
@@ -602,8 +627,27 @@ const BillingDashboard = () => {
 
                         <TableCell><Chip label={contract.status} size="small" color={contract.status === 'active' ? 'success' : 'default'} /></TableCell>
                         <TableCell sx={{color: '#525f7f'}}>¥{contract.employee_level}</TableCell>
-                        <TableCell sx={{ fontWeight: 'bold', color: 'error.main' }}>
-                          {contract.current_month_payable ? `¥${contract.current_month_payable}` : '待计算'}
+                        <TableCell>
+                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                                <Tooltip title="客户应付款 / 支付状态">
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                        <Typography sx={{ fontWeight: 'bold', color: 'error.main', width: '100px' }}>
+                                            {contract.customer_payable ? `¥${contract.customer_payable}` : '待计算'}
+                                        </Typography>
+                                        {contract.customer_is_paid === true && <CheckCircleIcon color="success" fontSize="small" />}
+                                        {contract.customer_is_paid === false && <HighlightOffIcon color="disabled" fontSize="small" />}
+                                    </Box>
+                                </Tooltip>
+                                <Tooltip title="员工应领款 / 领款状态">
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                        <Typography sx={{ fontWeight: 'bold', color: 'success.main', width: '100px' }}>
+                                            {contract.employee_payout ? `¥${contract.employee_payout}` : '待计算'}
+                                        </Typography>
+                                        {contract.employee_is_paid === true && <CheckCircleIcon color="success" fontSize="small" />}
+                                        {contract.employee_is_paid === false && <HighlightOffIcon color="disabled" fontSize="small" />}
+                                    </Box>
+                                </Tooltip>
+                            </Box>
                         </TableCell>
                         <TableCell align="center">
                           <Button variant="contained" size="small" startIcon={<EditIcon />} onClick={() => handleOpenDetailDialog(contract)}>管理</Button>

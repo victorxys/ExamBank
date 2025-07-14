@@ -992,6 +992,30 @@ class MaternityNurseContract(BaseContract): # 月嫂合同
     discount_amount = db.Column(db.Numeric(10, 2), default=0, comment='优惠金额')
 
 # --- 财务结果模型 ---
+class FinancialActivityLog(db.Model):
+    __tablename__ = 'financial_activity_logs'
+    
+    id = db.Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    
+    # 关联到具体的账单或薪酬单
+    customer_bill_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('customer_bills.id'), nullable=True, index=True)
+    employee_payroll_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('employee_payrolls.id'), nullable=True, index=True)
+
+    # 谁操作的 
+    user_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('user.id'), nullable=False)
+
+    user = db.relationship('User')
+
+    # 操作内容
+    action = db.Column(db.String(255), nullable=False) # 例如："修改加班", "添加优惠", "标记为已支付"
+    details = db.Column(db.JSON, nullable=True) # 记录变更详情，如 {"from": 1, "to": 2}
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    customer_bill = db.relationship('CustomerBill', back_populates='activity_logs')
+    employee_payroll = db.relationship('EmployeePayroll', back_populates='activity_logs')
+
+
 class CustomerBill(db.Model):
     __tablename__ = 'customer_bills'
     __table_args__ = (db.UniqueConstraint('contract_id', 'year', 'month', name='uq_bill_contract_month'),)
@@ -1007,6 +1031,8 @@ class CustomerBill(db.Model):
     payment_details = db.Column(PG_JSONB, comment='打款日期/渠道/总额/打款人等信息')
     calculation_details = db.Column(PG_JSONB, nullable=False, comment='计算过程快照，用于展示和审计')
     created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
+    activity_logs = db.relationship('FinancialActivityLog', back_populates='customer_bill', lazy='dynamic', cascade="all, delete-orphan")
+
 
 class EmployeePayroll(db.Model):
     __tablename__ = 'employee_payrolls'
@@ -1026,6 +1052,7 @@ class EmployeePayroll(db.Model):
     payout_details = db.Column(PG_JSONB, comment='领款人/时间/途径等信息')
     calculation_details = db.Column(PG_JSONB, nullable=False, comment='计算过程快照')
     created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
+    activity_logs = db.relationship('FinancialActivityLog', back_populates='employee_payroll', lazy='dynamic', cascade="all, delete-orphan")
 
 class AttendanceRecord(db.Model):
     __tablename__ = 'attendance_records'
@@ -1086,3 +1113,4 @@ class SubstituteRecord(db.Model):
 
     def __repr__(self):
         return f'<SubstituteRecord {self.id} for Contract {self.main_contract_id}>'
+

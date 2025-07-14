@@ -23,16 +23,16 @@ class DefaultAttendance:
 
 
 class BillingEngine:
-    def calculate_for_month(self, year: int, month: int):
+    def calculate_for_month(self, year: int, month: int, contract_id=None, force_recalculate=False):
         active_contracts = BaseContract.query.filter_by(status='active').all()
         for contract in active_contracts:
             try:
                 if contract.type == 'maternity_nurse':
-                    self._calculate_maternity_nurse_bill_for_month(contract, year, month)
+                    self._calculate_maternity_nurse_bill_for_month(contract, year, month,force_recalculate)
             except Exception as e:
                 current_app.logger.error(f"为合同 {contract.id} 计算账单时失败: {e}", exc_info=True)
 
-    def _calculate_maternity_nurse_bill_for_month(self, contract: MaternityNurseContract, year: int, month: int):
+    def _calculate_maternity_nurse_bill_for_month(self, contract: MaternityNurseContract, year: int, month: int, force_recalculate: bool):
         if not contract.actual_onboarding_date:
             return
 
@@ -45,25 +45,36 @@ class BillingEngine:
             cycle_end_date = cycle_start_date + timedelta(days=25)
 
             if cycle_start_date <= month_last_day and cycle_end_date >= month_first_day:
-                attendance = AttendanceRecord.query.filter_by(
-                    contract_id=contract.id,
-                    cycle_start_date=cycle_start_date,
-                    cycle_end_date=cycle_end_date
-                ).first()
                 
-                # **核心修正**: 分开查询并合并财务调整项
+                # --- 智能计算/跳过逻辑 (最终版) ---
+                
+                # **核心修正**: 判断基准变为是否存在财务调整项
                 bill = CustomerBill.query.filter_by(contract_id=contract.id, year=year, month=month).first()
                 payroll = EmployeePayroll.query.filter_by(contract_id=contract.id, year=year, month=month).first()
-                
-                customer_adjustments = []
-                if bill:
-                    customer_adjustments = FinancialAdjustment.query.filter_by(customer_bill_id=bill.id).all()
-                
-                employee_adjustments = []
-                if payroll:
-                    employee_adjustments = FinancialAdjustment.query.filter_by(employee_payroll_id=payroll.id).all()
 
-                # 将数据库对象转换为引擎期望的字典列表
+                has_manual_adjustments = False
+                if bill:
+                    # 检查是否存在任何与此账单关联的财务调整项
+                    if FinancialAdjustment.query.filter_by(customer_bill_id=bill.id).first():
+                        has_manual_adjustments = True
+                if not has_manual_adjustments and payroll:
+                     if FinancialAdjustment.query.filter_by(employee_payroll_id=payroll.id).first():
+                        has_manual_adjustments = True
+
+                # 如果不是强制重算，并且已经存在财务调整项，则跳过
+                if not force_recalculate and has_manual_adjustments:
+                    current_app.logger.info(f"合同 {contract.id} 已存在财务调整项，批量计算时跳过。")
+                    break # 找到了本月的周期，处理完毕，跳出while循环
+
+                # --- 继续执行计算 ---
+                attendance = AttendanceRecord.query.filter_by(
+                    contract_id=contract.id,
+                    cycle_start_date=cycle_start_date
+                ).first()
+                
+                # 从数据库查询调整项，并传递给计算函数
+                customer_adjustments = FinancialAdjustment.query.filter_by(customer_bill_id=bill.id).all() if bill else []
+                employee_adjustments = FinancialAdjustment.query.filter_by(employee_payroll_id=payroll.id).all() if payroll else []
                 adjustments_for_engine = [
                     {"adjustment_type": adj.adjustment_type.name, "amount": adj.amount} 
                     for adj in customer_adjustments + employee_adjustments
@@ -74,7 +85,7 @@ class BillingEngine:
                 else:
                     self._process_one_billing_cycle(contract, attendance, year, month)
                 
-                break
+                break # 处理完本月相关周期即可
             
             cycle_start_date = cycle_end_date + timedelta(days=1)
 

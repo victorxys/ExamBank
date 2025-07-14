@@ -1870,21 +1870,27 @@ def sync_all_contracts_task(self):
             self.update_state(state='FAILURE', meta={'error': '未知内部错误，请查看日志'})
             raise
 
-@celery_app.task(bind=True, name='tasks.calculate_monthly_billing')
-def calculate_monthly_billing_task(self, year: int, month: int):
+@celery_app.task(name="tasks.calculate_monthly_billing")
+def calculate_monthly_billing_task(year, month, contract_id=None, force_recalculate=False):
     """
-    后台任务，用于计算指定月份的所有账单和薪酬。
+    这是一个Celery异步任务，它只负责一件事：
+    实例化 BillingEngine 并调用其 calculate_for_month 方法。
     """
+    
     app = create_flask_app_for_task()
     with app.app_context():
-        logger.info(f"[BillingTask:{self.request.id}] 开始为 {year}-{month} 执行计算...")
         try:
+            print(f"Celery task started for {year}-{month}")
             engine = BillingEngine()
-            engine.calculate_for_month(year, month)
-            # BillingEngine 内部已经处理了提交或回滚
-            logger.info(f"[BillingTask:{self.request.id}] 计算任务执行完毕。")
+            # 这里的调用是正确的，它调用的是 BillingEngine 的实例方法
+            engine.calculate_for_month(
+                year=year, 
+                month=month, 
+                contract_id=contract_id, 
+                force_recalculate=force_recalculate
+            )
+            print(f"Celery task finished for {year}-{month}")
             return {'status': 'Success', 'message': f'{year}-{month} 的账单计算已完成。'}
         except Exception as e:
-            logger.error(f"[BillingTask:{self.request.id}] 计算任务失败: {e}", exc_info=True)
-            self.update_state(state='FAILURE', meta={'error': str(e)})
-            raise e
+            print(f"Celery task failed: {e}")
+            return {'status': 'Failure', 'message': str(e)}
