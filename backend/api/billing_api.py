@@ -174,11 +174,27 @@ def _get_billing_details_internal(contract_id, year, month):
 
     current_app.logger.info(f"--- [DETAILS END] 获取详情结束 ---")
     # **核心修正**: 返回完整的发票详情，供前端编辑框使用
-    invoice_details_for_edit = {
-        "number": (customer_bill.payment_details or {}).get('invoice_number', ''),
-        "amount": (customer_bill.payment_details or {}).get('invoice_amount', ''),
-        "date": (customer_bill.payment_details or {}).get('invoice_date', None),
+    invoice_details_for_edit = {}
+    if customer_bill and customer_bill.payment_details:
+        invoice_details_for_edit = {
+            "number": customer_bill.payment_details.get('invoice_number', ''),
+            "amount": customer_bill.payment_details.get('invoice_amount', ''),
+            "date": customer_bill.payment_details.get('invoice_date', None),
+        }
+    
+    return {
+        'attendance': attendance_details,
+        'customer_bill_details': customer_bill_details,
+        'employee_payroll_details': employee_payroll_details,
+        'adjustments': [
+            {
+                "id": str(adj.id), "adjustment_type": adj.adjustment_type.name, 
+                "amount": str(adj.amount), "description": adj.description
+            } for adj in customer_adjustments + employee_adjustments
+        ],
+        "invoice_details": invoice_details_for_edit
     }
+
     # 6. **核心修正 4**: 返回从数据库查询到的调整项列表
     return {
         'attendance': attendance_details,
@@ -327,109 +343,96 @@ def get_contracts():
         next_month_first_day = (first_day_of_month.replace(day=28) + timedelta(days=4)).replace(day=1)
         last_day_of_month = next_month_first_day - timedelta(days=1)
         
-        contracts_polymorphic = with_polymorphic(BaseContract, [NannyContract, MaternityNurseContract])
+        # --- 核心修正：构建一个能够处理两种合同类型的查询 ---
         
-        # **核心修正**: 使用 LEFT JOIN 来关联账单和薪酬单
-        query = db.session.query(
-            BaseContract, 
-            CustomerBill, 
-            EmployeePayroll
-        ).outerjoin(
-            CustomerBill, 
-            db.and_(CustomerBill.contract_id == BaseContract.id, CustomerBill.year == billing_year, CustomerBill.month == billing_month)
-        ).outerjoin(
-            EmployeePayroll,
-            db.and_(EmployeePayroll.contract_id == BaseContract.id, EmployeePayroll.year == billing_year, EmployeePayroll.month == billing_month)
-        )
-        
+        # 1. 查询所有符合基础条件的合同 (类型, 状态, 搜索)
+        base_query = BaseContract.query.join(User, BaseContract.user_id == User.id, isouter=True) \
+            .join(ServicePersonnel, BaseContract.service_personnel_id == ServicePersonnel.id, isouter=True)
 
-        start_date_col = case(
-            (
-                BaseContract.type == 'maternity_nurse', 
-                func.coalesce(
-                    MaternityNurseContract.actual_onboarding_date, 
-                    MaternityNurseContract.provisional_start_date
-                )
-            ),
-            (BaseContract.type == 'nanny', NannyContract.start_date),
-            else_=None
-        )
-        end_date_col = BaseContract.end_date
-
-        # 应用日期筛选
-        query = query.filter(
-            start_date_col != None,
-            start_date_col <= last_day_of_month,
-            or_(
-                end_date_col == None,
-                end_date_col >= first_day_of_month
-            )
-        )
-        
-        if contract_type: query = query.filter(BaseContract.type == contract_type)
-        if status: query = query.filter(BaseContract.status == status)
-        else: query = query.filter(BaseContract.status == 'active')
-
+        if status:
+            base_query = base_query.filter(BaseContract.status == status)
+        if contract_type:
+            base_query = base_query.filter(BaseContract.type == contract_type)
         if search_term:
-            query = query.join(User, BaseContract.user_id == User.id, isouter=True)\
-                         .join(ServicePersonnel, BaseContract.service_personnel_id == ServicePersonnel.id, isouter=True)\
-                         .filter(or_(
-                             BaseContract.customer_name.ilike(f'%{search_term}%'),
-                             User.username.ilike(f'%{search_term}%'),
-                             ServicePersonnel.name.ilike(f'%{search_term}%')
-                         ))
-        # **核心修正**: 使用 LEFT JOIN 来关联账单和薪酬单
-        if payment_status == 'paid':
-            query = query.filter(CustomerBill.is_paid == True)
-        elif payment_status == 'unpaid':
-            query = query.filter(db.or_(CustomerBill.is_paid == False, CustomerBill.is_paid == None))
-
-        if payout_status == 'paid':
-            query = query.filter(EmployeePayroll.is_paid == True)
-        elif payout_status == 'unpaid':
-            query = query.filter(db.or_(EmployeePayroll.is_paid == False, EmployeePayroll.is_paid == None))
-
-        query = query.order_by(BaseContract.start_date.desc())
-
+            base_query = base_query.filter(
+                db.or_(
+                    BaseContract.customer_name.ilike(f'%{search_term}%'),
+                    User.username.ilike(f'%{search_term}%'),
+                    ServicePersonnel.name.ilike(f'%{search_term}%')
+                )
+            )
+        base_query = base_query.filter(CustomerBill.year == billing_year, CustomerBill.month == billing_month)
+        all_candidate_contracts = base_query.all()
         
-        paginated_contracts = query.paginate(page=page, per_page=per_page, error_out=False)
+        # 2. 在 Python 中进行精细的日期过滤
+        valid_contract_ids = []
+        for contract in all_candidate_contracts:
+            # 育儿嫂合同的逻辑：生命周期与本月有重叠
+            if contract.type == 'nanny':
+                # 合同开始日在本月之后，或结束日在本月之前，则排除
+                if (contract.start_date and contract.start_date > last_day_of_month) or \
+                   (contract.end_date and contract.end_date < first_day_of_month):
+                    continue
+                valid_contract_ids.append(contract.id)
+            
+            # 月嫂合同的逻辑：26天周期结束日落于本月
+            elif contract.type == 'maternity_nurse':
+                if not contract.actual_onboarding_date:
+                    continue
+                
+                cycle_start = contract.actual_onboarding_date
+                while cycle_start <= (contract.end_date or last_day_of_month):
+                    cycle_end = cycle_start + timedelta(days=25)
+                    if cycle_end.year == billing_year and cycle_end.month == billing_month:
+                        valid_contract_ids.append(contract.id)
+                        break
+                    if cycle_end > last_day_of_month:
+                        break
+                    cycle_start = cycle_end + timedelta(days=1)
+
+        # 3. 使用筛选出的ID列表进行最终的分页查询
+        final_query = BaseContract.query.filter(BaseContract.id.in_(valid_contract_ids)).order_by(BaseContract.start_date.desc())
+        
+        paginated_contracts = final_query.paginate(page=page, per_page=per_page, error_out=False)
+        
+        # 4. 构建最终的结果列表
         results = []
-        for contract, bill, payroll in paginated_contracts.items:
+        for contract in paginated_contracts.items:
             employee_name = (contract.user.username if contract.user else contract.service_personnel.name if contract.service_personnel else '未知员工')
-            # +++ 新增：为月嫂合同计算当前账单月的服务周期 +++
+            
+            # 单独查询对应的 bill 和 payroll
+            bill = CustomerBill.query.filter_by(contract_id=contract.id, year=billing_year, month=billing_month).first()
+            payroll = EmployeePayroll.query.filter_by(contract_id=contract.id, year=billing_year, month=billing_month).first()
+            
+            # 计算 active_cycle_start 和 active_cycle_end
             active_cycle_start, active_cycle_end = None, None
             if contract.type == 'maternity_nurse' and contract.actual_onboarding_date:
                 cycle_start = contract.actual_onboarding_date
-                # 确保 contract.end_date 不为 None
-                contract_end = contract.end_date or last_day_of_month 
-                while cycle_start <= contract_end:
+                while cycle_start <= (contract.end_date or last_day_of_month):
                     cycle_end = cycle_start + timedelta(days=25)
-                    # 使用与引擎相同的重叠逻辑
-                    if cycle_start <= last_day_of_month and cycle_end >= first_day_of_month:
+                    if cycle_end.year == billing_year and cycle_end.month == billing_month:
                         active_cycle_start = cycle_start
                         active_cycle_end = cycle_end
                         break
+                    if cycle_end > last_day_of_month:
+                        break
                     cycle_start = cycle_end + timedelta(days=1)
-            # +++++++++++++++++++++++++++++++++++++++++++++++
+            
             results.append({
-                'id': str(contract.id), 'customer_name': contract.customer_name,
-                'employee_name': employee_name, 
+                'id': str(contract.id),
+                'bill_id': str(bill.id), # **新增**: 返回 bill.id，以便管理操作
+                'customer_name': contract.customer_name,
+                'employee_name': employee_name,
                 'contract_type_label': '育儿嫂' if contract.type == 'nanny' else '月嫂',
-                'contract_type_value': contract.type, # 增加一个原始值方便前端判断
-                'status': contract.status, 
+                'contract_type_value': contract.type,
+                'status': contract.status,
                 'employee_level': contract.employee_level,
                 'start_date': contract.start_date.isoformat() if contract.start_date else None,
                 'end_date': contract.end_date.isoformat() if contract.end_date else None,
-                # --- 月嫂专用日期 (之前遗漏的) ---
                 'provisional_start_date': contract.provisional_start_date.isoformat() if hasattr(contract, 'provisional_start_date') and contract.provisional_start_date else None,
-                'actual_onboarding_date': contract.actual_onboarding_date.isoformat() if hasattr(contract, 'actual_onboarding_date') and contract.actual_onboarding_date else None,
-                # +++ 新增返回字段 +++
                 'active_cycle_start': active_cycle_start.isoformat() if active_cycle_start else None,
                 'active_cycle_end': active_cycle_end.isoformat() if active_cycle_end else None,
-                'customer_payable': str(bill.total_payable) if bill else None,
-                'employee_payout': str(payroll.final_payout) if payroll else None,
-                'customer_is_paid': bill.is_paid if bill else None,
-                'employee_is_paid': payroll.is_paid if payroll else None,
+                'current_month_payable': str(bill.total_payable) if bill else '待计算'
             })
             
         return jsonify({
@@ -536,17 +539,25 @@ def update_single_contract(contract_id):
     try:
         # 我们目前只处理 actual_onboarding_date 的更新
         if 'actual_onboarding_date' in data:
-            date_str = data['actual_onboarding_date']
-            if date_str:
+            new_onboarding_date_str = data['actual_onboarding_date']
+            new_onboarding_date = datetime.strptime(new_onboarding_date_str, '%Y-%m-%d').date()
+            if new_onboarding_date:
                 # 确保是MaternityNurseContract才有这个字段
                 if isinstance(contract, MaternityNurseContract):
-                    contract.actual_onboarding_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+                    contract.actual_onboarding_date = new_onboarding_date
+                    date_difference = new_onboarding_date - contract.provisional_start_date
+                    new_expected_offboarding_date = contract.end_date + date_difference
+                    contract.expected_offboarding_date = new_expected_offboarding_date
+                    current_app.logger.info(
+                        f"合同 {contract_id} 上户日更新为 {new_onboarding_date} (与预产期差 {date_difference.days} 天)，"
+                        f"预计下户日期推算为 {new_expected_offboarding_date}。"
+                    )
                 else:
                     return jsonify({'error': '只有月嫂合同才能设置实际上户日期'}), 400
             else:
                  if isinstance(contract, MaternityNurseContract):
                     contract.actual_onboarding_date = None
-        
+                    
         # 未来可以在这里添加对其他字段的更新
         # if 'status' in data:
         #     contract.status = data['status']
@@ -585,12 +596,65 @@ def batch_update_billing_details():
         if not contract:
             return jsonify({'error': '合同未找到'}), 404
 
+        # **核心修正**: 检查考勤记录是否存在，如果不存在则创建
         attendance_record = AttendanceRecord.query.filter_by(contract_id=contract_id, cycle_start_date=cycle_start).first()
+        if not attendance_record:
+            current_app.logger.info(f"未找到合同 {contract_id} 在周期 {cycle_start} 的考勤记录，将创建新的记录。")
+            employee_id = contract.user_id or contract.service_personnel_id
+            if not employee_id:
+                return jsonify({'error': '合同未关联员工，无法创建考勤'}), 400
+            attendance_record = AttendanceRecord(
+                employee_id=employee_id,
+                contract_id=contract_id,
+                cycle_start_date=cycle_start,
+                cycle_end_date=cycle_end
+            )
+            db.session.add(attendance_record)
+
+        # 现在可以安全地更新 overtime_days
+        attendance_record.overtime_days = overtime_days
+        attendance_record.total_days_worked = 26 + overtime_days
+        attendance_record.statutory_holiday_days = 0 # 清理旧数据
+        
         current_app.logger.info(f"[BATCH-UPDATE-0.01] 考勤记录查询结果: {attendance_record.overtime_days}")
 
         bill = CustomerBill.query.filter_by(contract_id=contract_id, year=billing_year, month=billing_month).first()
+        
 
         payroll = EmployeePayroll.query.filter_by(contract_id=contract_id, year=billing_year, month=billing_month).first()
+        
+
+        # --- 2. 获取或创建账单/薪酬单 ---
+       
+        if not bill:
+            bill = CustomerBill(
+                contract_id=contract_id,
+                year=billing_year,
+                month=billing_month,
+                customer_name=contract.customer_name,
+                total_payable=0,
+                is_paid=False,
+                payment_details={}, # 提供默认空字典
+                calculation_details={} # **核心修正**: 提供默认空字典
+            )
+            db.session.add(bill)
+        
+        
+        if not payroll:
+            employee_id = contract.user_id or contract.service_personnel_id
+            if not employee_id:
+                return jsonify({'error': '合同未关联员工'}), 400
+            payroll = EmployeePayroll(
+                contract_id=contract_id,
+                year=billing_year,
+                month=billing_month,
+                employee_id=employee_id,
+                final_payout=0,
+                is_paid=False,
+                payout_details={}, # 提供默认空字典
+                calculation_details={} # **核心修正**: 提供默认空字典
+            )
+            db.session.add(payroll)
 
         
         if not attendance_record:
@@ -638,17 +702,7 @@ def batch_update_billing_details():
 
         
 
-        # --- 2. 获取或创建账单/薪酬单 ---
-       
-        if not bill:
-            bill = CustomerBill(contract_id=contract_id, year=billing_year, month=billing_month, customer_name=contract.customer_name, total_payable=0, calculation_details={})
-            db.session.add(bill)
         
-        
-        if not payroll:
-            employee_id = contract.user_id or contract.service_personnel_id
-            payroll = EmployeePayroll(contract_id=contract_id, year=billing_year, month=billing_month, employee_id=employee_id, final_payout=0, calculation_details={})
-            db.session.add(payroll)
 
         # 马上 flush，确保 bill 和 payroll 获得 ID，以便关联
         db.session.flush()
@@ -821,8 +875,10 @@ def batch_update_billing_details():
         # final_bill.payment_details['payment_date'] = payment_date_str.split('T')[0] if payment_date_str else None
         # final_bill.payment_details['payment_channel'] = settlement_status.get('customer_payment_channel')
 
-        final_bill.payment_details['payment_date'] = bill.payment_details['payment_date'] if bill.payment_details['payment_date'] else None
-        final_bill.payment_details['payment_channel'] = bill.payment_details['payment_channel'] if bill.payment_details['payment_channel'] else None
+        # final_bill.payment_details['payment_date'] = bill.payment_details['payment_date'] if bill.payment_details['payment_date'] else None
+        final_bill.payment_details['payment_date'] = payment_date_str.split('T')[0] if payment_date_str else None
+        final_bill.payment_details['payment_channel'] = settlement_status.get('customer_payment_channel')
+        
         
         final_bill.payment_details['invoice_needed'] = new_invoice_needed
         final_bill.payment_details['invoice_issued'] = new_invoice_issued
@@ -937,3 +993,394 @@ def get_activity_logs():
         } for log in logs
     ]
     return jsonify(results)
+
+# backend/api/billing_api.py (最终的、正确的查询构建方式)
+
+@billing_bp.route('/contracts-list', methods=['GET'])
+@admin_required
+def get_all_contracts():
+    try:
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 10, type=int)
+        search_term = request.args.get('search', '').strip()
+        contract_type = request.args.get('type', '')
+        status = request.args.get('status', '') # 默认获取所有状态
+
+        # **核心修正**: 采用最标准的 with_polymorphic 查询方式
+        
+        # 1. 定义多态查询的主体
+        contracts_poly = with_polymorphic(BaseContract, [NannyContract, MaternityNurseContract])
+        
+        # 2. 从这个多态主体开始构建查询
+        query = db.session.query(contracts_poly)
+
+        # 3. 应用 eager loading 选项
+        query = query.options(
+            db.joinedload(contracts_poly.user),
+            db.joinedload(contracts_poly.service_personnel)
+        )
+        
+        # 4. 构建连接，用于筛选 (注意：现在要从多态对象上访问 join)
+        query = query.join(User, contracts_poly.user_id == User.id, isouter=True) \
+                     .join(ServicePersonnel, contracts_poly.service_personnel_id == ServicePersonnel.id, isouter=True)
+
+        # 5. 应用所有筛选条件
+        if status:
+            query = query.filter(contracts_poly.status == status)
+        if contract_type:
+            query = query.filter(contracts_poly.type == contract_type)
+        if search_term:
+            query = query.filter(
+                db.or_(
+                    contracts_poly.customer_name.ilike(f'%{search_term}%'),
+                    User.username.ilike(f'%{search_term}%'),
+                    ServicePersonnel.name.ilike(f'%{search_term}%')
+                )
+            )
+
+        # 6. 应用排序
+        query = query.order_by(contracts_poly.provisional_start_date.desc())
+        
+        # 7. 执行分页
+        paginated_contracts = query.paginate(page=page, per_page=per_page, error_out=False)
+        
+        # 8. 组装返回结果
+        results = []
+        for contract in paginated_contracts.items:
+            employee_name = (contract.user.username if contract.user else contract.service_personnel.name if contract.service_personnel else '未知员工')
+            
+            actual_onboarding_date = getattr(contract, 'actual_onboarding_date', None)
+            provisional_start_date = getattr(contract, 'provisional_start_date', None)
+
+            results.append({
+                'id': str(contract.id),
+                'customer_name': contract.customer_name,
+                'employee_name': employee_name,
+                'contract_type_label': '育儿嫂' if contract.type == 'nanny' else '月嫂',
+                'contract_type_value': contract.type,
+                'status': contract.status,
+                'employee_level': contract.employee_level,
+                'start_date': contract.start_date.isoformat() if contract.start_date else None,
+                'end_date': contract.end_date.isoformat() if contract.end_date else None,
+                'actual_onboarding_date': actual_onboarding_date.isoformat() if actual_onboarding_date else None,
+                'provisional_start_date': provisional_start_date.isoformat() if provisional_start_date else None,
+            })
+            
+        return jsonify({
+            'items': results,
+            'total': paginated_contracts.total,
+            'page': paginated_contracts.page,
+            'per_page': paginated_contracts.per_page,
+            'pages': paginated_contracts.pages
+        })
+
+    except Exception as e:
+        current_app.logger.error(f"获取所有合同列表失败: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+    
+
+
+# 批量生成月嫂合同账单
+@billing_bp.route('/contracts/<string:contract_id>/generate-all-bills', methods=['POST'])
+@admin_required
+def generate_all_bills_for_contract(contract_id):
+    current_app.logger.info(f"--- [API START] 开始为合同 {contract_id} 批量生成账单 ---")
+    contract = db.session.get(MaternityNurseContract, contract_id)
+    if not contract or not contract.actual_onboarding_date or not contract.expected_offboarding_date:
+        return jsonify({'error': '合同未找到或缺少必要日期'}), 404
+
+    try:
+        engine = BillingEngine()
+        
+        cycle_start = contract.actual_onboarding_date
+        processed_months = set() # 用于跟踪已经处理过的月份
+        cycle_count = 0
+        
+        current_app.logger.info(f"[API] 准备进入循环，预计下户日期为: {contract.expected_offboarding_date}")
+
+        # **核心修正**: 循环所有周期
+        while cycle_start <= contract.expected_offboarding_date:
+            
+            # 确定当前周期的结束日
+            if (cycle_start + timedelta(days=25)) <= contract.expected_offboarding_date:
+                cycle_end = cycle_start + timedelta(days=25)
+            else:
+                cycle_end = contract.expected_offboarding_date
+
+            settlement_month_key = (cycle_end.year, cycle_end.month)
+            
+            current_app.logger.info(f"[API] 正在为周期 {cycle_start} ~ {cycle_end} (结算月: {settlement_month_key}) 调用计算引擎...")
+            
+            # **核心修正**: 每次都独立调用引擎，引擎内部会处理 commit
+            engine.calculate_for_month(
+                year=settlement_month_key[0], 
+                month=settlement_month_key[1], 
+                contract_id=contract.id, 
+                force_recalculate=True
+            )
+            
+            processed_months.add(settlement_month_key)
+            cycle_start = cycle_end + timedelta(days=1)
+        # **调试日志**: 检查循环是否会提前结束
+        if cycle_end == contract.expected_offboarding_date:
+                current_app.logger.info(f"[API LOOP-{cycle_count}] 已到达预计下户日期，这将是最后一次循环。")
+        current_app.logger.info(f"--- [API END] 所有周期处理完毕，共涉及月份: {processed_months} ---")
+        current_app.logger.info(f"--- [API END] 所有周期处理完毕，共循环 {cycle_count} 次。---")
+
+        return jsonify({'message': f'已为合同 {contract.id} 成功预生成所有账单。'})
+
+    except Exception as e:
+        # 这里的 rollback 可能不是必须的，因为引擎内部已经处理了
+        current_app.logger.error(f"为合同 {contract_id} 批量生成账单时发生顶层错误: {e}", exc_info=True)
+        return jsonify({'error': '批量生成账单失败'}), 500
+
+@billing_bp.route('/contracts/<string:contract_id>/bills', methods=['GET'])
+@admin_required
+def get_bills_for_contract(contract_id):
+    bills = CustomerBill.query.filter_by(contract_id=contract_id).order_by(CustomerBill.year, CustomerBill.month).all()
+    
+    results = []
+    for bill in bills:
+        calc = bill.calculation_details or {}
+        results.append({
+            'id': str(bill.id),
+            'billing_period': f"{bill.year}-{str(bill.month).zfill(2)}",
+            'total_payable': str(bill.total_payable),
+            'status': '已支付' if bill.is_paid else '未支付',
+            'overtime_days': calc.get('overtime_days', '0'),
+        })
+    return jsonify(results)
+
+
+# backend/api/billing_api.py (添加新端点)
+# 更新月嫂账单周期，后续账单向后顺延
+@billing_bp.route('/bills/<string:bill_id>/postpone', methods=['POST'])
+@admin_required
+def postpone_subsequent_bills(bill_id):
+    data = request.get_json()
+    new_end_date_str = data.get('new_end_date')
+    if not new_end_date_str:
+        return jsonify({'error': '缺少新的结束日期 (new_end_date)'}), 400
+
+    try:
+        new_end_date = datetime.strptime(new_end_date_str, '%Y-%m-%d').date()
+        
+        # 1. 找到当前被修改的账单及其关联的考勤记录
+        target_bill = db.session.get(CustomerBill, bill_id)
+        if not target_bill:
+            return jsonify({'error': '目标账单未找到'}), 404
+        
+        target_attendance = AttendanceRecord.query.filter_by(
+            contract_id=target_bill.contract_id,
+            year=target_bill.year,
+            month=target_bill.month
+        ).first() # 假设通过年月能找到唯一考勤
+
+        if not target_attendance:
+            return jsonify({'error': '关联的考勤记录未找到，无法顺延'}), 404
+            
+        # 2. 更新当前考勤周期的结束日期
+        original_end_date = target_attendance.cycle_end_date
+        target_attendance.cycle_end_date = new_end_date
+        
+        # 3. 找出所有后续的考勤记录
+        subsequent_attendances = AttendanceRecord.query.filter(
+            AttendanceRecord.contract_id == target_bill.contract_id,
+            AttendanceRecord.cycle_start_date > target_attendance.cycle_start_date
+        ).order_by(AttendanceRecord.cycle_start_date).all()
+        
+        # 4. 循环顺延更新后续所有周期
+        current_start_date = new_end_date + timedelta(days=1)
+        for attendance in subsequent_attendances:
+            attendance.cycle_start_date = current_start_date
+            attendance.cycle_end_date = current_start_date + timedelta(days=25)
+            
+            # 同时更新关联账单的年月
+            related_bill = CustomerBill.query.filter_by(
+                contract_id=attendance.contract_id,
+                # 这里需要一个更可靠的方式来找到关联账单，例如通过考勤ID关联
+            ).first()
+            if related_bill:
+                related_bill.year = attendance.cycle_end_date.year
+                related_bill.month = attendance.cycle_end_date.month
+
+            current_start_date = attendance.cycle_end_date + timedelta(days=1)
+
+        db.session.commit()
+        return jsonify({'message': '后续所有账单周期已成功顺延更新。'})
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"顺延账单失败: {e}", exc_info=True)
+        return jsonify({'error': '顺延操作失败'}), 500
+
+# backend/api/billing_api.py (添加新端点)
+
+@billing_bp.route('/bills/<string:bill_id>/update-cycle', methods=['POST'])
+@admin_required
+def update_bill_cycle_and_cascade(bill_id):
+    data = request.get_json()
+    new_start_str = data.get('new_start_date')
+    new_end_str = data.get('new_end_date')
+
+    if not all([new_start_str, new_end_str]):
+        return jsonify({'error': '必须提供新的开始和结束日期'}), 400
+
+    try:
+        with db.session.begin():
+            new_start_date = datetime.strptime(new_start_str, '%Y-%m-%d').date()
+            new_end_date = datetime.strptime(new_end_str, '%Y-%m-%d').date()
+            
+            # 1. 找到当前被修改的账单及其关联考勤
+            target_bill = db.session.get(CustomerBill, bill_id)
+            if not target_bill:
+                return jsonify({'error': '目标账单未找到'}), 404
+            
+            # **核心修正**: 使用周期重叠的方式查找关联的考勤记录
+            year, month = target_bill.year, target_bill.month
+            first_day_of_month = date(year, month, 1)
+            last_day_of_month = (first_day_of_month.replace(day=28) + timedelta(days=4)).replace(day=1) - timedelta(days=1)
+            
+            target_attendance = AttendanceRecord.query.filter(
+                AttendanceRecord.contract_id == target_bill.contract_id,
+                AttendanceRecord.cycle_end_date >= first_day_of_month,
+                AttendanceRecord.cycle_start_date <= last_day_of_month
+            ).first()
+
+            if not target_attendance:
+                return jsonify({'error': '关联的考勤记录未找到'}), 404
+
+            # 2. 更新当前周期的起止日期
+            original_cycle_start = target_attendance.cycle_start_date
+            target_attendance.cycle_start_date = new_start_date
+            target_attendance.cycle_end_date = new_end_date
+            
+            # 3. 找出所有后续的考勤记录
+            subsequent_attendances = AttendanceRecord.query.filter(
+                AttendanceRecord.contract_id == target_bill.contract_id,
+                AttendanceRecord.cycle_start_date > original_cycle_start
+            ).order_by(AttendanceRecord.cycle_start_date).all()
+            
+            # 4. 循环顺延更新后续所有周期
+            current_next_start_date = new_end_date + timedelta(days=1)
+            for attendance in subsequent_attendances:
+                # 获取旧周期的天数
+                cycle_duration = (attendance.cycle_end_date - attendance.cycle_start_date).days
+                
+                # 设置新的起止日期
+                attendance.cycle_start_date = current_next_start_date
+                attendance.cycle_end_date = current_next_start_date + timedelta(days=cycle_duration)
+                
+                # 找到并更新关联账单的年月（这依然是潜在的问题点）
+                related_bill = CustomerBill.query.filter(
+                    CustomerBill.contract_id == attendance.contract_id,
+                    # ...需要一个可靠的方式找到bill
+                ).first()
+                if related_bill:
+                    related_bill.year = attendance.cycle_end_date.year
+                    related_bill.month = attendance.cycle_end_date.month
+
+                current_next_start_date = attendance.cycle_end_date + timedelta(days=1)
+
+        return jsonify({'message': '当前周期已更新，且所有后续账单已成功顺延。'})
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"更新并顺延账单失败: {e}", exc_info=True)
+        return jsonify({'error': '操作失败'}), 500
+    
+
+@billing_bp.route('/contracts/<string:contract_id>/details', methods=['GET'])
+@admin_required
+def get_single_contract_details(contract_id):
+    try:
+        # 使用 with_polymorphic 来加载所有子类字段
+        query = db.session.query(with_polymorphic(BaseContract, "*"))
+        contract = query.filter(BaseContract.id == contract_id).first()
+
+        if not contract:
+            return jsonify({'error': '合同未找到'}), 404
+            
+        # 组装基础信息
+        employee_name = (contract.user.username if contract.user else contract.service_personnel.name if contract.service_personnel else '未知员工')
+        
+        # **核心修正**: 只访问模型中真实存在的字段
+        result = {
+            'id': str(contract.id),
+            'customer_name': contract.customer_name,
+            'contact_person': contract.contact_person, # 存在
+            # 'contact_phone': contract.contact_phone, # 不存在，已移除
+            # 'service_address': contract.service_address, # 不存在，已移除
+            'employee_name': employee_name,
+            'employee_level': contract.employee_level,
+            'status': contract.status,
+            'start_date': contract.start_date.isoformat() if contract.start_date else None,
+            'end_date': contract.end_date.isoformat() if contract.end_date else None,
+            'created_at': contract.created_at.isoformat(),
+            'contract_type': contract.type,
+            'notes': contract.notes, # 增加了备注字段
+        }
+        
+        # 根据合同类型，添加子类特有的字段
+        if contract.type == 'maternity_nurse':
+            result.update({
+                'deposit_amount': str(contract.deposit_amount or 0),
+                'management_fee_rate': str(contract.management_fee_rate or 0),
+                'provisional_start_date': contract.provisional_start_date.isoformat() if contract.provisional_start_date else None,
+                'actual_onboarding_date': contract.actual_onboarding_date.isoformat() if contract.actual_onboarding_date else None,
+                'security_deposit_paid': str(contract.security_deposit_paid or 0),
+                'discount_amount': str(contract.discount_amount or 0),
+                'management_fee_amount': str(contract.management_fee_amount or 0), # 增加了从金数据同步的管理费金额
+            })
+        elif contract.type == 'nanny':
+            result.update({
+                'is_monthly_auto_renew': contract.is_monthly_auto_renew,
+                'management_fee_paid_months': contract.management_fee_paid_months,
+                'is_first_month_fee_paid': contract.is_first_month_fee_paid,
+            })
+            
+        return jsonify(result)
+
+    except Exception as e:
+        current_app.logger.error(f"获取合同详情 {contract_id} 失败: {e}", exc_info=True)
+        return jsonify({'error': '服务器内部错误'}), 500
+
+
+@billing_bp.route('/contracts/<string:contract_id>', methods=['PUT'])
+@admin_required
+def update_contract(contract_id):
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': '请求体不能为空'}), 400
+
+    contract = db.session.get(BaseContract, contract_id)
+    if not contract:
+        return jsonify({'error': '合同未找到'}), 404
+
+    try:
+        # **核心修正**: 增加自动调整结束日的逻辑
+        if 'actual_onboarding_date' in data and data['actual_onboarding_date']:
+            new_onboarding_date_str = data['actual_onboarding_date']
+            new_onboarding_date = datetime.strptime(new_onboarding_date_str, '%Y-%m-%d').date()
+            
+            # 更新实际上户日期
+            contract.actual_onboarding_date = new_onboarding_date
+            
+            # 如果是月嫂合同，自动计算并更新合同结束日
+            if contract.type == 'maternity_nurse':
+                # 假设所有月嫂合同都是一个标准的26天周期
+                # 结束日 = 实际上户日期 + 25天
+                new_end_date = new_onboarding_date + timedelta(days=25)
+                contract.end_date = new_end_date
+                current_app.logger.info(f"合同 {contract_id} 的实际上户日更新为 {new_onboarding_date}，合同结束日自动调整为 {new_end_date}。")
+        
+        # 未来可以增加更新其他字段的逻辑
+        # ...
+
+        db.session.commit()
+        return jsonify({'message': '合同信息更新成功'})
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"更新合同 {contract_id} 失败: {e}", exc_info=True)
+        return jsonify({'error': '更新失败'}), 500

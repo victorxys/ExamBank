@@ -227,12 +227,7 @@ const BillingDashboard = () => {
         try {
             const params = { page: page + 1, per_page: rowsPerPage, billing_month: selectedBillingMonth, ...filters };
             const response = await api.get('/billing/contracts', { params });
-            const items = response.data.items || [];
-
-            // 让我们特别检查第一个需要设置日期的合同
-            const firstContractToCheck = items.find(c => !c.active_cycle_start);
-
-            setContracts(items);
+            setContracts(response.data.items || []); // 现在 contracts state 存储的是账单列表 
             setTotalContracts(response.data.total || 0);
         } catch (error) {
             setAlert({ open: true, message: `获取合同列表失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
@@ -298,33 +293,39 @@ const BillingDashboard = () => {
 
 
     const handleOpenDetailDialog = async (contract) => {
-      setSelectedContractForDetail(contract);
-      setDetailDialogOpen(true);
-      setLoadingDetail(true);
-      try {
-          const [year, month] = selectedBillingMonth.split('-');
-          const response = await api.get('/billing/details', { params: { contract_id: contract.id, year, month } });
-          const responseData = response.data;
-          setBillingDetails(responseData);
+        const mockContract = {
+            id: bill.id,
+            customer_name: bill.customer_name,
+            employee_name: bill.employee_name,
+        };
+        setSelectedContractForDetail(mockContract);
+        setDetailDialogOpen(true);
+        setLoadingDetail(true);
+        try {
+            const [year, month] = selectedBillingMonth.split('-');
+            // const response = await api.get('/billing/details', { params: { contract_id: contract.id, year, month } });
+            const response = await api.get('/billing/details', { params: { bill_id: bill.bill_id } }); // 使用 bill.bill_id
+            const responseData = response.data;
+            setBillingDetails(responseData);
 
-          const rawCycleRange = responseData.customer_bill_details?.劳务时间段;
-          if (rawCycleRange && rawCycleRange.includes('~')) {
-              const [start, end] = rawCycleRange.split('~').map(d => d.trim());
-              setCurrentCycle({ start, end });
-          } else {
-              setCurrentCycle({ start: null, end: null });
-          }
+            const rawCycleRange = responseData.customer_bill_details?.劳务时间段;
+            if (rawCycleRange && rawCycleRange.includes('~')) {
+                const [start, end] = rawCycleRange.split('~').map(d => d.trim());
+                setCurrentCycle({ start, end });
+            } else {
+                setCurrentCycle({ start: null, end: null });
+            }
 
-          let initialAttendance = { overtime_days: 0 };
-          if (responseData.customer_bill_details?.加班天数) {
-              initialAttendance.overtime_days = parseInt(responseData.customer_bill_details.加班天数, 10) || 0;
-          }
-          setEditableAttendance(initialAttendance);
-      } catch (error) {
-          setAlert({ open: true, message: `获取详情失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
-          setBillingDetails(null);
-      } finally { setLoadingDetail(false); }
-  };
+            let initialAttendance = { overtime_days: 0 };
+            if (responseData.customer_bill_details?.加班天数) {
+                initialAttendance.overtime_days = parseInt(responseData.customer_bill_details.加班天数, 10) || 0;
+            }
+            setEditableAttendance(initialAttendance);
+        } catch (error) {
+            setAlert({ open: true, message: `获取详情失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
+            setBillingDetails(null);
+        } finally { setLoadingDetail(false); }
+    };
 
     const handleCloseDetailDialog = () => {
         setDetailDialogOpen(false);
@@ -497,7 +498,7 @@ const BillingDashboard = () => {
     <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={zhCN}>
       <Box>
         <AlertMessage open={alert.open} message={alert.message} severity={alert.severity} onClose={() => setAlert(prev => ({...prev, open: false}))} />
-        <PageHeader title="财务仪表盘" description="管理所有客户合同、录入财务数据并生成月度账单。" />
+        <PageHeader title="月度账单管理" description="筛选特定月份的待结算账单，并进行财务管理。" />
         <Card sx={{ 
           boxShadow: '0 0 2rem 0 rgba(136, 152, 170, .15)',
           backgroundColor: 'white',
@@ -567,6 +568,7 @@ const BillingDashboard = () => {
                     <TableCell>客户姓名</TableCell>
                     <TableCell>服务人员</TableCell>
                     <TableCell>合同类型</TableCell>
+                    <TableCell>合同周期</TableCell>
                     <TableCell>劳务时间段</TableCell>
                     <TableCell>状态</TableCell>
                     <TableCell>月服务费/级别</TableCell>
@@ -577,13 +579,20 @@ const BillingDashboard = () => {
                 <TableBody>
                   {loading ? ( <TableRow><TableCell colSpan={7} align="center" sx={{py: 5}}><CircularProgress /></TableCell></TableRow> )
                   : (
-                    (contracts.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)).map((contract) => (
-                      <TableRow hover key={contract.id}>
-                        <TableCell sx={{color: '#525f7f', fontWeight: 'bold'}}>{contract.customer_name}</TableCell>
-                        <TableCell sx={{color: '#525f7f'}}>{contract.employee_name}</TableCell>
-                        <TableCell><Chip label={contract.contract_type_label} size="small" sx={{ backgroundColor: contract.contract_type_value === 'nanny' ? alpha(theme.palette.primary.light, 0.2) : alpha(theme.palette.info.light, 0.2), color: contract.contract_type_value === 'nanny' ? theme.palette.primary.dark : theme.palette.info.dark, fontWeight: 600 }}/></TableCell>
+                    (contracts.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)).map((bill) => (
+                      <TableRow hover key={bill.id}>
+                        <TableCell sx={{color: '#525f7f', fontWeight: 'bold'}}>{bill.customer_name}</TableCell>
+                        <TableCell sx={{color: '#525f7f'}}>{bill.employee_name}</TableCell>
+                        <TableCell><Chip label={bill.contract_type_label} size="small" sx={{ backgroundColor: bill.contract_type_value === 'nanny' ? alpha(theme.palette.primary.light, 0.2) : alpha(theme.palette.info.light, 0.2), color: bill.contract_type_value === 'nanny' ? theme.palette.primary.dark : theme.palette.info.dark, fontWeight: 600 }}/></TableCell>
                         <TableCell>
-                          {contract.active_cycle_start && contract.active_cycle_end ? (
+                            <Typography variant="body2" sx={{ fontFamily: 'monospace', lineHeight: 1.5, whiteSpace: 'nowrap' }}>
+                                {formatDate(bill.start_date)}
+                                <br />
+                                {'~ ' + formatDate(bill.end_date)}
+                            </Typography>
+                        </TableCell>
+                        <TableCell>
+                          {bill.active_cycle_start && bill.active_cycle_end ? (
                             <Typography 
                               variant="body2" 
                               sx={{ 
@@ -593,9 +602,9 @@ const BillingDashboard = () => {
                               }}
                             >
                               {/* 直接显示这个跨月的、与当前账单月相关的26天服务周期 */}
-                              {formatDate(contract.active_cycle_start)}
+                              {formatDate(bill.active_cycle_start)}
                               <br />
-                              {formatDate(contract.active_cycle_end)}
+                              {formatDate(bill.active_cycle_end)}
                             </Typography>
                           ) : (
                             // 如果合同在本月没有服务周期，则显示占位符
@@ -605,7 +614,7 @@ const BillingDashboard = () => {
                                   label="未确认上户日期"
                                   size="small"
                                   variant="outlined"
-                                  onClick={() => handleOpenOnboardingDateModal(contract)}
+                                  onClick={() => handleOpenOnboardingDateModal(bill)}
                                   sx={{
                                       borderColor: 'grey.400',
                                       borderStyle: 'dashed',
@@ -625,26 +634,26 @@ const BillingDashboard = () => {
                           )}
                         </TableCell>
 
-                        <TableCell><Chip label={contract.status} size="small" color={contract.status === 'active' ? 'success' : 'default'} /></TableCell>
-                        <TableCell sx={{color: '#525f7f'}}>¥{contract.employee_level}</TableCell>
+                        <TableCell><Chip label={bill.status} size="small" color={bill.status === 'active' ? 'success' : 'default'} /></TableCell>
+                        <TableCell sx={{color: '#525f7f'}}>¥{bill.Alertemployee_level}</TableCell>
                         <TableCell>
                             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                                 <Tooltip title="客户应付款 / 支付状态">
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                         <Typography sx={{ fontWeight: 'bold', color: 'error.main', width: '100px' }}>
-                                            {contract.customer_payable ? `¥${contract.customer_payable}` : '待计算'}
+                                            {bill.Alertcustomer_payable ? `¥${bill.customer_payable}` : '待计算'}
                                         </Typography>
-                                        {contract.customer_is_paid === true && <CheckCircleIcon color="success" fontSize="small" />}
-                                        {contract.customer_is_paid === false && <HighlightOffIcon color="disabled" fontSize="small" />}
+                                        {bill.customer_is_paid === true && <CheckCircleIcon color="success" fontSize="small" />}
+                                        {bill.customer_is_paid === false && <HighlightOffIcon color="disabled" fontSize="small" />}
                                     </Box>
                                 </Tooltip>
                                 <Tooltip title="员工应领款 / 领款状态">
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                         <Typography sx={{ fontWeight: 'bold', color: 'success.main', width: '100px' }}>
-                                            {contract.employee_payout ? `¥${contract.employee_payout}` : '待计算'}
+                                            {bill.employee_payout ? `¥${bill.employee_payout}` : '待计算'}
                                         </Typography>
-                                        {contract.employee_is_paid === true && <CheckCircleIcon color="success" fontSize="small" />}
-                                        {contract.employee_is_paid === false && <HighlightOffIcon color="disabled" fontSize="small" />}
+                                        {bill.employee_is_paid === true && <CheckCircleIcon color="success" fontSize="small" />}
+                                        {bill.employee_is_paid === false && <HighlightOffIcon color="disabled" fontSize="small" />}
                                     </Box>
                                 </Tooltip>
                             </Box>

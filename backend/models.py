@@ -2,9 +2,10 @@
 import uuid
 import enum
 from sqlalchemy import Enum as SAEnum
+import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID, JSONB as PG_JSONB, ARRAY
 from sqlalchemy import (
-    Integer, String, Text, Boolean, DateTime, ForeignKey, func,
+    Integer, String, Text, Boolean, DateTime, ForeignKey, func, 
     UniqueConstraint, CheckConstraint, Index, Numeric, Enum as SAEnum, BigInteger, Table,
     ForeignKeyConstraint, PrimaryKeyConstraint
 )
@@ -970,6 +971,7 @@ class BaseContract(db.Model):
     end_date = db.Column(db.Date, nullable=True, comment='合同结束日期 (育儿嫂和月嫂)')
     provisional_start_date = db.Column(db.Date, nullable=True, comment='预产期 (月嫂)')
     actual_onboarding_date = db.Column(db.Date, nullable=True, comment='实际上户日期 (月嫂)')
+    expected_offboarding_date = db.Column(db.Date, nullable=True, comment='预计下户日期 (可动态顺延)')
     
     __mapper_args__ = {
         'polymorphic_on': type,
@@ -1018,39 +1020,63 @@ class FinancialActivityLog(db.Model):
 
 class CustomerBill(db.Model):
     __tablename__ = 'customer_bills'
-    __table_args__ = (db.UniqueConstraint('contract_id', 'year', 'month', name='uq_bill_contract_month'),)
+    db.UniqueConstraint('contract_id', 'year', 'month', 'cycle_start_date', name='uq_bill_contract_period'),
     
     id = db.Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     contract_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('contracts.id', ondelete='CASCADE'), nullable=False, index=True)
     year = db.Column(db.Integer, nullable=False, index=True)
     month = db.Column(db.Integer, nullable=False, index=True)
+    # **核心新增**: 用于区分月嫂在同一个月内的不同周期账单
+    cycle_start_date = db.Column(db.Date, nullable=True, index=True)
+    cycle_end_date = db.Column(db.Date, nullable=True) # 也顺便记录结束日
+
     customer_name = db.Column(db.String(255), nullable=False, index=True) # 冗余客户名，方便查询
     
-    total_payable = db.Column(db.Numeric(12, 2), nullable=False, comment='客户总应付款')
-    is_paid = db.Column(db.Boolean, default=False, index=True, comment='是否已打款')
-    payment_details = db.Column(PG_JSONB, comment='打款日期/渠道/总额/打款人等信息')
-    calculation_details = db.Column(PG_JSONB, nullable=False, comment='计算过程快照，用于展示和审计')
+    # total_payable = db.Column(db.Numeric(12, 2), nullable=False, comment='客户总应付款')
+    # is_paid = db.Column(db.Boolean, default=False, index=True, comment='是否已打款')
+    # payment_details = db.Column(PG_JSONB, comment='打款日期/渠道/总额/打款人等信息')
+    # calculation_details = db.Column(PG_JSONB, nullable=False, comment='计算过程快照，用于展示和审计')
+
+    # **核心修正**: 为所有 JSONB 和 NOT NULL 字段提供 server_default
+    total_payable = db.Column(db.Numeric(12, 2), nullable=False, server_default='0', comment='客户总应付款')
+    is_paid = db.Column(db.Boolean, nullable=False, default=False, server_default='false', comment='是否已打款')
+    
+    payment_details = db.Column(PG_JSONB, nullable=False, server_default=sa.text("'{}'::jsonb"), comment='打款日期/渠道/总额/打款人等信息')
+    calculation_details = db.Column(PG_JSONB, nullable=False, server_default=sa.text("'{}'::jsonb"), comment='计算过程快照，用于展示和审计')
+
     created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
     activity_logs = db.relationship('FinancialActivityLog', back_populates='customer_bill', lazy='dynamic', cascade="all, delete-orphan")
 
 
 class EmployeePayroll(db.Model):
     __tablename__ = 'employee_payrolls'
-    __table_args__ = (db.UniqueConstraint('contract_id', 'year', 'month', name='uq_payroll_contract_month'),)
+    db.UniqueConstraint('contract_id', 'year', 'month', 'cycle_start_date', name='uq_payroll_contract_period'),
     
     id = db.Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     contract_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('contracts.id', ondelete='CASCADE'), nullable=False, index=True)
     year = db.Column(db.Integer, nullable=False, index=True)
     month = db.Column(db.Integer, nullable=False, index=True)
+    # **核心新增**: 同样的周期字段
+    cycle_start_date = db.Column(db.Date, nullable=True, index=True)
+    cycle_end_date = db.Column(db.Date, nullable=True)
     # employee_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('service_personnel.id'), nullable=False, index=True)
     # --- 核心修正：移除 ForeignKey 约束，但保留字段本身 ---
     employee_id = db.Column(PG_UUID(as_uuid=True), nullable=False, index=True, comment='员工ID (可以是User或ServicePersonnel的ID)')
 
     
-    final_payout = db.Column(db.Numeric(12, 2), nullable=False, comment='员工最终应领款')
-    is_paid = db.Column(db.Boolean, default=False, index=True, comment='是否已领款')
-    payout_details = db.Column(PG_JSONB, comment='领款人/时间/途径等信息')
-    calculation_details = db.Column(PG_JSONB, nullable=False, comment='计算过程快照')
+    # final_payout = db.Column(db.Numeric(12, 2), nullable=False, comment='员工最终应领款')
+    # is_paid = db.Column(db.Boolean, default=False, index=True, comment='是否已领款')
+    # payout_details = db.Column(PG_JSONB, comment='领款人/时间/途径等信息')
+    # calculation_details = db.Column(PG_JSONB, nullable=False, comment='计算过程快照')
+
+    final_payout = db.Column(db.Numeric(10, 2), nullable=False, server_default='0', comment='员工最终应领款')
+    is_paid = db.Column(db.Boolean, nullable=False, default=False, server_default='false', comment='是否已领款')
+    
+    payout_details = db.Column(PG_JSONB, nullable=False, server_default=sa.text("'{}'::jsonb"), comment='领款人/时间/途径等信息')
+    calculation_details = db.Column(PG_JSONB, nullable=False, server_default=sa.text("'{}'::jsonb"), comment='计算过程快照')
+    
+    # ... (关系不变) ...
+
     created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
     activity_logs = db.relationship('FinancialActivityLog', back_populates='employee_payroll', lazy='dynamic', cascade="all, delete-orphan")
 

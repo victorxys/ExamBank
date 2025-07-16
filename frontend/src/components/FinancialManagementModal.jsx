@@ -12,6 +12,7 @@ import {
     Add as AddIcon, Remove as RemoveIcon, Info as InfoIcon, Delete as DeleteIcon,
     ArrowUpward as ArrowUpwardIcon, ArrowDownward as ArrowDownwardIcon,
     ReceiptLong as ReceiptLongIcon, History as HistoryIcon,
+    EditCalendar as EditCalendarIcon,
     CheckCircle as CheckCircleIcon, HighlightOff as HighlightOffIcon // 新增图标
 } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
@@ -73,6 +74,9 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
     const [isInvoiceDialogOpen, setIsInvoiceDialogOpen] = useState(false);
     const [activityLogs, setActivityLogs] = useState([]);
     const [loadingLogs, setLoadingLogs] = useState(false);
+    // **新增**: 用于管理周期修改的 state
+    const [isCycleEditDialogOpen, setIsCycleEditDialogOpen] = useState(false);
+    const [editableCycle, setEditableCycle] = useState({ start: null, end: null });
 
     // **固定的UI配置**
     const fieldGroups = {
@@ -96,6 +100,16 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
             const customerDetails = billingDetails.customer_bill_details || {};
             const employeeDetails = billingDetails.employee_payroll_details || {};
             const invoiceDetails = billingDetails.invoice_details || {};
+
+            // **新增**: 初始化周期编辑的 state
+            const rawCycleRange = billingDetails.customer_bill_details?.劳务时间段;
+            if (rawCycleRange && rawCycleRange.includes('~')) {
+                const [startStr, endStr] = rawCycleRange.split('~').map(d => d.trim());
+                setEditableCycle({
+                    start: startStr !== 'N/A' ? new Date(startStr) : null,
+                    end: endStr !== 'N/A' ? new Date(endStr) : null,
+                });
+            }
             
             setEditableOvertime(parseInt(customerDetails.加班天数, 10) || 0);
             
@@ -216,7 +230,37 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
     
     const customerData = billingDetails?.customer_bill_details || {};
     const employeeData = billingDetails?.employee_payroll_details || {};
+
+    // **新增**: 周期修改相关的事件处理器
+    const handleOpenCycleEditDialog = () => setIsCycleEditDialogOpen(true);
+    const handleCloseCycleEditDialog = () => setIsCycleEditDialogOpen(false);
+    const handleCycleDateChange = (name, newDate) => {
+        setEditableCycle(prev => ({ ...prev, [name]: newDate }));
+    };
+    const handleSaveCycle = async () => {
+        if (!editableCycle.start || !editableCycle.end) {
+            alert("请提供完整的周期起止日期！");
+            return;
+        }
+        try {
+            const billId = billingDetails.customer_bill_details.id;
+            await api.post(`/billing/bills/${billId}/update-cycle`, {
+                new_start_date: editableCycle.start.toISOString().split('T')[0],
+                new_end_date: editableCycle.end.toISOString().split('T')[0],
+            });
+            // 成功后，需要关闭主弹窗并提示用户刷新主列表，因为后续账单的月份可能都变了
+            onClose(); 
+            // 可以在这里触发一个全局的 Alert
+            alert("周期已更新，后续账单已顺延！请在新的月份查看后续账单。");
+        } catch (error) {
+            console.error("更新周期失败:", error);
+        } finally {
+            handleCloseCycleEditDialog();
+        }
+    };
     
+    // frontend/src/components/FinancialManagementModal.jsx (请只替换这个函数)
+
     const renderCardContent = (data, isCustomer) => {
         const groupConfig = isCustomer ? fieldGroups.customer : fieldGroups.employee;
         const currentAdjustments = adjustments.filter(adj => 
@@ -226,8 +270,11 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
         return (
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
                 {Object.entries(groupConfig).map(([groupName, fields]) => {
+                    
                     if (groupName === '财务调整') {
-                        if (!isEditMode && currentAdjustments.length === 0) return null;
+                        if (!isEditMode && currentAdjustments.length === 0) {
+                            return null;
+                        }
                         return (
                             <Box key={groupName}>
                                 <Divider textAlign="left" sx={{ mb: 1.5, '&::before, &::after': { borderColor: 'grey.200' } }}>
@@ -279,29 +326,56 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                                 <Typography variant="overline" color="text.secondary">{groupName}</Typography>
                             </Divider>
                             <Grid container rowSpacing={1.5} columnSpacing={2}>
-                                {visibleFields.map(key => (
-                                    <React.Fragment key={key}>
-                                        <Grid item xs={5}><Typography variant="body2" color="text.secondary">{key}:</Typography></Grid>
-                                        <Grid item xs={7}>
-                                            {isEditMode && key === '加班天数' && isCustomer ? (
-                                                <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 0.5 }}>
-                                                    <IconButton size="small" onClick={() => setEditableOvertime(Math.max(0, editableOvertime - 1))}><RemoveIcon sx={{ fontSize: '1rem' }} /></IconButton>
-                                                    <Typography variant="body1" sx={{ fontWeight: 500, minWidth: '40px', textAlign: 'center' }}>{editableOvertime}天</Typography>
-                                                    <IconButton size="small" onClick={() => setEditableOvertime(editableOvertime + 1)}><AddIcon sx={{ fontSize: '1rem' }} /></IconButton>
-                                                    <Tooltip title="添加加班备注">
-                                                        <IconButton size="small" color="primary">
-                                                            <InfoIcon sx={{ fontSize: '1.125rem' }} />
-                                                        </IconButton>
-                                                    </Tooltip>
-                                                </Box>
-                                            ) : (
-                                                <Typography variant="body1" sx={{ textAlign: 'right', fontWeight: 500, fontFamily: 'monospace', color: (key.includes('应付') || key.includes('应领')) ? (key.includes('应付') ? 'error.main' : 'success.main') : 'text.primary', fontWeight: (key.includes('应付') || key.includes('应领')) ? 'bold' : 500 }}>
-                                                    {key === '劳务时间段' ? formatDateRange(data[key]) : formatValue(key, data[key])}
-                                                </Typography>
-                                            )}
-                                        </Grid>
-                                    </React.Fragment>
-                                ))}
+                                {visibleFields.map(key => {
+                                    const isOvertimeField = key === '加班天数' && isCustomer;
+
+                                    // **核心修正**: 将劳务时间段的渲染逻辑也包含进来
+                                    if (key === '劳务时间段') {
+                                        return (
+                                            <React.Fragment key={key}>
+                                                <Grid item xs={5}><Typography variant="body2" color="text.secondary">{key}:</Typography></Grid>
+                                                <Grid item xs={7} sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
+                                                    <Typography variant="body1" sx={{ textAlign: 'right', fontWeight: 500, fontFamily: 'monospace' }}>
+                                                        {formatDateRange(data[key])}
+                                                    </Typography>
+                                                    {isEditMode && isCustomer && (
+                                                        <Tooltip title="修改本期劳务时间段（将自动顺延后续周期）">
+                                                            <IconButton size="small" onClick={handleOpenCycleEditDialog} sx={{ ml: 0.5 }}>
+                                                                <EditCalendarIcon fontSize="small" color="primary"/>
+                                                            </IconButton>
+                                                        </Tooltip>
+                                                    )}
+                                                </Grid>
+                                            </React.Fragment>
+                                        );
+                                    }
+
+                                    return (
+                                        <React.Fragment key={key}>
+                                            <Grid item xs={5}><Typography variant="body2" color="text.secondary">{key}:</Typography></Grid>
+                                            <Grid item xs={7}>
+                                                {isEditMode && isOvertimeField ? (
+                                                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 0.5 }}>
+                                                        <IconButton size="small" onClick={() => setEditableOvertime(Math.max(0, editableOvertime - 1))}><RemoveIcon sx={{ fontSize: '1rem' }} /></IconButton>
+                                                        <Typography variant="body1" sx={{ fontWeight: 500, minWidth: '40px', textAlign: 'center' }}>{editableOvertime}天</Typography>
+                                                        <IconButton size="small" onClick={() => setEditableOvertime(editableOvertime + 1)}><AddIcon sx={{ fontSize: '1rem' }} /></IconButton>
+                                                        <Tooltip title="添加加班备注">
+                                                            <IconButton size="small" color="primary">
+                                                                <InfoIcon sx={{ fontSize: '1.125rem' }} />
+                                                            </IconButton>
+                                                        </Tooltip>
+                                                    </Box>
+                                                ) : (
+                                                    data.hasOwnProperty(key) && (
+                                                        <Typography variant="body1" sx={{ textAlign: 'right', fontWeight: 500, fontFamily: 'monospace', color: (key.includes('应付') || key.includes('应领')) ? (key.includes('应付') ? 'error.main' : 'success.main') : 'text.primary', fontWeight: (key.includes('应付') || key.includes('应领')) ? 'bold' : 500 }}>
+                                                            {formatValue(key, data[key])}
+                                                        </Typography>
+                                                    )
+                                                )}
+                                            </Grid>
+                                        </React.Fragment>
+                                    );
+                                })}
                             </Grid>
                         </Box>
                     );
@@ -324,7 +398,7 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
 
         return (
             <Box>
-                <Typography variant="body1" sx={{ fontWeight: 500, mt: 0.5 }}>已开票</Typography>
+                <Typography variant="body1" sx={{ fontWeight: 500, mt: 0.5 }}>未开票</Typography>
                 <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>{details}</Typography>
             </Box>
         );
@@ -514,6 +588,25 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                 onSave={handleSaveInvoice}
                 invoiceData={editableInvoice}
             />
+            {/* **新增**: 修改周期的对话框 */}
+            <Dialog open={isCycleEditDialogOpen} onClose={handleCloseCycleEditDialog} maxWidth="xs" fullWidth>
+                <DialogTitle>修改并顺延服务周期</DialogTitle>
+                <DialogContent>
+                    <Alert severity="warning" sx={{mb: 2}}>注意：修改本期结束日期将会自动顺延所有后续的账单周期和月份。</Alert>
+                    <Grid container spacing={2} sx={{pt: 1}}>
+                        <Grid item xs={12}>
+                            <DatePicker label="本期开始日期" value={editableCycle.start} onChange={(d) => handleCycleDateChange('start', d)} sx={{width: '100%'}} />
+                        </Grid>
+                         <Grid item xs={12}>
+                            <DatePicker label="本期结束日期" value={editableCycle.end} onChange={(d) => handleCycleDateChange('end', d)} sx={{width: '100%'}} />
+                        </Grid>
+                    </Grid>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={handleCloseCycleEditDialog}>取消</Button>
+                    <Button onClick={handleSaveCycle} variant="contained">确认修改</Button>
+                </DialogActions>
+            </Dialog>
             <AdjustmentDialog 
                 open={isAdjustmentDialogOpen}
                 onClose={handleCloseAdjustmentDialog}

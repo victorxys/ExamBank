@@ -7,6 +7,7 @@ from datetime import datetime
 from pypinyin import pinyin, Style
 import decimal
 from sqlalchemy.exc import IntegrityError
+from datetime import date
 
 from backend.models import db, User, BaseContract, NannyContract, MaternityNurseContract, ServicePersonnel
 from backend.security_utils import decrypt_data
@@ -135,10 +136,17 @@ class DataSyncService:
                     customer_name_from_data = contract_data.get('customer_name')
                     customer_name_final = str(customer_name_from_data).strip() if customer_name_from_data and str(customer_name_from_data).strip() else f"客户(SN:{entry_serial_number})"
                     
+
+                    # 动态设置合同状态，只有结束日期在未来时才是 '执行中'
+                    end_date = self._parse_date(contract_data.get('end_date'))
+                    if end_date and end_date > date.today():
+                        contract_status = 'active'  # 在您的資料表中是 'active'
+                    else:
+                        contract_status = 'finished'  # 在您的資料表中是 'finished'
                     common_data = {
                         'type': contract_type, 'customer_name': customer_name_final,
                         'employee_level': str(self._parse_numeric(contract_data.get('employee_level'), 0)),
-                        'status': 'active', 'jinshuju_entry_id': str(entry_serial_number),
+                        'status': contract_status, 'jinshuju_entry_id': str(entry_serial_number),
                     }
                     
                     # 根据 personnel_type 填充正确的 ID 字段
@@ -152,6 +160,7 @@ class DataSyncService:
                         new_contract = MaternityNurseContract(
                             **common_data,
                             provisional_start_date=self._parse_date(contract_data.get('provisional_start_date')),
+                            start_date=self._parse_date(contract_data.get('provisional_start_date')),
                             end_date=self._parse_date(contract_data.get('end_date')),
                             deposit_amount=self._parse_numeric(contract_data.get('deposit_amount'), 0),
                             security_deposit_paid=self._parse_numeric(contract_data.get('security_deposit_paid'), 0),

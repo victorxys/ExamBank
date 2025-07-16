@@ -11,6 +11,7 @@ import Navbar from './components/Navbar';
 import ErrorBoundary from './components/ErrorBoundary';
 import PrivateRoute from './components/PrivateRoute';
 import RouteWatcher from './components/RouteWatcher';
+
 import "./styles/argon-theme.css";
  
 const theme = createTheme({
@@ -302,7 +303,8 @@ const TrainingContentDetail = lazy(() => import('./components/TrainingContentDet
 
 // 合同与账单相关内容
 const BillingDashboard = lazy(() => import('./components/BillingDashboard')); 
-
+const ContractList = lazy(() => import('./components/ContractList')); 
+const ContractDetail = lazy(() => import('./components/ContractDetail')); // 新建合同详情页
 
 
 // --- 5. App 组件主体 ---
@@ -341,7 +343,9 @@ function App() {
           <Route path="/tts/content/:contentId" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}><TrainingContentDetail /></Suspense>} />} />
           <Route path="/my-courses" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <MyCoursesPage /> </Suspense>} />} />
           <Route path="/my-courses/:courseId/resource/:resourceId/play" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <MediaPlayerPage /> </Suspense>} />} />
-          <Route path="/billing" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}><BillingDashboard /></Suspense>} />} />
+          <Route path="/contracts" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <ContractList /> </Suspense>} />} />
+          <Route path="/billing" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <BillingDashboard /> </Suspense>} />} />
+          <Route path="/contracts/:contractId" element={<ContractDetail />} />
 
         </Route>
 
