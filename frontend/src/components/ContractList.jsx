@@ -51,7 +51,7 @@ const ContractList = () => {
         try {
             // **核心修改**: 调用新的 API 端点
             const params = { page: page + 1, per_page: rowsPerPage, ...filters };
-            const response = await api.get('/billing/contracts-list', { params });
+            const response = await api.get('/billing/contracts', { params });
             setContracts(response.data.items || []);
             setTotalContracts(response.data.total || 0);
         } catch (error) {
@@ -128,13 +128,14 @@ const ContractList = () => {
                                 <TableCell>服务人员</TableCell>
                                 <TableCell>合同类型</TableCell>
                                 <TableCell>合同周期</TableCell>
+                                <TableCell>剩余月数</TableCell>
                                 <TableCell>实际上户日期</TableCell>
                                 <TableCell>状态</TableCell>
                                 <TableCell align="center">操作</TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
-                            {loading ? ( <TableRow><TableCell colSpan={7} align="center" sx={{py: 5}}><CircularProgress /></TableCell></TableRow> )
+                            {loading ? ( <TableRow><TableCell colSpan={8} align="center" sx={{py: 5}}><CircularProgress /></TableCell></TableRow> )
                             : (
                                 contracts.map((contract) => (
                                     <TableRow hover key={contract.id}>
@@ -143,11 +144,12 @@ const ContractList = () => {
                                         <TableCell><Chip label={contract.contract_type_label} size="small" sx={{ backgroundColor: contract.contract_type_value === 'nanny' ? alpha(theme.palette.primary.light, 0.2) : alpha(theme.palette.info.light, 0.2), color: contract.contract_type_value === 'nanny' ? theme.palette.primary.dark : theme.palette.info.dark, fontWeight: 600 }}/></TableCell>
                                         <TableCell>
                                             <Typography variant="body2" sx={{ fontFamily: 'monospace', lineHeight: 1.5, whiteSpace: 'nowrap' }}>
-                                                {formatDate(contract.provisional_start_date)}
+                                                {formatDate(contract.start_date)}
                                                 <br />
                                                 {formatDate(contract.end_date)}
                                             </Typography>
                                         </TableCell>
+                                        <TableCell>{contract.remaining_months}</TableCell>
                                         <TableCell>
                                             {contract.actual_onboarding_date ? (
                                                 formatDate(contract.actual_onboarding_date)

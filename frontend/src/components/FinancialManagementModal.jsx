@@ -46,12 +46,92 @@ const formatValue = (key, value) => {
         return <Box component="span" sx={{ color: 'text.disabled' }}>{value || '—'}</Box>;
     if (key === '加班天数') return `${value} 天`;
     if (key.includes('费率')) return `${value}`;
-    const isMoney = ['级别', '定金', '保证金', '劳务费', '管理费', '工资', '应付', '应领', '奖励', '结余', '优惠', '增款', '退款', '减款'].some(k => key.includes(k));
+    const isMoney = ['级别', '定金', '保证金', '劳务费', '管理费', '工资', '应付', '应领', '奖励', '结余', '优惠', '增款', '退款', '减款', '萌嫂交公司10%'].some(k => key.includes(k));
     if (isMoney || /^-?\d+(\.\d+)?$/.test(String(value))) {
         const num = Number(value);
         return isNaN(num) ? String(value) : `¥${num.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     }
     return String(value);
+};
+
+// **固定的UI配置**
+const fieldGroups = {
+    customer: {
+        '级别与保证金': ['级别', '定金', '客交保证金'],
+        '劳务时间': ['加班天数', '劳务时间段', '出勤总天数'],
+        '费用明细': ['萌嫂基本劳务费', '加班工资', '管理费率', '本次交管理费'],
+        '财务调整': [], // 财务调整将通过 state 动态渲染
+        '最终结算': ['客应付款']
+    },
+    employee: {
+        '薪酬明细': ['萌嫂保证金(工资)', '加班费', '5%奖励', '萌嫂交公司10%'],
+        '财务调整': [],
+        '最终结算': ['萌嫂应领款']
+    }
+};
+
+// --- 新增：计算详情提示框辅助函数 (最终健壮版) ---
+const getTooltipContent = (fieldName, billingDetails) => {
+    if (!billingDetails?.customer_bill_details?.calculation_details?.calculation_log) {
+        return null;
+    }
+
+    const log = billingDetails.customer_bill_details.calculation_details.calculation_log;
+    let logKey = null;
+    let rule = '';
+
+    // 将前端显示的字段名映射到后端的 calculation_log 的键
+    const fieldToLogKeyMap = {
+        '萌嫂基本劳务费': 'labor_fee',
+        '本次交管理费': 'total_management_fee_for_period',
+        '管理费': 'management_fee',
+        '客应付款': 'total_payable',
+        '萌嫂保证金(工资)': 'employee_base_payout',
+        '加班费': 'overtime_payout',
+        '5%奖励': 'bonus_5_percent',
+        '萌嫂应领款': 'final_payout',
+        '萌嫂交公司10%': 'first_month_deduction',
+    };
+
+    logKey = fieldToLogKeyMap[fieldName];
+
+    if (!logKey || !log[logKey]) {
+        return null;
+    }
+
+    // 定义规则文本
+    const rules = {
+        labor_fee: '根据月嫂的日薪和本期实际服务天数计算。',
+        total_management_fee_for_period: '根据合同类型（月签/年签）和所在账期（首月/末月）计算。',
+        management_fee: '按当期产生的基本劳务费的一定比例收取。',
+        total_payable: '客户在本期应支付的所有费用的总和。',
+        employee_base_payout: '员工的日薪（扣除管理费后）乘以本期实际服务天数。',
+        overtime_payout: '员工应得的加班报酬。',
+        bonus_5_percent: '针对特定管理费率合同，给予员工的额外奖励。',
+        final_payout: '员工在本期最终应收到的所有薪酬的总和。',
+        first_month_deduction: '育儿嫂首个账单月需缴纳一个月工资的10%作为服务费。'
+    };
+
+    rule = rules[logKey] || '该项金额的计算规则。';
+    const calculation = log[logKey];
+
+    return (
+        <Box sx={{ p: 1, maxWidth: 350 }}>
+            <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'common.white', display: 'block', mb: 0.5 }}>
+                计算规则
+            </Typography>
+            <Typography variant="body2" sx={{ mb: 1, color: 'grey.300' }}>
+                {rule}
+            </Typography>
+            <Divider sx={{ my: 1, borderColor: 'grey.700' }} />
+            <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'common.white', display: 'block', mb: 0.5 }}>
+                本期计算过程
+            </Typography>
+            <Typography variant="body2" sx={{ fontFamily: 'monospace', color: 'grey.200', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+                {calculation}
+            </Typography>
+        </Box>
+    );
 };
 
 
@@ -78,21 +158,6 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
     const [isCycleEditDialogOpen, setIsCycleEditDialogOpen] = useState(false);
     const [editableCycle, setEditableCycle] = useState({ start: null, end: null });
 
-    // **固定的UI配置**
-    const fieldGroups = {
-        customer: {
-            '合同基石': ['级别', '定金', '客交保证金'],
-            '本期输入': ['加班天数', '劳务时间段', '出勤总天数'],
-            '费用明细': ['基本劳务费', '加班工资', '管理费率', '管理费'],
-            '财务调整': [], // 财务调整将通过 state 动态渲染
-            '最终结算': ['客应付款']
-        },
-        employee: {
-            '薪酬明细': ['萌嫂保证金(工资)', '加班费', '5%奖励'],
-            '财务调整': [],
-            '最终结算': ['萌嫂应领款']
-        }
-    };
     
     useEffect(() => {
         if (open && billingDetails) {
@@ -132,13 +197,11 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
             setEditableInvoice(invoiceDetails);
 
             // 获取日志
-            // **核心修正**: 同时获取 billId 和 payrollId
             const billId = customerDetails.id;
             const payrollId = employeeDetails.id;
 
             if (billId || payrollId) {
                 setLoadingLogs(true);
-                // **核心修正**: 将两个ID都作为参数发送
                 api.get('/billing/logs', { params: { bill_id: billId, payroll_id: payrollId } })
                     .then(response => {
                         setActivityLogs(response.data);
@@ -231,7 +294,6 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
     const customerData = billingDetails?.customer_bill_details || {};
     const employeeData = billingDetails?.employee_payroll_details || {};
 
-    // **新增**: 周期修改相关的事件处理器
     const handleOpenCycleEditDialog = () => setIsCycleEditDialogOpen(true);
     const handleCloseCycleEditDialog = () => setIsCycleEditDialogOpen(false);
     const handleCycleDateChange = (name, newDate) => {
@@ -248,9 +310,7 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                 new_start_date: editableCycle.start.toISOString().split('T')[0],
                 new_end_date: editableCycle.end.toISOString().split('T')[0],
             });
-            // 成功后，需要关闭主弹窗并提示用户刷新主列表，因为后续账单的月份可能都变了
             onClose(); 
-            // 可以在这里触发一个全局的 Alert
             alert("周期已更新，后续账单已顺延！请在新的月份查看后续账单。");
         } catch (error) {
             console.error("更新周期失败:", error);
@@ -259,8 +319,6 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
         }
     };
     
-    // frontend/src/components/FinancialManagementModal.jsx (请只替换这个函数)
-
     const renderCardContent = (data, isCustomer) => {
         const groupConfig = isCustomer ? fieldGroups.customer : fieldGroups.employee;
         const currentAdjustments = adjustments.filter(adj => 
@@ -272,37 +330,33 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                 {Object.entries(groupConfig).map(([groupName, fields]) => {
                     
                     if (groupName === '财务调整') {
-                        if (!isEditMode && currentAdjustments.length === 0) {
-                            return null;
-                        }
+                        if (!isEditMode && currentAdjustments.length === 0) return null;
+                        const adjustmentSubtotal = currentAdjustments.reduce((acc, adj) => {
+                            const amount = parseFloat(adj.amount || 0);
+                            const effect = AdjustmentTypes[adj.adjustment_type]?.effect || 0;
+                            return acc + (amount * effect);
+                        }, 0);
+                        const formattedSubtotal = `${adjustmentSubtotal >= 0 ? '+' : '-'} ${formatValue('小记', Math.abs(adjustmentSubtotal))}`;
                         return (
                             <Box key={groupName}>
-                                <Divider textAlign="left" sx={{ mb: 1.5, '&::before, &::after': { borderColor: 'grey.200' } }}>
-                                    <Typography variant="overline" color="text.secondary">{groupName}</Typography>
-                                </Divider>
-                                {currentAdjustments.length === 0 && isEditMode && (
-                                     <Typography variant="caption" color="text.secondary" sx={{pl:1}}>暂无调整项</Typography>
-                                )}
+                                <Divider textAlign="left" sx={{ mb: 1.5, '&::before, &::after': { borderColor: 'grey.200' } }}><Typography variant="overline" color="text.secondary">{groupName}</Typography></Divider>
+                                {currentAdjustments.length === 0 && isEditMode && (<Typography variant="caption" color="text.secondary" sx={{pl:1}}>暂无调整项</Typography>)}
                                 <List dense disablePadding>
                                     {currentAdjustments.map(adj => (
                                         <ListItem key={adj.id} button={isEditMode} onClick={isEditMode ? () => handleOpenAdjustmentDialog(adj, isCustomer ? 'customer' : 'employee') : undefined} secondaryAction={isEditMode && (<IconButton edge="end" size="small" onClick={(e) => { e.stopPropagation(); handleDeleteAdjustment(adj.id); }}><DeleteIcon fontSize="small"/></IconButton>)} sx={{ my: 0.5, px: 1, borderRadius: 1, '&:hover': { bgcolor: isEditMode ? 'action.hover' : 'transparent'} }}>
-                                            <ListItemIcon sx={{ minWidth: 'auto', mr: 1.5 }}>
-                                                {AdjustmentTypes[adj.adjustment_type]?.effect > 0 ? <ArrowUpwardIcon color="success" fontSize="small"/> : <ArrowDownwardIcon color="error" fontSize="small"/>}
-                                            </ListItemIcon>
-                                            <ListItemText primary={AdjustmentTypes[adj.adjustment_type]?.label} secondary={adj.description} sx={{ pr: 4 }} />
-                                            <Typography variant="body2" noWrap sx={{ fontFamily: 'monospace', fontWeight: 'bold', ml: 1 }}>
-                                                {AdjustmentTypes[adj.adjustment_type]?.effect > 0 ? '+' : '-'} {formatValue('', adj.amount)}
-                                            </Typography>
+                                            <ListItemIcon sx={{ minWidth: 'auto', mr: 1.5 }}>{AdjustmentTypes[adj.adjustment_type]?.effect > 0 ? <ArrowUpwardIcon color="success" fontSize="small"/> : <ArrowDownwardIcon color="error" fontSize="small"/>}</ListItemIcon>
+                                            <ListItemText primary={AdjustmentTypes[adj.adjustment_type]?.label} secondary={adj.description} />
+                                            <Typography variant="body2" noWrap sx={{ fontFamily: 'monospace', fontWeight: 'bold', ml: 2, flexShrink: 0 }}>{AdjustmentTypes[adj.adjustment_type]?.effect > 0 ? '+' : '-'} {formatValue('', adj.amount)}</Typography>
                                         </ListItem>
                                     ))}
                                 </List>
-                                {isEditMode && (
-                                    <Box sx={{ mt: 1, display: 'flex', justifyContent: 'center' }}>
-                                        <Button size="small" variant="text" startIcon={<AddIcon />} onClick={() => handleOpenAdjustmentDialog(null, isCustomer ? 'customer' : 'employee')}>
-                                            添加{isCustomer ? '客户' : '员工'}侧调整
-                                        </Button>
-                                    </Box>
+                                {currentAdjustments.length > 0 && (
+                                    <Grid container sx={{ mt: 1.5, pt: 1.5, borderTop: '1px dashed', borderColor: 'grey.300' }}>
+                                        <Grid item xs={5}><Typography variant="body2" sx={{ fontWeight: 'bold' }}>小记:</Typography></Grid>
+                                        <Grid item xs={7}><Typography variant="body1" sx={{ textAlign: 'right', fontWeight: 'bold', fontFamily: 'monospace', color: 'error.main' }}>{formattedSubtotal}</Typography></Grid>
+                                    </Grid>
                                 )}
+                                {isEditMode && (<Box sx={{ mt: 1, display: 'flex', justifyContent: 'center' }}><Button size="small" variant="text" startIcon={<AddIcon />} onClick={() => handleOpenAdjustmentDialog(null, isCustomer ? 'customer' : 'employee')}>添加{isCustomer ? '客户' : '员工'}侧调整</Button></Box>)}
                             </Box>
                         );
                     }
@@ -310,41 +364,47 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                     const visibleFields = fields.filter(key => {
                         if (!data.hasOwnProperty(key)) return false;
                         if (isEditMode) return true;
-                        const zeroHiddenFields = ['加班天数', '加班工资'];
-                        if (zeroHiddenFields.includes(key)) {
+                        if (key === '加班工资' || key === '加班费') {
                             const numericValue = parseFloat(String(data[key]).replace(/[^0-9.-]+/g, ""));
-                            return isNaN(numericValue) ? true : numericValue !== 0;
+                            return !isNaN(numericValue) && numericValue !== 0;
                         }
+                        if (key === '5%奖励' && contract?.contract_type_value === 'nanny') return false;
                         return true;
                     });
                     
                     if (visibleFields.length === 0) return null;
 
+                    let subtotal = 0;
+                    let showSubtotal = false;
+                    const isDetailsGroup = groupName === '费用明细' || groupName === '薪酬明细';
+
+                    if (isDetailsGroup) {
+                        showSubtotal = true;
+                        const fieldsToSum = groupName === '费用明细' ? ['萌嫂基本劳务费', '加班工资', '本次交管理费'] : ['萌嫂保证金(工资)', '加班费', '5%奖励'];
+                        subtotal = fieldsToSum.reduce((acc, key) => {
+                            if (data.hasOwnProperty(key) && visibleFields.includes(key)) {
+                                const numericValue = parseFloat(String(data[key]).replace(/[^0-9.-]+/g, ""));
+                                return acc + (isNaN(numericValue) ? 0 : numericValue);
+                            }
+                            return acc;
+                        }, 0);
+                    }
+
                     return (
                         <Box key={groupName}>
-                            <Divider textAlign="left" sx={{ mb: 1.5, '&::before, &::after': { borderColor: 'grey.200' } }}>
-                                <Typography variant="overline" color="text.secondary">{groupName}</Typography>
-                            </Divider>
+                            <Divider textAlign="left" sx={{ mb: 1.5, '&::before, &::after': { borderColor: 'grey.200' } }}><Typography variant="overline" color="text.secondary">{groupName}</Typography></Divider>
                             <Grid container rowSpacing={1.5} columnSpacing={2}>
                                 {visibleFields.map(key => {
                                     const isOvertimeField = key === '加班天数' && isCustomer;
+                                    const tooltipContent = getTooltipContent(key, billingDetails);
 
-                                    // **核心修正**: 将劳务时间段的渲染逻辑也包含进来
                                     if (key === '劳务时间段') {
                                         return (
                                             <React.Fragment key={key}>
                                                 <Grid item xs={5}><Typography variant="body2" color="text.secondary">{key}:</Typography></Grid>
                                                 <Grid item xs={7} sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
-                                                    <Typography variant="body1" sx={{ textAlign: 'right', fontWeight: 500, fontFamily: 'monospace' }}>
-                                                        {formatDateRange(data[key])}
-                                                    </Typography>
-                                                    {isEditMode && isCustomer && (
-                                                        <Tooltip title="修改本期劳务时间段（将自动顺延后续周期）">
-                                                            <IconButton size="small" onClick={handleOpenCycleEditDialog} sx={{ ml: 0.5 }}>
-                                                                <EditCalendarIcon fontSize="small" color="primary"/>
-                                                            </IconButton>
-                                                        </Tooltip>
-                                                    )}
+                                                    <Typography variant="body1" sx={{ textAlign: 'right', fontWeight: 500, fontFamily: 'monospace' }}>{formatDateRange(data[key])}</Typography>
+                                                    {isEditMode && isCustomer && (<Tooltip title="修改��期劳务时间段（将自动顺延后续周期）"><IconButton size="small" onClick={handleOpenCycleEditDialog} sx={{ ml: 0.5 }}><EditCalendarIcon fontSize="small" color="primary"/></IconButton></Tooltip>)}
                                                 </Grid>
                                             </React.Fragment>
                                         );
@@ -352,18 +412,15 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
 
                                     return (
                                         <React.Fragment key={key}>
-                                            <Grid item xs={5}><Typography variant="body2" color="text.secondary">{key}:</Typography></Grid>
-                                            <Grid item xs={7}>
+                                            <Grid item xs={5} sx={{ display: 'flex', alignItems: 'center' }}>
+                                                <Typography variant="body2" color="text.secondary">{key}:</Typography>
+                                            </Grid>
+                                            <Grid item xs={7} sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
                                                 {isEditMode && isOvertimeField ? (
                                                     <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 0.5 }}>
                                                         <IconButton size="small" onClick={() => setEditableOvertime(Math.max(0, editableOvertime - 1))}><RemoveIcon sx={{ fontSize: '1rem' }} /></IconButton>
                                                         <Typography variant="body1" sx={{ fontWeight: 500, minWidth: '40px', textAlign: 'center' }}>{editableOvertime}天</Typography>
                                                         <IconButton size="small" onClick={() => setEditableOvertime(editableOvertime + 1)}><AddIcon sx={{ fontSize: '1rem' }} /></IconButton>
-                                                        <Tooltip title="添加加班备注">
-                                                            <IconButton size="small" color="primary">
-                                                                <InfoIcon sx={{ fontSize: '1.125rem' }} />
-                                                            </IconButton>
-                                                        </Tooltip>
                                                     </Box>
                                                 ) : (
                                                     data.hasOwnProperty(key) && (
@@ -372,11 +429,22 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                                                         </Typography>
                                                     )
                                                 )}
+                                                {tooltipContent && !isEditMode && (
+                                                    <Tooltip title={tooltipContent} arrow placement="top">
+                                                        <InfoIcon sx={{ fontSize: '1rem', color: 'action.active', ml: 0.5, cursor: 'help' }} />
+                                                    </Tooltip>
+                                                )}
                                             </Grid>
                                         </React.Fragment>
                                     );
                                 })}
                             </Grid>
+                            {showSubtotal && visibleFields.length > 0 && (
+                                <Grid container sx={{ mt: 1.5, pt: 1.5, borderTop: '1px dashed', borderColor: 'grey.300' }}>
+                                    <Grid item xs={5}><Typography variant="body2" sx={{ fontWeight: 'bold' }}>小记:</Typography></Grid>
+                                    <Grid item xs={7}><Typography variant="body1" sx={{ textAlign: 'right', fontWeight: 'bold', fontFamily: 'monospace', color: 'error.main' }}>{formatValue('小记', subtotal)}</Typography></Grid>
+                                </Grid>
+                            )}
                         </Box>
                     );
                 })}
@@ -384,7 +452,6 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
         );
     };
 
-    // **核心修正**: 一个专门用于渲染发票记录的辅助组件
     const InvoiceRecordView = ({ record }) => {
         if (!record || record === '无需开票') {
             return <Typography variant="body1" sx={{ fontWeight: 500, mt: 0.5 }}>无需开票</Typography>;
@@ -392,37 +459,9 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
         if (record === '待开票') {
             return <Typography variant="body1" sx={{ fontWeight: 500, mt: 0.5, color: 'warning.main' }}>待开票</Typography>;
         }
-        
         const match = record.match(/已开票 \((.*)\)/);
         const details = match ? match[1] : '';
-
-        return (
-            <Box>
-                <Typography variant="body1" sx={{ fontWeight: 500, mt: 0.5 }}>未开票</Typography>
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>{details}</Typography>
-            </Box>
-        );
-    };
-
-    const handleForceRecalculate = () => {
-        if (!contract) return;
-        const [year, month] = billingMonth.split('-').map(Number);
-        // 这里可以直接调用新的 API，也可以复用已有的 task polling 逻辑
-        // 为简单起见，我们直接调用
-        api.post('/billing/force-recalculate', {
-            contract_id: contract.id,
-            year: year,
-            month: month,
-        }).then(response => {
-            alert('强制重算任务已提交！详情即将刷新...');
-            // 可以在这里启动一个轮询或延时来刷新详情
-            setTimeout(() => {
-                // 重新触发详情加载
-                // 这需要将 handleOpenDetailDialog 的逻辑提取出来
-            }, 3000);
-        }).catch(error => {
-            alert(`强制重算失败: ${error.response?.data?.error || error.message}`);
-        });
+        return (<Box><Typography variant="body1" sx={{ fontWeight: 500, mt: 0.5 }}>未开票</Typography><Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>{details}</Typography></Box>);
     };
 
     return (
@@ -433,67 +472,36 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                     <IconButton onClick={onClose}><CloseIcon /></IconButton>
                 </DialogTitle>
                 <DialogContent dividers sx={{ bgcolor: 'grey.50', p: { xs: 1, sm: 2, md: 3 } }}>
-                    {isEditMode && (
-                        <Alert severity="info" sx={{ mb: 2 }}>
-                            您正处于编辑模式。所有更改将在点击“保存”后生效。
-                        </Alert>
-                    )}
-                    {loading ? (
-                        <Box sx={{ display: 'flex', justifyContent: 'center', p: 5 }}><CircularProgress /></Box>
-                    ) : billingDetails ? (
+                    {isEditMode && (<Alert severity="info" sx={{ mb: 2 }}>您正处于编辑模式。所有更改将在点击“保存”后生效。</Alert>)}
+                    {loading ? (<Box sx={{ display: 'flex', justifyContent: 'center', p: 5 }}><CircularProgress /></Box>) 
+                    : billingDetails ? (
                         <Grid container spacing={3}>
-                            <Grid item xs={12} md={6}>
-                                <Paper sx={{ p: 3, borderRadius: 2, boxShadow: 1 }}>
-                                    <Typography variant="h6" gutterBottom>客户账单</Typography>
-                                    {renderCardContent(customerData, true)}
-                                </Paper>
-                            </Grid>
-                            <Grid item xs={12} md={6}>
-                                <Paper sx={{ p: 3, borderRadius: 2, boxShadow: 1 }}>
-                                    <Typography variant="h6" gutterBottom>员工薪酬</Typography>
-                                    {renderCardContent(employeeData, false)}
-                                </Paper>
-                            </Grid>
+                            <Grid item xs={12} md={6}><Paper sx={{ p: 3, borderRadius: 2, boxShadow: 1 }}><Typography variant="h6" gutterBottom>客户账单</Typography>{renderCardContent(customerData, true)}</Paper></Grid>
+                            <Grid item xs={12} md={6}><Paper sx={{ p: 3, borderRadius: 2, boxShadow: 1 }}><Typography variant="h6" gutterBottom>员工薪酬</Typography>{renderCardContent(employeeData, false)}</Paper></Grid>
                             <Grid item xs={12}>
                                 <Paper sx={{ p: 3, borderRadius: 2, boxShadow: 1 }}>
                                     <Typography variant="h6" gutterBottom>结算与发票状态</Typography>
-                                    
                                     {isEditMode ? (
                                         <Grid container spacing={3} sx={{ mt: 1 }}>
                                             <Grid item xs={12} md={6}>
                                                 <Divider textAlign="left" sx={{ mb: 2 }}><Chip label="客户打款" size="small" /></Divider>
                                                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                                                     <FormControlLabel control={<Switch checked={editableSettlement.customer_is_paid} onChange={handleSettlementChange} name="customer_is_paid" />} label="客户是否已打款" />
-                                                    {editableSettlement.customer_is_paid && (
-                                                        <>
-                                                            <DatePicker label="打款日期" value={editableSettlement.customer_payment_date} onChange={(d) => handleDateChange('customer_payment_date', d)} />
-                                                            <TextField label="打款渠道/备注" name="customer_payment_channel" value={editableSettlement.customer_payment_channel} onChange={handleSettlementChange} fullWidth />
-                                                        </>
-                                                    )}
+                                                    {editableSettlement.customer_is_paid && (<><DatePicker label="打款日期" value={editableSettlement.customer_payment_date} onChange={(d) => handleDateChange('customer_payment_date', d)} /><TextField label="打款渠道/备注" name="customer_payment_channel" value={editableSettlement.customer_payment_channel} onChange={handleSettlementChange} fullWidth /></>)}
                                                 </Box>
                                             </Grid>
                                             <Grid item xs={12} md={6}>
                                                 <Divider textAlign="left" sx={{ mb: 2 }}><Chip label="员工领款" size="small" /></Divider>
                                                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                                                     <FormControlLabel control={<Switch checked={editableSettlement.employee_is_paid} onChange={handleSettlementChange} name="employee_is_paid" />} label="员工是否已领款" />
-                                                    {editableSettlement.employee_is_paid && (
-                                                        <>
-                                                            <DatePicker label="领款日期" value={editableSettlement.employee_payout_date} onChange={(d) => handleDateChange('employee_payout_date', d)} />
-                                                            <TextField label="领款渠道/备注" name="employee_payout_channel" value={editableSettlement.employee_payout_channel} onChange={handleSettlementChange} fullWidth />
-                                                        </>
-                                                    )}
+                                                    {editableSettlement.employee_is_paid && (<><DatePicker label="领款日期" value={editableSettlement.employee_payout_date} onChange={(d) => handleDateChange('employee_payout_date', d)} /><TextField label="领款渠道/备注" name="employee_payout_channel" value={editableSettlement.employee_payout_channel} onChange={handleSettlementChange} fullWidth /></>)}
                                                 </Box>
                                             </Grid>
                                             <Grid item xs={12}>
                                                 <Divider textAlign="left" sx={{ mt: 2, mb: 2 }}><Chip label="发票管理" size="small" /></Divider>
                                                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, alignItems: 'flex-start' }}>
                                                     <FormControlLabel control={<Switch checked={editableSettlement.invoice_needed} onChange={handleSettlementChange} name="invoice_needed" />} label="是否需要发票" />
-                                                    {editableSettlement.invoice_needed && (
-                                                        <Box sx={{ pl: 2, borderLeft: '2px solid', borderColor: 'divider', width: '100%' }}>
-                                                            <FormControlLabel control={<Switch checked={editableSettlement.invoice_issued} onChange={handleSettlementChange} name="invoice_issued" />} label="是否已开发票" />
-                                                            <Button size="small" startIcon={<ReceiptLongIcon />} onClick={handleOpenInvoiceDialog} disabled={!editableSettlement.invoice_issued} sx={{ml: 2}}>管理发票详情 (非必填)</Button>
-                                                        </Box>
-                                                    )}
+                                                    {editableSettlement.invoice_needed && (<Box sx={{ pl: 2, borderLeft: '2px solid', borderColor: 'divider', width: '100%' }}><FormControlLabel control={<Switch checked={editableSettlement.invoice_issued} onChange={handleSettlementChange} name="invoice_issued" />} label="是否已开发票" /><Button size="small" startIcon={<ReceiptLongIcon />} onClick={handleOpenInvoiceDialog} disabled={!editableSettlement.invoice_issued} sx={{ml: 2}}>管理发票详情 (非必填)</Button></Box>)}
                                                 </Box>
                                             </Grid>
                                         </Grid>
@@ -503,43 +511,23 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                                                 <Typography variant="body2" color="text.secondary">客户是否打款</Typography>
                                                 <Box>
                                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
-                                                        {customerData.是否打款 === '是' ? (
-                                                            <CheckCircleIcon sx={{ fontSize: '1.2rem', color: 'success.main' }} />
-                                                        ) : (
-                                                            <HighlightOffIcon sx={{ fontSize: '1.2rem', color: 'text.secondary' }} />
-                                                        )}
+                                                        {customerData.是否打款 === '是' ? <CheckCircleIcon sx={{ fontSize: '1.2rem', color: 'success.main' }} /> : <HighlightOffIcon sx={{ fontSize: '1.2rem', color: 'text.secondary' }} />}
                                                         <Typography variant="body1" sx={{ fontWeight: 500 }}>{customerData.是否打款}</Typography>
                                                     </Box>
-                                                    {customerData.是否打款 === '是' && (
-                                                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5, pl: '2px' }}>
-                                                            {customerData.打款时间及渠道 || '—'}
-                                                        </Typography>
-                                                    )}
+                                                    {customerData.是否打款 === '是' && (<Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5, pl: '2px' }}>{customerData.打款时间及渠道 || '—'}</Typography>)}
                                                 </Box>
                                             </Grid>
-                                            <Grid item xs={6} md={6}>
-                                                <Typography variant="body2" color="text.secondary">发票记录</Typography>
-                                                <InvoiceRecordView record={customerData.发票记录} />
-                                            </Grid>
+                                            <Grid item xs={6} md={6}><Typography variant="body2" color="text.secondary">发票记录</Typography><InvoiceRecordView record={customerData.发票记录} /></Grid>
                                             <Grid item xs={6} md={3}>
                                                 <Typography variant="body2" color="text.secondary">员工是否领款</Typography>
                                                 <Box>
                                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
-                                                        {employeeData.是否领款 === '是' ? (
-                                                            <CheckCircleIcon sx={{ fontSize: '1.2rem', color: 'success.main' }} />
-                                                        ) : (
-                                                            <HighlightOffIcon sx={{ fontSize: '1.2rem', color: 'text.secondary' }} />
-                                                        )}
+                                                        {employeeData.是否领款 === '是' ? <CheckCircleIcon sx={{ fontSize: '1.2rem', color: 'success.main' }} /> : <HighlightOffIcon sx={{ fontSize: '1.2rem', color: 'text.secondary' }} />}
                                                         <Typography variant="body1" sx={{ fontWeight: 500 }}>{employeeData.是否领款}</Typography>
                                                     </Box>
-                                                    {employeeData.是否领款 === '是' && (
-                                                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5, pl: '2px' }}>
-                                                            {employeeData.领款时间及渠道 || '—'}
-                                                        </Typography>
-                                                    )}
+                                                    {employeeData.是否领款 === '是' && (<Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5, pl: '2px' }}>{employeeData.领款时间及渠道 || '—'}</Typography>)}
                                                 </Box>
                                             </Grid>
-                                            
                                         </Grid>
                                     )}
                                 </Paper>
@@ -547,59 +535,25 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                             <Grid item xs={12}>
                                 <Paper sx={{ p: 3, borderRadius: 2, boxShadow: 1 }}>
                                     <Typography variant="h6" gutterBottom>操作日志</Typography>
-                                    {loadingLogs ? <CircularProgress size={24} /> : (
-                                        <Timeline sx={{ p: 0, m: 0 }}>
-                                            {activityLogs.length > 0 ? activityLogs.map((log, index) => (
-                                                // **核心修正**: 使用新的 LogItem 组件
-                                                <LogItem key={log.id} log={log} isLast={index === activityLogs.length - 1} />
-                                            )) : (
-                                                <Typography variant="body2" color="text.secondary">暂无操作日志</Typography>
-                                            )}
-                                        </Timeline>
-                                    )}
+                                    {loadingLogs ? <CircularProgress size={24} /> : (<Timeline sx={{ p: 0, m: 0 }}>{activityLogs.length > 0 ? activityLogs.map((log, index) => (<LogItem key={log.id} log={log} isLast={index === activityLogs.length - 1} />)) : (<Typography variant="body2" color="text.secondary">暂无操作日志</Typography>)}</Timeline>)}
                                 </Paper>
                             </Grid>
                         </Grid>
-                    ) : (
-                        <Typography color="text.secondary" sx={{ p: 3, textAlign: 'center' }}>无此月份的账单数据，请先计算账单。</Typography>
-                    )}
+                    ) : (<Typography color="text.secondary" sx={{ p: 3, textAlign: 'center' }}>无此月份的账单数据，请先计算账单。</Typography>)}
                 </DialogContent>
                 <DialogActions sx={{ p: 2 }}>
-                    {isEditMode ? (
-                        <>
-                            <Button onClick={handleCancelEdit} variant="text" startIcon={<CancelIcon />}>取消</Button>
-                            <Button onClick={handleSave} variant="contained" color="primary" startIcon={<SaveIcon />}>
-                                保存并重新计算
-                            </Button>
-                        </>
-                    ) : (
-                        <>
-                            <Button onClick={onClose}>关闭</Button>
-                            <Button onClick={handleEnterEditMode} variant="contained" startIcon={<EditIcon />}>
-                                进入编辑模式
-                            </Button>
-                        </>
-                    )}
+                    {isEditMode ? (<><Button onClick={handleCancelEdit} variant="text" startIcon={<CancelIcon />}>取消</Button><Button onClick={handleSave} variant="contained" color="primary" startIcon={<SaveIcon />}>保存并重新计算</Button></>) 
+                    : (<><Button onClick={onClose}>关闭</Button><Button onClick={handleEnterEditMode} variant="contained" startIcon={<EditIcon />}>进入编辑模式</Button></>)}
                 </DialogActions>
             </Dialog>
-            <InvoiceDetailsDialog
-                open={isInvoiceDialogOpen}
-                onClose={handleCloseInvoiceDialog}
-                onSave={handleSaveInvoice}
-                invoiceData={editableInvoice}
-            />
-            {/* **新增**: 修改周期的对话框 */}
+            <InvoiceDetailsDialog open={isInvoiceDialogOpen} onClose={handleCloseInvoiceDialog} onSave={handleSaveInvoice} invoiceData={editableInvoice} defaultInvoiceAmount={customerData.客应付款}/>
             <Dialog open={isCycleEditDialogOpen} onClose={handleCloseCycleEditDialog} maxWidth="xs" fullWidth>
                 <DialogTitle>修改并顺延服务周期</DialogTitle>
                 <DialogContent>
                     <Alert severity="warning" sx={{mb: 2}}>注意：修改本期结束日期将会自动顺延所有后续的账单周期和月份。</Alert>
                     <Grid container spacing={2} sx={{pt: 1}}>
-                        <Grid item xs={12}>
-                            <DatePicker label="本期开始日期" value={editableCycle.start} onChange={(d) => handleCycleDateChange('start', d)} sx={{width: '100%'}} />
-                        </Grid>
-                         <Grid item xs={12}>
-                            <DatePicker label="本期结束日期" value={editableCycle.end} onChange={(d) => handleCycleDateChange('end', d)} sx={{width: '100%'}} />
-                        </Grid>
+                        <Grid item xs={12}><DatePicker label="本期开始日期" value={editableCycle.start} onChange={(d) => handleCycleDateChange('start', d)} sx={{width: '100%'}} /></Grid>
+                        <Grid item xs={12}><DatePicker label="本期结束日期" value={editableCycle.end} onChange={(d) => handleCycleDateChange('end', d)} sx={{width: '100%'}} /></Grid>
                     </Grid>
                 </DialogContent>
                 <DialogActions>
@@ -607,13 +561,7 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                     <Button onClick={handleSaveCycle} variant="contained">确认修改</Button>
                 </DialogActions>
             </Dialog>
-            <AdjustmentDialog 
-                open={isAdjustmentDialogOpen}
-                onClose={handleCloseAdjustmentDialog}
-                onSave={handleSaveAdjustment}
-                adjustment={editingAdjustment}
-                typeFilter={adjustmentFilter}
-            />
+            <AdjustmentDialog open={isAdjustmentDialogOpen} onClose={handleCloseAdjustmentDialog} onSave={handleSaveAdjustment} adjustment={editingAdjustment} typeFilter={adjustmentFilter}/>
         </>
     );
 };

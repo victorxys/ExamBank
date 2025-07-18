@@ -959,6 +959,8 @@ class BaseContract(db.Model):
 
     user = db.relationship('User', backref=db.backref('contracts', lazy='dynamic'))
     service_personnel = db.relationship('ServicePersonnel', backref=db.backref('contracts', lazy='dynamic'))
+    customer_bills = db.relationship('CustomerBill', back_populates='contract', lazy='dynamic', cascade='all, delete-orphan')
+    employee_payrolls = db.relationship('EmployeePayroll', back_populates='contract', lazy='dynamic', cascade='all, delete-orphan')
 
     employee_level = db.Column(db.String(100), comment='级别，通常是月薪或服务价格')
     
@@ -981,9 +983,11 @@ class BaseContract(db.Model):
 class NannyContract(BaseContract): # 育儿嫂合同
     __mapper_args__ = {'polymorphic_identity': 'nanny'}
     
-    is_monthly_auto_renew = db.Column(db.Boolean, default=False)
-    management_fee_paid_months = db.Column(ARRAY(db.String), default=[], comment='已缴管理费的月份列表 (e.g., ["2024-06"])')
-    is_first_month_fee_paid = db.Column(db.Boolean, default=False, comment='是否已缴首月10%上户费')
+    is_monthly_auto_renew = db.Column(db.Boolean, default=False, comment='是否为自动续约的月签合同')
+    management_fee_paid_months = db.Column(ARRAY(db.String), default=[], comment='(月签)已缴管理费的月份列表 (e.g., ["2024-06"])')
+    is_first_month_fee_paid = db.Column(db.Boolean, default=False, comment='(年签)是否已缴首期全额管理费')
+    management_fee_status = db.Column(db.String(50), default='pending', comment='(年签)管理费支付状态 (pending, paid, partial)')
+
 
 class MaternityNurseContract(BaseContract): # 月嫂合同
     __mapper_args__ = {'polymorphic_identity': 'maternity_nurse'}
@@ -1045,6 +1049,7 @@ class CustomerBill(db.Model):
     calculation_details = db.Column(PG_JSONB, nullable=False, server_default=sa.text("'{}'::jsonb"), comment='计算过程快照，用于展示和审计')
 
     created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
+    contract = db.relationship('BaseContract', back_populates='customer_bills')
     activity_logs = db.relationship('FinancialActivityLog', back_populates='customer_bill', lazy='dynamic', cascade="all, delete-orphan")
 
 
@@ -1076,6 +1081,7 @@ class EmployeePayroll(db.Model):
     calculation_details = db.Column(PG_JSONB, nullable=False, server_default=sa.text("'{}'::jsonb"), comment='计算过程快照')
     
     # ... (关系不变) ...
+    contract = db.relationship('BaseContract', back_populates='employee_payrolls')
 
     created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
     activity_logs = db.relationship('FinancialActivityLog', back_populates='employee_payroll', lazy='dynamic', cascade="all, delete-orphan")

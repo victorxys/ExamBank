@@ -1789,108 +1789,97 @@ def resplit_and_match_sentences_task(self, final_tts_script_id_str):
                 db.session.commit()
             raise # 让Celery知道任务失败了
 
+# ==============================================================================
+# SECTION 3: Billing and Contract Management Tasks
+# ==============================================================================
+
 @celery_app.task(bind=True, name='tasks.sync_all_contracts')
 def sync_all_contracts_task(self):
-    """
-    一个后台任务，用于同步所有已配置的合同表单。
-    """
     app = create_flask_app_for_task()
     with app.app_context():
-        logger.info(f"[ContractSyncTask:{self.request.id}] 开始执行合同同步任务...")
-        
-        # --- 使用您提供的真实数据来配置 ---
+        logger.info(f"[ContractSyncTask:{self.request.id}] Starting contract sync task...")
         FORM_CONFIGS = [
-            # {
-            #     'form_token': '您的育儿嫂合同TOKEN', # <--- !!! 请替换为您的真实育儿嫂合同TOKEN !!!
-            #     'contract_type': 'nanny',
-            #     'mapping': {
-            #         # ... 育儿嫂的映射规则 ...
-            #     }
-            # },
             {
-                'form_token': 'QlpHFA', # 月嫂合同的真实TOKEN
+                'form_token': 'Iqltzj',
+                'contract_type': 'nanny',
+                'mapping': {
+                    'customer_name': {'field_id': 'field_1', 'is_association': True, 'associated_field_id': 'field_2'},
+                    'employee_name': {'field_id': 'field_2'},
+                    'employee_phone': {'field_id': 'field_3'},
+                    'employee_level': {'field_id': 'field_9'},
+                    'start_date': {'field_id': 'field_11'},
+                    'end_date': {'field_id': 'field_12'},
+                    'management_fee_amount': {'field_id': 'field_10'},
+                }
+            },
+            {
+                'form_token': 'QlpHFA',
                 'contract_type': 'maternity_nurse',
                 'mapping': {
-                    # 客户姓名来自关联表单
                     'customer_name': {'field_id': 'field_1', 'is_association': True, 'associated_field_id': 'field_2'},
-                    # 员工姓名是普通文本字段
                     'employee_name': {'field_id': 'field_11'},
                     'employee_phone': {'field_id': 'field_3'},
-                    # 月嫂的“级别”在这里指的是劳务报酬
                     'employee_level': {'field_id': 'field_7'},
-                    # 预产期是合同的开始时间
                     'provisional_start_date': {'field_id': 'field_8'},
-                    # 预计合同结束日期
                     'end_date': {'field_id': 'field_9'},
-                    # 定金
-                    'deposit_amount': {'field_id': 'field_15'}, # 注意：示例数据中 field_15 是空字符串，您可能需要检查其他条目
-                    # 客交保证金
+                    'deposit_amount': {'field_id': 'field_15'},
                     'security_deposit_paid': {'field_id': 'field_14'},
-                    # 丙方管理费
                     'management_fee_amount': {'field_id': 'field_13'},
                 }
             }
         ]
-
         try:
             sync_service = DataSyncService()
-            total_new = 0
-            total_skipped = 0
-            
-            self.update_state(state='PROGRESS', meta={'current_step': 'Initializing', 'total_forms': len(FORM_CONFIGS)})
-
-            for i, config in enumerate(FORM_CONFIGS):
-                self.update_state(state='PROGRESS', meta={
-                    'current_step': f'Syncing form {i+1}/{len(FORM_CONFIGS)}',
-                    'form_name': config.get('form_token') 
-                })
-                
-                new_count, skipped_count = sync_service.sync_contracts_from_form(
+            total_new, total_skipped = 0, 0
+            all_new_contract_ids = []
+            for config in FORM_CONFIGS:
+                new_count, skipped_count, newly_synced_ids = sync_service.sync_contracts_from_form(
                     form_token=config['form_token'],
                     contract_type=config['contract_type'],
                     mapping_rules=config['mapping']
                 )
                 total_new += new_count
                 total_skipped += skipped_count
+                all_new_contract_ids.extend(newly_synced_ids)
             
-            db.session.commit()
-            logger.info(f"[ContractSyncTask:{self.request.id}] 所有表单同步完成并已提交数据库。")
-
-            final_message = f"同步完成。新增 {total_new} 条合同，跳过 {skipped_count} 条已有记录。"
+            if all_new_contract_ids:
+                logger.info(f"[ContractSyncTask:{self.request.id}] Triggering bill pre-calculation for {len(all_new_contract_ids)} new contracts.")
+                for contract_id in all_new_contract_ids:
+                    generate_all_bills_task.delay(contract_id)
+            
+            final_message = f"Sync complete. New: {total_new}, Skipped: {total_skipped}. Triggered pre-calculation for new contracts."
             return {'status': 'Success', 'message': final_message, 'new': total_new, 'skipped': total_skipped}
-
-        except JinshujuAPIError as e:
-            db.session.rollback()
-            logger.error(f"[ContractSyncTask:{self.request.id}] 同步失败 (API错误): {e}", exc_info=True)
-            self.update_state(state='FAILURE', meta={'error': str(e)})
-            return {'status': 'Error', 'message': str(e)}
         except Exception as e:
-            db.session.rollback()
-            logger.error(f"[ContractSyncTask:{self.request.id}] 同步失败 (未知错误): {e}", exc_info=True)
-            self.update_state(state='FAILURE', meta={'error': '未知内部错误，请查看日志'})
+            logger.error(f"[ContractSyncTask:{self.request.id}] Sync failed: {e}", exc_info=True)
+            self.update_state(state='FAILURE', meta={'error': str(e)})
             raise
 
 @celery_app.task(name="tasks.calculate_monthly_billing")
 def calculate_monthly_billing_task(year, month, contract_id=None, force_recalculate=False):
-    """
-    这是一个Celery异步任务，它只负责一件事：
-    实例化 BillingEngine 并调用其 calculate_for_month 方法。
-    """
-    
     app = create_flask_app_for_task()
     with app.app_context():
+        task_logger = get_task_logger(__name__)
         try:
-            print(f"Celery task started for {year}-{month}")
+            task_logger.info(f"Starting monthly billing task for {year}-{month}, Contract: {contract_id}, Force: {force_recalculate}")
             engine = BillingEngine()
-            # 这里的调用是正确的，它调用的是 BillingEngine 的实例方法
-            engine.calculate_for_month(
-                year=year, 
-                month=month, 
-                contract_id=contract_id, 
-                force_recalculate=force_recalculate
-            )
-            print(f"Celery task finished for {year}-{month}")
-            return {'status': 'Success', 'message': f'{year}-{month} 的账单计算已完成。'}
+            engine.calculate_for_month(year=year, month=month, contract_id=contract_id, force_recalculate=force_recalculate)
+            task_logger.info(f"Finished monthly billing task for {year}-{month}, Contract: {contract_id}")
+            return {'status': 'Success', 'message': f'Billing calculation for {year}-{month} is complete.'}
         except Exception as e:
-            print(f"Celery task failed: {e}")
-            return {'status': 'Failure', 'message': str(e)}
+            task_logger.error(f"Monthly billing task for {year}-{month}, Contract: {contract_id} failed: {e}", exc_info=True)
+            raise
+
+@celery_app.task(name="tasks.generate_all_bills")
+def generate_all_bills_task(contract_id):
+    app = create_flask_app_for_task()
+    with app.app_context():
+        task_logger = get_task_logger(__name__)
+        try:
+            task_logger.info(f"Starting full lifecycle bill generation for Contract: {contract_id}")
+            engine = BillingEngine()
+            engine.generate_all_bills_for_contract(contract_id)
+            task_logger.info(f"Finished full lifecycle bill generation for Contract: {contract_id}")
+            return {'status': 'Success', 'message': f'All bills for contract {contract_id} have been generated.'}
+        except Exception as e:
+            task_logger.error(f"Full lifecycle bill generation for Contract {contract_id} failed: {e}", exc_info=True)
+            raise

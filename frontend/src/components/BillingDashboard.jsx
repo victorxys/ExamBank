@@ -1,6 +1,7 @@
 // frontend/src/components/BillingDashboard.jsx (与UserManagement样式完全对齐版)
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Box, Button, Typography, Paper, Table, TableBody, TableCell, TableContainer,
   TableHead, TableRow, TablePagination, IconButton, CircularProgress,
@@ -193,6 +194,9 @@ const ExcelStyleDetailCard = ({ title, data = {}, isCustomerBill }) => {
 
 const BillingDashboard = () => {
     const theme = useTheme();
+    const location = useLocation();
+    const navigate = useNavigate();
+
     const [filters, setFilters] = useState({ 
         search: '', type: '', status: 'active', 
         payment_status: '', payout_status: '' 
@@ -205,10 +209,17 @@ const BillingDashboard = () => {
     const [rowsPerPage, setRowsPerPage] = useState(10);
     const [totalContracts, setTotalContracts] = useState(0);
     const [calculating, setCalculating] = useState(false);
+    
     const [selectedBillingMonth, setSelectedBillingMonth] = useState(() => {
+        const params = new URLSearchParams(location.search);
+        const month = params.get('month');
+        if (month && /^\d{4}-\d{2}$/.test(month)) {
+            return month;
+        }
         const d = new Date();
         return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
     });
+
     const [detailDialogOpen, setDetailDialogOpen] = useState(false);
     const [loadingDetail, setLoadingDetail] = useState(false);
     const [selectedContractForDetail, setSelectedContractForDetail] = useState(null);
@@ -222,17 +233,37 @@ const BillingDashboard = () => {
     // +++ 新增一个 state 来存储原始的周期数据 +++
     const [currentCycle, setCurrentCycle] = useState({ start: null, end: null });
     
-    const fetchContracts = useCallback(async () => {
+    const fetchBills = useCallback(async (openBillId = null) => {
         setLoading(true);
         try {
             const params = { page: page + 1, per_page: rowsPerPage, billing_month: selectedBillingMonth, ...filters };
-            const response = await api.get('/billing/contracts', { params });
-            setContracts(response.data.items || []); // 现在 contracts state 存储的是账单列表 
+            const response = await api.get('/billing/bills', { params });
+            const bills = response.data.items || [];
+            setContracts(bills);
             setTotalContracts(response.data.total || 0);
+
+            if (openBillId) {
+                const billToOpen = bills.find(b => b.id === openBillId);
+                if (billToOpen) {
+                    handleOpenDetailDialog(billToOpen);
+                }
+            }
         } catch (error) {
-            setAlert({ open: true, message: `获取合同列表失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
+            setAlert({ open: true, message: `获取账单列表失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
         } finally { setLoading(false); }
     }, [page, rowsPerPage, filters, selectedBillingMonth]);
+
+    useEffect(() => {
+        const params = new URLSearchParams(location.search);
+        const openBillId = params.get('open_bill_id');
+        fetchBills(openBillId);
+        
+        // Clean up URL params after use
+        if (openBillId) {
+            navigate(location.pathname, { replace: true });
+        }
+    }, [fetchBills, location.search, navigate]);
+
 
     const handleOpenOnboardingDateModal = (contracts_to_set) => {
         // +++++++++++++++++++++++++++++++++++++++++++++
@@ -253,24 +284,21 @@ const BillingDashboard = () => {
     const handleTaskCompletion = useCallback((taskData, taskType) => {
         if (taskType === 'calculate_bills') {
         setAlert({ open: true, message: `账单计算任务已成功完成！`, severity: 'success' });
-        fetchContracts(); // 任务成功后，刷新列表以显示最新计算结果
+        fetchBills(); // 任务成功后，刷新列表以显示最新计算结果
         }
         // 这里可以为其他类型的任务（如同步）添加处理逻辑
-    }, []); // 空依赖，因为 fetchContracts 被 useCallback 包裹了
+    }, [fetchBills]); // 依赖 fetchBills
 
     const handleTaskFailure = useCallback((taskData, taskType) => {
         setAlert({ 
         open: true, 
-        message: `任务 (${taskType}) 失败: ${taskData.error_message || '未知错误，请检查后台日志。'}`, 
+        message: `任�� (${taskType}) 失败: ${taskData.error_message || '未知错误，请检查后台日志。'}`, 
         severity: 'error' 
         });
     }, []);
 
     const { pollingTask, isPolling, startPolling } = useTaskPolling(handleTaskCompletion, handleTaskFailure);
     // ---------------------
-
-    
-    useEffect(() => { fetchContracts(); }, [fetchContracts]);
 
     const handleFilterChange = (e) => {
         setPage(0);
@@ -284,7 +312,7 @@ const BillingDashboard = () => {
             await api.post('/billing/sync-contracts');
             setTimeout(() => {
                 setAlert({open: true, message: "同步任务正在后台处理，列表即将刷新。", severity: 'success'});
-                setTimeout(() => fetchContracts(), 5000);
+                setTimeout(() => fetchBills(), 5000);
             }, 3000);
         } catch (error) {
             setAlert({ open: true, message: `触发同步失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
@@ -292,19 +320,12 @@ const BillingDashboard = () => {
     };
 
 
-    const handleOpenDetailDialog = async (contract) => {
-        const mockContract = {
-            id: bill.id,
-            customer_name: bill.customer_name,
-            employee_name: bill.employee_name,
-        };
-        setSelectedContractForDetail(mockContract);
+    const handleOpenDetailDialog = async (bill) => {
+        setSelectedContractForDetail(bill); // 直接使用 bill 对象
         setDetailDialogOpen(true);
         setLoadingDetail(true);
         try {
-            const [year, month] = selectedBillingMonth.split('-');
-            // const response = await api.get('/billing/details', { params: { contract_id: contract.id, year, month } });
-            const response = await api.get('/billing/details', { params: { bill_id: bill.bill_id } }); // 使用 bill.bill_id
+            const response = await api.get('/billing/details', { params: { bill_id: bill.id } }); // 使用 bill.id
             const responseData = response.data;
             setBillingDetails(responseData);
 
@@ -346,7 +367,7 @@ const BillingDashboard = () => {
         try {
             const [year, month] = selectedBillingMonth.split('-');
             const payload = {
-                contract_id: selectedContractForDetail.id,
+                contract_id: selectedContractForDetail.contract_id,
                 billing_year: parseInt(year),
                 billing_month: parseInt(month),
                 cycle_start_date: currentCycle.start,
@@ -498,7 +519,7 @@ const BillingDashboard = () => {
     <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={zhCN}>
       <Box>
         <AlertMessage open={alert.open} message={alert.message} severity={alert.severity} onClose={() => setAlert(prev => ({...prev, open: false}))} />
-        <PageHeader title="月度账单管理" description="筛选特定月份的待结算账单，并进行财务管理。" />
+        <PageHeader title="月度账单管理" description="���选特定月份的待结算账单，并进行财务管理。" />
         <Card sx={{ 
           boxShadow: '0 0 2rem 0 rgba(136, 152, 170, .15)',
           backgroundColor: 'white',
@@ -579,7 +600,7 @@ const BillingDashboard = () => {
                 <TableBody>
                   {loading ? ( <TableRow><TableCell colSpan={7} align="center" sx={{py: 5}}><CircularProgress /></TableCell></TableRow> )
                   : (
-                    (contracts.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)).map((bill) => (
+                    (contracts).map((bill) => (
                       <TableRow hover key={bill.id}>
                         <TableCell sx={{color: '#525f7f', fontWeight: 'bold'}}>{bill.customer_name}</TableCell>
                         <TableCell sx={{color: '#525f7f'}}>{bill.employee_name}</TableCell>
@@ -641,7 +662,7 @@ const BillingDashboard = () => {
                                 <Tooltip title="客户应付款 / 支付状态">
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                         <Typography sx={{ fontWeight: 'bold', color: 'error.main', width: '100px' }}>
-                                            {bill.Alertcustomer_payable ? `¥${bill.customer_payable}` : '待计算'}
+                                            {bill.customer_payable ? `¥${bill.customer_payable}` : '待计算'}
                                         </Typography>
                                         {bill.customer_is_paid === true && <CheckCircleIcon color="success" fontSize="small" />}
                                         {bill.customer_is_paid === false && <HighlightOffIcon color="disabled" fontSize="small" />}
@@ -659,7 +680,7 @@ const BillingDashboard = () => {
                             </Box>
                         </TableCell>
                         <TableCell align="center">
-                          <Button variant="contained" size="small" startIcon={<EditIcon />} onClick={() => handleOpenDetailDialog(contract)}>管理</Button>
+                          <Button variant="contained" size="small" startIcon={<EditIcon />} onClick={() => handleOpenDetailDialog(bill)}>管理</Button>
                         </TableCell>
                       </TableRow>
                     ))
@@ -694,7 +715,7 @@ const BillingDashboard = () => {
               <Alert severity="warning" sx={{mb: 2}}>
                   {contractsMissingDate.length > 1 
                       ? "以下合同缺少“实际上户日期”，将不会被计算。请为它们设置日期，或直接继续计算已有日期的合同。"
-                      : "该合同缺少“实际上户日期”，请设置后才能进行财务管理。"}
+                      : "该合同缺少“实际上户日期”，请��置后才能进行财务管理。"}
               </Alert>
               <TableContainer component={Paper}>
                   <Table size="small">

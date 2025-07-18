@@ -58,6 +58,10 @@ const ContractDetail = () => {
         }
     }, [contractId]);
 
+    const handleNavigateToBill = (bill) => {
+        navigate(`/billing?month=${bill.billing_period}&open_bill_id=${bill.id}`);
+    };
+
     if (loading) return <CircularProgress />;
     if (!contract) return <Typography>未找到合同信息。</Typography>;
 
@@ -69,6 +73,7 @@ const ContractDetail = () => {
         '服务人员': contract.employee_name,
         '状态': <Chip label={contract.status} color={contract.status === 'active' ? 'success' : 'default'} size="small" />,
         '合同周期': `${formatDate(contract.start_date)} ~ ${formatDate(contract.end_date)}`,
+        '合同剩余月数': contract.remaining_months, // <-- 新增字段
         '创建时间': new Date(contract.created_at).toLocaleString('zh-CN'),
         '备注': contract.notes,
     };
@@ -121,6 +126,7 @@ const ContractDetail = () => {
                                     <TableHead>
                                         <TableRow>
                                             <TableCell>账单周期 (所属月份)</TableCell>
+                                            <TableCell>服务周期</TableCell>
                                             <TableCell>加班天数</TableCell>
                                             <TableCell>应付金额</TableCell>
                                             <TableCell>支付状态</TableCell>
@@ -131,11 +137,18 @@ const ContractDetail = () => {
                                         {bills.length > 0 ? bills.map((bill) => (
                                             <TableRow key={bill.id} hover>
                                                 <TableCell>{bill.billing_period}</TableCell>
+                                                <TableCell>{formatDate(bill.cycle_start_date)} ~ {formatDate(bill.cycle_end_date)}</TableCell>
                                                 <TableCell>{bill.overtime_days} 天</TableCell>
                                                 <TableCell sx={{fontWeight: 'bold'}}>¥{bill.total_payable}</TableCell>
                                                 <TableCell><Chip label={bill.status} color={bill.status === '已支付' ? 'success' : 'warning'} size="small" /></TableCell>
                                                 <TableCell align="right">
-                                                    <Button size="small" variant="contained" onClick={() => navigate(`/billing?month=${bill.billing_period}`)}>去管理</Button>
+                                                <Button
+                                                    variant="contained"
+                                                    size="small"
+                                                    onClick={() => handleNavigateToBill(bill)}
+                                                >
+                                                    去管理
+                                                </Button>
                                                 </TableCell>
                                             </TableRow>
                                         )) : (

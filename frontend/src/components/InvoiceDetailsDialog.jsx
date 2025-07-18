@@ -7,7 +7,7 @@ import {
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 
-const InvoiceDetailsDialog = ({ open, onClose, onSave, invoiceData = {} }) => {
+const InvoiceDetailsDialog = ({ open, onClose, onSave, invoiceData = {}, defaultInvoiceAmount }) => {
     const [details, setDetails] = useState({
         number: '',
         amount: '',
@@ -17,13 +17,16 @@ const InvoiceDetailsDialog = ({ open, onClose, onSave, invoiceData = {} }) => {
     // 当弹窗打开或传入的数据变化时，初始化表单
     useEffect(() => {
         if (open) {
+            // 如果已有发票金额，则使用该金额；否则，使用传入的默认应付金额
+            const initialAmount = invoiceData.amount || defaultInvoiceAmount || '';
+            
             setDetails({
                 number: invoiceData.number || '',
-                amount: invoiceData.amount || '',
+                amount: initialAmount,
                 date: invoiceData.date ? new Date(invoiceData.date) : null,
             });
         }
-    }, [invoiceData, open]);
+    }, [invoiceData, open, defaultInvoiceAmount]);
 
     const handleChange = (event) => {
         const { name, value } = event.target;
