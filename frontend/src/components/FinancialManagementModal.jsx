@@ -138,13 +138,45 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
     }, [open, billingDetails]);
 
     const handleSave = () => {
-        onSave({ 
+        // 1. 从 props 和 state 中安全地获取所有必需的数据
+        const contractId = contract?.id;
+        const cycleStartDate = billingDetails?.cycle_start_date;
+        const cycleEndDate = billingDetails?.cycle_end_date;
+    
+        // 2. 检查所有必需的数据是否存在，如果不存在则报错并返回
+        if (!contractId || !billingMonth || !cycleStartDate || !cycleEndDate) {
+            alert("无法保存，缺少关键的合同或周期信息。");
+            console.error("Save failed due to missing critical data:", {
+                contractId,
+                billingMonth,
+                cycleStartDate,
+                cycleEndDate
+            });
+            return;
+        }
+    
+        const [year, month] = billingMonth.split('-').map(Number);
+    
+        // 3. 构建一个完整的 payload 对象
+        const payload = {
+            // 关键的身份信息
+            contract_id: contractId,
+            billing_year: year,
+            billing_month: month,
+            cycle_start_date: cycleStartDate,
+            cycle_end_date: cycleEndDate,
+    
+            // 用户修改的数据
             overtime_days: editableOvertime,
             adjustments: adjustments,
             settlement_status: { ...editableSettlement, invoice_details: editableInvoice }
-        });
+        };
+    
+        // 4. 调用 onSave 并退出编辑模式
+        onSave(payload);
         setIsEditMode(false);
     };
+    
     const handleEnterEditMode = () => setIsEditMode(true);
     const handleCancelEdit = () => {
         if (billingDetails) {

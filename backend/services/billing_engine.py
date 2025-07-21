@@ -139,24 +139,23 @@ class BillingEngine:
         overtime_days = D(attendance.overtime_days)
         cust_increase, cust_decrease, emp_increase, emp_decrease = self._get_adjustments(bill.id, payroll.id)
     
-        # 3. 计算天数和日薪 (严格按照 ini.md)
+        # 3. 计算天数和日薪 (核心修正：保持中间计算的最高精度)
         cycle_actual_days = (cycle_end - cycle_start).days + 1
         base_work_days = D(min(cycle_actual_days, 26))
         total_days_worked = base_work_days + overtime_days
     
-        customer_daily_rate = (level / D(26)).quantize(QUANTIZER)
-        employee_daily_rate = ((level * D('0.9')) / D(26)).quantize(QUANTIZER)
+        # --- 使用完整精度进行计算 ---
+        customer_daily_rate_full_precision = (level / D(26))
+        employee_daily_rate_full_precision = ((level * D('0.9')) / D(26))
     
-        # 4. 计算客户账单各项
-        customer_base_fee = (employee_daily_rate * base_work_days).quantize(QUANTIZER)
-        customer_overtime_fee = (customer_daily_rate * overtime_days).quantize(QUANTIZER)
+        # 4. 计算客户账单各项 (使用完整精度日薪，最后再舍入)
+        customer_base_fee = (employee_daily_rate_full_precision * base_work_days).quantize(QUANTIZER)
+        customer_overtime_fee = (customer_daily_rate_full_precision * overtime_days).quantize(QUANTIZER)
     
-        # 管理费计算 (复杂逻辑)
+        # (管理费和特殊逻辑部分保持不变)
         management_fee = D(0)
         is_first_bill = (cycle_start == contract.start_date)
         is_last_bill = (contract.end_date and cycle_end == contract.end_date)
-    
-        # --- 用于日志的额外变量 ---
         log_extras = {}
     
         if contract.is_monthly_auto_renew:
@@ -170,31 +169,30 @@ class BillingEngine:
                     total_months += 1
     
                 management_fee = (level * D('0.1') * total_months).quantize(QUANTIZER)
-                log_extras['management_fee_reason'] = f"非月签合同首月，一次性收取 {total_months} 个月管理费 ({management_fee} * {total_months})"
+                log_extras['management_fee_reason'] = f"非月签合同首月，一次性收取 {total_months} 个月管理费"
                 log_extras['total_months_for_fee'] = total_months
             else:
                 log_extras['management_fee_reason'] = "非月签合同非首月，不收取管理费"
     
             if is_last_bill and cycle_actual_days < 30:
                 monthly_management_fee = (level * D('0.1')).quantize(QUANTIZER)
-                daily_management_fee = (monthly_management_fee / D(30)).quantize(QUANTIZER)
+                daily_management_fee = (monthly_management_fee / D(30))
                 refund_days = 30 - cycle_actual_days
                 refund_amount = (daily_management_fee * refund_days).quantize(QUANTIZER)
                 cust_decrease += refund_amount
                 log_extras['management_fee_refund_reason'] = f"末月服务不足30天，按比例退还 {refund_days} 天管理费"
                 log_extras['refund_amount'] = str(refund_amount)
     
-    
-        # 5. 计算员工薪酬各项
-        employee_base_payout = (employee_daily_rate * base_work_days).quantize(QUANTIZER)
-        employee_overtime_payout = (employee_daily_rate * overtime_days).quantize(QUANTIZER)
+        # 5. 计算员工薪酬各项 (同样使用完整精度日薪)
+        employee_base_payout = (employee_daily_rate_full_precision * base_work_days).quantize(QUANTIZER)
+        employee_overtime_payout = (customer_daily_rate_full_precision * overtime_days).quantize(QUANTIZER)
     
         first_month_deduction = D(0)
         if is_first_bill:
             potential_income = employee_base_payout + employee_overtime_payout + emp_increase - emp_decrease
             service_fee_due = (level * D('0.1')).quantize(QUANTIZER)
             first_month_deduction = min(potential_income, service_fee_due)
-            log_extras['first_month_deduction_reason'] = f"员工首月服务费: 级别*10%({service_fee_due:.2f}) 或 当期总收入({potential_income:.2f}) 取两者小的那个值)"
+            log_extras['first_month_deduction_reason'] = f"员工首月服务费, min(当期总收入({potential_income:.2f}), 级别*10%({service_fee_due:.2f}))"
     
         return {
             'type': 'nanny', 'level': str(level), 'cycle_period': f"{cycle_start.isoformat()} to {cycle_end.isoformat()}",
@@ -203,7 +201,8 @@ class BillingEngine:
             'management_fee': str(management_fee), 'customer_increase': str(cust_increase), 'customer_decrease': str(cust_decrease),
             'employee_base_payout': str(employee_base_payout), 'employee_overtime_payout': str(employee_overtime_payout),
             'first_month_deduction': str(first_month_deduction), 'employee_increase': str(emp_increase), 'employee_decrease': str(emp_decrease),
-            'customer_daily_rate': str(customer_daily_rate), 'employee_daily_rate': str(employee_daily_rate),
+            'customer_daily_rate': str(customer_daily_rate_full_precision.quantize(QUANTIZER)), # 仅用于日志显示
+            'employee_daily_rate': str(employee_daily_rate_full_precision.quantize(QUANTIZER)), # 仅用于日志显示
             'log_extras': log_extras,
         }
 
@@ -384,29 +383,27 @@ class BillingEngine:
         overtime_days = D(attendance.overtime_days)
         cust_increase, cust_decrease, emp_increase, emp_decrease = self._get_adjustments(bill.id, payroll.id)
     
-        # 3. 计算天数和日薪 (修正最后账单月的问题)
-        # 日薪始终按标准26天计算
-        daily_rate = (level / D(26)).quantize(QUANTIZER)
+        # 3. 计算天数和日薪 (核心修正：保持中间计算的最高精度)
+        # --- 使用完整精度进行计算 ---
+        daily_rate_full_precision = (level / D(26))
     
-        # 基本劳务天数应为当前周期的实际天数，但不能超过26天
         actual_cycle_days = (cycle_end - cycle_start).days + 1
         base_work_days = D(min(actual_cycle_days, 26))
     
         total_days_worked = base_work_days + overtime_days
     
-        # 4. 计算客户账单各项
-        customer_base_fee = (daily_rate * base_work_days).quantize(QUANTIZER)
-        customer_overtime_fee = (daily_rate * overtime_days).quantize(QUANTIZER)
+        # 4. 计算客户账单各项 (使用完整精度日薪，最后再舍入)
+        customer_base_fee = (daily_rate_full_precision * base_work_days).quantize(QUANTIZER)
+        customer_overtime_fee = (daily_rate_full_precision * overtime_days).quantize(QUANTIZER)
         management_fee = (customer_base_fee * management_fee_rate).quantize(QUANTIZER)
     
-        # 末月特殊逻辑
         is_last_bill = (contract.end_date and cycle_end >= contract.end_date)
         if is_last_bill:
             cust_decrease += security_deposit
     
-        # 5. 计算员工薪酬各项
-        employee_base_payout = (daily_rate * base_work_days).quantize(QUANTIZER)
-        employee_overtime_payout = (daily_rate * overtime_days).quantize(QUANTIZER)
+        # 5. 计算员工薪酬各项 (同样使用完整精度日薪)
+        employee_base_payout = (daily_rate_full_precision * base_work_days).quantize(QUANTIZER)
+        employee_overtime_payout = (daily_rate_full_precision * overtime_days).quantize(QUANTIZER)
     
         bonus_5_percent = D(0)
         if management_fee_rate == D('0.15'):
@@ -415,7 +412,8 @@ class BillingEngine:
         return {
             'type': 'maternity_nurse', 'level': str(level), 'cycle_period': f"{cycle_start.isoformat()} to {cycle_end.isoformat()}",
             'base_work_days': str(base_work_days), 'overtime_days': str(overtime_days), 'total_days_worked': str(total_days_worked),
-            'daily_rate': str(daily_rate), 'management_fee_rate': str(management_fee_rate),
+            'daily_rate': str(daily_rate_full_precision.quantize(QUANTIZER)), # 仅用于日志显示
+            'management_fee_rate': str(management_fee_rate),
             'customer_base_fee': str(customer_base_fee), 'customer_overtime_fee': str(customer_overtime_fee),
             'management_fee': str(management_fee), 'discount': str(discount),
             'security_deposit_return': str(security_deposit) if is_last_bill else '0.00',
@@ -428,7 +426,8 @@ class BillingEngine:
         log = {}
         try:
             if details.get('type') == 'maternity_nurse':
-                log['基础劳务费'] = f"级别({D(details['level']):.2f})"
+                # log['基础劳务费'] = f"日薪({D(details['daily_rate']):.2f}) * 基本劳务天数({details['base_work_days']}) = {D(details['customer_base_fee']):.2f}"
+                log['基础劳务费'] = f"(级别({D(details['level']):.2f}) / 26) * 基本劳务天数({details['base_work_days']}) = {D(details['customer_base_fee']):.2f}"
                 log['加班费'] = f"日薪({D(details['daily_rate']):.2f}) * 加班天数({details['overtime_days']}) = {D(details['customer_overtime_fee']):.2f}"
                 log['管理费'] = f"基础劳务费({D(details['customer_base_fee']):.2f}) * 管理费率({D(details['management_fee_rate']):.0%}) = {D(details['management_fee']):.2f}"
     

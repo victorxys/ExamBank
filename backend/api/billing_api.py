@@ -223,7 +223,9 @@ def _get_billing_details_internal(contract_id, year, month, cycle_start_date):
                  "amount": str(adj.amount), "description": adj.description
              } for adj in customer_adjustments + employee_adjustments
          ],
-         "invoice_details": invoice_details_for_edit
+         "invoice_details": invoice_details_for_edit,
+         "cycle_start_date": customer_bill.cycle_start_date.isoformat(),
+         "cycle_end_date": customer_bill.cycle_end_date.isoformat()
      }
 
 def admin_required(fn):
