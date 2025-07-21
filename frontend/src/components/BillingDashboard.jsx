@@ -321,31 +321,38 @@ const BillingDashboard = () => {
 
 
     const handleOpenDetailDialog = async (bill) => {
-        setSelectedContractForDetail(bill); // 直接使用 bill 对象
+        setSelectedContractForDetail(bill);
         setDetailDialogOpen(true);
         setLoadingDetail(true);
         try {
-            const response = await api.get('/billing/details', { params: { bill_id: bill.id } }); // 使用 bill.id
+            const response = await api.get('/billing/details', { params: { bill_id: bill.id } });
             const responseData = response.data;
             setBillingDetails(responseData);
-
-            const rawCycleRange = responseData.customer_bill_details?.劳务时间段;
-            if (rawCycleRange && rawCycleRange.includes('~')) {
-                const [start, end] = rawCycleRange.split('~').map(d => d.trim());
-                setCurrentCycle({ start, end });
+    
+            // --- 核心修正：直接从API响应的顶层获取准确的周期日期 ---
+            if (responseData.cycle_start_date && responseData.cycle_end_date) {
+                setCurrentCycle({
+                    start: responseData.cycle_start_date,
+                    end: responseData.cycle_end_date
+                });
             } else {
+                // 如果万一没有返回，做一个安全的回退
                 setCurrentCycle({ start: null, end: null });
+                console.error("API did not return cycle_start_date or cycle_end_date at the top level.");
             }
-
+            // (原有的 setEditableAttendance 逻辑保持不变)
             let initialAttendance = { overtime_days: 0 };
-            if (responseData.customer_bill_details?.加班天数) {
-                initialAttendance.overtime_days = parseInt(responseData.customer_bill_details.加班天数, 10) || 0;
+            if (responseData.attendance?.overtime_days) {
+                initialAttendance.overtime_days = parseInt(responseData.attendance.overtime_days, 10) || 0;
             }
             setEditableAttendance(initialAttendance);
+    
         } catch (error) {
             setAlert({ open: true, message: `获取详情失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
             setBillingDetails(null);
-        } finally { setLoadingDetail(false); }
+        } finally {
+            setLoadingDetail(false);
+        }
     };
 
     const handleCloseDetailDialog = () => {
