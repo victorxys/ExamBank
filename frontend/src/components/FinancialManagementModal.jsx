@@ -54,15 +54,21 @@ const formatValue = (key, value) => {
 
 const getTooltipContent = (fieldName, billingDetails) => {
     const calc = billingDetails?.customer_bill_details?.calculation_details;
+    console.log('calc:', calc.calculation_log);
     if (!calc?.calculation_log) return null;
 
     const log = calc.calculation_log;
     const fieldToLogKeyMap = {
-        '萌嫂基本劳务费': 'labor_fee', '本次交管理费': 'total_management_fee_for_period',
-        '管理费': 'management_fee', '客应付款': 'total_payable',
-        '萌嫂保证金(工资)': 'employee_base_payout', '加班费': 'overtime_payout',
-        '5%奖励': 'bonus_5_percent', '萌嫂应领款': 'final_payout',
-        '萌嫂交公司10%': 'first_month_deduction', '加班工资': 'overtime_payout'
+        '基础劳务费': '基础劳务费',
+        '加班费': '加班费',
+        '管理费': '管理费',
+        '客应付款': '客应付款',
+        '萌嫂保证金(工资)': '萌嫂保证金(工资)',
+        '5%奖励': '5%奖励',
+        '萌嫂应领款': '萌嫂应领款',
+        '本次交管理费': '本次交管理费',
+        '首月员工10%费用': '首月员工10%费用',
+        '加班工资': '加班费', // "加班工资" and "加班费" can share the same log entry
     };
     const logKey = fieldToLogKeyMap[fieldName];
     if (!logKey || !log[logKey]) return null;
