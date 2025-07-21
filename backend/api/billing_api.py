@@ -39,211 +39,192 @@ def _log_activity(bill, payroll, action, details=None):
 
 
 def _get_billing_details_internal(contract_id, year, month, cycle_start_date):
-    """
-    一个内部辅助函数，用于获取指定合同和月份的完整财务详情。
-    严格按照最终确认的业务逻辑和前端展示需求进行数据组装。
-    """
-    current_app.logger.info(f"--- [DETAILS START] 开始获取详情 for {contract_id} / {year}-{month} (Cycle Start: {cycle_start_date}) ---")
-
-    # 1. 查询基础对象
-    contract = db.session.query(with_polymorphic(BaseContract, "*")).filter(BaseContract.id == contract_id).first()
-    if not contract:
-        current_app.logger.error(f"[DETAILS] 合同 {contract_id} 未找到。")
-        return None
-
-    customer_bill = CustomerBill.query.filter_by(contract_id=contract_id, year=year, month=month, cycle_start_date=cycle_start_date).first()
-    employee_payroll = EmployeePayroll.query.filter_by(contract_id=contract_id, year=year, month=month, cycle_start_date=cycle_start_date).first()
-    
-    # **核心修正 1**: 查询所有关联的财务调整项
-    customer_adjustments = []
-    employee_adjustments = []
-    if customer_bill:
-        customer_adjustments = FinancialAdjustment.query.filter_by(customer_bill_id=customer_bill.id).all()
-    if employee_payroll:
-        employee_adjustments = FinancialAdjustment.query.filter_by(employee_payroll_id=employee_payroll.id).all()
-
-    # 2. 初始化返回的字典结构
-    customer_bill_details = {}
-    employee_payroll_details = {}
-    
-    # 3. 填充客户账单详情
-    active_cycle_start, active_cycle_end = None, None
-    if customer_bill:
-        active_cycle_start = customer_bill.cycle_start_date
-        active_cycle_end = customer_bill.cycle_end_date
-
-    # --- 核心修改：根据合同类型和账单状态填充详情 ---
-    if isinstance(contract, NannyContract):
-        # --- 育儿嫂合同详情 ---
-        calc = customer_bill.calculation_details if customer_bill and customer_bill.calculation_details else {}
-        
-        # 级别与保证金
-        customer_bill_details['级别'] = str(contract.employee_level or 0)
-        customer_bill_details['客交保证金'] = "0.00" # 育儿嫂合同无此项
-
-        # 劳务时间
-        customer_bill_details['劳务时间段'] = f"{active_cycle_start.isoformat() if active_cycle_start else 'N/A'} ~ {active_cycle_end.isoformat() if active_cycle_end else 'N/A'}"
-        customer_bill_details['加班天数'] = calc.get('overtime_days', '0')
-        customer_bill_details['出勤总天数'] = f"{calc.get('total_days_worked', '26')}天"
-
-        # 费用明细
-        customer_bill_details['萌嫂基本劳务费'] = calc.get('employee_base_payout', '待计算')
-        customer_bill_details['加班工资'] = calc.get('overtime_payout', '待计算')
-        customer_bill_details['管理费率'] = "10%" # 固定显示
-        customer_bill_details['本次交管理费'] = calc.get('total_management_fee_for_period', '待计算')
-
-        # 总计
-        customer_bill_details['客应付款'] = str(customer_bill.total_payable) if customer_bill else '待计算'
-        if employee_payroll:
-            employee_payroll_details['萌嫂应领款'] = str(employee_payroll.final_payout)
-
-    elif isinstance(contract, MaternityNurseContract):
-        # 月嫂合同的逻辑保持不变
-        customer_bill_details['级别'] = str(contract.employee_level or 0)
-        customer_bill_details['定金'] = str(contract.deposit_amount or 0)
-        customer_bill_details['客交保证金'] = str(contract.security_deposit_paid or 0)
-        
-        if not active_cycle_start and contract.actual_onboarding_date:
-            first_day_of_month = date(year, month, 1)
-            last_day_of_month = (first_day_of_month.replace(day=28) + timedelta(days=4)).replace(day=1) - timedelta(days=1)
-            cycle_start = contract.actual_onboarding_date
-            while cycle_start <= (contract.end_date or last_day_of_month):
-                cycle_end = cycle_start + timedelta(days=25)
-                if cycle_start <= last_day_of_month and cycle_end >= first_day_of_month:
-                    active_cycle_start, active_cycle_end = cycle_start, cycle_end
-                    break
-                cycle_start = cycle_end + timedelta(days=1)
-        customer_bill_details['劳务时间段'] = f"{active_cycle_start.isoformat() if active_cycle_start else 'N/A'} ~ {active_cycle_end.isoformat() if active_cycle_end else 'N/A'}"
-
-    # --- 通用详情填充 (适用于所有已保存的账单) ---
-    if customer_bill:
-        calc = customer_bill.calculation_details or {}
-        payment = customer_bill.payment_details or {}
-        invoice = calc.get('invoice_details', {})
-        customer_bill_details['id'] = str(customer_bill.id)
-        
-        # --- 核心修正：直接传递完整的 calculation_details ---
-        customer_bill_details['calculation_details'] = calc
-
-        # 优先使用 calculation_details 的值，如果它存在的话
-        if 'total_days_worked' in calc:
-            customer_bill_details['出勤总天数'] = f"{calc.get('total_days_worked')}天"
-        if 'overtime_days' in calc:
-            customer_bill_details['加班天数'] = calc.get('overtime_days', '0')
-
-        if calc.get('is_final_bill', False):
-            customer_bill_details['本月费用'] = calc.get('this_month_fee', '0.00')
-            customer_bill_details['客交保证金'] = calc.get('security_deposit_paid', '0.00')
-            customer_bill_details['客户付款'] = str(customer_bill.total_payable)
-        else:
-            customer_bill_details['客应付款'] = str(customer_bill.total_payable)
-        
-        if isinstance(contract, MaternityNurseContract):
-            customer_bill_details['管理费率'] = f"{int(D(calc.get('management_fee_rate', 0)) * 100)}%"
-            customer_bill_details['管理费'] = calc.get('management_fee', '0.00')
-            customer_bill_details['萌嫂基本劳务费'] = calc.get('employee_base_payout', '0.00')
-            customer_bill_details['加班工资'] = calc.get('overtime_payout_for_customer', '0.00')
-        
-        customer_bill_details['优惠'] = calc.get('discount', '0.00')
-        customer_bill_details['客增加款'] = calc.get('customer_increase', '0.00')
-        customer_bill_details['退客户款'] = calc.get('customer_decrease', '0.00')
-        
-        customer_bill_details['是否打款'] = '是' if customer_bill.is_paid else '否'
-        customer_bill_details['打款时间及渠道'] = f"{payment.get('payment_date', '') or '—'} / {payment.get('payment_channel', '') or '���'}" if customer_bill.is_paid else "—"
-
-        if not invoice.get('needed'):
-            customer_bill_details['发票记录'] = '无需开票'
-        else:
-            customer_bill_details['发票记录'] = '已开票' if invoice.get('issued') else '待开票'
-            inv_num = payment.get('invoice_number') or '未录入'
-            inv_date = payment.get('invoice_date') or '未录入'
-            inv_amount = payment.get('invoice_amount') or '未录入'
-            customer_bill_details['发票记录'] = f"已开票 (开票金额: {inv_amount},发票号: {inv_num}, 日期: {inv_date})"
-    else:
-        # 如果没有账单记录 (理论上不应发生，因为是从bill_id进来的)
-        customer_bill_details.update({
-            '加班天数': '0', '出勤总天数': '待计算',
-            '客增加款': "0.00", '退客户款': "0.00",
-            '客应付款': '待计算', '是否打款': '否',
-            '打款时间及渠道': "—", '发票记录': "—"
-        })
-        if isinstance(contract, MaternityNurseContract):
-            customer_bill_details.update({
-                '管理费率': '待计算', '管理费': '待计算',
-                '基本劳务费': '待计算', '加班工资': '待计算',
-                '优惠': str(contract.discount_amount or 0),
-            })
-
-    # 4. 填充员工薪酬详情
-    if employee_payroll:
-        calc = employee_payroll.calculation_details or {}
-        payout = employee_payroll.payout_details or {}
-        employee_payroll_details['id'] = str(employee_payroll.id)
-
-        
-        employee_payroll_details['萌嫂保证金(工资)'] = calc.get('employee_base_payout', '0.00') # 使用修正后的字段
-        employee_payroll_details['加班费'] = calc.get('overtime_payout_for_employee', '0.00')
-        employee_payroll_details['5%奖励'] = "0.00"
-        
-        employee_payroll_details['萌嫂增款'] = calc.get('employee_increase', '0.00')
-        employee_payroll_details['萌嫂增款'] = calc.get('employee_increase', '0.00')
-
-        employee_payroll_details['萌嫂应领款'] = str(employee_payroll.final_payout)
-        employee_payroll_details['是否领款'] = '是' if employee_payroll.is_paid else '否'
-        employee_payroll_details['领款时间及渠道'] = f"{payout.get('date', '') or '—'} / {payout.get('channel', '') or '—'}" if employee_payroll.is_paid else "—"
-        employee_payroll_details['实际领款'] = "—"
-        employee_payroll_details['萌嫂结余'] = "0.00"
-        employee_payroll_details['备注'] = "—"
-    else:
-        # 如果没有薪酬记录，填充“待计算”
-        employee_payroll_details.update({
-            '萌嫂保证金(工资)': "待计算", '加班费': "待计算", '5%奖励': "待计算",
-            '萌嫂增款': "0.00", '减萌嫂款': "0.00",
-            '萌嫂应领款': "待计算", '是否领款': '否',
-            '领款时间及渠道': "—", '实际领款': "—", '萌嫂结余': "0.00", '备注': "—"
-        })
-        
-    # 5. 填充考勤详情 (用于前端输入框回显)
-    # 这个逻辑是独立的，只为了填充考勤输入框
-    attendance_record = AttendanceRecord.query.filter_by(contract_id=contract_id, cycle_start_date=active_cycle_start).first()
-    attendance_details = {'overtime_days': attendance_record.overtime_days if attendance_record else 0}
-
-    current_app.logger.info(f"--- [DETAILS END] 获取详情结束 ---")
-    # **核心修正**: 返回完整的发票详情，供前端编辑框使用
-    invoice_details_for_edit = {}
-    if customer_bill and customer_bill.payment_details:
-        invoice_details_for_edit = {
-            "number": customer_bill.payment_details.get('invoice_number', ''),
-            "amount": customer_bill.payment_details.get('invoice_amount', ''),
-            "date": customer_bill.payment_details.get('invoice_date', None),
-        }
-    
-    return {
-        'attendance': attendance_details,
-        'customer_bill_details': customer_bill_details,
-        'employee_payroll_details': employee_payroll_details,
-        'adjustments': [
-            {
-                "id": str(adj.id), "adjustment_type": adj.adjustment_type.name, 
-                "amount": str(adj.amount), "description": adj.description
-            } for adj in customer_adjustments + employee_adjustments
-        ],
-        "invoice_details": invoice_details_for_edit
-    }
-
-    # 6. **核心修正 4**: 返回从数据库查询到的调整项列表
-    return {
-        'attendance': attendance_details,
-        'customer_bill_details': customer_bill_details,
-        'employee_payroll_details': employee_payroll_details,
-        'adjustments': [
-            {
-                "id": str(adj.id), "adjustment_type": adj.adjustment_type.name, 
-                "amount": str(adj.amount), "description": adj.description
-            } for adj in customer_adjustments + employee_adjustments
-        ],
-        "invoice_details": invoice_details_for_edit
-    }
+     """
+     一个内部辅助函数，用于获取指定合同和月份的完整财务详情。
+     严格按照最终确认的业务逻辑和前端展示需求进行数据组装。
+     """
+     current_app.logger.info(f"--- [DETAILS START] 开始获取详情 for {contract_id} / {year}-{month} (Cycle Start: {cycle_start_date}) ---")
+ 
+     # 1. 查询基础对象
+     contract = db.session.query(with_polymorphic(BaseContract, "*")).filter(BaseContract.id == contract_id).first()
+     if not contract:
+         current_app.logger.error(f"[DETAILS] 合同 {contract_id} 未找到。")
+         return None
+ 
+     customer_bill = CustomerBill.query.filter_by(contract_id=contract_id, year=year, month=month, cycle_start_date=cycle_start_date).first()
+     employee_payroll = EmployeePayroll.query.filter_by(contract_id=contract_id, year=year, month=month, cycle_start_date=cycle_start_date).first()
+ 
+     customer_adjustments = []
+     employee_adjustments = []
+     if customer_bill:
+         customer_adjustments = FinancialAdjustment.query.filter_by(customer_bill_id=customer_bill.id).all()
+     if employee_payroll:
+         employee_adjustments = FinancialAdjustment.query.filter_by(employee_payroll_id=employee_payroll.id).all()
+ 
+     # 2. 定义前端期望的、稳定的数据结构模板
+     def get_details_template(contract_type):
+         is_nanny = contract_type == 'nanny'
+         is_maternity = contract_type == 'maternity_nurse'
+ 
+         customer_template = {
+             "id": None,
+             "calculation_details": {},
+             "payment_status": {},
+             "groups": [
+                 {
+                     "name": "核心信息",
+                     "fields": {
+                         "级别": str(contract.employee_level or 0),
+                         "定金": str(getattr(contract, 'deposit_amount', 0)) if is_maternity else "0.00",
+                         "客交保证金": str(getattr(contract, 'security_deposit_paid', 0)) if is_maternity else "0.00",
+                     }
+                 },
+                 {
+                     "name": "劳务周期",
+                     "fields": {
+                         "劳务时间段": "待计算",
+                         "基本劳务天数": "待计算",
+                         "加班天数": "0",
+                         "总劳务天数": "待计算",
+                     }
+                 },
+                 {
+                     "name": "费用明细",
+                     "fields": {}
+                 }
+             ],
+             "final_amount": {
+                 "客应付款": "待计算"
+             }
+         }
+ 
+         employee_template = {
+             "id": None,
+             "payment_status": {},
+             "groups": [
+                 {
+                     "name": "薪酬明细",
+                     "fields": {}
+                 }
+             ],
+             "final_amount": {
+                 "萌嫂应领款": "待计算"
+             }
+         }
+ 
+         if is_maternity:
+             customer_template['groups'][2]['fields'] = {
+                 "基础劳务费": "待计算",
+                 "加班费": "待计算",
+                 "管理费": "待计算",
+                 "优惠": str(getattr(contract, 'discount_amount', 0)),
+             }
+             employee_template['groups'][0]['fields'] = {
+                 "萌嫂保证金(工资)": "待计算",
+                 "加班费": "待计算",
+                 "5%奖励": "待计算",
+             }
+         elif is_nanny:
+             customer_template['groups'][2]['fields'] = {
+                 "基础劳务费": "待计算",
+                 "加班费": "待计算",
+                 "本次交管理费": "待计算",
+             }
+             employee_template['groups'][0]['fields'] = {
+                 "基础劳务费": "待计算",
+                 "加班费": "待计算",
+                 "首月员工10%费用": "待计算",
+             }
+         return customer_template, employee_template
+ 
+     customer_details, employee_details = get_details_template(contract.type)
+ 
+     # 3. 如果有账单数据，则填充模板
+     if customer_bill:
+         calc = customer_bill.calculation_details or {}
+         customer_details['id'] = str(customer_bill.id)
+         customer_details['calculation_details'] = calc
+ 
+         # 填充劳务周期
+         customer_details['groups'][1]['fields']['劳务时间段'] = f"{customer_bill.cycle_start_date.isoformat()} ~ {customer_bill.cycle_end_date.isoformat()}"
+         customer_details['groups'][1]['fields']['基本劳务天数'] = calc.get('base_work_days', '待计算')
+         customer_details['groups'][1]['fields']['加班天数'] = calc.get('overtime_days', '0')
+         customer_details['groups'][1]['fields']['总劳务天数'] = calc.get('total_days_worked', '待计算')
+ 
+         # 填充费用明细
+         if contract.type == 'maternity_nurse':
+             customer_details['groups'][2]['fields']['基础劳务费'] = calc.get('customer_base_fee', '待计算')
+             customer_details['groups'][2]['fields']['加班费'] = calc.get('customer_overtime_fee', '待计算')
+             customer_details['groups'][2]['fields']['管理费'] = calc.get('management_fee', '待计算')
+         elif contract.type == 'nanny':
+             customer_details['groups'][2]['fields']['基础劳务费'] = calc.get('customer_base_fee', '待计算')
+             customer_details['groups'][2]['fields']['加班费'] = calc.get('customer_overtime_fee', '待计算')
+             customer_details['groups'][2]['fields']['本次交管理费'] = calc.get('management_fee', '待计算')
+ 
+         # 填充最终金额
+         customer_details['final_amount']['客应付款'] = str(customer_bill.total_payable)
+ 
+         # 填充结算状态
+         payment = customer_bill.payment_details or {}
+         invoice = payment.get('invoice_details', {})
+         customer_details['payment_status'] = {
+             '是否打款': '是' if customer_bill.is_paid else '否',
+             '打款时间及渠道': f"{payment.get('payment_date', '') or '—'} / {payment.get('payment_channel', '') or '—'}" if customer_bill.is_paid else
+ "—",
+             '发票记录': '无需开票' if not payment.get('invoice_needed') else ('已开票' if payment.get('invoice_issued') else '待开票')
+         }
+ 
+     if employee_payroll:
+         calc = employee_payroll.calculation_details or {}
+         employee_details['id'] = str(employee_payroll.id)
+ 
+         # 填充薪酬明细
+         if contract.type == 'maternity_nurse':
+             employee_details['groups'][0]['fields']['萌嫂保证金(工资)'] = calc.get('employee_base_payout', '待计算')
+             employee_details['groups'][0]['fields']['加班费'] = calc.get('employee_overtime_payout', '待计算')
+             employee_details['groups'][0]['fields']['5%奖励'] = calc.get('bonus_5_percent', '待计算')
+         elif contract.type == 'nanny':
+             employee_details['groups'][0]['fields']['基础劳务费'] = calc.get('employee_base_payout', '待计算')
+             employee_details['groups'][0]['fields']['加班费'] = calc.get('employee_overtime_payout', '待计算')
+             employee_details['groups'][0]['fields']['首月员工10%费用'] = calc.get('first_month_deduction', '待计算')
+ 
+         # 填充最终金额
+         employee_details['final_amount']['萌嫂应领款'] = str(employee_payroll.final_payout)
+ 
+         # 填充结算状态
+         payout = employee_payroll.payout_details or {}
+         employee_details['payment_status'] = {
+             '是否领款': '是' if employee_payroll.is_paid else '否',
+             '领款时间及渠道': f"{payout.get('date', '') or '—'} / {payout.get('channel', '') or '—'}" if employee_payroll.is_paid else "—",
+         }
+ 
+     # 4. 填充考勤和发票详情 (这些是独立的，用于编辑)
+     active_cycle_start = customer_bill.cycle_start_date if customer_bill else None
+     attendance_record = AttendanceRecord.query.filter_by(contract_id=contract_id, cycle_start_date=active_cycle_start).first()
+     attendance_details = {'overtime_days': attendance_record.overtime_days if attendance_record else 0}
+ 
+     invoice_details_for_edit = {}
+     if customer_bill and customer_bill.payment_details:
+         invoice_details_for_edit = {
+             "number": customer_bill.payment_details.get('invoice_number', ''),
+             "amount": customer_bill.payment_details.get('invoice_amount', ''),
+             "date": customer_bill.payment_details.get('invoice_date', None),
+         }
+ 
+     current_app.logger.info(f"--- [DETAILS END] 获取详情结束 ---")
+ 
+     return {
+         'attendance': attendance_details,
+         'customer_bill_details': customer_details,
+         'employee_payroll_details': employee_details,
+         'adjustments': [
+             {
+                 "id": str(adj.id), "adjustment_type": adj.adjustment_type.name,
+                 "amount": str(adj.amount), "description": adj.description
+             } for adj in customer_adjustments + employee_adjustments
+         ],
+         "invoice_details": invoice_details_for_edit
+     }
 
 def admin_required(fn):
     return jwt_required()(fn)

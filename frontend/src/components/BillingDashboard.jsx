@@ -126,7 +126,7 @@ const ExcelStyleDetailCard = ({ title, data = {}, isCustomerBill }) => {
             '本期输入': ['加班天数', '劳务时间段', '出勤总天数'], // 修改
             '费用明细': ['管理费率', '管理费', '基本劳务费', '加班工资'], // 修改
             '财务调整': ['优惠', '客增加款', '退客户款'],
-            '最终结算': ['客应付款', '是否打款', '打款时间及渠道', '发票记录']
+            '最终结算': ['客户付款', '是否打款', '打款时间及渠道', '发票记录']
         },
         employee: {
             '本期输入': ['出勤天数', '加班天数'], // 示例，员工侧也应分组
@@ -519,7 +519,7 @@ const BillingDashboard = () => {
     <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={zhCN}>
       <Box>
         <AlertMessage open={alert.open} message={alert.message} severity={alert.severity} onClose={() => setAlert(prev => ({...prev, open: false}))} />
-        <PageHeader title="月度账单管理" description="���选特定月份的待结算账单，并进行财务管理。" />
+        <PageHeader title="月度账单管理" description="选特定月份的待结算账单，并进行财务管理。" />
         <Card sx={{ 
           boxShadow: '0 0 2rem 0 rgba(136, 152, 170, .15)',
           backgroundColor: 'white',
