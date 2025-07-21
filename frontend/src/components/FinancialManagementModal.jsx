@@ -54,7 +54,7 @@ const formatValue = (key, value) => {
 
 const getTooltipContent = (fieldName, billingDetails) => {
     const calc = billingDetails?.customer_bill_details?.calculation_details;
-    console.log('calc:', calc.calculation_log);
+    // console.log('calc:', calc.calculation_log);
     if (!calc?.calculation_log) return null;
 
     const log = calc.calculation_log;
@@ -232,7 +232,7 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
         }
     };
     const renderCardContent = (data, isCustomer) => {
-        console.log(`Rendering ${isCustomer ? 'customer' : 'employee'} data:`, data.groups);
+        // console.log(`Rendering ${isCustomer ? 'customer' : 'employee'} data:`, data.groups);
         if (!data || !data.groups) return null;
         const currentAdjustments = adjustments.filter(adj => AdjustmentTypes[adj.adjustment_type]?.type === (isCustomer ? 'customer' : 'employee'));
         
@@ -245,7 +245,7 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                             {Object.entries(group.fields).map(([key, value]) => {
                                 const isOvertimeField = key === '加班天数' && isCustomer;
                                 const tooltipContent = getTooltipContent(key, billingDetails);
-                                console.log(`Rendering field: ${key}, value: ${value}, isOvertimeField: ${isOvertimeField}, tooltipContent: ${tooltipContent}`);
+                                // console.log(`Rendering field: ${key}, value: ${value}, isOvertimeField: ${isOvertimeField}, tooltipContent: ${tooltipContent}`);
                                 return (
                                     <React.Fragment key={key}>
                                         <Grid item xs={5}><Typography variant="body2" color="text.secondary">{key}:</Typography></Grid>
