@@ -532,89 +532,70 @@ def update_single_contract(contract_id):
     contract = db.session.get(BaseContract, str(contract_id))
     if not contract:
         return jsonify({'error': '合同未找到'}), 404
-        
+
     data = request.get_json()
     if not data:
         return jsonify({'error': '缺少更新数据'}), 400
 
     try:
         should_generate_bills = False
-        # 我们目前只处理 actual_onboarding_date 的更新
         if 'actual_onboarding_date' in data:
             new_onboarding_date_str = data['actual_onboarding_date']
             if new_onboarding_date_str:
                 new_onboarding_date = datetime.strptime(new_onboarding_date_str, '%Y-%m-%d').date()
-                # 确保是MaternityNurseContract才有这个字段
                 if isinstance(contract, MaternityNurseContract):
                     if contract.actual_onboarding_date != new_onboarding_date:
                         contract.actual_onboarding_date = new_onboarding_date
-                        
-                        # --- 修正：更准确地计算预计下户日期 ---
-                        # 逻辑：新的预计下户日期 = 原合同结束日期 + (实际上户日 - 预计上户日)
-                        # 这样可以保持合同的原始天数不变。
-                        
+
                         onboarding_delay = None
-                        # 确保有预计上户日(provisional_start_date)才能计算延迟
                         if contract.provisional_start_date:
                             onboarding_delay = new_onboarding_date - contract.provisional_start_date
 
-                        # 如果成功计算了延迟天数，并且合同有原始的结束日期(end_date)，则用精确逻辑
                         if onboarding_delay is not None and contract.end_date:
                             contract.expected_offboarding_date = contract.end_date + onboarding_delay
-                            log_message = (
-                                f"月嫂合同 {contract_id} 上户日更新为 {new_onboarding_date}。"
-                                f"原合同结束日为 {contract.end_date}，上户延迟 {onboarding_delay.days} 天，"
-                                f"预计下户日期精确调整为 {contract.expected_offboarding_date}。"
-                            )
                         else:
-                            # 否则，使用原来的备用逻辑：直接加25天 (即26天服务期)
                             contract.expected_offboarding_date = new_onboarding_date + timedelta(days=25)
-                            log_message = (
-                                f"月嫂合同 {contract_id} 上户日更新为 {new_onboarding_date}，"
-                                f"因缺少原始合同日期，预计下户日期按26天周期推算为 {contract.expected_offboarding_date}。"
-                            )
-                        
+
                         should_generate_bills = True
-                        current_app.logger.info(log_message)
                 else:
                     return jsonify({'error': '只有月嫂合同才能设置实际上户日期'}), 400
             else:
                  if isinstance(contract, MaternityNurseContract):
                     contract.actual_onboarding_date = None
-                    
+
         db.session.commit()
 
         if should_generate_bills:
             current_app.logger.info(f"为合同 {contract.id} 触发后台账单生成任务...")
-            
+
             cycle_start = contract.actual_onboarding_date
             end_date = contract.expected_offboarding_date
-            
-            processed_months = set()
+
+            affected_months = set()
             while cycle_start <= end_date:
                 cycle_end = cycle_start + timedelta(days=25)
                 if cycle_end > end_date:
                     cycle_end = end_date
-                
-                settlement_month_key = (cycle_end.year, cycle_end.month)
-                if settlement_month_key not in processed_months:
-                    calculate_monthly_billing_task.delay(
-                        year=cycle_end.year,
-                        month=cycle_end.month,
-                        contract_id=str(contract.id),
-                        force_recalculate=True
-                    )
-                    processed_months.add(settlement_month_key)
-                    current_app.logger.info(f"  -> 已为 {cycle_end.year}-{cycle_end.month} 创建计算任务。")
+
+                affected_months.add((cycle_end.year, cycle_end.month))
 
                 if cycle_end >= end_date:
                     break
                 cycle_start = cycle_end + timedelta(days=1)
 
+            for year, month in affected_months:
+                calculate_monthly_billing_task.delay(
+                    year=year,
+                    month=month,
+                    contract_id=str(contract.id),
+                    force_recalculate=True
+                )
+                current_app.logger.info(f"  -> 已为 {year}-{month} 创建月度计算任务。")
+
             return jsonify({'message': '合同信息更新成功，并已在后台开始生成相关账单。'})
 
         return jsonify({'message': '合同信息更新成功'})
-        
+
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"更新合同 {contract_id} 失败: {e}", exc_info=True)

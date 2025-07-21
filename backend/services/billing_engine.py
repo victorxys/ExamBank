@@ -397,7 +397,7 @@ class BillingEngine:
         customer_overtime_fee = (daily_rate_full_precision * overtime_days).quantize(QUANTIZER)
         management_fee = (customer_base_fee * management_fee_rate).quantize(QUANTIZER)
     
-        is_last_bill = (contract.end_date and cycle_end >= contract.end_date)
+        is_last_bill = (contract.expected_offboarding_date and cycle_end == contract.expected_offboarding_date)
         if is_last_bill:
             cust_decrease += security_deposit
     

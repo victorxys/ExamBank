@@ -947,7 +947,7 @@ class BaseContract(db.Model):
     id = db.Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     type = db.Column(db.String(50), nullable=False, index=True, comment='合同类型鉴别器 (nanny, maternity_nurse)')
     
-    jinshuju_entry_id = db.Column(db.String(255), unique=True, nullable=False, index=True, comment='金数据中的原始数据Entry ID或serial_number')
+    jinshuju_entry_id = db.Column(db.String(255), nullable=False, index=True, comment='金数据中的原始数据Entry ID或serial_number')
 
     customer_name = db.Column(db.String(255), nullable=False, index=True)
     contact_person = db.Column(db.String(255), comment='客户联系人')
@@ -1024,7 +1024,10 @@ class FinancialActivityLog(db.Model):
 
 class CustomerBill(db.Model):
     __tablename__ = 'customer_bills'
-    db.UniqueConstraint('contract_id', 'year', 'month', 'cycle_start_date', name='uq_bill_contract_period'),
+    __table_args__ = (
+       db.UniqueConstraint('contract_id', 'year', 'month', 'cycle_start_date', name='uq_bill_contract_period'),
+    )
+    
     
     id = db.Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     contract_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('contracts.id', ondelete='CASCADE'), nullable=False, index=True)
@@ -1055,7 +1058,9 @@ class CustomerBill(db.Model):
 
 class EmployeePayroll(db.Model):
     __tablename__ = 'employee_payrolls'
-    db.UniqueConstraint('contract_id', 'year', 'month', 'cycle_start_date', name='uq_payroll_contract_period'),
+    __table_args__ = (
+        db.UniqueConstraint('contract_id', 'year', 'month', 'cycle_start_date', name='uq_payroll_contract_period'),
+    )
     
     id = db.Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     contract_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('contracts.id', ondelete='CASCADE'), nullable=False, index=True)
