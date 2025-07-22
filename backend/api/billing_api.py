@@ -1031,8 +1031,6 @@ def get_activity_logs():
     ]
     return jsonify(results)
 
-# backend/api/billing_api.py (最终的、正确的查询构建方式)
-
 @billing_bp.route('/contracts', methods=['GET'])
 @admin_required
 def get_all_contracts():
@@ -1041,24 +1039,19 @@ def get_all_contracts():
         per_page = request.args.get('per_page', 10, type=int)
         search_term = request.args.get('search', '').strip()
         contract_type = request.args.get('type', '')
-        status = request.args.get('status', '') # 默认获取所有状态
+        status = request.args.get('status', 'active')
+        sort_by = request.args.get('sort_by', None)
+        sort_order = request.args.get('sort_order', 'asc')
 
-        # 1. 从 BaseContract 开始构建查询
-        query = BaseContract.query
-
-        # 2. 应用 eager loading 选项以提高性能
-        query = query.options(
+        query = BaseContract.query.options(
             db.joinedload(BaseContract.user),
             db.joinedload(BaseContract.service_personnel)
-        )
-        
-        # 3. 构建连接，用于筛选
-        query = query.join(User, BaseContract.user_id == User.id, isouter=True) \
-                     .join(ServicePersonnel, BaseContract.service_personnel_id == ServicePersonnel.id, isouter=True)
+        ).join(User, BaseContract.user_id == User.id, isouter=True) \
+         .join(ServicePersonnel, BaseContract.service_personnel_id == ServicePersonnel.id, isouter=True)
 
-        # 4. 应用所有筛选条件
-        if status:
+        if status and status != 'all':
             query = query.filter(BaseContract.status == status)
+
         if contract_type:
             query = query.filter(BaseContract.type == contract_type)
         if search_term:
@@ -1070,55 +1063,72 @@ def get_all_contracts():
                 )
             )
 
-        # 5. 应用排序
-        query = query.order_by(BaseContract.start_date.desc())
-        
-        # 6. 执行分页
+        # --- 核心修正：将 today 的定义提前 ---
+        today = date.today()
+
+        if sort_by == 'remaining_days':
+            end_date_expr = case(
+                (MaternityNurseContract.expected_offboarding_date != None, MaternityNurseContract.expected_offboarding_date),
+                else_=BaseContract.end_date
+            )
+            order_expr = case(
+                (NannyContract.is_monthly_auto_renew == True, date(9999, 12, 31)),
+                else_=end_date_expr
+            )
+            if sort_order == 'desc':
+                query = query.order_by(db.desc(order_expr))
+            else:
+                query = query.order_by(db.asc(order_expr))
+        else:
+            query = query.order_by(BaseContract.start_date.desc())
+
         paginated_contracts = query.paginate(page=page, per_page=per_page, error_out=False)
-        
-        # 7. 组装返回结果
+
         results = []
         for contract in paginated_contracts.items:
-            employee_name = (contract.user.username if contract.user else contract.service_personnel.name if contract.service_personnel else '未知员工')
-            
-            # The contract object from the query is already polymorphic.
-            # We can safely access subclass attributes using getattr.
+            employee_name = (contract.user.username if contract.user else contract.service_personnel.name if contract.service_personnel else'未知员工')
+
             actual_onboarding_date = getattr(contract, 'actual_onboarding_date', None)
             provisional_start_date = getattr(contract, 'provisional_start_date', None)
 
-            # --- 新增：计算合同剩余月数 (最终修正版) ---
-            remaining_months_str = "N/A" # 默认值
-            today = date.today()
-            if contract.end_date:
-                start_for_calc = contract.start_date if contract.start_date and contract.start_date > today else today
-                if contract.start_date > today:
-                    remaining_months_str = "合同未开始"
-                elif contract.end_date > start_for_calc:
-                    delta = relativedelta(contract.end_date, start_for_calc)
-                    remaining_months = delta.years * 12 + delta.months
-                    if delta.days > 0:
-                        remaining_months += 1
-                    remaining_months_str = f"{remaining_months}个月"
-                else:
-                    remaining_months_str = "0个月"
-            # if isinstance(contract, NannyContract):
-            #     if getattr(contract, 'is_monthly_auto_renew', False):
-            #         remaining_months_str = "月签"
-            #     else:
-            #         today = date.today()
-            #         if contract.end_date:
-            #             start_for_calc = contract.start_date if contract.start_date and contract.start_date > today else today
-            #             if contract.end_date > start_for_calc:
-            #                 delta = relativedelta(contract.end_date, start_for_calc)
-            #                 remaining_months = delta.years * 12 + delta.months
-            #                 if delta.days > 0:
-            #                     remaining_months += 1
-            #                 remaining_months_str = f"{remaining_months}个月"
-            #             else:
-            #                 remaining_months_str = "0个月"
-            # elif contract.type == 'maternity_nurse':
-            #     remaining_months_str = "短期" # 月嫂合同固定显示为“短期”
+            remaining_months_str = "N/A"
+            highlight_remaining = False
 
+            start_date_for_calc = contract.actual_onboarding_date or contract.start_date
+
+            end_date_for_calc = None
+            if contract.type == 'maternity_nurse':
+                end_date_for_calc = contract.expected_offboarding_date or contract.end_date
+            else:
+                end_date_for_calc = contract.end_date
+
+            if isinstance(contract, NannyContract) and getattr(contract, 'is_monthly_auto_renew', False):
+                remaining_months_str = "月签"
+            elif start_date_for_calc and end_date_for_calc:
+                if start_date_for_calc > today:
+                    remaining_months_str = "合同未开始"
+                elif end_date_for_calc > today:
+                    total_days_remaining = (end_date_for_calc - today).days
+
+                    if contract.type == 'nanny' and total_days_remaining < 30:
+                        highlight_remaining = True
+
+                    if total_days_remaining >= 365:
+                        years = total_days_remaining // 365
+                        months = (total_days_remaining % 365) // 30
+                        remaining_months_str = f"约{years}年{months}个月"
+                    elif total_days_remaining >= 30:
+                        months = total_days_remaining // 30
+                        days = total_days_remaining % 30
+                        remaining_months_str = f"{months}个月"
+                        # if days > 0:
+                        #     remaining_months_str += f" {days}天"
+                    elif total_days_remaining >= 0:
+                        remaining_months_str = f"{total_days_remaining}天"
+                    else:
+                        remaining_months_str = "已结束"
+                else:
+                    remaining_months_str = "已结束"
 
             results.append({
                 'id': str(contract.id),
@@ -1132,9 +1142,10 @@ def get_all_contracts():
                 'end_date': contract.end_date.isoformat() if contract.end_date else None,
                 'actual_onboarding_date': actual_onboarding_date.isoformat() if actual_onboarding_date else None,
                 'provisional_start_date': provisional_start_date.isoformat() if provisional_start_date else None,
-                'remaining_months': remaining_months_str, # <-- 新增字段
+                'remaining_months': remaining_months_str,
+                'highlight_remaining': highlight_remaining,
             })
-            
+
         return jsonify({
             'items': results,
             'total': paginated_contracts.total,
@@ -1362,37 +1373,54 @@ def update_bill_cycle_and_cascade(bill_id):
 @admin_required
 def get_single_contract_details(contract_id):
     try:
-        # 使用 with_polymorphic 来加载所有子类字段
         query = db.session.query(with_polymorphic(BaseContract, "*"))
         contract = query.filter(BaseContract.id == contract_id).first()
 
         if not contract:
             return jsonify({'error': '合同未找到'}), 404
-            
-        # 组装基础信息
+
         employee_name = (contract.user.username if contract.user else contract.service_personnel.name if contract.service_personnel else '未知员工')
-        
-        # **核心修正**: 只访问模型中真实存在的字段
-        # --- 新增：计算合同剩余月数 (最终修正版) ---
-        remaining_months_str = "N/A" # 默认值
-        if isinstance(contract, NannyContract):
-            if getattr(contract, 'is_monthly_auto_renew', False):
-                remaining_months_str = "月签"
+
+        # --- 核心修正：使用全新的、更健壮的剩余有效期计算逻辑 ---
+        remaining_months_str = "N/A"
+        highlight_remaining = False
+        today = date.today()
+
+        start_date_for_calc = contract.actual_onboarding_date or contract.start_date
+        # end_date_for_calc = getattr(contract, 'expected_offboarding_date', contract.end_date)
+        end_date_for_calc = None
+        if contract.type == 'maternity_nurse':
+            end_date_for_calc = contract.expected_offboarding_date or contract.end_date
+        else: # 育儿嫂合同
+            end_date_for_calc = contract.end_date
+
+        if isinstance(contract, NannyContract) and getattr(contract, 'is_monthly_auto_renew', False):
+            remaining_months_str = "月签"
+        elif start_date_for_calc and end_date_for_calc:
+            if start_date_for_calc > today:
+                remaining_months_str = "合同未开始"
+            elif end_date_for_calc > today:
+                # 合同生效中，计算从今天到结束日期的剩余时间
+                total_days_remaining = (end_date_for_calc - today).days
+                if contract.type == 'nanny' and total_days_remaining < 30:
+                    highlight_remaining = True
+                if total_days_remaining >= 365:
+                    years = total_days_remaining // 365
+                    months = (total_days_remaining % 365) // 30
+                    remaining_months_str = f"约{years}年{months}个月"
+                elif total_days_remaining >= 30:
+                    months = total_days_remaining // 30
+                    days = total_days_remaining % 30
+                    remaining_months_str = f"{months}个月"
+                    if days > 0:
+                        remaining_months_str += f" {days}天"
+                elif total_days_remaining >= 0:
+                    remaining_months_str = f"{total_days_remaining}天"
+                else:
+                    remaining_months_str = "已结束" # 理论上不会进入此分支
             else:
-                today = date.today()
-                if contract.end_date:
-                    start_for_calc = contract.start_date if contract.start_date and contract.start_date > today else today
-                    if contract.end_date > start_for_calc:
-                        delta = relativedelta(contract.end_date, start_for_calc)
-                        remaining_months = delta.years * 12 + delta.months
-                        if delta.days > 0:
-                            remaining_months += 1
-                        remaining_months_str = f"{remaining_months}个月"
-                    else:
-                        remaining_months_str = "0个月"
-        elif contract.type == 'maternity_nurse':
-            remaining_months_str = "短期" # 月嫂合同固定显示为“短期”
-        
+                remaining_months_str = "已结束"
+
         result = {
             'id': str(contract.id),
             'customer_name': contract.customer_name,
@@ -1405,19 +1433,20 @@ def get_single_contract_details(contract_id):
             'created_at': contract.created_at.isoformat(),
             'contract_type': contract.type,
             'notes': contract.notes,
-            'remaining_months': remaining_months_str, # <-- 新增字段
+            'remaining_months': remaining_months_str,
+            'highlight_remaining': highlight_remaining,
         }
-        
-        # 根据合同类型，添加子类特有的字段
+
         if contract.type == 'maternity_nurse':
             result.update({
                 'deposit_amount': str(contract.deposit_amount or 0),
                 'management_fee_rate': str(contract.management_fee_rate or 0),
                 'provisional_start_date': contract.provisional_start_date.isoformat() if contract.provisional_start_date else None,
                 'actual_onboarding_date': contract.actual_onboarding_date.isoformat() if contract.actual_onboarding_date else None,
+                'expected_offboarding_date': contract.expected_offboarding_date.isoformat() if contract.expected_offboarding_date else None,
                 'security_deposit_paid': str(contract.security_deposit_paid or 0),
                 'discount_amount': str(contract.discount_amount or 0),
-                'management_fee_amount': str(contract.management_fee_amount or 0), # 增加了从金数据同步的管理费金额
+                'management_fee_amount': str(contract.management_fee_amount or 0),
             })
         elif contract.type == 'nanny':
             result.update({
@@ -1425,7 +1454,7 @@ def get_single_contract_details(contract_id):
                 'management_fee_paid_months': contract.management_fee_paid_months,
                 'is_first_month_fee_paid': contract.is_first_month_fee_paid,
             })
-            
+
         return jsonify(result)
 
     except Exception as e:

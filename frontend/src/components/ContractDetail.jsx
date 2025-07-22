@@ -73,7 +73,14 @@ const ContractDetail = () => {
         '服务人员': contract.employee_name,
         '状态': <Chip label={contract.status} color={contract.status === 'active' ? 'success' : 'default'} size="small" />,
         '合同周期': `${formatDate(contract.start_date)} ~ ${formatDate(contract.end_date)}`,
-        '合同剩余月数': contract.remaining_months, // <-- 新增字段
+        '合同剩余月数': (
+            <Chip
+                label={contract.remaining_months}
+                size="small"
+                color={contract.highlight_remaining ? 'warning' : 'default'}
+                variant={contract.highlight_remaining ? 'filled' : 'outlined'}
+            />
+        ),
         '创建时间': new Date(contract.created_at).toLocaleString('zh-CN'),
         '备注': contract.notes,
     };
