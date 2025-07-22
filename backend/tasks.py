@@ -1826,6 +1826,18 @@ def sync_all_contracts_task(self):
                     'security_deposit_paid': {'field_id': 'field_14'},
                     'management_fee_amount': {'field_id': 'field_13'},
                 }
+            },
+            {
+                'form_token': 'sqcCWM',
+                'contract_type': 'nanny_trial',
+                'mapping': {
+                    'customer_name': {'field_id': 'field_1', 'is_association': True, 'associated_field_id': 'field_2'},
+                    'employee_name': {'field_id': 'field_2'},
+                    'employee_phone': {'field_id': 'field_3'},
+                    'employee_level': {'field_id': 'field_7'}, 
+                    'start_date': {'field_id': 'field_8'},
+                    'end_date': {'field_id': 'field_9'},
+                }
             }
         ]
         try:
@@ -1841,12 +1853,12 @@ def sync_all_contracts_task(self):
                 total_new += new_count
                 total_skipped += skipped_count
                 all_new_contract_ids.extend(newly_synced_ids)
-            
+
             if all_new_contract_ids:
                 logger.info(f"[ContractSyncTask:{self.request.id}] Triggering bill pre-calculation for {len(all_new_contract_ids)} new contracts.")
                 for contract_id in all_new_contract_ids:
                     generate_all_bills_task.delay(contract_id)
-            
+
             final_message = f"Sync complete. New: {total_new}, Skipped: {total_skipped}. Triggered pre-calculation for new contracts."
             return {'status': 'Success', 'message': final_message, 'new': total_new, 'skipped': total_skipped}
         except Exception as e:

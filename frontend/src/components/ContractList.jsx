@@ -6,10 +6,10 @@ import {
   Box, Button, Typography, Paper, Table, TableBody, TableCell, TableContainer,
   TableHead, TableRow, TablePagination, CircularProgress, Tooltip, Dialog, DialogTitle,
   DialogContent, DialogActions, Alert, TextField, Select, MenuItem, FormControl,
-  InputLabel, Chip, Grid, TableSortLabel
+  InputLabel, Chip, Grid, TableSortLabel, Stack, IconButton
 } from '@mui/material';
 import {
-    Sync as SyncIcon, Edit as EditIcon, Add as AddIcon, EventBusy as EventBusyIcon
+    Sync as SyncIcon, Edit as EditIcon, Add as AddIcon, EventBusy as EventBusyIcon, CheckCircle as CheckCircleIcon, Cancel as CancelIcon
 } from '@mui/icons-material';
 import { useTheme, alpha } from '@mui/material/styles';
 import { DatePicker, LocalizationProvider } from '@mui/x-date-pickers';
@@ -40,9 +40,13 @@ const ContractList = () => {
     const [totalContracts, setTotalContracts] = useState(0);
 
     // --- 核心修正 1：修改默认状态并增加排序 state ---
-    const [filters, setFilters] = useState({ search: '', type: '', status: 'active' });
+    const [filters, setFilters] = useState({ search: '', type: '', status: '' });
     const [sortBy, setSortBy] = useState(null); // 'remaining_days' or null
     const [sortOrder, setSortOrder] = useState('asc'); // 'asc' or 'desc'
+
+    const [terminationDialogOpen, setTerminationDialogOpen] = useState(false);
+    const [contractToTerminate, setContractToTerminate] = useState(null);
+    const [terminationDate, setTerminationDate] = useState(null);
 
     const [onboardingDialogOpen, setOnboardingDialogOpen] = useState(false);
     const [contractToSetDate, setContractToSetDate] = useState(null);
@@ -83,6 +87,42 @@ const ContractList = () => {
         const isAsc = sortBy === column && sortOrder === 'asc';
         setSortOrder(isAsc ? 'desc' : 'asc');
         setSortBy(column);
+    };
+
+    const handleOpenTerminationDialog = (contract) => {
+        setContractToTerminate(contract);
+        setTerminationDate(new Date(contract.end_date));
+        setTerminationDialogOpen(true);
+    };
+
+    const handleCloseTerminationDialog = () => {
+        setTerminationDialogOpen(false);
+        setContractToTerminate(null);
+        setTerminationDate(null);
+    };
+
+    const handleConfirmTermination = async () => {
+        if (!contractToTerminate || !terminationDate) return;
+        try {
+            await api.post(`/billing/contracts/${contractToTerminate.id}/terminate`, {
+                termination_date: terminationDate.toISOString().split('T')[0],
+            });
+            setAlert({ open: true, message: '合同已终止，正在为您重算最后一期账单...', severity: 'success' });
+            handleCloseTerminationDialog();
+            fetchContracts();
+        } catch (error) {
+            setAlert({ open: true, message: `操作失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
+        }
+    };
+
+    const handleTrialSucceeded = async (contract) => {
+        try {
+            await api.post(`/billing/contracts/${contract.id}/succeed`);
+            setAlert({ open: true, message: '试工成功！该合同已完成。', severity: 'success' });
+            fetchContracts();
+        } catch (error) {
+            setAlert({ open: true, message: `操作失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
+        }
     };
 
     const handleOpenOnboardingDialog = (contract) => {
@@ -126,9 +166,9 @@ const ContractList = () => {
                 <Paper sx={{ p: 2, mb: 3 }}>
                     <Grid container spacing={2} alignItems="center">
                         <Grid item xs={12} sm={4}><TextField fullWidth label="搜索客户/员工" name="search" value={filters.search} onChange={handleFilterChange} size="small" /></Grid>
-                        <Grid item xs={6} sm={2}><FormControl fullWidth size="small"><InputLabel>类型</InputLabel><Select name="type" value={filters.type} label="类型" onChange={handleFilterChange}><MenuItem value=""><em>全部</em></MenuItem><MenuItem value="nanny">育儿嫂</MenuItem><MenuItem value="maternity_nurse">月嫂</MenuItem></Select></FormControl></Grid>
+                        <Grid item xs={6} sm={2}><FormControl fullWidth size="small"><InputLabel>类型</InputLabel><Select name="type" value={filters.type} label="类型" onChange={handleFilterChange}><MenuItem value=""><em>全部</em></MenuItem><MenuItem value="nanny">育儿嫂</MenuItem><MenuItem value="maternity_nurse">月嫂</MenuItem> <MenuItem value="nanny_trial">育儿嫂试工</MenuItem></Select></FormControl></Grid>
                         {/* --- 核心修正 4：修改状态过滤器的选项 --- */}
-                        <Grid item xs={6} sm={2}><FormControl fullWidth size="small"><InputLabel>状态</InputLabel><Select name="status" value={filters.status} label="状态" onChange={handleFilterChange}><MenuItem value="all"><em>全部状态</em></MenuItem><MenuItem value="active">服务中</MenuItem><MenuItem value="pending">待上户</MenuItem><MenuItem value="finished">已完成</MenuItem><MenuItem value="terminated">已终止</MenuItem></Select></FormControl></Grid>
+                        <Grid item xs={6} sm={2}><FormControl fullWidth size="small"><InputLabel>状态</InputLabel><Select name="status" value={filters.status} label="状态" onChange={handleFilterChange}><MenuItem value="all"><em>全部状态</em></MenuItem><MenuItem value="active">服务中</MenuItem><MenuItem value="pending">待上户</MenuItem><MenuItem value="finished">已完成</MenuItem><MenuItem value="terminated">已终止</MenuItem><MenuItem value="trial_active">试工中</MenuItem><MenuItem value="trial_succeeded">试工成功</MenuItem></Select></FormControl></Grid>
                         <Grid item xs={12} sm={4} sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}><Button variant="contained" startIcon={<AddIcon />}>新增合同</Button><Button variant="outlined" startIcon={<SyncIcon />}>同步合同</Button></Grid>
                     </Grid>
                 </Paper>
@@ -156,61 +196,114 @@ const ContractList = () => {
                                 <TableCell align="center">操作</TableCell>
                             </TableRow>
                         </TableHead>
+                        
                         <TableBody>
                             {loading ? ( <TableRow><TableCell colSpan={8} align="center" sx={{py: 5}}><CircularProgress /></TableCell></TableRow> )
                             : (
-                                contracts.map((contract) => (
-                                    <TableRow hover key={contract.id}>
-                                        <TableCell sx={{fontWeight: 'bold'}}>{contract.customer_name}</TableCell>
-                                        <TableCell>{contract.employee_name}</TableCell>
-                                        <TableCell><Chip label={contract.contract_type_label} size="small" sx={{ backgroundColor:contract.contract_type_value === 'nanny' ? alpha(theme.palette.primary.light, 0.2) : alpha(theme.palette.info.light, 0.2), color:contract.contract_type_value === 'nanny' ? theme.palette.primary.dark : theme.palette.info.dark, fontWeight: 600 }}/></TableCell>
-                                        <TableCell>
-                                            <Typography variant="body2" sx={{ fontFamily: 'monospace', lineHeight: 1.5, whiteSpace: 'nowrap' }}>
-                                                {formatDate(contract.start_date)}
-                                                <br />
-                                                {formatDate(contract.end_date)}
-                                            </Typography>
-                                        </TableCell>
-                                        <TableCell>
-                                            <Chip
-                                                label={contract.remaining_months}
-                                                size="small"
-                                                color={contract.highlight_remaining ? 'warning' : 'default'}
-                                                variant={contract.highlight_remaining ? 'filled' : 'outlined'}
-                                            />
-                                        </TableCell>
-                                        <TableCell>
-                                            {contract.actual_onboarding_date ? (
-                                                formatDate(contract.actual_onboarding_date)
-                                            ) : contract.contract_type_value === 'maternity_nurse' ? (
-                                                <Tooltip title="点击设置实际上户日期" arrow>
-                                                    <Chip
-                                                        icon={<EventBusyIcon />} label="未确认上户日期" size="small" variant="outlined"
-                                                        onClick={() => handleOpenOnboardingDialog(contract)}
-                                                        sx={{ borderColor: 'grey.400', borderStyle: 'dashed', color: 'text.secondary', cursor:'pointer', '&:hover': { backgroundColor: 'action.hover' } }}
-                                                    />
-                                                </Tooltip>
-                                            ) : (
-                                                'N/A'
-                                            )}
-                                        </TableCell>
-                                        <TableCell><Chip label={contract.status} size="small" color={contract.status === 'active' ? 'success' : 'default'} /></TableCell>
-                                        <TableCell align="center">
-                                            <Button
-                                                variant="outlined"
-                                                size="small"
-                                                onClick={() => navigate(`/contracts/${contract.id}`)}
-                                            >
-                                                查看详情
-                                            </Button>
-                                        </TableCell>
-                                    </TableRow>
-                                ))
+                                contracts.map((contract) => {
+                                    // --- 新增：定义颜色映射 ---
+                                    const typeColors = {
+                                        nanny: {
+                                            bgColor: alpha(theme.palette.primary.light, 0.2),
+                                            textColor: theme.palette.primary.dark,
+                                        },
+                                        maternity_nurse: {
+                                            bgColor: alpha(theme.palette.info.light, 0.2),
+                                            textColor: theme.palette.info.dark,
+                                        },
+                                        nanny_trial: {
+                                            bgColor: alpha(theme.palette.primary.light, 0.2),
+                                            textColor: theme.palette.primary.dark,
+                                        },
+                                        default: {
+                                            bgColor: theme.palette.grey[200],
+                                            textColor: theme.palette.grey[800],
+                                        }
+                                    };
+                                    const colors = typeColors[contract.contract_type_value] || typeColors.default;
+                                    // -------------------------
+
+                                    return (
+                                        <TableRow hover key={contract.id}>
+                                            <TableCell sx={{fontWeight: 'bold'}}>{contract.customer_name}</TableCell>
+                                            <TableCell>{contract.employee_name}</TableCell>
+                                            <TableCell>
+                                                <Chip
+                                                    label={contract.contract_type_label}
+                                                    size="small"
+                                                    sx={{
+                                                        backgroundColor: colors.bgColor,
+                                                        color: colors.textColor,
+                                                        fontWeight: 600
+                                                    }}
+                                                />
+                                            </TableCell>
+                                            <TableCell>
+                                        <Typography variant="body2" sx={{ fontFamily: 'monospace', lineHeight: 1.5, whiteSpace: 'nowrap' }}>
+                                            {formatDate(contract.start_date)}
+                                            <br />
+                                            {formatDate(contract.end_date)}
+                                        </Typography>
+                                    </TableCell>
+                                    <TableCell>
+                                        <Chip
+                                            label={contract.remaining_months}
+                                            size="small"
+                                            color={contract.highlight_remaining ? 'warning' : 'default'}
+                                            variant={contract.highlight_remaining ? 'filled' : 'outlined'}
+                                        />
+                                    </TableCell>
+                                    <TableCell>
+                                        {contract.actual_onboarding_date ? (
+                                            formatDate(contract.actual_onboarding_date)
+                                        ) : contract.contract_type_value === 'maternity_nurse' ? (
+                                            <Tooltip title="点击设置实际上户日期" arrow>
+                                                <Chip
+                                                    icon={<EventBusyIcon />} label="未确认上户日期" size="small" variant="outlined"
+                                                    onClick={() => handleOpenOnboardingDialog(contract)}
+                                                    sx={{ borderColor: 'grey.400', borderStyle: 'dashed', color: 'text.secondary', cursor:'pointer', '&:hover': { backgroundColor: 'action.hover' } }}
+                                                />
+                                            </Tooltip>
+                                        ) : (
+                                            'N/A'
+                                        )}
+                                    </TableCell>
+                                    <TableCell><Chip label={contract.status} size="small" color={contract.status === 'active' ? 'success' : 'default'} /></TableCell>
+                                    <TableCell align="center">
+                                        {/* --- 修改 3: 动态渲染操作按钮 --- */}
+                                        <Stack direction="column" spacing={1} alignItems="center">
+                                            <Button variant="outlined" size="small" onClick={() => navigate(`/contracts/${contract.id}`)}>查看详情</Button>
+                                        </Stack>
+                                        {/* ----------------------------------------- */}
+                                    </TableCell>
+                                </TableRow>
+                                    );
+                                })
                             )}
                         </TableBody>
                     </Table>
                     <TablePagination component="div" count={totalContracts} page={page} onPageChange={(e, newPage) => setPage(newPage)}rowsPerPage={rowsPerPage} onRowsPerPageChange={(e) => { setRowsPerPage(parseInt(e.target.value, 10)); setPage(0); }} labelRowsPerPage="每页行数:" />
                 </TableContainer>
+                <Dialog open={terminationDialogOpen} onClose={handleCloseTerminationDialog}>
+                    <DialogTitle>确认合同操作</DialogTitle>
+                    <DialogContent>
+                        <Alert severity="warning" sx={{ mt: 1, mb: 2 }}>
+                            您正在为 <b>{contractToTerminate?.customer_name} ({contractToTerminate?.employee_name})</b> 的合同进行操作。
+                            <br/>
+                            此操作将把合同的最终状态设置为“已终止”并重算最后一期账单。
+                        </Alert>
+                        <DatePicker
+                            label="终止日期"
+                            value={terminationDate}
+                            onChange={(date) => setTerminationDate(date)}
+                            sx={{ width: '100%', mt: 1 }}
+                        />
+                    </DialogContent>
+                    <DialogActions>
+                        <Button onClick={handleCloseTerminationDialog}>取消</Button>
+                        <Button onClick={handleConfirmTermination} variant="contained" color="error">确认终止</Button>
+                    </DialogActions>
+                </Dialog>
                 <Dialog open={onboardingDialogOpen} onClose={handleCloseOnboardingDialog}>
                     <DialogTitle>设置实际上户日期</DialogTitle>
                     <DialogContent>

@@ -23,6 +23,7 @@ from backend.tasks import sync_all_contracts_task, calculate_monthly_billing_tas
 from backend.services.billing_engine import BillingEngine
 from backend.models import FinancialAdjustment, AdjustmentType
 
+
 billing_bp = Blueprint('billing_api', __name__, url_prefix='/api/billing')
 
 # 创建一个辅助函数来记录日志
@@ -1034,13 +1035,22 @@ def get_activity_logs():
         } for log in logs
     ]
     return jsonify(results)
+# Helper function to get contract type label
+def get_contract_type_details(contract_type):
+    if contract_type == 'nanny':
+        return '育儿嫂'
+    elif contract_type == 'maternity_nurse':
+        return '月嫂'
+    elif contract_type == 'nanny_trial':
+        return '育儿嫂试工'
+    return '未知类型'
 
 @billing_bp.route('/contracts', methods=['GET'])
 @admin_required
 def get_all_contracts():
     try:
         page = request.args.get('page', 1, type=int)
-        per_page = request.args.get('per_page', 10, type=int)
+        per_page = request.args.get('per_page', 100, type=int)
         search_term = request.args.get('search', '').strip()
         contract_type = request.args.get('type', '')
         status = request.args.get('status', 'active')
@@ -1138,8 +1148,8 @@ def get_all_contracts():
                 'id': str(contract.id),
                 'customer_name': contract.customer_name,
                 'employee_name': employee_name,
-                'contract_type_label': '育儿嫂' if contract.type == 'nanny' else '月嫂',
-                'contract_type_value': contract.type,
+                'contract_type_value': contract.type, # <-- 新增：返回原始类型值
+                'contract_type_label': get_contract_type_details(contract.type), # <-- 新增：返回中文标签
                 'status': contract.status,
                 'employee_level': contract.employee_level,
                 'start_date': contract.start_date.isoformat() if contract.start_date else None,
@@ -1504,3 +1514,137 @@ def update_contract(contract_id):
         db.session.rollback()
         current_app.logger.error(f"更新合同 {contract_id} 失败: {e}", exc_info=True)
         return jsonify({'error': '更新失败'}), 500
+
+
+@billing_bp.route('/contracts/<uuid:contract_id>/terminate', methods=['POST'])
+def terminate_contract(contract_id):
+    data = request.get_json()
+    termination_date_str = data.get('termination_date')
+
+    if not termination_date_str:
+        return jsonify({'error': 'Termination date is required'}), 400
+
+    try:
+        termination_date = datetime.strptime(termination_date_str, '%Y-%m-%d').date()
+    except ValueError:
+        return jsonify({'error': 'Invalid date format. Use YYYY-MM-DD.'}), 400
+
+    contract = BaseContract.query.get_or_404(contract_id)
+
+    # --- 修改开始 ---
+
+    # 1. 找到即将被删除的账单和薪酬单的ID
+    bills_to_delete_query = CustomerBill.query.with_entities(CustomerBill.id).filter(
+        CustomerBill.contract_id == contract_id,
+        CustomerBill.cycle_start_date >= termination_date
+    )
+    bill_ids_to_delete = [item[0] for item in bills_to_delete_query.all()]
+
+    payrolls_to_delete_query = EmployeePayroll.query.with_entities(EmployeePayroll.id).filter(
+        EmployeePayroll.contract_id == contract_id,
+        EmployeePayroll.cycle_start_date >= termination_date
+    )
+    payroll_ids_to_delete = [item[0] for item in payrolls_to_delete_query.all()]
+
+    # 2. 首先删除关联的财务活动日志
+    if bill_ids_to_delete:
+        FinancialActivityLog.query.filter(
+            FinancialActivityLog.customer_bill_id.in_(bill_ids_to_delete)
+        ).delete(synchronize_session=False)
+
+    if payroll_ids_to_delete:
+        FinancialActivityLog.query.filter(
+            FinancialActivityLog.employee_payroll_id.in_(payroll_ids_to_delete)
+        ).delete(synchronize_session=False)
+
+    # 3. 现在可以安全地删除账单和薪酬单了
+    if bill_ids_to_delete:
+        CustomerBill.query.filter(CustomerBill.id.in_(bill_ids_to_delete)).delete(synchronize_session=False)
+
+    if payroll_ids_to_delete:
+        EmployeePayroll.query.filter(EmployeePayroll.id.in_(payroll_ids_to_delete)).delete(synchronize_session=False)
+
+    # 4. 更新合同状态和结束日期
+    contract.status = 'terminated'
+    contract.end_date = termination_date
+
+    if contract.type == 'maternity_nurse':
+        contract.expected_offboarding_date = termination_date
+
+    # 5. 为终止月份触发一次强制重算
+    year = termination_date.year
+    month = termination_date.month
+    calculate_monthly_billing_task.delay(year, month, contract_id=str(contract_id), force_recalculate=True)
+
+    db.session.commit()
+
+    current_app.logger.info(f"Contract {contract_id} terminated on {termination_date}. Recalculation triggered for {year}-{month}.")
+
+    return jsonify({'message': f'Contract {contract_id} has been terminated. Recalculation for {year}-{month} is in progress.'})
+
+@billing_bp.route('/contracts/<uuid:contract_id>/succeed', methods=['POST'])
+def succeed_trial_contract(contract_id):
+    contract = BaseContract.query.get_or_404(contract_id)
+
+    if contract.type != 'nanny_trial':
+        return jsonify({'error': 'Only trial contracts can succeed.'}), 400
+
+    if contract.status != 'trial_active':
+        return jsonify({'error': f'Contract is not in trial_active state, but in {contract.status}.'}), 400
+
+    contract.status = 'trial_succeeded'
+    db.session.commit()
+
+    current_app.logger.info(f"Trial contract {contract_id} has been marked as 'trial_succeeded'.")
+    return jsonify({'message': 'Trial contract marked as succeeded.'})
+
+
+@billing_bp.route('/bills/find', methods=['GET'])
+@admin_required
+def find_bill_and_its_page():
+    bill_id = request.args.get('bill_id')
+    per_page = request.args.get('per_page', 100, type=int)
+
+    if not bill_id:
+        return jsonify({'error': 'bill_id is required'}), 400
+
+    target_bill = db.session.get(CustomerBill, bill_id)
+    if not target_bill:
+        return jsonify({'error': 'Bill not found'}), 404
+
+    billing_year = target_bill.year
+    billing_month = target_bill.month
+    contract = target_bill.contract
+
+    query = CustomerBill.query.join(BaseContract, CustomerBill.contract_id == BaseContract.id)\
+        .filter(CustomerBill.year == billing_year, CustomerBill.month == billing_month)\
+        .order_by(BaseContract.customer_name, CustomerBill.cycle_start_date)
+
+    all_bill_ids_in_month = [str(b.id) for b in query.all()]
+
+    try:
+        position = all_bill_ids_in_month.index(bill_id)
+        page_number = position // per_page
+    except ValueError:
+        return jsonify({'error': 'Bill found but could not determine its position.'}), 500
+
+    details = _get_billing_details_internal(target_bill.contract_id, billing_year, billing_month, target_bill.cycle_start_date)
+
+    # --- Modification: Add necessary contract info to the response ---
+    employee_name = (contract.user.username if contract.user else contract.service_personnel.name if contract.service_personnel else '未知员工')
+
+    return jsonify({
+        'bill_details': details,
+        'page': page_number,
+        'billing_month': f"{billing_year}-{str(billing_month).zfill(2)}",
+        # Add a 'context' object that mimics the list's bill structure
+        'context': {
+            'id': str(target_bill.id),
+            'contract_id': str(contract.id),
+            'customer_name': contract.customer_name,
+            'employee_name': employee_name,
+            'contract_type_value': contract.type,
+            'status': contract.status,
+            'employee_level': contract.employee_level,
+        }
+    })

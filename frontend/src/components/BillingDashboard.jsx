@@ -210,7 +210,7 @@ const BillingDashboard = () => {
     const navigate = useNavigate();
 
     const [filters, setFilters] = useState({ 
-        search: '', type: '', status: 'active', 
+        search: '', type: '', status: '', 
         payment_status: '', payout_status: '' 
     });
     const [contracts, setContracts] = useState([]);
@@ -245,36 +245,90 @@ const BillingDashboard = () => {
     // +++ 新增一个 state 来存储原始的周期数据 +++
     const [currentCycle, setCurrentCycle] = useState({ start: null, end: null });
     
-    const fetchBills = useCallback(async (openBillId = null) => {
-        setLoading(true);
-        try {
-            const params = { page: page + 1, per_page: rowsPerPage, billing_month: selectedBillingMonth, ...filters };
-            const response = await api.get('/billing/bills', { params });
-            const bills = response.data.items || [];
-            setContracts(bills);
-            setTotalContracts(response.data.total || 0);
-
-            if (openBillId) {
-                const billToOpen = bills.find(b => b.id === openBillId);
-                if (billToOpen) {
-                    handleOpenDetailDialog(billToOpen);
+            const fetchBills = useCallback(async () => {
+                setLoading(true);
+                try {
+                    const params = { page: page + 1, per_page: rowsPerPage, billing_month: selectedBillingMonth, ...filters };
+                    const response = await api.get('/billing/bills', { params });
+                    setContracts(response.data.items || []);
+                    setTotalContracts(response.data.total || 0);
+                } catch (error) {
+                    setAlert({ open: true, message: `获取账单列表失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
+                    setContracts([]);
+                    setTotalContracts(0);
+                } finally {
+                    setLoading(false);
                 }
-            }
-        } catch (error) {
-            setAlert({ open: true, message: `获取账单列表失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
-        } finally { setLoading(false); }
-    }, [page, rowsPerPage, filters, selectedBillingMonth]);
+            }, [page, rowsPerPage, filters, selectedBillingMonth]);
 
-    useEffect(() => {
-        const params = new URLSearchParams(location.search);
-        const openBillId = params.get('open_bill_id');
-        fetchBills(openBillId);
-        
-        // Clean up URL params after use
-        if (openBillId) {
-            navigate(location.pathname, { replace: true });
-        }
-    }, [fetchBills, location.search, navigate]);
+            // 这是一个辅助函数，确保在任何地方都能正确转换合同类型文本
+            const get_contract_type_details = (contract_type) => {
+                if (contract_type === 'nanny') return '育儿嫂';
+                if (contract_type === 'maternity_nurse') return '月嫂';
+                if (contract_type === 'nanny_trial') return '育儿嫂试工';
+                return '未知类型';
+            };
+
+            useEffect(() => {
+                const params = new URLSearchParams(location.search);
+                const openBillId = params.get('open_bill_id');
+
+                // 新的、健壮的函数，负责处理从查找、获取列表到打开弹窗的完整流程
+                const findAndLoadBill = async (billId) => {
+                    setLoading(true);
+                    try {
+                        // 第1步：调用 find API 找到账单的位置和基本信息
+                        const findResponse = await api.get('/billing/bills/find', {
+                            params: { bill_id: billId, per_page: rowsPerPage }
+                        });
+
+                        const { bill_details, page: targetPage, billing_month, context } = findResponse.data;
+
+                        // 第2步：使用找到的页码，立即获取那一页的完整列表数据
+                        const listResponse = await api.get('/billing/bills', {
+                            params: { page: targetPage + 1, per_page: rowsPerPage, billing_month: billing_month, ...filters }
+                        });
+
+                        // 第3步：一次性更新所有状态，避免中间的无效状态
+                        setContracts(listResponse.data.items || []);
+                        setTotalContracts(listResponse.data.total || 0);
+                        setPage(targetPage); // 现在更新 page 是安全的，因为 totalContracts 也被同时更新了
+                        setSelectedBillingMonth(billing_month);
+
+                        // 第4步：用已经获取到的数据打开弹窗
+                        const billContextForModal = {
+                            ...context,
+                            contract_type_label: get_contract_type_details(context.contract_type_value),
+                        };
+                        setSelectedContractForDetail(billContextForModal);
+                        setBillingDetails(bill_details);
+
+                        if (bill_details.cycle_start_date && bill_details.cycle_end_date) {
+                            setCurrentCycle({ start: bill_details.cycle_start_date, end: bill_details.cycle_end_date });
+                        }
+                        if (bill_details.attendance) {
+                            setEditableAttendance({ overtime_days: parseInt(bill_details.attendance.overtime_days, 10) || 0 });
+                        }
+
+                        setDetailDialogOpen(true);
+
+                    } catch (error) {
+                        setAlert({ open: true, message: `无法定位并加载账单: ${error.response?.data?.error || error.message}`, severity: 'error' });
+                        // 如果任何一步失败，回退到加载默认列表
+                        fetchBills();
+                    } finally {
+                        setLoading(false); // 无论成功失败，最后都停止加载动画
+                        navigate(location.pathname, { replace: true }); // 清理URL
+                    }
+                };
+
+                if (openBillId) {
+                    findAndLoadBill(openBillId);
+                } else {
+                    fetchBills();
+                }
+            // 这个useEffect只应该在核心筛选条件变化时运行
+            }, [page, rowsPerPage, filters, selectedBillingMonth]);
 
 
     const handleOpenOnboardingDateModal = (contracts_to_set) => {

@@ -945,7 +945,7 @@ class BaseContract(db.Model):
     __table_args__ = ({'comment': '合同基础信息表'})
 
     id = db.Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    type = db.Column(db.String(50), nullable=False, index=True, comment='合同类型鉴别器 (nanny, maternity_nurse)')
+    type = db.Column(db.String(50), nullable=False, index=True, comment='合同类型鉴别器 (nanny, maternity_nurse, nanny_trial)')
     
     jinshuju_entry_id = db.Column(db.String(255), nullable=False, index=True, comment='金数据中的原始数据Entry ID或serial_number')
 
@@ -964,7 +964,7 @@ class BaseContract(db.Model):
 
     employee_level = db.Column(db.String(100), comment='级别，通常是月薪或服务价格')
     
-    status = db.Column(db.String(50), default='active', nullable=False, index=True, comment='active, finished, terminated')
+    status = db.Column(db.String(50), default='active', nullable=False, index=True, comment='active, finished, terminated, trial_active, trial_succeeded')
     notes = db.Column(db.Text, comment='通用备注')
     created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
     updated_at = db.Column(db.DateTime(timezone=True), onupdate=func.now())
@@ -988,6 +988,9 @@ class NannyContract(BaseContract): # 育儿嫂合同
     is_first_month_fee_paid = db.Column(db.Boolean, default=False, comment='(年签)是否已缴首期全额管理费')
     management_fee_status = db.Column(db.String(50), default='pending', comment='(年签)管理费支付状态 (pending, paid, partial)')
 
+
+class NannyTrialContract(BaseContract): # 育儿嫂试工合同
+    __mapper_args__ = {'polymorphic_identity': 'nanny_trial'}
 
 class MaternityNurseContract(BaseContract): # 月嫂合同
     __mapper_args__ = {'polymorphic_identity': 'maternity_nurse'}

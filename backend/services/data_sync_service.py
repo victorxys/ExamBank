@@ -10,7 +10,7 @@ from sqlalchemy.exc import IntegrityError
 from datetime import date
 
 from backend.extensions import db
-from backend.models import db, User, BaseContract, NannyContract, MaternityNurseContract, ServicePersonnel, LlmApiKey
+from backend.models import db, User, BaseContract, NannyContract, MaternityNurseContract, ServicePersonnel, LlmApiKey, NannyTrialContract
 from backend.security_utils import decrypt_data
 
 D = decimal.Decimal
@@ -103,7 +103,7 @@ class DataSyncService:
                     if not entry_serial_number:
                         skipped_count += 1
                         continue
-                    
+
                     if BaseContract.query.filter_by(jinshuju_entry_id=str(entry_serial_number), type=contract_type).first():
                         skipped_count += 1
                         continue
@@ -128,7 +128,7 @@ class DataSyncService:
                     personnel_type, personnel_id = self._get_or_create_personnel_ref(
                         contract_data.get('employee_name'), contract_data.get('employee_phone')
                     )
-                    
+
                     if not personnel_id:
                         error_count += 1
                         current_app.logger.warning(f"条目 {entry_serial_number} 因员工信息缺失或查找失败而被跳过。")
@@ -137,15 +137,26 @@ class DataSyncService:
                     customer_name_final = str(contract_data.get('customer_name')).strip() or f"客户(SN:{entry_serial_number})"
                     end_date = self._parse_date(contract_data.get('end_date'))
                     contract_status = 'active' if end_date and end_date > date.today() else 'finished'
-                    
+
+                    # Per ini.md, trial contracts should start with 'trial_active' status
+                    if contract_type == 'nanny_trial':
+                        contract_status = 'trial_active'
+
+                    # For nanny_trial, employee_level is daily rate * 26, as per form description.
+                    employee_level_raw = self._parse_numeric(contract_data.get('employee_level'), 0)
+                    if contract_type == 'nanny_trial':
+                        employee_level_final = employee_level_raw * 26
+                    else:
+                        employee_level_final = employee_level_raw
+
                     common_data = {
                         'type': contract_type, 'customer_name': customer_name_final,
-                        'employee_level': str(self._parse_numeric(contract_data.get('employee_level'), 0)),
+                        'employee_level': str(employee_level_final),
                         'status': contract_status, 'jinshuju_entry_id': str(entry_serial_number),
                         'user_id': personnel_id if personnel_type == 'user' else None,
                         'service_personnel_id': personnel_id if personnel_type == 'service_personnel' else None
                     }
-                    
+
                     new_contract = None
                     if contract_type == 'maternity_nurse':
                         new_contract = MaternityNurseContract(
@@ -170,7 +181,15 @@ class DataSyncService:
                             end_date=end_date,
                             is_monthly_auto_renew=is_auto_renew
                         )
-                    
+                    elif contract_type == 'nanny_trial':
+                        parsed_start_date = self._parse_date(contract_data.get('start_date'))
+                        new_contract = NannyTrialContract(
+                            **common_data,
+                            start_date=parsed_start_date,
+                            actual_onboarding_date=parsed_start_date, # For trial, actual onboarding is the start date
+                            end_date=end_date,
+                        )
+
                     if new_contract:
                         db.session.add(new_contract)
                         db.session.flush()
@@ -185,7 +204,7 @@ class DataSyncService:
                 error_count += 1
                 db.session.rollback()
                 current_app.logger.error(f"处理条目 {entry.get('serial_number', 'N/A')} 时发生未知错误: {e}", exc_info=True)
-        
+
         if error_count == 0:
             db.session.commit()
             current_app.logger.info(f"表单 {form_token} 同步成功，提交了 {synced_count} 条新合同。")

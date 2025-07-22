@@ -23,7 +23,10 @@ class BillingEngine:
         if contract_id:
             contracts_to_process = [db.session.get(BaseContract, contract_id)]
         else:
-            contracts_to_process = BaseContract.query.filter_by(status='active').all()
+            # contracts_to_process = BaseContract.query.filter_by(status='active').all()
+            contracts_to_process = BaseContract.query.filter(
+                BaseContract.status.in_(['active', 'terminated'])
+            ).all()
 
         for contract in contracts_to_process:
             if not contract: continue
@@ -34,12 +37,91 @@ class BillingEngine:
                 
                 elif contract.type == 'nanny':
                     self._calculate_nanny_bill_for_month(contract, year, month, force_recalculate)
-
+                elif contract.type == 'nanny_trial' and contract.status == 'terminated': # 增加此部分
+                    self._calculate_trial_contract_bill(contract,  year, month, force_recalculate)
                 db.session.commit()
             except Exception as e:
                 current_app.logger.error(f"为合同 {contract.id} 计算账单时失败: {e}", exc_info=True)
                 db.session.rollback()
 
+    def _calculate_trial_contract_bill(self, contract, year, month, force_recalculate=False):
+        """
+        为状态为 'terminated' 的试工合同生成最终账单和薪酬单。
+        此函数现在接收 year 和 month 参数以匹配调用签名，但会进行内部校验。
+        """
+        from sqlalchemy.orm import attributes
+
+        current_app.logger.info(f"--- [TRIAL BILL START] 检查试工失败合同 {contract.id} for {year}-{month} ---")
+
+        # 试工合同的结算月份由其终止日期（end_date）唯一确定。
+        if not contract.end_date:
+            current_app.logger.warning(f"[TRIAL BILL SKIP] 合同 {contract.id} 状态为 terminated 但缺少终止日期 (end_date)，无法计算。")
+            return
+
+        actual_year, actual_month = contract.end_date.year, contract.end_date.month
+
+        # 如果当前计算的月份不是合同终止的月份，则直接跳过。
+        if not (actual_year == year and actual_month == month):
+            current_app.logger.info(f"[TRIAL BILL SKIP] 合同 {contract.id} 在 {actual_year}-{actual_month} 终止，当前计算任务为 {year}-{month}，跳过。")
+            return
+
+        # 试工合同的周期就是其生命周期
+        cycle_start_date = contract.start_date
+        cycle_end_date = contract.end_date
+
+        # 检查是否需要跳过
+        bill_exists = CustomerBill.query.filter_by(contract_id=contract.id, cycle_start_date=cycle_start_date).first()
+        if bill_exists and not force_recalculate:
+            current_app.logger.info(f"[TRIAL BILL SKIP] 合同 {contract.id} 的试工账单已存在，跳过。")
+            return
+
+        current_app.logger.info(f"--- [TRIAL BILL RUN] 开始计算试工失败合同 {contract.id} 的账单 ---")
+
+        # 1. 获取或创建账单和薪酬单
+        customer_bill, employee_payroll = self._get_or_create_bill_and_payroll(
+            contract, year, month, cycle_start_date, cycle_end_date
+        )
+
+        # 2. 计算核心指标
+        # 试工天数
+        trial_days = (cycle_end_date - cycle_start_date).days + 1
+
+        # 【核心修正】在使用前，将 employee_level 显式转换为 Decimal 类型
+        employee_level_decimal = D(contract.employee_level)
+
+        # 客户日薪 (基于26天)
+        customer_daily_rate = employee_level_decimal / D('26')
+
+        # 基础劳务费
+        base_fee = customer_daily_rate * D(trial_days)
+
+        # 3. 计算客户账单
+        customer_bill.total_payable = base_fee # 试工账单通常没有其他费用
+
+        # 4. 计算员工薪酬
+        # 试工合同也可能有首月服务费
+        first_month_deduction = min(base_fee, employee_level_decimal * D('0.1'))
+        employee_payroll.final_payout = base_fee - first_month_deduction
+
+        # 5. 保存计算详情
+        calc_details = {
+            'calculation_type': 'nanny_trial_termination',
+            'base_work_days': trial_days,
+            'overtime_days': 0, # 试工合同通常不计加班
+            'total_days_worked': trial_days,
+            'customer_base_fee': str(base_fee.quantize(D('0.01'))),
+            'management_fee': '0.00', # 试工失败无管理费
+            'employee_base_payout': str(base_fee.quantize(D('0.01'))),
+            'first_month_deduction': str(first_month_deduction.quantize(D('0.01'))),
+        }
+        customer_bill.calculation_details = calc_details
+        employee_payroll.calculation_details = calc_details
+
+        # 标记为已修改，以便JSONB字段能被正确更新
+        attributes.flag_modified(customer_bill, "calculation_details")
+        attributes.flag_modified(employee_payroll, "calculation_details")
+
+        current_app.logger.info(f"--- [TRIAL BILL END] 合同 {contract.id} 试工账单计算完成。客户应付: {customer_bill.total_payable}, 员工应得: {employee_payroll.final_payout} ---")
     def _calculate_nanny_bill_for_month(self, contract: NannyContract, year: int, month: int, force_recalculate=False):
         """育儿嫂计费逻辑的主入口，严格按照 ini.md 执行。"""
         current_app.logger.info(f"  [NannyCALC] 开始处理育儿嫂合同 {contract.id} for {year}-{month}")

@@ -1,16 +1,25 @@
-// frontend/src/components/ContractDetail.jsx (最终完整版)
+
+// frontend/src/components/ContractDetail.jsx
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box, Typography, Paper, Grid, CircularProgress, Button,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Chip,
-  List, ListItem, ListItemText, Divider
+  List, ListItem, ListItemText, Divider, Dialog, DialogTitle, DialogContent,
+  DialogActions, Alert, Stack
 } from '@mui/material';
-import { ArrowBack as ArrowBackIcon, Edit as EditIcon } from '@mui/icons-material';
+import {
+    ArrowBack as ArrowBackIcon, Edit as EditIcon, CheckCircle as CheckCircleIcon,
+    Cancel as CancelIcon
+} from '@mui/icons-material';
+import { DatePicker, LocalizationProvider } from '@mui/x-date-pickers';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import { zhCN } from 'date-fns/locale';
 
 import api from '../api/axios';
 import PageHeader from './PageHeader';
+import AlertMessage from './AlertMessage';
 
 const formatDate = (isoString) => {
   if (!isoString) return '—';
@@ -21,11 +30,9 @@ const formatDate = (isoString) => {
   } catch (e) { return '无效日期'; }
 };
 
-// 辅助组件用于渲染详情项
 const DetailItem = ({ label, value }) => (
     <Grid item xs={12} sm={6} md={4}>
         <Typography variant="body2" color="text.secondary" gutterBottom>{label}</Typography>
-        {/* 使用 component="div" 来包裹可能包含其他组件的 value */}
         <Typography variant="body1" component="div" sx={{ fontWeight: 500 }}>{value || '—'}</Typography>
     </Grid>
 );
@@ -36,27 +43,70 @@ const ContractDetail = () => {
     const [contract, setContract] = useState(null);
     const [bills, setBills] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [alert, setAlert] = useState({ open: false, message: '', severity: 'info' });
+
+    // --- 修改 1: 迁移状态和逻辑 ---
+    const [terminationDialogOpen, setTerminationDialogOpen] = useState(false);
+    const [terminationDate, setTerminationDate] = useState(null);
+
+    const fetchData = async () => {
+        setLoading(true);
+        try {
+            const [contractRes, billsRes] = await Promise.all([
+                api.get(`/billing/contracts/${contractId}/details`),
+                api.get(`/billing/contracts/${contractId}/bills`)
+            ]);
+            setContract(contractRes.data);
+            setBills(billsRes.data);
+        } catch (error) {
+            setAlert({ open: true, message: `获取数据失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
+        } finally {
+            setLoading(false);
+        }
+    };
 
     useEffect(() => {
-        const fetchData = async () => {
-            setLoading(true);
-            try {
-                const [contractRes, billsRes] = await Promise.all([
-                    api.get(`/billing/contracts/${contractId}/details`),
-                    api.get(`/billing/contracts/${contractId}/bills`)
-                ]);
-                setContract(contractRes.data);
-                setBills(billsRes.data);
-            } catch (error) {
-                console.error("获取数据失败:", error);
-            } finally {
-                setLoading(false);
-            }
-        };
         if (contractId) {
             fetchData();
         }
     }, [contractId]);
+
+    const handleOpenTerminationDialog = () => {
+        if (!contract) return;
+        setTerminationDate(new Date());
+        setTerminationDialogOpen(true);
+    };
+
+    const handleCloseTerminationDialog = () => {
+        setTerminationDialogOpen(false);
+        setTerminationDate(null);
+    };
+
+    const handleConfirmTermination = async () => {
+        if (!contract || !terminationDate) return;
+        try {
+            await api.post(`/billing/contracts/${contract.id}/terminate`, {
+                termination_date: terminationDate.toISOString().split('T')[0],
+            });
+            setAlert({ open: true, message: '合同已终止，正在为您重算最后一期账单...', severity: 'success' });
+            handleCloseTerminationDialog();
+            fetchData(); // 重新获取数据以更新页面
+        } catch (error) {
+            setAlert({ open: true, message: `操作失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
+        }
+    };
+
+    const handleTrialSucceeded = async () => {
+        if (!contract) return;
+        try {
+            await api.post(`/billing/contracts/${contract.id}/succeed`);
+            setAlert({ open: true, message: '试工成功！该合同已完成。', severity: 'success' });
+            fetchData(); // 重新获取数据以更新页面
+        } catch (error) {
+            setAlert({ open: true, message: `操作失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
+        }
+    };
+    // ---------------------------------
 
     const handleNavigateToBill = (bill) => {
         navigate(`/billing?month=${bill.billing_period}&open_bill_id=${bill.id}`);
@@ -65,35 +115,29 @@ const ContractDetail = () => {
     if (loading) return <CircularProgress />;
     if (!contract) return <Typography>未找到合同信息。</Typography>;
 
-    // 准备要显示的基础字段和特定字段
-    // **核心修正 2**: 移除不存在的字段，并整理数据
     const baseFields = {
         '客户姓名': contract.customer_name,
         '联系人': contract.contact_person,
         '服务人员': contract.employee_name,
         '状态': <Chip label={contract.status} color={contract.status === 'active' ? 'success' : 'default'} size="small" />,
         '合同周期': `${formatDate(contract.start_date)} ~ ${formatDate(contract.end_date)}`,
-        '合同剩余月数': (
-            <Chip
-                label={contract.remaining_months}
-                size="small"
-                color={contract.highlight_remaining ? 'warning' : 'default'}
-                variant={contract.highlight_remaining ? 'filled' : 'outlined'}
-            />
-        ),
-        '创建时间': new Date(contract.created_at).toLocaleString('zh-CN'),
-        '备注': contract.notes,
-    };
-
+        '合同剩余月数': <Chip label={contract.remaining_months} size="small" color={contract.highlight_remaining ? 'warning' : 'default'} variant={contract.highlight_remaining ? 'filled' : 'outlined'} />, 
+        '创建时间': new Date(contract.created_at).toLocaleDateString('zh-CN'),
+        '备注': contract.notes,                   
+    };                                            
+                                                  
     const specificFields = contract.contract_type === 'maternity_nurse' ? {
-        '合同类型': '月嫂合同',
+        '合同类型': '月嫂合同',                   
         '级别/月薪': `¥${contract.employee_level}`,
         '预产期': formatDate(contract.provisional_start_date),
         '实际上户日期': formatDate(contract.actual_onboarding_date),
-        '定金': `¥${contract.deposit_amount}`,
+        '定金': `¥${contract.deposit_amount}`,    
         '管理费率': `${(contract.management_fee_rate * 100).toFixed(0)}%`,
         '保证金支付': `¥${contract.security_deposit_paid}`,
         '优惠金额': `¥${contract.discount_amount}`,
+    } : contract.contract_type === 'nanny_trial' ? {
+        '合同类型': '育儿嫂试工',                 
+        '级别/月薪': `¥${contract.employee_level}`,
     } : {
         '合同类型': '育儿嫂合同',
         '级别/月薪': `¥${contract.employee_level}`,
@@ -101,30 +145,50 @@ const ContractDetail = () => {
     };
 
     return (
-        <Box>
-            <PageHeader
-                title="合同详情"
-                description={`${contract.customer_name} - ${contract.employee_name}`}
-                actionButton={
-                    <Button variant="outlined" startIcon={<ArrowBackIcon />} onClick={() => navigate('/contracts')}>
-                        返回列表
-                    </Button>
-                }
-            />
-            
-            <Grid container spacing={3}>
-                <Grid item xs={12}>
-                    <Paper sx={{ p: 3 }}>
-                        <Typography variant="h6" gutterBottom>合同信息</Typography>
-                        <Divider sx={{ my: 2 }} />
-                        <Grid container spacing={3}>
-                            {Object.entries(baseFields).map(([label, value]) => <DetailItem key={label} label={label} value={value} />)}
-                            {Object.entries(specificFields).map(([label, value]) => <DetailItem key={label} label={label} value={value} />)}
-                        </Grid>
-                    </Paper>
-                </Grid>
-                
-               
+        <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={zhCN}>
+            <Box>
+                <AlertMessage open={alert.open} message={alert.message} severity={alert.severity} onClose={() => setAlert(prev => ({...prev, open:false}))} />
+                <PageHeader
+                    title="合同详情"
+                    description={`${contract.customer_name} - ${contract.employee_name}`}
+                    actions={
+                        // --- 修改 2: 在 PageHeader 中添加操作按钮 ---
+                        <Stack direction="row" spacing={2}>
+                            <Button variant="contained" color="primary" startIcon={<ArrowBackIcon />} onClick={() => navigate('/contracts')}>
+                                返回列表
+                            </Button>
+                            {contract.status === 'active' && contract.contract_type !== 'nanny_trial' && (
+                                <Button variant="contained" color="error" onClick={handleOpenTerminationDialog}>
+                                    终止合同
+                                </Button>
+                            )}
+                            {contract.status === 'trial_active' && contract.contract_type === 'nanny_trial' && (
+                                <>
+                                    <Button variant="contained" color="success" startIcon={<CheckCircleIcon />} onClick={handleTrialSucceeded}>
+                                        试工成功
+                                    </Button>
+                                    <Button variant="contained" color="error" startIcon={<CancelIcon />} onClick={handleOpenTerminationDialog}>
+                                        试工失败
+                                    </Button>
+                                </>
+                            )}
+                        </Stack>
+                        // -----------------------------------------
+                    }
+                />
+
+                <Grid container spacing={3}>
+                    <Grid item xs={12}>
+                        <Paper sx={{ p: 3 }}>
+                            <Typography variant="h6" gutterBottom>合同信息</Typography>
+                            <Divider sx={{ my: 2 }} />
+                            <Grid container spacing={3}>
+                                {Object.entries(baseFields).map(([label, value]) => <DetailItem key={label} label={label} value={value} />)}
+                                {Object.entries(specificFields).map(([label, value]) => <DetailItem key={label} label={label} value={value} />)}
+                            </Grid>
+                        </Paper>
+                    </Grid>
+
                     <Grid item xs={12}>
                         <Paper sx={{ p: 3 }}>
                             <Typography variant="h6" gutterBottom>关联账单列表</Typography>
@@ -149,11 +213,7 @@ const ContractDetail = () => {
                                                 <TableCell sx={{fontWeight: 'bold'}}>¥{bill.total_payable}</TableCell>
                                                 <TableCell><Chip label={bill.status} color={bill.status === '已支付' ? 'success' : 'warning'} size="small" /></TableCell>
                                                 <TableCell align="right">
-                                                <Button
-                                                    variant="contained"
-                                                    size="small"
-                                                    onClick={() => handleNavigateToBill(bill)}
-                                                >
+                                                <Button variant="contained" size="small" onClick={() => handleNavigateToBill(bill)}>
                                                     去管理
                                                 </Button>
                                                 </TableCell>
@@ -168,9 +228,32 @@ const ContractDetail = () => {
                             </TableContainer>
                         </Paper>
                     </Grid>
-                
-            </Grid>
-        </Box>
+                </Grid>
+
+                {/* --- 修改 3: 添加确认弹窗 --- */}
+                <Dialog open={terminationDialogOpen} onClose={handleCloseTerminationDialog}>
+                    <DialogTitle>确认合同操作</DialogTitle>
+                    <DialogContent>
+                        <Alert severity="warning" sx={{ mt: 1, mb: 2 }}>
+                            您正在为 <b>{contract?.customer_name} ({contract?.employee_name})</b> 的合同进行操作。
+                            <br/>
+                            此操作将把合同的最终状态设置为“已终止”并重算最后一期账单。
+                        </Alert>
+                        <DatePicker
+                            label="终止日期"
+                            value={terminationDate}
+                            onChange={(date) => setTerminationDate(date)}
+                            sx={{ width: '100%', mt: 1 }}
+                        />
+                    </DialogContent>
+                    <DialogActions>
+                        <Button onClick={handleCloseTerminationDialog}>取消</Button>
+                        <Button onClick={handleConfirmTermination} variant="contained" color="error">确认终止</Button>
+                    </DialogActions>
+                </Dialog>
+                {/* --------------------------------- */}
+            </Box>
+        </LocalizationProvider>
     );
 };
 
