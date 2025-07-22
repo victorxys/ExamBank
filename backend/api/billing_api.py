@@ -552,15 +552,18 @@ def update_single_contract(contract_id):
                             onboarding_delay = new_onboarding_date - contract.provisional_start_date
 
                         if onboarding_delay is not None and contract.end_date:
-                            contract.expected_offboarding_date = contract.end_date + onboarding_delay
+                            # 保持总天数不变
+                            total_days = (contract.end_date - contract.provisional_start_date).days
+                            contract.expected_offboarding_date = new_onboarding_date + timedelta(days=total_days)
                         else:
-                            contract.expected_offboarding_date = new_onboarding_date + timedelta(days=25)
+                            # --- 核心修正 1：备用逻辑也应是 +26 ---
+                            contract.expected_offboarding_date = new_onboarding_date + timedelta(days=26)
 
                         should_generate_bills = True
                 else:
                     return jsonify({'error': '只有月嫂合同才能设置实际上户日期'}), 400
             else:
-                 if isinstance(contract, MaternityNurseContract):
+                if isinstance(contract, MaternityNurseContract):
                     contract.actual_onboarding_date = None
 
         db.session.commit()
@@ -572,8 +575,9 @@ def update_single_contract(contract_id):
             end_date = contract.expected_offboarding_date
 
             affected_months = set()
-            while cycle_start <= end_date:
-                cycle_end = cycle_start + timedelta(days=25)
+            while cycle_start < end_date: # 使用 < 而不是 <= 来处理边界
+                # --- 核心修正 2：周期结束日直接用开始日 + 26 ---
+                cycle_end = cycle_start + timedelta(days=26)
                 if cycle_end > end_date:
                     cycle_end = end_date
 
@@ -581,7 +585,8 @@ def update_single_contract(contract_id):
 
                 if cycle_end >= end_date:
                     break
-                cycle_start = cycle_end + timedelta(days=1)
+                # 下一个周期的开始是当前周期的结束
+                cycle_start = cycle_end
 
             for year, month in affected_months:
                 calculate_monthly_billing_task.delay(
@@ -600,6 +605,7 @@ def update_single_contract(contract_id):
         db.session.rollback()
         current_app.logger.error(f"更新合同 {contract_id} 失败: {e}", exc_info=True)
         return jsonify({'error': '更新合同失败，服务器内部错误'}), 500
+
     
 
 @billing_bp.route('/batch-update', methods=['POST'])

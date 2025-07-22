@@ -211,28 +211,28 @@ class BillingEngine:
         if not contract.actual_onboarding_date:
             current_app.logger.info(f"    [MN CALC] 合同 {contract.id} 缺少实际上户日期，跳过。")
             return
-
-        first_day_of_month = date(year, month, 1)
-        _, num_days_in_month = calendar.monthrange(year, month)
-        last_day_of_month = date(year, month, num_days_in_month)
-
+    
         cycle_start = contract.actual_onboarding_date
-        contract_end = contract.expected_offboarding_date or contract.end_date or last_day_of_month
-
-        while cycle_start <= contract_end:
-            cycle_end = cycle_start + timedelta(days=25)
-            
+        contract_end = contract.expected_offboarding_date or contract.end_date
+    
+        if not contract_end:
+            current_app.logger.warning(f"    [MN CALC] 合同 {contract.id} 缺少结束日期，无法计算。")
+            return
+    
+        while cycle_start < contract_end:
+            cycle_end = cycle_start + timedelta(days=26)
             if cycle_end > contract_end:
                 cycle_end = contract_end
-
-            if first_day_of_month <= cycle_end <= last_day_of_month:
+    
+            # --- 核心修正：确保只处理结束日期在本月的周期 ---
+            if cycle_end.year == year and cycle_end.month == month:
                 current_app.logger.info(f"    [MN CALC] 找到一个归属于 {year}-{month} 的结算周期: {cycle_start} to {cycle_end}")
                 self._process_one_billing_cycle(contract, cycle_start, cycle_end, year, month, force_recalculate)
-
-            if cycle_start > last_day_of_month:
+    
+            if cycle_end >= contract_end:
                 break
-            
-            cycle_start = cycle_end + timedelta(days=1)
+    
+            cycle_start = cycle_end
 
     def _process_one_billing_cycle(self, contract: MaternityNurseContract, cycle_start_date, cycle_end_date, year: int, month: int, force_recalculate=False):
         current_app.logger.info(f"      [CYCLE PROC] 开始处理周期 {cycle_start_date} to {cycle_end_date} for settlement month {year}-{month}")
