@@ -47,6 +47,18 @@ const formatDate = (dateString) => {
     }
 };
 
+const formatValue = (key, value) => {
+    if (value === null || value === undefined || value === '' || String(value).includes('待计算'))
+        return <Box component="span" sx={{ color: 'text.disabled' }}>{value || '—'}</Box>;
+
+    const isMoney = ['级别', '应付', '应收'].some(k => key.includes(k));
+    if (isMoney && /^-?\d+(\.\d+)?$/.test(String(value))) {
+        const num = Number(value);
+        return isNaN(num) ? String(value) : `¥${num.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
+    return String(value);
+};
+
 // 1. 增强 formatDate，使其能计算天数并返回需要的格式
 const formatDateRange = (dateRangeString) => {
     if (!dateRangeString || !dateRangeString.includes('~')) return '—';
@@ -663,7 +675,9 @@ const BillingDashboard = () => {
                         </TableCell>
 
                         <TableCell><Chip label={bill.status} size="small" color={bill.status === 'active' ? 'success' : 'default'} /></TableCell>
-                        <TableCell sx={{color: '#525f7f'}}>¥{bill.employee_level}</TableCell>
+                        
+                        <TableCell sx={{color: '#525f7f', fontWeight: 'bold'}}>{formatValue('级别', bill.employee_level)}</TableCell>
+
                         <TableCell>
                             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                                 <Tooltip title="客户应付款 / 支付状态">

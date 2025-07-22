@@ -1,4 +1,4 @@
-// frontend/src/components/InvoiceDetailsDialog.jsx (全新文件)
+// frontend/src/components/InvoiceDetailsDialog.jsx (修正默认值逻辑)
 
 import React, { useState, useEffect } from 'react';
 import {
@@ -14,16 +14,18 @@ const InvoiceDetailsDialog = ({ open, onClose, onSave, invoiceData = {}, default
         date: null,
     });
 
-    // 当弹窗打开或传入的数据变化时，初始化表单
     useEffect(() => {
         if (open) {
-            // 如果已有发票金额，则使用该金额；否则，使用传入的默认应付金额
-            const initialAmount = invoiceData.amount || defaultInvoiceAmount || '';
-            
+            // --- 核心修正：更严谨的默认值填充逻辑 ---
+            // 1. 如果 invoiceData 中已有金额，则优先使用它。
+            // 2. 否则，如果 defaultInvoiceAmount 存在，则使用它。
+            // 3. 否则，为空字符串。
+            const initialAmount = invoiceData.amount ? invoiceData.amount : (defaultInvoiceAmount || '');
+
             setDetails({
                 number: invoiceData.number || '',
-                amount: initialAmount,
-                date: invoiceData.date ? new Date(invoiceData.date) : null,
+                amount: String(initialAmount), // 确保是字符串类型
+                date: invoiceData.date ? new Date(invoiceData.date) : new Date(), // 如果没有日期，默认为今天
             });
         }
     }, [invoiceData, open, defaultInvoiceAmount]);
@@ -38,7 +40,6 @@ const InvoiceDetailsDialog = ({ open, onClose, onSave, invoiceData = {}, default
     };
 
     const handleSave = () => {
-        // 将日期对象转换为 YYYY-MM-DD 格式的字符串
         const finalDetails = {
             ...details,
             date: details.date ? details.date.toISOString().split('T')[0] : null,
