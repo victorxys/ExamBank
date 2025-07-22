@@ -124,7 +124,7 @@ const ContractDetail = () => {
                     </Paper>
                 </Grid>
                 
-                {contract.contract_type === 'maternity_nurse' && (
+               
                     <Grid item xs={12}>
                         <Paper sx={{ p: 3 }}>
                             <Typography variant="h6" gutterBottom>关联账单列表</Typography>
@@ -168,7 +168,7 @@ const ContractDetail = () => {
                             </TableContainer>
                         </Paper>
                     </Grid>
-                )}
+                
             </Grid>
         </Box>
     );

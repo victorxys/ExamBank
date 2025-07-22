@@ -663,7 +663,7 @@ const BillingDashboard = () => {
                         </TableCell>
 
                         <TableCell><Chip label={bill.status} size="small" color={bill.status === 'active' ? 'success' : 'default'} /></TableCell>
-                        <TableCell sx={{color: '#525f7f'}}>¥{bill.Alertemployee_level}</TableCell>
+                        <TableCell sx={{color: '#525f7f'}}>¥{bill.employee_level}</TableCell>
                         <TableCell>
                             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                                 <Tooltip title="客户应付款 / 支付状态">

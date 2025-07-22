@@ -94,36 +94,49 @@ class BillingEngine:
         current_app.logger.info(f"--- [Pre-calculation] 合同 {contract_id} 的全周期账单已生成完毕 ---")
 
     def _get_nanny_cycle_for_month(self, contract, year, month):
-        """计算指定育儿嫂合同在目标年月的服务周期。"""
-        first_day_of_month = date(year, month, 1)
-        _, num_days_in_month = calendar.monthrange(year, month)
-        last_day_of_month = date(year, month, num_days_in_month)
-
-        if not contract.start_date or contract.start_date > last_day_of_month or (contract.end_date and contract.end_date < first_day_of_month):
+        """
+        【已重构】计算指定育儿嫂合同在目标年月的服务周期。
+        遵循三段式逻辑：首月、中间月、末月。
+        """
+        if not contract.start_date or not contract.end_date:
             return None, None
 
-        if contract.is_monthly_auto_renew:
-            cycle_start = max(contract.start_date, first_day_of_month)
-            cycle_end = min(contract.end_date or last_day_of_month, last_day_of_month)
-            if cycle_start > cycle_end:
-                return None, None
-            return cycle_start, cycle_end
-        else:
-            current_cycle_start = contract.start_date
-            while current_cycle_start <= (contract.end_date or last_day_of_month):
-                current_cycle_end = current_cycle_start + relativedelta(months=1) - timedelta(days=1)
-                
-                if contract.end_date and current_cycle_end > contract.end_date:
-                    current_cycle_end = contract.end_date
+        first_day_of_target_month = date(year, month, 1)
+        _, num_days_in_target_month = calendar.monthrange(year, month)
+        last_day_of_target_month = date(year, month, num_days_in_target_month)
 
-                if max(first_day_of_month, current_cycle_start) <= min(last_day_of_month, current_cycle_end):
-                    return current_cycle_start, current_cycle_end
+        start_year, start_month = contract.start_date.year, contract.start_date.month
+        end_year, end_month = contract.end_date.year, contract.end_date.month
 
-                if current_cycle_start > last_day_of_month or (contract.end_date and current_cycle_start > contract.end_date):
-                    break
-                
-                current_cycle_start = current_cycle_end + timedelta(days=1)
-            return None, None
+        # 1. 判断是否为“首月”账单
+        if year == start_year and month == start_month:
+            # 如果合同在一个月内开始和结束
+            if start_year == end_year and start_month == end_month:
+                return contract.start_date, contract.end_date
+            else:
+                # 正常的首月账单
+                _, num_days_in_start_month = calendar.monthrange(start_year, start_month)
+                last_day_of_start_month = date(start_year, start_month, num_days_in_start_month)
+                return contract.start_date, last_day_of_start_month
+
+        # 2. 判断是否为“末月”账单
+        if year == end_year and month == end_month:
+            # 确保不是在一个月内开始和结束的情况（已在上面处理）
+            if not (start_year == end_year and start_month == end_month):
+                first_day_of_end_month = date(end_year, end_month, 1)
+                return first_day_of_end_month, contract.end_date
+
+        # 3. 判断是否为“中间月份”账单
+        # 条件：目标月份在合同的开始月份之后，且在结束月份之前
+        target_month_date = date(year, month, 1)
+        start_month_date = date(start_year, start_month, 1)
+        end_month_date = date(end_year, end_month, 1)
+
+        if start_month_date < target_month_date < end_month_date:
+            return first_day_of_target_month, last_day_of_target_month
+
+        # 4. 如果以上都不是，则说明本月没有账单
+        return None, None
 
     def _calculate_nanny_details(self, contract: NannyContract, bill: CustomerBill, payroll: EmployeePayroll):
         """根据 ini.md 规范，计算育儿嫂合同的所有财务细节。"""
