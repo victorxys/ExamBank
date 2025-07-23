@@ -37,12 +37,82 @@ class BillingEngine:
                 
                 elif contract.type == 'nanny':
                     self._calculate_nanny_bill_for_month(contract, year, month, force_recalculate)
-                elif contract.type == 'nanny_trial' and contract.status == 'terminated': # 增加此部分
-                    self._calculate_trial_contract_bill(contract,  year, month, force_recalculate)
+                elif contract.type == 'nanny_trial':
+                    self._calculate_nanny_trial_bill(contract, year, month, force_recalculate)
                 db.session.commit()
             except Exception as e:
                 current_app.logger.error(f"为合同 {contract.id} 计算账单时失败: {e}", exc_info=True)
                 db.session.rollback()
+
+    def _calculate_nanny_trial_bill(self, contract, year, month, force_recalculate=False):
+        """为育儿嫂试工合同计算账单和薪酬。"""
+        current_app.logger.info(f"  [TrialCALC] 开始处理试工合同 {contract.id} for {year}-{month}")
+
+        # 1. 验证合同是否应在本月结算
+        if not (contract.end_date and contract.end_date.year == year and contract.end_date.month == month):
+            current_app.logger.info(f"    [TrialCALC] 试工合同 {contract.id} 不在本月结算，跳过。")
+            return
+
+        cycle_start, cycle_end = contract.start_date, contract.end_date
+        
+        bill, payroll = self._get_or_create_bill_and_payroll(contract, year, month, cycle_start, cycle_end)
+
+        if not force_recalculate and bill.calculation_details and 'calculation_log' in bill.calculation_details:
+            current_app.logger.info(f"    [TrialCALC] 合同 {contract.id} 的账单已存在且无需重算，跳过。")
+            return
+
+        current_app.logger.info(f"    [TrialCALC] 为合同 {contract.id} 执行计算 (周期: {cycle_start} to {cycle_end})")
+
+        # 2. 核心计算逻辑
+        details = self._calculate_nanny_trial_details(contract, bill, payroll)
+        
+        # 3. 更新最终金额
+        bill, payroll = self._calculate_final_amounts(bill, payroll, details)
+        
+        # 4. 创建并保存日志
+        log = self._create_calculation_log(details)
+        self._update_bill_with_log(bill, payroll, details, log)
+        
+        current_app.logger.info(f"    [TrialCALC] 计算完成 for contract {contract.id}: {bill.calculation_details}")
+
+    def _calculate_nanny_trial_details(self, contract, bill, payroll):
+        """计算育儿嫂试工合同的所有财务细节。"""
+        QUANTIZER = D('0.01')
+
+        level = D(contract.employee_level or 0)
+        cycle_start = bill.cycle_start_date
+        cycle_end = bill.cycle_end_date
+
+        attendance = self._get_or_create_attendance(contract, cycle_start, cycle_end)
+        overtime_days = D(attendance.overtime_days)
+        cust_increase, cust_decrease, emp_increase, emp_decrease = self._get_adjustments(bill.id, payroll.id)
+
+        base_work_days = D((cycle_end - cycle_start).days + 1)
+        total_days_worked = base_work_days + overtime_days
+        
+        daily_rate = (level / D(26)).quantize(QUANTIZER)
+
+        base_fee = (daily_rate * base_work_days).quantize(QUANTIZER)
+        overtime_fee = (daily_rate * overtime_days).quantize(QUANTIZER)
+
+        # --- 核心修正：计算员工服务费 ---
+        potential_income = base_fee + overtime_fee + emp_increase - emp_decrease
+        service_fee_due = (level * D('0.1')).quantize(QUANTIZER)
+        first_month_deduction = min(potential_income, service_fee_due)
+
+        return {
+            'type': 'nanny_trial', 'level': str(level), 'cycle_period': f"{cycle_start.isoformat()} to {cycle_end.isoformat()}",
+            'base_work_days': str(base_work_days), 'overtime_days': str(overtime_days), 'total_days_worked': str(total_days_worked),
+            'daily_rate': str(daily_rate),
+            'customer_base_fee': str(base_fee), 'customer_overtime_fee': str(overtime_fee),
+            'management_fee': '0.00', 'customer_increase': str(cust_increase), 'customer_decrease': str(cust_decrease),
+            'employee_base_payout': str(base_fee), 'employee_overtime_payout': str(overtime_fee),
+            'first_month_deduction': str(first_month_deduction), 
+            'employee_increase': str(emp_increase), 'employee_decrease': str(emp_decrease),
+            'log_extras': {
+                'first_month_deduction_reason': f"min(当期总收入({potential_income:.2f}), 级别*10%({service_fee_due:.2f}))"
+            }
+        }
 
     def _calculate_trial_contract_bill(self, contract, year, month, force_recalculate=False):
         """
@@ -270,7 +340,7 @@ class BillingEngine:
                     total_months += 1
 
                 management_fee = (level * D('0.1') * total_months).quantize(QUANTIZER)
-                log_extras['management_fee_reason'] = f"非月签合同首月，一次性收取 {total_months} 个月管理费"
+                log_extras['management_fee_reason'] = f"非月签合同首月，一次性收取: {level} * 10% * {total_months} 个月管理费"
                 log_extras['total_months_for_fee'] = total_months
             else:
                 log_extras['management_fee_reason'] = "非月签合同非首月，不收取管理费"
@@ -462,6 +532,20 @@ class BillingEngine:
                 D(details['employee_decrease']) -
                 D(details['first_month_deduction'])
             )
+        elif details['type'] == 'nanny_trial':
+            total_payable = (
+                D(details['customer_base_fee']) +
+                D(details['customer_overtime_fee']) +
+                D(details['customer_increase']) -
+                D(details['customer_decrease'])
+            )
+            final_payout = (
+                D(details['employee_base_payout']) +
+                D(details['employee_overtime_payout']) +
+                D(details['employee_increase']) -
+                D(details['employee_decrease']) -
+                D(details['first_month_deduction'])
+            )
 
         bill.total_payable = total_payable.quantize(D('0.01'))
         payroll.final_payout = final_payout.quantize(D('0.01'))
@@ -585,8 +669,14 @@ class BillingEngine:
                 # (育儿嫂的日志逻辑保持不变)
                 log_extras = details.get('log_extras', {})
                 if D(details['customer_base_fee']) != 0: log['基础劳务费'] = f"员工日薪({D(details['employee_daily_rate']):.2f}) * 基本劳务天数({details['base_work_days']}) = {D(details['customer_base_fee']):.2f}"
-                if D(details['customer_overtime_fee']) != 0: log['加班费'] = f"客户日薪({D(details['customer_daily_rate']):.2f}) * 加班天数({details['overtime_days']}) = {D(details['customer_overtime_fee']):.2f}"
-                if D(details['management_fee']) != 0: log['本次交管理费'] = f"{log_extras.get('management_fee_reason', '根据合同类型计算')} = {D(details['management_fee']):.2f}"
+                if D(details['customer_overtime_fee']) != 0: log['加班费'] = f"员工级别({D(details['level']):.2f}) / 26 * 加班天数({details['overtime_days']}) = {D(details['customer_overtime_fee']):.2f}"
+                
+                # --- 核心修正：只对管理费应用特殊日志记录规则 ---
+                management_fee_reason = log_extras.get('management_fee_reason', '根据合同类型计算')
+                if D(details['management_fee']) != 0:
+                    log['本次交管理费'] = f"{management_fee_reason} = {D(details['management_fee']):.2f}"
+                else:
+                    log['本次交管理费'] = management_fee_reason
 
                 customer_parts = [
                     {'label': '基础劳务费', 'value': D(details['customer_base_fee'])},
@@ -615,6 +705,29 @@ class BillingEngine:
                 ]
                 log['萌嫂应领款'] = f"{build_formula_string(employee_parts)} = {D(details['final_payout']):.2f}"
 
+            elif details.get('type') == 'nanny_trial':
+                log_extras = details.get('log_extras', {})
+                if D(details['customer_base_fee']) != 0: log['试工费'] = f"日薪({D(details['daily_rate']):.2f}) * 试工天数({details['base_work_days']}) = {D(details['customer_base_fee']):.2f}"
+                if D(details['customer_overtime_fee']) != 0: log['加班费'] = f"日薪({D(details['daily_rate']):.2f}) * 加班天数({details['overtime_days']}) = {D(details['customer_overtime_fee']):.2f}"
+
+                customer_parts = [
+                    {'label': '试工费', 'value': D(details['customer_base_fee'])},
+                    {'label': '加班费', 'value': D(details['customer_overtime_fee'])},
+                    {'label': '增款', 'value': D(details['customer_increase'])},
+                    {'label': '减款', 'value': -D(details['customer_decrease'])},
+                ]
+                log['客应付款'] = f"{build_formula_string(customer_parts)} = {D(details['total_payable']):.2f}"
+
+                if D(details['first_month_deduction']) > 0: log['首月员工10%费用'] = f"{log_extras.get('first_month_deduction_reason', '员工服务费')} = -{D(details['first_month_deduction']):.2f}"
+
+                employee_parts = [
+                    {'label': '试工费', 'value': D(details['employee_base_payout'])},
+                    {'label': '加班费', 'value': D(details['employee_overtime_payout'])},
+                    {'label': '增款', 'value': D(details['employee_increase'])},
+                    {'label': '减款', 'value': -D(details['employee_decrease'])},
+                    {'label': '首月费用', 'value': -D(details['first_month_deduction'])},
+                ]
+                log['萌嫂应领款'] = f"{build_formula_string(employee_parts)} = {D(details['final_payout']):.2f}"
         except (KeyError, TypeError, decimal.InvalidOperation) as e:
             current_app.logger.error(f"创建计算日志时出错: {e}. Details: {details}")
             return {"error": "生成计算日志时发生内部错误"}

@@ -13,7 +13,8 @@ import {
     ArrowUpward as ArrowUpwardIcon, ArrowDownward as ArrowDownwardIcon,
     ReceiptLong as ReceiptLongIcon, History as HistoryIcon,
     EditCalendar as EditCalendarIcon,
-    CheckCircle as CheckCircleIcon, HighlightOff as HighlightOffIcon
+    CheckCircle as CheckCircleIcon, HighlightOff as HighlightOffIcon,
+    ArticleOutlined as ArticleOutlinedIcon
 } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { Timeline } from '@mui/lab';
@@ -54,6 +55,8 @@ const formatValue = (key, value) => {
     if (value === null || value === undefined || value === '' || String(value).includes('待计算'))
         return <Box component="span" sx={{ color: 'text.disabled' }}>{value || '—'}</Box>;
     if (key === '加班天数') return `${value} 天`;
+    if (key === '基本劳务天数') return `${value} 天`;
+    if (key === '总劳务天数') return `${value} 天`;
     if (key.includes('费率')) return `${value}`;
     const isMoney = !key.includes('天数') && !key.includes('费率');
     if (isMoney && /^-?\d+(\.\d+)?$/.test(String(value))) {
@@ -71,6 +74,7 @@ const getTooltipContent = (fieldName, billingDetails) => {
     const log = calc.calculation_log;
     const fieldToLogKeyMap = {
         '基础劳务费': '基础劳务费',
+        '试工费': '试工费',
         '加班费': '加班费',
         '管理费': '管理费',
         '客应付款': '客应付款',
@@ -152,7 +156,7 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
 
     const handleSave = () => {
         // 1. 从 props 和 state 中安全地获取所有必需的数据
-        const contractId = contract?.id;
+        const contractId = contract?.contract_id;
         const cycleStartDate = billingDetails?.cycle_start_date;
         const cycleEndDate = billingDetails?.cycle_end_date;
     
@@ -290,8 +294,8 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
         const fieldOrder = {
             "级别与保证金": ["级别", "客交保证金", "定金"],
             "劳务周期": ["劳务时间段", "基本劳务天数", "加班天数", "总劳务天数"],
-            "费用明细": ["基础劳务费", "加班费", "管理费", "本次交管理费", "优惠"],
-            "薪酬明细": ["萌嫂保证金(工资)", "基础劳务费", "加班费", "5%奖励", "首月员工10%费用"],
+            "费用明细": ["基础劳务费", "试工费", "加班费", "管理费", "本次交管理费", "优惠"],
+            "薪酬明细": ["萌嫂保证金(工资)", "试工费", "基础劳务费", "加班费", "5%奖励", "首月员工10%费用"],
         };
         return (
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
@@ -419,9 +423,24 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
     return (
         <>
             <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth scroll="paper">
-                <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    财务管理 - {contract?.customer_name} ({contract?.employee_name} / {billingMonth})
-                    <IconButton onClick={onClose}><CloseIcon /></IconButton>
+                <DialogTitle variant="h5" sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Box>
+                        财务管理 - {contract?.customer_name} ({contract?.employee_name} / {billingMonth})
+                    </Box>
+                    <Box>
+                        <Button
+                            component="a"
+                            href={`/contracts/${contract?.contract_id}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            startIcon={<ArticleOutlinedIcon />}
+                            variant="outlined"
+                            size="small"
+                        >
+                            查看合同
+                        </Button>
+                        <IconButton onClick={onClose} sx={{ ml: 1 }}><CloseIcon /></IconButton>
+                    </Box>
                 </DialogTitle>
                 <DialogContent dividers sx={{ bgcolor: 'grey.50', p: { xs: 1, sm: 2, md: 3 } }}>
                     {isEditMode && (<Alert severity="info" sx={{ mb: 2 }}>您正处于编辑模式。所有更改将在点击“保存”后生效。</Alert>)}

@@ -606,7 +606,7 @@ const BillingDashboard = () => {
                   <TextField fullWidth label="搜索客户/员工" name="search" value={filters.search} onChange={handleFilterChange} size="small" variant="outlined" />
                 </Grid>
                 <Grid item xs={6} sm={3} md={2}>
-                  <FormControl fullWidth size="small"><InputLabel>合同类型</InputLabel><Select name="type" value={filters.type} label="合同类型" onChange={handleFilterChange}><MenuItem value=""><em>全部</em></MenuItem><MenuItem value="nanny">育儿嫂</MenuItem><MenuItem value="maternity_nurse">月嫂</MenuItem></Select></FormControl>
+                  <FormControl fullWidth size="small"><InputLabel>合同类型</InputLabel><Select name="type" value={filters.type} label="合同类型" onChange={handleFilterChange}><MenuItem value=""><em>全部</em></MenuItem><MenuItem value="nanny">育儿嫂</MenuItem><MenuItem value="maternity_nurse">月嫂</MenuItem><MenuItem value="nanny_trial">育儿嫂试工</MenuItem></Select></FormControl>
                 </Grid>
                 <Grid item xs={6} sm={3} md={2}>
                   <FormControl fullWidth size="small"><InputLabel>合同状态</InputLabel><Select name="status" value={filters.status} label="合同状态" onChange={handleFilterChange}><MenuItem value=""><em>全部</em></MenuItem><MenuItem value="active">执行中</MenuItem><MenuItem value="finished">已结束</MenuItem><MenuItem value="terminated">已终止</MenuItem></Select></FormControl>
@@ -677,7 +677,18 @@ const BillingDashboard = () => {
                       <TableRow hover key={bill.id}>
                         <TableCell sx={{color: '#525f7f', fontWeight: 'bold'}}>{bill.customer_name}</TableCell>
                         <TableCell sx={{color: '#525f7f'}}>{bill.employee_name}</TableCell>
-                        <TableCell><Chip label={bill.contract_type_label} size="small" sx={{ backgroundColor: bill.contract_type_value === 'nanny' ? alpha(theme.palette.primary.light, 0.2) : alpha(theme.palette.info.light, 0.2), color: bill.contract_type_value === 'nanny' ? theme.palette.primary.dark : theme.palette.info.dark, fontWeight: 600 }}/></TableCell>
+                        <TableCell><Chip label={get_contract_type_details(bill.contract_type_value)} size="small" sx={{ 
+                            backgroundColor: bill.contract_type_value === 'nanny' 
+                                ? alpha(theme.palette.primary.light, 0.2) 
+                                : bill.contract_type_value === 'nanny_trial' 
+                                    ? alpha(theme.palette.warning.light, 0.2) 
+                                    : alpha(theme.palette.info.light, 0.2), 
+                            color: bill.contract_type_value === 'nanny' 
+                                ? theme.palette.primary.dark 
+                                : bill.contract_type_value === 'nanny_trial' 
+                                    ? theme.palette.warning.dark 
+                                    : theme.palette.info.dark, 
+                            fontWeight: 600 }}/></TableCell>
                         <TableCell>
                             <Typography variant="body2" sx={{ fontFamily: 'monospace', lineHeight: 1.5, whiteSpace: 'nowrap' }}>
                                 {formatDate(bill.start_date)}

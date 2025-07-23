@@ -57,6 +57,12 @@ def _get_billing_details_internal(contract_id, year, month, cycle_start_date_fro
         engine = BillingEngine()
         if contract.type == 'nanny':
             return engine._get_nanny_cycle_for_month(contract, year, month)
+        elif contract.type == 'nanny_trial':
+            # 试工合同的周期就是它自身的起止日期
+            # 只要它的结算月是当前查询的月份，就返回其起止日期
+            if contract.end_date and contract.end_date.year == year and contract.end_date.month == month:
+                return contract.start_date, contract.end_date
+            return None, None
         elif contract.type == 'maternity_nurse':
             # 对于月嫂，情况复杂，因为一个月份可能对应多个周期。
             # 我们需要找到与 `cycle_start_date_from_bill` 匹配的那个周期。
@@ -85,7 +91,6 @@ def _get_billing_details_internal(contract_id, year, month, cycle_start_date_fro
                     break
                 current_cycle_start = cycle_end + timedelta(days=1)
             return None, None
-        return None, None
 
     cycle_start, cycle_end = _get_cycle_for_month(contract, year, month)
     if not cycle_start:
@@ -151,6 +156,17 @@ def _get_billing_details_internal(contract_id, year, month, cycle_start_date_fro
             del customer_template['groups'][0]['fields']['定金']
             customer_template['groups'][2]['fields'] = {"基础劳务费": "待计算", "加班费": "待计算", "本次交管理费": "待计算"}
             employee_template['groups'][0]['fields'] = {"基础劳务费": "待计算", "加班费": "待计算", "首月员工10%费用": "待计算"}
+        elif contract_type == 'nanny_trial':
+            # 对于试工合同
+            del customer_template['groups'][0]['fields']['客交保证金']
+            del customer_template['groups'][0]['fields']['定金']
+            # 核心修正：确保所有劳务周期字段都存在
+            base_days = (contract.end_date - contract.start_date).days + 1 if contract.end_date and contract.start_date else 1
+            customer_template['groups'][1]['fields']['基本劳务天数'] = str(base_days)
+            customer_template['groups'][1]['fields']['加班天数'] = "0"
+            customer_template['groups'][1]['fields']['总劳务天数'] = str(base_days)
+            customer_template['groups'][2]['fields'] = {"试工费": "待计算"}
+            employee_template['groups'][0]['fields'] = {"试工费": "待计算"}
 
         return customer_template, employee_template
 
@@ -167,6 +183,8 @@ def _get_billing_details_internal(contract_id, year, month, cycle_start_date_fro
             customer_details['groups'][2]['fields'].update({'基础劳务费': calc.get('customer_base_fee', '待计算'), '加班费': calc.get('customer_overtime_fee', '待计算'), '管理费': calc.get('management_fee', '待计算')})
         elif contract.type == 'nanny':
             customer_details['groups'][2]['fields'].update({'基础劳务费': calc.get('customer_base_fee', '待计算'), '加班费': calc.get('customer_overtime_fee', '待计算'), '本次交管理费': calc.get('management_fee', '待计算')})
+        elif contract.type == 'nanny_trial':
+            customer_details['groups'][2]['fields'].update({'试工费': calc.get('customer_base_fee', '待计算'), '加班费': calc.get('customer_overtime_fee', '待计算')})
         customer_details['final_amount']['客应付款'] = str(customer_bill.total_payable)
         payment = customer_bill.payment_details or {}
         customer_details['payment_status'] = {
@@ -183,10 +201,17 @@ def _get_billing_details_internal(contract_id, year, month, cycle_start_date_fro
     if employee_payroll:
         calc = employee_payroll.calculation_details or {}
         employee_details['id'] = str(employee_payroll.id)
+        employee_details['calculation_details'] = calc
         if contract.type == 'maternity_nurse':
             employee_details['groups'][0]['fields'].update({'萌嫂保证金(工资)': calc.get('employee_base_payout', '待计算'), '加班费': calc.get('employee_overtime_payout', '待计算'), '5%奖励': calc.get('bonus_5_percent', '待计算')})
         elif contract.type == 'nanny':
             employee_details['groups'][0]['fields'].update({'基础劳务费': calc.get('employee_base_payout', '待计算'), '加班费': calc.get('employee_overtime_payout', '待计算'), '首月员工10%费用': calc.get('first_month_deduction', '待计算')})
+        elif contract.type == 'nanny_trial':
+            employee_details['groups'][0]['fields'].update({
+                '试工费': calc.get('employee_base_payout', '待计算'), 
+                '加班费': calc.get('employee_overtime_payout', '待计算'),
+                '首月员工10%费用': calc.get('first_month_deduction', '待计算')
+            })
         employee_details['final_amount']['萌嫂应领款'] = str(employee_payroll.final_payout)
         payout = employee_payroll.payout_details or {}
         employee_details['payment_status'] = {
@@ -608,87 +633,66 @@ def batch_update_billing_details():
         contract_id = data['contract_id']
         billing_year = data['billing_year']
         billing_month = data['billing_month']
-        
-        # --- 1. 更新或创建考勤记录 ---
+        overtime_days = data['overtime_days']
         cycle_start = datetime.strptime(data['cycle_start_date'], '%Y-%m-%d').date()
         cycle_end = datetime.strptime(data['cycle_end_date'], '%Y-%m-%d').date()
-        overtime_days = data['overtime_days']
-
-        
 
         contract = db.session.get(BaseContract, contract_id)
         if not contract:
             return jsonify({'error': '合同未找到'}), 404
 
-        # **核心修正**: 检查考勤记录是否存在，如果不存在则创建
-        attendance_record = AttendanceRecord.query.filter_by(contract_id=contract_id, cycle_start_date=cycle_start).first()
-        if not attendance_record:
-            current_app.logger.info(f"未找到合同 {contract_id} 在周期 {cycle_start} 的考勤记录，将创建新的记录。")
-            employee_id = contract.user_id or contract.service_personnel_id
-            if not employee_id:
-                return jsonify({'error': '合同未关联员工，无法创建考勤'}), 400
-            attendance_record = AttendanceRecord(
-                employee_id=employee_id,
-                contract_id=contract_id,
-                cycle_start_date=cycle_start,
-                cycle_end_date=cycle_end
-            )
-            db.session.add(attendance_record)
-
+        # --- 1. 获取或创建账单/薪酬单 (提前以便获取ID) ---
         bill = CustomerBill.query.filter_by(contract_id=contract_id, year=billing_year, month=billing_month, cycle_start_date=cycle_start).first()
         payroll = EmployeePayroll.query.filter_by(contract_id=contract_id, year=billing_year, month=billing_month, cycle_start_date=cycle_start).first()
         
-
-        # --- 2. 获取或创建账单/薪酬单 ---
-       
         if not bill:
             bill = CustomerBill(
-                contract_id=contract_id,
-                year=billing_year,
-                month=billing_month,
-                customer_name=contract.customer_name,
-                total_payable=0,
-                is_paid=False,
-                payment_details={}, # 提供默认空字典
-                calculation_details={} # **核心修正**: 提供默认空字典
+                contract_id=contract_id, year=billing_year, month=billing_month,
+                customer_name=contract.customer_name, total_payable=0, is_paid=False,
+                payment_details={}, calculation_details={}, cycle_start_date=cycle_start, cycle_end_date=cycle_end
             )
             db.session.add(bill)
         
-        
         if not payroll:
             employee_id = contract.user_id or contract.service_personnel_id
-            if not employee_id:
-                return jsonify({'error': '合同未关联员工'}), 400
+            if not employee_id: return jsonify({'error': '合同未关联员工'}), 400
             payroll = EmployeePayroll(
-                contract_id=contract_id,
-                year=billing_year,
-                month=billing_month,
-                employee_id=employee_id,
-                final_payout=0,
-                is_paid=False,
-                payout_details={}, # 提供默认空字典
-                calculation_details={} # **核心修正**: 提供默认空字典
+                contract_id=contract_id, year=billing_year, month=billing_month,
+                employee_id=employee_id, final_payout=0, is_paid=False,
+                payout_details={}, calculation_details={}, cycle_start_date=cycle_start, cycle_end_date=cycle_end
             )
             db.session.add(payroll)
-        db.session.flush()
         
+        db.session.flush() # 确保 bill 和 payroll 获得 ID
 
-        # --- 核心修正 1：在所有操作之前，记录加班天数的变化 ---
-        old_overtime = attendance_record.overtime_days or 0
-        new_overtime = overtime_days
-        if old_overtime != new_overtime:
-            _log_activity(bill, payroll, "修改加班天数", {'from': old_overtime, 'to': new_overtime})
-
+        # --- 2. 核心业务逻辑：计算总天数并记录日志 ---
+        attendance_record = AttendanceRecord.query.filter_by(contract_id=contract_id, cycle_start_date=cycle_start).first()
         
-        
-        # 现在可以安全地更新 overtime_days
-        # attendance_record.overtime_days = overtime_days
-        attendance_record.overtime_days = new_overtime
-        attendance_record.total_days_worked = 26 + new_overtime
-        attendance_record.statutory_holiday_days = 0 # 清理旧数据
-        
-
         old_overtime = attendance_record.overtime_days if attendance_record else 0
+        if old_overtime != overtime_days:
+            _log_activity(bill, payroll, "修改加班天数", {'from': old_overtime, 'to': overtime_days})
+
+        if contract.type == 'nanny_trial':
+            base_work_days = (contract.end_date - contract.start_date).days + 1 if contract.end_date and contract.start_date else 1
+        else:
+            base_work_days = 26
+        total_days_worked = base_work_days + overtime_days
+
+        # --- 3. 更新或创建考勤记录 ---
+        if not attendance_record:
+            employee_id = contract.user_id or contract.service_personnel_id
+            if not employee_id: return jsonify({'error': '合同未关联员工，无法创建考勤'}), 400
+            attendance_record = AttendanceRecord(
+                employee_id=employee_id, contract_id=contract_id,
+                cycle_start_date=cycle_start, cycle_end_date=cycle_end,
+                overtime_days=overtime_days, total_days_worked=total_days_worked, statutory_holiday_days=0
+            )
+            db.session.add(attendance_record)
+        else:
+            attendance_record.overtime_days = overtime_days
+            attendance_record.total_days_worked = total_days_worked
+            attendance_record.statutory_holiday_days = 0
+        
         old_settlement = {
             'customer_is_paid': bill.is_paid,
             'employee_is_paid': payroll.is_paid,
@@ -702,28 +706,12 @@ def batch_update_billing_details():
             'invoice_needed': (bill.payment_details or {}).get('invoice_needed', False),
             'invoice_issued': (bill.payment_details or {}).get('invoice_issued', False)
         }
-        # 财务调整项旧状态 (构建一个易于查找的字典)
         old_adjustments_query = FinancialAdjustment.query.filter(
             (FinancialAdjustment.customer_bill_id == bill.id) |
             (FinancialAdjustment.employee_payroll_id == payroll.id)
         ).all()
         old_adjustments_map = {str(adj.id): adj for adj in old_adjustments_query}
         current_app.logger.info(f"[BATCH-UPDATE] 数据库中找到 {len(old_adjustments_map)} 条旧的财务调整项。")
-
-        new_overtime = data['overtime_days']
-        current_app.logger.info(f"[BATCH-UPDATE-0.1] 准备更新加班天数: {old_overtime} -> {new_overtime}")
-        if old_overtime != new_overtime:
-            _log_activity(bill, payroll, f"修改加班天数", {'from': old_overtime, 'to': new_overtime})
-
-        # 获取新的加班天数
-        attendance_record.overtime_days = overtime_days
-        attendance_record.statutory_holiday_days = 0
-        attendance_record.total_days_worked = 26 + overtime_days
-        current_app.logger.info(f"[BATCH-UPDATE-0.1] 考勤记录更新: {attendance_record.overtime_days} 加班天数")
-
-        
-
-        
 
         # 马上 flush，确保 bill 和 payroll 获得 ID，以便关联
         db.session.flush()
