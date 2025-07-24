@@ -250,6 +250,7 @@ const BillingDashboard = () => {
                 try {
                     const params = { page: page + 1, per_page: rowsPerPage, billing_month: selectedBillingMonth, ...filters };
                     const response = await api.get('/billing/bills', { params });
+                    console.log("Fetched bills:", response.data.items); // 调试输出
                     setContracts(response.data.items || []);
                     setTotalContracts(response.data.total || 0);
                 } catch (error) {
@@ -262,7 +263,9 @@ const BillingDashboard = () => {
             }, [page, rowsPerPage, filters, selectedBillingMonth]);
 
             // 这是一个辅助函数，确保在任何地方都能正确转换合同类型文本
+            
             const get_contract_type_details = (contract_type) => {
+                console.log("Contract type received:", contract_type); // 调试输出
                 if (contract_type === 'nanny') return '育儿嫂';
                 if (contract_type === 'maternity_nurse') return '月嫂';
                 if (contract_type === 'nanny_trial') return '育儿嫂试工';
@@ -298,7 +301,7 @@ const BillingDashboard = () => {
                         // 第4步：用已经获取到的数据打开弹窗
                         const billContextForModal = {
                             ...context,
-                            contract_type_label: get_contract_type_details(context.contract_type_value),
+                            // contract_type_label: get_contract_type_details(context.contract_type_value),
                         };
                         setSelectedContractForDetail(billContextForModal);
                         setBillingDetails(bill_details);
@@ -438,13 +441,8 @@ const BillingDashboard = () => {
         
         setLoadingDetail(true); // 让模态框显示加载中
         try {
-            const [year, month] = selectedBillingMonth.split('-');
             const payload = {
-                contract_id: selectedContractForDetail.contract_id,
-                billing_year: parseInt(year),
-                billing_month: parseInt(month),
-                cycle_start_date: currentCycle.start,
-                cycle_end_date: currentCycle.end,
+            bill_id: editedData.bill_id,
                 
                 // 考勤数据
                 overtime_days: editedData.overtime_days,
@@ -675,9 +673,12 @@ const BillingDashboard = () => {
                   : (
                     (contracts).map((bill) => (
                       <TableRow hover key={bill.id}>
-                        <TableCell sx={{color: '#525f7f', fontWeight: 'bold'}}>{bill.customer_name}</TableCell>
+                        <TableCell sx={{color: '#525f7f', fontWeight: 'bold'}}>
+                            {bill.customer_name}
+                            {bill.is_substitute_bill && <Chip label="替" size="small" color="warning" sx={{ ml: 1 }} />}
+                        </TableCell>
                         <TableCell sx={{color: '#525f7f'}}>{bill.employee_name}</TableCell>
-                        <TableCell><Chip label={get_contract_type_details(bill.contract_type_value)} size="small" sx={{ 
+                        <TableCell><Chip label={bill.contract_type_label} size="small" sx={{ 
                             backgroundColor: bill.contract_type_value === 'nanny' 
                                 ? alpha(theme.palette.primary.light, 0.2) 
                                 : bill.contract_type_value === 'nanny_trial' 
@@ -691,9 +692,9 @@ const BillingDashboard = () => {
                             fontWeight: 600 }}/></TableCell>
                         <TableCell>
                             <Typography variant="body2" sx={{ fontFamily: 'monospace', lineHeight: 1.5, whiteSpace: 'nowrap' }}>
-                                {formatDate(bill.start_date)}
+                                {bill.contract_period ? bill.contract_period.split(' ~ ')[0] : '—'}
                                 <br />
-                                {'~ ' + formatDate(bill.end_date)}
+                                {bill.contract_period ? `~ ${bill.contract_period.split(' ~ ')[1]}` : '—'}
                             </Typography>
                         </TableCell>
                         <TableCell>

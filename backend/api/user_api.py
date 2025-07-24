@@ -1,56 +1,41 @@
-# backend/api/user_api.py
-from flask import Blueprint, jsonify, request
-from backend.models import db, User
+from flask import Blueprint, jsonify, request, current_app
+from flask_jwt_extended import jwt_required
+from backend.models import User
 from sqlalchemy import or_
 
-user_bp = Blueprint('user_api', __name__, url_prefix='/api/users')
+user_api = Blueprint('user_api', __name__)
 
-@user_bp.route('', methods=['GET'])
-def get_users():
+@user_api.route('/api/users/search', methods=['GET'])
+@jwt_required()
+def search_users():
+    search_term = request.args.get('q', '').strip()
+    if not search_term:
+        return jsonify([])
+
+    # 移除搜索词中的空格，以匹配数据库中存储的无空格拼音
+    pinyin_search_term = search_term.replace(' ', '')
+    
+    current_app.logger.info(f"--- [UserSearch] Original Term: '{search_term}', Pinyin Term: '{pinyin_search_term}' ---")
+
+    query = User.query.filter(
+        or_(
+            User.username.ilike(f'%{search_term}%'),
+            User.name_pinyin.ilike(f'%{pinyin_search_term}%')
+        )
+    ).limit(10)
+
+    # --- 增加SQL查询日志 ---
     try:
-        page = request.args.get('page', 1, type=int)
-        per_page = request.args.get('per_page', 10, type=int)
-        sort_by = request.args.get('sort_by', 'created_at')
-        sort_order = request.args.get('sort_order', 'desc')
-        search_term = request.args.get('search', '').strip()
-
-        query = User.query
-
-        if search_term:
-            query = query.filter(
-                or_(
-                    User.username.ilike(f'%{search_term}%'),
-                    User.phone_number.ilike(f'%{search_term}%'),
-                    User.email.ilike(f'%{search_term}%')
-                )
-            )
-
-        if sort_order == 'desc':
-            query = query.order_by(getattr(User, sort_by).desc())
-        else:
-            query = query.order_by(getattr(User, sort_by).asc())
-
-        paginated_users = query.paginate(page=page, per_page=per_page, error_out=False)
-        
-        results = [
-            {
-                'id': user.id,
-                'username': user.username,
-                'phone_number': user.phone_number,
-                'email': user.email,
-                'role': user.role,
-                'status': user.status,
-                'created_at': user.created_at.isoformat() if user.created_at else None,
-            } for user in paginated_users.items
-        ]
-        
-        return jsonify({
-            'items': results,
-            'total': paginated_users.total,
-            'page': paginated_users.page,
-            'per_page': paginated_users.per_page,
-            'pages': paginated_users.pages
-        })
-
+        # 使用 str(query) 可以获取到 SQLAlchemy 生成的 SQL 语句
+        current_app.logger.info(f"[UserSearch] Executing SQL: {str(query.statement.compile(compile_kwargs={'literal_binds': True}))}")
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        current_app.logger.error(f"[UserSearch] Error compiling SQL query: {e}")
+    # -----------------------
+
+    users = query.all()
+    
+    current_app.logger.info(f"[UserSearch] Query found {len(users)} user(s).")
+
+    return jsonify([{'id': str(u.id), 'name': u.username, 'name_pinyin': u.name_pinyin} for u in users])
+
+

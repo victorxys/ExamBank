@@ -925,6 +925,19 @@ class FinancialAdjustment(db.Model):
     
     created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
 
+    def to_dict(self):
+        return {
+            'id': str(self.id),
+            'adjustment_type': self.adjustment_type.value,
+            'amount': str(self.amount),
+            'description': self.description,
+            'date': self.date.isoformat() if self.date else None,
+            'customer_bill_id': str(self.customer_bill_id) if self.customer_bill_id else None,
+            'employee_payroll_id': str(self.employee_payroll_id) if self.employee_payroll_id else None,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }
+
+
 
 class InvoiceRecord(db.Model):
     __tablename__ = 'invoice_records'
@@ -1028,7 +1041,7 @@ class FinancialActivityLog(db.Model):
 class CustomerBill(db.Model):
     __tablename__ = 'customer_bills'
     __table_args__ = (
-       db.UniqueConstraint('contract_id', 'year', 'month', 'cycle_start_date', name='uq_bill_contract_period'),
+       db.UniqueConstraint('contract_id', 'year', 'month', 'cycle_start_date','source_substitute_record_id', name='uq_bill_contract_period'),
     )
     
     
@@ -1058,11 +1071,17 @@ class CustomerBill(db.Model):
     contract = db.relationship('BaseContract', back_populates='customer_bills')
     activity_logs = db.relationship('FinancialActivityLog', back_populates='customer_bill', lazy='dynamic', cascade="all, delete-orphan")
 
+    # --- 新增字段，用于关联替班记录 ---
+    is_substitute_bill = db.Column(db.Boolean, default=False, nullable=False, server_default='false', index=True, comment='是否为替班账单')
+    source_substitute_record_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('substitute_records.id', ondelete='SET NULL'), nullable=True, comment='关联的替班记录ID')
+    # source_substitute_record_id 字段保留，但关系由 SubstituteRecord.generated_bill 的 backref 自动创建
+    # ------------------------------------
+
 
 class EmployeePayroll(db.Model):
     __tablename__ = 'employee_payrolls'
     __table_args__ = (
-        db.UniqueConstraint('contract_id', 'year', 'month', 'cycle_start_date', name='uq_payroll_contract_period'),
+        db.UniqueConstraint('contract_id', 'year', 'month', 'cycle_start_date', 'source_substitute_record_id', name='uq_payroll_contract_period'),
     )
     
     id = db.Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -1093,6 +1112,11 @@ class EmployeePayroll(db.Model):
 
     created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
     activity_logs = db.relationship('FinancialActivityLog', back_populates='employee_payroll', lazy='dynamic', cascade="all, delete-orphan")
+
+    # --- 新增字段，用于关联替班记录 ---
+    is_substitute_payroll = db.Column(db.Boolean, default=False, nullable=False, server_default='false', index=True, comment='是否为替班薪酬单')
+    source_substitute_record_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('substitute_records.id', ondelete='SET NULL'), nullable=True, comment='关联的替班记录ID')
+    # ------------------------------------
 
 class AttendanceRecord(db.Model):
     __tablename__ = 'attendance_records'
@@ -1143,6 +1167,7 @@ class SubstituteRecord(db.Model):
     # 替班的起止日期
     start_date = db.Column(db.Date, nullable=False)
     end_date = db.Column(db.Date, nullable=False)
+    overtime_days = db.Column(db.Integer, nullable=False, server_default='0', comment='替班期间的加班天数')
     
     notes = db.Column(db.Text, nullable=True, comment='替班备注')
     created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
@@ -1150,6 +1175,19 @@ class SubstituteRecord(db.Model):
     main_contract = db.relationship('BaseContract', backref=db.backref('substitute_records', lazy='dynamic'))
     substitute_user = db.relationship('User')
     substitute_personnel = db.relationship('ServicePersonnel')
+
+    # --- 新增字段，用于回写生成的账单ID ---
+    generated_bill_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('customer_bills.id', ondelete='SET NULL'), nullable=True, comment='生成的替班账单ID')
+    generated_payroll_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('employee_payrolls.id', ondelete='SET NULL'), nullable=True, comment='生成的替班薪酬单ID')
+
+    generated_bill = db.relationship('CustomerBill', backref=backref('source_substitute_record', uselist=False), foreign_keys=[generated_bill_id])
+    generated_payroll = db.relationship('EmployeePayroll', backref=backref('source_substitute_record', uselist=False), foreign_keys=[generated_payroll_id])
+    # ------------------------------------
+
+    # --- 新增字段，用于关联被替班的原始账单 ---
+    original_customer_bill_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('customer_bills.id', ondelete='SET NULL'), nullable=True, index=True, comment='关联的被替班的原始账单ID')
+    original_customer_bill = db.relationship('CustomerBill', foreign_keys=[original_customer_bill_id], backref='substitute_records_affecting_bill')
+    # ------------------------------------
 
     def __repr__(self):
         return f'<SubstituteRecord {self.id} for Contract {self.main_contract_id}>'

@@ -188,35 +188,43 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
         }
     };
 
-    const handleDeleteSubstitute = async (recordId) => {
+        const handleDeleteSubstitute = async (recordId) => {
         if (window.confirm("确定要删除这条替班记录吗？相关账单将重新计算。")) {
             try {
                 // 第一次尝试：常规删除
-                await api.delete(`/contracts/substitutes/${recordId}`);
-                alert('替班记录删除成功！');
-                setSubstituteRecords(prev => prev.filter(r => r.id !== recordId));
-            } catch (error) {
-                // 如果第一次尝试失败，检查原因
-                if (error.response && error.response.status === 409) {
+                const response = await api.delete(`/contracts/substitutes/${recordId}`);
+
+                if (response.status === 200) {
+                    alert('替班记录删除成功！');
+                    setSubstituteRecords(prev => prev.filter(r => r.id !== recordId));
+                } else if (response.status === 409) {
                     // 如果是409冲突，则询问是否强制删除
                     if (window.confirm("注意：此替班记录关联的账单已产生操作日志。\n\n是否要强制删除此记录及其所有关联日志？此操作不可逆！")) {
                         try {
                             // 第二次尝试：强制删除
-                            await api.delete(`/contracts/substitutes/${recordId}?force=true`);
-                            alert('强制删除成功！');
-                            setSubstituteRecords(prev => prev.filter(r => r.id !== recordId));
+                            const forceResponse = await api.delete(`/contracts/substitutes/${recordId}?force=true`);
+                            if (forceResponse.status === 200) {
+                                alert('强制删除成功！');
+                                setSubstituteRecords(prev => prev.filter(r => r.id !== recordId));
+                            } else {
+                                console.error("强制删除替班记录失败:", forceResponse);
+                                alert(`强制删除失败: ${forceResponse.data?.message || '未知错误'}`);
+                            }
                         } catch (forceError) {
-                            // 如果强制删除也失败了
+                            // 如果强制删除也失败了 (网络错误等)
                             console.error("强制删除替班记录失败:", forceError);
                             alert(`强制删除失败: ${forceError.response?.data?.message || forceError.message}`);
                         }
                     }
-                    // 如果用户在第二个确认框中点击“取消”，则不执行任何操作
                 } else {
-                    // 如果是其他错误 (如 500)
-                    console.error("删除替班记录失败:", error);
-                    alert(`删除失败: ${error.response?.data?.message || error.message}`);
+                    // 其他非200/非409的响应
+                    console.error("删除替班记录失败:", response);
+                    alert(`删除失败: ${response.data?.message || '未知错误'}`);
                 }
+            } catch (error) {
+                // 捕获网络错误或其他非HTTP响应错误
+                console.error("删除替班记录失败:", error);
+                alert(`删除失败: ${error.message}`);
             }
         }
     };

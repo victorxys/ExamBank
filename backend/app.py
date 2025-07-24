@@ -45,6 +45,8 @@ from backend.api.tts_api import tts_bp # 新增导入
 from backend.api.course_resource_api import course_resource_bp # <--- 新增导入
 from backend.api.permission_api import permission_bp # <--- 新增导入
 from backend.api.billing_api import billing_bp # 新增导入
+from backend.api.user_api import user_api # 新增导入
+from backend.api.contract_api import contract_bp # 新增导入
 
 
 
@@ -214,7 +216,9 @@ app.register_blueprint(tts_bp, url_prefix='/api/tts')
 app.register_blueprint(course_resource_bp) # <--- 新增注册
 app.register_blueprint(permission_bp) # <--- 新增注册
 
-app.register_blueprint(billing_bp)
+app.register_blueprint(billing_bp, url_prefix='/api/billing')
+app.register_blueprint(user_api)
+app.register_blueprint(contract_bp)
 
 
 
