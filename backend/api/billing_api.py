@@ -126,7 +126,7 @@ def _get_billing_details_internal(bill_id=None, contract_id=None, year=None, mon
 def _get_details_template(contract, cycle_start, cycle_end):
     is_maternity = contract.type == 'maternity_nurse'
     is_nanny = contract.type == 'nanny'
-
+    current_app.logger.info(f"[DEBUG] Generating billing details template for contract type: {contract.type}, is_maternity: {is_maternity}, is_nanny: {is_nanny}")
     customer_groups = [
         {"name": "级别与保证金", "fields": {
             "级别": str(contract.employee_level or 0),
@@ -172,7 +172,8 @@ def _fill_group_fields(group_fields, calc, field_keys, is_substitute_payroll=Fal
                 'customer_overtime_fee': '加班费',
                 'management_fee': '管理费',
                 
-                'employee_base_payout': '基础劳务费' if is_substitute_payroll else ('基础劳务费' if 'nanny' in calc.get('type','') else '萌嫂保证金(工资)'),
+                # 'employee_base_payout': '基础劳务费' if is_substitute_payroll else ('基础劳务费' if 'nanny' in calc.get('type','') else '萌嫂保证金(工资)'),
+                'employee_base_payout': '基础劳务费' if 'nanny' in calc.get('type','') else '萌嫂保证金(工资)',
                 'employee_overtime_payout': '加班费',
                 'bonus_5_percent': '5%奖励',
                 'first_month_deduction': '首月员工10%费用'

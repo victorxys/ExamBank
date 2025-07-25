@@ -416,7 +416,10 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                                 const value = group.fields[key];
                                 const isOvertimeFeeField = key === '加班费';
                                 const tooltipContent = getTooltipContent(key, billingDetails, isCustomer);
-
+                                // 新增的逻辑：如果字段是“5%奖励”且值为0或“待计算”，则不显示
+                                if (key === '5%奖励' && (Number(value) === 0 || value === '待计算')) {
+                                    return null;
+                                }
                                 if ((isOvertimeField || isOvertimeFeeField) && Number(value) === 0) {
                                     return null;
                                 }
