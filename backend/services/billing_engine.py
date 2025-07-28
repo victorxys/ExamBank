@@ -349,6 +349,10 @@ class BillingEngine:
 
         attendance = self._get_or_create_attendance(contract, cycle_start, cycle_end)
         overtime_days = D(attendance.overtime_days)
+        
+        # 在这里处理保证金，然后再获取调整项
+        self._handle_security_deposit(contract, bill)
+        db.session.flush()
         cust_increase, cust_decrease, emp_increase, emp_decrease = self._get_adjustments(bill.id, payroll.id)
         cust_discount = D(db.session.query(func.sum(FinancialAdjustment.amount)).filter(
             FinancialAdjustment.customer_bill_id == bill.id,
@@ -384,12 +388,12 @@ class BillingEngine:
         cycle_actual_days = (cycle_end - cycle_start).days
         if is_last_bill: # 育儿嫂最后一个月账单天数 +1
             cycle_actual_days += 1
-        base_work_days = D(min(cycle_actual_days, 26))
-        total_days_worked = base_work_days + overtime_days - D(total_substitute_days)
+        base_work_days = D(min(cycle_actual_days, 26)) - D(total_substitute_days)
+        total_days_worked = base_work_days + overtime_days 
 
         # 育儿嫂普通合同日薪定义
         customer_daily_rate = (level / D(26))
-        employee_daily_rate = ((level * D('0.9')) / D(26))
+        employee_daily_rate = (level / D(26))
 
         # 基础费用计算
         customer_base_fee = (employee_daily_rate * base_work_days).quantize(QUANTIZER)
@@ -558,7 +562,11 @@ class BillingEngine:
 
         attendance = self._get_or_create_attendance(contract, cycle_start, cycle_end)
         overtime_days = D(attendance.overtime_days)
+        
+        # 在这里处理保证金，然后再获取调整项
+        self._handle_security_deposit(contract, bill)
         cust_increase, cust_decrease, emp_increase, emp_decrease = self._get_adjustments(bill.id, payroll.id)
+
 
         # 2. 日薪区分 (保持完整精度)
         customer_overtime_daily_rate = (customer_deposit / D(26))
@@ -577,20 +585,20 @@ class BillingEngine:
         employee_overtime_payout = customer_overtime_fee
 
         # 4. 5%奖励逻辑 (修正 #2)
-        bonus_5_percent = D(0)
-        is_first_bill = not db.session.query(CustomerBill.id).filter(
-            CustomerBill.contract_id == contract.id,
-            CustomerBill.is_substitute_bill == False,
-            CustomerBill.cycle_start_date < bill.cycle_start_date
-        ).first()
+        # bonus_5_percent = D(0)
+        # is_first_bill = not db.session.query(CustomerBill.id).filter(
+        #     CustomerBill.contract_id == contract.id,
+        #     CustomerBill.is_substitute_bill == False,
+        #     CustomerBill.cycle_start_date < bill.cycle_start_date
+        # ).first()
 
-        if is_first_bill and management_fee_rate == D('0.15'):
-            bonus_5_percent = (level * D('0.05')).quantize(QUANTIZER)
-            log_extras['bonus_5_percent_reason'] = f"首月且管理费率为15%，奖励: 级别({level:.2f}) * 5% = {bonus_5_percent:.2f}"
-        elif is_first_bill:
-            log_extras['bonus_5_percent_reason'] = f"首月但管理费率({management_fee_rate*100:.2f}%)不为15%，无奖励"
-        else:
-            log_extras['bonus_5_percent_reason'] = "非首月，无奖励"
+        # if is_first_bill and management_fee_rate == D('0.15'):
+        #     bonus_5_percent = (level * D('0.05')).quantize(QUANTIZER)
+        #     log_extras['bonus_5_percent_reason'] = f"首月且管理费率为15%，奖励: 级别({level:.2f}) * 5% = {bonus_5_percent:.2f}"
+        # elif is_first_bill:
+        #     log_extras['bonus_5_percent_reason'] = f"首月但管理费率({management_fee_rate*100:.2f}%)不为15%，无奖励"
+        # else:
+        #     log_extras['bonus_5_percent_reason'] = "非首月，无奖励"
 
         # 替班逻辑
         total_substitute_days = 0
@@ -599,11 +607,7 @@ class BillingEngine:
             log_str = "月嫂被替班，账单顺延仍是26天，因此不扣除被替班费用"
             substitute_deduction_logs.append(log_str)
 
-        # 尾款/保证金处理
         is_last_bill = (contract.expected_offboarding_date and cycle_end >= contract.expected_offboarding_date)
-        if is_last_bill:
-            cust_decrease += security_deposit
-            log_extras['security_deposit_return_reason'] = f"末期账单，退还保证金 {security_deposit:.2f}"
 
         return {
             'type': 'maternity_nurse',
@@ -627,11 +631,59 @@ class BillingEngine:
             'customer_decrease': str(cust_decrease),
             'employee_base_payout': str(employee_base_payout),
             'employee_overtime_payout': str(employee_overtime_payout),
-            'bonus_5_percent': str(bonus_5_percent),
+            # 'bonus_5_percent': str(bonus_5_percent),
             'employee_increase': str(emp_increase),
             'employee_decrease': str(emp_decrease),
             'log_extras': {**log_extras, 'substitute_deduction_logs': substitute_deduction_logs},
         }
+
+    def _handle_security_deposit(self, contract, bill):
+        """处理所有合同类型的首末月保证金收退逻辑。"""
+        current_app.logger.debug(f"Handling security deposit for contract {contract.id}, type: {contract.type}")
+        current_app.logger.debug(f"  Contract id = {contract.id}, type = {contract.type} attributes: end_date={contract.end_date}, expected_offboarding_date={contract.expected_offboarding_date}")
+        # 1. 清理旧的系统生成的保证金调整项，确保幂等性
+        FinancialAdjustment.query.filter(
+            FinancialAdjustment.customer_bill_id == bill.id,
+            FinancialAdjustment.description.like('[系统添加] 保证金%')
+        ).delete(synchronize_session=False)
+        
+        if not contract.security_deposit_paid or contract.security_deposit_paid <= 0:
+            current_app.logger.debug(f"  Contract {contract.id} has no security deposit or it's zero. Skipping.")
+            return
+
+        # 2. 判断是否为首期账单
+        # 对于月嫂，使用 actual_onboarding_date；对于育儿嫂，使用 start_date
+        contract_start_date = getattr(contract, 'actual_onboarding_date', contract.start_date)
+        current_app.logger.debug(f"  Calculated contract_start_date: {contract_start_date}")
+        if bill.cycle_start_date == contract_start_date:
+            db.session.add(FinancialAdjustment(
+                customer_bill_id=bill.id,
+                adjustment_type=AdjustmentType.CUSTOMER_INCREASE,
+                amount=contract.security_deposit_paid,
+                description='[系统添加] 保证金',
+                date=bill.cycle_start_date
+            ))
+            current_app.logger.info(f"为合同 {contract.id} 的首期账单 {bill.id} 添加保证金 {contract.security_deposit_paid}")
+
+        # 3. 判断是否为末期账单
+        # 根据合同类型确定正确的合同结束日期
+        if contract.type == 'maternity_nurse':
+            contract_end_date = contract.expected_offboarding_date or contract.end_date
+        else: # nanny and nanny_trial
+            contract_end_date = contract.end_date
+
+        current_app.logger.debug(f"  Calculated contract_end_date: {contract_end_date} (based on contract type: {contract.type})")
+        current_app.logger.debug(f"  Checking for last bill: contract_end_date={contract_end_date}, bill.cycle_end_date={bill.cycle_end_date}")
+        if contract_end_date and bill.cycle_end_date >= contract_end_date:
+            db.session.add(FinancialAdjustment(
+                customer_bill_id=bill.id,
+                adjustment_type=AdjustmentType.CUSTOMER_DECREASE,
+                amount=contract.security_deposit_paid,
+                description='[系统添加] 保证金退款',
+                date=bill.cycle_end_date
+            ))
+            current_app.logger.info(f"为合同 {contract.id} 的末期账单 {bill.id} 退还保证金 {contract.security_deposit_paid}")
+            current_app.logger.debug(f"  Processing 保证金退款 for contract {contract.id}, amount: {contract.security_deposit_paid}")
 
     def calculate_for_substitute(self, substitute_record_id, commit=True):
         """为单条替班记录生成专属的客户账单和员工薪酬单。"""
@@ -728,14 +780,16 @@ class BillingEngine:
             management_fee_rate = D(sub_record.substitute_management_fee)
             
             # 客户应付：B阿姨的级别 / 26 * 替班天数
-            customer_daily_rate = (substitute_level / D(26))
+            customer_daily_rate = (substitute_level * (D(1) - management_fee_rate) / D(26))
             customer_base_fee = (customer_daily_rate * substitute_days).quantize(QUANTIZER)
+            
 
             # 员工工资：B阿姨的级别 * (1 - 管理费率) / 26 * 替班天数
             employee_daily_rate = (substitute_level * (D(1) - management_fee_rate) / D(26))
             employee_base_payout = (employee_daily_rate * substitute_days).quantize(QUANTIZER)
             
-            management_fee = (customer_base_fee - employee_base_payout).quantize(QUANTIZER)
+            # management_fee = (customer_base_fee - employee_base_payout).quantize(QUANTIZER)
+            management_fee = (substitute_level *  management_fee_rate / D(26))
 
             details.update({
                 'daily_rate': str(customer_daily_rate.quantize(QUANTIZER)),
@@ -745,7 +799,7 @@ class BillingEngine:
                 'management_fee': str(management_fee),
                 'employee_base_payout': str(employee_base_payout)
             })
-            details['log_extras']['customer_fee_reason'] = f"月嫂替班客户费用: 替班级别({substitute_level})/26 * 替班天数({substitute_days})"
+            details['log_extras']['customer_fee_reason'] = f"月嫂替班客户费用: 替班级别({substitute_level})*(1-{management_fee_rate*100}%)/26 * 替班天数({substitute_days})"
             details['log_extras']['employee_payout_reason'] = f"月嫂替班员工工资: 替班级别({substitute_level})*(1-{management_fee_rate*100}%)/26 * 替班天数({substitute_days})"
 
         elif substitute_type == 'nanny':
@@ -899,7 +953,6 @@ class BillingEngine:
         final_payout = (
             D(details['employee_base_payout']) + 
             D(details['employee_overtime_payout']) + 
-            D(details.get('bonus_5_percent', 0)) + 
             D(details['employee_increase']) - 
             D(details['employee_decrease']) -
             D(details.get('first_month_deduction', 0)) -
@@ -938,7 +991,7 @@ class BillingEngine:
             # Main contract types
             customer_daily_rate_formula = f"级别({level:.2f})/26"
             if calc_type == 'nanny':
-                employee_daily_rate_formula = f"级别({level:.2f}) * 90% / 26"
+                employee_daily_rate_formula = f"级别({level:.2f}) / 26"
                 log['基础劳务费'] = f"{employee_daily_rate_formula} * 基本劳务天数({base_work_days}) = {d.get('employee_base_payout', 0):.2f}"
                 log['加班费'] = f"{employee_daily_rate_formula} * 加班天数({overtime_days}) = {d.get('employee_overtime_payout', 0):.2f}"
                 log['客户侧加班费'] = f"{customer_daily_rate_formula} * 加班天数({overtime_days}) = {d.get('customer_overtime_fee', 0):.2f}"
@@ -955,8 +1008,6 @@ class BillingEngine:
                     log['基础劳务费'] = f"({log_extras.get('employee_daily_rate_reason', '员工日薪')}) * 基本劳务天数({base_work_days}) = {d.get('customer_base_fee', 0):.2f}"
                     log['加班费'] = f"({log_extras.get('customer_overtime_daily_rate_reason', '客户加班日薪')}) * 加班天数({overtime_days}) = {d.get('customer_overtime_fee', 0):.2f}"
                     log['萌嫂保证金(工资)'] = f"({log_extras.get('employee_daily_rate_reason', '员工日薪')}) * 基本劳务天数({base_work_days}) = {d.get('employee_base_payout', 0):.2f}"
-                    if d.get('bonus_5_percent', 0) > 0:
-                        log['5%奖励'] = log_extras.get('bonus_5_percent_reason', 'N/A')
                 if calc_type == 'nanny_trial' and d.get('first_month_deduction', 0) > 0:
                     log['首月员工10%费用'] = log_extras.get('first_month_deduction_reason', 'N/A')
 
@@ -968,7 +1019,7 @@ class BillingEngine:
                     log['被替班扣款'] = f"从替班账单的基础劳务费中扣除 = {d.get('substitute_deduction', 0):.2f}"
 
         log['客应付款'] = f"基础劳务费({d.get('customer_base_fee', 0):.2f}) + 加班费({d.get('customer_overtime_fee', 0):.2f}) + 管理费({d.get('management_fee', 0):.2f}) - 优惠({d.get('discount', 0):.2f}) - 被替班扣款({d.get('substitute_deduction', 0):.2f}) + 增款({d.get('customer_increase', 0):.2f}) - 减款({d.get('customer_decrease', 0):.2f}) = {d.get('total_payable', 0):.2f}"
-        log['萌嫂应领款'] = f"基础工资({d.get('employee_base_payout', 0):.2f}) + 加班工资({d.get('employee_overtime_payout', 0):.2f}) + 奖励/增款({d.get('bonus_5_percent', 0) + d.get('employee_increase', 0):.2f}) - 服务费/减款({d.get('first_month_deduction', 0) + d.get('employee_decrease', 0):.2f}) - 被替班扣款({d.get('substitute_deduction', 0):.2f}) = {d.get('final_payout', 0):.2f}"
+        log['萌嫂应领款'] = f"基础工资({d.get('employee_base_payout', 0):.2f}) + 加班工资({d.get('employee_overtime_payout', 0):.2f}) + 奖励/增款({d.get('employee_increase', 0):.2f}) - 服务费/减款({d.get('first_month_deduction', 0) + d.get('employee_decrease', 0):.2f}) - 被替班扣款({d.get('substitute_deduction', 0):.2f}) = {d.get('final_payout', 0):.2f}"
 
         return log
     
@@ -984,4 +1035,3 @@ class BillingEngine:
         db.session.add(payroll)
         
         return bill, payroll
-''

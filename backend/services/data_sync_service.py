@@ -179,7 +179,8 @@ class DataSyncService:
                             start_date=parsed_start_date,
                             actual_onboarding_date=parsed_start_date,
                             end_date=end_date,
-                            is_monthly_auto_renew=is_auto_renew
+                            is_monthly_auto_renew=is_auto_renew,
+                            security_deposit_paid=self._parse_numeric(contract_data.get('security_deposit_paid'), 0),
                         )
                     elif contract_type == 'nanny_trial':
                         parsed_start_date = self._parse_date(contract_data.get('start_date'))

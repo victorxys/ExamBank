@@ -966,7 +966,7 @@ class BaseContract(db.Model):
     # 我们不再使用一个通用的 employee_id，而是用两个可为空的外键
     user_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True, index=True, comment='关联到系统用户 (如果是内部员工)')
     service_personnel_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('service_personnel.id', ondelete='SET NULL'), nullable=True, index=True, comment='关联到外部服务人员')
-
+    security_deposit_paid = db.Column(db.Numeric(10, 2), default=0, comment='客交保证金')
     user = db.relationship('User', backref=db.backref('contracts', lazy='dynamic'))
     service_personnel = db.relationship('ServicePersonnel', backref=db.backref('contracts', lazy='dynamic'))
     customer_bills = db.relationship('CustomerBill', back_populates='contract', lazy='dynamic', cascade='all, delete-orphan')
@@ -1005,7 +1005,7 @@ class NannyTrialContract(BaseContract): # 育儿嫂试工合同
 class MaternityNurseContract(BaseContract): # 月嫂合同
     __mapper_args__ = {'polymorphic_identity': 'maternity_nurse'}
     deposit_amount = db.Column(db.Numeric(10, 2), default=0, comment='定金')
-    security_deposit_paid = db.Column(db.Numeric(10, 2), default=0, comment='客交保证金')
+    # security_deposit_paid = db.Column(db.Numeric(10, 2), default=0, comment='客交保证金')
     management_fee_rate = db.Column(db.Numeric(4, 2), nullable=True, comment='管理费费率, e.g., 0.15 for 15%')
     management_fee_amount = db.Column(db.Numeric(10, 2), nullable=True, comment='从金数据同步的管理费金额')
     discount_amount = db.Column(db.Numeric(10, 2), default=0, comment='优惠金额')

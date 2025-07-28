@@ -1808,6 +1808,7 @@ def sync_all_contracts_task(self):
                     'employee_level': {'field_id': 'field_9'},
                     'start_date': {'field_id': 'field_11'},
                     'end_date': {'field_id': 'field_12'},
+                    'security_deposit_paid': {'field_id': 'field_14'},
                     'management_fee_amount': {'field_id': 'field_10'},
                 }
             },

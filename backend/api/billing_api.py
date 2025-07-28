@@ -93,7 +93,7 @@ def _get_billing_details_internal(bill_id=None, contract_id=None, year=None, mon
             "final_amount": {"萌嫂应领款": str(employee_payroll.final_payout)},
         })
         _fill_payment_status(employee_details, employee_payroll.payout_details, employee_payroll.is_paid, is_customer=False)
-        _fill_group_fields(employee_details['groups'][0]['fields'], calc_payroll, ['employee_base_payout', 'employee_overtime_payout', 'bonus_5_percent', 'first_month_deduction', 'substitute_deduction'], is_substitute_payroll=employee_payroll.is_substitute_payroll)
+        _fill_group_fields(employee_details['groups'][0]['fields'], calc_payroll, ['employee_base_payout', 'employee_overtime_payout', 'first_month_deduction', 'substitute_deduction'], is_substitute_payroll=employee_payroll.is_substitute_payroll)
 
     adjustments = FinancialAdjustment.query.filter(
         or_(FinancialAdjustment.customer_bill_id == customer_bill.id,
@@ -132,7 +132,8 @@ def _get_details_template(contract, cycle_start, cycle_end):
     customer_groups = [
         {"name": "级别与保证金", "fields": {
             "级别": str(contract.employee_level or 0),
-            "客交保证金": str(getattr(contract, 'security_deposit_paid', 0)) if is_maternity else "0.00",
+            # "客交保证金": str(getattr(contract, 'security_deposit_paid', 0)) if is_maternity else "0.00",
+            "客交保证金": str(getattr(contract, 'security_deposit_paid', 0)),
             "定金": str(getattr(contract, 'deposit_amount', 0)) if is_maternity else "0.00",
         }},
         {"name": "劳务周期", "fields": {
@@ -179,7 +180,6 @@ def _fill_group_fields(group_fields, calc, field_keys, is_substitute_payroll=Fal
                 # 'employee_base_payout': '基础劳务费' if is_substitute_payroll else ('基础劳务费' if 'nanny' in calc.get('type','') else '萌嫂保证金(工资)'),
                 'employee_base_payout': '基础劳务费' if 'nanny' in calc.get('type','') else '萌嫂保证金(工资)',
                 'employee_overtime_payout': '加班费',
-                'bonus_5_percent': '5%奖励',
                 'first_month_deduction': '首月员工10%费用'
             }
             label = label_map.get(key, key) # 使用映射，如果找不到则用原key
@@ -1306,6 +1306,38 @@ def terminate_contract(contract_id):
                     description=final_description,
                     date=termination_date
                 ))
+    elif isinstance(contract, NannyContract) and contract.is_monthly_auto_renew:
+        # 1. 找到终止月份的账单
+        final_bill = CustomerBill.query.filter(
+            CustomerBill.contract_id == contract_id,
+            CustomerBill.year == termination_date.year,
+            CustomerBill.month == termination_date.month
+        ).first()
+
+        if final_bill:
+            # 2. 计算当月管理费和每日管理费
+            level = D(contract.employee_level or 0)
+            # 假设管理费率为10%
+            monthly_management_fee = (level * D('0.1')).quantize(D('0.01'))
+            daily_management_fee = (monthly_management_fee / D(30)).quantize(D('0.0001'))
+
+            # 3. 计算需要退款的天数和金额
+            # 假设管理费在月初支付，覆盖整个月
+            refund_days = 30 - termination_date.day
+            if refund_days > 0:
+                refund_amount = (D(refund_days) * daily_management_fee).quantize(D('0.01'))
+
+                if refund_amount > 0:
+                    # 4. 创建一笔财务调整（退款）
+                    description = f"育儿嫂月签合同于 {termination_date_str} 终止，退还当月剩余 {refund_days} 天管理费。"
+                    db.session.add(FinancialAdjustment(
+                        customer_bill_id=final_bill.id,
+                        adjustment_type=AdjustmentType.CUSTOMER_DECREASE,
+                        amount=refund_amount,
+                        description=description,
+                        date=termination_date
+                    ))
+                    current_app.logger.info(f"为月签合同 {contract.id} 创建管理费退款 {refund_amount} 元。")
 
     # --- 原有逻辑继续 ---
     # 1. 找到即将被删除的账单和薪酬单的ID
@@ -1338,6 +1370,28 @@ def terminate_contract(contract_id):
 
     if payroll_ids_to_delete:
         EmployeePayroll.query.filter(EmployeePayroll.id.in_(payroll_ids_to_delete)).delete(synchronize_session=False)
+
+    # +++ 新增：修正最后一个周期的结束日期 +++
+    # 查找横跨终止日期的客户账单
+    final_bill_to_update = CustomerBill.query.filter(
+        CustomerBill.contract_id == contract_id,
+        CustomerBill.cycle_start_date < termination_date,
+        CustomerBill.cycle_end_date >= termination_date
+    ).first()
+
+    if final_bill_to_update:
+        final_bill_to_update.cycle_end_date = termination_date
+        current_app.logger.info(f"已将账单 {final_bill_to_update.id} 的结束日期更新为 {termination_date}")
+
+        # 同时查找并更新对应的员工薪酬单
+        final_payroll_to_update = EmployeePayroll.query.filter(
+            EmployeePayroll.contract_id == contract_id,
+            EmployeePayroll.cycle_start_date == final_bill_to_update.cycle_start_date # 使用相同的周期开始日来匹配
+        ).first()
+
+        if final_payroll_to_update:
+            final_payroll_to_update.cycle_end_date = termination_date
+            current_app.logger.info(f"已将薪酬单 {final_payroll_to_update.id} 的结束日期更新为 {termination_date}")
 
     # 4. 更新合同状态和结束日期
     contract.status = 'terminated'
