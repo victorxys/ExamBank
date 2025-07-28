@@ -10,6 +10,7 @@ from flask_jwt_extended import get_jwt_identity
 from datetime import date, timedelta
 from datetime import datetime
 import decimal
+from dateutil.relativedelta import relativedelta
 D = decimal.Decimal
 
 # --- 新增 AttendanceRecord 的导入 ---
@@ -69,7 +70,7 @@ def _get_billing_details_internal(bill_id=None, contract_id=None, year=None, mon
     })
     _fill_payment_status(customer_details, customer_bill.payment_details, customer_bill.is_paid, is_customer=True)
     _fill_group_fields(customer_details['groups'][1]['fields'], calc_cust, ['base_work_days', 'overtime_days', 'total_days_worked', 'substitute_days'])
-    _fill_group_fields(customer_details['groups'][2]['fields'], calc_cust, ['customer_base_fee', 'customer_overtime_fee', 'management_fee', 'substitute_deduction'])
+    _fill_group_fields(customer_details['groups'][2]['fields'], calc_cust, ['customer_base_fee', 'customer_overtime_fee', 'management_fee', 'management_fee_rate', 'substitute_deduction'])
     if contract.type == 'nanny':
         customer_details['groups'][2]['fields']['本次交管理费'] = calc_cust.get('management_fee', '待计算')
 
@@ -172,6 +173,8 @@ def _fill_group_fields(group_fields, calc, field_keys, is_substitute_payroll=Fal
                 'customer_base_fee': '基础劳务费',
                 'customer_overtime_fee': '加班费',
                 'management_fee': '管理费',
+                'management_fee_rate': '管理费率',
+                'substitute_deduction': '被替班费用',
                 
                 # 'employee_base_payout': '基础劳务费' if is_substitute_payroll else ('基础劳务费' if 'nanny' in calc.get('type','') else '萌嫂保证金(工资)'),
                 'employee_base_payout': '基础劳务费' if 'nanny' in calc.get('type','') else '萌嫂保证金(工资)',
@@ -652,11 +655,12 @@ def batch_update_billing_details():
         # --- 处理财务调整项 ---
         adjustments_data = data.get('adjustments', [])
         FinancialAdjustment.query.filter(
-            or_(FinancialAdjustment.customer_bill_id == bill.id, FinancialAdjustment.employee_payroll_id == payroll.id)
+            or_(FinancialAdjustment.customer_bill_id == bill.id, FinancialAdjustment.employee_payroll_id == payroll.id),
+            ~FinancialAdjustment.description.like('[TERMINATION_REFUND]%')
         ).delete(synchronize_session=False)
         
         for adj_data in adjustments_data:
-            adj_type = AdjustmentType[adj_data['adjustment_type']]
+            adj_type = AdjustmentType(adj_data['adjustment_type'])
             new_adj = FinancialAdjustment(adjustment_type=adj_type, amount=D(adj_data['amount']), description=adj_data['description'], date=bill.cycle_start_date)
             if adj_type.name.startswith('CUSTOMER'):
                 new_adj.customer_bill_id = bill.id
@@ -1216,10 +1220,94 @@ def terminate_contract(contract_id):
     except ValueError:
         return jsonify({'error': 'Invalid date format. Use YYYY-MM-DD.'}), 400
 
-    contract = BaseContract.query.get_or_404(contract_id)
+    contract = db.session.get(BaseContract, contract_id)
+    if not contract:
+        return jsonify({'error': '合同未找到'}), 404
 
-    # --- 修改开始 ---
+    # --- 全新的、精确的退款逻辑 ---
+    if isinstance(contract, NannyContract) and not contract.is_monthly_auto_renew:
+        original_end_date = contract.end_date
+        if termination_date < original_end_date:
+            level = D(contract.employee_level or 0)
+            monthly_management_fee = (level * D('0.1')).quantize(D('0.01'))
+            daily_management_fee = (monthly_management_fee / D(30)).quantize(D('0.0001'))
 
+            # 找到即将生成的最后一期账单
+            final_bill = CustomerBill.query.filter(
+                CustomerBill.contract_id == contract_id,
+                CustomerBill.year == termination_date.year,
+                CustomerBill.month == termination_date.month
+            ).first()
+            if not final_bill:
+                final_bill = CustomerBill.query.filter(
+                    CustomerBill.contract_id == contract_id,
+                    CustomerBill.cycle_end_date < termination_date
+                ).order_by(CustomerBill.cycle_end_date.desc()).first()
+
+            total_refund_amount = D(0)
+            description_parts = ["合同提前终止，管理费退款计算如下："]
+            
+            # --- 计算退款总额 ---
+            # A. 终止月剩余部分
+            term_month_refund_amount = D(0)
+            refund_days_term = 30 - termination_date.day
+            if refund_days_term > 0:
+                term_month_refund_amount = (D(refund_days_term) * daily_management_fee).quantize(D('0.01'))
+
+            # B. 中间完整月份
+            full_months_count = 0
+            full_months_total_amount = D(0)
+            full_months_start_date = None
+            full_months_end_date = None
+            
+            current_month_start = (termination_date.replace(day=1) + relativedelta(months=1))
+            while current_month_start.year < original_end_date.year or \
+                  (current_month_start.year == original_end_date.year and current_month_start.month < original_end_date.month):
+                if full_months_start_date is None:
+                    full_months_start_date = current_month_start
+                full_months_end_date = current_month_start
+                full_months_count += 1
+                current_month_start += relativedelta(months=1)
+            
+            if full_months_count > 0:
+                full_months_total_amount = monthly_management_fee * D(full_months_count)
+
+            # C. 原始末月已付部分
+            original_end_month_refund_amount = D(0)
+            if not (termination_date.year == original_end_date.year and termination_date.month == original_end_date.month):
+                refund_days_original_end = original_end_date.day
+                if refund_days_original_end > 0:
+                    original_end_month_refund_amount = (D(refund_days_original_end) * daily_management_fee).quantize(D('0.01'))
+
+            total_refund_amount = term_month_refund_amount + full_months_total_amount + original_end_month_refund_amount
+
+            # --- 构建描述字符串 ---
+            if total_refund_amount > 0:
+                if term_month_refund_amount > 0:
+                    description_parts.append(f"  - 终止月({termination_date.month}月{termination_date.day}日)剩余 {refund_days_term} 天: {term_month_refund_amount:.2f}元")
+                
+                if full_months_count > 0 and full_months_total_amount > 0:
+                    start_str = f"{full_months_start_date.year}年{full_months_start_date.month}月"
+                    end_str = f"{full_months_end_date.year}年{full_months_end_date.month}月"
+                    period_str = start_str if full_months_count == 1 else f"{start_str}~{end_str}"
+                    description_parts.append(f"  - {period_str}")
+                    description_parts.append(f"    {full_months_count}个整月*{monthly_management_fee:.2f}元 = {full_months_total_amount:.2f}元")
+
+                if original_end_month_refund_amount > 0:
+                    description_parts.append(f"  - 原始末月({original_end_date.month}月{original_end_date.day}日)已付 {original_end_date.day} 天: {original_end_month_refund_amount:.2f}元")
+                
+                description_parts.append(f"  - 总计：{total_refund_amount:.2f}元")
+
+                final_description = "\n".join(description_parts)
+                db.session.add(FinancialAdjustment(
+                    customer_bill_id=final_bill.id if final_bill else None,
+                    adjustment_type=AdjustmentType.CUSTOMER_DECREASE,
+                    amount=total_refund_amount,
+                    description=final_description,
+                    date=termination_date
+                ))
+
+    # --- 原有逻辑继续 ---
     # 1. 找到即将被删除的账单和薪酬单的ID
     bills_to_delete_query = CustomerBill.query.with_entities(CustomerBill.id).filter(
         CustomerBill.contract_id == contract_id,

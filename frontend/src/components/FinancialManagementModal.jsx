@@ -60,7 +60,10 @@ const formatValue = (key, value) => {
     if (key === '替班天数') return `${value} 天`;
     if (key === '基本劳务天数') return `${value} 天`;
     if (key === '总劳务天数') return `${value} 天`;
-    if (key.includes('费率')) return `${value}`;
+    if (key.includes('费率')) {
+        const num = Number(value);
+        return isNaN(num) ? String(value) : `${(num * 100).toFixed(0)}%`;
+    }
     const isMoney = !key.includes('天数') && !key.includes('费率');
     if (isMoney && /^-?\d+(\.\d+)?$/.test(String(value))) {
         const num = Number(value);
@@ -354,7 +357,7 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
         const fieldOrder = {
             "级别与保证金": ["级别", "客交保证金", "定金"],
             "劳务周期": ["劳务时间段", "基本劳务天数", "加班天数", "替班天数", "总劳务天数"],
-            "费用明细": ["基础劳务费", "试工费", "加班费", "管理费", "本次交管理费", "被替班费用", "优惠"],
+            "费用明细": ["管理费率", "管理费", "本次交管理费", "基础劳务费", "试工费", "加班费", "被替班费用", "优惠"],
             "薪酬明细": ["萌嫂保证金(工资)", "试工费", "基础劳务费", "加班费", "被替班费用", "5%奖励", "首月员工10%费用"],
         };
 
@@ -469,7 +472,14 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                                     )}
                                 >
                                     <ListItemIcon sx={{ minWidth: 'auto', mr: 1.5 }}>{AdjustmentTypes[adj.adjustment_type]?.effect > 0 ? <ArrowUpwardIcon color="success" fontSize="small"/> : <ArrowDownwardIcon color="error" fontSize="small"/>}</ListItemIcon>
-                                    <ListItemText primary={AdjustmentTypes[adj.adjustment_type]?.label} secondary={adj.description} />
+                                    <ListItemText 
+                                        primary={AdjustmentTypes[adj.adjustment_type]?.label} 
+                                        secondary={
+                                            <Typography variant="body2" component="span" sx={{ whiteSpace: 'pre-wrap', color: 'text.secondary' }}>
+                                                {adj.description}
+                                            </Typography>
+                                        } 
+                                    />
                                     <Typography variant="body2" sx={{ fontFamily: 'monospace', fontWeight: 'bold' }}>{AdjustmentTypes[adj.adjustment_type]?.effect > 0 ? '+' : '-'} {formatValue('', adj.amount)}</Typography>
                                 </ListItem>
                             ))}

@@ -8,11 +8,11 @@ import {
 
 // **核心修正**: 定义与后端完全一致的类型
 export const AdjustmentTypes = {
-    CUSTOMER_INCREASE: { label: '客增加款', type: 'customer', effect: 1 },
-    CUSTOMER_DECREASE: { label: '退客户款', type: 'customer', effect: -1 },
-    CUSTOMER_DISCOUNT: { label: '优惠', type: 'customer', effect: -1 },
-    EMPLOYEE_INCREASE: { label: '萌嫂增款', type: 'employee', effect: 1 },
-    EMPLOYEE_DECREASE: { label: '减萌嫂款', type: 'employee', effect: -1 },
+    customer_increase: { label: '客增加款', type: 'customer', effect: 1 },
+    customer_decrease: { label: '退客户款', type: 'customer', effect: -1 },
+    customer_discount: { label: '优惠', type: 'customer', effect: -1 },
+    employee_increase: { label: '萌嫂增款', type: 'employee', effect: 1 },
+    employee_decrease: { label: '减萌嫂款', type: 'employee', effect: -1 },
 };
 
 const AdjustmentDialog = ({ open, onClose, onSave, adjustment = null, typeFilter = 'all' }) => {
