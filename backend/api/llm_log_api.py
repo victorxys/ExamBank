@@ -1,6 +1,6 @@
 # backend/api/llm_log_api.py
 from flask import Blueprint, request, jsonify, current_app
-from backend.models import LlmCallLog, db
+from backend.models import LlmCallLog
 from flask_jwt_extended import jwt_required, get_jwt
 import uuid
 

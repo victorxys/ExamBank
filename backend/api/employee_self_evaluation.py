@@ -2,7 +2,6 @@ from flask import Blueprint, request, jsonify
 from datetime import datetime
 import uuid
 from db import get_db_connection
-from flask_jwt_extended import jwt_required, get_jwt_identity
 
 employee_self_evaluation_bp = Blueprint('employee_self_evaluation', __name__)
 

@@ -2,7 +2,6 @@
 import uuid
 from datetime import datetime
 from sqlalchemy.dialects.postgresql import UUID, JSONB
-from ..db import get_db_connection # 
 
 # 假设你有一个 User 模型，如果放在不同文件，需要正确导入
 # from .user import User # 示例导入，根据你的项目结构调整

@@ -4,7 +4,6 @@ import json
 
 from db import get_db_connection
 from psycopg2.extras import RealDictCursor
-from flask import  jsonify, request
 
 def get_exam_detail_byid(exam_take_id):
     # 通过exam表的id 考试id获取考试详情

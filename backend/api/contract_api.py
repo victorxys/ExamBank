@@ -1,10 +1,10 @@
 # backend/api/contract_api.py
 from flask import Blueprint, jsonify, request, current_app
 from flask_jwt_extended import jwt_required
-from backend.models import db, BaseContract, User, SubstituteRecord, NannyContract, MaternityNurseContract, CustomerBill, EmployeePayroll, FinancialActivityLog
+from backend.models import db, BaseContract, User, SubstituteRecord, CustomerBill, EmployeePayroll, FinancialActivityLog, MaternityNurseContract
 from backend.tasks import calculate_monthly_billing_task
 from backend.services.billing_engine import BillingEngine
-from datetime import datetime
+from datetime import datetime, timedelta
 import decimal
 from sqlalchemy.exc import IntegrityError
 
@@ -16,7 +16,7 @@ contract_bp = Blueprint('contract_api', __name__, url_prefix='/api/contracts')
 @jwt_required()
 def create_substitute_record(contract_id):
     data = request.get_json()
-    required_fields = ['substitute_user_id', 'start_date', 'end_date', 'employee_level']
+    required_fields = ['substitute_user_id', 'start_date', 'end_date', 'employee_level', 'substitute_type']
     if not all(field in data for field in required_fields):
         return jsonify({'error': 'Missing required fields'}), 400
 
@@ -24,6 +24,7 @@ def create_substitute_record(contract_id):
         start_date = datetime.strptime(data['start_date'], '%Y-%m-%d').date()
         end_date = datetime.strptime(data['end_date'], '%Y-%m-%d').date()
         employee_level = D(data['employee_level'])
+        substitute_type = data['substitute_type']
 
         main_contract = BaseContract.query.get(contract_id)
         if not main_contract:
@@ -33,31 +34,20 @@ def create_substitute_record(contract_id):
         if not substitute_user:
             return jsonify({'error': 'Substitute user not found'}), 404
 
+        # 1. Create the record
         new_record = SubstituteRecord(
             main_contract_id=str(contract_id),
             substitute_user_id=data['substitute_user_id'],
             start_date=start_date,
             end_date=end_date,
             substitute_salary=employee_level,
-            substitute_management_fee=D(data.get('management_fee_rate', '0.25')) if main_contract.type == 'maternity_nurse' else D('0.1'),
+            substitute_type=substitute_type,
+            substitute_management_fee=D(data.get('management_fee_rate', '0.25')) if substitute_type == 'maternity_nurse' else D('0'),
         )
-
-        original_bill = CustomerBill.query.filter(
-            CustomerBill.contract_id == contract_id,
-            CustomerBill.is_substitute_bill == False,
-            CustomerBill.cycle_start_date <= end_date,
-            CustomerBill.cycle_end_date >= start_date
-        ).first()
-
-        if original_bill:
-            new_record.original_customer_bill_id = original_bill.id
-            current_app.logger.info(f"替班记录 {new_record.id} 已成功关联到原始账单 {original_bill.id}")
-        else:
-            current_app.logger.warning(f"未能为替班记录 {new_record.id} 找到对应的原始账单。")
-
         db.session.add(new_record)
         db.session.commit()
 
+        # 2. Call the centralized processing logic in the engine
         engine = BillingEngine()
         engine.process_substitution(new_record.id)
         

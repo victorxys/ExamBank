@@ -5,7 +5,7 @@ import uuid
 import re
 from flask import (
     Blueprint, request, jsonify, current_app,
-    send_from_directory, Response, stream_with_context
+    Response, stream_with_context
 )
 from werkzeug.exceptions import NotFound # 可以用来抛出标准的404
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt, decode_token, verify_jwt_in_request
@@ -13,7 +13,6 @@ from jwt import PyJWTError # 用于捕获 decode_token 可能的错误
 
 from werkzeug.utils import secure_filename
 from datetime import datetime, timezone
-from sqlalchemy.exc import IntegrityError # <<<--- 新增：导入 IntegrityError
 from sqlalchemy import func, or_ ,desc
 
 
@@ -24,7 +23,6 @@ from backend.models import (
     db, CourseResource, TrainingCourse, User,
     UserCourseAccess, UserResourceAccess, UserResourcePlayLog # <<<--- 确保这些都导入了
 )
-from sqlalchemy.dialects import postgresql # 用于编译为特定方言的SQL
 
 course_resource_bp = Blueprint('course_resource_api', __name__, url_prefix='/api')
 
@@ -564,13 +562,13 @@ def stream_course_resource(resource_id_str):
     can_access = False
     if is_admin:
         can_access = True
-        current_app.logger.info(f"Stream: Access granted via admin role.")
+        current_app.logger.info("Stream: Access granted via admin role.")
     else:
         direct_resource_access = check_resource_access(current_user_id_uuid, resource_id_uuid)
         current_app.logger.info(f"Stream: Result of check_resource_access for user {current_user_id_uuid} on resource {resource_id_uuid}: {direct_resource_access}")
         if direct_resource_access:
             can_access = True
-            current_app.logger.info(f"Stream: Access granted via direct resource permission.")
+            current_app.logger.info("Stream: Access granted via direct resource permission.")
         else:
             course_context_access = check_course_access_for_resource(current_user_id_uuid, resource)
             current_app.logger.info(f"Stream: Result of check_course_access_for_resource for user {current_user_id_uuid} on resource {resource_id_uuid}: {course_context_access}")
@@ -580,7 +578,7 @@ def stream_course_resource(resource_id_str):
             # For now, we grant playback if either applies.
             if course_context_access:
                  can_access = True
-                 current_app.logger.info(f"Stream: Access granted via course context permission.")
+                 current_app.logger.info("Stream: Access granted via course context permission.")
 
 
     if not can_access:
@@ -794,7 +792,7 @@ def stream_shared_resource_by_slug(share_slug_str):
             current_user_id_from_token_str = temp_identity
             user_jwt_claims = get_jwt()
             header_token_valid = True
-    except Exception as e_header_jwt:
+    except Exception:
         pass # 继续
 
     if not current_user_id_from_token_str:
@@ -806,9 +804,9 @@ def stream_shared_resource_by_slug(share_slug_str):
                 current_user_id_from_token_str = decoded_jwt.get(identity_claim_key)
                 if not current_user_id_from_token_str: raise PyJWTError("Token missing identity.")
                 user_jwt_claims = decoded_jwt
-            except PyJWTError as e_jwt:
+            except PyJWTError:
                 return jsonify({'error': '访问令牌无效或已过期'}), 401
-            except Exception as e_other_url_token:
+            except Exception:
                 return jsonify({'error': '处理访问令牌时出错'}), 401
     
     if not current_user_id_from_token_str: # 必须有用户身份才能进行权限检查
@@ -817,7 +815,7 @@ def stream_shared_resource_by_slug(share_slug_str):
     try:
         current_user_id_uuid = uuid.UUID(current_user_id_from_token_str)
     except (ValueError, TypeError):
-        return jsonify({'error': f"无效的用户身份格式"}), 400
+        return jsonify({'error': "无效的用户身份格式"}), 400
 
     user = User.query.get(current_user_id_uuid)
     if not user: return jsonify({'error': '用户不存在'}), 401

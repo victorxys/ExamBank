@@ -1,5 +1,4 @@
 # populate_pinyin.py
-import os
 # 确保能正确导入 pypinyin
 from pypinyin import pinyin, Style
 # 导入创建Flask app的函数和db实例

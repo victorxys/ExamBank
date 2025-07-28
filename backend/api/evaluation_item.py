@@ -1,7 +1,6 @@
 # backend/api/evaluation_item.py
 from flask import Blueprint, jsonify, request
 from psycopg2.extras import RealDictCursor
-import uuid
 from ..db import get_db_connection
 from psycopg2.extras import register_uuid
 register_uuid()

@@ -1,5 +1,5 @@
 # 这一步是为了确保celery_app能够被正确找到
-from .tasks import celery_app, http_diagnose_task
+from .tasks import http_diagnose_task
 
 
 def run_test():

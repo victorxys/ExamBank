@@ -15,7 +15,7 @@ import mimetypes
 
 from celery_worker import celery_app
 from flask import current_app
-from sqlalchemy import or_, func
+from sqlalchemy import func
 import sqlalchemy as sa
 from werkzeug.utils import secure_filename
 
@@ -26,10 +26,9 @@ from backend.extensions import db
 from backend.models import TrainingContent, TtsScript, TtsSentence, TtsAudio, MergedAudioSegment, UserProfile, Exam, VideoSynthesis, CourseResource
 from backend.api.ai_generate import generate_video_script # 导入新函数
 from backend.api.ai_generate import generate_audio_with_gemini_tts # 导入新的 Gemini TTS 函数
-from backend.api.ai_generate import get_active_llm_config_internal 
 from .manager_module import get_next_identity
 from .manager_module import reset_all_usage
-from .services.data_sync_service import DataSyncService, JinshujuAPIError
+from .services.data_sync_service import DataSyncService
 from .services.billing_engine import BillingEngine
 
 
@@ -532,7 +531,7 @@ def generate_single_sentence_audio_async(self, sentence_id_str, tts_engine_ident
                     else:
                         logger.warning(f"[SingleAudioTask] 指定的音色文件不存在: {absolute_pt_file_path}，将使用默认音色。")
                 else:
-                    logger.info(f"[SingleAudioTask] 未指定音色文件，使用默认音色。")
+                    logger.info("[SingleAudioTask] 未指定音色文件，使用默认音色。")
                 
                 job_result = gradio_tts_client.predict(
                     text_file=sentence.sentence_text,
@@ -685,7 +684,7 @@ def batch_generate_audio_task(self, final_script_id_str,
             submitted_subtasks_info = [] # 用于存储 {sentence_id: ..., task_id: ...}
             
             # 更新 TrainingContent 状态为正在处理，并记录总数
-            training_content.status = f'processing_batch_audio'
+            training_content.status = 'processing_batch_audio'
             # 可以考虑将总数、已处理数等也存到 TrainingContent 的某个JSON字段，如果需要持久化进度
             db.session.commit()
 

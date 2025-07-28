@@ -172,5 +172,68 @@ class TestNannyBillingEngine(unittest.TestCase):
         bill3 = CustomerBill.query.filter_by(contract_id=contract.id, year=2025, month=5).first()
         self.assertEqual(bill3.total_payable, D('5600.00'))
 
+    def test_maternity_nurse_substitution_and_postponement(self):
+        # 1. Setup: Create a maternity nurse contract and a substitute user
+        main_employee = ServicePersonnel(name="主月嫂")
+        sub_user = User(username="替班月嫂", phone_number="12345678901", password_hash="test")
+        self.session.add_all([main_employee, sub_user])
+        self.session.flush()
+
+        contract = MaternityNurseContract(
+            customer_name="月嫂替班客户",
+            service_personnel_id=main_employee.id,
+            status='active',
+            employee_level='10000',
+            management_fee_rate=D('0.15'),
+            actual_onboarding_date=date(2025, 1, 1),
+            expected_offboarding_date=date(2025, 1, 27), # 26-day cycle
+            jinshuju_entry_id='test-mn-sub-1'
+        )
+        self.session.add(contract)
+        self.session.commit()
+
+        # Manually create the initial bill
+        self.engine.calculate_for_month(2025, 1, contract.id, force_recalculate=True)
+        
+        # 2. Action: Use the API client to create a substitute record
+        substitute_data = {
+            'substitute_user_id': sub_user.id,
+            'start_date': '2025-01-10',
+            'end_date': '2025-01-15', # 5-day substitution
+            'employee_level': '8000',
+            'substitute_type': 'maternity_nurse',
+            'management_fee_rate': '0.25'
+        }
+        
+        with app.test_client() as client:
+            # Simulate a logged-in user if your endpoint requires it
+            # For this example, assuming jwt_required is handled or mocked
+            response = client.post(f'/api/contracts/{contract.id}/substitutes', json=substitute_data)
+            self.assertEqual(response.status_code, 201)
+
+        # 3. Assertions
+        self.session.refresh(contract)
+        
+        # Assert that the contract's offboarding date was postponed
+        self.assertEqual(contract.expected_offboarding_date, date(2025, 2, 1)) # Jan 27 + 5 days
+
+        # Assert that the original bill was updated
+        original_bill = CustomerBill.query.filter_by(contract_id=contract.id, is_substitute_bill=False).first()
+        self.assertIsNotNone(original_bill)
+        
+        # The cycle end date should be extended
+        self.assertEqual(original_bill.cycle_end_date, date(2025, 2, 1)) # Jan 27 + 5 days
+        
+        # Check the calculation details for substitute deduction
+        calc_details = original_bill.calculation_details
+        self.assertEqual(D(calc_details['substitute_days']), D(5))
+        
+        # Substitute bill should exist
+        sub_bill = CustomerBill.query.filter_by(contract_id=contract.id, is_substitute_bill=True).first()
+        self.assertIsNotNone(sub_bill)
+        
+        # The deduction on the main bill should equal the total payable of the sub bill
+        self.assertEqual(D(calc_details['substitute_deduction']), sub_bill.total_payable)
+
 if __name__ == '__main__':
     unittest.main()

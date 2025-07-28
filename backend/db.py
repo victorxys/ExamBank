@@ -26,6 +26,6 @@ def get_db_connection():
         conn.set_client_encoding('UTF8')
         log.info("Database connection established successfully.")
         return conn
-    except Exception as e:
+    except Exception:
         log.exception("Failed to connect to the database:")
         raise  # 重新抛出异常，以便上层处理

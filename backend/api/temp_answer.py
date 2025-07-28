@@ -1,5 +1,5 @@
 import uuid
-from flask import jsonify, request
+from flask import jsonify
 from psycopg2.extras import RealDictCursor
 from backend.db import get_db_connection  # 使用绝对导入
 

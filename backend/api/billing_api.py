@@ -2,13 +2,11 @@
 
 from flask import Blueprint, jsonify, current_app, request
 from flask_jwt_extended import jwt_required
-from sqlalchemy import or_, case, and_, func
-from sqlalchemy.orm import with_polymorphic, attributes
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy import or_, case, and_
+from sqlalchemy.orm import with_polymorphic
 from flask_jwt_extended import get_jwt_identity
 
 
-from dateutil.relativedelta import relativedelta
 from datetime import date, timedelta
 from datetime import datetime
 import decimal
@@ -21,7 +19,7 @@ from backend.models import (
 )
 from backend.tasks import sync_all_contracts_task, calculate_monthly_billing_task # 导入新任务
 from backend.services.billing_engine import BillingEngine
-from backend.models import FinancialAdjustment, AdjustmentType
+from backend.models import AdjustmentType
 
 
 billing_bp = Blueprint('billing_api', __name__, url_prefix='/api/billing')
@@ -127,6 +125,9 @@ def _get_details_template(contract, cycle_start, cycle_end):
     is_maternity = contract.type == 'maternity_nurse'
     is_nanny = contract.type == 'nanny'
     current_app.logger.info(f"[DEBUG] Generating billing details template for contract type: {contract.type}, is_maternity: {is_maternity}, is_nanny: {is_nanny}")
+    days_adjustment = 0
+    if contract.type == 'nanny' and cycle_start != contract.start_date:
+        days_adjustment = 1
     customer_groups = [
         {"name": "级别与保证金", "fields": {
             "级别": str(contract.employee_level or 0),
@@ -134,7 +135,7 @@ def _get_details_template(contract, cycle_start, cycle_end):
             "定金": str(getattr(contract, 'deposit_amount', 0)) if is_maternity else "0.00",
         }},
         {"name": "劳务周期", "fields": {
-            "劳务时间段": f"{cycle_start.isoformat()} ~ {cycle_end.isoformat()}",
+            "劳务时间段": f"{cycle_start.isoformat()} ~ {cycle_end.isoformat()} ({ (cycle_end - cycle_start).days + days_adjustment }天)",
             "基本劳务天数": "待计算", "加班天数": "0", "被替班天数": "0", "总劳务天数": "待计算"
         }},
         {"name": "费用明细", "fields": {}}
@@ -190,7 +191,7 @@ def trigger_sync_contracts():
     try:
         task = sync_all_contracts_task.delay()
         return jsonify({'message': '合同同步任务已成功提交到后台处理。','task_id': task.id}), 202
-    except Exception as e:
+    except Exception:
         return jsonify({'error': '提交后台任务时发生错误'}), 500
 
 
@@ -385,6 +386,7 @@ def get_bills():
                 'employee_is_paid': payroll.is_paid if payroll else False,
                 'is_substitute_bill': bill.is_substitute_bill,
                 'contract_type_label': get_contract_type_details(contract.type),
+                'contract_type_value': contract.type, # <-- 新增这一行
                 'employee_level': str(contract.employee_level or '0'),
                 'active_cycle_start': bill.cycle_start_date.isoformat() if bill.cycle_start_date else None,
                 'active_cycle_end': bill.cycle_end_date.isoformat() if bill.cycle_end_date else None,
@@ -875,7 +877,7 @@ def generate_all_bills_for_contract(contract_id):
 
         while cycle_start <= contract.expected_offboarding_date:
             cycle_count += 1
-            cycle_end = cycle_start + timedelta(days=25)
+            cycle_end = cycle_start + timedelta(days=26)
             if cycle_end > contract.expected_offboarding_date:
                 cycle_end = contract.expected_offboarding_date
 
@@ -924,6 +926,8 @@ def get_bills_for_contract(contract_id):
             'total_payable': str(bill.total_payable),
             'status': '已支付' if bill.is_paid else '未支付',
             'overtime_days': calc.get('overtime_days', '0'),
+            'base_work_days': calc.get('base_work_days', '0'), # 新增：基本劳务天数
+            'is_substitute_bill': bill.is_substitute_bill, # 确保这个字段存在
         })
     return jsonify(results)
 
@@ -969,7 +973,7 @@ def postpone_subsequent_bills(bill_id):
         current_start_date = new_end_date + timedelta(days=1)
         for attendance in subsequent_attendances:
             attendance.cycle_start_date = current_start_date
-            attendance.cycle_end_date = current_start_date + timedelta(days=25)
+            attendance.cycle_end_date = current_start_date + timedelta(days=26)
             
             # 同时更新关联账单的年月
             related_bill = CustomerBill.query.filter_by(
@@ -1182,8 +1186,8 @@ def update_contract(contract_id):
             # 如果是月嫂合同，自动计算并更新合同结束日
             if contract.type == 'maternity_nurse':
                 # 假设所有月嫂合同都是一个标准的26天周期
-                # 结束日 = 实际上户日期 + 25天
-                new_end_date = new_onboarding_date + timedelta(days=25)
+                # 结束日 = 实际上户日期 + 26天
+                new_end_date = new_onboarding_date + timedelta(days=26)
                 contract.end_date = new_end_date
                 current_app.logger.info(f"合同 {contract_id} 的实际上户日更新为 {new_onboarding_date}，合同结束日自动调整为 {new_end_date}。")
         

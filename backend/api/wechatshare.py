@@ -131,7 +131,7 @@ def get_jssdk_config():
                 ]
             }
         }
-        logger.info(f"成功生成JSSDK配置")
+        logger.info("成功生成JSSDK配置")
         return jsonify(config)
     except WeChatException as e:
         error_msg = f"微信 API 调用失败: {str(e)}"

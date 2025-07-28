@@ -1,7 +1,6 @@
 # backend/api/evaluation_aspect.py
 from flask import Blueprint, jsonify, request
 from psycopg2.extras import RealDictCursor
-import uuid
 try:
     from ..db import get_db_connection
 except ImportError:

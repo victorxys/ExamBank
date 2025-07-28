@@ -35,8 +35,8 @@ const formatDateRange = (dateRangeString) => {
         const startDate = new Date(startStr);
         const endDate = new Date(endStr);
         if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) return '无效日期';
-        const diffTime = Math.abs(endDate - startDate);
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+        // 计算天数：结束日 - 开始日
+        const diffDays = Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
         const format = (date) => date.toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' }).replace('/', '-');
         return `${format(startDate)} ~ ${format(endDate)} (${diffDays}天)`;
     } catch (e) { return '无效日期范围'; }
@@ -82,7 +82,7 @@ const getTooltipContent = (fieldName, billingDetails, isCustomer) => {
         '管理费': '管理费',
         '被替班费用': '被替班扣款',
         '客应付款': '客应付款',
-        '萌嫂保证金(工资)': '萌嫂保证金(工资)',
+        '萌嫂保证金(工资)': '员工工资',
         '5%奖励': '5%奖励',
         '萌嫂应领款': '萌嫂应领款',
         '本次交管理费': '本次交管理费',
@@ -166,8 +166,9 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
     }, [open, billingDetails]);
 
     const handleOpenSubstituteDialog = () => {
+        console.log('Opening SubstituteDialog. contract?.contract_type_value:', contract?.contract_type_value);
         setIsSubstituteDialogOpen(true);
-    };
+    }
 
     const handleCloseSubstituteDialog = () => {
         setIsSubstituteDialogOpen(false);
@@ -693,6 +694,9 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                 onSave={handleSaveSubstitute}
                 contractId={contract?.contract_id}
                 contractType={contract?.contract_type_value}
+                billMonth={billingMonth}
+                originalBillCycleStart={billingDetails?.cycle_start_date}
+                originalBillCycleEnd={billingDetails?.cycle_end_date}
             />
         </>
     );

@@ -8,8 +8,6 @@ from backend.models import db, TrainingCourse, TrainingContent, TtsScript, TtsSe
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 import uuid
 import os
-from backend.api.ai_generate import transform_text_with_llm, log_llm_call # 确保也导入 log_llm_call
-import json
 from celery_worker import celery_app as celery_app_instance
 
 from backend.tasks import generate_single_sentence_audio_async # 导入新的Celery任务
@@ -26,8 +24,7 @@ from backend.tasks import resplit_and_match_sentences_task # 重新拆分后匹�
 
 # from backend.tasks import generate_merged_audio_async # 导入新的Celery任务``
 from backend.tasks import trigger_tts_refine_async # 导入新的Celery任务
-from celery.result import AsyncResult # 可以显式导入 AsyncResult
-from sqlalchemy import func, or_ # 导入 SQLAlchemy 的函数和操作符
+from sqlalchemy import func # 导入 SQLAlchemy 的函数和操作符
 from datetime import datetime
 
 
@@ -156,7 +153,7 @@ def get_training_content_detail(content_id):
        
         current_app.logger.info(f"获取到 TrainingContent 对象: {content.id}, 尝试从数据库刷新...")
         db.session.refresh(content)
-        current_app.logger.info(f"使 content.tts_scripts 关系过期...")
+        current_app.logger.info("使 content.tts_scripts 关系过期...")
         db.session.expire(content, ['tts_scripts']) # 显式使 tts_scripts 关系过期
         current_app.logger.info(f"TrainingContent 对象 {content.id} 及其 tts_scripts 关系已处理。")
         # --- 调试步骤结束 ---
@@ -814,7 +811,7 @@ def split_script_into_sentences_route(source_final_script_id):
     source_final_script = TtsScript.query.get(source_final_script_id_str)
     if not source_final_script or source_final_script.script_type != 'final_tts_script':
         # ... (返回错误) ...
-        current_app.logger.warning(f"[SplitTask Fail] 无效的源脚本 ID 或类型不匹配。")
+        current_app.logger.warning("[SplitTask Fail] 无效的源脚本 ID 或类型不匹配。")
         return jsonify({'error': '无效的源最终TTS脚本ID或类型不匹配'}), 400
         
     training_content = source_final_script.training_content
@@ -852,7 +849,7 @@ def split_script_into_sentences_route(source_final_script_id):
             db.session.flush() # ⭐ 关键：尝试在这里 flush 以暴露早期问题
             current_app.logger.info(f"[SplitTask] Flush 成功。新脚本内存中 ID: {new_final_script.id} (如果数据库生成了)。")
             if not new_final_script.id: # 对于 UUID，SQLAlchemy 应该在 add 后就能填充，但 flush 是一个检查点
-                 current_app.logger.warning(f"[SplitTask] Flush 后 new_final_script 仍然没有 ID (这对于自增ID是正常的，但对于UUID可能意味着问题或延迟填充)。")
+                 current_app.logger.warning("[SplitTask] Flush 后 new_final_script 仍然没有 ID (这对于自增ID是正常的，但对于UUID可能意味着问题或延迟填充)。")
         except Exception as e_flush_script:
             db.session.rollback()
             current_app.logger.error(f"[SplitTask Fail] Flush new_final_script 时出错: {e_flush_script}", exc_info=True)
@@ -963,9 +960,9 @@ def split_script_into_sentences_route(source_final_script_id):
         training_content.status = 'pending_audio_generation' 
         db.session.add(training_content) # 确保状态更新也被加入
 
-        current_app.logger.info(f"[SplitTask] 即将提交所有更改到数据库 (新脚本版本、句子、复用语音记录、内容状态)...")
+        current_app.logger.info("[SplitTask] 即将提交所有更改到数据库 (新脚本版本、句子、复用语音记录、内容状态)...")
         db.session.commit() # ⭐ 最终提交
-        current_app.logger.info(f"[SplitTask] 数据库提交成功。")
+        current_app.logger.info("[SplitTask] 数据库提交成功。")
         
         # 在 commit 后再次确认新脚本是否真的写入了
         persisted_script = TtsScript.query.get(new_final_script.id if new_final_script.id else '00000000-0000-0000-0000-000000000000') # 用一个无效UUID避免None错误

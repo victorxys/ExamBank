@@ -4,10 +4,8 @@ import psycopg2
 import os
 from dotenv import load_dotenv
 import uuid
-from dateutil import parser
 import logging
 import json
-from werkzeug.utils import safe_join
 from backend.security_utils import generate_password_hash
 from werkzeug.security import check_password_hash 
 from psycopg2.extras import RealDictCursor, register_uuid # 确保导入
@@ -16,7 +14,7 @@ from psycopg2.extras import RealDictCursor, register_uuid # 确保导入
 import traceback
 # 配置密码加密方法为pbkdf2
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity,get_jwt
-from datetime import timedelta, datetime
+from datetime import timedelta
 import datetime as dt
 
 # --- 从 extensions 导入 ---
@@ -26,7 +24,7 @@ from backend.api.temp_answer import save_temp_answer, get_temp_answers, mark_tem
 from backend.api.evaluation import get_evaluation_items, get_user_evaluations, update_evaluation
 from backend.api.user_profile import get_user_profile
 from backend.db import get_db_connection
-from backend.models import db, TrainingCourse, User, UserCourseAccess # 
+from backend.models import db, User, UserCourseAccess # 
 from backend.tasks import run_llm_function_async # <<<--- 确保导入通用任务
 
 # from backend.api.evaluation_visibility import bp as evaluation_visibility_bp
@@ -187,7 +185,6 @@ db.init_app(app)
 migrate.init_app(app, db)
 # --- 将模型导入移到这里，并在应用上下文中 ---
 with app.app_context():
-    from . import models # <<--- 模型导入在这里
     print("DEBUG [app.py]: Checking db.metadata after app context and model import...")
     print(f"DEBUG [app.py]: db.metadata.tables keys: {list(db.metadata.tables.keys())}")
     if 'course_resource' in db.metadata.tables:
@@ -1603,7 +1600,6 @@ def get_evaluation_structure():
 @app.route('/api/users/<user_id>/evaluations', methods=['GET'])
 def get_user_evaluations_route(user_id):
     # *** 假设 get_user_evaluations 函数已移至 evaluation.py 并已修改 ***
-    from backend.api.evaluation import get_user_evaluations
     return get_user_evaluations(user_id)
 
 @app.route('/api/user-evaluation/<user_id>', methods=['POST'])
@@ -3116,7 +3112,7 @@ def get_evaluation_detail(evaluation_id):
             GROUP BY e.id, e.evaluation_time, e.additional_comments, evaluator_name, evaluator_title, evaluation_type
         """
         params_main = (evaluation_id,)
-        print(f"--- Executing SQL for main evaluation info ---")
+        print("--- Executing SQL for main evaluation info ---")
         print(f"SQL: {sql_main}")
         print(f"Params: {params_main}")
         cur.execute(sql_main, params_main)
@@ -3336,7 +3332,7 @@ def create_evaluation_route():
                     if params_detail:
                         sql_detail = "INSERT INTO evaluation_detail (evaluation_id, item_id, score) VALUES " + ", ".join(values_str_detail)
                         # *** 打印最终的 SQL 和 参数 ***
-                        print(f"  Executing SQL for evaluation_detail:")
+                        print("  Executing SQL for evaluation_detail:")
                         print(f"    SQL: {sql_detail}")
                         print(f"    Params: {tuple(params_detail)}")
                         cur.execute(sql_detail, tuple(params_detail))
@@ -3381,7 +3377,7 @@ def create_evaluation_route():
                                     values_str_manual.append("(%s, %s, %s)")
                                     params_manual.extend([evaluation_id, category_id, manual_input.strip()]) # *** 使用 category_id ***
                                 else:
-                                    print(f"    Skipping empty manual input.")
+                                    print("    Skipping empty manual input.")
                         else:
                             print(f"    Skipping category {category_id_str} as manual input is not allowed.")
 
@@ -3389,7 +3385,7 @@ def create_evaluation_route():
                     if params_manual:
                         sql_manual = "INSERT INTO evaluation_manual_input (evaluation_id, category_id, manual_input) VALUES " + ", ".join(values_str_manual)
                         # *** 打印最终的 SQL 和 参数 ***
-                        print(f"  Executing SQL for evaluation_manual_input:")
+                        print("  Executing SQL for evaluation_manual_input:")
                         print(f"    SQL: {sql_manual}")
                         print(f"    Params: {tuple(params_manual)}")
                         cur.execute(sql_manual, tuple(params_manual))
@@ -3521,7 +3517,7 @@ def get_knowledge_point_summary(exam_id):
         cur.execute(query, (exam_id,))
         records = cur.fetchall()
         return jsonify(records)
-    except Exception as e:
+    except Exception:
         raise
     else:
         pass

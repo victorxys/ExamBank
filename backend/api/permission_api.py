@@ -1,7 +1,6 @@
 # backend/api/permission_api.py
 from flask import Blueprint, request, jsonify, current_app
-from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
-import uuid
+from flask_jwt_extended import jwt_required, get_jwt
 from datetime import datetime, timedelta, time
 from sqlalchemy import func
 from backend.models import db, User, TrainingCourse, CourseResource, UserCourseAccess, UserResourceAccess

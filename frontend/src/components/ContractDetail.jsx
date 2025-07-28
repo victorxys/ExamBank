@@ -198,6 +198,7 @@ const ContractDetail = () => {
                                         <TableRow>
                                             <TableCell>账单周期 (所属月份)</TableCell>
                                             <TableCell>服务周期</TableCell>
+                                            <TableCell>劳务天数</TableCell>
                                             <TableCell>加班天数</TableCell>
                                             <TableCell>应付金额</TableCell>
                                             <TableCell>支付状态</TableCell>
@@ -209,6 +210,12 @@ const ContractDetail = () => {
                                             <TableRow key={bill.id} hover>
                                                 <TableCell>{bill.billing_period}</TableCell>
                                                 <TableCell>{formatDate(bill.cycle_start_date)} ~ {formatDate(bill.cycle_end_date)}</TableCell>
+                                                 <TableCell>
+                                                    {bill.base_work_days} 天
+                                                    {bill.is_substitute_bill && (
+                                                        <Chip label="替" size="small" color="info" sx={{ ml: 1 }} />
+                                                    )}
+                                                </TableCell>
                                                 <TableCell>{bill.overtime_days} 天</TableCell>
                                                 <TableCell sx={{fontWeight: 'bold'}}>¥{bill.total_payable}</TableCell>
                                                 <TableCell><Chip label={bill.status} color={bill.status === '已支付' ? 'success' : 'warning'} size="small" /></TableCell>

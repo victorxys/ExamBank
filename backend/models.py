@@ -5,11 +5,10 @@ from sqlalchemy import Enum as SAEnum
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID, JSONB as PG_JSONB, ARRAY
 from sqlalchemy import (
-    Integer, String, Text, Boolean, DateTime, ForeignKey, func, 
-    UniqueConstraint, CheckConstraint, Index, Numeric, Enum as SAEnum, BigInteger, Table,
-    ForeignKeyConstraint, PrimaryKeyConstraint
+    func, 
+    UniqueConstraint, CheckConstraint, Index, ForeignKeyConstraint, PrimaryKeyConstraint
 )
-from sqlalchemy.orm import relationship, backref
+from sqlalchemy.orm import backref
 from datetime import datetime
 from .extensions import db
 
@@ -211,8 +210,8 @@ class TrainingContent(db.Model):
     course = db.relationship('TrainingCourse', backref=backref('training_contents', lazy='dynamic', cascade='all, delete-orphan'))
     uploader = db.relationship('User', backref=backref('uploaded_training_contents', lazy='dynamic'))
 
-    oral_prompt = db.relationship('LlmPrompt', foreign_keys=[llm_oral_prompt_id], backref=backref('training_contents_as_oral_prompt', lazy='dynamic'))
-    refine_prompt = db.relationship('LlmPrompt', foreign_keys=[llm_refine_prompt_id], backref=backref('training_contents_as_refine_prompt', lazy='dynamic'))
+    oral_prompt = db.relationship('LlmPrompt', foreign_keys=[llm_oral_prompt_id], back_populates='training_contents_where_oral_prompt')
+    refine_prompt = db.relationship('LlmPrompt', foreign_keys=[llm_refine_prompt_id], back_populates='training_contents_where_refine_prompt')
 
     tts_scripts = db.relationship('TtsScript', backref='training_content', lazy='dynamic', cascade='all, delete-orphan', order_by='TtsScript.created_at')
     merged_audios = db.relationship('TtsAudio', lazy='dynamic', cascade='all, delete-orphan',
@@ -548,18 +547,16 @@ class LlmPrompt(db.Model):
     
     training_contents_where_oral_prompt = db.relationship(
         'TrainingContent', 
-        foreign_keys=[TrainingContent.llm_oral_prompt_id], # 指定外键来源
-        back_populates='llm_oral_prompt', # 对应 TrainingContent 上的关系名
-        lazy='dynamic',
-        viewonly=True
+        foreign_keys=[TrainingContent.llm_oral_prompt_id],
+        back_populates='oral_prompt', 
+        lazy='dynamic'
     )
     
     training_contents_where_refine_prompt = db.relationship(
         'TrainingContent', 
         foreign_keys=[TrainingContent.llm_refine_prompt_id],
-        back_populates='llm_refine_prompt',
-        lazy='dynamic',
-        viewonly=True
+        back_populates='refine_prompt',
+        lazy='dynamic'
     )
     def __repr__(self):
         return f'<LlmPrompt {self.prompt_name} (v{self.version})>'
@@ -1041,7 +1038,7 @@ class FinancialActivityLog(db.Model):
 class CustomerBill(db.Model):
     __tablename__ = 'customer_bills'
     __table_args__ = (
-       db.UniqueConstraint('contract_id', 'year', 'month', 'cycle_start_date','source_substitute_record_id', name='uq_bill_contract_period'),
+        db.UniqueConstraint('contract_id', 'cycle_start_date', 'is_substitute_bill', name='uq_bill_contract_cycle_is_sub'),
     )
     
     
@@ -1081,7 +1078,7 @@ class CustomerBill(db.Model):
 class EmployeePayroll(db.Model):
     __tablename__ = 'employee_payrolls'
     __table_args__ = (
-        db.UniqueConstraint('contract_id', 'year', 'month', 'cycle_start_date', 'source_substitute_record_id', name='uq_payroll_contract_period'),
+        db.UniqueConstraint('contract_id', 'cycle_start_date', 'is_substitute_payroll', name='uq_payroll_contract_cycle_is_sub'),
     )
     
     id = db.Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -1159,6 +1156,7 @@ class SubstituteRecord(db.Model):
     # 替班人员的ID (可以是内部User或外部ServicePersonnel)
     substitute_user_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True)
     substitute_personnel_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('service_personnel.id', ondelete='SET NULL'), nullable=True)
+    substitute_type = db.Column(db.String(50), nullable=False, comment='替班人员类型 (maternity_nurse, nanny)')
     
     # 替班期间的薪资标准和管理费
     substitute_salary = db.Column(db.Numeric(10, 2), nullable=False, comment='替班期间的月薪标准')

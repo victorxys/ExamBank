@@ -1,9 +1,9 @@
 # backend/api/ai_generate.py
-import os
 import time # 用于计时
 import json # 确保导入 json
 from flask import current_app # 用于日志记录
 from google import genai
+# import google.generativeai as genai
 from google.genai import types
 # from dotenv import load_dotenv # 如果 API Key 从数据库读取，这个可能不再直接需要
 import uuid # 用于用户 ID
@@ -20,7 +20,6 @@ import datetime # 如果 to_dict 在此文件且用到 datetime
 import httpx
 import base64
 import wave
-import io # 用于处理音频数据
 
 
 import struct # 用于 convert_to_wav
@@ -615,7 +614,7 @@ def generate_audio_with_gemini_tts(
     prefix_prompt = "你是一名专业育儿嫂培训师，请用口语化的培训师的口吻以及标准的普通话来讲解以下内容："
     final_text_to_speak = f"{prefix_prompt}{text_to_speak}"
 
-    current_app.logger.info(f"Gemini TTS (Manual Client): Starting generation...")
+    current_app.logger.info("Gemini TTS (Manual Client): Starting generation...")
     if proxy_url:
         current_app.logger.info(f"Gemini TTS (Manual Client): Using proxy: {proxy_url}")
     
@@ -742,7 +741,6 @@ def generate_audio_with_gemini_tts(
 def _convert_pcm_to_wav_bytes(pcm_data: bytes, sample_rate: int = 24000) -> bytes:
     """一个辅助函数，将原始的L16 
     PCM数据打包成一个内存中的WAV文件"""
-    import io
     
     buffer = io.BytesIO()
     with wave.open(buffer, 'wb') as wf:

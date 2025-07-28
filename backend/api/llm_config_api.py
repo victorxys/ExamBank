@@ -1,10 +1,9 @@
 # backend/api/llm_config_api.py
 from flask import Blueprint, request, jsonify, current_app
 from backend.models import LlmModel, LlmApiKey, LlmPrompt, db
-from backend.security_utils import encrypt_data, decrypt_data # 确认路径正确
+from backend.security_utils import encrypt_data # 确认路径正确
 from sqlalchemy.exc import IntegrityError
 from flask_jwt_extended import jwt_required, get_jwt # 用于权限控制
-import uuid
 
 llm_config_bp = Blueprint('llm_config', __name__, url_prefix='/api/llm-config')
 

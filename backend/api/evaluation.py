@@ -1,4 +1,4 @@
-from flask import jsonify, request
+from flask import jsonify
 from ..db import get_db_connection
 from psycopg2.extras import RealDictCursor
 import traceback # <--- 添加这一行导入

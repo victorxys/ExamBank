@@ -1,10 +1,10 @@
 # backend/security_utils.py
 
-from werkzeug.security import generate_password_hash as _generate_password_hash, check_password_hash
+from werkzeug.security import generate_password_hash as _generate_password_hash
 import os
 from cryptography.fernet import Fernet
 from dotenv import load_dotenv
-from flask import current_app, Flask # 导入 Flask 以便在没有 app 上下文时创建临时 app
+from flask import current_app # 导入 Flask 以便在没有 app 上下文时创建临时 app
 import logging # 使用标准的 logging
 
 # 配置一个基础的 logger，以防 current_app 不可用
@@ -57,7 +57,7 @@ def get_fernet_instance_for_script():
     encryption_key_str = os.environ.get(ENCRYPTION_KEY_ENV_VAR)
     if not encryption_key_str:
         logger.error(f"错误: 环境变量 '{ENCRYPTION_KEY_ENV_VAR}' 未设置。请在 .env 文件中设置它。")
-        logger.info(f"你可以使用以下Python代码生成一个新的密钥: from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
+        logger.info("你可以使用以下Python代码生成一个新的密钥: from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
         raise ValueError(f"环境变量 '{ENCRYPTION_KEY_ENV_VAR}' 未设置。")
     try:
         return Fernet(encryption_key_str.encode())
@@ -76,7 +76,7 @@ def get_fernet():
         encryption_key_str = os.environ.get(ENCRYPTION_KEY_ENV_VAR)
         if not encryption_key_str:
             effective_logger.error(f"关键错误: 环境变量 '{ENCRYPTION_KEY_ENV_VAR}' 未设置。请在 .env 文件中设置它。")
-            effective_logger.info(f"你可以使用以下Python代码生成一个新的密钥: from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
+            effective_logger.info("你可以使用以下Python代码生成一个新的密钥: from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
             # 在应用运行时，如果密钥缺失，应该抛出异常阻止应用不安全地运行
             raise RuntimeError(f"关键配置缺失: 环境变量 '{ENCRYPTION_KEY_ENV_VAR}' 未设置。应用无法安全运行。")
         
@@ -108,7 +108,6 @@ def decrypt_data(encrypted_data: str, use_script_fernet=False) -> str:
         return "" # 对于解密失败，返回空字符串可能比抛出异常更安全，防止敏感信息泄露
 
 # 你已有的密码哈希函数
-from werkzeug.security import generate_password_hash as _generate_password_hash, check_password_hash
 
 def generate_password_hash(password):
     return _generate_password_hash(password, method='pbkdf2:sha256')
