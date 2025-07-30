@@ -8,5 +8,6 @@ def run_test():
     http_diagnose_task.delay()
     print("任务已提交。请观察Celery Worker的终端输出。")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     run_test()

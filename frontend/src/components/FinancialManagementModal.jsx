@@ -348,6 +348,7 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
     };
     const renderCardContent = (data, isCustomer, billingDetails) => {
         if (!data || !data.groups) return null;
+        const isSubstituteBill = data.calculation_details?.type === 'substitute';
 
         // 从 calculation_details 中提取替班天数和费用
         const substituteDays = data.calculation_details?.substitute_days;
@@ -368,6 +369,9 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                         <Divider textAlign="left" sx={{ mb: 1.5 }}><Typography variant="overline" color="text.secondary">{group.name}</Typography></Divider>
                         <Grid container rowSpacing={1.5} columnSpacing={2}>
                             {(fieldOrder[group.name] || Object.keys(group.fields)).map(key => {
+                                if (isSubstituteBill && (key === '客交保证金' || key === '首月员工10%费用' || key === '定金' || key === '优惠')) {
+                                    return null;
+                                }
                                 if (key === '替班天数') {
                                     if (!substituteDays || Number(substituteDays) === 0) return null;
                                     return (
@@ -566,43 +570,85 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                     {loading ? (<Box sx={{ display: 'flex', justifyContent: 'center', p: 5 }}><CircularProgress /></Box>) 
                     : billingDetails ? (
                         <Grid container spacing={3}>
-                            <Grid item xs={12} md={6}><Paper sx={{ p: 3, borderRadius: 2, boxShadow: 1 }}><Typography variant="h6" gutterBottom>客户账单</Typography>{renderCardContent(customerData, true, billingDetails)}</Paper></Grid>
-                            <Grid item xs={12} md={6}><Paper sx={{ p: 3, borderRadius: 2, boxShadow: 1 }}><Typography variant="h6" gutterBottom>员工薪酬</Typography>{renderCardContent(employeeData, false, billingDetails)}</Paper></Grid>
+                            <Grid item xs={12} md={6}>
+                                <Paper sx={{ p: 3, borderRadius: 2, boxShadow: 1 }}>
+                                    <Typography variant="h6" gutterBottom component="div" sx={{ display: 'flex', alignItems: 'center' }}>
+                                        客户账单
+                                        {customerData.calculation_details?.type === 'substitute' && <Chip label="替" color="warning" size="small" sx={{ ml: 1 }} />}
+                                    </Typography>
+                                    {renderCardContent(customerData, true, billingDetails)}
+                                </Paper>
+                            </Grid>
+                            <Grid item xs={12} md={6}>
+                                <Paper sx={{ p: 3, borderRadius: 2, boxShadow: 1 }}>
+                                    <Typography variant="h6" gutterBottom component="div" sx={{ display: 'flex', alignItems: 'center' }}>
+                                        员工薪酬
+                                        {employeeData.calculation_details?.type === 'substitute' && <Chip label="替" color="warning" size="small" sx={{ ml: 1 }} />}
+                                    </Typography>
+                                    {renderCardContent(employeeData, false, billingDetails)}
+                                </Paper>
+                            </Grid>
+                            {/* // 只在非替班账单中显示“替班记录”板块 */}
                             {!billingDetails?.is_substitute_bill && (
-                                <Grid item xs={12}>
-                                    <Paper sx={{ p: 3, borderRadius: 2, boxShadow: 1 }}>
-                                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                                            <Typography variant="h6">替班记录</Typography>
-                                            <Button
-                                                variant="outlined"
-                                                size="small"
-                                                startIcon={<PeopleAltIcon />}
-                                                onClick={handleOpenSubstituteDialog}
-                                                disabled={isEditMode}
-                                            >
-                                                添加替班记录
-                                            </Button>
-                                        </Box>
-                                        <List dense>
-                                            {substituteRecords.length > 0 ? substituteRecords.map(record => (
-                                                <ListItem key={record.id}>
-                                                    <ListItemText
-                                                        primary={`${record.substitute_user_name} (日薪: ¥${record.substitute_salary})`}
-                                                        secondary={`从 ${formatDate(record.start_date)} 到 ${formatDate(record.end_date)}`}
-                                                    />
-                                                    <ListItemSecondaryAction>
-                                                        <IconButton edge="end" aria-label="delete" disabled={isEditMode} onClick={() => handleDeleteSubstitute(record.id)}>
-                                                            <DeleteIcon />
-                                                        </IconButton>
-                                                    </ListItemSecondaryAction>
-                                                </ListItem>
-                                            )) : (
-                                                <Typography variant="body2" color="text.secondary" sx={{ pl: 2 }}>暂无替班记录</Typography>
-                                            )}
-                                        </List>
-                                    </Paper>
-                                </Grid>
-                            )}
+    <Grid item xs={12}>
+        <Paper sx={{ p: 3, borderRadius: 2, boxShadow: 1 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Typography variant="h6">替班记录</Typography>
+                <Button
+                    variant="outlined"
+                    size="small"
+                    startIcon={<PeopleAltIcon />}
+                    onClick={handleOpenSubstituteDialog}
+                    disabled={isEditMode}
+                >
+                    添加替班记录
+                </Button>
+            </Box>
+            {(() => {
+                // --- 调试开始 ---
+                console.log("--- 替班记录过滤调试 ---");
+
+                // 1. 获取当前主账单的 ID
+                const currentBillId = billingDetails?.customer_bill_details?.id;
+                console.log("当前账单ID (currentBillId):", currentBillId);
+                console.log("所有替班记录 (substituteRecords):", substituteRecords);
+
+                // 2. 使用 currentBillId 过滤出直接关联的替班记录
+                const relevantSubstituteRecords = substituteRecords.filter(record => {
+                    const isMatch = currentBillId && record.original_customer_bill_id === currentBillId;
+                    // 打印每一条记录的匹配过程
+                    // console.log(`记录ID: ${record.id}, 关联账单ID: ${record.original_customer_bill_id}, 是否匹配: ${isMatch}`);
+                    return isMatch;
+                });
+
+                console.log("过滤后的关联记录 (relevantSubstituteRecords):", relevantSubstituteRecords);
+                console.log("--- 调试结束 ---");
+                // --- 调试结束 ---
+
+                // 3. 渲染过滤后的列表
+                return (
+                    <List dense>
+                        {relevantSubstituteRecords.length > 0 ? relevantSubstituteRecords.map(record => (
+                            <ListItem key={record.id}>
+                                <ListItemText
+                                    primary={`${record.substitute_user_name} (日薪: ¥${record.substitute_salary})`}
+                                    secondary={`从 ${formatDate(record.start_date)} 到 ${formatDate(record.end_date)}`}
+                                />
+                                <ListItemSecondaryAction>
+                                    <IconButton edge="end" aria-label="delete" disabled={isEditMode} onClick={() =>handleDeleteSubstitute(record.id)}>
+                                        <DeleteIcon />
+                                    </IconButton>
+                                </ListItemSecondaryAction>
+                            </ListItem>
+                        )) : (
+                            <Typography variant="body2" color="text.secondary" sx={{ pl: 2 }}>本期账单无关联的替班记录</Typography>
+                        )}
+                    </List>
+                );
+            })()}
+        </Paper>
+    </Grid>
+)}
                             <Grid item xs={12}>
                                 <Paper sx={{ p: 3, borderRadius: 2, boxShadow: 1 }}>
                                     <Typography variant="h6" gutterBottom>结算与发票状态</Typography>

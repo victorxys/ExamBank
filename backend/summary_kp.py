@@ -5,6 +5,7 @@ import json
 from db import get_db_connection
 from psycopg2.extras import RealDictCursor
 
+
 def get_exam_detail_byid(exam_take_id):
     # 通过exam表的id 考试id获取考试详情
     print("开始获取考试记录详情，考试ID：", exam_take_id)
@@ -12,7 +13,7 @@ def get_exam_detail_byid(exam_take_id):
     cur = conn.cursor(cursor_factory=RealDictCursor)
     try:
         # 获取答题详情
-        detail_query = '''
+        detail_query = """
             WITH option_numbers AS (
                 SELECT 
                     id,
@@ -86,24 +87,25 @@ def get_exam_detail_byid(exam_take_id):
                 ) as debug_output
             FROM debug_info
             ORDER BY question_order;
-        '''
-        
+        """
+
         detail_params = [exam_take_id]
         cur.execute(detail_query, detail_params)
         questions = cur.fetchall()
         # print("questions===",questions)
         if questions:
             print("执行summary_knowledge_by_ai")
-            summary_knowledge_by_ai(questions,exam_take_id)
+            summary_knowledge_by_ai(questions, exam_take_id)
         # return json.dumps(questions, ensure_ascii=False, indent=4) #使用json.dumps代替jsonify
 
         # return jsonify(questions)
     except Exception as e:
-        print('Error in get_exam_detail_byid:', str(e))
+        print("Error in get_exam_detail_byid:", str(e))
         # return jsonify({'error': str(e)}), 500
     finally:
         cur.close()
         conn.close()
+
 
 def insert_exam_knowledge_points(exam_id, total_score, data):
     """
@@ -141,33 +143,28 @@ def insert_exam_knowledge_points(exam_id, total_score, data):
             conn.close()
 
 
-def summary_knowledge_by_ai(exam_date,exam_take_id):
-    kp_coreects=[]
+def summary_knowledge_by_ai(exam_date, exam_take_id):
+    kp_coreects = []
     for exam_detail in exam_date:
-        if(exam_detail['is_correct']):
+        if exam_detail["is_correct"]:
             kp_coreect = {
-                        'knowledge_point_name' : exam_detail['knowledge_point'],
-                        'if_get' : '已掌握',
-                    }
+                "knowledge_point_name": exam_detail["knowledge_point"],
+                "if_get": "已掌握",
+            }
         else:
             kp_coreect = {
-                        'knowledge_point_name' : exam_detail['knowledge_point'],
-                        'if_get' : '未掌握',
-                    }
+                "knowledge_point_name": exam_detail["knowledge_point"],
+                "if_get": "未掌握",
+            }
 
         kp_coreects.append(kp_coreect)
     # print("kp_coreects",kp_coreects)
     from api.ai_generate import merge_kp_name
+
     merge_kp_result = merge_kp_name(kp_coreects)
     merge_kp_result_json = json.dumps(merge_kp_result, ensure_ascii=False)
-    
-    insert_exam_knowledge_points(exam_take_id,0,merge_kp_result_json)
+
+    insert_exam_knowledge_points(exam_take_id, 0, merge_kp_result_json)
 
 
-
-get_exam_detail_byid("96e146d4-d5ad-4337-a3ff-5069c095152b")    
-
-
-
-
-
+get_exam_detail_byid("96e146d4-d5ad-4337-a3ff-5069c095152b")

@@ -29,7 +29,7 @@ def sync_user():
     log.debug(f"Received user sync data: {data}")
 
     # 配置默认邮箱
-    if  "email" not in data or data["email"] == "":
+    if "email" not in data or data["email"] == "":
         data["email"] = f"{data['phone_number']}@mengyimengsao.com"
         log.debug(f"Default email set for user {data['myms_user_id']}: {data['email']}")
 
