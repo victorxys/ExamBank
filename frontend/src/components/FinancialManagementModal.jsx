@@ -349,6 +349,7 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
     const renderCardContent = (data, isCustomer, billingDetails) => {
         if (!data || !data.groups) return null;
         const isSubstituteBill = data.calculation_details?.type === 'substitute';
+        const isTrialTerminationBill = data.calculation_details?.type === 'nanny_trial_termination';
 
         // 从 calculation_details 中提取替班天数和费用
         const substituteDays = data.calculation_details?.substitute_days;
@@ -356,7 +357,7 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
 
         const currentAdjustments = adjustments.filter(adj => AdjustmentTypes[adj.adjustment_type]?.type === (isCustomer ? 'customer' : 'employee'));
         const fieldOrder = {
-            "级别与保证金": ["级别", "客交保证金", "定金"],
+            "级别与保证金": ["级别", "客交保证金", "定金", "介绍费", "合同备注"],
             "劳务周期": ["劳务时间段", "基本劳务天数", "加班天数", "替班天数", "总劳务天数"],
             "费用明细": ["管理费率", "管理费", "本次交管理费", "基础劳务费", "试工费", "加班费", "被替班费用", "优惠"],
             "薪酬明细": ["萌嫂保证金(工资)", "试工费", "基础劳务费", "加班费", "被替班费用", "5%奖励", "首月员工10%费用"],
@@ -369,38 +370,34 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                         <Divider textAlign="left" sx={{ mb: 1.5 }}><Typography variant="overline" color="text.secondary">{group.name}</Typography></Divider>
                         <Grid container rowSpacing={1.5} columnSpacing={2}>
                             {(fieldOrder[group.name] || Object.keys(group.fields)).map(key => {
+                                // =================== 核心显示逻辑 ===================
+                                // 根据账单类型，条件渲染字段
+                                if (isTrialTerminationBill) {
+                                    // 试工账单：隐藏“客交保证金”和“定金”
+                                    if (key === '客交保证金' || key === '定金') return null;
+                                } else {
+                                    // 非试工账单：隐藏“介绍费”和“合同备注”
+                                    if (key === '介绍费' || key === '合同备注') return null;
+                                }
+
+                                // 通用逻辑：隐藏替班账单中的某些字段
                                 if (isSubstituteBill && (key === '客交保证金' || key === '首月员工10%费用' || key === '定金' || key === '优惠')) {
                                     return null;
                                 }
-                                if (key === '替班天数') {
-                                    if (!substituteDays || Number(substituteDays) === 0) return null;
-                                    return (
-                                        <React.Fragment key="substitute_days">
-                                            <Grid item xs={5}><Typography variant="body2" color="text.secondary">被替班天数:</Typography></Grid>
-                                            <Grid item xs={7} sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
-                                                <Typography variant="body1" sx={{ textAlign: 'right', fontWeight: 500, fontFamily: 'monospace', color: 'warning.main' }}>
-                                                    {formatValue('替班天数', substituteDays)}
-                                                </Typography>
-                                            </Grid>
-                                        </React.Fragment>
-                                    );
-                                }
+                                
+                                // 如果字段不存在，则不渲染
+                                if (!group.fields.hasOwnProperty(key)) return null;
+                                const value = group.fields[key];
 
-                                if (key === '被替班费用') {
-                                    if (!substituteDeduction || Number(substituteDeduction) === 0) return null;
-                                    const tooltipContent = getTooltipContent(key, billingDetails, isCustomer);
+                                // 特殊处理“合同备注”的渲染
+                                if (key === '合同备注') {
                                     return (
-                                        <React.Fragment key="substitute_deduction">
-                                            <Grid item xs={5}><Typography variant="body2" color="text.secondary">被替班扣款:</Typography></Grid>
-                                            <Grid item xs={7} sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
-                                                <Typography variant="body1" sx={{ textAlign: 'right', fontWeight: 500, fontFamily: 'monospace', color: 'error.main' }}>
-                                                    {formatValue(key, substituteDeduction)}
+                                        <React.Fragment key={key}>
+                                            <Grid item xs={5}><Typography variant="body2" color="text.secondary">{key}:</Typography></Grid>
+                                            <Grid item xs={7} sx={{ textAlign: 'right' }}>
+                                                <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', wordBreak: 'break-all', fontStyle: 'italic', color: 'text.secondary' }}>
+                                                    {value || '—'}
                                                 </Typography>
-                                                {tooltipContent && !isEditMode && (
-                                                    <Tooltip title={tooltipContent} arrow>
-                                                        <InfoIcon sx={{ fontSize: '1rem', color: 'action.active', ml: 0.5, cursor: 'help' }} />
-                                                    </Tooltip>
-                                                )}
                                             </Grid>
                                         </React.Fragment>
                                     );
@@ -420,11 +417,8 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                                     );
                                 }
 
-                                if (!group.fields[key]) return null;
-                                const value = group.fields[key];
                                 const isOvertimeFeeField = key === '加班费';
                                 const tooltipContent = getTooltipContent(key, billingDetails, isCustomer);
-                                // 新增的逻辑：如果字段是“5%奖励”且值为0或“待计算”，则不显示
                                 if (key === '5%奖励' && (Number(value) === 0 || value === '待计算')) {
                                     return null;
                                 }
@@ -495,7 +489,7 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                 <Box>
                     <Divider textAlign="left" sx={{ mb: 1.5 }}><Typography variant="overline" color="text.secondary">最终结算</Typography></Divider>
                     <Grid container>
-                        {Object.entries(data.final_amount).map(([key, value]) => {
+                        {Object.entries(data.final_amount || {}).map(([key, value]) => {
                             const tooltipContent = getTooltipContent(key, billingDetails);
                             return (
                                 <React.Fragment key={key}>

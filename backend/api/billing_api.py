@@ -5,6 +5,8 @@ from flask_jwt_extended import jwt_required
 from sqlalchemy import or_, case, and_
 from sqlalchemy.orm import with_polymorphic, attributes
 from flask_jwt_extended import get_jwt_identity
+from dateutil.parser import parse as date_parse
+
 
 
 from datetime import date, timedelta
@@ -21,6 +23,7 @@ from backend.models import (
     ServicePersonnel,
     NannyContract,
     MaternityNurseContract,
+    NannyTrialContract,
     AttendanceRecord,
     CustomerBill,
     EmployeePayroll,
@@ -167,13 +170,19 @@ def _get_billing_details_internal(
             is_substitute_payroll=employee_payroll.is_substitute_payroll,
         )
 
-    adjustments = FinancialAdjustment.query.filter(
-        or_(
-            FinancialAdjustment.customer_bill_id == customer_bill.id,
-            FinancialAdjustment.employee_payroll_id
-            == (employee_payroll.id if employee_payroll else None),
-        )
-    ).all()
+    # --- Gemini Final Fix: Start ---
+    # 重构查询逻辑，确保只获取与当前账单或薪酬单严格关联的调整项
+    adjustment_filters = []
+    if customer_bill:
+        adjustment_filters.append(FinancialAdjustment.customer_bill_id == customer_bill.id)
+    
+    if employee_payroll:
+        adjustment_filters.append(FinancialAdjustment.employee_payroll_id == employee_payroll.id)
+
+    adjustments = []
+    if adjustment_filters:
+        adjustments = FinancialAdjustment.query.filter(or_(*adjustment_filters)).all()
+    # --- Gemini Final Fix: End ---
 
     # --- 获取加班天数 ---
     overtime_days = 0
@@ -187,6 +196,14 @@ def _get_billing_details_internal(
         ).first()
         if attendance_record:
             overtime_days = attendance_record.overtime_days
+
+    # --- Gemini Final Fix for issue #3: Start ---
+    # 在返回账单详情时，补充关联合同的介绍费和备注
+    if contract.type == 'nanny_trial':
+        customer_details['groups'][0]['fields']['介绍费'] = str(getattr(contract, "introduction_fee", "0.00"))
+
+    customer_details['groups'][0]['fields']['合同备注'] = contract.notes or "—"
+    # --- Gemini Final Fix for issue #3: End ---
 
     return {
         "customer_bill_details": customer_details,
@@ -212,7 +229,7 @@ def _get_details_template(contract, cycle_start, cycle_end):
     current_app.logger.info(
         f"[DEBUG] Generating billing details template for contract type: {contract.type}, is_maternity: {is_maternity}, is_nanny: {is_nanny}"
     )
-    days_adjustment = 0
+    days_adjustment = 1
     if contract.type == "nanny" and cycle_start != contract.start_date:
         days_adjustment = 1
     customer_groups = [
@@ -225,6 +242,8 @@ def _get_details_template(contract, cycle_start, cycle_end):
                 "定金": str(getattr(contract, "deposit_amount", 0))
                 if is_maternity
                 else "0.00",
+                "介绍费": str(getattr(contract, "introduction_fee", "0.00")),
+                "合同备注": contract.notes or "—",
             },
         },
         {
@@ -868,20 +887,35 @@ def batch_update_billing_details():
                         {"from": old_overtime, "to": overtime_days},
                     )
         else:
+             # --- 核心修正：同时处理主合同的考勤记录 ---
             attendance_record = AttendanceRecord.query.filter_by(
                 contract_id=bill.contract_id, cycle_start_date=bill.cycle_start_date
             ).first()
+
+            # --- 关键修正：不再假设基础工作日，而是从账单的计算详情中动态获取 ---
+            base_work_days_str = (bill.calculation_details or {}).get('base_work_days')
+            if not base_work_days_str:
+                # 这是一个保护措施，正常情况下已计算的账单必定有此字段
+                return jsonify({"error": "无法确定基础劳务天数，因为账单从未被成功计算过或计算详情已损坏。"}), 500
+
+            base_work_days = int(D(base_work_days_str))
+            new_total_days_worked = base_work_days + overtime_days
+            # --- 结束关键修正 ---
+
             if attendance_record:
                 old_overtime = attendance_record.overtime_days
                 if old_overtime != overtime_days:
+                    # 更新现有记录
                     attendance_record.overtime_days = overtime_days
+                    attendance_record.total_days_worked = new_total_days_worked # <-- 使用动态计算的总天数
                     _log_activity(
                         bill,
                         payroll,
                         "修改加班天数",
                         {"from": old_overtime, "to": overtime_days},
                     )
-            else:  # 如果主合同没有考勤，就创建一个
+            else:
+                # 创建新记录
                 employee_id = (
                     bill.contract.user_id or bill.contract.service_personnel_id
                 )
@@ -891,6 +925,7 @@ def batch_update_billing_details():
                     cycle_start_date=bill.cycle_start_date,
                     cycle_end_date=bill.cycle_end_date,
                     overtime_days=overtime_days,
+                    total_days_worked=new_total_days_worked, # <-- 使用动态计算的总天数
                 )
                 db.session.add(attendance_record)
                 _log_activity(
@@ -998,8 +1033,6 @@ def batch_update_billing_details():
         settlement_status = data.get('settlement_status', {})
         invoice_details_from_frontend = settlement_status.get('invoice_details', {})
         current_app.logger.info(f"[BATCH-UPDATE-5-0] 准备更新结算状态: {settlement_status}")
-
-
         current_app.logger.info(f"[BATCH-UPDATE-5] 准备更新结算状态: {settlement_status}")
         current_app.logger.info(f"[BATCH-UPDATE-6] 准备更新发票详情: {invoice_details_from_frontend}")
 
@@ -1740,7 +1773,7 @@ def get_single_contract_details(contract_id):
             "end_date": contract.end_date.isoformat() if contract.end_date else None,
             "created_at": contract.created_at.isoformat(),
             "contract_type": contract.type,
-            "notes": contract.notes,
+            "notes": contract.notes or "",
             "remaining_months": remaining_months_str,
             "highlight_remaining": highlight_remaining,
         }
@@ -1770,6 +1803,12 @@ def get_single_contract_details(contract_id):
                     "is_monthly_auto_renew": contract.is_monthly_auto_renew,
                     "management_fee_paid_months": contract.management_fee_paid_months,
                     "is_first_month_fee_paid": contract.is_first_month_fee_paid,
+                }
+            )
+        elif contract.type == "nanny_trial":
+            result.update(
+                {
+                    "introduction_fee": str(contract.introduction_fee or 0),
                 }
             )
 
@@ -1833,13 +1872,42 @@ def terminate_contract(contract_id):
         return jsonify({"error": "Termination date is required"}), 400
 
     try:
-        termination_date = datetime.strptime(termination_date_str, "%Y-%m-%d").date()
-    except ValueError:
-        return jsonify({"error": "Invalid date format. Use YYYY-MM-DD."}), 400
+        termination_date = date_parse(termination_date_str).date()
+    except (ValueError, TypeError):
+        return jsonify({"error": "Invalid date format."}), 400
 
     contract = db.session.get(BaseContract, contract_id)
     if not contract:
         return jsonify({"error": "合同未找到"}), 404
+
+    # --- Gemini-generated code: Start ---
+    # 核心逻辑：根据合同类型进行不同的处理
+    if isinstance(contract, NannyTrialContract):
+        # 这是“试工失败”的结算流程
+        try:
+            if termination_date < contract.start_date:
+                return jsonify({"error": "终止日期不能早于合同开始日期"}), 400
+
+            actual_trial_days = (termination_date - contract.start_date).days
+
+            engine = BillingEngine()
+            engine.process_trial_termination(contract, actual_trial_days)
+            
+            # 更新合同状态
+            contract.status = "terminated"
+            contract.end_date = termination_date
+            db.session.commit()
+
+            return jsonify({"message": "育儿嫂试工合同已成功结算并终止。"})
+
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"处理试工合同终止失败: {e}", exc_info=True)
+            return jsonify({"error": f"处理试工失败结算时发生错误: {e}"}), 500
+    # --- Gemini-generated code: End ---
+
+    # --- 原有的通用合同终止逻辑 ---
+    # ... (原有的处理 NannyContract 和其他合同类型的逻辑保持不变) ...
 
     # --- 全新的、精确的退款逻辑 ---
     if isinstance(contract, NannyContract) and not contract.is_monthly_auto_renew:
@@ -1958,7 +2026,7 @@ def terminate_contract(contract_id):
                         date=termination_date,
                     )
                 )
-    elif isinstance(contract, NannyContract) and contract.is_monthly_auto_renew:
+    elif isinstance(contract, NannyContract) and not contract.is_monthly_auto_renew:
         # 1. 找到终止月份的账单
         final_bill = CustomerBill.query.filter(
             CustomerBill.contract_id == contract_id,
@@ -2003,7 +2071,7 @@ def terminate_contract(contract_id):
     # 1. 找到即将被删除的账单和薪酬单的ID
     bills_to_delete_query = CustomerBill.query.with_entities(CustomerBill.id).filter(
         CustomerBill.contract_id == contract_id,
-        CustomerBill.cycle_start_date >= termination_date,
+        CustomerBill.cycle_start_date > termination_date,
     )
     bill_ids_to_delete = [item[0] for item in bills_to_delete_query.all()]
 
@@ -2011,7 +2079,7 @@ def terminate_contract(contract_id):
         EmployeePayroll.id
     ).filter(
         EmployeePayroll.contract_id == contract_id,
-        EmployeePayroll.cycle_start_date >= termination_date,
+        EmployeePayroll.cycle_start_date > termination_date,
     )
     payroll_ids_to_delete = [item[0] for item in payrolls_to_delete_query.all()]
 
@@ -2039,13 +2107,24 @@ def terminate_contract(contract_id):
 
     # +++ 新增：修正最后一个周期的结束日期 +++
     # 查找横跨终止日期的客户账单
+        # +++ 新增：修正最后一个周期的结束日期 +++
+    year_to_recalculate = None
+    month_to_recalculate = None
+
+    # 查找横跨终止日期的客户账单
+    current_app.logger.debug(f"termination_date: {termination_date}")
     final_bill_to_update = CustomerBill.query.filter(
         CustomerBill.contract_id == contract_id,
-        CustomerBill.cycle_start_date < termination_date,
+        CustomerBill.cycle_start_date <= termination_date,
         CustomerBill.cycle_end_date >= termination_date,
     ).first()
 
     if final_bill_to_update:
+        # --- 关键修正：从被修改的账单中获取正确的年月 ---
+        year_to_recalculate = final_bill_to_update.year
+        month_to_recalculate = final_bill_to_update.month
+        # --- 结束修正 ---
+
         final_bill_to_update.cycle_end_date = termination_date
         current_app.logger.info(
             f"已将账单 {final_bill_to_update.id} 的结束日期更新为 {termination_date}"
@@ -2055,13 +2134,34 @@ def terminate_contract(contract_id):
         final_payroll_to_update = EmployeePayroll.query.filter(
             EmployeePayroll.contract_id == contract_id,
             EmployeePayroll.cycle_start_date
-            == final_bill_to_update.cycle_start_date,  # 使用相同的周期开始日来匹配
+            == final_bill_to_update.cycle_start_date,
         ).first()
 
         if final_payroll_to_update:
             final_payroll_to_update.cycle_end_date = termination_date
             current_app.logger.info(
                 f"已将薪酬单 {final_payroll_to_update.id} 的结束日期更新为 {termination_date}"
+            )
+
+        # Find and update the corresponding attendance record
+        attendance_to_update = AttendanceRecord.query.filter(
+            AttendanceRecord.contract_id == contract_id,
+            AttendanceRecord.cycle_start_date
+            == final_bill_to_update.cycle_start_date,
+        ).first()
+        if attendance_to_update:
+            attendance_to_update.cycle_end_date = termination_date
+
+            # --- 核心修复：重新计算总工作天数 ---
+            if attendance_to_update.cycle_start_date and attendance_to_update.cycle_end_date:
+                # 加1是因为天数计算是包含首尾的
+                total_days = (attendance_to_update.cycle_end_date - attendance_to_update.cycle_start_date).days
+                # 加上加班天数
+                overtime_days = attendance_to_update.overtime_days or 0
+                attendance_to_update.total_days_worked = total_days + overtime_days
+
+            current_app.logger.info(
+                f"已将考勤记录 {attendance_to_update.id} 的结束日期更新为 {termination_date} 并重新计算总工时"
             )
 
     # 4. 更新合同状态和结束日期
@@ -2071,22 +2171,26 @@ def terminate_contract(contract_id):
     if contract.type == "maternity_nurse":
         contract.expected_offboarding_date = termination_date
 
-    # 5. 为终止月份触发一次强制重算
-    year = termination_date.year
-    month = termination_date.month
-    calculate_monthly_billing_task.delay(
-        year, month, contract_id=str(contract_id), force_recalculate=True
-    )
+    # 5. 为正确的结算月份触发一次强制重算
+    current_app.logger.debug(f"year_to_recalculate = {year_to_recalculate} month_to_recalculate = {month_to_recalculate}")
+    if year_to_recalculate and month_to_recalculate:
+        calculate_monthly_billing_task.delay(
+            year_to_recalculate, month_to_recalculate, contract_id=str(contract_id), force_recalculate=True
+        )
+        current_app.logger.info(
+            f"Contract {contract_id} terminated on {termination_date}. Recalculation triggered for {year_to_recalculate}-{month_to_recalculate}."
+        )
+    else:
+        # 如果没有找到需要更新的账单（例如，终止日期在所有账单之前），则不触发重算
+        current_app.logger.warning(
+            f"Contract {contract_id} terminated, but no existing bill was found to update and recalculate."
+        )
 
     db.session.commit()
 
-    current_app.logger.info(
-        f"Contract {contract_id} terminated on {termination_date}. Recalculation triggered for {year}-{month}."
-    )
-
     return jsonify(
         {
-            "message": f"Contract {contract_id} has been terminated. Recalculation for {year}-{month} is in progress."
+            "message": f"Contract {contract_id} has been terminated. Recalculation for {year_to_recalculate}-{month_to_recalculate} is in progress."
         }
     )
 

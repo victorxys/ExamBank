@@ -2448,6 +2448,7 @@ def sync_all_contracts_task(self):
                     "end_date": {"field_id": "field_12"},
                     "security_deposit_paid": {"field_id": "field_14"},
                     "management_fee_amount": {"field_id": "field_10"},
+                    "notes": {"field_id": "field_16"},
                 },
             },
             {
@@ -2467,24 +2468,40 @@ def sync_all_contracts_task(self):
                     "deposit_amount": {"field_id": "field_15"},
                     "security_deposit_paid": {"field_id": "field_14"},
                     "management_fee_amount": {"field_id": "field_13"},
+                    "notes": {"field_id": "field_15"},
                 },
             },
+            # {
+            #     "form_token": "sqcCWM",
+            #     "contract_type": "nanny_trial",
+            #     "mapping": {
+            #         "customer_name": {
+            #             "field_id": "field_1",
+            #             "is_association": True,
+            #             "associated_field_id": "field_2",
+            #         },
+            #         "employee_name": {"field_id": "field_2"},
+            #         "employee_phone": {"field_id": "field_3"},
+            #         "employee_level": {"field_id": "field_7"},
+            #         "start_date": {"field_id": "field_8"},
+            #         "end_date": {"field_id": "field_9"},
+            #     },
+            # },
             {
-                "form_token": "sqcCWM",
+                "form_token": "o8CFxx",
                 "contract_type": "nanny_trial",
                 "mapping": {
-                    "customer_name": {
-                        "field_id": "field_1",
-                        "is_association": True,
-                        "associated_field_id": "field_2",
-                    },
-                    "employee_name": {"field_id": "field_2"},
-                    "employee_phone": {"field_id": "field_3"},
-                    "employee_level": {"field_id": "field_7"},
-                    "start_date": {"field_id": "field_8"},
-                    "end_date": {"field_id": "field_9"},
+                    "customer_name": {"field_id": "field_2"},
+                    "employee_name": {"field_id": "field_7"},
+                    "employee_phone": {"field_id": "field_8"},
+                    "employee_level": {"field_id": "field_12"},
+                    "start_date": {"field_id": "field_14"},
+                    "end_date": {"field_id": "field_15"},
+                    "introduction_fee": {"field_id":"field_13"},
+                    "notes": {"field_id": "field_18"},
                 },
             },
+            # "form_token" : "o8CFxx", 
         ]
         try:
             sync_service = DataSyncService()
@@ -2536,12 +2553,14 @@ def calculate_monthly_billing_task(
                 f"Starting monthly billing task for {year}-{month}, Contract: {contract_id}, Force: {force_recalculate}"
             )
             engine = BillingEngine()
+            
             engine.calculate_for_month(
                 year=year,
                 month=month,
                 contract_id=contract_id,
                 force_recalculate=force_recalculate,
             )
+            db.session.commit()
             task_logger.info(
                 f"Finished monthly billing task for {year}-{month}, Contract: {contract_id}"
             )

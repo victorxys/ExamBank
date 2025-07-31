@@ -136,8 +136,9 @@ const ContractDetail = () => {
         '保证金支付': `¥${contract.security_deposit_paid}`,
         '优惠金额': `¥${contract.discount_amount}`,
     } : contract.contract_type === 'nanny_trial' ? {
-        '合同类型': '育儿嫂试工',                 
+        '合同类型': '育儿嫂试工',
         '级别/月薪': `¥${contract.employee_level}`,
+        '介绍费': `¥${contract.introduction_fee}`,
     } : {
         '合同类型': '育儿嫂合同',
         '级别/月薪': `¥${contract.employee_level}`,

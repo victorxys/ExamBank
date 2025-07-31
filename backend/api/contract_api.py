@@ -216,19 +216,28 @@ def terminate_contract(contract_id):
 
     contract = BaseContract.query.get_or_404(contract_id)
 
+    # --- 修复开始: 精确删除未来月份的账单，而不是当月的 ---
+    termination_year = termination_date.year
+    termination_month = termination_date.month
+
+    # 构建查询，查找所有在终止月份之后的账单
     bills_to_delete_query = CustomerBill.query.with_entities(CustomerBill.id).filter(
         CustomerBill.contract_id == contract_id,
-        CustomerBill.cycle_start_date >= termination_date,
+        ((CustomerBill.year == termination_year) & (CustomerBill.month > termination_month)) |
+        (CustomerBill.year > termination_year)
     )
     bill_ids_to_delete = [item[0] for item in bills_to_delete_query.all()]
 
+    # 构建查询，查找所有在终止月份之后的薪酬单
     payrolls_to_delete_query = EmployeePayroll.query.with_entities(
         EmployeePayroll.id
     ).filter(
         EmployeePayroll.contract_id == contract_id,
-        EmployeePayroll.cycle_start_date >= termination_date,
+        ((EmployeePayroll.year == termination_year) & (EmployeePayroll.month > termination_month)) |
+        (EmployeePayroll.year > termination_year)
     )
     payroll_ids_to_delete = [item[0] for item in payrolls_to_delete_query.all()]
+    # --- 修复结束 ---
 
     if bill_ids_to_delete:
         FinancialActivityLog.query.filter(
@@ -258,11 +267,13 @@ def terminate_contract(contract_id):
 
     year = termination_date.year
     month = termination_date.month
+
+    # 关键修复：先提交数据库事务，再触发异步任务，防止并发竞争
+    db.session.commit()
+
     calculate_monthly_billing_task.delay(
         year, month, contract_id=str(contract_id), force_recalculate=True
     )
-
-    db.session.commit()
 
     current_app.logger.info(
         f"Contract {contract_id} terminated on {termination_date}. Recalculation triggered for {year}-{month}."

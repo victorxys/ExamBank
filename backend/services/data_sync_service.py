@@ -210,12 +210,13 @@ class DataSyncService:
                     if contract_type == "nanny_trial":
                         contract_status = "trial_active"
 
-                    # For nanny_trial, employee_level is daily rate * 26, as per form description.
+                    # For nanny_trial, employee_level is daily rate * 30, as per form description.
                     employee_level_raw = self._parse_numeric(
                         contract_data.get("employee_level"), 0
                     )
                     if contract_type == "nanny_trial":
-                        employee_level_final = employee_level_raw * 26
+                        # 试工合同中填写的是日级别
+                        employee_level_final = employee_level_raw
                     else:
                         employee_level_final = employee_level_raw
 
@@ -225,6 +226,7 @@ class DataSyncService:
                         "employee_level": str(employee_level_final),
                         "status": contract_status,
                         "jinshuju_entry_id": str(entry_serial_number),
+                        "notes": contract_data.get("notes"),
                         "user_id": personnel_id if personnel_type == "user" else None,
                         "service_personnel_id": personnel_id
                         if personnel_type == "service_personnel"
@@ -282,11 +284,13 @@ class DataSyncService:
                         parsed_start_date = self._parse_date(
                             contract_data.get("start_date")
                         )
+                        introduction_fee = self._parse_numeric(contract_data.get("introduction_fee"), 0)
                         new_contract = NannyTrialContract(
                             **common_data,
                             start_date=parsed_start_date,
                             actual_onboarding_date=parsed_start_date,  # For trial, actual onboarding is the start date
                             end_date=end_date,
+                            introduction_fee = introduction_fee,
                         )
 
                     if new_contract:
@@ -295,35 +299,22 @@ class DataSyncService:
                         newly_synced_contract_ids.append(str(new_contract.id))
                         synced_count += 1
 
-                        # 如果是自动续约的育儿嫂合同，则补齐历史账单
-                        if (
-                            isinstance(new_contract, NannyContract)
-                            and new_contract.is_monthly_auto_renew
-                        ):
+                        # --- Gemini Final Fix: Start ---
+                        # 无论是育儿嫂合同还是试工合同，都需要调用账单引擎
+                        if isinstance(new_contract, (NannyContract, NannyTrialContract)):
                             from .billing_engine import BillingEngine
-
                             engine = BillingEngine()
-                            # --- 开始修改: 确保初始账单创建完毕后，再触发续签检查 ---
-                            # 1. 首先，生成从合同开始到结束日期的所有账单
-                            current_app.logger.info(
-                                f"为合同 {new_contract.id} 生成初始账单..."
-                            )
-                            engine.generate_all_bills_for_contract(
-                                new_contract.id, force_recalculate=True
-                            )
-                            current_app.logger.info(
-                                f"合同 {new_contract.id} 的初始账单已生成。"
-                            )
 
-                            # 2. 然后，触发自动续签检查
-                            current_app.logger.info(
-                                f"为合同 {new_contract.id} 触发首次自动续签检查..."
-                            )
-                            engine.extend_auto_renew_bills(new_contract.id)
-                            current_app.logger.info(
-                                f"合同 {new_contract.id} 的首次自动续签检查完成。"
-                            )
-                            # --- 结束修改 ---
+                            current_app.logger.info(f"为合同 {new_contract.id} 生成初始账单...")
+                            engine.generate_all_bills_for_contract(new_contract.id, force_recalculate=True)
+                            current_app.logger.info(f"合同 {new_contract.id} 的初始账单已生成。")
+
+                            # 只有育儿嫂正式合同才需要检查自动续约
+                            if isinstance(new_contract, NannyContract) and new_contract.is_monthly_auto_renew:
+                                current_app.logger.info(f"为合同 {new_contract.id} 触发首次自动续签检查...")
+                                engine.extend_auto_renew_bills(new_contract.id)
+                                current_app.logger.info(f"合同 {new_contract.id} 的首次自动续签检查完成。")
+                        # --- Gemini Final Fix: End ---
 
             except IntegrityError as e_integrity:
                 error_count += 1

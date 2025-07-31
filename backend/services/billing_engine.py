@@ -11,6 +11,7 @@ from backend.models import (
     BaseContract,
     NannyContract,
     MaternityNurseContract,
+    NannyTrialContract,
     AttendanceRecord,
     CustomerBill,
     EmployeePayroll,
@@ -189,11 +190,18 @@ class BillingEngine:
             f"开始计算contract:{contract_id}  {year}-{month} 的账单 force_recalculate:{force_recalculate}"
         )
         if contract_id:
-            contracts_to_process = [db.session.get(BaseContract, contract_id)]
+            # --- 核心修复：在处理单个合同时，添加行级锁来防止并发 ---
+            # with_for_update() 会生成 "SELECT ... FOR UPDATE" SQL语句，
+            # 这会锁定该合同记录，直到当前数据库事务结束（commit或rollback）。
+            contract = db.session.query(BaseContract).filter_by(id=contract_id).with_for_update().first()
+            if not contract:
+                current_app.logger.warning(f"Contract {contract_id} not found, skipping calculation.")
+                contracts_to_process = []
+            else:
+                contracts_to_process = [contract]
+            # --- 修复结束 ---
         else:
-            contracts_to_process = BaseContract.query.filter(
-                BaseContract.status.in_(["active", "terminated"])
-            ).all()
+            contracts_to_process = BaseContract.query.filter(BaseContract.status.in_(["active", "terminated"])).all()
 
         for contract in contracts_to_process:
             if not contract:
@@ -226,6 +234,13 @@ class BillingEngine:
         current_app.logger.info(
             f"[FullLifecycle] Starting bill generation for contract {contract.id} ({contract.type})."
         )
+
+            # --- Gemini-generated code: Start (v4 - Final) ---
+        # 核心修改：简化育儿嫂试工合同的初始账单逻辑
+        if isinstance(contract, NannyTrialContract):
+            current_app.logger.info(f"[FullLifecycle] 合同 {contract.id} 是试工合同，跳过初始账单生成。")
+            return
+        # --- Gemini-generated code: End (v4 - Final) ---
 
         # Determine the date range to iterate over
         if contract.type == "maternity_nurse":
@@ -471,7 +486,8 @@ class BillingEngine:
 
         base_work_days = D((cycle_end - cycle_start).days)
         total_days_worked = base_work_days + overtime_days
-        daily_rate = (level / D(26)).quantize(QUANTIZER)
+        # 试工合同 daily_rate  =  level
+        daily_rate = (level).quantize(QUANTIZER)
         base_fee = (daily_rate * base_work_days).quantize(QUANTIZER)
         overtime_fee = (daily_rate * overtime_days).quantize(QUANTIZER)
 
@@ -575,7 +591,7 @@ class BillingEngine:
         start_month_date = date(start_year, start_month, 1)
         end_month_date = date(end_year, end_month, 1)
 
-        if start_month_date < target_month_date < end_month_date:
+        if start_month_date < target_month_date <= end_month_date:
             return first_day_of_target_month, last_day_of_target_month
 
         return None, None
@@ -675,6 +691,9 @@ class BillingEngine:
         cycle_actual_days = (cycle_end - cycle_start).days
         if is_last_bill:  # 育儿嫂最后一个月账单天数 +1
             cycle_actual_days += 1
+        is_first_bill = cycle_start == contract.start_date
+        if is_first_bill:  # 育儿嫂最后一个月账单天数 +1
+            cycle_actual_days = (cycle_end - cycle_start).days
         base_work_days = D(min(cycle_actual_days, 26)) - D(total_substitute_days)
         total_days_worked = base_work_days + overtime_days
 
@@ -698,21 +717,54 @@ class BillingEngine:
 
         # 管理费计算
         management_fee = D(0)
-        is_first_bill = cycle_start == contract.start_date
+        
+
+
+        # --- 新增逻辑：优先处理末期不足月的账单 ---
+        # 1. 判断是否为最后一个账单
+        is_last_bill = contract.end_date and cycle_end == contract.end_date
+
+        # 2. 获取当前账单周期的月份和年份
+        current_year = cycle_end.year
+        current_month = cycle_end.month
+
+        # 3. 获取该月的实际最后一天
+        _, num_days_in_month = calendar.monthrange(current_year, current_month)
+        last_day_of_month = num_days_in_month
 
         log_extras = {}
 
+        # # 4. 如果是最后一个账单，并且其结束日不是该月的最后一天
+        # if is_last_bill and cycle_end.day != last_day_of_month:
+        #     # 使用您指定的新逻辑
+        #     # 注意：天数计算包含首尾两天，所以需要+1
+        #     cycle_duration_days = (cycle_end - cycle_start).days + 1
+        #     management_days = D(min(cycle_duration_days, 30))
+        #     management_fee = (level * D("0.1") / D(30) * management_days).quantize(QUANTIZER)
+        #     log_extras["management_fee_reason"] = (
+        #         f"末期账单不足月，按天收取: 级别({level})*10%/30 * min(周期天数({cycle_duration_days}), 30) = {management_fee:.2f}"
+        #     )
+        # # --- 结束新增逻辑，注意下面的 if 变成了 elif ---
+
         if contract.is_monthly_auto_renew:
-            # 自动续签的月签合同。
+            # ... (旧的月签合同逻辑保持不变)
             if is_first_bill and cycle_start.day != 1:
                 current_month_contract_days = (cycle_end - cycle_start).days
-                # 管理天数 = min(本月合同天数, 30)
-                management_days = D(min(current_month_contract_days+1, 30))
+                management_days = D(min(current_month_contract_days + 1, 30))
                 management_fee = (level * D("0.1") / D(30) * management_days).quantize(
                     QUANTIZER
                 )
                 log_extras["management_fee_reason"] = (
                     f"月签合同首月不足月，按天收取: 级别{level} * 10% / 30 * 劳务天数 {current_month_contract_days} + 1"
+                )
+            elif is_last_bill and cycle_end.day != last_day_of_month:
+                # 使用您指定的新逻辑
+                # 注意：天数计算包含首尾两天，所以需要+1
+                cycle_duration_days = (cycle_end - cycle_start).days + 1
+                management_days = D(min(cycle_duration_days, 30))
+                management_fee = (level * D("0.1") / D(30) * management_days).quantize(QUANTIZER)
+                log_extras["management_fee_reason"] = (
+                    f"末期账单不足月，按天收取: 级别({level})*10%/30 * min(周期天数({cycle_duration_days}), 30) = {management_fee:.2f}"
                 )
             else:
                 management_fee = (level * D("0.1")).quantize(QUANTIZER)
@@ -720,6 +772,7 @@ class BillingEngine:
                     f"月签合同整月，按月收取: {level} * 10%"
                 )
         else:
+            # ... (旧的固定期限合同逻辑保持不变)
             if is_first_bill:
                 delta = relativedelta(contract.end_date, contract.start_date)
                 total_months = delta.years * 12 + delta.months
@@ -783,7 +836,7 @@ class BillingEngine:
         force_recalculate=False,
     ):
         current_app.logger.info(
-            f"  [MN CALC] 开始处理月嫂合同 {contract.id} for {year}-{month}"
+            f"=====[MN CALC] 开始处理月嫂合同 {contract.id} for {year}-{month}"
         )
         if not contract.actual_onboarding_date:
             current_app.logger.info(
@@ -807,10 +860,9 @@ class BillingEngine:
                 month=month,
                 is_substitute_bill=False,
             ).first()
-
             if existing_bill_for_month:
                 current_app.logger.info(
-                    f"    [MN CALC] 强制重算，找到现有账单 {existing_bill_for_month.id}。使用其周期 {existing_bill_for_month.cycle_start_date} to {existing_bill_for_month.cycle_end_date}"
+                    f"[MN CALC] 强制重算，找到现有账单 {existing_bill_for_month.id}。使用其周期 {existing_bill_for_month.cycle_start_date} to {existing_bill_for_month.cycle_end_date}"
                 )
                 # 直接使用现有账单的周期日期来处理
                 self._process_one_billing_cycle(
@@ -903,15 +955,9 @@ class BillingEngine:
             current_app.logger.info(
                 f"      [CYCLE PROC] No existing bill found or not forcing recalculation. Using derived dates: {actual_cycle_start_date} to {actual_cycle_end_date}"
             )
-
-        bill, payroll = self._get_or_create_bill_and_payroll(
-            contract, year, month, actual_cycle_start_date, actual_cycle_end_date
-        )
-        bill, payroll = self._get_or_create_bill_and_payroll(
-            contract, year, month, cycle_start_date, cycle_end_date
-        )
         details = self._calculate_maternity_nurse_details(contract, bill, payroll)
         bill, payroll = self._calculate_final_amounts(bill, payroll, details)
+    
         log = self._create_calculation_log(details)
         self._update_bill_with_log(bill, payroll, details, log)
 
@@ -925,6 +971,9 @@ class BillingEngine:
         bill: CustomerBill,
         payroll: EmployeePayroll,
     ):
+
+       
+
         """计算月嫂合同的所有财务细节（已二次修正）。"""
         QUANTIZER = D("0.01")
         level = D(contract.employee_level or 0)
@@ -937,10 +986,12 @@ class BillingEngine:
         cycle_start = bill.cycle_start_date
         cycle_end = bill.cycle_end_date
         attendance = self._get_or_create_attendance(contract, cycle_start, cycle_end)
+        # 打印从考勤记录中获取的原始数据
         overtime_days = D(attendance.overtime_days)
         actual_cycle_days = (cycle_end - cycle_start).days
         base_work_days = D(min(actual_cycle_days, 26))
         total_days_worked = base_work_days + overtime_days
+        
 
         # 1. 管理费和管理费率计算
         management_fee = ((customer_deposit - level)/26 * base_work_days).quantize(QUANTIZER)
@@ -956,9 +1007,6 @@ class BillingEngine:
             f"管理费({management_fee:.2f}) / 客交保证金({customer_deposit:.2f}) = {management_fee_rate * 100:.2f}%"
         )
 
-        
-
-       
 
         # 在这里处理保证金，然后再获取调整项
         self._handle_security_deposit(contract, bill)
@@ -1342,9 +1390,6 @@ class BillingEngine:
 
         # 2. 如果成功找到，则更新并返回
         if bill and payroll:
-            current_app.logger.info(
-                f"    [BILL UPDATE] Found existing bill/payroll for cycle {cycle_start_date}. Updating."
-            )
             bill.year = year
             bill.month = month
             bill.cycle_end_date = cycle_end_date
@@ -1404,12 +1449,22 @@ class BillingEngine:
                 contract_id=contract.id,
                 cycle_start_date=cycle_start_date,
                 is_substitute_bill=False,
-            ).one()
+            ).first()  # 使用 .first() 避免 NoResultFound 异常
             payroll = EmployeePayroll.query.filter_by(
                 contract_id=contract.id,
                 cycle_start_date=cycle_start_date,
                 is_substitute_payroll=False,
-            ).one()
+            ).first()
+
+            # 如果在重新查询后仍然找不到，说明发生了更复杂的事务问题，此时应抛出异常
+            if not bill or not payroll:
+                current_app.logger.error(
+                    f"    [BILL CREATE] CRITICAL: Race condition for {cycle_start_date} led to missing record after rollback. "
+                    f"This may indicate a deadlock or a larger transactional issue."
+                )
+                raise Exception(
+                    f"Failed to get or create bill for cycle {cycle_start_date} after race condition."
+                )
 
             # 更新刚刚获取到的记录
             bill.year = year
@@ -1482,13 +1537,13 @@ class BillingEngine:
 
     def _calculate_final_amounts(self, bill, payroll, details):
         total_payable = (
-            D(details["customer_base_fee"])
-            + D(details["customer_overtime_fee"])
-            + D(details["management_fee"])
-            + D(details["customer_increase"])
-            - D(details["customer_decrease"])
+            D(details.get("customer_base_fee", 0))
+            + D(details.get("customer_overtime_fee", 0))
+            + D(details.get("management_fee", 0))
+            + D(details.get("customer_increase", 0))
+            - D(details.get("customer_decrease", 0))
             - D(details.get("discount", 0))
-            - D(details.get("substitute_deduction", 0))  # 扣除替班费用
+            - D(details.get("substitute_deduction", 0))
         )
         final_payout = (
             D(details["employee_base_payout"])
@@ -1578,6 +1633,11 @@ class BillingEngine:
                     log["萌嫂保证金(工资)"] = (
                         f"({log_extras.get('employee_daily_rate_reason', '员工日薪')}) * 基本劳务天数({base_work_days}) = {d.get('employee_base_payout', 0):.2f}"
                     )
+                if calc_type == "nanny_trial_termination":
+                    log["基础劳务费"] = (
+                        f"员工日薪({level:.2f}) * 基本劳务天数({base_work_days}) = {d.get('customer_base_fee', 0):.2f}"
+                    )
+                    log["管理费"] = log_extras.get("management_fee_reason", "N/A")
                 if calc_type == "nanny_trial" and d.get("first_month_deduction", 0) > 0:
                     log["首月员工10%费用"] = log_extras.get(
                         "first_month_deduction_reason", "N/A"
@@ -1613,3 +1673,84 @@ class BillingEngine:
         db.session.add(payroll)
 
         return bill, payroll
+
+    def _calculate_nanny_trial_termination_details(self, contract, actual_trial_days):
+        """为试工失败结算生成详细的计算字典 (v13 - FINAL)。"""
+        QUANTIZER = D("0.01")
+        level = D(contract.employee_level or 0)
+        days = D(actual_trial_days)
+        
+        # 核心修正：试工合同的 level 即为日薪，无需除以26
+        daily_rate = level.quantize(QUANTIZER)
+
+        # 统一计算基础劳务费和管理费
+        base_fee = (daily_rate * days).quantize(QUANTIZER)
+        management_fee = (daily_rate * D('0.2') * (days + 1)).quantize(QUANTIZER)
+
+        details = {
+            "type": "nanny_trial_termination",
+            "level": str(level),
+            "cycle_period": f"{contract.start_date.isoformat()} to {contract.end_date.isoformat()}",
+            "base_work_days": str(days),
+            "overtime_days": "0",
+            "total_days_worked": str(days),
+            "daily_rate": str(daily_rate),
+            
+            "customer_base_fee": str(base_fee),
+            "employee_base_payout": str(base_fee),
+            
+            "management_fee": str(management_fee),
+            
+            "introduction_fee": str(contract.introduction_fee or "0.00"),
+            "notes": contract.notes or "",
+
+            "customer_overtime_fee": "0.00",
+            "employee_overtime_payout": "0.00",
+            "customer_increase": "0.00",
+            "customer_decrease": "0.00",
+            "employee_increase": "0.00",
+            "employee_decrease": "0.00",
+            "first_month_deduction": "0.00",
+            "discount": "0.00",
+            "substitute_deduction": "0.00",
+
+            "log_extras": {
+                "management_fee_reason": f"无介绍费,收取管理费: 日薪({level})*20% * (试工天数({days})+1) = {management_fee:.2f}",
+                "employee_payout_reason": f"日薪({daily_rate}) * 试工天数({days}) = {base_fee:.2f}"
+            },
+        }
+        return details
+    
+    def process_trial_termination(self, contract, actual_trial_days):
+        """
+        处理育儿嫂试工失败的最终结算 (v14 - Simplified Logic)。
+        """
+        current_app.logger.info(f"[TrialTerm-v14] 开始处理试工合同 {contract.id}，实际天数: {actual_trial_days}")
+
+        with db.session.begin_nested():
+            # 1. 获取包含所有基础组件的 details 字典
+            details = self._calculate_nanny_trial_termination_details(contract, actual_trial_days)
+
+            # 2. 创建或获取账单/薪酬单
+            term_date = contract.start_date + timedelta(days=actual_trial_days)
+            bill, payroll = self._get_or_create_bill_and_payroll(
+                contract, term_date.year, term_date.month, contract.start_date, term_date
+            )
+
+            # 3. 根据业务场景，动态修改 details 字典
+            has_intro_fee = D(details['introduction_fee']) > 0
+
+            if has_intro_fee:
+                # 情况一: 有介绍费 -> 不收管理费
+                details['management_fee'] = "0.00"
+                details['log_extras']['management_fee_reason'] = "已有介绍费,试工不收取管理费"
+            else:
+                # 情况二: 没有介绍费 -> 正常收取管理费 (details中已包含)
+                pass
+
+            # 4. 将 details 传递给标准流程进行最终计算和保存
+            bill, payroll = self._calculate_final_amounts(bill, payroll, details)
+            log = self._create_calculation_log(details)
+            self._update_bill_with_log(bill, payroll, details, log)
+
+        current_app.logger.info(f"[TrialTerm-v14] 合同 {contract.id} 结算处理完成。")
