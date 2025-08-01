@@ -270,11 +270,16 @@ class DataSyncService:
                         parsed_start_date = self._parse_date(
                             contract_data.get("start_date")
                         )
+                        # 管理费从合同中获取
+                        management_fee_amount = self._parse_numeric(
+                            contract_data.get("management_fee_amount")
+                        )
                         new_contract = NannyContract(
                             **common_data,
                             start_date=parsed_start_date,
                             actual_onboarding_date=parsed_start_date,
                             end_date=end_date,
+                            management_fee_amount = management_fee_amount,
                             is_monthly_auto_renew=is_auto_renew,
                             security_deposit_paid=self._parse_numeric(
                                 contract_data.get("security_deposit_paid"), 0

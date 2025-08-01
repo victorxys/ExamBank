@@ -2072,6 +2072,9 @@ class BaseContract(db.Model):
     )
 
     customer_name = db.Column(db.String(255), nullable=False, index=True)
+    customer_name_pinyin = db.Column(
+        db.String(500), nullable=True, index=True, comment="客户姓名拼音"
+    )
     contact_person = db.Column(db.String(255), comment="客户联系人")
 
     # employee_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('service_personnel.id'), nullable=False, index=True)
@@ -2133,6 +2136,10 @@ class BaseContract(db.Model):
         db.Date, nullable=True, comment="预计下户日期 (可动态顺延)"
     )
 
+    management_fee_amount = db.Column(
+        db.Numeric(10, 2), nullable=True, comment="月管理费金额 (元/月)，从金数据同步的管理费金额"
+    )
+
     __mapper_args__ = {"polymorphic_on": type, "polymorphic_identity": "base"}
 
 
@@ -2168,9 +2175,6 @@ class MaternityNurseContract(BaseContract):  # 月嫂合同
     # security_deposit_paid = db.Column(db.Numeric(10, 2), default=0, comment='客交保证金')
     management_fee_rate = db.Column(
         db.Numeric(4, 2), nullable=True, comment="管理费费率, e.g., 0.15 for 15%"
-    )
-    management_fee_amount = db.Column(
-        db.Numeric(10, 2), nullable=True, comment="从金数据同步的管理费金额"
     )
     discount_amount = db.Column(db.Numeric(10, 2), default=0, comment="优惠金额")
 

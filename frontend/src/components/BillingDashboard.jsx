@@ -600,38 +600,43 @@ const BillingDashboard = () => {
             sx={{ p: 3 }}
             title={
               <Grid container spacing={2} alignItems="center">
-                <Grid item xs={12} sm={6} md={3}>
-                  <TextField fullWidth label="搜索客户/员工" name="search" value={filters.search} onChange={handleFilterChange} size="small" variant="outlined" />
-                </Grid>
-                <Grid item xs={6} sm={3} md={2}>
-                  <FormControl fullWidth size="small"><InputLabel>合同类型</InputLabel><Select name="type" value={filters.type} label="合同类型" onChange={handleFilterChange}><MenuItem value=""><em>全部</em></MenuItem><MenuItem value="nanny">育儿嫂</MenuItem><MenuItem value="maternity_nurse">月嫂</MenuItem><MenuItem value="nanny_trial">育儿嫂试工</MenuItem></Select></FormControl>
-                </Grid>
-                <Grid item xs={6} sm={3} md={2}>
-                  <FormControl fullWidth size="small"><InputLabel>合同状态</InputLabel><Select name="status" value={filters.status} label="合同状态" onChange={handleFilterChange}><MenuItem value=""><em>全部</em></MenuItem><MenuItem value="active">执行中</MenuItem><MenuItem value="finished">已结束</MenuItem><MenuItem value="terminated">已终止</MenuItem></Select></FormControl>
+                {/* Filters */}
+                <Grid item xs={12} md>
+                  <Grid container spacing={2} alignItems="center">
+                    <Grid item xs={12} sm={6} md={3}>
+                      <TextField fullWidth label="搜索客户/员工" name="search" value={filters.search} onChange={handleFilterChange} size="small" variant="outlined" />
+                    </Grid>
+                    <Grid item xs={6} sm={3} md={2}>
+                      <FormControl fullWidth size="small"><InputLabel>合同类型</InputLabel><Select name="type" value={filters.type} label="合同类型" onChange={handleFilterChange}><MenuItem value=""><em>全部</em></MenuItem><MenuItem value="nanny">育儿嫂</MenuItem><MenuItem value="maternity_nurse">月嫂</MenuItem><MenuItem value="nanny_trial">育儿嫂试工</MenuItem></Select></FormControl>
+                    </Grid>
+                    <Grid item xs={6} sm={3} md={2}>
+                      <FormControl fullWidth size="small"><InputLabel>合同状态</InputLabel><Select name="status" value={filters.status} label="合同状态" onChange={handleFilterChange}><MenuItem value=""><em>全部</em></MenuItem><MenuItem value="active">执行中</MenuItem><MenuItem value="finished">已结束</MenuItem><MenuItem value="terminated">已终止</MenuItem></Select></FormControl>
+                    </Grid>
+                    <Grid item xs={6} sm={3} md={2}>
+                        <FormControl fullWidth size="small">
+                            <InputLabel>客户付款状态</InputLabel>
+                            <Select name="payment_status" value={filters.payment_status} label="客户付款状态" onChange={handleFilterChange}>
+                                <MenuItem value=""><em>全部</em></MenuItem>
+                                <MenuItem value="paid">已付款</MenuItem>
+                                <MenuItem value="unpaid">未付款</MenuItem>
+                            </Select>
+                        </FormControl>
+                    </Grid>
+                    <Grid item xs={6} sm={3} md={2}>
+                        <FormControl fullWidth size="small">
+                            <InputLabel>员工领款状态</InputLabel>
+                            <Select name="payout_status" value={filters.payout_status} label="员工领款状态" onChange={handleFilterChange}>
+                                <MenuItem value=""><em>全部</em></MenuItem>
+                                <MenuItem value="paid">已领款</MenuItem>
+                                <MenuItem value="unpaid">未领款</MenuItem>
+                            </Select>
+                        </FormControl>
+                    </Grid>
+                  </Grid>
                 </Grid>
 
-                <Grid item xs={6} sm={3} md={2}>
-                    <FormControl fullWidth size="small">
-                        <InputLabel>客户付款状态</InputLabel>
-                        <Select name="payment_status" value={filters.payment_status} label="客户付款状态" onChange={handleFilterChange}>
-                            <MenuItem value=""><em>全部</em></MenuItem>
-                            <MenuItem value="paid">已付款</MenuItem>
-                            <MenuItem value="unpaid">未付款</MenuItem>
-                        </Select>
-                    </FormControl>
-                </Grid>
-                <Grid item xs={6} sm={3} md={2}>
-                    <FormControl fullWidth size="small">
-                        <InputLabel>员工领款状态</InputLabel>
-                        <Select name="payout_status" value={filters.payout_status} label="员工领款状态" onChange={handleFilterChange}>
-                            <MenuItem value=""><em>全部</em></MenuItem>
-                            <MenuItem value="paid">已领款</MenuItem>
-                            <MenuItem value="unpaid">未领款</MenuItem>
-                        </Select>
-                    </FormControl>
-                </Grid>
-                {/* 将操作按钮放在一个自适应的Grid item中 */}
-                <Grid item xs={12} md sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, flexWrap: 'wrap' }}>
+                {/* Actions */}
+                <Grid item xs={12} md="auto" sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 2 }}>
                   <TextField label="账单月份" type="month" size="small" value={selectedBillingMonth} onChange={(e) => setSelectedBillingMonth(e.target.value)} InputLabelProps={{ shrink: true }} />
                   <Tooltip title={`计算 ${selectedBillingMonth} 的所有账单`}>
                       <span>
@@ -639,7 +644,6 @@ const BillingDashboard = () => {
                               variant="contained"
                               color="success"
                               onClick={handleCalculateBills}
-                              // 当正在初始提交(calculating)或正在轮询(isPolling)时都禁用
                               disabled={calculating || isPolling}
                               startIcon={(calculating || isPolling) ? <CircularProgress size={20} color="inherit" /> : <CalculateIcon />}
                           >
@@ -647,7 +651,6 @@ const BillingDashboard = () => {
                           </Button>
                       </span>
                   </Tooltip>
-                  <Button variant="contained" onClick={handleTriggerSync} disabled={syncing} startIcon={syncing ? <CircularProgress size={20} color="inherit" /> : <SyncIcon />}>同步</Button>
                 </Grid>
               </Grid>
             }

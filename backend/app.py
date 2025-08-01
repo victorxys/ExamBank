@@ -1455,8 +1455,9 @@ def get_users():
         params = []
 
         if search:
-            where_conditions.append("(u.username ILIKE %s OR u.phone_number ILIKE %s)")
-            params.extend([f"%{search}%", f"%{search}%"])
+            pinyin_search_term = search.replace(" ", "")
+            where_conditions.append("(u.username ILIKE %s OR u.phone_number ILIKE %s OR u.name_pinyin ILIKE %s)")
+            params.extend([f"%{search}%", f"%{search}%", f"%{pinyin_search_term}%"])
 
         where_clause = " AND ".join(where_conditions) if where_conditions else "TRUE"
 

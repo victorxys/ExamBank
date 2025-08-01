@@ -25,7 +25,16 @@ const collapsedWidth = 65;
 const allMenuItems = [
   { text: '仪表盘', icon: <DashboardIcon />, path: '/', adminOnly: false },
   { text: '课程管理', icon: <SchoolIcon />, path: '/courses', adminOnly: true },
-  { text: '合同与账单', icon: <DashboardIcon />, path: '/billing', adminOnly: true },
+  {
+    text: '合同与账单',
+    icon: <DashboardIcon />,
+    path: '/billing-management', // 父菜单的路径，用于高亮和展开
+    adminOnly: true,
+    subItems: [
+      { text: '合同管理', icon: <DescriptionIcon />, path: '/contracts', adminOnly: true },
+      { text: '账单管理', icon: <HistoryIcon />, path: '/billing', adminOnly: true },
+    ]
+  },
   { text: '我的课程', icon: <SchoolIcon />, path: '/my-courses', adminOnly: false }, // 假设所有用户都能看自己的课程
   { text: '知识点管理', icon: <LibraryBooksIcon />, path: '/knowledge-points', adminOnly: true },
   { text: '题库管理', icon: <QuestionAnswerIcon />, path: '/questions', adminOnly: true },

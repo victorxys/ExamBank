@@ -38,6 +38,7 @@ const ContractList = () => {
     const [page, setPage] = useState(0);
     const [rowsPerPage, setRowsPerPage] = useState(10);
     const [totalContracts, setTotalContracts] = useState(0);
+    const [syncing, setSyncing] = useState(false);
 
     // --- 核心修正 1：修改默认状态并增加排序 state ---
     const [filters, setFilters] = useState({ search: '', type: '', status: '' });
@@ -115,6 +116,20 @@ const ContractList = () => {
         }
     };
 
+    const handleTriggerSync = async () => {
+        setSyncing(true);
+        setAlert({open: true, message: "合同同步任务已提交...", severity: 'info'});
+        try {
+            await api.post('/billing/sync-contracts');
+            setTimeout(() => {
+                setAlert({open: true, message: "同步任务正在后台处理，列表即将刷新。", severity: 'success'});
+                setTimeout(() => fetchBills(), 5000);
+            }, 3000);
+        } catch (error) {
+            setAlert({ open: true, message: `触发同步失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
+        } finally { setSyncing(false); }
+    };
+
     const handleTrialSucceeded = async (contract) => {
         try {
             await api.post(`/billing/contracts/${contract.id}/succeed`);
@@ -169,7 +184,11 @@ const ContractList = () => {
                         <Grid item xs={6} sm={2}><FormControl fullWidth size="small"><InputLabel>类型</InputLabel><Select name="type" value={filters.type} label="类型" onChange={handleFilterChange}><MenuItem value=""><em>全部</em></MenuItem><MenuItem value="nanny">育儿嫂</MenuItem><MenuItem value="maternity_nurse">月嫂</MenuItem> <MenuItem value="nanny_trial">育儿嫂试工</MenuItem></Select></FormControl></Grid>
                         {/* --- 核心修正 4：修改状态过滤器的选项 --- */}
                         <Grid item xs={6} sm={2}><FormControl fullWidth size="small"><InputLabel>状态</InputLabel><Select name="status" value={filters.status} label="状态" onChange={handleFilterChange}><MenuItem value="all"><em>全部状态</em></MenuItem><MenuItem value="active">服务中</MenuItem><MenuItem value="pending">待上户</MenuItem><MenuItem value="finished">已完成</MenuItem><MenuItem value="terminated">已终止</MenuItem><MenuItem value="trial_active">试工中</MenuItem><MenuItem value="trial_succeeded">试工成功</MenuItem></Select></FormControl></Grid>
-                        <Grid item xs={12} sm={4} sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}><Button variant="contained" startIcon={<AddIcon />}>新增合同</Button><Button variant="outlined" startIcon={<SyncIcon />}>同步合同</Button></Grid>
+                        <Grid item xs={12} sm={4} sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
+                            {/* <Button variant="contained" startIcon={<AddIcon />}>新增合同</Button> */}
+                            {/* <Button variant="outlined" startIcon={<SyncIcon />}>同步合同</Button> */}
+                            <Button variant="contained" onClick={handleTriggerSync} disabled={syncing} startIcon={syncing ? <CircularProgress size={20} color="inherit" /> : <SyncIcon />}>同步</Button>
+                        </Grid>
                     </Grid>
                 </Paper>
 
