@@ -4,75 +4,110 @@ import os
 import uuid
 import re
 from flask import (
-    Blueprint, request, jsonify, current_app,
-    send_from_directory, Response, stream_with_context
+    Blueprint,
+    request,
+    jsonify,
+    current_app,
+    Response,
+    stream_with_context,
 )
-from werkzeug.exceptions import NotFound # 可以用来抛出标准的404
-from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt, decode_token, verify_jwt_in_request
-from jwt import PyJWTError # 用于捕获 decode_token 可能的错误
+from werkzeug.exceptions import NotFound  # 可以用来抛出标准的404
+from flask_jwt_extended import (
+    jwt_required,
+    get_jwt_identity,
+    get_jwt,
+    decode_token,
+    verify_jwt_in_request,
+)
+from jwt import PyJWTError  # 用于捕获 decode_token 可能的错误
 
 from werkzeug.utils import secure_filename
 from datetime import datetime, timezone
-from sqlalchemy.exc import IntegrityError # <<<--- 新增：导入 IntegrityError
-from sqlalchemy import func, or_ ,desc
-
-
+from sqlalchemy import func, or_, desc
 
 
 # 从 backend.models 导入所有需要的模型
 from backend.models import (
-    db, CourseResource, TrainingCourse, User,
-    UserCourseAccess, UserResourceAccess, UserResourcePlayLog # <<<--- 确保这些都导入了
+    db,
+    CourseResource,
+    TrainingCourse,
+    User,
+    UserCourseAccess,
+    UserResourceAccess,
+    UserResourcePlayLog,  # <<<--- 确保这些都导入了
 )
-from sqlalchemy.dialects import postgresql # 用于编译为特定方言的SQL
 
-course_resource_bp = Blueprint('course_resource_api', __name__, url_prefix='/api')
+course_resource_bp = Blueprint("course_resource_api", __name__, url_prefix="/api")
 
 # --- 确保这些常量和辅助函数存在 ---
-INSTANCE_FOLDER_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'instance'))
-UPLOAD_FOLDER_RELATIVE = 'uploads/course_resources'
+INSTANCE_FOLDER_PATH = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "..", "..", "instance")
+)
+UPLOAD_FOLDER_RELATIVE = "uploads/course_resources"
 UPLOAD_FOLDER_ABSOLUTE = os.path.join(INSTANCE_FOLDER_PATH, UPLOAD_FOLDER_RELATIVE)
 
-ALLOWED_EXTENSIONS = {'mp4', 'mov', 'webm', 'mp3', 'wav', 'ogg', 'pdf', 'doc', 'docx', 'ppt', 'pptx'}
+ALLOWED_EXTENSIONS = {
+    "mp4",
+    "mov",
+    "webm",
+    "mp3",
+    "wav",
+    "ogg",
+    "pdf",
+    "doc",
+    "docx",
+    "ppt",
+    "pptx",
+}
+
 
 def allowed_file(filename):
-    return '.' in filename and \
-           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
+
 
 def get_file_type_from_extension(filename):
-    if not filename: # 以防万一传入空文件名
-        return 'other'
-    parts = filename.rsplit('.', 1)
+    if not filename:  # 以防万一传入空文件名
+        return "other"
+    parts = filename.rsplit(".", 1)
     # 检查分割后列表是否有至少两个元素，并且第二个元素（扩展名）不为空
     if len(parts) > 1 and parts[1]:
         ext = parts[1].lower()
-        if ext in ['mp4', 'mov', 'webm', 'avi', 'mkv']:
-            return 'video'
-        elif ext in ['mp3', 'wav', 'ogg', 'aac', 'flac']:
-            return 'audio'
-        elif ext in ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'txt', 'xls', 'xlsx']:
-            return 'document'
+        if ext in ["mp4", "mov", "webm", "avi", "mkv"]:
+            return "video"
+        elif ext in ["mp3", "wav", "ogg", "aac", "flac"]:
+            return "audio"
+        elif ext in ["pdf", "doc", "docx", "ppt", "pptx", "txt", "xls", "xlsx"]:
+            return "document"
     # 如果没有找到有效的扩展名，或者文件名本身就没有'.'，则返回'other'
-    return 'other'
+    return "other"
+
 
 # --- 权限检查辅助函数 (如果还没添加，请添加) ---
-def check_resource_access(user_id_uuid, resource_id_uuid): # 参数改为 uuid 类型以明确
+def check_resource_access(user_id_uuid, resource_id_uuid):  # 参数改为 uuid 类型以明确
     # 假设 expires_at 存储的是 UTC 时间
     now_utc = datetime.now(timezone.utc)
     access_record = UserResourceAccess.query.filter(
         UserResourceAccess.user_id == user_id_uuid,
         UserResourceAccess.resource_id == resource_id_uuid,
         or_(
-            UserResourceAccess.expires_at == None,
-            UserResourceAccess.expires_at >= now_utc
-        )
+            UserResourceAccess.expires_at is None,
+            UserResourceAccess.expires_at >= now_utc,
+        ),
     ).first()
     return access_record is not None
+
 
 def check_course_access_for_resource(user_id, resource):
     if not resource or not resource.course_id:
         return False
-    return UserCourseAccess.query.filter_by(user_id=user_id, course_id=str(resource.course_id)).first() is not None
+    return (
+        UserCourseAccess.query.filter_by(
+            user_id=user_id, course_id=str(resource.course_id)
+        ).first()
+        is not None
+    )
+
+
 # --- 结束权限检查辅助函数 ---
 
 # ======================================================================
@@ -80,167 +115,200 @@ def check_course_access_for_resource(user_id, resource):
 # === 请确保它们存在并且功能正常。                         ===
 # ======================================================================
 
-@course_resource_bp.route('/courses/<uuid:course_id_str>/resources', methods=['POST'])
+
+@course_resource_bp.route("/courses/<uuid:course_id_str>/resources", methods=["POST"])
 @jwt_required()
 def upload_course_resource(course_id_str):
     course_id = str(course_id_str)
     current_user_id = get_jwt_identity()
 
-    if 'file' not in request.files:
-        return jsonify({'error': 'No file part in the request'}), 400
-    file = request.files['file']
-    if file.filename == '':
-        return jsonify({'error': 'No selected file'}), 400
+    if "file" not in request.files:
+        return jsonify({"error": "No file part in the request"}), 400
+    file = request.files["file"]
+    if file.filename == "":
+        return jsonify({"error": "No selected file"}), 400
 
     if file and allowed_file(file.filename):
         filename = secure_filename(file.filename)
         course = TrainingCourse.query.get(course_id)
         if not course:
-            return jsonify({'error': 'Course not found'}), 404
+            return jsonify({"error": "Course not found"}), 404
 
         course_upload_folder_relative = os.path.join(UPLOAD_FOLDER_RELATIVE, course_id)
-        course_upload_folder_absolute = os.path.join(INSTANCE_FOLDER_PATH, course_upload_folder_relative)
+        course_upload_folder_absolute = os.path.join(
+            INSTANCE_FOLDER_PATH, course_upload_folder_relative
+        )
         os.makedirs(course_upload_folder_absolute, exist_ok=True)
-        
+
         timestamp = datetime.now().strftime("%Y%m%d%H%M%S%f")
         unique_filename = f"{timestamp}_{filename}"
-        file_save_path_absolute = os.path.join(course_upload_folder_absolute, unique_filename)
-        file_save_path_relative_to_instance = os.path.join(course_upload_folder_relative, unique_filename)
+        file_save_path_absolute = os.path.join(
+            course_upload_folder_absolute, unique_filename
+        )
+        file_save_path_relative_to_instance = os.path.join(
+            course_upload_folder_relative, unique_filename
+        )
 
         try:
             file.save(file_save_path_absolute)
             file_size = os.path.getsize(file_save_path_absolute)
             file_main_type = get_file_type_from_extension(filename)
             mime_type = file.mimetype
-            duration = None # TODO: Implement duration extraction
+            duration = None  # TODO: Implement duration extraction
 
             new_resource = CourseResource(
                 course_id=course_id,
-                name=request.form.get('name', filename.split('.')[0]),
-                description=request.form.get('description'),
-                file_path=file_save_path_relative_to_instance, # 指向新上传的文件
+                name=request.form.get("name", filename.split(".")[0]),
+                description=request.form.get("description"),
+                file_path=file_save_path_relative_to_instance,  # 指向新上传的文件
                 file_type=file_main_type,
                 mime_type=mime_type,
                 size_bytes=file_size,
                 duration_seconds=duration,
                 uploaded_by_user_id=current_user_id,
-                sort_order=int(request.form.get('sort_order', 0))
+                sort_order=int(request.form.get("sort_order", 0)),
                 # 移除了 share_slug 和 is_latest_for_slug
             )
             db.session.add(new_resource)
             db.session.commit()
-            return jsonify({'message': 'File uploaded successfully', 'resource': new_resource.to_dict()}), 201
+            return jsonify(
+                {
+                    "message": "File uploaded successfully",
+                    "resource": new_resource.to_dict(),
+                }
+            ), 201
         except Exception as e:
             db.session.rollback()
-            current_app.logger.error(f"Error saving file or db record: {e}", exc_info=True)
+            current_app.logger.error(
+                f"Error saving file or db record: {e}", exc_info=True
+            )
             if os.path.exists(file_save_path_absolute):
-                try: os.remove(file_save_path_absolute)
-                except OSError as e_remove: current_app.logger.error(f"Failed to remove file: {e_remove}")
-            return jsonify({'error': f'Failed to upload file: {str(e)}'}), 500
-    return jsonify({'error': 'File type not allowed'}), 400
+                try:
+                    os.remove(file_save_path_absolute)
+                except OSError as e_remove:
+                    current_app.logger.error(f"Failed to remove file: {e_remove}")
+            return jsonify({"error": f"Failed to upload file: {str(e)}"}), 500
+    return jsonify({"error": "File type not allowed"}), 400
 
 
 # backend/api/course_resource_api.py
-@course_resource_bp.route('/courses/<uuid:course_id_str>/resources', methods=['GET'])
+@course_resource_bp.route("/courses/<uuid:course_id_str>/resources", methods=["GET"])
 @jwt_required()
 def get_course_resources(course_id_str):
-    course_id = str(course_id_str) # 或者直接使用 course_id_str 如果它是 UUID 对象
+    # course_id = str(course_id_str)  # 或者直接使用 course_id_str 如果它是 UUID 对象
     current_user_id_str = get_jwt_identity()
     try:
         current_user_id_uuid = uuid.UUID(current_user_id_str)
     except ValueError:
-        return jsonify({'error': 'Invalid user ID format in token'}), 400
-        
-    user = User.query.get(current_user_id_uuid)
-    if not user: return jsonify({'error': 'User not found'}), 401
-    
-    is_admin = (get_jwt().get('role') == 'admin')
+        return jsonify({"error": "Invalid user ID format in token"}), 400
 
-    course = TrainingCourse.query.get(course_id_str) # 使用原始的 course_id_str (UUID 对象)
+    user = User.query.get(current_user_id_uuid)
+    if not user:
+        return jsonify({"error": "User not found"}), 401
+
+    is_admin = get_jwt().get("role") == "admin"
+
+    course = TrainingCourse.query.get(
+        course_id_str
+    )  # 使用原始的 course_id_str (UUID 对象)
     if not course:
-        return jsonify({'error': 'Course not found'}), 404
+        return jsonify({"error": "Course not found"}), 404
 
     resource_list_to_return = []
 
     if is_admin:
         # 管理员可以看到该课程下的所有资源
-        resources_in_course = CourseResource.query.filter_by(course_id=course.id).order_by(CourseResource.sort_order, CourseResource.created_at).all()
-        
+        resources_in_course = (
+            CourseResource.query.filter_by(course_id=course.id)
+            .order_by(CourseResource.sort_order, CourseResource.created_at)
+            .all()
+        )
+
         for res_obj in resources_in_course:
             res_dict = res_obj.to_dict(include_uploader=True)
             # 管理员也需要 user_access_expires_at 吗？如果需要，也查询
             admin_access = UserResourceAccess.query.filter_by(
-                user_id=current_user_id_uuid,
-                resource_id=res_obj.id
+                user_id=current_user_id_uuid, resource_id=res_obj.id
             ).first()
-            res_dict['user_access_expires_at'] = admin_access.expires_at.isoformat() if admin_access and admin_access.expires_at else None
+            res_dict["user_access_expires_at"] = (
+                admin_access.expires_at.isoformat()
+                if admin_access and admin_access.expires_at
+                else None
+            )
             resource_list_to_return.append(res_dict)
-        
-    else: # 非管理员用户
+
+    else:  # 非管理员用户
         # 1. 检查用户是否有权访问此课程上下文 (可选，但良好实践)
-        has_course_context_access = UserCourseAccess.query.filter_by(
-            user_id=current_user_id_uuid, course_id=course.id
-        ).first() is not None
+        has_course_context_access = (
+            UserCourseAccess.query.filter_by(
+                user_id=current_user_id_uuid, course_id=course.id
+            ).first()
+            is not None
+        )
 
         # 2. 获取用户在该课程下被明确授权的资源及其有效期
         # 我们需要连接 CourseResource 和 UserResourceAccess
         now_utc = datetime.now(timezone.utc)
-        
+
         # 查询用户有权访问且未过期的资源，并获取其 UserResourceAccess 记录以提取 expires_at
-        granted_resources_query = db.session.query(
-                CourseResource, 
-                UserResourceAccess.expires_at
-            ).join(
+        granted_resources_query = (
+            db.session.query(CourseResource, UserResourceAccess.expires_at)
+            .join(
                 UserResourceAccess, CourseResource.id == UserResourceAccess.resource_id
-            ).filter(
-                CourseResource.course_id == course.id, # 确保是当前课程的资源
+            )
+            .filter(
+                CourseResource.course_id == course.id,  # 确保是当前课程的资源
                 UserResourceAccess.user_id == current_user_id_uuid,
                 or_(
-                    UserResourceAccess.expires_at == None,
-                    UserResourceAccess.expires_at >= now_utc
-                )
-            ).order_by(CourseResource.sort_order, CourseResource.created_at)
-            
+                    UserResourceAccess.expires_at is None,
+                    UserResourceAccess.expires_at >= now_utc,
+                ),
+            )
+            .order_by(CourseResource.sort_order, CourseResource.created_at)
+        )
+
         accessible_resources_with_expiry = granted_resources_query.all()
 
         if not has_course_context_access and not accessible_resources_with_expiry:
             # 如果既没有课程级访问权限，也没有任何该课程下的有效资源访问权限，则拒绝
             # (或者根据您的业务逻辑，如果只想显示有具体资源权限的，可以只判断 accessible_resources_with_expiry)
             # return jsonify({'error': 'Access denied to this course and its resources'}), 403
-            pass # 允许返回空列表，让前端显示“无资源”
+            pass  # 允许返回空列表，让前端显示“无资源”
 
         for res_obj, expires_at_val in accessible_resources_with_expiry:
             res_dict = res_obj.to_dict(include_uploader=True)
-            res_dict['user_access_expires_at'] = expires_at_val.isoformat() if expires_at_val else None
+            res_dict["user_access_expires_at"] = (
+                expires_at_val.isoformat() if expires_at_val else None
+            )
             resource_list_to_return.append(res_dict)
-            
+
     return jsonify(resource_list_to_return)
 
 
-@course_resource_bp.route('/resources/<uuid:resource_id_str>', methods=['GET'])
+@course_resource_bp.route("/resources/<uuid:resource_id_str>", methods=["GET"])
 @jwt_required()
 def get_course_resource_detail(resource_id_str):
     # try:
     #     resource_id_uuid = uuid.UUID(resource_id_str)
     # except ValueError:
     #     return jsonify({'error': 'Invalid resource ID format'}), 400
-    resource_id_uuid = resource_id_str # <<<--- 直接使用，或者为了明确可以重命名
+    resource_id_uuid = resource_id_str  # <<<--- 直接使用，或者为了明确可以重命名
 
     current_user_id_str = get_jwt_identity()
     try:
         current_user_id_uuid = uuid.UUID(current_user_id_str)
     except ValueError:
-        return jsonify({'error': 'Invalid user ID format in token'}), 400
+        return jsonify({"error": "Invalid user ID format in token"}), 400
 
     user = User.query.get(current_user_id_uuid)
-    if not user: 
-        return jsonify({'error': 'User not found for token'}), 401
-    
-    is_admin = (get_jwt().get('role') == 'admin')
+    if not user:
+        return jsonify({"error": "User not found for token"}), 401
+
+    is_admin = get_jwt().get("role") == "admin"
 
     resource = CourseResource.query.get(resource_id_uuid)
     if not resource:
-        return jsonify({'error': 'Resource not found'}), 404
+        return jsonify({"error": "Resource not found"}), 404
 
     resource_data = resource.to_dict(include_uploader=True)
     user_specific_expires_at = None
@@ -252,8 +320,7 @@ def get_course_resource_detail(resource_id_str):
         # 管理员访问资源时，是否显示“针对其自身”的有效期？
         # 如果管理员也有 UserResourceAccess 记录，可以获取并显示
         admin_access_record = UserResourceAccess.query.filter_by(
-            user_id=current_user_id_uuid, 
-            resource_id=resource_id_uuid
+            user_id=current_user_id_uuid, resource_id=resource_id_uuid
         ).first()
         if admin_access_record and admin_access_record.expires_at:
             user_specific_expires_at = admin_access_record.expires_at
@@ -264,8 +331,7 @@ def get_course_resource_detail(resource_id_str):
         # 普通用户，查询其特定的 UserResourceAccess 记录
         # current_app.logger.info(f"Non-admin user. Querying UserResourceAccess for user_id: {current_user_id_uuid}, resource_id: {resource_id_uuid}")
         user_access_record = UserResourceAccess.query.filter_by(
-            user_id=current_user_id_uuid,
-            resource_id=resource_id_uuid
+            user_id=current_user_id_uuid, resource_id=resource_id_uuid
         ).first()
 
         if user_access_record:
@@ -275,8 +341,8 @@ def get_course_resource_detail(resource_id_str):
             if user_specific_expires_at:
                 # 假设 user_specific_expires_at 是 aware datetime (带有 tzinfo)
                 # 或者如果它是 naive 但代表 UTC，我们需要确保 datetime.now() 也是 UTC
-                now_for_compare = datetime.now(timezone.utc) # 获取当前的 UTC 时间
-                
+                now_for_compare = datetime.now(timezone.utc)  # 获取当前的 UTC 时间
+
                 # 如果 user_specific_expires_at 是 naive datetime，我们需要假设它存储的是 UTC 时间
                 # 为了比较，最好将其本地化为 UTC (如果 SQLAlchemy 没有自动做这件事)
                 # 如果列是 TIMESTAMPTZ，SQLAlchemy 返回的是 aware datetime
@@ -285,7 +351,7 @@ def get_course_resource_detail(resource_id_str):
                 # Python 会抛出 TypeError。所以最好确保 expires_at 是 aware。
                 # 如果您的 UserResourceAccess.expires_at 是 DateTime(timezone=True)，
                 # 那么 user_specific_expires_at 应该已经是 aware 的了。
-                
+
                 # 显式处理 naive -> aware，以防数据库列类型是 TIMESTAMP 而不是 TIMESTAMPTZ
                 # if user_specific_expires_at.tzinfo is None:
                 #     # 假设它是 UTC naive，并将其转换为 aware UTC
@@ -296,7 +362,7 @@ def get_course_resource_detail(resource_id_str):
 
                 if user_specific_expires_at >= now_for_compare:
                     can_access_now = True
-            elif user_specific_expires_at is None: # 永久有效
+            elif user_specific_expires_at is None:  # 永久有效
                 can_access_now = True
         else:
             # 如果没有直接的资源授权，检查是否有课程级授权
@@ -304,11 +370,13 @@ def get_course_resource_detail(resource_id_str):
             # 但通常，播放资源应该依赖 UserResourceAccess 的有效期
             # current_app.logger.info(f"No UserResourceAccess record found for user_id: {current_user_id_uuid}, resource_id: {resource_id_uuid}")
             if check_course_access_for_resource(current_user_id_uuid, resource):
-                can_access_now = True # 有课程权限，视为可访问（但没有特定资源有效期）
+                can_access_now = True  # 有课程权限，视为可访问（但没有特定资源有效期）
                 # user_specific_expires_at 保持 None，前端会显示 "长期有效"
-    
-    resource_data['user_access_expires_at'] = user_specific_expires_at.isoformat() if user_specific_expires_at else None
-    resource_data['can_access_now'] = can_access_now
+
+    resource_data["user_access_expires_at"] = (
+        user_specific_expires_at.isoformat() if user_specific_expires_at else None
+    )
+    resource_data["can_access_now"] = can_access_now
 
     # 最终权限校验：如果不能访问，则不返回详情（除非是管理员）
     if not can_access_now and not is_admin:
@@ -317,23 +385,25 @@ def get_course_resource_detail(resource_id_str):
         # 真正阻止播放的应该是流媒体端点的权限检查
         # 但如果这里就想阻止看到详情，可以取消下面的注释
         # return jsonify({'error': 'Access to this resource detail is denied or has expired.'}), 403
-        pass # 允许返回数据，让前端根据 can_access_now 和 expires_at 自行处理显示
+        pass  # 允许返回数据，让前端根据 can_access_now 和 expires_at 自行处理显示
     return jsonify(resource_data)
 
+
 # ... (您现有的 update_course_resource 和 delete_course_resource接口，也确保有权限校验)
-@course_resource_bp.route('/resources/<uuid:resource_id_str>', methods=['PUT'])
+@course_resource_bp.route("/resources/<uuid:resource_id_str>", methods=["PUT"])
 @jwt_required()
 def update_course_resource(resource_id_str):
     resource_id = str(resource_id_str)
     # --- 权限校验逻辑 ---
-    current_user_id_uuid = uuid.UUID(get_jwt_identity()) # 确保是UUID对象
+    current_user_id_uuid = uuid.UUID(get_jwt_identity())  # 确保是UUID对象
     user = User.query.get(current_user_id_uuid)
-    if not user: return jsonify({'error': 'User not found for token'}), 401
-    is_admin = (get_jwt().get('role') == 'admin')
-    
+    if not user:
+        return jsonify({"error": "User not found for token"}), 401
+    is_admin = get_jwt().get("role") == "admin"
+
     resource = CourseResource.query.get(resource_id)
     if not resource:
-        return jsonify({'error': 'Resource not found'}), 404
+        return jsonify({"error": "Resource not found"}), 404
 
     can_manage = False
     if is_admin:
@@ -341,55 +411,72 @@ def update_course_resource(resource_id_str):
     # else: # 也可以添加非管理员但有特定课程管理权限的逻辑
     #     if check_course_access_for_resource(current_user_id_uuid, resource): # 假设有课程权限即可编辑资源
     #         can_manage = True
-    
-    if not can_manage: # 简化：只有管理员可以编辑
-        current_app.logger.warning(f"User {current_user_id_uuid} denied access to update resource {resource_id}")
-        return jsonify({'error': 'Access denied to update this resource'}), 403
+
+    if not can_manage:  # 简化：只有管理员可以编辑
+        current_app.logger.warning(
+            f"User {current_user_id_uuid} denied access to update resource {resource_id}"
+        )
+        return jsonify({"error": "Access denied to update this resource"}), 403
     # --- 权限校验结束 ---
-    
+
     # multipart/form-data 请求，非文件字段在 request.form 中
     # 文件字段在 request.files 中
-    data_name = request.form.get('name')
-    data_description = request.form.get('description')
-    data_sort_order = request.form.get('sort_order')
-    new_file = request.files.get('file') # 获取名为 'file' 的上传文件
+    data_name = request.form.get("name")
+    data_description = request.form.get("description")
+    data_sort_order = request.form.get("sort_order")
+    new_file = request.files.get("file")  # 获取名为 'file' 的上传文件
 
     try:
-        if data_name is not None: resource.name = data_name.strip()
-        if data_description is not None: resource.description = data_description.strip()
+        if data_name is not None:
+            resource.name = data_name.strip()
+        if data_description is not None:
+            resource.description = data_description.strip()
         if data_sort_order is not None:
             try:
                 resource.sort_order = int(data_sort_order)
             except ValueError:
-                return jsonify({'error': 'Sort order must be an integer'}), 400
-
+                return jsonify({"error": "Sort order must be an integer"}), 400
 
         if new_file and allowed_file(new_file.filename):
             # current_app.logger.info(f"Updating resource {resource.id} with new file: {new_file.filename}")
-            
+
             old_file_path_absolute = None
             if resource.file_path:
-                old_file_path_absolute = os.path.join(INSTANCE_FOLDER_PATH, resource.file_path)
+                old_file_path_absolute = os.path.join(
+                    INSTANCE_FOLDER_PATH, resource.file_path
+                )
                 if os.path.exists(old_file_path_absolute):
                     try:
                         os.remove(old_file_path_absolute)
                         # current_app.logger.info(f"Old file deleted: {old_file_path_absolute}")
                     except OSError as e_remove:
-                        current_app.logger.error(f"Failed to delete old file {old_file_path_absolute}: {e_remove}")
+                        current_app.logger.error(
+                            f"Failed to delete old file {old_file_path_absolute}: {e_remove}"
+                        )
                         # 不中断，继续尝试保存新文件
                 else:
-                    current_app.logger.warning(f"Old file path for resource {resource.id} not found: {old_file_path_absolute}")
+                    current_app.logger.warning(
+                        f"Old file path for resource {resource.id} not found: {old_file_path_absolute}"
+                    )
 
             filename = secure_filename(new_file.filename)
-            course_upload_folder_relative = os.path.join(UPLOAD_FOLDER_RELATIVE, str(resource.course_id))
-            course_upload_folder_absolute = os.path.join(INSTANCE_FOLDER_PATH, course_upload_folder_relative)
+            course_upload_folder_relative = os.path.join(
+                UPLOAD_FOLDER_RELATIVE, str(resource.course_id)
+            )
+            course_upload_folder_absolute = os.path.join(
+                INSTANCE_FOLDER_PATH, course_upload_folder_relative
+            )
             os.makedirs(course_upload_folder_absolute, exist_ok=True)
-            
+
             timestamp = datetime.now().strftime("%Y%m%d%H%M%S%f")
             unique_filename = f"{timestamp}_{filename}"
-            new_file_save_path_absolute = os.path.join(course_upload_folder_absolute, unique_filename)
-            new_file_save_path_relative_to_instance = os.path.join(course_upload_folder_relative, unique_filename)
-            
+            new_file_save_path_absolute = os.path.join(
+                course_upload_folder_absolute, unique_filename
+            )
+            new_file_save_path_relative_to_instance = os.path.join(
+                course_upload_folder_relative, unique_filename
+            )
+
             new_file.save(new_file_save_path_absolute)
             # current_app.logger.info(f"New file saved to: {new_file_save_path_absolute}")
 
@@ -397,34 +484,50 @@ def update_course_resource(resource_id_str):
             resource.mime_type = new_file.mimetype
             resource.size_bytes = os.path.getsize(new_file_save_path_absolute)
             resource.file_type = get_file_type_from_extension(filename)
-            # resource.duration_seconds = ... 
+            # resource.duration_seconds = ...
             resource.updated_at = func.now()
-        
+
         elif new_file and not allowed_file(new_file.filename):
-             return jsonify({'error': 'New file type not allowed'}), 400
+            return jsonify({"error": "New file type not allowed"}), 400
 
         db.session.commit()
-        return jsonify({'message': 'Resource updated successfully', 'resource': resource.to_dict(include_uploader=True)})
+        return jsonify(
+            {
+                "message": "Resource updated successfully",
+                "resource": resource.to_dict(include_uploader=True),
+            }
+        )
     except Exception as e:
         db.session.rollback()
-        current_app.logger.error(f"Error updating resource {resource_id}: {e}", exc_info=True)
-        if 'new_file_save_path_absolute' in locals() and os.path.exists(new_file_save_path_absolute):
-            try: os.remove(new_file_save_path_absolute)
-            except OSError: pass
-        return jsonify({'error': f'Failed to update resource: {str(e)}'}), 500
+        current_app.logger.error(
+            f"Error updating resource {resource_id}: {e}", exc_info=True
+        )
+        if "new_file_save_path_absolute" in locals() and os.path.exists(
+            new_file_save_path_absolute
+        ):
+            try:
+                os.remove(new_file_save_path_absolute)
+            except OSError:
+                pass
+        return jsonify({"error": f"Failed to update resource: {str(e)}"}), 500
 
-@course_resource_bp.route('/resources/<uuid:resource_id_str>', methods=['DELETE'])
-@jwt_required() # 通常需要权限
+
+@course_resource_bp.route("/resources/<uuid:resource_id_str>", methods=["DELETE"])
+@jwt_required()  # 通常需要权限
 def delete_course_resource(resource_id_str):
     resource_id = str(resource_id_str)
-    #) # 或者 resource_id_uuid = resource_id_str 如果路由转换了
+    resource = CourseResource.query.get(resource_id)
+    if not resource:
+        return jsonify({"error": "Resource not found"}), 404
+    # ) # 或者 resource_id_uuid = resource_id_str 如果路由转换了
     # --- 权限 --- 新增：获取当前用户信息和角色 ---
     can_access = False
     current_user_id = get_jwt_identity()
     user = User.query.get(current_user_id)
-    if not user: return jsonify({'error': 'User not found for token'}), 401
-    is_admin = (get_jwt().get('role') == 'admin')
-    
+    if not user:
+        return jsonify({"error": "User not found for token"}), 401
+    is_admin = get_jwt().get("role") == "admin"
+
     if is_admin:
         can_access = True
     else:
@@ -432,50 +535,61 @@ def delete_course_resource(resource_id_str):
             can_access = True
         elif check_course_access_for_resource(current_user_id, resource):
             can_access = True
-    
-    if not can_access:
-        current_app.logger.warning(f"User {current_user_id} denied access to stream resource {resource_id}")
-        return jsonify({'error': 'Access denied to this resource'}), 403
-    # --- 权限校验结束 ---
-    
-    resource = CourseResource.query.get(resource_id)
-    if not resource:
-        return jsonify({'error': 'Resource not found'}), 404
 
-    file_path_to_delete_absolute = os.path.join(INSTANCE_FOLDER_PATH, resource.file_path)
+    if not can_access:
+        current_app.logger.warning(
+            f"User {current_user_id} denied access to stream resource {resource_id}"
+        )
+        return jsonify({"error": "Access denied to this resource"}), 403
+    # --- 权限校验结束 ---
+
+    file_path_to_delete_absolute = os.path.join(
+        INSTANCE_FOLDER_PATH, resource.file_path
+    )
 
     try:
         db.session.delete(resource)
         db.session.commit()
-        
+
         # 删除物理文件
         if os.path.exists(file_path_to_delete_absolute):
             try:
                 os.remove(file_path_to_delete_absolute)
-                current_app.logger.info(f"Successfully deleted physical file: {file_path_to_delete_absolute}")
+                current_app.logger.info(
+                    f"Successfully deleted physical file: {file_path_to_delete_absolute}"
+                )
             except OSError as e_remove:
-                current_app.logger.error(f"Failed to delete physical file {file_path_to_delete_absolute} after DB record deletion: {e_remove}")
+                current_app.logger.error(
+                    f"Failed to delete physical file {file_path_to_delete_absolute} after DB record deletion: {e_remove}"
+                )
                 # 即使文件删除失败，数据库记录已删除，所以仍返回成功，但记录错误
                 # 或者您可以选择回滚数据库操作如果文件删除是关键的
         else:
-            current_app.logger.warning(f"Physical file not found for deleted resource {resource_id}: {file_path_to_delete_absolute}")
+            current_app.logger.warning(
+                f"Physical file not found for deleted resource {resource_id}: {file_path_to_delete_absolute}"
+            )
 
-        return jsonify({'message': 'Resource deleted successfully'}), 200
+        return jsonify({"message": "Resource deleted successfully"}), 200
     except Exception as e:
         db.session.rollback()
-        current_app.logger.error(f"Error deleting resource {resource_id}: {e}", exc_info=True)
-        return jsonify({'error': f'Failed to delete resource: {str(e)}'}), 500
+        current_app.logger.error(
+            f"Error deleting resource {resource_id}: {e}", exc_info=True
+        )
+        return jsonify({"error": f"Failed to delete resource: {str(e)}"}), 500
+
+
 # ======================================================================
 # === 以下是新增的用于播放和统计的 API 接口                     ===
 # ======================================================================
 
-@course_resource_bp.route('/resources/<uuid:resource_id_str>/stream', methods=['GET'])
+
+@course_resource_bp.route("/resources/<uuid:resource_id_str>/stream", methods=["GET"])
 # @jwt_required() # 我们之前注释掉了这个, 因为要手动处理 URL token, 现在主要依赖 Header Token
 def stream_course_resource(resource_id_str):
     resource_id_uuid = resource_id_str
 
     current_user_id_from_token_str = None
-    user_jwt_claims = {} # 用于存储解析后的 JWT claims
+    user_jwt_claims = {}  # 用于存储解析后的 JWT claims
 
     # 1. 尝试从 Authorization header 获取并验证 Token (如果存在)
     # Flask-JWT-Extended 的 verify_jwt_in_request 会处理这个
@@ -485,231 +599,324 @@ def stream_course_resource(resource_id_str):
         # optional=True 意味着如果 Header 中没有 Token，它不会立即抛出错误
         # locations=['headers'] 只检查头部
         # verify_jwt_in_request() # 使用默认，如果 Header 有 Token 就验证，否则失败
-        
+
         # 允许没有 header token，我们稍后检查 URL token
-        verify_jwt_in_request(optional=True, locations=['headers']) 
-        temp_identity = get_jwt_identity() # 如果验证成功，这个会有值
+        verify_jwt_in_request(optional=True, locations=["headers"])
+        temp_identity = get_jwt_identity()  # 如果验证成功，这个会有值
         if temp_identity:
             current_user_id_from_token_str = temp_identity
-            user_jwt_claims = get_jwt() # 获取完整的 claims
-            header_token_valid = True
-            current_app.logger.info(f"Stream: Token validated from Header for user {current_user_id_from_token_str}")
+            user_jwt_claims = get_jwt()  # 获取完整的 claims
+            # header_token_valid = True
+            current_app.logger.info(
+                f"Stream: Token validated from Header for user {current_user_id_from_token_str}"
+            )
     except Exception as e_header_jwt:
         # 如果 Header Token 验证失败 (例如过期, 签名无效等)
-        current_app.logger.warning(f"Stream: Header token validation failed: {e_header_jwt}")
+        current_app.logger.warning(
+            f"Stream: Header token validation failed: {e_header_jwt}"
+        )
         # header_token_valid 保持 False，继续尝试 URL token
 
     # 2. 如果 Header 中没有有效 Token (或 Header 中根本没有 Token)，尝试从 URL 参数获取
     # 注意：即使 Header Token 存在但无效，我们可能也想尝试 URL Token，但业务上通常只接受一种方式
     # 这里我们优先使用 Header Token，只有 Header Token 不存在时才检查 URL Token
-    if not current_user_id_from_token_str: # 只有当 Header Token 没有提供身份时才检查 URL Token
-        url_token = request.args.get('access_token', None)
+    if (
+        not current_user_id_from_token_str
+    ):  # 只有当 Header Token 没有提供身份时才检查 URL Token
+        url_token = request.args.get("access_token", None)
         if url_token:
-            current_app.logger.info(f"Stream: Attempting to validate token from URL parameter: {url_token[:20]}...")
+            current_app.logger.info(
+                f"Stream: Attempting to validate token from URL parameter: {url_token[:20]}..."
+            )
             try:
                 # 使用 decode_token 来解码和验证 URL Token
                 # 这需要您的 Flask app 配置了 JWT_SECRET_KEY
-                decoded_jwt = decode_token(url_token) 
+                decoded_jwt = decode_token(url_token)
                 # current_app.config.get("JWT_IDENTITY_CLAIM", "sub") 通常是 'sub'
                 identity_claim_key = current_app.config.get("JWT_IDENTITY_CLAIM", "sub")
                 current_user_id_from_token_str = decoded_jwt.get(identity_claim_key)
-                
+
                 if not current_user_id_from_token_str:
-                    current_app.logger.error(f"Stream: Token from URL is missing identity claim ('{identity_claim_key}'). Decoded: {decoded_jwt}")
-                    raise PyJWTError(f"Token from URL is missing identity claim ('{identity_claim_key}').")
-                
+                    current_app.logger.error(
+                        f"Stream: Token from URL is missing identity claim ('{identity_claim_key}'). Decoded: {decoded_jwt}"
+                    )
+                    raise PyJWTError(
+                        f"Token from URL is missing identity claim ('{identity_claim_key}')."
+                    )
+
                 # 对于手动解码的 Token，我们需要手动构建 user_jwt_claims
                 # get_jwt() 依赖于 Flask-JWT-Extended 的上下文，这里可能没有
                 # 所以直接使用 decoded_jwt 作为 user_jwt_claims
                 user_jwt_claims = decoded_jwt
-                
-                current_app.logger.info(f"Stream: Token from URL parameter validated for user {current_user_id_from_token_str}")
-            except PyJWTError as e_jwt: # 捕获 JWT 解码, 签名, 过期, 或 identity 缺失错误
-                current_app.logger.error(f"Stream: Invalid or expired token from URL parameter: {e_jwt}")
-                return jsonify({'error': 'Invalid or expired token'}), 401
+
+                current_app.logger.info(
+                    f"Stream: Token from URL parameter validated for user {current_user_id_from_token_str}"
+                )
+            except (
+                PyJWTError
+            ) as e_jwt:  # 捕获 JWT 解码, 签名, 过期, 或 identity 缺失错误
+                current_app.logger.error(
+                    f"Stream: Invalid or expired token from URL parameter: {e_jwt}"
+                )
+                return jsonify({"error": "Invalid or expired token"}), 401
             except Exception as e_other_url_token:
-                current_app.logger.error(f"Stream: Error processing token from URL: {e_other_url_token}", exc_info=True)
-                return jsonify({'error': 'Error processing token'}), 401
+                current_app.logger.error(
+                    f"Stream: Error processing token from URL: {e_other_url_token}",
+                    exc_info=True,
+                )
+                return jsonify({"error": "Error processing token"}), 401
         else:
             # 如果 Header 和 URL 参数都没有 Token，且 Header Token 验证没有提供身份
             # This indicates no valid authentication method was found.
-            current_app.logger.warning("Stream: No token provided in headers or URL params for stream.")
-            return jsonify({'error': 'Authentication required.'}), 401
-    
+            current_app.logger.warning(
+                "Stream: No token provided in headers or URL params for stream."
+            )
+            return jsonify({"error": "Authentication required."}), 401
+
     # 如果 current_user_id_from_token_str 仍然是 None，说明认证失败
     if not current_user_id_from_token_str:
-        current_app.logger.error("Stream: Failed to establish user identity from any token source after processing both header and URL.")
-        return jsonify({'error': 'Authentication required.'}), 401
+        current_app.logger.error(
+            "Stream: Failed to establish user identity from any token source after processing both header and URL."
+        )
+        return jsonify({"error": "Authentication required."}), 401
 
     # --- 将获取到的用户ID字符串转换为UUID ---
     try:
         current_user_id_uuid = uuid.UUID(current_user_id_from_token_str)
     except (ValueError, TypeError) as e_uuid:
-        current_app.logger.error(f"Stream: Invalid UUID format for user identity '{current_user_id_from_token_str}': {e_uuid}")
-        return jsonify({'error': f"Invalid user identity format in token: {current_user_id_from_token_str}"}), 400
+        current_app.logger.error(
+            f"Stream: Invalid UUID format for user identity '{current_user_id_from_token_str}': {e_uuid}"
+        )
+        return jsonify(
+            {
+                "error": f"Invalid user identity format in token: {current_user_id_from_token_str}"
+            }
+        ), 400
 
     user = User.query.get(current_user_id_uuid)
-    if not user: 
-        current_app.logger.error(f"Stream: User ID {current_user_id_uuid} from token not found in database.")
-        return jsonify({'error': 'User from token not found.'}), 401
+    if not user:
+        current_app.logger.error(
+            f"Stream: User ID {current_user_id_uuid} from token not found in database."
+        )
+        return jsonify({"error": "User from token not found."}), 401
 
-    is_admin = (user_jwt_claims.get('role') == 'admin')
-    current_app.logger.info(f"Stream: User ID (UUID): {current_user_id_uuid}, Role: {user_jwt_claims.get('role')}, Is Admin: {is_admin}")
+    is_admin = user_jwt_claims.get("role") == "admin"
+    current_app.logger.info(
+        f"Stream: User ID (UUID): {current_user_id_uuid}, Role: {user_jwt_claims.get('role')}, Is Admin: {is_admin}"
+    )
 
     resource = CourseResource.query.get(resource_id_uuid)
-    if not resource: 
+    if not resource:
         current_app.logger.warning(f"Stream: Resource {resource_id_uuid} not found.")
-        return jsonify({'error': 'Resource not found'}), 404
+        return jsonify({"error": "Resource not found"}), 404
 
     can_access = False
     if is_admin:
         can_access = True
-        current_app.logger.info(f"Stream: Access granted via admin role.")
+        current_app.logger.info("Stream: Access granted via admin role.")
     else:
-        direct_resource_access = check_resource_access(current_user_id_uuid, resource_id_uuid)
-        current_app.logger.info(f"Stream: Result of check_resource_access for user {current_user_id_uuid} on resource {resource_id_uuid}: {direct_resource_access}")
+        direct_resource_access = check_resource_access(
+            current_user_id_uuid, resource_id_uuid
+        )
+        current_app.logger.info(
+            f"Stream: Result of check_resource_access for user {current_user_id_uuid} on resource {resource_id_uuid}: {direct_resource_access}"
+        )
         if direct_resource_access:
             can_access = True
-            current_app.logger.info(f"Stream: Access granted via direct resource permission.")
+            current_app.logger.info(
+                "Stream: Access granted via direct resource permission."
+            )
         else:
-            course_context_access = check_course_access_for_resource(current_user_id_uuid, resource)
-            current_app.logger.info(f"Stream: Result of check_course_access_for_resource for user {current_user_id_uuid} on resource {resource_id_uuid}: {course_context_access}")
+            course_context_access = check_course_access_for_resource(
+                current_user_id_uuid, resource
+            )
+            current_app.logger.info(
+                f"Stream: Result of check_course_access_for_resource for user {current_user_id_uuid} on resource {resource_id_uuid}: {course_context_access}"
+            )
             # NOTE: Relying on course access for *streaming* a specific resource might ignore resource-level expiry.
             # Ensure your business logic intends this. If resource access expiry should override course access,
             # the logic should be adjusted (e.g., course access only grants visibility, but resource access grants playback).
             # For now, we grant playback if either applies.
             if course_context_access:
-                 can_access = True
-                 current_app.logger.info(f"Stream: Access granted via course context permission.")
-
+                can_access = True
+                current_app.logger.info(
+                    "Stream: Access granted via course context permission."
+                )
 
     if not can_access:
-        current_app.logger.warning(f"Stream: Final access check DENIED for user {current_user_id_uuid} on resource {resource_id_uuid}")
-        return jsonify({'error': 'Access denied to this resource stream'}), 403
+        current_app.logger.warning(
+            f"Stream: Final access check DENIED for user {current_user_id_uuid} on resource {resource_id_uuid}"
+        )
+        return jsonify({"error": "Access denied to this resource stream"}), 403
 
-    current_app.logger.info(f"Stream: Final access check GRANTED for user {current_user_id_uuid} on resource {resource_id_uuid}")
-        
+    current_app.logger.info(
+        f"Stream: Final access check GRANTED for user {current_user_id_uuid} on resource {resource_id_uuid}"
+    )
+
     # --- 3. Range处理和流式传输逻辑 (与之前提供的版本一致) ---
     file_absolute_path = os.path.join(INSTANCE_FOLDER_PATH, resource.file_path)
     if not os.path.exists(file_absolute_path):
-        current_app.logger.error(f"Stream: File not found on server: {file_absolute_path}")
-        return jsonify({'error': 'File not found on server'}), 404
-    
+        current_app.logger.error(
+            f"Stream: File not found on server: {file_absolute_path}"
+        )
+        return jsonify({"error": "File not found on server"}), 404
+
     file_size = resource.size_bytes or os.path.getsize(file_absolute_path)
-    range_header = request.headers.get('Range', None)
-    
+    range_header = request.headers.get("Range", None)
+
     start = 0
-    end = file_size - 1 
+    end = file_size - 1
     status_code = 200
     content_length = file_size
     headers = {
-        'Content-Type': resource.mime_type or 'application/octet-stream',
-        'Content-Disposition': f'inline; filename="{secure_filename(resource.name)}"',
-        'Accept-Ranges': 'bytes', # 非常重要，告知客户端支持 Range
+        "Content-Type": resource.mime_type or "application/octet-stream",
+        "Content-Disposition": f'inline; filename="{secure_filename(resource.name)}"',
+        "Accept-Ranges": "bytes",  # 非常重要，告知客户端支持 Range
     }
 
     if range_header:
         current_app.logger.info(f"Stream: Received Range header: {range_header}")
         try:
             # 尝试解析 bytes=start-end 和 bytes=start-
-            range_match = re.match(r'bytes=(\d*)-(\d*)', range_header)
+            range_match = re.match(r"bytes=(\d*)-(\d*)", range_header)
             if range_match:
                 g = range_match.groups()
                 range_start_str = g[0]
                 range_end_str = g[1]
 
-                if range_start_str: start = int(range_start_str)
-                if range_end_str: end = int(range_end_str)
-                elif range_start_str: end = file_size - 1 # 如果只有 start，则到末尾
-                else: raise ValueError("Invalid Range format (no start)") # 例如 "bytes=-100" 暂时不处理
+                if range_start_str:
+                    start = int(range_start_str)
+                if range_end_str:
+                    end = int(range_end_str)
+                elif range_start_str:
+                    end = file_size - 1  # 如果只有 start，则到末尾
+                else:
+                    raise ValueError(
+                        "Invalid Range format (no start)"
+                    )  # 例如 "bytes=-100" 暂时不处理
 
                 if start < 0 or start >= file_size or start > end:
-                    current_app.logger.warning(f"Stream: Range Not Satisfiable. Range: {range_header}, FileSize: {file_size}")
+                    current_app.logger.warning(
+                        f"Stream: Range Not Satisfiable. Range: {range_header}, FileSize: {file_size}"
+                    )
                     # 对于不满足的 Range，返回 416
-                    return Response(status=416, headers={'Content-Range': f'bytes */{file_size}'})
-                
-                end = min(end, file_size - 1) # 确保 end 不超过文件边界
-                status_code = 206 
+                    return Response(
+                        status=416, headers={"Content-Range": f"bytes */{file_size}"}
+                    )
+
+                end = min(end, file_size - 1)  # 确保 end 不超过文件边界
+                status_code = 206
                 content_length = (end - start) + 1
-                headers['Content-Range'] = f'bytes {start}-{end}/{file_size}'
-                current_app.logger.info(f"Stream: Responding with 206. Content-Range: {headers['Content-Range']}, Content-Length: {content_length}")
-            else: # 如果 Range 格式不匹配我们解析的，忽略它，发送整个文件
-                current_app.logger.warning(f"Stream: Could not parse Range header with regex: {range_header}, sending full content.")
-                start = 0; end = file_size - 1; status_code = 200; content_length = file_size
-        except ValueError as e_val: # 捕获 int() 转换错误等
-             current_app.logger.warning(f"Stream: ValueError parsing Range header '{range_header}': {e_val}. Sending full content.")
-             start = 0; end = file_size - 1; status_code = 200; content_length = file_size
-        except Exception as e_range: # 其他 Range 处理错误
-            current_app.logger.error(f"Stream: Error processing Range header '{range_header}': {e_range}", exc_info=True)
-            start = 0; end = file_size - 1; status_code = 200; content_length = file_size
+                headers["Content-Range"] = f"bytes {start}-{end}/{file_size}"
+                current_app.logger.info(
+                    f"Stream: Responding with 206. Content-Range: {headers['Content-Range']}, Content-Length: {content_length}"
+                )
+            else:  # 如果 Range 格式不匹配我们解析的，忽略它，发送整个文件
+                current_app.logger.warning(
+                    f"Stream: Could not parse Range header with regex: {range_header}, sending full content."
+                )
+                start = 0
+                end = file_size - 1
+                status_code = 200
+                content_length = file_size
+        except ValueError as e_val:  # 捕获 int() 转换错误等
+            current_app.logger.warning(
+                f"Stream: ValueError parsing Range header '{range_header}': {e_val}. Sending full content."
+            )
+            start = 0
+            end = file_size - 1
+            status_code = 200
+            content_length = file_size
+        except Exception as e_range:  # 其他 Range 处理错误
+            current_app.logger.error(
+                f"Stream: Error processing Range header '{range_header}': {e_range}",
+                exc_info=True,
+            )
+            start = 0
+            end = file_size - 1
+            status_code = 200
+            content_length = file_size
     else:
         current_app.logger.info("Stream: No Range header, sending full content.")
-    
-    headers['Content-Length'] = str(content_length)
-    current_app.logger.debug(f"Stream: Final response headers: {headers}, Status: {status_code}")
+
+    headers["Content-Length"] = str(content_length)
+    current_app.logger.debug(
+        f"Stream: Final response headers: {headers}, Status: {status_code}"
+    )
 
     def generate_file_stream(path, offset, length_to_read, chunk_size=8192):
-        with open(path, 'rb') as f:
+        with open(path, "rb") as f:
             f.seek(offset)
             bytes_remaining = length_to_read
             while bytes_remaining > 0:
                 read_size = min(chunk_size, bytes_remaining)
                 data = f.read(read_size)
-                if not data: break
+                if not data:
+                    break
                 yield data
                 bytes_remaining -= len(data)
-    
+
     return Response(
-        stream_with_context(generate_file_stream(file_absolute_path, start, content_length)),
+        stream_with_context(
+            generate_file_stream(file_absolute_path, start, content_length)
+        ),
         status=status_code,
         headers=headers,
-        mimetype=resource.mime_type or 'application/octet-stream'
+        mimetype=resource.mime_type or "application/octet-stream",
     )
 
 
-@course_resource_bp.route('/resources/<uuid:resource_id_str>/play-log', methods=['POST'])
-@jwt_required() # 确保需要登录才能记录播放日志
+@course_resource_bp.route(
+    "/resources/<uuid:resource_id_str>/play-log", methods=["POST"]
+)
+@jwt_required()  # 确保需要登录才能记录播放日志
 def log_resource_play(resource_id_str):
     resource_id = str(resource_id_str)
-    current_user_id_str = get_jwt_identity() # 从 JWT 中获取用户ID
-    
+    current_user_id_str = get_jwt_identity()  # 从 JWT 中获取用户ID
+
     try:
         current_user_id_uuid = uuid.UUID(current_user_id_str)
     except ValueError:
-        return jsonify({'error': 'Invalid user ID format in token'}), 400
+        return jsonify({"error": "Invalid user ID format in token"}), 400
 
     # 权限检查是必要的，但为了日志记录，可以放宽：只要是登录用户，且资源存在，就可以记录
     # 更严格的权限检查可能需要确认用户对该资源有播放权限
     resource = CourseResource.query.get(resource_id)
     if not resource:
-        current_app.logger.warning(f"Play log attempt for non-existent resource {resource_id} by user {current_user_id_str}")
-        return jsonify({'error': 'Resource not found'}), 404
+        current_app.logger.warning(
+            f"Play log attempt for non-existent resource {resource_id} by user {current_user_id_str}"
+        )
+        return jsonify({"error": "Resource not found"}), 404
 
     data = request.get_json() or {}
-    watch_time = data.get('watch_time_seconds')
-    percentage = data.get('percentage_watched')
-    session_id = data.get('session_id')       # <<<--- 从请求 JSON 中读取 session_id
-    event_type = data.get('event_type')       # <<<--- 从请求 JSON 中读取 event_type
+    watch_time = data.get("watch_time_seconds")
+    percentage = data.get("percentage_watched")
+    session_id = data.get("session_id")  # <<<--- 从请求 JSON 中读取 session_id
+    event_type = data.get("event_type")  # <<<--- 从请求 JSON 中读取 event_type
 
     # 验证必要的日志数据
     if session_id is None or event_type is None:
-        current_app.logger.warning(f"Play log attempt missing session_id or event_type from user {current_user_id_str} for resource {resource_id}")
-        return jsonify({'error': 'Missing session_id or event_type in log payload'}), 400
+        current_app.logger.warning(
+            f"Play log attempt missing session_id or event_type from user {current_user_id_str} for resource {resource_id}"
+        )
+        return jsonify(
+            {"error": "Missing session_id or event_type in log payload"}
+        ), 400
 
     try:
         # 可选：根据 event_type 更新资源的总播放次数
-        if event_type == 'start_play':
+        if event_type == "start_play":
             # 确保 play_count 不是 None
-            resource.play_count = (resource.play_count or 0) + 1 
-            db.session.add(resource) # 标记资源对象已修改
+            resource.play_count = (resource.play_count or 0) + 1
+            db.session.add(resource)  # 标记资源对象已修改
 
         play_log_entry = UserResourcePlayLog(
-            user_id=current_user_id_uuid, # 使用从 JWT 获取的 UUID 用户ID
-            resource_id=uuid.UUID(resource_id), # 将资源ID转换为 UUID
+            user_id=current_user_id_uuid,  # 使用从 JWT 获取的 UUID 用户ID
+            resource_id=uuid.UUID(resource_id),  # 将资源ID转换为 UUID
             watch_time_seconds=watch_time if watch_time is not None else None,
             percentage_watched=percentage if percentage is not None else None,
-            session_id=session_id, # <<<--- 保存 session_id
-            event_type=event_type  # <<<--- 保存 event_type
+            session_id=session_id,  # <<<--- 保存 session_id
+            event_type=event_type,  # <<<--- 保存 event_type
         )
         db.session.add(play_log_entry)
         db.session.commit()
@@ -721,56 +928,75 @@ def log_resource_play(resource_id_str):
             f"Time={watch_time}s, Percent={percentage}%"
         )
 
-        return jsonify({'message': 'Play log recorded successfully', 'new_play_count': resource.play_count}), 200
+        return jsonify(
+            {
+                "message": "Play log recorded successfully",
+                "new_play_count": resource.play_count,
+            }
+        ), 200
     except Exception as e:
         db.session.rollback()
-        current_app.logger.error(f"Error recording play log for resource {resource_id} (User: {current_user_id_str}): {e}", exc_info=True)
-        return jsonify({'error': 'Failed to record play log event'}), 500
+        current_app.logger.error(
+            f"Error recording play log for resource {resource_id} (User: {current_user_id_str}): {e}",
+            exc_info=True,
+        )
+        return jsonify({"error": "Failed to record play log event"}), 500
 
-@course_resource_bp.route('/resources/<uuid:resource_id_str>/stats', methods=['GET'])
+
+@course_resource_bp.route("/resources/<uuid:resource_id_str>/stats", methods=["GET"])
 @jwt_required()
 def get_resource_stats(resource_id_str):
     resource_id = str(resource_id_str)
     current_user_id = get_jwt_identity()
     user = User.query.get(current_user_id)
-    if not user: return jsonify({'error': 'User not found'}), 401
-    is_admin = (get_jwt().get('role') == 'admin')
-    
+    if not user:
+        return jsonify({"error": "User not found"}), 401
+    is_admin = get_jwt().get("role") == "admin"
+
     resource = CourseResource.query.get(resource_id)
     if not resource:
-        return jsonify({'error': 'Resource not found'}), 404
+        return jsonify({"error": "Resource not found"}), 404
 
     # 权限检查：只有有权限查看资源的管理员/用户才能看统计
-    can_access = is_admin or check_resource_access(current_user_id, resource_id) or \
-                 check_course_access_for_resource(current_user_id, resource)
+    can_access = (
+        is_admin
+        or check_resource_access(current_user_id, resource_id)
+        or check_course_access_for_resource(current_user_id, resource)
+    )
     if not can_access:
-        return jsonify({'error': 'Access denied to this resource stats'}), 403
-        
-    return jsonify({
-        'resource_id': str(resource.id),
-        'play_count': resource.play_count,
-    })
+        return jsonify({"error": "Access denied to this resource stats"}), 403
 
-@course_resource_bp.route('/s/<path:share_slug_str>', methods=['GET'])
+    return jsonify(
+        {
+            "resource_id": str(resource.id),
+            "play_count": resource.play_count,
+        }
+    )
+
+
+@course_resource_bp.route("/s/<path:share_slug_str>", methods=["GET"])
 # 此接口的认证方式可以与 stream_course_resource 保持一致或根据需求调整
 # 如果是公开分享，可能不需要 @jwt_required()，或者需要不同的权限检查逻辑
 # 为了安全，我们先假设它需要和原 stream 接口一样的认证和权限
 def stream_shared_resource_by_slug(share_slug_str):
-    current_app.logger.info(f"ShareStreamBySlug: Accessing resource with slug: {share_slug_str}")
-    
+    current_app.logger.info(
+        f"ShareStreamBySlug: Accessing resource with slug: {share_slug_str}"
+    )
+
     clean_slug = secure_filename(share_slug_str.strip().lower())
     if not clean_slug:
-        return jsonify({'error': '无效的分享链接标识符'}), 400
+        return jsonify({"error": "无效的分享链接标识符"}), 400
 
     resource = CourseResource.query.filter_by(
-        share_slug=clean_slug,
-        is_latest_for_slug=True
+        share_slug=clean_slug, is_latest_for_slug=True
     ).first()
 
     if not resource:
-        current_app.logger.warning(f"ShareStreamBySlug: No latest sharable resource found for slug '{clean_slug}'")
+        current_app.logger.warning(
+            f"ShareStreamBySlug: No latest sharable resource found for slug '{clean_slug}'"
+        )
         # return jsonify({'error': '分享的资源未找到或链接已失效。'}), 404
-        raise NotFound('分享的资源未找到或链接已失效。') # 使用 werkzeug 异常
+        raise NotFound("分享的资源未找到或链接已失效。")  # 使用 werkzeug 异常
 
     # === 复用 stream_course_resource 中的权限检查和流式传输逻辑 ===
     # 为避免代码重复，最好将 stream_course_resource 的核心逻辑提取到一个辅助函数中
@@ -778,7 +1004,7 @@ def stream_shared_resource_by_slug(share_slug_str):
     # 这里为了快速演示，我们直接调用，并传递 resource.id
     # 注意：这需要 stream_course_resource 能够正确处理这种情况，或者对其进行修改。
     # 一个更简单的方法是直接在这里复制粘贴 stream_course_resource 后半部分的流式逻辑。
-    
+
     # --- (以下代码段是从 stream_course_resource 复制并修改的) ---
     # 1. 权限检查逻辑 (需要 current_user_id_uuid 和 user_jwt_claims)
     #    这部分逻辑与 stream_course_resource 中的 token 处理和权限检查完全相同，
@@ -788,136 +1014,164 @@ def stream_shared_resource_by_slug(share_slug_str):
     user_jwt_claims = {}
     header_token_valid = False
     try:
-        verify_jwt_in_request(optional=True, locations=['headers']) 
+        verify_jwt_in_request(optional=True, locations=["headers"])
         temp_identity = get_jwt_identity()
         if temp_identity:
             current_user_id_from_token_str = temp_identity
             user_jwt_claims = get_jwt()
-            header_token_valid = True
-    except Exception as e_header_jwt:
-        pass # 继续
+            # header_token_valid = True
+    except Exception:
+        pass  # 继续
 
     if not current_user_id_from_token_str:
-        url_token = request.args.get('access_token', None)
+        url_token = request.args.get("access_token", None)
         if url_token:
             try:
-                decoded_jwt = decode_token(url_token) 
+                decoded_jwt = decode_token(url_token)
                 identity_claim_key = current_app.config.get("JWT_IDENTITY_CLAIM", "sub")
                 current_user_id_from_token_str = decoded_jwt.get(identity_claim_key)
-                if not current_user_id_from_token_str: raise PyJWTError("Token missing identity.")
+                if not current_user_id_from_token_str:
+                    raise PyJWTError("Token missing identity.")
                 user_jwt_claims = decoded_jwt
-            except PyJWTError as e_jwt:
-                return jsonify({'error': '访问令牌无效或已过期'}), 401
-            except Exception as e_other_url_token:
-                return jsonify({'error': '处理访问令牌时出错'}), 401
-    
-    if not current_user_id_from_token_str: # 必须有用户身份才能进行权限检查
-        return jsonify({'error': '需要认证才能访问此分享资源'}), 401
+            except PyJWTError:
+                return jsonify({"error": "访问令牌无效或已过期"}), 401
+            except Exception:
+                return jsonify({"error": "处理访问令牌时出错"}), 401
+
+    if not current_user_id_from_token_str:  # 必须有用户身份才能进行权限检查
+        return jsonify({"error": "需要认证才能访问此分享资源"}), 401
 
     try:
         current_user_id_uuid = uuid.UUID(current_user_id_from_token_str)
     except (ValueError, TypeError):
-        return jsonify({'error': f"无效的用户身份格式"}), 400
+        return jsonify({"error": "无效的用户身份格式"}), 400
 
     user = User.query.get(current_user_id_uuid)
-    if not user: return jsonify({'error': '用户不存在'}), 401
-    is_admin = (user_jwt_claims.get('role') == 'admin')
-    
+    if not user:
+        return jsonify({"error": "用户不存在"}), 401
+    is_admin = user_jwt_claims.get("role") == "admin"
+
     can_access = False
-    if is_admin or check_resource_access(current_user_id_uuid, resource.id) or \
-       check_course_access_for_resource(current_user_id_uuid, resource):
+    if (
+        is_admin
+        or check_resource_access(current_user_id_uuid, resource.id)
+        or check_course_access_for_resource(current_user_id_uuid, resource)
+    ):
         can_access = True
-    
+
     if not can_access:
-        current_app.logger.warning(f"ShareStreamBySlug: Access denied for slug '{clean_slug}' (User: {current_user_id_uuid})")
-        return jsonify({'error': '您没有权限访问此分享资源。'}), 403
-    
-    current_app.logger.info(f"ShareStreamBySlug: Access GRANTED for slug '{clean_slug}' (User: {current_user_id_uuid})")
+        current_app.logger.warning(
+            f"ShareStreamBySlug: Access denied for slug '{clean_slug}' (User: {current_user_id_uuid})"
+        )
+        return jsonify({"error": "您没有权限访问此分享资源。"}), 403
+
+    current_app.logger.info(
+        f"ShareStreamBySlug: Access GRANTED for slug '{clean_slug}' (User: {current_user_id_uuid})"
+    )
 
     # 2. 流式传输逻辑 (与 stream_course_resource 后半部分相同, 使用 `resource` 对象)
     file_absolute_path = os.path.join(INSTANCE_FOLDER_PATH, resource.file_path)
     if not os.path.exists(file_absolute_path):
-        current_app.logger.error(f"ShareStreamBySlug: File not found on server: {file_absolute_path}")
-        raise NotFound('分享的资源文件在服务器上未找到。')
+        current_app.logger.error(
+            f"ShareStreamBySlug: File not found on server: {file_absolute_path}"
+        )
+        raise NotFound("分享的资源文件在服务器上未找到。")
 
     file_size = resource.size_bytes or os.path.getsize(file_absolute_path)
-    range_header = request.headers.get('Range', None)
-    
+    range_header = request.headers.get("Range", None)
+
     start = 0
-    end = file_size - 1 
+    end = file_size - 1
     status_code = 200
     content_length = file_size
     headers = {
-        'Content-Type': resource.mime_type or 'application/octet-stream',
-        'Content-Disposition': f'inline; filename="{secure_filename(resource.name)}"',
-        'Accept-Ranges': 'bytes',
+        "Content-Type": resource.mime_type or "application/octet-stream",
+        "Content-Disposition": f'inline; filename="{secure_filename(resource.name)}"',
+        "Accept-Ranges": "bytes",
     }
 
     if range_header:
         # (此处省略 Range 处理逻辑，与 stream_course_resource 中的相同)
         # 务必复制粘贴并确保正确性
         try:
-            range_match = re.match(r'bytes=(\d*)-(\d*)', range_header)
+            range_match = re.match(r"bytes=(\d*)-(\d*)", range_header)
             if range_match:
                 g = range_match.groups()
                 range_start_str, range_end_str = g[0], g[1]
-                if range_start_str: start = int(range_start_str)
-                if range_end_str: end = int(range_end_str)
-                elif range_start_str: end = file_size - 1
-                else: raise ValueError("Invalid Range")
+                if range_start_str:
+                    start = int(range_start_str)
+                if range_end_str:
+                    end = int(range_end_str)
+                elif range_start_str:
+                    end = file_size - 1
+                else:
+                    raise ValueError("Invalid Range")
                 if start < 0 or start >= file_size or start > end:
-                    return Response(status=416, headers={'Content-Range': f'bytes */{file_size}'})
+                    return Response(
+                        status=416, headers={"Content-Range": f"bytes */{file_size}"}
+                    )
                 end = min(end, file_size - 1)
                 status_code = 206
                 content_length = (end - start) + 1
-                headers['Content-Range'] = f'bytes {start}-{end}/{file_size}'
-        except ValueError: pass # Ignore invalid range header
+                headers["Content-Range"] = f"bytes {start}-{end}/{file_size}"
+        except ValueError:
+            pass  # Ignore invalid range header
         except Exception as e_range_parse:
-            current_app.logger.warning(f"ShareStreamBySlug: Error parsing Range header '{range_header}': {e_range_parse}")
+            current_app.logger.warning(
+                f"ShareStreamBySlug: Error parsing Range header '{range_header}': {e_range_parse}"
+            )
 
-
-    headers['Content-Length'] = str(content_length)
+    headers["Content-Length"] = str(content_length)
 
     def generate_file_stream_slug(path, offset, length_to_read, chunk_size=8192):
-        with open(path, 'rb') as f:
+        with open(path, "rb") as f:
             f.seek(offset)
             bytes_remaining = length_to_read
             while bytes_remaining > 0:
                 read_size = min(chunk_size, bytes_remaining)
                 data = f.read(read_size)
-                if not data: break
+                if not data:
+                    break
                 yield data
                 bytes_remaining -= len(data)
-    
+
     return Response(
-        stream_with_context(generate_file_stream_slug(file_absolute_path, start, content_length)),
+        stream_with_context(
+            generate_file_stream_slug(file_absolute_path, start, content_length)
+        ),
         status=status_code,
         headers=headers,
-        mimetype=resource.mime_type or 'application/octet-stream'
+        mimetype=resource.mime_type or "application/octet-stream",
     )
+
 
 # (确保现有的 update_course_resource 和 delete_course_resource 也添加了权限校验)
 # ...
 
-@course_resource_bp.route('/resources/<uuid:resource_id_str>/play-history', methods=['GET'])
+
+@course_resource_bp.route(
+    "/resources/<uuid:resource_id_str>/play-history", methods=["GET"]
+)
 @jwt_required()
 def get_resource_play_history(resource_id_str):
     # resource_id_uuid = uuid.UUID(resource_id_str) # 确保转换
-    resource_id_uuid = resource_id_str # <<<--- 直接使用，或者为了清晰可以重命名
+    resource_id_uuid = resource_id_str  # <<<--- 直接使用，或者为了清晰可以重命名
 
     current_user_id_str = get_jwt_identity()
     user_jwt_claims = get_jwt()
 
     # --- 权限校验：只允许 teacher 或 admin 查看播放历史 ---
-    requesting_user_role = user_jwt_claims.get('role')
-    if requesting_user_role not in ['admin', 'teacher']:
-        current_app.logger.warning(f"User {current_user_id_str} (role: {requesting_user_role}) denied access to play history for resource {resource_id_uuid}.")
-        return jsonify({'error': 'Access denied to view play history.'}), 403
+    requesting_user_role = user_jwt_claims.get("role")
+    if requesting_user_role not in ["admin", "teacher"]:
+        current_app.logger.warning(
+            f"User {current_user_id_str} (role: {requesting_user_role}) denied access to play history for resource {resource_id_uuid}."
+        )
+        return jsonify({"error": "Access denied to view play history."}), 403
     # --- 权限校验结束 ---
 
     resource = CourseResource.query.get(resource_id_uuid)
     if not resource:
-        return jsonify({'error': 'Resource not found'}), 404
+        return jsonify({"error": "Resource not found"}), 404
 
     # (可选) 再次确认请求者对该资源本身是否有基础访问权限（虽然上面角色已限制）
     # current_user_id_uuid = uuid.UUID(current_user_id_str)
@@ -928,46 +1182,59 @@ def get_resource_play_history(resource_id_str):
     #     can_view_resource = True
     # if not can_view_resource:
     #     return jsonify({'error': 'You do not have permission to view this resource, hence no history.'}), 403
-    
+
     try:
         # 分页获取播放日志 (可选，如果日志很多)
-        page = request.args.get('page', 1, type=int)
-        per_page = request.args.get('per_page', 20, type=int) # 每页显示20条
+        page = request.args.get("page", 1, type=int)
+        per_page = request.args.get("per_page", 20, type=int)  # 每页显示20条
 
         # 修改查询，添加用户名称，并按播放时间倒序
-        play_logs_query = UserResourcePlayLog.query.filter_by(resource_id=resource_id_uuid)\
-            .join(User, UserResourcePlayLog.user_id == User.id)\
-            .add_columns( # 添加用户名字段以便显示
-                User.username.label('username'), 
+        play_logs_query = (
+            UserResourcePlayLog.query.filter_by(resource_id=resource_id_uuid)
+            .join(User, UserResourcePlayLog.user_id == User.id)
+            .add_columns(  # 添加用户名字段以便显示
+                User.username.label("username"),
                 # User.name.label('user_real_name') # 假设 User 模型有 name 字段存真实姓名
-            )\
+            )
             .order_by(desc(UserResourcePlayLog.played_at))
-        
-        paginated_logs = play_logs_query.paginate(page=page, per_page=per_page, error_out=False)
-        
+        )
+
+        paginated_logs = play_logs_query.paginate(
+            page=page, per_page=per_page, error_out=False
+        )
+
         logs_data = []
         # paginated_logs.items 现在是 (UserResourcePlayLog, username) 的元组列表
         for log_entry, username in paginated_logs.items:
-            logs_data.append({
-                'log_id': str(log_entry.id),
-                'user_id': str(log_entry.user_id),
-                'username': username, # 用户名
-                # 'user_real_name': user_real_name or username, # 显示真实姓名，如果无则用用户名
-                'played_at': log_entry.played_at.isoformat() if log_entry.played_at else None,
-                'watch_time_seconds': log_entry.watch_time_seconds,
-                'percentage_watched': log_entry.percentage_watched,
-                'session_id': log_entry.session_id, # 包含 session_id
-                'event_type': log_entry.event_type # 包含 event_type
-            })
-        
-        return jsonify({
-            'logs': logs_data,
-            'total': paginated_logs.total,
-            'page': paginated_logs.page,
-            'per_page': paginated_logs.per_page,
-            'pages': paginated_logs.pages
-        })
+            logs_data.append(
+                {
+                    "log_id": str(log_entry.id),
+                    "user_id": str(log_entry.user_id),
+                    "username": username,  # 用户名
+                    # 'user_real_name': user_real_name or username, # 显示真实姓名，如果无则用用户名
+                    "played_at": log_entry.played_at.isoformat()
+                    if log_entry.played_at
+                    else None,
+                    "watch_time_seconds": log_entry.watch_time_seconds,
+                    "percentage_watched": log_entry.percentage_watched,
+                    "session_id": log_entry.session_id,  # 包含 session_id
+                    "event_type": log_entry.event_type,  # 包含 event_type
+                }
+            )
+
+        return jsonify(
+            {
+                "logs": logs_data,
+                "total": paginated_logs.total,
+                "page": paginated_logs.page,
+                "per_page": paginated_logs.per_page,
+                "pages": paginated_logs.pages,
+            }
+        )
 
     except Exception as e:
-        current_app.logger.error(f"Error fetching play history for resource {resource_id_uuid}: {e}", exc_info=True)
-        return jsonify({'error': 'Failed to fetch play history'}), 500
+        current_app.logger.error(
+            f"Error fetching play history for resource {resource_id_uuid}: {e}",
+            exc_info=True,
+        )
+        return jsonify({"error": "Failed to fetch play history"}), 500

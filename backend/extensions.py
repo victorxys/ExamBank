@@ -1,7 +1,7 @@
-# backend/extensions.py
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
+from celery import Celery
 
-# 只创建扩展实例，不绑定 app
 db = SQLAlchemy()
-migrate = Migrate() 
+migrate = Migrate()
+celery = Celery()

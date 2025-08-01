@@ -130,7 +130,7 @@ const LlmApiKeyManagement = () => {
     }
   };
 
-  const providers = ["Google", "OpenAI", "Azure", "AWS", "HuggingFace", "Other"];
+  const providers = ["Google", "OpenAI", "Azure", "AWS", "HuggingFace", "Jinshuju", "Other"];
 
   return (
     <Box>

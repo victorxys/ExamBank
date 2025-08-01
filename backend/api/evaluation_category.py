@@ -1,19 +1,20 @@
 # backend/api/evaluation_category.py
 from flask import Blueprint, jsonify, request
 from psycopg2.extras import RealDictCursor
-import uuid
+
 try:
     from ..db import get_db_connection
 except ImportError:
     from backend.db import get_db_connection
 from psycopg2.extras import register_uuid
-register_uuid()
-import traceback # 导入 traceback
+import traceback  # 导入 traceback
 
-bp = Blueprint('evaluation_category', __name__, url_prefix='/api/evaluation_categories')
+register_uuid()
+bp = Blueprint("evaluation_category", __name__, url_prefix="/api/evaluation_categories")
+
 
 # --- GET / (获取所有类别) ---
-@bp.route('/', methods=['GET'])
+@bp.route("/", methods=["GET"])
 def get_all_categories():
     conn = None
     cur = None
@@ -34,13 +35,16 @@ def get_all_categories():
     except Exception as e:
         print(f"Error in get_all_categories: {str(e)}")
         traceback.print_exc()
-        return jsonify({'error': '获取所有类别失败: ' + str(e)}), 500
+        return jsonify({"error": "获取所有类别失败: " + str(e)}), 500
     finally:
-        if cur: cur.close()
-        if conn: conn.close()
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
+
 
 # --- GET /by_aspect/<uuid:aspect_id> (获取特定方面下的类别) ---
-@bp.route('/by_aspect/<uuid:aspect_id>', methods=['GET'])
+@bp.route("/by_aspect/<uuid:aspect_id>", methods=["GET"])
 def get_categories_by_aspect(aspect_id):
     conn = None
     cur = None
@@ -48,29 +52,39 @@ def get_categories_by_aspect(aspect_id):
         conn = get_db_connection()
         cur = conn.cursor(cursor_factory=RealDictCursor)
         # *** 查询包含 allow_manual_input ***
-        cur.execute("""
+        cur.execute(
+            """
             SELECT id, category_name, description, aspect_id, created_at, sort_order, allow_manual_input
             FROM evaluation_category
             WHERE aspect_id = %s
             ORDER BY sort_order ASC, created_at DESC
-            """, (aspect_id,)
+            """,
+            (aspect_id,),
         )
         categories = cur.fetchall()
         return jsonify(categories)
     except Exception as e:
         print(f"Error in get_categories_by_aspect: {str(e)}")
         traceback.print_exc()
-        return jsonify({'error': '获取方面下类别失败: ' + str(e)}), 500
+        return jsonify({"error": "获取方面下类别失败: " + str(e)}), 500
     finally:
-        if cur: cur.close()
-        if conn: conn.close()
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
+
 
 # --- POST / (创建类别) ---
-@bp.route('/', methods=['POST'])
+@bp.route("/", methods=["POST"])
 def create_category():
     data = request.get_json()
-    if not data or 'category_name' not in data or not data['category_name'].strip() or 'aspect_id' not in data:
-        return jsonify({'error': 'Category name and aspect_id are required'}), 400
+    if (
+        not data
+        or "category_name" not in data
+        or not data["category_name"].strip()
+        or "aspect_id" not in data
+    ):
+        return jsonify({"error": "Category name and aspect_id are required"}), 400
 
     conn = None
     cur = None
@@ -85,31 +99,42 @@ def create_category():
             RETURNING id, category_name, description, aspect_id, created_at, sort_order, allow_manual_input
             """,
             (
-                data['category_name'].strip(),
-                data['aspect_id'],
-                data.get('description', '').strip(),
-                data.get('allow_manual_input', False) # 获取 allow_manual_input，默认为 False
-            )
+                data["category_name"].strip(),
+                data["aspect_id"],
+                data.get("description", "").strip(),
+                data.get(
+                    "allow_manual_input", False
+                ),  # 获取 allow_manual_input，默认为 False
+            ),
         )
         new_category = cur.fetchone()
         conn.commit()
         return jsonify(new_category), 201
     except Exception as e:
-        if conn: conn.rollback()
+        if conn:
+            conn.rollback()
         print(f"Error in create_category: {str(e)}")
         traceback.print_exc()
-        return jsonify({'error': '创建类别失败: ' + str(e)}), 500
+        return jsonify({"error": "创建类别失败: " + str(e)}), 500
     finally:
-        if cur: cur.close()
-        if conn: conn.close()
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
+
 
 # --- PUT /<uuid:category_id> (更新类别) ---
-@bp.route('/<uuid:category_id>', methods=['PUT'])
+@bp.route("/<uuid:category_id>", methods=["PUT"])
 def update_category(category_id):
     data = request.get_json()
     # 更新时，allow_manual_input 是可选的，但如果提供了就必须更新
-    if not data or 'category_name' not in data or not data['category_name'].strip() or 'aspect_id' not in data:
-        return jsonify({'error': 'Category name and aspect_id are required'}), 400
+    if (
+        not data
+        or "category_name" not in data
+        or not data["category_name"].strip()
+        or "aspect_id" not in data
+    ):
+        return jsonify({"error": "Category name and aspect_id are required"}), 400
 
     conn = None
     cur = None
@@ -127,29 +152,33 @@ def update_category(category_id):
             RETURNING id, category_name, description, aspect_id, created_at, updated_at, sort_order, allow_manual_input
             """,
             (
-                data['category_name'].strip(),
-                data['aspect_id'],
-                data.get('description', '').strip(),
-                data.get('allow_manual_input', False), # 获取 allow_manual_input
-                category_id
-            )
+                data["category_name"].strip(),
+                data["aspect_id"],
+                data.get("description", "").strip(),
+                data.get("allow_manual_input", False),  # 获取 allow_manual_input
+                category_id,
+            ),
         )
         updated_category = cur.fetchone()
         if not updated_category:
-            return jsonify({'error': 'Category not found'}), 404
+            return jsonify({"error": "Category not found"}), 404
         conn.commit()
         return jsonify(updated_category)
     except Exception as e:
-        if conn: conn.rollback()
+        if conn:
+            conn.rollback()
         print(f"Error in update_category: {str(e)}")
         traceback.print_exc()
-        return jsonify({'error': '更新类别失败: ' + str(e)}), 500
+        return jsonify({"error": "更新类别失败: " + str(e)}), 500
     finally:
-        if cur: cur.close()
-        if conn: conn.close()
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
+
 
 # --- DELETE /<uuid:category_id> (删除类别) ---
-@bp.route('/<uuid:category_id>', methods=['DELETE'])
+@bp.route("/<uuid:category_id>", methods=["DELETE"])
 def delete_category(category_id):
     conn = None
     cur = None
@@ -157,10 +186,13 @@ def delete_category(category_id):
         conn = get_db_connection()
         cur = conn.cursor()
         # 检查是否有子项目依赖
-        cur.execute("SELECT COUNT(*) FROM evaluation_item WHERE category_id = %s", (category_id,))
+        cur.execute(
+            "SELECT COUNT(*) FROM evaluation_item WHERE category_id = %s",
+            (category_id,),
+        )
         item_count = cur.fetchone()[0]
         if item_count > 0:
-            return jsonify({'error': '无法删除：该类别下存在评价项'}), 400
+            return jsonify({"error": "无法删除：该类别下存在评价项"}), 400
 
         # 检查是否有手动输入依赖 (如果需要保留历史数据，则不应级联删除)
         # cur.execute("SELECT COUNT(*) FROM evaluation_manual_input WHERE category_id = %s", (category_id,))
@@ -168,17 +200,22 @@ def delete_category(category_id):
         # if manual_input_count > 0:
         #    return jsonify({'error': '无法删除：该类别下存在手动评价记录'}), 400
 
-        cur.execute("DELETE FROM evaluation_category WHERE id = %s RETURNING id", (category_id,))
+        cur.execute(
+            "DELETE FROM evaluation_category WHERE id = %s RETURNING id", (category_id,)
+        )
         deleted_category = cur.fetchone()
         if not deleted_category:
-            return jsonify({'error': 'Category not found'}), 404
+            return jsonify({"error": "Category not found"}), 404
         conn.commit()
-        return jsonify({'success': True, 'message': '评价类别删除成功'})
+        return jsonify({"success": True, "message": "评价类别删除成功"})
     except Exception as e:
-        if conn: conn.rollback()
+        if conn:
+            conn.rollback()
         print(f"Error in delete_category: {str(e)}")
         traceback.print_exc()
-        return jsonify({'error': '删除类别失败: ' + str(e)}), 500
+        return jsonify({"error": "删除类别失败: " + str(e)}), 500
     finally:
-        if cur: cur.close()
-        if conn: conn.close()
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
