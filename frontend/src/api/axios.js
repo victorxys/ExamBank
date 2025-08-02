@@ -67,6 +67,7 @@ api.interceptors.request.use(
     // --- Token 处理逻辑结束 ---
 
     // +++++ 新增: 根据请求数据类型设置或清除 Content-Type +++++
+    console.log(`[API Request] ${config.method.toUpperCase()} to ${config.url}`, config.data);
     if (config.data instanceof FormData) {
       delete config.headers['Content-Type'];
     } else if (config.method === 'post' || config.method === 'put' || config.method === 'patch') {

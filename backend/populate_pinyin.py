@@ -9,8 +9,18 @@ from backend.models import User, db, BaseContract
 
 def populate_user_pinyin():
     with app.app_context():
+        # --- 调试代码开始 ---
+        debug_user_id = 'f723b9b7-2187-42ca-8707-c61224abbb1f'
+        debug_user = User.query.get(debug_user_id)
+        if debug_user:
+            print(f"【调试】找到了用户 (ID: {debug_user.id})，姓名: {debug_user.username}。")
+            print(f"【调试】该用户的 name_pinyin 字段值为: {debug_user.name_pinyin}")
+        else:
+            print(f"【调试】在当前连接的数据库中，未找到 ID 为 {debug_user_id} 的用户。")
+        # --- 调试代码结束 ---
+
         print("开始为 User 表填充拼音字段...")
-        users_to_update = User.query.filter(User.name_pinyin is None).all()
+        users_to_update = User.query.filter(User.name_pinyin.is_(None)).all()
         if not users_to_update:
             print("所有用户的拼音字段都已填充，无需操作。")
             return

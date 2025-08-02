@@ -560,20 +560,6 @@ class TrainingContent(db.Model):
         primaryjoin="and_(TrainingContent.id==foreign(TtsAudio.training_content_id), TtsAudio.audio_type=='merged_audio')",
         order_by="TtsAudio.created_at.desc()",
     )
-    # ++++++++++ 新增 Relationship ++++++++++
-    llm_oral_prompt = db.relationship(
-        "LlmPrompt",
-        foreign_keys=[llm_oral_prompt_id],  # 明确指定外键
-        # backref=backref('oral_script_contents', lazy='dynamic') # 可选的反向关系名
-        back_populates="training_contents_where_oral_prompt",  # 新的反向关系名
-    )
-    llm_refine_prompt = db.relationship(
-        "LlmPrompt",
-        foreign_keys=[llm_refine_prompt_id],  # 明确指定外键
-        # backref=backref('refine_script_contents', lazy='dynamic') # 可选的反向关系名
-        back_populates="training_contents_where_oral_prompt",  # 新的反向关系名
-    )
-    # +++++++++++++++++++++++++++++++++++++++
 
     def __repr__(self):
         return f"<TrainingContent {self.content_name} for Course {self.course_id}>"
@@ -2285,6 +2271,7 @@ class CustomerBill(db.Model):
         cascade="all, delete-orphan",
     )
 
+    actual_work_days = db.Column(db.Integer, nullable=True, comment="实际劳务天数")
     # --- 新增字段，用于关联替班记录 ---
     is_substitute_bill = db.Column(
         db.Boolean,
@@ -2376,6 +2363,7 @@ class EmployeePayroll(db.Model):
         cascade="all, delete-orphan",
     )
 
+    actual_work_days = db.Column(db.Integer, nullable=True, comment="实际劳务天数")
     # --- 新增字段，用于关联替班记录 ---
     is_substitute_payroll = db.Column(
         db.Boolean,

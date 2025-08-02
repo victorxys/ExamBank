@@ -935,6 +935,31 @@ def batch_update_billing_details():
                     bill, payroll, "新增考勤并设置加班天数", {"to": overtime_days}
                 )
 
+        # --- NEW: Handle actual_work_days update ---
+        new_actual_work_days = None  # Initialize
+        if 'actual_work_days' in data and data['actual_work_days'] is not None:
+            try:
+                # We just store the value here, the engine will use it.
+                new_actual_work_days = int(data['actual_work_days'])
+                if not (1 <= new_actual_work_days <= 26):
+                    current_app.logger.warning(f"Invalid actual_work_days value received: {new_actual_work_days}. Must be between 1 and 26. Clamping to 26.")
+                    new_actual_work_days = 26  # Or handle error appropriately
+
+                # Log the change immediately
+                if bill.actual_work_days != new_actual_work_days:
+                    _log_activity(
+                        bill, payroll,
+                        action="修改实际劳务天数",
+                        details={"from": bill.actual_work_days, "to": new_actual_work_days}
+                    )
+                    # We can set it on the bill object, but the engine recalculation is the source of truth
+                    bill.actual_work_days = new_actual_work_days
+                    payroll.actual_work_days = new_actual_work_days
+
+            except (ValueError, TypeError) as e:
+                current_app.logger.warning(f"Could not parse actual_work_days: {data.get('actual_work_days')}. Error: {e}")
+        # --- END NEW ---
+
         # --- 处理财务调整项 (带有正确日志记录和数据库操作的最终逻辑) ---
         adjustments_data = data.get('adjustments', [])
 
@@ -1017,17 +1042,17 @@ def batch_update_billing_details():
                     new_adj.employee_payroll_id = payroll.id
                 db.session.add(new_adj)
 
-        # --- 触发账单重算 ---
-        engine = BillingEngine()
-        if bill.is_substitute_bill:
-            engine.calculate_for_substitute(bill.source_substitute_record_id)
-        else:
-            engine.calculate_for_month(
-                year=bill.year,
-                month=bill.month,
-                contract_id=bill.contract_id,
-                force_recalculate=True,
-            )
+        # # --- 触发账单重算 ---
+        # engine = BillingEngine()
+        # if bill.is_substitute_bill:
+        #     engine.calculate_for_substitute(bill.source_substitute_record_id)
+        # else:
+        #     engine.calculate_for_month(
+        #         year=bill.year,
+        #         month=bill.month,
+        #         contract_id=bill.contract_id,
+        #         force_recalculate=True,
+        #     )
 
         # --- 更新结算和发票状态 ---
         # settlement_status = data.get("settlement_status", {})
@@ -1219,6 +1244,35 @@ def batch_update_billing_details():
         attributes.flag_modified(final_bill, "calculation_details")
 
         db.session.commit()
+
+        # --- 核心修正：在所有数据提交后，再触发重算 ---
+        try:
+            current_app.logger.info(f"数据保存完毕，开始为账单 {bill.id} 触发重算...")
+            engine = BillingEngine()
+            if bill.is_substitute_bill:
+                # 如果是替班账单，使用替班记录ID来重算
+                if bill.source_substitute_record_id:
+                    engine.calculate_for_substitute(bill.source_substitute_record_id)
+            else:
+                # 否则，使用常规方式重算
+                engine.calculate_for_month(
+                    year=bill.year,
+                    month=bill.month,
+                    contract_id=bill.contract_id,
+                    force_recalculate=True,
+                    actual_work_days_override=new_actual_work_days
+                )
+            current_app.logger.info(f"账单 {bill.id} 重算完成。")
+        except Exception as e:
+            # 即使重算失败，主要数据也已保存，这里只记录错误，不回滚
+            current_app.logger.error(f"重算账单 {bill.id} 失败: {e}", exc_info=True)
+            # 可以考虑返回一个带有警告的消息
+            latest_details = _get_billing_details_internal(bill_id=bill.id)
+            return jsonify({
+                "message": "数据已保存，但后台重算失败，请手动重算。",
+                "error": str(e),
+                "latest_details": latest_details
+            }), 500
 
         # --- 获取并返回最新详情 ---
         latest_details = _get_billing_details_internal(bill_id=bill.id)

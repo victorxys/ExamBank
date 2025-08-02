@@ -443,16 +443,11 @@ const BillingDashboard = () => {
         try {
             const payload = {
             bill_id: editedData.bill_id,
-                
-                // 考勤数据
-                overtime_days: editedData.overtime_days,
-
-                // 财务调整数据
-                adjustments: editedData.adjustments,
-
-                // 结算状态数据
-                settlement_status: editedData.settlement_status
-            };
+            overtime_days: editedData.overtime_days,
+            actual_work_days: editedData.actual_work_days, // <-- 关键修复：添加此行
+            adjustments: editedData.adjustments,
+            settlement_status: editedData.settlement_status
+        };
 
 
             // const response = await api.post('/billing/attendance', payload);

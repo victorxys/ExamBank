@@ -58,7 +58,7 @@ const formatValue = (key, value) => {
         return <Box component="span" sx={{ color: 'text.disabled' }}>{value || '—'}</Box>;
     if (key === '加班天数') return `${value} 天`;
     if (key === '替班天数') return `${value} 天`;
-    if (key === '基本劳务天数') return `${value} 天`;
+    if (key === '基本劳务天数' || key === '实际劳务天数') return `${value} 天`;
     if (key === '总劳务天数') return `${value} 天`;
     if (key.includes('费率')) {
         const num = Number(value);
@@ -91,6 +91,7 @@ const getTooltipContent = (fieldName, billingDetails, isCustomer) => {
         '本次交管理费': '本次交管理费',
         '首月员工10%费用': '首月员工10%费用',
         '加班工资': '加班费',
+        '实际劳务天数': 'base_work_days_reason'
     };
     const logKey = fieldToLogKeyMap[fieldName];
     if (!logKey || !log[logKey]) return null;
@@ -124,6 +125,7 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
     const [editableCycle, setEditableCycle] = useState({ start: null, end: null });
     const [isSubstituteDialogOpen, setIsSubstituteDialogOpen] = useState(false);
     const [substituteRecords, setSubstituteRecords] = useState([]);
+    const [editableActualWorkDays, setEditableActualWorkDays] = useState(26);
 
     useEffect(() => {
         if (open && billingDetails) {
@@ -133,6 +135,17 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
             
             setEditableOvertime(parseInt(billingDetails.attendance?.overtime_days, 10) || 0);
             setAdjustments(billingDetails.adjustments || []);
+
+            const actualDaysFromBill = customerDetails.actual_work_days;
+            const baseDaysFromCalc = customerDetails.calculation_details?.base_work_days;
+            if (actualDaysFromBill !== null && actualDaysFromBill !== undefined) {
+                setEditableActualWorkDays(parseInt(actualDaysFromBill, 10));
+            } else if (baseDaysFromCalc !== null && baseDaysFromCalc !== undefined) {
+                setEditableActualWorkDays(parseInt(baseDaysFromCalc, 10));
+            } else {
+                setEditableActualWorkDays(26);
+            }
+
             setEditableInvoice({
                 number: invoiceDetails.number || '',
                 amount: invoiceDetails.amount || '',
@@ -169,7 +182,6 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
     }, [open, billingDetails]);
 
     const handleOpenSubstituteDialog = () => {
-        console.log('Opening SubstituteDialog. contract?.contract_type_value:', contract?.contract_type_value);
         setIsSubstituteDialogOpen(true);
     }
 
@@ -181,7 +193,6 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
         try {
             await api.post(`/contracts/${contract.contract_id}/substitutes`, substituteData);
             alert('替班记录添加成功！');
-            // 重新获取替班记录列表
             api.get(`/contracts/${contract.contract_id}/substitutes`)
                 .then(res => setSubstituteRecords(res.data))
                 .catch(err => console.error("获取替班记录失败:", err));
@@ -192,42 +203,27 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
         }
     };
 
-        const handleDeleteSubstitute = async (recordId) => {
+    const handleDeleteSubstitute = async (recordId) => {
         if (window.confirm("确定要删除这条替班记录吗？相关账单将重新计算。")) {
             try {
-                // 第一次尝试：常规删除
                 const response = await api.delete(`/contracts/substitutes/${recordId}`);
-
                 if (response.status === 200) {
                     alert('替班记录删除成功！');
                     setSubstituteRecords(prev => prev.filter(r => r.id !== recordId));
                 } else if (response.status === 409) {
-                    // 如果是409冲突，则询问是否强制删除
-                    if (window.confirm("注意：此替班记录关联的账单已产生操作日志。\n\n是否要强制删除此记录及其所有关联日志？此操作不可逆！")) {
-                        try {
-                            // 第二次尝试：强制删除
-                            const forceResponse = await api.delete(`/contracts/substitutes/${recordId}?force=true`);
-                            if (forceResponse.status === 200) {
-                                alert('强制删除成功！');
-                                setSubstituteRecords(prev => prev.filter(r => r.id !== recordId));
-                            } else {
-                                console.error("强制删除替班记录失败:", forceResponse);
-                                alert(`强制删除失败: ${forceResponse.data?.message || '未知错误'}`);
-                            }
-                        } catch (forceError) {
-                            // 如果强制删除也失败了 (网络错误等)
-                            console.error("强制删除替班记录失败:", forceError);
-                            alert(`强制删除失败: ${forceError.response?.data?.message || forceError.message}`);
+                    if (window.confirm("注意：此替班记录关联的账单已产生操作日志.\n\n是否要强制删除此记录及其所有关联日志？此操作不可逆！")) {
+                        const forceResponse = await api.delete(`/contracts/substitutes/${recordId}?force=true`);
+                        if (forceResponse.status === 200) {
+                            alert('强制删除成功！');
+                            setSubstituteRecords(prev => prev.filter(r => r.id !== recordId));
+                        } else {
+                            alert(`强制删除失败: ${forceResponse.data?.message || '未知错误'}`);
                         }
                     }
                 } else {
-                    // 其他非200/非409的响应
-                    console.error("删除替班记录失败:", response);
                     alert(`删除失败: ${response.data?.message || '未知错误'}`);
                 }
             } catch (error) {
-                // 捕获网络错误或其他非HTTP响应错误
-                console.error("删除替班记录失败:", error);
                 alert(`删除失败: ${error.message}`);
             }
         }
@@ -235,20 +231,17 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
 
     const handleSave = () => {
         const billId = billingDetails?.customer_bill_details?.id;
-
         if (!billId) {
             alert("无法保存，缺少关键的账单ID。");
-            console.error("Save failed due to missing bill_id:", billingDetails);
             return;
         }
-
         const payload = {
             bill_id: billId,
             overtime_days: editableOvertime,
+            actual_work_days: editableActualWorkDays,
             adjustments: adjustments,
             settlement_status: { ...editableSettlement, invoice_details: editableInvoice }
         };
-
         onSave(payload);
         setIsEditMode(false);
     };
@@ -256,23 +249,18 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
     const handleEnterEditMode = () => setIsEditMode(true);
     const handleCancelEdit = () => {
         if (billingDetails) {
-            // Re-initialize state from props, ensuring data types are correct
             const customerDetails = billingDetails.customer_bill_details || {};
             const employeeDetails = billingDetails.employee_payroll_details || {};
             const invoiceDetails = billingDetails.invoice_details || {};
-
             setEditableOvertime(parseInt(billingDetails.attendance?.overtime_days, 10) || 0);
             setAdjustments(billingDetails.adjustments || []);
-
             setEditableInvoice({
                 number: invoiceDetails.number || '',
                 amount: invoiceDetails.amount || '',
                 date: invoiceDetails.date ? new Date(invoiceDetails.date) : null,
             });
-
             const customerPayment = customerDetails.payment_status || {};
             const employeePayment = employeeDetails.payment_status || {};
-
             setEditableSettlement({
                 customer_is_paid: customerPayment.customer_is_paid || false,
                 customer_payment_date: customerPayment.customer_payment_date ? new Date(customerPayment.customer_payment_date) : null,
@@ -346,9 +334,11 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
             handleCloseCycleEditDialog();
         }
     };
+
     const renderCardContent = (data, isCustomer, billingDetails) => {
         if (!data || !data.groups) return null;
         const isSubstituteBill = data.calculation_details?.type === 'substitute';
+        const isNannyContract = contract?.contract_type_value === 'nanny';
         const isTrialTerminationBill = data.calculation_details?.type === 'nanny_trial_termination';
 
         // 从 calculation_details 中提取替班天数和费用
@@ -370,6 +360,7 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                         <Divider textAlign="left" sx={{ mb: 1.5 }}><Typography variant="overline" color="text.secondary">{group.name}</Typography></Divider>
                         <Grid container rowSpacing={1.5} columnSpacing={2}>
                             {(fieldOrder[group.name] || Object.keys(group.fields)).map(key => {
+                                const isBaseWorkDaysField = key === '基本劳务天数';
                                 // =================== 核心显示逻辑 ===================
                                 // 根据账单类型，条件渲染字段
                                 if (isTrialTerminationBill) {
@@ -404,6 +395,7 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                                 }
 
                                 const isOvertimeField = key === '加班天数';
+
                                 if (isEditMode && isOvertimeField) {
                                     return (
                                         <React.Fragment key="overtime_edit">
@@ -412,6 +404,19 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                                                 <IconButton size="small" onClick={() => setEditableOvertime(p => Math.max(0, p - 1))}><RemoveIcon /></IconButton>
                                                 <Typography variant="body1" sx={{ mx: 1, fontWeight: 500, fontFamily: 'monospace' }}>{editableOvertime}</Typography>
                                                 <IconButton size="small" onClick={() => setEditableOvertime(p => p + 1)}><AddIcon /></IconButton>
+                                            </Grid>
+                                        </React.Fragment>
+                                    );
+                                }
+
+                                if (isEditMode && isNannyContract && isBaseWorkDaysField) {
+                                    return (
+                                        <React.Fragment key="base_work_days_edit">
+                                            <Grid item xs={5} sx={{ display: 'flex', alignItems: 'center' }}><Typography variant="body2" color="text.secondary">实际劳务天数:</Typography></Grid>
+                                            <Grid item xs={7} sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
+                                                <IconButton size="small" onClick={() => setEditableActualWorkDays(p => Math.max(1, p - 1))}><RemoveIcon /></IconButton>
+                                                <Typography variant="body1" sx={{ mx: 1, fontWeight: 500, fontFamily: 'monospace' }}>{editableActualWorkDays}</Typography>
+                                                <IconButton size="small" onClick={() => setEditableActualWorkDays(p => Math.min(26, p + 1))}><AddIcon /></IconButton>
                                             </Grid>
                                         </React.Fragment>
                                     );
@@ -428,10 +433,10 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
 
                                 return (
                                     <React.Fragment key={key}>
-                                        <Grid item xs={5}><Typography variant="body2" color="text.secondary">{key}:</Typography></Grid>
+                                        <Grid item xs={5}><Typography variant="body2" color="text.secondary">{(isNannyContract && isBaseWorkDaysField) ? '实际劳务天数' : key}:</Typography></Grid>
                                         <Grid item xs={7} sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
                                             <Typography variant="body1" sx={{ textAlign: 'right', fontWeight: 500, fontFamily: 'monospace' }}>
-                                                {formatValue(key, value)}
+                                                {formatValue((isNannyContract && isBaseWorkDaysField) ? '实际劳务天数' : key, value)}
                                             </Typography>
                                             {tooltipContent && !isEditMode && (
                                                 <Tooltip title={tooltipContent} arrow>
@@ -456,12 +461,11 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                                     button={isEditMode}
                                     onClick={isEditMode ? () => { setEditingAdjustment(adj); setIsAdjustmentDialogOpen(true); } : undefined}
                                     secondaryAction={isEditMode && (
-                                        // --- 核心修正：在删除按钮的 onClick 中阻止事件冒泡 ---
                                         <IconButton
                                             edge="end"
                                             size="small"
                                             onClick={(e) => {
-                                                e.stopPropagation(); // 阻止事件冒泡到 ListItem
+                                                e.stopPropagation();
                                                 handleDeleteAdjustment(adj.id);
                                             }}
                                         >
@@ -510,6 +514,7 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
             </Box>
         );
     };
+
     const InvoiceRecordView = () => {
         if (!editableSettlement.invoice_needed) {
             return <Typography variant="body1" sx={{ fontWeight: 500, mt: 0.5 }}>无需开票</Typography>;
@@ -520,10 +525,8 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
 
         let formattedDate = '未录入';
         if (editableInvoice.date) {
-            // 创建一个新的 Date 对象来处理字符串或 Date 对象
             const dateObj = new Date(editableInvoice.date);
             if (!isNaN(dateObj.getTime())) {
-                // 使用 toLocaleDateString 避免时区问题
                 formattedDate = dateObj.toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' });
             }
         }
@@ -582,7 +585,6 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                                     {renderCardContent(employeeData, false, billingDetails)}
                                 </Paper>
                             </Grid>
-                            {/* // 只在非替班账单中显示“替班记录”板块 */}
                             {!billingDetails?.is_substitute_bill && (
     <Grid item xs={12}>
         <Paper sx={{ p: 3, borderRadius: 2, boxShadow: 1 }}>
@@ -599,27 +601,8 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                 </Button>
             </Box>
             {(() => {
-                // --- 调试开始 ---
-                console.log("--- 替班记录过滤调试 ---");
-
-                // 1. 获取当前主账单的 ID
                 const currentBillId = billingDetails?.customer_bill_details?.id;
-                console.log("当前账单ID (currentBillId):", currentBillId);
-                console.log("所有替班记录 (substituteRecords):", substituteRecords);
-
-                // 2. 使用 currentBillId 过滤出直接关联的替班记录
-                const relevantSubstituteRecords = substituteRecords.filter(record => {
-                    const isMatch = currentBillId && record.original_customer_bill_id === currentBillId;
-                    // 打印每一条记录的匹配过程
-                    // console.log(`记录ID: ${record.id}, 关联账单ID: ${record.original_customer_bill_id}, 是否匹配: ${isMatch}`);
-                    return isMatch;
-                });
-
-                console.log("过滤后的关联记录 (relevantSubstituteRecords):", relevantSubstituteRecords);
-                console.log("--- 调试结束 ---");
-                // --- 调试结束 ---
-
-                // 3. 渲染过滤后的列表
+                const relevantSubstituteRecords = substituteRecords.filter(record => currentBillId && record.original_customer_bill_id === currentBillId);
                 return (
                     <List dense>
                         {relevantSubstituteRecords.length > 0 ? relevantSubstituteRecords.map(record => (

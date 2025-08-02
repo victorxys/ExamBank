@@ -184,7 +184,7 @@ class BillingEngine:
         )
 
     def calculate_for_month(
-        self, year: int, month: int, contract_id=None, force_recalculate=False
+        self, year: int, month: int, contract_id=None, force_recalculate=False, actual_work_days_override=None
     ):
         current_app.logger.info(
             f"开始计算contract:{contract_id}  {year}-{month} 的账单 force_recalculate:{force_recalculate}"
@@ -213,7 +213,7 @@ class BillingEngine:
                 )
             elif contract.type == "nanny":
                 self._calculate_nanny_bill_for_month(
-                    contract, year, month, force_recalculate
+                    contract, year, month, force_recalculate, actual_work_days_override
                 )
             elif contract.type == "nanny_trial":
                 self._calculate_nanny_trial_bill(
@@ -503,7 +503,7 @@ class BillingEngine:
         }
 
     def _calculate_nanny_bill_for_month(
-        self, contract: NannyContract, year: int, month: int, force_recalculate=False
+        self, contract: NannyContract, year: int, month: int, force_recalculate=False, actual_work_days_override=None
     ):
         """育儿嫂计费逻辑的主入口。"""
         current_app.logger.info(
@@ -535,7 +535,7 @@ class BillingEngine:
             f"    [NannyCALC] 为合同 {contract.id} 执行计算 (周期: {cycle_start} to {cycle_end})"
         )
 
-        details = self._calculate_nanny_details(contract, bill, payroll)
+        details = self._calculate_nanny_details(contract, bill, payroll, actual_work_days_override)
         bill, payroll = self._calculate_final_amounts(bill, payroll, details)
         log = self._create_calculation_log(details)
         self._update_bill_with_log(bill, payroll, details, log)
@@ -613,9 +613,10 @@ class BillingEngine:
         return None, None
 
     def _calculate_nanny_details(
-        self, contract: NannyContract, bill: CustomerBill, payroll: EmployeePayroll
+        self, contract: NannyContract, bill: CustomerBill, payroll: EmployeePayroll, actual_work_days_override=None
     ):
         """计算育儿嫂合同的所有财务细节。"""
+        log_extras = {}
         QUANTIZER = D("0.01")
         level = D(contract.employee_level or 0)
         cycle_start = bill.cycle_start_date
@@ -680,7 +681,24 @@ class BillingEngine:
         is_first_bill = cycle_start == contract.start_date
         if is_first_bill:  # 育儿嫂最后一个月账单天数 +1
             cycle_actual_days = (cycle_end - cycle_start).days
-        base_work_days = D(min(cycle_actual_days, 26)) - D(total_substitute_days)
+        
+        # --- NEW LOGIC for actual_work_days ---
+        # 优先使用从API传入的覆盖值
+        if actual_work_days_override is not None:
+            base_work_days = D(actual_work_days_override) - D(total_substitute_days)
+            log_extras["base_work_days_reason"] = f"使用用户传入的实际劳务天数 ({actual_work_days_override}) - 被替班天数 ({total_substitute_days})"
+            # 同步更新数据库中的字段，确保前端刷新后能看到正确的值
+            bill.actual_work_days = actual_work_days_override
+            payroll.actual_work_days = actual_work_days_override
+        elif bill.actual_work_days and bill.actual_work_days > 0:
+            base_work_days = D(bill.actual_work_days) - D(total_substitute_days)
+            log_extras["base_work_days_reason"] = f"使用数据库中已存的实际劳务天数 ({bill.actual_work_days}) - 被替班天数 ({total_substitute_days})"
+        else:
+            # 回退到旧的计算逻辑
+            base_work_days = D(min(cycle_actual_days, 26)) - D(total_substitute_days)
+            log_extras["base_work_days_reason"] = f"默认逻辑: min(周期天数({cycle_actual_days}), 26) - 被替班天数 ({total_substitute_days})"
+        # --- END NEW LOGIC ---
+        
         total_days_worked = base_work_days + overtime_days
 
         # 育儿嫂普通合同日薪定义
@@ -721,8 +739,6 @@ class BillingEngine:
         # 3. 获取该月的实际最后一天
         _, num_days_in_month = calendar.monthrange(current_year, current_month)
         last_day_of_month = num_days_in_month
-
-        log_extras = {}
 
         # # 4. 如果是最后一个账单，并且其结束日不是该月的最后一天
         # if is_last_bill and cycle_end.day != last_day_of_month:
