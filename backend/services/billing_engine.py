@@ -566,7 +566,7 @@ class BillingEngine:
 
         if year == start_year and month == start_month:
             if start_year == end_year and start_month == end_month:
-                current_app.logger.info(f"====111====contract.start_date.{contract.start_date},contract_end_date{contract_end_date}")
+                # current_app.logger.info(f"====111====contract.start_date.{contract.start_date},contract_end_date{contract_end_date}")
                 return contract.start_date, contract_end_date
             else:
                 _, num_days_in_start_month = calendar.monthrange(
@@ -575,28 +575,25 @@ class BillingEngine:
                 last_day_of_start_month = date(
                     start_year, start_month, num_days_in_start_month
                 )
-                current_app.logger.info(f"====222====contract.start_date.{contract.start_date},last_day_of_start_month{last_day_of_start_month}")
+                # current_app.logger.info(f"====222====contract.start_date.{contract.start_date},last_day_of_start_month{last_day_of_start_month}")
                 return contract.start_date, last_day_of_start_month
 
         if year == end_year and month == end_month:
             if not (start_year == end_year and start_month == end_month):
                 first_day_of_end_month = date(end_year, end_month, 1)
-                current_app.logger.info(f"====333====contract.first_day_of_end_month.{first_day_of_end_month},contract_end_date{contract_end_date}")
+                # current_app.logger.info(f"====333====contract.first_day_of_end_month.{first_day_of_end_month},contract_end_date{contract_end_date}")
                 return first_day_of_end_month, contract_end_date
 
         target_month_date = date(year, month, 1)
         start_month_date = date(start_year, start_month, 1)
         end_month_date = date(end_year, end_month, 1)
-        current_app.logger.debug(f"终极调试算出乎：year = {year} , start_year:{start_year},month:{month}, start_month:{start_month}, end_year : {end_year} , end_month: {end_month}, target_month_date:{target_month_date},start_month_date:{start_month_date}, end_month_date:{end_month_date} ")
+        # current_app.logger.debug(f"终极调试算出乎：year = {year} , start_year:{start_year},month:{month}, start_month:{start_month}, end_year : {end_year} , end_month: {end_month}, target_month_date:{target_month_date},start_month_date:{start_month_date}, end_month_date:{end_month_date} ")
         if start_month_date < target_month_date <= end_month_date:
-            current_app.logger.info(f"====444====contract.first_day_of_target_month.{first_day_of_end_month},last_day_of_target_month{last_day_of_target_month}")
             return first_day_of_target_month, last_day_of_target_month
                 # 条件2：【新增】如果是自动续约合同，并且目标月份在当前记录的结束日期之后
         elif contract.is_monthly_auto_renew and target_month_date > end_month_date:
-            current_app.logger.info(f"====AUTORENEW==== 合同 {contract.id} 是自动续约合同，为未来的月份 {year}-{month} 创建新周期。")
+            # current_app.logger.info(f"====AUTORENEW==== 合同 {contract.id} 是自动续约合同，为未来的月份 {year}-{month} 创建新周期。")
             return first_day_of_target_month, last_day_of_target_month
-        
-        current_app.logger.info(f"====5555====皆空，上述条件皆不满足")
         return None, None
 
     def _get_first_maternity_nurse_cycle_in_month(self, contract, year, month):
