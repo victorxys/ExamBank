@@ -499,8 +499,24 @@ class BillingEngine:
         current_app.logger.info(
             f"  [NannyCALC] 开始处理育儿嫂合同 {contract.id} for {year}-{month}"
         )
+        bill_to_recalculate = None
+        if force_recalculate:
+            # 尝试找到与当前年月匹配的现有账单
+            bill_to_recalculate = CustomerBill.query.filter_by(
+                contract_id=contract.id,
+                year=year,
+                month=month,
+                is_substitute_bill=False
+            ).first()
 
-        cycle_start, cycle_end = self._get_nanny_cycle_for_month(contract, year, month,end_date_override)
+        if bill_to_recalculate:
+            # 如果找到了要重算的账单，就用它的周期
+            cycle_start = bill_to_recalculate.cycle_start_date
+            cycle_end = bill_to_recalculate.cycle_end_date
+            current_app.logger.info(f"    [NannyCALC] 强制重算，使用现有账单 {bill_to_recalculate.id} 的周期: {cycle_start} to {cycle_end}")
+        else:
+            # 否则（非重算或重算但未找到账单），按常规逻辑推导周期
+            cycle_start, cycle_end = self._get_nanny_cycle_for_month(contract, year, month, end_date_override)
         current_app.logger.info(f" cycle_start: {cycle_start}")
         if not cycle_start:
             current_app.logger.info(
