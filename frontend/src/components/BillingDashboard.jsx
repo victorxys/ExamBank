@@ -250,7 +250,7 @@ const BillingDashboard = () => {
                 try {
                     const params = { page: page + 1, per_page: rowsPerPage, billing_month: selectedBillingMonth, ...filters };
                     const response = await api.get('/billing/bills', { params });
-                    console.log("Fetched bills:", response.data.items); // 调试输出
+                    // console.log("Fetched bills:", response.data.items); // 调试输出
                     setContracts(response.data.items || []);
                     setTotalContracts(response.data.total || 0);
                 } catch (error) {
@@ -265,7 +265,7 @@ const BillingDashboard = () => {
             // 这是一个辅助函数，确保在任何地方都能正确转换合同类型文本
             
             const get_contract_type_details = (contract_type) => {
-                console.log("Contract type received:", contract_type); // 调试输出
+                // console.log("Contract type received:", contract_type); // 调试输出
                 if (contract_type === 'nanny') return '育儿嫂';
                 if (contract_type === 'maternity_nurse') return '月嫂';
                 if (contract_type === 'nanny_trial') return '育儿嫂试工';

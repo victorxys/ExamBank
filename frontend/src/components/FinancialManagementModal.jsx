@@ -42,6 +42,31 @@ const formatDateRange = (dateRangeString) => {
     } catch (e) { return '无效日期范围'; }
 };
 
+const formatDateTimeRange = (startStr, endStr) => {
+    if (!startStr || !endStr) return '—';
+    try {
+        const startDate = new Date(startStr);
+        const endDate = new Date(endStr);
+        if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) return '无效日期';
+
+        // 检查开始和结束时间是否都为午夜 (00:00:00)，以此判断是否为旧数据
+        const isOldData = startDate.getHours() === 0 && startDate.getMinutes() === 0 &&
+                          endDate.getHours() === 0 && endDate.getMinutes() === 0;
+
+        const formatDateOnly = (date) => date.toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' }).replace(/\//g, '-');
+        const formatDateTime = (date) => date.toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute:'2-digit', hour12: false }).replace(/\//g, '-');
+        if (isOldData) {
+            // 如果是旧数据，只显示日期
+            return `${formatDateOnly(startDate)} ~ ${formatDateOnly(endDate)}`;
+        } else {
+            // 如果是新数据，显示日期和时间
+            return `${formatDateTime(startDate)} ~ ${formatDateTime(endDate)}`;
+        }
+    } catch (e) {
+        return '无效日期范围';
+    }
+};             
+
 const formatDate = (dateString) => {
     if (!dateString || dateString.includes('N/A')) return '—';
     try {
@@ -56,10 +81,10 @@ const formatDate = (dateString) => {
 const formatValue = (key, value) => {
     if (value === null || value === undefined || value === '' || String(value).includes('待计算'))
         return <Box component="span" sx={{ color: 'text.disabled' }}>{value || '—'}</Box>;
-    if (key === '加班天数') return `${value} 天`;
-    if (key === '替班天数') return `${value} 天`;
-    if (key === '基本劳务天数' || key === '实际劳务天数') return `${value} 天`;
-    if (key === '总劳务天数') return `${value} 天`;
+    if (key === '加班天数' || key === '替班天数' || key === '基本劳务天数' || key === '实际劳务天数' || key === '总劳务天数') {
+        const num = parseFloat(value);
+        return isNaN(num) ? `${value} 天` : `${num.toFixed(1)} 天`;
+    }
     if (key.includes('费率')) {
         const num = Number(value);
         return isNaN(num) ? String(value) : `${(num * 100).toFixed(0)}%`;
@@ -91,10 +116,20 @@ const getTooltipContent = (fieldName, billingDetails, isCustomer) => {
         '本次交管理费': '本次交管理费',
         '首月员工10%费用': '首月员工10%费用',
         '加班工资': '加班费',
-        '实际劳务天数': 'base_work_days_reason'
+        '实际劳务天数': 'base_work_days_reason',
+        '延长服务天数': 'extension_days_reason', // <-- 新增
+        '延长期服务费': 'extension_fee_reason'   // <-- 新增
     };
     const logKey = fieldToLogKeyMap[fieldName];
-    if (!logKey || !log[logKey]) return null;
+     // --- 核心修改：从 log_extras 中查找日志 ---
+    if (!calc) return null;
+
+    const logSource = calc.calculation_log || {};
+    const logExtrasSource = calc.log_extras || {};
+
+    const logMessage = logExtrasSource[logKey] || logSource[logKey];
+    if (!logMessage) return null;
+    // --- 修改结束 ---
 
     return (
         <Box sx={{ p: 1, maxWidth: 350 }}>
@@ -102,14 +137,14 @@ const getTooltipContent = (fieldName, billingDetails, isCustomer) => {
                 计算过程
             </Typography>
             <Typography variant="body2" sx={{ fontFamily: 'monospace', color: 'grey.200', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
-                {log[logKey]}
+                {logMessage}
             </Typography>
         </Box>
     );
 };
 
 // --- 主组件 ---
-const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billingDetails, loading, onSave }) => {
+const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billingDetails: initialBillingDetails, loading, onSave }) => {
     const [isEditMode, setIsEditMode] = useState(false);
     const [editableOvertime, setEditableOvertime] = useState(0);
     const [adjustments, setAdjustments] = useState([]);
@@ -126,22 +161,29 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
     const [isSubstituteDialogOpen, setIsSubstituteDialogOpen] = useState(false);
     const [substituteRecords, setSubstituteRecords] = useState([]);
     const [editableActualWorkDays, setEditableActualWorkDays] = useState(26);
+    const [billingDetails, setBillingDetails] = useState(initialBillingDetails);
+    const [isExtensionDialogOpen, setIsExtensionDialogOpen] = useState(false);
+    const [extensionDate, setExtensionDate] = useState(null);
+
+    useEffect(() => {
+        setBillingDetails(initialBillingDetails);
+    }, [initialBillingDetails]);
 
     useEffect(() => {
         if (open && billingDetails) {
             const customerDetails = billingDetails.customer_bill_details || {};
             const employeeDetails = billingDetails.employee_payroll_details || {};
             const invoiceDetails = billingDetails.invoice_details || {};
-            
-            setEditableOvertime(parseInt(billingDetails.attendance?.overtime_days, 10) || 0);
+            // console.log("[FRONTEND-DEBUG] Received 'billingDetails.attendance?.overtime_days':", billingDetails.attendance?.overtime_days);
+            setEditableOvertime(parseFloat(billingDetails.attendance?.overtime_days) || 0);
             setAdjustments(billingDetails.adjustments || []);
 
             const actualDaysFromBill = customerDetails.actual_work_days;
             const baseDaysFromCalc = customerDetails.calculation_details?.base_work_days;
             if (actualDaysFromBill !== null && actualDaysFromBill !== undefined) {
-                setEditableActualWorkDays(parseInt(actualDaysFromBill, 10));
+                setEditableActualWorkDays(parseFloat(actualDaysFromBill));
             } else if (baseDaysFromCalc !== null && baseDaysFromCalc !== undefined) {
-                setEditableActualWorkDays(parseInt(baseDaysFromCalc, 10));
+                setEditableActualWorkDays(parseFloat(baseDaysFromCalc));
             } else {
                 setEditableActualWorkDays(26);
             }
@@ -191,15 +233,20 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
 
     const handleSaveSubstitute = async (substituteData) => {
         try {
-            await api.post(`/contracts/${contract.contract_id}/substitutes`, substituteData);
+            const response = await api.post(`/contracts/${contract.contract_id}/substitutes`, substituteData);
             alert('替班记录添加成功！');
+            // 使用返回的最新账单详情更新状态
+            if (response.data.latest_details) {
+                setBillingDetails(response.data.latest_details);
+            }
+            // 重新获取替班记录列表以更新显示
             api.get(`/contracts/${contract.contract_id}/substitutes`)
                 .then(res => setSubstituteRecords(res.data))
                 .catch(err => console.error("获取替班记录失败:", err));
             handleCloseSubstituteDialog();
         } catch (error) {
             console.error("保存替班记录失败:", error);
-            alert('保存替班记录失败，请查看控制台获取更多信息。');
+            alert('添加替班记录失败，同一时间段可能已有替班记录，不能重复添加。');
         }
     };
 
@@ -252,7 +299,7 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
             const customerDetails = billingDetails.customer_bill_details || {};
             const employeeDetails = billingDetails.employee_payroll_details || {};
             const invoiceDetails = billingDetails.invoice_details || {};
-            setEditableOvertime(parseInt(billingDetails.attendance?.overtime_days, 10) || 0);
+            setEditableOvertime(parseFloat(billingDetails.attendance?.overtime_days) || 0);
             setAdjustments(billingDetails.adjustments || []);
             setEditableInvoice({
                 number: invoiceDetails.number || '',
@@ -315,6 +362,16 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
     const handleCycleDateChange = (name, newDate) => {
         setEditableCycle(prev => ({ ...prev, [name]: newDate }));
     };
+    // 目标：在员工薪酬卡片中也显示“劳务周期”
+    // 方法：从客户账单数据中找到“劳务周期”组，并将其添加到员工薪酬数据的组列表的开头。
+    const laborCycleGroup = customerData?.groups?.find(g => g.name === '劳务周期');
+
+    if (laborCycleGroup && employeeData?.groups) {
+      // 检查是否已存在，防止重复添加
+      if (!employeeData.groups.some(g => g.name === '劳务周期')) {
+        employeeData.groups.unshift(laborCycleGroup);
+      }
+    }
     const handleSaveCycle = async () => {
         if (!editableCycle.start || !editableCycle.end) {
             alert("请提供完整的周期起止日期！");
@@ -335,6 +392,46 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
         }
     };
 
+    const handleOpenExtensionDialog = () => {
+        // 初始化日期为当前账单的结束日期
+        setExtensionDate(billingDetails.cycle_end_date ? new Date(billingDetails.cycle_end_date) : null);
+        setIsExtensionDialogOpen(true);
+    };
+
+    const handleCloseExtensionDialog = () => setIsExtensionDialogOpen(false);
+
+    const handleConfirmExtension = async () => {
+        if (!extensionDate) {
+            alert('请选择延长至的日期！');
+            return;
+        }
+        try {
+            // 1. 发起延长请求
+            await api.post(`/billing/bills/${billingDetails.customer_bill_details.id}/extend`, {
+                new_end_date: extensionDate.toISOString().split('T')[0],
+            });
+
+            alert('服务已成功延长！正在刷新账单详情...');
+
+            // --- Gemini-generated code (Final Fix): Start ---
+            // 2. 延长成功后，立即重新获取这个账单的最新详情
+            const freshDetailsResponse = await api.get(`/billing/details?bill_id=${billingDetails.customer_bill_details.id}`);
+
+            // 3. 用最新的数据更新弹窗自己的内部状态
+            if (freshDetailsResponse.data) {
+                // 假设您已经将 billingDetails 从 props 移入 state
+                setBillingDetails(freshDetailsResponse.data);
+            }
+            // --- Gemini-generated code (Final Fix): End ---
+
+            handleCloseExtensionDialog();
+
+        } catch (error) {
+            console.error("延长服务失败:", error);
+            alert(error.response?.data?.message || '延长服务失败，请查看控制台。');
+        }
+    };
+
     const renderCardContent = (data, isCustomer, billingDetails) => {
         if (!data || !data.groups) return null;
         const isSubstituteBill = data.calculation_details?.type === 'substitute';
@@ -348,9 +445,9 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
         const currentAdjustments = adjustments.filter(adj => AdjustmentTypes[adj.adjustment_type]?.type === (isCustomer ? 'customer' : 'employee'));
         const fieldOrder = {
             "级别与保证金": ["级别", "客交保证金", "定金", "介绍费", "合同备注"],
-            "劳务周期": ["劳务时间段", "基本劳务天数", "加班天数", "替班天数", "总劳务天数"],
-            "费用明细": ["管理费率", "管理费", "本次交管理费", "基础劳务费", "试工费", "加班费", "被替班费用", "优惠"],
-            "薪酬明细": ["萌嫂保证金(工资)", "试工费", "基础劳务费", "加班费", "被替班费用", "5%奖励", "首月员工10%费用"],
+            "劳务周期": ["劳务时间段", "基本劳务天数","延长服务天数", "加班天数", "被替班天数", "总劳务天数"],
+            "费用明细": ["管理费率", "管理费", "本次交管理费", "基础劳务费", "延长期服务费", "试工费", "加班费", "被替班费用", "优惠"],
+            "薪酬明细": ["萌嫂保证金(工资)", "试工费", "基础劳务费", "加班费", "被替班天数", "延长期服务费", "被替班费用", "5%奖励", "首月员工10%费用"],
         };
 
         return (
@@ -360,7 +457,7 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                         <Divider textAlign="left" sx={{ mb: 1.5 }}><Typography variant="overline" color="text.secondary">{group.name}</Typography></Divider>
                         <Grid container rowSpacing={1.5} columnSpacing={2}>
                             {(fieldOrder[group.name] || Object.keys(group.fields)).map(key => {
-                                const isBaseWorkDaysField = key === '基本劳务天数';
+                                const isBaseWorkDaysField = key === '基本劳务天数';  
                                 // =================== 核心显示逻辑 ===================
                                 // 根据账单类型，条件渲染字段
                                 if (isTrialTerminationBill) {
@@ -379,7 +476,40 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                                 // 如果字段不存在，则不渲染
                                 if (!group.fields.hasOwnProperty(key)) return null;
                                 const value = group.fields[key];
-
+                                const tooltipContent = getTooltipContent(key, billingDetails, isCustomer);
+                                // if (key === '劳务时间段') {
+                                //     console.log("[BUTTON-DEBUG] Checking conditions for '延长服务' button:");
+                                //     console.log("  - 1. Is correct field ('劳务时间段')?", key === '劳务时间段');
+                                //     console.log("  - 2. Is 'nanny' contract?", contract?.contract_type_value === 'nanny', "(Value: " + contract?.is_monthly_auto_renew +  contract?.contract_type_value + ")");
+                                //     console.log("  - 3. Is last bill?", billingDetails?.is_last_bill, "(Value: " + billingDetails?.is_last_bill + ")");
+                                //     console.log("  - 4. Is NOT in edit mode?", !isEditMode, "(Value: " + isEditMode + ")");
+                                //     console.log("  - Full billingDetails object for inspection:", billingDetails);
+                                // }
+                                // 目标：为“被替班费用”添加特殊的负向样式
+                                if ((key === '被替班费用' || key === '被替班天数') && Number(value) != 0) {
+                                    
+                                    return (
+                                        <React.Fragment key={key}>
+                                            <Grid item xs={5}>
+                                                <Typography variant="body2" color="text.secondary">{key}:</Typography>
+                                            </Grid>
+                                            <Grid item xs={7} sx={{ display: 'flex', justifyContent: 'flex-end', alignItems:'center' }}>
+                                                {/* 添加红色的向下箭头 */}
+                                                <ArrowDownwardIcon color="error" sx={{ fontSize: '1rem', mr: 0.5 }} />
+                                                {/* 添加负号，并将文本颜色设为红色 */}
+                                                <Typography variant="body1" sx={{ textAlign: 'right', fontWeight: 500, fontFamily:'monospace', color: 'error.main' }}>
+                                                    - {formatValue(key, value)}
+                                                </Typography>
+                                                {/* 保留原有的计算过程提示 */}
+                                                {tooltipContent && !isEditMode && (
+                                                    <Tooltip title={tooltipContent} arrow>
+                                                        <InfoIcon sx={{ fontSize: '1rem', color: 'action.active', ml: 0.5, cursor:'help' }} />
+                                                    </Tooltip>
+                                                )}
+                                            </Grid>
+                                        </React.Fragment>
+                                    );
+                                }
                                 // 特殊处理“合同备注”的渲染
                                 if (key === '合同备注') {
                                     return (
@@ -399,11 +529,28 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                                 if (isEditMode && isOvertimeField) {
                                     return (
                                         <React.Fragment key="overtime_edit">
-                                            <Grid item xs={5} sx={{ display: 'flex', alignItems: 'center' }}><Typography variant="body2" color="text.secondary">加班天数:</Typography></Grid>
-                                            <Grid item xs={7} sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
-                                                <IconButton size="small" onClick={() => setEditableOvertime(p => Math.max(0, p - 1))}><RemoveIcon /></IconButton>
-                                                <Typography variant="body1" sx={{ mx: 1, fontWeight: 500, fontFamily: 'monospace' }}>{editableOvertime}</Typography>
-                                                <IconButton size="small" onClick={() => setEditableOvertime(p => p + 1)}><AddIcon /></IconButton>
+                                            <Grid item xs={5} sx={{ display: 'flex', alignItems: 'center' }}>
+                                                <Typography variant="body2" color="text.secondary">加班天数:</Typography>
+                                            </Grid>
+                                            <Grid item xs={7} sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+                                                <TextField
+                                                    type="number"
+                                                    value={editableOvertime}
+                                                    onChange={(e) => {
+                                                        const value = e.target.value;
+                                                        // 允许为空或数字输入
+                                                        if (value === '' || !isNaN(value)) {
+                                                            setEditableOvertime(value);
+                                                        }
+                                                    }}
+                                                    variant="standard"
+                                                    size="small"
+                                                    inputProps={{
+                                                        step: 0.1,
+                                                        style: { textAlign: 'right', fontFamily: 'monospace', fontWeight: 500 }
+                                                    }}
+                                                    sx={{ maxWidth: '80px' }}
+                                                />
                                             </Grid>
                                         </React.Fragment>
                                     );
@@ -412,19 +559,50 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                                 if (isEditMode && isNannyContract && isBaseWorkDaysField) {
                                     return (
                                         <React.Fragment key="base_work_days_edit">
-                                            <Grid item xs={5} sx={{ display: 'flex', alignItems: 'center' }}><Typography variant="body2" color="text.secondary">实际劳务天数:</Typography></Grid>
-                                            <Grid item xs={7} sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
-                                                <IconButton size="small" onClick={() => setEditableActualWorkDays(p => Math.max(1, p - 1))}><RemoveIcon /></IconButton>
-                                                <Typography variant="body1" sx={{ mx: 1, fontWeight: 500, fontFamily: 'monospace' }}>{editableActualWorkDays}</Typography>
-                                                <IconButton size="small" onClick={() => setEditableActualWorkDays(p => Math.min(26, p + 1))}><AddIcon /></IconButton>
+                                            <Grid item xs={5} sx={{ display: 'flex', alignItems: 'center' }}>
+                                                <Typography variant="body2" color="text.secondary">实际劳务天数:</Typography>
+                                            </Grid>
+                                            <Grid item xs={7} sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+                                                <TextField
+                                                    type="number"
+                                                    value={editableActualWorkDays}
+                                                    onChange={(e) => {
+                                                        const value = e.target.value;
+                                                        if (value === '' || !isNaN(value)) {
+                                                            setEditableActualWorkDays(value);
+                                                        }
+                                                    }}
+                                                    variant="standard"
+                                                    size="small"
+                                                    inputProps={{
+                                                        step: 0.1,
+                                                        style: { textAlign: 'right', fontFamily: 'monospace', fontWeight: 500 }
+                                                    }}
+                                                    sx={{ maxWidth: '80px' }}
+                                                />
                                             </Grid>
                                         </React.Fragment>
                                     );
                                 }
 
                                 const isOvertimeFeeField = key === '加班费';
-                                const tooltipContent = getTooltipContent(key, billingDetails, isCustomer);
+                                
+                                if ((key === '替班天数' || key === '被替班费用') && Number(value) === 0) {
+                                    return null;
+                                }
+                                if ((key === '定金' || key === '被替班费用') && Number(value) === 0) {
+                                    return null;
+                                }
                                 if (key === '5%奖励' && (Number(value) === 0 || value === '待计算')) {
+                                    return null;
+                                }
+                                if (key === '首月员工10%费用' && (Number(value) === 0 || value === '待计算')) {
+                                    return null;
+                                }
+                                if (key === '被替班费用' && (Number(value) === 0 || value === '待计算')) {
+                                    return null;
+                                }
+                                if (key === '被替班天数' && (Number(value) === 0 || value === '待计算')) {
                                     return null;
                                 }
                                 if ((isOvertimeField || isOvertimeFeeField) && Number(value) === 0) {
@@ -438,6 +616,15 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                                             <Typography variant="body1" sx={{ textAlign: 'right', fontWeight: 500, fontFamily: 'monospace' }}>
                                                 {formatValue((isNannyContract && isBaseWorkDaysField) ? '实际劳务天数' : key, value)}
                                             </Typography>
+                                            {/* --- Gemini-generated code: Start --- */}
+                                            {key === '劳务时间段' && contract?.contract_type_value === 'nanny' && !contract?.is_monthly_auto_renew && billingDetails?.is_last_bill && !isEditMode && (
+                                                <Tooltip title="为本期账单延长服务天数">
+                                                    <IconButton size="small" sx={{ ml: 1 }} onClick={handleOpenExtensionDialog}>
+                                                        <EditCalendarIcon fontSize="small" />
+                                                    </IconButton>
+                                                </Tooltip>
+                                            )}
+                                            {/* --- Gemini-generated code: End --- */}
                                             {tooltipContent && !isEditMode && (
                                                 <Tooltip title={tooltipContent} arrow>
                                                     <InfoIcon sx={{ fontSize: '1rem', color: 'action.active', ml: 0.5, cursor: 'help' }} />
@@ -451,9 +638,10 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                     </Box>
                 ))}
                 
-                <Box>
-                    <Divider textAlign="left" sx={{ mb: 1.5 }}><Typography variant="overline" color="text.secondary">财务调整</Typography></Divider>
-                    {currentAdjustments.length > 0 ? (
+                
+                {(currentAdjustments.length > 0  || isEditMode) && (
+                    <Box>
+                        <Divider textAlign="left" sx={{ mb: 1.5 }}><Typography variant="overline" color="text.secondary">财务调整</Typography></Divider>
                         <List dense disablePadding>
                             {currentAdjustments.map(adj => (
                                  <ListItem
@@ -473,22 +661,22 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                                         </IconButton>
                                     )}
                                 >
-                                    <ListItemIcon sx={{ minWidth: 'auto', mr: 1.5 }}>{AdjustmentTypes[adj.adjustment_type]?.effect > 0 ? <ArrowUpwardIcon color="success" fontSize="small"/> : <ArrowDownwardIcon color="error" fontSize="small"/>}</ListItemIcon>
-                                    <ListItemText 
-                                        primary={AdjustmentTypes[adj.adjustment_type]?.label} 
+                                    <ListItemIcon sx={{ minWidth: 'auto', mr: 1.5 }}>{AdjustmentTypes[adj.adjustment_type]?.effect> 0 ? <ArrowUpwardIcon color="success" fontSize="small"/> : <ArrowDownwardIcon color="error" fontSize="small"/>}</ListItemIcon>
+                                    <ListItemText
+                                        primary={AdjustmentTypes[adj.adjustment_type]?.label}
                                         secondary={
-                                            <Typography variant="body2" component="span" sx={{ whiteSpace: 'pre-wrap', color: 'text.secondary' }}>
+                                            <Typography variant="body2" component="span" sx={{ whiteSpace: 'pre-wrap', color:'text.secondary' }}>
                                                 {adj.description}
                                             </Typography>
-                                        } 
+                                        }
                                     />
                                     <Typography variant="body2" sx={{ fontFamily: 'monospace', fontWeight: 'bold' }}>{AdjustmentTypes[adj.adjustment_type]?.effect > 0 ? '+' : '-'} {formatValue('', adj.amount)}</Typography>
                                 </ListItem>
                             ))}
                         </List>
-                    ) : (<Typography variant="caption" color="text.secondary" sx={{pl:1}}>暂无调整项</Typography>)}
-                    {isEditMode && (<Box sx={{ mt: 1, display: 'flex', justifyContent: 'center' }}><Button size="small" variant="text" startIcon={<AddIcon />} onClick={() => { setEditingAdjustment(null); setAdjustmentFilter(isCustomer ? 'customer' : 'employee'); setIsAdjustmentDialogOpen(true); }}>添加调整</Button></Box>)}
-                </Box>
+                        {isEditMode && (<Box sx={{ mt: 1, display: 'flex', justifyContent: 'center' }}><Button size="small" variant="text" startIcon={<AddIcon />} onClick={() => { setEditingAdjustment(null); setAdjustmentFilter(isCustomer ? 'customer' :'employee'); setIsAdjustmentDialogOpen(true); }}>添加调整</Button></Box>)}
+                    </Box>
+                )}
 
                 <Box>
                     <Divider textAlign="left" sx={{ mb: 1.5 }}><Typography variant="overline" color="text.secondary">最终结算</Typography></Divider>
@@ -547,7 +735,23 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                     <Box>
                         财务管理 - {contract?.customer_name} ({contract?.employee_name} / {billingMonth})
                     </Box>
-                    <Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        {/* --- Gemini-generated code: Start --- */}
+                        {/* 仅在非替班账单时显示“添加替班记录”按钮 */}
+                        {!billingDetails?.is_substitute_bill && (
+                            <Button
+                                variant="outlined"
+                                size="small"
+                                startIcon={<PeopleAltIcon />}
+                                onClick={handleOpenSubstituteDialog}
+                                disabled={isEditMode}
+                                sx={{ mr: 2 }} // <-- 与右侧按钮保持距离
+                            >
+                                添加替班记录
+                            </Button>
+                        )}
+                        {/* --- Gemini-generated code: End --- */}
+
                         <Button
                             component="a"
                             href={`/contracts/${contract?.contract_id}`}
@@ -569,7 +773,7 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                         <Grid container spacing={3}>
                             <Grid item xs={12} md={6}>
                                 <Paper sx={{ p: 3, borderRadius: 2, boxShadow: 1 }}>
-                                    <Typography variant="h6" gutterBottom component="div" sx={{ display: 'flex', alignItems: 'center' }}>
+                                    <Typography variant="h3" gutterBottom component="div" sx={{ display: 'flex', alignItems: 'center' }}>
                                         客户账单
                                         {customerData.calculation_details?.type === 'substitute' && <Chip label="替" color="warning" size="small" sx={{ ml: 1 }} />}
                                     </Typography>
@@ -578,7 +782,7 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                             </Grid>
                             <Grid item xs={12} md={6}>
                                 <Paper sx={{ p: 3, borderRadius: 2, boxShadow: 1 }}>
-                                    <Typography variant="h6" gutterBottom component="div" sx={{ display: 'flex', alignItems: 'center' }}>
+                                    <Typography variant="h3" gutterBottom component="div" sx={{ display: 'flex', alignItems: 'center' }}>
                                         员工薪酬
                                         {employeeData.calculation_details?.type === 'substitute' && <Chip label="替" color="warning" size="small" sx={{ ml: 1 }} />}
                                     </Typography>
@@ -586,49 +790,40 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                                 </Paper>
                             </Grid>
                             {!billingDetails?.is_substitute_bill && (
-    <Grid item xs={12}>
-        <Paper sx={{ p: 3, borderRadius: 2, boxShadow: 1 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                <Typography variant="h6">替班记录</Typography>
-                <Button
-                    variant="outlined"
-                    size="small"
-                    startIcon={<PeopleAltIcon />}
-                    onClick={handleOpenSubstituteDialog}
-                    disabled={isEditMode}
-                >
-                    添加替班记录
-                </Button>
-            </Box>
-            {(() => {
-                const currentBillId = billingDetails?.customer_bill_details?.id;
-                const relevantSubstituteRecords = substituteRecords.filter(record => currentBillId && record.original_customer_bill_id === currentBillId);
-                return (
-                    <List dense>
-                        {relevantSubstituteRecords.length > 0 ? relevantSubstituteRecords.map(record => (
-                            <ListItem key={record.id}>
-                                <ListItemText
-                                    primary={`${record.substitute_user_name} (日薪: ¥${record.substitute_salary})`}
-                                    secondary={`从 ${formatDate(record.start_date)} 到 ${formatDate(record.end_date)}`}
-                                />
-                                <ListItemSecondaryAction>
-                                    <IconButton edge="end" aria-label="delete" disabled={isEditMode} onClick={() =>handleDeleteSubstitute(record.id)}>
-                                        <DeleteIcon />
-                                    </IconButton>
-                                </ListItemSecondaryAction>
-                            </ListItem>
-                        )) : (
-                            <Typography variant="body2" color="text.secondary" sx={{ pl: 2 }}>本期账单无关联的替班记录</Typography>
-                        )}
-                    </List>
-                );
-            })()}
-        </Paper>
-    </Grid>
-)}
+                                <Grid item xs={12}>
+                                    <Paper sx={{ p: 3, borderRadius: 2, boxShadow: 1 }}>
+                                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                                            <Typography variant="h3">替班记录</Typography>
+                                        </Box>
+                                        {(() => {
+                                            const currentBillId = billingDetails?.customer_bill_details?.id;
+                                            const relevantSubstituteRecords = substituteRecords.filter(record => currentBillId && record.original_customer_bill_id === currentBillId);
+                                            return (
+                                                <List dense>
+                                                    {relevantSubstituteRecords.length > 0 ? relevantSubstituteRecords.map(record => (
+                                                        <ListItem key={record.id}>
+                                                            <ListItemText
+                                                                primary={`${record.substitute_user_name} (日薪: ¥${record.substitute_salary})`}
+                                                                secondary={`从 ${formatDateTimeRange(record.start_date, record.end_date)}`}
+                                                            />
+                                                            <ListItemSecondaryAction>
+                                                                <IconButton edge="end" aria-label="delete" disabled={isEditMode} onClick={() =>handleDeleteSubstitute(record.id)}>
+                                                                    <DeleteIcon />
+                                                                </IconButton>
+                                                            </ListItemSecondaryAction>
+                                                        </ListItem>
+                                                    )) : (
+                                                        <Typography variant="body2" color="text.secondary" sx={{ pl: 2 }}>本期账单无关联的替班记录</Typography>
+                                                    )}
+                                                </List>
+                                            );
+                                        })()}
+                                    </Paper>
+                                </Grid>
+                            )}
                             <Grid item xs={12}>
                                 <Paper sx={{ p: 3, borderRadius: 2, boxShadow: 1 }}>
-                                    <Typography variant="h6" gutterBottom>结算与发票状态</Typography>
+                                    <Typography variant="h3" gutterBottom>结算与发票状态</Typography>
                                     {isEditMode ? (
                                         <Grid container spacing={3} sx={{ mt: 1 }}>
                                             <Grid item xs={12} md={6}>
@@ -693,7 +888,7 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                             </Grid>
                             <Grid item xs={12}>
                                 <Paper sx={{ p: 3, borderRadius: 2, boxShadow: 1 }}>
-                                    <Typography variant="h6" gutterBottom>操作日志</Typography>
+                                    <Typography variant="h3" gutterBottom>操作日志</Typography>
                                     {loadingLogs ? <CircularProgress size={24} /> : (<Timeline sx={{ p: 0, m: 0 }}>{activityLogs.length > 0 ? activityLogs.map((log, index) => (<LogItem key={log.id} log={log} isLast={index === activityLogs.length - 1} />)) : (<Typography variant="body2" color="text.secondary">暂无操作日志</Typography>)}</Timeline>)}
                                 </Paper>
                             </Grid>
@@ -731,6 +926,22 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                 originalBillCycleStart={billingDetails?.cycle_start_date}
                 originalBillCycleEnd={billingDetails?.cycle_end_date}
             />
+            <Dialog open={isExtensionDialogOpen} onClose={handleCloseExtensionDialog} maxWidth="xs" fullWidth>
+                <DialogTitle>延长服务期</DialogTitle>
+                <DialogContent sx={{ pt: '20px !important' }}>
+                    <DatePicker
+                        label="延长服务至"
+                        value={extensionDate}
+                        onChange={setExtensionDate}
+                        minDate={billingDetails?.cycle_end_date ? new Date(billingDetails.cycle_end_date) : null}
+                        sx={{ width: '100%' }}
+                    />
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={handleCloseExtensionDialog}>取消</Button>
+                    <Button onClick={handleConfirmExtension} variant="contained">确认延长</Button>
+                </DialogActions>
+            </Dialog>
         </>
     );
 };

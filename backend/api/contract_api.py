@@ -12,6 +12,7 @@ from backend.models import (
 )
 from backend.tasks import calculate_monthly_billing_task
 from backend.services.billing_engine import BillingEngine
+from backend.api.billing_api import _get_billing_details_internal
 from datetime import datetime
 import decimal
 from sqlalchemy.exc import IntegrityError
@@ -32,12 +33,12 @@ def create_substitute_record(contract_id):
         "employee_level",
         "substitute_type",
     ]
-    if not all(field in data for field in required_fields):
-        return jsonify({"error": "Missing required fields"}), 400
+    if not all(field in data and data[field] for field in required_fields):
+        return jsonify({"error": "请填写所有必填项"}), 400
 
     try:
-        start_date = datetime.strptime(data["start_date"], "%Y-%m-%d").date()
-        end_date = datetime.strptime(data["end_date"], "%Y-%m-%d").date()
+        start_date = datetime.fromisoformat(data["start_date"])
+        end_date = datetime.fromisoformat(data["end_date"])
         employee_level = D(data["employee_level"])
         substitute_type = data["substitute_type"]
 
@@ -66,12 +67,16 @@ def create_substitute_record(contract_id):
 
         # 2. Call the centralized processing logic in the engine
         engine = BillingEngine()
-        engine.process_substitution(new_record.id)
+        affected_bill_id = engine.process_substitution(new_record.id)
+
+        # 3. Fetch the latest details of the affected bill
+        latest_details = _get_billing_details_internal(bill_id=affected_bill_id)
 
         return jsonify(
             {
                 "message": "替班记录已创建，相关账单已更新。",
                 "record_id": str(new_record.id),
+                "latest_details": latest_details,
             }
         ), 201
 

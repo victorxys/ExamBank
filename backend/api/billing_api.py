@@ -6,9 +6,11 @@ from sqlalchemy import or_, case, and_
 from sqlalchemy.orm import with_polymorphic, attributes
 from flask_jwt_extended import get_jwt_identity
 from dateutil.parser import parse as date_parse
+from sqlalchemy.orm import with_polymorphic # <--- 别忘了导入
 
 
 
+import calendar
 from datetime import date, timedelta
 from datetime import datetime
 import decimal
@@ -204,19 +206,119 @@ def _get_billing_details_internal(
 
     customer_details['groups'][0]['fields']['合同备注'] = contract.notes or "—"
     # --- Gemini Final Fix for issue #3: End ---
+    current_app.logger.debug(f"获取到加班记录:{overtime_days}")
+    current_app.logger.info(f"[BACKEND-DEBUG] Final 'attendance' object being sent to frontend: {{'overtime_days': {float(overtime_days) if overtime_days is not None else 0}}}")
+    
+     # 添加 is_last_bill 标志
+    is_last_bill = False
+    later_bill_exists = db.session.query(
+        db.session.query(CustomerBill)
+        .filter(
+            CustomerBill.contract_id == contract.id,
+            CustomerBill.is_substitute_bill == False,
+            CustomerBill.cycle_start_date > customer_bill.cycle_start_date
+        ).exists()
+    ).scalar()
 
+    is_last_bill = not later_bill_exists
+    
+    
+    current_app.logger.info("[EXTENSION-DEBUG] --- Entering Extension Logic Check ---")
+    current_app.logger.info(f"[EXTENSION-DEBUG] Contract ID: {contract.id}, Type: {contract.type}")
+
+    # 打印所有参与判断的原始值
+    is_auto_renew_val = getattr(contract, 'is_monthly_auto_renew', False)
+    contract_end_date_val = contract.end_date
+    bill_end_date_val = customer_bill.cycle_end_date
+
+    current_app.logger.info(f"[EXTENSION-DEBUG] is_monthly_auto_renew: {is_auto_renew_val}")
+    current_app.logger.info(f"[EXTENSION-DEBUG] contract.end_date: {contract_end_date_val}")
+    current_app.logger.info(f"[EXTENSION-DEBUG] customer_bill.cycle_end_date: {bill_end_date_val}")
+
+    # 核心规则：只有非月签合同，才可能存在“手动延长服务”
+    if contract.type == 'nanny' and not is_auto_renew_val and contract_end_date_val:
+
+        current_app.logger.info("[EXTENSION-DEBUG] PASSED: Main condition (is nanny, NOT auto-renew, has end date).")
+
+        # 只有当账单的结束日期，确实超过了合同的原始结束日期时，才认为是延长
+        if bill_end_date_val > contract_end_date_val:
+            current_app.logger.info("[EXTENSION-DEBUG] PASSED: Date comparison (bill_end > contract_end). Calculating extension...")
+
+            extension_days = (bill_end_date_val - contract_end_date_val).days
+
+            if extension_days > 0:
+                current_app.logger.info(f"[EXTENSION-DEBUG] CALCULATED: extension_days = {extension_days}")
+
+                # 计算延长期服务费
+                level = D(contract.employee_level or '0')
+                daily_rate = level / D(26)
+                extension_fee = (daily_rate * D(extension_days)).quantize(D('0.01'))
+                current_app.logger.info(f"[EXTENSION-DEBUG] CALCULATED: extension_fee = {extension_fee}")
+
+                # ... (后续的注入逻辑) ...
+
+            else:
+                 current_app.logger.info(f"[EXTENSION-DEBUG] SKIPPED: extension_days is not greater than 0.")
+
+        else:
+            current_app.logger.info("[EXTENSION-DEBUG] SKIPPED: Date comparison failed (bill_end <= contract_end).")
+    else:
+        current_app.logger.info("[EXTENSION-DEBUG] SKIPPED: Main condition failed.")
+
+    # 计算并注入延长服务天数、费用及日志
+    # 核心规则：只有非月签合同，才可能存在“手动延长服务”
+    if contract.type == 'nanny' and not getattr(contract, 'is_monthly_auto_renew', False) and contract.end_date:
+
+        # 只有当账单的结束日期，确实超过了合同的原始结束日期时，才认为是延长
+        if customer_bill.cycle_end_date > contract.end_date:
+            extension_days = (customer_bill.cycle_end_date - contract.end_date).days
+
+            # 只有当延长天数大于0时，才执行注入逻辑
+            if extension_days > 0:
+                # 准备日志信息
+                extension_log = f"原合同于 {contract.end_date.strftime('%m月%d日')} 结束，手动延长至 {customer_bill.cycle_end_date.strftime('%m月%d日')}，共 {extension_days} 天。"
+
+                # 计算延长期服务费
+                level = D(contract.employee_level or '0')
+                daily_rate = level / D(26)
+                extension_fee = (daily_rate * D(extension_days)).quantize(D('0.01'))
+                extension_fee_log = f"级别({level:.2f})/26 * 延长天数({extension_days}) = {extension_fee:.2f}"
+
+                # 确保 log_extras 字典存在
+                if "log_extras" not in customer_details["calculation_details"]:
+                    customer_details["calculation_details"]["log_extras"] = {}
+
+                # 注入到 customer_details
+                for group in customer_details["groups"]:
+                    if group["name"] == "劳务周期":
+                        group["fields"]["延长服务天数"] = str(extension_days)
+                        customer_details["calculation_details"]["log_extras"]["extension_days_reason"] = extension_log
+
+                    if group["name"] == "费用明细":
+                        group["fields"]["延长期服务费"] = str(extension_fee)
+                        customer_details["calculation_details"]["log_extras"]["extension_fee_reason"] = extension_fee_log
+
+                # 注入到 employee_details (如果存在)
+                if employee_details and employee_details.get("groups"):
+                    for group in employee_details["groups"]:
+                        if group["name"] == "劳务周期":
+                            group["fields"]["延长服务天数"] = str(extension_days)
+                        if group["name"] == "薪酬明细":
+                            group["fields"]["延长期服务费"] = str(extension_fee)
+    
     return {
         "customer_bill_details": customer_details,
         "employee_payroll_details": employee_details,
         "adjustments": [adj.to_dict() for adj in adjustments],
         "attendance": {
-            "overtime_days": overtime_days
+            "overtime_days": float(overtime_days) if overtime_days is not None else 0
         },
         "invoice_details": {
             "number": (customer_bill.payment_details or {}).get("invoice_number", ""),
             "amount": (customer_bill.payment_details or {}).get("invoice_amount", ""),
             "date": (customer_bill.payment_details or {}).get("invoice_date", None),
         },
+        "is_last_bill": is_last_bill,
         "cycle_start_date": cycle_start.isoformat(),
         "cycle_end_date": cycle_end.isoformat(),
         "is_substitute_bill": customer_bill.is_substitute_bill,
@@ -331,7 +433,14 @@ def _fill_payment_status(details, payment_data, is_paid, is_customer):
 def _fill_group_fields(group_fields, calc, field_keys, is_substitute_payroll=False):
     for key in field_keys:
         if key in calc:
-            # 映射数据库字段名到前端显示标签
+            # --- Gemini-generated code for debugging: Start ---
+            if key == 'overtime_days':
+                value_before = calc[key]
+                current_app.logger.info(f"[BACKEND-DEBUG] Inside _fill_group_fields for 'overtime_days':")
+                current_app.logger.info(f"  - Value from calculation_details (before processing): {value_before}")
+                current_app.logger.info(f"  - Type of value: {type(value_before)}")
+            # --- Gemini-generated code for debugging: End ---
+
             label_map = {
                 "base_work_days": "基本劳务天数",
                 "overtime_days": "加班天数",
@@ -342,15 +451,21 @@ def _fill_group_fields(group_fields, calc, field_keys, is_substitute_payroll=Fal
                 "management_fee": "管理费",
                 "management_fee_rate": "管理费率",
                 "substitute_deduction": "被替班费用",
-                # 'employee_base_payout': '基础劳务费' if is_substitute_payroll else ('基础劳务费' if 'nanny' in calc.get('type','') else '萌嫂保证金(工资)'),
                 "employee_base_payout": "基础劳务费"
                 if "nanny" in calc.get("type", "")
                 else "萌嫂保证金(工资)",
                 "employee_overtime_payout": "加班费",
                 "first_month_deduction": "首月员工10%费用",
             }
-            label = label_map.get(key, key)  # 使用映射，如果找不到则用原key
+            label = label_map.get(key, key)
             group_fields[label] = calc[key]
+
+            # --- Gemini-generated code for debugging: Start ---
+            if key == 'overtime_days':
+                value_after = group_fields[label]
+                current_app.logger.info(f"  - Value assigned to group_fields (after processing): {value_after}")
+                current_app.logger.info(f"  - Type of assigned value: {type(value_after)}")
+            # --- Gemini-generated code for debugging: End ---
 
 
 def admin_required(fn):
@@ -600,7 +715,8 @@ def get_bills():
                 "employee_is_paid": payroll.is_paid if payroll else False,
                 "is_substitute_bill": bill.is_substitute_bill,
                 "contract_type_label": get_contract_type_details(contract.type),
-                "contract_type_value": contract.type,  # <-- 新增这一行
+                "is_monthly_auto_renew": getattr(contract, 'is_monthly_auto_renew', False),
+                "contract_type_value": contract.type,
                 "employee_level": str(contract.employee_level or "0"),
                 "active_cycle_start": bill.cycle_start_date.isoformat()
                 if bill.cycle_start_date
@@ -870,7 +986,8 @@ def batch_update_billing_details():
             'invoice_issued': (bill.payment_details or {}).get('invoice_issued', False)
         }
 
-        overtime_days = data.get("overtime_days", 0)
+        overtime_days = float(data.get("overtime_days", 0))
+        current_app.logger.info(f"DEBUG: overtime_days is {overtime_days}, type is {type(overtime_days)}") # <--- 添加这行
 
         # 根据账单类型更新正确的加班记录
         if bill.is_substitute_bill:
@@ -887,7 +1004,7 @@ def batch_update_billing_details():
                         bill,
                         payroll,
                         "修改替班加班天数",
-                        {"from": old_overtime, "to": overtime_days},
+                        {"from": str(old_overtime), "to": str(overtime_days)},
                     )
         else:
              # --- 核心修正：同时处理主合同的考勤记录 ---
@@ -901,21 +1018,25 @@ def batch_update_billing_details():
                 # 这是一个保护措施，正常情况下已计算的账单必定有此字段
                 return jsonify({"error": "无法确定基础劳务天数，因为账单从未被成功计算过或计算详情已损坏。"}), 500
 
-            base_work_days = int(D(base_work_days_str))
+            base_work_days = float(D(base_work_days_str))
             new_total_days_worked = base_work_days + overtime_days
             # --- 结束关键修正 ---
+            
+            overtime_days_float = float(data.get("overtime_days", 0))
 
             if attendance_record:
-                old_overtime = attendance_record.overtime_days
-                if old_overtime != overtime_days:
+                old_overtime_decimal = attendance_record.overtime_days
+                new_overtime_decimal = D(str(overtime_days_float))
+
+                if old_overtime_decimal.compare(new_overtime_decimal) != D('0'):
                     # 更新现有记录
-                    attendance_record.overtime_days = overtime_days
+                    attendance_record.overtime_days = new_overtime_decimal
                     attendance_record.total_days_worked = new_total_days_worked # <-- 使用动态计算的总天数
                     _log_activity(
                         bill,
                         payroll,
                         "修改加班天数",
-                        {"from": old_overtime, "to": overtime_days},
+                        {"from": str(old_overtime_decimal), "to": str(new_overtime_decimal)},
                     )
             else:
                 # 创建新记录
@@ -936,28 +1057,27 @@ def batch_update_billing_details():
                 )
 
         # --- NEW: Handle actual_work_days update ---
-        new_actual_work_days = None  # Initialize
-        if 'actual_work_days' in data and data['actual_work_days'] is not None:
+        new_actual_work_days = None
+        if 'actual_work_days' in data and data['actual_work_days'] is not None and data['actual_work_days'] != '':
             try:
-                # We just store the value here, the engine will use it.
-                new_actual_work_days = int(data['actual_work_days'])
-                if not (1 <= new_actual_work_days <= 26):
-                    current_app.logger.warning(f"Invalid actual_work_days value received: {new_actual_work_days}. Must be between 1 and 26. Clamping to 26.")
-                    new_actual_work_days = 26  # Or handle error appropriately
+                # 直接将字符串转换为 Decimal 对象，以保持绝对精度
+                new_actual_work_days = D(str(data['actual_work_days']))
 
-                # Log the change immediately
-                if bill.actual_work_days != new_actual_work_days:
+                # 比较时，确保 bill.actual_work_days 也是 Decimal
+                old_actual_work_days = bill.actual_work_days if bill.actual_work_days is not None else D('0')
+
+                # 使用 is_signed() 和 compare() 来精确比较 Decimal
+                if old_actual_work_days.compare(new_actual_work_days) != D('0'):
                     _log_activity(
                         bill, payroll,
                         action="修改实际劳务天数",
-                        details={"from": bill.actual_work_days, "to": new_actual_work_days}
+                        details={"from": str(old_actual_work_days), "to": str(new_actual_work_days)}
                     )
-                    # We can set it on the bill object, but the engine recalculation is the source of truth
                     bill.actual_work_days = new_actual_work_days
                     payroll.actual_work_days = new_actual_work_days
 
-            except (ValueError, TypeError) as e:
-                current_app.logger.warning(f"Could not parse actual_work_days: {data.get('actual_work_days')}. Error: {e}")
+            except (decimal.InvalidOperation, TypeError) as e:
+                current_app.logger.warning(f"Could not parse actual_work_days into Decimal: {data.get('actual_work_days')}. Error: {e}")
         # --- END NEW ---
 
         # --- 处理财务调整项 (带有正确日志记录和数据库操作的最终逻辑) ---
@@ -1260,7 +1380,8 @@ def batch_update_billing_details():
                     month=bill.month,
                     contract_id=bill.contract_id,
                     force_recalculate=True,
-                    actual_work_days_override=new_actual_work_days
+                    actual_work_days_override=new_actual_work_days,
+                    cycle_start_date_override=bill.cycle_start_date
                 )
             current_app.logger.info(f"账单 {bill.id} 重算完成。")
         except Exception as e:
@@ -1273,7 +1394,13 @@ def batch_update_billing_details():
                 "error": str(e),
                 "latest_details": latest_details
             }), 500
-
+        try:
+            db.session.commit()
+            current_app.logger.info(f"成功提交了对账单 {bill.id} 的所有重算结果。")
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"提交重算结果时发生错误: {e}", exc_info=True)
+            return jsonify({"error": "保存重算结果时出错，请联系管理员。"}), 500
         # --- 获取并返回最新详情 ---
         latest_details = _get_billing_details_internal(bill_id=bill.id)
         return jsonify(
@@ -2293,7 +2420,12 @@ def find_bill_and_its_page():
 
     billing_year = target_bill.year
     billing_month = target_bill.month
-    contract = target_bill.contract
+    # 不要直接用 target_bill.contract，而是用 with_polymorphic 重新查询
+    contract_poly = with_polymorphic(BaseContract, "*")
+    contract = db.session.query(contract_poly).filter(contract_poly.id == target_bill.contract_id).first()
+
+    if not contract:
+        return jsonify({"error": "Associated contract not found"}), 404
 
     query = (
         CustomerBill.query.join(
@@ -2307,7 +2439,7 @@ def find_bill_and_its_page():
 
     try:
         position = all_bill_ids_in_month.index(bill_id)
-        page_number = position // per_page
+        page_number = (position // per_page) + 1 # 页码从1开始
     except ValueError:
         return jsonify(
             {"error": "Bill found but could not determine its position."}
@@ -2338,6 +2470,78 @@ def find_bill_and_its_page():
                 "contract_type_value": contract.type,
                 "status": contract.status,
                 "employee_level": contract.employee_level,
+                "is_monthly_auto_renew": getattr(contract, 'is_monthly_auto_renew', False),
             },
         }
     )
+
+@billing_bp.route("/bills/<string:bill_id>/extend", methods=["POST"])
+@jwt_required()
+def extend_single_bill(bill_id):
+    data = request.get_json()
+    new_end_date_str = data.get("new_end_date")
+    if not new_end_date_str:
+        return jsonify({"error": "必须提供新的结束日期"}), 400
+
+    try:
+        new_end_date = datetime.strptime(new_end_date_str, "%Y-%m-%d").date()
+
+        bill = db.session.get(CustomerBill, bill_id)
+        if not bill:
+            return jsonify({"error": "账单未找到"}), 404
+
+        if new_end_date <= bill.cycle_end_date:
+            return jsonify({"error": "新的结束日期必须晚于当前结束日期"}), 400
+
+        original_end_date = bill.cycle_end_date
+        contract = bill.contract
+
+        # 1. 更新日期
+        bill.cycle_end_date = new_end_date
+        payroll = EmployeePayroll.query.filter_by(
+            contract_id=bill.contract_id,
+            cycle_start_date=bill.cycle_start_date
+        ).first()
+        if payroll:
+            payroll.cycle_end_date = new_end_date
+
+        # 2. 记录操作日志
+        _log_activity(
+            bill,
+            payroll,
+            action="延长服务期",
+            details={
+                "from": original_end_date.isoformat(),
+                "to": new_end_date.isoformat(),
+                "message": f"将服务延长至 {new_end_date.strftime('%m-%d')}"
+            }
+        )
+
+        # --- Gemini-generated code (Final Fix): Start ---
+        # 3. 直接、精确地重算当前账单对象
+        engine = BillingEngine()
+
+        # 手动调用计算引擎的内部核心函数，确保在当前事务中完成所有计算
+        # 注意：这里的 contract, bill, payroll 都是我们从数据库中获取并已在内存中修改的对象
+        details = engine._calculate_nanny_details(contract, bill, payroll)
+        bill, payroll = engine._calculate_final_amounts(bill, payroll, details)
+        log = engine._create_calculation_log(details)
+        engine._update_bill_with_log(bill, payroll, details, log)
+
+        current_app.logger.info(f"账单 {bill.id} 已在当前会话中被直接重算。")
+        # --- Gemini-generated code (Final Fix): End ---
+
+        # 4. 在所有操作完成后，一次性提交事务
+        db.session.commit()
+
+        # 5. 获取并返回最新的账单详情
+        latest_details = _get_billing_details_internal(bill_id=bill.id)
+        return jsonify({
+            "message": "服务期延长成功，账单已重算。",
+            "latest_details": latest_details
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"延长账单 {bill_id} 失败: {e}", exc_info=True)
+        return jsonify({"error": "服务器内部错误"}), 500

@@ -2271,7 +2271,7 @@ class CustomerBill(db.Model):
         cascade="all, delete-orphan",
     )
 
-    actual_work_days = db.Column(db.Integer, nullable=True, comment="实际劳务天数")
+    actual_work_days = db.Column(db.Numeric(10, 2), nullable=True, comment="实际劳务天数")
     # --- 新增字段，用于关联替班记录 ---
     is_substitute_bill = db.Column(
         db.Boolean,
@@ -2363,7 +2363,7 @@ class EmployeePayroll(db.Model):
         cascade="all, delete-orphan",
     )
 
-    actual_work_days = db.Column(db.Integer, nullable=True, comment="实际劳务天数")
+    actual_work_days = db.Column(db.Numeric(10, 2), nullable=True, comment="实际劳务天数")
     # --- 新增字段，用于关联替班记录 ---
     is_substitute_payroll = db.Column(
         db.Boolean,
@@ -2413,10 +2413,10 @@ class AttendanceRecord(db.Model):
     )
     # ----------------------------------------
 
-    total_days_worked = db.Column(db.Integer, nullable=False, comment="总出勤天数")
-    overtime_days = db.Column(db.Integer, default=0, comment="非节假日加班天数")
+    total_days_worked = db.Column(db.Numeric(10, 2), nullable=False, comment="总出勤天数")
+    overtime_days = db.Column(db.Numeric(10, 2), default=0, comment="非节假日加班天数")
     statutory_holiday_days = db.Column(
-        db.Integer, default=0, comment="法定节假日工作天数"
+        db.Numeric(10, 2), default=0, comment="法定节假日工作天数"
     )
 
     raw_data_entry_id = db.Column(
@@ -2471,10 +2471,10 @@ class SubstituteRecord(db.Model):
     )
 
     # 替班的起止日期
-    start_date = db.Column(db.Date, nullable=False)
-    end_date = db.Column(db.Date, nullable=False)
+    start_date = db.Column(db.DateTime(timezone=True), nullable=False, comment="替班开始日期时间")
+    end_date = db.Column(db.DateTime(timezone=True), nullable=False, comment="替班结束日期时间")
     overtime_days = db.Column(
-        db.Integer, nullable=False, server_default="0", comment="替班期间的加班天数"
+        db.Numeric(2, 1), nullable=False, server_default="0", comment="替班期间的加班天数"
     )
 
     notes = db.Column(db.Text, nullable=True, comment="替班备注")

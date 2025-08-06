@@ -3,7 +3,7 @@ import {
   Dialog, DialogTitle, DialogContent, DialogActions, Button,
   TextField, Grid, Autocomplete, CircularProgress, Select, MenuItem, InputLabel, FormControl, Typography
 } from '@mui/material';
-import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
 import api from '../api/axios';
 
 const SubstituteDialog = ({ open, onClose, onSave, contractId, billMonth, contractType, originalBillCycleStart,
@@ -23,49 +23,29 @@ const SubstituteDialog = ({ open, onClose, onSave, contractId, billMonth, contra
       setEmployeeLevel('');
       setUserOptions([]);
 
-      // console.log('SubstituteDialog useEffect triggered. Received contractType:', contractType); // <-- 添加这里
-
-
-      // Set default substituteType based on contractType
       if (contractType) {
         setSubstituteType(contractType);
-        // console.log('Setting substituteType to:', contractType); 
-        // Also set managementFeeRate based on the default substituteType
         if (contractType === 'nanny') {
           setManagementFeeRate(0);
         } else {
-          setManagementFeeRate(0.25); // Default for maternity nurse
+          setManagementFeeRate(0.25);
         }
       } else {
-        setSubstituteType('maternity_nurse'); // Fallback default
+        setSubstituteType('maternity_nurse');
         setManagementFeeRate(0.25);
-        // console.log('contractType is falsy, defaulting substituteType to maternity_nurse'); // <-- 添加这里
       }
 
-      // Set default dates based on billMonth
-      if (billMonth) {
-        const [year, month] = billMonth.split('-').map(Number);
-        const firstDayOfMonth = new Date(year, month - 1, 1);
-        setStartDate(firstDayOfMonth);
-        // Set endDate to the second day of the month by default
-        const secondDayOfMonth = new Date(year, month - 1, 2);
-        setEndDate(secondDayOfMonth);
+      if (originalBillCycleStart) {
+        setStartDate(new Date(originalBillCycleStart));
+        const nextDay = new Date(originalBillCycleStart);
+        nextDay.setDate(nextDay.getDate() + 1);
+        setEndDate(nextDay);
       } else {
-        // If no billMonth, clear dates
         setStartDate(null);
         setEndDate(null);
       }
     }
-  }, [open, billMonth, contractType]);
-
-  // Update endDate when startDate changes
-  useEffect(() => {
-    if (startDate) {
-      const nextDay = new Date(startDate);
-      nextDay.setDate(startDate.getDate() + 1);
-      setEndDate(nextDay);
-    }
-  }, [startDate]);
+  }, [open, billMonth, contractType, originalBillCycleStart]);
 
   const handleUserSearch = async (event, value) => {
     if (!value) {
@@ -84,22 +64,20 @@ const SubstituteDialog = ({ open, onClose, onSave, contractId, billMonth, contra
   };
 
   const handleSave = () => {
-    const formatDate = (date) => {
-      if (!date) return null;
-      // The `date` from MUI's DatePicker is a Date object in the local timezone.
-      // We need to format it to a YYYY-MM-DD string without any timezone conversion.
-      const d = new Date(date);
-      const year = d.getFullYear();
-      const month = (d.getMonth() + 1).toString().padStart(2, '0');
-      const day = d.getDate().toString().padStart(2, '0');
-      return `${year}-${month}-${day}`;
-    };
-
+     // 1. 必填项校验
+    if (!substituteUser) {
+      alert('请选择替班人员！');
+      return; // 阻止保存
+    }
+    if (!employeeLevel || String(employeeLevel).trim() === '') {
+      alert('请输入替班员工的级别/月薪！');
+      return; // 阻止保存
+    }
     const substituteData = {
       main_contract_id: contractId,
       substitute_user_id: substituteUser?.id,
-      start_date: formatDate(startDate),
-      end_date: formatDate(endDate),
+      start_date: startDate?.toISOString(),
+      end_date: endDate?.toISOString(),
       employee_level: employeeLevel,
       substitute_type: substituteType,
       management_fee_rate: substituteType === 'maternity_nurse' ? managementFeeRate : 0,
@@ -139,30 +117,33 @@ const SubstituteDialog = ({ open, onClose, onSave, contractId, billMonth, contra
               )}
             />
           </Grid>
-          {/* 新增的提示信息 */}
           {(originalBillCycleStart && originalBillCycleEnd) && (
             <Grid item xs={12}>
               <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                只能在当前账单周期 {new Date(originalBillCycleStart).toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit'})} ~ {new Date(originalBillCycleEnd).toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' })} 内添加替班。
+                只能在当前账单周期 {new Date(originalBillCycleStart).toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' })} ~ {new Date(originalBillCycleEnd).toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' })} 内添加替班。
               </Typography>
             </Grid>
           )}
           <Grid item xs={6}>
-            <DatePicker
-              label="开始日期"
+            <DateTimePicker
+              label="开始时间"
               value={startDate}
               onChange={setStartDate}
-              minDate={originalBillCycleStart ? new Date(originalBillCycleStart) : null}
-              maxDate={originalBillCycleEnd ? new Date(originalBillCycleEnd) : null}
+              ampm={false}
+              timeSteps={{ minutes: 30 }}
+              minDateTime={originalBillCycleStart ? new Date(originalBillCycleStart) : null}
+              maxDateTime={originalBillCycleEnd ? new Date(originalBillCycleEnd) : null}
             />
           </Grid>
           <Grid item xs={6}>
-            <DatePicker
-              label="结束日期"
+            <DateTimePicker
+              label="结束时间"
               value={endDate}
               onChange={setEndDate}
-              minDate={originalBillCycleStart ? new Date(originalBillCycleStart) : null}
-              maxDate={originalBillCycleEnd ? new Date(originalBillCycleEnd) : null}
+              ampm={false}
+              timeSteps={{ minutes: 30 }}
+              minDateTime={startDate || (originalBillCycleStart ? new Date(originalBillCycleStart) : null)}
+              maxDateTime={originalBillCycleEnd ? new Date(originalBillCycleEnd) : null}
             />
           </Grid>
           
@@ -177,7 +158,7 @@ const SubstituteDialog = ({ open, onClose, onSave, contractId, billMonth, contra
                   if (e.target.value === 'nanny') {
                     setManagementFeeRate(0);
                   } else {
-                    setManagementFeeRate(0.25); // Default for maternity nurse
+                    setManagementFeeRate(0.25);
                   }
                 }}
               >

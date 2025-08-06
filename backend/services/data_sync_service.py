@@ -202,13 +202,24 @@ class DataSyncService:
                         or f"客户(SN:{entry_serial_number})"
                     )
                     end_date = self._parse_date(contract_data.get("end_date"))
-                    contract_status = (
-                        "active" if end_date and end_date > date.today() else "finished"
-                    )
 
-                    # Per ini.md, trial contracts should start with 'trial_active' status
-                    if contract_type == "nanny_trial":
+                    is_auto_renew = False
+                    if contract_type == "nanny":
+                        supplementary_clause = entry.get("field_16", "")
+                        is_auto_renew = "延续一个月" in str(supplementary_clause)
+
+                    # 2. 然后，根据是否自动续约来决定状态判断逻辑
+                    if is_auto_renew:
+                        # 对于自动续约的合同，状态始终为 'active'
+                        contract_status = 'active'
+                    elif contract_type == "nanny_trial":
+                        # 对于试工合同，初始状态为 'trial_active'
                         contract_status = "trial_active"
+                    else:
+                        # 对于所有其他非自动续约的合同，使用日期比较
+                        contract_status = (
+                            "active" if end_date and end_date >= date.today() else "finished"
+                        )
 
                     # For nanny_trial, employee_level is daily rate * 30, as per form description.
                     employee_level_raw = self._parse_numeric(
@@ -265,8 +276,7 @@ class DataSyncService:
                             ),
                         )
                     elif contract_type == "nanny":
-                        supplementary_clause = entry.get("field_16", "")
-                        is_auto_renew = "延续一个月" in str(supplementary_clause)
+
                         parsed_start_date = self._parse_date(
                             contract_data.get("start_date")
                         )
