@@ -238,29 +238,19 @@ def get_course_resources(course_id_str):
             resource_list_to_return.append(res_dict)
 
     else:  # 非管理员用户
-        # 1. 检查用户是否有权访问此课程上下文 (可选，但良好实践)
-        has_course_context_access = (
-            UserCourseAccess.query.filter_by(
-                user_id=current_user_id_uuid, course_id=course.id
-            ).first()
-            is not None
-        )
-
-        # 2. 获取用户在该课程下被明确授权的资源及其有效期
-        # 我们需要连接 CourseResource 和 UserResourceAccess
+        # 只获取用户在该课程下被明确授权的、且未过期的资源
         now_utc = datetime.now(timezone.utc)
 
-        # 查询用户有权访问且未过期的资源，并获取其 UserResourceAccess 记录以提取 expires_at
         granted_resources_query = (
             db.session.query(CourseResource, UserResourceAccess.expires_at)
             .join(
                 UserResourceAccess, CourseResource.id == UserResourceAccess.resource_id
             )
             .filter(
-                CourseResource.course_id == course.id,  # 确保是当前课程的资源
+                CourseResource.course_id == course.id,
                 UserResourceAccess.user_id == current_user_id_uuid,
                 or_(
-                    UserResourceAccess.expires_at is None,
+                    UserResourceAccess.expires_at.is_(None),  # 修正：使用 .is_(None) 进行SQL NULL检查
                     UserResourceAccess.expires_at >= now_utc,
                 ),
             )
@@ -268,12 +258,6 @@ def get_course_resources(course_id_str):
         )
 
         accessible_resources_with_expiry = granted_resources_query.all()
-
-        if not has_course_context_access and not accessible_resources_with_expiry:
-            # 如果既没有课程级访问权限，也没有任何该课程下的有效资源访问权限，则拒绝
-            # (或者根据您的业务逻辑，如果只想显示有具体资源权限的，可以只判断 accessible_resources_with_expiry)
-            # return jsonify({'error': 'Access denied to this course and its resources'}), 403
-            pass  # 允许返回空列表，让前端显示“无资源”
 
         for res_obj, expires_at_val in accessible_resources_with_expiry:
             res_dict = res_obj.to_dict(include_uploader=True)
