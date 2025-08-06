@@ -223,72 +223,50 @@ def _get_billing_details_internal(
     is_last_bill = not later_bill_exists
     
     
-    current_app.logger.info("[EXTENSION-DEBUG] --- Entering Extension Logic Check ---")
-    current_app.logger.info(f"[EXTENSION-DEBUG] Contract ID: {contract.id}, Type: {contract.type}")
+    # --- ITERATION v2: START ---
+    # 统一处理所有合同类型的“延长服务”逻辑
 
-    # 打印所有参与判断的原始值
-    is_auto_renew_val = getattr(contract, 'is_monthly_auto_renew', False)
-    contract_end_date_val = contract.end_date
-    bill_end_date_val = customer_bill.cycle_end_date
+    # 1. 确定合同是否符合延长的基本资格及其权威结束日期
+    is_eligible_for_extension = False
+    authoritative_end_date = None
 
-    current_app.logger.info(f"[EXTENSION-DEBUG] is_monthly_auto_renew: {is_auto_renew_val}")
-    current_app.logger.info(f"[EXTENSION-DEBUG] contract.end_date: {contract_end_date_val}")
-    current_app.logger.info(f"[EXTENSION-DEBUG] customer_bill.cycle_end_date: {bill_end_date_val}")
+    # 前提条件：必须是最后一期账单
+    if is_last_bill:
+        # 场景A: 育儿嫂（非月签）
+        if contract.type == 'nanny' and not getattr(contract, 'is_monthly_auto_renew', False):
+            is_eligible_for_extension = True
+            authoritative_end_date = contract.end_date
 
-    # 核心规则：只有非月签合同，才可能存在“手动延长服务”
-    if contract.type == 'nanny' and not is_auto_renew_val and contract_end_date_val:
+        # 场景B: 月嫂
+        elif contract.type == 'maternity_nurse':
+            is_eligible_for_extension = True
+            # 月嫂的权威结束日期优先使用“预计下户日期”，若无则使用合同结束日期
+            authoritative_end_date = getattr(contract, 'expected_offboarding_date', None) or contract.end_date
 
-        current_app.logger.info("[EXTENSION-DEBUG] PASSED: Main condition (is nanny, NOT auto-renew, has end date).")
+    # 2. 如果符合资格，则执行统一的计算和注入逻辑
+    if is_eligible_for_extension and authoritative_end_date:
 
-        # 只有当账单的结束日期，确实超过了合同的原始结束日期时，才认为是延长
-        if bill_end_date_val > contract_end_date_val:
-            current_app.logger.info("[EXTENSION-DEBUG] PASSED: Date comparison (bill_end > contract_end). Calculating extension...")
+        # 只有当账单的结束日期 > 合同的权威结束日期时，才视为延长
+        if customer_bill.cycle_end_date > authoritative_end_date:
+            extension_days = (customer_bill.cycle_end_date - authoritative_end_date).days
 
-            extension_days = (bill_end_date_val - contract_end_date_val).days
-
-            if extension_days > 0:
-                current_app.logger.info(f"[EXTENSION-DEBUG] CALCULATED: extension_days = {extension_days}")
-
-                # 计算延长期服务费
-                level = D(contract.employee_level or '0')
-                daily_rate = level / D(26)
-                extension_fee = (daily_rate * D(extension_days)).quantize(D('0.01'))
-                current_app.logger.info(f"[EXTENSION-DEBUG] CALCULATED: extension_fee = {extension_fee}")
-
-                # ... (后续的注入逻辑) ...
-
-            else:
-                 current_app.logger.info(f"[EXTENSION-DEBUG] SKIPPED: extension_days is not greater than 0.")
-
-        else:
-            current_app.logger.info("[EXTENSION-DEBUG] SKIPPED: Date comparison failed (bill_end <= contract_end).")
-    else:
-        current_app.logger.info("[EXTENSION-DEBUG] SKIPPED: Main condition failed.")
-
-    # 计算并注入延长服务天数、费用及日志
-    # 核心规则：只有非月签合同，才可能存在“手动延长服务”
-    if contract.type == 'nanny' and not getattr(contract, 'is_monthly_auto_renew', False) and contract.end_date:
-
-        # 只有当账单的结束日期，确实超过了合同的原始结束日期时，才认为是延长
-        if customer_bill.cycle_end_date > contract.end_date:
-            extension_days = (customer_bill.cycle_end_date - contract.end_date).days
-
-            # 只有当延长天数大于0时，才执行注入逻辑
             if extension_days > 0:
                 # 准备日志信息
-                extension_log = f"原合同于 {contract.end_date.strftime('%m月%d日')} 结束，手动延长至 {customer_bill.cycle_end_date.strftime('%m月%d日')}，共 {extension_days} 天。"
+                extension_log = f"原合同于 {authoritative_end_date.strftime('%m月%d日')} 结束，手动延长至 {customer_bill.cycle_end_date.strftime('%m月%d日')}，共 {extension_days} 天。"
 
-                # 计算延长期服务费
+                # 计算延长期服务费 (此公式对两种合同通用)
                 level = D(contract.employee_level or '0')
                 daily_rate = level / D(26)
                 extension_fee = (daily_rate * D(extension_days)).quantize(D('0.01'))
                 extension_fee_log = f"级别({level:.2f})/26 * 延长天数({extension_days}) = {extension_fee:.2f}"
 
-                # 确保 log_extras 字典存在
+                # 确保 calculation_details 和 log_extras 字典存在
+                if "calculation_details" not in customer_details:
+                    customer_details["calculation_details"] = {}
                 if "log_extras" not in customer_details["calculation_details"]:
                     customer_details["calculation_details"]["log_extras"] = {}
 
-                # 注入到 customer_details
+                # 注入到 customer_details (前端客户账单)
                 for group in customer_details["groups"]:
                     if group["name"] == "劳务周期":
                         group["fields"]["延长服务天数"] = str(extension_days)
@@ -298,13 +276,14 @@ def _get_billing_details_internal(
                         group["fields"]["延长期服务费"] = str(extension_fee)
                         customer_details["calculation_details"]["log_extras"]["extension_fee_reason"] = extension_fee_log
 
-                # 注入到 employee_details (如果存在)
+                # 注入到 employee_details (前端员工薪酬)
                 if employee_details and employee_details.get("groups"):
                     for group in employee_details["groups"]:
                         if group["name"] == "劳务周期":
                             group["fields"]["延长服务天数"] = str(extension_days)
                         if group["name"] == "薪酬明细":
                             group["fields"]["延长期服务费"] = str(extension_fee)
+    # --- ITERATION v2: END ---
     
     return {
         "customer_bill_details": customer_details,
@@ -2523,7 +2502,15 @@ def extend_single_bill(bill_id):
 
         # 手动调用计算引擎的内部核心函数，确保在当前事务中完成所有计算
         # 注意：这里的 contract, bill, payroll 都是我们从数据库中获取并已在内存中修改的对象
-        details = engine._calculate_nanny_details(contract, bill, payroll)
+        # 【关键修复】根据合同类型，调用正确的计费函数
+        details = {}
+        if contract.type == 'nanny':
+            details = engine._calculate_nanny_details(contract, bill, payroll)
+        elif contract.type == 'maternity_nurse':
+            details = engine._calculate_maternity_nurse_details(contract, bill, payroll)
+        else:
+            # 如果有其他合同类型，可以在此添加或抛出错误
+            return jsonify({"error": f"不支持的合同类型: {contract.type}"}), 400
         bill, payroll = engine._calculate_final_amounts(bill, payroll, details)
         log = engine._create_calculation_log(details)
         engine._update_bill_with_log(bill, payroll, details, log)

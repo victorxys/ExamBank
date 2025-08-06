@@ -100,9 +100,12 @@ const formatValue = (key, value) => {
 const getTooltipContent = (fieldName, billingDetails, isCustomer) => {
     const details = isCustomer ? billingDetails?.customer_bill_details : billingDetails?.employee_payroll_details;
     const calc = details?.calculation_details;
-    if (!calc?.calculation_log) return null;
 
-    const log = calc.calculation_log;
+    // 1. 如果没有计算详情，或者计算详情里没有任何日志，则不显示 tooltip
+    if (!calc || (!calc.calculation_log && !calc.log_extras)) {
+        return null;
+    }
+
     const fieldToLogKeyMap = {
         '基础劳务费': '基础劳务费',
         '试工费': '试工费',
@@ -117,26 +120,27 @@ const getTooltipContent = (fieldName, billingDetails, isCustomer) => {
         '首月员工10%费用': '首月员工10%费用',
         '加班工资': '加班费',
         '实际劳务天数': 'base_work_days_reason',
-        '延长服务天数': 'extension_days_reason', // <-- 新增
-        '延长期服务费': 'extension_fee_reason'   // <-- 新增
+        '延长服务天数': 'extension_days_reason',
+        '延长期服务费': 'extension_fee_reason'
     };
-    const logKey = fieldToLogKeyMap[fieldName];
-     // --- 核心修改：从 log_extras 中查找日志 ---
-    if (!calc) return null;
 
+    const logKey = fieldToLogKeyMap[fieldName];
+    if (!logKey) return null;
+
+    // 2. 安全地访问日志来源
     const logSource = calc.calculation_log || {};
     const logExtrasSource = calc.log_extras || {};
 
     const logMessage = logExtrasSource[logKey] || logSource[logKey];
+
     if (!logMessage) return null;
-    // --- 修改结束 ---
 
     return (
         <Box sx={{ p: 1, maxWidth: 350 }}>
             <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'common.white', display: 'block', mb: 1 }}>
                 计算过程
             </Typography>
-            <Typography variant="body2" sx={{ fontFamily: 'monospace', color: 'grey.200', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+            <Typography variant="body2" sx={{ fontFamily: 'monospace', color: 'grey.200', whiteSpace: 'pre-wrap', wordBreak:'break-all' }}>
                 {logMessage}
             </Typography>
         </Box>
@@ -611,24 +615,28 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
 
                                 return (
                                     <React.Fragment key={key}>
-                                        <Grid item xs={5}><Typography variant="body2" color="text.secondary">{(isNannyContract && isBaseWorkDaysField) ? '实际劳务天数' : key}:</Typography></Grid>
-                                        <Grid item xs={7} sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
-                                            <Typography variant="body1" sx={{ textAlign: 'right', fontWeight: 500, fontFamily: 'monospace' }}>
-                                                {formatValue((isNannyContract && isBaseWorkDaysField) ? '实际劳务天数' : key, value)}
+                                        <Grid item xs={5}><Typography variant="body2" color="text.secondary">{(isNannyContract &&isBaseWorkDaysField) ? '实际劳务天数' : key}:</Typography></Grid>
+                                        <Grid item xs={7} sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center'}}>
+                                            <Typography variant="body1" sx={{ textAlign: 'right', fontWeight: 500, fontFamily:'monospace' }}>
+                                                {formatValue((isNannyContract && isBaseWorkDaysField) ? '实际劳务天数' : key,value)}
                                             </Typography>
-                                            {/* --- Gemini-generated code: Start --- */}
-                                            {key === '劳务时间段' && contract?.contract_type_value === 'nanny' && !contract?.is_monthly_auto_renew && billingDetails?.is_last_bill && !isEditMode && (
-                                                <Tooltip title="为本期账单延长服务天数">
-                                                    <IconButton size="small" sx={{ ml: 1 }} onClick={handleOpenExtensionDialog}>
-                                                        <EditCalendarIcon fontSize="small" />
-                                                    </IconButton>
-                                                </Tooltip>
-                                            )}
-                                            {/* --- Gemini-generated code: End --- */}
                                             {tooltipContent && !isEditMode && (
                                                 <Tooltip title={tooltipContent} arrow>
-                                                    <InfoIcon sx={{ fontSize: '1rem', color: 'action.active', ml: 0.5, cursor: 'help' }} />
+                                                    <InfoIcon sx={{ fontSize: '1rem', color: 'action.active', ml: 0.5, cursor:'help' }} />
                                                 </Tooltip>
+                                            )}
+                                            {key === '劳务时间段' &&
+                                                (
+                                                    (contract?.contract_type_value === 'nanny' && !contract?.is_monthly_auto_renew)||
+                                                    contract?.contract_type_value === 'maternity_nurse'
+                                                ) &&
+                                                billingDetails?.is_last_bill &&
+                                                !isEditMode && (
+                                                    <Tooltip title="为本期账单延长服务天数">
+                                                        <IconButton size="small" sx={{ ml: 1 }}onClick={handleOpenExtensionDialog}>
+                                                            <EditCalendarIcon fontSize="small" />
+                                                        </IconButton>
+                                                    </Tooltip>
                                             )}
                                         </Grid>
                                     </React.Fragment>
@@ -680,9 +688,9 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
 
                 <Box>
                     <Divider textAlign="left" sx={{ mb: 1.5 }}><Typography variant="overline" color="text.secondary">最终结算</Typography></Divider>
-                    <Grid container>
+                        <Grid container>
                         {Object.entries(data.final_amount || {}).map(([key, value]) => {
-                            const tooltipContent = getTooltipContent(key, billingDetails);
+                            const tooltipContent = getTooltipContent(key, billingDetails, isCustomer);
                             return (
                                 <React.Fragment key={key}>
                                     <Grid item xs={5}><Typography variant="body2" color="text.secondary">{key}:</Typography></Grid>

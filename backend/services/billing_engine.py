@@ -1155,6 +1155,25 @@ class BillingEngine:
             and cycle_end >= contract.expected_offboarding_date
         )
 
+        # --- 【新增】月嫂合同延长服务逻辑 ---
+        extension_fee = D(0)
+
+        # 1. 确定月嫂合同的权威结束日期
+        authoritative_end_date = getattr(contract, 'expected_offboarding_date', None) or contract.end_date
+
+        # 2. 只有当账单结束日 > 权威结束日时，才计算延长费
+        if authoritative_end_date and bill.cycle_end_date > authoritative_end_date:
+            extension_days = (bill.cycle_end_date - authoritative_end_date).days
+            if extension_days > 0:
+                # 计算延长期服务费 (公式通用)
+                daily_rate = level / D(26)
+                extension_fee = (daily_rate * D(extension_days)).quantize(QUANTIZER)
+
+                # 准备日志信息
+                log_extras["extension_days_reason"] = f"原合同于 {authoritative_end_date.strftime('%m月%d日')} 结束，手动延长至 {bill.cycle_end_date.strftime('%m月%d日')}，共 {extension_days} 天。"
+                log_extras["extension_fee_reason"] = f"级别({level:.2f})/26 * 延长天数({extension_days}) = {extension_fee:.2f}"
+        # --- 新增结束 ---
+
         return {
             "type": "maternity_nurse",
             "level": str(level),
@@ -1182,6 +1201,7 @@ class BillingEngine:
             # 'bonus_5_percent': str(bonus_5_percent),
             "employee_increase": str(emp_increase),
             "employee_decrease": str(emp_decrease),
+            "extension_fee": str(extension_fee), 
             "log_extras": {
                 **log_extras,
                 "substitute_deduction_logs": substitute_deduction_logs,
