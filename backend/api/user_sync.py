@@ -9,6 +9,7 @@ from backend.security_utils import generate_password_hash  # <--- 添加这行
 
 
 from backend.api.download_avatars import download_and_convert_avatar
+from pypinyin import pinyin, Style
 
 log = logging.getLogger(__name__)
 AVATAR_DATA_FOLDER_SYNC = os.path.join(
@@ -18,7 +19,6 @@ AVATAR_DATA_FOLDER_SYNC = os.path.join(
 
 def sync_user():
     """
-
     同步用户数据API
     接收其他业务系统传递的用户信息，并创建用户
     必须参数：myms_user_id, phone_number, username, id_card
@@ -38,6 +38,17 @@ def sync_user():
     for field in required_fields:
         if field not in data:
             return jsonify({"error": f"Missing required field: {field}"}), 400
+
+    # --- Start of modification ---
+    # 1. 生成拼音
+    username = data["username"]
+    try:
+        pinyin_full = "".join(p[0] for p in pinyin(username, style=Style.NORMAL))
+        pinyin_initials = "".join(p[0] for p in pinyin(username, style=Style.FIRST_LETTER))
+        name_pinyin_final = f"{pinyin_full} {pinyin_initials}"
+    except Exception:
+        name_pinyin_final = None
+    # --- End of modification ---
 
     # 从身份证号提取后6位作为密码
     id_card = data.get("id_card")
@@ -63,12 +74,14 @@ def sync_user():
                 "phone_number = %s",
                 "myms_user_id = %s",
                 "password = %s",
+                "name_pinyin = %s",  # <-- 新增
             ]
             params = [
                 data["username"],
                 data["phone_number"],
                 data["myms_user_id"],
                 generate_password_hash(password),
+                name_pinyin_final, # <-- 新增
             ]
 
             # 可选字段
@@ -85,10 +98,8 @@ def sync_user():
                 update_fields.append("status = %s")
                 params.append(data["status"])
 
-            # 添加用户ID到参数列表
             params.append(existing_user["id"])
 
-            # 执行更新
             query = f"""
                 UPDATE "user"
                 SET {", ".join(update_fields)}
@@ -100,38 +111,21 @@ def sync_user():
             conn.commit()
             log.debug(f"Updated existing user: {updated_user}")
 
-            # 如果有头像URL，下载并转换头像
+            # (头像下载逻辑保持不变)
             if "avatar" in data and data["avatar"]:
                 try:
-                    # 确保输出目录存在
-                    # output_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
-                    #                         'frontend', 'public', 'avatar')
-                    output_dir = AVATAR_DATA_FOLDER_SYNC  # <-- 使用新的后端数据目录变量
-                    os.makedirs(output_dir, exist_ok=True)  # 确保新目录存在
-
-                    output_path = os.path.join(
-                        output_dir, f"{existing_user['id']}-avatar.jpg"
-                    )
-                    log.info(
-                        f"Downloading avatar for user {existing_user['id']} from {data['avatar']}"
-                    )
-
-                    if download_and_convert_avatar(data["avatar"], output_path):
-                        log.info(
-                            f"Avatar downloaded and converted successfully for user {existing_user['id']}"
-                        )
+                    output_dir = AVATAR_DATA_FOLDER_SYNC
+                    os.makedirs(output_dir, exist_ok=True)
+                    output_path = os.path.join(output_dir, f"{existing_user['id']}-avatar.jpg")
+                    log.info(f"Downloading avatar for user {existing_user['id']} from {data['avatar']}")
+                    if download_and_convert_avatar(data['avatar'], output_path):
+                        log.info(f"Avatar downloaded and converted successfully for user {existing_user['id']}")
                     else:
-                        log.warning(
-                            f"Failed to download avatar for user {existing_user['id']}"
-                        )
+                        log.warning(f"Failed to download avatar for user {existing_user['id']}")
                 except Exception as e:
-                    log.error(
-                        f"Error downloading avatar for user {existing_user['id']}: {str(e)}"
-                    )
+                    log.error(f"Error downloading avatar for user {existing_user['id']}: {str(e)}")
 
-            return jsonify(
-                {"message": "User updated successfully", "user": updated_user}
-            )
+            return jsonify({"message": "User updated successfully", "user": updated_user})
 
         # 创建新用户
         cur.execute(
@@ -144,8 +138,9 @@ def sync_user():
                 avatar,
                 role,
                 email,
-                status
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                status,
+                name_pinyin  -- <-- 新增
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) -- <-- 新增
             RETURNING id, username, phone_number, myms_user_id, role, email, status, created_at, updated_at
         """,
             (
@@ -157,37 +152,26 @@ def sync_user():
                 data.get("role", "student"),
                 data.get("email", ""),
                 data.get("status", "active"),
+                name_pinyin_final,  # <-- 新增
             ),
         )
         new_user = cur.fetchone()
         conn.commit()
         log.debug(f"Created new user through sync: {new_user}")
 
-        # 如果有头像URL，下载并转换头像
+        # (头像下载逻辑保持不变)
         if "avatar" in data and data["avatar"]:
             try:
-                # 确保输出目录存在
-
                 output_dir = AVATAR_DATA_FOLDER_SYNC
                 os.makedirs(output_dir, exist_ok=True)
-
                 output_path = os.path.join(output_dir, f"{new_user['id']}-avatar.jpg")
-                log.info(
-                    f"Downloading avatar for new user {new_user['id']} from {data['avatar']}"
-                )
-
-                if download_and_convert_avatar(data["avatar"], output_path):
-                    log.info(
-                        f"Avatar downloaded and converted successfully for new user {new_user['id']}"
-                    )
+                log.info(f"Downloading avatar for new user {new_user['id']} from {data['avatar']}")
+                if download_and_convert_avatar(data['avatar'], output_path):
+                    log.info(f"Avatar downloaded and converted successfully for new user {new_user['id']}")
                 else:
-                    log.warning(
-                        f"Failed to download avatar for new user {new_user['id']}"
-                    )
+                    log.warning(f"Failed to download avatar for new user {new_user['id']}")
             except Exception as e:
-                log.error(
-                    f"Error downloading avatar for new user {new_user['id']}: {str(e)}"
-                )
+                log.error(f"Error downloading avatar for new user {new_user['id']}: {str(e)}")
 
         return jsonify({"message": "User created successfully", "user": new_user})
     except Exception as e:

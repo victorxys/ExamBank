@@ -424,42 +424,51 @@ const BillingDashboard = () => {
         }
     };
 
-    const handleCloseDetailDialog = () => {
+    const handleCloseDetailDialog = (latestBillData) => {
         setDetailDialogOpen(false);
         setSelectedContractForDetail(null);
         setBillingDetails(null);
-        setEditableAttendance(null); // 关闭时清空
+        setEditableAttendance(null);
 
+        // 如果有关闭时传入的更新数据，则执行单行刷新
+        if (latestBillData && latestBillData.customer_bill_details) {
+            setContracts(prevContracts =>
+                prevContracts.map(contractRow => {
+                    // 找到需要更新的那一行
+                    if (contractRow.id === latestBillData.customer_bill_details.id) {
+                        // 用最新的数据更新这一行
+                        return {
+                            ...contractRow, // 保留旧数据
+                            customer_payable: latestBillData.customer_bill_details.final_amount.客应付款,
+                            customer_is_paid: latestBillData.customer_bill_details.payment_status.customer_is_paid,
+                            employee_payout: latestBillData.employee_payroll_details.final_amount.萌嫂应领款,
+                            employee_is_paid: latestBillData.employee_payroll_details.payment_status.employee_is_paid,
+                            invoice_needed: latestBillData.invoice_needed,
+                            remaining_invoice_amount: latestBillData.invoice_balance.remaining_un_invoiced,
+                        };
+                    }
+                    return contractRow; // 其他行保持不变
+                })
+            );
+        }
     };
 
     // 2. 新增一个函数来处理从模态框传回的保存事件
-    const handleSaveChanges = async (editedData) => {
-        if (!selectedContractForDetail || !currentCycle.start) {
-            setAlert({ open: true, message: '无法保存，缺少合同或周期信息。', severity: 'error' });
-            return;
-        }
-        
-        setLoadingDetail(true); // 让模态框显示加载中
+    const handleSaveChanges = async (payload) => {
+        setLoadingDetail(true); // 开始加载
         try {
-            const payload = {
-            bill_id: editedData.bill_id,
-            overtime_days: editedData.overtime_days,
-            actual_work_days: editedData.actual_work_days, // <-- 关键修复：添加此行
-            adjustments: editedData.adjustments,
-            settlement_status: editedData.settlement_status
-        };
-
-
-            // const response = await api.post('/billing/attendance', payload);
             const response = await api.post('/billing/batch-update', payload);
+            const newDetails = response.data.latest_details;
 
-            setBillingDetails(response.data.latest_details); // 用返回的最新数据更新详情
-            setAlert({ open: true, message: response.data.message, severity: 'success' });
+            // 用后端返回的最新数据，更新弹窗的 state
+            setBillingDetails(newDetails);
+
+            setAlert({ open: true, message: response.data.message || "保存成功！", severity: 'success' });
 
         } catch (error) {
             setAlert({ open: true, message: `保存失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
         } finally {
-            setLoadingDetail(false);
+            setLoadingDetail(false); // 结束加载
         }
     };
 
@@ -654,17 +663,18 @@ const BillingDashboard = () => {
             <TableContainer component={Paper} sx={{ boxShadow: 'none', border: '1px solid rgba(0, 0, 0, 0.1)', borderRadius: '0.375rem' }}>
               <Table>
                 <TableHead>
-                  <TableRow>
-                    <TableCell>客户姓名</TableCell>
-                    <TableCell>服务人员</TableCell>
-                    <TableCell>合同类型</TableCell>
-                    <TableCell>合同周期</TableCell>
-                    <TableCell>劳务时间段</TableCell>
-                    <TableCell>状态</TableCell>
-                    <TableCell>月服务费/级别</TableCell>
-                    <TableCell>本月应付/应收</TableCell>
-                    <TableCell align="center">操作</TableCell>
-                  </TableRow>
+                    <TableRow>
+                        <TableCell>客户姓名</TableCell>
+                        <TableCell>服务人员</TableCell>
+                        <TableCell>合同类型</TableCell>
+                        <TableCell>合同周期</TableCell>
+                        <TableCell>劳务时间段</TableCell>
+                        <TableCell>状态</TableCell>
+                        <TableCell>月服务费/级别</TableCell>
+                        <TableCell>本月应付/应收</TableCell>
+                        <TableCell>开票状态</TableCell> {/* <-- 新增的行 */}
+                        <TableCell align="center">操作</TableCell>
+                    </TableRow>
                 </TableHead>
                 <TableBody>
                   {loading ? ( <TableRow><TableCell colSpan={7} align="center" sx={{py: 5}}><CircularProgress /></TableCell></TableRow> )
@@ -764,6 +774,24 @@ const BillingDashboard = () => {
                                 </Tooltip>
                             </Box>
                         </TableCell>
+                        <TableCell>
+                          {bill.invoice_needed ? ( // <--- 确认这里判断的是 bill.invoice_needed
+                            parseFloat(bill.remaining_invoice_amount) > 0 ? (
+                              <Tooltip title={`截至本期，该合同累计有 ¥${bill.remaining_invoice_amount} 需要开票`}>
+                                <Chip
+                                  label={`累计待开: ¥${bill.remaining_invoice_amount}`}
+                                  size="small"
+                                  color="warning"
+                                  variant="outlined"
+                                />
+                              </Tooltip>
+                            ) : (
+                              <Chip label="已结清" size="small" color="success" variant="outlined" />
+                            )
+                          ) : (
+                            <Typography variant="caption" color="text.secondary">无需开票</Typography>
+                          )}
+                        </TableCell>
                         <TableCell align="center">
                           <Button variant="contained" size="small" startIcon={<EditIcon />} onClick={() => handleOpenDetailDialog(bill)}>管理</Button>
                         </TableCell>
@@ -780,12 +808,12 @@ const BillingDashboard = () => {
         {detailDialogOpen && (
             <FinancialManagementModal
                 open={detailDialogOpen}
-                onClose={handleCloseDetailDialog}
+                onClose={handleCloseDetailDialog} // <-- 直接传递函数
                 contract={selectedContractForDetail}
                 billingMonth={selectedBillingMonth}
                 billingDetails={billingDetails}
                 loading={loadingDetail}
-                onSave={handleSaveChanges}
+                onSave={handleSaveChanges} // <-- 直接传递函数
             />
         )}
         

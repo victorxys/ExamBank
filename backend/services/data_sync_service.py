@@ -231,9 +231,18 @@ class DataSyncService:
                     else:
                         employee_level_final = employee_level_raw
 
+                    # 将客户名的拼音写入拼音字段。
+                    try:
+                        customer_name_pinyin_full = "".join(p[0] for p in pinyin(customer_name_final, style=Style.NORMAL))
+                        customer_name_pinyin_initials = "".join(p[0] for p in pinyin(customer_name_final, style=Style.FIRST_LETTER))
+                        customer_name_pinyin_final = f"{customer_name_pinyin_full} {customer_name_pinyin_initials}"
+                    except Exception:
+                        customer_name_pinyin_final = None
+
                     common_data = {
                         "type": contract_type,
                         "customer_name": customer_name_final,
+                        "customer_name_pinyin": customer_name_pinyin_final,
                         "employee_level": str(employee_level_final),
                         "status": contract_status,
                         "jinshuju_entry_id": str(entry_serial_number),
@@ -243,7 +252,6 @@ class DataSyncService:
                         if personnel_type == "service_personnel"
                         else None,
                     }
-
                     new_contract = None
                     if contract_type == "maternity_nurse":
                         # 计算月嫂合同的管理费和管理费率

@@ -318,7 +318,7 @@ function App() {
         {/* 应用主布局的路由 */}
         <Route element={<MainLayoutInternal />}>
           {/* --- 5. 使用 Suspense 包裹懒加载组件 --- */}
-          <Route path="/" element={<PrivateRoute element={<Navigate to="/users" />} />} />
+          <Route path="/" element={<PrivateRoute element={<Navigate to="/my-courses" />} />} />
           <Route path="/exams" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <ExamList /> </Suspense>} />} />
           <Route path="/exams/:examId" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <ExamDetail /> </Suspense>} />} />
           <Route path="/knowledge-points" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <KnowledgePoints /> </Suspense>} />} />

@@ -2126,6 +2126,8 @@ class BaseContract(db.Model):
         db.Numeric(10, 2), nullable=True, comment="月管理费金额 (元/月)，从金数据同步的管理费金额"
     )
 
+    invoice_needed = db.Column(db.Boolean, nullable=False, default=False, server_default='false', comment="本合同是否需要开票")
+
     __mapper_args__ = {"polymorphic_on": type, "polymorphic_identity": "base"}
 
 

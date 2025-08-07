@@ -18,6 +18,7 @@ from backend.models import (
     FinancialAdjustment,
     AdjustmentType,
     SubstituteRecord,
+    InvoiceRecord,
 )
 
 from sqlalchemy import func
@@ -1923,3 +1924,122 @@ class BillingEngine:
             self._update_bill_with_log(bill, payroll, details, log)
 
         current_app.logger.info(f"[TrialTerm-v14] 合同 {contract.id} 结算处理完成。")
+
+    # v5.0 设计方案的核心实现
+    def calculate_invoice_balance(self, target_bill_id: str):
+        """
+        计算指定账单的发票余额详情 (v5.3 - 修正了对 invoice_needed 的引用)。
+
+        Args:
+            target_bill_id: 目标客户账单的ID。
+
+        Returns:
+            一个包含详细发票余额信息的字典。
+        """
+        target_bill = db.session.get(CustomerBill, target_bill_id)
+        if not target_bill:
+            # ... (错误处理部分不变)
+            return {
+                "error": "Target bill not found",
+                "current_period_charges": D(0),
+                "total_carried_forward": D(0),
+                "total_invoiceable_amount": D(0),
+                "invoiced_this_period": D(0),
+                "remaining_un_invoiced": D(0),
+                "invoice_records": [],
+            }
+
+        current_period_charges = target_bill.total_payable
+
+        historical_bills = (
+            CustomerBill.query.filter(
+                CustomerBill.contract_id == target_bill.contract_id,
+                CustomerBill.cycle_start_date < target_bill.cycle_start_date,
+                CustomerBill.is_substitute_bill.is_(False),
+            )
+            .order_by(CustomerBill.cycle_start_date)
+            .all()
+        )
+
+        total_carried_forward = D(0)
+        for bill in historical_bills:
+            # **核心修正**: 从 payment_details JSON 字段中获取 invoice_needed
+            if (bill.payment_details or {}).get("invoice_needed"):
+                invoiced_amount_for_bill = D(
+                    (bill.payment_details or {}).get("invoice_amount") or 0
+                )
+                unpaid_balance = bill.total_payable - invoiced_amount_for_bill
+                if unpaid_balance > 0:
+                    total_carried_forward += unpaid_balance
+
+        total_carried_forward = total_carried_forward.quantize(D("0.01"))
+
+        invoiced_this_period = D(
+            (target_bill.payment_details or {}).get("invoice_amount") or 0
+        )
+
+        # **核心修正**: 从 payment_details JSON 字段中获取 invoice_needed
+        if (target_bill.payment_details or {}).get("invoice_needed"):
+            total_invoiceable_amount = current_period_charges + total_carried_forward
+        else:
+            total_invoiceable_amount = D(0)
+
+        remaining_un_invoiced = total_invoiceable_amount - invoiced_this_period
+
+        invoice_records = []
+        if (target_bill.payment_details or {}).get("invoice_number") or (target_bill.payment_details or {}).get("invoice_amount"):
+             invoice_records.append({
+                    "id": str(target_bill.id),
+                    "amount": str(invoiced_this_period),
+                    "invoice_number": (target_bill.payment_details or {}).get("invoice_number", ""),
+                    "issue_date": (target_bill.payment_details or {}).get("invoice_date"),
+                    "notes": "",
+                })
+
+        return {
+            "current_period_charges": current_period_charges.quantize(D("0.01")),
+            "total_carried_forward": total_carried_forward,
+            "total_invoiceable_amount": total_invoiceable_amount.quantize(D("0.01")),
+            "invoiced_this_period": invoiced_this_period.quantize(D("0.01")),
+            "remaining_un_invoiced": remaining_un_invoiced.quantize(D("0.01")),
+            "invoice_records": invoice_records,
+        }
+    
+    def propagate_invoice_needed_status(self, bill_id: str):
+        """
+        检查指定账单是否有未结清的发票欠款，
+        如果有，则自动将下一个月账单的 invoice_needed 状态设为 True。
+        """
+        current_bill = db.session.get(CustomerBill, bill_id)
+        if not current_bill:
+            return
+
+        # 1. 重新计算当前账单的余额
+        balance_info = self.calculate_invoice_balance(bill_id)
+        remaining_amount = balance_info.get("remaining_un_invoiced", D(0))
+
+        # 2. 检查是否需要传递状态
+        # 条件：当前账单需要开票，且有剩余未开金额
+        if (current_bill.payment_details or {}).get("invoice_needed") and remaining_amount > 0:
+
+            # 3. 找到下一个月的账单
+            next_bill = CustomerBill.query.filter(
+                CustomerBill.contract_id == current_bill.contract_id,
+                CustomerBill.cycle_start_date > current_bill.cycle_start_date,
+                CustomerBill.is_substitute_bill.is_(False)
+            ).order_by(CustomerBill.cycle_start_date.asc()).first()
+
+            if next_bill:
+                # 4. 如果找到了，并且它当前是“无需开票”状态，则自动打开它的开关
+                if not (next_bill.payment_details or {}).get("invoice_needed"):
+                    if next_bill.payment_details is None:
+                        next_bill.payment_details = {}
+
+                    next_bill.payment_details["invoice_needed"] = True
+                    # 标记 payment_details 字段为已修改，以便 SQLAlchemy 能检测到变化
+                    attributes.flag_modified(next_bill, "payment_details")
+
+                    db.session.add(next_bill)
+                    current_app.logger.info(
+                        f"账单 {current_bill.id} 存在未结清发票，已自动将下一张账单 {next_bill.id} 的开票需求设为 True。"
+                    )

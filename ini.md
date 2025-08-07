@@ -661,3 +661,63 @@
 4.  **前端修改 (第四步):**
     *   在合同编辑页面加入全局的“是否需要开票”开关。
     *   根据 API 返回的新数据结构，更新账单列表和财务管理弹窗的显示逻辑。
+
+---
+
+## 功能设计：高级发票管理 (v5.0 简化版 - 最终方案)
+
+### 1. 核心理念：账单级独立控制
+
+经过讨论，我们认识到发票业务具有高度的灵活性和不确定性。因此，最终方案将赋予运营人员最大的手动控制权，而不是依赖僵化的全局规则。
+
+*   **唯一权威来源:** `CustomerBill.invoice_needed` (布尔类型字段) 是决定一张账单是否参与发票计算的**唯一、最终的依据**。
+*   **合同级策略:** `BaseContract.invoice_needed` 字段在数据库中保留，但当前所有业务逻辑**暂时忽略**它。它仅为未来的扩展预留可能性。
+*   **默认状态:** 所有新生成的账单，其 `invoice_needed` 字段默认为 `False` (无需开票)，完全由运营人员后续手动开启。
+
+### 2. 功能设计详述
+
+#### Feature 1: 数据模型与状态
+
+*   **`CustomerBill.invoice_needed`:**
+    *   **状态:** **已确认**。此字段已存在于数据库中，无需再次迁移。
+    *   **功能:** 作为控制单个账单是否参与发票计算的**权威开关**。
+
+#### Feature 2: 动态余额计算引擎 (核心)
+
+*   **核心函数:** `calculate_invoice_balance(target_bill)`，位于 `billing_engine.py`。
+*   **核心逻辑:**
+    1.  获取 `target_bill` 的合同及所有**早于**它的历史账单。
+    2.  初始化 `total_carried_forward = 0`。
+    3.  遍历这些历史账单：
+        a.  **检查开关:** **只有当该历史账单的 `invoice_needed` 字段为 `True` 时**，才将其纳入计算。
+        b.  对于需要计算的账单，累加其欠票金额 (`该账单总费用 - 该账单已开票总额`) 到 `total_carried_forward`。
+    4.  返回一个包含 `current_period_charges`, `total_carried_forward`, `total_invoiceable_amount` 的结构化数据。
+*   **优势:** 此方案具有**自愈性**和**实时一致性**。无论用户何时、以何种顺序打开或关闭任何账单的开票开关，后续账单的“历史累计欠票”总能被实时、准确地计算出来，完美解决了跨期补开票等复杂场景。
+
+#### Feature 3: 前端交互与展示
+
+*   **账单列表页 (`/contracts/<id>`)**
+    *   **API (`GET /api/contracts/<id>/bills`):** 后端需增强此接口。对于列表中的每一张账单，都调用 `calculate_invoice_balance` 计算出其**截至本期的总待开票额** (`total_remaining_un_invoiced`)，并随列表返回。
+    *   **前端显示:**
+        *   新增“开票状态”列。
+        *   如果账单的 `invoice_needed` 为 `False`，显示“无需开票”。
+        *   如果 `invoice_needed` 为 `True` 且 `total_remaining_un_invoiced > 0`，则显示橙色金额 **`累计待开: ¥[金额]`**。
+        *   如果 `invoice_needed` 为 `True` 且金额为 `0`，则显示“已结清”。
+
+*   **财务管理弹窗 (`FinancialManagementModal.jsx`)**
+    *   **API (`GET /billing/details`):** 接口需调用计算引擎，返回详细的金额分类。
+    *   **前端显示:**
+        *   在弹窗顶部增加一个独立的、权威的开关：“**本期账单需要开票**”，直接绑定 `CustomerBill.invoice_needed` 字段。
+        *   当开关为**开启**时，显示完整的发票管理模块，其顶部信息区应包含：
+            *   **本期费用:** `¥ [current_period_charges]`
+            *   **历史累计欠票:** `+ ¥ [total_carried_forward]` (仅在大于0时显示)
+            *   **本期应开票总额:** `¥ [total_invoiceable_amount]` (加粗)
+            *   **本期已开票总额:** `¥ [sum of invoices for this bill]`
+            *   **剩余待开票:** `¥ [difference]` (突出显示)
+        *   当开关为**关闭**时，整个发票模块被禁用或收起。
+
+### 3. 实施路径
+
+1.  **后端核心计算 (第一步):** 在 `billing_engine.py` 中实现 `calculate_invoice_balance` 函数。
+2.  **后端 API 修改 (第二步):** 修改账单列表和账单详情的 API，集成上述计算逻辑，并返回新的数据结构。
+3.  **前端界面修改 (第三步):** 修改合同详情页的账单列表和财务管理弹窗，以实现新的显示和交互逻辑。

@@ -32,6 +32,7 @@ from backend.models import (
     FinancialAdjustment,
     FinancialActivityLog,
     SubstituteRecord,
+    InvoiceRecord,
 )
 from backend.tasks import (
     sync_all_contracts_task,
@@ -377,37 +378,36 @@ def _get_details_template(contract, cycle_start, cycle_end):
 
 def _fill_payment_status(details, payment_data, is_paid, is_customer):
     payment = payment_data or {}
-
-    # 创建一个空的 status_dict，我们将在这里构建前端需要的所有数据
     status_dict = {}
 
     if is_customer:
-        # --- 处理客户账单 ---
-        # 1. 添加前端 state 需要的原始数据，并使用前端期望的键名
+        # --- 客户账单 ---
+        invoice_needed = payment.get('invoice_needed', False)
+
+        # 核心修正：根据是否存在发票信息来动态决定 issued 状态
+        invoice_amount = payment.get('invoice_amount')
+        invoice_number = payment.get('invoice_number')
+        # 只要有金额或号码，就认为“已开票”这个动作发生了
+        invoice_issued = bool(invoice_amount or invoice_number)
+
         status_dict['customer_is_paid'] = is_paid
         status_dict['customer_payment_date'] = payment.get('payment_date')
         status_dict['customer_payment_channel'] = payment.get('payment_channel')
-        status_dict['invoice_needed'] = payment.get('invoice_needed', False)
-        status_dict['invoice_issued'] = payment.get('invoice_issued', False)
+        status_dict['invoice_needed'] = invoice_needed
+        status_dict['invoice_issued'] = invoice_issued # 使用我们动态计算的值
 
-        # 2. 添加前端 UI 直接显示的格式化文本
         status_dict['是否打款'] = '是' if is_paid else '否'
         status_dict['打款时间及渠道'] = f"{payment.get('payment_date', '') or '—'} / {payment.get('payment_channel', '') or '—'}"if is_paid else "—"
-        status_dict['发票记录'] = '无需开票' if not status_dict['invoice_needed'] else ('已开票' if status_dict['invoice_issued']else '待开票')
+        status_dict['发票记录'] = '无需开票' if not invoice_needed else ('已开票' if invoice_issued else '待开票')
     else:
-        # --- 处理员工薪酬 ---
-        # 1. 添加前端 state 需要的原始数据，并使用前端期望的键名
+        # --- 员工薪酬 (保持不变) ---
         status_dict['employee_is_paid'] = is_paid
         status_dict['employee_payout_date'] = payment.get('date')
         status_dict['employee_payout_channel'] = payment.get('channel')
-
-        # 2. 添加前端 UI 直接显示的格式化文本
         status_dict['是否领款'] = '是' if is_paid else '否'
         status_dict['领款时间及渠道'] = f"{payment.get('date', '') or '—'} / {payment.get('channel', '') or '—'}" if is_paid else"—"
 
-    # 将这个包含了所有正确键名和数据的字典，赋值给 payment_status
     details['payment_status'] = status_dict
-
 
 def _fill_group_fields(group_fields, calc, field_keys, is_substitute_payroll=False):
     for key in field_keys:
@@ -596,7 +596,6 @@ def get_bills():
 
         billing_year, billing_month = map(int, billing_month_str.split("-"))
 
-        # 核心修正: 显式查询多态合同以加载完整信息
         contract_poly = with_polymorphic(BaseContract, "*")
         query = (
             db.session.query(CustomerBill, contract_poly)
@@ -609,12 +608,10 @@ def get_bills():
             )
         )
 
-        # 应用月份筛选
         query = query.filter(
             CustomerBill.year == billing_year, CustomerBill.month == billing_month
         )
 
-        # 应用其他筛选条件
         if status:
             query = query.filter(contract_poly.status == status)
         if contract_type:
@@ -631,13 +628,11 @@ def get_bills():
                 )
             )
 
-        # 应用支付状态筛选
         if payment_status == "paid":
             query = query.filter(CustomerBill.is_paid)
         elif payment_status == "unpaid":
             query = query.filter(~CustomerBill.is_paid)
 
-        # 应用领款状态筛选 (需要join EmployeePayroll)
         if payout_status:
             query = query.join(
                 EmployeePayroll,
@@ -651,7 +646,6 @@ def get_bills():
             elif payout_status == "unpaid":
                 query = query.filter(~EmployeePayroll.is_paid)
 
-        # 排序
         query = query.order_by(
             contract_poly.customer_name, CustomerBill.cycle_start_date
         )
@@ -661,28 +655,16 @@ def get_bills():
         )
 
         results = []
-        current_app.logger.info(
-            f"[DEBUG] Found {paginated_results.total} bills for the current query."
-        )  # DEBUG LOG
-        for i, (bill, contract) in enumerate(paginated_results.items):
-            current_app.logger.info(
-                f"[DEBUG] Processing item {i+1}/{paginated_results.total}: Bill ID {bill.id}, Contract ID {contract.id}"
-            )  # DEBUG LOG
-            current_app.logger.info(
-                f"[DEBUG]   - Contract Type from DB: {contract.type}"
-            )  # DEBUG LOG
-            current_app.logger.info(
-                f"[DEBUG]   - Is Substitute Bill: {bill.is_substitute_bill}"
-            )  # DEBUG LOG
-            current_app.logger.info(
-                f"[DEBUG]   - Contract raw object: {contract.__dict__}"
-            )  # DEBUG LOG
+        engine = BillingEngine() # 初始化引擎
 
+        for i, (bill, contract) in enumerate(paginated_results.items):
             payroll = EmployeePayroll.query.filter_by(
                 contract_id=bill.contract_id, cycle_start_date=bill.cycle_start_date
             ).first()
 
-            # 1. 从关联合同中获取基础信息
+            # 为每个账单计算其发票余额
+            invoice_balance = engine.calculate_invoice_balance(str(bill.id))
+
             item = {
                 "id": str(bill.id),
                 "contract_id": str(contract.id),
@@ -703,6 +685,9 @@ def get_bills():
                 "active_cycle_end": bill.cycle_end_date.isoformat()
                 if bill.cycle_end_date
                 else None,
+                # --- 新增字段 ---
+                "invoice_needed": (bill.payment_details or {}).get("invoice_needed", False),
+                "remaining_invoice_amount": str(invoice_balance.get("remaining_un_invoiced", "0.00"))
             }
 
             start = contract.start_date.isoformat() if contract.start_date else "—"
@@ -716,16 +701,12 @@ def get_bills():
                 getattr(original_employee, "name", "未知员工"),
             )
 
-            # 2. 如果是替班账单，则覆盖特定信息
             if bill.is_substitute_bill:
-                # 在合同类型后加上"(替)"标识
                 item["contract_type_label"] = (
                     f"{item.get('contract_type_label', '未知类型')} (替)"
                 )
-
                 sub_record = bill.source_substitute_record
                 if sub_record:
-                    # 员工姓名应为替班员工
                     sub_employee = (
                         sub_record.substitute_user or sub_record.substitute_personnel
                     )
@@ -734,13 +715,10 @@ def get_bills():
                         "username",
                         getattr(sub_employee, "name", "未知替班员工"),
                     )
-                    # 级别/薪资应为替班员工的薪资
                     item["employee_level"] = str(sub_record.substitute_salary or "0")
-                    # 劳务时间段应为替班的起止日期
                     item["active_cycle_start"] = sub_record.start_date.isoformat()
                     item["active_cycle_end"] = sub_record.end_date.isoformat()
                 else:
-                    # 如果找不到替班记录，提供明确的提示
                     item["employee_name"] = "替班(记录丢失)"
                     item["employee_level"] = "N/A"
 
@@ -803,9 +781,22 @@ def get_billing_details():
         return jsonify({"error": "缺少 bill_id 参数"}), 400
 
     try:
+        # 1. 调用旧的内部函数获取基础信息
         details = _get_billing_details_internal(bill_id=bill_id)
         if details is None:
             return jsonify({"error": "获取账单详情失败"}), 404
+
+        # 2. 调用新的发票余额计算引擎
+        engine = BillingEngine()
+        invoice_balance = engine.calculate_invoice_balance(bill_id)
+
+        # 3. 将发票余额信息合并到返回结果中
+        details["invoice_balance"] = invoice_balance
+
+        # 4. 单独补充账单自身的 "invoice_needed" 状态
+        target_bill = db.session.get(CustomerBill, bill_id)
+        details["invoice_needed"] = (target_bill.payment_details or {}).get("invoice_needed", False) if target_bill else False
+
 
         return jsonify(details)
     except Exception as e:
@@ -1373,15 +1364,21 @@ def batch_update_billing_details():
                 "error": str(e),
                 "latest_details": latest_details
             }), 500
+
         try:
+            engine.propagate_invoice_needed_status(bill.id)
             db.session.commit()
-            current_app.logger.info(f"成功提交了对账单 {bill.id} 的所有重算结果。")
         except Exception as e:
             db.session.rollback()
-            current_app.logger.error(f"提交重算结果时发生错误: {e}", exc_info=True)
-            return jsonify({"error": "保存重算结果时出错，请联系管理员。"}), 500
-        # --- 获取并返回最新详情 ---
+            current_app.logger.error(f"传递发票状态时发生错误: {e}", exc_info=True)
+        # --- 结束新增 ---
+
+        # --- 核心修正：在所有操作完成后，重新获取最终的详情 ---
         latest_details = _get_billing_details_internal(bill_id=bill.id)
+        invoice_balance = engine.calculate_invoice_balance(bill.id)
+        latest_details["invoice_balance"] = invoice_balance
+        latest_details["invoice_needed"] = (bill.payment_details or {}).get("invoice_needed", False)
+
         return jsonify(
             {"message": "所有更改已保存并成功重算！", "latest_details": latest_details}
         )
@@ -1690,8 +1687,13 @@ def get_bills_for_contract(contract_id):
     )
 
     results = []
+    engine = BillingEngine()
+
     for bill in bills:
         calc = bill.calculation_details or {}
+
+        invoice_balance = engine.calculate_invoice_balance(str(bill.id))
+
         results.append(
             {
                 "id": str(bill.id),
@@ -1705,8 +1707,11 @@ def get_bills_for_contract(contract_id):
                 "total_payable": str(bill.total_payable),
                 "status": "已支付" if bill.is_paid else "未支付",
                 "overtime_days": calc.get("overtime_days", "0"),
-                "base_work_days": calc.get("base_work_days", "0"),  # 新增：基本劳务天数
-                "is_substitute_bill": bill.is_substitute_bill,  # 确保这个字段存在
+                "base_work_days": calc.get("base_work_days", "0"),
+                "is_substitute_bill": bill.is_substitute_bill,
+                # **核心修正**: 从 payment_details JSON 字段中获取
+                "invoice_needed": (bill.payment_details or {}).get("invoice_needed", False),
+                "remaining_invoice_amount": str(invoice_balance.get("remaining_un_invoiced", "0.00"))
             }
         )
     return jsonify(results)
