@@ -1928,7 +1928,7 @@ class BillingEngine:
     # v5.0 设计方案的核心实现
     def calculate_invoice_balance(self, target_bill_id: str):
         """
-        计算指定账单的发票余额详情 (v5.3 - 修正了对 invoice_needed 的引用)。
+        计算指定账单的发票余额详情 (v5.4 - 增加欠款明细和计算日志)。
 
         Args:
             target_bill_id: 目标客户账单的ID。
@@ -1938,7 +1938,6 @@ class BillingEngine:
         """
         target_bill = db.session.get(CustomerBill, target_bill_id)
         if not target_bill:
-            # ... (错误处理部分不变)
             return {
                 "error": "Target bill not found",
                 "current_period_charges": D(0),
@@ -1947,6 +1946,8 @@ class BillingEngine:
                 "invoiced_this_period": D(0),
                 "remaining_un_invoiced": D(0),
                 "invoice_records": [],
+                "carried_forward_breakdown": [],
+                "calculation_log": {"summary": "目标账单未找到"},
             }
 
         current_period_charges = target_bill.total_payable
@@ -1962,47 +1963,94 @@ class BillingEngine:
         )
 
         total_carried_forward = D(0)
+        carried_forward_breakdown = []
         for bill in historical_bills:
-            # **核心修正**: 从 payment_details JSON 字段中获取 invoice_needed
             if (bill.payment_details or {}).get("invoice_needed"):
                 invoiced_amount_for_bill = D(
                     (bill.payment_details or {}).get("invoice_amount") or 0
                 )
                 unpaid_balance = bill.total_payable - invoiced_amount_for_bill
                 if unpaid_balance > 0:
-                    total_carried_forward += unpaid_balance
+                    unpaid_balance_quantized = unpaid_balance.quantize(D("0.01"))
+                    total_carried_forward += unpaid_balance_quantized
+                    carried_forward_breakdown.append(
+                        {
+                            "month": f"{bill.year}-{str(bill.month).zfill(2)}",
+                            "unpaid_amount": str(unpaid_balance_quantized),
+                        }
+                    )
 
         total_carried_forward = total_carried_forward.quantize(D("0.01"))
-
         invoiced_this_period = D(
             (target_bill.payment_details or {}).get("invoice_amount") or 0
-        )
+        ).quantize(D("0.01"))
 
-        # **核心修正**: 从 payment_details JSON 字段中获取 invoice_needed
         if (target_bill.payment_details or {}).get("invoice_needed"):
-            total_invoiceable_amount = current_period_charges + total_carried_forward
+            total_invoiceable_amount = (
+                current_period_charges + total_carried_forward
+            ).quantize(D("0.01"))
         else:
             total_invoiceable_amount = D(0)
 
-        remaining_un_invoiced = total_invoiceable_amount - invoiced_this_period
+        remaining_un_invoiced = (
+            total_invoiceable_amount - invoiced_this_period
+        ).quantize(D("0.01"))
 
         invoice_records = []
-        if (target_bill.payment_details or {}).get("invoice_number") or (target_bill.payment_details or {}).get("invoice_amount"):
-             invoice_records.append({
+        if (target_bill.payment_details or {}).get(
+            "invoice_number"
+        ) or invoiced_this_period > 0:
+            invoice_records.append(
+                {
                     "id": str(target_bill.id),
                     "amount": str(invoiced_this_period),
-                    "invoice_number": (target_bill.payment_details or {}).get("invoice_number", ""),
-                    "issue_date": (target_bill.payment_details or {}).get("invoice_date"),
+                    "invoice_number": (target_bill.payment_details or {}).get(
+                        "invoice_number", ""
+                    ),
+                    "issue_date": (target_bill.payment_details or {}).get(
+                        "invoice_date"
+                    ),
                     "notes": "",
-                })
+                }
+            )
+
+        # --- 生成计算日志 ---
+        calculation_log = {}
+        if (target_bill.payment_details or {}).get("invoice_needed"):
+            log_entries = []
+            if carried_forward_breakdown:
+                breakdown_str = ", ".join(
+                    [
+                        f"{item['month']}欠{item['unpaid_amount']}"
+                        for item in carried_forward_breakdown
+                    ]
+                )
+                log_entries.append(
+                    f"历史累计欠票 {total_carried_forward}元 (明细: {breakdown_str})"
+                )
+            else:
+                log_entries.append("历史无欠票")
+
+            log_entries.append(
+                f"本期费用 {current_period_charges.quantize(D('0.01'))}元"
+            )
+            log_entries.append(f"本期应开票总额 {total_invoiceable_amount}元")
+            log_entries.append(f"本期已开票 {invoiced_this_period}元")
+            log_entries.append(f"剩余待开票 {remaining_un_invoiced}元")
+            calculation_log["summary"] = " | ".join(log_entries)
+        else:
+            calculation_log["summary"] = "本期账单无需开票"
+        # --- 日志生成结束 ---
 
         return {
             "current_period_charges": current_period_charges.quantize(D("0.01")),
             "total_carried_forward": total_carried_forward,
-            "total_invoiceable_amount": total_invoiceable_amount.quantize(D("0.01")),
-            "invoiced_this_period": invoiced_this_period.quantize(D("0.01")),
-            "remaining_un_invoiced": remaining_un_invoiced.quantize(D("0.01")),
+            "carried_forward_breakdown": carried_forward_breakdown,
+            "total_invoiceable_amount": total_invoiceable_amount,
+            "invoiced_this_period": invoiced_this_period,
+            "remaining_un_invoiced": remaining_un_invoiced,
             "invoice_records": invoice_records,
+            "calculation_log": calculation_log,
         }
     
     def propagate_invoice_needed_status(self, bill_id: str):

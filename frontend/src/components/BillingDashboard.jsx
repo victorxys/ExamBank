@@ -672,7 +672,6 @@ const BillingDashboard = () => {
                         <TableCell>状态</TableCell>
                         <TableCell>月服务费/级别</TableCell>
                         <TableCell>本月应付/应收</TableCell>
-                        <TableCell>开票状态</TableCell> {/* <-- 新增的行 */}
                         <TableCell align="center">操作</TableCell>
                     </TableRow>
                 </TableHead>
@@ -753,45 +752,40 @@ const BillingDashboard = () => {
                         <TableCell sx={{color: '#525f7f', fontWeight: 'bold'}}>{formatValue('级别', bill.employee_level)}</TableCell>
 
                         <TableCell>
-                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                                <Tooltip title="客户应付款 / 支付状态">
-                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                        <Typography sx={{ fontWeight: 'bold', color: 'error.main', width: '100px' }}>
-                                            {bill.customer_payable ? `¥${bill.customer_payable}` : '待计算'}
-                                        </Typography>
-                                        {bill.customer_is_paid === true && <CheckCircleIcon color="success" fontSize="small" />}
-                                        {bill.customer_is_paid === false && <HighlightOffIcon color="disabled" fontSize="small" />}
-                                    </Box>
-                                </Tooltip>
-                                <Tooltip title="员工应领款 / 领款状态">
-                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                        <Typography sx={{ fontWeight: 'bold', color: 'success.main', width: '100px' }}>
-                                            {bill.employee_payout ? `¥${bill.employee_payout}` : '待计算'}
-                                        </Typography>
-                                        {bill.employee_is_paid === true && <CheckCircleIcon color="success" fontSize="small" />}
-                                        {bill.employee_is_paid === false && <HighlightOffIcon color="disabled" fontSize="small" />}
-                                    </Box>
-                                </Tooltip>
-                            </Box>
-                        </TableCell>
-                        <TableCell>
-                          {bill.invoice_needed ? ( // <--- 确认这里判断的是 bill.invoice_needed
-                            parseFloat(bill.remaining_invoice_amount) > 0 ? (
-                              <Tooltip title={`截至本期，该合同累计有 ¥${bill.remaining_invoice_amount} 需要开票`}>
-                                <Chip
-                                  label={`累计待开: ¥${bill.remaining_invoice_amount}`}
-                                  size="small"
-                                  color="warning"
-                                  variant="outlined"
-                                />
-                              </Tooltip>
-                            ) : (
-                              <Chip label="已结清" size="small" color="success" variant="outlined" />
-                            )
-                          ) : (
-                            <Typography variant="caption" color="text.secondary">无需开票</Typography>
-                          )}
-                        </TableCell>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+        {/* 客户应付款 */}
+        <Tooltip title="客户应付款 / 支付状态">
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Typography sx={{ fontWeight: 'bold', color: 'error.main', width: '100px' }}>
+                    {bill.customer_payable ? `¥${bill.customer_payable}` : '待计算'}
+                </Typography>
+                {bill.customer_is_paid === true && <CheckCircleIcon color="success" fontSize="small" />}
+                {bill.customer_is_paid === false && <HighlightOffIcon color="disabled" fontSize="small" />}
+            </Box>
+        </Tooltip>
+
+        {/* 员工应领款 */}
+        <Tooltip title="员工应领款 / 领款状态">
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Typography sx={{ fontWeight: 'bold', color: 'success.main', width: '100px' }}>
+                    {bill.employee_payout ? `¥${bill.employee_payout}` : '待计算'}
+                </Typography>
+                {bill.employee_is_paid === true && <CheckCircleIcon color="success" fontSize="small" />}
+                {bill.employee_is_paid === false && <HighlightOffIcon color="disabled" fontSize="small" />}
+            </Box>
+        </Tooltip>
+
+        {/* 【核心修改】欠票信息行 */}
+        {bill.invoice_needed && parseFloat(bill.remaining_invoice_amount) > 0 && (
+             <Tooltip title={`截至本期，该合同累计有 ¥${bill.remaining_invoice_amount} 需要开票`}>
+                <Typography variant="caption" color="warning.dark" sx={{ pl: '2px', pt: 0.5 }}>
+                    {`欠票: ¥${bill.remaining_invoice_amount}`}
+                </Typography>
+            </Tooltip>
+        )}
+    </Box>
+</TableCell>
+                        
                         <TableCell align="center">
                           <Button variant="contained" size="small" startIcon={<EditIcon />} onClick={() => handleOpenDetailDialog(bill)}>管理</Button>
                         </TableCell>

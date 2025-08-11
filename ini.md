@@ -691,6 +691,7 @@
     3.  遍历这些历史账单：
         a.  **检查开关:** **只有当该历史账单的 `invoice_needed` 字段为 `True` 时**，才将其纳入计算。
         b.  对于需要计算的账单，累加其欠票金额 (`该账单总费用 - 该账单已开票总额`) 到 `total_carried_forward`。
+        c.  累计欠票额要记录明细 mm月欠票¥ xxxx.xx 元，便于前端通过 `log_extras`的形式展示。
     4.  返回一个包含 `current_period_charges`, `total_carried_forward`, `total_invoiceable_amount` 的结构化数据。
 *   **优势:** 此方案具有**自愈性**和**实时一致性**。无论用户何时、以何种顺序打开或关闭任何账单的开票开关，后续账单的“历史累计欠票”总能被实时、准确地计算出来，完美解决了跨期补开票等复杂场景。
 
@@ -710,7 +711,7 @@
         *   在弹窗顶部增加一个独立的、权威的开关：“**本期账单需要开票**”，直接绑定 `CustomerBill.invoice_needed` 字段。
         *   当开关为**开启**时，显示完整的发票管理模块，其顶部信息区应包含：
             *   **本期费用:** `¥ [current_period_charges]`
-            *   **历史累计欠票:** `+ ¥ [total_carried_forward]` (仅在大于0时显示)
+            *   **历史累计欠票:** `+ ¥ [total_carried_forward]` (仅在大于0时显示)。使用与“ 账单计算日志 `log_extras` ”相同的方法记录显示历史欠票明细： mm月欠票¥ xxxx.xx元
             *   **本期应开票总额:** `¥ [total_invoiceable_amount]` (加粗)
             *   **本期已开票总额:** `¥ [sum of invoices for this bill]`
             *   **剩余待开票:** `¥ [difference]` (突出显示)

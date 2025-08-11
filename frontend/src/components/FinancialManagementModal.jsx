@@ -914,14 +914,69 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                                                 {billingDetails?.invoice_needed ? (
                                                     billingDetails.invoice_balance ? (
                                                         <Box sx={{ mt: 0.5 }}>
-                                                            <Grid container spacing={1}>
-                                                                <Grid item xs={6}><Typography variant="caption" color="text.secondary">本期应开总额:</Typography><Typography variant="body2" sx={{ fontWeight: 500 }}>{formatValue('',billingDetails.invoice_balance.total_invoiceable_amount)}</Typography></Grid>
-                                                                <Grid item xs={6}><Typography variant="caption" color="text.secondary">历史累计欠票:</Typography><Typography variant="body2" sx={{ fontWeight: 500 }}>{formatValue('',billingDetails.invoice_balance.total_carried_forward)}</Typography></Grid>
-                                                                <Grid item xs={6}><Typography variant="caption" color="text.secondary">本期已开票:</Typography><Typography variant="body2" sx={{ fontWeight: 500 }}>{formatValue('',billingDetails.invoice_balance.invoiced_this_period)}</Typography></Grid>
-                                                                <Grid item xs={6}><Typography variant="caption" color="text.secondary">剩余待开:</Typography><Typography variant="body2" color="warning.dark" sx={{ fontWeight: 'bold' }}>{formatValue('', billingDetails.invoice_balance.remaining_un_invoiced)}</Typography></Grid>
-                                                            </Grid>
-                                                            {/* 按钮已从此视图中移除 */}
-                                                        </Box>
+    <Grid container spacing={1.5} rowSpacing={1}>
+        {/* 本期应开总额 */}
+        <Grid item xs={12} sm={6}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography variant="caption" color="text.secondary">本期应开总额:</Typography>
+                <Typography variant="body2" sx={{ fontWeight: 500, fontFamily: 'monospace' }}>
+                    {formatValue('', billingDetails.invoice_balance.total_invoiceable_amount)}
+                </Typography>
+            </Box>
+        </Grid>
+
+        {/* 历史累计欠票 */}
+        <Grid item xs={12} sm={6}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography variant="caption" color="text.secondary">历史累计欠票:</Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <Typography variant="body2" sx={{ fontWeight: 500, fontFamily: 'monospace' }}>
+                        {formatValue('', billingDetails.invoice_balance.total_carried_forward)}
+                    </Typography>
+                    {billingDetails.invoice_balance.carried_forward_breakdown && billingDetails.invoice_balance.carried_forward_breakdown.length > 0 && (
+                        <Tooltip
+                            arrow
+                            title={
+                                <React.Fragment>
+                                    <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'common.white', display: 'block', mb: 1}}>
+                                        历史欠票明细
+                                    </Typography>
+                                    {billingDetails.invoice_balance.carried_forward_breakdown.map((item, index) => (
+                                        <Typography key={index} variant="body2" sx={{ fontFamily: 'monospace', color: 'grey.200' }}>
+                                            {item.month}月: ¥{item.unpaid_amount}
+                                        </Typography>
+                                    ))}
+                                </React.Fragment>
+                            }
+                        >
+                            <InfoIcon sx={{ fontSize: '1rem', color: 'action.active', ml: 0.5, cursor: 'help' }} />
+                        </Tooltip>
+                    )}
+                </Box>
+            </Box>
+        </Grid>
+
+        {/* 本期已开票 */}
+        <Grid item xs={12} sm={6}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography variant="caption" color="text.secondary">本期已开票:</Typography>
+                <Typography variant="body2" sx={{ fontWeight: 500, fontFamily: 'monospace' }}>
+                    {formatValue('', billingDetails.invoice_balance.invoiced_this_period)}
+                </Typography>
+            </Box>
+        </Grid>
+
+        {/* 剩余待开 */}
+        <Grid item xs={12} sm={6}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography variant="caption" color="text.secondary">剩余待开:</Typography>
+                <Typography variant="body2" color="warning.dark" sx={{ fontWeight: 'bold', fontFamily: 'monospace' }}>
+                    {formatValue('', billingDetails.invoice_balance.remaining_un_invoiced)}
+                </Typography>
+            </Box>
+        </Grid>
+    </Grid>
+</Box>
                                                     ) : <CircularProgress size={20} />
                                                 ) : (
                                                     <Typography variant="body1" sx={{ fontWeight: 500, mt: 0.5 }}>无需开票</Typography>
