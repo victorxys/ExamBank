@@ -2022,19 +2022,34 @@ class InvoiceRecord(db.Model):
     __table_args__ = {"comment": "发票记录表"}
 
     id = db.Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    contract_id = db.Column(
-        PG_UUID(as_uuid=True), db.ForeignKey("contracts.id"), nullable=False, index=True
+
+    # --- 核心修改：关联到客户账单，而不是合同 ---
+    customer_bill_id = db.Column(
+        PG_UUID(as_uuid=True),
+        db.ForeignKey("customer_bills.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True
     )
+    # -----------------------------------------
+
+    invoice_number = db.Column(db.String(255), nullable=True, comment="发票号码")
     amount = db.Column(db.Numeric(12, 2), nullable=False, comment="发票金额")
     issue_date = db.Column(db.Date, nullable=False, comment="开票日期")
-    status = db.Column(
-        db.String(50),
-        default="pending",
-        nullable=False,
-        comment="状态 (pending, issued)",
-    )
-    notes = db.Column(db.Text, comment="发票备注")
+    notes = db.Column(db.Text, nullable=True, comment="发票备注") # 允许备注为空
     created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
+
+    # 移除 status 字段，因为“已开具”状态由记录是否存在来体现
+
+    def to_dict(self):
+        return {
+            "id": str(self.id),
+            "customer_bill_id": str(self.customer_bill_id),
+            "invoice_number": self.invoice_number,
+            "amount": str(self.amount),
+            "issue_date": self.issue_date.isoformat() if self.issue_date else None,
+            "notes": self.notes,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
 
 
 # --- 合同多态模型 ---
@@ -2263,6 +2278,22 @@ class CustomerBill(db.Model):
         server_default=sa.text("'{}'::jsonb"),
         comment="计算过程快照，用于展示和审计",
     )
+        # --- 新增发票管理字段 ---
+    invoice_needed = db.Column(
+        db.Boolean,
+        nullable=False,
+        default=False,
+        server_default="false",
+        comment="本账单是否需要开票",
+    )
+    # -----------------------
+    # --- 新增：关联到发票记录 ---
+    invoices = db.relationship(
+        "InvoiceRecord",
+        backref="customer_bill",
+        cascade="all, delete-orphan",
+    )
+    # --------------------------
 
     created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
     contract = db.relationship("BaseContract", back_populates="customer_bills")

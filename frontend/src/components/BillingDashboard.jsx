@@ -430,15 +430,15 @@ const BillingDashboard = () => {
         setBillingDetails(null);
         setEditableAttendance(null);
 
-        // 如果有关闭时传入的更新数据，则执行单行刷新
-        if (latestBillData && latestBillData.customer_bill_details) {
+        // 【核心修正】增加一个安全检查，确保 invoice_balance 存在
+        // 只有在关闭时收到了一个完整的、包含所有必需信息的账单数据对象时，才更新列表中的那一行
+        if (latestBillData && latestBillData.customer_bill_details && latestBillData.invoice_balance) {
             setContracts(prevContracts =>
                 prevContracts.map(contractRow => {
-                    // 找到需要更新的那一行
                     if (contractRow.id === latestBillData.customer_bill_details.id) {
-                        // 用最新的数据更新这一行
+                        // 使用从详情窗口返回的最新数据更新该行
                         return {
-                            ...contractRow, // 保留旧数据
+                            ...contractRow,
                             customer_payable: latestBillData.customer_bill_details.final_amount.客应付款,
                             customer_is_paid: latestBillData.customer_bill_details.payment_status.customer_is_paid,
                             employee_payout: latestBillData.employee_payroll_details.final_amount.萌嫂应领款,
@@ -451,6 +451,7 @@ const BillingDashboard = () => {
                 })
             );
         }
+        // 如果 latestBillData 不完整，我们就不更新列表行，但窗口依然会正常关闭，避免了程序崩溃。
     };
 
     // 2. 新增一个函数来处理从模态框传回的保存事件
