@@ -647,7 +647,7 @@ class BillingEngine:
         # 在这里处理保证金，然后再获取调整项
         self._handle_security_deposit(contract, bill)
         db.session.flush()
-        cust_increase, cust_decrease, emp_increase, emp_decrease = (
+        cust_increase, cust_decrease, emp_increase, emp_decrease, deferred_fee = (
             self._get_adjustments(bill.id, payroll.id)
         )
         cust_discount = D(
@@ -903,6 +903,7 @@ class BillingEngine:
             "employee_decrease": str(emp_decrease),
             "customer_daily_rate": str(customer_daily_rate.quantize(QUANTIZER)),
             "employee_daily_rate": str(employee_daily_rate.quantize(QUANTIZER)),
+            "deferred_fee": str(deferred_fee),
             "log_extras": log_extras,
             "substitute_deduction_logs": substitute_deduction_logs,  # <--- 在这里新增这一行
         }
@@ -1104,7 +1105,7 @@ class BillingEngine:
 
         # 在这里处理保证金，然后再获取调整项
         self._handle_security_deposit(contract, bill)
-        cust_increase, cust_decrease, emp_increase, emp_decrease = (
+        cust_increase, cust_decrease, emp_increase, emp_decrease, deferred_fee = (
             self._get_adjustments(bill.id, payroll.id)
         )
 
@@ -1202,7 +1203,8 @@ class BillingEngine:
             # 'bonus_5_percent': str(bonus_5_percent),
             "employee_increase": str(emp_increase),
             "employee_decrease": str(emp_decrease),
-            "extension_fee": str(extension_fee), 
+            "extension_fee": str(extension_fee),
+            "deferred_fee": str(deferred_fee),
             "log_extras": {
                 **log_extras,
                 "substitute_deduction_logs": substitute_deduction_logs,
@@ -1638,6 +1640,14 @@ class BillingEngine:
             for adj in customer_adjustments
             if adj.adjustment_type == AdjustmentType.CUSTOMER_DECREASE
         )
+        # --- 在此下方新增对 DEFERRED_FEE 的处理 ---
+        deferred_fee = sum(
+            adj.amount
+            for adj in customer_adjustments
+            if adj.adjustment_type == AdjustmentType.DEFERRED_FEE
+        )
+        # --- 新增结束 ---
+
         emp_increase = sum(
             adj.amount
             for adj in employee_adjustments
@@ -1649,7 +1659,8 @@ class BillingEngine:
             if adj.adjustment_type == AdjustmentType.EMPLOYEE_DECREASE
         )
 
-        return cust_increase, cust_decrease, emp_increase, emp_decrease
+        # --- 修改返回值，增加 deferred_fee ---
+        return cust_increase, cust_decrease, emp_increase, emp_decrease, deferred_fee
 
     def _calculate_final_amounts(self, bill, payroll, details):
         total_payable = (
@@ -1658,6 +1669,7 @@ class BillingEngine:
             + D(details.get("management_fee", 0))
             + D(details.get("customer_increase", 0))
             + D(details.get("extension_fee", "0.00"))
+            + D(details.get("deferred_fee", "0.00"))
             - D(details.get("customer_decrease", 0))
             - D(details.get("discount", 0))
             - D(details.get("substitute_deduction", 0))
@@ -1789,6 +1801,8 @@ class BillingEngine:
             customer_parts.append(f"管理费({d['management_fee']:.2f})")
         if d.get("customer_increase"):
             customer_parts.append(f"增款({d['customer_increase']:.2f})")
+        if d.get("deferred_fee"):
+            customer_parts.append(f"上期顺延({d['deferred_fee']:.2f})")
 
         # 处理减项
         if d.get("discount"):

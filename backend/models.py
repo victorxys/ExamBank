@@ -1973,6 +1973,7 @@ class AdjustmentType(enum.Enum):
     CUSTOMER_DISCOUNT = "customer_discount"  # 客户优惠
     EMPLOYEE_INCREASE = "employee_increase"  # 员工增款
     EMPLOYEE_DECREASE = "employee_decrease"  # 员工减款
+    DEFERRED_FEE = "deferred_fee" # 顺延费用
 
 
 class FinancialAdjustment(db.Model):
@@ -2264,6 +2265,15 @@ class CustomerBill(db.Model):
         default=False,
         server_default="false",
         comment="是否已打款",
+    )
+
+    is_deferred = db.Column(
+        db.Boolean,
+        nullable=False,
+        default=False,
+        server_default="false",
+        index=True,
+        comment="是否已顺延",
     )
 
     payment_details = db.Column(

@@ -221,6 +221,7 @@ const BillingDashboard = () => {
     const [rowsPerPage, setRowsPerPage] = useState(10);
     const [totalContracts, setTotalContracts] = useState(0);
     const [calculating, setCalculating] = useState(false);
+    const [deferringId, setDeferringId] = useState(null);
     
     const [selectedBillingMonth, setSelectedBillingMonth] = useState(() => {
         const params = new URLSearchParams(location.search);
@@ -591,6 +592,28 @@ const BillingDashboard = () => {
         }
     };
 
+    const handleDeferBill = async (billId) => {
+        setDeferringId(billId); // 开始加载
+        try {
+            const response = await api.post(`/billing/customer-bills/${billId}/defer`);
+            setAlert({ open: true, message: response.data.message || '账单已成功顺延！', severity: 'success' });
+
+            // 更新前端列表状态，避免重新请求
+            setContracts(prevContracts =>
+                prevContracts.map(bill =>
+                    bill.id === billId ? { ...bill, is_deferred: true } : bill
+                )
+            );
+            // 顺延成功后，可能需要刷新下一个月的账单，最简单的方式是重新获取列表
+            // fetchBills(); // 或者，你可以选择更精细的状态更新
+
+        } catch (error) {
+            setAlert({ open: true, message: `顺延失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
+        } finally {
+            setDeferringId(null); // 结束加载
+        }
+    };
+
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={zhCN}>
       <Box>
@@ -753,42 +776,68 @@ const BillingDashboard = () => {
                         <TableCell sx={{color: '#525f7f', fontWeight: 'bold'}}>{formatValue('级别', bill.employee_level)}</TableCell>
 
                         <TableCell>
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-        {/* 客户应付款 */}
-        <Tooltip title="客户应付款 / 支付状态">
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Typography sx={{ fontWeight: 'bold', color: 'error.main', width: '100px' }}>
-                    {bill.customer_payable ? `¥${bill.customer_payable}` : '待计算'}
-                </Typography>
-                {bill.customer_is_paid === true && <CheckCircleIcon color="success" fontSize="small" />}
-                {bill.customer_is_paid === false && <HighlightOffIcon color="disabled" fontSize="small" />}
-            </Box>
-        </Tooltip>
+                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                                {/* 客户应付款 */}
+                                <Tooltip title="客户应付款 / 支付状态">
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                        <Typography sx={{ fontWeight: 'bold', color: 'error.main', width: '100px' }}>
+                                            {bill.customer_payable ? `¥${bill.customer_payable}` : '待计算'}
+                                        </Typography>
+                                        {/* --- 修改这里的逻辑 --- */}
+                                        {bill.is_deferred ? (
+                                            <Chip label="已顺延" size="small" variant="outlined" color="info" />
+                                        ) : (
+                                            bill.customer_is_paid
+                                                ? <CheckCircleIcon color="success" fontSize="small" />
+                                                : <HighlightOffIcon color="disabled" fontSize="small" />
+                                        )}
+                                        {/* --- 修改结束 --- */}
+                                    </Box>
+                                </Tooltip>
 
-        {/* 员工应领款 */}
-        <Tooltip title="员工应领款 / 领款状态">
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Typography sx={{ fontWeight: 'bold', color: 'success.main', width: '100px' }}>
-                    {bill.employee_payout ? `¥${bill.employee_payout}` : '待计算'}
-                </Typography>
-                {bill.employee_is_paid === true && <CheckCircleIcon color="success" fontSize="small" />}
-                {bill.employee_is_paid === false && <HighlightOffIcon color="disabled" fontSize="small" />}
-            </Box>
-        </Tooltip>
+                                {/* 员工应领款 */}
+                                <Tooltip title="员工应领款 / 领款状态">
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                        <Typography sx={{ fontWeight: 'bold', color: 'success.main', width: '100px' }}>
+                                            {bill.employee_payout ? `¥${bill.employee_payout}` : '待计算'}
+                                        </Typography>
+                                        {bill.employee_is_paid === true && <CheckCircleIcon color="success" fontSize="small" />}
+                                        {bill.employee_is_paid === false && <HighlightOffIcon color="disabled" fontSize="small" />}
+                                    </Box>
+                                </Tooltip>
 
-        {/* 【核心修改】欠票信息行 */}
-        {bill.invoice_needed && parseFloat(bill.remaining_invoice_amount) > 0 && (
-             <Tooltip title={`截至本期，该合同累计有 ¥${bill.remaining_invoice_amount} 需要开票`}>
-                <Typography variant="caption" color="warning.dark" sx={{ pl: '2px', pt: 0.5 }}>
-                    {`欠票: ¥${bill.remaining_invoice_amount}`}
-                </Typography>
-            </Tooltip>
-        )}
-    </Box>
-</TableCell>
+                                {/* 【核心修改】欠票信息行 */}
+                                {bill.invoice_needed && parseFloat(bill.remaining_invoice_amount) > 0 && (
+                                    <Tooltip title={`截至本期，该合同累计有 ¥${bill.remaining_invoice_amount} 需要开票`}>
+                                        <Typography variant="caption" color="warning.dark" sx={{ pl: '2px', pt: 0.5 }}>
+                                            {`欠票: ¥${bill.remaining_invoice_amount}`}
+                                        </Typography>
+                                    </Tooltip>
+                                )}
+                            </Box>
+                        </TableCell>
                         
                         <TableCell align="center">
-                          <Button variant="contained" size="small" startIcon={<EditIcon />} onClick={() => handleOpenDetailDialog(bill)}>管理</Button>
+                            <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
+                                <Button
+                                    variant="contained"
+                                    size="small"
+                                    startIcon={<EditIcon />}
+                                    onClick={() => handleOpenDetailDialog(bill)}
+                                >
+                                    管理
+                                </Button>
+                                {/* --- 在此下方新增顺延按钮 --- */}
+                                <Button
+                                    variant="outlined"
+                                    size="small"
+                                    // color="secondary"
+                                    disabled={bill.customer_is_paid || bill.is_deferred || deferringId === bill.id}
+                                    onClick={() => handleDeferBill(bill.id)}
+                                >
+                                    {deferringId === bill.id ? <CircularProgress size={20} /> : '顺延'}
+                                </Button>
+                            </Box>
                         </TableCell>
                       </TableRow>
                     ))

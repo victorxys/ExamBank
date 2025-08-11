@@ -1,6 +1,7 @@
 // frontend/src/components/FinancialManagementModal.jsx (最终重构版)
 
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box, Button, Typography, Paper, Grid, Dialog, DialogTitle, DialogContent, 
   DialogActions, Divider, CircularProgress, Tooltip, IconButton, List, ListItem, 
@@ -151,6 +152,7 @@ const getTooltipContent = (fieldName, billingDetails, isCustomer) => {
 // --- 主组件 ---
 const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billingDetails: initialBillingDetails, loading, onSave }) => {
     const [latestSavedData, setLatestSavedData] = useState(null);
+    const navigate = useNavigate();
     const [isEditMode, setIsEditMode] = useState(false);
     const [editableOvertime, setEditableOvertime] = useState(0);
     const [adjustments, setAdjustments] = useState([]);
@@ -676,7 +678,9 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                     <Box>
                         <Divider textAlign="left" sx={{ mb: 1.5 }}><Typography variant="overline" color="text.secondary">财务调整</Typography></Divider>
                         <List dense disablePadding>
-                            {currentAdjustments.map(adj => (
+                            {currentAdjustments.map(adj => {
+                                const isReadOnly = adj.adjustment_type === 'deferred_fee';
+                                 return (
                                  <ListItem
                                     key={adj.id}
                                     button={isEditMode}
@@ -705,7 +709,8 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                                     />
                                     <Typography variant="body2" sx={{ fontFamily: 'monospace', fontWeight: 'bold' }}>{AdjustmentTypes[adj.adjustment_type]?.effect > 0 ? '+' : '-'} {formatValue('', adj.amount)}</Typography>
                                 </ListItem>
-                            ))}
+                                )
+                            })}
                         </List>
                         {isEditMode && (<Box sx={{ mt: 1, display: 'flex', justifyContent: 'center' }}><Button size="small" variant="text" startIcon={<AddIcon />} onClick={() => { setEditingAdjustment(null); setAdjustmentFilter(isCustomer ? 'customer' :'employee'); setIsAdjustmentDialogOpen(true); }}>添加调整</Button></Box>)}
                     </Box>
@@ -1010,7 +1015,14 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                             <Grid item xs={12}>
                                 <Paper sx={{ p: 3, borderRadius: 2, boxShadow: 1 }}>
                                     <Typography variant="h3" gutterBottom>操作日志</Typography>
-                                    {loadingLogs ? <CircularProgress size={24} /> : (<Timeline sx={{ p: 0, m: 0 }}>{activityLogs.length > 0 ? activityLogs.map((log, index) => (<LogItem key={log.id} log={log} isLast={index === activityLogs.length - 1} />)) : (<Typography variant="body2" color="text.secondary">暂无操作日志</Typography>)}</Timeline>)}
+                                    {loadingLogs ? <CircularProgress size={24} /> : (<Timeline sx={{ p: 0, m: 0 }}>{activityLogs.length > 0 ? activityLogs.map((log, index) => (
+                                        <LogItem 
+                                            key={log.id} 
+                                            log={log} 
+                                            isLast={index === activityLogs.length - 1}
+                                            navigate={navigate}
+                                            onClose={onClose}
+                                        />)) : (<Typography variant="body2" color="text.secondary">暂无操作日志</Typography>)}</Timeline>)}
                                 </Paper>
                             </Grid>
                         </Grid>

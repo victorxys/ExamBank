@@ -673,6 +673,7 @@ def get_bills():
                 "status": contract.status,
                 "customer_payable": str(bill.total_payable) if bill else "待计算",
                 "customer_is_paid": bill.is_paid,
+                 "is_deferred": bill.is_deferred,
                 "employee_payout": str(payroll.final_payout) if payroll else "待计算",
                 "employee_is_paid": payroll.is_paid if payroll else False,
                 "is_substitute_bill": bill.is_substitute_bill,
@@ -2264,3 +2265,70 @@ def extend_single_bill(bill_id):
         db.session.rollback()
         current_app.logger.error(f"延长账单 {bill_id} 失败: {e}", exc_info=True)
         return jsonify({"error": "服务器内部错误"}), 500
+
+@billing_bp.route('/customer-bills/<uuid:bill_id>/defer', methods=['POST'])
+@admin_required # 假设需要管理员权限
+def defer_customer_bill(bill_id):
+    """
+    将指定账单顺延到下一个账期。
+    这是一个手动操作，会立即修改当前账单状态并将金额添加到下一个账单。
+    """
+    bill_to_defer = db.session.get(CustomerBill, bill_id)
+
+    if not bill_to_defer:
+        return jsonify({"error": "未找到指定的账单"}), 404
+
+    if bill_to_defer.is_paid:
+        return jsonify({"error": "账单已支付，无法顺延"}), 400
+
+    if bill_to_defer.is_deferred:
+        return jsonify({"error": "账单已被顺延，请勿重复操作"}), 400
+
+    # 查找该合同的下一个账单
+    # 核心逻辑：下一个账单的开始日期必须在当前账单的结束日期之后
+    next_bill = CustomerBill.query.filter(
+        CustomerBill.contract_id == bill_to_defer.contract_id,
+        CustomerBill.cycle_start_date > bill_to_defer.cycle_start_date,
+        CustomerBill.is_substitute_bill == False
+    ).order_by(CustomerBill.cycle_start_date.asc()).first()
+
+    if not next_bill:
+        return jsonify({"error": "未找到该合同的下一个有效账单，无法顺延"}), 404
+
+    try:
+        # 1. 标记当前账单为已顺延
+        bill_to_defer.is_deferred = True
+
+        # 2. 在下一个账单中创建代表“顺延费用”的调整项
+        deferred_adjustment = FinancialAdjustment(
+            customer_bill_id=next_bill.id,
+            adjustment_type=AdjustmentType.DEFERRED_FEE,
+            amount=bill_to_defer.total_payable,
+            description=f"[系统] 上期账单({bill_to_defer.year}-{str(bill_to_defer.month).zfill(2)})顺延金额",
+            date=next_bill.cycle_start_date,
+        )
+        db.session.add(deferred_adjustment)
+
+        # 3. 立即重新计算下一个账单的总额，以包含这笔顺延费用
+        engine = BillingEngine()
+        engine.calculate_for_month(
+            year=next_bill.year,
+            month=next_bill.month,
+            contract_id=next_bill.contract_id,
+            force_recalculate=True,
+            cycle_start_date_override=next_bill.cycle_start_date # 使用周期开始日精确指定重算目标
+        )
+
+        # --- 在这里新增日志记录 ---
+        action_text = f"将客户应付款顺延到下期 {next_bill.year}-{str(next_bill.month).zfill(2)} 账单中"
+        details_payload = {"next_bill_id": str(next_bill.id)}
+        _log_activity(bill_to_defer, None, action=action_text, details=details_payload)
+        # --- 新增结束 ---
+
+        db.session.commit()
+        return jsonify({"message": f"账单 {bill_id} 已成功顺延至账单 {next_bill.id}"}), 200
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"顺延账单 {bill_id} 时发生错误: {e}", exc_info=True)
+        return jsonify({"error": "处理顺延操作时发生内部错误"}), 500
