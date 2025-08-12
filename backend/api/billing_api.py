@@ -871,6 +871,8 @@ def update_single_contract(contract_id):
 
     try:
         should_generate_bills = False
+        log_details = {}
+
         if "actual_onboarding_date" in data:
             new_onboarding_date_str = data["actual_onboarding_date"]
             if new_onboarding_date_str:
@@ -895,6 +897,39 @@ def update_single_contract(contract_id):
                 if isinstance(contract, MaternityNurseContract):
                     contract.actual_onboarding_date = None
                     contract.expected_offboarding_date = None
+        # --- 新增：处理介绍费 ---
+        if "introduction_fee" in data and hasattr(contract, 'introduction_fee'):
+            new_fee = D(data["introduction_fee"] or 0)
+            if contract.introduction_fee != new_fee:
+                log_details['介绍费'] = {'from': str(contract.introduction_fee), 'to': str(new_fee)}
+                contract.introduction_fee = new_fee
+
+        # --- 新增：处理备注 (只追加逻辑) ---
+        if "notes" in data:
+            original_note = contract.notes or ""
+            appended_note = data["notes"] or ""
+
+            separator = "\\n\\n--- 运营备注 ---\\n"
+
+            # 检查原始备注中是否已有运营备注
+            if separator in original_note:
+                base_note = original_note.split(separator)[0]
+                new_full_note = f"{base_note}{separator}{appended_note}"
+            else:
+                # 如果没有，则直接追加
+                new_full_note = f"{original_note}{separator}{appended_note}"
+
+            if contract.notes != new_full_note:
+                log_details['备注'] = {'from': contract.notes, 'to': new_full_note}
+                contract.notes = new_full_note
+
+        # 如果有任何变更，记录日志
+        if log_details:
+            # 找到任意一个关联的账单或薪酬单来挂载日志
+            any_bill = CustomerBill.query.filter_by(contract_id=contract.id).first()
+            any_payroll = EmployeePayroll.query.filter_by(contract_id=contract.id).first()
+            _log_activity(any_bill, any_payroll, "更新了合同详情", details=log_details)
+
 
         # 先提交对合同日期的修改
         db.session.commit()
@@ -1677,6 +1712,7 @@ def get_single_contract_details(contract_id):
             "notes": contract.notes or "",
             "remaining_months": remaining_months_str,
             "highlight_remaining": highlight_remaining,
+            "introduction_fee": str(getattr(contract, 'introduction_fee', 0) or 0),
         }
 
         if contract.type == "maternity_nurse":
@@ -1704,15 +1740,11 @@ def get_single_contract_details(contract_id):
                     "is_monthly_auto_renew": contract.is_monthly_auto_renew,
                     "management_fee_paid_months": contract.management_fee_paid_months,
                     "is_first_month_fee_paid": contract.is_first_month_fee_paid,
+                    "management_fee_amount": str(contract.management_fee_amount or 0),
                 }
             )
         elif contract.type == "nanny_trial":
-            result.update(
-                {
-                    "introduction_fee": str(contract.introduction_fee or 0),
-                }
-            )
-
+            pass
         return jsonify(result)
 
     except Exception as e:

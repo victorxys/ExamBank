@@ -2125,6 +2125,7 @@ class BaseContract(db.Model):
         comment="active, finished, terminated, trial_active, trial_succeeded",
     )
     notes = db.Column(db.Text, comment="通用备注")
+    introduction_fee = db.Column(db.Numeric(10, 2), nullable=True, comment="介绍费")
     created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
     updated_at = db.Column(db.DateTime(timezone=True), onupdate=func.now())
 
@@ -2170,7 +2171,6 @@ class NannyContract(BaseContract):  # 育儿嫂合同
 
 class NannyTrialContract(BaseContract):  # 育儿嫂试工合同
     __mapper_args__ = {"polymorphic_identity": "nanny_trial"}
-    introduction_fee = db.Column(db.Numeric(10, 2), nullable=True, comment="介绍费")
 
 
 class MaternityNurseContract(BaseContract):  # 月嫂合同

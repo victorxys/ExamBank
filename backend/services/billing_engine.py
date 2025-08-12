@@ -1369,6 +1369,9 @@ class BillingEngine:
 
         details = self._calculate_substitute_details(sub_record, main_contract)
         bill, payroll = self._calculate_final_amounts(bill, payroll, details)
+        current_app.logger.info(
+            f"[SubCALC] 替班记录total_payable {bill.total_payable} 的账单已成功生成。"
+        )
         log = self._create_calculation_log(details)
         self._update_bill_with_log(bill, payroll, details, log)
 
