@@ -18,7 +18,9 @@ import {
     TrendingDown as TrendingDownIcon, // 用于应退
     EventBusy as EventBusyIcon, // 或者 HelpOutline as HelpOutlineIcon
     CheckCircle as CheckCircleIcon,
-    HighlightOff as HighlightOffIcon
+    HighlightOff as HighlightOffIcon,
+    Download as DownloadIcon,
+    Update as UpdateIcon,
 } from '@mui/icons-material';
 import { DatePicker, LocalizationProvider } from '@mui/x-date-pickers';
 
@@ -84,7 +86,34 @@ const formatDateRange = (dateRangeString) => {
         return '无效日期范围';
     }
 };
+// 在下方添加这个新函数
+const formatContractPeriod = (periodString) => {
+    if (!periodString || !periodString.includes('~')) return '—';
+    const [startStr, endStr] = periodString.split('~').map(s => s.trim());
+    try {
+        const startDate = new Date(startStr);
+        const endDate = new Date(endStr);
+        if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) return '—';
 
+        const startYear = startDate.getFullYear();
+        const endYear = endDate.getFullYear();
+
+        const startFormat = new Intl.DateTimeFormat('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(startDate).replace(/\//g, '-');
+
+        let endFormat;
+        if (startYear !== endYear) {
+            endFormat = new Intl.DateTimeFormat('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(endDate).replace(/\//g, '-');
+        } else {
+            endFormat = new Intl.DateTimeFormat('zh-CN', { month: '2-digit', day: '2-digit' }).format(endDate).replace(/\//g, '-');
+        }
+
+        // 返回一个对象，便于在JSX中处理换行
+        return { start: startFormat, end: endFormat };
+
+    } catch (e) {
+        return { start: '—', end: '' };
+    }
+};
 // --- 复刻Excel的详情卡片 (最终版) ---
 const ExcelStyleDetailCard = ({ title, data = {}, isCustomerBill }) => {
     const formatValue = (key, value) => {
@@ -219,10 +248,13 @@ const BillingDashboard = () => {
     const [syncing, setSyncing] = useState(false);
     const [alert, setAlert] = useState({ open: false, message: '', severity: 'info' });
     const [page, setPage] = useState(0);
-    const [rowsPerPage, setRowsPerPage] = useState(10);
+    const [rowsPerPage, setRowsPerPage] = useState(100);
     const [totalContracts, setTotalContracts] = useState(0);
+    const [summary, setSummary] = useState(null);
     const [calculating, setCalculating] = useState(false);
     const [deferringId, setDeferringId] = useState(null);
+    const [deferConfirmOpen, setDeferConfirmOpen] = useState(false); // <-- 添加此行
+    const [billToDefer, setBillToDefer] = useState(null); // <-- 添加此行
     
     const [selectedBillingMonth, setSelectedBillingMonth] = useState(() => {
         const params = new URLSearchParams(location.search);
@@ -257,6 +289,7 @@ const BillingDashboard = () => {
                     // console.log("Fetched bills:", response.data.items); // 调试输出
                     setContracts(response.data.items || []);
                     setTotalContracts(response.data.total || 0);
+                    setSummary(response.data.summary || null);
                 } catch (error) {
                     setAlert({ open: true, message: `获取账单列表失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
                     setContracts([]);
@@ -623,6 +656,16 @@ const BillingDashboard = () => {
         }
     };
 
+    const handleOpenDeferConfirm = (bill) => {
+        setBillToDefer(bill);
+        setDeferConfirmOpen(true);
+    };
+
+    const handleCloseDeferConfirm = () => {
+        setBillToDefer(null);
+        setDeferConfirmOpen(false);
+    };
+
     const handleDeferBill = async (billId) => {
         setDeferringId(billId); // 开始加载
         try {
@@ -644,12 +687,68 @@ const BillingDashboard = () => {
             setDeferringId(null); // 结束加载
         }
     };
+    
+    const handleExport = async () => {
+        try {
+            // 使用当前的筛选条件构造URL参数
+            const params = new URLSearchParams({
+                billing_month: selectedBillingMonth,
+                ...filters
+            }).toString();
+               
+            const response = await api.get(`/billing/export-management-fees?${params}`, {
+                responseType: 'blob', // 关键：告诉axios期望接收一个二进制对象
+            });
+               
+            // 创建一个隐藏的链接来触发浏览器下载
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            const filename = `management_fees_${selectedBillingMonth}.csv`;
+            link.setAttribute('download', filename);
+            document.body.appendChild(link);
+            link.click();
+            link.parentNode.removeChild(link);
+
+        } catch (error) {
+            setAlert({ open: true, message: `导出失败: ${error.message}`, severity: 'error' });
+        }
+    };
 
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={zhCN}>
       <Box>
         <AlertMessage open={alert.open} message={alert.message} severity={alert.severity} onClose={() => setAlert(prev => ({...prev, open: false}))} />
-        <PageHeader title="月度账单管理" description="选特定月份的待结算账单，并进行财务管理。" />
+        <PageHeader 
+            title="月度账单管理" 
+            description="选特定月份的待结算账单，并进行财务管理。" 
+            actions={
+            summary && (
+              <Box display="flex" alignItems="center" gap={1} sx={{ color: 'white', mr: 2 }}>
+                <Typography variant="h6" component="span" sx={{color: 'white', opacity: 0.8}}>
+                  本月管理费总计:
+                </Typography>
+                <Typography
+                  variant="h5"
+                  component="span"
+                  sx={{ fontWeight: 'bold', color: 'white' }}
+                >
+                  ¥{parseFloat(summary.total_management_fee).toLocaleString('en-US')}
+                </Typography>                                
+                <Tooltip title="导出本月管理费明细 (CSV)">   
+                  <IconButton                                
+                    color="inherit" // 使用 inherit 来继承父组件的白色
+                    size="small"                             
+                    onClick={handleExport}                   
+                    sx={{ ml: 0.5 }}                         
+                  >                                          
+                    <DownloadIcon />                         
+                  </IconButton>                              
+                </Tooltip>                                   
+              </Box>                                         
+            )                                                
+          }
+        />
         <Card sx={{ 
           boxShadow: '0 0 2rem 0 rgba(136, 152, 170, .15)',
           backgroundColor: 'white',
@@ -790,9 +889,9 @@ const BillingDashboard = () => {
                             fontWeight: 600 }}/></TableCell>
                         <TableCell>
                             <Typography variant="body2" sx={{ fontFamily: 'monospace', lineHeight: 1.5, whiteSpace: 'nowrap' }}>
-                                {bill.contract_period ? bill.contract_period.split(' ~ ')[0] : '—'}
+                                {formatContractPeriod(bill.contract_period).start}
                                 <br />
-                                {bill.contract_period ? `~ ${bill.contract_period.split(' ~ ')[1]}` : '—'}
+                                {formatContractPeriod(bill.contract_period).end}
                             </Typography>
                         </TableCell>
                         <TableCell>
@@ -884,26 +983,30 @@ const BillingDashboard = () => {
                             </Box>
                         </TableCell>
                         
-                        <TableCell align="center">
-                            <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
-                                <Button
-                                    variant="contained"
-                                    size="small"
-                                    startIcon={<EditIcon />}
-                                    onClick={() => handleOpenDetailDialog(bill)}
-                                >
-                                    管理
-                                </Button>
-                                {/* --- 在此下方新增顺延按钮 --- */}
-                                <Button
-                                    variant="outlined"
-                                    size="small"
-                                    // color="secondary"
-                                    disabled={bill.customer_is_paid || bill.is_deferred || deferringId === bill.id}
-                                    onClick={() => handleDeferBill(bill.id)}
-                                >
-                                    {deferringId === bill.id ? <CircularProgress size={20} /> : '顺延'}
-                                </Button>
+                         <TableCell align="center">
+                            <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center' }}>
+                                <Tooltip title="管理账单详情">
+                                    <IconButton
+                                        color="primary"
+                                        size="small"
+                                        onClick={() => handleOpenDetailDialog(bill)}
+                                    >
+                                        <EditIcon />
+                                    </IconButton>
+                                </Tooltip>
+                                <Tooltip title="顺延本期费用">
+                                    {/* IconButton 需要一个 span 包裹才能在 disabled 状态下显示 Tooltip */}
+                                    <span>
+                                        <IconButton
+                                            color="primary"
+                                            size="small"
+                                            disabled={bill.customer_is_paid || bill.is_deferred || deferringId === bill.id}
+                                            onClick={() => handleOpenDeferConfirm(bill)}
+                                        >
+                                            {deferringId === bill.id ? <CircularProgress size={20} /> : <UpdateIcon />}
+                                        </IconButton>
+                                    </span>
+                                </Tooltip>
                             </Box>
                         </TableCell>
                       </TableRow>
@@ -993,6 +1096,32 @@ const BillingDashboard = () => {
                 }}
             />
         )}
+        <Dialog
+            open={deferConfirmOpen}
+            onClose={handleCloseDeferConfirm}
+        >
+            <DialogTitle>确认顺延账单？</DialogTitle>
+            <DialogContent>
+                <Alert severity="warning">
+                    您确定要将客户 **{billToDefer?.customer_name}** (服务人员: {billToDefer?.employee_name}) 的这期账单顺延到下一个月吗？
+                    <br/><br/>
+                    此操作不可逆。
+                </Alert>
+            </DialogContent>
+            <DialogActions>
+                <Button onClick={handleCloseDeferConfirm}>取消</Button>
+                <Button
+                    onClick={() => {
+                        handleDeferBill(billToDefer.id);
+                        handleCloseDeferConfirm();
+                    }}
+                    color="primary"
+                    variant="contained"
+                >
+                    确认顺延
+                </Button>
+            </DialogActions>
+        </Dialog>
     </Box>
   </LocalizationProvider>
   );

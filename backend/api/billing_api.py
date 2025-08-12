@@ -7,9 +7,10 @@ from sqlalchemy.orm import with_polymorphic, attributes
 from flask_jwt_extended import get_jwt_identity
 from dateutil.parser import parse as date_parse
 from sqlalchemy.orm import with_polymorphic # <--- 别忘了导入
-
-
-
+from sqlalchemy import func, distinct
+from sqlalchemy.sql import extract
+import csv # <-- 添加此行
+import io # <-- 添加此行
 import calendar
 from datetime import date, timedelta
 from datetime import datetime
@@ -664,7 +665,20 @@ def get_bills():
         query = query.order_by(
             contract_poly.customer_name, CustomerBill.cycle_start_date
         )
+        # --- 修正：分两步计算总计，避免JOIN导致重复计算 ---
+        # 1. 先根据所有筛选条件，获取匹配账单的ID列表
+        filtered_bill_ids_query = query.with_entities(CustomerBill.id)
+        filtered_bill_ids = [item[0] for item in filtered_bill_ids_query.all()]
 
+        # 2. 然后只对这些ID进行干净的聚合查询
+        total_management_fee = 0
+        if filtered_bill_ids:
+            total_management_fee = db.session.query(
+                func.sum(CustomerBill.calculation_details['management_fee'].as_float())
+            ).filter(
+                CustomerBill.id.in_(filtered_bill_ids)
+            ).scalar() or 0
+        # --- 修正结束 ---
         paginated_results = query.paginate(
             page=page, per_page=per_page, error_out=False
         )
@@ -748,6 +762,9 @@ def get_bills():
                 "page": paginated_results.page,
                 "per_page": paginated_results.per_page,
                 "pages": paginated_results.pages,
+                "summary": {
+                    "total_management_fee": str(D(total_management_fee).quantize(D('0.01')))
+                }
             }
         )
     except Exception as e:
@@ -2483,3 +2500,218 @@ def batch_settle():
         db.session.rollback()
         current_app.logger.error(f"批量结算失败: {e}", exc_info=True)
         return jsonify({"error": "服务器内部错误"}), 500
+
+@billing_bp.route("/dashboard/summary", methods=['GET'])
+@admin_required
+def get_dashboard_summary():
+    """
+    获取运营仪表盘所需的所有核心数据。
+    """
+    try:
+        today = date.today()
+        current_year = today.year
+        current_month = today.month
+
+        # --- 1. 计算核心KPI指标 ---
+
+        # 1.1 年度应收管理费 (已收/应收)
+        monthly_fees = db.session.query(
+            func.sum(CustomerBill.calculation_details['management_fee'].as_float()),
+            func.sum(case((CustomerBill.is_paid == True, CustomerBill.calculation_details['management_fee'].as_float()), else_=0))
+        ).filter(
+            CustomerBill.year == current_year,
+            # CustomerBill.month == current_month,
+            CustomerBill.is_substitute_bill == False
+        ).first()
+        monthly_management_fee_total = D(monthly_fees[0] or 0)
+        monthly_management_fee_received = D(monthly_fees[1] or 0)
+
+        # 1.2 活跃合同数
+        active_contracts_count = db.session.query(func.count(BaseContract.id)).filter(BaseContract.status.in_(['active', 'trial_active'])).scalar()
+
+        # 1.3 在户员工数 (不重复)
+        active_personnel_count = db.session.query(func.count(distinct(BaseContract.service_personnel_id))).filter(BaseContract.status.in_(['active', 'trial_active']), BaseContract.service_personnel_id.isnot(None)).scalar()
+        active_user_count = db.session.query(func.count(distinct(BaseContract.user_id))).filter(BaseContract.status.in_(['active','trial_active']), BaseContract.user_id.isnot(None)).scalar()
+        active_employees_count = active_personnel_count + active_user_count
+
+        # --- 2. 月度收入趋势 (最近6个月) ---
+
+        revenue_trend_data = []
+        for i in range(5, -1, -1):
+            target_date = today - relativedelta(months=i)
+            target_year = target_date.year
+            target_month = target_date.month
+
+            monthly_revenue = db.session.query(
+                func.sum(CustomerBill.calculation_details['management_fee'].as_float())
+            ).filter(
+                CustomerBill.year == target_year,
+                CustomerBill.month == target_month,
+                # CustomerBill.is_substitute_bill == False
+            ).scalar() or 0
+
+            revenue_trend_data.append({
+                "month": target_date.strftime("%Y-%m"),
+                "revenue": D(monthly_revenue).quantize(D('0.01'))
+            })
+
+        # --- 3. 待办事项列表 ---
+
+        # 3.1 即将到期合同 (< 30天)
+        thirty_days_later = today + timedelta(days=30)
+        expiring_contracts_query = BaseContract.query.filter(
+            BaseContract.end_date.between(today, thirty_days_later),
+            BaseContract.status == 'active'
+        ).order_by(BaseContract.end_date.asc()).limit(5).all()
+
+        expiring_contracts = [{
+            "customer_name": c.customer_name,
+            "employee_name": c.user.username if c.user else c.service_personnel.name,
+            "contract_type": get_contract_type_details(c.type),
+            "end_date": c.end_date.isoformat(),
+            "expires_in_days": (c.end_date - today).days
+        } for c in expiring_contracts_query]
+
+        # 3.2 本月待收管理费
+        pending_payments_query = CustomerBill.query.filter(
+            CustomerBill.year == current_year,
+            CustomerBill.month == current_month,
+            CustomerBill.is_paid == False,
+            CustomerBill.is_substitute_bill == False,
+            CustomerBill.calculation_details['management_fee'].as_float() > 0
+        ).order_by(CustomerBill.id.desc()).limit(5).all()
+
+        pending_payments = [{
+            "customer_name": bill.customer_name,
+            "contract_type": get_contract_type_details(bill.contract.type),
+            "amount": str(D(bill.calculation_details.get('management_fee', 0)).quantize(D('0.01')))
+        } for bill in pending_payments_query]
+
+        # 3.3 本月待付薪酬
+        pending_payouts_query = EmployeePayroll.query.filter(
+            EmployeePayroll.year == current_year,
+            EmployeePayroll.month == current_month,
+            EmployeePayroll.is_paid == False
+        ).order_by(EmployeePayroll.id.desc()).limit(5).all()
+
+        pending_payouts = []
+        for payroll in pending_payouts_query:
+            employee = payroll.contract.user or payroll.contract.service_personnel
+            pending_payouts.append({
+                "employee_name": employee.username if hasattr(employee, 'username') else employee.name,
+                "contract_type": get_contract_type_details(payroll.contract.type),
+                "amount": str(payroll.final_payout)
+            })
+
+        # --- 组装最终结果 ---
+        dashboard_data = {
+            "kpis": {
+                "monthly_management_fee_total": str(monthly_management_fee_total),
+                "monthly_management_fee_received": str(monthly_management_fee_received),
+                "active_contracts_count": active_contracts_count,
+                "active_employees_count": active_employees_count,
+            },
+            "revenue_trend": {
+                "series": [{"name": "管理费收入", "data": [item['revenue'] for item in revenue_trend_data]}],
+                "categories": [item['month'] for item in revenue_trend_data]
+            },
+            "todo_lists": {
+                "expiring_contracts": expiring_contracts,
+                "pending_payments": pending_payments,
+                "pending_payouts": pending_payouts
+            }
+        }
+
+        return jsonify(dashboard_data)
+
+    except Exception as e:
+        current_app.logger.error(f"获取仪表盘数据失败: {e}", exc_info=True)
+        return jsonify({"error": "获取仪表盘数据时发生服务器内部错误"}), 500
+
+@billing_bp.route("/export-management-fees", methods=['GET'])
+@admin_required
+def export_management_fees_csv():
+    """
+    根据筛选条件导出管理费明细的CSV文件。
+    """
+    try:
+        # 1. 获取与 get_bills 相同的筛选参数
+        billing_month_str = request.args.get("billing_month")
+        if not billing_month_str:
+            return jsonify({"error": "必须提供账单月份 (billing_month) 参数"}), 400
+
+        billing_year, billing_month = map(int, billing_month_str.split("-"))
+        search_term = request.args.get("search", "").strip()
+        contract_type = request.args.get("type", "")
+        status = request.args.get("status", "")
+        payment_status = request.args.get("payment_status", "")
+        payout_status = request.args.get("payout_status", "")
+
+        # 2. 构建与 get_bills 完全相同的查询逻辑
+        contract_poly = with_polymorphic(BaseContract, "*")
+        query = (
+            db.session.query(CustomerBill, contract_poly)
+            .select_from(CustomerBill)
+            .join(contract_poly, CustomerBill.contract_id == contract_poly.id)
+            .outerjoin(User, contract_poly.user_id == User.id)
+            .outerjoin(
+                ServicePersonnel,
+                contract_poly.service_personnel_id == ServicePersonnel.id,
+            )
+        )
+        query = query.filter(
+            CustomerBill.year == billing_year, CustomerBill.month == billing_month
+        )
+        # 应用所有筛选条件...
+        if status:
+            query = query.filter(contract_poly.status == status)
+        if contract_type:
+            query = query.filter(contract_poly.type == contract_type)
+        if search_term:
+            query = query.filter(
+                db.or_(
+                    contract_poly.customer_name.ilike(f"%{search_term}%"),
+                    User.username.ilike(f"%{search_term}%"),
+                    ServicePersonnel.name.ilike(f"%{search_term}%"),
+                )
+            )
+        if payment_status == "paid":
+            query = query.filter(CustomerBill.is_paid)
+        elif payment_status == "unpaid":
+            query = query.filter(~CustomerBill.is_paid)
+
+        # 3. 获取所有匹配的账单，不分页
+        all_bills = query.all()
+
+        # 4. 生成CSV文件内容
+        output = io.StringIO()
+        writer = csv.writer(output)
+
+        # 写入表头
+        writer.writerow(["客户姓名", "服务人员", "合同类型", "账单周期", "管理费金额", "支付状态"])
+
+        # 写入数据行
+        for bill, contract in all_bills:
+            employee = contract.user or contract.service_personnel
+            writer.writerow([
+                bill.customer_name,
+                employee.username if hasattr(employee, 'username') else employee.name,
+                get_contract_type_details(contract.type),
+                f"{bill.cycle_start_date.isoformat()} ~ {bill.cycle_end_date.isoformat()}",
+                bill.calculation_details.get('management_fee', '0'),
+                "已支付" if bill.is_paid else "未支付"
+            ])
+
+        output.seek(0)
+
+        # 5. 返回CSV文件
+        from flask import Response
+        return Response(
+            output,
+            mimetype="text/csv",
+            headers={"Content-Disposition": f"attachment;filename=management_fees_{billing_year}-{billing_month}.csv"}
+        )
+
+    except Exception as e:
+        current_app.logger.error(f"导出管理费明细失败: {e}", exc_info=True)
+        return jsonify({"error": "导出失败"}), 500
