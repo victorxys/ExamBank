@@ -2405,3 +2405,81 @@ def defer_customer_bill(bill_id):
         db.session.rollback()
         current_app.logger.error(f"顺延账单 {bill_id} 时发生错误: {e}", exc_info=True)
         return jsonify({"error": "处理顺延操作时发生内部错误"}), 500
+    
+@billing_bp.route("/batch-settle", methods=["POST"])
+@admin_required
+def batch_settle():
+    """
+    批量更新多张账单的结算状态。
+    """
+    data = request.get_json()
+    updates = data.get("updates")
+
+    if not isinstance(updates, list):
+        return jsonify({"error": "请求体必须包含一个 'updates' 数组。"}), 400
+
+    try:
+        # 使用事务确保操作的原子性
+        with db.session.begin_nested():
+            for update_data in updates:
+                bill_id = update_data.get("bill_id")
+                if not bill_id:
+                    continue
+
+                bill = db.session.get(CustomerBill, bill_id)
+                if not bill:
+                    current_app.logger.warning(f"[BatchSettle] 未找到账单ID {bill_id}，已跳过。")
+                    continue
+
+                payroll = EmployeePayroll.query.filter_by(
+                    contract_id=bill.contract_id,
+                    cycle_start_date=bill.cycle_start_date,
+                    is_substitute_payroll=bill.is_substitute_bill,
+                ).first()
+
+                if not payroll:
+                    current_app.logger.warning(f"[BatchSettle] 未找到账单 {bill_id} 对应的薪酬单，已跳过。")
+                    continue
+
+                # 1. 更新客户账单 (CustomerBill)
+                customer_is_paid = update_data.get("customer_is_paid")
+                if customer_is_paid is not None and bill.is_paid != customer_is_paid:
+                    bill.is_paid = customer_is_paid
+                    _log_activity(bill, None, f"批量结算-客户打款状态变更为: {'已打款' if customer_is_paid else '未打款'}")
+
+                if bill.payment_details is None:
+                    bill.payment_details = {}
+
+                customer_payment_date_str = update_data.get("customer_payment_date")
+                customer_payment_channel = update_data.get("customer_payment_channel")
+
+                # 更新JSON字段中的值
+                bill.payment_details['payment_date'] = customer_payment_date_str
+                bill.payment_details['payment_channel'] = customer_payment_channel
+                # 标记JSON字段为已修改，以便SQLAlchemy能检测到变化
+                attributes.flag_modified(bill, "payment_details")
+
+                # 2. 更新员工薪酬单 (EmployeePayroll)
+                employee_is_paid = update_data.get("employee_is_paid")
+                if employee_is_paid is not None and payroll.is_paid != employee_is_paid:
+                    payroll.is_paid = employee_is_paid
+                    _log_activity(None, payroll, f"批量结算-员工领款状态变更为: {'已领款' if employee_is_paid else '未领款'}")
+
+                if payroll.payout_details is None:
+                    payroll.payout_details = {}
+
+                employee_payout_date_str = update_data.get("employee_payout_date")
+                employee_payout_channel = update_data.get("employee_payout_channel")
+
+                payroll.payout_details['date'] = employee_payout_date_str
+                payroll.payout_details['channel'] = employee_payout_channel
+                attributes.flag_modified(payroll, "payout_details")
+
+        # 提交整个事务
+        db.session.commit()
+        return jsonify({"message": "批量结算成功！"})
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"批量结算失败: {e}", exc_info=True)
+        return jsonify({"error": "服务器内部错误"}), 500

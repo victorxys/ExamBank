@@ -5,7 +5,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Box, Button, Typography, Paper, Table, TableBody, TableCell, TableContainer,
   TableHead, TableRow, TablePagination, IconButton, CircularProgress,
-  TextField, Select, MenuItem, FormControl, InputLabel, Chip, Tooltip,
+  TextField, Select, MenuItem, FormControl, InputLabel, Chip, Tooltip, Checkbox,
   Card, CardHeader, CardContent, Grid, Dialog, DialogTitle, DialogContent, DialogActions, Divider, List, ListItem, ListItemText, ListItemIcon, Alert
 } from '@mui/material';
 import { 
@@ -32,6 +32,7 @@ import PageHeader from './PageHeader';
 import AlertMessage from './AlertMessage';
 import useTaskPolling from '../utils/useTaskPolling'; // <<<--- 1. 导入 useTaskPolling Hook
 import FinancialManagementModal from './FinancialManagementModal'; // 1. 导入新组件
+import BatchSettlementModal from './BatchSettlementModal'
 
 
 
@@ -237,6 +238,8 @@ const BillingDashboard = () => {
     const [loadingDetail, setLoadingDetail] = useState(false);
     const [selectedContractForDetail, setSelectedContractForDetail] = useState(null);
     const [billingDetails, setBillingDetails] = useState(null);
+    const [selected, setSelected] = useState([]); // <-- 添加此行，用于存储选中的账单ID
+    const [batchSettlementModalOpen, setBatchSettlementModalOpen] = useState(false); // <-- 添加此行
 
     // --- 新增：用于在模态框中编辑考勤的状态 ---
     const [editableAttendance, setEditableAttendance] = useState(null);
@@ -474,6 +477,34 @@ const BillingDashboard = () => {
         }
     };
 
+    const handleSelectAllClick = (event) => {
+        if (event.target.checked) {
+            const newSelecteds = contracts.map((n) => n.id);
+            setSelected(newSelecteds);
+            return;
+        }
+        setSelected([]);
+    };
+
+    const handleClick = (event, id) => {
+        const selectedIndex = selected.indexOf(id);
+        let newSelected = [];
+
+        if (selectedIndex === -1) {
+            newSelected = newSelected.concat(selected, id);
+        } else if (selectedIndex === 0) {
+            newSelected = newSelected.concat(selected.slice(1));
+        } else if (selectedIndex === selected.length - 1) {
+            newSelected = newSelected.concat(selected.slice(0, -1));
+        } else if (selectedIndex > 0) {
+            newSelected = newSelected.concat(
+                selected.slice(0, selectedIndex),
+                selected.slice(selectedIndex + 1),
+            );
+        }
+        setSelected(newSelected);
+    };
+
     // --- 新增：处理考勤表单编辑和保存的函数 ---
     const handleAttendanceChange = (e) => {
         const { name, value } = e.target;
@@ -665,6 +696,16 @@ const BillingDashboard = () => {
 
                 {/* Actions */}
                 <Grid item xs={12} md="auto" sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 2 }}>
+                    {/* 批量结算按钮 */}
+                    <Button
+                        variant="contained"
+                        color="secondary"
+                        onClick={() => setBatchSettlementModalOpen(true)}
+                        disabled={selected.length === 0}
+                    >
+                        批量结算 ({selected.length})
+                    </Button>
+                    
                   <TextField label="账单月份" type="month" size="small" value={selectedBillingMonth} onChange={(e) => setSelectedBillingMonth(e.target.value)} InputLabelProps={{ shrink: true }} />
                   <Tooltip title={`计算 ${selectedBillingMonth} 的所有账单`}>
                       <span>
@@ -688,6 +729,15 @@ const BillingDashboard = () => {
               <Table>
                 <TableHead>
                     <TableRow>
+                         {/* 新增的复选框列 */}
+                        <TableCell padding="checkbox">
+                            <Checkbox
+                                color="primary"
+                                indeterminate={selected.length > 0 && selected.length < contracts.length}
+                                checked={contracts.length > 0 && selected.length === contracts.length}
+                                onChange={handleSelectAllClick}
+                            />
+                        </TableCell>
                         <TableCell>客户姓名</TableCell>
                         <TableCell>服务人员</TableCell>
                         <TableCell>合同类型</TableCell>
@@ -702,8 +752,25 @@ const BillingDashboard = () => {
                 <TableBody>
                   {loading ? ( <TableRow><TableCell colSpan={7} align="center" sx={{py: 5}}><CircularProgress /></TableCell></TableRow> )
                   : (
-                    (contracts).map((bill) => (
-                      <TableRow hover key={bill.id}>
+                    (contracts).map((bill) => {
+                    const isItemSelected = selected.indexOf(bill.id) !== -1; // 判断是否选中
+                    return(
+                      <TableRow
+                        hover
+                        key={bill.id}
+                        onClick={(event) => handleClick(event, bill.id)} // 添加点击事件
+                        role="checkbox"
+                        aria-checked={isItemSelected}
+                        tabIndex={-1}
+                        selected={isItemSelected}
+                      >
+                        {/* 新增的复选框单元格 */}
+                        <TableCell padding="checkbox">
+                            <Checkbox
+                                color="primary"
+                                checked={isItemSelected}
+                            />
+                        </TableCell>
                         <TableCell sx={{color: '#525f7f', fontWeight: 'bold'}}>
                             {bill.customer_name}
                             {bill.is_substitute_bill && <Chip label="替" size="small" color="warning" sx={{ ml: 1 }} />}
@@ -840,7 +907,8 @@ const BillingDashboard = () => {
                             </Box>
                         </TableCell>
                       </TableRow>
-                    ))
+                    )
+                    })
                   )}
                 </TableBody>
               </Table>
@@ -912,6 +980,19 @@ const BillingDashboard = () => {
               </Button>
           </DialogActions>
       </Dialog>
+        {batchSettlementModalOpen && (
+            <BatchSettlementModal
+                open={batchSettlementModalOpen}
+                onClose={() => setBatchSettlementModalOpen(false)}
+                bills={contracts.filter(c => selected.includes(c.id))}
+                onSaveSuccess={() => {
+                    setBatchSettlementModalOpen(false);
+                    setAlert({ open: true, message: '批量结算成功！', severity: 'success' });
+                    fetchBills(); // 刷新列表
+                    setSelected([]); // 清空选择
+                }}
+            />
+        )}
     </Box>
   </LocalizationProvider>
   );
