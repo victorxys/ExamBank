@@ -545,6 +545,9 @@ class BillingEngine:
 
         details = self._calculate_nanny_details(contract, bill, payroll, actual_work_days_override)
         bill, payroll = self._calculate_final_amounts(bill, payroll, details)
+        current_app.logger.info(
+            f"    [NannyCALC] 计算育儿嫂合同应收金额 {contract.id} 的账单总应收金额: {bill.total_payable}"
+        )
         log = self._create_calculation_log(details)
         self._update_bill_with_log(bill, payroll, details, log)
 
@@ -1051,7 +1054,11 @@ class BillingEngine:
                 f"      [CYCLE PROC] No existing bill found or not forcing recalculation. Using derived dates: {actual_cycle_start_date} to {actual_cycle_end_date}"
             )
         details = self._calculate_maternity_nurse_details(contract, bill, payroll)
+        
         bill, payroll = self._calculate_final_amounts(bill, payroll, details)
+        current_app.logger.info(
+            f"      [CYCLE PROC] 计算月嫂合同bill.total_payable  {bill.total_payable } 的财务细节完成。"
+        )
     
         log = self._create_calculation_log(details)
         self._update_bill_with_log(bill, payroll, details, log)
@@ -1089,7 +1096,7 @@ class BillingEngine:
         
 
         # 1. 管理费和管理费率计算
-        management_fee = ((customer_deposit - level)/26 * (base_work_days+1)).quantize(QUANTIZER)
+        management_fee = ((customer_deposit - level)/26 * (base_work_days)).quantize(QUANTIZER)
         management_fee_rate = (
             (management_fee / customer_deposit).quantize(D("0.0001"))
             if customer_deposit > 0
@@ -1663,16 +1670,17 @@ class BillingEngine:
         return cust_increase, cust_decrease, emp_increase, emp_decrease, deferred_fee
 
     def _calculate_final_amounts(self, bill, payroll, details):
+        current_app.logger.info("开始进行final calculation of amounts.")
         total_payable = (
-            D(details.get("customer_base_fee", 0))
-            + D(details.get("customer_overtime_fee", 0))
-            + D(details.get("management_fee", 0))
+            D(details.get("management_fee", 0))
+            # + D(details.get("customer_overtime_fee", 0))
+            # + D(details.get("customer_base_fee", 0))
             + D(details.get("customer_increase", 0))
-            + D(details.get("extension_fee", "0.00"))
+            # + D(details.get("extension_fee", "0.00"))
             + D(details.get("deferred_fee", "0.00"))
             - D(details.get("customer_decrease", 0))
             - D(details.get("discount", 0))
-            - D(details.get("substitute_deduction", 0))
+            # - D(details.get("substitute_deduction", 0))
         )
         final_payout = (
             D(details["employee_base_payout"])
@@ -1791,12 +1799,12 @@ class BillingEngine:
         # 简化日志，只显示非零内容
         # --- 客户应付款日志 ---
         customer_parts = []
-        if d.get("customer_base_fee"):
-            customer_parts.append(f"基础劳务费({d['customer_base_fee']:.2f})")
-        if d.get("extension_fee"):
-            customer_parts.append(f"延长期服务费({d['extension_fee']:.2f})")
-        if d.get("customer_overtime_fee"):
-            customer_parts.append(f"加班费({d['customer_overtime_fee']:.2f})")
+        # if d.get("customer_base_fee"):
+        #     customer_parts.append(f"基础劳务费({d['customer_base_fee']:.2f})")
+        # if d.get("extension_fee"):
+        #     customer_parts.append(f"延长期服务费({d['extension_fee']:.2f})")
+        # if d.get("customer_overtime_fee"):
+        #     customer_parts.append(f"加班费({d['customer_overtime_fee']:.2f})")
         if d.get("management_fee"):
             customer_parts.append(f"管理费({d['management_fee']:.2f})")
         if d.get("customer_increase"):
@@ -1807,8 +1815,8 @@ class BillingEngine:
         # 处理减项
         if d.get("discount"):
             customer_parts.append(f"- 优惠({d['discount']:.2f})")
-        if d.get("substitute_deduction"):
-            customer_parts.append(f"- 被替班扣款({d['substitute_deduction']:.2f})")
+        # if d.get("substitute_deduction"):
+        #     customer_parts.append(f"- 被替班扣款({d['substitute_deduction']:.2f})")
         if d.get("customer_decrease"):
             customer_parts.append(f"- 减款({d['customer_decrease']:.2f})")
 
@@ -2074,3 +2082,50 @@ class BillingEngine:
                     current_app.logger.info(
                         f"账单 {current_bill.id} 存在未结清发票，已自动将下一张账单 {next_bill.id} 的开票需求设为 True。"
                     )
+
+    def recalculate_all_bills_for_contract(self, contract_id):
+        """
+        通过 flask app 命令调用 上下文来重新计算指定合同下的所有账单。
+        查找给定合同ID下的所有现有账单，并强制重新计算它们。
+        这个函数不关心合同日期，只处理已存在的账单。
+        """
+        contract = db.session.get(BaseContract, contract_id)
+        if not contract:
+            current_app.logger.error(
+                f"[RecalcByBill] 合同 {contract_id} 未找到。"
+            )
+            return
+
+        current_app.logger.info(
+            f"[RecalcByBill] 开始为合同 {contract.id} 重新计算所有现有账单。"
+        )
+
+        all_bills_for_contract = CustomerBill.query.filter_by(
+            contract_id=contract.id
+        ).order_by(CustomerBill.cycle_start_date).all()
+
+        if not all_bills_for_contract:
+            current_app.logger.warning(
+                f"[RecalcByBill] 合同 {contract.id} 没有任何已存在的账单，跳过。"
+            )
+            return
+
+        current_app.logger.info(
+            f"[RecalcByBill] 找到 {len(all_bills_for_contract)} 个账单需要重算。"
+        )
+
+        for bill in all_bills_for_contract:
+            current_app.logger.info(
+                f"  -> 正在重算账单 ID: {bill.id} (周期: {bill.cycle_start_date})"
+            )
+            self.calculate_for_month(
+                year=bill.year,
+                month=bill.month,
+                contract_id=contract.id,
+                force_recalculate=True,
+                cycle_start_date_override=bill.cycle_start_date
+            )
+
+        current_app.logger.info(
+            f"[RecalcByBill] 合同 {contract.id} 的所有账单已重算完毕。"
+        )

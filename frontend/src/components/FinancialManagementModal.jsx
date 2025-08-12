@@ -478,7 +478,7 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
             "级别与保证金": ["级别", "客交保证金", "定金", "介绍费", "合同备注"],
             "劳务周期": ["劳务时间段", "基本劳务天数","延长服务天数", "加班天数", "被替班天数", "总劳务天数"],
             "费用明细": ["管理费率", "管理费", "本次交管理费", "基础劳务费", "延长期服务费", "试工费", "加班费", "被替班费用", "优惠"],
-            "薪酬明细": ["萌嫂保证金(工资)", "试工费", "基础劳务费", "加班费", "被替班天数", "延长期服务费", "被替班费用", "5%奖励", "首月员工10%费用"],
+            "薪酬明细": ["级别", "萌嫂保证金(工资)", "试工费", "基础劳务费", "加班费", "被替班天数", "延长期服务费", "被替班费用", "5%奖励", "首月员工10%费用"],
         };
 
         return (
@@ -634,6 +634,9 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                                     return null;
                                 }
                                 if (key === '被替班天数' && (Number(value) === 0 || value === '待计算')) {
+                                    return null;
+                                }
+                                if (key === '优惠' && (Number(value) === 0 || value === '待计算')) {
                                     return null;
                                 }
                                 if ((isOvertimeField || isOvertimeFeeField) && Number(value) === 0) {

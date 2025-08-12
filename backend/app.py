@@ -265,6 +265,7 @@ app.register_blueprint(user_api)
 app.register_blueprint(contract_bp)
 
 
+
 flask_log = os.environ["FLASK_LOG_FILE"]  # 设置flask log地址
 
 # 配置日志记录
@@ -4249,6 +4250,7 @@ def serve_uploaded_media(filepath):
         current_app.logger.error(f"服务媒体文件失败: {e}", exc_info=True)
         return jsonify({"error": "Internal server error"}), 500
 
-
+from backend import management_commands
+management_commands.register_commands(app)
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=5000)

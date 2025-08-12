@@ -123,11 +123,11 @@ def _get_billing_details_internal(
         customer_details["groups"][2]["fields"],
         calc_cust,
         [
-            "customer_base_fee",
-            "customer_overtime_fee",
+            # "customer_base_fee",
+            # "customer_overtime_fee",
             "management_fee",
             "management_fee_rate",
-            "substitute_deduction",
+            # "substitute_deduction",
         ],
     )
     if contract.type == "nanny":
@@ -340,14 +340,16 @@ def _get_details_template(contract, cycle_start, cycle_end):
         },
         {"name": "费用明细", "fields": {}},
     ]
-    employee_groups = [{"name": "薪酬明细", "fields": {}}]
+    employee_groups = [{"name": "薪酬明细", "fields": {
+        "级别": str(contract.employee_level or 0)
+    }}]
 
     if is_maternity:
         customer_groups[2]["fields"] = {
-            "基础劳务费": "待计算",
-            "加班费": "待计算",
+            # "基础劳务费": "待计算",
+            # "加班费": "待计算",
             "管理费": "待计算",
-            "被替班费用": "0.00",
+            # "被替班费用": "0.00",
             "优惠": str(getattr(contract, "discount_amount", 0)),
         }
         employee_groups[0]["fields"] = {
@@ -358,10 +360,10 @@ def _get_details_template(contract, cycle_start, cycle_end):
         }
     elif is_nanny:
         customer_groups[2]["fields"] = {
-            "基础劳务费": "待计算",
-            "加班费": "待计算",
+            # "基础劳务费": "待计算",
+            # "加班费": "待计算",
             "本次交管理费": "待计算",
-            "被替班费用": "0.00",
+            # "被替班费用": "0.00",
         }
         employee_groups[0]["fields"] = {
             "基础劳务费": "待计算",
