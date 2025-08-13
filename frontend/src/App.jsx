@@ -2,6 +2,7 @@ import { useState, lazy, Suspense } from 'react'; // 添加 lazy 和 Suspense
 
 // --- React Router ---
 import { Routes, Route, Navigate, Outlet } from 'react-router-dom'; // 确保导入 Outlet
+// import DashboardPage from './components/DashboardPage'; // <-- 导入新页面
 // --- Material UI ---
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import { Box, CssBaseline, CircularProgress} from '@mui/material';
@@ -305,6 +306,10 @@ const TrainingContentDetail = lazy(() => import('./components/TrainingContentDet
 const BillingDashboard = lazy(() => import('./components/BillingDashboard')); 
 const ContractList = lazy(() => import('./components/ContractList')); 
 const ContractDetail = lazy(() => import('./components/ContractDetail')); // 新建合同详情页
+const ConflictCheckerPage = lazy(() => import('./components/ConflictCheckerPage'));
+
+// 仪表盘
+const DashboardPage = lazy(() => import('./components/DashboardPage'));
 
 
 // --- 5. App 组件主体 ---
@@ -318,7 +323,9 @@ function App() {
         {/* 应用主布局的路由 */}
         <Route element={<MainLayoutInternal />}>
           {/* --- 5. 使用 Suspense 包裹懒加载组件 --- */}
-          <Route path="/" element={<PrivateRoute element={<Navigate to="/users" />} />} />
+          <Route path="/" element={<PrivateRoute element={<Navigate to="/dashboard" />} />} /> {/* <-- 可以将默认页指向仪表盘 */}
+          <Route path="/dashboard" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}><DashboardPage /></Suspense>} />}/> {/* <-- 添加这行新路由 */}
+          {/* <Route path="/" element={<PrivateRoute element={<Navigate to="/my-courses" />} />} /> */}
           <Route path="/exams" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <ExamList /> </Suspense>} />} />
           <Route path="/exams/:examId" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <ExamDetail /> </Suspense>} />} />
           <Route path="/knowledge-points" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <KnowledgePoints /> </Suspense>} />} />
@@ -346,6 +353,7 @@ function App() {
           <Route path="/contracts" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <ContractList /> </Suspense>} />} />
           <Route path="/billing" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <BillingDashboard /> </Suspense>} />} />
           <Route path="/contracts/:contractId" element={<ContractDetail />} />
+          <Route path="/tools/conflict-checker" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}><ConflictCheckerPage /></Suspense>} />} />
 
         </Route>
 

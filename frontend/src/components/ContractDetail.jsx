@@ -7,11 +7,11 @@ import {
   Box, Typography, Paper, Grid, CircularProgress, Button,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Chip,
   List, ListItem, ListItemText, Divider, Dialog, DialogTitle, DialogContent,
-  DialogActions, Alert, Stack
+  DialogActions, Alert, Stack, IconButton, TextField, InputAdornment
 } from '@mui/material';
 import {
     ArrowBack as ArrowBackIcon, Edit as EditIcon, CheckCircle as CheckCircleIcon,
-    Cancel as CancelIcon
+    Cancel as CancelIcon, Save as SaveIcon, Link as LinkIcon
 } from '@mui/icons-material';
 import { DatePicker, LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -30,10 +30,85 @@ const formatDate = (isoString) => {
   } catch (e) { return '无效日期'; }
 };
 
+const formatCurrency = (amount) => {
+  const num = parseFloat(amount);
+  if (isNaN(num)) {
+    return '0';
+  }
+  // 四舍五入到最近的整数，然后添加千位分隔符
+  return Math.round(num).toLocaleString('en-US');
+};
+
 const DetailItem = ({ label, value }) => (
     <Grid item xs={12} sm={6} md={4}>
         <Typography variant="body2" color="text.secondary" gutterBottom>{label}</Typography>
         <Typography variant="body1" component="div" sx={{ fontWeight: 500 }}>{value || '—'}</Typography>
+    </Grid>
+);
+
+const EditableDetailItem = ({ label, value, isEditing, onEdit, onSave, onCancel, onChange }) => (
+    <Grid item xs={12} sm={6} md={4}>
+        <Typography variant="body2" color="text.secondary" gutterBottom>{label}</Typography>
+        {isEditing ? (
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <TextField
+                    size="small"
+                    value={value}
+                    onChange={onChange}
+                    InputProps={{
+                        startAdornment: <InputAdornment position="start">¥</InputAdornment>,
+                    }}
+                    sx={{ mr: 1 }}
+                />
+                <IconButton size="small" onClick={onSave} color="primary"><SaveIcon /></IconButton>
+                <IconButton size="small" onClick={onCancel}><CancelIcon /></IconButton>
+            </Box>
+        ) : (
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <Typography variant="body1" component="div" sx={{ fontWeight: 500 }}>{`¥${formatCurrency(value)}`}</Typography>
+                <IconButton size="small" onClick={onEdit} sx={{ ml: 1 }}><EditIcon fontSize="small" /></IconButton>
+            </Box>
+        )}
+    </Grid>
+);
+
+const EditableNotesItem = ({ label, originalValue, operationalValue, isEditing, onEdit, onSave, onCancel, onChange }) => (
+    <Grid item xs={12}>
+        <Typography variant="body2" color="text.secondary" gutterBottom>
+            {label}
+            {!isEditing && (
+                <IconButton size="small" onClick={onEdit} sx={{ ml: 1 }}>
+                    <EditIcon fontSize="small" />
+                </IconButton>
+            )}
+        </Typography>
+        <Paper variant="outlined" sx={{ p: 2, whiteSpace: 'pre-wrap', backgroundColor: '#f9f9f9' }}>
+            <Typography variant="body1">{originalValue || '（无原始备注）'}</Typography>
+        </Paper>
+        {isEditing ? (
+            <Box sx={{ mt: 1 }}>
+                <TextField
+                    fullWidth
+                    multiline
+                    rows={4}
+                    variant="outlined"
+                    label="运营备注"
+                    value={operationalValue}
+                    onChange={onChange}
+                />
+                <Box sx={{ mt: 1, textAlign: 'right' }}>
+                    <Button onClick={onSave} variant="contained" color="primary" startIcon={<SaveIcon />}>保存</Button>
+                    <Button onClick={onCancel} sx={{ ml: 1 }}>取消</Button>
+                </Box>
+            </Box>
+        ) : (
+            operationalValue && (
+                <Paper variant="outlined" sx={{ p: 2, mt: 1, whiteSpace: 'pre-wrap' }}>
+                        <Typography variant="body2" color="text.secondary" gutterBottom>运营备注</Typography>
+                    <Typography variant="body1">{operationalValue}</Typography>
+                </Paper>
+            )
+        )}
     </Grid>
 );
 
@@ -49,6 +124,13 @@ const ContractDetail = () => {
     const [terminationDialogOpen, setTerminationDialogOpen] = useState(false);
     const [terminationDate, setTerminationDate] = useState(null);
 
+    const [isEditingIntroFee, setIsEditingIntroFee] = useState(false);
+    const [introFee, setIntroFee] = useState('');
+
+    const [originalNotes, setOriginalNotes] = useState('');
+    const [operationalNotes, setOperationalNotes] = useState('');
+    const [isEditingNotes, setIsEditingNotes] = useState(false);
+
     const fetchData = async () => {
         setLoading(true);
         try {
@@ -58,6 +140,18 @@ const ContractDetail = () => {
             ]);
             setContract(contractRes.data);
             setBills(billsRes.data);
+            setIntroFee(contractRes.data.introduction_fee || '0');
+        
+            const separator = '\\n\\n--- 运营备注 ---\\n';
+            const notes = contractRes.data.notes || '';
+            if (notes.includes(separator)) {
+                const parts = notes.split(separator);
+                setOriginalNotes(parts[0]);
+                setOperationalNotes(parts[1]);
+            } else {
+                setOriginalNotes(notes);
+                setOperationalNotes('');
+            }
         } catch (error) {
             setAlert({ open: true, message: `获取数据失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
         } finally {
@@ -106,7 +200,32 @@ const ContractDetail = () => {
             setAlert({ open: true, message: `操作失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
         }
     };
-    // ---------------------------------
+    
+    const handleUpdateIntroFee = async () => {
+        try {
+            await api.put(`/billing/contracts/${contract.id}`, {
+                introduction_fee: introFee,
+            });
+            setAlert({ open: true, message: '介绍费更新成功！', severity: 'success' });
+            setIsEditingIntroFee(false);
+            fetchData();
+        } catch (error) {
+            setAlert({ open: true, message: `操作失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
+        }
+    };
+
+    const handleSaveNotes = async () => {
+        try {
+            await api.put(`/billing/contracts/${contract.id}`, {
+                notes: operationalNotes,
+            });
+            setAlert({ open: true, message: '备注更新成功！', severity: 'success' });
+            setIsEditingNotes(false);
+            fetchData();
+        } catch (error) {
+            setAlert({ open: true, message: `操作失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
+        }
+    };
 
     const handleNavigateToBill = (bill) => {
         navigate(`/billing?month=${bill.billing_period}&open_bill_id=${bill.id}`);
@@ -117,33 +236,72 @@ const ContractDetail = () => {
 
     const baseFields = {
         '客户姓名': contract.customer_name,
-        '联系人': contract.contact_person,
+        // '联系人': contract.contact_person,
         '服务人员': contract.employee_name,
         '状态': <Chip label={contract.status} color={contract.status === 'active' ? 'success' : 'default'} size="small" />,
         '合同周期': `${formatDate(contract.start_date)} ~ ${formatDate(contract.end_date)}`,
-        '合同剩余月数': <Chip label={contract.remaining_months} size="small" color={contract.highlight_remaining ? 'warning' : 'default'} variant={contract.highlight_remaining ? 'filled' : 'outlined'} />, 
-        '创建时间': new Date(contract.created_at).toLocaleDateString('zh-CN'),
-        '备注': contract.notes,                   
+        '合同剩余月数': <Chip label={contract.remaining_months} size="small" color={contract.highlight_remaining ? 'warning' : 'default'} variant={contract.highlight_remaining ? 'filled' : 'outlined'} />,
+        // '创建时间': new Date(contract.created_at).toLocaleDateString('zh-CN'),
+        // '备注': contract.notes,                   
     };                                            
                                                   
     const specificFields = contract.contract_type === 'maternity_nurse' ? {
-        '合同类型': '月嫂合同',                   
-        '级别/月薪': `¥${contract.employee_level}`,
+        '合同类型': '月嫂合同',
+        '级别/月薪': `¥${formatCurrency(contract.employee_level)}`,
         '预产期': formatDate(contract.provisional_start_date),
         '实际上户日期': formatDate(contract.actual_onboarding_date),
-        '定金': `¥${contract.deposit_amount}`,    
+        '定金': `¥${formatCurrency(contract.deposit_amount)}`,
+        '管理费': `¥${formatCurrency(contract.management_fee_amount)}`,
         '管理费率': `${(contract.management_fee_rate * 100).toFixed(0)}%`,
-        '保证金支付': `¥${contract.security_deposit_paid}`,
-        '优惠金额': `¥${contract.discount_amount}`,
+        '保证金支付': `¥${formatCurrency(contract.security_deposit_paid)}`,
+        '优惠金额': `¥${formatCurrency(contract.discount_amount)}`,
     } : contract.contract_type === 'nanny_trial' ? {
         '合同类型': '育儿嫂试工',
-        '级别/月薪': `¥${contract.employee_level}`,
-        '介绍费': `¥${contract.introduction_fee}`,
-    } : {
+        '级别/月薪': `¥${formatCurrency(contract.employee_level)}`,
+    } : { // nanny
         '合同类型': '育儿嫂合同',
-        '级别/月薪': `¥${contract.employee_level}`,
+        '级别/月薪': `¥${formatCurrency(contract.employee_level)}`,
+        '管理费': `¥${formatCurrency(contract.management_fee_amount)}`,
         '是否自动月签': contract.is_monthly_auto_renew ? '是' : '否',
     };
+
+    const introFeeField = (['nanny', 'nanny_trial'].includes(contract.contract_type)) ? (
+        <EditableDetailItem
+            label="介绍费"
+            value={introFee}
+            isEditing={isEditingIntroFee}
+            onEdit={() => setIsEditingIntroFee(true)}
+            onSave={handleUpdateIntroFee}
+            onCancel={() => {
+                setIsEditingIntroFee(false);
+                setIntroFee(contract.introduction_fee || '0');
+            }}
+            onChange={(e) => setIntroFee(e.target.value)}
+        />
+    ) : null;
+
+    const notesField = (
+        <EditableNotesItem
+            label="合同备注"
+            originalValue={originalNotes}
+            operationalValue={operationalNotes}
+            isEditing={isEditingNotes}
+            onEdit={() => setIsEditingNotes(true)}
+            onSave={handleSaveNotes}
+            onCancel={() => {
+                setIsEditingNotes(false);
+                // 可选：重置未保存的修改
+                const separator = '\\n\\n--- 运营备注 ---\\n';
+                const notes = contract.notes || '';
+                if (notes.includes(separator)) {
+                    setOperationalNotes(notes.split(separator)[1]);
+                } else {
+                    setOperationalNotes('');
+                }
+            }}
+            onChange={(e) => setOperationalNotes(e.target.value)}
+        />
+    );
 
     return (
         <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={zhCN}>
@@ -186,6 +344,8 @@ const ContractDetail = () => {
                             <Grid container spacing={3}>
                                 {Object.entries(baseFields).map(([label, value]) => <DetailItem key={label} label={label} value={value} />)}
                                 {Object.entries(specificFields).map(([label, value]) => <DetailItem key={label} label={label} value={value} />)}
+                                {introFeeField}
+                                {notesField}
                             </Grid>
                         </Paper>
                     </Grid>
@@ -218,7 +378,7 @@ const ContractDetail = () => {
                                                     )}
                                                 </TableCell>
                                                 <TableCell>{bill.overtime_days} 天</TableCell>
-                                                <TableCell sx={{fontWeight: 'bold'}}>¥{bill.total_payable}</TableCell>
+                                                <TableCell sx={{fontWeight: 'bold'}}>{`¥${formatCurrency(bill.total_payable)}`}</TableCell>
                                                 <TableCell><Chip label={bill.status} color={bill.status === '已支付' ? 'success' : 'warning'} size="small" /></TableCell>
                                                 <TableCell align="right">
                                                 <Button variant="contained" size="small" onClick={() => handleNavigateToBill(bill)}>

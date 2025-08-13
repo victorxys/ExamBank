@@ -13,6 +13,7 @@ export const AdjustmentTypes = {
     customer_discount: { label: '优惠', type: 'customer', effect: -1 },
     employee_increase: { label: '萌嫂增款', type: 'employee', effect: 1 },
     employee_decrease: { label: '减萌嫂款', type: 'employee', effect: -1 },
+    deferred_fee: { label: '上期顺延费用', type: 'customer', effect: 1 },
 };
 
 const AdjustmentDialog = ({ open, onClose, onSave, adjustment = null, typeFilter = 'all' }) => {

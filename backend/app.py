@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 import uuid
 import logging
 import json
+from pypinyin import pinyin, Style
 from backend.security_utils import generate_password_hash
 from werkzeug.security import check_password_hash
 from psycopg2.extras import RealDictCursor, register_uuid  # 确保导入
@@ -262,6 +263,7 @@ app.register_blueprint(permission_bp)  # <--- 新增注册
 app.register_blueprint(billing_bp, url_prefix="/api/billing")
 app.register_blueprint(user_api)
 app.register_blueprint(contract_bp)
+
 
 
 flask_log = os.environ["FLASK_LOG_FILE"]  # 设置flask log地址
@@ -1541,6 +1543,17 @@ def create_user():
             log.debug(f"Username {data['username']} already exists")
             return jsonify({"error": "Username already exists"}), 400
 
+        # --- 开始修改 ---
+        # 1. 生成拼音
+        username = data["username"]
+        try:
+            pinyin_full = "".join(p[0] for p in pinyin(username, style=Style.NORMAL))
+            pinyin_initials = "".join(p[0] for p in pinyin(username, style=Style.FIRST_LETTER))
+            name_pinyin_final = f"{pinyin_full} {pinyin_initials}"
+        except Exception:
+            name_pinyin_final = None
+        # --- 修改结束 ---
+
         # 创建新用户
         cur.execute(
             """
@@ -1550,8 +1563,9 @@ def create_user():
                 phone_number,
                 role,
                 email,
-                status
-            ) VALUES (%s, %s, %s, %s, %s, %s)
+                status,
+                name_pinyin
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s)
             RETURNING id, username, phone_number, role, email, status, created_at, updated_at
         """,
             (
@@ -1561,6 +1575,7 @@ def create_user():
                 data.get("role", "student"),
                 data.get("email", ""),
                 data.get("status", "active"),
+                name_pinyin_final, # <-- 新增
             ),
         )
         new_user = cur.fetchone()
@@ -1592,11 +1607,21 @@ def update_user(user_id):
         update_fields = []
         params = []
         if "username" in data and data["username"]:
-            # print("更新用户名")
+            username = data["username"]
             update_fields.append("username = %s")
-            params.append(data["username"])
+            params.append(username)
+            # --- 开始修改 ---
+            try:
+                pinyin_full = "".join(p[0] for p in pinyin(username, style=Style.NORMAL))
+                pinyin_initials = "".join(p[0] for p in pinyin(username, style=Style.FIRST_LETTER))
+                name_pinyin_final = f"{pinyin_full} {pinyin_initials}"
+            except Exception:
+                name_pinyin_final = None
+            update_fields.append("name_pinyin = %s")
+            params.append(name_pinyin_final)
+            # --- 修改结束 ---
+
         if "password" in data and data["password"]:
-            # print("更新密码")
             log.debug("更新密码")
             update_fields.append("password = %s")
             params.append(generate_password_hash(data["password"]))
@@ -1610,7 +1635,6 @@ def update_user(user_id):
             update_fields.append("email = %s")
             params.append(data["email"])
         if "status" in data and data["status"]:
-            # print("更新状态")
             update_fields.append("status = %s")
             params.append(data["status"])
 
@@ -4226,6 +4250,7 @@ def serve_uploaded_media(filepath):
         current_app.logger.error(f"服务媒体文件失败: {e}", exc_info=True)
         return jsonify({"error": "Internal server error"}), 500
 
-
+from backend import management_commands
+management_commands.register_commands(app)
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=5000)

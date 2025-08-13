@@ -5,7 +5,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Box, Button, Typography, Paper, Table, TableBody, TableCell, TableContainer,
   TableHead, TableRow, TablePagination, IconButton, CircularProgress,
-  TextField, Select, MenuItem, FormControl, InputLabel, Chip, Tooltip,
+  TextField, Select, MenuItem, FormControl, InputLabel, Chip, Tooltip, Checkbox,
   Card, CardHeader, CardContent, Grid, Dialog, DialogTitle, DialogContent, DialogActions, Divider, List, ListItem, ListItemText, ListItemIcon, Alert
 } from '@mui/material';
 import { 
@@ -18,7 +18,9 @@ import {
     TrendingDown as TrendingDownIcon, // 用于应退
     EventBusy as EventBusyIcon, // 或者 HelpOutline as HelpOutlineIcon
     CheckCircle as CheckCircleIcon,
-    HighlightOff as HighlightOffIcon
+    HighlightOff as HighlightOffIcon,
+    Download as DownloadIcon,
+    Update as UpdateIcon,
 } from '@mui/icons-material';
 import { DatePicker, LocalizationProvider } from '@mui/x-date-pickers';
 
@@ -32,6 +34,7 @@ import PageHeader from './PageHeader';
 import AlertMessage from './AlertMessage';
 import useTaskPolling from '../utils/useTaskPolling'; // <<<--- 1. 导入 useTaskPolling Hook
 import FinancialManagementModal from './FinancialManagementModal'; // 1. 导入新组件
+import BatchSettlementModal from './BatchSettlementModal'
 
 
 
@@ -83,7 +86,34 @@ const formatDateRange = (dateRangeString) => {
         return '无效日期范围';
     }
 };
+// 在下方添加这个新函数
+const formatContractPeriod = (periodString) => {
+    if (!periodString || !periodString.includes('~')) return '—';
+    const [startStr, endStr] = periodString.split('~').map(s => s.trim());
+    try {
+        const startDate = new Date(startStr);
+        const endDate = new Date(endStr);
+        if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) return '—';
 
+        const startYear = startDate.getFullYear();
+        const endYear = endDate.getFullYear();
+
+        const startFormat = new Intl.DateTimeFormat('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(startDate).replace(/\//g, '-');
+
+        let endFormat;
+        if (startYear !== endYear) {
+            endFormat = new Intl.DateTimeFormat('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(endDate).replace(/\//g, '-');
+        } else {
+            endFormat = new Intl.DateTimeFormat('zh-CN', { month: '2-digit', day: '2-digit' }).format(endDate).replace(/\//g, '-');
+        }
+
+        // 返回一个对象，便于在JSX中处理换行
+        return { start: startFormat, end: endFormat };
+
+    } catch (e) {
+        return { start: '—', end: '' };
+    }
+};
 // --- 复刻Excel的详情卡片 (最终版) ---
 const ExcelStyleDetailCard = ({ title, data = {}, isCustomerBill }) => {
     const formatValue = (key, value) => {
@@ -218,9 +248,13 @@ const BillingDashboard = () => {
     const [syncing, setSyncing] = useState(false);
     const [alert, setAlert] = useState({ open: false, message: '', severity: 'info' });
     const [page, setPage] = useState(0);
-    const [rowsPerPage, setRowsPerPage] = useState(10);
+    const [rowsPerPage, setRowsPerPage] = useState(100);
     const [totalContracts, setTotalContracts] = useState(0);
+    const [summary, setSummary] = useState(null);
     const [calculating, setCalculating] = useState(false);
+    const [deferringId, setDeferringId] = useState(null);
+    const [deferConfirmOpen, setDeferConfirmOpen] = useState(false); // <-- 添加此行
+    const [billToDefer, setBillToDefer] = useState(null); // <-- 添加此行
     
     const [selectedBillingMonth, setSelectedBillingMonth] = useState(() => {
         const params = new URLSearchParams(location.search);
@@ -236,6 +270,8 @@ const BillingDashboard = () => {
     const [loadingDetail, setLoadingDetail] = useState(false);
     const [selectedContractForDetail, setSelectedContractForDetail] = useState(null);
     const [billingDetails, setBillingDetails] = useState(null);
+    const [selected, setSelected] = useState([]); // <-- 添加此行，用于存储选中的账单ID
+    const [batchSettlementModalOpen, setBatchSettlementModalOpen] = useState(false); // <-- 添加此行
 
     // --- 新增：用于在模态框中编辑考勤的状态 ---
     const [editableAttendance, setEditableAttendance] = useState(null);
@@ -253,6 +289,7 @@ const BillingDashboard = () => {
                     // console.log("Fetched bills:", response.data.items); // 调试输出
                     setContracts(response.data.items || []);
                     setTotalContracts(response.data.total || 0);
+                    setSummary(response.data.summary || null);
                 } catch (error) {
                     setAlert({ open: true, message: `获取账单列表失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
                     setContracts([]);
@@ -424,43 +461,81 @@ const BillingDashboard = () => {
         }
     };
 
-    const handleCloseDetailDialog = () => {
+    const handleCloseDetailDialog = (latestBillData) => {
         setDetailDialogOpen(false);
         setSelectedContractForDetail(null);
         setBillingDetails(null);
-        setEditableAttendance(null); // 关闭时清空
+        setEditableAttendance(null);
 
+        // 【核心修正】增加一个安全检查，确保 invoice_balance 存在
+        // 只有在关闭时收到了一个完整的、包含所有必需信息的账单数据对象时，才更新列表中的那一行
+        if (latestBillData && latestBillData.customer_bill_details && latestBillData.invoice_balance) {
+            setContracts(prevContracts =>
+                prevContracts.map(contractRow => {
+                    if (contractRow.id === latestBillData.customer_bill_details.id) {
+                        // 使用从详情窗口返回的最新数据更新该行
+                        return {
+                            ...contractRow,
+                            customer_payable: latestBillData.customer_bill_details.final_amount.客应付款,
+                            customer_is_paid: latestBillData.customer_bill_details.payment_status.customer_is_paid,
+                            employee_payout: latestBillData.employee_payroll_details.final_amount.萌嫂应领款,
+                            employee_is_paid: latestBillData.employee_payroll_details.payment_status.employee_is_paid,
+                            invoice_needed: latestBillData.invoice_needed,
+                            remaining_invoice_amount: latestBillData.invoice_balance.remaining_un_invoiced,
+                        };
+                    }
+                    return contractRow; // 其他行保持不变
+                })
+            );
+        }
+        // 如果 latestBillData 不完整，我们就不更新列表行，但窗口依然会正常关闭，避免了程序崩溃。
     };
 
     // 2. 新增一个函数来处理从模态框传回的保存事件
-    const handleSaveChanges = async (editedData) => {
-        if (!selectedContractForDetail || !currentCycle.start) {
-            setAlert({ open: true, message: '无法保存，缺少合同或周期信息。', severity: 'error' });
-            return;
-        }
-        
-        setLoadingDetail(true); // 让模态框显示加载中
+    const handleSaveChanges = async (payload) => {
+        setLoadingDetail(true); // 开始加载
         try {
-            const payload = {
-            bill_id: editedData.bill_id,
-            overtime_days: editedData.overtime_days,
-            actual_work_days: editedData.actual_work_days, // <-- 关键修复：添加此行
-            adjustments: editedData.adjustments,
-            settlement_status: editedData.settlement_status
-        };
-
-
-            // const response = await api.post('/billing/attendance', payload);
             const response = await api.post('/billing/batch-update', payload);
+            const newDetails = response.data.latest_details;
 
-            setBillingDetails(response.data.latest_details); // 用返回的最新数据更新详情
-            setAlert({ open: true, message: response.data.message, severity: 'success' });
+            // 用后端返回的最新数据，更新弹窗的 state
+            setBillingDetails(newDetails);
+
+            setAlert({ open: true, message: response.data.message || "保存成功！", severity: 'success' });
 
         } catch (error) {
             setAlert({ open: true, message: `保存失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
         } finally {
-            setLoadingDetail(false);
+            setLoadingDetail(false); // 结束加载
         }
+    };
+
+    const handleSelectAllClick = (event) => {
+        if (event.target.checked) {
+            const newSelecteds = contracts.map((n) => n.id);
+            setSelected(newSelecteds);
+            return;
+        }
+        setSelected([]);
+    };
+
+    const handleClick = (event, id) => {
+        const selectedIndex = selected.indexOf(id);
+        let newSelected = [];
+
+        if (selectedIndex === -1) {
+            newSelected = newSelected.concat(selected, id);
+        } else if (selectedIndex === 0) {
+            newSelected = newSelected.concat(selected.slice(1));
+        } else if (selectedIndex === selected.length - 1) {
+            newSelected = newSelected.concat(selected.slice(0, -1));
+        } else if (selectedIndex > 0) {
+            newSelected = newSelected.concat(
+                selected.slice(0, selectedIndex),
+                selected.slice(selectedIndex + 1),
+            );
+        }
+        setSelected(newSelected);
     };
 
     // --- 新增：处理考勤表单编辑和保存的函数 ---
@@ -581,11 +656,99 @@ const BillingDashboard = () => {
         }
     };
 
+    const handleOpenDeferConfirm = (bill) => {
+        setBillToDefer(bill);
+        setDeferConfirmOpen(true);
+    };
+
+    const handleCloseDeferConfirm = () => {
+        setBillToDefer(null);
+        setDeferConfirmOpen(false);
+    };
+
+    const handleDeferBill = async (billId) => {
+        setDeferringId(billId); // 开始加载
+        try {
+            const response = await api.post(`/billing/customer-bills/${billId}/defer`);
+            setAlert({ open: true, message: response.data.message || '账单已成功顺延！', severity: 'success' });
+
+            // 更新前端列表状态，避免重新请求
+            setContracts(prevContracts =>
+                prevContracts.map(bill =>
+                    bill.id === billId ? { ...bill, is_deferred: true } : bill
+                )
+            );
+            // 顺延成功后，可能需要刷新下一个月的账单，最简单的方式是重新获取列表
+            // fetchBills(); // 或者，你可以选择更精细的状态更新
+
+        } catch (error) {
+            setAlert({ open: true, message: `顺延失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
+        } finally {
+            setDeferringId(null); // 结束加载
+        }
+    };
+    
+    const handleExport = async () => {
+        try {
+            // 使用当前的筛选条件构造URL参数
+            const params = new URLSearchParams({
+                billing_month: selectedBillingMonth,
+                ...filters
+            }).toString();
+               
+            const response = await api.get(`/billing/export-management-fees?${params}`, {
+                responseType: 'blob', // 关键：告诉axios期望接收一个二进制对象
+            });
+               
+            // 创建一个隐藏的链接来触发浏览器下载
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            const filename = `management_fees_${selectedBillingMonth}.csv`;
+            link.setAttribute('download', filename);
+            document.body.appendChild(link);
+            link.click();
+            link.parentNode.removeChild(link);
+
+        } catch (error) {
+            setAlert({ open: true, message: `导出失败: ${error.message}`, severity: 'error' });
+        }
+    };
+
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={zhCN}>
       <Box>
         <AlertMessage open={alert.open} message={alert.message} severity={alert.severity} onClose={() => setAlert(prev => ({...prev, open: false}))} />
-        <PageHeader title="月度账单管理" description="选特定月份的待结算账单，并进行财务管理。" />
+        <PageHeader 
+            title="月度账单管理" 
+            description="选特定月份的待结算账单，并进行财务管理。" 
+            actions={
+            summary && (
+              <Box display="flex" alignItems="center" gap={1} sx={{ color: 'white', mr: 2 }}>
+                <Typography variant="h6" component="span" sx={{color: 'white', opacity: 0.8}}>
+                  本月管理费总计:
+                </Typography>
+                <Typography
+                  variant="h5"
+                  component="span"
+                  sx={{ fontWeight: 'bold', color: 'white' }}
+                >
+                  ¥{parseFloat(summary.total_management_fee).toLocaleString('en-US')}
+                </Typography>                                
+                <Tooltip title="导出本月管理费明细 (CSV)">   
+                  <IconButton                                
+                    color="inherit" // 使用 inherit 来继承父组件的白色
+                    size="small"                             
+                    onClick={handleExport}                   
+                    sx={{ ml: 0.5 }}                         
+                  >                                          
+                    <DownloadIcon />                         
+                  </IconButton>                              
+                </Tooltip>                                   
+              </Box>                                         
+            )                                                
+          }
+        />
         <Card sx={{ 
           boxShadow: '0 0 2rem 0 rgba(136, 152, 170, .15)',
           backgroundColor: 'white',
@@ -632,6 +795,16 @@ const BillingDashboard = () => {
 
                 {/* Actions */}
                 <Grid item xs={12} md="auto" sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 2 }}>
+                    {/* 批量结算按钮 */}
+                    <Button
+                        variant="contained"
+                        color="secondary"
+                        onClick={() => setBatchSettlementModalOpen(true)}
+                        disabled={selected.length === 0}
+                    >
+                        批量结算 ({selected.length})
+                    </Button>
+                    
                   <TextField label="账单月份" type="month" size="small" value={selectedBillingMonth} onChange={(e) => setSelectedBillingMonth(e.target.value)} InputLabelProps={{ shrink: true }} />
                   <Tooltip title={`计算 ${selectedBillingMonth} 的所有账单`}>
                       <span>
@@ -654,23 +827,49 @@ const BillingDashboard = () => {
             <TableContainer component={Paper} sx={{ boxShadow: 'none', border: '1px solid rgba(0, 0, 0, 0.1)', borderRadius: '0.375rem' }}>
               <Table>
                 <TableHead>
-                  <TableRow>
-                    <TableCell>客户姓名</TableCell>
-                    <TableCell>服务人员</TableCell>
-                    <TableCell>合同类型</TableCell>
-                    <TableCell>合同周期</TableCell>
-                    <TableCell>劳务时间段</TableCell>
-                    <TableCell>状态</TableCell>
-                    <TableCell>月服务费/级别</TableCell>
-                    <TableCell>本月应付/应收</TableCell>
-                    <TableCell align="center">操作</TableCell>
-                  </TableRow>
+                    <TableRow>
+                         {/* 新增的复选框列 */}
+                        <TableCell padding="checkbox">
+                            <Checkbox
+                                color="primary"
+                                indeterminate={selected.length > 0 && selected.length < contracts.length}
+                                checked={contracts.length > 0 && selected.length === contracts.length}
+                                onChange={handleSelectAllClick}
+                            />
+                        </TableCell>
+                        <TableCell>客户姓名</TableCell>
+                        <TableCell>服务人员</TableCell>
+                        <TableCell>合同类型</TableCell>
+                        <TableCell>合同周期</TableCell>
+                        <TableCell>劳务时间段</TableCell>
+                        <TableCell>状态</TableCell>
+                        <TableCell>月服务费/级别</TableCell>
+                        <TableCell>本月应付/应收</TableCell>
+                        <TableCell align="center">操作</TableCell>
+                    </TableRow>
                 </TableHead>
                 <TableBody>
                   {loading ? ( <TableRow><TableCell colSpan={7} align="center" sx={{py: 5}}><CircularProgress /></TableCell></TableRow> )
                   : (
-                    (contracts).map((bill) => (
-                      <TableRow hover key={bill.id}>
+                    (contracts).map((bill) => {
+                    const isItemSelected = selected.indexOf(bill.id) !== -1; // 判断是否选中
+                    return(
+                      <TableRow
+                        hover
+                        key={bill.id}
+                        onClick={(event) => handleClick(event, bill.id)} // 添加点击事件
+                        role="checkbox"
+                        aria-checked={isItemSelected}
+                        tabIndex={-1}
+                        selected={isItemSelected}
+                      >
+                        {/* 新增的复选框单元格 */}
+                        <TableCell padding="checkbox">
+                            <Checkbox
+                                color="primary"
+                                checked={isItemSelected}
+                            />
+                        </TableCell>
                         <TableCell sx={{color: '#525f7f', fontWeight: 'bold'}}>
                             {bill.customer_name}
                             {bill.is_substitute_bill && <Chip label="替" size="small" color="warning" sx={{ ml: 1 }} />}
@@ -690,9 +889,9 @@ const BillingDashboard = () => {
                             fontWeight: 600 }}/></TableCell>
                         <TableCell>
                             <Typography variant="body2" sx={{ fontFamily: 'monospace', lineHeight: 1.5, whiteSpace: 'nowrap' }}>
-                                {bill.contract_period ? bill.contract_period.split(' ~ ')[0] : '—'}
+                                {formatContractPeriod(bill.contract_period).start}
                                 <br />
-                                {bill.contract_period ? `~ ${bill.contract_period.split(' ~ ')[1]}` : '—'}
+                                {formatContractPeriod(bill.contract_period).end}
                             </Typography>
                         </TableCell>
                         <TableCell>
@@ -744,15 +943,25 @@ const BillingDashboard = () => {
 
                         <TableCell>
                             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                                {/* 客户应付款 */}
                                 <Tooltip title="客户应付款 / 支付状态">
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                         <Typography sx={{ fontWeight: 'bold', color: 'error.main', width: '100px' }}>
                                             {bill.customer_payable ? `¥${bill.customer_payable}` : '待计算'}
                                         </Typography>
-                                        {bill.customer_is_paid === true && <CheckCircleIcon color="success" fontSize="small" />}
-                                        {bill.customer_is_paid === false && <HighlightOffIcon color="disabled" fontSize="small" />}
+                                        {/* --- 修改这里的逻辑 --- */}
+                                        {bill.is_deferred ? (
+                                            <Chip label="已顺延" size="small" variant="outlined" color="info" />
+                                        ) : (
+                                            bill.customer_is_paid
+                                                ? <CheckCircleIcon color="success" fontSize="small" />
+                                                : <HighlightOffIcon color="disabled" fontSize="small" />
+                                        )}
+                                        {/* --- 修改结束 --- */}
                                     </Box>
                                 </Tooltip>
+
+                                {/* 员工应领款 */}
                                 <Tooltip title="员工应领款 / 领款状态">
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                         <Typography sx={{ fontWeight: 'bold', color: 'success.main', width: '100px' }}>
@@ -762,13 +971,47 @@ const BillingDashboard = () => {
                                         {bill.employee_is_paid === false && <HighlightOffIcon color="disabled" fontSize="small" />}
                                     </Box>
                                 </Tooltip>
+
+                                {/* 【核心修改】欠票信息行 */}
+                                {bill.invoice_needed && parseFloat(bill.remaining_invoice_amount) > 0 && (
+                                    <Tooltip title={`截至本期，该合同累计有 ¥${bill.remaining_invoice_amount} 需要开票`}>
+                                        <Typography variant="caption" color="warning.dark" sx={{ pl: '2px', pt: 0.5 }}>
+                                            {`欠票: ¥${bill.remaining_invoice_amount}`}
+                                        </Typography>
+                                    </Tooltip>
+                                )}
                             </Box>
                         </TableCell>
-                        <TableCell align="center">
-                          <Button variant="contained" size="small" startIcon={<EditIcon />} onClick={() => handleOpenDetailDialog(bill)}>管理</Button>
+                        
+                         <TableCell align="center">
+                            <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center' }}>
+                                <Tooltip title="管理账单详情">
+                                    <IconButton
+                                        color="primary"
+                                        size="small"
+                                        onClick={() => handleOpenDetailDialog(bill)}
+                                    >
+                                        <EditIcon />
+                                    </IconButton>
+                                </Tooltip>
+                                <Tooltip title="顺延本期费用">
+                                    {/* IconButton 需要一个 span 包裹才能在 disabled 状态下显示 Tooltip */}
+                                    <span>
+                                        <IconButton
+                                            color="primary"
+                                            size="small"
+                                            disabled={bill.customer_is_paid || bill.is_deferred || deferringId === bill.id}
+                                            onClick={() => handleOpenDeferConfirm(bill)}
+                                        >
+                                            {deferringId === bill.id ? <CircularProgress size={20} /> : <UpdateIcon />}
+                                        </IconButton>
+                                    </span>
+                                </Tooltip>
+                            </Box>
                         </TableCell>
                       </TableRow>
-                    ))
+                    )
+                    })
                   )}
                 </TableBody>
               </Table>
@@ -780,12 +1023,12 @@ const BillingDashboard = () => {
         {detailDialogOpen && (
             <FinancialManagementModal
                 open={detailDialogOpen}
-                onClose={handleCloseDetailDialog}
+                onClose={handleCloseDetailDialog} // <-- 直接传递函数
                 contract={selectedContractForDetail}
                 billingMonth={selectedBillingMonth}
                 billingDetails={billingDetails}
                 loading={loadingDetail}
-                onSave={handleSaveChanges}
+                onSave={handleSaveChanges} // <-- 直接传递函数
             />
         )}
         
@@ -840,6 +1083,45 @@ const BillingDashboard = () => {
               </Button>
           </DialogActions>
       </Dialog>
+        {batchSettlementModalOpen && (
+            <BatchSettlementModal
+                open={batchSettlementModalOpen}
+                onClose={() => setBatchSettlementModalOpen(false)}
+                bills={contracts.filter(c => selected.includes(c.id))}
+                onSaveSuccess={() => {
+                    setBatchSettlementModalOpen(false);
+                    setAlert({ open: true, message: '批量结算成功！', severity: 'success' });
+                    fetchBills(); // 刷新列表
+                    setSelected([]); // 清空选择
+                }}
+            />
+        )}
+        <Dialog
+            open={deferConfirmOpen}
+            onClose={handleCloseDeferConfirm}
+        >
+            <DialogTitle>确认顺延账单？</DialogTitle>
+            <DialogContent>
+                <Alert severity="warning">
+                    您确定要将客户 **{billToDefer?.customer_name}** (服务人员: {billToDefer?.employee_name}) 的这期账单顺延到下一个月吗？
+                    <br/><br/>
+                    此操作不可逆。
+                </Alert>
+            </DialogContent>
+            <DialogActions>
+                <Button onClick={handleCloseDeferConfirm}>取消</Button>
+                <Button
+                    onClick={() => {
+                        handleDeferBill(billToDefer.id);
+                        handleCloseDeferConfirm();
+                    }}
+                    color="primary"
+                    variant="contained"
+                >
+                    确认顺延
+                </Button>
+            </DialogActions>
+        </Dialog>
     </Box>
   </LocalizationProvider>
   );

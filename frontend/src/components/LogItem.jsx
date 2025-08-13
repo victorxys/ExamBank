@@ -4,6 +4,7 @@ import React from 'react';
 import { Box, Typography, Chip, List, ListItem, ListItemText } from '@mui/material';
 import { TimelineItem, TimelineSeparator, TimelineConnector, TimelineContent, TimelineDot } from '@mui/lab';
 import { History as HistoryIcon } from '@mui/icons-material';
+import { Link as LinkIcon } from '@mui/icons-material';
 
 import { AdjustmentTypes } from './AdjustmentDialog';
 
@@ -12,7 +13,7 @@ const formatMiniAmount = (amount) => {
     return isNaN(num) ? String(amount) : `¥${num.toLocaleString('zh-CN')}`;
 };
 
-const LogItem = ({ log, isLast }) => {
+const LogItem = ({ log, isLast, navigate, onClose }) => {
 
     const renderActionDetails = () => {
         const details = log.details;
@@ -27,6 +28,32 @@ const LogItem = ({ log, isLast }) => {
         const UserSpan = () => (
             <Box component="span" sx={{ fontWeight: 'bold' }}>{log.user}</Box>
         );
+
+                // --- 新增：处理顺延日志 ---
+        if (details?.next_bill_id) {
+            const handleLinkClick = () => {
+                if (onClose) onClose(); // 先关闭当前弹窗
+                // 使用 navigate 跳转，并带上 open_bill_id 参数
+                // 注意：这里的路径是根据 BillingDashboard 的路由猜测的，如果您的路由不同，请修改
+                navigate(`/billing-dashboard?open_bill_id=${details.next_bill_id}`);
+            };
+
+            return (
+                <MainActionContainer>
+                    <UserSpan /> {log.action}
+                    <Chip
+                        icon={<LinkIcon />}
+                        label="查看该账单"
+                        onClick={handleLinkClick}
+                        size="small"
+                        variant="outlined"
+                        color="primary"
+                        clickable
+                    />
+                </MainActionContainer>
+            );
+        }
+        // --- 新增结束 ---
 
         // 如果 details 不存在或为空对象
         if (!details || Object.keys(details).length === 0) {

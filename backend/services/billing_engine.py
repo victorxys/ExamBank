@@ -18,6 +18,7 @@ from backend.models import (
     FinancialAdjustment,
     AdjustmentType,
     SubstituteRecord,
+    InvoiceRecord,
 )
 
 from sqlalchemy import func
@@ -544,6 +545,9 @@ class BillingEngine:
 
         details = self._calculate_nanny_details(contract, bill, payroll, actual_work_days_override)
         bill, payroll = self._calculate_final_amounts(bill, payroll, details)
+        current_app.logger.info(
+            f"    [NannyCALC] 计算育儿嫂合同应收金额 {contract.id} 的账单总应收金额: {bill.total_payable}"
+        )
         log = self._create_calculation_log(details)
         self._update_bill_with_log(bill, payroll, details, log)
 
@@ -646,7 +650,7 @@ class BillingEngine:
         # 在这里处理保证金，然后再获取调整项
         self._handle_security_deposit(contract, bill)
         db.session.flush()
-        cust_increase, cust_decrease, emp_increase, emp_decrease = (
+        cust_increase, cust_decrease, emp_increase, emp_decrease, deferred_fee = (
             self._get_adjustments(bill.id, payroll.id)
         )
         cust_discount = D(
@@ -902,6 +906,7 @@ class BillingEngine:
             "employee_decrease": str(emp_decrease),
             "customer_daily_rate": str(customer_daily_rate.quantize(QUANTIZER)),
             "employee_daily_rate": str(employee_daily_rate.quantize(QUANTIZER)),
+            "deferred_fee": str(deferred_fee),
             "log_extras": log_extras,
             "substitute_deduction_logs": substitute_deduction_logs,  # <--- 在这里新增这一行
         }
@@ -1049,7 +1054,11 @@ class BillingEngine:
                 f"      [CYCLE PROC] No existing bill found or not forcing recalculation. Using derived dates: {actual_cycle_start_date} to {actual_cycle_end_date}"
             )
         details = self._calculate_maternity_nurse_details(contract, bill, payroll)
+        
         bill, payroll = self._calculate_final_amounts(bill, payroll, details)
+        current_app.logger.info(
+            f"      [CYCLE PROC] 计算月嫂合同bill.total_payable  {bill.total_payable } 的财务细节完成。"
+        )
     
         log = self._create_calculation_log(details)
         self._update_bill_with_log(bill, payroll, details, log)
@@ -1087,7 +1096,7 @@ class BillingEngine:
         
 
         # 1. 管理费和管理费率计算
-        management_fee = ((customer_deposit - level)/26 * (base_work_days+1)).quantize(QUANTIZER)
+        management_fee = ((customer_deposit - level)/26 * (base_work_days)).quantize(QUANTIZER)
         management_fee_rate = (
             (management_fee / customer_deposit).quantize(D("0.0001"))
             if customer_deposit > 0
@@ -1103,7 +1112,7 @@ class BillingEngine:
 
         # 在这里处理保证金，然后再获取调整项
         self._handle_security_deposit(contract, bill)
-        cust_increase, cust_decrease, emp_increase, emp_decrease = (
+        cust_increase, cust_decrease, emp_increase, emp_decrease, deferred_fee = (
             self._get_adjustments(bill.id, payroll.id)
         )
 
@@ -1201,7 +1210,8 @@ class BillingEngine:
             # 'bonus_5_percent': str(bonus_5_percent),
             "employee_increase": str(emp_increase),
             "employee_decrease": str(emp_decrease),
-            "extension_fee": str(extension_fee), 
+            "extension_fee": str(extension_fee),
+            "deferred_fee": str(deferred_fee),
             "log_extras": {
                 **log_extras,
                 "substitute_deduction_logs": substitute_deduction_logs,
@@ -1359,6 +1369,9 @@ class BillingEngine:
 
         details = self._calculate_substitute_details(sub_record, main_contract)
         bill, payroll = self._calculate_final_amounts(bill, payroll, details)
+        current_app.logger.info(
+            f"[SubCALC] 替班记录total_payable {bill.total_payable} 的账单已成功生成。"
+        )
         log = self._create_calculation_log(details)
         self._update_bill_with_log(bill, payroll, details, log)
 
@@ -1637,6 +1650,14 @@ class BillingEngine:
             for adj in customer_adjustments
             if adj.adjustment_type == AdjustmentType.CUSTOMER_DECREASE
         )
+        # --- 在此下方新增对 DEFERRED_FEE 的处理 ---
+        deferred_fee = sum(
+            adj.amount
+            for adj in customer_adjustments
+            if adj.adjustment_type == AdjustmentType.DEFERRED_FEE
+        )
+        # --- 新增结束 ---
+
         emp_increase = sum(
             adj.amount
             for adj in employee_adjustments
@@ -1648,18 +1669,21 @@ class BillingEngine:
             if adj.adjustment_type == AdjustmentType.EMPLOYEE_DECREASE
         )
 
-        return cust_increase, cust_decrease, emp_increase, emp_decrease
+        # --- 修改返回值，增加 deferred_fee ---
+        return cust_increase, cust_decrease, emp_increase, emp_decrease, deferred_fee
 
     def _calculate_final_amounts(self, bill, payroll, details):
+        current_app.logger.info("开始进行final calculation of amounts.")
         total_payable = (
-            D(details.get("customer_base_fee", 0))
-            + D(details.get("customer_overtime_fee", 0))
-            + D(details.get("management_fee", 0))
+            D(details.get("management_fee", 0))
+            # + D(details.get("customer_overtime_fee", 0))
+            # + D(details.get("customer_base_fee", 0))
             + D(details.get("customer_increase", 0))
-            + D(details.get("extension_fee", "0.00"))
+            # + D(details.get("extension_fee", "0.00"))
+            + D(details.get("deferred_fee", "0.00"))
             - D(details.get("customer_decrease", 0))
             - D(details.get("discount", 0))
-            - D(details.get("substitute_deduction", 0))
+            # - D(details.get("substitute_deduction", 0))
         )
         final_payout = (
             D(details["employee_base_payout"])
@@ -1778,22 +1802,24 @@ class BillingEngine:
         # 简化日志，只显示非零内容
         # --- 客户应付款日志 ---
         customer_parts = []
-        if d.get("customer_base_fee"):
-            customer_parts.append(f"基础劳务费({d['customer_base_fee']:.2f})")
-        if d.get("extension_fee"):
-            customer_parts.append(f"延长期服务费({d['extension_fee']:.2f})")
-        if d.get("customer_overtime_fee"):
-            customer_parts.append(f"加班费({d['customer_overtime_fee']:.2f})")
+        # if d.get("customer_base_fee"):
+        #     customer_parts.append(f"基础劳务费({d['customer_base_fee']:.2f})")
+        # if d.get("extension_fee"):
+        #     customer_parts.append(f"延长期服务费({d['extension_fee']:.2f})")
+        # if d.get("customer_overtime_fee"):
+        #     customer_parts.append(f"加班费({d['customer_overtime_fee']:.2f})")
         if d.get("management_fee"):
             customer_parts.append(f"管理费({d['management_fee']:.2f})")
         if d.get("customer_increase"):
             customer_parts.append(f"增款({d['customer_increase']:.2f})")
+        if d.get("deferred_fee"):
+            customer_parts.append(f"上期顺延({d['deferred_fee']:.2f})")
 
         # 处理减项
         if d.get("discount"):
             customer_parts.append(f"- 优惠({d['discount']:.2f})")
-        if d.get("substitute_deduction"):
-            customer_parts.append(f"- 被替班扣款({d['substitute_deduction']:.2f})")
+        # if d.get("substitute_deduction"):
+        #     customer_parts.append(f"- 被替班扣款({d['substitute_deduction']:.2f})")
         if d.get("customer_decrease"):
             customer_parts.append(f"- 减款({d['customer_decrease']:.2f})")
 
@@ -1923,3 +1949,186 @@ class BillingEngine:
             self._update_bill_with_log(bill, payroll, details, log)
 
         current_app.logger.info(f"[TrialTerm-v14] 合同 {contract.id} 结算处理完成。")
+
+    # v5.5 设计方案的核心实现
+    def calculate_invoice_balance(self, target_bill_id: str):
+        """
+        计算指定账单的发票余额详情 (v5.10 - 隔离替班账单的欠票逻辑)。
+
+        Args:
+            target_bill_id: 目标客户账单的ID。
+
+        Returns:
+            一个包含详细发票余额信息的字典。
+        """
+        target_bill = db.session.get(CustomerBill, target_bill_id)
+        if not target_bill:
+            return { "error": "Target bill not found", "invoice_records": [], "carried_forward_breakdown": [] }
+
+        # --- 【核心修正】: 如果是替班账单，则独立计算，不继承历史欠票 ---
+        if target_bill.is_substitute_bill:
+            # 替班账单的管理费就是它的应开票总额
+            current_management_fee = D((target_bill.calculation_details or {}).get('management_fee', '0'))
+            invoiced_this_period = sum((D(invoice.amount) for invoice in target_bill.invoices), D(0)).quantize(D("0.01"))
+
+            total_invoiceable_amount = current_management_fee if target_bill.invoice_needed else D(0)
+            remaining_un_invoiced = (total_invoiceable_amount - invoiced_this_period).quantize(D("0.01"))
+
+            return {
+                "current_period_charges": str(current_management_fee),
+                "total_carried_forward": "0.00",  # 替班账单永远没有历史欠票
+                "total_invoiceable_amount": str(total_invoiceable_amount),
+                "invoiced_this_period": str(invoiced_this_period),
+                "remaining_un_invoiced": str(remaining_un_invoiced),
+                "invoice_records": [inv.to_dict() for inv in target_bill.invoices],
+                "carried_forward_breakdown": [], # 历史欠票明细为空
+                "auto_invoice_needed": target_bill.invoice_needed, # 只取决于它自己
+            }
+        # --- 修正结束 ---
+
+        # --- 以下是主账单的正常逻辑 ---
+        current_management_fee = D((target_bill.calculation_details or {}).get('management_fee', '0'))
+
+        historical_bills = (
+            CustomerBill.query.filter(
+                CustomerBill.contract_id == target_bill.contract_id,
+                CustomerBill.cycle_start_date < target_bill.cycle_start_date,
+                CustomerBill.is_substitute_bill.is_(False),
+            )
+            .options(db.selectinload(CustomerBill.invoices))
+            .order_by(CustomerBill.cycle_start_date)
+            .all()
+        )
+
+        total_historical_fees_due = D(0)
+        total_historical_invoiced = D(0)
+        for bill in historical_bills:
+            if bill.invoice_needed:
+                total_historical_fees_due += D((bill.calculation_details or {}).get('management_fee', '0'))
+                total_historical_invoiced += sum((D(invoice.amount) for invoice in bill.invoices), D(0))
+
+        total_carried_forward = total_historical_fees_due - total_historical_invoiced
+        if total_carried_forward < 0:
+            total_carried_forward = D(0)
+        total_carried_forward = total_carried_forward.quantize(D("0.01"))
+
+        carried_forward_breakdown = []
+        if total_carried_forward > 0:
+            for bill in historical_bills:
+                if bill.invoice_needed:
+                    historical_management_fee = D((bill.calculation_details or {}).get('management_fee', '0'))
+                    invoiced_amount_for_bill = sum((D(invoice.amount) for invoice in bill.invoices), D(0))
+                    unpaid_balance = historical_management_fee - invoiced_amount_for_bill
+                    if unpaid_balance > 0:
+                        carried_forward_breakdown.append({
+                            "month": f"{bill.year}-{str(bill.month).zfill(2)}",
+                            "unpaid_amount": str(unpaid_balance.quantize(D("0.01"))),
+                        })
+
+        invoiced_this_period = sum((D(invoice.amount) for invoice in target_bill.invoices), D(0)).quantize(D("0.01"))
+        should_be_needed = target_bill.invoice_needed or (total_carried_forward > 0)
+
+        if should_be_needed:
+            total_invoiceable_amount = (current_management_fee + total_carried_forward).quantize(D("0.01"))
+        else:
+            total_invoiceable_amount = D(0)
+
+        remaining_un_invoiced = (total_invoiceable_amount - invoiced_this_period).quantize(D("0.01"))
+        invoice_records_data = [inv.to_dict() for inv in target_bill.invoices]
+
+        return {
+            "current_period_charges": str(current_management_fee),
+            "total_carried_forward": str(total_carried_forward),
+            "total_invoiceable_amount": str(total_invoiceable_amount),
+            "invoiced_this_period": str(invoiced_this_period),
+            "remaining_un_invoiced": str(remaining_un_invoiced),
+            "invoice_records": invoice_records_data,
+            "carried_forward_breakdown": carried_forward_breakdown,
+            "auto_invoice_needed": should_be_needed,
+        }
+    
+    def propagate_invoice_needed_status(self, bill_id: str):
+        """
+        检查指定账单是否有未结清的发票欠款，
+        如果有，则自动将下一个月账单的 invoice_needed 状态设为 True。
+        """
+        current_bill = db.session.get(CustomerBill, bill_id)
+        if not current_bill:
+            return
+
+        # 1. 重新计算当前账单的余额
+        balance_info = self.calculate_invoice_balance(bill_id)
+        remaining_amount = balance_info.get("remaining_un_invoiced", D(0))
+
+        # 2. 检查是否需要传递状态
+        # 条件：当前账单需要开票，且有剩余未开金额
+        if (current_bill.payment_details or {}).get("invoice_needed") and remaining_amount > 0:
+
+            # 3. 找到下一个月的账单
+            next_bill = CustomerBill.query.filter(
+                CustomerBill.contract_id == current_bill.contract_id,
+                CustomerBill.cycle_start_date > current_bill.cycle_start_date,
+                CustomerBill.is_substitute_bill.is_(False)
+            ).order_by(CustomerBill.cycle_start_date.asc()).first()
+
+            if next_bill:
+                # 4. 如果找到了，并且它当前是“无需开票”状态，则自动打开它的开关
+                if not (next_bill.payment_details or {}).get("invoice_needed"):
+                    if next_bill.payment_details is None:
+                        next_bill.payment_details = {}
+
+                    next_bill.payment_details["invoice_needed"] = True
+                    # 标记 payment_details 字段为已修改，以便 SQLAlchemy 能检测到变化
+                    attributes.flag_modified(next_bill, "payment_details")
+
+                    db.session.add(next_bill)
+                    current_app.logger.info(
+                        f"账单 {current_bill.id} 存在未结清发票，已自动将下一张账单 {next_bill.id} 的开票需求设为 True。"
+                    )
+
+    def recalculate_all_bills_for_contract(self, contract_id):
+        """
+        通过 flask app 命令调用 上下文来重新计算指定合同下的所有账单。
+        查找给定合同ID下的所有现有账单，并强制重新计算它们。
+        这个函数不关心合同日期，只处理已存在的账单。
+        """
+        contract = db.session.get(BaseContract, contract_id)
+        if not contract:
+            current_app.logger.error(
+                f"[RecalcByBill] 合同 {contract_id} 未找到。"
+            )
+            return
+
+        current_app.logger.info(
+            f"[RecalcByBill] 开始为合同 {contract.id} 重新计算所有现有账单。"
+        )
+
+        all_bills_for_contract = CustomerBill.query.filter_by(
+            contract_id=contract.id
+        ).order_by(CustomerBill.cycle_start_date).all()
+
+        if not all_bills_for_contract:
+            current_app.logger.warning(
+                f"[RecalcByBill] 合同 {contract.id} 没有任何已存在的账单，跳过。"
+            )
+            return
+
+        current_app.logger.info(
+            f"[RecalcByBill] 找到 {len(all_bills_for_contract)} 个账单需要重算。"
+        )
+
+        for bill in all_bills_for_contract:
+            current_app.logger.info(
+                f"  -> 正在重算账单 ID: {bill.id} (周期: {bill.cycle_start_date})"
+            )
+            self.calculate_for_month(
+                year=bill.year,
+                month=bill.month,
+                contract_id=contract.id,
+                force_recalculate=True,
+                cycle_start_date_override=bill.cycle_start_date
+            )
+
+        current_app.logger.info(
+            f"[RecalcByBill] 合同 {contract.id} 的所有账单已重算完毕。"
+        )
