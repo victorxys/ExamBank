@@ -13,7 +13,7 @@ import {
   People as PeopleIcon, Menu as MenuIcon, ChevronLeft as ChevronLeftIcon,
   ChevronRight as ChevronRightIcon, Settings as SettingsIcon, Api as ApiIcon,
   Description as DescriptionIcon, History as HistoryIcon,
-  ExpandLess, ExpandMore
+  ExpandLess, ExpandMore, Warning as WarningIcon
 } from '@mui/icons-material';
 import logo from '../assets/logo.svg';
 import UserInfo from './UserInfo';
@@ -22,8 +22,8 @@ import { hasToken } from '../api/auth-utils';
 const expandedWidth = 260;
 const collapsedWidth = 65;
 
-const allMenuItems = [
-  { text: '仪表盘', icon: <DashboardIcon />, path: '/', adminOnly: false },
+export const allMenuItems = [
+  { text: '仪表盘', icon: <DashboardIcon />, path: '/dashboard', adminOnly: true },
   { text: '课程管理', icon: <SchoolIcon />, path: '/courses', adminOnly: true },
   {
     text: '合同与账单',
@@ -33,6 +33,7 @@ const allMenuItems = [
     subItems: [
       { text: '合同管理', icon: <DescriptionIcon />, path: '/contracts', adminOnly: true },
       { text: '账单管理', icon: <HistoryIcon />, path: '/billing', adminOnly: true },
+      { text: '合同冲突检测', icon: <WarningIcon />, path: '/tools/conflict-checker', adminOnly: true },
     ]
   },
   { text: '我的课程', icon: <SchoolIcon />, path: '/my-courses', adminOnly: false }, // 假设所有用户都能看自己的课程

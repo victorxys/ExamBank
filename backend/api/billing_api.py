@@ -16,6 +16,7 @@ from datetime import date, timedelta
 from datetime import datetime
 import decimal
 from dateutil.relativedelta import relativedelta
+from collections import defaultdict
 
 
 # --- 新增 AttendanceRecord 的导入 ---
@@ -2510,34 +2511,27 @@ def get_dashboard_summary():
     try:
         today = date.today()
         current_year = today.year
-        current_month = today.month
 
-        # --- 1. 计算核心KPI指标 ---
-
-        # 1.1 年度应收管理费 (已收/应收)
+        # --- 1. 计算核心KPI指标 (逻辑保持不变) ---
         monthly_fees = db.session.query(
             func.sum(CustomerBill.calculation_details['management_fee'].as_float()),
             func.sum(case((CustomerBill.is_paid == True, CustomerBill.calculation_details['management_fee'].as_float()), else_=0))
         ).filter(
             CustomerBill.year == current_year,
-            # CustomerBill.month == current_month,
             CustomerBill.is_substitute_bill == False
         ).first()
         monthly_management_fee_total = D(monthly_fees[0] or 0)
         monthly_management_fee_received = D(monthly_fees[1] or 0)
 
-        # 1.2 活跃合同数
-        active_contracts_count = db.session.query(func.count(BaseContract.id)).filter(BaseContract.status.in_(['active', 'trial_active'])).scalar()
+        active_contracts_count = db.session.query(func.count(BaseContract.id)).filter(BaseContract.status.in_(['active','trial_active'])).scalar()
 
-        # 1.3 在户员工数 (不重复)
         active_personnel_count = db.session.query(func.count(distinct(BaseContract.service_personnel_id))).filter(BaseContract.status.in_(['active', 'trial_active']), BaseContract.service_personnel_id.isnot(None)).scalar()
         active_user_count = db.session.query(func.count(distinct(BaseContract.user_id))).filter(BaseContract.status.in_(['active','trial_active']), BaseContract.user_id.isnot(None)).scalar()
         active_employees_count = active_personnel_count + active_user_count
 
-        # --- 2. 月度收入趋势 (最近6个月) ---
-
+        # --- 2. 月度收入趋势 (修改为最近12个月) ---
         revenue_trend_data = []
-        for i in range(5, -1, -1):
+        for i in range(11, -1, -1): # <--- 修改：从 5 改为 11，获取12个月的数据
             target_date = today - relativedelta(months=i)
             target_year = target_date.year
             target_month = target_date.month
@@ -2547,7 +2541,6 @@ def get_dashboard_summary():
             ).filter(
                 CustomerBill.year == target_year,
                 CustomerBill.month == target_month,
-                # CustomerBill.is_substitute_bill == False
             ).scalar() or 0
 
             revenue_trend_data.append({
@@ -2555,9 +2548,7 @@ def get_dashboard_summary():
                 "revenue": D(monthly_revenue).quantize(D('0.01'))
             })
 
-        # --- 3. 待办事项列表 ---
-
-        # 3.1 即将到期合同 (< 30天)
+        # --- 3. 待办事项列表 (逻辑保持不变) ---
         thirty_days_later = today + timedelta(days=30)
         expiring_contracts_query = BaseContract.query.filter(
             BaseContract.end_date.between(today, thirty_days_later),
@@ -2572,10 +2563,9 @@ def get_dashboard_summary():
             "expires_in_days": (c.end_date - today).days
         } for c in expiring_contracts_query]
 
-        # 3.2 本月待收管理费
         pending_payments_query = CustomerBill.query.filter(
-            CustomerBill.year == current_year,
-            CustomerBill.month == current_month,
+            CustomerBill.year == today.year,
+            CustomerBill.month == today.month,
             CustomerBill.is_paid == False,
             CustomerBill.is_substitute_bill == False,
             CustomerBill.calculation_details['management_fee'].as_float() > 0
@@ -2587,10 +2577,9 @@ def get_dashboard_summary():
             "amount": str(D(bill.calculation_details.get('management_fee', 0)).quantize(D('0.01')))
         } for bill in pending_payments_query]
 
-        # 3.3 本月待付薪酬
         pending_payouts_query = EmployeePayroll.query.filter(
-            EmployeePayroll.year == current_year,
-            EmployeePayroll.month == current_month,
+            EmployeePayroll.year == today.year,
+            EmployeePayroll.month == today.month,
             EmployeePayroll.is_paid == False
         ).order_by(EmployeePayroll.id.desc()).limit(5).all()
 
@@ -2603,7 +2592,38 @@ def get_dashboard_summary():
                 "amount": str(payroll.final_payout)
             })
 
-        # --- 组装最终结果 ---
+        # --- 4. 新增：管理费按合同类型分布 (饼图数据) ---
+        def get_fee_distribution(time_filter):
+            query = db.session.query(
+                BaseContract.type,
+                func.sum(CustomerBill.calculation_details['management_fee'].as_float())
+            ).join(
+                BaseContract, CustomerBill.contract_id == BaseContract.id
+            ).filter(
+                CustomerBill.calculation_details['management_fee'].as_float() > 0
+            ).filter(
+                time_filter
+            ).group_by(BaseContract.type)
+
+            results = query.all()
+
+            labels = [get_contract_type_details(r[0]) for r in results]
+            series = [float(r[1]) for r in results]
+            return {"labels": labels, "series": series}
+
+        # 计算“今年”的数据
+        this_year_filter = (CustomerBill.year == current_year)
+        distribution_this_year = get_fee_distribution(this_year_filter)
+
+        # 计算“最近12个月”的数据
+        twelve_months_ago = today - relativedelta(months=12)
+        last_12_months_filter = (
+            func.make_date(CustomerBill.year, CustomerBill.month, 1) >= func.make_date(twelve_months_ago.year, twelve_months_ago.month, 1)
+        )
+        distribution_last_12_months = get_fee_distribution(last_12_months_filter)
+
+
+        # --- 5. 组装最终结果 ---
         dashboard_data = {
             "kpis": {
                 "monthly_management_fee_total": str(monthly_management_fee_total),
@@ -2619,6 +2639,11 @@ def get_dashboard_summary():
                 "expiring_contracts": expiring_contracts,
                 "pending_payments": pending_payments,
                 "pending_payouts": pending_payouts
+            },
+            # --- 新增返回字段 ---
+            "management_fee_distribution": {
+                "this_year": distribution_this_year,
+                "last_12_months": distribution_last_12_months
             }
         }
 
@@ -2715,3 +2740,159 @@ def export_management_fees_csv():
     except Exception as e:
         current_app.logger.error(f"导出管理费明细失败: {e}", exc_info=True)
         return jsonify({"error": "导出失败"}), 500
+    
+@billing_bp.route("/conflicts", methods=['GET'])
+@admin_required
+def get_billing_conflicts():
+    """
+    检测指定月份的合同冲突。
+    """
+    billing_month_str = request.args.get("billing_month")
+    if not billing_month_str:
+        return jsonify({"error": "必须提供 billing_month 参数 (格式: YYYY-MM)"}), 400
+
+    try:
+        year, month = map(int, billing_month_str.split('-'))
+    except ValueError:
+        return jsonify({"error": "无效的 billing_month 格式"}), 400
+
+    # 1. 获取目标月份的所有有效账单
+    bills = db.session.query(
+        CustomerBill
+    ).join(BaseContract, CustomerBill.contract_id == BaseContract.id).filter(
+        CustomerBill.year == year,
+        CustomerBill.month == month,
+        BaseContract.status == 'active'
+    ).all()
+
+    # 2. 员工冲突检测
+    employee_bills = defaultdict(list)
+    for bill in bills:
+        # 确保合同关联了员工
+        if bill.contract and (bill.contract.service_personnel_id or bill.contract.user_id):
+            employee_id = bill.contract.service_personnel_id or bill.contract.user_id
+            employee_bills[employee_id].append(bill)
+
+    employee_conflicts = []
+    processed_employee_pairs = set()
+
+    for employee_id, bill_list in employee_bills.items():
+        if len(bill_list) > 1:
+            sorted_bills = sorted(bill_list, key=lambda b: b.cycle_start_date)
+            for i in range(len(sorted_bills)):
+                for j in range(i + 1, len(sorted_bills)):
+                    bill_a = sorted_bills[i]
+                    bill_b = sorted_bills[j]
+
+                    # 创建一个唯一的键来标识这对账单
+                    pair_key = tuple(sorted( (str(bill_a.id), str(bill_b.id)) ))
+                    if pair_key in processed_employee_pairs:
+                        continue
+
+                    if bill_a.cycle_start_date <= bill_b.cycle_end_date and bill_a.cycle_end_date >= bill_b.cycle_start_date:
+                        employee = bill_a.contract.user or bill_a.contract.service_personnel
+                        if not employee: continue # 如果找不到员工信息，则跳过
+
+                        # 查找是否已存在该员工的冲突记录
+                        existing_conflict = next((c for c in employee_conflicts if c['identifier_id'] == employee_id), None)
+
+                        formatted_bill_a = format_bill_for_conflict_response(bill_a)
+                        formatted_bill_b = format_bill_for_conflict_response(bill_b)
+
+                        if existing_conflict:
+                            # 如果已存在，将新的冲突账单添加进去
+                            if formatted_bill_a not in existing_conflict['conflicts']:
+                                existing_conflict['conflicts'].append(formatted_bill_a)
+                            if formatted_bill_b not in existing_conflict['conflicts']:
+                                existing_conflict['conflicts'].append(formatted_bill_b)
+                        else:
+                            # 否则，创建新的冲突记录
+                            employee_conflicts.append({
+                                "type": "employee",
+                                "identifier_id": employee_id,
+                                "identifier_name": employee.username if hasattr(employee, 'username') else employee.name,
+                                "conflicts": [formatted_bill_a, formatted_bill_b]
+                            })
+
+                        processed_employee_pairs.add(pair_key)
+
+    # 3. 客户冲突检测
+    customer_bills = defaultdict(list)
+    for bill in bills:
+        if bill.customer_name:
+            customer_bills[bill.customer_name].append(bill)
+
+    customer_conflicts = []
+    processed_customer_pairs = set()
+
+    for customer_name, bill_list in customer_bills.items():
+        if len(bill_list) > 1:
+            sorted_bills = sorted(bill_list, key=lambda b: b.cycle_start_date)
+            for i in range(len(sorted_bills)):
+                for j in range(i + 1, len(sorted_bills)):
+                    bill_a = sorted_bills[i]
+                    bill_b = sorted_bills[j]
+
+                    pair_key = tuple(sorted((str(bill_a.id), str(bill_b.id))))
+                    if pair_key in processed_customer_pairs:
+                        continue
+
+                    if bill_a.cycle_start_date <= bill_b.cycle_end_date and bill_a.cycle_end_date >= bill_b.cycle_start_date:
+                        existing_conflict = next((c for c in customer_conflicts if c['identifier_name'] == customer_name),None)
+
+                        formatted_bill_a = format_bill_for_conflict_response(bill_a)
+                        formatted_bill_b = format_bill_for_conflict_response(bill_b)
+
+                        if existing_conflict:
+                            if formatted_bill_a not in existing_conflict['conflicts']:
+                                existing_conflict['conflicts'].append(formatted_bill_a)
+                            if formatted_bill_b not in existing_conflict['conflicts']:
+                                existing_conflict['conflicts'].append(formatted_bill_b)
+                        else:
+                            customer_conflicts.append({
+                                "type": "customer",
+                                "identifier_name": customer_name,
+                                "conflicts": [formatted_bill_a, formatted_bill_b]
+                            })
+
+                        processed_customer_pairs.add(pair_key)
+
+    return jsonify({
+        "employee_conflicts": employee_conflicts,
+        "customer_conflicts": customer_conflicts
+    })
+
+def format_bill_for_conflict_response(bill):
+    """
+    辅助函数，用于格式化冲突检测接口中的账单信息。
+    """
+    employee = None
+    contract_start_date = None
+    contract_end_date = None
+    management_fee = None
+
+    if bill.contract:
+        employee = bill.contract.user or bill.contract.service_personnel
+        # 如果不是替班账单，则获取合同的起止日期
+        if not bill.is_substitute_bill:
+            contract_start_date = bill.contract.start_date.isoformat() if bill.contract.start_date else None
+            contract_end_date = bill.contract.end_date.isoformat() if bill.contract.end_date else None
+
+    # 从 calculation_details 中获取管理费
+    if bill.calculation_details and 'management_fee' in bill.calculation_details:
+        management_fee = bill.calculation_details['management_fee']
+
+    return {
+        "bill_id": str(bill.id),
+        "contract_id": str(bill.contract_id),
+        "customer_name": bill.customer_name,
+        "employee_name": employee.username if employee and hasattr(employee, 'username') else (employee.name if employee else "N/A"),
+        "contract_type": get_contract_type_details(bill.contract.type) if bill.contract else "N/A",
+        "cycle_start_date": bill.cycle_start_date.isoformat(),
+        "cycle_end_date": bill.cycle_end_date.isoformat(),
+        "is_substitute_bill": bill.is_substitute_bill,
+        "contract_start_date": contract_start_date,
+        "contract_end_date": contract_end_date,
+        "total_payable": str(bill.total_payable or 0),
+        "management_fee": str(management_fee or 0)
+    }
