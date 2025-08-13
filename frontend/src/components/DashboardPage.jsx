@@ -3,12 +3,11 @@ import React, { useState, useEffect } from 'react';
 import { Paper, Box, Typography, Grid, CircularProgress, List, ListItem, ListItemText, ListItemIcon, Divider, Chip,ToggleButtonGroup, ToggleButton } from '@mui/material';
 import {
     AccountBalanceWallet as AccountBalanceWalletIcon,
-    Payments as PaymentsIcon,
+    Event as EventIcon, // 用于预产期
     EventBusy as EventBusyIcon,
     Groups as GroupsIcon,
     TrendingUp as TrendingUpIcon,
     Assignment as AssignmentIcon,
-    Person as PersonIcon,
     ArrowForward as ArrowForwardIcon,
     Badge as BadgeIcon,
     PieChart as PieChartIcon
@@ -46,20 +45,30 @@ const KpiCard = ({ icon, title, value, subtitle, color }) => {
     );
 };
 
-// 待办事项列表项组件 (保持不变)
-const TodoListItem = ({ primary, secondary, amount, amountColor, type }) => (
-    <ListItem button sx={{ borderRadius: 2, '&:hover': { bgcolor: 'action.hover' } }}>
-        <ListItemIcon sx={{ minWidth: 40 }}>
-            {type === 'expiring' ? <EventBusyIcon color="warning" /> : <AssignmentIcon color="primary" />}
-        </ListItemIcon>
-        <ListItemText
-            primary={<Typography variant="body1" sx={{ fontWeight: 500 }}>{primary}</Typography>}
-            secondary={secondary}
-        />
-        {amount && <Typography variant="body1" sx={{ fontWeight: 'bold', color: amountColor || 'text.primary' }}>{`¥${amount}`}</Typography>}
-        <ArrowForwardIcon sx={{ ml: 2, color: 'text.disabled' }} />
-    </ListItem>
-);
+// 待办事项列表项组件 (修改)
+const TodoListItem = ({ primary, secondary, amount, amountColor, type }) => {
+    const getIcon = () => {
+        switch(type) {
+            case 'expiring': return <EventBusyIcon color="warning" />;
+            case 'approaching': return <EventIcon color="info" />;
+            case 'payment': return <AccountBalanceWalletIcon color="error" />;
+            default: return <AssignmentIcon color="primary" />;
+        }
+    };
+    return (
+        <ListItem button sx={{ borderRadius: 2, '&:hover': { bgcolor: 'action.hover' } }}>
+            <ListItemIcon sx={{ minWidth: 40 }}>
+                {getIcon()}
+            </ListItemIcon>
+            <ListItemText
+                primary={<Typography variant="body1" sx={{ fontWeight: 500 }}>{primary}</Typography>}
+                secondary={secondary}
+            />
+            {amount && <Typography variant="body1" sx={{ fontWeight: 'bold', color: amountColor || 'text.primary' }}>{`¥${amount}`}</Typography>}
+            <ArrowForwardIcon sx={{ ml: 2, color: 'text.disabled' }} />
+        </ListItem>
+    );
+};
 
 
 const DashboardPage = () => {
@@ -120,7 +129,7 @@ const DashboardPage = () => {
             <PageHeader title="运营仪表盘" description={`数据更新于 ${new Date().toLocaleDateString('zh-CN')} ${new Date().toLocaleTimeString('zh-CN')}`} />
 
             <Grid container spacing={3} mb={4}>
-                <Grid item xs={12} sm={6} md={3}><KpiCard icon={<TrendingUpIcon sx={{ fontSize: 32 }} />} title="年度管理费" value={`已收:¥${parseFloat(data.kpis.monthly_management_fee_received).toLocaleString()}`} subtitle={`应收:¥${parseFloat(data.kpis.monthly_management_fee_total).toLocaleString()}`} color="indigo" /></Grid>
+                <Grid item xs={12} sm={6} md={3}><KpiCard icon={<TrendingUpIcon sx={{ fontSize: 32 }} />} title="年度管理费(已收/应收)" value={`¥${parseFloat(data.kpis.monthly_management_fee_received).toLocaleString()}`} subtitle={`/¥${parseFloat(data.kpis.monthly_management_fee_total).toLocaleString()}`} color="indigo" /></Grid>
                 <Grid item xs={12} sm={6} md={3}><KpiCard icon={<GroupsIcon sx={{ fontSize: 32 }} />} title="活跃客户数"value={data.kpis.active_contracts_count} color="sky" /></Grid>
                 <Grid item xs={12} sm={6} md={3}><KpiCard icon={<BadgeIcon sx={{ fontSize: 32 }} />} title="在户员工数"value={data.kpis.active_employees_count} color="amber" /></Grid>
                 <Grid item xs={12} sm={6} md={3}><KpiCard icon={<EventBusyIcon sx={{ fontSize: 32 }} />} title="即将到期合同"value={data.todo_lists.expiring_contracts.length} subtitle="30天内" color="warning" /></Grid>
@@ -155,9 +164,47 @@ const DashboardPage = () => {
                     <Paper elevation={2} sx={{ p: 3, borderRadius: 4 }}>
                         <Typography variant="h6" sx={{ fontWeight: 'bold' }} gutterBottom>核心待办事项</Typography>
                         <Grid container spacing={3}>
-                            <Grid item xs={12} md={4}><Typography variant="subtitle2" color="text.secondary">即将到期合同</Typography><List dense>{data.todo_lists.expiring_contracts.map(c => (<TodoListItem key={c.customer_name} type="expiring" primary={`${c.customer_name} / ${c.employee_name}`} secondary={`${c.expires_in_days}天后到期 (${c.end_date})`} />))}</List></Grid>
-                            <Grid item xs={12} md={4}><Typography variant="subtitle2" color="text.secondary">本月待收管理费</Typography><List dense>{data.todo_lists.pending_payments.map(p => (<TodoListItem key={p.customer_name} primary={p.customer_name}secondary={p.contract_type} amount={p.amount} amountColor="error.main" />))}</List></Grid>
-                            <Grid item xs={12} md={4}><Typography variant="subtitle2" color="text.secondary">本月待付员工薪酬</Typography><List dense>{data.todo_lists.pending_payouts.map(p => (<TodoListItem key={p.employee_name} primary={p.employee_name}secondary={p.contract_type} amount={p.amount} amountColor="success.main" />))}</List></Grid>
+                            <Grid item xs={12} md={4}>
+                                <Typography variant="subtitle2" color="text.secondary">临近预产期 (14天内)</Typography>
+                                <List dense>
+                                    {data.todo_lists.approaching_provisional.map(c => (
+                                        <TodoListItem
+                                            key={c.customer_name}
+                                            type="approaching"
+                                            primary={c.customer_name}
+                                            secondary={`预产期: ${c.provisional_start_date} (${c.days_until}天后)`}
+                                        />
+                                    ))}
+                                </List>
+                            </Grid>
+                            <Grid item xs={12} md={4}>
+                                <Typography variant="subtitle2" color="text.secondary">本月待收管理费</Typography>
+                                <List dense>
+                                    {data.todo_lists.pending_payments.map(p => (
+                                        <TodoListItem
+                                            key={p.customer_name}
+                                            type="payment"
+                                            primary={p.customer_name}
+                                            secondary={p.contract_type}
+                                            amount={p.amount}
+                                            amountColor="error.main"
+                                        />
+                                    ))}
+                                </List>
+                            </Grid>
+                            <Grid item xs={12} md={4}>
+                                <Typography variant="subtitle2" color="text.secondary">即将到期合同 (30天内)</Typography>
+                                <List dense>
+                                    {data.todo_lists.expiring_contracts.map(c => (
+                                        <TodoListItem
+                                            key={c.customer_name}
+                                            type="expiring"
+                                            primary={`${c.customer_name} / ${c.employee_name}`}
+                                            secondary={`${c.expires_in_days}天后到期 (${c.end_date})`}
+                                        />
+                                    ))}
+                                </List>
+                            </Grid>
                         </Grid>
                     </Paper>
                 </Grid>

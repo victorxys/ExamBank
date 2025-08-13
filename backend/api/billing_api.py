@@ -2529,32 +2529,31 @@ def get_dashboard_summary():
         active_user_count = db.session.query(func.count(distinct(BaseContract.user_id))).filter(BaseContract.status.in_(['active','trial_active']), BaseContract.user_id.isnot(None)).scalar()
         active_employees_count = active_personnel_count + active_user_count
 
-        # --- 2. 月度收入趋势 (修改为最近12个月) ---
+        # --- 2. 月度收入趋势 (12个月) ---
         revenue_trend_data = []
-        for i in range(11, -1, -1): # <--- 修改：从 5 改为 11，获取12个月的数据
+        for i in range(11, -1, -1):
             target_date = today - relativedelta(months=i)
             target_year = target_date.year
             target_month = target_date.month
-
             monthly_revenue = db.session.query(
                 func.sum(CustomerBill.calculation_details['management_fee'].as_float())
             ).filter(
                 CustomerBill.year == target_year,
                 CustomerBill.month == target_month,
             ).scalar() or 0
-
             revenue_trend_data.append({
                 "month": target_date.strftime("%Y-%m"),
                 "revenue": D(monthly_revenue).quantize(D('0.01'))
             })
 
-        # --- 3. 待办事项列表 (逻辑保持不变) ---
+        # --- 3. 待办事项列表 (修改) ---
+
+        # 3.1 即将到期合同 (< 30天)
         thirty_days_later = today + timedelta(days=30)
         expiring_contracts_query = BaseContract.query.filter(
             BaseContract.end_date.between(today, thirty_days_later),
             BaseContract.status == 'active'
         ).order_by(BaseContract.end_date.asc()).limit(5).all()
-
         expiring_contracts = [{
             "customer_name": c.customer_name,
             "employee_name": c.user.username if c.user else c.service_personnel.name,
@@ -2563,6 +2562,7 @@ def get_dashboard_summary():
             "expires_in_days": (c.end_date - today).days
         } for c in expiring_contracts_query]
 
+        # 3.2 本月待收管理费
         pending_payments_query = CustomerBill.query.filter(
             CustomerBill.year == today.year,
             CustomerBill.month == today.month,
@@ -2570,29 +2570,27 @@ def get_dashboard_summary():
             CustomerBill.is_substitute_bill == False,
             CustomerBill.calculation_details['management_fee'].as_float() > 0
         ).order_by(CustomerBill.id.desc()).limit(5).all()
-
         pending_payments = [{
             "customer_name": bill.customer_name,
             "contract_type": get_contract_type_details(bill.contract.type),
             "amount": str(D(bill.calculation_details.get('management_fee', 0)).quantize(D('0.01')))
         } for bill in pending_payments_query]
 
-        pending_payouts_query = EmployeePayroll.query.filter(
-            EmployeePayroll.year == today.year,
-            EmployeePayroll.month == today.month,
-            EmployeePayroll.is_paid == False
-        ).order_by(EmployeePayroll.id.desc()).limit(5).all()
+        # 3.3 新增：临近预产期 (< 14天)
+        two_weeks_later = today + timedelta(days=14)
+        approaching_provisional_query = MaternityNurseContract.query.filter(
+            MaternityNurseContract.provisional_start_date.between(today, two_weeks_later),
+            MaternityNurseContract.status == 'active' # 可以根据需要调整状态过滤
+        ).order_by(MaternityNurseContract.provisional_start_date.asc()).limit(5).all()
 
-        pending_payouts = []
-        for payroll in pending_payouts_query:
-            employee = payroll.contract.user or payroll.contract.service_personnel
-            pending_payouts.append({
-                "employee_name": employee.username if hasattr(employee, 'username') else employee.name,
-                "contract_type": get_contract_type_details(payroll.contract.type),
-                "amount": str(payroll.final_payout)
-            })
+        approaching_provisional = [{
+            "customer_name": c.customer_name,
+            "provisional_start_date": c.provisional_start_date.isoformat(),
+            "days_until": (c.provisional_start_date - today).days
+        } for c in approaching_provisional_query]
 
-        # --- 4. 新增：管理费按合同类型分布 (饼图数据) ---
+
+        # --- 4. 管理费按合同类型分布 (饼图数据) ---
         def get_fee_distribution(time_filter):
             query = db.session.query(
                 BaseContract.type,
@@ -2604,21 +2602,17 @@ def get_dashboard_summary():
             ).filter(
                 time_filter
             ).group_by(BaseContract.type)
-
             results = query.all()
-
             labels = [get_contract_type_details(r[0]) for r in results]
             series = [float(r[1]) for r in results]
             return {"labels": labels, "series": series}
 
-        # 计算“今年”的数据
         this_year_filter = (CustomerBill.year == current_year)
         distribution_this_year = get_fee_distribution(this_year_filter)
 
-        # 计算“最近12个月”的数据
         twelve_months_ago = today - relativedelta(months=12)
         last_12_months_filter = (
-            func.make_date(CustomerBill.year, CustomerBill.month, 1) >= func.make_date(twelve_months_ago.year, twelve_months_ago.month, 1)
+            func.make_date(CustomerBill.year, CustomerBill.month, 1) >= func.make_date(twelve_months_ago.year,twelve_months_ago.month, 1)
         )
         distribution_last_12_months = get_fee_distribution(last_12_months_filter)
 
@@ -2638,9 +2632,8 @@ def get_dashboard_summary():
             "todo_lists": {
                 "expiring_contracts": expiring_contracts,
                 "pending_payments": pending_payments,
-                "pending_payouts": pending_payouts
+                "approaching_provisional": approaching_provisional # <-- 新增字段
             },
-            # --- 新增返回字段 ---
             "management_fee_distribution": {
                 "this_year": distribution_this_year,
                 "last_12_months": distribution_last_12_months
