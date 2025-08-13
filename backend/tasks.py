@@ -2373,6 +2373,12 @@ def setup_periodic_tasks(sender, **kwargs):
         auto_check_and_extend_renewal_bills_task.s(),
         name="auto check and extend renewal bills every monday",
     )
+    # Crontab for syncing contracts from Jinshuju
+    sender.add_periodic_task(
+        crontab(minute=0, hour='*'),  # 每小时的0分执行
+        sync_all_contracts_task.s(),
+        name="sync contracts from jinshuju every hour",
+    )
 
 
 @celery_app.task(bind=True, name="tasks.auto_check_and_extend_renewal_bills")

@@ -542,7 +542,7 @@ class BillingEngine:
         current_app.logger.info(
             f"    [NannyCALC] 为合同 {contract.id} 执行计算 (周期: {cycle_start} to {cycle_end})"
         )
-
+        current_app.logger.info(f"actual_work_days_override:{actual_work_days_override}")
         details = self._calculate_nanny_details(contract, bill, payroll, actual_work_days_override)
         bill, payroll = self._calculate_final_amounts(bill, payroll, details)
         current_app.logger.info(
@@ -842,17 +842,35 @@ class BillingEngine:
             if is_last_bill_period and bill.cycle_end_date > contract.end_date:
                 # 场景：这是被延长的最后一期账单
 
-                # 1. 计算延长天数
+                # 1. 计算延长天数和费用
                 extension_days = (bill.cycle_end_date - contract.end_date).days
                 daily_rate = level / D(26)
                 extension_fee = (daily_rate * D(extension_days)).quantize(QUANTIZER)
                 log_extras["extension_days_reason"] = f"原合同于 {contract.end_date.strftime('%m月%d日')} 结束，延长至 {bill.cycle_end_date.strftime('%m月%d日')}，共 {extension_days} 天。"
                 log_extras["extension_fee_reason"] = f"级别({level:.2f})/26 * 延长天数({extension_days}) = {extension_fee:.2f}"
 
-                # 2. 修正总劳务天数，并记录日志
-                original_total_days = total_days_worked
-                total_days_worked += D(extension_days)
-                log_extras["total_days_worked_reason"] = f"原总劳务天数({original_total_days:.1f}) + 延长服务天数({extension_days}) = {total_days_worked:.1f}"
+                # 2. 【BUG修复】重新计算此账单周期内，属于原合同的实际劳务天数
+                # 使用原合同结束日来计算正确的周期天数
+                original_cycle_actual_days = (contract.end_date - cycle_start).days + 1
+                # if is_last_bill: # 育儿嫂最后一个月账单天数 +1
+                #     original_cycle_actual_days +=1
+                
+                # 沿用之前的逻辑，优先使用手动覆盖的值
+                if actual_work_days_override is not None:
+                    # 如果有手动覆盖，base_work_days 保持不变，但要确保它不超过原周期天数
+                    base_work_days = D(min(actual_work_days_override, original_cycle_actual_days))
+                    log_extras["base_work_days_reason"] = f"延长账单，使用用户输入({actual_work_days_override:.1f})和原周期天数({original_cycle_actual_days})的较小值"
+                elif bill.actual_work_days and bill.actual_work_days > 0:
+                    base_work_days = D(min(bill.actual_work_days, original_cycle_actual_days))
+                    log_extras["base_work_days_reason"] = f"延长账单，使用数据库存储({bill.actual_work_days})和原周期天数({original_cycle_actual_days})的较小值"
+                else:
+                    # 默认逻辑
+                    base_work_days = D(min(original_cycle_actual_days, 26))
+                    log_extras["base_work_days_reason"] = f"延长账单，默认逻辑: min(原周期天数({original_cycle_actual_days}), 26)"
+
+                # 重新计算总劳务天数，不再包含延长天数
+                total_days_worked = base_work_days + overtime_days - D(total_substitute_days)
+                log_extras["total_days_worked_reason"] = f"基础劳务天数({base_work_days:.1f}) + 加班({overtime_days}) - 替班({total_substitute_days}) = {total_days_worked:.1f} (延长天数不计入)"
 
                 # 3. 计算并记录管理费
                 if management_fee_amount:
