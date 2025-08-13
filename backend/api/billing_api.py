@@ -1174,13 +1174,15 @@ def batch_update_billing_details():
             
             if bill.payment_details is None: bill.payment_details = {}
             payment_date_str = settlement_status.get('customer_payment_date')
-            bill.payment_details['payment_date'] = date_parse(payment_date_str).date() if payment_date_str and payment_date_str else None
+            payment_date_obj = date_parse(payment_date_str).date() if payment_date_str and payment_date_str else None
+            bill.payment_details['payment_date'] = payment_date_obj.isoformat() if payment_date_obj else None
             bill.payment_details['payment_channel'] = settlement_status.get('customer_payment_channel')
             attributes.flag_modified(bill, "payment_details")
 
             if payroll.payout_details is None: payroll.payout_details = {}
             payout_date_str = settlement_status.get('employee_payout_date')
-            payroll.payout_details['date'] = date_parse(payout_date_str).date() if payout_date_str and payout_date_str else None
+            payout_date_obj = date_parse(payout_date_str).date() if payout_date_str and payout_date_str else None
+            payroll.payout_details['date'] = payout_date_obj.isoformat() if payout_date_obj else None
             payroll.payout_details['channel'] = settlement_status.get('employee_payout_channel')
             attributes.flag_modified(payroll, "payout_details")
 
