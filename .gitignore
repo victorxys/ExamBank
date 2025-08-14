@@ -227,3 +227,4 @@ meng/
 celerybeat-schedule.db
 
 start_dev.sh
+*.sh

@@ -23,6 +23,7 @@
     "apexcharts": "^5.3.3",
     "axios": "^1.7.9",
     "date-fns": "^2.30.0",
+    "dayjs": "^1.11.13",
     "github-markdown-css": "^5.8.1",
     "html2canvas": "^1.4.1",
     "js-cookie": "^3.0.5",

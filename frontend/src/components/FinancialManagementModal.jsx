@@ -26,6 +26,7 @@ import InvoiceDetailsDialog from './InvoiceDetailsDialog';
 import LogItem from './LogItem';
 import { PeopleAlt as PeopleAltIcon } from '@mui/icons-material';
 import SubstituteDialog from './SubstituteDialog';
+import TransferDepositDialog from './TransferDepositDialog';
 
 // --- 辅助函数 ---
 const formatDateRange = (dateRangeString) => {
@@ -174,6 +175,8 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
     const [isInvoiceNeeded, setIsInvoiceNeeded] = useState(false);
     const [editableInvoices, setEditableInvoices] = useState([]);
     const [isInvoiceDialogOpen, setIsInvoiceDialogOpen] = useState(false);
+    const [isTransferDialogOpen, setIsTransferDialogOpen] = useState(false);
+    const [transferringAdjustment, setTransferringAdjustment] = useState(null);
 
     useEffect(() => {
          if (initialBillingDetails) {
@@ -384,7 +387,37 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
     const handleOpenInvoiceDialog = () => setIsInvoiceDialogOpen(true);
     const handleCloseInvoiceDialog = () => setIsInvoiceDialogOpen(false);
     const handleSaveInvoice = (newInvoiceData) => setEditableInvoice(newInvoiceData);
-    
+    const handleOpenTransferDialog = (adjustment) => {
+        setTransferringAdjustment(adjustment);
+        setIsTransferDialogOpen(true);
+    };
+
+    const handleCloseTransferDialog = () => {
+        setTransferringAdjustment(null);
+        setIsTransferDialogOpen(false);
+    };
+    const handleConfirmTransfer = async (destinationContractId) => {
+        if (!transferringAdjustment) return;
+
+        try {
+            const response = await api.post(
+                `/billing/financial-adjustments/${transferringAdjustment.id}/transfer`,
+                { destination_contract_id: destinationContractId }
+            );
+
+            alert('保证金转移成功！');
+            handleCloseTransferDialog();
+
+            // 【核心修复】用后端返回的最新列表，强制刷新当前弹窗的内部状态
+            if (response.data.updated_adjustments) {
+                setAdjustments(response.data.updated_adjustments);
+            }
+
+        } catch (error) {
+            console.error("转移保证金失败:", error);
+            alert(error.response?.data?.error || '操作失败，请查看控制台。');
+        }
+    };
     const customerData = billingDetails?.customer_bill_details || {};
     const employeeData = billingDetails?.employee_payroll_details || {};
 
@@ -683,36 +716,69 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                         <List dense disablePadding>
                             {currentAdjustments.map(adj => {
                                 const isReadOnly = adj.adjustment_type === 'deferred_fee';
-                                 return (
-                                 <ListItem
-                                    key={adj.id}
-                                    button={isEditMode}
-                                    onClick={isEditMode ? () => { setEditingAdjustment(adj); setIsAdjustmentDialogOpen(true); } : undefined}
-                                    secondaryAction={isEditMode && (
-                                        <IconButton
-                                            edge="end"
-                                            size="small"
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                handleDeleteAdjustment(adj.id);
-                                            }}
-                                        >
-                                            <DeleteIcon fontSize="small"/>
-                                        </IconButton>
-                                    )}
-                                >
-                                    <ListItemIcon sx={{ minWidth: 'auto', mr: 1.5 }}>{AdjustmentTypes[adj.adjustment_type]?.effect> 0 ? <ArrowUpwardIcon color="success" fontSize="small"/> : <ArrowDownwardIcon color="error" fontSize="small"/>}</ListItemIcon>
-                                    <ListItemText
-                                        primary={AdjustmentTypes[adj.adjustment_type]?.label}
-                                        secondary={
-                                            <Typography variant="body2" component="span" sx={{ whiteSpace: 'pre-wrap', color:'text.secondary' }}>
-                                                {adj.description}
-                                            </Typography>
+                                const isTransferable = !isEditMode && adj.description === '[系统添加] 保证金退款' && (!adj.details|| adj.details.status !== 'transferred');
+                                return (
+                                    <ListItem
+                                        key={adj.id}
+                                        button={isEditMode && !isReadOnly}
+                                        onClick={isEditMode && !isReadOnly ? () => { setEditingAdjustment(adj);setIsAdjustmentDialogOpen(true); } : undefined}
+                                        secondaryAction={
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                {isTransferable && (
+                                                    <Button
+                                                        size="small"
+                                                        variant="outlined"
+                                                        onClick={() => handleOpenTransferDialog(adj)}
+                                                    >
+                                                        转移
+                                                    </Button>
+                                                )}
+                                                {isEditMode && !isReadOnly && (
+                                                    <IconButton
+                                                        edge="end"
+                                                        size="small"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleDeleteAdjustment(adj.id);
+                                                        }}
+                                                    >
+                                                        <DeleteIcon fontSize="small" />
+                                                    </IconButton>
+                                                )}
+                                            </Box>
                                         }
-                                    />
-                                    <Typography variant="body2" sx={{ fontFamily: 'monospace', fontWeight: 'bold' }}>{AdjustmentTypes[adj.adjustment_type]?.effect > 0 ? '+' : '-'} {formatValue('', adj.amount)}</Typography>
-                                </ListItem>
-                                )
+                                    >
+                                        <ListItemIcon sx={{ minWidth: 'auto', mr: 1.5 }}>
+                                            {AdjustmentTypes[adj.adjustment_type]?.effect > 0 ? <ArrowUpwardIcon color="success" fontSize="small" /> : <ArrowDownwardIcon color="error" fontSize="small" />}
+                                        </ListItemIcon>
+                                        <ListItemText
+                                            primary={AdjustmentTypes[adj.adjustment_type]?.label}
+                                            secondary={
+                                                adj.details?.status === 'transferred_in' ? (
+                                                    <Typography variant="body2" component="span" sx={{ whiteSpace: 'pre-wrap',color: 'text.secondary' }}>
+                                                        从
+                                                        <Button
+                                                            size="small"
+                                                            variant="text"
+                                                            sx={{ p: 0, m: 0, height: 'auto', verticalAlign: 'baseline' }}
+                                                            onClick={() => navigate(`/contracts/${adj.details.transferred_from_contract_id}`)}
+                                                        >
+                                                            其他合同
+                                                        </Button>
+                                                        转移的保证金退款
+                                                    </Typography>
+                                                ) : (
+                                                    <Typography variant="body2" component="span" sx={{ whiteSpace: 'pre-wrap',color: 'text.secondary' }}>
+                                                        {adj.description}
+                                                    </Typography>
+                                                )
+                                            }
+                                        />
+                                        <Typography variant="body2" sx={{ fontFamily: 'monospace', fontWeight: 'bold' }}>
+                                            {AdjustmentTypes[adj.adjustment_type]?.effect > 0 ? '+' : '-'} {formatValue('', adj.amount)}
+                                        </Typography>
+                                    </ListItem>
+                                );
                             })}
                         </List>
                         {isEditMode && (<Box sx={{ mt: 1, display: 'flex', justifyContent: 'center' }}><Button size="small" variant="text" startIcon={<AddIcon />} onClick={() => { setEditingAdjustment(null); setAdjustmentFilter(isCustomer ? 'customer' :'employee'); setIsAdjustmentDialogOpen(true); }}>添加调整</Button></Box>)}
@@ -1083,6 +1149,23 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                     <Button onClick={handleConfirmExtension} variant="contained">确认延长</Button>
                 </DialogActions>
             </Dialog>
+            <Dialog open={isTransferDialogOpen} onClose={handleCloseTransferDialog}>
+                <DialogTitle>转移保证金</DialogTitle>
+                <DialogContent>
+                    <Typography>（转移功能开发中...）</Typography>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={handleCloseTransferDialog}>取消</Button>
+                </DialogActions>
+            </Dialog>
+                    
+            <TransferDepositDialog
+                open={isTransferDialogOpen}
+                onClose={handleCloseTransferDialog}
+                adjustment={transferringAdjustment}
+                sourceContract={contract}
+                onConfirm={handleConfirmTransfer}
+            />
         </>
     );
 };

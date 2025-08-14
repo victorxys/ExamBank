@@ -1998,6 +1998,7 @@ class FinancialAdjustment(db.Model):
         nullable=True,
         index=True,
     )
+    details = db.Column(PG_JSONB, nullable=True, comment="用于存储保证金转移等额外信息的JSON字段")
 
     created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
 
@@ -2059,6 +2060,7 @@ class BaseContract(db.Model):
     __table_args__ = {"comment": "合同基础信息表"}
 
     id = db.Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    source = db.Column(db.String(50), nullable=False, default='jinshuju', server_default='jinshuju', comment="合同来源 (e.g., 'jinshuju', 'virtual')")
     type = db.Column(
         db.String(50),
         nullable=False,
@@ -2068,7 +2070,7 @@ class BaseContract(db.Model):
 
     jinshuju_entry_id = db.Column(
         db.String(255),
-        nullable=False,
+        nullable=True,
         index=True,
         comment="金数据中的原始数据Entry ID或serial_number",
     )

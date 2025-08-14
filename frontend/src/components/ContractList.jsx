@@ -19,6 +19,8 @@ import { zhCN } from 'date-fns/locale';
 import api from '../api/axios';
 import PageHeader from './PageHeader';
 import AlertMessage from './AlertMessage';
+import CreateVirtualContractModal from './CreateVirtualContractModal'; // 路径可能需要微调
+import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 
 const formatDate = (isoString) => {
   if (!isoString) return 'N/A';
@@ -39,6 +41,7 @@ const ContractList = () => {
     const [rowsPerPage, setRowsPerPage] = useState(10);
     const [totalContracts, setTotalContracts] = useState(0);
     const [syncing, setSyncing] = useState(false);
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
     // --- 核心修正 1：修改默认状态并增加排序 state ---
     const [filters, setFilters] = useState({ search: '', type: '', status: '' });
@@ -187,6 +190,15 @@ const ContractList = () => {
                         <Grid item xs={12} sm={4} sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
                             {/* <Button variant="contained" startIcon={<AddIcon />}>新增合同</Button> */}
                             {/* <Button variant="outlined" startIcon={<SyncIcon />}>同步合同</Button> */}
+                      
+                                <Button
+                                    variant="contained"
+                                    startIcon={<AddCircleOutlineIcon />}
+                                    onClick={() => setIsCreateModalOpen(true)}
+                                >
+                                    新增虚拟合同
+                                </Button>
+                        
                             <Button variant="contained" onClick={handleTriggerSync} disabled={syncing} startIcon={syncing ? <CircularProgress size={20} color="inherit" /> : <SyncIcon />}>同步</Button>
                         </Grid>
                     </Grid>
@@ -344,6 +356,16 @@ const ContractList = () => {
                     </DialogActions>
                 </Dialog>
             </Box>
+            <CreateVirtualContractModal
+                open={isCreateModalOpen}
+                onClose={() => setIsCreateModalOpen(false)}
+                onSuccess={() => {
+                    setIsCreateModalOpen(false);
+                    // 在这里调用您页面中已有的、用于刷新合同列表的函数
+                    // 例如: fetchContracts(); 
+                    alert("操作成功，正在刷新列表...");
+                }}
+            />
         </LocalizationProvider>
     );
 };

@@ -17,6 +17,7 @@ from datetime import datetime
 import decimal
 from dateutil.relativedelta import relativedelta
 from collections import defaultdict
+from pypinyin import pinyin, Style
 
 
 # --- 新增 AttendanceRecord 的导入 ---
@@ -39,6 +40,7 @@ from backend.models import (
 from backend.tasks import (
     sync_all_contracts_task,
     calculate_monthly_billing_task,
+    post_virtual_contract_creation_task,
     generate_all_bills_for_contract_task,
 )  # 导入新任务
 from backend.services.billing_engine import BillingEngine
@@ -48,6 +50,50 @@ D = decimal.Decimal
 
 billing_bp = Blueprint("billing_api", __name__, url_prefix="/api/billing")
 
+def _get_or_create_personnel_ref(name: str, phone: str = None):
+    """
+    根据姓名和（可选）手机号，查找或创建服务人员。
+    逻辑与 data_sync_service 一致。
+    返回一个包含人员类型和ID的字典。
+    """
+    # 1. 按手机号在 User 表中精确查找
+    if phone:
+        user = User.query.filter_by(phone_number=phone).first()
+        if user:
+            return {"type": "user", "id": user.id}
+
+    # 2. 按姓名在 User 表中查找
+    user = User.query.filter_by(username=name).first()
+    if user:
+        return {"type": "user", "id": user.id}
+
+    # 3. 按手机号在 ServicePersonnel 表中精确查找
+    if phone:
+        sp = ServicePersonnel.query.filter_by(phone_number=phone).first()
+        if sp:
+            return {"type": "service_personnel", "id": sp.id}
+
+    # 4. 按姓名在 ServicePersonnel 表中查找
+    sp = ServicePersonnel.query.filter_by(name=name).first()
+    if sp:
+        return {"type": "service_personnel", "id": sp.id}
+
+    # 5. 如果都找不到，则创建新的 ServicePersonnel
+    # --- 新增：生成拼音 ---
+    name_pinyin_full = "".join(item[0] for item in pinyin(name, style=Style.NORMAL))
+    name_pinyin_initials = "".join(item[0] for item in pinyin(name, style=Style.FIRST_LETTER))
+    name_pinyin_combined = f"{name_pinyin_full} {name_pinyin_initials}"
+    # --- 结束 ---
+
+    new_sp = ServicePersonnel(
+        name=name,
+        phone_number=phone,
+        name_pinyin=name_pinyin_combined # <-- 在这里使用生成的拼音
+    )
+    db.session.add(new_sp)
+    db.session.flush()
+    current_app.logger.info(f"创建了新的服务人员: {name} (Pinyin: {name_pinyin_combined})")
+    return {"type": "service_personnel", "id": new_sp.id}
 
 # 创建一个辅助函数来记录日志
 def _log_activity(bill, payroll, action, details=None):
@@ -1264,6 +1310,39 @@ def get_contract_type_details(contract_type):
         return "育儿嫂试工"
     return "未知类型"
 
+@billing_bp.route("/contracts/eligible-for-transfer", methods=["GET"])
+@admin_required
+def get_eligible_contracts_for_transfer():
+    """
+    获取用于保证金转移的目标合同列表。
+    列表只包含同一客户名下、状态为 active 的、非当前的其它合同。
+    """
+    customer_name = request.args.get("customer_name")
+    exclude_contract_id = request.args.get("exclude_contract_id")
+
+    if not customer_name or not exclude_contract_id:
+        return jsonify({"error": "缺少 customer_name 或 exclude_contract_id 参数"}), 400
+
+    try:
+        eligible_contracts = BaseContract.query.filter(
+            BaseContract.customer_name == customer_name,
+            BaseContract.id != exclude_contract_id,
+            BaseContract.status == 'active'
+        ).order_by(BaseContract.start_date.desc()).all()
+
+        results = [
+            {
+                "id": str(contract.id),
+                "label": f"{get_contract_type_details(contract.type)} - {contract.user.username if contract.user else contract.service_personnel.name} ({contract.start_date.strftime('%Y-%m-%d')}生效)"
+            }
+            for contract in eligible_contracts
+        ]
+
+        return jsonify(results)
+
+    except Exception as e:
+        current_app.logger.error(f"获取可转移合同列表失败: {e}", exc_info=True)
+        return jsonify({"error": "服务器内部错误"}), 500
 
 @billing_bp.route("/contracts", methods=["GET"])
 @admin_required
@@ -1428,6 +1507,168 @@ def get_all_contracts():
         current_app.logger.error(f"获取所有合同列表失败: {e}", exc_info=True)
         return jsonify({"error": str(e)}), 500
 
+@billing_bp.route("/personnel/search", methods=["GET"])
+@admin_required
+def search_personnel():
+    """
+    用于前端自动补全，搜索员工/服务人员。
+    """
+    query_str = request.args.get("q", "").strip()
+    if not query_str:
+        return jsonify([])
+
+    search_term = f"%{query_str}%"
+
+    # 查询 User 表
+    users = User.query.filter(
+        or_(
+            User.username.ilike(search_term),
+            User.name_pinyin.ilike(search_term)
+        )
+    ).limit(10).all()
+
+    # 查询 ServicePersonnel 表
+    service_personnel = ServicePersonnel.query.filter(
+        or_(
+            ServicePersonnel.name.ilike(search_term),
+            ServicePersonnel.name_pinyin.ilike(search_term)
+        )
+    ).limit(10).all()
+
+    results = []
+    seen_names = set()
+
+    for u in users:
+        if u.username not in seen_names:
+            results.append({"id": str(u.id), "name": u.username, "source": "user"})
+            seen_names.add(u.username)
+
+    for sp in service_personnel:
+        if sp.name not in seen_names:
+            results.append({"id": str(sp.id), "name": sp.name, "source": "service_personnel"})
+            seen_names.add(sp.name)
+
+    # 可以根据需要对结果进行排序
+    results.sort(key=lambda x: x['name'])
+
+    return jsonify(results)
+
+
+@billing_bp.route("/customers/search", methods=["GET"])
+@admin_required
+def search_customers():
+    """
+    用于前端自动补全，搜索已存在的客户名称。
+    """
+    query_str = request.args.get("q", "").strip()
+    if not query_str:
+        return jsonify([])
+
+    search_term = f"%{query_str}%"
+
+    # 在合同表中去重查找
+    customers_query = db.session.query(BaseContract.customer_name).filter(
+        or_(
+            BaseContract.customer_name.ilike(search_term),
+            BaseContract.customer_name_pinyin.ilike(search_term)
+        )
+    ).distinct().limit(10)
+
+    results = [item[0] for item in customers_query.all()]
+
+    return jsonify(results)
+
+@billing_bp.route("/contracts/virtual", methods=["POST"])
+@admin_required
+def create_virtual_contract():
+    """
+    手动创建虚拟合同。
+    """
+   
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "请求体不能为空"}), 400
+
+    # 1. 基础字段校验
+    required_fields = ["contract_type", "customer_name", "employee_name", "employee_level", "start_date", "end_date"]
+    if not all(field in data for field in required_fields):
+        return jsonify({"error": f"缺少必要字段: {', '.join(required_fields)}"}), 400
+
+    try:
+        # 2. 处理员工（查找或创建）
+        employee_ref = _get_or_create_personnel_ref(data["employee_name"])
+
+        # 3. 根据合同类型，实例化对应的模型并填充数据
+        contract_type = data["contract_type"]
+        new_contract = None
+
+        
+        customer_name = data["customer_name"]
+        cust_pinyin_full = "".join(item[0] for item in pinyin(customer_name, style=Style.NORMAL))
+        cust_pinyin_initials = "".join(item[0] for item in pinyin(customer_name, style=Style.FIRST_LETTER))
+        customer_name_pinyin = f"{cust_pinyin_full} {cust_pinyin_initials}"
+        
+
+        common_params = {
+            "customer_name": data["customer_name"],
+            "customer_name_pinyin": customer_name_pinyin,
+            "contact_person": data.get("contact_person"),
+            "employee_level": D(data["employee_level"]),
+            "start_date": date_parse(data["start_date"]).date(),
+            "end_date": date_parse(data["end_date"]).date(),
+            "notes": data.get("notes"),
+            "source": "virtual", # 标记为虚拟合同
+        }
+        if employee_ref["type"] == "user":
+            common_params["user_id"] = employee_ref["id"]
+        else:
+            common_params["service_personnel_id"] = employee_ref["id"]
+
+        if contract_type == "maternity_nurse":
+            new_contract = MaternityNurseContract(
+                **common_params,
+                status="active",
+                provisional_start_date=date_parse(data["provisional_start_date"]).date() if data.get("provisional_start_date") else None,
+                security_deposit_paid=D(data.get("security_deposit_paid") or 0),
+                management_fee_amount=D(data.get("management_fee_amount") or 0),
+                introduction_fee=D(data.get("introduction_fee") or 0)
+            )
+        elif contract_type == "nanny":
+            new_contract = NannyContract(
+                **common_params,
+                status="active",
+                is_monthly_auto_renew=data.get("is_monthly_auto_renew", False),
+                management_fee_amount=D(data.get("management_fee_amount") or 0),
+                introduction_fee=D(data.get("introduction_fee") or 0)
+            )
+        elif contract_type == "nanny_trial":
+            new_contract = NannyTrialContract(
+                **common_params,
+                status="trial_active", # 试工合同初始状态
+                introduction_fee=D(data.get("introduction_fee") or 0)
+            )
+        else:
+            return jsonify({"error": "无效的合同类型"}), 400
+
+        # 4. 保存到数据库
+        db.session.add(new_contract)
+        db.session.commit()
+        current_app.logger.info(f"成功创建虚拟合同，ID: {new_contract.id}")
+
+        # 5. 【最终修复】只为“育儿嫂”合同，调用新的、专属的后续处理任务
+        if contract_type == "nanny":
+            post_virtual_contract_creation_task.delay(str(new_contract.id))
+            current_app.logger.info(f"已为育儿嫂合同 {new_contract.id} 提交后续处理任务。")
+
+        return jsonify({
+            "message": "虚拟合同创建成功！",
+            "contract_id": str(new_contract.id)
+        }), 201
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"创建虚拟合同失败: {e}", exc_info=True)
+        return jsonify({"error": "服务器内部错误，创建失败"}), 500
 
 # 批量生成月嫂合同账单
 @billing_bp.route(
@@ -2891,3 +3132,112 @@ def format_bill_for_conflict_response(bill):
         "total_payable": str(bill.total_payable or 0),
         "management_fee": str(management_fee or 0)
     }
+
+@billing_bp.route("/financial-adjustments/<uuid:adjustment_id>/transfer", methods=["POST"])
+@admin_required
+def transfer_financial_adjustment(adjustment_id):
+    """
+    将一个合同的保证金退款项转移到另一个合同，并在源账单创建冲抵项。
+    """
+    data = request.get_json()
+    destination_contract_id = data.get("destination_contract_id")
+    current_app.logger.info(f"[DEBUG-OFFSET] 收到转移请求，adjustment_id: {adjustment_id}, destination_contract_id: {destination_contract_id}")
+
+    if not destination_contract_id:
+        return jsonify({"error": "请求体中缺少目标合同ID (destination_contract_id)"}), 400
+
+    try:
+        # 1. 数据校验
+        source_adj = db.session.get(FinancialAdjustment, adjustment_id)
+        if not source_adj: return jsonify({"error": "需要转移的财务调整项未找到"}), 404
+        if source_adj.description != "[系统添加] 保证金退款": return jsonify({"error": "只能转移'[系统添加] 保证金退款'类型的条目"}), 400
+        if source_adj.details and source_adj.details.get('status') == 'transferred': return jsonify({"error":"该款项已被转移，无法重复操作"}), 400
+
+        source_bill = db.session.get(CustomerBill, source_adj.customer_bill_id)
+        if not source_bill: return jsonify({"error": "源财务调整项未关联到任何账单"}), 500
+
+        source_contract = source_bill.contract
+        dest_contract = db.session.get(BaseContract, destination_contract_id)
+
+        if not dest_contract: return jsonify({"error": "目标合同未找到"}), 404
+        if source_contract.customer_name != dest_contract.customer_name: return jsonify({"error":"保证金只能在同一客户名下的不同合同间转移"}), 400
+
+        destination_bill = CustomerBill.query.filter(
+            CustomerBill.contract_id == dest_contract.id,
+            CustomerBill.is_substitute_bill == False
+        ).order_by(CustomerBill.cycle_start_date.asc()).first()
+        if not destination_bill: return jsonify({"error": "目标合同没有任何账单，无法接收转移的保证金"}), 400
+
+        current_app.logger.info(f"[DEBUG-OFFSET] 数据校验通过。准备执行数据库操作。")
+
+        # 2. 执行转移和冲抵操作
+        with db.session.begin_nested():
+            current_app.logger.info(f"[DEBUG-OFFSET] 进入嵌套事务(nested transaction)。")
+            # 2a. 在目标合同下创建“转入”项
+            new_adj_in = FinancialAdjustment(
+                customer_bill_id=destination_bill.id,
+                adjustment_type=AdjustmentType.CUSTOMER_DECREASE,
+                amount=source_adj.amount,
+                description="[系统添加] 其他合同转移保证金退款",
+                date=date.today(),
+                details={"status": "transferred_in", "transferred_from_adjustment_id": str(source_adj.id)}
+            )
+            db.session.add(new_adj_in)
+            db.session.flush()
+            current_app.logger.info(f"[DEBUG-OFFSET] '转入项' (new_adj_in) 已创建并 flush, ID: {new_adj_in.id}")
+
+            # 2b. 更新源“退款”项，标记为已转移
+            source_adj.description = f"[系统添加] 保证金退款 [已转移至客户: {dest_contract.customer_name}]"
+            source_adj.details = {
+                "status": "transferred",
+                "transferred_to_contract_id": str(dest_contract.id),
+                "transferred_to_adjustment_id": str(new_adj_in.id)
+            }
+            attributes.flag_modified(source_adj, "details")
+            current_app.logger.info(f"[DEBUG-OFFSET] '源退款项' (source_adj) 已在内存中更新。")
+
+            # 2c. 【核心新增】在源账单下，创建一笔“增款”来冲抵已转移的退款
+            current_app.logger.info(f"[DEBUG-OFFSET] 准备为 Bill ID {source_bill.id} 创建冲抵项。")
+            offsetting_adj = FinancialAdjustment(
+                customer_bill_id=source_bill.id,
+                adjustment_type=AdjustmentType.CUSTOMER_INCREASE,
+                amount=source_adj.amount,
+                description="[系统添加] 冲抵已转移的保证金",
+                date=date.today(),
+                details={"offset_for_adjustment_id": str(source_adj.id)}
+            )
+            current_app.logger.info(f"[DEBUG-OFFSET] 冲抵项对象已在内存中创建: desc='{offsetting_adj.description}', amount={offsetting_adj.amount}")
+            db.session.add(offsetting_adj)
+            current_app.logger.info(f"[DEBUG-OFFSET] 冲抵项 (offsetting_adj) 已添加到 session。")
+
+            # 2d. 记录日志
+            _log_activity(source_bill, None, "执行保证金转移(转出)", details={"amount": str(source_adj.amount), "to_customer":dest_contract.customer_name})
+            _log_activity(destination_bill, None, "接收转移保证金(转入)", details={"amount": str(new_adj_in.amount),"from_customer": source_contract.customer_name})
+            current_app.logger.info(f"[DEBUG-OFFSET] 嵌套事务中的所有操作已完成。")
+
+        current_app.logger.info(f"[DEBUG-OFFSET] 准备提交主事务 (commit)。")
+        db.session.commit()
+        current_app.logger.info(f"[DEBUG-OFFSET] 主事务已成功提交 (commit successful)。")
+
+    except Exception as e:
+        current_app.logger.error(f"[DEBUG-OFFSET] 转移操作在主事务提交前发生异常，正在回滚: {e}", exc_info=True)
+        db.session.rollback()
+        return jsonify({"error": "服务器内部错误，转移操作失败"}), 500
+
+    # 3. 触发重算
+    current_app.logger.info(f"[DEBUG-OFFSET] 准备触发重算任务。")
+    try:
+        engine = BillingEngine()
+        engine.calculate_for_month(year=source_bill.year, month=source_bill.month, contract_id=source_contract.id,force_recalculate=True, cycle_start_date_override=source_bill.cycle_start_date)
+        engine.calculate_for_month(year=destination_bill.year, month=destination_bill.month, contract_id=dest_contract.id,force_recalculate=True, cycle_start_date_override=destination_bill.cycle_start_date)
+        db.session.commit()
+        current_app.logger.info(f"[DEBUG-OFFSET] 重算任务已完成并提交。")
+    except Exception as e:
+        current_app.logger.error(f"保证金转移后重算账单失败: {e}", exc_info=True)
+        pass
+
+    final_adjustments = FinancialAdjustment.query.filter_by(customer_bill_id=source_bill.id).all()
+    return jsonify({
+        "message": "保证金转移成功，并已自动创建冲抵项。",
+        "updated_adjustments": [adj.to_dict() for adj in final_adjustments]
+    })

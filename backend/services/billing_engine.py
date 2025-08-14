@@ -1237,86 +1237,71 @@ class BillingEngine:
         }
 
     def _handle_security_deposit(self, contract, bill):
-        """处理所有合同类型的首末月保证金收退逻辑。"""
-        current_app.logger.debug(
-            f"Handling security deposit for contract {contract.id}, type: {contract.type}"
-        )
-        current_app.logger.debug(
-            f"  Contract id = {contract.id}, type = {contract.type} attributes: end_date={contract.end_date}, expected_offboarding_date={contract.expected_offboarding_date}"
-        )
-        # 1. 清理旧的系统生成的保证金调整项，确保幂等性
-        FinancialAdjustment.query.filter(
-            FinancialAdjustment.customer_bill_id == bill.id,
-            FinancialAdjustment.description.like("[系统添加] 保证金%"),
-        ).delete(synchronize_session=False)
+        """处理所有合同类型的首末月保证金收退逻辑（V6 - 终极调试版）。"""
+        from sqlalchemy.dialects import postgresql
+        
+
+        # 步骤1：在删除前，打印出将要执行的SQL语句
+        try:
+            to_delete_q = FinancialAdjustment.query.filter(
+                FinancialAdjustment.customer_bill_id == bill.id,
+                FinancialAdjustment.description.in_(['[系统添加] 保证金', '[系统添加] 保证金退款']),
+                FinancialAdjustment.details.is_(None)
+            )
+
+            # 编译并打印SQL
+            compiled_query = to_delete_q.statement.compile(dialect=postgresql.dialect())
+            
+            # 执行删除
+            deleted_count = to_delete_q.delete(synchronize_session=False)
+           
+        except Exception as e:
+            current_app.logger.error(f"[ULTIMATE-DEBUG] 删除步骤出错: {e}")
+
 
         if not contract.security_deposit_paid or contract.security_deposit_paid <= 0:
-            current_app.logger.debug(
-                f"  Contract {contract.id} has no security deposit or it's zero. Skipping."
-            )
             return
 
-        # 2. 判断是否为首期账单
-        # 对于月嫂，使用 actual_onboarding_date；对于育儿嫂，使用 start_date
-        contract_start_date = getattr(
-            contract, "actual_onboarding_date", contract.start_date
-        )
-        current_app.logger.debug(
-            f"  Calculated contract_start_date: {contract_start_date}"
-        )
+        # 步骤2：判断是否为首期账单，并添加
+        contract_start_date = getattr(contract, "actual_onboarding_date", contract.start_date)
         if bill.cycle_start_date == contract_start_date:
-            db.session.add(
-                FinancialAdjustment(
-                    customer_bill_id=bill.id,
-                    adjustment_type=AdjustmentType.CUSTOMER_INCREASE,
-                    amount=contract.security_deposit_paid,
-                    description="[系统添加] 保证金",
-                    date=bill.cycle_start_date,
+            exists = db.session.query(FinancialAdjustment.id).filter_by(customer_bill_id=bill.id, description='[系统添加] 保证金').first()
+            if not exists:
+                db.session.add(
+                    FinancialAdjustment(
+                        customer_bill_id=bill.id,
+                        adjustment_type=AdjustmentType.CUSTOMER_INCREASE,
+                        amount=contract.security_deposit_paid,
+                        description="[系统添加] 保证金",
+                        date=bill.cycle_start_date,
+                    )
                 )
-            )
-            current_app.logger.info(
-                f"为合同 {contract.id} 的首期账单 {bill.id} 添加保证金 {contract.security_deposit_paid}"
-            )
 
-        # 3. 判断是否为末期账单
-        # 根据合同类型确定正确的合同结束日期
+        # 步骤3：判断是否为末期账单，并添加
         if contract.type == "maternity_nurse":
             contract_end_date = contract.expected_offboarding_date or contract.end_date
-        else:  # nanny and nanny_trial
+        else:
             contract_end_date = contract.end_date
 
-        current_app.logger.debug(
-            f"  Calculated contract_end_date: {contract_end_date} (based on contract type: {contract.type})"
-        )
-        current_app.logger.debug(
-            f"  Checking for last bill: contract_end_date={contract_end_date}, bill.cycle_end_date={bill.cycle_end_date}"
-        )
-
-        # 获取合同是否为自动续约类型
         is_auto_renew = getattr(contract, 'is_monthly_auto_renew', False)
-
-        # 判断是否为最后一期账单的条件
         is_last_bill_period = (contract_end_date and bill.cycle_end_date >= contract_end_date)
 
-        # 只有在满足以下条件之一时，才退还保证金：
-        # 1. 这是一份普通的、非自动续约的合同，并且到达了最后一期。
-        # 2. 这是一份自动续约的合同，但它的状态已经不是 'active'（意味着已被终止），并且到达了最后一期。
         if is_last_bill_period and (not is_auto_renew or contract.status != 'active'):
-            db.session.add(
-                FinancialAdjustment(
-                    customer_bill_id=bill.id,
-                    adjustment_type=AdjustmentType.CUSTOMER_DECREASE,
-                    amount=contract.security_deposit_paid,
-                    description="[系统添加] 保证金退款",
-                    date=bill.cycle_end_date,
+            exists = db.session.query(FinancialAdjustment.id).filter(
+                FinancialAdjustment.customer_bill_id == bill.id,
+                FinancialAdjustment.description.like('%保证金退款%')
+            ).first()
+            if not exists:
+                db.session.add(
+                    FinancialAdjustment(
+                        customer_bill_id=bill.id,
+                        adjustment_type=AdjustmentType.CUSTOMER_DECREASE,
+                        amount=contract.security_deposit_paid,
+                        description="[系统添加] 保证金退款",
+                        date=bill.cycle_end_date,
+                    )
                 )
-            )
-            current_app.logger.info(
-                f"为合同 {contract.id} 的末期账单 {bill.id} 退还保证金 {contract.security_deposit_paid}"
-            )
-            current_app.logger.debug(
-                f"  Processing 保证金退款 for contract {contract.id}, amount: {contract.security_deposit_paid}"
-            )
+        current_app.logger.info(f"--- [ULTIMATE-DEBUG] END for Bill ID: {bill.id} ---")
 
     def calculate_for_substitute(self, substitute_record_id, commit=True):
         """为单条替班记录生成专属的客户账单和员工薪酬单。"""
@@ -1897,7 +1882,7 @@ class BillingEngine:
 
         # 统一计算基础劳务费和管理费
         base_fee = (daily_rate * days).quantize(QUANTIZER)
-        management_fee = (monthly_rate* D('0.2') / 30 * (days + 1)).quantize(QUANTIZER)
+        management_fee = (monthly_rate* D('0.2') / 30 * (days)).quantize(QUANTIZER)
 
         details = {
             "type": "nanny_trial_termination",
@@ -1927,7 +1912,7 @@ class BillingEngine:
             "substitute_deduction": "0.00",
 
             "log_extras": {
-                "management_fee_reason": f"月薪({level*26})/30天 * 20% * 试工天数({days}+1) = {management_fee:.2f}",
+                "management_fee_reason": f"月薪({level*26})/30天 * 20% * 试工天数({days}) = {management_fee:.2f}",
                 "employee_payout_reason": f"日薪({daily_rate}) * 试工天数({days}) = {base_fee:.2f}",
                 "overtime_fee_reason": f"日薪({daily_rate}) * 加班天数({overtime_days}) = {overtime_fee:.2f}"
             },
