@@ -1639,7 +1639,8 @@ def create_virtual_contract():
                 status="active",
                 is_monthly_auto_renew=data.get("is_monthly_auto_renew", False),
                 management_fee_amount=D(data.get("management_fee_amount") or 0),
-                introduction_fee=D(data.get("introduction_fee") or 0)
+                introduction_fee=D(data.get("introduction_fee") or 0),
+                security_deposit_paid=D(data["employee_level"])
             )
         elif contract_type == "nanny_trial":
             new_contract = NannyTrialContract(

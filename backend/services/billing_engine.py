@@ -50,7 +50,7 @@ class BillingEngine:
                 f"[AutoRenew] 合同ID {contract_id} 不是一个有效的育儿嫂合同。"
             )
             return None, False
-
+        db.session.refresh(contract)
         # 1. 计算周期
         cycle_start, cycle_end = self._get_nanny_cycle_for_month(contract, year, month, end_date_override)
         if not cycle_start:
@@ -214,12 +214,14 @@ class BillingEngine:
         """
         Generates or recalculates all bills for the entire lifecycle of a single contract.
         """
+        # 【核心修复】强制从数据库重新查询最新的合同对象，确保所有字段都已加载
         contract = db.session.get(BaseContract, contract_id)
         if not contract:
-            current_app.logger.error(
-                f"[FullLifecycle] Contract {contract_id} not found."
-            )
+            current_app.logger.error(f"[FullLifecycle] Contract {contract_id} not found.")
             return
+
+        # 强制刷新对象状态，确保关联数据（如子类字段）是最新的
+        db.session.refresh(contract)
 
         current_app.logger.info(
             f"[FullLifecycle] Starting bill generation for contract {contract.id} ({contract.type})."
@@ -1237,35 +1239,37 @@ class BillingEngine:
         }
 
     def _handle_security_deposit(self, contract, bill):
-        """处理所有合同类型的首末月保证金收退逻辑（V6 - 终极调试版）。"""
-        from sqlalchemy.dialects import postgresql
-        
+        """处理所有合同类型的首末月保证金收退逻辑（加强调试版）。"""
+        current_app.logger.info(f"--- [DEPOSIT-HANDLER-DEBUG] START for Bill ID: {bill.id} ---")
 
-        # 步骤1：在删除前，打印出将要执行的SQL语句
-        try:
-            to_delete_q = FinancialAdjustment.query.filter(
-                FinancialAdjustment.customer_bill_id == bill.id,
-                FinancialAdjustment.description.in_(['[系统添加] 保证金', '[系统添加] 保证金退款']),
-                FinancialAdjustment.details.is_(None)
-            )
-
-            # 编译并打印SQL
-            compiled_query = to_delete_q.statement.compile(dialect=postgresql.dialect())
-            
-            # 执行删除
-            deleted_count = to_delete_q.delete(synchronize_session=False)
-           
-        except Exception as e:
-            current_app.logger.error(f"[ULTIMATE-DEBUG] 删除步骤出错: {e}")
-
-
+        # 调试点 1：检查合同是否有关联的保证金
         if not contract.security_deposit_paid or contract.security_deposit_paid <= 0:
+            current_app.logger.info(f"[DEPOSIT-HANDLER-DEBUG] SKIPPING: Contract {contract.id} has no security_deposit_paid ({contract.security_deposit_paid}).")
             return
 
-        # 步骤2：判断是否为首期账单，并添加
-        contract_start_date = getattr(contract, "actual_onboarding_date", contract.start_date)
-        if bill.cycle_start_date == contract_start_date:
+        current_app.logger.info(f"[DEPOSIT-HANDLER-DEBUG] Contract has security_deposit_paid: {contract.security_deposit_paid}")
+
+        # 步骤1：精确清理【未被处理过】的系统保证金条目
+        FinancialAdjustment.query.filter(
+            FinancialAdjustment.customer_bill_id == bill.id,
+            FinancialAdjustment.description.in_(['[系统添加] 保证金', '[系统添加] 保证金退款']),
+            FinancialAdjustment.details.is_(None)
+        ).delete(synchronize_session=False)
+
+        # 步骤2：判断是否为首期账单
+        current_app.logger.info(f"[DEPOSIT-HANDLER-DEBUG] Checking contract.start_date {contract.start_date}.")
+        current_app.logger.info(f"[DEPOSIT-HANDLER-DEBUG] Checking actual_onboarding_date{contract.actual_onboarding_date}.")
+        # contract_start_date = getattr(contract, "actual_onboarding_date", contract.start_date)
+        contract_start_date = contract.actual_onboarding_date or contract.start_date
+
+        # 调试点 2：检查是否为首期账单的判断条件
+        is_first_bill = bill.cycle_start_date == contract_start_date
+        current_app.logger.info(f"[DEPOSIT-HANDLER-DEBUG] Is first bill? {is_first_bill}. (Bill Start: {bill.cycle_start_date}, Contract Start: {contract_start_date})")
+
+        if is_first_bill:
+            # 调试点 3：检查是否已存在相同的调整项
             exists = db.session.query(FinancialAdjustment.id).filter_by(customer_bill_id=bill.id, description='[系统添加] 保证金').first()
+            current_app.logger.info(f"[DEPOSIT-HANDLER-DEBUG] '保证金' item exists? {'Yes' if exists else 'No'}.")
             if not exists:
                 db.session.add(
                     FinancialAdjustment(
@@ -1276,8 +1280,9 @@ class BillingEngine:
                         date=bill.cycle_start_date,
                     )
                 )
+                current_app.logger.info(f"[DEPOSIT-HANDLER-DEBUG] SUCCESS: Adding '[系统添加] 保证金' item to session.")
 
-        # 步骤3：判断是否为末期账单，并添加
+        # 步骤3：判断是否为末期账单
         if contract.type == "maternity_nurse":
             contract_end_date = contract.expected_offboarding_date or contract.end_date
         else:
@@ -1301,7 +1306,7 @@ class BillingEngine:
                         date=bill.cycle_end_date,
                     )
                 )
-        current_app.logger.info(f"--- [ULTIMATE-DEBUG] END for Bill ID: {bill.id} ---")
+        current_app.logger.info(f"--- [DEPOSIT-HANDLER-DEBUG] END for Bill ID: {bill.id} ---")
 
     def calculate_for_substitute(self, substitute_record_id, commit=True):
         """为单条替班记录生成专属的客户账单和员工薪酬单。"""

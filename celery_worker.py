@@ -72,6 +72,18 @@ def setup_periodic_tasks(sender, **kwargs):
         name='reset-tts-usage-at-pt-midnight'
     )
     
+    # 【核心新增】为“同步合同”任务，添加一个每分钟执行一次的调试计划
+    sender.add_periodic_task(
+        crontab(minute=1),  # 每小时第一分钟执行
+        sender.signature('tasks.sync_all_contracts'),
+        name='sync-contracts-hourly'
+    )
+
+    sender.add_periodic_task(
+        crontab(hour=2, minute=0, day_of_week='monday'),
+        sender.signature('tasks.auto_check_and_extend_renewal_bills'),
+        name='auto-extend-renewal-bills-weekly'
+    )
     # ++++++++++++++++ 增强的、对用户友好的日志输出 ++++++++++++++++
     
     # 3. 获取太平洋时区和北京时区对象

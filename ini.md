@@ -58,6 +58,7 @@
     *   **解决方案**:
         *   重构了相关的Celery任务（`generate_all_bills_for_contract_task` 和 `post_virtual_contract_creation_task`），为其增加了`bind=True` 和自动重试逻辑 (`self.retry()`)。
         *   在任务的 `finally` 块中，强制执行 `db.session.remove()`，确保每个任务都使用全新的数据库会话，彻底解决了跨进程数据可见性问题。
+4.  遗留问题，创建育儿嫂合同没有填写“客交保证金”
 
 ---
 ## 功能设计：保证金转移 (v10.0 - 已完成)

@@ -141,6 +141,61 @@ const CreateVirtualContractModal = ({ open, onClose, onSuccess }) => {
         setFormData(newFormData);
     };
 
+    const handleChange = (event) => {
+        const { name, value } = event.target;
+
+        setFormData(prev => {
+            // 1. 创建一个新的数据副本并更新当前变化的字段
+            const newFormData = { ...prev, [name]: value };
+
+            const level = parseFloat(newFormData.employee_level);
+            const type = newFormData.contract_type;
+
+            // 2. 【新增】处理育儿嫂合同的管理费计算
+            if (name === 'employee_level' && type === 'nanny') {
+                if (level > 0) {
+                    newFormData.management_fee_amount = (level * 0.10).toFixed(2);
+                } else {
+                    newFormData.management_fee_amount = '';
+                }
+            }
+
+            // 3. 处理试工合同的日薪计算
+            if (name === 'employee_level' && type === 'nanny_trial') {
+                if (level > 0) {
+                    newFormData.daily_rate = (level / 26).toFixed(2);
+                } else {
+                    newFormData.daily_rate = '';
+                }
+            }
+
+            // 4. 处理月嫂合同的费用联动计算
+            if (type === 'maternity_nurse' && ['employee_level', 'deposit_rate', 'security_deposit_paid'].includes(name)) {
+                const rate = parseFloat(newFormData.deposit_rate);
+                const deposit = parseFloat(newFormData.security_deposit_paid);
+
+                if ((name === 'employee_level' || name === 'deposit_rate') && level > 0 && rate > 0 && rate < 1) {
+                    const calculatedDeposit = level / (1 - rate);
+                    const calculatedMgmtFee = calculatedDeposit * rate;
+                    newFormData.security_deposit_paid = calculatedDeposit.toFixed(2);
+                    newFormData.management_fee_amount = calculatedMgmtFee.toFixed(2);
+                }
+                else if (name === 'security_deposit_paid' && level > 0 && deposit > level) {
+                    const calculatedRate = 1 - (level / deposit);
+                    const calculatedMgmtFee = deposit - level;
+                    const predefinedRates = [0.15, 0.20, 0.25];
+                    const closestRate = predefinedRates.find(r => Math.abs(r - calculatedRate) < 0.001);
+
+                    newFormData.deposit_rate = closestRate || calculatedRate;
+                    newFormData.management_fee_amount = calculatedMgmtFee.toFixed(2);
+                }
+            }
+
+            // 5. 返回最终更新后的完整表单数据
+            return newFormData;
+        });
+    };
+
     const handleInputChange = (event) => {
         const { name, value } = event.target;
         setFormData(prev => ({ ...prev, [name]: value }));
@@ -252,7 +307,7 @@ const CreateVirtualContractModal = ({ open, onClose, onSuccess }) => {
                         <Grid item xs={12} sm={6}>
                             <FormControl fullWidth required>
                                 <InputLabel>合同类型</InputLabel>
-                                <Select name="contract_type" value={formData.contract_type} label="合同类型"onChange={handleInputChange}>
+                                <Select name="contract_type" value={formData.contract_type} label="合同类型"onChange={handleChange}>
                                     <MenuItem value="nanny">育儿嫂合同</MenuItem>
                                     <MenuItem value="maternity_nurse">月嫂合同</MenuItem>
                                     <MenuItem value="nanny_trial">育儿嫂试工合同</MenuItem>
@@ -261,21 +316,7 @@ const CreateVirtualContractModal = ({ open, onClose, onSuccess }) => {
                         </Grid>
                         <Grid item xs={12} sm={6}>
                             <TextField required fullWidth name="employee_level" label="级别 (月薪/元)" type="number" value={formData.employee_level}
-                                onChange={(e) => {
-                                    // 先调用通用的输入处理
-                                    handleInputChange(e);
-                                    // 如果是月嫂，调用月嫂的联动计算
-                                    if (formData.contract_type === 'maternity_nurse') {
-                                        handleMaternityValuesChange(e);
-                                    }
-                                    // 如果是试工，自动计算日薪
-                                    if (formData.contract_type === 'nanny_trial') {
-                                        const level = parseFloat(e.target.value);
-                                        if (level > 0) {
-                                            setFormData(prev => ({ ...prev, daily_rate: (level / 26).toFixed(2) }));
-                                        }
-                                    }
-                                }}
+                                onChange={handleChange}
                             />
                         </Grid>
 
@@ -364,7 +405,7 @@ const CreateVirtualContractModal = ({ open, onClose, onSuccess }) => {
                                 <Grid item xs={12} sm={4}>
                                     <FormControl fullWidth>
                                         <InputLabel>保证金比例</InputLabel>
-                                        <Select name="deposit_rate" label="保证金比例" value={formData.deposit_rate}onChange={handleMaternityValuesChange}>
+                                        <Select name="deposit_rate" label="保证金比例" value={formData.deposit_rate}onChange={handleChange}>
                                             <MenuItem value={0.25}>25%</MenuItem>
                                             <MenuItem value={0.20}>20%</MenuItem>
                                             <MenuItem value={0.15}>15%</MenuItem>
@@ -373,7 +414,7 @@ const CreateVirtualContractModal = ({ open, onClose, onSuccess }) => {
                                     </FormControl>
                                 </Grid>
                                 <Grid item xs={12} sm={4}>
-                                    <TextField fullWidth name="security_deposit_paid" label="客交保证金 (元)" type="number" value={formData.security_deposit_paid} onChange={handleMaternityValuesChange} />
+                                    <TextField fullWidth name="security_deposit_paid" label="客交保证金 (元)" type="number" value={formData.security_deposit_paid} onChange={handleChange} />
                                 </Grid>
                                 <Grid item xs={12} sm={4}>
                                     <TextField fullWidth disabled name="management_fee_amount" label="管理费 (自动计算)" type="number" value={formData.management_fee_amount} />
