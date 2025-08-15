@@ -1,7 +1,7 @@
 
 // frontend/src/components/ContractDetail.jsx
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box, Typography, Paper, Grid, CircularProgress, Button,
@@ -20,6 +20,7 @@ import { zhCN } from 'date-fns/locale';
 import api from '../api/axios';
 import PageHeader from './PageHeader';
 import AlertMessage from './AlertMessage';
+import FinancialManagementModal from './FinancialManagementModal';
 
 const formatDate = (isoString) => {
   if (!isoString) return '—';
@@ -131,7 +132,12 @@ const ContractDetail = () => {
     const [operationalNotes, setOperationalNotes] = useState('');
     const [isEditingNotes, setIsEditingNotes] = useState(false);
 
-    const fetchData = async () => {
+    const [modalOpen, setModalOpen] = useState(false);
+    const [selectedBillDetails, setSelectedBillDetails] = useState(null);
+    const [loadingModal, setLoadingModal] = useState(false);
+    const [selectedBillContext, setSelectedBillContext] = useState(null);
+
+    const fetchData = useCallback(async () => {
         setLoading(true);
         try {
             const [contractRes, billsRes] = await Promise.all([
@@ -157,13 +163,13 @@ const ContractDetail = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [contractId]);
 
-    useEffect(() => {
+     useEffect(() => {
         if (contractId) {
             fetchData();
         }
-    }, [contractId]);
+    }, [contractId, fetchData]);
 
     const handleOpenTerminationDialog = () => {
         if (!contract) return;
@@ -227,8 +233,47 @@ const ContractDetail = () => {
         }
     };
 
-    const handleNavigateToBill = (bill) => {
-        navigate(`/billing?month=${bill.billing_period}&open_bill_id=${bill.id}`);
+    const handleOpenBillModal = async (bill) => {
+        setModalOpen(true);
+        setLoadingModal(true);
+        setSelectedBillContext({
+            customer_name: contract.customer_name,
+            employee_name: contract.employee_name,
+            contract_id: contract.id,
+            contract_type_value: contract.contract_type,
+        });
+
+        try {
+            const response = await api.get('/billing/details', { params: { bill_id: bill.id } });
+            setSelectedBillDetails(response.data);
+        } catch (error) {
+            setAlert({ open: true, message: `获取账单详情失败: ${error.response?.data?.error || error.message}`, severity: 'error'});
+            setSelectedBillDetails(null);
+        } finally {
+            setLoadingModal(false);
+        }
+    };
+
+    const handleCloseBillModal = (updatedDetails) => {
+        setModalOpen(false);
+        setSelectedBillDetails(null);
+        setSelectedBillContext(null);
+        if (updatedDetails) {
+            fetchData();
+        }
+    };
+
+    const handleSaveChangesInModal = async (payload) => {
+        setLoadingModal(true);
+        try {
+            const response = await api.post('/billing/batch-update', payload);
+            setSelectedBillDetails(response.data.latest_details);
+            setAlert({ open: true, message: response.data.message || "保存成功！", severity: 'success' });
+        } catch (error) {
+            setAlert({ open: true, message: `保存失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
+        } finally {
+            setLoadingModal(false);
+        }
     };
 
     if (loading) return <CircularProgress />;
@@ -381,7 +426,7 @@ const ContractDetail = () => {
                                                 <TableCell sx={{fontWeight: 'bold'}}>{`¥${formatCurrency(bill.total_payable)}`}</TableCell>
                                                 <TableCell><Chip label={bill.status} color={bill.status === '已支付' ? 'success' : 'warning'} size="small" /></TableCell>
                                                 <TableCell align="right">
-                                                <Button variant="contained" size="small" onClick={() => handleNavigateToBill(bill)}>
+                                                <Button variant="contained" size="small" onClick={() => handleOpenBillModal(bill)}>
                                                     去管理
                                                 </Button>
                                                 </TableCell>
@@ -420,6 +465,20 @@ const ContractDetail = () => {
                     </DialogActions>
                 </Dialog>
                 {/* --------------------------------- */}
+                {/* --- 开始：渲染财务管理弹窗 --- */}
+                {modalOpen && (
+                    <FinancialManagementModal
+                        open={modalOpen}
+                        onClose={handleCloseBillModal}
+                        contract={selectedBillContext}
+                        billingMonth={selectedBillDetails?.customer_bill_details?.billing_period}
+                        billingDetails={selectedBillDetails}
+                        loading={loadingModal}
+                        onSave={handleSaveChangesInModal}
+                        onNavigateToBill={(billId) => navigate(`/billing?find_bill_id=${billId}`)}
+                    />
+                )}
+                {/* --- 结束：渲染财务管理弹窗 --- */}
             </Box>
         </LocalizationProvider>
     );

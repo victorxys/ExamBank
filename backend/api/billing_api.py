@@ -3142,7 +3142,6 @@ def transfer_financial_adjustment(adjustment_id):
     """
     data = request.get_json()
     destination_contract_id = data.get("destination_contract_id")
-    current_app.logger.info(f"[DEBUG-OFFSET] 收到转移请求，adjustment_id: {adjustment_id}, destination_contract_id: {destination_contract_id}")
 
     if not destination_contract_id:
         return jsonify({"error": "请求体中缺少目标合同ID (destination_contract_id)"}), 400
@@ -3169,11 +3168,8 @@ def transfer_financial_adjustment(adjustment_id):
         ).order_by(CustomerBill.cycle_start_date.asc()).first()
         if not destination_bill: return jsonify({"error": "目标合同没有任何账单，无法接收转移的保证金"}), 400
 
-        current_app.logger.info(f"[DEBUG-OFFSET] 数据校验通过。准备执行数据库操作。")
-
         # 2. 执行转移和冲抵操作
         with db.session.begin_nested():
-            current_app.logger.info(f"[DEBUG-OFFSET] 进入嵌套事务(nested transaction)。")
             # 2a. 在目标合同下创建“转入”项
             new_adj_in = FinancialAdjustment(
                 customer_bill_id=destination_bill.id,
@@ -3181,24 +3177,26 @@ def transfer_financial_adjustment(adjustment_id):
                 amount=source_adj.amount,
                 description="[系统添加] 其他合同转移保证金退款",
                 date=date.today(),
-                details={"status": "transferred_in", "transferred_from_adjustment_id": str(source_adj.id)}
+                details={
+                    "status": "transferred_in",
+                    "transferred_from_adjustment_id": str(source_adj.id),
+                    "transferred_from_bill_id": str(source_bill.id)  # <-- 新增此行
+                }
             )
             db.session.add(new_adj_in)
             db.session.flush()
-            current_app.logger.info(f"[DEBUG-OFFSET] '转入项' (new_adj_in) 已创建并 flush, ID: {new_adj_in.id}")
 
-            # 2b. 更新源“退款”项，标记为已转移
+            # 2b. 更新源“退款”项，标记为已转移 (Task 1 Fix)
             source_adj.description = f"[系统添加] 保证金退款 [已转移至客户: {dest_contract.customer_name}]"
             source_adj.details = {
                 "status": "transferred",
                 "transferred_to_contract_id": str(dest_contract.id),
-                "transferred_to_adjustment_id": str(new_adj_in.id)
+                "transferred_to_adjustment_id": str(new_adj_in.id),
+                "transferred_to_bill_id": str(destination_bill.id) # 增加目标账单ID
             }
             attributes.flag_modified(source_adj, "details")
-            current_app.logger.info(f"[DEBUG-OFFSET] '源退款项' (source_adj) 已在内存中更新。")
 
-            # 2c. 【核心新增】在源账单下，创建一笔“增款”来冲抵已转移的退款
-            current_app.logger.info(f"[DEBUG-OFFSET] 准备为 Bill ID {source_bill.id} 创建冲抵项。")
+            # 2c. 在源账单下，创建一笔“增款”来冲抵已转移的退款
             offsetting_adj = FinancialAdjustment(
                 customer_bill_id=source_bill.id,
                 adjustment_type=AdjustmentType.CUSTOMER_INCREASE,
@@ -3207,38 +3205,36 @@ def transfer_financial_adjustment(adjustment_id):
                 date=date.today(),
                 details={"offset_for_adjustment_id": str(source_adj.id)}
             )
-            current_app.logger.info(f"[DEBUG-OFFSET] 冲抵项对象已在内存中创建: desc='{offsetting_adj.description}', amount={offsetting_adj.amount}")
             db.session.add(offsetting_adj)
-            current_app.logger.info(f"[DEBUG-OFFSET] 冲抵项 (offsetting_adj) 已添加到 session。")
 
             # 2d. 记录日志
             _log_activity(source_bill, None, "执行保证金转移(转出)", details={"amount": str(source_adj.amount), "to_customer":dest_contract.customer_name})
             _log_activity(destination_bill, None, "接收转移保证金(转入)", details={"amount": str(new_adj_in.amount),"from_customer": source_contract.customer_name})
-            current_app.logger.info(f"[DEBUG-OFFSET] 嵌套事务中的所有操作已完成。")
 
-        current_app.logger.info(f"[DEBUG-OFFSET] 准备提交主事务 (commit)。")
         db.session.commit()
-        current_app.logger.info(f"[DEBUG-OFFSET] 主事务已成功提交 (commit successful)。")
 
     except Exception as e:
-        current_app.logger.error(f"[DEBUG-OFFSET] 转移操作在主事务提交前发生异常，正在回滚: {e}", exc_info=True)
         db.session.rollback()
+        current_app.logger.error(f"保证金转移操作失败: {e}", exc_info=True)
         return jsonify({"error": "服务器内部错误，转移操作失败"}), 500
 
-    # 3. 触发重算
-    current_app.logger.info(f"[DEBUG-OFFSET] 准备触发重算任务。")
+    # 3. 触发重算 (Task 2 Fix)
     try:
         engine = BillingEngine()
+        # 重算源账单
         engine.calculate_for_month(year=source_bill.year, month=source_bill.month, contract_id=source_contract.id,force_recalculate=True, cycle_start_date_override=source_bill.cycle_start_date)
+        # 重算目标账单
         engine.calculate_for_month(year=destination_bill.year, month=destination_bill.month, contract_id=dest_contract.id,force_recalculate=True, cycle_start_date_override=destination_bill.cycle_start_date)
         db.session.commit()
-        current_app.logger.info(f"[DEBUG-OFFSET] 重算任务已完成并提交。")
     except Exception as e:
         current_app.logger.error(f"保证金转移后重算账单失败: {e}", exc_info=True)
+        # 即使重算失败，也继续执行，因为核心转移操作已成功
         pass
 
-    final_adjustments = FinancialAdjustment.query.filter_by(customer_bill_id=source_bill.id).all()
+    # 4. 获取并返回更新后的源账单完整信息 (Task 2 Fix)
+    latest_details = _get_billing_details_internal(bill_id=source_bill.id)
+
     return jsonify({
-        "message": "保证金转移成功，并已自动创建冲抵项。",
-        "updated_adjustments": [adj.to_dict() for adj in final_adjustments]
+        "message": "保证金转移成功，并已自动创建冲抵项和重算账单。",
+        "latest_details": latest_details
     })

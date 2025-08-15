@@ -2009,6 +2009,7 @@ class FinancialAdjustment(db.Model):
             "amount": str(self.amount),
             "description": self.description,
             "date": self.date.isoformat() if self.date else None,
+            "details": self.details,
             "customer_bill_id": str(self.customer_bill_id)
             if self.customer_bill_id
             else None,

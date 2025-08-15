@@ -309,66 +309,57 @@ const BillingDashboard = () => {
                 return '未知类型';
             };
 
+            const handleFindAndOpenBill = useCallback(async (billId) => {
+                setLoading(true);
+                handleCloseDetailDialog(); // 先关闭可能已打开的弹窗
+
+                try {
+                    // 第1步：调用 find API 找到账单的位置和基本信息
+                    const findResponse = await api.get('/billing/bills/find', {
+                        params: { bill_id: billId, per_page: rowsPerPage }
+                    });
+
+                    const { bill_details, page: targetPage, billing_month, context } = findResponse.data;
+
+                    // 第2步：使用找到的月份和页码，更新状态并触发数据获取
+                    // 为了避免分页警告，我们先设置月份，然后在下一个渲染周期中设置页码和获取数据
+                    setSelectedBillingMonth(billing_month);
+                    setPage(targetPage);
+
+                    // 第3步：用已经获取到的数据打开弹窗
+                    const billContextForModal = {
+                        ...context,
+                    };
+                    setSelectedContractForDetail(billContextForModal);
+                    setBillingDetails(bill_details);
+
+                    if (bill_details.cycle_start_date && bill_details.cycle_end_date) {
+                        setCurrentCycle({ start: bill_details.cycle_start_date, end: bill_details.cycle_end_date });
+                    }
+                    if (bill_details.attendance) {
+                        setEditableAttendance({ overtime_days: parseInt(bill_details.attendance.overtime_days, 10) || 0 });
+                    }
+
+                    setDetailDialogOpen(true);
+
+                } catch (error) {
+                    setAlert({ open: true, message: `无法定位并加载账单: ${error.response?.data?.error || error.message}`, severity:'error' });
+                } finally {
+                    setLoading(false);
+                    navigate(location.pathname, { replace: true }); // 清理URL中的查询参数
+                }
+            }, [rowsPerPage, navigate]); // 依赖项
+
             useEffect(() => {
                 const params = new URLSearchParams(location.search);
-                const openBillId = params.get('open_bill_id');
+                const findBillId = params.get('find_bill_id'); // 修正参数名
 
-                // 新的、健壮的函数，负责处理从查找、获取列表到打开弹窗的完整流程
-                const findAndLoadBill = async (billId) => {
-                    setLoading(true);
-                    try {
-                        // 第1步：调用 find API 找到账单的位置和基本信息
-                        const findResponse = await api.get('/billing/bills/find', {
-                            params: { bill_id: billId, per_page: rowsPerPage }
-                        });
-
-                        const { bill_details, page: targetPage, billing_month, context } = findResponse.data;
-
-                        // 第2步：使用找到的页码，立即获取那一页的完整列表数据
-                        const listResponse = await api.get('/billing/bills', {
-                            params: { page: targetPage + 1, per_page: rowsPerPage, billing_month: billing_month, ...filters }
-                        });
-
-                        // 第3步：一次性更新所有状态，避免中间的无效状态
-                        setContracts(listResponse.data.items || []);
-                        setTotalContracts(listResponse.data.total || 0);
-                        setPage(targetPage); // 现在更新 page 是安全的，因为 totalContracts 也被同时更新了
-                        setSelectedBillingMonth(billing_month);
-
-                        // 第4步：用已经获取到的数据打开弹窗
-                        const billContextForModal = {
-                            ...context,
-                            // contract_type_label: get_contract_type_details(context.contract_type_value),
-                        };
-                        setSelectedContractForDetail(billContextForModal);
-                        setBillingDetails(bill_details);
-
-                        if (bill_details.cycle_start_date && bill_details.cycle_end_date) {
-                            setCurrentCycle({ start: bill_details.cycle_start_date, end: bill_details.cycle_end_date });
-                        }
-                        if (bill_details.attendance) {
-                            setEditableAttendance({ overtime_days: parseInt(bill_details.attendance.overtime_days, 10) || 0 });
-                        }
-
-                        setDetailDialogOpen(true);
-
-                    } catch (error) {
-                        setAlert({ open: true, message: `无法定位并加载账单: ${error.response?.data?.error || error.message}`, severity: 'error' });
-                        // 如果任何一步失败，回退到加载默认列表
-                        fetchBills();
-                    } finally {
-                        setLoading(false); // 无论成功失败，最后都停止加载动画
-                        navigate(location.pathname, { replace: true }); // 清理URL
-                    }
-                };
-
-                if (openBillId) {
-                    findAndLoadBill(openBillId);
+                if (findBillId) {
+                    handleFindAndOpenBill(findBillId);
                 } else {
                     fetchBills();
                 }
-            // 这个useEffect只应该在核心筛选条件变化时运行
-            }, [page, rowsPerPage, filters, selectedBillingMonth]);
+            }, [page, rowsPerPage, filters, selectedBillingMonth, fetchBills, handleFindAndOpenBill]);
 
 
     const handleOpenOnboardingDateModal = (contracts_to_set) => {
@@ -1023,12 +1014,13 @@ const BillingDashboard = () => {
         {detailDialogOpen && (
             <FinancialManagementModal
                 open={detailDialogOpen}
-                onClose={handleCloseDetailDialog} // <-- 直接传递函数
+                onClose={handleCloseDetailDialog}
                 contract={selectedContractForDetail}
                 billingMonth={selectedBillingMonth}
                 billingDetails={billingDetails}
                 loading={loadingDetail}
-                onSave={handleSaveChanges} // <-- 直接传递函数
+                onSave={handleSaveChanges}
+                onNavigateToBill={handleFindAndOpenBill}
             />
         )}
         

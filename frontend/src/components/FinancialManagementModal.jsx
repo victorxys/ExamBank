@@ -151,7 +151,7 @@ const getTooltipContent = (fieldName, billingDetails, isCustomer) => {
 
 
 // --- 主组件 ---
-const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billingDetails: initialBillingDetails, loading, onSave }) => {
+const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billingDetails: initialBillingDetails, loading, onSave, onNavigateToBill }) => {
     const [latestSavedData, setLatestSavedData] = useState(null);
     const navigate = useNavigate();
     const [isEditMode, setIsEditMode] = useState(false);
@@ -409,8 +409,8 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
             handleCloseTransferDialog();
 
             // 【核心修复】用后端返回的最新列表，强制刷新当前弹窗的内部状态
-            if (response.data.updated_adjustments) {
-                setAdjustments(response.data.updated_adjustments);
+            if (response.data.latest_details) {
+                setBillingDetails(response.data.latest_details);
             }
 
         } catch (error) {
@@ -719,81 +719,117 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                                 const isTransferable = !isEditMode && adj.description === '[系统添加] 保证金退款' && (!adj.details|| adj.details.status !== 'transferred');
                                 return (
                                     <ListItem
-    key={adj.id}
-    button={isEditMode && !isReadOnly}
-    onClick={isEditMode && !isReadOnly ? () => { setEditingAdjustment(adj); setIsAdjustmentDialogOpen(true); } : undefined}
-    secondaryAction={
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            {isTransferable && (
-                <Chip
-                    label="转移"
-                    size="small"
-                    onClick={(e) => {
-                        e.stopPropagation(); // 阻止ListItem的点击事件
-                        handleOpenTransferDialog(adj);
-                    }}
-                    clickable
-                    variant="outlined"
-                    color="primary"
-                />
-            )}
-            {isEditMode && !isReadOnly && (
-                <IconButton
-                    edge="end"
-                    size="small"
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteAdjustment(adj.id);
-                    }}
-                >
-                    <DeleteIcon fontSize="small" />
-                </IconButton>
-            )}
-        </Box>
-    }
-    // 禁用 ListItem 的内边距，因为我们在 ListItemText 中自己控制
-    disablePadding
-    sx={{ pl: 2, pr: '120px' }} // 手动为右侧的 Action 留出空间
->
-    <ListItemIcon sx={{ minWidth: 'auto', mr: 1.5 }}>
-        {AdjustmentTypes[adj.adjustment_type]?.effect > 0 ? <ArrowUpwardIcon color="success" fontSize="small" /> : <ArrowDownwardIcon color="error" fontSize="small" />}
-    </ListItemIcon>
-    <ListItemText
-        primary={
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Typography component="span" variant="body1">
-                    {AdjustmentTypes[adj.adjustment_type]?.label}
-                </Typography>
-                <Typography component="span" variant="body2" sx={{ fontFamily: 'monospace', fontWeight: 'bold' }}>
-                    {AdjustmentTypes[adj.adjustment_type]?.effect > 0 ? '+' : '-'} {formatValue('', adj.amount)}
-                </Typography>
-            </Box>
-        }
-        secondary={
-            adj.details?.status === 'transferred_in' ? (
-                <Typography variant="body2" component="span" sx={{ whiteSpace: 'pre-wrap', color: 'text.secondary' }}>
-                    从
-                    <Button
-                        size="small"
-                        variant="text"
-                        sx={{ p: 0, m: 0, height: 'auto', verticalAlign: 'baseline', lineHeight: 'inherit' }}
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            navigate(`/contracts/${adj.details.transferred_from_contract_id}`);
-                        }}
-                    >
-                        其他合同
-                    </Button>
-                    转移的保证金退款
-                </Typography>
-            ) : (
-                <Typography variant="body2" component="span" sx={{ whiteSpace: 'pre-wrap', color: 'text.secondary' }}>
-                    {adj.description}
-                </Typography>
-            )
-        }
-    />
-</ListItem>
+                                        key={adj.id}
+                                        button={isEditMode && !isReadOnly}
+                                        onClick={isEditMode && !isReadOnly ? () => { setEditingAdjustment(adj); setIsAdjustmentDialogOpen(true); } : undefined}
+                                        secondaryAction={
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                {isTransferable && (
+                                                    <Chip
+                                                        label="转移"
+                                                        size="small"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation(); // 阻止ListItem的点击事件
+                                                            handleOpenTransferDialog(adj);
+                                                        }}
+                                                        clickable
+                                                        variant="outlined"
+                                                        color="primary"
+                                                    />
+                                                )}
+                                                {isEditMode && !isReadOnly && (
+                                                    <IconButton
+                                                        edge="end"
+                                                        size="small"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleDeleteAdjustment(adj.id);
+                                                        }}
+                                                    >
+                                                        <DeleteIcon fontSize="small" />
+                                                    </IconButton>
+                                                )}
+                                            </Box>
+                                        }
+                                        disablePadding
+                                        sx={{ pl: 2, pr: '120px' }}
+                                    >
+                                        <ListItemIcon sx={{ minWidth: 'auto', mr: 1.5 }}>
+                                            {AdjustmentTypes[adj.adjustment_type]?.effect > 0 ? <ArrowUpwardIcon color="success" fontSize="small" /> : <ArrowDownwardIcon color="error" fontSize="small" />}
+                                        </ListItemIcon>
+                                        <ListItemText
+                                            primary={
+                                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                    <Typography component="span" variant="body1">
+                                                        {AdjustmentTypes[adj.adjustment_type]?.label}
+                                                    </Typography>
+                                                    <Typography component="span" variant="body2" sx={{ fontFamily: 'monospace', fontWeight: 'bold' }}>
+                                                        {AdjustmentTypes[adj.adjustment_type]?.effect > 0 ? '+' : '-'} {formatValue('', adj.amount)}
+                                                    </Typography>
+                                                </Box>
+                                            }
+                                            secondary={(() => {
+                                                // 1. 如果是“已转出”的保证金
+                                                if (adj.details?.status === 'transferred') {
+                                                    return (
+                                                        <Typography variant="body2" component="span" sx={{ whiteSpace: 'pre-wrap', color: 'text.secondary' }}>
+                                                            {/* 将描述文本的一部分变成一个可点击的按钮 */}
+                                                            已转移至
+                                                            <Button
+                                                                size="small"
+                                                                variant="text"
+                                                                sx={{ p: 0, m: 0, height: 'auto', verticalAlign: 'baseline', lineHeight: 'inherit', mx: 0.5 }}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    const billId = adj.details.transferred_to_bill_id;
+                                                                    if (billId && onNavigateToBill) {
+                                                                        onNavigateToBill(billId); // <-- 调用从父组件传来的新函数
+                                                                    } else {
+                                                                        alert('错误：无法执行跳转。');
+                                                                    }
+                                                                }}
+                                                            >
+                                                                目标账单
+                                                            </Button>
+                                                        </Typography>
+                                                    );
+                                                }
+                                                // 2. 如果是“转入”的保证金
+                                                else if (adj.details?.status === 'transferred_in') {
+                                                    return (
+                                                        <Typography variant="body2" component="span" sx={{ whiteSpace: 'pre-wrap', color: 'text.secondary' }}>
+                                                            从
+                                                            <Button
+                                                                size="small"
+                                                                variant="text"
+                                                                sx={{ p: 0, m: 0, height: 'auto', verticalAlign: 'baseline', lineHeight: 'inherit', mx: 0.5 }}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    const billId = adj.details.transferred_from_bill_id;
+                                                                    if (billId && onNavigateToBill) {
+                                                                        onNavigateToBill(billId);
+                                                                    } else {
+                                                                        alert('错误：未在转移记录中找到来源账单ID。');
+                                                                    }
+                                                                }}
+                                                            >
+                                                                来源账单
+                                                            </Button>
+                                                            转移的保证金退款
+                                                        </Typography>
+                                                    );
+                                                }
+                                                // 3. 其他所有普通调整项
+                                                else {
+                                                    return (
+                                                        <Typography variant="body2" component="span" sx={{ whiteSpace: 'pre-wrap', color: 'text.secondary' }}>
+                                                            {adj.description}
+                                                        </Typography>
+                                                    );
+                                                }
+                                            })()}
+                                        />
+                                    </ListItem>
                                 );
                             })}
                         </List>
