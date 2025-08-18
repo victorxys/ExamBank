@@ -9,7 +9,7 @@ import json
 from pypinyin import pinyin, Style
 from backend.security_utils import generate_password_hash
 from werkzeug.security import check_password_hash
-from psycopg2.extras import RealDictCursor, register_uuid  # 确保导入
+from psycopg2.extras import RealDictCursor, register_uuid 
 
 # from flask_sqlalchemy import SQLAlchemy # 如果你打算用 ORM，虽然 Flask-Migrate 不强制
 # from flask_migrate import Migrate # 导入 Migrate
@@ -58,13 +58,14 @@ from backend.api.evaluation_item import (
 from backend.api.evaluation_visibility import bp as evaluation_visibility_bp  # 保留
 from backend.api.evaluation_order import bp as evaluation_order_bp  # 新增
 from backend.api.llm_config_api import llm_config_bp  # 修改导入
-from backend.api.llm_log_api import llm_log_bp  # 新增导入
-from backend.api.tts_api import tts_bp  # 新增导入
-from backend.api.course_resource_api import course_resource_bp  # <--- 新增导入
-from backend.api.permission_api import permission_bp  # <--- 新增导入
-from backend.api.billing_api import billing_bp  # 新增导入
-from backend.api.user_api import user_api  # 新增导入
-from backend.api.contract_api import contract_bp  # 新增导入
+from backend.api.llm_log_api import llm_log_bp  
+from backend.api.tts_api import tts_bp  
+from backend.api.course_resource_api import course_resource_bp  
+from backend.api.permission_api import permission_bp  
+from backend.api.billing_api import billing_bp  
+from backend.api.user_api import user_api  
+from backend.api.contract_api import contract_bp 
+from backend.api.financial_adjustment_api import financial_adjustment_api
 
 
 app = Flask(__name__)
@@ -257,12 +258,14 @@ app.register_blueprint(llm_log_bp)  # 新增注册
 # \app.register_blueprint(tts_bp) # 注册 TTS 蓝图
 app.register_blueprint(tts_bp, url_prefix="/api/tts")
 
-app.register_blueprint(course_resource_bp)  # <--- 新增注册
-app.register_blueprint(permission_bp)  # <--- 新增注册
+app.register_blueprint(course_resource_bp)
+app.register_blueprint(permission_bp)
 
 app.register_blueprint(billing_bp, url_prefix="/api/billing")
 app.register_blueprint(user_api)
 app.register_blueprint(contract_bp)
+
+app.register_blueprint(financial_adjustment_api, url_prefix="/api")
 
 
 

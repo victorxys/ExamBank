@@ -1968,12 +1968,12 @@ class ServicePersonnel(db.Model):
 
 
 class AdjustmentType(enum.Enum):
-    CUSTOMER_INCREASE = "customer_increase"  # 客户增款
-    CUSTOMER_DECREASE = "customer_decrease"  # 客户减款/退款
+    CUSTOMER_INCREASE = "customer_increase"  # 客户增款 (收款)
+    CUSTOMER_DECREASE = "customer_decrease"  # 客户减款/退款 (付款)
     CUSTOMER_DISCOUNT = "customer_discount"  # 客户优惠
-    EMPLOYEE_INCREASE = "employee_increase"  # 员工增款
-    EMPLOYEE_DECREASE = "employee_decrease"  # 员工减款
-    DEFERRED_FEE = "deferred_fee" # 顺延费用
+    EMPLOYEE_INCREASE = "employee_increase"  # 员工增款 (付款)
+    EMPLOYEE_DECREASE = "employee_decrease"  # 员工减款 (收款, 如交宿舍费)
+    DEFERRED_FEE = "deferred_fee"  # 顺延费用
 
 
 class FinancialAdjustment(db.Model):
@@ -1999,8 +1999,25 @@ class FinancialAdjustment(db.Model):
         index=True,
     )
     details = db.Column(PG_JSONB, nullable=True, comment="用于存储保证金转移等额外信息的JSON字段")
-
     created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
+
+    # --- 新增字段 ---
+    is_settled = db.Column(
+        db.Boolean,
+        nullable=False,
+        default=False,
+        server_default="false",
+        index=True,
+        comment="是否已结算 (收/付款完成)",
+    )
+    settlement_date = db.Column(db.Date, nullable=True, comment="结算日期 (收/付款日期)")
+    settlement_details = db.Column(
+        PG_JSONB,
+        nullable=True,
+        comment="结算详情 (e.g., {'method': '支付宝', 'notes': 'xxx', 'image_url': '...' })",
+    )
+
+    # ----------------
 
     def to_dict(self):
         return {
@@ -2009,16 +2026,20 @@ class FinancialAdjustment(db.Model):
             "amount": str(self.amount),
             "description": self.description,
             "date": self.date.isoformat() if self.date else None,
-            "details": self.details,
             "customer_bill_id": str(self.customer_bill_id)
             if self.customer_bill_id
             else None,
             "employee_payroll_id": str(self.employee_payroll_id)
             if self.employee_payroll_id
             else None,
+            "details": self.details,
             "created_at": self.created_at.isoformat() if self.created_at else None,
+            "is_settled": self.is_settled,
+            "settlement_date": self.settlement_date.isoformat()
+            if self.settlement_date
+            else None,
+            "settlement_details": self.settlement_details,
         }
-
 
 class InvoiceRecord(db.Model):
     __tablename__ = "invoice_records"

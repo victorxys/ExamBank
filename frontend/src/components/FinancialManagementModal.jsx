@@ -198,6 +198,7 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
             // const invoiceDetails = billingDetails.invoice_details || {};
             // console.log("[FRONTEND-DEBUG] Received 'billingDetails.attendance?.overtime_days':", billingDetails.attendance?.overtime_days);
             setEditableOvertime(parseFloat(billingDetails.attendance?.overtime_days) || 0);
+            console.log("--- [DEBUG 1] Modal received new billingDetails. Adjustments are:", billingDetails.adjustments);
             setAdjustments(billingDetails.adjustments || []);
 
             const actualDaysFromBill = customerDetails.actual_work_days;
@@ -301,21 +302,19 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
             alert("无法保存，缺少关键的账单ID。");
             return;
         }
+        console.log("--- [DEBUG 3] Final payload to be sent. Adjustments are:", adjustments);
 
         const payload = {
             bill_id: billId,
             overtime_days: editableOvertime,
             actual_work_days: editableActualWorkDays,
-            adjustments: adjustments,
+            adjustments: adjustments, // <-- 使用净化后的数据
             settlement_status: editableSettlement,
             invoices: editableInvoices,
             invoice_needed: billingDetails.invoice_needed,
         };
 
-        // 直接调用父组件传入的 onSave 函数，并把 payload 作为参数
         onSave(payload);
-
-        // 退出编辑模式
         setIsEditMode(false);
     };
 
@@ -356,6 +355,7 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
         setIsEditMode(false);
     };
     const handleSaveAdjustment = (savedAdj) => {
+        console.log("--- [DEBUG 2] AdjustmentDialog saved. Data from dialog:", savedAdj);
         setAdjustments(prev => {
             const existing = prev.find(a => a.id === savedAdj.id);
             if (existing) return prev.map(a => a.id === savedAdj.id ? savedAdj : a);
@@ -760,9 +760,20 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                                         <ListItemText
                                             primary={
                                                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                    <Typography component="span" variant="body1">
-                                                        {AdjustmentTypes[adj.adjustment_type]?.label}
-                                                    </Typography>
+                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                        <Typography component="span" variant="body1">
+                                                            {AdjustmentTypes[adj.adjustment_type]?.label}
+                                                        </Typography>
+                                                        {adj.is_settled && (
+                                                            <Chip label="已结算" color="success" size="small" variant="outlined" />
+                                                        )}
+                                                        {/* 新增的结算详情提示 */}
+                                                        {adj.is_settled && (
+                                                            <Tooltip title={`结算日期: ${adj.settlement_date || '无'} | 备注: ${(adj.settlement_details && adj.settlement_details.notes) || '无'}`}>
+                                                                <InfoIcon sx={{ fontSize: '1rem', color: 'action.active', ml: 0.5, cursor: 'help' }} />
+                                                            </Tooltip>
+                                                        )}
+                                                    </Box>
                                                     <Typography component="span" variant="body2" sx={{ fontFamily: 'monospace', fontWeight: 'bold' }}>
                                                         {AdjustmentTypes[adj.adjustment_type]?.effect > 0 ? '+' : '-'} {formatValue('', adj.amount)}
                                                     </Typography>

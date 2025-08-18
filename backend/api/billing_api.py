@@ -50,6 +50,15 @@ D = decimal.Decimal
 
 billing_bp = Blueprint("billing_api", __name__, url_prefix="/api/billing")
 
+ADJUSTMENT_TYPE_LABELS = {
+    AdjustmentType.CUSTOMER_INCREASE: "客户增款",
+    AdjustmentType.CUSTOMER_DECREASE: "退客户款",
+    AdjustmentType.CUSTOMER_DISCOUNT: "优惠",
+    AdjustmentType.EMPLOYEE_INCREASE: "员工增款",
+    AdjustmentType.EMPLOYEE_DECREASE: "员工减款",
+    AdjustmentType.DEFERRED_FEE: "上期顺延费用",
+}
+
 def _get_or_create_personnel_ref(name: str, phone: str = None):
     """
     根据姓名和（可选）手机号，查找或创建服务人员。
@@ -1024,6 +1033,75 @@ def update_single_contract(contract_id):
         current_app.logger.error(f"更新合同 {contract_id} 失败: {e}", exc_info=True)
         return jsonify({"error": "更新合同失败，服务器内部错误"}), 500
 
+def _apply_all_adjustments_and_settlements(adjustments_data, bill, payroll):
+    """(最终版+完整日志) 处理所有调整项的增删改，并生成准确日志。"""
+    old_adjustments = FinancialAdjustment.query.filter(
+        or_(FinancialAdjustment.customer_bill_id == bill.id, FinancialAdjustment.employee_payroll_id == payroll.id)
+    ).all()
+    old_adjustments_map = {str(adj.id): adj for adj in old_adjustments}
+    new_adjustments_ids = {str(adj.get('id')) for adj in adjustments_data if adj.get('id')}
+
+    # 删除
+    for old_id, old_adj in old_adjustments_map.items():
+        if old_id not in new_adjustments_ids:
+            action_label = ADJUSTMENT_TYPE_LABELS.get(old_adj.adjustment_type, old_adj.adjustment_type.name)
+            _log_activity(bill, payroll, f"删除了 {action_label}: “{old_adj.description}”", {'amount': str(old_adj.amount)})
+            db.session.delete(old_adj)
+
+    # 新增或更新
+    for adj_data in adjustments_data:
+        adj_id = str(adj_data.get('id', ''))
+        adj_type = AdjustmentType(adj_data["adjustment_type"])
+        adj_amount = D(adj_data["amount"])
+        adj_description = adj_data["description"]
+        is_settled = adj_data.get('is_settled', False)
+        settlement_date_str = adj_data.get('settlement_date')
+        settlement_date = date_parse(settlement_date_str).date() if settlement_date_str else None
+        settlement_details = adj_data.get('settlement_details')
+        action_label = ADJUSTMENT_TYPE_LABELS.get(adj_type, adj_type.name)
+
+        if adj_id and adj_id in old_adjustments_map:
+            existing_adj = old_adjustments_map[adj_id]
+
+            # --- 【日志最终逻辑】---
+            # 检查是否为一次新的“结算”操作
+            if is_settled and not existing_adj.is_settled:
+                settlement_notes = (settlement_details or {}).get('notes', '无')
+                log_action = f"结算了 {action_label}: “{adj_description}” (备注: {settlement_notes})"
+                _log_activity(bill, payroll, log_action, details=settlement_details)
+
+            # 【新增】检查是否为一次“取消结算”操作
+            elif not is_settled and existing_adj.is_settled:
+                log_action = f"取消结算 {action_label}: “{adj_description}”"
+                _log_activity(bill, payroll, log_action, {'amount': str(adj_amount)})
+
+            # 检查其他字段是否有变化
+            elif (existing_adj.amount != adj_amount or existing_adj.description != adj_description or existing_adj.adjustment_type!= adj_type):
+                 _log_activity(bill, payroll, f"修改了 {action_label}: “{existing_adj.description}”", {'from_amount': str(existing_adj.amount), 'to_amount': str(adj_amount)})
+
+            # 更新所有字段
+            existing_adj.amount = adj_amount
+            existing_adj.description = adj_description
+            existing_adj.adjustment_type = adj_type
+            existing_adj.is_settled = is_settled
+            existing_adj.settlement_date = settlement_date
+            existing_adj.settlement_details = settlement_details
+
+        elif not adj_id or 'temp' in adj_id:
+            # 新增日志
+            _log_activity(bill, payroll, f"新增了 {action_label}: “{adj_description}”", {'amount': str(adj_amount)})
+
+            # 创建新记录
+            new_adj = FinancialAdjustment(
+                adjustment_type=adj_type, amount=adj_amount, description=adj_description,
+                date=bill.cycle_start_date, is_settled=is_settled,
+                settlement_date=settlement_date, settlement_details=settlement_details
+            )
+            if adj_type.name.startswith("CUSTOMER"):
+                new_adj.customer_bill_id = bill.id
+            else:
+                new_adj.employee_payroll_id = payroll.id
+            db.session.add(new_adj)
 
 @billing_bp.route("/batch-update", methods=["POST"])
 @admin_required
@@ -1046,6 +1124,11 @@ def batch_update_billing_details():
 
         if not payroll:
             return jsonify({"error": f"未找到与账单ID {bill_id} 关联的薪酬单"}), 404
+
+        # 步骤 1: 处理所有前端提交的修改 (包括手动调整项和所有结算状态)
+        # (这里可以调用一个辅助函数，或者直接把逻辑放在这里)
+        adjustments_data = data.get('adjustments', [])
+        _apply_all_adjustments_and_settlements(adjustments_data, bill, payroll) # 我们将创建一个新的、简化的辅助函数
 
         engine = BillingEngine()
 
@@ -1152,66 +1235,7 @@ def batch_update_billing_details():
                         _log_activity(bill, payroll, "新增考勤并设置加班天数", {"to": str(new_overtime_decimal.quantize(D('0.01')))}) 
             # --- 加班天数精度修正结束 ---
             
-            # --- 3. 【核心修正】处理财务调整项 ---
-            adjustments_data = data.get('adjustments', [])
-            ADJUSTMENT_TYPE_LABELS = {
-                AdjustmentType.CUSTOMER_INCREASE: "客户增款",
-                AdjustmentType.CUSTOMER_DECREASE: "退客户款",
-                AdjustmentType.CUSTOMER_DISCOUNT: "优惠",
-                AdjustmentType.EMPLOYEE_INCREASE: "员工增款",
-                AdjustmentType.EMPLOYEE_DECREASE: "员工减款",
-            }
-            # 直接查询 FinancialAdjustment 表，而不是通过 bill.adjustments
-            old_adjustments_query = FinancialAdjustment.query.filter(
-                or_(
-                    FinancialAdjustment.customer_bill_id == bill.id,
-                    FinancialAdjustment.employee_payroll_id == payroll.id
-                )
-            ).all()
-            old_adjustments_map = {str(adj.id): adj for adj in old_adjustments_query}
-            new_adjustments_ids = {str(adj.get('id')) for adj in adjustments_data if adj.get('id')}
-
-            for old_id, old_adj in old_adjustments_map.items():
-                if old_id not in new_adjustments_ids:
-                    action_label = ADJUSTMENT_TYPE_LABELS.get(old_adj.adjustment_type, old_adj.adjustment_type.name)
-                    _log_activity(bill if 'CUSTOMER' in old_adj.adjustment_type.name else None,
-                                payroll if 'EMPLOYEE' in old_adj.adjustment_type.name else None,
-                                action=f"删除了财务调整: {action_label} ({old_adj.description})",
-                                details={"amount": str(old_adj.amount), "type": old_adj.adjustment_type.value})
-                    db.session.delete(old_adj)
-
-            for adj_data in adjustments_data:
-                adj_type = AdjustmentType(adj_data["adjustment_type"])
-                adj_amount = D(adj_data["amount"])
-                adj_description = adj_data["description"]
-                adj_id = str(adj_data.get('id', ''))
-
-                if adj_id and adj_id in old_adjustments_map:
-                    existing_adj = old_adjustments_map[adj_id]
-                    if existing_adj.amount != adj_amount or existing_adj.description != adj_description or existing_adj.adjustment_type != adj_type:
-                        action_label = ADJUSTMENT_TYPE_LABELS.get(adj_type, adj_type.name)
-                        _log_activity(bill if 'CUSTOMER' in adj_type.name else None,
-                                    payroll if 'EMPLOYEE' in adj_type.name else None,
-                                    action=f"修改了财务调整: {action_label}",
-                                    details={"from_amount": str(existing_adj.amount), "to_amount": str(adj_amount),
-                                            "from_desc": existing_adj.description, "to_desc": adj_description})
-                        existing_adj.amount = adj_amount
-                        existing_adj.description = adj_description
-                        existing_adj.adjustment_type = adj_type
-                elif not adj_id or 'temp' in str(adj_id):
-                    action_label = ADJUSTMENT_TYPE_LABELS.get(adj_type, adj_type.name)
-                    new_adj = FinancialAdjustment(
-                        adjustment_type=adj_type, amount=adj_amount, description=adj_description, date=bill.cycle_start_date
-                    )
-                    if adj_type.name.startswith("CUSTOMER"):
-                        new_adj.customer_bill_id = bill.id
-                    else:
-                        new_adj.employee_payroll_id = payroll.id
-                    db.session.add(new_adj)
-                    _log_activity(bill if 'CUSTOMER' in adj_type.name else None,
-                                payroll if 'EMPLOYEE' in adj_type.name else None,
-                                action=f"新增了财务调整: {action_label} ({adj_description})",
-                                details={"amount": str(adj_amount), "type": adj_type.value})
+           
 
             # --- 4. 处理客户打款和员工领款状态 ---
             settlement_status = data.get('settlement_status', {})
@@ -1235,15 +1259,17 @@ def batch_update_billing_details():
             # --- 5. 更新账单的 invoice_needed 状态 ---
             bill.invoice_needed = data.get('invoice_needed', False)
 
-            db.session.commit()
+            # db.session.commit()
 
-            # --- 6. 触发重算 ---
-            engine = BillingEngine()
+            # 步骤 2: 第一次引擎运行，创建系统调整项
             engine.calculate_for_month(
                 year=bill.year, month=bill.month, contract_id=bill.contract_id,
                 force_recalculate=True, actual_work_days_override=new_actual_work_days,
                 cycle_start_date_override=bill.cycle_start_date
             )
+
+
+            # 步骤 6: 最终提交所有更改
             db.session.commit()
         
         # --- 7. 获取并返回最新的完整账单详情 ---
@@ -3238,3 +3264,4 @@ def transfer_financial_adjustment(adjustment_id):
         "message": "保证金转移成功，并已自动创建冲抵项和重算账单。",
         "latest_details": latest_details
     })
+    
