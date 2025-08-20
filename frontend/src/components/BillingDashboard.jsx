@@ -458,28 +458,29 @@ const BillingDashboard = () => {
         setBillingDetails(null);
         setEditableAttendance(null);
 
-        // 【核心修正】增加一个安全检查，确保 invoice_balance 存在
-        // 只有在关闭时收到了一个完整的、包含所有必需信息的账单数据对象时，才更新列表中的那一行
-        if (latestBillData && latestBillData.customer_bill_details && latestBillData.invoice_balance) {
+        const billId = latestBillData?.customer_bill_details?.id;
+
+        if (billId) {
             setContracts(prevContracts =>
                 prevContracts.map(contractRow => {
-                    if (contractRow.id === latestBillData.customer_bill_details.id) {
-                        // 使用从详情窗口返回的最新数据更新该行
+                    if (contractRow.id === billId) {
+                        const customerIsPaid = latestBillData.customer_bill_details?.payment_status?.status === 'paid';
+                        const employeeIsPaid = latestBillData.employee_payroll_details?.payout_status?.status === 'paid';
+
                         return {
                             ...contractRow,
-                            customer_payable: latestBillData.customer_bill_details.final_amount.客应付款,
-                            customer_is_paid: latestBillData.customer_bill_details.payment_status.customer_is_paid,
-                            employee_payout: latestBillData.employee_payroll_details.final_amount.萌嫂应领款,
-                            employee_is_paid: latestBillData.employee_payroll_details.payment_status.employee_is_paid,
+                            customer_payable: latestBillData.customer_bill_details?.final_amount?.客应付款,
+                            customer_is_paid: customerIsPaid,
+                            employee_payout: latestBillData.employee_payroll_details?.final_amount?.萌嫂应领款,
+                            employee_is_paid: employeeIsPaid,
                             invoice_needed: latestBillData.invoice_needed,
-                            remaining_invoice_amount: latestBillData.invoice_balance.remaining_un_invoiced,
+                            remaining_invoice_amount: latestBillData.invoice_balance?.remaining_un_invoiced,
                         };
                     }
-                    return contractRow; // 其他行保持不变
+                    return contractRow;
                 })
             );
         }
-        // 如果 latestBillData 不完整，我们就不更新列表行，但窗口依然会正常关闭，避免了程序崩溃。
     };
 
     // 2. 新增一个函数来处理从模态框传回的保存事件

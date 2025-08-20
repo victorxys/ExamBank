@@ -1609,8 +1609,8 @@ class MergedAudioSegment(db.Model):
     )
     # Relationship to the original TtsSentence
     tts_sentence = db.relationship(
-        "TtsSentence"
-    )  # No complex backref needed on TtsSentence for this
+        "TtsSentence"  # No complex backref needed on TtsSentence for this
+    )
 
     def __repr__(self):
         return f"<MergedAudioSegment for Audio {self.merged_audio_id}, Order {self.original_order_index}, Time {self.start_ms}-{self.end_ms}>"
@@ -1845,7 +1845,7 @@ class UserResourceAccess(db.Model):
     # +++++++++++++++++++++
 
     def __repr__(self):
-        return f"<UserResourceAccess User:{self.user_id} Resource:{self.resource_id} Expires:{self.expires_at}>"
+        return f"<UserResourceAccess User:{self.user_id} Resource:{self.resource_id}Expires:{self.expires_at}>"
 
     # 如果需要，可以在 to_dict 方法中添加 expires_at
     def to_dict(self):
@@ -1973,6 +1973,7 @@ class AdjustmentType(enum.Enum):
     CUSTOMER_DISCOUNT = "customer_discount"  # 客户优惠
     EMPLOYEE_INCREASE = "employee_increase"  # 员工增款 (付款)
     EMPLOYEE_DECREASE = "employee_decrease"  # 员工减款 (收款, 如交宿舍费)
+    EMPLOYEE_CLIENT_PAYMENT = "employee_client_payment" # 【新增】客户直付给员工（公司账目核销）
     DEFERRED_FEE = "deferred_fee"  # 顺延费用
 
 
@@ -2181,7 +2182,7 @@ class NannyContract(BaseContract):  # 育儿嫂合同
     management_fee_paid_months = db.Column(
         ARRAY(db.String),
         default=[],
-        comment='(月签)已缴管理费的月份列表 (e.g., ["2024-06"])',
+        comment='(月签)已缴管理费的月份列表 (e.g., ["2024-06"])'
     )
     is_first_month_fee_paid = db.Column(
         db.Boolean, default=False, comment="(年签)是否已缴首期全额管理费"
@@ -2207,7 +2208,6 @@ class MaternityNurseContract(BaseContract):  # 月嫂合同
     discount_amount = db.Column(db.Numeric(10, 2), default=0, comment="优惠金额")
 
 
-# --- 财务结果模型 ---
 class FinancialActivityLog(db.Model):
     __tablename__ = "financial_activity_logs"
 
@@ -2245,6 +2245,83 @@ class FinancialActivityLog(db.Model):
         "EmployeePayroll", back_populates="activity_logs"
     )
 
+# --- V2.0 新增模型和枚举 ---
+
+class PaymentStatus(enum.Enum):
+    UNPAID = 'unpaid'
+    PARTIALLY_PAID = 'partially_paid'
+    PAID = 'paid'
+    OVERPAID = 'overpaid'
+
+class PaymentRecord(db.Model):
+    __tablename__ = 'payment_records'
+    __table_args__ = {'comment': '针对客户账单的支付记录表'}
+
+    id = db.Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    customer_bill_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('customer_bills.id', ondelete='CASCADE'), nullable=False,index=True)
+    amount = db.Column(db.Numeric(12, 2), nullable=False, comment='本次支付金额')
+    payment_date = db.Column(db.Date, nullable=False, comment='支付日期')
+    method = db.Column(db.String(100), nullable=True, comment='支付方式')
+    notes = db.Column(db.Text, nullable=True, comment='备注')
+    image_url = db.Column(db.String(512), nullable=True, comment='支付凭证图片URL')
+    created_by_user_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('user.id'), nullable=False)
+    created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
+
+    customer_bill = db.relationship('CustomerBill', back_populates='payment_records')
+    created_by_user = db.relationship('User')
+
+    def to_dict(self):
+        return {
+            "id": str(self.id),
+            "customer_bill_id": str(self.customer_bill_id),
+            "amount": str(self.amount),
+            "payment_date": self.payment_date.isoformat() if self.payment_date else None,
+            "method": self.method,
+            "notes": self.notes,
+            "image_url": self.image_url,
+            "created_by_user_id": str(self.created_by_user_id),
+            "created_by_user_name": self.created_by_user.username if self.created_by_user else None,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+class PayoutStatus(enum.Enum):
+    UNPAID = 'unpaid'
+    PARTIALLY_PAID = 'partially_paid'
+    PAID = 'paid'
+
+class PayoutRecord(db.Model):
+    __tablename__ = 'payout_records'
+    __table_args__ = {'comment': '针对员工薪酬单的支付记录表'}
+
+    id = db.Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    employee_payroll_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('employee_payrolls.id', ondelete='CASCADE'), nullable=False, index=True)
+    amount = db.Column(db.Numeric(12, 2), nullable=False, comment='本次支付金额')
+    payout_date = db.Column(db.Date, nullable=False, comment='支付日期')
+    method = db.Column(db.String(100), nullable=True, comment='支付方式')
+    notes = db.Column(db.Text, nullable=True, comment='备注')
+    image_url = db.Column(db.String(512), nullable=True, comment='支付凭证图片URL')
+    payer = db.Column(db.String(50), nullable=True, server_default='公司代付', comment='付款方 (客户支付/公司代付)')
+    created_by_user_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('user.id'), nullable=False)
+    created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
+
+    employee_payroll = db.relationship('EmployeePayroll', back_populates='payout_records')
+    created_by_user = db.relationship('User')
+
+    def to_dict(self):
+        return {
+            "id": str(self.id),
+            "employee_payroll_id": str(self.employee_payroll_id),
+            "amount": str(self.amount),
+            "payout_date": self.payout_date.isoformat() if self.payout_date else None,
+            "method": self.method,
+            "notes": self.notes,
+            "image_url": self.image_url,
+            "payer": self.payer,
+            "created_by_user_id": str(self.created_by_user_id),
+            "created_by_user_name": self.created_by_user.username if self.created_by_user else None,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+# --- V2.0 重构 CustomerBill 模型 ---
 
 class CustomerBill(db.Model):
     __tablename__ = "customer_bills"
@@ -2266,45 +2343,18 @@ class CustomerBill(db.Model):
     )
     year = db.Column(db.Integer, nullable=False, index=True)
     month = db.Column(db.Integer, nullable=False, index=True)
-    # **核心新增**: 用于区分月嫂在同一个月内的不同周期账单
     cycle_start_date = db.Column(db.Date, nullable=True, index=True)
-    cycle_end_date = db.Column(db.Date, nullable=True)  # 也顺便记录结束日
+    cycle_end_date = db.Column(db.Date, nullable=True)
 
     customer_name = db.Column(
         db.String(255), nullable=False, index=True
-    )  # 冗余客户名，方便查询
-
-    # total_payable = db.Column(db.Numeric(12, 2), nullable=False, comment='客户总应付款')
-    # is_paid = db.Column(db.Boolean, default=False, index=True, comment='是否已打款')
-    # payment_details = db.Column(PG_JSONB, comment='打款日期/渠道/总额/打款人等信息')
-    # calculation_details = db.Column(PG_JSONB, nullable=False, comment='计算过程快照，用于展示和审计')
-
-    # **核心修正**: 为所有 JSONB 和 NOT NULL 字段提供 server_default
-    total_payable = db.Column(
-        db.Numeric(12, 2), nullable=False, server_default="0", comment="客户总应付款"
-    )
-    is_paid = db.Column(
-        db.Boolean,
-        nullable=False,
-        default=False,
-        server_default="false",
-        comment="是否已打款",
-    )
-
-    is_deferred = db.Column(
-        db.Boolean,
-        nullable=False,
-        default=False,
-        server_default="false",
-        index=True,
-        comment="是否已顺延",
     )
 
     payment_details = db.Column(
         PG_JSONB,
         nullable=False,
         server_default=sa.text("'{}'::jsonb"),
-        comment="打款日期/渠道/总额/打款人等信息",
+        comment="[V1遗留] 打款日期/渠道/总额/打款人等信息",
     )
     calculation_details = db.Column(
         PG_JSONB,
@@ -2312,7 +2362,6 @@ class CustomerBill(db.Model):
         server_default=sa.text("'{}'::jsonb"),
         comment="计算过程快照，用于展示和审计",
     )
-        # --- 新增发票管理字段 ---
     invoice_needed = db.Column(
         db.Boolean,
         nullable=False,
@@ -2320,15 +2369,11 @@ class CustomerBill(db.Model):
         server_default="false",
         comment="本账单是否需要开票",
     )
-    # -----------------------
-    # --- 新增：关联到发票记录 ---
     invoices = db.relationship(
         "InvoiceRecord",
         backref="customer_bill",
         cascade="all, delete-orphan",
     )
-    # --------------------------
-
     created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
     contract = db.relationship("BaseContract", back_populates="customer_bills")
     activity_logs = db.relationship(
@@ -2337,9 +2382,7 @@ class CustomerBill(db.Model):
         lazy="dynamic",
         cascade="all, delete-orphan",
     )
-
     actual_work_days = db.Column(db.Numeric(10, 2), nullable=True, comment="实际劳务天数")
-    # --- 新增字段，用于关联替班记录 ---
     is_substitute_bill = db.Column(
         db.Boolean,
         default=False,
@@ -2354,10 +2397,23 @@ class CustomerBill(db.Model):
         nullable=True,
         comment="关联的替班记录ID",
     )
-    # source_substitute_record_id 字段保留，但关系由 SubstituteRecord.generated_bill 的 backref 自动创建
-    # ------------------------------------
+
+    # --- V2.0 字段演进 ---
+    payment_status = db.Column(
+        SAEnum(PaymentStatus),
+        nullable=False,
+        default=PaymentStatus.UNPAID,
+        server_default='unpaid',
+        index=True
+    )
+    total_due = db.Column(db.Numeric(12, 2), nullable=False, server_default='0', comment='总应付金额 (由BillingEngine计算)')
+    total_paid = db.Column(db.Numeric(12, 2), nullable=False, server_default='0', comment='已支付总额 (根据PaymentRecord实时更新)')
+
+    # --- V2.0 关系建立 ---
+    payment_records = db.relationship('PaymentRecord', back_populates='customer_bill', cascade='all, delete-orphan', lazy='dynamic')
 
 
+# --- 【V2.0 重构 EmployeePayroll 模型】 ---
 class EmployeePayroll(db.Model):
     __tablename__ = "employee_payrolls"
     __table_args__ = (
@@ -2378,39 +2434,19 @@ class EmployeePayroll(db.Model):
     )
     year = db.Column(db.Integer, nullable=False, index=True)
     month = db.Column(db.Integer, nullable=False, index=True)
-    # **核心新增**: 同样的周期字段
     cycle_start_date = db.Column(db.Date, nullable=True, index=True)
     cycle_end_date = db.Column(db.Date, nullable=True)
-    # employee_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('service_personnel.id'), nullable=False, index=True)
-    # --- 核心修正：移除 ForeignKey 约束，但保留字段本身 ---
     employee_id = db.Column(
         PG_UUID(as_uuid=True),
         nullable=False,
         index=True,
         comment="员工ID (可以是User或ServicePersonnel的ID)",
     )
-
-    # final_payout = db.Column(db.Numeric(12, 2), nullable=False, comment='员工最终应领款')
-    # is_paid = db.Column(db.Boolean, default=False, index=True, comment='是否已领款')
-    # payout_details = db.Column(PG_JSONB, comment='领款人/时间/途径等信息')
-    # calculation_details = db.Column(PG_JSONB, nullable=False, comment='计算过程快照')
-
-    final_payout = db.Column(
-        db.Numeric(10, 2), nullable=False, server_default="0", comment="员工最终应领款"
-    )
-    is_paid = db.Column(
-        db.Boolean,
-        nullable=False,
-        default=False,
-        server_default="false",
-        comment="是否已领款",
-    )
-
     payout_details = db.Column(
         PG_JSONB,
         nullable=False,
         server_default=sa.text("'{}'::jsonb"),
-        comment="领款人/时间/途径等信息",
+        comment="[V1遗留] 领款人/时间/途径等信息",
     )
     calculation_details = db.Column(
         PG_JSONB,
@@ -2418,10 +2454,7 @@ class EmployeePayroll(db.Model):
         server_default=sa.text("'{}'::jsonb"),
         comment="计算过程快照",
     )
-
-    # ... (关系不变) ...
     contract = db.relationship("BaseContract", back_populates="employee_payrolls")
-
     created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
     activity_logs = db.relationship(
         "FinancialActivityLog",
@@ -2429,9 +2462,7 @@ class EmployeePayroll(db.Model):
         lazy="dynamic",
         cascade="all, delete-orphan",
     )
-
     actual_work_days = db.Column(db.Numeric(10, 2), nullable=True, comment="实际劳务天数")
-    # --- 新增字段，用于关联替班记录 ---
     is_substitute_payroll = db.Column(
         db.Boolean,
         default=False,
@@ -2446,7 +2477,20 @@ class EmployeePayroll(db.Model):
         nullable=True,
         comment="关联的替班记录ID",
     )
-    # ------------------------------------
+
+    # --- V2.0 字段演进 ---
+    total_due = db.Column(db.Numeric(10, 2), nullable=False, server_default="0", comment="员工总应发金额")
+    payout_status = db.Column(
+        SAEnum(PayoutStatus),
+        nullable=False,
+        default=PayoutStatus.UNPAID,
+        server_default='unpaid',
+        index=True
+    )
+    total_paid_out = db.Column(db.Numeric(12, 2), nullable=False, server_default='0', comment='已支付总额')
+
+    # --- V2.0 关系建立 ---
+    payout_records = db.relationship('PayoutRecord', back_populates='employee_payroll', cascade='all, delete-orphan', lazy='dynamic')
 
 
 class AttendanceRecord(db.Model):

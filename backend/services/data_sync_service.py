@@ -206,7 +206,10 @@ class DataSyncService:
                     is_auto_renew = False
                     if contract_type == "nanny":
                         supplementary_clause = entry.get("field_16", "")
-                        is_auto_renew = "延续一个月" in str(supplementary_clause)
+                        supplementary_clause_str = str(supplementary_clause)
+                        is_auto_renew = ("延续一个月" in supplementary_clause_str or
+                                       "续约" in supplementary_clause_str or
+                                       "自动" in supplementary_clause_str)
 
                     # 2. 然后，根据是否自动续约来决定状态判断逻辑
                     if is_auto_renew:

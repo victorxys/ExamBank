@@ -46,7 +46,7 @@ const ConflictCard = ({ conflict, type }) => {
                   </Typography>
                 )}
                 <Typography variant="body2" color="text.secondary">
-                  账单金额: ¥{parseFloat(bill.total_payable).toLocaleString()}
+                  账单金额: ¥{parseFloat(bill.total_due).toLocaleString()}
                 </Typography>                                
                 <Typography variant="body2" color="text.secondary">
                   管理费: ¥{parseFloat(bill.management_fee).toLocaleString()}

@@ -66,6 +66,7 @@ from backend.api.billing_api import billing_bp
 from backend.api.user_api import user_api  
 from backend.api.contract_api import contract_bp 
 from backend.api.financial_adjustment_api import financial_adjustment_api
+from backend.api.financial_records_api import financial_records_bp
 
 
 app = Flask(__name__)
@@ -266,6 +267,7 @@ app.register_blueprint(user_api)
 app.register_blueprint(contract_bp)
 
 app.register_blueprint(financial_adjustment_api, url_prefix="/api")
+app.register_blueprint(financial_records_bp)
 
 
 

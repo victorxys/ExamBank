@@ -18,6 +18,9 @@ import decimal
 from dateutil.relativedelta import relativedelta
 from collections import defaultdict
 from pypinyin import pinyin, Style
+import os
+import uuid
+from werkzeug.utils import secure_filename
 
 
 # --- 新增 AttendanceRecord 的导入 ---
@@ -36,6 +39,11 @@ from backend.models import (
     FinancialActivityLog,
     SubstituteRecord,
     InvoiceRecord,
+    PaymentStatus,
+    PaymentRecord,
+    PayoutStatus,
+    PayoutRecord,
+    AdjustmentType
 )
 from backend.tasks import (
     sync_all_contracts_task,
@@ -169,126 +177,67 @@ def _get_billing_details_internal(
 
     # --- 客户账单详情 ---
     calc_cust = customer_bill.calculation_details or {}
-    customer_details.update(
-        {
-            "id": str(customer_bill.id),
-            "calculation_details": calc_cust,  # <-- 核心修正：传递完整的 calculation_details
-            "final_amount": {"客应付款": str(customer_bill.total_payable)},
+    customer_details.update({
+        "id": str(customer_bill.id),
+        "calculation_details": calc_cust,
+        "final_amount": {"客应付款": str(customer_bill.total_due)}, # V2: 使用 total_due
+        # 【V2.0 修改】直接从 bill 对象获取支付状态信息
+        "payment_status": {
+            'status': customer_bill.payment_status.value,
+            'total_due': str(customer_bill.total_due),
+            'total_paid': str(customer_bill.total_paid)
         }
-    )
-    _fill_payment_status(
-        customer_details,
-        customer_bill.payment_details,
-        customer_bill.is_paid,
-        is_customer=True,
-    )
-    _fill_group_fields(
-        customer_details["groups"][1]["fields"],
-        calc_cust,
-        ["base_work_days", "overtime_days", "total_days_worked", "substitute_days"],
-    )
-    _fill_group_fields(
-        customer_details["groups"][2]["fields"],
-        calc_cust,
-        [
-            # "customer_base_fee",
-            # "customer_overtime_fee",
-            "management_fee",
-            "management_fee_rate",
-            # "substitute_deduction",
-        ],
-    )
+    })
+    _fill_group_fields(customer_details["groups"][1]["fields"], calc_cust, ["base_work_days", "overtime_days", "total_days_worked", "substitute_days"])
+    _fill_group_fields(customer_details["groups"][2]["fields"], calc_cust, ["management_fee", "management_fee_rate"])
     if contract.type == "nanny":
-        customer_details["groups"][2]["fields"]["本次交管理费"] = calc_cust.get(
-            "management_fee", "待计算"
-        )
+        customer_details["groups"][2]["fields"]["本次交管理费"] = calc_cust.get("management_fee", "待计算")
 
-    # --- 修正：如果当前是替班账单，覆盖客户账单中的“级别”为替班员工的日薪 ---
     if customer_bill.is_substitute_bill:
         sub_record = customer_bill.source_substitute_record
         if sub_record:
-            # 找到“级别与保证金”组，并更新“级别”字段
             for group in customer_details["groups"]:
                 if group["name"] == "级别与保证金":
                     group["fields"]["级别"] = str(sub_record.substitute_salary or "0")
                     break
 
-    # --- 员工薪酬详情 ---
     if employee_payroll:
         calc_payroll = employee_payroll.calculation_details or {}
-        employee_details.update(
-            {
-                "id": str(employee_payroll.id),
-                "calculation_details": calc_payroll,  # <-- 核心修正：传递完整的 calculation_details
-                "final_amount": {"萌嫂应领款": str(employee_payroll.final_payout)},
+        employee_details.update({
+            "id": str(employee_payroll.id),
+            "calculation_details": calc_payroll,
+            "final_amount": {"萌嫂应领款": str(employee_payroll.total_due)}, # V2 修改
+            # 【V2.0 员工侧修改】
+            "payout_status": {
+                'status': employee_payroll.payout_status.value,
+                'total_due': str(employee_payroll.total_due),
+                'total_paid_out': str(employee_payroll.total_paid_out)
             }
-        )
-        _fill_payment_status(
-            employee_details,
-            employee_payroll.payout_details,
-            employee_payroll.is_paid,
-            is_customer=False,
-        )
-        _fill_group_fields(
-            employee_details["groups"][0]["fields"],
-            calc_payroll,
-            [
-                "employee_base_payout",
-                "employee_overtime_payout",
-                "first_month_deduction",
-                "substitute_deduction",
-            ],
-            is_substitute_payroll=employee_payroll.is_substitute_payroll,
-        )
-
-    # --- Gemini Final Fix: Start ---
-    # 重构查询逻辑，确保只获取与当前账单或薪酬单严格关联的调整项
+        })
+        _fill_group_fields(employee_details["groups"][0]["fields"], calc_payroll, ["employee_base_payout","employee_overtime_payout", "first_month_deduction", "substitute_deduction"],is_substitute_payroll=employee_payroll.is_substitute_payroll)
+        
     adjustment_filters = []
     if customer_bill:
         adjustment_filters.append(FinancialAdjustment.customer_bill_id == customer_bill.id)
-    
     if employee_payroll:
         adjustment_filters.append(FinancialAdjustment.employee_payroll_id == employee_payroll.id)
+    adjustments = FinancialAdjustment.query.filter(or_(*adjustment_filters)).all() if adjustment_filters else []
 
-    adjustments = []
-    if adjustment_filters:
-        adjustments = FinancialAdjustment.query.filter(or_(*adjustment_filters)).all()
-    # --- Gemini Final Fix: End ---
-
-    # --- 获取加班天数 ---
     overtime_days = 0
     if customer_bill.is_substitute_bill:
-        sub_record = customer_bill.source_substitute_record  # 替班账单关联的替班记录
+        sub_record = customer_bill.source_substitute_record
         if sub_record:
             overtime_days = sub_record.overtime_days or 0
     else:
-        attendance_record = AttendanceRecord.query.filter_by(
-            contract_id=contract.id, cycle_start_date=cycle_start
-        ).first()
+        attendance_record = AttendanceRecord.query.filter_by(contract_id=contract.id, cycle_start_date=cycle_start).first()
         if attendance_record:
             overtime_days = attendance_record.overtime_days
 
-    # --- Gemini Final Fix for issue #3: Start ---
-    # 在返回账单详情时，补充关联合同的介绍费和备注
     if contract.type == 'nanny_trial':
         customer_details['groups'][0]['fields']['介绍费'] = str(getattr(contract, "introduction_fee", "0.00"))
-
     customer_details['groups'][0]['fields']['合同备注'] = contract.notes or "—"
-    # --- Gemini Final Fix for issue #3: End ---
-    current_app.logger.debug(f"获取到加班记录:{overtime_days}")
-    current_app.logger.info(f"[BACKEND-DEBUG] Final 'attendance' object being sent to frontend: {{'overtime_days': {float(overtime_days) if overtime_days is not None else 0}}}")
-    
-     # 添加 is_last_bill 标志
-    is_last_bill = False
-    later_bill_exists = db.session.query(
-        db.session.query(CustomerBill)
-        .filter(
-            CustomerBill.contract_id == contract.id,
-            CustomerBill.is_substitute_bill == False,
-            CustomerBill.cycle_start_date > customer_bill.cycle_start_date
-        ).exists()
-    ).scalar()
 
+    later_bill_exists = db.session.query(db.session.query(CustomerBill).filter(CustomerBill.contract_id == contract.id,CustomerBill.is_substitute_bill == False, CustomerBill.cycle_start_date > customer_bill.cycle_start_date).exists()).scalar()
     is_last_bill = not later_bill_exists
     
     
@@ -358,6 +307,8 @@ def _get_billing_details_internal(
         "customer_bill_details": customer_details,
         "employee_payroll_details": employee_details,
         "adjustments": [adj.to_dict() for adj in adjustments],
+        "payment_records": [p.to_dict() for p in customer_bill.payment_records],
+        "payout_records": [p.to_dict() for p in employee_payroll.payout_records] if employee_payroll else [],
         "attendance": {
             "overtime_days": float(overtime_days) if overtime_days is not None else 0
         },
@@ -448,38 +399,38 @@ def _get_details_template(contract, cycle_start, cycle_end):
     }
 
 
-def _fill_payment_status(details, payment_data, is_paid, is_customer):
-    payment = payment_data or {}
-    status_dict = {}
+# def _fill_payment_status(details, payment_data, is_paid, is_customer):
+#     payment = payment_data or {}
+#     status_dict = {}
 
-    if is_customer:
-        # --- 客户账单 ---
-        invoice_needed = payment.get('invoice_needed', False)
+#     if is_customer:
+#         # --- 客户账单 ---
+#         invoice_needed = payment.get('invoice_needed', False)
 
-        # 核心修正：根据是否存在发票信息来动态决定 issued 状态
-        invoice_amount = payment.get('invoice_amount')
-        invoice_number = payment.get('invoice_number')
-        # 只要有金额或号码，就认为“已开票”这个动作发生了
-        invoice_issued = bool(invoice_amount or invoice_number)
+#         # 核心修正：根据是否存在发票信息来动态决定 issued 状态
+#         invoice_amount = payment.get('invoice_amount')
+#         invoice_number = payment.get('invoice_number')
+#         # 只要有金额或号码，就认为“已开票”这个动作发生了
+#         invoice_issued = bool(invoice_amount or invoice_number)
 
-        status_dict['customer_is_paid'] = is_paid
-        status_dict['customer_payment_date'] = payment.get('payment_date')
-        status_dict['customer_payment_channel'] = payment.get('payment_channel')
-        status_dict['invoice_needed'] = invoice_needed
-        status_dict['invoice_issued'] = invoice_issued # 使用我们动态计算的值
+#         status_dict['customer_is_paid'] = is_paid
+#         status_dict['customer_payment_date'] = payment.get('payment_date')
+#         status_dict['customer_payment_channel'] = payment.get('payment_channel')
+#         status_dict['invoice_needed'] = invoice_needed
+#         status_dict['invoice_issued'] = invoice_issued # 使用我们动态计算的值
 
-        status_dict['是否打款'] = '是' if is_paid else '否'
-        status_dict['打款时间及渠道'] = f"{payment.get('payment_date', '') or '—'} / {payment.get('payment_channel', '') or '—'}"if is_paid else "—"
-        status_dict['发票记录'] = '无需开票' if not invoice_needed else ('已开票' if invoice_issued else '待开票')
-    else:
-        # --- 员工薪酬 (保持不变) ---
-        status_dict['employee_is_paid'] = is_paid
-        status_dict['employee_payout_date'] = payment.get('date')
-        status_dict['employee_payout_channel'] = payment.get('channel')
-        status_dict['是否领款'] = '是' if is_paid else '否'
-        status_dict['领款时间及渠道'] = f"{payment.get('date', '') or '—'} / {payment.get('channel', '') or '—'}" if is_paid else"—"
+#         status_dict['是否打款'] = '是' if is_paid else '否'
+#         status_dict['打款时间及渠道'] = f"{payment.get('payment_date', '') or '—'} / {payment.get('payment_channel', '') or '—'}"if is_paid else "—"
+#         status_dict['发票记录'] = '无需开票' if not invoice_needed else ('已开票' if invoice_issued else '待开票')
+#     else:
+#         # --- 员工薪酬 (保持不变) ---
+#         status_dict['employee_is_paid'] = is_paid
+#         status_dict['employee_payout_date'] = payment.get('date')
+#         status_dict['employee_payout_channel'] = payment.get('channel')
+#         status_dict['是否领款'] = '是' if is_paid else '否'
+#         status_dict['领款时间及渠道'] = f"{payment.get('date', '') or '—'} / {payment.get('channel', '') or '—'}" if is_paid else"—"
 
-    details['payment_status'] = status_dict
+#     details['payment_status'] = status_dict
 
 def _fill_group_fields(group_fields, calc, field_keys, is_substitute_payroll=False):
     for key in field_keys:
@@ -659,9 +610,8 @@ def get_bills():
         contract_type = request.args.get("type", "")
         status = request.args.get("status", "")
         billing_month_str = request.args.get("billing_month")
-
-        payment_status = request.args.get("payment_status", "")
-        payout_status = request.args.get("payout_status", "")
+        payment_status_filter = request.args.get("payment_status", "")
+        payout_status_filter = request.args.get("payout_status", "") # V2 修改
 
         if not billing_month_str:
             return jsonify({"error": "必须提供账单月份 (billing_month) 参数"}), 400
@@ -692,20 +642,20 @@ def get_bills():
             query = query.filter(
                 db.or_(
                     contract_poly.customer_name.ilike(f"%{search_term}%"),
-                    contract_poly.customer_name_pinyin.ilike(f"%{search_term}%"),
                     User.username.ilike(f"%{search_term}%"),
-                    User.name_pinyin.ilike(f"%{search_term}%"),
                     ServicePersonnel.name.ilike(f"%{search_term}%"),
-                    ServicePersonnel.name_pinyin.ilike(f"%{search_term}%"),
                 )
             )
 
-        if payment_status == "paid":
-            query = query.filter(CustomerBill.is_paid)
-        elif payment_status == "unpaid":
-            query = query.filter(~CustomerBill.is_paid)
+        if payment_status_filter:
+            try:
+                status_enum = PaymentStatus(payment_status_filter)
+                query = query.filter(CustomerBill.payment_status == status_enum)
+            except ValueError:
+                pass
 
-        if payout_status:
+        # 【V2 修改】根据新的 payout_status 枚举进行过滤
+        if payout_status_filter:
             query = query.join(
                 EmployeePayroll,
                 and_(
@@ -713,20 +663,19 @@ def get_bills():
                     EmployeePayroll.cycle_start_date == CustomerBill.cycle_start_date,
                 ),
             )
-            if payout_status == "paid":
-                query = query.filter(EmployeePayroll.is_paid)
-            elif payout_status == "unpaid":
-                query = query.filter(~EmployeePayroll.is_paid)
+            try:
+                status_enum = PayoutStatus(payout_status_filter)
+                query = query.filter(EmployeePayroll.payout_status == status_enum)
+            except ValueError:
+                pass
 
         query = query.order_by(
             contract_poly.customer_name, CustomerBill.cycle_start_date
         )
-        # --- 修正：分两步计算总计，避免JOIN导致重复计算 ---
-        # 1. 先根据所有筛选条件，获取匹配账单的ID列表
+
         filtered_bill_ids_query = query.with_entities(CustomerBill.id)
         filtered_bill_ids = [item[0] for item in filtered_bill_ids_query.all()]
 
-        # 2. 然后只对这些ID进行干净的聚合查询
         total_management_fee = 0
         if filtered_bill_ids:
             total_management_fee = db.session.query(
@@ -734,47 +683,58 @@ def get_bills():
             ).filter(
                 CustomerBill.id.in_(filtered_bill_ids)
             ).scalar() or 0
-        # --- 修正结束 ---
+
         paginated_results = query.paginate(
             page=page, per_page=per_page, error_out=False
         )
 
         results = []
-        engine = BillingEngine() # 初始化引擎
+        engine = BillingEngine()
+
+        # 【V2 修改】定义状态到中文的映射
+        status_map = {
+            PaymentStatus.PAID: "已支付",
+            PaymentStatus.UNPAID: "未支付",
+            PaymentStatus.PARTIALLY_PAID: "部分支付",
+            PaymentStatus.OVERPAID: "超额支付",
+        }
+
+        payout_status_map = {
+            PayoutStatus.PAID: "已发放",
+            PayoutStatus.UNPAID: "未发放",
+            PayoutStatus.PARTIALLY_PAID: "部分发放",
+        }
 
         for i, (bill, contract) in enumerate(paginated_results.items):
             payroll = EmployeePayroll.query.filter_by(
                 contract_id=bill.contract_id, cycle_start_date=bill.cycle_start_date
             ).first()
 
-            # 为每个账单计算其发票余额
             invoice_balance = engine.calculate_invoice_balance(str(bill.id))
-            
 
             item = {
                 "id": str(bill.id),
                 "contract_id": str(contract.id),
                 "customer_name": contract.customer_name,
                 "status": contract.status,
-                "customer_payable": str(bill.total_payable) if bill else "待计算",
-                "customer_is_paid": bill.is_paid,
-                 "is_deferred": bill.is_deferred,
-                "employee_payout": str(payroll.final_payout) if payroll else "待计算",
-                "employee_is_paid": payroll.is_paid if payroll else False,
+                "customer_payable": str(bill.total_due), # <-- 修改
+                "customer_is_paid": bill.payment_status == PaymentStatus.PAID, # <-- 修改
+                "is_deferred": False, # <-- 旧字段，暂时硬编码为False
+                "employee_payout": str(payroll.total_due) if payroll else "待计算",
+                "employee_is_paid": payroll.payout_status == PayoutStatus.PAID if payroll else False,
+                
                 "is_substitute_bill": bill.is_substitute_bill,
                 "contract_type_label": get_contract_type_details(contract.type),
                 "is_monthly_auto_renew": getattr(contract, 'is_monthly_auto_renew', False),
                 "contract_type_value": contract.type,
                 "employee_level": str(contract.employee_level or "0"),
-                "active_cycle_start": bill.cycle_start_date.isoformat()
-                if bill.cycle_start_date
-                else None,
-                "active_cycle_end": bill.cycle_end_date.isoformat()
-                if bill.cycle_end_date
-                else None,
-                # --- 新增字段 ---
+                "active_cycle_start": bill.cycle_start_date.isoformat() if bill.cycle_start_date else None,
+                "active_cycle_end": bill.cycle_end_date.isoformat() if bill.cycle_end_date else None,
                 "invoice_needed": invoice_balance.get("auto_invoice_needed", False),
-                "remaining_invoice_amount": str(invoice_balance.get("remaining_un_invoiced", "0.00"))
+                "remaining_invoice_amount": str(invoice_balance.get("remaining_un_invoiced", "0.00")),
+                # 【V2 新增】返回新的支付状态文本
+                "payment_status_label": status_map.get(bill.payment_status, "未知"),
+                "payout_status_label": payout_status_map.get(payroll.payout_status, "未知") if payroll else "未知",
             }
 
             start = contract.start_date.isoformat() if contract.start_date else "—"
@@ -842,7 +802,7 @@ def get_billing_summaries():
 
     try:
         summaries = (
-            db.session.query(CustomerBill.contract_id, CustomerBill.total_payable)
+            db.session.query(CustomerBill.contract_id, CustomerBill.total_due)
             .filter(
                 CustomerBill.contract_id.in_(contract_ids),
                 CustomerBill.year == billing_year,
@@ -853,8 +813,8 @@ def get_billing_summaries():
 
         # 将结果转换为字典，方便前端查找
         summary_map = {
-            str(contract_id): str(total_payable)
-            for contract_id, total_payable in summaries
+            str(contract_id): str(total_due)
+            for contract_id, total_due in summaries
         }
 
         return jsonify(summary_map)
@@ -1125,161 +1085,85 @@ def batch_update_billing_details():
         if not payroll:
             return jsonify({"error": f"未找到与账单ID {bill_id} 关联的薪酬单"}), 404
 
-        # 步骤 1: 处理所有前端提交的修改 (包括手动调整项和所有结算状态)
-        # (这里可以调用一个辅助函数，或者直接把逻辑放在这里)
-        adjustments_data = data.get('adjustments', [])
-        _apply_all_adjustments_and_settlements(adjustments_data, bill, payroll) # 我们将创建一个新的、简化的辅助函数
-
         engine = BillingEngine()
 
-        # --- 核心修复：区分替班账单和普通账单 ---
-        if bill.is_substitute_bill:
-            # --- 这是替班账单的逻辑 ---
-            sub_record = bill.source_substitute_record
-            if not sub_record:
-                return jsonify({"error": "未找到关联的替班记录"}), 404
+        # 【V2.0 重构】
+        # 这个函数现在只负责处理非支付类的更新，例如：
+        # - 调整项 (通过 _apply_all_adjustments_and_settlements)
+        # - 发票记录
+        # - 加班天数
+        # - 实际工作天数
+        # - 账单是否需要开票
+        #
+        # 所有关于“支付/结算”状态的逻辑都已被移除，它们现在由 add_payment_record API 统一处理。
 
-            # 1. 更新加班天数
-            if "overtime_days" in data:
-                new_overtime_decimal = D(str(data.get("overtime_days", "0")))
-                if sub_record.overtime_days != new_overtime_decimal:
-                    _log_activity(bill, payroll, "修改替班加班天数", {"from": str(sub_record.overtime_days), "to": str(new_overtime_decimal)})
-                    sub_record.overtime_days = new_overtime_decimal
-
-            # (注意：此处可以根据需要，从 else 分支中复制处理财务调整项的逻辑)
-
-            db.session.commit()
-
-            # 2. 【关键】调用替班专用的重算方法
-            current_app.logger.info(f"正在为替班记录 {sub_record.id} 触发重新计算...")
-            engine.calculate_for_substitute(sub_record.id)
-        else:
-            # --- 这是普通账单的逻辑 (将现有代码移入) ---
-            # --- 1. 处理多发票记录 ---
-            invoices_from_frontend = data.get('invoices', [])
+        # --- 1. 处理发票记录 ---
+        invoices_from_frontend = data.get('invoices', [])
+        if invoices_from_frontend:
             existing_invoices_map = {str(inv.id): inv for inv in bill.invoices}
-            new_invoice_ids = set()
-
+            new_invoice_ids = {str(inv_data.get('id')) for inv_data in invoices_from_frontend if inv_data.get('id')}
             for inv_data in invoices_from_frontend:
                 inv_id = inv_data.get('id')
-                amount = D(inv_data.get('amount', '0'))
-                issue_date_str = inv_data.get('issue_date')
-                issue_date = date_parse(issue_date_str).date() if issue_date_str and issue_date_str else None
-                invoice_number = inv_data.get('invoice_number')
-                notes = inv_data.get('notes')
-
                 if inv_id and str(inv_id) in existing_invoices_map:
-                    new_invoice_ids.add(str(inv_id))
                     invoice_to_update = existing_invoices_map[str(inv_id)]
-                    if (invoice_to_update.amount != amount or
-                        invoice_to_update.issue_date != issue_date or
-                        invoice_to_update.invoice_number != invoice_number or
-                        invoice_to_update.notes != notes):
-                        _log_activity(bill, None, "更新了发票记录", {
-                            "invoice_number": invoice_number,
-                            "from_amount": str(invoice_to_update.amount), "to_amount": str(amount)
-                        })
-                        invoice_to_update.amount = amount
-                        invoice_to_update.issue_date = issue_date
-                        invoice_to_update.invoice_number = invoice_number
-                        invoice_to_update.notes = notes
+                    invoice_to_update.amount = D(inv_data.get('amount', '0'))
+                    invoice_to_update.issue_date = date_parse(inv_data.get('issue_date')).date() if inv_data.get('issue_date')else None
+                    invoice_to_update.invoice_number = inv_data.get('invoice_number')
+                    invoice_to_update.notes = inv_data.get('notes')
                 elif not inv_id or 'temp' in str(inv_id):
-                    new_invoice = InvoiceRecord(
-                        customer_bill_id=bill.id, amount=amount, issue_date=issue_date,
-                        invoice_number=invoice_number, notes=notes
-                    )
-                    db.session.add(new_invoice)
-                    _log_activity(bill, None, "新增了发票记录", {"invoice_number": invoice_number, "amount": str(amount)})
-
+                    db.session.add(InvoiceRecord(
+                        customer_bill_id=bill.id,
+                        amount=D(inv_data.get('amount', '0')),
+                        issue_date=date_parse(inv_data.get('issue_date')).date() if inv_data.get('issue_date') else None,
+                        invoice_number=inv_data.get('invoice_number'),
+                        notes=inv_data.get('notes')
+                    ))
             for old_id, old_invoice in existing_invoices_map.items():
                 if old_id not in new_invoice_ids:
-                    _log_activity(bill, None, "删除了发票记录", {"invoice_number": old_invoice.invoice_number, "amount": str(old_invoice.amount)})
                     db.session.delete(old_invoice)
 
-            # --- 2. 处理其他字段 ---
-            new_actual_work_days = None
-            if 'actual_work_days' in data and data['actual_work_days'] is not None and data['actual_work_days'] != '':
-                new_actual_work_days = D(str(data['actual_work_days']))
-                if bill.actual_work_days != new_actual_work_days:
-                    _log_activity(bill, payroll, "修改实际劳务天数", {"from": str(bill.actual_work_days), "to": str(new_actual_work_days)})
-                    bill.actual_work_days = new_actual_work_days
-                    payroll.actual_work_days = new_actual_work_days
-            
-            # --- 加班天数精度修正开始 ---
-            new_overtime_decimal = D(str(data.get("overtime_days", "0")))
-            attendance_record = AttendanceRecord.query.filter_by(contract_id=bill.contract_id, cycle_start_date=bill.cycle_start_date).first()
-            
-            if attendance_record:
-                old_overtime_decimal = attendance_record.overtime_days
-                # 比较前，将两边都格式化为两位小数
-                if old_overtime_decimal.quantize(D('0.01')) != new_overtime_decimal.quantize(D('0.01')):
-                    _log_activity(
-                        bill, payroll, "修改加班天数", 
-                        {"from": str(old_overtime_decimal.quantize(D('0.01'))), "to": str(new_overtime_decimal.quantize(D('0.01')))}
-                    )
-                    attendance_record.overtime_days = new_overtime_decimal
-            else:
-                # 如果记录不存在，且加班大于0，则创建新记录
-                if new_overtime_decimal > 0:
-                    employee_id = bill.contract.user_id or bill.contract.service_personnel_id
-                    if employee_id:
-                        attendance_record = AttendanceRecord(
-                            employee_id=employee_id,
-                            contract_id=bill.contract_id,
-                            cycle_start_date=bill.cycle_start_date,
-                            cycle_end_date=bill.cycle_end_date,
-                            overtime_days=new_overtime_decimal,
-                            total_days_worked=0 # 总天数由计算引擎处理
-                        )
-                        db.session.add(attendance_record)
-                        _log_activity(bill, payroll, "新增考勤并设置加班天数", {"to": str(new_overtime_decimal.quantize(D('0.01')))}) 
-            # --- 加班天数精度修正结束 ---
-            
-           
+        # --- 2. 处理其他可编辑字段 ---
+        new_actual_work_days = D(str(data['actual_work_days'])) if 'actual_work_days' in data and data['actual_work_days'] is not None and data['actual_work_days'] != '' else None
+        if new_actual_work_days is not None and bill.actual_work_days != new_actual_work_days:
+            bill.actual_work_days = new_actual_work_days
+            payroll.actual_work_days = new_actual_work_days
 
-            # --- 4. 处理客户打款和员工领款状态 ---
-            settlement_status = data.get('settlement_status', {})
-            bill.is_paid = settlement_status.get('customer_is_paid', False)
-            payroll.is_paid = settlement_status.get('employee_is_paid', False)
-            
-            if bill.payment_details is None: bill.payment_details = {}
-            payment_date_str = settlement_status.get('customer_payment_date')
-            payment_date_obj = date_parse(payment_date_str).date() if payment_date_str and payment_date_str else None
-            bill.payment_details['payment_date'] = payment_date_obj.isoformat() if payment_date_obj else None
-            bill.payment_details['payment_channel'] = settlement_status.get('customer_payment_channel')
-            attributes.flag_modified(bill, "payment_details")
+        new_overtime_decimal = D(str(data.get("overtime_days", "0")))
+        attendance_record = AttendanceRecord.query.filter_by(contract_id=bill.contract_id,cycle_start_date=bill.cycle_start_date).first()
+        if attendance_record:
+            if attendance_record.overtime_days.quantize(D('0.01')) != new_overtime_decimal.quantize(D('0.01')):
+                attendance_record.overtime_days = new_overtime_decimal
+        elif new_overtime_decimal > 0:
+            employee_id = bill.contract.user_id or bill.contract.service_personnel_id
+            if employee_id:
+                db.session.add(AttendanceRecord(
+                    employee_id=employee_id, contract_id=bill.contract_id,
+                    cycle_start_date=bill.cycle_start_date, cycle_end_date=bill.cycle_end_date,
+                    overtime_days=new_overtime_decimal, total_days_worked=0
+                ))
 
-            if payroll.payout_details is None: payroll.payout_details = {}
-            payout_date_str = settlement_status.get('employee_payout_date')
-            payout_date_obj = date_parse(payout_date_str).date() if payout_date_str and payout_date_str else None
-            payroll.payout_details['date'] = payout_date_obj.isoformat() if payout_date_obj else None
-            payroll.payout_details['channel'] = settlement_status.get('employee_payout_channel')
-            attributes.flag_modified(payroll, "payout_details")
-
-            # --- 5. 更新账单的 invoice_needed 状态 ---
+        if 'invoice_needed' in data:
             bill.invoice_needed = data.get('invoice_needed', False)
 
-            # db.session.commit()
+        # --- 3. 处理财务调整项 ---
+        if 'adjustments' in data:
+            adjustments_data = data.get('adjustments', [])
+            _apply_all_adjustments_and_settlements(adjustments_data, bill, payroll)
 
-            # 步骤 2: 第一次引擎运行，创建系统调整项
-            engine.calculate_for_month(
-                year=bill.year, month=bill.month, contract_id=bill.contract_id,
-                force_recalculate=True, actual_work_days_override=new_actual_work_days,
-                cycle_start_date_override=bill.cycle_start_date
-            )
+        # --- 4. 运行引擎重算 ---
+        # 注意：我们不再需要运行两次引擎，因为支付状态的变更已经和这个函数解耦
+        engine.calculate_for_month(
+            year=bill.year, month=bill.month, contract_id=bill.contract_id,
+            force_recalculate=True, actual_work_days_override=new_actual_work_days,
+            cycle_start_date_override=bill.cycle_start_date
+        )
 
+        # --- 5. 提交所有更改 ---
+        db.session.commit()
 
-            # 步骤 6: 最终提交所有更改
-            db.session.commit()
-        
-        # --- 7. 获取并返回最新的完整账单详情 ---
-        final_bill = db.session.get(CustomerBill, bill_id)
-        latest_details = _get_billing_details_internal(bill_id=final_bill.id)
-        invoice_balance = engine.calculate_invoice_balance(final_bill.id)
-        latest_details["invoice_balance"] = invoice_balance
-        latest_details["invoice_needed"] = final_bill.invoice_needed
-
-        return jsonify({"message": "所有更改已保存并成功重算！", "latest_details": latest_details})
+        # --- 6. 返回最新数据 ---
+        latest_details = _get_billing_details_internal(bill_id=bill.id)
+        return jsonify({"message": "账单已更新并成功重算！", "latest_details": latest_details})
 
     except Exception as e:
         db.session.rollback()
@@ -1781,27 +1665,32 @@ def get_bills_for_contract(contract_id):
     results = []
     engine = BillingEngine()
 
+    # 定义状态映射
+    status_map = {
+        PaymentStatus.PAID: "已支付",
+        PaymentStatus.UNPAID: "未支付",
+        PaymentStatus.PARTIALLY_PAID: "部分支付",
+        PaymentStatus.OVERPAID: "超额支付",
+    }
+
+
     for bill in bills:
         calc = bill.calculation_details or {}
-
         invoice_balance = engine.calculate_invoice_balance(str(bill.id))
 
         results.append(
             {
                 "id": str(bill.id),
                 "billing_period": f"{bill.year}-{str(bill.month).zfill(2)}",
-                "cycle_start_date": bill.cycle_start_date.isoformat()
-                if bill.cycle_start_date
-                else "N/A",
-                "cycle_end_date": bill.cycle_end_date.isoformat()
-                if bill.cycle_end_date
-                else "N/A",
-                "total_payable": str(bill.total_payable),
-                "status": "已支付" if bill.is_paid else "未支付",
+                "cycle_start_date": bill.cycle_start_date.isoformat() if bill.cycle_start_date else "N/A",
+                "cycle_end_date": bill.cycle_end_date.isoformat() if bill.cycle_end_date else "N/A",
+                "total_due": str(bill.total_due),
+                "status": status_map.get(bill.payment_status, "未知"), # <-- V2 修改
+                "payment_status_label": status_map.get(bill.payment_status, "未知"), # <-- V2 新增
+                "customer_is_paid": bill.payment_status == PaymentStatus.PAID, # <-- V2 新增
                 "overtime_days": calc.get("overtime_days", "0"),
                 "base_work_days": calc.get("base_work_days", "0"),
                 "is_substitute_bill": bill.is_substitute_bill,
-                # **核心修正**: 从 payment_details JSON 字段中获取
                 "invoice_needed": (bill.payment_details or {}).get("invoice_needed", False),
                 "remaining_invoice_amount": str(invoice_balance.get("remaining_un_invoiced", "0.00"))
             }
@@ -2664,7 +2553,7 @@ def defer_customer_bill(bill_id):
         deferred_adjustment = FinancialAdjustment(
             customer_bill_id=next_bill.id,
             adjustment_type=AdjustmentType.DEFERRED_FEE,
-            amount=bill_to_defer.total_payable,
+            amount=bill_to_defer.total_due,
             description=f"[系统] 上期账单({bill_to_defer.year}-{str(bill_to_defer.month).zfill(2)})顺延金额",
             date=next_bill.cycle_start_date,
         )
@@ -3156,7 +3045,7 @@ def format_bill_for_conflict_response(bill):
         "is_substitute_bill": bill.is_substitute_bill,
         "contract_start_date": contract_start_date,
         "contract_end_date": contract_end_date,
-        "total_payable": str(bill.total_payable or 0),
+        "total_due": str(bill.total_due or 0),
         "management_fee": str(management_fee or 0)
     }
 
@@ -3265,3 +3154,219 @@ def transfer_financial_adjustment(adjustment_id):
         "latest_details": latest_details
     })
     
+from backend.models import PaymentStatus, PaymentRecord # 确保在文件顶部导入
+
+def _update_bill_payment_status(bill: CustomerBill):
+    """
+    根据一个账单的所有支付记录，更新其 total_paid 和 payment_status.
+    """
+    if not bill:
+        return
+
+    # 计算已支付总额
+    total_paid = db.session.query(func.sum(PaymentRecord.amount)).filter(
+        PaymentRecord.customer_bill_id == bill.id
+    ).scalar() or D(0)
+
+    bill.total_paid = total_paid.quantize(D("0.01"))
+
+    # 更新支付状态
+    if bill.total_paid <= 0:
+        bill.payment_status = PaymentStatus.UNPAID
+    elif bill.total_paid < bill.total_due:
+        bill.payment_status = PaymentStatus.PARTIALLY_PAID
+    elif bill.total_paid == bill.total_due:
+        bill.payment_status = PaymentStatus.PAID
+    else: # total_paid > bill.total_due
+        bill.payment_status = PaymentStatus.OVERPAID
+
+    db.session.add(bill)
+    current_app.logger.info(f"Updated bill {bill.id} status to {bill.payment_status.value} with total_paid {bill.total_paid}")
+
+
+@billing_bp.route("/bills/<string:bill_id>/payments", methods=["POST", "OPTIONS"])
+@admin_required
+def add_payment_record(bill_id):
+    if request.method == 'OPTIONS':
+        return jsonify({'status': 'ok'}), 200
+
+    bill = db.session.get(CustomerBill, bill_id)
+    if not bill:
+        return jsonify({"error": "账单未找到"}), 404
+
+    data = request.form
+    if not data or not data.get('amount') or not data.get('payment_date'):
+        return jsonify({"error": "必须提供支付金额和支付日期"}), 400
+
+    image_url = None
+    if 'image' in request.files:
+        image_file = request.files['image']
+        image_url = _handle_image_upload(image_file)
+
+    try:
+        new_payment = PaymentRecord(
+            customer_bill_id=bill.id,
+            amount=D(data['amount']),
+            payment_date=date_parse(data['payment_date']).date(),
+            method=data.get('method'),
+            notes=data.get('notes'),
+            image_url=image_url,
+            created_by_user_id=get_jwt_identity()
+        )
+        db.session.add(new_payment)
+
+        _update_bill_payment_status(bill)
+
+        log_action = f"新增了支付记录，金额: {new_payment.amount:.2f}"
+        _log_activity(bill, None, log_action, details=dict(data))
+
+        db.session.commit()
+
+        return jsonify({"message": "支付记录添加成功"}), 201
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"添加支付记录失败 (bill_id: {bill_id}): {e}",exc_info=True)
+        return jsonify({"error": "服务器内部错误"}), 500
+    
+def _update_payroll_payout_status(payroll: EmployeePayroll):
+    """
+    根据一个薪酬单的所有支付记录，更新其 total_paid_out 和 payout_status.
+    """
+    if not payroll:
+        return
+
+    total_paid_out = db.session.query(func.sum(PayoutRecord.amount)).filter(
+        PayoutRecord.employee_payroll_id == payroll.id
+    ).scalar() or D(0)
+
+    payroll.total_paid_out = total_paid_out.quantize(D("0.01"))
+
+    if payroll.total_paid_out <= 0:
+        payroll.payout_status = PayoutStatus.UNPAID
+    elif payroll.total_paid_out < payroll.total_due:
+        payroll.payout_status = PayoutStatus.PARTIALLY_PAID
+    else: # total_paid_out >= payroll.total_due
+        payroll.payout_status = PayoutStatus.PAID
+
+    db.session.add(payroll)
+    current_app.logger.info(f"Updated payroll {payroll.id} status to {payroll.payout_status.value} with total_paid_out {payroll.total_paid_out}")
+
+@billing_bp.route("/payrolls/<string:payroll_id>/payouts", methods=["POST", "OPTIONS"])
+@admin_required
+def add_payout_record(payroll_id):
+    if request.method == 'OPTIONS':
+        return jsonify({'status': 'ok'}), 200
+
+    payroll = db.session.get(EmployeePayroll, payroll_id)
+    if not payroll:
+        return jsonify({"error": "薪酬单未找到"}), 404
+
+    data = request.form
+    if not data or not data.get('amount') or not data.get('payout_date'):
+        return jsonify({"error": "必须提供支付金额和支付日期"}), 400
+
+    image_url = None
+    if 'image' in request.files:
+        image_file = request.files['image']
+        image_url = _handle_image_upload(image_file)
+
+    try:
+        new_payout = PayoutRecord(
+            employee_payroll_id=payroll.id,
+            amount=D(data['amount']),
+            payout_date=date_parse(data['payout_date']).date(),
+            method=data.get('method'),
+            notes=data.get('notes'),
+            payer=data.get('payer'),
+            image_url=image_url,
+            created_by_user_id=get_jwt_identity()
+        )
+        db.session.add(new_payout)
+
+        _update_payroll_payout_status(payroll)
+
+        log_action = f"新增了工资发放记录，金额: {new_payout.amount:.2f}"
+        _log_activity(None, payroll, log_action, details=dict(data))
+
+        db.session.commit()
+
+        return jsonify({"message": "工资发放记录添加成功"}), 201
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"添加工资发放记录失败 (payroll_id: {payroll_id}):{e}", exc_info=True)
+        return jsonify({"error": "服务器内部错误"}), 500
+
+@billing_bp.route("/payments/<uuid:payment_id>", methods=["DELETE", "OPTIONS"])
+@admin_required
+def delete_payment_record(payment_id):
+    if request.method == 'OPTIONS':
+        return jsonify({'status': 'ok'}), 200
+
+    payment_record = db.session.get(PaymentRecord, payment_id)
+    if not payment_record:
+        return jsonify({"error": "支付记录未找到"}), 404
+
+    bill = payment_record.customer_bill
+    log_details = payment_record.to_dict()
+
+    try:
+        db.session.delete(payment_record)
+        _update_bill_payment_status(bill)
+        log_action = f"删除了支付记录，金额: {log_details['amount']}"
+        _log_activity(bill, None, log_action, details=log_details)
+        db.session.commit()
+        return jsonify({"message": "支付记录删除成功"}), 200
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"删除支付记录失败 (id: {payment_id}): {e}",exc_info=True)
+        return jsonify({"error": "服务器内部错误"}), 500
+
+@billing_bp.route("/payouts/<uuid:payout_id>", methods=["DELETE", "OPTIONS"])
+@admin_required
+def delete_payout_record(payout_id):
+    if request.method == 'OPTIONS':
+        return jsonify({'status': 'ok'}), 200
+
+    payout_record = db.session.get(PayoutRecord, payout_id)
+    if not payout_record:
+        return jsonify({"error": "工资发放记录未找到"}), 404
+
+    payroll = payout_record.employee_payroll
+    log_details = payout_record.to_dict()
+
+    try:
+        db.session.delete(payout_record)
+        _update_payroll_payout_status(payroll)
+        log_action = f"删除了工资发放记录，金额: {log_details['amount']}"
+        _log_activity(None, payroll, log_action, details=log_details)
+        db.session.commit()
+        return jsonify({"message": "工资发放记录删除成功"}), 200
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"删除工资发放记录失败 (id: {payout_id}): {e}",exc_info=True)
+        return jsonify({"error": "服务器内部错误"}), 500
+    
+def _allowed_file(filename):
+    ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def _handle_image_upload(file_storage):
+    """Saves an image from a FileStorage object and returns its URL."""
+    if not file_storage or file_storage.filename == '':
+        return None
+
+    if _allowed_file(file_storage.filename):
+        filename = secure_filename(file_storage.filename)
+        unique_filename = str(uuid.uuid4()) + "_" + filename
+
+        # 确保上传目录存在
+        upload_folder = os.path.join(current_app.instance_path, 'uploads','financial_records')
+        os.makedirs(upload_folder, exist_ok=True)
+
+        file_path = os.path.join(upload_folder, unique_filename)
+        file_storage.save(file_path)
+
+        # 返回用于存入数据库的URL路径
+        return f"/uploads/financial_records/{unique_filename}"

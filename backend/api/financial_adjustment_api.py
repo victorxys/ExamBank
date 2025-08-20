@@ -34,6 +34,7 @@ def create_financial_adjustment():
         customer_bill_id=data.get('customer_bill_id'),
         employee_payroll_id=data.get('employee_payroll_id'),
         details=data.get('details'),
+        payer_type=data.get('payer_type'),
         # 根据设计，手动创建的记录可以立即标记为已结算
         is_settled=data.get('is_settled', False),
         settlement_date=data.get('settlement_date'),
@@ -109,6 +110,8 @@ def update_financial_adjustment(adjustment_id):
         adjustment.amount = data['amount']
     if 'date' in data:
         adjustment.date = data['date']
+    if 'payer_type' in data:
+        adjustment.payer_type = data['payer_type']
 
     try:
         db.session.commit()

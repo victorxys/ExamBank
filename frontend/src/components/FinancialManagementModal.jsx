@@ -6,7 +6,7 @@ import {
   Box, Button, Typography, Paper, Grid, Dialog, DialogTitle, DialogContent, 
   DialogActions, Divider, CircularProgress, Tooltip, IconButton, List, ListItem, 
   ListItemIcon, ListItemText, ListItemSecondaryAction, Alert, Switch, TextField,
-  FormControlLabel, Chip
+  FormControlLabel, Chip, TableContainer, Table, TableHead, TableRow, TableCell, TableBody, TableFooter
 } from '@mui/material';
 import { 
     Edit as EditIcon, Save as SaveIcon, Close as CloseIcon, Cancel as CancelIcon, 
@@ -27,6 +27,9 @@ import LogItem from './LogItem';
 import { PeopleAlt as PeopleAltIcon } from '@mui/icons-material';
 import SubstituteDialog from './SubstituteDialog';
 import TransferDepositDialog from './TransferDepositDialog';
+import PaymentDialog from './PaymentDialog';
+import AlertMessage from './AlertMessage';
+import PayoutDialog from './PayoutDialog';
 
 // --- 辅助函数 ---
 const formatDateRange = (dateRangeString) => {
@@ -157,7 +160,7 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
     const [isEditMode, setIsEditMode] = useState(false);
     const [editableOvertime, setEditableOvertime] = useState(0);
     const [adjustments, setAdjustments] = useState([]);
-    const [editableSettlement, setEditableSettlement] = useState({});
+    // const [editableSettlement, setEditableSettlement] = useState({});
     const [editableInvoice, setEditableInvoice] = useState({ number: '', amount: '', date: null });
     const [isAdjustmentDialogOpen, setIsAdjustmentDialogOpen] = useState(false);
     const [editingAdjustment, setEditingAdjustment] = useState(null);
@@ -177,6 +180,9 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
     const [isInvoiceDialogOpen, setIsInvoiceDialogOpen] = useState(false);
     const [isTransferDialogOpen, setIsTransferDialogOpen] = useState(false);
     const [transferringAdjustment, setTransferringAdjustment] = useState(null);
+    const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
+    const [alert, setAlert] = useState({ open: false, message: '', severity: 'info' });
+    const [isPayoutDialogOpen, setIsPayoutDialogOpen] = useState(false);
 
     useEffect(() => {
          if (initialBillingDetails) {
@@ -195,10 +201,9 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
         if (open && billingDetails) {
             const customerDetails = billingDetails.customer_bill_details || {};
             const employeeDetails = billingDetails.employee_payroll_details || {};
-            // const invoiceDetails = billingDetails.invoice_details || {};
-            // console.log("[FRONTEND-DEBUG] Received 'billingDetails.attendance?.overtime_days':", billingDetails.attendance?.overtime_days);
+            
             setEditableOvertime(parseFloat(billingDetails.attendance?.overtime_days) || 0);
-            console.log("--- [DEBUG 1] Modal received new billingDetails. Adjustments are:", billingDetails.adjustments);
+            
             setAdjustments(billingDetails.adjustments || []);
 
             const actualDaysFromBill = customerDetails.actual_work_days;
@@ -216,18 +221,6 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
             const customerPayment = customerDetails.payment_status || {};
             const employeePayment = employeeDetails.payment_status || {};
 
-            setEditableSettlement({
-                customer_is_paid: customerPayment.customer_is_paid || false,
-                customer_payment_date: customerPayment.customer_payment_date ? new Date(customerPayment.customer_payment_date) : null,
-                customer_payment_channel: customerPayment.customer_payment_channel || '',
-                employee_is_paid: employeePayment.employee_is_paid || false,
-                employee_payout_date: employeePayment.employee_payout_date ? new Date(employeePayment.employee_payout_date) : null,
-                employee_payout_channel: employeePayment.employee_payout_channel || '',
-                // invoice_needed: customerPayment.invoice_needed || false,
-                // invoice_issued: customerPayment.invoice_issued || false,
-            });
-            // 用从后端获取的真实状态，初始化“本期是否需要开票”的开关
-            // setIsInvoiceNeeded(billingDetails.invoice_needed || false);
             if (customerDetails.id || employeeDetails.id) {
                 setLoadingLogs(true);
                 api.get('/billing/logs', { params: { bill_id: customerDetails.id, payroll_id: employeeDetails.id } })
@@ -296,6 +289,80 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
         }
     };
 
+    const handleOpenPaymentDialog = () => setIsPaymentDialogOpen(true);
+    const handleClosePaymentDialog = () => setIsPaymentDialogOpen(false);
+
+    const handleRecordSaveSuccess = async (paymentData) => {
+        // 这个函数在支付/发放记录成功保存后被调用，只负责刷新数据和关闭弹窗
+        try {
+            const billId = billingDetails?.customer_bill_details?.id;
+            if (!billId) {
+                console.error("无法刷新：缺少账单ID。");
+                return;
+            }
+
+            handleClosePaymentDialog();
+            handleClosePayoutDialog();
+
+            const response = await api.get('/billing/details', { params: { bill_id:billId } });
+            setBillingDetails(response.data);
+            setAlert({ open: true, message: '记录已成功保存！', severity: 'success' });
+
+        } catch (error) {
+            setAlert({ open: true, message: `刷新数据失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
+        }
+    };
+
+    const handleOpenPayoutDialog = () => setIsPayoutDialogOpen(true);
+    const handleClosePayoutDialog = () => setIsPayoutDialogOpen(false);
+
+    const handleSavePayout = async (payoutData) => {
+        try {
+            const payrollId = billingDetails?.employee_payroll_details?.id;
+            const billId = billingDetails?.customer_bill_details?.id;
+            if (!payrollId || !billId) {
+                alert('错误：缺少薪酬单ID。');
+                return;
+            }
+            await api.post(`/billing/payrolls/${payrollId}/payouts`, payoutData);
+            setAlert({ open: true, message: '工资发放记录添加成功!', severity: 'success' });
+            handleClosePayoutDialog();
+
+            // 重新获取最新的账单详情以刷新界面
+            const response = await api.get('/billing/details', { params: { bill_id: billId } });
+            setBillingDetails(response.data);
+
+        } catch (error) {
+            setAlert({ open: true, message: `添加失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
+        }
+    };
+
+    const handleDeletePayment = async (paymentId) => {
+        if (window.confirm("确定要删除这笔收款记录吗？")) {
+            try {
+                await api.delete(`/billing/payments/${paymentId}`);
+                setAlert({ open: true, message: '收款记录已删除', severity: 'success' });
+                const response = await api.get('/billing/details', { params: { bill_id: billingDetails.customer_bill_details.id } });
+                setBillingDetails(response.data);
+            } catch (error) {
+                setAlert({ open: true, message: `删除失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
+            }
+        }
+    };
+
+    const handleDeletePayout = async (payoutId) => {
+        if (window.confirm("确定要删除这笔工资发放记录吗？")) {
+            try {
+                await api.delete(`/billing/payouts/${payoutId}`);
+                setAlert({ open: true, message: '工资发放记录已删除', severity: 'success' });
+                const response = await api.get('/billing/details', { params: { bill_id: billingDetails.customer_bill_details.id } });
+                setBillingDetails(response.data);
+            } catch (error) {
+                setAlert({ open: true, message: `删除失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
+            }
+        }
+    };
+
     const handleSave = () => {
         const billId = billingDetails?.customer_bill_details?.id;
         if (!billId) {
@@ -309,7 +376,7 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
             overtime_days: editableOvertime,
             actual_work_days: editableActualWorkDays,
             adjustments: adjustments, // <-- 使用净化后的数据
-            settlement_status: editableSettlement,
+            // settlement_status: editableSettlement,
             invoices: editableInvoices,
             invoice_needed: billingDetails.invoice_needed,
         };
@@ -333,16 +400,6 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
             });
             const customerPayment = customerDetails.payment_status || {};
             const employeePayment = employeeDetails.payment_status || {};
-            setEditableSettlement({
-                customer_is_paid: customerPayment.customer_is_paid || false,
-                customer_payment_date: customerPayment.customer_payment_date ? new Date(customerPayment.customer_payment_date) : null,
-                customer_payment_channel: customerPayment.customer_payment_channel || '',
-                employee_is_paid: employeePayment.employee_is_paid || false,
-                employee_payout_date: employeePayment.employee_payout_date ? new Date(employeePayment.employee_payout_date) : null,
-                employee_payout_channel: employeePayment.employee_payout_channel || '',
-                invoice_needed: customerPayment.invoice_needed || false,
-                invoice_issued: customerPayment.invoice_issued || false,
-            });
         }
         if (initialBillingDetails) {
             const effectiveNeeded = initialBillingDetails.invoice_balance?.auto_invoice_needed || false;
@@ -374,16 +431,16 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
     const handleDeleteAdjustment = (id) => {
         setAdjustments(prev => prev.filter(a => a.id !== id));
     };
-    const handleSettlementChange = (event) => {
-        const { name, value, checked, type } = event.target;
-        setEditableSettlement(prev => ({
-            ...prev,
-            [name]: type === 'checkbox' ? checked : value,
-        }));
-    };
-    const handleDateChange = (name, newDate) => {
-        setEditableSettlement(prev => ({ ...prev, [name]: newDate }));
-    };
+    // const handleSettlementChange = (event) => {
+    //     const { name, value, checked, type } = event.target;
+    //     setEditableSettlement(prev => ({
+    //         ...prev,
+    //         [name]: type === 'checkbox' ? checked : value,
+    //     }));
+    // };
+    // const handleDateChange = (name, newDate) => {
+    //     setEditableSettlement(prev => ({ ...prev, [name]: newDate }));
+    // };
     const handleOpenInvoiceDialog = () => setIsInvoiceDialogOpen(true);
     const handleCloseInvoiceDialog = () => setIsInvoiceDialogOpen(false);
     const handleSaveInvoice = (newInvoiceData) => setEditableInvoice(newInvoiceData);
@@ -507,6 +564,55 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
         const substituteDeduction = data.calculation_details?.substitute_deduction;
 
         const currentAdjustments = adjustments.filter(adj => AdjustmentTypes[adj.adjustment_type]?.type === (isCustomer ? 'customer' : 'employee'));
+        
+        // 【V2.1 核心逻辑】开始：动态计算应付总额和状态
+        const statusObject = isCustomer ? data.payment_status : data.payout_status;
+        
+        const originalAdjustments = initialBillingDetails.adjustments?.filter(
+            adj => AdjustmentTypes[adj.adjustment_type]?.type === (isCustomer ? 'customer' : 'employee')
+        ) || [];
+
+        const originalAdjTotal = originalAdjustments.reduce((acc, adj) => {
+            const effect = AdjustmentTypes[adj.adjustment_type]?.effect || 0;
+            return acc + (parseFloat(adj.amount) * effect);
+        }, 0);
+
+        const currentAdjTotal = currentAdjustments.reduce((acc, adj) => {
+            const effect = AdjustmentTypes[adj.adjustment_type]?.effect || 0;
+            return acc + (parseFloat(adj.amount) * effect);
+        }, 0);
+
+        const adjDelta = currentAdjTotal - originalAdjTotal;
+        const serverTotalDue = parseFloat(statusObject?.total_due || 0);
+        const displayTotalDue = serverTotalDue + adjDelta;
+        const totalPaid = parseFloat(isCustomer ? statusObject?.total_paid : statusObject?.total_paid_out) || 0;
+
+        let displayStatus = 'unknown';
+        const epsilon = 0.01; // 容差，处理浮点数精度问题
+
+        if (Math.abs(displayTotalDue - totalPaid) < epsilon) {
+            displayStatus = 'paid';
+        } else if (totalPaid > displayTotalDue) {
+            displayStatus = isCustomer ? 'overpaid' : 'paid';
+        } else if (totalPaid > 0) {
+            displayStatus = 'partially_paid';
+        } else {
+            displayStatus = 'unpaid';
+        }
+
+        const statusLabelMap = isCustomer ? {
+            'unpaid': '未支付',
+            'partially_paid': '部分支付',
+            'paid': '已支付',
+            'overpaid': '超额支付'
+        } : {
+            'unpaid': '未发放',
+            'partially_paid': '部分发放',
+            'paid': '已发放'
+        };
+        const displayStatusLabel = statusLabelMap[displayStatus] || '未知';
+        // 【V2.1 核心逻辑】结束
+
         const fieldOrder = {
             "级别与保证金": ["级别", "客交保证金", "定金", "介绍费", "合同备注"],
             "劳务周期": ["劳务时间段", "基本劳务天数","延长服务天数", "加班天数", "被替班天数", "总劳务天数"],
@@ -541,15 +647,6 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                                 if (!group.fields.hasOwnProperty(key)) return null;
                                 const value = group.fields[key];
                                 const tooltipContent = getTooltipContent(key, billingDetails, isCustomer);
-                                // if (key === '劳务时间段') {
-                                //     console.log("[BUTTON-DEBUG] Checking conditions for '延长服务' button:");
-                                //     console.log("  - 1. Is correct field ('劳务时间段')?", key === '劳务时间段');
-                                //     console.log("  - 2. Is 'nanny' contract?", contract?.contract_type_value === 'nanny', "(Value: " + contract?.is_monthly_auto_renew +  contract?.contract_type_value + ")");
-                                //     console.log("  - 3. Is last bill?", billingDetails?.is_last_bill, "(Value: " + billingDetails?.is_last_bill + ")");
-                                //     console.log("  - 4. Is NOT in edit mode?", !isEditMode, "(Value: " + isEditMode + ")");
-                                //     console.log("  - Full billingDetails object for inspection:", billingDetails);
-                                // }
-                                // 目标：为“被替班费用”添加特殊的负向样式
                                 if ((key === '被替班费用' || key === '被替班天数') && Number(value) != 0) {
                                     
                                     return (
@@ -690,7 +787,9 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                                             )}
                                             {key === '劳务时间段' &&
                                                 (
-                                                    (contract?.contract_type_value === 'nanny' && !contract?.is_monthly_auto_renew)||
+                                                    (
+                                                        contract?.contract_type_value === 'nanny' && !contract?.is_monthly_auto_renew)
+                                                    ||
                                                     contract?.contract_type_value === 'maternity_nurse'
                                                 ) &&
                                                 billingDetails?.is_last_bill &&
@@ -769,7 +868,7 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                                                         )}
                                                         {/* 新增的结算详情提示 */}
                                                         {adj.is_settled && (
-                                                            <Tooltip title={`结算日期: ${adj.settlement_date || '无'} | 备注: ${(adj.settlement_details && adj.settlement_details.notes) || '无'}`}>
+                                                            <Tooltip title={`结算日期: ${adj.settlement_date || '无'} | 备注: ${(adj.settlement_details && adj.settlement_details.notes) || '无'}`}> 
                                                                 <InfoIcon sx={{ fontSize: '1rem', color: 'action.active', ml: 0.5, cursor: 'help' }} />
                                                             </Tooltip>
                                                         )}
@@ -850,56 +949,211 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
 
                 <Box>
                     <Divider textAlign="left" sx={{ mb: 1.5 }}><Typography variant="overline" color="text.secondary">最终结算</Typography></Divider>
-                        <Grid container>
-                        {Object.entries(data.final_amount || {}).map(([key, value]) => {
-                            const tooltipContent = getTooltipContent(key, billingDetails, isCustomer);
-                            return (
-                                <React.Fragment key={key}>
-                                    <Grid item xs={5}><Typography variant="body2" color="text.secondary">{key}:</Typography></Grid>
-                                    <Grid item xs={7} sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
-                                        <Typography variant="h4" sx={{ fontWeight: 'bold', fontFamily: 'monospace', color: key.includes('应付') ? 'error.main' : 'success.main' }}>
-                                            {formatValue(key, value)}
-                                        </Typography>
-                                        {tooltipContent && !isEditMode && (
-                                            <Tooltip title={tooltipContent} arrow><InfoIcon sx={{ fontSize: '1rem', color: 'action.active', ml: 0.5, cursor: 'help' }} /></Tooltip>
-                                        )}
-                                    </Grid>
-                                </React.Fragment>
-                            );
-                        })}
+                    <Grid container spacing={1.5}>
+                        <Grid item xs={12}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <Typography variant="body2" color="text.secondary">{isCustomer ? '应收总额 (Total Due):' : '应发总额 (Total Due):'}</Typography>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                    <Typography variant="body1" sx={{ fontWeight: 500, fontFamily: 'monospace' }}>
+                                        {formatValue('', displayTotalDue)}
+                                    </Typography>
+                                    {(() => {
+                                        const tooltipContent = getTooltipContent(isCustomer ? '客应付款' : '萌嫂应领款', billingDetails, isCustomer);
+                                        if (tooltipContent && !isEditMode) {
+                                            return (
+                                                <Tooltip title={tooltipContent} arrow>
+                                                    <InfoIcon sx={{ fontSize: '1rem', color: 'action.active', cursor: 'help' }} />
+                                                </Tooltip>
+                                            );
+                                        }
+                                        return null;
+                                    })()}
+                                </Box>
+                            </Box>
+                        </Grid>
+                        <Grid item xs={12}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <Typography variant="body2" color="text.secondary">{isCustomer ? '实收总额 (Total Paid):' : '实发总额 (Total Paid Out):'}</Typography>
+                                <Typography variant="body1" sx={{ fontWeight: 500, fontFamily: 'monospace', color: 'success.main' }}>
+                                    {formatValue('', totalPaid)}
+                                </Typography>
+                            </Box>
+                        </Grid>
+                        <Grid item xs={12}>
+                            <Divider sx={{ my: 1 }} />
+                        </Grid>
+                        <Grid item xs={12}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <Typography variant="h6">当前状态:</Typography>
+                                <Chip
+                                    label={displayStatusLabel}
+                                    color={
+                                        displayStatus === 'paid' ? 'success' :
+                                        (displayStatus === 'unpaid' || displayStatus === 'overpaid') ? 'default' : 'warning'
+                                    }
+                                />
+                            </Box>
+                        </Grid>
                     </Grid>
                 </Box>
+
+                {/* --- 收款记录模块 (仅客户) --- */}
+                {isCustomer && (
+                    <Box sx={{ mt: 2 }}>
+                        <Divider textAlign="left" sx={{ mb: 1.5 }}><Typography variant="overline" color="text.secondary">收款记录</Typography></Divider>
+                        <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
+                            <Button
+                                variant="contained"
+                                size="small"
+                                startIcon={<AddIcon />}
+                                onClick={handleOpenPaymentDialog}
+                                disabled={isEditMode}
+                            >
+                                记录收款
+                            </Button>
+                        </Box>
+                        <TableContainer>
+                            <Table size="small">
+                                <TableHead>
+                                    <TableRow>
+                                        <TableCell>收款日期</TableCell>
+                                        <TableCell>收款方式</TableCell>
+                                        <TableCell>备注</TableCell>
+                                        <TableCell align="right">收款金额</TableCell>
+                                        <TableCell align="center">凭证</TableCell>
+                                        <TableCell align="center">操作</TableCell>
+                                    </TableRow>
+                                </TableHead>
+                                <TableBody>
+                                    {billingDetails?.payment_records?.length > 0 ? (
+                                        billingDetails.payment_records.map(p => (
+                                            <TableRow key={p.id}>
+                                                <TableCell>{formatDate(p.payment_date)}</TableCell>
+                                                <TableCell>{p.method || '—'}</TableCell>
+                                                <TableCell>{p.notes || '—'}</TableCell>
+                                                <TableCell align="right">{formatValue('', p.amount)}</TableCell>
+                                                <TableCell align="center">
+                                                    {p.image_url ? (
+                                                        <IconButton component="a" href={`/api/financial_records/uploads/${p.image_url.substring('/uploads/'.length)}`} target="_blank" rel="noopener noreferrer" size="small">
+                                                            <ArticleOutlinedIcon fontSize="small" />
+                                                        </IconButton>
+                                                    ) : (
+                                                        '—'
+                                                    )}
+                                                </TableCell>
+                                                <TableCell align="center">
+                                                    <IconButton size="small" onClick={() => handleDeletePayment(p.id)} disabled={isEditMode}>
+                                                        <DeleteIcon fontSize="small" />
+                                                    </IconButton>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))
+                                    ) : (
+                                        <TableRow>
+                                            <TableCell colSpan={6} align="center">
+                                                暂无收款记录
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
+                                </TableBody>
+                                <TableFooter>
+                                    <TableRow>
+                                        <TableCell colSpan={3} align="right"><Typography variant="body1" sx={{ fontWeight: 'bold' }}>总计:</Typography></TableCell>
+                                        <TableCell align="right"><Typography variant="body1" sx={{ fontWeight: 'bold' }}>{formatValue('', billingDetails?.payment_records?.reduce((acc, p) => acc + parseFloat(p.amount), 0))}</Typography></TableCell>
+                                        <TableCell />
+                                        <TableCell />
+                                    </TableRow>
+                                </TableFooter>
+                            </Table>
+                        </TableContainer>
+                    </Box>
+                )}
+
+                {/* --- 工资发放记录模块 (仅员工) --- */}
+                {!isCustomer && (
+                    <Box sx={{ mt: 2 }}>
+                        <Divider textAlign="left" sx={{ mb: 1.5 }}><Typography variant="overline" color="text.secondary">工资发放记录</Typography></Divider>
+                        <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
+                            <Button
+                                variant="contained"
+                                size="small"
+                                startIcon={<AddIcon />}
+                                onClick={handleOpenPayoutDialog}
+                                disabled={isEditMode}
+                            >
+                                记录工资发放
+                            </Button>
+                        </Box>
+                        <TableContainer>
+                            <Table size="small">
+                                <TableHead>
+                                    <TableRow>
+                                        <TableCell>发放日期</TableCell>
+                                        <TableCell>付款方</TableCell>
+                                        <TableCell>发放方式</TableCell>
+                                        <TableCell>备注</TableCell>
+                                        <TableCell align="right">发放金额</TableCell>
+                                        <TableCell align="center">凭证</TableCell>
+                                        <TableCell align="center">操作</TableCell>
+                                    </TableRow>
+                                </TableHead>
+                                <TableBody>
+                                    {billingDetails?.payout_records?.length > 0 ? (
+                                        billingDetails.payout_records.map(p => (
+                                            <TableRow key={p.id}>
+                                                <TableCell>{formatDate(p.payout_date)}</TableCell>
+                                                <TableCell>{p.payer || '公司代付'}</TableCell>
+                                                <TableCell>{p.method || '—'}</TableCell>
+                                                <TableCell>{p.notes || '—'}</TableCell>
+                                                <TableCell align="right">{formatValue('', p.amount)}</TableCell>
+                                                <TableCell align="center">
+                                                    {p.image_url ? (
+                                                        <IconButton component="a" href={`/api/financial_records/uploads/${p.image_url.substring('/uploads/'.length)}`} target="_blank" rel="noopener noreferrer" size="small">
+                                                            <ArticleOutlinedIcon fontSize="small" />
+                                                        </IconButton>
+                                                    ) : (
+                                                        '—'
+                                                    )}
+                                                </TableCell>
+                                                <TableCell align="center">
+                                                    <IconButton size="small" onClick={() => handleDeletePayout(p.id)} disabled={isEditMode}>
+                                                        <DeleteIcon fontSize="small" />
+                                                    </IconButton>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))
+                                    ) : (
+                                        <TableRow>
+                                            <TableCell colSpan={7} align="center">
+                                                暂无工资发放记录
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
+                                </TableBody>
+                                <TableFooter>
+                                    <TableRow>
+                                        <TableCell colSpan={4} align="right"><Typography variant="body1" sx={{ fontWeight: 'bold' }}>总计:</Typography></TableCell>
+                                        <TableCell align="right"><Typography variant="body1" sx={{ fontWeight: 'bold' }}>{formatValue('', billingDetails?.payout_records?.reduce((acc, p) => acc + parseFloat(p.amount), 0))}</Typography></TableCell>
+                                        <TableCell />
+                                        <TableCell />
+                                    </TableRow>
+                                </TableFooter>
+                            </Table>
+                        </TableContainer>
+                    </Box>
+                )}
             </Box>
         );
     };
 
-    // const InvoiceRecordView = () => {
-    //     if (!editableSettlement.invoice_needed) {
-    //         return <Typography variant="body1" sx={{ fontWeight: 500, mt: 0.5 }}>无需开票</Typography>;
-    //     }
-    //     if (!editableSettlement.invoice_issued) {
-    //         return <Typography variant="body1" sx={{ fontWeight: 500, mt: 0.5, color: 'warning.main' }}>待开票</Typography>;
-    //     }
-
-    //     let formattedDate = '未录入';
-    //     if (editableInvoice.date) {
-    //         const dateObj = new Date(editableInvoice.date);
-    //         if (!isNaN(dateObj.getTime())) {
-    //             formattedDate = dateObj.toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' });
-    //         }
-    //     }
-
-    //     const details = `开票金额: ${editableInvoice.amount || '未录入'}, 发票号: ${editableInvoice.number || '未录入'}, 日期: ${formattedDate}`;
-
-    //     return (
-    //         <Box>
-    //             <Typography variant="body1" sx={{ fontWeight: 500, mt: 0.5, color: 'success.main' }}>已开票</Typography>
-    //             <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>{details}</Typography>
-    //         </Box>
-    //     );
-    // };
     return (
         <>
+            <AlertMessage
+                open={alert.open}
+                message={alert.message}
+                severity={alert.severity}
+                onClose={() => setAlert({ ...alert, open: false })}
+            />
             <Dialog
                 open={open}
                 onClose={(event, reason) => {
@@ -1004,148 +1258,6 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                             )}
                             <Grid item xs={12}>
                                 <Paper sx={{ p: 3, borderRadius: 2, boxShadow: 1 }}>
-                                    <Typography variant="h3" gutterBottom>结算与发票状态</Typography>
-
-                                    {/* 编辑模式 */}
-                                    {isEditMode ? (
-                                        <Grid container spacing={3} sx={{ mt: 1 }}>
-                                            {/* 左侧：客户打款 */}
-                                            <Grid item xs={12} md={6}>
-                                                <Divider textAlign="left" sx={{ mb: 2 }}><Chip label="客户打款" size="small" /></Divider>
-                                                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                                                    <FormControlLabel control={<Switch checked={editableSettlement.customer_is_paid} onChange={handleSettlementChange} name="customer_is_paid" />} label="客户是否已打款" />
-                                                    {editableSettlement.customer_is_paid && (<><DatePicker label="打款日期" value={editableSettlement.customer_payment_date} onChange={(d) => handleDateChange('customer_payment_date', d)} /><TextField label="打款渠道/备注" name="customer_payment_channel" value={editableSettlement.customer_payment_channel} onChange={handleSettlementChange} fullWidth /></>)}
-                                                </Box>
-                                            </Grid>
-                                            {/* 右侧：员工领款 */}
-                                            <Grid item xs={12} md={6}>
-                                                <Divider textAlign="left" sx={{ mb: 2 }}><Chip label="员工领款" size="small" /></Divider>
-                                                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                                                    <FormControlLabel control={<Switch checked={editableSettlement.employee_is_paid} onChange={handleSettlementChange} name="employee_is_paid" />} label="员工是否已领款" />
-                                                    {editableSettlement.employee_is_paid && (<><DatePicker label="领款日期" value={editableSettlement.employee_payout_date} onChange={(d) => handleDateChange('employee_payout_date', d)} /><TextField label="领款渠道/备注" name="employee_payout_channel" value={editableSettlement.employee_payout_channel} onChange={handleSettlementChange}fullWidth /></>)}
-                                                </Box>
-                                            </Grid>
-                                            {/* 下方：发票管理 */}
-                                            <Grid item xs={12}>
-                                                <Divider textAlign="left" sx={{ mt: 2, mb: 2 }}><Chip label="发票管理" /></Divider>
-                                                <FormControlLabel
-                                                    control={<Switch
-                                                        checked={billingDetails.invoice_needed || false}
-                                                        onChange={(e) => setBillingDetails(p => ({...p, invoice_needed: e.target.checked}))}
-                                                    />}
-                                                    label="本账单需要开票"
-                                                />
-                                                {billingDetails.invoice_needed && (
-                                                    <Box sx={{ pl: 2, borderLeft: '2px solid', borderColor: 'divider' }}>
-                                                        <Button size="small" startIcon={<ReceiptLongIcon />} onClick={() => setIsInvoiceDialogOpen(true)}>
-                                                            管理发票记录 ({editableInvoices.length}条)
-                                                        </Button>
-                                                    </Box>
-                                                )}
-                                            </Grid>
-                                        </Grid>
-                                    ) : (
-                                    /* 非编辑模式 */
-                                        <Grid container spacing={2} sx={{ mt: 1 }}>
-                                            {/* 客户打款信息 */}
-                                            <Grid item xs={6} md={3}>
-                                                <Typography variant="body2" color="text.secondary">客户是否打款</Typography>
-                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
-                                                    {editableSettlement.customer_is_paid ? <CheckCircleIcon sx={{ fontSize: '1.2rem', color: 'success.main' }} /> : <HighlightOffIcon sx={{fontSize: '1.2rem', color: 'text.secondary' }} />}
-                                                    <Typography variant="body1" sx={{ fontWeight: 500 }}>{editableSettlement.customer_is_paid ? '是' : '否'}</Typography>
-                                                </Box>
-                                                {editableSettlement.customer_is_paid && (
-                                                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5, pl: '2px' }}>
-                                                        {editableSettlement.customer_payment_date ? formatDate(editableSettlement.customer_payment_date.toISOString()) : '—'} /{editableSettlement.customer_payment_channel || '—'}
-                                                    </Typography>
-                                                )}
-                                            </Grid>
-
-                                            {/* 发票详情 */}
-                                            <Grid item xs={12} md={6}>
-                                                <Typography variant="body2" color="text.secondary">发票状态</Typography>
-                                                {billingDetails.invoice_needed ? (
-                                                    billingDetails.invoice_balance ? (
-                                                        <Box sx={{ mt: 0.5 }}>
-                                                            <Grid container spacing={1.5} rowSpacing={1}>
-                                                                <Grid item xs={12} sm={6}>
-                                                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                                        <Typography variant="caption" color="text.secondary">本期管理费:</Typography>
-                                                                        <Typography variant="body2" sx={{ fontWeight: 500, fontFamily: 'monospace' }}>
-                                                                            {formatValue('', billingDetails.invoice_balance.current_period_charges)}
-                                                                        </Typography>
-                                                                    </Box>
-                                                                </Grid>
-                                                                <Grid item xs={12} sm={6}>
-                                                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                                        <Typography variant="caption" color="text.secondary">历史累计欠票:</Typography>
-                                                                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                                                            <Typography variant="body2" sx={{ fontWeight: 500, fontFamily: 'monospace' }}>
-                                                                                {formatValue('', billingDetails.invoice_balance.total_carried_forward)}
-                                                                            </Typography>
-                                                                            {billingDetails.invoice_balance.carried_forward_breakdown && billingDetails.invoice_balance.carried_forward_breakdown.length > 0 && (
-                                                                                <Tooltip
-                                                                                    arrow
-                                                                                    title={
-                                                                                        <React.Fragment>
-                                                                                            <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'common.white', display: 'block', mb: 1 }}>历史欠票明细</Typography>
-                                                                                            {billingDetails.invoice_balance.carried_forward_breakdown.map((item, index) => (
-                                                                                                <Typography key={index} variant="body2" sx={{ fontFamily: 'monospace', color: 'grey.200' }}>{item.month}月: ¥{item.unpaid_amount}</Typography>
-                                                                                            ))}
-                                                                                        </React.Fragment>
-                                                                                    }
-                                                                                >
-                                                                                    <InfoIcon sx={{ fontSize: '1rem', color: 'action.active', ml: 0.5, cursor: 'help' }} />
-                                                                                </Tooltip>
-                                                                            )}
-                                                                        </Box>
-                                                                    </Box>
-                                                                </Grid>
-                                                                <Grid item xs={12} sm={6}>
-                                                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                                        <Typography variant="caption" color="text.secondary">本期已开票:</Typography>
-                                                                        <Typography variant="body2" sx={{ fontWeight: 500, fontFamily: 'monospace' }}>
-                                                                            {formatValue('', billingDetails.invoice_balance.invoiced_this_period)}
-                                                                        </Typography>
-                                                                    </Box>
-                                                                </Grid>
-                                                                <Grid item xs={12} sm={6}>
-                                                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                                        <Typography variant="caption" color="text.secondary">剩余待开:</Typography>
-                                                                        <Typography variant="body2" color="warning.dark" sx={{ fontWeight: 'bold', fontFamily: 'monospace' }}>
-                                                                            {formatValue('', billingDetails.invoice_balance.remaining_un_invoiced)}
-                                                                        </Typography>
-                                                                    </Box>
-                                                                </Grid>
-                                                            </Grid>
-                                                        </Box>
-                                                    ) : <CircularProgress size={20} />
-                                                ) : (
-                                                    <Typography variant="body1" sx={{ fontWeight: 500, mt: 0.5 }}>无需开票</Typography>
-                                                )}
-                                            </Grid>
-
-                                            {/* 员工领款信息 */}
-                                            <Grid item xs={6} md={3}>
-                                                <Typography variant="body2" color="text.secondary">员工是否领款</Typography>
-                                                <Box>
-                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
-                                                        {editableSettlement.employee_is_paid ? <CheckCircleIcon sx={{ fontSize: '1.2rem', color: 'success.main' }} /> : <HighlightOffIcon sx={{fontSize: '1.2rem', color: 'text.secondary' }} />}
-                                                        <Typography variant="body1" sx={{ fontWeight: 500 }}>{editableSettlement.employee_is_paid ? '是' : '否'}</Typography>
-                                                    </Box>
-                                                    {editableSettlement.employee_is_paid && (
-                                                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5, pl: '2px' }}>
-                                                            {editableSettlement.employee_payout_date ? formatDate(editableSettlement.employee_payout_date.toISOString()) : '—'} /{editableSettlement.employee_payout_channel || '—'}
-                                                        </Typography>
-                                                    )}
-                                                </Box>
-                                            </Grid>
-                                        </Grid>
-                                    )}
-                                </Paper>
-                            </Grid>
-                            <Grid item xs={12}>
-                                <Paper sx={{ p: 3, borderRadius: 2, boxShadow: 1 }}>
                                     <Typography variant="h3" gutterBottom>操作日志</Typography>
                                     {loadingLogs ? <CircularProgress size={24} /> : (<Timeline sx={{ p: 0, m: 0 }}>{activityLogs.length > 0 ? activityLogs.map((log, index) => (
                                         <LogItem 
@@ -1154,7 +1266,8 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                                             isLast={index === activityLogs.length - 1}
                                             navigate={navigate}
                                             onClose={onClose}
-                                        />)) : (<Typography variant="body2" color="text.secondary">暂无操作日志</Typography>)}</Timeline>)}
+                                        />)) : (<Typography variant="body2" color="text.secondary">暂无操作日志</Typography>)}
+                                    </Timeline>)}
                                 </Paper>
                             </Grid>
                         </Grid>
@@ -1228,6 +1341,24 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                 adjustment={transferringAdjustment}
                 sourceContract={contract}
                 onConfirm={handleConfirmTransfer}
+            />
+            <PaymentDialog
+                open={isPaymentDialogOpen}
+                onClose={handleClosePaymentDialog}
+                onSave={handleRecordSaveSuccess}
+                totalDue={billingDetails?.customer_bill_details?.payment_status?.total_due}
+                totalPaid={billingDetails?.customer_bill_details?.payment_status?.total_paid}
+                recordType="payment"
+                recordId={billingDetails?.customer_bill_details?.id}
+            />
+            <PayoutDialog
+                open={isPayoutDialogOpen}
+                onClose={handleClosePayoutDialog}
+                onSave={handleRecordSaveSuccess}
+                totalDue={billingDetails?.employee_payroll_details?.payout_status?.total_due}
+                totalPaidOut={billingDetails?.employee_payroll_details?.payout_status?.total_paid_out}
+                recordType="payout"
+                recordId={billingDetails?.employee_payroll_details?.id}
             />
         </>
     );

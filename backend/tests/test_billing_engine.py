@@ -112,7 +112,7 @@ class TestNannyBillingEngine(unittest.TestCase):
         payroll = EmployeePayroll.query.filter_by(
             contract_id=contract.id, year=2025, month=3
         ).first()
-        self.assertEqual(bill.total_payable, D("5720.00"))
+        self.assertEqual(bill.total_due, D("5720.00"))
         self.assertEqual(payroll.final_payout, D("5200.00"))
 
     def test_calculate_nanny_bill_with_overtime(self):
@@ -152,7 +152,7 @@ class TestNannyBillingEngine(unittest.TestCase):
         payroll = EmployeePayroll.query.filter_by(
             contract_id=contract.id, year=2025, month=4
         ).first()
-        self.assertEqual(bill.total_payable, D("6520.00"))
+        self.assertEqual(bill.total_due, D("6520.00"))
         self.assertEqual(payroll.final_payout, D("6400.00"))
 
     def test_calculate_nanny_bill_first_month_fee(self):
@@ -181,7 +181,7 @@ class TestNannyBillingEngine(unittest.TestCase):
         payroll = EmployeePayroll.query.filter_by(
             contract_id=contract.id, year=2025, month=5
         ).first()
-        self.assertEqual(bill.total_payable, D("6600.00"))
+        self.assertEqual(bill.total_due, D("6600.00"))
         self.assertEqual(payroll.final_payout, D("5400.00"))
 
     def test_calculate_nanny_bill_with_adjustments(self):
@@ -226,7 +226,7 @@ class TestNannyBillingEngine(unittest.TestCase):
         self.engine.calculate_for_month(
             year=2025, month=6, contract_id=contract.id, force_recalculate=True
         )
-        self.assertEqual(bill.total_payable, D("5820.50"))
+        self.assertEqual(bill.total_due, D("5820.50"))
         self.assertEqual(payroll.final_payout, D("5149.75"))
 
     def test_calculate_nanny_bill_with_substitute(self):
@@ -266,7 +266,7 @@ class TestNannyBillingEngine(unittest.TestCase):
         payroll = EmployeePayroll.query.filter_by(
             contract_id=contract.id, year=2025, month=7
         ).first()
-        self.assertEqual(bill.total_payable, D("8420.00"))
+        self.assertEqual(bill.total_due, D("8420.00"))
         self.assertEqual(payroll.final_payout, D("3200.00"))
 
     def test_calculate_nanny_bill_non_monthly_management_fee(self):
@@ -292,7 +292,7 @@ class TestNannyBillingEngine(unittest.TestCase):
         bill1 = CustomerBill.query.filter_by(
             contract_id=contract.id, year=2025, month=2
         ).first()
-        self.assertEqual(bill1.total_payable, D("8400.00"))
+        self.assertEqual(bill1.total_due, D("8400.00"))
         contract.management_fee_status = "paid"
         self.session.commit()
         self.engine.calculate_for_month(
@@ -301,7 +301,7 @@ class TestNannyBillingEngine(unittest.TestCase):
         bill3 = CustomerBill.query.filter_by(
             contract_id=contract.id, year=2025, month=5
         ).first()
-        self.assertEqual(bill3.total_payable, D("5600.00"))
+        self.assertEqual(bill3.total_due, D("5600.00"))
 
     def test_maternity_nurse_substitution_and_postponement(self):
         # 1. Setup: Create a maternity nurse contract and a substitute user
@@ -377,7 +377,7 @@ class TestNannyBillingEngine(unittest.TestCase):
 
         # The deduction on the main bill should equal the total payable of the sub bill
         self.assertEqual(
-            D(calc_details["substitute_deduction"]), sub_bill.total_payable
+            D(calc_details["substitute_deduction"]), sub_bill.total_due
         )
 
 

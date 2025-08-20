@@ -67,7 +67,7 @@ def upgrade():
     sa.Column('year', sa.Integer(), nullable=False),
     sa.Column('month', sa.Integer(), nullable=False),
     sa.Column('customer_name', sa.String(length=255), nullable=False),
-    sa.Column('total_payable', sa.Numeric(precision=12, scale=2), nullable=False, comment='客户总应付款'),
+    sa.Column('total_due', sa.Numeric(precision=12, scale=2), nullable=False, comment='客户总应付款'),
     sa.Column('is_paid', sa.Boolean(), nullable=True, comment='是否已打款'),
     sa.Column('payment_details', postgresql.JSONB(astext_type=sa.Text()), nullable=True, comment='打款日期/渠道/总额/打款人等信息'),
     sa.Column('calculation_details', postgresql.JSONB(astext_type=sa.Text()), nullable=False, comment='计算过程快照，用于展示和审计'),

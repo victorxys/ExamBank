@@ -423,7 +423,7 @@ const ContractDetail = () => {
                                                     )}
                                                 </TableCell>
                                                 <TableCell>{bill.overtime_days} 天</TableCell>
-                                                <TableCell sx={{fontWeight: 'bold'}}>{`¥${formatCurrency(bill.total_payable)}`}</TableCell>
+                                                <TableCell sx={{fontWeight: 'bold'}}>{`¥${formatCurrency(bill.total_due)}`}</TableCell>
                                                 <TableCell><Chip label={bill.status} color={bill.status === '已支付' ? 'success' : 'warning'} size="small" /></TableCell>
                                                 <TableCell align="right">
                                                 <Button variant="contained" size="small" onClick={() => handleOpenBillModal(bill)}>
