@@ -15,7 +15,7 @@ const api = axios.create({
   timeout: 300000,
   withCredentials: true,
   validateStatus: function (status) {
-    return status >= 200 && status < 500;
+    return status >= 200 && status < 300;
   },
   retry: 3, // 如果您不需要全局重试，可以注释掉或移除
   retryDelay: 1000

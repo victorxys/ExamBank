@@ -69,7 +69,7 @@ const AdjustmentDialog = ({ open, onClose, onSave, adjustment = null, typeFilter
         onSave({
             id: adjustment?.id, // 传回ID
             adjustment_type: type,
-            amount: parseFloat(amount),
+            amount: Math.abs(parseFloat(amount)),
             description: description,
 
             // --- 在保存时，加入结算信息 ---

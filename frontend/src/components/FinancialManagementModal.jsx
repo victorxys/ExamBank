@@ -444,35 +444,55 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
     const handleOpenInvoiceDialog = () => setIsInvoiceDialogOpen(true);
     const handleCloseInvoiceDialog = () => setIsInvoiceDialogOpen(false);
     const handleSaveInvoice = (newInvoiceData) => setEditableInvoice(newInvoiceData);
-    const handleOpenTransferDialog = (adjustment) => {
-        setTransferringAdjustment(adjustment);
-        setIsTransferDialogOpen(true);
-    };
+
 
     const handleCloseTransferDialog = () => {
         setTransferringAdjustment(null);
         setIsTransferDialogOpen(false);
     };
-    const handleConfirmTransfer = async (destinationContractId) => {
-        if (!transferringAdjustment) return;
+    
+    const handleInitiateTransfer = async (adjustment, destinationContractId = null)=> {
+        const adjToTransfer = adjustment || transferringAdjustment;
+        if (!adjToTransfer) {
+            console.error("无法转移，目标调整项丢失。");
+            return;
+        }
 
         try {
+            const payload = destinationContractId ? { destination_contract_id:destinationContractId } : {};
             const response = await api.post(
-                `/billing/financial-adjustments/${transferringAdjustment.id}/transfer`,
-                { destination_contract_id: destinationContractId }
+                `/billing/financial-adjustments/${adjToTransfer.id}/transfer`,
+                payload
             );
-
-            alert('保证金转移成功！');
+            setAlert({ open: true, message: '款项转移成功！', severity: 'success'});
             handleCloseTransferDialog();
-
-            // 【核心修复】用后端返回的最新列表，强制刷新当前弹窗的内部状态
             if (response.data.latest_details) {
                 setBillingDetails(response.data.latest_details);
             }
-
         } catch (error) {
-            console.error("转移保证金失败:", error);
-            alert(error.response?.data?.error || '操作失败，请查看控制台。');
+            // --- DEBUGGING START ---
+            console.log("进入了 catch 块");
+            const errorMessage = error.response?.data?.error ||'操作失败，请查看控制台。';
+            console.log("收到的原始错误信息对象:", error.response?.data);
+            console.log("解析后的 errorMessage 字符串:", errorMessage);
+
+            const searchString = "未指定可供转移的目标合同";
+            console.log("将要搜索的子字符串:", searchString);
+
+            const isSignal = errorMessage.includes(searchString);
+            console.log("判断条件 (errorMessage.includes(searchString)) 的结果是:",isSignal);
+            // --- DEBUGGING END ---
+
+            if (isSignal) {
+                console.log("判断为“信号”，准备打开对话框...");
+                setTransferringAdjustment(adjToTransfer);
+                setIsTransferDialogOpen(true);
+            } else {
+                console.log("判断为“真实错误”，显示错误提示。");
+                console.error("转移款项失败:", error);
+                setAlert({ open: true, message: errorMessage, severity: 'error' });
+                handleCloseTransferDialog();
+            }
         }
     };
     const customerData = billingDetails?.customer_bill_details || {};
@@ -565,53 +585,38 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
 
         const currentAdjustments = adjustments.filter(adj => AdjustmentTypes[adj.adjustment_type]?.type === (isCustomer ? 'customer' : 'employee'));
         
-        // 【V2.1 核心逻辑】开始：动态计算应付总额和状态
-        const statusObject = isCustomer ? data.payment_status : data.payout_status;
         
-        const originalAdjustments = initialBillingDetails.adjustments?.filter(
-            adj => AdjustmentTypes[adj.adjustment_type]?.type === (isCustomer ? 'customer' : 'employee')
-        ) || [];
+        // 【V2.6 核心逻辑】开始：后端已统一处理，前端只做展示
+        const statusObject = isCustomer ? data.payment_status : data.payout_status;
 
-        const originalAdjTotal = originalAdjustments.reduce((acc, adj) => {
-            const effect = AdjustmentTypes[adj.adjustment_type]?.effect || 0;
-            return acc + (parseFloat(adj.amount) * effect);
-        }, 0);
+        // 应付总额直接从后端获取
+        const displayTotalDue = parseFloat(statusObject?.total_due || 0);
 
-        const currentAdjTotal = currentAdjustments.reduce((acc, adj) => {
-            const effect = AdjustmentTypes[adj.adjustment_type]?.effect || 0;
-            return acc + (parseFloat(adj.amount) * effect);
-        }, 0);
+        // 实付总额也直接从后端获取。该值已包含所有收付款记录和结算项。
+        const totalPaidOrSettled = parseFloat(isCustomer ? statusObject?.total_paid: statusObject?.total_paid_out) || 0;
 
-        const adjDelta = currentAdjTotal - originalAdjTotal;
-        const serverTotalDue = parseFloat(statusObject?.total_due || 0);
-        const displayTotalDue = serverTotalDue + adjDelta;
-        const totalPaid = parseFloat(isCustomer ? statusObject?.total_paid : statusObject?.total_paid_out) || 0;
+        // 待付总额
+        const pendingAmount = displayTotalDue - totalPaidOrSettled;
 
+        // 状态判断 (逻辑不变)
         let displayStatus = 'unknown';
-        const epsilon = 0.01; // 容差，处理浮点数精度问题
-
-        if (Math.abs(displayTotalDue - totalPaid) < epsilon) {
+        const epsilon = 0.01;
+        if (Math.abs(pendingAmount) < epsilon) {
             displayStatus = 'paid';
-        } else if (totalPaid > displayTotalDue) {
+        } else if (pendingAmount < 0) {
             displayStatus = isCustomer ? 'overpaid' : 'paid';
-        } else if (totalPaid > 0) {
+        } else if (totalPaidOrSettled !== 0) {
             displayStatus = 'partially_paid';
         } else {
             displayStatus = 'unpaid';
         }
-
         const statusLabelMap = isCustomer ? {
-            'unpaid': '未支付',
-            'partially_paid': '部分支付',
-            'paid': '已支付',
-            'overpaid': '超额支付'
+            'unpaid': '未支付', 'partially_paid': '部分支付', 'paid': '已结清','overpaid': '超额支付'
         } : {
-            'unpaid': '未发放',
-            'partially_paid': '部分发放',
-            'paid': '已发放'
+            'unpaid': '未发放', 'partially_paid': '部分发放', 'paid': '已结清'
         };
         const displayStatusLabel = statusLabelMap[displayStatus] || '未知';
-        // 【V2.1 核心逻辑】结束
+        // 【V2.6 核心逻辑】结束
 
         const fieldOrder = {
             "级别与保证金": ["级别", "客交保证金", "定金", "介绍费", "合同备注"],
@@ -814,40 +819,65 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                         <Divider textAlign="left" sx={{ mb: 1.5 }}><Typography variant="overline" color="text.secondary">财务调整</Typography></Divider>
                         <List dense disablePadding>
                             {currentAdjustments.map(adj => {
-                                const isReadOnly = adj.adjustment_type === 'deferred_fee';
-                                const isTransferable = !isEditMode && adj.description === '[系统添加] 保证金退款' && (!adj.details|| adj.details.status !== 'transferred');
+                                const isReadOnly = adj.adjustment_type ==='deferred_fee';
+                                // 新的、更通用的可转移判断条件
+                                // 精确检查，允许对“转入”的条目进行再次转移
+                                const isTransferable = !isEditMode &&
+                                                       !adj.is_settled && // 【新增】已结算的条目不能转移
+                                                       adj.description !=='[系统添加] 保证金' && // 防止对初始保证金操作，它应通过退款流程
+                                                       (!adj.details || !['transferred_out', 'offsetting_transfer'].includes(adj.details.status));
                                 return (
                                     <ListItem
                                         key={adj.id}
                                         button={isEditMode && !isReadOnly}
-                                        onClick={isEditMode && !isReadOnly ? () => { setEditingAdjustment(adj); setIsAdjustmentDialogOpen(true); } : undefined}
+                                        onClick={isEditMode && !isReadOnly ? () =>{ setEditingAdjustment(adj); setIsAdjustmentDialogOpen(true); } : undefined}
                                         secondaryAction={
-                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                            <Box sx={{ display: 'flex', alignItems:'center', gap: 1 }}>
                                                 {isTransferable && (
                                                     <Chip
                                                         label="转移"
                                                         size="small"
                                                         onClick={(e) => {
-                                                            e.stopPropagation(); // 阻止ListItem的点击事件
-                                                            handleOpenTransferDialog(adj);
+                                                            e.stopPropagation();
+                                                            // 直接调用新的主函数
+                                                            handleInitiateTransfer(adj);
                                                         }}
                                                         clickable
                                                         variant="outlined"
                                                         color="primary"
                                                     />
                                                 )}
-                                                {isEditMode && !isReadOnly && (
-                                                    <IconButton
-                                                        edge="end"
-                                                        size="small"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            handleDeleteAdjustment(adj.id);
-                                                        }}
-                                                    >
-                                                        <DeleteIcon fontSize="small" />
-                                                    </IconButton>
-                                                )}
+                                                {isEditMode && (() => {
+                                                    const isPartOfTransfer = adj.details?.status?.includes('transfer');
+                                                    const isSettled = adj.is_settled;
+                                                    const isDeletable = !isReadOnly&& !isPartOfTransfer && !isSettled;
+
+                                                    let tooltipTitle = '';
+                                                    if (!isDeletable) {
+                                                        if (isSettled) tooltipTitle= '请先取消结算，再执行删除';
+                                                        else if (isPartOfTransfer)tooltipTitle = '有关联的转移记录，无法直接删除';
+                                                        else if (isReadOnly)tooltipTitle = '系统生成的条目，无法删除';
+                                                    }
+
+                                                    return (
+                                                        <Tooltip title={tooltipTitle}>
+                                                            {/* Tooltip 需要一个容器来包裹被禁用的组件 */}
+                                                            <span>
+                                                                <IconButton
+                                                                    edge="end"
+                                                                    size="small"
+                                                                    onClick={(e) =>{
+                                                                        e.stopPropagation();
+                                                                        handleDeleteAdjustment(adj.id);
+                                                                    }}
+                                                                        disabled={!isDeletable}
+                                                                >
+                                                                    <DeleteIcon fontSize="small" />
+                                                                </IconButton>
+                                                            </span>
+                                                        </Tooltip>
+                                                    );
+                                                })()}
                                             </Box>
                                         }
                                         disablePadding
@@ -879,64 +909,73 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                                                 </Box>
                                             }
                                             secondary={(() => {
-                                                // 1. 如果是“已转出”的保证金
-                                                if (adj.details?.status === 'transferred') {
+                                                const details = adj.details || {};
+                                                const status = details.status || '';
+
+                                                let linkBillId = null;
+                                                let linkText = '';
+                                                let preText = '';
+                                                let postText = '';
+
+                                                // 统一处理所有“转出”状态
+                                                if (status === 'transferred_out' ||status === 'transferred') {
+                                                    linkBillId = details.transferred_to_bill_id;
+                                                    const billInfo = details.transferred_to_bill_info;
+                                                    const month = billInfo ?parseInt(billInfo.split('-')[1], 10) : null;
+                                                    linkText = month ? `${month}月账单` : '目标账单';
+                                                    preText = `${adj.description.replace(' [已转移]', '')} [已转移至 `;
+                                                    postText = `]`;
+                                                }
+                                                // 统一处理所有“转入”状态
+                                                else if (status ==='transferred_in') {
+                                                    linkBillId = details.transferred_from_bill_id;
+                                                    const billInfo = details.transferred_from_bill_info;
+                                                    const month = billInfo ?parseInt(billInfo.split('-')[1], 10) : null;
+                                                    linkText = month ? `来源的${month}月账单` : '来源账单';
+                                                    preText = `[从 `;
+                                                    postText = ` 转入]`;
+                                                }
+                                                // 处理新的“冲账”状态
+                                                else if (status ==='offsetting_transfer') {
+                                                    linkBillId = details.transferred_to_bill_id;
+                                                    const billInfo = details.transferred_to_bill_info;
+                                                    const month = billInfo ?parseInt(billInfo.split('-')[1], 10) : null;
+                                                    linkText = month ? `${month}月账单` : '目标账单';
+                                                    preText = `${adj.description} (至 `;
+                                                    postText = `)`;
+                                                }
+
+                                                // 如果识别出了一个可跳转的链接
+                                                if (linkBillId) {
                                                     return (
-                                                        <Typography variant="body2" component="span" sx={{ whiteSpace: 'pre-wrap', color: 'text.secondary' }}>
-                                                            {/* 将描述文本的一部分变成一个可点击的按钮 */}
-                                                            已转移至
+                                                        <Typography variant="body2"component="span" sx={{ whiteSpace: 'pre-wrap', color: 'text.secondary', display:'inline-flex', alignItems: 'center' }}>
+                                                            {preText}
                                                             <Button
                                                                 size="small"
                                                                 variant="text"
-                                                                sx={{ p: 0, m: 0, height: 'auto', verticalAlign: 'baseline', lineHeight: 'inherit', mx: 0.5 }}
+                                                                sx={{ p: 0, m: 0,height: 'auto', verticalAlign: 'baseline', lineHeight: 'inherit', mx: 0.5, minWidth: 'auto' }}
                                                                 onClick={(e) => {
                                                                     e.stopPropagation();
-                                                                    const billId = adj.details.transferred_to_bill_id;
-                                                                    if (billId && onNavigateToBill) {
-                                                                        onNavigateToBill(billId); // <-- 调用从父组件传来的新函数
+                                                                    if(onNavigateToBill) {
+                                                                        onNavigateToBill(linkBillId);
                                                                     } else {
                                                                         alert('错误：无法执行跳转。');
                                                                     }
                                                                 }}
                                                             >
-                                                                目标账单
+                                                                {linkText}
                                                             </Button>
+                                                            {postText}
                                                         </Typography>
                                                     );
                                                 }
-                                                // 2. 如果是“转入”的保证金
-                                                else if (adj.details?.status === 'transferred_in') {
-                                                    return (
-                                                        <Typography variant="body2" component="span" sx={{ whiteSpace: 'pre-wrap', color: 'text.secondary' }}>
-                                                            从
-                                                            <Button
-                                                                size="small"
-                                                                variant="text"
-                                                                sx={{ p: 0, m: 0, height: 'auto', verticalAlign: 'baseline', lineHeight: 'inherit', mx: 0.5 }}
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    const billId = adj.details.transferred_from_bill_id;
-                                                                    if (billId && onNavigateToBill) {
-                                                                        onNavigateToBill(billId);
-                                                                    } else {
-                                                                        alert('错误：未在转移记录中找到来源账单ID。');
-                                                                    }
-                                                                }}
-                                                            >
-                                                                来源账单
-                                                            </Button>
-                                                            转移的保证金退款
-                                                        </Typography>
-                                                    );
-                                                }
-                                                // 3. 其他所有普通调整项
-                                                else {
-                                                    return (
-                                                        <Typography variant="body2" component="span" sx={{ whiteSpace: 'pre-wrap', color: 'text.secondary' }}>
-                                                            {adj.description}
-                                                        </Typography>
-                                                    );
-                                                }
+
+                                                // 对于所有其他普通情况，只显示描述
+                                                return (
+                                                    <Typography variant="body2"component="span" sx={{ whiteSpace: 'pre-wrap', color: 'text.secondary' }}>
+                                                        {adj.description}
+                                                    </Typography>
+                                                );
                                             })()}
                                         />
                                     </ListItem>
@@ -950,19 +989,20 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                 <Box>
                     <Divider textAlign="left" sx={{ mb: 1.5 }}><Typography variant="overline" color="text.secondary">最终结算</Typography></Divider>
                     <Grid container spacing={1.5}>
+                        {/* 应收/应发总额 */}
                         <Grid item xs={12}>
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <Typography variant="body2" color="text.secondary">{isCustomer ? '应收总额 (Total Due):' : '应发总额 (Total Due):'}</Typography>
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                    <Typography variant="body1" sx={{ fontWeight: 500, fontFamily: 'monospace' }}>
+                            <Box sx={{ display: 'flex', justifyContent:'space-between', alignItems: 'center' }}>
+                                <Typography variant="body2" color="text.secondary">{isCustomer ? '应收总额:' : '应发总额:'}</Typography>
+                                <Box sx={{ display: 'flex', alignItems: 'center',gap: 0.5 }}>
+                                    <Typography variant="body1" sx={{ fontWeight:500, fontFamily: 'monospace' }}>
                                         {formatValue('', displayTotalDue)}
                                     </Typography>
                                     {(() => {
                                         const tooltipContent = getTooltipContent(isCustomer ? '客应付款' : '萌嫂应领款', billingDetails, isCustomer);
                                         if (tooltipContent && !isEditMode) {
                                             return (
-                                                <Tooltip title={tooltipContent} arrow>
-                                                    <InfoIcon sx={{ fontSize: '1rem', color: 'action.active', cursor: 'help' }} />
+                                                <Tooltip title={tooltipContent}arrow>
+                                                    <InfoIcon sx={{ fontSize:'1rem', color: 'action.active', cursor: 'help' }} />
                                                 </Tooltip>
                                             );
                                         }
@@ -971,25 +1011,42 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                                 </Box>
                             </Box>
                         </Grid>
+                        {/* 实收/实发总额 */}
                         <Grid item xs={12}>
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <Typography variant="body2" color="text.secondary">{isCustomer ? '实收总额 (Total Paid):' : '实发总额 (Total Paid Out):'}</Typography>
-                                <Typography variant="body1" sx={{ fontWeight: 500, fontFamily: 'monospace', color: 'success.main' }}>
-                                    {formatValue('', totalPaid)}
+                            <Box sx={{ display: 'flex', justifyContent:'space-between', alignItems: 'center' }}>
+                                <Typography variant="body2" color="text.secondary">{isCustomer ? '实收总额:' : '实发总额:'}</Typography>
+                                <Typography variant="body1" sx={{ fontWeight: 500,fontFamily: 'monospace', color: 'success.main' }}>
+                                    {formatValue('', totalPaidOrSettled)}
                                 </Typography>
+                            </Box>
+                        </Grid>
+                                                {/* 待收/待付总额 */}
+                        <Grid item xs={12}>
+                            <Box sx={{ display: 'flex', justifyContent:'space-between', alignItems: 'center' }}>
+                                <Typography variant="body2" color="text.secondary">{isCustomer ? '待收总额:' : '待付总额:'}</Typography>
+                                <Box sx={{ display: 'flex', alignItems: 'center',gap: 0.5 }}>
+                                    <Typography variant="body1" sx={{ fontWeight:'bold', fontFamily: 'monospace', color: pendingAmount > 0 ? 'error.main' :'text.primary' }}>
+                                        {formatValue('', pendingAmount)}
+                                    </Typography>
+                                    <Tooltip title={`应收/付总额 (${displayTotalDue.toFixed(2)}) - 实收/付总额 (${totalPaidOrSettled.toFixed(2)})`}arrow>
+                                        <InfoIcon sx={{ fontSize: '1rem', color:'action.active', cursor: 'help' }} />
+                                    </Tooltip>
+                                </Box>
                             </Box>
                         </Grid>
                         <Grid item xs={12}>
                             <Divider sx={{ my: 1 }} />
                         </Grid>
+                        {/* 最终状态 */}
                         <Grid item xs={12}>
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Box sx={{ display: 'flex', justifyContent:'space-between', alignItems: 'center' }}>
                                 <Typography variant="h6">当前状态:</Typography>
                                 <Chip
                                     label={displayStatusLabel}
                                     color={
                                         displayStatus === 'paid' ? 'success' :
-                                        (displayStatus === 'unpaid' || displayStatus === 'overpaid') ? 'default' : 'warning'
+                                        displayStatus === 'unpaid' ? 'default' :
+                                        displayStatus === 'overpaid' ? 'info' :'warning'
                                     }
                                 />
                             </Box>
@@ -1340,7 +1397,7 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                 onClose={handleCloseTransferDialog}
                 adjustment={transferringAdjustment}
                 sourceContract={contract}
-                onConfirm={handleConfirmTransfer}
+                onConfirm={(destinationContractId) => handleInitiateTransfer(null,destinationContractId)}
             />
             <PaymentDialog
                 open={isPaymentDialogOpen}

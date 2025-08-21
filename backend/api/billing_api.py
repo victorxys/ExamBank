@@ -994,18 +994,27 @@ def update_single_contract(contract_id):
         return jsonify({"error": "更新合同失败，服务器内部错误"}), 500
 
 def _apply_all_adjustments_and_settlements(adjustments_data, bill, payroll):
-    """(最终版+完整日志) 处理所有调整项的增删改，并生成准确日志。"""
+    """(V9 - 最终正确记账版) 处理所有调整项，确保结算记录归属正确。"""
+    user_id = get_jwt_identity()
     old_adjustments = FinancialAdjustment.query.filter(
-        or_(FinancialAdjustment.customer_bill_id == bill.id, FinancialAdjustment.employee_payroll_id == payroll.id)
+        or_(FinancialAdjustment.customer_bill_id == bill.id,FinancialAdjustment.employee_payroll_id == payroll.id)
     ).all()
     old_adjustments_map = {str(adj.id): adj for adj in old_adjustments}
     new_adjustments_ids = {str(adj.get('id')) for adj in adjustments_data if adj.get('id')}
 
+    employee = payroll.contract.user or payroll.contract.service_personnel
+    employee_name = employee.username if hasattr(employee, 'username') else employee.name if employee else "未知员工"
+
     # 删除
     for old_id, old_adj in old_adjustments_map.items():
         if old_id not in new_adjustments_ids:
-            action_label = ADJUSTMENT_TYPE_LABELS.get(old_adj.adjustment_type, old_adj.adjustment_type.name)
-            _log_activity(bill, payroll, f"删除了 {action_label}: “{old_adj.description}”", {'amount': str(old_adj.amount)})
+            if old_adj.is_settled and old_adj.details and 'linked_record' in old_adj.details:
+                linked_record_info = old_adj.details['linked_record']
+                record_id, record_type = linked_record_info.get('id'),linked_record_info.get('type')
+                if record_id and record_type == 'payment':
+                    db.session.query(PaymentRecord).filter_by(id=record_id).delete()
+                elif record_id and record_type == 'payout':
+                    db.session.query(PayoutRecord).filter_by(id=record_id).delete()
             db.session.delete(old_adj)
 
     # 新增或更新
@@ -1016,52 +1025,95 @@ def _apply_all_adjustments_and_settlements(adjustments_data, bill, payroll):
         adj_description = adj_data["description"]
         is_settled = adj_data.get('is_settled', False)
         settlement_date_str = adj_data.get('settlement_date')
-        settlement_date = date_parse(settlement_date_str).date() if settlement_date_str else None
+        settlement_date = date_parse(settlement_date_str).date() if settlement_date_str else date.today()
         settlement_details = adj_data.get('settlement_details')
-        action_label = ADJUSTMENT_TYPE_LABELS.get(adj_type, adj_type.name)
 
         if adj_id and adj_id in old_adjustments_map:
             existing_adj = old_adjustments_map[adj_id]
+            if existing_adj.details is None: existing_adj.details = {}
 
-            # --- 【日志最终逻辑】---
-            # 检查是否为一次新的“结算”操作
+            settlement_method = (settlement_details or {}).get('notes') or'settlement'
+
+            # 状态变更1：从未结算 -> 已结算 (创建记录)
             if is_settled and not existing_adj.is_settled:
-                settlement_notes = (settlement_details or {}).get('notes', '无')
-                log_action = f"结算了 {action_label}: “{adj_description}” (备注: {settlement_notes})"
-                _log_activity(bill, payroll, log_action, details=settlement_details)
+                new_record, record_type = None, None
+                record_notes = f"[来自结算调整项] {adj_description}"
 
-            # 【新增】检查是否为一次“取消结算”操作
+                if adj_type == AdjustmentType.CUSTOMER_INCREASE:
+                    new_record = PaymentRecord(customer_bill_id=bill.id, amount=abs(adj_amount), payment_date=settlement_date, method=settlement_method,notes=record_notes, created_by_user_id=user_id)
+                    record_type = 'payment'
+                elif adj_type in [AdjustmentType.CUSTOMER_DECREASE,AdjustmentType.CUSTOMER_DISCOUNT]:
+                    # 【关键修正】客户侧的减款/优惠是负向的“收款记录”
+                    new_record = PaymentRecord(customer_bill_id=bill.id, amount=abs(adj_amount) * -1, payment_date=settlement_date, method=settlement_method,notes=f"[客户退款] {adj_description}", created_by_user_id=user_id)
+                    record_type = 'payment'
+                elif adj_type == AdjustmentType.EMPLOYEE_INCREASE:
+                    new_record = PayoutRecord(employee_payroll_id=payroll.id,amount=abs(adj_amount), payout_date=settlement_date, method=settlement_method,notes=record_notes, payer='公司', created_by_user_id=user_id)
+                    record_type = 'payout'
+                elif adj_type == AdjustmentType.EMPLOYEE_DECREASE:
+                    new_record = PayoutRecord(employee_payroll_id=payroll.id,amount=abs(adj_amount) * -1, payout_date=settlement_date,method=settlement_method, notes=f"[员工缴款] {adj_description}",payer=employee_name, created_by_user_id=user_id)
+                    record_type = 'payout'
+
+                if new_record:
+                    db.session.add(new_record)
+                    db.session.flush()
+                    existing_adj.details['linked_record'] = {'id': str(new_record.id), 'type': record_type}
+
+            # 状态变更2：从已结算 -> 未结算 (删除记录)
             elif not is_settled and existing_adj.is_settled:
-                log_action = f"取消结算 {action_label}: “{adj_description}”"
-                _log_activity(bill, payroll, log_action, {'amount': str(adj_amount)})
+                linked_record_info = existing_adj.details.pop('linked_record',None)
+                if linked_record_info:
+                    record_id, record_type = linked_record_info.get('id'),linked_record_info.get('type')
+                    if record_id and record_type == 'payment':
+                        db.session.query(PaymentRecord).filter_by(id=record_id).delete()
+                    elif record_id and record_type == 'payout':
+                        db.session.query(PayoutRecord).filter_by(id=record_id).delete()
 
-            # 检查其他字段是否有变化
-            elif (existing_adj.amount != adj_amount or existing_adj.description != adj_description or existing_adj.adjustment_type!= adj_type):
-                 _log_activity(bill, payroll, f"修改了 {action_label}: “{existing_adj.description}”", {'from_amount': str(existing_adj.amount), 'to_amount': str(adj_amount)})
+            # 状态变更3：已结算 -> 已结算 (更新记录)
+            elif is_settled and existing_adj.is_settled:
+                linked_record_info = existing_adj.details.get('linked_record')
+                if linked_record_info:
+                    record_id, record_type = linked_record_info.get('id'),linked_record_info.get('type')
+                    record_to_update = None
+                    if record_type == 'payment':
+                        record_to_update = db.session.get(PaymentRecord,record_id)
+                        if record_to_update: record_to_update.payment_date =settlement_date
+                    elif record_type == 'payout':
+                        record_to_update = db.session.get(PayoutRecord, record_id)
+                        if record_to_update: record_to_update.payout_date =settlement_date
 
-            # 更新所有字段
-            existing_adj.amount = adj_amount
+                    if record_to_update:
+                        record_to_update.method = settlement_method
+                        # 根据类型决定金额是正是负
+                        if adj_type in [AdjustmentType.CUSTOMER_DECREASE,AdjustmentType.CUSTOMER_DISCOUNT, AdjustmentType.EMPLOYEE_DECREASE]:
+                             record_to_update.amount = abs(adj_amount) * -1
+                        else:
+                             record_to_update.amount = abs(adj_amount)
+
+            # 更新 adjustment 自身的信息
+            existing_adj.amount = abs(adj_amount)
             existing_adj.description = adj_description
             existing_adj.adjustment_type = adj_type
             existing_adj.is_settled = is_settled
             existing_adj.settlement_date = settlement_date
             existing_adj.settlement_details = settlement_details
+            attributes.flag_modified(existing_adj, "details")
 
         elif not adj_id or 'temp' in adj_id:
-            # 新增日志
-            _log_activity(bill, payroll, f"新增了 {action_label}: “{adj_description}”", {'amount': str(adj_amount)})
-
-            # 创建新记录
+            # 新增调整项的逻辑
             new_adj = FinancialAdjustment(
-                adjustment_type=adj_type, amount=adj_amount, description=adj_description,
+                adjustment_type=adj_type, amount=abs(adj_amount),description=adj_description,
                 date=bill.cycle_start_date, is_settled=is_settled,
-                settlement_date=settlement_date, settlement_details=settlement_details
+                settlement_date=settlement_date,settlement_details=settlement_details
             )
             if adj_type.name.startswith("CUSTOMER"):
                 new_adj.customer_bill_id = bill.id
             else:
                 new_adj.employee_payroll_id = payroll.id
             db.session.add(new_adj)
+
+    # 在所有循环结束后，统一更新一次账单和薪酬单的状态
+    _update_bill_payment_status(bill)
+    _update_payroll_payout_status(payroll)
 
 @billing_bp.route("/batch-update", methods=["POST"])
 @admin_required
@@ -3053,108 +3105,206 @@ def format_bill_for_conflict_response(bill):
 @admin_required
 def transfer_financial_adjustment(adjustment_id):
     """
-    将一个合同的保证金退款项转移到另一个合同，并在源账单创建冲抵项。
+    将一个财务调整项转移到下一个账单周期。
+    优先转移到同一合同的下一期账单。
+    若无下一期账单，则转移到同一客户名下，另一指定合同的账单中。
     """
     data = request.get_json()
+    # destination_contract_id 现在是可选的
     destination_contract_id = data.get("destination_contract_id")
-
-    if not destination_contract_id:
-        return jsonify({"error": "请求体中缺少目标合同ID (destination_contract_id)"}), 400
 
     try:
         # 1. 数据校验
         source_adj = db.session.get(FinancialAdjustment, adjustment_id)
-        if not source_adj: return jsonify({"error": "需要转移的财务调整项未找到"}), 404
-        if source_adj.description != "[系统添加] 保证金退款": return jsonify({"error": "只能转移'[系统添加] 保证金退款'类型的条目"}), 400
-        if source_adj.details and source_adj.details.get('status') == 'transferred': return jsonify({"error":"该款项已被转移，无法重复操作"}), 400
+        if not source_adj:
+            return jsonify({"error": "需要转移的财务调整项未找到"}), 404
 
-        source_bill = db.session.get(CustomerBill, source_adj.customer_bill_id)
-        if not source_bill: return jsonify({"error": "源财务调整项未关联到任何账单"}), 500
+        # 精确检查，只禁止对“已转出”或“冲账”的条目进行操作
+        if source_adj.details and source_adj.details.get('status') in ['transferred_out', 'offsetting_transfer']:
+            return jsonify({"error": "该款项是转出或冲账条目，无法再次转移"}), 400
 
-        source_contract = source_bill.contract
-        dest_contract = db.session.get(BaseContract, destination_contract_id)
+        source_bill_or_payroll = None
+        is_employee_adj = False
+        if source_adj.customer_bill_id:
+            source_bill_or_payroll = db.session.get(CustomerBill,source_adj.customer_bill_id)
+            source_contract = source_bill_or_payroll.contract
+        elif source_adj.employee_payroll_id:
+            source_bill_or_payroll = db.session.get(EmployeePayroll,source_adj.employee_payroll_id)
+            source_contract = source_bill_or_payroll.contract
+            is_employee_adj = True
+        else:
+            return jsonify({"error": "源财务调整项未关联到任何账单或薪酬单"}), 500
 
-        if not dest_contract: return jsonify({"error": "目标合同未找到"}), 404
-        if source_contract.customer_name != dest_contract.customer_name: return jsonify({"error":"保证金只能在同一客户名下的不同合同间转移"}), 400
+        if not source_bill_or_payroll:
+             return jsonify({"error": "找不到源财务调整项所属的账单或薪酬单"}),500
 
-        destination_bill = CustomerBill.query.filter(
-            CustomerBill.contract_id == dest_contract.id,
+        # 2. 智能确定目标账单
+        destination_bill = None
+        dest_contract = None
+
+        # 策略一：查找同一合同的下一期账单
+        next_bill_in_contract = CustomerBill.query.filter(
+            CustomerBill.contract_id == source_contract.id,
+            CustomerBill.cycle_start_date >source_bill_or_payroll.cycle_start_date,
             CustomerBill.is_substitute_bill == False
         ).order_by(CustomerBill.cycle_start_date.asc()).first()
-        if not destination_bill: return jsonify({"error": "目标合同没有任何账单，无法接收转移的保证金"}), 400
 
-        # 2. 执行转移和冲抵操作
+        if next_bill_in_contract:
+            destination_bill = next_bill_in_contract
+            dest_contract = source_contract
+            current_app.logger.info(f"找到同一合同的下一期账单 {destination_bill.id} 作为转移目标。")
+
+        # 策略二：如果策略一失败，且提供了目标合同ID，则使用现有逻辑
+        elif destination_contract_id:
+            dest_contract = db.session.get(BaseContract, destination_contract_id)
+            if not dest_contract:
+                return jsonify({"error": "目标合同未找到"}), 404
+            if source_contract.customer_name != dest_contract.customer_name:
+                return jsonify({"error": "只能在同一客户名下的不同合同间转移"}),400
+
+            # 查找目标合同的最早一期账单
+            destination_bill = CustomerBill.query.filter(
+                CustomerBill.contract_id == dest_contract.id,
+                CustomerBill.is_substitute_bill == False
+            ).order_by(CustomerBill.cycle_start_date.asc()).first()
+
+            if not destination_bill:
+                return jsonify({"error": "目标合同没有任何账单，无法接收转移款项"}), 400
+            current_app.logger.info(f"使用指定的另一个合同 {dest_contract.id} 的账单 {destination_bill.id} 作为转移目标。")
+
+        else:
+            return jsonify({"error":"当前合同已无后续账单，且未指定可供转移的目标合同。"}), 400
+
+        # 3. 执行转移和冲抵操作
         with db.session.begin_nested():
-            # 2a. 在目标合同下创建“转入”项
+            original_description = source_adj.description
+
+            # 3a. 在目标账单下创建“转入”项
+            original_type_label =ADJUSTMENT_TYPE_LABELS.get(source_adj.adjustment_type,source_adj.adjustment_type.name)
             new_adj_in = FinancialAdjustment(
-                customer_bill_id=destination_bill.id,
-                adjustment_type=AdjustmentType.CUSTOMER_DECREASE,
+                adjustment_type=source_adj.adjustment_type,
                 amount=source_adj.amount,
-                description="[系统添加] 其他合同转移保证金退款",
-                date=date.today(),
+                description=f"[转入] {original_type_label}: {original_description}",
+                date=destination_bill.cycle_start_date,
                 details={
                     "status": "transferred_in",
                     "transferred_from_adjustment_id": str(source_adj.id),
-                    "transferred_from_bill_id": str(source_bill.id)  # <-- 新增此行
+                    "transferred_from_bill_id": str(source_bill_or_payroll.id),
+                    "transferred_from_bill_info": f"{source_bill_or_payroll.year}-{source_bill_or_payroll.month}"
                 }
             )
+
+            dest_payroll = None
+            if is_employee_adj:
+                dest_payroll = EmployeePayroll.query.filter_by(
+                    contract_id=destination_bill.contract_id,
+                    cycle_start_date=destination_bill.cycle_start_date
+                ).first()
+                if not dest_payroll:
+                    raise Exception("目标账单没有对应的薪酬单，无法转移员工调整项")
+                new_adj_in.employee_payroll_id = dest_payroll.id
+            else:
+                new_adj_in.customer_bill_id = destination_bill.id
+
             db.session.add(new_adj_in)
             db.session.flush()
 
-            # 2b. 更新源“退款”项，标记为已转移 (Task 1 Fix)
-            source_adj.description = f"[系统添加] 保证金退款 [已转移至客户: {dest_contract.customer_name}]"
-            source_adj.details = {
-                "status": "transferred",
-                "transferred_to_contract_id": str(dest_contract.id),
-                "transferred_to_adjustment_id": str(new_adj_in.id),
-                "transferred_to_bill_id": str(destination_bill.id) # 增加目标账单ID
-            }
-            attributes.flag_modified(source_adj, "details")
+            # 3b. 在源账单下，创建一笔冲抵项
+            offsetting_type = None
+            if source_adj.adjustment_type in [AdjustmentType.CUSTOMER_INCREASE,AdjustmentType.EMPLOYEE_DECREASE]:
+                offsetting_type = AdjustmentType.CUSTOMER_DECREASE if not is_employee_adj else AdjustmentType.EMPLOYEE_INCREASE
+            elif source_adj.adjustment_type in [AdjustmentType.CUSTOMER_DECREASE,AdjustmentType.EMPLOYEE_INCREASE]:
+                offsetting_type = AdjustmentType.CUSTOMER_INCREASE if not is_employee_adj else AdjustmentType.EMPLOYEE_DECREASE
+            else:
+                offsetting_type = AdjustmentType.CUSTOMER_DECREASE if not is_employee_adj else AdjustmentType.EMPLOYEE_INCREASE
 
-            # 2c. 在源账单下，创建一笔“增款”来冲抵已转移的退款
             offsetting_adj = FinancialAdjustment(
-                customer_bill_id=source_bill.id,
-                adjustment_type=AdjustmentType.CUSTOMER_INCREASE,
+                adjustment_type=offsetting_type,
                 amount=source_adj.amount,
-                description="[系统添加] 冲抵已转移的保证金",
-                date=date.today(),
-                details={"offset_for_adjustment_id": str(source_adj.id)}
+                description=f"[冲账] {original_description}",
+                date=source_bill_or_payroll.cycle_end_date,
+                details={
+                    "status": "offsetting_transfer",
+                    "offset_for_adjustment_id": str(source_adj.id),
+                    "linked_adjustment_id": str(new_adj_in.id),
+                    "transferred_to_bill_id": str(destination_bill.id),
+                    "transferred_to_bill_info": f"{destination_bill.year}-{destination_bill.month}"
+                }
             )
+            if is_employee_adj:
+                offsetting_adj.employee_payroll_id = source_bill_or_payroll.id
+            else:
+                offsetting_adj.customer_bill_id = source_bill_or_payroll.id
+
             db.session.add(offsetting_adj)
 
-            # 2d. 记录日志
-            _log_activity(source_bill, None, "执行保证金转移(转出)", details={"amount": str(source_adj.amount), "to_customer":dest_contract.customer_name})
-            _log_activity(destination_bill, None, "接收转移保证金(转入)", details={"amount": str(new_adj_in.amount),"from_customer": source_contract.customer_name})
+            # 3c. 更新源调整项，标记为已转移
+            source_adj.details = {
+                "status": "transferred_out",
+                "transferred_to_contract_id": str(dest_contract.id),
+                "transferred_to_bill_id": str(destination_bill.id),
+                "transferred_to_bill_info": f"{destination_bill.year}-{destination_bill.month}",
+                "offsetting_adjustment_id": str(offsetting_adj.id)
+            }
+            source_adj.description = f"{original_description} [已转移]"
+            attributes.flag_modified(source_adj, "details")
+
+            # 3d. 记录日志
+            log_to_customer = dest_contract.customer_name if dest_contract else source_contract.customer_name
+            _log_activity(source_bill_or_payroll if not is_employee_adj else None,source_bill_or_payroll if is_employee_adj else None, "执行款项转移(转出)",details={"amount": str(source_adj.amount), "description": original_description,"to_customer": log_to_customer})
+            _log_activity(destination_bill if not is_employee_adj else None,dest_payroll, "接收转移款项(转入)", details={"amount": str(new_adj_in.amount),"description": original_description, "from_customer":source_contract.customer_name})
 
         db.session.commit()
 
     except Exception as e:
         db.session.rollback()
-        current_app.logger.error(f"保证金转移操作失败: {e}", exc_info=True)
-        return jsonify({"error": "服务器内部错误，转移操作失败"}), 500
+        current_app.logger.error(f"款项转移操作失败: {e}", exc_info=True)
+        return jsonify({"error": f"服务器内部错误，转移操作失败: {e}"}), 500
 
-    # 3. 触发重算 (Task 2 Fix)
+    # 4. 触发重算
+    recalculation_error = None
     try:
         engine = BillingEngine()
         # 重算源账单
-        engine.calculate_for_month(year=source_bill.year, month=source_bill.month, contract_id=source_contract.id,force_recalculate=True, cycle_start_date_override=source_bill.cycle_start_date)
+        engine.calculate_for_month(year=source_bill_or_payroll.year,month=source_bill_or_payroll.month, contract_id=source_contract.id,force_recalculate=True,cycle_start_date_override=source_bill_or_payroll.cycle_start_date)
         # 重算目标账单
-        engine.calculate_for_month(year=destination_bill.year, month=destination_bill.month, contract_id=dest_contract.id,force_recalculate=True, cycle_start_date_override=destination_bill.cycle_start_date)
+        if destination_bill:
+             engine.calculate_for_month(year=destination_bill.year,month=destination_bill.month, contract_id=dest_contract.id, force_recalculate=True,cycle_start_date_override=destination_bill.cycle_start_date)
         db.session.commit()
     except Exception as e:
-        current_app.logger.error(f"保证金转移后重算账单失败: {e}", exc_info=True)
-        # 即使重算失败，也继续执行，因为核心转移操作已成功
-        pass
+        db.session.rollback()
+        current_app.logger.error(f"款项转移后重算账单失败: {e}", exc_info=True)
+        recalculation_error = f"自动重算失败: {e}"
+    
+    # 5. 获取并返回更新后的源账单完整信息
+    refresh_bill_id = None
+    if not is_employee_adj:
+        # 如果是客户侧调整，直接用 bill id
+        refresh_bill_id = source_bill_or_payroll.id
+    else:
+        # 如果是员工侧调整，需要找到对应的客户账单ID
+        source_customer_bill = CustomerBill.query.filter_by(
+            contract_id=source_contract.id,
+            cycle_start_date=source_bill_or_payroll.cycle_start_date,
+            is_substitute_bill=source_bill_or_payroll.is_substitute_payroll
+        ).first()
+        if source_customer_bill:
+            refresh_bill_id = source_customer_bill.id
 
-    # 4. 获取并返回更新后的源账单完整信息 (Task 2 Fix)
-    latest_details = _get_billing_details_internal(bill_id=source_bill.id)
+    latest_details = _get_billing_details_internal(bill_id=refresh_bill_id) if refresh_bill_id else None
+
+    response_message = "款项转移成功。"
+    if recalculation_error:
+        response_message += f" 但{recalculation_error}，请尝试手动重算。"
+    else:
+        response_message += " 账单已自动重算。"
 
     return jsonify({
-        "message": "保证金转移成功，并已自动创建冲抵项和重算账单。",
+        "message": response_message,
         "latest_details": latest_details
     })
     
-from backend.models import PaymentStatus, PaymentRecord # 确保在文件顶部导入
+
 
 def _update_bill_payment_status(bill: CustomerBill):
     """

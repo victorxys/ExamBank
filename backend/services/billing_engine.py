@@ -1284,10 +1284,10 @@ class BillingEngine:
             # --- 这是首期账单，应该有“保证金”收款项 ---
             deposit_amount_due = contract.security_deposit_paid
 
-            # 查找是否已存在“保证金”条目
-            existing_deposit = FinancialAdjustment.query.filter_by(
-                customer_bill_id=bill.id,
-                description='[系统添加] 保证金'
+            # 查找是否已存在“保证金”条目 (使用 like 进行模糊匹配)
+            existing_deposit = FinancialAdjustment.query.filter(
+                FinancialAdjustment.customer_bill_id == bill.id,
+                FinancialAdjustment.description.like('[系统添加] 保证金%')
             ).first()
 
             if existing_deposit:
