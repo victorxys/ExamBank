@@ -12,8 +12,7 @@ from sqlalchemy.sql import extract
 import csv # <-- 添加此行
 import io # <-- 添加此行
 import calendar
-from datetime import date, timedelta
-from datetime import datetime
+from datetime import date, timedelta, datetime, timezone
 import decimal
 from dateutil.relativedelta import relativedelta
 from collections import defaultdict
@@ -43,7 +42,8 @@ from backend.models import (
     PaymentRecord,
     PayoutStatus,
     PayoutRecord,
-    AdjustmentType
+    AdjustmentType,
+    ExternalSubstitutionContract
 )
 from backend.tasks import (
     sync_all_contracts_task,
@@ -200,6 +200,12 @@ def _get_billing_details_internal(
                 if group["name"] == "级别与保证金":
                     group["fields"]["级别"] = str(sub_record.substitute_salary or "0")
                     break
+    
+    extension_fee_str = calc_cust.get("extension_fee")
+    if extension_fee_str and float(extension_fee_str) > 0:
+        for group in customer_details["groups"]:
+            if group["name"] == "费用明细":
+                group["fields"]["延长期服务费"] = extension_fee_str
 
     if employee_payroll:
         calc_payroll = employee_payroll.calculation_details or {}
@@ -241,67 +247,69 @@ def _get_billing_details_internal(
     is_last_bill = not later_bill_exists
     
     
-    # --- ITERATION v2: START ---
+    # --- ITERATION v3: START (Linus Fixed) ---
     # 统一处理所有合同类型的“延长服务”逻辑
 
     # 1. 确定合同是否符合延长的基本资格及其权威结束日期
     is_eligible_for_extension = False
     authoritative_end_date = None
 
-    # 前提条件：必须是最后一期账单
     if is_last_bill:
-        # 场景A: 育儿嫂（非月签）
-        if contract.type == 'nanny' and not getattr(contract, 'is_monthly_auto_renew', False):
+        contract_type = contract.type
+        if contract_type == 'nanny' and not getattr(contract, 'is_monthly_auto_renew', False):
             is_eligible_for_extension = True
             authoritative_end_date = contract.end_date
-
-        # 场景B: 月嫂
-        elif contract.type == 'maternity_nurse':
+        elif contract_type == 'maternity_nurse':
             is_eligible_for_extension = True
-            # 月嫂的权威结束日期优先使用“预计下户日期”，若无则使用合同结束日期
-            authoritative_end_date = getattr(contract, 'expected_offboarding_date', None) or contract.end_date
+            authoritative_end_date = getattr(contract,'expected_offboarding_date', None) or contract.end_date
+        elif contract_type == 'external_substitution':
+            is_eligible_for_extension = True
+            # 【关键修正】临时替班合同没有“预计下户日期”，直接用合同结束日期
+            authoritative_end_date = contract.end_date
 
     # 2. 如果符合资格，则执行统一的计算和注入逻辑
     if is_eligible_for_extension and authoritative_end_date:
 
-        # 只有当账单的结束日期 > 合同的权威结束日期时，才视为延长
-        if customer_bill.cycle_end_date > authoritative_end_date:
-            extension_days = (customer_bill.cycle_end_date - authoritative_end_date).days
+        # --- 关键修复：在比较前，确保两个对象都是 date 类型 ---
+        bill_end_date_obj =customer_bill.cycle_end_date
+        auth_end_date_obj = authoritative_end_date
+
+        bill_end_date = bill_end_date_obj.date() if isinstance(bill_end_date_obj, datetime) else bill_end_date_obj
+        auth_end_date = auth_end_date_obj.date() if isinstance(auth_end_date_obj, datetime) else auth_end_date
+        # --- 修复结束 ---
+
+        if bill_end_date and auth_end_date and bill_end_date > auth_end_date:
+            extension_days = (bill_end_date -auth_end_date).days
 
             if extension_days > 0:
-                # 准备日志信息
-                extension_log = f"原合同于 {authoritative_end_date.strftime('%m月%d日')} 结束，手动延长至 {customer_bill.cycle_end_date.strftime('%m月%d日')}，共 {extension_days} 天。"
+                extension_log = f"原合同于 {auth_end_date.strftime('%m月%d日')} 结束，手动延长至{bill_end_date.strftime('%m月%d日')}，共{extension_days} 天。"
 
-                # 计算延长期服务费 (此公式对两种合同通用)
-                level = D(contract.employee_level or '0')
+                level = D(contract.employee_level or'0')
                 daily_rate = level / D(26)
-                extension_fee = (daily_rate * D(extension_days)).quantize(D('0.01'))
+                extension_fee = (daily_rate *D(extension_days)).quantize(D('0.01'))
                 extension_fee_log = f"级别({level:.2f})/26 * 延长天数({extension_days}) = {extension_fee:.2f}"
 
-                # 确保 calculation_details 和 log_extras 字典存在
                 if "calculation_details" not in customer_details:
                     customer_details["calculation_details"] = {}
                 if "log_extras" not in customer_details["calculation_details"]:
                     customer_details["calculation_details"]["log_extras"] = {}
 
-                # 注入到 customer_details (前端客户账单)
+                # 注入到 customer_details
                 for group in customer_details["groups"]:
                     if group["name"] == "劳务周期":
                         group["fields"]["延长服务天数"] = str(extension_days)
                         customer_details["calculation_details"]["log_extras"]["extension_days_reason"] = extension_log
-
                     if group["name"] == "费用明细":
                         group["fields"]["延长期服务费"] = str(extension_fee)
                         customer_details["calculation_details"]["log_extras"]["extension_fee_reason"] = extension_fee_log
 
-                # 注入到 employee_details (前端员工薪酬)
+                # 注入到 employee_details
                 if employee_details and employee_details.get("groups"):
                     for group in employee_details["groups"]:
-                        if group["name"] == "劳务周期":
-                            group["fields"]["延长服务天数"] = str(extension_days)
-                        if group["name"] == "薪酬明细":
-                            group["fields"]["延长期服务费"] = str(extension_fee)
-    # --- ITERATION v2: END ---
+                        if group["name"] in ["薪酬明细", "劳务周期"]:
+                             group["fields"]["延长服务天数"] = str(extension_days)
+                             group["fields"]["延长期服务费"] = str(extension_fee)
+    # --- ITERATION v3: END ---
     
     return {
         "customer_bill_details": customer_details,
@@ -330,19 +338,29 @@ def _get_details_template(contract, cycle_start, cycle_end):
     current_app.logger.info(
         f"[DEBUG] Generating billing details template for contract type: {contract.type}, is_maternity: {is_maternity}, is_nanny: {is_nanny}"
     )
-    days_adjustment = 1
-    if contract.type == "nanny" and cycle_start != contract.start_date:
-        days_adjustment = 1
+    engine = BillingEngine()
+        # 【关键修复】使用 _to_date 辅助函数，确保我们处理的是纯 date 对象
+    cycle_start_d = engine._to_date(cycle_start)
+    cycle_end_d = engine._to_date(cycle_end)
+
+    period_str = "日期错误" # 默认值
+    if cycle_start_d and cycle_end_d:
+        # 对于外部替班合同，由于时间精确到分钟，计算天数可能会误导，所以不显示天数
+        if contract.type == 'external_substitution':
+            #  period_str = f"{cycle_start.strftime('%Y-%m-%d %H:%M')} ~ {cycle_end.strftime('%Y-%m-%d %H:%M')}"
+            days_in_cycle = (cycle_end_d - cycle_start_d).days + 1
+            period_str = f"{cycle_start_d.isoformat()} ~ {cycle_end_d.isoformat()} ({days_in_cycle}天)"
+        else:
+            days_in_cycle = (cycle_end_d - cycle_start_d).days + 1
+            period_str = f"{cycle_start_d.isoformat()} ~ {cycle_end_d.isoformat()} ({days_in_cycle}天)"
+
     customer_groups = [
         {
             "name": "级别与保证金",
             "fields": {
                 "级别": str(contract.employee_level or 0),
-                # "客交保证金": str(getattr(contract, 'security_deposit_paid', 0)) if is_maternity else "0.00",
                 "客交保证金": str(getattr(contract, "security_deposit_paid", 0)),
-                "定金": str(getattr(contract, "deposit_amount", 0))
-                if is_maternity
-                else "0.00",
+                "定金": str(getattr(contract, "deposit_amount", 0)) if is_maternity else "0.00",
                 "介绍费": str(getattr(contract, "introduction_fee", "0.00")),
                 "合同备注": contract.notes or "—",
             },
@@ -350,7 +368,7 @@ def _get_details_template(contract, cycle_start, cycle_end):
         {
             "name": "劳务周期",
             "fields": {
-                "劳务时间段": f"{cycle_start.isoformat()} ~ {cycle_end.isoformat()} ({ (cycle_end - cycle_start).days + days_adjustment }天)",
+                "劳务时间段": period_str, # <-- 使用我们格式化好的字符串
                 "基本劳务天数": "待计算",
                 "加班天数": "0",
                 "被替班天数": "0",
@@ -359,16 +377,12 @@ def _get_details_template(contract, cycle_start, cycle_end):
         },
         {"name": "费用明细", "fields": {}},
     ]
-    employee_groups = [{"name": "薪酬明细", "fields": {
-        # "级别": str(contract.employee_level or 0)
-    }}]
+
+    employee_groups = [{"name": "薪酬明细", "fields": {}}]
 
     if is_maternity:
         customer_groups[2]["fields"] = {
-            # "基础劳务费": "待计算",
-            # "加班费": "待计算",
             "管理费": "待计算",
-            # "被替班费用": "0.00",
             "优惠": str(getattr(contract, "discount_amount", 0)),
         }
         employee_groups[0]["fields"] = {
@@ -380,10 +394,7 @@ def _get_details_template(contract, cycle_start, cycle_end):
         }
     elif is_nanny:
         customer_groups[2]["fields"] = {
-            # "基础劳务费": "待计算",
-            # "加班费": "待计算",
             "本次交管理费": "待计算",
-            # "被替班费用": "0.00",
         }
         employee_groups[0]["fields"] = {
             "级别": str(contract.employee_level or 0),
@@ -393,10 +404,7 @@ def _get_details_template(contract, cycle_start, cycle_end):
             "首月员工10%费用": "待计算",
         }
 
-    return {"id": None, "groups": customer_groups}, {
-        "id": None,
-        "groups": employee_groups,
-    }
+    return {"id": None, "groups": customer_groups}, {"id": None, "groups":employee_groups}
 
 
 # def _fill_payment_status(details, payment_data, is_paid, is_customer):
@@ -1268,6 +1276,8 @@ def get_contract_type_details(contract_type):
         return "育儿嫂"
     elif contract_type == "maternity_nurse":
         return "月嫂"
+    elif contract_type == "external_substitution":
+        return "临时替工"
     elif contract_type == "nanny_trial":
         return "育儿嫂试工"
     return "未知类型"
@@ -1383,22 +1393,32 @@ def get_all_contracts():
                 else "未知员工"
             )
 
-            actual_onboarding_date = getattr(contract, "actual_onboarding_date", None)
-            provisional_start_date = getattr(contract, "provisional_start_date", None)
-
             remaining_months_str = "N/A"
             highlight_remaining = False
 
-            start_date_for_calc = contract.actual_onboarding_date or contract.start_date
+            # 【关键修复】使用 isinstance 进行类型检查，兼容 datetime 和 date 对象
+            start_date_dt = contract.actual_onboarding_date or contract.start_date
+            start_date_for_calc = None
+            if isinstance(start_date_dt, datetime):
+                start_date_for_calc = start_date_dt.date()
+            elif isinstance(start_date_dt, date):
+                start_date_for_calc = start_date_dt
 
-            end_date_for_calc = None
+            end_date_dt = None
             if contract.type == "maternity_nurse":
-                end_date_for_calc = (
+                end_date_dt = (
                     contract.expected_offboarding_date or contract.end_date
                 )
             else:
-                end_date_for_calc = contract.end_date
+                end_date_dt = contract.end_date
 
+            end_date_for_calc = None
+            if isinstance(end_date_dt, datetime):
+                end_date_for_calc = end_date_dt.date()
+            elif isinstance(end_date_dt, date):
+                end_date_for_calc = end_date_dt
+
+            today = date.today()
             if isinstance(contract, NannyContract) and getattr(
                 contract, "is_monthly_auto_renew", False
             ):
@@ -1418,10 +1438,7 @@ def get_all_contracts():
                         remaining_months_str = f"约{years}年{months}个月"
                     elif total_days_remaining >= 30:
                         months = total_days_remaining // 30
-                        # days = total_days_remaining % 30
                         remaining_months_str = f"{months}个月"
-                        # if days > 0:
-                        #     remaining_months_str += f" {days}天"
                     elif total_days_remaining >= 0:
                         remaining_months_str = f"{total_days_remaining}天"
                     else:
@@ -1438,18 +1455,10 @@ def get_all_contracts():
                     "contract_type_label": get_contract_type_details(contract.type),
                     "status": contract.status,
                     "employee_level": contract.employee_level,
-                    "start_date": contract.start_date.isoformat()
-                    if contract.start_date
-                    else None,
-                    "end_date": contract.end_date.isoformat()
-                    if contract.end_date
-                    else None,
-                    "actual_onboarding_date": actual_onboarding_date.isoformat()
-                    if actual_onboarding_date
-                    else None,
-                    "provisional_start_date": provisional_start_date.isoformat()
-                    if provisional_start_date
-                    else None,
+                    "start_date": contract.start_date.isoformat() if contract.start_date else None,
+                    "end_date": contract.end_date.isoformat() if contract.end_date else None,
+                    "actual_onboarding_date": getattr(contract,"actual_onboarding_date", None),
+                    "provisional_start_date": getattr(contract,"provisional_start_date", None),
                     "remaining_months": remaining_months_str,
                     "highlight_remaining": highlight_remaining,
                 }
@@ -1543,48 +1552,41 @@ def search_customers():
 @billing_bp.route("/contracts/virtual", methods=["POST"])
 @admin_required
 def create_virtual_contract():
-    """
-    手动创建虚拟合同。
-    """
-   
+    """手动创建虚拟合同。"""
     data = request.get_json()
     if not data:
         return jsonify({"error": "请求体不能为空"}), 400
 
-    # 1. 基础字段校验
-    required_fields = ["contract_type", "customer_name", "employee_name", "employee_level", "start_date", "end_date"]
+    required_fields = ["contract_type", "customer_name", "employee_name","employee_level", "start_date", "end_date"]
     if not all(field in data for field in required_fields):
-        return jsonify({"error": f"缺少必要字段: {', '.join(required_fields)}"}), 400
+        return jsonify({"error": f"缺少必要字段: {', '.join(required_fields)}"}),400
 
     try:
-        # 2. 处理员工（查找或创建）
         employee_ref = _get_or_create_personnel_ref(data["employee_name"])
 
-        # 3. 根据合同类型，实例化对应的模型并填充数据
-        contract_type = data["contract_type"]
-        new_contract = None
-
-        
         customer_name = data["customer_name"]
-        cust_pinyin_full = "".join(item[0] for item in pinyin(customer_name, style=Style.NORMAL))
-        cust_pinyin_initials = "".join(item[0] for item in pinyin(customer_name, style=Style.FIRST_LETTER))
+        cust_pinyin_full = "".join(item[0] for item in pinyin(customer_name,style=Style.NORMAL))
+        cust_pinyin_initials = "".join(item[0] for item in pinyin(customer_name,style=Style.FIRST_LETTER))
         customer_name_pinyin = f"{cust_pinyin_full} {cust_pinyin_initials}"
-        
 
         common_params = {
             "customer_name": data["customer_name"],
             "customer_name_pinyin": customer_name_pinyin,
             "contact_person": data.get("contact_person"),
             "employee_level": D(data["employee_level"]),
-            "start_date": date_parse(data["start_date"]).date(),
-            "end_date": date_parse(data["end_date"]).date(),
+            # 【关键修改】直接解析为 DateTime 对象，不再取 .date()
+            "start_date": date_parse(data["start_date"]),
+            "end_date": date_parse(data["end_date"]),
             "notes": data.get("notes"),
-            "source": "virtual", # 标记为虚拟合同
+            "source": "virtual",
         }
         if employee_ref["type"] == "user":
             common_params["user_id"] = employee_ref["id"]
         else:
             common_params["service_personnel_id"] = employee_ref["id"]
+
+        contract_type = data["contract_type"]
+        new_contract = None
 
         if contract_type == "maternity_nurse":
             new_contract = MaternityNurseContract(
@@ -1607,21 +1609,39 @@ def create_virtual_contract():
         elif contract_type == "nanny_trial":
             new_contract = NannyTrialContract(
                 **common_params,
-                status="trial_active", # 试工合同初始状态
+                status="trial_active",
                 introduction_fee=D(data.get("introduction_fee") or 0)
+            )
+        # 【新增分支】
+        elif contract_type == "external_substitution":
+            new_contract = ExternalSubstitutionContract(
+                **common_params,
+                status="active", # 外部替班合同默认为 active
+                management_fee_rate=D(data.get("management_fee_rate", 0.20))
             )
         else:
             return jsonify({"error": "无效的合同类型"}), 400
 
-        # 4. 保存到数据库
         db.session.add(new_contract)
         db.session.commit()
-        current_app.logger.info(f"成功创建虚拟合同，ID: {new_contract.id}")
+        current_app.logger.info(f"成功创建虚拟合同，ID: {new_contract.id}, 类型: {contract_type}")
 
-        # 5. 【最终修复】只为“育儿嫂”合同，调用新的、专属的后续处理任务
+        # 根据合同类型，触发正确的后续处理任务
         if contract_type == "nanny":
             post_virtual_contract_creation_task.delay(str(new_contract.id))
             current_app.logger.info(f"已为育儿嫂合同 {new_contract.id} 提交后续处理任务。")
+        elif contract_type == "maternity_nurse":
+            generate_all_bills_for_contract_task.delay(str(new_contract.id))
+            current_app.logger.info(f"已为月嫂合同 {new_contract.id} 提交账单生成任务。")
+        elif contract_type == "external_substitution":
+            # 对于外部替班合同，调用通用的月度计算任务即可，因为它只有一个账单
+            calculate_monthly_billing_task.delay(
+                year=new_contract.start_date.year,
+                month=new_contract.start_date.month,
+                contract_id=str(new_contract.id),
+                force_recalculate=True
+            )
+            current_app.logger.info(f"已为外部替班合同 {new_contract.id} 提交月度账单计算任务。")
 
         return jsonify({
             "message": "虚拟合同创建成功！",
@@ -1927,13 +1947,25 @@ def get_single_contract_details(contract_id):
         highlight_remaining = False
         today = date.today()
 
-        start_date_for_calc = contract.actual_onboarding_date or contract.start_date
-        # end_date_for_calc = getattr(contract, 'expected_offboarding_date', contract.end_date)
-        end_date_for_calc = None
+        # 【关键修复】同样增加类型检查，兼容 datetime 和 date
+        start_date_dt = contract.actual_onboarding_date or contract.start_date
+        start_date_for_calc = None
+        if isinstance(start_date_dt, datetime):
+            start_date_for_calc = start_date_dt.date()
+        elif isinstance(start_date_dt, date):
+            start_date_for_calc = start_date_dt
+
+        end_date_dt = None
         if contract.type == "maternity_nurse":
-            end_date_for_calc = contract.expected_offboarding_date or contract.end_date
-        else:  # 育儿嫂合同
-            end_date_for_calc = contract.end_date
+            end_date_dt = contract.expected_offboarding_date or contract.end_date
+        else:
+            end_date_dt = contract.end_date
+
+        end_date_for_calc = None
+        if isinstance(end_date_dt, datetime):
+            end_date_for_calc = end_date_dt.date()
+        elif isinstance(end_date_dt, date):
+            end_date_for_calc = end_date_dt
 
         if isinstance(contract, NannyContract) and getattr(
             contract, "is_monthly_auto_renew", False
@@ -2490,83 +2522,55 @@ def find_bill_and_its_page():
     )
 
 @billing_bp.route("/bills/<string:bill_id>/extend", methods=["POST"])
-@jwt_required()
+@admin_required
 def extend_single_bill(bill_id):
     data = request.get_json()
     new_end_date_str = data.get("new_end_date")
     if not new_end_date_str:
-        return jsonify({"error": "必须提供新的结束日期"}), 400
+        return jsonify({"error": "必须提供新的结束日期 (new_end_date)"}), 400
 
     try:
-        new_end_date = datetime.strptime(new_end_date_str, "%Y-%m-%d").date()
-
         bill = db.session.get(CustomerBill, bill_id)
         if not bill:
             return jsonify({"error": "账单未找到"}), 404
 
-        if new_end_date <= bill.cycle_end_date:
-            return jsonify({"error": "新的结束日期必须晚于当前结束日期"}), 400
-
-        original_end_date = bill.cycle_end_date
+        new_end_date = date_parse(new_end_date_str).date()
         contract = bill.contract
 
-        # 1. 更新日期
-        bill.cycle_end_date = new_end_date
-        payroll = EmployeePayroll.query.filter_by(
-            contract_id=bill.contract_id,
-            cycle_start_date=bill.cycle_start_date
-        ).first()
-        if payroll:
-            payroll.cycle_end_date = new_end_date
+        # --- 核心修复：确保所有变更和计算都在一个事务内，并使用正确的逻辑 ---
 
-        # 2. 记录操作日志
-        _log_activity(
-            bill,
-            payroll,
-            action="延长服务期",
-            details={
-                "from": original_end_date.isoformat(),
-                "to": new_end_date.isoformat(),
-                "message": f"将服务延长至 {new_end_date.strftime('%m-%d')}"
-            }
+        # 1. 更新合同的权威结束日期
+        #    我们统一使用 expected_offboarding_date 来存储延长后的日期
+        contract.expected_offboarding_date = new_end_date
+
+        # 2. 更新当前账单的结束日期以匹配
+        bill.cycle_end_date = new_end_date
+
+        db.session.add(contract)
+        db.session.add(bill)
+
+        # 3. 调用计算引擎，并把新的结束日期作为最高优先级传入
+        engine = BillingEngine()
+        engine.calculate_for_month(
+            year=bill.year,
+            month=bill.month,
+            contract_id=bill.contract_id,
+            force_recalculate=True,
+            cycle_start_date_override=bill.cycle_start_date,
+            end_date_override=new_end_date
         )
 
-        # --- Gemini-generated code (Final Fix): Start ---
-        # 3. 直接、精确地重算当前账单对象
-        engine = BillingEngine()
-
-        # 手动调用计算引擎的内部核心函数，确保在当前事务中完成所有计算
-        # 注意：这里的 contract, bill, payroll 都是我们从数据库中获取并已在内存中修改的对象
-        # 【关键修复】根据合同类型，调用正确的计费函数
-        details = {}
-        if contract.type == 'nanny':
-            details = engine._calculate_nanny_details(contract, bill, payroll)
-        elif contract.type == 'maternity_nurse':
-            details = engine._calculate_maternity_nurse_details(contract, bill, payroll)
-        else:
-            # 如果有其他合同类型，可以在此添加或抛出错误
-            return jsonify({"error": f"不支持的合同类型: {contract.type}"}), 400
-        bill, payroll = engine._calculate_final_amounts(bill, payroll, details)
-        log = engine._create_calculation_log(details)
-        engine._update_bill_with_log(bill, payroll, details, log)
-
-        current_app.logger.info(f"账单 {bill.id} 已在当前会话中被直接重算。")
-        # --- Gemini-generated code (Final Fix): End ---
-
-        # 4. 在所有操作完成后，一次性提交事务
+        # 4. 提交所有更改（日期变更和计算结果）
         db.session.commit()
 
-        # 5. 获取并返回最新的账单详情
+        # 5. 返回最新的、正确的数据
         latest_details = _get_billing_details_internal(bill_id=bill.id)
-        return jsonify({
-            "message": "服务期延长成功，账单已重算。",
-            "latest_details": latest_details
-        })
+        return jsonify(latest_details)
 
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"延长账单 {bill_id} 失败: {e}", exc_info=True)
-        return jsonify({"error": "服务器内部错误"}), 500
+        return jsonify({"error": f"延长服务失败: {str(e)}"}), 500
 
 @billing_bp.route('/customer-bills/<uuid:bill_id>/defer', methods=['POST'])
 @admin_required # 假设需要管理员权限

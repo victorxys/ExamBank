@@ -115,7 +115,7 @@ const getTooltipContent = (fieldName, billingDetails, isCustomer) => {
         '基础劳务费': '基础劳务费',
         '试工费': '试工费',
         '加班费': '加班费',
-        '管理费': '管理费',
+        '管理费': 'management_fee_reason',
         '被替班费用': '被替班扣款',
         '客应付款': '客应付款',
         '萌嫂保证金(工资)': '员工工资',
@@ -543,33 +543,28 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
 
     const handleConfirmExtension = async () => {
         if (!extensionDate) {
-            alert('请选择延长至的日期！');
+            setAlert({ open: true, message: '请选择延长至的日期！', severity:'warning' });
             return;
         }
         try {
-            // 1. 发起延长请求
             await api.post(`/billing/bills/${billingDetails.customer_bill_details.id}/extend`, {
                 new_end_date: extensionDate.toISOString().split('T')[0],
             });
 
-            alert('服务已成功延长！正在刷新账单详情...');
+            setAlert({ open: true, message: '服务已成功延长！正在刷新账单详情...',severity: 'success' });
 
-            // --- Gemini-generated code (Final Fix): Start ---
-            // 2. 延长成功后，立即重新获取这个账单的最新详情
             const freshDetailsResponse = await api.get(`/billing/details?bill_id=${billingDetails.customer_bill_details.id}`);
 
-            // 3. 用最新的数据更新弹窗自己的内部状态
             if (freshDetailsResponse.data) {
-                // 假设您已经将 billingDetails 从 props 移入 state
                 setBillingDetails(freshDetailsResponse.data);
             }
-            // --- Gemini-generated code (Final Fix): End ---
 
             handleCloseExtensionDialog();
 
         } catch (error) {
             console.error("延长服务失败:", error);
-            alert(error.response?.data?.message || '延长服务失败，请查看控制台。');
+            const errorMessage = error.response?.data?.message ||'延长服务失败，请查看控制台。';
+            setAlert({ open: true, message: errorMessage, severity: 'error' });
         }
     };
 
@@ -790,12 +785,12 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                                                     <InfoIcon sx={{ fontSize: '1rem', color: 'action.active', ml: 0.5, cursor:'help' }} />
                                                 </Tooltip>
                                             )}
+                                            
                                             {key === '劳务时间段' &&
                                                 (
-                                                    (
-                                                        contract?.contract_type_value === 'nanny' && !contract?.is_monthly_auto_renew)
-                                                    ||
-                                                    contract?.contract_type_value === 'maternity_nurse'
+                                                    (contract?.contract_type_value=== 'nanny' && !contract?.is_monthly_auto_renew) ||
+                                                    contract?.contract_type_value=== 'maternity_nurse' ||
+                                                    contract?.contract_type_value=== 'external_substitution'
                                                 ) &&
                                                 billingDetails?.is_last_bill &&
                                                 !isEditMode && (

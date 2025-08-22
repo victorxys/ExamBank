@@ -303,6 +303,8 @@ const ContractDetail = () => {
     } : contract.contract_type === 'nanny_trial' ? {
         '合同类型': '育儿嫂试工',
         '级别/月薪': `¥${formatCurrency(contract.employee_level)}`,
+    } : contract.contract_type === 'external_substitution' ? {
+        '合同类型': '临时替班合同'
     } : { // nanny
         '合同类型': '育儿嫂合同',
         '级别/月薪': `¥${formatCurrency(contract.employee_level)}`,

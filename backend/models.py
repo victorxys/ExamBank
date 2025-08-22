@@ -2154,8 +2154,8 @@ class BaseContract(db.Model):
     created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
     updated_at = db.Column(db.DateTime(timezone=True), onupdate=func.now())
 
-    start_date = db.Column(db.Date, nullable=True, comment="合同开始日期 (育儿嫂)")
-    end_date = db.Column(db.Date, nullable=True, comment="合同结束日期 (育儿嫂和月嫂)")
+    start_date = db.Column(db.DateTime(timezone=True), nullable=False, comment="合同开始日期与时间")
+    end_date = db.Column(db.DateTime(timezone=True), nullable=False, comment="合同结束日期与时间")
     provisional_start_date = db.Column(db.Date, nullable=True, comment="预产期 (月嫂)")
     actual_onboarding_date = db.Column(
         db.Date, nullable=True, comment="实际上户日期 (月嫂)"
@@ -2197,6 +2197,16 @@ class NannyContract(BaseContract):  # 育儿嫂合同
 class NannyTrialContract(BaseContract):  # 育儿嫂试工合同
     __mapper_args__ = {"polymorphic_identity": "nanny_trial"}
 
+class ExternalSubstitutionContract(BaseContract):
+    __tablename__ = 'external_substitution_contract'
+    __table_args__ = {'comment': '外部替班合同'}
+
+    id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('contracts.id', ondelete="CASCADE"), primary_key=True)
+    management_fee_rate = db.Column(db.Numeric(5, 2), nullable=False, default=0.20,comment="管理费率")
+
+    __mapper_args__ = {
+        'polymorphic_identity': 'external_substitution',
+    }
 
 class MaternityNurseContract(BaseContract):  # 月嫂合同
     __mapper_args__ = {"polymorphic_identity": "maternity_nurse"}
@@ -2343,8 +2353,8 @@ class CustomerBill(db.Model):
     )
     year = db.Column(db.Integer, nullable=False, index=True)
     month = db.Column(db.Integer, nullable=False, index=True)
-    cycle_start_date = db.Column(db.Date, nullable=True, index=True)
-    cycle_end_date = db.Column(db.Date, nullable=True)
+    cycle_start_date = db.Column(db.DateTime(timezone=True), nullable=False)
+    cycle_end_date = db.Column(db.DateTime(timezone=True), nullable=False)
 
     customer_name = db.Column(
         db.String(255), nullable=False, index=True
@@ -2434,8 +2444,8 @@ class EmployeePayroll(db.Model):
     )
     year = db.Column(db.Integer, nullable=False, index=True)
     month = db.Column(db.Integer, nullable=False, index=True)
-    cycle_start_date = db.Column(db.Date, nullable=True, index=True)
-    cycle_end_date = db.Column(db.Date, nullable=True)
+    cycle_start_date = db.Column(db.DateTime(timezone=True), nullable=False)
+    cycle_end_date = db.Column(db.DateTime(timezone=True), nullable=False)
     employee_id = db.Column(
         PG_UUID(as_uuid=True),
         nullable=False,
@@ -2516,12 +2526,8 @@ class AttendanceRecord(db.Model):
     )
 
     # --- 核心修正：使用周期起止日期代替年月 ---
-    cycle_start_date = db.Column(
-        db.Date, nullable=False, index=True, comment="考勤周期的开始日期"
-    )
-    cycle_end_date = db.Column(
-        db.Date, nullable=False, index=True, comment="考勤周期的结束日期"
-    )
+    cycle_start_date = db.Column(db.DateTime(timezone=True), nullable=False)
+    cycle_end_date = db.Column(db.DateTime(timezone=True), nullable=False)
     # ----------------------------------------
 
     total_days_worked = db.Column(db.Numeric(10, 2), nullable=False, comment="总出勤天数")

@@ -9,6 +9,7 @@ import {
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
 import { debounce } from 'lodash';
 import api from '../api/axios';
 
@@ -28,6 +29,7 @@ const initialState = {
     management_fee_amount: '',
     deposit_rate: 0.25, // 新增：保证金比例 state，默认为 25%
     daily_rate: '',
+    management_fee_rate: 0.20,
 };
 
 const CreateVirtualContractModal = ({ open, onClose, onSuccess }) => {
@@ -73,6 +75,22 @@ const CreateVirtualContractModal = ({ open, onClose, onSuccess }) => {
             }
         }
     }, [formData.provisional_start_date, formData.start_date, formData.contract_type]);
+
+    // 【新增】当外部替班合同的依赖项变化时，自动计算管理费
+    useEffect(() => {
+        if (formData.contract_type === 'external_substitution') {
+            const level = parseFloat(formData.employee_level);
+            const rate = parseFloat(formData.management_fee_rate);
+
+            if (level > 0 && rate > 0) {
+                const management_fee = level * rate;
+                setFormData(prev => ({ ...prev, management_fee_amount:management_fee.toFixed(2) }));
+            } else {
+                // 如果级别或费率为空，则清空管理费
+                setFormData(prev => ({ ...prev, management_fee_amount: '' }));
+            }
+        }
+    }, [formData.contract_type, formData.employee_level, formData.management_fee_rate]);
 
     // --- 优化 2: 保证金、比例、管理费联动计算 ---
     const handleMaternityValuesChange = (event) => {
@@ -269,20 +287,10 @@ const CreateVirtualContractModal = ({ open, onClose, onSuccess }) => {
             payload.employee_level = payload.daily_rate;
         }
 
-        const formatDateForAPI = (date) => {
-            if (!date) return null;
-            const d = new Date(date);
-            if (isNaN(d.getTime())) return null;
-            const year = d.getFullYear();
-            const month = String(d.getMonth() + 1).padStart(2, '0');
-            const day = String(d.getDate()).padStart(2, '0');
-            return `${year}-${month}-${day}`;
-        };
-
-        payload.start_date = formatDateForAPI(payload.start_date);
-        payload.end_date = formatDateForAPI(payload.end_date);
-        payload.provisional_start_date = formatDateForAPI(payload.provisional_start_date);
-
+        // 对于所有日期字段，如果存在，则转换为ISO字符串
+        if (payload.start_date) payload.start_date = new Date(payload.start_date).toISOString();
+        if (payload.end_date) payload.end_date = new Date(payload.end_date).toISOString();
+        if (payload.provisional_start_date) payload.provisional_start_date = newDate(payload.provisional_start_date).toISOString();
         try {
             const response = await api.post('/billing/contracts/virtual', payload);
             const newContractId = response.data.contract_id;
@@ -311,6 +319,7 @@ const CreateVirtualContractModal = ({ open, onClose, onSuccess }) => {
                                     <MenuItem value="nanny">育儿嫂合同</MenuItem>
                                     <MenuItem value="maternity_nurse">月嫂合同</MenuItem>
                                     <MenuItem value="nanny_trial">育儿嫂试工合同</MenuItem>
+                                    <MenuItem value="external_substitution">外部替班合同</MenuItem>
                                 </Select>
                             </FormControl>
                         </Grid>
@@ -376,28 +385,37 @@ const CreateVirtualContractModal = ({ open, onClose, onSuccess }) => {
                             />
                         </Grid>
 
-                            {/* --- 日期部分：根据合同类型动态显示 --- */}
-                            {formData.contract_type === 'maternity_nurse' ? (
-                                <>
-                                    <Grid item xs={12} sm={6}>
-                                        <DatePicker label="预产期 *" value={formData.provisional_start_date} onChange={(v) => handleDateChange('provisional_start_date', v)} sx={{ width: '100%' }} />
-                                    </Grid>
-                                    <Grid item xs={12} sm={6}>
-                                        <DatePicker label="合同结束日期 *" value={formData.end_date} onChange={(v) => handleDateChange('end_date', v)}sx={{ width: '100%' }}
-                                            helperText="选择预产期后自动计算，可手动修改"
-                                        />
-                                    </Grid>
-                                </>
-                            ) : (
-                                <>
-                                    <Grid item xs={12} sm={6}>
-                                        <DatePicker label="合同开始日期 *" value={formData.start_date} onChange={(v) => handleDateChange('start_date', v)}sx={{ width: '100%' }} />
-                                    </Grid>
-                                    <Grid item xs={12} sm={6}>
-                                        <DatePicker label="合同结束日期 *" value={formData.end_date} onChange={(v) => handleDateChange('end_date', v)}sx={{ width: '100%' }} />
-                                    </Grid>
-                                </>
-                            )}
+                        {/* --- 日期部分：根据合同类型动态显示 --- */}
+                        {formData.contract_type === 'external_substitution' ? (
+                            <>
+                                <Grid item xs={12} sm={6}>
+                                    <DateTimePicker label="服务开始时间 *"value={formData.start_date} onChange={(v) => handleDateChange('start_date', v)}sx={{ width: '100%' }} />
+                                </Grid>
+                                <Grid item xs={12} sm={6}>
+                                    <DateTimePicker label="服务结束时间 *"value={formData.end_date} onChange={(v) => handleDateChange('end_date', v)} sx={{width: '100%' }} />
+                                </Grid>
+                            </>
+                        ) : formData.contract_type === 'maternity_nurse' ? (
+                            <>
+                                <Grid item xs={12} sm={6}>
+                                    <DatePicker label="预产期 *"value={formData.provisional_start_date} onChange={(v) => handleDateChange('provisional_start_date', v)} sx={{ width: '100%' }} />
+                                </Grid>
+                                <Grid item xs={12} sm={6}>
+                                    <DatePicker label="合同结束日期 *"value={formData.end_date} onChange={(v) => handleDateChange('end_date', v)}sx={{width: '100%' }}
+                                        helperText="选择预产期后自动计算，可手动修改"
+                                    />
+                                </Grid>
+                            </>
+                        ) : (
+                            <>
+                                <Grid item xs={12} sm={6}>
+                                    <DatePicker label="合同开始日期 *"value={formData.start_date} onChange={(v) => handleDateChange('start_date',v)}sx={{ width: '100%' }} />
+                                </Grid>
+                                <Grid item xs={12} sm={6}>
+                                    <DatePicker label="合同结束日期 *"value={formData.end_date} onChange={(v) => handleDateChange('end_date', v)}sx={{width: '100%' }} />
+                                </Grid>
+                            </>
+                        )}
 
                         {/* --- 动态字段区域 --- */}
                         {formData.contract_type === 'maternity_nurse' && (
@@ -418,6 +436,38 @@ const CreateVirtualContractModal = ({ open, onClose, onSuccess }) => {
                                 </Grid>
                                 <Grid item xs={12} sm={4}>
                                     <TextField fullWidth disabled name="management_fee_amount" label="管理费 (自动计算)" type="number" value={formData.management_fee_amount} />
+                                </Grid>
+                            </>
+                        )}
+                        {/* --- 动态字段区域 --- */}
+                        {formData.contract_type === 'maternity_nurse' && (
+                            <>
+                                {/* ...月嫂合同的字段... */}
+                            </>
+                        )}
+
+                        {/* 【新增】外部替班合同的专属字段 */}
+                        {formData.contract_type === 'external_substitution' && (
+                            <>
+                                <Grid item xs={12} sm={3}>
+                                    <TextField
+                                        fullWidth
+                                        name="management_fee_rate"
+                                        label="管理费率 (%)"
+                                        type="number"
+                                        value={formData.management_fee_rate * 100}
+                                        onChange={(e) => setFormData(prev =>({...prev, management_fee_rate: e.target.value / 100}))}
+                                        helperText="默认20%"
+                                    />
+                                </Grid>
+                                <Grid item xs={12} sm={3}>
+                                    <TextField
+                                        fullWidth
+                                        disabled
+                                        name="management_fee_amount"
+                                        label="管理费 (自动计算)"
+                                        value={formData.management_fee_amount}
+                                    />
                                 </Grid>
                             </>
                         )}
