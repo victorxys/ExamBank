@@ -240,7 +240,7 @@ const ContractDetail = () => {
             customer_name: contract.customer_name,
             employee_name: contract.employee_name,
             contract_id: contract.id,
-            contract_type_value: contract.contract_type,
+            contract_type_value: contract.contract_type_value,
         });
 
         try {
@@ -290,7 +290,7 @@ const ContractDetail = () => {
         // '备注': contract.notes,                   
     };                                            
                                                   
-    const specificFields = contract.contract_type === 'maternity_nurse' ? {
+    const specificFields = contract.contract_type_value === 'maternity_nurse' ? {
         '合同类型': '月嫂合同',
         '级别/月薪': `¥${formatCurrency(contract.employee_level)}`,
         '预产期': formatDate(contract.provisional_start_date),
@@ -300,11 +300,13 @@ const ContractDetail = () => {
         '管理费率': `${(contract.management_fee_rate * 100).toFixed(0)}%`,
         '保证金支付': `¥${formatCurrency(contract.security_deposit_paid)}`,
         '优惠金额': `¥${formatCurrency(contract.discount_amount)}`,
-    } : contract.contract_type === 'nanny_trial' ? {
+    } : contract.contract_type_value === 'nanny_trial' ? {
         '合同类型': '育儿嫂试工',
         '级别/月薪': `¥${formatCurrency(contract.employee_level)}`,
-    } : contract.contract_type === 'external_substitution' ? {
-        '合同类型': '临时替班合同'
+    } : contract.contract_type_value === 'external_substitution' ? {
+        '合同类型': '临时替班合同',
+        '管理费': `¥${formatCurrency(contract.management_fee_amount)}`,
+        '管理费率': `${(contract.management_fee_rate * 100).toFixed(0)}%`,
     } : { // nanny
         '合同类型': '育儿嫂合同',
         '级别/月薪': `¥${formatCurrency(contract.employee_level)}`,
@@ -312,7 +314,7 @@ const ContractDetail = () => {
         '是否自动月签': contract.is_monthly_auto_renew ? '是' : '否',
     };
 
-    const introFeeField = (['nanny', 'nanny_trial'].includes(contract.contract_type)) ? (
+    const introFeeField = (['nanny', 'nanny_trial'].includes(contract.contract_type_value)) ? (
         <EditableDetailItem
             label="介绍费"
             value={introFee}
@@ -363,12 +365,12 @@ const ContractDetail = () => {
                             <Button variant="contained" color="primary" startIcon={<ArrowBackIcon />} onClick={() => navigate('/contracts')}>
                                 返回列表
                             </Button>
-                            {contract.status === 'active' && contract.contract_type !== 'nanny_trial' && (
+                            {contract.status === 'active' && contract.contract_type_value !== 'nanny_trial' && (
                                 <Button variant="contained" color="error" onClick={handleOpenTerminationDialog}>
                                     终止合同
                                 </Button>
                             )}
-                            {contract.status === 'trial_active' && contract.contract_type === 'nanny_trial' && (
+                            {contract.status === 'trial_active' && contract.contract_type_value === 'nanny_trial' && (
                                 <>
                                     <Button variant="contained" color="success" startIcon={<CheckCircleIcon />} onClick={handleTrialSucceeded}>
                                         试工成功

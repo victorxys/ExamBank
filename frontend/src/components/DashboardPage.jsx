@@ -169,7 +169,7 @@ const DashboardPage = () => {
                                 <List dense>
                                     {data.todo_lists.approaching_provisional.map(c => (
                                         <TodoListItem
-                                            key={c.customer_name}
+                                            key={'approaching-' + c.id}
                                             type="approaching"
                                             primary={c.customer_name}
                                             secondary={`预产期: ${c.provisional_start_date} (${c.days_until}天后)`}
@@ -182,7 +182,7 @@ const DashboardPage = () => {
                                 <List dense>
                                     {data.todo_lists.pending_payments.map(p => (
                                         <TodoListItem
-                                            key={p.customer_name}
+                                            key={'payment-' + p.bill_id}
                                             type="payment"
                                             primary={p.customer_name}
                                             secondary={p.contract_type}
@@ -197,7 +197,7 @@ const DashboardPage = () => {
                                 <List dense>
                                     {data.todo_lists.expiring_contracts.map(c => (
                                         <TodoListItem
-                                            key={c.customer_name}
+                                            key={'expiring-' + c.id}
                                             type="expiring"
                                             primary={`${c.customer_name} / ${c.employee_name}`}
                                             secondary={`${c.expires_in_days}天后到期 (${c.end_date})`}

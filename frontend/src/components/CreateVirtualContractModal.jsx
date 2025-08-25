@@ -163,13 +163,23 @@ const CreateVirtualContractModal = ({ open, onClose, onSuccess }) => {
         const { name, value } = event.target;
 
         setFormData(prev => {
-            // 1. 创建一个新的数据副本并更新当前变化的字段
             const newFormData = { ...prev, [name]: value };
+
+            // 当合同类型变更为“外部替班”时，设置默认时间
+            if (name === 'contract_type' && value === 'external_substitution') {
+                const now = new Date();
+                const defaultStartDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(),8, 30);
+
+                // 结束时间默认比开始时间晚一小时
+                const defaultEndDate = new Date(defaultStartDate.getTime() + 60 * 60 * 1000);
+
+                newFormData.start_date = defaultStartDate;
+                newFormData.end_date = defaultEndDate;
+            }
 
             const level = parseFloat(newFormData.employee_level);
             const type = newFormData.contract_type;
 
-            // 2. 【新增】处理育儿嫂合同的管理费计算
             if (name === 'employee_level' && type === 'nanny') {
                 if (level > 0) {
                     newFormData.management_fee_amount = (level * 0.10).toFixed(2);
@@ -178,7 +188,6 @@ const CreateVirtualContractModal = ({ open, onClose, onSuccess }) => {
                 }
             }
 
-            // 3. 处理试工合同的日薪计算
             if (name === 'employee_level' && type === 'nanny_trial') {
                 if (level > 0) {
                     newFormData.daily_rate = (level / 26).toFixed(2);
@@ -187,12 +196,11 @@ const CreateVirtualContractModal = ({ open, onClose, onSuccess }) => {
                 }
             }
 
-            // 4. 处理月嫂合同的费用联动计算
-            if (type === 'maternity_nurse' && ['employee_level', 'deposit_rate', 'security_deposit_paid'].includes(name)) {
+            if (type === 'maternity_nurse' && ['employee_level', 'deposit_rate','security_deposit_paid'].includes(name)) {
                 const rate = parseFloat(newFormData.deposit_rate);
                 const deposit = parseFloat(newFormData.security_deposit_paid);
 
-                if ((name === 'employee_level' || name === 'deposit_rate') && level > 0 && rate > 0 && rate < 1) {
+                if ((name === 'employee_level' || name === 'deposit_rate') && level > 0 && rate > 0&& rate < 1) {
                     const calculatedDeposit = level / (1 - rate);
                     const calculatedMgmtFee = calculatedDeposit * rate;
                     newFormData.security_deposit_paid = calculatedDeposit.toFixed(2);
@@ -202,17 +210,17 @@ const CreateVirtualContractModal = ({ open, onClose, onSuccess }) => {
                     const calculatedRate = 1 - (level / deposit);
                     const calculatedMgmtFee = deposit - level;
                     const predefinedRates = [0.15, 0.20, 0.25];
-                    const closestRate = predefinedRates.find(r => Math.abs(r - calculatedRate) < 0.001);
+                    const closestRate = predefinedRates.find(r => Math.abs(r - calculatedRate) <0.001);
 
                     newFormData.deposit_rate = closestRate || calculatedRate;
                     newFormData.management_fee_amount = calculatedMgmtFee.toFixed(2);
                 }
             }
 
-            // 5. 返回最终更新后的完整表单数据
             return newFormData;
         });
     };
+
 
     const handleInputChange = (event) => {
         const { name, value } = event.target;
@@ -220,7 +228,21 @@ const CreateVirtualContractModal = ({ open, onClose, onSuccess }) => {
     };
 
     const handleDateChange = (name, newValue) => {
-        setFormData(prev => ({ ...prev, [name]: newValue }));
+        setFormData(prev => {
+            const newFormData = { ...prev, [name]: newValue };
+
+            // 关键逻辑：当“开始时间”改变时，如果“结束时间”为空或早于新的开始时间，
+            // 则自动将“结束时间”设置为与新的“开始时间”相同。
+            if (name === 'start_date' && newValue) {
+                const newStartDate = new Date(newValue);
+                const currentEndDate = prev.end_date ? new Date(prev.end_date) : null;
+
+                if (!currentEndDate || currentEndDate < newStartDate) {
+                    newFormData.end_date = newStartDate;
+                }
+            }
+            return newFormData;
+        });
     };
 
     const handleSwitchChange = (event) => {

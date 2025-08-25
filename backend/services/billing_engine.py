@@ -243,8 +243,10 @@ class BillingEngine:
         """
         Generates or recalculates all bills for the entire lifecycle of a single contract.
         """
-        # 【核心修复】强制从数据库重新查询最新的合同对象，确保所有字段都已加载
-        contract = db.session.get(BaseContract, contract_id)
+        # 【调试代码 2】
+        current_app.logger.info(f"[ENGINE-DEBUG] Engine received contract ID: {contract_id}, Type: {type(contract_id)}")
+        # 关键修复 1: 使用 query().filter_by() 代替 get()，以在事务中可靠地找到对象
+        contract = db.session.query(BaseContract).filter_by(id=contract_id).first()
         if not contract:
             current_app.logger.error(f"[FullLifecycle] Contract {contract_id} not found.")
             return
@@ -256,7 +258,7 @@ class BillingEngine:
             f"[FullLifecycle] Starting bill generation for contract {contract.id} ({contract.type})."
         )
 
-            # --- Gemini-generated code: Start (v4 - Final) ---
+        # --- Gemini-generated code: Start (v4 - Final) ---
         # 核心修改：简化育儿嫂试工合同的初始账单逻辑
         if isinstance(contract, NannyTrialContract):
             current_app.logger.info(f"[FullLifecycle] 合同 {contract.id} 是试工合同，跳过初始账单生成。")
@@ -274,14 +276,14 @@ class BillingEngine:
         # --- 【最终修复】使用更明确、健壮的逻辑来确保类型正确 ---
         start_date, end_date = None, None
 
-        if isinstance(start_date_obj, datetime.datetime):
+        if isinstance(start_date_obj, datetime):
             start_date = start_date_obj.date()
-        elif isinstance(start_date_obj, datetime.date):
+        elif isinstance(start_date_obj, date):
             start_date = start_date_obj
 
-        if isinstance(end_date_obj, datetime.datetime):
+        if isinstance(end_date_obj, datetime):
             end_date = end_date_obj.date()
-        elif isinstance(end_date_obj, datetime.date):
+        elif isinstance(end_date_obj, date):
             end_date = end_date_obj
 
         if not start_date or not end_date:
@@ -658,33 +660,32 @@ class BillingEngine:
 
     def _get_first_maternity_nurse_cycle_in_month(self, contract, year, month):
         """获取月嫂合同在指定月份的第一个服务周期。"""
-        if not contract.actual_onboarding_date or not contract.end_date:
+        # 使用 _to_date 辅助函数，确保我们处理的是纯 date 对象
+        start_date = self._to_date(contract.actual_onboarding_date)
+        contract_end_date = self._to_date(contract.expected_offboarding_date or contract.end_date)
+
+        if not start_date or not contract_end_date:
             return None, None
 
-        cycle_start = contract.actual_onboarding_date
-        contract_end = contract.expected_offboarding_date or contract.end_date
-
-        while cycle_start < contract_end:
+        cycle_start = start_date
+        while cycle_start < contract_end_date:
             cycle_end = cycle_start + timedelta(days=26)
-            if cycle_end > contract_end:
-                cycle_end = contract_end
+            if cycle_end > contract_end_date:
+                cycle_end = contract_end_date
 
-            # 检查周期的任何部分是否与目标月份重叠
-            if (
-                (cycle_start.year == year and cycle_start.month == month)
-                or (cycle_end.year == year and cycle_end.month == month)
-                or (
-                    cycle_start < date(year, month, 1)
-                    and cycle_end
-                    > date(year, month, calendar.monthrange(year, month)[1])
-                )
-            ):
+            # 现在所有变量都是 date 对象，可以安全比较
+            target_month_first_day = date(year, month, 1)
+            target_month_last_day = date(year, month, calendar.monthrange(year, month)[1])
+
+            # 检查周期是否与目标月份重叠
+            # (周期开始 <= 月份结束) AND (周期结束 >= 月份开始)
+            if cycle_start <= target_month_last_day and cycle_end >= target_month_first_day:
                 return cycle_start, cycle_end
 
-            if cycle_end >= contract_end:
+            if cycle_end >= contract_end_date:
                 break
 
-            cycle_start = cycle_end
+            cycle_start = cycle_end + timedelta(days=1) # 月嫂合同周期是连续的，所以要+1
 
         return None, None
 
@@ -692,8 +693,10 @@ class BillingEngine:
         self, contract: NannyContract, bill: CustomerBill, payroll: EmployeePayroll, actual_work_days_override=None
     ):
         """计算育儿嫂合同的所有财务细节。"""
+        current_app.logger.info(f"    [NannyDETAILS] 计算育儿嫂合同 {contract.id} 的详细信息。")
         log_extras = {}
         QUANTIZER = D("0.01")
+        extension_fee = D(0)
         level = D(contract.employee_level or 0)
          # 【关键修复】在函数开头，将所有日期统一为 date 对象
         cycle_start = self._to_date(bill.cycle_start_date)
@@ -883,30 +886,65 @@ class BillingEngine:
                     management_fee_reason = f"月签合同整月，按月收取: {level} * 10%"
                 log_extras["management_fee_reason"] = management_fee_reason
         else:
-            # ... (旧的固定期限合同逻辑保持不变)
+            current_app.logger.info("进入非月签合同逻辑")
             if is_first_bill:
-                delta = relativedelta(contract_end_date, contract_start_date)
-                total_months = delta.years * 12 + delta.months
-                if delta.days > 0 or (total_months == 0 and cycle_actual_days > 0):
-                    total_months += 1
-                if management_fee_amount:
-                    management_fee = management_fee_amount * total_months
-                    management_fee_reason = f"非月签合同首月，一次性收取管理费: {management_fee_amount} * {total_months} 个月"
+                # --- 最终版：按首月、中间月、末月三段式精确计算管理费 ---
+
+                # 1. 确定月度和每日管理费标准
+                monthly_management_fee = management_fee_amount if management_fee_amount > 0 else(level * D("0.1"))
+                daily_management_fee = (monthly_management_fee / D(30)).quantize(D("0.0001"))
+
+                start = contract_start_date
+                end = contract_end_date
+
+                # 2. 处理特殊情况：合同在同一个月内开始和结束
+                if start.year == end.year and start.month == end.month:
+                    total_days = (end - start).days + 1
+                    management_fee = (daily_management_fee * D(total_days)).quantize(QUANTIZER)
+                    management_fee_reason = f"非月签合同(不足一月)按天收取: {total_days}天 = {management_fee:.2f}元"
                 else:
-                    management_fee = (level * D("0.1") * total_months).quantize(QUANTIZER)
-                    management_fee_reason = f"非月签合同首月，一次性收取: {level} * 10% * {total_months} 个月"
+                    # 3. 三段式计算
+                    # A. 首月费用
+                    days_in_start_month = calendar.monthrange(start.year, start.month)[1]
+                    first_month_days = days_in_start_month - start.day + 1
+                    first_month_fee = (daily_management_fee *D(first_month_days)).quantize(QUANTIZER)
+
+                    # C. 末月费用
+                    last_month_days = end.day
+                    last_month_fee = (daily_management_fee * D(last_month_days)).quantize(QUANTIZER)
+
+                    # B. 中间完整月份费用
+                    # 计算首月之后和末月之前的完整月份数
+                    full_months_count = (end.year - start.year) * 12 + (end.month - start.month) - 1
+                    full_months_fee = D(0)
+                    if full_months_count > 0:
+                        full_months_fee = monthly_management_fee * D(full_months_count)
+
+                    # 4. 计算总费用并生成日志
+                    management_fee = first_month_fee + full_months_fee + last_month_fee
+
+                    reason_parts = [f"首月({first_month_days}天):{first_month_fee:.2f}"]
+                    if full_months_fee > 0:
+                        reason_parts.append(f"中间{full_months_count}整月:{full_months_fee:.2f}")
+                    reason_parts.append(f"末月({last_month_days}天):{last_month_fee:.2f}")
+
+                    management_fee_reason = f"非月签合同首月一次性收取 ({' + '.join(reason_parts)}) = {management_fee:.2f}元"
             else:
                 management_fee_reason = "非月签合同非首月，不收取管理费"
             log_extras["management_fee_reason"] = management_fee_reason
 
+            current_app.logger.info(f"检查是否进入“延长服务期逻辑”:is_last_bill_period:{is_last_bill_period},cycle_end:{cycle_end},contract_end_date:{contract_end_date},authoritative_end_date:{authoritative_end_date}")
             if is_last_bill_period and cycle_end > contract_end_date:
+                current_app.logger.info(f"合同 {contract.id} 进入末期延长计费逻辑。")
                 # 场景：这是被延长的最后一期账单
 
                 # 1. 计算延长天数和费用
                 extension_fee = D(0)
                 # 使用 authoritative_end_date 进行比较
-                if authoritative_end_date and cycle_end > authoritative_end_date:
-                    extension_days = (cycle_end - authoritative_end_date).days
+                current_app.logger.info(f"检查是否进入延长服务期逻辑 authoritative_end_date and cycle_end > authoritative_end_date :{authoritative_end_date} -- {cycle_end} --  {authoritative_end_date}")
+                if authoritative_end_date and contract_end_date < authoritative_end_date:
+                    extension_days = (authoritative_end_date - contract_end_date).days
+                    current_app.logger.info(f"延长周期的extension_days======:{extension_days}")
                     if extension_days > 0:
                         daily_rate = level / D(26)
                         extension_fee = (daily_rate *D(extension_days)).quantize(QUANTIZER)
@@ -967,7 +1005,7 @@ class BillingEngine:
                         log_extras["first_month_deduction_reason"] ="员工首月服务费调整项已存在。"
             else:
                 log_extras["first_month_deduction_reason"] ="员工与客户已有过合作历史，不收取首月服务费。"
-
+        current_app.logger.debug(f"NannyDETAILS:log_extras:{log_extras}")
         # 返回的 details 中不再包含 first_month_deduction，因为它已经变成了调整项
         return {
             "type": "nanny",
@@ -1597,12 +1635,16 @@ class BillingEngine:
         daily_rate = (level / D(26)).quantize(QUANTIZER)
         customer_payable = (daily_rate * service_days).quantize(QUANTIZER)
         employee_payout = customer_payable
-        management_fee = (daily_rate * service_days * management_fee_rate).quantize(QUANTIZER)
+        
+        if contract.management_fee_amount is not None:
+            management_fee = D(contract.management_fee_amount).quantize(QUANTIZER)
+        else:
+            management_fee = (daily_rate * service_days * management_fee_rate).quantize(QUANTIZER)
 
         log_extras = {
             "service_days_reason": f"服务总时长 {time_difference} = {service_days:.2f} 天",
             "customer_payable_reason": f"客户应付: 日薪({daily_rate:.2f}) * 服务天数({service_days:.2f}) = {customer_payable:.2f}",
-            "management_fee_reason": f"管理费: 日薪({daily_rate:.2f}) * 服务天数({service_days:.2f}) * 费率({management_fee_rate:.2%}) = {management_fee:.2f}",
+            "management_fee_reason": f"管理费({management_fee:.2f}) / 30 * 服务天数({service_days:.2f}) = {management_fee:.2f}",
             "employee_payout_reason": f"员工工资: 等同于客户应付金额 = {employee_payout:.2f}"
         }
         
@@ -1833,6 +1875,7 @@ class BillingEngine:
             + D(details.get("customer_increase", 0))
             # + D(details.get("extension_fee", "0.00"))
             + D(details.get("deferred_fee", "0.00"))
+            + D(details.get("extension_fee_reason", "0.00"))
             - D(details.get("customer_decrease", 0))
             - D(details.get("discount", 0))
             # - D(details.get("substitute_deduction", 0))

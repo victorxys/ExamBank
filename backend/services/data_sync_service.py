@@ -90,7 +90,7 @@ class DataSyncService:
         if not date_string:
             return None
         try:
-            return datetime.strptime(date_string, "%Y-%m-%d").date()
+            return datetime.strptime(date_string, "%Y-%m-%d")
         except (ValueError, TypeError):
             return None
 
@@ -221,7 +221,7 @@ class DataSyncService:
                     else:
                         # 对于所有其他非自动续约的合同，使用日期比较
                         contract_status = (
-                            "active" if end_date and end_date >= date.today() else "finished"
+                            "active" if end_date and end_date.date() >= date.today() else "finished"
                         )
 
                     # For nanny_trial, employee_level is daily rate * 30, as per form description.
@@ -310,11 +310,21 @@ class DataSyncService:
                         parsed_start_date = self._parse_date(
                             contract_data.get("start_date")
                         )
+
+                        # --- 关键修复：增加日期校验 ---
+                        if not parsed_start_date or not end_date:
+                            current_app.logger.warning(
+                                f"条目 {entry_serial_number} (试工合同) 因缺少有效的开始或结束日期而被跳过。"
+                            )
+                            error_count += 1 # 别忘了把错误计数加一
+                            continue # 跳过当前循环，继续处理下一条
+                        # --- 修复结束 ---
+
                         introduction_fee = self._parse_numeric(contract_data.get("introduction_fee"), 0)
                         new_contract = NannyTrialContract(
                             **common_data,
                             start_date=parsed_start_date,
-                            actual_onboarding_date=parsed_start_date,  # For trial, actual onboarding is the start date
+                            actual_onboarding_date=parsed_start_date,
                             end_date=end_date,
                             introduction_fee = introduction_fee,
                         )
@@ -332,6 +342,8 @@ class DataSyncService:
                             engine = BillingEngine()
 
                             current_app.logger.info(f"为合同 {new_contract.id} 生成初始账单...")
+                            # 【调试代码 1】
+                            current_app.logger.info(f"[SYNC-DEBUG] Calling engine for contract ID: {new_contract.id}, Type: {type(new_contract.id)}")
                             engine.generate_all_bills_for_contract(new_contract.id, force_recalculate=True)
                             current_app.logger.info(f"合同 {new_contract.id} 的初始账单已生成。")
 
@@ -357,18 +369,16 @@ class DataSyncService:
                     exc_info=True,
                 )
 
-        if error_count == 0:
-            db.session.commit()
-            current_app.logger.info(
-                f"表单 {form_token} 同步成功，提交了 {synced_count} 条新合同。"
-            )
-        else:
-            db.session.rollback()
-            current_app.logger.warning(
-                f"表单 {form_token} 同步过程中出现 {error_count} 个错误，所有更改已回滚。"
-            )
+        # --- 关键修复：无论是否有错误，都提交已成功处理的记录 ---
+        current_app.logger.info(f"准备提交 {synced_count} 条成功处理的合同...")
+        db.session.commit()
 
         current_app.logger.info(
             f"表单 {form_token} 同步完成。成功处理 {synced_count} 条，跳过 {skipped_count} 条，失败 {error_count} 条。"
         )
+        if error_count > 0:
+            current_app.logger.warning(
+                f"有 {error_count} 条记录因数据不完整等原因处理失败，详情请查看上面的日志。"
+            )
+        # --- 修复结束 ---
         return synced_count, skipped_count, newly_synced_contract_ids

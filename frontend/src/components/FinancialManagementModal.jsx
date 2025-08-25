@@ -32,6 +32,18 @@ import AlertMessage from './AlertMessage';
 import PayoutDialog from './PayoutDialog';
 
 // --- 辅助函数 ---
+const formatDateForAPI = (date) => {
+    if (!date) return null;
+    const d = new Date(date);
+    if (isNaN(d.getTime())) return null;
+
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+
+    return `${year}-${month}-${day}`;
+};
+
 const formatDateRange = (dateRangeString) => {
     if (!dateRangeString || !dateRangeString.includes('~')) return '—';
     const [startStr, endStr] = dateRangeString.split('~').map(d => d.trim());
@@ -115,18 +127,19 @@ const getTooltipContent = (fieldName, billingDetails, isCustomer) => {
         '基础劳务费': '基础劳务费',
         '试工费': '试工费',
         '加班费': '加班费',
-        '管理费': 'management_fee_reason',
+        '本次交管理费': 'management_fee_reason',
         '被替班费用': '被替班扣款',
         '客应付款': '客应付款',
         '萌嫂保证金(工资)': '员工工资',
         '5%奖励': '5%奖励',
         '萌嫂应领款': '萌嫂应领款',
-        '本次交管理费': '本次交管理费',
+        // '本次交管理费': '本次交管理费',
         '首月员工10%费用': '首月员工10%费用',
         '加班工资': '加班费',
         '实际劳务天数': 'base_work_days_reason',
         '延长服务天数': 'extension_days_reason',
-        '延长期服务费': 'extension_fee_reason'
+        '延长期服务费': 'extension_fee_reason',
+        '延长期管理费': 'extension_manage_fee_reason',
     };
 
     const logKey = fieldToLogKeyMap[fieldName];
@@ -548,7 +561,7 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
         }
         try {
             await api.post(`/billing/bills/${billingDetails.customer_bill_details.id}/extend`, {
-                new_end_date: extensionDate.toISOString().split('T')[0],
+                new_end_date: formatDateForAPI(extensionDate), // <-- 使用我们新的、安全的格式化函数
             });
 
             setAlert({ open: true, message: '服务已成功延长！正在刷新账单详情...',severity: 'success' });
@@ -614,9 +627,9 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
         // 【V2.6 核心逻辑】结束
 
         const fieldOrder = {
-            "级别与保证金": ["级别", "客交保证金", "定金", "介绍费", "合同备注"],
+            "级别与保证金": ["级别", "客交保证金", "定金", "介绍费", "管理费", "合同备注"],
             "劳务周期": ["劳务时间段", "基本劳务天数","延长服务天数", "加班天数", "被替班天数", "总劳务天数"],
-            "费用明细": ["管理费率", "管理费", "本次交管理费", "基础劳务费", "延长期服务费", "试工费", "加班费", "被替班费用", "优惠"],
+            "费用明细": ["管理费率", "本次交管理费", "基础劳务费", "延长期服务费", "延长期管理费", "试工费", "加班费", "被替班费用", "优惠"],
             "薪酬明细": ["级别", "萌嫂保证金(工资)", "试工费", "基础劳务费", "加班费", "被替班天数", "延长期服务费", "被替班费用", "5%奖励", "首月员工10%费用"],
         };
 

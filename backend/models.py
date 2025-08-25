@@ -2158,10 +2158,10 @@ class BaseContract(db.Model):
     end_date = db.Column(db.DateTime(timezone=True), nullable=False, comment="合同结束日期与时间")
     provisional_start_date = db.Column(db.Date, nullable=True, comment="预产期 (月嫂)")
     actual_onboarding_date = db.Column(
-        db.Date, nullable=True, comment="实际上户日期 (月嫂)"
+        db.DateTime(timezone=True), nullable=True, comment="实际上户日期 (月嫂)"
     )
     expected_offboarding_date = db.Column(
-        db.Date, nullable=True, comment="预计下户日期 (可动态顺延)"
+        db.DateTime(timezone=True), nullable=True, comment="预计下户日期 (可动态顺延)"
     )
 
     management_fee_amount = db.Column(

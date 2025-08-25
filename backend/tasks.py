@@ -2478,22 +2478,6 @@ def sync_all_contracts_task(self):
                     "notes": {"field_id": "field_15"},
                 },
             },
-            # {
-            #     "form_token": "sqcCWM",
-            #     "contract_type": "nanny_trial",
-            #     "mapping": {
-            #         "customer_name": {
-            #             "field_id": "field_1",
-            #             "is_association": True,
-            #             "associated_field_id": "field_2",
-            #         },
-            #         "employee_name": {"field_id": "field_2"},
-            #         "employee_phone": {"field_id": "field_3"},
-            #         "employee_level": {"field_id": "field_7"},
-            #         "start_date": {"field_id": "field_8"},
-            #         "end_date": {"field_id": "field_9"},
-            #     },
-            # },
             {
                 "form_token": "o8CFxx",
                 "contract_type": "nanny_trial",
