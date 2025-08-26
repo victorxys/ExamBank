@@ -715,9 +715,7 @@ def get_bills():
             except ValueError:
                 pass
 
-        query = query.order_by(
-            contract_poly.customer_name, CustomerBill.cycle_start_date
-        )
+        query = query.order_by(CustomerBill.total_due.desc())
 
         filtered_bill_ids_query = query.with_entities(CustomerBill.id)
         filtered_bill_ids = [item[0] for item in filtered_bill_ids_query.all()]
