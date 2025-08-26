@@ -899,18 +899,18 @@ class BillingEngine:
 
                 # 2. 处理特殊情况：合同在同一个月内开始和结束
                 if start.year == end.year and start.month == end.month:
-                    total_days = (end - start).days + 1
+                    total_days = min(30,(end - start).days + 1)
                     management_fee = (daily_management_fee * D(total_days)).quantize(QUANTIZER)
                     management_fee_reason = f"非月签合同(不足一月)按天收取: {total_days}天 = {management_fee:.2f}元"
                 else:
                     # 3. 三段式计算
                     # A. 首月费用
                     days_in_start_month = calendar.monthrange(start.year, start.month)[1]
-                    first_month_days = days_in_start_month - start.day + 1
+                    first_month_days = min(30,days_in_start_month - start.day + 1)
                     first_month_fee = (daily_management_fee *D(first_month_days)).quantize(QUANTIZER)
 
                     # C. 末月费用
-                    last_month_days = end.day
+                    last_month_days = min(30,end.day)
                     last_month_fee = (daily_management_fee * D(last_month_days)).quantize(QUANTIZER)
 
                     # B. 中间完整月份费用
