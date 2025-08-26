@@ -111,7 +111,6 @@ def upgrade():
 
     with op.batch_alter_table('customer_bills', schema=None) as batch_op:
         batch_op.drop_column('is_paid')
-        batch_op.drop_column('total_due')
         batch_op.drop_column('is_deferred')
 
     with op.batch_alter_table('exampapercourse', schema=None) as batch_op:

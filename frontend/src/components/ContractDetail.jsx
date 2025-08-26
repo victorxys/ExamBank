@@ -2,7 +2,7 @@
 // frontend/src/components/ContractDetail.jsx
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   Box, Typography, Paper, Grid, CircularProgress, Button,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Chip,
@@ -116,10 +116,12 @@ const EditableNotesItem = ({ label, originalValue, operationalValue, isEditing, 
 const ContractDetail = () => {
     const { contractId } = useParams();
     const navigate = useNavigate();
+    const { state } = useLocation();
     const [contract, setContract] = useState(null);
     const [bills, setBills] = useState([]);
     const [loading, setLoading] = useState(true);
     const [alert, setAlert] = useState({ open: false, message: '', severity: 'info' });
+    
 
     // --- 修改 1: 迁移状态和逻辑 ---
     const [terminationDialogOpen, setTerminationDialogOpen] = useState(false);
@@ -362,7 +364,7 @@ const ContractDetail = () => {
                     actions={
                         // --- 修改 2: 在 PageHeader 中添加操作按钮 ---
                         <Stack direction="row" spacing={2}>
-                            <Button variant="contained" color="primary" startIcon={<ArrowBackIcon />} onClick={() => navigate('/contracts')}>
+                             <Button variant="contained" color="primary" startIcon={<ArrowBackIcon />} onClick={() => navigate(state?.from?.pathname|| '/contracts/all')}>
                                 返回列表
                             </Button>
                             {contract.status === 'active' && contract.contract_type_value !== 'nanny_trial' && (

@@ -787,18 +787,19 @@ const BillingDashboard = () => {
 
                 {/* Actions */}
                 <Grid item xs={12} md="auto" sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 2 }}>
+                    <TextField label="账单月份" type="month" size="small" value={selectedBillingMonth} onChange={(e) => setSelectedBillingMonth(e.target.value)} InputLabelProps={{ shrink: true }} />
                     {/* 批量结算按钮 */}
                     <Button
                         variant="contained"
-                        color="secondary"
+                        color="success"
                         onClick={() => setBatchSettlementModalOpen(true)}
                         disabled={selected.length === 0}
                     >
                         批量结算 ({selected.length})
                     </Button>
                     
-                  <TextField label="账单月份" type="month" size="small" value={selectedBillingMonth} onChange={(e) => setSelectedBillingMonth(e.target.value)} InputLabelProps={{ shrink: true }} />
-                  <Tooltip title={`计算 ${selectedBillingMonth} 的所有账单`}>
+                  
+                  {/* <Tooltip title={`计算 ${selectedBillingMonth} 的所有账单`}>
                       <span>
                           <Button
                               variant="contained"
@@ -810,7 +811,7 @@ const BillingDashboard = () => {
                               {isPolling ? (pollingTask?.message || '计算中...') : (calculating ? '提交中...' : '计算账单')}
                           </Button>
                       </span>
-                  </Tooltip>
+                  </Tooltip> */}
                 </Grid>
               </Grid>
             }

@@ -1,7 +1,7 @@
 // frontend/src/components/ContractList.jsx (支持排序和默认过滤)
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import {
   Box, Button, Typography, Paper, Table, TableBody, TableCell, TableContainer,
   TableHead, TableRow, TablePagination, CircularProgress, Tooltip, Dialog, DialogTitle,
@@ -34,6 +34,8 @@ const formatDate = (isoString) => {
 const ContractList = () => {
     const theme = useTheme();
     const navigate = useNavigate();
+    const location = useLocation();
+    const { contractType } = useParams(); // 从URL获取合同类型
     const [contracts, setContracts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [alert, setAlert] = useState({ open: false, message: '', severity: 'info' });
@@ -44,7 +46,7 @@ const ContractList = () => {
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
     // --- 核心修正 1：修改默认状态并增加排序 state ---
-    const [filters, setFilters] = useState({ search: '', type: '', status: '' });
+    const [filters, setFilters] = useState({ search: '', type: '', status: 'all' });
     const [sortBy, setSortBy] = useState(null); // 'remaining_days' or null
     const [sortOrder, setSortOrder] = useState('asc'); // 'asc' or 'desc'
 
@@ -55,6 +57,13 @@ const ContractList = () => {
     const [onboardingDialogOpen, setOnboardingDialogOpen] = useState(false);
     const [contractToSetDate, setContractToSetDate] = useState(null);
     const [newOnboardingDate, setNewOnboardingDate] = useState(null);
+
+    // 当URL参数变化时，更新筛选器
+    useEffect(() => {
+        const typeFromUrl = contractType === 'all' ? '' : contractType;
+        setFilters(prev => ({ ...prev, type: typeFromUrl || '' }));
+        setPage(0); // 重置页码
+    }, [contractType]);
 
     const fetchContracts = useCallback(async () => {
         setLoading(true);
@@ -82,8 +91,14 @@ const ContractList = () => {
     }, [fetchContracts]);
 
     const handleFilterChange = (e) => {
-        setPage(0);
-        setFilters(prev => ({ ...prev, [e.target.name]: e.target.value }));
+        const { name, value } = e.target;
+        // 如果用户通过下拉菜单改变类型，我们更新URL
+        if (name === 'type') {
+            navigate(`/contracts/${value || 'all'}`);
+        } else {
+            setPage(0);
+            setFilters(prev => ({ ...prev, [name]: value }));
+        }
     };
 
     // --- 核心修正 3：处理排序的函数 ---
@@ -303,7 +318,7 @@ const ContractList = () => {
                                     <TableCell align="center">
                                         {/* --- 修改 3: 动态渲染操作按钮 --- */}
                                         <Stack direction="column" spacing={1} alignItems="center">
-                                            <Button variant="outlined" size="small" onClick={() => navigate(`/contracts/${contract.id}`)}>查看详情</Button>
+                                            <Button variant="outlined" size="small" onClick={() =>navigate(`/contract/detail/${contract.id}`, { state: { from:location } })}>查看详情</Button>
                                         </Stack>
                                         {/* ----------------------------------------- */}
                                     </TableCell>

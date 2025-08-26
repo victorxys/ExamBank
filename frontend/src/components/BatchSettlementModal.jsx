@@ -66,6 +66,24 @@ const BatchSettlementModal = ({ open, onClose, bills, onSaveSuccess }) => {
     }
   };
 
+  const handleSelectAll = (field, checked) => {
+    setBillData(prevData =>
+      prevData.map(row => {
+        const updatedRow = { ...row, [field]: checked };
+        // 如果勾选“已支付”，则自动填充当天日期
+        if (checked) {
+          if (field === 'customer_is_paid' && !updatedRow.customer_payment_date) {
+            updatedRow.customer_payment_date = new Date();
+          }
+          if (field === 'employee_is_paid' && !updatedRow.employee_payout_date) {
+            updatedRow.employee_payout_date = new Date();
+          }
+        }
+        return updatedRow;
+      })
+    );
+  };
+
   // 保存所有更改
   const handleSave = async () => {
     const payload = {
@@ -88,6 +106,10 @@ const BatchSettlementModal = ({ open, onClose, bills, onSaveSuccess }) => {
     }
   };
 
+  const numBills = billData.length;
+  const numCustomerPaid = billData.filter(b => b.customer_is_paid).length;
+  const numEmployeePaid = billData.filter(b => b.employee_is_paid).length;
+
   return (
     <Dialog open={open} onClose={onClose} maxWidth="xl" fullWidth>
       <DialogTitle>
@@ -102,23 +124,41 @@ const BatchSettlementModal = ({ open, onClose, bills, onSaveSuccess }) => {
             <TableHead>
               <TableRow>
                 <TableCell sx={{minWidth: 150}}>客户 / 员工</TableCell>
-                <TableCell>客户已打款</TableCell>
+                <TableCell>
+                  <Box sx={{ display: 'flex', alignItems:'center' }}>
+                    <Checkbox
+                      indeterminate={numCustomerPaid > 0 &&numCustomerPaid < numBills}
+                      checked={numBills > 0 && numCustomerPaid=== numBills}
+                      onChange={(e) => handleSelectAll('customer_is_paid', e.target.checked)}
+                    />
+                    <Typography variant="body2" sx={{fontWeight: 'bold' }}>客户已打款</Typography>
+                  </Box>
+                </TableCell>
                 <TableCell sx={{minWidth: 220}}>
                   打款日期
-                  <Button size="small" onClick={() => handleCopyToAll('customer_payment_date')}>同上</Button>
+                  <Button size="small" onClick={() =>handleCopyToAll('customer_payment_date')}>同上</Button>
                 </TableCell>
                 <TableCell sx={{minWidth: 180}}>
                   打款渠道/备注
-                  <Button size="small" onClick={() => handleCopyToAll('customer_payment_channel')}>同上</Button>
+                  <Button size="small" onClick={() =>handleCopyToAll('customer_payment_channel')}>同上</Button>
                 </TableCell>
-                <TableCell>员工已领款</TableCell>
+                <TableCell>
+                  <Box sx={{ display: 'flex', alignItems:'center' }}>
+                    <Checkbox
+                      indeterminate={numEmployeePaid > 0 &&numEmployeePaid < numBills}
+                      checked={numBills > 0 && numEmployeePaid=== numBills}
+                      onChange={(e) => handleSelectAll('employee_is_paid', e.target.checked)}
+                    />
+                    <Typography variant="body2" sx={{fontWeight: 'bold' }}>员工已领款</Typography>
+                  </Box>
+                </TableCell>
                 <TableCell sx={{minWidth: 220}}>
                   领款日期
-                  <Button size="small" onClick={() => handleCopyToAll('employee_payout_date')}>同上</Button>
+                  <Button size="small" onClick={() =>handleCopyToAll('employee_payout_date')}>同上</Button>
                 </TableCell>
                 <TableCell sx={{minWidth: 180}}>
                   领款渠道/备注
-                  <Button size="small" onClick={() => handleCopyToAll('employee_payout_channel')}>同上</Button>
+                  <Button size="small" onClick={() =>handleCopyToAll('employee_payout_channel')}>同上</Button>
                 </TableCell>
               </TableRow>
             </TableHead>

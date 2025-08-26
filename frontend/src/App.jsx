@@ -350,9 +350,10 @@ function App() {
           <Route path="/tts/content/:contentId" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}><TrainingContentDetail /></Suspense>} />} />
           <Route path="/my-courses" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <MyCoursesPage /> </Suspense>} />} />
           <Route path="/my-courses/:courseId/resource/:resourceId/play" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <MediaPlayerPage /> </Suspense>} />} />
-          <Route path="/contracts" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <ContractList /> </Suspense>} />} />
-          <Route path="/billing" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <BillingDashboard /> </Suspense>} />} />
-          <Route path="/contracts/:contractId" element={<ContractDetail />} />
+          <Route path="/contracts" element={<PrivateRoute element={<Navigate to="/contracts/all" />} />} />
+          <Route path="/contracts/:contractType" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}><ContractList /></Suspense>} />} />
+          <Route path="/billing" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}><BillingDashboard /></Suspense>} />} />
+          <Route path="/contract/detail/:contractId" element={<ContractDetail />} />
           <Route path="/tools/conflict-checker" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}><ConflictCheckerPage /></Suspense>} />} />
 
         </Route>

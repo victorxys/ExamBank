@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Box, Button, Typography, Paper, Grid, Dialog, DialogTitle, DialogContent, 
   DialogActions, Divider, CircularProgress, Tooltip, IconButton, List, ListItem, 
-  ListItemIcon, ListItemText, ListItemSecondaryAction, Alert, Switch, TextField,
+  ListItemIcon, ListItemText, ListItemSecondaryAction, Alert, Switch, TextField, 
   FormControlLabel, Chip, TableContainer, Table, TableHead, TableRow, TableCell, TableBody, TableFooter
 } from '@mui/material';
 import { 
@@ -580,7 +580,15 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
             setAlert({ open: true, message: errorMessage, severity: 'error' });
         }
     };
-
+    const contractInfo = billingDetails?.contract_info;
+    const infoTooltip = contractInfo ? (
+        <React.Fragment>
+            <Typography color="inherit" sx={{ mb: 0.5 }}><b>类型:</b> {contractInfo.contract_type_label}</Typography>
+            <Typography color="inherit" sx={{ mb: 0.5 }}><b>周期:</b> {contractInfo.start_date} ~ {contractInfo.end_date}</Typography>
+            <Typography color="inherit" sx={{ mb: 0.5 }}><b>备注:</b> {contractInfo.notes || '无'}</Typography>
+            <Typography color="inherit"><b>有效期:</b>{contractInfo.remaining_months}</Typography>
+        </React.Fragment>
+    ) : '加载合同信息...';
     const renderCardContent = (data, isCustomer, billingDetails) => {
         if (!data || !data.groups) return null;
         const isSubstituteBill = data.calculation_details?.type === 'substitute';
@@ -1232,8 +1240,18 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                 scroll="paper"
             >
                 <DialogTitle variant="h5" sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Box>
-                        财务管理 - {contract?.customer_name} ({contract?.employee_name} / {billingMonth})
+                     <Box sx={{ display: 'flex', alignItems:'center', gap: 2 }}>
+                        <Box>
+                            财务管理 - {contract?.customer_name} ({contract?.employee_name} / {billingMonth})
+                        </Box>
+                        <Box sx={{ display: 'flex', alignItems: 'center', borderLeft: 1, borderColor: 'divider', pl: 2 }}>
+                            <Typography variant="subtitle1"color="text.secondary">合同简介</Typography>
+                            <Tooltip title={infoTooltip}>
+                                <IconButton size="small" sx={{ml: 0.5 }}>
+                                    <InfoIcon fontSize="small"/>
+                                </IconButton>
+                            </Tooltip>
+                        </Box>
                     </Box>
                     <Box sx={{ display: 'flex', alignItems: 'center' }}>
                         {/* --- Gemini-generated code: Start --- */}
