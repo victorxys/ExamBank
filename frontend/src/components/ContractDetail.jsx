@@ -7,7 +7,7 @@ import {
   Box, Typography, Paper, Grid, CircularProgress, Button,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Chip,
   List, ListItem, ListItemText, Divider, Dialog, DialogTitle, DialogContent,
-  DialogActions, Alert, Stack, IconButton, TextField, InputAdornment
+  DialogActions, Alert, Stack, IconButton, TextField, InputAdornment, Switch
 } from '@mui/material';
 import {
     ArrowBack as ArrowBackIcon, Edit as EditIcon, CheckCircle as CheckCircleIcon,
@@ -235,6 +235,29 @@ const ContractDetail = () => {
         }
     };
 
+    const handleAutoRenewChange = async (event) => {
+        const isEnabling = event.target.checked;
+
+        if (isEnabling) {
+            // 场景一：开启自动续签
+            if (window.confirm("确定要为此合同开启自动续签吗？系统将自动为您延展未来的账单。")) {
+                try {
+                    setLoading(true); // 开始加载
+                    await api.post(`/billing/contracts/${contract.id}/enable-auto-renew`);
+                    setAlert({ open: true, message: '自动续签已成功开启！', severity: 'success' });
+                    await fetchData(); // 重新获取所有数据以刷新页面
+                } catch (error) {
+                    setAlert({ open: true, message: `操作失败: ${error.response?.data?.error || error.message}`,severity: 'error' });
+                } finally {
+                    setLoading(false); // 结束加载
+                }
+            }
+        } else {
+            // 场景二：关闭自动续签，复用已有的终止合同弹窗
+            handleOpenTerminationDialog();
+        }
+    };
+
     const handleOpenBillModal = async (bill) => {
         setModalOpen(true);
         setLoadingModal(true);
@@ -313,8 +336,20 @@ const ContractDetail = () => {
         '合同类型': '育儿嫂合同',
         '级别/月薪': `¥${formatCurrency(contract.employee_level)}`,
         '管理费': `¥${formatCurrency(contract.management_fee_amount)}`,
-        '是否自动月签': contract.is_monthly_auto_renew ? '是' : '否',
+        // '是否自动月签': contract.is_monthly_auto_renew ? '是' : '否',
     };
+
+    const autoRenewField = (contract.contract_type_value === 'nanny') ? (
+        <Grid item xs={12} sm={6} md={4}>
+            <Typography variant="body2" color="text.secondary" gutterBottom>是否自动月签</Typography>
+            <Switch
+                checked={contract.is_monthly_auto_renew || false}
+                onChange={handleAutoRenewChange}
+                disabled={contract.status !== 'active'}
+                color="primary"
+            />
+        </Grid>
+    ) : null;
 
     const introFeeField = (['nanny', 'nanny_trial'].includes(contract.contract_type_value)) ? (
         <EditableDetailItem
@@ -395,6 +430,7 @@ const ContractDetail = () => {
                             <Grid container spacing={3}>
                                 {Object.entries(baseFields).map(([label, value]) => <DetailItem key={label} label={label} value={value} />)}
                                 {Object.entries(specificFields).map(([label, value]) => <DetailItem key={label} label={label} value={value} />)}
+                                {autoRenewField}
                                 {introFeeField}
                                 {notesField}
                             </Grid>

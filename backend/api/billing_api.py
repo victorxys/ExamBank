@@ -475,39 +475,6 @@ def _get_details_template(contract, cycle_start, cycle_end):
     return {"id": None, "groups": customer_groups}, {"id": None, "groups":employee_groups}
 
 
-# def _fill_payment_status(details, payment_data, is_paid, is_customer):
-#     payment = payment_data or {}
-#     status_dict = {}
-
-#     if is_customer:
-#         # --- 客户账单 ---
-#         invoice_needed = payment.get('invoice_needed', False)
-
-#         # 核心修正：根据是否存在发票信息来动态决定 issued 状态
-#         invoice_amount = payment.get('invoice_amount')
-#         invoice_number = payment.get('invoice_number')
-#         # 只要有金额或号码，就认为“已开票”这个动作发生了
-#         invoice_issued = bool(invoice_amount or invoice_number)
-
-#         status_dict['customer_is_paid'] = is_paid
-#         status_dict['customer_payment_date'] = payment.get('payment_date')
-#         status_dict['customer_payment_channel'] = payment.get('payment_channel')
-#         status_dict['invoice_needed'] = invoice_needed
-#         status_dict['invoice_issued'] = invoice_issued # 使用我们动态计算的值
-
-#         status_dict['是否打款'] = '是' if is_paid else '否'
-#         status_dict['打款时间及渠道'] = f"{payment.get('payment_date', '') or '—'} / {payment.get('payment_channel', '') or '—'}"if is_paid else "—"
-#         status_dict['发票记录'] = '无需开票' if not invoice_needed else ('已开票' if invoice_issued else '待开票')
-#     else:
-#         # --- 员工薪酬 (保持不变) ---
-#         status_dict['employee_is_paid'] = is_paid
-#         status_dict['employee_payout_date'] = payment.get('date')
-#         status_dict['employee_payout_channel'] = payment.get('channel')
-#         status_dict['是否领款'] = '是' if is_paid else '否'
-#         status_dict['领款时间及渠道'] = f"{payment.get('date', '') or '—'} / {payment.get('channel', '') or '—'}" if is_paid else"—"
-
-#     details['payment_status'] = status_dict
-
 def _fill_group_fields(group_fields, calc, field_keys, is_substitute_payroll=False):
     for key in field_keys:
         if key in calc:
@@ -3727,3 +3694,84 @@ def _handle_image_upload(file_storage):
 
         # 返回用于存入数据库的URL路径
         return f"/uploads/financial_records/{unique_filename}"
+
+@billing_bp.route("/contracts/<string:contract_id>/enable-auto-renew", methods=["POST", "OPTIONS"])
+@admin_required
+def enable_auto_renewal(contract_id):
+    """
+    为指定的育儿嫂合同开启自动续签，并触发账单延展。
+    """
+    # 使用 with_for_update 锁定合同记录，防止并发操作
+    contract = db.session.query(NannyContract).filter_by(id=str(contract_id)).with_for_update().first()
+
+    if not contract:
+        return jsonify({"error": "育儿嫂合同未找到"}), 404
+
+    if contract.status != 'active':
+        return jsonify({"error": f"只有'服务中'的合同才能开启自动续签，当前状态为: {contract.status}"}), 400
+
+    if contract.is_monthly_auto_renew:
+        return jsonify({"message": "该合同已处于自动续签状态，无需重复操作。"}), 200
+
+    try:
+        # --- 新增逻辑：查找并冲抵可能存在的保证金退款 ---
+        last_bill = db.session.query(CustomerBill).filter(
+            CustomerBill.contract_id == str(contract_id)
+        ).order_by(CustomerBill.cycle_end_date.desc()).first()
+
+        if last_bill:
+            # 【核心修正】直接查询与该账单关联的财务调整项
+            adjustments_for_bill = FinancialAdjustment.query.filter_by(customer_bill_id=last_bill.id).all()
+
+            # 查找保证金退款调整项
+            deposit_refund_adj = None
+            for adj in adjustments_for_bill:
+                if adj.adjustment_type == AdjustmentType.CUSTOMER_DECREASE and '保证金' in adj.description:
+                    deposit_refund_adj = adj
+                    break
+
+            if deposit_refund_adj:
+                current_app.logger.info(f"为合同 {contract.id} 找到了待冲抵的保证金退款项: {deposit_refund_adj.id}")
+                # 创建一个新的、相反的冲抵调整项
+                offsetting_adj = FinancialAdjustment(
+                    customer_bill_id=last_bill.id,
+                    adjustment_type=AdjustmentType.CUSTOMER_INCREASE,
+                    amount=deposit_refund_adj.amount,
+                    description="改为月签合同在合同终止时退还",
+                    date=last_bill.cycle_end_date.date()
+                )
+                db.session.add(offsetting_adj)
+                current_app.logger.info(f"已为账单 {last_bill.id} 添加保证金冲抵项。")
+
+                # --- 新增：立即重算当期账单 ---
+                current_app.logger.info(f"冲抵调整已添加，正在为账单 {last_bill.id} 触发重算...")
+                recalc_engine = BillingEngine()
+                recalc_engine.calculate_for_month(
+                    year=last_bill.year,
+                    month=last_bill.month,
+                    contract_id=last_bill.contract_id,
+                    force_recalculate=True,
+                    cycle_start_date_override=last_bill.cycle_start_date
+                )
+                current_app.logger.info(f"账单 {last_bill.id} 已重算。")
+                # --- 新增结束 ---
+        # --- 新增逻辑结束 ---
+
+        # 1. 更新合同状态 (已有逻辑)
+        contract.is_monthly_auto_renew = True
+        current_app.logger.info(f"合同 {contract.id} 已被设置为自动续约。")
+
+        # 2. 调用引擎延展账单 (已有逻辑)
+        engine = BillingEngine()
+        engine.extend_auto_renew_bills(contract.id)
+        current_app.logger.info(f"已为合同 {contract.id} 触发账单自动延展。")
+
+        # 3. 提交事务 (已有逻辑)
+        db.session.commit()
+
+        return jsonify({"message": "合同已成功设置为自动续签，并已延展账单。"})
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"开启合同 {contract_id} 自动续签失败: {e}", exc_info=True)
+        return jsonify({"error": "处理失败，服务器内部错误"}), 500
