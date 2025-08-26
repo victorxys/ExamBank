@@ -1272,7 +1272,7 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
 
                         <Button
                             component="a"
-                            href={`/contracts/${contract?.contract_id}`}
+                            href={`/contract/detail/${contract?.contract_id}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             startIcon={<ArticleOutlinedIcon />}
