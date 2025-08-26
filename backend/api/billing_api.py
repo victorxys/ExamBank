@@ -685,8 +685,11 @@ def get_bills():
             query = query.filter(
                 db.or_(
                     contract_poly.customer_name.ilike(f"%{search_term}%"),
+                    contract_poly.customer_name_pinyin.ilike(f"%{search_term}%"),
                     User.username.ilike(f"%{search_term}%"),
+                    User.name_pinyin.ilike(f"%{search_term}%"),
                     ServicePersonnel.name.ilike(f"%{search_term}%"),
+                    ServicePersonnel.name_pinyin.ilike(f"%{search_term}%"),
                 )
             )
 
