@@ -1890,8 +1890,8 @@ class BillingEngine:
             - D(details.get("substitute_deduction", 0))  # 扣除替班费用
         )
 
-        bill.total_due = total_due.quantize(D("0.01"))
-        payroll.total_due = final_payout.quantize(D("0.01"))
+        bill.total_due = total_due.quantize(D("1"))
+        payroll.total_due = final_payout.quantize(D("1"))
 
         details["total_due"] = str(bill.total_due)
         details["final_payout"] = str(payroll.total_due)
@@ -2187,6 +2187,7 @@ class BillingEngine:
 
         # --- 以下是主账单的正常逻辑 ---
         current_management_fee = D((target_bill.calculation_details or {}).get('management_fee', '0'))
+        current_management_fee = current_management_fee.quantize(D("1"))
 
         historical_bills = (
             CustomerBill.query.filter(
@@ -2228,11 +2229,14 @@ class BillingEngine:
         should_be_needed = target_bill.invoice_needed or (total_carried_forward > 0)
 
         if should_be_needed:
-            total_invoiceable_amount = (current_management_fee + total_carried_forward).quantize(D("0.01"))
+            # 本月应开票（含历史欠票）
+            # total_invoiceable_amount = (current_management_fee + total_carried_forward).quantize(D("0.01"))
+            # 不含历史欠票
+            total_invoiceable_amount = current_management_fee.quantize(D("1"))
         else:
             total_invoiceable_amount = D(0)
 
-        remaining_un_invoiced = (total_invoiceable_amount - invoiced_this_period).quantize(D("0.01"))
+        remaining_un_invoiced = (total_carried_forward + total_invoiceable_amount).quantize(D("0.01"))
         invoice_records_data = [inv.to_dict() for inv in target_bill.invoices]
 
         return {

@@ -7,10 +7,10 @@ import {
   IconButton, Divider, Tooltip
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
-import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, Save as SaveIcon, Cancel as CancelIcon } from '@mui/icons-material';
+import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, Save as SaveIcon, Cancel as CancelIcon, Info as InfoIcon } from '@mui/icons-material';
 import { v4 as uuidv4 } from 'uuid';
 
-const InvoiceDetailsDialog = ({ open, onClose, onSave, invoices: initialInvoices = [] }) => {
+const InvoiceDetailsDialog = ({ open, onClose, onSave, invoices: initialInvoices = [],invoiceBalance }) => {
     const [invoices, setInvoices] = useState([]);
     const [isEditing, setIsEditing] = useState(false);
     const [currentItem, setCurrentItem] = useState(null);
@@ -21,8 +21,67 @@ const InvoiceDetailsDialog = ({ open, onClose, onSave, invoices: initialInvoices
         }
     }, [initialInvoices, open]);
 
+    const renderBalanceInfo = () => {
+        if (!invoiceBalance) return null;
+
+        const handleAmountClick = (amount) => {
+            if (isEditing && currentItem) {
+                const numericAmount = parseFloat(amount);
+                if (!isNaN(numericAmount)) {
+                    setCurrentItem(prev => ({ ...prev, amount: numericAmount.toFixed(2) }));
+                }
+            }
+        };
+
+        const balanceItems = [
+            { label: '本期应开', value: invoiceBalance.total_invoiceable_amount },
+            { label: '历史欠票', value: invoiceBalance.total_carried_forward, details:invoiceBalance.carried_forward_breakdown },
+            { label: '总计待开', value: invoiceBalance.remaining_un_invoiced, isBold: true },
+        ];
+
+        return (
+            <Box sx={{ p: 2, mb: 2, border: '1px solid', borderColor: 'divider', borderRadius: 1,bgcolor: 'grey.50' }}>
+                <Grid container spacing={1} alignItems="center">
+                    {balanceItems.map(({ label, value, details, isBold }) => (
+                        <Grid item xs={4} key={label}>
+                            <Typography variant="caption" color="text.secondary">{label}</Typography>
+                            <Typography
+                                variant="body1"
+                                sx={{
+                                    fontWeight: isBold ? 'bold' : 500,
+                                    color: isBold ? 'error.main' : 'text.primary',
+                                    cursor: isEditing ? 'pointer' : 'default',
+                                    '&:hover': { color: isEditing ? 'primary.main' : 'inherit' }
+                                }}
+                                onClick={() => handleAmountClick(value)}
+                            >
+                                ¥{parseFloat(value || 0).toFixed(2)}
+                                {details && details.length > 0 && (
+                                    <Tooltip
+                                        arrow
+                                        title={
+                                            <React.Fragment>
+                                                <Typography variant="caption" sx={{ fontWeight:'bold', color: 'common.white', display: 'block', mb: 1 }}>历史欠票明细</Typography>
+                                                {details.map((item, index) => (
+                                                    <Typography key={index} variant="body2" sx={{fontFamily: 'monospace', color: 'grey.200' }}>{item.month}月: ¥{item.unpaid_amount}</Typography>
+                                                ))}
+                                            </React.Fragment>
+                                        }
+                                    >
+                                        <InfoIcon sx={{ fontSize: '1rem', color: 'action.active',ml: 0.5, verticalAlign: 'middle', cursor: 'help' }} />
+                                    </Tooltip>
+                                )}
+                            </Typography>
+                        </Grid>
+                    ))}
+                </Grid>
+            </Box>
+        );
+    };
+
     const handleAddNew = () => {
-        setCurrentItem({ listId: uuidv4(), invoice_number: '', amount: '', issue_date: new Date(), notes: '' });
+        const defaultAmount = parseFloat(invoiceBalance?.remaining_un_invoiced || 0).toFixed(2);
+        setCurrentItem({ listId: uuidv4(), invoice_number: '', amount: defaultAmount, issue_date:new Date(), notes: '' });
         setIsEditing(true);
     };
 
@@ -92,6 +151,7 @@ const InvoiceDetailsDialog = ({ open, onClose, onSave, invoices: initialInvoices
         <>
             <DialogTitle>管理发票记录</DialogTitle>
             <DialogContent>
+                {renderBalanceInfo()}
                 <List>
                     {invoices.length === 0 ? (
                         <Typography color="text.secondary" align="center" sx={{ p: 2 }}>暂无发票记录</Typography>

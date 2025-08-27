@@ -1353,6 +1353,13 @@ def batch_update_billing_details():
 
         # --- 6. 返回最新数据 ---
         latest_details = _get_billing_details_internal(bill_id=bill.id)
+ 
+        # 【核心修复】手动为返回的数据附加最新的发票余额信息
+        if latest_details:
+            engine = BillingEngine()
+            invoice_balance = engine.calculate_invoice_balance(bill.id)
+            latest_details["invoice_balance"] = invoice_balance
+
         return jsonify({"message": "账单已更新并成功重算！", "latest_details": latest_details})
 
     except Exception as e:

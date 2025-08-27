@@ -127,6 +127,9 @@ const getTooltipContent = (fieldName, billingDetails, isCustomer) => {
         '基础劳务费': '基础劳务费',
         '试工费': '试工费',
         '加班费': '加班费',
+        '延长服务天数': 'extension_days_reason',
+        '延长期服务费': 'extension_fee_reason',
+        '延长期管理费': 'extension_manage_fee_reason',
         '本次交管理费': 'management_fee_reason',
         '被替班费用': '被替班扣款',
         '客应付款': '客应付款',
@@ -137,9 +140,7 @@ const getTooltipContent = (fieldName, billingDetails, isCustomer) => {
         '首月员工10%费用': '首月员工10%费用',
         '加班工资': '加班费',
         '实际劳务天数': 'base_work_days_reason',
-        '延长服务天数': 'extension_days_reason',
-        '延长期服务费': 'extension_fee_reason',
-        '延长期管理费': 'extension_manage_fee_reason',
+       
     };
 
     const logKey = fieldToLogKeyMap[fieldName];
@@ -444,6 +445,36 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
     const handleDeleteAdjustment = (id) => {
         setAdjustments(prev => prev.filter(a => a.id !== id));
     };
+    const handleInvoiceNeededChange = (event) => {
+        const checked = event.target.checked;
+        setBillingDetails(prev => {
+            const newDetails = { ...prev, invoice_needed: checked };
+
+            // --- 新增：前端即时响应计算 ---
+            if (newDetails.invoice_balance) {
+                const balance = newDetails.invoice_balance;
+                const currentCharges = parseFloat(balance.current_period_charges || 0);
+                const carriedForward = parseFloat(balance.total_carried_forward || 0);
+
+                // 根据新的开关状态，重新计算总应开票额
+                const totalInvoiceable = checked ? (currentCharges + carriedForward) : 0;
+
+                // 重新计算总计待开金额
+                const invoicedThisPeriod = parseFloat(balance.invoiced_this_period || 0);
+                const remainingUninvoiced = totalInvoiceable - invoicedThisPeriod;
+
+                // 更新 balance 对象
+                newDetails.invoice_balance = {
+                    ...balance,
+                    total_invoiceable_amount: totalInvoiceable.toFixed(2),
+                    remaining_un_invoiced: remainingUninvoiced.toFixed(2)
+                };
+            }
+            // --- 计算结束 ---
+
+            return newDetails;
+        });
+    };
     // const handleSettlementChange = (event) => {
     //     const { name, value, checked, type } = event.target;
     //     setEditableSettlement(prev => ({
@@ -637,7 +668,7 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
         const fieldOrder = {
             "级别与保证金": ["级别", "客交保证金", "定金", "介绍费", "管理费", "合同备注"],
             "劳务周期": ["劳务时间段", "基本劳务天数","延长服务天数", "加班天数", "被替班天数", "总劳务天数"],
-            "费用明细": ["管理费率", "本次交管理费", "基础劳务费", "延长期服务费", "延长期管理费", "试工费", "加班费", "被替班费用", "优惠"],
+            "费用明细": ["管理费率", "延长期管理费", "本次交管理费", "基础劳务费", "试工费", "加班费", "被替班费用", "优惠"],
             "薪酬明细": ["级别", "萌嫂保证金(工资)", "试工费", "基础劳务费", "加班费", "被替班天数", "延长期服务费", "被替班费用", "5%奖励", "首月员工10%费用"],
         };
 
@@ -1069,7 +1100,6 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                         </Grid>
                     </Grid>
                 </Box>
-
                 {/* --- 收款记录模块 (仅客户) --- */}
                 {isCustomer && (
                     <Box sx={{ mt: 2 }}>
@@ -1307,6 +1337,92 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                                     {renderCardContent(employeeData, false, billingDetails)}
                                 </Paper>
                             </Grid>
+                                                    {/* --- 发票管理模块 (最终修正版) --- */}
+                            {billingDetails?.customer_bill_details && (
+                                <Grid item xs={12}>
+                                    <Paper sx={{ p: 3, borderRadius: 2, boxShadow: 1 }}>
+                                        <Typography variant="h3" gutterBottom>发票管理</Typography>
+                                        <Box sx={{
+                                            border: '1px dashed',
+                                            borderColor: 'divider',
+                                            borderRadius: 1,
+                                            p: 1.5,
+                                            mt: 2
+                                        }}>
+                                            <Grid container spacing={2} alignItems="center"justifyContent="space-between">
+                                                <Grid item>
+                                                    <FormControlLabel
+                                                        control={
+                                                            <Switch
+                                                                checked={billingDetails?.invoice_needed || false}
+                                                                onChange={handleInvoiceNeededChange}
+                                                                disabled={!isEditMode}
+                                                            />
+                                                        }
+                                                        label="需要开具发票"
+                                                    />
+                                                </Grid>
+                                                <Grid item>
+                                                    <Button
+                                                        variant="outlined"
+                                                        size="small"
+                                                        startIcon={<ReceiptLongIcon />}
+                                                        onClick={handleOpenInvoiceDialog}
+                                                        disabled={!billingDetails?.invoice_needed}
+                                                    >
+                                                        管理发票记录 ({editableInvoices.length}条)
+                                                    </Button>
+                                                </Grid>
+                                            </Grid>
+
+                                            {billingDetails?.invoice_needed && billingDetails?.invoice_balance && (
+                                                <Box sx={{ mt: 2, pt: 2, borderTop: 1,borderColor: 'divider' }}>
+                                                    <Grid container spacing={1.5} alignItems="center">
+                                                        <Grid item xs={12} md={7}>
+                                                            <Typography variant="body2" color="text.secondary">
+                                                                本期应开: <Typography component="span" sx={{ fontFamily: 'monospace', fontWeight: 500 }}>{formatValue('',billingDetails.invoice_balance.total_invoiceable_amount)}</Typography>
+                                                                {' / '}
+                                                                本期已开: <Typography component="span" sx={{ fontFamily: 'monospace', fontWeight: 500 }}>{formatValue('',billingDetails.invoice_balance.invoiced_this_period)}</Typography>
+                                                            </Typography>
+                                                        </Grid>
+                                                        <Grid item xs={12} md={5} sx={{ display:'flex', justifyContent: { md: 'flex-end' }, alignItems: 'center' }}>
+                                                            <Typography variant="body2" color="text.secondary">
+                                                                历史欠票:
+                                                                <Typography component="span"sx={{ fontFamily: 'monospace', fontWeight: 500, ml: 0.5 }}>
+                                                                    {formatValue('',billingDetails.invoice_balance.total_carried_forward)}
+                                                                </Typography>
+                                                                {billingDetails.invoice_balance.carried_forward_breakdown && billingDetails.invoice_balance.carried_forward_breakdown.length > 0&& (
+                                                                    <Tooltip
+                                                                        arrow
+                                                                        title={
+                                                                            <React.Fragment>
+                                                                                <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'common.white', display: 'block', mb: 1}}>历史欠票明细</Typography>
+                                                                                {billingDetails.invoice_balance.carried_forward_breakdown.map((item, index) => (
+                                                                                    <Typography key={index} variant="body2" sx={{ fontFamily: 'monospace', color: 'grey.200' }}>{item.month}月:¥{item.unpaid_amount}</Typography>
+                                                                                ))}
+                                                                            </React.Fragment>
+                                                                        }
+                                                                    >
+                                                                        <InfoIcon sx={{ fontSize:'1rem', color: 'action.active', ml: 0.5, cursor: 'help', verticalAlign: 'middle' }} />
+                                                                    </Tooltip>
+                                                                )}
+                                                                {' / '}
+                                                                <Typography component="span"color="error.dark" sx={{ fontWeight: 'bold' }}>
+                                                                    总计待开:
+                                                                    <Typography component="span"sx={{ fontFamily: 'monospace', ml: 0.5 }}>
+                                                                        {formatValue('',billingDetails.invoice_balance.remaining_un_invoiced)}
+                                                                    </Typography>
+                                                                </Typography>
+                                                            </Typography>
+                                                        </Grid>
+                                                    </Grid>
+                                                </Box>
+                                            )}
+                                        </Box>
+                                    </Paper>
+                                </Grid>
+                            )}
+                            {/* --- 发票管理模块结束 --- */}
                             {!billingDetails?.is_substitute_bill && (
                                 <Grid item xs={12}>
                                     <Paper sx={{ p: 3, borderRadius: 2, boxShadow: 1 }}>
@@ -1366,6 +1482,7 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                 onClose={() => setIsInvoiceDialogOpen(false)}
                 onSave={setEditableInvoices}
                 invoices={editableInvoices}
+                invoiceBalance={billingDetails?.invoice_balance}
             />
             <Dialog open={isCycleEditDialogOpen} onClose={handleCloseCycleEditDialog} maxWidth="xs" fullWidth>
                 <DialogTitle>修改并顺延服务周期</DialogTitle>
