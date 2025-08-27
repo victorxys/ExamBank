@@ -756,17 +756,38 @@ def get_bills():
 
             invoice_balance = engine.calculate_invoice_balance(str(bill.id))
 
+            # --- 新增逻辑：查询员工应缴款 ---
+            employee_payable_amount = D(0)
+            employee_payable_is_settled = True # 如果没有应缴款，默认为已结清
+            if payroll:
+                payable_adjustments = FinancialAdjustment.query.filter_by(
+                    employee_payroll_id=payroll.id,
+                    adjustment_type=AdjustmentType.EMPLOYEE_DECREASE
+                ).all()
+
+                if payable_adjustments:
+                    total_payable = sum(adj.amount for adj in payable_adjustments)
+                    employee_payable_amount = total_payable
+                    # 只有当所有应缴款都结清时，总状态才算“已缴纳”
+                    employee_payable_is_settled = all(adj.is_settled for adj in payable_adjustments)
+            # --- 新增逻辑结束 ---
+
             item = {
                 "id": str(bill.id),
                 "contract_id": str(contract.id),
                 "customer_name": contract.customer_name,
                 "status": contract.status,
-                "customer_payable": str(bill.total_due), # <-- 修改
-                "customer_is_paid": bill.payment_status == PaymentStatus.PAID, # <-- 修改
-                "is_deferred": False, # <-- 旧字段，暂时硬编码为False
+                "customer_payable": str(bill.total_due),
+                "customer_is_paid": bill.payment_status == PaymentStatus.PAID,
+                "is_deferred": False,
                 "employee_payout": str(payroll.total_due) if payroll else "待计算",
                 "employee_is_paid": payroll.payout_status == PayoutStatus.PAID if payroll else False,
-                
+
+                # --- 新增字段 ---
+                "employee_payable_amount": str(employee_payable_amount),
+                "employee_payable_is_settled": employee_payable_is_settled,
+                # --- 新增结束 ---
+
                 "is_substitute_bill": bill.is_substitute_bill,
                 "contract_type_label": get_contract_type_details(contract.type),
                 "is_monthly_auto_renew": getattr(contract, 'is_monthly_auto_renew', False),
@@ -775,8 +796,7 @@ def get_bills():
                 "active_cycle_start": bill.cycle_start_date.isoformat() if bill.cycle_start_date else None,
                 "active_cycle_end": bill.cycle_end_date.isoformat() if bill.cycle_end_date else None,
                 "invoice_needed": invoice_balance.get("auto_invoice_needed", False),
-                "remaining_invoice_amount": str(invoice_balance.get("remaining_un_invoiced", "0.00")),
-                # 【V2 新增】返回新的支付状态文本
+                "remaining_invoice_amount": str(invoice_balance.get("remaining_un_invoiced","0.00")),
                 "payment_status_label": status_map.get(bill.payment_status, "未知"),
                 "payout_status_label": payout_status_map.get(payroll.payout_status, "未知") if payroll else "未知",
             }

@@ -964,6 +964,21 @@ const BillingDashboard = () => {
                                         {bill.employee_is_paid === false && <HighlightOffIcon color="disabled" fontSize="small" />}
                                     </Box>
                                 </Tooltip>
+                                                                {/* --- 新增：员工应缴款 --- */}
+                                {bill.employee_payable_amount && parseFloat(bill.employee_payable_amount) > 0 && (
+                                    <Tooltip title="员工应缴款 / 缴纳状态">
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1}}>
+                                            <Typography sx={{ fontWeight: 'bold', color:'warning.dark', width: '100px' }}>
+                                                缴: {`¥${bill.employee_payable_amount}`}
+                                            </Typography>
+                                            {bill.employee_payable_is_settled
+                                                ? <CheckCircleIcon color="success" fontSize="small" />
+                                                : <HighlightOffIcon color="disabled" fontSize="small" />
+                                            }
+                                        </Box>
+                                    </Tooltip>
+                                )}
+                                {/* --- 新增结束 --- */}
 
                                 {/* 【核心修改】欠票信息行 */}
                                 {bill.invoice_needed && parseFloat(bill.remaining_invoice_amount) > 0 && (
