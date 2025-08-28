@@ -535,15 +535,15 @@ class TrainingContent(db.Model):
         "User", backref=backref("uploaded_training_contents", lazy="dynamic")
     )
 
-    oral_prompt = db.relationship(
+    llm_oral_prompt = db.relationship(
         "LlmPrompt",
         foreign_keys=[llm_oral_prompt_id],
-        back_populates="training_contents_where_oral_prompt",
+        back_populates="training_contents_where_llm_oral_prompt",
     )
-    refine_prompt = db.relationship(
+    llm_refine_prompt = db.relationship(
         "LlmPrompt",
         foreign_keys=[llm_refine_prompt_id],
-        back_populates="training_contents_where_refine_prompt",
+        back_populates="training_contents_where_llm_refine_prompt",
     )
 
     tts_scripts = db.relationship(
@@ -1266,17 +1266,17 @@ class LlmPrompt(db.Model):
         "LlmCallLog", backref="llm_prompt_log_ref", lazy="dynamic"
     )
 
-    training_contents_where_oral_prompt = db.relationship(
+    training_contents_where_llm_oral_prompt = db.relationship(
         "TrainingContent",
         foreign_keys=[TrainingContent.llm_oral_prompt_id],
-        back_populates="oral_prompt",
+        back_populates="llm_oral_prompt",
         lazy="dynamic",
     )
 
-    training_contents_where_refine_prompt = db.relationship(
+    training_contents_where_llm_refine_prompt = db.relationship(
         "TrainingContent",
         foreign_keys=[TrainingContent.llm_refine_prompt_id],
-        back_populates="refine_prompt",
+        back_populates="llm_refine_prompt",
         lazy="dynamic",
     )
 

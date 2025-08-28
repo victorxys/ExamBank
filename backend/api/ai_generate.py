@@ -61,7 +61,6 @@ def _convert_to_wav_gemini(audio_data: bytes, mime_type: str) -> bytes:
     )
     return header + audio_data
 
-
 def _parse_audio_mime_type_gemini(mime_type: str) -> dict[str, int | None]:
     bits_per_sample = 16
     rate = 24000
@@ -445,7 +444,7 @@ def transform_text_with_llm(
         # --- 准备完整的日志输入数据 ---
         log_input_data_for_db = {
             "input_text_length": len(input_text),
-            "input_text_preview": input_text[:300] + "..."
+            "input_text_preview": input_text[:300] + "..." 
             if len(input_text) > 300
             else input_text,
             "reference_text_length": len(reference_text) if reference_text else 0,
@@ -490,12 +489,32 @@ def transform_text_with_llm(
                 current_app.logger.info(
                     f"Calling LLM ({prompt_identifier}, attempt {attempt + 1}) with model: {model_to_use_identifier}"
                 )
+                # ++++++++++++++++ 调试日志：打印所有要发送的参数 +++++++++++++++-
+                try:
+                    # 为了日志记录，将Content对象转换为字典列表
+                    contents_for_log = [
+                        {"role": c.role, "parts": [p.text for p in c.parts]}
+                        for c in contents
+                    ]
+                    # current_app.logger.info(f"--- LLM Call Parameters ---")
+                    # current_app.logger.info(f"Model: {model_to_use_identifier}")
+                    # current_app.logger.info(f"System Instruction: {system_instruction_text}")
+                    # current_app.logger.info(f"Contents: {json.dumps(contents_for_log, ensure_ascii=False, indent=2)}")
+                    # current_app.logger.info(f"Generation Config: {generation_config_obj}")
+                    # current_app.logger.info(f"--------------------------")
+                except Exception as log_e:
+                    current_app.logger.error(f"Error printing debug logs: {log_e}")
+                # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
                 stream_response = client.models.generate_content_stream(
                     model=model_to_use_identifier,
                     contents=contents,
                     config=generation_config_obj,
                 )
                 for chunk in stream_response:
+                    # ++++++++++++++++ 调试日志：打印返回的每一个数据块 +++++++++++++++-
+                    # current_app.logger.info(f"Received chunk: {chunk}")
+                    # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
                     if hasattr(chunk, "text") and chunk.text:
                         response_text += chunk.text
 
@@ -710,8 +729,8 @@ def generate_video_script(
             raise Exception(prompt_error)
 
         model_to_use_identifier = (
-            active_prompt.model_identifier or "gemini-1.5-pro-latest"
-        )  # 之前是2.5，建议用标准名
+            active_prompt.model_identifier or "gemini-1.5-pro-latest"  # 之前是2.5，建议用标准名
+        )
         api_key, api_key_name_for_log, llm_model_for_log, config_error = (
             get_active_llm_config_internal(
                 "generate_video_script", model_to_use_identifier
@@ -1056,7 +1075,6 @@ def generate_audio_with_gemini_tts(
             f"Gemini TTS (Manual Client): Request failed: {e}", exc_info=True
         )
         raise
-
 
 def _convert_pcm_to_wav_bytes(pcm_data: bytes, sample_rate: int = 24000) -> bytes:
     """一个辅助函数，将原始的L16
