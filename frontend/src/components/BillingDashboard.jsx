@@ -32,9 +32,10 @@ import { useTheme, alpha } from '@mui/material/styles';
 import api from '../api/axios';
 import PageHeader from './PageHeader';
 import AlertMessage from './AlertMessage';
-import useTaskPolling from '../utils/useTaskPolling'; // <<<--- 1. 导入 useTaskPolling Hook
-import FinancialManagementModal from './FinancialManagementModal'; // 1. 导入新组件
+import useTaskPolling from '../utils/useTaskPolling';
+import FinancialManagementModal from './FinancialManagementModal';
 import BatchSettlementModal from './BatchSettlementModal'
+import PaymentProgress from './PaymentProgress';
 
 
 
@@ -464,18 +465,35 @@ const BillingDashboard = () => {
             setContracts(prevContracts =>
                 prevContracts.map(contractRow => {
                     if (contractRow.id === billId) {
-                        const customerIsPaid = latestBillData.customer_bill_details?.payment_status?.status === 'paid';
-                        const employeeIsPaid = latestBillData.employee_payroll_details?.payout_status?.status === 'paid';
+                        const customerStatus =latestBillData.customer_bill_details?.payment_status;
+                        const employeeStatus =latestBillData.employee_payroll_details?.payout_status;
 
-                        return {
-                            ...contractRow,
-                            customer_payable: latestBillData.customer_bill_details?.final_amount?.客应付款,
-                            customer_is_paid: customerIsPaid,
-                            employee_payout: latestBillData.employee_payroll_details?.final_amount?.萌嫂应领款,
-                            employee_is_paid: employeeIsPaid,
-                            invoice_needed: latestBillData.invoice_needed,
-                            remaining_invoice_amount: latestBillData.invoice_balance?.remaining_un_invoiced,
+                        // --- 核心修正：增加状态标签的映射和更新 ---
+                        const paymentStatusMap = {
+                            'paid': '已支付',
+                            'unpaid': '未支付',
+                            'partially_paid': '部分支付',
+                            'overpaid': '超额支付',
                         };
+                        const payoutStatusMap = {
+                            'paid': '已发放',
+                            'unpaid': '未发放',
+                            'partially_paid': '部分发放',
+                        };
+                        // --- 修正结束 ---
+
+                    return {
+                        ...contractRow,
+                        customer_payable:latestBillData.customer_bill_details?.final_amount?.客应付款,
+                        customer_total_paid: customerStatus?.total_paid, // <--- 把这个值也更新了
+                        customer_is_paid:customerStatus?.status === 'paid',
+                        employee_payout: latestBillData.employee_payroll_details?.final_amount?.萌嫂应领款,
+                        employee_is_paid:employeeStatus?.status === 'paid',
+                        invoice_needed: latestBillData.invoice_needed,
+                        remaining_invoice_amount:latestBillData.invoice_balance?.remaining_un_invoiced,
+                        payment_status_label:paymentStatusMap[customerStatus?.status] || '未知',
+                        payout_status_label:payoutStatusMap[employeeStatus?.status] || '未知',
+                    };
                     }
                     return contractRow;
                 })
@@ -936,6 +954,10 @@ const BillingDashboard = () => {
 
                         <TableCell>
                             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                                <PaymentProgress
+                                    totalPaid={bill.customer_total_paid}
+                                    totalDue={bill.customer_payable}
+                                />
                                 {/* 客户应付款 */}
                                 <Tooltip title="客户应付款 / 支付状态">
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>

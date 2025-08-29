@@ -14,7 +14,7 @@ import { debounce } from 'lodash';
 import api from '../api/axios';
 
 const initialState = {
-    contract_type: 'nanny',
+    contract_type: '',
     customer_name: '',
     contact_person: '',
     employee_name: '',
@@ -168,7 +168,7 @@ const CreateVirtualContractModal = ({ open, onClose, onSuccess }) => {
             // 当合同类型变更为“外部替班”时，设置默认时间
             if (name === 'contract_type' && value === 'external_substitution') {
                 const now = new Date();
-                const defaultStartDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(),8, 30);
+                const defaultStartDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(),6, 30);
 
                 // 结束时间默认比开始时间晚一小时
                 const defaultEndDate = new Date(defaultStartDate.getTime() + 60 * 60 * 1000);
@@ -317,7 +317,7 @@ const CreateVirtualContractModal = ({ open, onClose, onSuccess }) => {
             const response = await api.post('/billing/contracts/virtual', payload);
             const newContractId = response.data.contract_id;
             alert('虚拟合同创建成功！即将跳转到合同详情页...');
-            navigate(`/contracts/${newContractId}`);
+            navigate(`/contract/detail/${newContractId}`);
             onClose();
         } catch (err) {
             console.error("创建虚拟合同失败:", err);

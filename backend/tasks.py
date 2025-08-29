@@ -33,6 +33,7 @@ from backend.models import (
     CourseResource,
     NannyContract,
     BaseContract,
+    ExternalSubstitutionContract,
 )
 from backend.api.ai_generate import generate_video_script  # 导入新函数
 from backend.api.ai_generate import (
@@ -2656,15 +2657,13 @@ def generate_all_bills_for_contract_task(contract_id):
 def post_virtual_contract_creation_task(self, contract_id):
     """
     在虚拟合同创建成功后，执行所有必要的后续处理。
-    完美复刻 data_sync_service.py 中的逻辑。
     """
     app = create_flask_app_for_task()
 
     with app.app_context():
         try:
-            # 使用 with_polymorphic 确保能访问到子类属性
             contract_poly = db.with_polymorphic(BaseContract, "*")
-            contract = db.session.query(contract_poly).filter(BaseContract.id == contract_id).first()
+            contract = db.session.query(contract_poly).filter(BaseContract.id ==contract_id).first()
 
             if not contract:
                 logger.warning(f"[PostCreationTask] 合同 {contract_id} 暂未找到，将在 {self.default_retry_delay} 秒后重试...")
@@ -2672,29 +2671,29 @@ def post_virtual_contract_creation_task(self, contract_id):
 
             logger.info(f"[PostCreationTask] 已找到合同 {contract_id}，类型: {contract.type}，开始处理...")
 
-            # 只处理育儿嫂合同 (NannyContract)
-            if isinstance(contract, NannyContract):
+            # --- 核心修改：同时处理育儿嫂和外部替班合同 ---
+            if isinstance(contract, (NannyContract, ExternalSubstitutionContract)):
                 engine = BillingEngine()
 
-                # 1. 生成合同期内的初始账单
                 logger.info(f"[PostCreationTask] 为合同 {contract.id} 生成初始账单...")
                 engine.generate_all_bills_for_contract(contract.id, force_recalculate=True)
                 logger.info(f"[PostCreationTask] 合同 {contract.id} 的初始账单已生成。")
 
-                # 2. 如果是自动续签，则触发续签逻辑
-                if contract.is_monthly_auto_renew:
+                # 育儿嫂合同的特有逻辑
+                if isinstance(contract, NannyContract) and contract.is_monthly_auto_renew:
                     logger.info(f"[PostCreationTask] 为合同 {contract.id} 触发首次自动续签检查...")
                     engine.extend_auto_renew_bills(contract.id)
                     logger.info(f"[PostCreationTask] 合同 {contract.id} 的首次自动续签检查完成。")
+            # --- 修改结束 ---
             else:
-                logger.info(f"[PostCreationTask] 合同类型为 {contract.type}，无需自动生成账单。跳过。")
-            
+                logger.info(f"[PostCreationTask] 合同类型为 {contract.type}，无需此处的后续处理。跳过。")
+
             db.session.commit()
-            logger.info(f"合同 {contract_id} 的所有账单和续签操作已成功提交到数据库。")
+            logger.info(f"合同 {contract_id} 的所有后续操作已成功提交到数据库。")
 
         except Exception as exc:
             db.session.rollback()
-            logger.error(f"[PostCreationTask] 处理合同 {contract_id} 时发生未知错误: {exc}", exc_info=True)
+            logger.error(f"[PostCreationTask] 处理合同 {contract_id} 时发生未知错误: {exc}",exc_info=True)
             raise self.retry(exc=exc)
         finally:
             db.session.remove()

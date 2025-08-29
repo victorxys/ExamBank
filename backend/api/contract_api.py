@@ -112,6 +112,8 @@ def get_substitute_records(contract_id):
                 "substitute_management_fee": str(record.substitute_management_fee),
                 "created_at": record.created_at.isoformat(),
                 "original_customer_bill_id": str(record.original_customer_bill_id) if record.original_customer_bill_id else None,
+                 # 【修复】在这里加上前端需要的替班账单ID
+                "substitute_customer_bill_id": str(record.generated_bill_id) if record.generated_bill_id else None,
             }
             for record in records
         ]

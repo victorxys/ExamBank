@@ -1,90 +1,54 @@
-import httpx
 import os
-import json
-from dotenv import load_dotenv
+import sys
+import traceback
 
-# --- 诊断信息，帮助我们确认环境 ---
-try:
-    print("--- 诊断信息 ---")
-    print(f"httpx 模块版本: {httpx.__version__}")
-    print(f"httpx 模块路径: {httpx.__file__}")
-    print("------------------\n")
-except Exception as e:
-    print(f"无法获取 httpx 信息: {e}")
+# --- 设置项目根目录 ---
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
 
-# from dotenv import load_dotenv
+from backend.app import app
+# --- 导入 PROXY_POOL 来动态计算总配额 ---
+from backend.manager_module import get_next_identity, reset_all_usage, PROXY_POOL
 
-dotenv_path = os.path.join(os.path.dirname(__file__), ".env")
-if os.path.exists(dotenv_path):
-    load_dotenv(dotenv_path=dotenv_path)
+def test_dynamic_quota_exhaustion():
+    """
+    测试动态的配额耗尽逻辑，能自动适应配置中提供商的数量。
+    """
+    with app.app_context():
+        print("--- 开始最终版TTS配额耗尽逻辑测试 ---")
 
+        if not PROXY_POOL:
+            print("❌ 代理池为空，无法执行测试。")
+            return
 
-# --- 动态构建 PROXY_POOL ---
-def load_proxy_pool_from_env():
-    """从环境变量中加载并解析代理池配置"""
-    pool_json_string = os.environ.get("TTS_PROXY_POOL_JSON")
-    if not pool_json_string:
-        print("⚠️ 警告: 未在环境变量中找到 TTS_PROXY_POOL_JSON 配置。代理池将为空。")
-        return []
+        # --- 动态计算总配额和测试次数 ---
+        provider_count = len(PROXY_POOL)
+        total_quota = provider_count * 50
+        test_runs = total_quota + 1 # 我们要运行到超出配额的那一次
+        print(f"检测到 {provider_count} 个提供商，总配额为 {total_quota} 次。将运行 {test_runs} 次来验证。")
 
-    try:
-        pool = json.loads(pool_json_string)
-        print("✅ 已成功从环境变量加载并解析代理池配置。")
-        return pool
-    except json.JSONDecodeError:
-        print(
-            "❌ 错误: 无法解析环境变量 TTS_PROXY_POOL_JSON 中的JSON字符串。请检查格式。"
-        )
-        return []
+        # 1. 重置状态
+        print("\\n--- 步骤1: 重置所有使用记录 ---")
+        reset_all_usage()
+        print("--- 重置完成 ---\\n")
 
+        # 2. 动态执行N+1次调用
+        print(f"--- 步骤2: 连续调用 {test_runs} 次 get_next_identity ---")
+        for i in range(1, test_runs + 1): # 循环次数修正
+            print(f"调用第 {i} 次: ", end="")
+            try:
+                identity = get_next_identity()
+            except Exception as e:
+                print(f"✅ 成功在第 {i} 次调用时捕获到预期的异常: {e}")
+                print("\\n--- ✅ 测试成功！配额耗尽机制按预期工作。 ---")
+                break
+        else:
+             # 如果循环正常结束而没有break，说明没有触发异常，这是个问题
+             print(f"\\n--- ❌ 测试失败！循环了 {test_runs} 次但并未触发配额耗尽异常。---")
 
-# 在模块加载时，直接构建 PROXY_POOL
-PROXY_POOL = load_proxy_pool_from_env()
-
-
-def test_single_proxy(server_info):
-    """使用 mounts 和 HTTPTransport 测试单个代理"""
-    proxy_id = server_info["id"]
-    proxy_url = server_info["proxy_url"]
-
-    print(f"\n--- 正在测试: {proxy_id} ---")
-    print(f"代理地址: {proxy_url}")
-
-    test_url = "https://api.ipify.org?format=json"
-
-    # ++++++++++++++++ 使用您找到的、正确的官方文档语法 ++++++++++++++++
-    try:
-        # 1. 创建一个 transport 实例，并明确地将代理传递给它
-        transport = httpx.HTTPTransport(proxy=proxy_url)
-
-        # 2. 创建一个 mounts 字典，将所有 https 流量都挂载到这个 transport 上
-        proxy_mounts = {
-            "all://": transport,  # "all://" 是一个通配符，会匹配 http 和 https
-        }
-
-        # 3. 使用 mounts 参数来初始化客户端
-        with httpx.Client(mounts=proxy_mounts, timeout=15.0) as client:
-            print("正在发送请求...")
-            response = client.get(test_url)
-
-            if response.status_code == 200:
-                print(f"✅ 连接成功！响应: {response.json()}")
-            else:
-                print(
-                    f"❌ 连接失败！状态码: {response.status_code}, 内容: {response.text}"
-                )
-    # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-    except httpx.TimeoutException:
-        print("❌ 连接失败！错误: 请求超时 (Timeout)。")
-    except httpx.ProxyError as e:
-        print(f"❌ 连接失败！错误: 代理错误 (Proxy Error)。详细信息: {e}")
-    except httpx.ConnectError as e:
-        print(f"❌ 连接失败！错误: 连接错误 (Connect Error)。详细信息: {e}")
-    except Exception as e:
-        print(f"❌ 连接失败！未知错误: {e}")
+        print("\\n--- 测试结束 ---")
 
 
 if __name__ == "__main__":
-    for server in PROXY_POOL:
-        test_single_proxy(server)
+    test_dynamic_quota_exhaustion()

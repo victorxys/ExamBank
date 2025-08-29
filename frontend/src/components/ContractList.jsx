@@ -73,7 +73,14 @@ const ContractList = () => {
                 per_page: rowsPerPage,
                 ...filters
             };
-            // --- 核心修正 2：将排序参数添加到API请求中 ---
+
+            // --- 最终版核心修改 ---
+            // 如果UI上筛选的是'育儿嫂'，我们修改即将发往API的参数
+            if (params.type === 'nanny') {
+                params.type = 'nanny,external_substitution';
+            }
+            // --- 修改结束 ---
+
             if (sortBy) {
                 params.sort_by = sortBy;
                 params.sort_order = sortOrder;
@@ -84,8 +91,7 @@ const ContractList = () => {
         } catch (error) {
             setAlert({ open: true, message: `获取合同列表失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
         } finally { setLoading(false); }
-    }, [page, rowsPerPage, filters, sortBy, sortOrder]); // 添加 sortBy 和 sortOrder 到依赖项
-
+    }, [page, rowsPerPage, filters, sortBy, sortOrder]);
     useEffect(() => {
         fetchContracts();
     }, [fetchContracts]);

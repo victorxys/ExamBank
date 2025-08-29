@@ -100,7 +100,7 @@ const formatValue = (key, value) => {
         return <Box component="span" sx={{ color: 'text.disabled' }}>{value || '—'}</Box>;
     if (key === '加班天数' || key === '替班天数' || key === '基本劳务天数' || key === '实际劳务天数' || key === '总劳务天数') {
         const num = parseFloat(value);
-        return isNaN(num) ? `${value} 天` : `${num.toFixed(1)} 天`;
+        return isNaN(num) ? `${value} 天` : `${num.toFixed(2)} 天`;
     }
     if (key.includes('费率')) {
         const num = Number(value);
@@ -261,19 +261,27 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
     const handleSaveSubstitute = async (substituteData) => {
         try {
             const response = await api.post(`/contracts/${contract.contract_id}/substitutes`, substituteData);
-            alert('替班记录添加成功！');
-            // 使用返回的最新账单详情更新状态
+
+            // 不要用 alert()，要用 setAlert() 来触发你自己的提示组件
+            setAlert({ open: true, message: '替班记录添加成功！', severity: 'success' });
+
+            // 只要用后端返回的最新账单详情更新状态即可
             if (response.data.latest_details) {
                 setBillingDetails(response.data.latest_details);
             }
-            // 重新获取替班记录列表以更新显示
-            api.get(`/contracts/${contract.contract_id}/substitutes`)
-                .then(res => setSubstituteRecords(res.data))
-                .catch(err => console.error("获取替班记录失败:", err));
+
+            // 【修复】保存成功后，立即刷新替班记录列表，确保即时显示
+            if (contract?.contract_id) {
+                api.get(`/contracts/${contract.contract_id}/substitutes`)
+                    .then(res => setSubstituteRecords(res.data))
+                    .catch(err => console.error("获取替班记录失败:", err));
+            }
+
             handleCloseSubstituteDialog();
         } catch (error) {
             console.error("保存替班记录失败:", error);
-            alert('添加替班记录失败，同一时间段可能已有替班记录，不能重复添加。');
+            // 错误提示同样要用 setAlert
+            setAlert({ open: true, message: '添加替班记录失败，同一时间段可能已有替班记录，不能重复添加。', severity: 'error'});
         }
     };
 
@@ -282,23 +290,23 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
             try {
                 const response = await api.delete(`/contracts/substitutes/${recordId}`);
                 if (response.status === 200) {
-                    alert('替班记录删除成功！');
+                    setAlert({ open: true, message: '替班记录删除成功！', severity: 'success' });
                     setSubstituteRecords(prev => prev.filter(r => r.id !== recordId));
                 } else if (response.status === 409) {
-                    if (window.confirm("注意：此替班记录关联的账单已产生操作日志.\n\n是否要强制删除此记录及其所有关联日志？此操作不可逆！")) {
+                    if (window.confirm("注意：此替班记录关联的账单已产生操作日志。\n\n是否要强制删除此记录及其所有关联日志？此操作不可逆！")) {
                         const forceResponse = await api.delete(`/contracts/substitutes/${recordId}?force=true`);
                         if (forceResponse.status === 200) {
-                            alert('强制删除成功！');
+                            setAlert({ open: true, message: '强制删除成功！', severity: 'success' });
                             setSubstituteRecords(prev => prev.filter(r => r.id !== recordId));
                         } else {
-                            alert(`强制删除失败: ${forceResponse.data?.message || '未知错误'}`);
+                            setAlert({ open: true, message: `强制删除失败: ${forceResponse.data?.message || '未知错误'}`,severity: 'error' });
                         }
                     }
                 } else {
-                    alert(`删除失败: ${response.data?.message || '未知错误'}`);
+                    setAlert({ open: true, message: `删除失败: ${response.data?.message || '未知错误'}`, severity: 'error' });
                 }
             } catch (error) {
-                alert(`删除失败: ${error.message}`);
+                setAlert({ open: true, message: `删除失败: ${error.message}`, severity: 'error' });
             }
         }
     };
@@ -447,32 +455,16 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
     };
     const handleInvoiceNeededChange = (event) => {
         const checked = event.target.checked;
-        setBillingDetails(prev => {
-            const newDetails = { ...prev, invoice_needed: checked };
 
-            // --- 新增：前端即时响应计算 ---
-            if (newDetails.invoice_balance) {
-                const balance = newDetails.invoice_balance;
-                const currentCharges = parseFloat(balance.current_period_charges || 0);
-                const carriedForward = parseFloat(balance.total_carried_forward || 0);
-
-                // 根据新的开关状态，重新计算总应开票额
-                const totalInvoiceable = checked ? (currentCharges + carriedForward) : 0;
-
-                // 重新计算总计待开金额
-                const invoicedThisPeriod = parseFloat(balance.invoiced_this_period || 0);
-                const remainingUninvoiced = totalInvoiceable - invoicedThisPeriod;
-
-                // 更新 balance 对象
-                newDetails.invoice_balance = {
-                    ...balance,
-                    total_invoiceable_amount: totalInvoiceable.toFixed(2),
-                    remaining_un_invoiced: remainingUninvoiced.toFixed(2)
-                };
-            }
-            // --- 计算结束 ---
-
-            return newDetails;
+        // 立即调用 onSave 来持久化更改
+        // onSave 会触发父组件刷新数据，从而更新整个 billingDetails
+        onSave({
+            bill_id: billingDetails.customer_bill_details.id,
+            overtime_days: editableOvertime,
+            actual_work_days: editableActualWorkDays,
+            adjustments: adjustments,
+            invoices: editableInvoices,
+            invoice_needed: checked, // 使用新的开关状态
         });
     };
     // const handleSettlementChange = (event) => {
@@ -788,7 +780,7 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                                                     variant="standard"
                                                     size="small"
                                                     inputProps={{
-                                                        step: 0.1,
+                                                        step: 0.01,
                                                         style: { textAlign: 'right', fontFamily: 'monospace', fontWeight: 500 }
                                                     }}
                                                     sx={{ maxWidth: '80px' }}
@@ -1356,7 +1348,6 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                                                             <Switch
                                                                 checked={billingDetails?.invoice_needed || false}
                                                                 onChange={handleInvoiceNeededChange}
-                                                                disabled={!isEditMode}
                                                             />
                                                         }
                                                         label="需要开具发票"
@@ -1423,6 +1414,7 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                                 </Grid>
                             )}
                             {/* --- 发票管理模块结束 --- */}
+                            {/* --- 替班记录展示 --- */}
                             {!billingDetails?.is_substitute_bill && (
                                 <Grid item xs={12}>
                                     <Paper sx={{ p: 3, borderRadius: 2, boxShadow: 1 }}>
@@ -1435,13 +1427,32 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                                             return (
                                                 <List dense>
                                                     {relevantSubstituteRecords.length > 0 ? relevantSubstituteRecords.map(record => (
-                                                        <ListItem key={record.id}>
+                                                        <ListItem
+                                                            key={record.id}
+                                                            button // 让列表项可点击
+                                                            onClick={() => {
+                                                                // 假设 'record' 对象中包含了替班账单的ID，字段名为 substitute_customer_bill_id
+                                                                if (onNavigateToBill && record.substitute_customer_bill_id) {
+                                                                    onNavigateToBill(record.substitute_customer_bill_id);
+                                                                } else {
+                                                                    setAlert({ open: true, message: '无法导航：缺少替班账单ID。', severity: 'warning' });
+                                                                }
+                                                            }}
+                                                        >
                                                             <ListItemText
                                                                 primary={`${record.substitute_user_name} (日薪: ¥${record.substitute_salary})`}
                                                                 secondary={`从 ${formatDateTimeRange(record.start_date, record.end_date)}`}
                                                             />
                                                             <ListItemSecondaryAction>
-                                                                <IconButton edge="end" aria-label="delete" disabled={isEditMode} onClick={() =>handleDeleteSubstitute(record.id)}>
+                                                                <IconButton
+                                                                    edge="end"
+                                                                    aria-label="delete"
+                                                                    disabled={isEditMode}
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation(); // 核心细节：阻止事件冒泡，避免在点删除时触发导航
+                                                                        handleDeleteSubstitute(record.id);
+                                                                    }}
+                                                                >
                                                                     <DeleteIcon />
                                                                 </IconButton>
                                                             </ListItemSecondaryAction>
@@ -1480,7 +1491,17 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
             <InvoiceDetailsDialog
                 open={isInvoiceDialogOpen}
                 onClose={() => setIsInvoiceDialogOpen(false)}
-                onSave={setEditableInvoices}
+                onSave={(newInvoices) => {
+                    // 立即调用 onSave 来持久化更改
+                    onSave({
+                        bill_id: billingDetails.customer_bill_details.id,
+                        overtime_days: editableOvertime,
+                        actual_work_days: editableActualWorkDays,
+                        adjustments: adjustments,
+                        invoices: newInvoices, // 使用弹窗返回的最新发票列表
+                        invoice_needed: billingDetails.invoice_needed,
+                    });
+                }}
                 invoices={editableInvoices}
                 invoiceBalance={billingDetails?.invoice_balance}
             />

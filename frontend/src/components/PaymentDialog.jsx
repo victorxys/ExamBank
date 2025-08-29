@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Button, Dialog, DialogActions, DialogContent, DialogTitle,
-  TextField, Grid, Box, Typography, Divider
+  TextField, Grid, Box, Typography, Divider, Chip
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -11,7 +11,7 @@ import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { zhCN } from 'date-fns/locale';
 import { format as formatDateFns } from 'date-fns';
 import { useDropzone } from 'react-dropzone';
-import api from '../api/axios'; 
+import api from '../api/axios';
 
 // 【新增】货币格式化辅助函数
 const formatCurrency = (value) => {
@@ -29,6 +29,9 @@ const PaymentDialog = ({ open, onClose, onSave, totalDue = 0, totalPaid = 0, rec
     const [notes, setNotes] = useState('');
     const [files, setFiles] = useState([]);
 
+    // 【新增】常用支付方式
+    const commonMethods = ['微信', '支付宝', '银行转账'];
+
     const { getRootProps, getInputProps } = useDropzone({
         accept: {
             'image/jpeg': ['.jpeg', '.jpg'],
@@ -43,7 +46,7 @@ const PaymentDialog = ({ open, onClose, onSave, totalDue = 0, totalPaid = 0, rec
     });
 
     const thumbs = files.map(file => (
-        <div style={{ display: 'inline-flex', borderRadius: 2, border: '1px solid #eaeaea', marginBottom: 8, marginRight: 8, width: 100, height: 100, padding: 4, boxSizing: 'border-box' }} key={file.name}>
+        <div style={{ display: 'inline-flex', borderRadius: 2, border: '1px solid #eaeaea', marginBottom: 8, marginRight: 8,width: 100, height: 100, padding: 4, boxSizing: 'border-box' }} key={file.name}>
             <div style={{ display: 'flex', minWidth: 0, overflow: 'hidden' }}>
                 <img
                     src={file.preview}
@@ -155,10 +158,23 @@ const PaymentDialog = ({ open, onClose, onSave, totalDue = 0, totalPaid = 0, rec
                             <Grid item xs={12}>
                                 <TextField
                                     fullWidth
-                                    label="支付方式 (如: 微信, 支付宝, 银行转账)"
+                                    label="支付方式"
                                     value={method}
                                     onChange={(e) => setMethod(e.target.value)}
                                 />
+                                {/* 【新增】常用支付方式的快捷Chip */}
+                                <Box sx={{ mt: 1, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                                    {commonMethods.map((m) => (
+                                        <Chip
+                                            key={m}
+                                            label={m}
+                                            onClick={() => setMethod(m)}
+                                            variant="outlined"
+                                            size="small"
+                                            clickable
+                                        />
+                                    ))}
+                                </Box>
                             </Grid>
                             <Grid item xs={12}>
                                 <TextField
@@ -171,7 +187,7 @@ const PaymentDialog = ({ open, onClose, onSave, totalDue = 0, totalPaid = 0, rec
                                 />
                             </Grid>
                             <Grid item xs={12}>
-                                <Box {...getRootProps({ className: 'dropzone' })} sx={{ border: '2px dashed grey', padding: '20px', textAlign: 'center' }}>
+                                <Box {...getRootProps({ className: 'dropzone' })} sx={{ border: '2px dashed grey', padding:'20px', textAlign: 'center' }}>
                                     <input {...getInputProps()} />
                                     <p>将文件拖到此处，或点击选择文件</p>
                                 </Box>

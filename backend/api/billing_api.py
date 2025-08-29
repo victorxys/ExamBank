@@ -778,6 +778,7 @@ def get_bills():
                 "customer_name": contract.customer_name,
                 "status": contract.status,
                 "customer_payable": str(bill.total_due),
+                "customer_total_paid": str(bill.total_paid),
                 "customer_is_paid": bill.payment_status == PaymentStatus.PAID,
                 "is_deferred": False,
                 "employee_payout": str(payroll.total_due) if payroll else "待计算",
@@ -1502,7 +1503,10 @@ def get_all_contracts():
             query = query.filter(BaseContract.status == status)
 
         if contract_type:
-            query = query.filter(BaseContract.type == contract_type)
+            # --- 核心修改：支持用逗号分隔的多个类型查询 ---
+            types_to_filter = [t.strip() for t in contract_type.split(',')]
+            query = query.filter(BaseContract.type.in_(types_to_filter))
+            # --- 修改结束 ---
         if search_term:
             query = query.filter(
                 db.or_(
@@ -1777,6 +1781,7 @@ def create_virtual_contract():
                 status="active", # 外部替班合同默认为 active
                 management_fee_rate=D(data.get("management_fee_rate", 0.20)),
                 management_fee_amount=D(data.get("management_fee_amount") or 0),
+                security_deposit_paid=D(data["employee_level"]), # 保证金 = 员工级别
             )
         else:
             return jsonify({"error": "无效的合同类型"}), 400
@@ -1786,21 +1791,12 @@ def create_virtual_contract():
         current_app.logger.info(f"成功创建虚拟合同，ID: {new_contract.id}, 类型: {contract_type}")
 
         # 根据合同类型，触发正确的后续处理任务
-        if contract_type == "nanny":
+        if contract_type in ["nanny", "external_substitution"]:
             post_virtual_contract_creation_task.delay(str(new_contract.id))
-            current_app.logger.info(f"已为育儿嫂合同 {new_contract.id} 提交后续处理任务。")
+            current_app.logger.info(f"已为合同 {new_contract.id} (类型: {contract_type}) 提交通用的后续处理任务。")
         elif contract_type == "maternity_nurse":
             generate_all_bills_for_contract_task.delay(str(new_contract.id))
             current_app.logger.info(f"已为月嫂合同 {new_contract.id} 提交账单生成任务。")
-        elif contract_type == "external_substitution":
-            # 对于外部替班合同，调用通用的月度计算任务即可，因为它只有一个账单
-            calculate_monthly_billing_task.delay(
-                year=new_contract.start_date.year,
-                month=new_contract.start_date.month,
-                contract_id=str(new_contract.id),
-                force_recalculate=True
-            )
-            current_app.logger.info(f"已为外部替班合同 {new_contract.id} 提交月度账单计算任务。")
 
         return jsonify({
             "message": "虚拟合同创建成功！",

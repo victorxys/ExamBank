@@ -2646,3 +2646,25 @@ class SubstituteRecord(db.Model):
 
     def __repr__(self):
         return f"<SubstituteRecord {self.id} for Contract {self.main_contract_id}>"
+
+# --- TTS Provider State Model ---
+class TtsProviderState(db.Model):
+    __tablename__ = 'tts_provider_state'
+    __table_args__ = (
+        {'comment': '存储TTS提供商池的当前状态，以确保有状态的轮换。'}
+    )
+
+    # 使用一个字符串ID作为业务主键，方便查询特定池的状态。
+    group_id = db.Column(db.String(100), primary_key=True, default='default_tts_pool')
+
+    # 当前正在使用的提供商在 PROXY_POOL 列表中的索引。
+    current_provider_index = db.Column(db.Integer, nullable=False, default=0)
+
+    # 当前提供商已被使用的次数。
+    usage_count = db.Column(db.Integer, nullable=False, default=0)
+
+    # 状态最后更新的时间。
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def __repr__(self):
+        return f'<TtsProviderState {self.group_id}: Index {self.current_provider_index}, Count {self.usage_count}>'
