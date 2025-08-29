@@ -1234,8 +1234,8 @@ def _apply_all_adjustments_and_settlements(adjustments_data, bill, payroll):
             # --- 修复结束 ---
 
     # 在所有循环结束后，统一更新一次账单和薪酬单的状态
-    _update_bill_payment_status(bill)
-    _update_payroll_payout_status(payroll)
+    # _update_bill_payment_status(bill)
+    # _update_payroll_payout_status(payroll)
 
 @billing_bp.route("/batch-update", methods=["POST"])
 @admin_required
@@ -1359,18 +1359,38 @@ def batch_update_billing_details():
         if set(original_invoices_info) != set(new_invoices_info):
             log_details['发票记录'] = {'from':original_invoices_info, 'to': new_invoices_info}
 
-        # 如果有任何变动，则记录日志
+               # 如果有任何变动，则记录日志
         if log_details:
             _log_activity(bill, payroll, "更新账单详情",details=log_details)
-        # 注意：我们不再需要运行两次引擎，因为支付状态的变更已经和这个函数解耦
-        engine.calculate_for_month(
-            year=bill.year, month=bill.month, contract_id=bill.contract_id,
-            force_recalculate=True, actual_work_days_override=new_actual_work_days,
-            cycle_start_date_override=bill.cycle_start_date
-        )
+
+        # --- 核心修复：根据账单类型，调用不同的重算逻辑 ---
+        if bill.is_substitute_bill:
+            current_app.logger.info(f"重算替班账单 {bill.id}，使用覆盖值...")
+            engine.calculate_for_substitute(
+                substitute_record_id=bill.source_substitute_record_id,
+                commit=False,
+                overrides={
+                    'actual_work_days': new_actual_work_days,
+                    'overtime_days': new_overtime_decimal
+                }
+            )
+        else:
+            current_app.logger.info(f"重算主账单 {bill.id}，使用覆盖值...")
+            engine.calculate_for_month(
+                year=bill.year, month=bill.month, contract_id=bill.contract_id,
+                force_recalculate=True, actual_work_days_override=new_actual_work_days,
+                cycle_start_date_override=bill.cycle_start_date
+            )
+        
+
+        # --- 4.5. 在重算总额后，更新最终状态 ---
+        _update_bill_payment_status(bill)
+        _update_payroll_payout_status(payroll)
+        
 
         # --- 5. 提交所有更改 ---
         db.session.commit()
+
 
         # --- 6. 返回最新数据 ---
         latest_details = _get_billing_details_internal(bill_id=bill.id)
