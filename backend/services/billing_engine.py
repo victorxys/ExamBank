@@ -896,8 +896,8 @@ class BillingEngine:
                     rdelta = relativedelta(contract_end_date, contract_start_date)
                     # 当天数相同时，月数+1才是我们想要的合同月数，例如3.21到8.21是5个月
                     total_months = rdelta.years * 12 + rdelta.months
-                    if contract_end_date.day >= contract_start_date.day:
-                        total_months+=1
+                    # if contract_end_date.day >= contract_start_date.day:
+                    #     total_months+=1
 
                     management_fee = (monthly_management_fee *D(total_months)).quantize(QUANTIZER)
                     management_fee_reason = f"非月签合同(起止日相同)首月一次性收取: {total_months}个整月 * {monthly_management_fee:.2f}/月 = {management_fee:.2f}元"
