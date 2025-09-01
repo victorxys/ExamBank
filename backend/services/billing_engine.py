@@ -1584,7 +1584,7 @@ class BillingEngine:
         sub_record.generated_bill_id = bill.id
         sub_record.generated_payroll_id = payroll.id
 
-        details = self._calculate_substitute_details(sub_record, main_contract, bill, overrides)
+        details = self._calculate_substitute_details(sub_record, main_contract, bill, payroll, overrides)
         bill, payroll = self._calculate_final_amounts(bill, payroll, details)
         current_app.logger.info(
             f"[SubCALC] 替班记录total_payable {bill.total_due} 的账单已成功生成。"
@@ -1598,13 +1598,15 @@ class BillingEngine:
             f"[SubCALC] 替班记录 {sub_record.id} 的账单已成功生成。"
         )
 
-    def _calculate_substitute_details(self, sub_record, main_contract, bill, overrides=None):
+    def _calculate_substitute_details(self, sub_record, main_contract, bill, payroll, overrides=None):
         """计算替班记录的财务细节。"""
         if overrides is None:
             overrides = {}
 
         QUANTIZER = D("0.01")
-
+        cust_increase, cust_decrease, emp_increase, emp_decrease, deferred_fee= (
+            self._get_adjustments(bill.id, payroll.id)
+        )
         # --- 核心修复：优先使用传入的覆盖值 ---
         if overrides.get('actual_work_days') is not None:
             substitute_days = D(overrides['actual_work_days'])
@@ -1638,10 +1640,10 @@ class BillingEngine:
             "base_work_days": str(substitute_days),
             "overtime_days": str(overtime_days),
             "total_days_worked": str(substitute_days + overtime_days),
-            "customer_increase": "0.00",
-            "customer_decrease": "0.00",
-            "employee_increase": "0.00",
-            "employee_decrease": "0.00",
+            "customer_increase": str(cust_increase),
+            "customer_decrease": str(cust_decrease),
+            "employee_increase": str(emp_increase),
+            "employee_decrease": str(emp_decrease),
             "discount": "0.00",
             "first_month_deduction": "0.00",
             "log_extras": {},
