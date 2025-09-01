@@ -9,6 +9,7 @@ from dateutil.relativedelta import relativedelta
 
 from backend.extensions import db
 from backend.models import (
+    User,
     BaseContract,
     NannyContract,
     MaternityNurseContract,
@@ -20,6 +21,8 @@ from backend.models import (
     AdjustmentType,
     SubstituteRecord,
     InvoiceRecord,
+    PaymentRecord,
+    PaymentStatus,
 )
 
 from sqlalchemy import func, or_
@@ -29,6 +32,32 @@ from sqlalchemy.exc import IntegrityError
 D = decimal.Decimal
 CTX = decimal.Context(prec=10)
 
+def _update_bill_payment_status(bill: CustomerBill):
+    """
+    根据一个账单的所有支付记录，更新其 total_paid 和 payment_status.
+    """
+    if not bill:
+        return
+
+    # 计算已支付总额
+    total_paid = db.session.query(func.sum(PaymentRecord.amount)).filter(
+        PaymentRecord.customer_bill_id == bill.id
+    ).scalar() or D(0)
+
+    bill.total_paid = total_paid.quantize(D("0.01"))
+
+    # 更新支付状态
+    if bill.total_paid <= 0:
+        bill.payment_status = PaymentStatus.UNPAID
+    elif bill.total_paid < bill.total_due:
+        bill.payment_status = PaymentStatus.PARTIALLY_PAID
+    elif bill.total_paid == bill.total_due:
+        bill.payment_status = PaymentStatus.PAID
+    else: # total_paid > bill.total_due
+        bill.payment_status = PaymentStatus.OVERPAID
+
+    db.session.add(bill)
+    current_app.logger.info(f"Updated bill {bill.id} status to {bill.payment_status.value} with total_paid {bill.total_paid}")
 
 class BillingEngine:
     def _to_date(self, dt_obj):
@@ -183,6 +212,63 @@ class BillingEngine:
             f"[AutoRenewExtend] 合同 {contract.id} 的账单续签检查完成。"
         )
 
+    def _attach_pending_adjustments(self, contract, bill):
+        """
+        查找并关联所有待处理的财务调整项到当前账单。
+        如果发现已支付的定金，则自动为其创建收款记录。
+        """
+        if not contract or not bill:
+            return
+
+        pending_adjustments = FinancialAdjustment.query.filter(
+            FinancialAdjustment.contract_id == contract.id,
+            FinancialAdjustment.status.in_(['PENDING', 'PAID'])
+        ).all()
+
+        if not pending_adjustments:
+            return
+
+        current_app.logger.info(f"为账单 {bill.id} 找到了 {len(pending_adjustments)} 个待处理的财务调整项。")
+
+        for adj in pending_adjustments:
+            adj.customer_bill_id = bill.id
+            adj.status = 'BILLED'
+
+            if adj.adjustment_type == AdjustmentType.DEPOSIT and adj.paid_amount and adj.paid_amount > 0:
+                existing_record = PaymentRecord.query.filter_by(
+                    customer_bill_id=bill.id,
+                    notes=f"[系统] 定金转入 (Ref: {adj.id})" # 旧的备注格式，用于查找
+                ).first()
+
+                # --- 核心修改：按新格式生成收款记录 ---
+                if not existing_record:
+                    if not adj.paid_by_user_id:
+                        raise ValueError(f"定金调整项 {adj.id} 已支付但缺少操作员ID (paid_by_user_id)。")
+
+                    # 根据ID查找操作员姓名
+                    operator = db.session.get(User, adj.paid_by_user_id)
+                    operator_name = operator.username if operator else"未知用户"
+
+                    # 获取操作日期
+                    operation_date_str = adj.paid_at.strftime('%Y-%m-%d') if adj.paid_at else ""
+
+                    deposit_payment = PaymentRecord(
+                        customer_bill_id=bill.id,
+                        amount=adj.paid_amount,
+                        payment_date=adj.paid_at or bill.cycle_start_date.date(),
+                        method='定金',  # <-- 修改收款方式
+                        notes=f"定金转入 {operator_name} {operation_date_str}",# <-- 修改备注格式
+                        created_by_user_id=adj.paid_by_user_id
+                    )
+                    db.session.add(deposit_payment)
+                    current_app.logger.info(f"为定金调整项 {adj.id} 自动创建了格式化的收款记录。")
+                # --- 修改结束 ---
+
+            db.session.add(adj)
+
+        db.session.flush()
+        # _update_bill_payment_status(bill) # <-- 直接调用模块内的函数，不加 self
+
     def calculate_for_month(
         self, year: int, month: int, contract_id=None, force_recalculate=False, actual_work_days_override=None, cycle_start_date_override=None , end_date_override = None
     ):
@@ -244,7 +330,7 @@ class BillingEngine:
         Generates or recalculates all bills for the entire lifecycle of a single contract.
         """
         # 【调试代码 2】
-        current_app.logger.info(f"[ENGINE-DEBUG] Engine received contract ID: {contract_id}, Type: {type(contract_id)}")
+        # current_app.logger.info(f"[ENGINE-DEBUG] Engine received contract ID: {contract_id}, Type: {type(contract_id)}")
         # 关键修复 1: 使用 query().filter_by() 代替 get()，以在事务中可靠地找到对象
         contract = db.session.query(BaseContract).filter_by(id=contract_id).first()
         if not contract:
@@ -273,7 +359,6 @@ class BillingEngine:
             current_app.logger.warning(f"[FullLifecycle] Contract {contract.id} is missing start or end dates. Skipping.")
             return
 
-        # --- 【最终修复】使用更明确、健壮的逻辑来确保类型正确 ---
         start_date, end_date = None, None
 
         if isinstance(start_date_obj, datetime):
@@ -288,15 +373,7 @@ class BillingEngine:
 
         if not start_date or not end_date:
             raise TypeError(f"无法从 {start_date_obj} 或 {end_date_obj} 中正确解析出日期。")
-        # --- 修复结束 ---
 
-        # # Determine the date range to iterate over
-        # if contract.type == "maternity_nurse":
-        #     start_date = contract.actual_onboarding_date
-        #     end_date = contract.expected_offboarding_date or contract.end_date
-        # else:  # nanny 
-        #     start_date = contract.start_date
-        #     end_date = contract.end_date
 
         if not start_date or not end_date:
             current_app.logger.warning(
@@ -696,6 +773,7 @@ class BillingEngine:
         current_app.logger.info(f"    [NannyDETAILS] 计算育儿嫂合同 {contract.id} 的详细信息。")
         log_extras = {}
         QUANTIZER = D("0.01")
+        self._attach_pending_adjustments(contract, bill)
         extension_fee = D(0)
         level = D(contract.employee_level or 0)
          # 【关键修复】在函数开头，将所有日期统一为 date 对象
@@ -712,6 +790,7 @@ class BillingEngine:
 
         # 在这里处理保证金，然后再获取调整项
         self._handle_security_deposit(contract, bill)
+        self._handle_introduction_fee(contract, bill)
         db.session.flush()
         cust_increase, cust_decrease, emp_increase, emp_decrease, deferred_fee = (
             self._get_adjustments(bill.id, payroll.id)
@@ -1191,7 +1270,7 @@ class BillingEngine:
     
         log = self._create_calculation_log(details)
         self._update_bill_with_log(bill, payroll, details, log)
-
+        _update_bill_payment_status(bill)
         current_app.logger.info(
             f"      [CYCLE PROC] 周期 {actual_cycle_start_date} 计算完成。"
         )
@@ -1204,7 +1283,7 @@ class BillingEngine:
     ):
 
        
-
+        self._attach_pending_adjustments(contract, bill)
         """计算月嫂合同的所有财务细节（已二次修正）。"""
         QUANTIZER = D("0.01")
         level = D(contract.employee_level or 0)
@@ -1409,7 +1488,35 @@ class BillingEngine:
                     )
                 )
         current_app.logger.info(f"--- [DEPOSIT-HANDLER-V2] END for Bill ID: {bill.id} ---")
+    def _handle_introduction_fee(self, contract, bill):
+        """处理介绍费的逻辑，采用“更新或创建”模式，确保幂等性。"""
+        if not contract.introduction_fee or contract.introduction_fee <= 0:
+            return
 
+        # 介绍费只在第一个账单周期收取
+        contract_start_date = self._to_date(contract.actual_onboarding_date or contract.start_date)
+        bill_cycle_start_date = self._to_date(bill.cycle_start_date)
+        is_first_bill = bill_cycle_start_date == contract_start_date
+
+        if is_first_bill:
+            existing_adj = FinancialAdjustment.query.filter_by(
+                customer_bill_id=bill.id,
+                description='[系统添加] 介绍费'
+            ).first()
+
+            if existing_adj:
+                if existing_adj.amount != contract.introduction_fee:
+                    existing_adj.amount = contract.introduction_fee
+            else:
+                db.session.add(
+                    FinancialAdjustment(
+                        customer_bill_id=bill.id,
+                        adjustment_type=AdjustmentType.CUSTOMER_INCREASE,
+                        amount=contract.introduction_fee,
+                        description="[系统添加] 介绍费",
+                        date=bill.cycle_start_date,
+                    )
+                )
     def calculate_for_substitute(self, substitute_record_id, commit=True, overrides=None):
         """为单条替班记录生成专属的客户账单和员工薪酬单。"""
         sub_record = db.session.get(SubstituteRecord, substitute_record_id)
@@ -1855,7 +1962,10 @@ class BillingEngine:
         cust_increase = sum(
             adj.amount
             for adj in customer_adjustments
-            if adj.adjustment_type == AdjustmentType.CUSTOMER_INCREASE
+            if adj.adjustment_type in [
+                AdjustmentType.CUSTOMER_INCREASE,
+                AdjustmentType.INTRODUCTION_FEE
+            ]
         )
         cust_decrease = sum(
             adj.amount
@@ -1890,6 +2000,7 @@ class BillingEngine:
             D(details.get("management_fee", 0))
             # + D(details.get("customer_overtime_fee", 0))
             # + D(details.get("customer_base_fee", 0))
+            + D(details.get("introduction_fee", 0))
             + D(details.get("customer_increase", 0))
             # + D(details.get("extension_fee", "0.00"))
             + D(details.get("deferred_fee", "0.00"))

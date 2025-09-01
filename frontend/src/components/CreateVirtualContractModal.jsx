@@ -26,6 +26,7 @@ const initialState = {
     security_deposit_paid: '',
     is_monthly_auto_renew: false,
     introduction_fee: '',
+    deposit_amount: '3000',
     management_fee_amount: '',
     deposit_rate: 0.25, // 新增：保证金比例 state，默认为 25%
     daily_rate: '',
@@ -47,31 +48,41 @@ const CreateVirtualContractModal = ({ open, onClose, onSuccess }) => {
         // 月嫂合同的日期逻辑
         if (formData.contract_type === 'maternity_nurse' && formData.provisional_start_date) {
             const provisionalDate = new Date(formData.provisional_start_date);
-            // 检查是否为有效日期
             if (!isNaN(provisionalDate.getTime())) {
                 const newStartDate = provisionalDate;
                 const newEndDate = new Date(provisionalDate);
                 newEndDate.setDate(newEndDate.getDate() + 26);
 
-                setFormData(prev => ({
-                    ...prev,
-                    start_date: newStartDate,
-                    end_date: newEndDate,
-                }));
+                // --- 核心修复：只有在日期值真正改变时才更新 state ---
+                // 我们通过比较时间戳来避免对象引用的问题
+                const startTimeChanged = formData.start_date?.getTime() !==newStartDate.getTime();
+                const endTimeChanged = formData.end_date?.getTime() !== newEndDate.getTime();
+
+                if (startTimeChanged || endTimeChanged) {
+                    setFormData(prev => ({
+                        ...prev,
+                        start_date: newStartDate,
+                        end_date: newEndDate,
+                    }));
+                }
             }
         }
         // 试工合同的日期逻辑
         else if (formData.contract_type === 'nanny_trial' && formData.start_date) {
             const startDate = new Date(formData.start_date);
-            // 检查是否为有效日期
             if (!isNaN(startDate.getTime())) {
                 const newEndDate = new Date(startDate);
                 newEndDate.setDate(newEndDate.getDate() + 6);
 
-                setFormData(prev => ({
-                    ...prev,
-                    end_date: newEndDate,
-                }));
+                // --- 核心修复：同样的逻辑应用于这里 ---
+                const endTimeChanged = formData.end_date?.getTime() !== newEndDate.getTime();
+
+                if (endTimeChanged) {
+                    setFormData(prev => ({
+                        ...prev,
+                        end_date: newEndDate,
+                    }));
+                }
             }
         }
     }, [formData.provisional_start_date, formData.start_date, formData.contract_type]);
@@ -312,7 +323,7 @@ const CreateVirtualContractModal = ({ open, onClose, onSuccess }) => {
         // 对于所有日期字段，如果存在，则转换为ISO字符串
         if (payload.start_date) payload.start_date = new Date(payload.start_date).toISOString();
         if (payload.end_date) payload.end_date = new Date(payload.end_date).toISOString();
-        if (payload.provisional_start_date) payload.provisional_start_date = newDate(payload.provisional_start_date).toISOString();
+        if (payload.provisional_start_date) payload.provisional_start_date = new Date(payload.provisional_start_date).toISOString();
         try {
             const response = await api.post('/billing/contracts/virtual', payload);
             const newContractId = response.data.contract_id;
@@ -514,7 +525,33 @@ const CreateVirtualContractModal = ({ open, onClose, onSuccess }) => {
                                 />
                             </Grid>
                         )}
-                        <Grid item xs={12} sm={6}><TextField fullWidth name="introduction_fee" label="介绍费 (元)" type="number" value={formData.introduction_fee} onChange={handleInputChange} /></Grid>
+                        {/* --- BEGIN: 动态显示“定金”或“介绍费” --- */}
+                        {formData.contract_type === 'maternity_nurse' ? (
+                            <Grid item xs={12} sm={6}>
+                                <TextField
+                                    fullWidth
+                                    name="deposit_amount"
+                                    label="定金 (元)"
+                                    type="number"
+                                    value={formData.deposit_amount}
+                                    onChange={handleInputChange}
+                                    helperText="默认为3000元"
+                                />
+                            </Grid>
+                        ) : formData.contract_type === 'nanny' || formData.contract_type === 'nanny_trial' ? (
+                            <Grid item xs={12} sm={6}>
+                                <TextField
+                                    fullWidth
+                                    name="introduction_fee"
+                                    label="介绍费 (元)"
+                                    type="number"
+                                    value={formData.introduction_fee}
+                                    onChange={handleInputChange}
+                                />
+                            </Grid>
+                        ) : null}
+                        {/* --- END: 动态显示结束 --- */}
+
                         <Grid item xs={12} sm={6}><TextField fullWidth name="management_fee_amount" label="管理费 (元/月)" type="number" value={formData.management_fee_amount} onChange={handleInputChange} /></Grid>
                         <Grid item xs={12}><TextField fullWidth name="notes" label="备注" multiline rows={3} value={formData.notes} onChange={handleInputChange} /></Grid>
                     </Grid>

@@ -5,13 +5,13 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   Box, Typography, Paper, Grid, CircularProgress, Button,
-  Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Chip,
+  Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Chip,Tooltip,
   List, ListItem, ListItemText, Divider, Dialog, DialogTitle, DialogContent,
   DialogActions, Alert, Stack, IconButton, TextField, InputAdornment, Switch
 } from '@mui/material';
 import {
-    ArrowBack as ArrowBackIcon, Edit as EditIcon, CheckCircle as CheckCircleIcon,
-    Cancel as CancelIcon, Save as SaveIcon, Link as LinkIcon
+    ArrowBack as ArrowBackIcon, Edit as EditIcon, CheckCircle as CheckCircleIcon,Info as InfoIcon,
+    Cancel as CancelIcon, Save as SaveIcon, Link as LinkIcon, EventBusy as EventBusyIcon
 } from '@mui/icons-material';
 import { DatePicker, LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -119,6 +119,9 @@ const ContractDetail = () => {
     const { state } = useLocation();
     const [contract, setContract] = useState(null);
     const [bills, setBills] = useState([]);
+    const [adjustments, setAdjustments] = useState([]);
+    const [logs, setLogs] = useState([]);
+    const depositAdjustment = adjustments.find(adj => adj.adjustment_type ==='deposit');
     const [loading, setLoading] = useState(true);
     const [alert, setAlert] = useState({ open: false, message: '', severity: 'info' });
     
@@ -138,18 +141,39 @@ const ContractDetail = () => {
     const [selectedBillDetails, setSelectedBillDetails] = useState(null);
     const [loadingModal, setLoadingModal] = useState(false);
     const [selectedBillContext, setSelectedBillContext] = useState(null);
+    const [onboardingDialogOpen, setOnboardingDialogOpen] = useState(false);
+    const [contractToSetDate, setContractToSetDate] = useState(null);
+    const [newOnboardingDate, setNewOnboardingDate] = useState(null);
+
+    const ADJUSTMENT_TYPE_LABELS = {
+        deposit: '定金',
+        introduction_fee: '介绍费',
+        customer_increase: '客户增款',
+        customer_decrease: '客户减款',
+        // ...可以根据需要添加更多
+        };
+
+    const ADJUSTMENT_STATUS_LABELS = {
+        PENDING: '待处理',
+        PAID: '已支付',
+        BILLED: '已入账',
+        };
 
     const fetchData = useCallback(async () => {
         setLoading(true);
         try {
-            const [contractRes, billsRes] = await Promise.all([
+            const [contractRes, billsRes, adjustmentsRes, logsRes] = await Promise.all([
                 api.get(`/billing/contracts/${contractId}/details`),
-                api.get(`/billing/contracts/${contractId}/bills`)
+                api.get(`/billing/contracts/${contractId}/bills`),
+                api.get(`/billing/contracts/${contractId}/adjustments`),
+                api.get(`/billing/contracts/${contractId}/logs`)
             ]);
             setContract(contractRes.data);
             setBills(billsRes.data);
+            setAdjustments(adjustmentsRes.data);
             setIntroFee(contractRes.data.introduction_fee || '0');
-        
+            setLogs(logsRes.data);
+            
             const separator = '\\n\\n--- 运营备注 ---\\n';
             const notes = contractRes.data.notes || '';
             if (notes.includes(separator)) {
@@ -172,6 +196,76 @@ const ContractDetail = () => {
             fetchData();
         }
     }, [contractId, fetchData]);
+
+    const handleOpenOnboardingDialog = (contract) => {
+        setContractToSetDate(contract);
+        const defaultDate = contract.provisional_start_date ? new Date(contract.provisional_start_date) : new Date();
+        setNewOnboardingDate(defaultDate);
+        setOnboardingDialogOpen(true);
+    };
+
+    const handleCloseOnboardingDialog = () => {
+        setOnboardingDialogOpen(false);
+        setContractToSetDate(null);
+    };
+
+    const handleSaveOnboardingDate = async () => {
+        if (!contractToSetDate || !newOnboardingDate) {
+            setAlert({ open: true, message: '请选择一个有效的日期', severity:'warning' });
+            return;
+        }
+        try {
+            // 第一步：更新实际上户日期
+            await api.put(`/billing/contracts/${contractToSetDate.id}`, {
+                actual_onboarding_date: newOnboardingDate.toISOString().split('T')[0]
+            });
+            setAlert({ open: true, message:'上户日期已更新，正在为您预生成所有账单...', severity: 'info' });
+
+            // 第二步：触发后台任务，生成所有账单
+            await api.post(`/billing/contracts/${contractToSetDate.id}/generate-all-bills`);
+
+            setAlert({ open: true, message: '所有账单已成功预生成！', severity:'success' });
+            handleCloseOnboardingDialog();
+            fetchData(); // 重新加载详情页数据
+
+        } catch (error) {
+            setAlert({ open: true, message: `操作失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
+        }
+    };
+
+    const [depositDialogOpen, setDepositDialogOpen] = useState(false);
+    const [selectedAdjustment, setSelectedAdjustment] = useState(null);
+    const [depositPaidDate, setDepositPaidDate] = useState(new Date());
+    const [depositPaidAmount, setDepositPaidAmount] = useState('');
+    const [depositSettlementNotes, setDepositSettlementNotes] = useState('定金收款'); 
+
+    const handleOpenDepositDialog = (adjustment) => {
+        setSelectedAdjustment(adjustment);
+        setDepositPaidAmount(adjustment.amount || '0');
+        setDepositPaidDate(new Date());
+        setDepositDialogOpen(true);
+    };
+
+    const handleCloseDepositDialog = () => {
+        setDepositDialogOpen(false);
+        setSelectedAdjustment(null);
+    };
+
+    const handleConfirmDepositPayment = async () => {
+        if (!selectedAdjustment) return;
+        try {
+            await api.post(`/billing/financial-adjustments/${selectedAdjustment.id}/record-payment`, {
+                paid_amount: depositPaidAmount,
+                paid_at: depositPaidDate.toISOString(),
+                settlement_notes: depositSettlementNotes,
+            });
+            setAlert({ open: true, message: '定金支付记录成功！', severity: 'success'});
+            handleCloseDepositDialog();
+            fetchData(); // 重新获取所有数据
+        } catch (error) {
+            setAlert({ open: true, message: `操作失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
+        }
+    };
 
     const handleOpenTerminationDialog = () => {
         if (!contract) return;
@@ -319,12 +413,12 @@ const ContractDetail = () => {
         '合同类型': '月嫂合同',
         '级别/月薪': `¥${formatCurrency(contract.employee_level)}`,
         '预产期': formatDate(contract.provisional_start_date),
-        '实际上户日期': formatDate(contract.actual_onboarding_date),
-        '定金': `¥${formatCurrency(contract.deposit_amount)}`,
+        // '实际上户日期': formatDate(contract.actual_onboarding_date),
+        // '定金': `¥${formatCurrency(contract.deposit_amount)}`,
         '管理费': `¥${formatCurrency(contract.management_fee_amount)}`,
-        '管理费率': `${(contract.management_fee_rate * 100).toFixed(0)}%`,
+        // '管理费率': `${(contract.management_fee_rate * 100).toFixed(0)}%`,
         '保证金支付': `¥${formatCurrency(contract.security_deposit_paid)}`,
-        '优惠金额': `¥${formatCurrency(contract.discount_amount)}`,
+        // '优惠金额': `¥${formatCurrency(contract.discount_amount)}`,
     } : contract.contract_type_value === 'nanny_trial' ? {
         '合同类型': '育儿嫂试工',
         '级别/月薪': `¥${formatCurrency(contract.employee_level)}`,
@@ -348,6 +442,83 @@ const ContractDetail = () => {
                 disabled={contract.status !== 'active'}
                 color="primary"
             />
+        </Grid>
+    ) : null;
+
+    const onboardingDateField = (contract.contract_type_value ==='maternity_nurse') ? (
+        <Grid item xs={12} sm={6} md={4}>
+            <Typography variant="body2" color="text.secondary"gutterBottom>实际上户日期</Typography>
+            {contract.actual_onboarding_date ? (
+                <Typography variant="body1" component="div" sx={{ fontWeight: 500 }}>
+                    {formatDate(contract.actual_onboarding_date)}
+                </Typography>
+            ) : (
+                <Tooltip title="点击设置实际上户日期" arrow>
+                    <Chip
+                        icon={<EventBusyIcon />}
+                        label="未确认上户日期"
+                        size="small"
+                        variant="outlined"
+                        onClick={() => handleOpenOnboardingDialog(contract)}
+                        sx={{
+                            borderColor: 'grey.400',
+                            borderStyle: 'dashed',
+                            color: 'text.secondary',
+                            cursor: 'pointer',
+                            '&:hover': { backgroundColor: 'action.hover' }
+                        }}
+                    />
+                </Tooltip>
+            )}
+        </Grid>
+    ) : null;
+
+    const depositLogs = logs.filter(log => log.action === '记录定金支付');
+
+    const depositField = (contract.contract_type_value === 'maternity_nurse') ?(
+        <Grid item xs={12} sm={6} md={4}>
+            <Typography variant="body2" color="text.secondary"gutterBottom>定金</Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <Typography variant="body1" component="div" sx={{ fontWeight: 500 }}>
+                    {`¥${formatCurrency(contract.deposit_amount)}`}
+                </Typography>
+
+                {/* 仅在定金待处理时显示“收款”按钮 */}
+                {depositAdjustment && depositAdjustment.status === 'PENDING' &&(
+                    <Button
+                        variant="contained"
+                        size="small"
+                        onClick={() => handleOpenDepositDialog(depositAdjustment)}
+                        sx={{ ml: 2 }}
+                    >
+                        收款
+                    </Button>
+                )}
+
+                {/* 仅在有相关日志时显示“信息”图标 */}
+                {depositLogs.length > 0 && (
+                    <Tooltip
+                        title={
+                            <Box>
+                                {depositLogs.map(log => (
+                                    <Box key={log.id} sx={{ mb: 1 }}>
+                                        <Typography variant="caption" display="block">
+                                            {new Date(log.created_at).toLocaleString('zh-CN')} by {log.user}
+                                        </Typography>
+                                        <Typography variant="body2">
+                                            {log.action}: ¥{log.details?.paid_amount}
+                                        </Typography>
+                                    </Box>
+                                ))}
+                            </Box>
+                        }
+                    >
+                        <IconButton size="small" sx={{ ml: 1 }}>
+                            <InfoIcon fontSize="small" />
+                        </IconButton>
+                    </Tooltip>
+                )}
+            </Box>
         </Grid>
     ) : null;
 
@@ -425,18 +596,87 @@ const ContractDetail = () => {
                 <Grid container spacing={3}>
                     <Grid item xs={12}>
                         <Paper sx={{ p: 3 }}>
-                            <Typography variant="h6" gutterBottom>合同信息</Typography>
+                            <Typography variant="h3" gutterBottom>合同信息</Typography>
                             <Divider sx={{ my: 2 }} />
                             <Grid container spacing={3}>
                                 {Object.entries(baseFields).map(([label, value]) => <DetailItem key={label} label={label} value={value} />)}
                                 {Object.entries(specificFields).map(([label, value]) => <DetailItem key={label} label={label} value={value} />)}
+                                {onboardingDateField}
+                                {depositField}
                                 {autoRenewField}
                                 {introFeeField}
                                 {notesField}
                             </Grid>
                         </Paper>
                     </Grid>
+                    {/* <Grid item xs={12}>
+                        <Paper sx={{ p: 3 }}>
+                            <Typography variant="h6" gutterBottom>财务调整项</Typography>
+                            <TableContainer>
+                                <Table size="small">
+                                    <TableHead>
+                                        <TableRow>
+                                            <TableCell>类型</TableCell>
+                                            <TableCell>金额</TableCell>
+                                            <TableCell>状态</TableCell>
+                                            <TableCell>说明</TableCell>
+                                            <TableCell align="right">操作</TableCell>
+                                        </TableRow>
+                                    </TableHead>
+                                    <TableBody>
+                                        {adjustments.length > 0 ? adjustments.map((adj) => (
+                                            <TableRow key={adj.id} hover>
+                                                <TableCell>{ADJUSTMENT_TYPE_LABELS[adj.adjustment_type] || adj.adjustment_type}</TableCell>
 
+                                                <TableCell sx={{fontWeight: 'bold'}}>{`¥${formatCurrency(adj.amount)}`}</TableCell>
+                                                <TableCell><Chip label={ADJUSTMENT_STATUS_LABELS[adj.status] || adj.status} size="small" /></TableCell>
+                                                <TableCell>{adj.description}</TableCell>
+                                                <TableCell align="right">
+                                                    {adj.adjustment_type === 'deposit'&& adj.status === 'PENDING' && (
+                                                        <Button variant="contained"size="small" onClick={() => handleOpenDepositDialog(adj)}>
+                                                            记录支付
+                                                        </Button>
+                                                    )}
+                                                </TableCell>
+                                            </TableRow>
+                                        )) : (
+                                            <TableRow>
+                                                <TableCell colSpan={5} align="center">无任何财务调整项</TableCell>
+                                            </TableRow>
+                                        )}
+                                    </TableBody>
+                                </Table>
+                            </TableContainer>
+                        </Paper>
+                    </Grid> */}
+                    {/* 日志列表 */}
+                    {/* <Grid item xs={12}>
+                        <Paper sx={{ p: 3 }}>
+                            <Typography variant="h6" gutterBottom>操作日志</Typography>
+                            <List dense>
+                                {logs.map(log => (
+                                    <React.Fragment key={log.id}>
+                                        <ListItem>
+                                            <ListItemText
+                                                primary={`${log.action} - by ${log.user}`}
+                                                secondary={
+                                                    <>
+                                                        <Typography component="span" variant="body2" color="text.primary">
+                                                            {new Date(log.created_at).toLocaleString('zh-CN')}
+                                                        </Typography>
+                                                        <pre style={{ whiteSpace: 'pre-wrap',wordBreak: 'break-all', margin: 0, fontSize: '0.75rem' }}>
+                                                            {JSON.stringify(log.details, null,2)}
+                                                        </pre>
+                                                    </>
+                                                }
+                                            />
+                                        </ListItem>
+                                        <Divider component="li" />
+                                    </React.Fragment>
+                                ))}
+                            </List>
+                        </Paper>
+                    </Grid> */}
                     <Grid item xs={12}>
                         <Paper sx={{ p: 3 }}>
                             <Typography variant="h6" gutterBottom>关联账单列表</Typography>
@@ -521,6 +761,65 @@ const ContractDetail = () => {
                     />
                 )}
                 {/* --- 结束：渲染财务管理弹窗 --- */}
+
+                <Dialog open={depositDialogOpen} onClose={handleCloseDepositDialog}>
+                    <DialogTitle>记录定金支付</DialogTitle>
+                    <DialogContent>
+                        <Typography sx={{ mb: 2 }}>
+                            正在为 <b>{selectedAdjustment?.description}</b>记录支付信息。
+                        </Typography>
+                        <TextField
+                            label="支付金额"
+                            type="number"
+                            fullWidth
+                            margin="normal"
+                            value={depositPaidAmount}
+                            onChange={(e) => setDepositPaidAmount(e.target.value)}
+                            InputProps={{
+                                startAdornment: <InputAdornment position="start">¥</InputAdornment>,
+                            }}
+                        />
+                        <DatePicker
+                            label="支付日期"
+                            value={depositPaidDate}
+                            onChange={(date) => setDepositPaidDate(date)}
+                            sx={{ width: '100%', mt: 2 }}
+                        />
+                        {/* --- 在这里新增一个输入框 --- */}
+                        <TextField
+                            label="收款方式/备注"
+                            fullWidth
+                            margin="normal"
+                            value={depositSettlementNotes}
+                            onChange={(e) => setDepositSettlementNotes(e.target.value)}
+                        />
+                        {/* --- 新增结束 --- */}
+                    </DialogContent>
+                    <DialogActions>
+                        <Button onClick={handleCloseDepositDialog}>取消</Button>
+                        <Button onClick={handleConfirmDepositPayment} variant="contained" color="primary">确认支付</Button>
+                    </DialogActions>
+                </Dialog>
+                <Dialog open={onboardingDialogOpen}onClose={handleCloseOnboardingDialog}>
+                    <DialogTitle>设置实际上户日期</DialogTitle>
+                    <DialogContent>
+                        <Alert severity="info" sx={{ mt: 1, mb: 2 }}>
+                            为月嫂合同 <b>{contractToSetDate?.customer_name}({contractToSetDate?.employee_name})</b> 设置实际上户日期。
+                            <br/>
+                            预产期参考: {formatDate(contractToSetDate?.provisional_start_date)}
+                        </Alert>
+                        <DatePicker
+                            label="实际上户日期"
+                            value={newOnboardingDate}
+                            onChange={(date) => setNewOnboardingDate(date)}
+                            sx={{ width: '100%', mt: 1 }}
+                        />
+                    </DialogContent>
+                    <DialogActions>
+                        <Button onClick={handleCloseOnboardingDialog}>取消</Button>
+                        <Button onClick={handleSaveOnboardingDate} variant="contained">保存并生成账单</Button>
+                    </DialogActions>
+                </Dialog>
             </Box>
         </LocalizationProvider>
     );

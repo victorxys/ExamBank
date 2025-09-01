@@ -453,19 +453,37 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
     const handleDeleteAdjustment = (id) => {
         setAdjustments(prev => prev.filter(a => a.id !== id));
     };
-    const handleInvoiceNeededChange = (event) => {
+    const handleInvoiceNeededChange = async (event) => {
         const checked = event.target.checked;
 
-        // 立即调用 onSave 来持久化更改
-        // onSave 会触发父组件刷新数据，从而更新整个 billingDetails
-        onSave({
-            bill_id: billingDetails.customer_bill_details.id,
-            overtime_days: editableOvertime,
-            actual_work_days: editableActualWorkDays,
-            adjustments: adjustments,
-            invoices: editableInvoices,
-            invoice_needed: checked, // 使用新的开关状态
-        });
+        // 1. 乐观更新UI，让开关立即响应，提升体验
+        setBillingDetails(prev => ({
+            ...prev,
+            invoice_needed: checked
+        }));
+
+        try {
+            const billId = billingDetails.customer_bill_details.id;
+            // 2. 调用我们新的、专属的API
+            const response = await api.post(`/billing/bills/${billId}/set-invoice-needed`, {
+                invoice_needed: checked
+            });
+
+            // 3. 用后端返回的权威数据，精确更新发票管理模块
+            setBillingDetails(prev => ({
+                ...prev,
+                invoice_needed: response.data.invoice_needed,
+                invoice_balance: response.data.invoice_balance
+            }));
+
+        } catch (error) {
+            // 4. 如果API调用失败，把开关状态恢复到之前的值
+            setBillingDetails(prev => ({
+                ...prev,
+                invoice_needed: !checked
+            }));
+            setAlert({ open: true, message: `保存失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
+        }
     };
     // const handleSettlementChange = (event) => {
     //     const { name, value, checked, type } = event.target;

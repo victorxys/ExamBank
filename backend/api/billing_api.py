@@ -52,7 +52,12 @@ from backend.tasks import (
     generate_all_bills_for_contract_task,
 )  # 导入新任务
 from backend.services.billing_engine import BillingEngine
+from backend.services.billing_engine import _update_bill_payment_status
 from backend.models import AdjustmentType
+from backend.services.contract_service import (
+    upsert_introduction_fee_adjustment,
+    create_maternity_nurse_contract_adjustments,
+)
 
 D = decimal.Decimal
 
@@ -113,11 +118,27 @@ def _get_or_create_personnel_ref(name: str, phone: str = None):
     return {"type": "service_personnel", "id": new_sp.id}
 
 # 创建一个辅助函数来记录日志
-def _log_activity(bill, payroll, action, details=None):
-    user_id = get_jwt_identity()  # 获取当前登录用户的ID
+def _log_activity(bill, payroll, action, details=None, contract=None):
+    """
+    记录一条财务活动日志。
+    这是一个向后兼容的更新，增加了可选的 contract 参数。
+    """
+    user_id = get_jwt_identity()
+
+    # --- 新增：智能获取合同ID ---
+    final_contract_id = None
+    if contract:
+        final_contract_id = contract.id
+    elif bill and hasattr(bill, 'contract_id'):
+        final_contract_id = bill.contract_id
+    elif payroll and hasattr(payroll, 'contract_id'):
+        final_contract_id = payroll.contract_id
+    # --- 新增结束 ---
+
     log = FinancialActivityLog(
         customer_bill_id=bill.id if bill else None,
         employee_payroll_id=payroll.id if payroll else None,
+        contract_id=final_contract_id,  # <-- 使用我们最终获取到的ID
         user_id=user_id,
         action=action,
         details=details,
@@ -223,12 +244,29 @@ def _get_billing_details_internal(
         })
         _fill_group_fields(employee_details["groups"][0]["fields"], calc_payroll, ["employee_base_payout","employee_overtime_payout", "first_month_deduction", "substitute_deduction"],is_substitute_payroll=employee_payroll.is_substitute_payroll)
         
-    adjustment_filters = []
+    # adjustment_filters = []
+    # if customer_bill:
+    #     adjustment_filters.append(FinancialAdjustment.customer_bill_id == customer_bill.id)
+    # if employee_payroll:
+    #     adjustment_filters.append(FinancialAdjustment.employee_payroll_id == employee_payroll.id)
+    # adjustments = FinancialAdjustment.query.filter(or_(*adjustment_filters)).all() if adjustment_filters else []
+
+    # --- 核心修复：使用两次独立查询然后合并，确保数据完整 ---
+    customer_adjustments = []
     if customer_bill:
-        adjustment_filters.append(FinancialAdjustment.customer_bill_id == customer_bill.id)
+        customer_adjustments =FinancialAdjustment.query.filter_by(customer_bill_id=customer_bill.id).all()
+
+    employee_adjustments = []
     if employee_payroll:
-        adjustment_filters.append(FinancialAdjustment.employee_payroll_id == employee_payroll.id)
-    adjustments = FinancialAdjustment.query.filter(or_(*adjustment_filters)).all() if adjustment_filters else []
+        employee_adjustments =FinancialAdjustment.query.filter_by(employee_payroll_id=employee_payroll.id).all()
+
+    # 使用字典合并，可以自动去重（虽然这里基本不会有重合）
+    adjustments_map = {adj.id: adj for adj in customer_adjustments}
+    for adj in employee_adjustments:
+        adjustments_map[adj.id] = adj
+
+    adjustments = list(adjustments_map.values())
+    # --- 修复结束 ---
 
     overtime_days = 0
     if customer_bill.is_substitute_bill:
@@ -982,6 +1020,7 @@ def update_single_contract(contract_id):
 
     try:
         should_generate_bills = False
+        should_recalculate_first_bill = False
         log_details = {}
 
         if "actual_onboarding_date" in data:
@@ -994,6 +1033,7 @@ def update_single_contract(contract_id):
                     existing_date = existing_date_obj.date() if isinstance(existing_date_obj,datetime) else existing_date_obj
 
                     if existing_date != new_onboarding_date.date():
+                        current_app.logger.info(f"====合同==== {contract.id} 的实际上户日期从 {existing_date} 更新为 {new_onboarding_date.date()}")
                         contract.actual_onboarding_date = new_onboarding_date
 
                         provisional_start_obj = contract.provisional_start_date
@@ -1007,7 +1047,7 @@ def update_single_contract(contract_id):
                             contract.expected_offboarding_date = new_onboarding_date +timedelta(days=total_days)
                         else:
                             contract.expected_offboarding_date = new_onboarding_date +timedelta(days=26)
-
+                        log_details['实际上户日期'] = {'from': str(existing_date), 'to': str(new_onboarding_date.date())}
                         should_generate_bills = True
                 else:
                     return jsonify({"error": "只有月嫂合同才能设置实际上户日期"}), 400
@@ -1018,9 +1058,13 @@ def update_single_contract(contract_id):
 
         if "introduction_fee" in data and hasattr(contract, 'introduction_fee'):
             new_fee = D(data["introduction_fee"] or 0)
+            should_recalculate_first_bill = True
+            # upsert_introduction_fee_adjustment(contract)
             if contract.introduction_fee != new_fee:
+                # should_generate_bills = True
                 log_details['介绍费'] = {'from': str(contract.introduction_fee), 'to': str(new_fee)}
                 contract.introduction_fee = new_fee
+                
 
         if "notes" in data:
             original_note = contract.notes or ""
@@ -1046,6 +1090,26 @@ def update_single_contract(contract_id):
             current_app.logger.info(f"为合同 {contract.id} 触发统一的后台账单生成任务...")
             generate_all_bills_for_contract_task.delay(str(contract.id))
             return jsonify({"message": "合同信息更新成功，并已在后台开始生成所有相关账单。"})
+        
+        # --- BEGIN: 我们新增的重算逻辑 ---
+        if should_recalculate_first_bill:
+            # 找到这份合同的第一个账单,在首月账单中新增”介绍费“的财务调整项
+            first_bill = CustomerBill.query.filter_by(
+                contract_id=contract.id,
+                is_substitute_bill=False
+            ).order_by(CustomerBill.cycle_start_date.asc()).first()
+
+            if first_bill:
+                # 如果找到了，就为它触发一个后台重算任务
+                calculate_monthly_billing_task.delay(
+                    year=first_bill.year,
+                    month=first_bill.month,
+                    contract_id=str(contract.id),
+                    force_recalculate=True
+                )
+                current_app.logger.info(f"介绍费更新后，已为合同 {contract.id} 的首月账单 {first_bill.id} 触发重算。")
+                return jsonify({"message": "介绍费更新成功，首月账单已提交重算。"})
+        # --- END: 新增逻辑结束 ---
 
         return jsonify({"message": "合同信息更新成功"})
 
@@ -1777,7 +1841,8 @@ def create_virtual_contract():
                 provisional_start_date=date_parse(data["provisional_start_date"]) if data.get("provisional_start_date") else None,
                 security_deposit_paid=D(data.get("security_deposit_paid") or 0),
                 management_fee_amount=D(data.get("management_fee_amount") or 0),
-                introduction_fee=D(data.get("introduction_fee") or 0)
+                introduction_fee=D(data.get("introduction_fee") or 0),
+                deposit_amount=D(data.get("deposit_amount") or 0)
             )
         elif contract_type == "nanny":
             new_contract = NannyContract(
@@ -1807,6 +1872,17 @@ def create_virtual_contract():
             return jsonify({"error": "无效的合同类型"}), 400
 
         db.session.add(new_contract)
+        # --- BEGIN: 我们新增的核心业务逻辑 ---
+        # 先 flush 一次，让 new_contract 对象获得数据库的 ID
+        db.session.flush()
+
+        if isinstance(new_contract, MaternityNurseContract):
+            # 如果是月嫂合同，调用专属函数处理定金和介绍费
+            create_maternity_nurse_contract_adjustments(new_contract)
+        else:
+            # 对于其他合同（育儿嫂、试工），只处理介绍费
+            upsert_introduction_fee_adjustment(new_contract)
+        # --- END: 新增逻辑结束 ---
         db.session.commit()
         current_app.logger.info(f"成功创建虚拟合同，ID: {new_contract.id}, 类型: {contract_type}")
 
@@ -1846,6 +1922,7 @@ def generate_all_bills_for_contract(contract_id):
         return jsonify({"error": "合同未找到或缺少必要日期"}), 404
 
     try:
+        engine = BillingEngine()
         cycle_start = contract.actual_onboarding_date
         processed_months = set()
         cycle_count = 0
@@ -1866,7 +1943,7 @@ def generate_all_bills_for_contract(contract_id):
                 current_app.logger.info(
                     f"[API] 正在为周期 {cycle_start} ~ {cycle_end} 创建后台计算任务 (结算月: {settlement_month_key[0]}-{settlement_month_key[1]})"
                 )
-                calculate_monthly_billing_task.delay(
+                engine.calculate_for_month(
                     year=settlement_month_key[0],
                     month=settlement_month_key[1],
                     contract_id=str(contract.id),
@@ -1877,6 +1954,25 @@ def generate_all_bills_for_contract(contract_id):
             if cycle_end >= contract.expected_offboarding_date:
                 break
             cycle_start = cycle_end + timedelta(days=1)
+
+        db.session.commit()
+
+        newly_generated_bills = CustomerBill.query.filter_by(
+            contract_id=contract_id
+        ).order_by(CustomerBill.cycle_start_date.asc()).all()
+
+        bills_data = [{
+            "id": str(bill.id),
+            "billing_period": f"{bill.year}-{str(bill.month).zfill(2)}",
+            "cycle_start_date": bill.cycle_start_date.isoformat(),
+            "cycle_end_date": bill.cycle_end_date.isoformat(),
+            "base_work_days": (bill.calculation_details or {}).get("base_work_days", "0"),
+            "overtime_days": (bill.calculation_details or {}).get("overtime_days", "0"),
+            "total_due": str(bill.total_due),
+            "status": bill.payment_status.value,
+        } for bill in newly_generated_bills]
+
+        
 
         if cycle_end == contract.expected_offboarding_date:
             current_app.logger.info(
@@ -1890,7 +1986,10 @@ def generate_all_bills_for_contract(contract_id):
             f"--- [API END] 所有周期处理完毕，共循环 {cycle_count} 次。---"
         )
 
-        return jsonify({"message": f"已为合同 {contract.id} 成功预生成所有账单。"})
+        return jsonify({
+            "message": f"已为合同 {contract.id} 成功生成 {len(bills_data)} 个账单。",
+            "bills": bills_data
+        })
 
     except Exception as e:
         # 这里的 rollback 可能不是必须的，因为引擎内部已经处理了
@@ -2171,6 +2270,8 @@ def get_single_contract_details(contract_id):
             "id": str(contract.id),
             "customer_name": contract.customer_name,
             "contact_person": contract.contact_person,
+            "introduction_fee": contract.introduction_fee,
+            "deposit_amount": getattr(contract, "deposit_amount", None),
             "management_fee_amount": contract.management_fee_amount,
             "management_fee_rate": getattr(contract, "management_fee_rate", None),
             "employee_name": employee_name,
@@ -2197,6 +2298,7 @@ def get_single_contract_details(contract_id):
 @billing_bp.route("/contracts/<string:contract_id>", methods=["PUT"])
 @admin_required
 def update_contract(contract_id):
+    current_app.logger.info(f"--- 开始更新合同 update_contract {contract_id} ---")
     data = request.get_json()
     if not data:
         return jsonify({"error": "请求体不能为空"}), 400
@@ -2223,7 +2325,7 @@ def update_contract(contract_id):
                 new_end_date = new_onboarding_date + timedelta(days=26)
                 contract.end_date = new_end_date
                 current_app.logger.info(
-                    f"合同 {contract_id} 的实际上户日更新为 {new_onboarding_date}，合同结束日自动调整为 {new_end_date}。"
+                    f"合同====== {contract_id} 的实际上户日更新为 {new_onboarding_date}，合同结束日自动调整为 {new_end_date}。"
                 )
 
         # 未来可以增加更新其他字段的逻辑
@@ -3524,32 +3626,7 @@ def transfer_financial_adjustment(adjustment_id):
     
 
 
-def _update_bill_payment_status(bill: CustomerBill):
-    """
-    根据一个账单的所有支付记录，更新其 total_paid 和 payment_status.
-    """
-    if not bill:
-        return
 
-    # 计算已支付总额
-    total_paid = db.session.query(func.sum(PaymentRecord.amount)).filter(
-        PaymentRecord.customer_bill_id == bill.id
-    ).scalar() or D(0)
-
-    bill.total_paid = total_paid.quantize(D("0.01"))
-
-    # 更新支付状态
-    if bill.total_paid <= 0:
-        bill.payment_status = PaymentStatus.UNPAID
-    elif bill.total_paid < bill.total_due:
-        bill.payment_status = PaymentStatus.PARTIALLY_PAID
-    elif bill.total_paid == bill.total_due:
-        bill.payment_status = PaymentStatus.PAID
-    else: # total_paid > bill.total_due
-        bill.payment_status = PaymentStatus.OVERPAID
-
-    db.session.add(bill)
-    current_app.logger.info(f"Updated bill {bill.id} status to {bill.payment_status.value} with total_paid {bill.total_paid}")
 
 
 @billing_bp.route("/bills/<string:bill_id>/payments", methods=["POST", "OPTIONS"])
@@ -3819,3 +3896,154 @@ def enable_auto_renewal(contract_id):
         db.session.rollback()
         current_app.logger.error(f"开启合同 {contract_id} 自动续签失败: {e}", exc_info=True)
         return jsonify({"error": "处理失败，服务器内部错误"}), 500
+
+@billing_bp.route("/contracts/<uuid:contract_id>/adjustments", methods=["GET"])
+@admin_required
+def get_contract_adjustments(contract_id):
+    """
+    获取单个合同关联的所有财务调整项。
+    """
+    try:
+        # --- 核心修复：使用两次查询然后合并，避免复杂的JOIN错误 ---
+
+        # 1. 查找所有直接关联到合同的调整项 (例如，待处理的定金)
+        direct_adjustments =FinancialAdjustment.query.filter_by(contract_id=contract_id).all()
+
+        # 2. 查找所有通过该合同的账单关联的调整项
+        bill_adjustments = FinancialAdjustment.query.join(
+            CustomerBill, FinancialAdjustment.customer_bill_id == CustomerBill.id
+        ).filter(
+            CustomerBill.contract_id == contract_id
+        ).all()
+
+        # 3. 合并并去重
+        all_adjustments_map = {adj.id: adj for adj in direct_adjustments}
+        for adj in bill_adjustments:
+            all_adjustments_map[adj.id] = adj
+
+        # 4. 按日期排序
+        sorted_adjustments = sorted(
+            all_adjustments_map.values(),
+            key=lambda adj: adj.date or datetime.now().date(),
+            reverse=True
+        )
+
+        return jsonify([adj.to_dict() for adj in sorted_adjustments])
+        # --- 修复结束 ---
+
+    except Exception as e:
+        current_app.logger.error(f"获取合同 {contract_id} 的财务调整项失败: {e}",exc_info=True)
+        return jsonify({"error": "服务器内部错误"}), 500
+
+@billing_bp.route("/financial-adjustments/<uuid:adjustment_id>/record-payment",methods=["POST"])
+@admin_required
+def record_adjustment_payment(adjustment_id):
+    data = request.get_json()
+    paid_amount = data.get("paid_amount")
+    paid_at_str = data.get("paid_at")
+    settlement_notes = data.get("settlement_notes", "定金收款") # <-- 接收前端传来的备注
+
+    if not paid_amount or not paid_at_str:
+        return jsonify({"error": "必须提供支付金额和支付日期"}), 400
+
+    try:
+        adjustment = db.session.get(FinancialAdjustment, str(adjustment_id))
+        if not adjustment:
+            return jsonify({"error": "财务调整项未找到"}), 404
+
+        if adjustment.status != 'PENDING':
+            return jsonify({"error": f"该调整项状态为 {adjustment.status}，无法记录支付。"}), 400
+
+        if adjustment.adjustment_type != AdjustmentType.DEPOSIT:
+             return jsonify({"error": "此接口仅用于记录定金支付。"}), 400
+
+        paid_at_date = date_parse(paid_at_str)
+
+        # --- 核心修改：一次性更新所有相关状态 ---
+        # 1. 更新支付信息
+        adjustment.paid_amount = D(paid_amount)
+        adjustment.paid_at = paid_at_date
+        adjustment.paid_by_user_id = get_jwt_identity()
+        adjustment.status = 'PAID'
+
+        # 2. 同步更新结算信息
+        adjustment.is_settled = True
+        adjustment.settlement_date = paid_at_date.date()
+        adjustment.settlement_details = { "notes": settlement_notes, "method":"定金" }
+        # --- 修改结束 ---
+
+        contract = db.session.get(BaseContract, adjustment.contract_id)
+        log_details = {
+            "adjustment_id": str(adjustment.id),
+            "paid_amount": str(adjustment.paid_amount),
+            "paid_at": adjustment.paid_at.strftime('%Y-%m-%d'),
+            "settlement_notes": settlement_notes
+        }
+        _log_activity(bill=None, payroll=None, contract=contract, action="记录定金支付", details=log_details)
+
+        db.session.commit()
+        return jsonify({"message": "定金支付记录成功。", "adjustment":adjustment.to_dict()})
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"记录定金支付失败: {e}", exc_info=True)
+        return jsonify({"error": "服务器内部错误"}), 500
+
+@billing_bp.route("/contracts/<uuid:contract_id>/logs", methods=["GET"])
+@admin_required
+def get_contract_logs(contract_id):
+    """
+    获取单个合同关联的所有活动日志。
+    """
+    try:
+        logs = FinancialActivityLog.query.filter_by(
+            contract_id=contract_id
+        ).order_by(FinancialActivityLog.created_at.desc()).all()
+
+        results = [
+            {
+                "id": str(log.id),
+                "user": log.user.username if log.user else "未知用户",
+                "action": log.action,
+                "details": log.details,
+                "created_at": log.created_at.isoformat(),
+            }
+            for log in logs
+        ]
+        return jsonify(results)
+    except Exception as e:
+        current_app.logger.error(f"获取合同 {contract_id} 的活动日志失败: {e}",exc_info=True)
+        return jsonify({"error": "服务器内部错误"}), 500
+
+@billing_bp.route("/bills/<string:bill_id>/set-invoice-needed", methods=["POST"])
+@admin_required
+def set_invoice_needed_status(bill_id):
+    """
+    一个专门用于更新“是否需要开票”状态的轻量级API。
+    """
+    data = request.get_json()
+    if 'invoice_needed' not in data:
+        return jsonify({"error": "请求体中缺少 'invoice_needed' 字段"}), 400
+
+    bill = db.session.get(CustomerBill, bill_id)
+    if not bill:
+        return jsonify({"error": "账单未找到"}), 404
+
+    try:
+        bill.invoice_needed = bool(data['invoice_needed'])
+        db.session.commit()
+
+        # 状态更新后，重新计算发票余额信息
+        engine = BillingEngine()
+        invoice_balance = engine.calculate_invoice_balance(bill_id)
+
+        # 将最新的状态和计算结果返回给前端
+        return jsonify({
+            "message": "发票状态更新成功。",
+            "invoice_needed": bill.invoice_needed,
+            "invoice_balance": invoice_balance
+        })
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"更新发票状态失败 (bill_id: {bill_id}): {e}",exc_info=True)
+        return jsonify({"error": "服务器内部错误"}), 500

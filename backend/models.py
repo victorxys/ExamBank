@@ -1975,6 +1975,8 @@ class AdjustmentType(enum.Enum):
     EMPLOYEE_DECREASE = "employee_decrease"  # 员工减款 (收款, 如交宿舍费)
     EMPLOYEE_CLIENT_PAYMENT = "employee_client_payment" # 【新增】客户直付给员工（公司账目核销）
     DEFERRED_FEE = "deferred_fee"  # 顺延费用
+    INTRODUCTION_FEE = "introduction_fee" # 介绍费
+    DEPOSIT = "deposit" # 定金
 
 
 class FinancialAdjustment(db.Model):
@@ -1986,6 +1988,14 @@ class FinancialAdjustment(db.Model):
     amount = db.Column(db.Numeric(10, 2), nullable=False, comment="调整金额")
     description = db.Column(db.String(500), nullable=False, comment="款项说明/原因")
     date = db.Column(db.Date, nullable=False, index=True)
+
+    contract_id = db.Column(
+        PG_UUID(as_uuid=True),
+        db.ForeignKey("contracts.id", ondelete="CASCADE"),
+        nullable=True, # 允许为空，因为最终它会属于一个 bill
+        index=True,
+        comment="关联的合同ID (用于处理未入账的调整项)"
+    )
 
     customer_bill_id = db.Column(
         PG_UUID(as_uuid=True),
@@ -2018,7 +2028,23 @@ class FinancialAdjustment(db.Model):
         comment="结算详情 (e.g., {'method': '支付宝', 'notes': 'xxx', 'image_url': '...' })",
     )
 
-    # ----------------
+    status = db.Column(
+        db.String(50),
+        nullable=False,
+        default='PENDING',
+        server_default='PENDING',
+        index=True,
+        comment="调整项生命周期状态 (PENDING, PAID, BILLED)"
+    )
+    paid_amount = db.Column(db.Numeric(10, 2), nullable=True, comment="账单前支付金额 (用于定金)")
+    paid_at = db.Column(db.DateTime(timezone=True), nullable=True, comment="账单前支付时间(用于定金)")
+    
+    paid_by_user_id = db.Column(
+        PG_UUID(as_uuid=True),
+        db.ForeignKey("user.id", ondelete="SET NULL"),
+        nullable=True,
+        comment="记录该笔支付的操作员ID"
+    )
 
     def to_dict(self):
         return {
@@ -2027,6 +2053,7 @@ class FinancialAdjustment(db.Model):
             "amount": str(self.amount),
             "description": self.description,
             "date": self.date.isoformat() if self.date else None,
+            "contract_id": str(self.contract_id) if self.contract_id else None,
             "customer_bill_id": str(self.customer_bill_id)
             if self.customer_bill_id
             else None,
@@ -2040,6 +2067,9 @@ class FinancialAdjustment(db.Model):
             if self.settlement_date
             else None,
             "settlement_details": self.settlement_details,
+            "status": self.status,
+            "paid_amount": str(self.paid_amount) if self.paid_amount is not None else None,
+            "paid_at": self.paid_at.isoformat() if self.paid_at else None,
         }
 
 class InvoiceRecord(db.Model):
@@ -2210,7 +2240,8 @@ class ExternalSubstitutionContract(BaseContract):
 
 class MaternityNurseContract(BaseContract):  # 月嫂合同
     __mapper_args__ = {"polymorphic_identity": "maternity_nurse"}
-    deposit_amount = db.Column(db.Numeric(10, 2), default=0, comment="定金")
+    # 月嫂定金统一为3000
+    deposit_amount = db.Column(db.Numeric(10, 2), default=3000, comment="定金")
     # security_deposit_paid = db.Column(db.Numeric(10, 2), default=0, comment='客交保证金')
     management_fee_rate = db.Column(
         db.Numeric(4, 2), nullable=True, comment="管理费费率, e.g., 0.15 for 15%"
@@ -2239,7 +2270,13 @@ class FinancialActivityLog(db.Model):
 
     # 谁操作的
     user_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey("user.id"), nullable=False)
-
+    contract_id = db.Column(
+        PG_UUID(as_uuid=True),
+        db.ForeignKey("contracts.id", ondelete="CASCADE"),
+        nullable=True, # 允许为空，因为有些日志可能只与账单有关
+        index=True,
+        comment="关联的合同ID"
+    )
     user = db.relationship("User")
 
     # 操作内容

@@ -17,6 +17,8 @@ export const AdjustmentTypes = {
     customer_increase: { label: '客增加款', type: 'customer', effect: 1 },
     customer_decrease: { label: '退客户款', type: 'customer', effect: -1 },
     customer_discount: { label: '优惠', type: 'customer', effect: -1 },
+    deposit: { label: '定金', type: 'customer', effect: 1 }, // <-- 新增
+    introduction_fee: { label: '介绍费', type: 'customer', effect: 1 }, // <-- 新增
     employee_increase: { label: '萌嫂增款', type: 'employee', effect: 1 },
     employee_decrease: { label: '减萌嫂款', type: 'employee', effect: -1 },
     deferred_fee: { label: '上期顺延费用', type: 'customer', effect: 1 },

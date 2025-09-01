@@ -20,6 +20,10 @@ from backend.models import (
     NannyTrialContract,
 )
 from backend.security_utils import decrypt_data
+from backend.services.contract_service import (
+    upsert_introduction_fee_adjustment,
+    create_maternity_nurse_contract_adjustments,
+)
 
 D = decimal.Decimal
 
@@ -276,9 +280,11 @@ class DataSyncService:
                                 contract_data.get("provisional_start_date")
                             ),
                             end_date=end_date,
-                            deposit_amount=self._parse_numeric(
-                                contract_data.get("deposit_amount"), 0
-                            ),
+                            # 合同中没有月嫂定金字段，默认定金为3000
+                            # deposit_amount=self._parse_numeric(
+                            #     contract_data.get("deposit_amount"), 0
+                            # ),
+                            deposit_amount=D('3000'),
                             security_deposit_paid=security_deposit, # 使用计算后的值
                             management_fee_amount=calculated_management_fee, # 使用计算后的值
                             management_fee_rate=calculated_management_fee_rate, # 使用计算后的值
@@ -331,7 +337,19 @@ class DataSyncService:
 
                     if new_contract:
                         db.session.add(new_contract)
-                        db.session.flush()
+                        db.session.flush()  # 第一次 flush, 获取 contract ID
+
+                        # --- BEGIN: 我们新增的核心业务逻辑 ---
+                        if isinstance(new_contract, MaternityNurseContract):
+                            # 如果是月嫂合同，调用专属函数处理定金和介绍费
+                            create_maternity_nurse_contract_adjustments(new_contract)
+                        else:
+                            # 对于其他合同（育儿嫂、试工），只处理介绍费
+                            upsert_introduction_fee_adjustment(new_contract)
+
+                        db.session.flush() # 第二次 flush, 保存上面创建的财务调整项
+                        # --- END: 新增逻辑结束 ---
+
                         newly_synced_contract_ids.append(str(new_contract.id))
                         synced_count += 1
 
