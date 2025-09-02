@@ -144,6 +144,8 @@ const ContractDetail = () => {
     const [onboardingDialogOpen, setOnboardingDialogOpen] = useState(false);
     const [contractToSetDate, setContractToSetDate] = useState(null);
     const [newOnboardingDate, setNewOnboardingDate] = useState(null);
+    const [infoDialogOpen, setInfoDialogOpen] = useState(false);
+    const [infoDialogData, setInfoDialogData] = useState({ message: '', billId: null});
 
     const ADJUSTMENT_TYPE_LABELS = {
         deposit: '定金',
@@ -240,10 +242,26 @@ const ContractDetail = () => {
     const [depositSettlementNotes, setDepositSettlementNotes] = useState('定金收款'); 
 
     const handleOpenDepositDialog = (adjustment) => {
-        setSelectedAdjustment(adjustment);
-        setDepositPaidAmount(adjustment.amount || '0');
-        setDepositPaidDate(new Date());
-        setDepositDialogOpen(true);
+        // 如果定金状态是 BILLED (已入账)
+        if (adjustment.status === 'BILLED') {
+            // 设置提示信息，并打开提示弹窗
+            setInfoDialogData({
+                message: '当前定金已经附加到账单，请在账单中进行结算操作。',
+                billId: adjustment.customer_bill_id
+            });
+            setInfoDialogOpen(true);
+        }
+        // 如果状态是 PENDING (待处理)，则走原来的收款流程
+        else if (adjustment.status === 'PENDING') {
+            setSelectedAdjustment(adjustment);
+            setDepositPaidAmount(adjustment.amount || '0');
+            setDepositPaidDate(new Date());
+            setDepositDialogOpen(true);
+        }
+        // 其他状态，可以给一个通用提示
+        else {
+            setAlert({ open: true, message: `该调整项状态为 ${adjustment.status}，无法进行收款操作。`, severity: 'info' });
+        }
     };
 
     const handleCloseDepositDialog = () => {
@@ -483,8 +501,8 @@ const ContractDetail = () => {
                     {`¥${formatCurrency(contract.deposit_amount)}`}
                 </Typography>
 
-                {/* 仅在定金待处理时显示“收款”按钮 */}
-                {depositAdjustment && depositAdjustment.status === 'PENDING' &&(
+                {/* 只要定金未支付，就显示“收款”按钮 */}
+                {!contract.deposit_paid && depositAdjustment && (
                     <Button
                         variant="contained"
                         size="small"
@@ -818,6 +836,34 @@ const ContractDetail = () => {
                     <DialogActions>
                         <Button onClick={handleCloseOnboardingDialog}>取消</Button>
                         <Button onClick={handleSaveOnboardingDate} variant="contained">保存并生成账单</Button>
+                    </DialogActions>
+                </Dialog>
+                <Dialog open={infoDialogOpen} onClose={() => setInfoDialogOpen(false)}>
+                    <DialogTitle>操作提示</DialogTitle>
+                    <DialogContent>
+                        <Alert severity="info">
+                            {infoDialogData.message}
+                        </Alert>
+                    </DialogContent>
+                    <DialogActions>
+                        <Button onClick={() => setInfoDialogOpen(false)}>关闭</Button>
+                        <Button
+                            variant="contained"
+                            onClick={() => {
+                                // 关闭提示弹窗
+                                setInfoDialogOpen(false);
+                                // 找到对应的账单对象
+                                const targetBill = bills.find(b => b.id === infoDialogData.billId);
+                                if (targetBill) {
+                                    // 打开你已有的账单管理弹窗
+                                    handleOpenBillModal(targetBill);
+                                } else {
+                                    setAlert({ open: true, message:'错误：未能在当前合同下找到对应的账单。', severity: 'error' });
+                                }
+                            }}
+                        >
+                            查看账单
+                        </Button>
                     </DialogActions>
                 </Dialog>
             </Box>

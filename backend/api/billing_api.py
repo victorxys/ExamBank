@@ -2,7 +2,7 @@
 
 from flask import Blueprint, jsonify, current_app, request, Response
 from flask_jwt_extended import jwt_required
-from sqlalchemy import or_, case, and_, func, distinct, extract, cast, String
+from sqlalchemy import or_, case, and_, not_, exists, func, distinct, extract, cast, String
 from sqlalchemy.orm import with_polymorphic, attributes
 from flask_jwt_extended import get_jwt_identity
 from dateutil.parser import parse as date_parse
@@ -46,7 +46,8 @@ from backend.models import (
     PayoutStatus,
     PayoutRecord,
     AdjustmentType,
-    ExternalSubstitutionContract
+    ExternalSubstitutionContract,
+    NannyContract, 
 )
 from backend.tasks import (
     sync_all_contracts_task,
@@ -1638,30 +1639,59 @@ def get_all_contracts():
         search_term = request.args.get("search", "").strip()
         contract_type = request.args.get("type", "")
         status = request.args.get("status", "active")
+        deposit_status_filter = request.args.get("deposit_status", "") # <-- 获取新参数
         sort_by = request.args.get("sort_by", None)
         sort_order = request.args.get("sort_order", "asc")
 
-        query = (
-            BaseContract.query.options(
-                db.joinedload(BaseContract.user),
-                db.joinedload(BaseContract.service_personnel),
-            )
-            .join(User, BaseContract.user_id == User.id, isouter=True)
-            .join(
-                ServicePersonnel,
-                BaseContract.service_personnel_id == ServicePersonnel.id,
-                isouter=True,
-            )
+        # 2. 【关键修正】最终版的定金子查询，包含了所有支付逻辑
+        deposit_adjustment_sq = db.session.query(
+            FinancialAdjustment.contract_id,
+            FinancialAdjustment.amount,
+            FinancialAdjustment.is_settled, # <-- 需要查询 is_settled 字段
+            case(
+                (
+                    # 情况1: 调整项自身状态就是 PAID
+                    FinancialAdjustment.status == 'PAID', 'PAID'
+                ),
+                (
+                    # 情况2: 状态是 BILLED 并且 is_settled 标志为 True
+                    and_(FinancialAdjustment.status == 'BILLED',FinancialAdjustment.is_settled == True), 'PAID'
+                ),
+                (
+                    # 情况3: 调整项关联的账单状态是 PAID 或 OVERPAID
+                    CustomerBill.payment_status.in_([PaymentStatus.PAID,PaymentStatus.OVERPAID]), 'PAID'
+                ),
+                # 其他情况，使用调整项自身的状态
+                else_=FinancialAdjustment.status
+            ).label('effective_status')
+        ).outerjoin(
+            CustomerBill, FinancialAdjustment.customer_bill_id ==CustomerBill.id
+        ).filter(
+            FinancialAdjustment.adjustment_type == AdjustmentType.DEPOSIT
+        ).subquery('deposit_adjustment')
+
+        # 3. 主查询，使用新的子查询
+        query = db.session.query(
+            BaseContract,
+            deposit_adjustment_sq.c.amount.label('deposit_amount'),
+            deposit_adjustment_sq.c.effective_status.label('deposit_status')
+        ).outerjoin(
+            deposit_adjustment_sq, BaseContract.id ==deposit_adjustment_sq.c.contract_id
+        ).join(
+            User, BaseContract.user_id == User.id, isouter=True
+        ).join(
+            ServicePersonnel,
+            BaseContract.service_personnel_id == ServicePersonnel.id,
+            isouter=True,
         )
 
         if status and status != "all":
             query = query.filter(BaseContract.status == status)
 
         if contract_type:
-            # --- 核心修改：支持用逗号分隔的多个类型查询 ---
             types_to_filter = [t.strip() for t in contract_type.split(',')]
             query = query.filter(BaseContract.type.in_(types_to_filter))
-            # --- 修改结束 ---
+
         if search_term:
             query = query.filter(
                 db.or_(
@@ -1672,6 +1702,18 @@ def get_all_contracts():
                     ServicePersonnel.name.ilike(f"%{search_term}%"),
                     ServicePersonnel.name_pinyin.ilike(f"%{search_term}%"),
                 )
+            )
+        # --- 【新增逻辑】处理定金状态筛选 ---
+        if deposit_status_filter == 'paid':
+            query = query.filter(deposit_adjustment_sq.c.effective_status =='PAID')
+        elif deposit_status_filter == 'unpaid':
+            # 未支付包含两种情况：1. 没有定金记录 2. 有定金记录但状态不是PAID
+            query = query.filter(
+                db.or_(
+                    deposit_adjustment_sq.c.effective_status == None,
+                    deposit_adjustment_sq.c.effective_status != 'PAID'
+                ),
+                deposit_adjustment_sq.c.amount > 0
             )
 
         today = date.today()
@@ -1699,8 +1741,12 @@ def get_all_contracts():
             page=page, per_page=per_page, error_out=False
         )
 
+
+
+
         results = []
-        for contract in paginated_contracts.items:
+        for contract, deposit_amount, deposit_status in paginated_contracts.items:
+            # 你的原始员工姓名获取逻辑，完全保留
             employee_name = (
                 contract.user.username
                 if contract.user
@@ -1709,17 +1755,15 @@ def get_all_contracts():
                 else "未知员工"
             )
 
+            # 你的原始“剩余有效期”计算逻辑，完全保留
             remaining_months_str = "N/A"
             highlight_remaining = False
-
-            # 【关键修复】使用 isinstance 进行类型检查，兼容 datetime 和 date 对象
             start_date_dt = contract.actual_onboarding_date or contract.start_date
             start_date_for_calc = None
             if isinstance(start_date_dt, datetime):
                 start_date_for_calc = start_date_dt.date()
             elif isinstance(start_date_dt, date):
                 start_date_for_calc = start_date_dt
-
             end_date_dt = None
             if contract.type == "maternity_nurse":
                 end_date_dt = (
@@ -1727,13 +1771,11 @@ def get_all_contracts():
                 )
             else:
                 end_date_dt = contract.end_date
-
             end_date_for_calc = None
             if isinstance(end_date_dt, datetime):
                 end_date_for_calc = end_date_dt.date()
             elif isinstance(end_date_dt, date):
                 end_date_for_calc = end_date_dt
-
             today = date.today()
             if isinstance(contract, NannyContract) and getattr(
                 contract, "is_monthly_auto_renew", False
@@ -1744,10 +1786,8 @@ def get_all_contracts():
                     remaining_months_str = "合同未开始"
                 elif end_date_for_calc > today:
                     total_days_remaining = (end_date_for_calc - today).days
-
                     if contract.type == "nanny" and total_days_remaining < 30:
                         highlight_remaining = True
-
                     if total_days_remaining >= 365:
                         years = total_days_remaining // 365
                         months = (total_days_remaining % 365) // 30
@@ -1762,6 +1802,11 @@ def get_all_contracts():
                 else:
                     remaining_months_str = "已结束"
 
+        
+
+            final_deposit_amount = deposit_amount if deposit_amount is not None else 0
+
+            # 【修改】在返回的字典中增加我们需要的字段
             results.append(
                 {
                     "id": str(contract.id),
@@ -1777,6 +1822,9 @@ def get_all_contracts():
                     "provisional_start_date": getattr(contract,"provisional_start_date", None),
                     "remaining_months": remaining_months_str,
                     "highlight_remaining": highlight_remaining,
+                    # --- 新增的字段 ---
+                    "deposit_amount": str(final_deposit_amount),
+                    "deposit_paid": (deposit_status == 'PAID'),
                 }
             )
 
@@ -1793,6 +1841,17 @@ def get_all_contracts():
     except Exception as e:
         current_app.logger.error(f"获取所有合同列表失败: {e}", exc_info=True)
         return jsonify({"error": str(e)}), 500
+
+# 你可能需要一个辅助函数，如果还没有的话
+def get_contract_type_details(type_string):
+    # 这个函数只是一个示例，你需要根据你的实际情况来实现
+    type_map = {
+        "nanny": "育儿嫂",
+        "maternity_nurse": "月嫂",
+        "nanny_trial": "育儿嫂试工",
+        "external_substitution": "外部替班"
+    }
+    return type_map.get(type_string, type_string)
 
 @billing_bp.route("/personnel/search", methods=["GET"])
 @admin_required
@@ -2278,6 +2337,41 @@ def get_single_contract_details(contract_id):
 
         if not contract:
             return jsonify({"error": "合同未找到"}), 404
+        
+        # 【新增逻辑开始】
+        # 1. 在获取合同后，单独查询该合同的定金信息
+        deposit_info = db.session.query(
+            FinancialAdjustment.amount,
+            FinancialAdjustment.status,
+            FinancialAdjustment.is_settled,
+            CustomerBill.payment_status
+        ).outerjoin(
+            CustomerBill, FinancialAdjustment.customer_bill_id ==CustomerBill.id
+        ).filter(
+            FinancialAdjustment.contract_id == contract_id,
+            FinancialAdjustment.adjustment_type == AdjustmentType.DEPOSIT
+        ).first()
+
+        # 2. 在 Python 中应用我们最终确定的业务逻辑
+        final_deposit_amount = 0
+        is_deposit_paid = False
+
+        # 优先使用 FinancialAdjustment 中的金额，如果不存在，再尝试从合同自身获取 (兼容旧数据)
+        if deposit_info and deposit_info.amount is not None:
+            final_deposit_amount = deposit_info.amount
+        elif hasattr(contract, 'deposit_amount'):
+             final_deposit_amount = contract.deposit_amount or 0
+
+        if deposit_info:
+            amount, status, is_settled, bill_payment_status = deposit_info
+            current_app.logger.debug(f"定金信息 - 金额: {amount}, 状态: {status}, is_settled: {is_settled}, 账单支付状态: {bill_payment_status}")
+            if status == 'PAID':
+                is_deposit_paid = True
+            elif status == 'BILLED' and is_settled:
+                is_deposit_paid = True
+            elif bill_payment_status in [PaymentStatus.PAID,PaymentStatus.OVERPAID]:
+                is_deposit_paid = True
+        # 【新增逻辑结束】
 
         employee_name = (
             contract.user.username
@@ -2358,6 +2452,9 @@ def get_single_contract_details(contract_id):
             "highlight_remaining": highlight_remaining,
             "notes": contract.notes,
             "is_monthly_auto_renew": getattr(contract,'is_monthly_auto_renew', None),
+            # --- 使用新字段替换旧字段 ---
+            "deposit_amount": str(final_deposit_amount),
+            "deposit_paid": is_deposit_paid,
         }
         return jsonify(result)
 
@@ -3098,12 +3195,35 @@ def get_dashboard_summary():
     try:
         today = date.today()
 
-        # === 1. KPIs (逻辑不变) ===
+        # === 1. KPIs ===
         active_contracts_count = db.session.query(func.count(BaseContract.id)).filter(BaseContract.status == 'active').scalar() or 0
         active_employees_count = db.session.query(func.count(distinct(BaseContract.user_id))).filter(
             BaseContract.status == 'active',
             BaseContract.user_id.isnot(None)
         ).scalar() or 0
+
+        # 直接查询出所有满足“未支付且金额>0”的有效定金，然后统计关联合同的数量
+        pending_deposit_query = db.session.query(
+            func.count(distinct(FinancialAdjustment.contract_id))
+        ).join(
+            BaseContract, FinancialAdjustment.contract_id == BaseContract.id
+        ).outerjoin(
+            CustomerBill, FinancialAdjustment.customer_bill_id == CustomerBill.id
+        ).filter(
+            # 条件1: 是有效合同
+            BaseContract.status == 'active',
+            BaseContract.type.in_(['nanny', 'maternity_nurse']),
+            # 条件2: 是金额大于0的定金
+            FinancialAdjustment.adjustment_type == AdjustmentType.DEPOSIT,
+            FinancialAdjustment.amount > 0,
+            # 条件3: 并且不满足任何“已支付”的条件
+            not_(or_(
+                FinancialAdjustment.status == 'PAID',
+                and_(FinancialAdjustment.status == 'BILLED',FinancialAdjustment.is_settled == True),
+                CustomerBill.payment_status.in_([PaymentStatus.PAID,PaymentStatus.OVERPAID])
+            ))
+        )
+        pending_deposit_count = pending_deposit_query.scalar() or 0
 
         # 年度已收管理费
         yearly_management_fee_received = db.session.query(
@@ -3124,6 +3244,7 @@ def get_dashboard_summary():
             "monthly_management_fee_total": f"{D(yearly_management_fee_total).quantize(D('0.01'))}",
             "active_contracts_count": active_contracts_count,
             "active_employees_count": active_employees_count,
+            "pending_deposit_count": pending_deposit_count,
         }
 
         # === 2. TODO Lists (逻辑不变) ===
@@ -4336,3 +4457,125 @@ def export_receivables():
     except Exception as e:
         current_app.logger.error(f"导出应收款失败: {e}", exc_info=True)
         return jsonify({"error": "服务器内部错误，导出失败"}), 500
+    
+
+@billing_bp.route('/pending_deposits', methods=['GET'])
+@jwt_required()
+def get_pending_deposits():
+    """
+    高效计算待收定金的月嫂合同数量。
+    """
+    try:
+        # 子查询：找到所有已经支付了定金的合同ID
+        paid_deposit_contract_ids =db.session.query(FinancialAdjustment.contract_id).filter(
+            FinancialAdjustment.adjustment_type == AdjustmentType.DEPOSIT, # 修正字段名
+            FinancialAdjustment.status == 'PAID' # <-- 【关键修正】
+        ).distinct()
+
+        # 主查询：计算所有状态不为“已终止”的月嫂合同中，ID不在上面子查询结果里的数量
+        count = db.session.query(NannyContract.id).filter(
+            NannyContract.status != 'terminated',
+            not_(NannyContract.id.in_(paid_deposit_contract_ids))
+        ).count()
+
+        return jsonify({"pending_deposit_count": count})
+    except Exception as e:
+        current_app.logger.error(f"Failed to get pending deposits count: {e}",exc_info=True)
+        return jsonify({"error": "Internal server error"}), 500
+    
+# @billing_bp.route("/contracts", methods=["GET"])
+# @jwt_required()
+# def get_contracts():
+#     """
+#     获取合同列表，支持筛选、分页，并附带定金金额和支付状态。
+#     """
+#     try:
+#         # 1. 获取所有前端传递的参数
+#         page = request.args.get('page', 1, type=int)
+#         per_page = request.args.get('per_page', 10, type=int)
+#         search_term = request.args.get('search', '').strip()
+#         type_filter = request.args.get('type', '')
+#         status_filter = request.args.get('status', '')
+#         deposit_status_filter = request.args.get('deposit_status', '')
+
+#         # 2. 创建定金子查询 (此部分逻辑正确，保持不变)
+#         deposit_adjustment_sq = db.session.query(
+#             FinancialAdjustment.contract_id,
+#             FinancialAdjustment.amount,
+#             FinancialAdjustment.status
+#         ).filter(
+#             FinancialAdjustment.adjustment_type == AdjustmentType.DEPOSIT
+#         ).subquery('deposit_adjustment')
+
+#         # 3. 【关键修正】构建主查询，正确地 JOIN User 和 ServicePersonnel
+#         query = db.session.query(
+#             BaseContract,
+#             deposit_adjustment_sq.c.amount.label('deposit_amount'),
+#             deposit_adjustment_sq.c.status.label('deposit_status'),
+#             User.username.label('user_employee_name'),
+#             ServicePersonnel.name.label('sp_employee_name')
+#         ).outerjoin(
+#             deposit_adjustment_sq, BaseContract.id ==deposit_adjustment_sq.c.contract_id
+#         ).outerjoin(
+#             User, BaseContract.user_id == User.id
+#         ).outerjoin(
+#             ServicePersonnel, BaseContract.service_personnel_id ==ServicePersonnel.id
+#         )
+
+#         # 4. 应用所有筛选条件
+#         if type_filter and type_filter != 'all':
+#             type_list = [t.strip() for t in type_filter.split(',')]
+#             query = query.filter(BaseContract.type.in_(type_list))
+#         if status_filter and status_filter != 'all':
+#             query = query.filter(BaseContract.status == status_filter)
+#         if deposit_status_filter == 'unpaid':
+#             query = query.filter(deposit_adjustment_sq.c.status != 'PAID')
+#         if search_term:
+#             # 【关键修正】搜索客户姓名、内部员工姓名、外部服务人员姓名
+#             query = query.filter(
+#                 or_(
+#                     BaseContract.customer_name.ilike(f'%{search_term}%'),
+#                     User.username.ilike(f'%{search_term}%'),
+#                     ServicePersonnel.name.ilike(f'%{search_term}%')
+#                 )
+#             )
+
+#         # 5. 排序和分页
+#         query = query.order_by(BaseContract.start_date.desc())
+#         pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+#         results = pagination.items
+
+#         # 6. 【关键修正】格式化输出
+#         contracts_data = []
+#         for contract, deposit_amount, deposit_status, user_employee_name,sp_employee_name in results:
+#             # 正确地从两个可能的地方获取员工姓名
+#             employee_name = user_employee_name or sp_employee_name or "N/A"
+#             final_deposit_amount = deposit_amount if deposit_amount is not None else 0
+
+#             contract_dict = {
+#                 "id": str(contract.id),
+#                 "customer_name": contract.customer_name, # 直接从合同字段获取
+#                 "employee_name": employee_name,
+#                 "start_date": contract.start_date.isoformat(),
+#                 "end_date": contract.end_date.isoformat(),
+#                 "status": contract.status,
+#                 "type": contract.type,
+#                 "deposit_amount": str(final_deposit_amount),
+#                 "deposit_paid": (deposit_status == 'PAID'),
+#                 "contract_type_label": contract.type,
+#                 "contract_type_value": contract.type,
+#             }
+#             contracts_data.append(contract_dict)
+
+#         return jsonify({
+#             'items': contracts_data,
+#             'total': pagination.total,
+#             'page': pagination.page,
+#             'pages': pagination.pages
+#         })
+
+#     except Exception as e:
+#         current_app.logger.error(f"Failed to get contracts with final logic: {e}", exc_info=True)
+#         import traceback
+#         traceback.print_exc()
+#         return jsonify({"error": "Internal server error"}), 500

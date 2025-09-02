@@ -46,7 +46,7 @@ const ContractList = () => {
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
     // --- 核心修正 1：修改默认状态并增加排序 state ---
-    const [filters, setFilters] = useState({ search: '', type: '', status: 'all' });
+    const [filters, setFilters] = useState({ search: '', type: '', status: 'all', deposit_status:'' });
     const [sortBy, setSortBy] = useState(null); // 'remaining_days' or null
     const [sortOrder, setSortOrder] = useState('asc'); // 'asc' or 'desc'
 
@@ -60,10 +60,17 @@ const ContractList = () => {
 
     // 当URL参数变化时，更新筛选器
     useEffect(() => {
+        const params = new URLSearchParams(location.search);
+        const depositStatusFromUrl = params.get('deposit_status') || '';
         const typeFromUrl = contractType === 'all' ? '' : contractType;
-        setFilters(prev => ({ ...prev, type: typeFromUrl || '' }));
-        setPage(0); // 重置页码
-    }, [contractType]);
+
+        setFilters(prev => ({
+            ...prev,
+            type: typeFromUrl || '',
+            deposit_status: depositStatusFromUrl
+        }));
+        setPage(0);
+    }, [contractType, location.search]);
 
     const fetchContracts = useCallback(async () => {
         setLoading(true);
@@ -98,13 +105,8 @@ const ContractList = () => {
 
     const handleFilterChange = (e) => {
         const { name, value } = e.target;
-        // 如果用户通过下拉菜单改变类型，我们更新URL
-        if (name === 'type') {
-            navigate(`/contracts/${value || 'all'}`);
-        } else {
-            setPage(0);
-            setFilters(prev => ({ ...prev, [name]: value }));
-        }
+        setPage(0); // 重置页码
+        setFilters(prev => ({ ...prev, [name]: value }));
     };
 
     // --- 核心修正 3：处理排序的函数 ---
@@ -208,6 +210,22 @@ const ContractList = () => {
                         <Grid item xs={6} sm={2}><FormControl fullWidth size="small"><InputLabel>类型</InputLabel><Select name="type" value={filters.type} label="类型" onChange={handleFilterChange}><MenuItem value=""><em>全部</em></MenuItem><MenuItem value="nanny">育儿嫂</MenuItem><MenuItem value="maternity_nurse">月嫂</MenuItem> <MenuItem value="nanny_trial">育儿嫂试工</MenuItem></Select></FormControl></Grid>
                         {/* --- 核心修正 4：修改状态过滤器的选项 --- */}
                         <Grid item xs={6} sm={2}><FormControl fullWidth size="small"><InputLabel>状态</InputLabel><Select name="status" value={filters.status} label="状态" onChange={handleFilterChange}><MenuItem value="all"><em>全部状态</em></MenuItem><MenuItem value="active">服务中</MenuItem><MenuItem value="pending">待上户</MenuItem><MenuItem value="finished">已完成</MenuItem><MenuItem value="terminated">已终止</MenuItem><MenuItem value="trial_active">试工中</MenuItem><MenuItem value="trial_succeeded">试工成功</MenuItem></Select></FormControl></Grid>
+                        {/* 在状态(status)筛选框的 <Grid item> 之后，添加这个新的 <Grid item> */}
+                        <Grid item xs={6} sm={2}>
+                            <FormControl fullWidth size="small">
+                                <InputLabel>定金状态</InputLabel>
+                                <Select
+                                    name="deposit_status"
+                                    value={filters.deposit_status}
+                                    label="定金状态"
+                                    onChange={handleFilterChange}
+                                >
+                                    <MenuItem value=""><em>全部</em></MenuItem>
+                                    <MenuItem value="paid">已支付</MenuItem>
+                                    <MenuItem value="unpaid">未支付</MenuItem>
+                                </Select>
+                            </FormControl>
+                        </Grid>
                         <Grid item xs={12} sm={4} sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
                             {/* <Button variant="contained" startIcon={<AddIcon />}>新增合同</Button> */}
                             {/* <Button variant="outlined" startIcon={<SyncIcon />}>同步合同</Button> */}
@@ -244,6 +262,7 @@ const ContractList = () => {
                                     </TableSortLabel>
                                 </TableCell>
                                 <TableCell>实际上户日期</TableCell>
+                                <TableCell>定金状态</TableCell>
                                 <TableCell>状态</TableCell>
                                 <TableCell align="center">操作</TableCell>
                             </TableRow>
@@ -318,6 +337,26 @@ const ContractList = () => {
                                             </Tooltip>
                                         ) : (
                                             'N/A'
+                                        )}
+                                    </TableCell>
+                                    <TableCell>
+                                        {/* 如果定金金额为0或不存在，则只显示 '0.00' */}
+                                        {!contract.deposit_amount || parseFloat(contract.deposit_amount) === 0 ?(
+                                            <Typography variant="body2" color="text.secondary">
+                                            0.00
+                                            </Typography>
+                                        ) : (
+                                            /* 否则，显示金额和支付状态 */
+                                            <Stack direction="row" spacing={1} alignItems="center">
+                                            <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                                {parseFloat(contract.deposit_amount).toFixed(2)}
+                                            </Typography>
+                                            {contract.deposit_paid ? (
+                                                <Chip label="已支付" size="small" color="success" variant="outlined" />
+                                            ) : (
+                                                <Chip label="未支付" size="small" color="error" variant="outlined"/>
+                                            )}
+                                            </Stack>
                                         )}
                                     </TableCell>
                                     <TableCell><Chip label={contract.status} size="small" color={contract.status === 'active' ? 'success' : 'default'} /></TableCell>

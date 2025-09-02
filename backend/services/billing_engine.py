@@ -257,7 +257,7 @@ class BillingEngine:
                         amount=adj.paid_amount,
                         payment_date=adj.paid_at or bill.cycle_start_date.date(),
                         method='定金',  # <-- 修改收款方式
-                        notes=f"定金转入 {operator_name} {operation_date_str}",# <-- 修改备注格式
+                        notes=f"{operator_name} 确认定金转入，转入日期:{operation_date_str}",# <-- 修改备注格式
                         created_by_user_id=adj.paid_by_user_id
                     )
                     db.session.add(deposit_payment)

@@ -1,5 +1,6 @@
 // frontend/src/components/DashboardPage.jsx
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Paper, Box, Typography, Grid, CircularProgress, List, ListItem, ListItemText, ListItemIcon, Divider, Chip,ToggleButtonGroup, ToggleButton } from '@mui/material';
 import {
     AccountBalanceWallet as AccountBalanceWalletIcon,
@@ -76,6 +77,7 @@ const DashboardPage = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [pieChartTimespan, setPieChartTimespan] = useState('this_year');
+    const navigate = useNavigate(); 
     const theme = useTheme();
 
     useEffect(() => {
@@ -130,8 +132,22 @@ const DashboardPage = () => {
 
             <Grid container spacing={3} mb={4}>
                 <Grid item xs={12} sm={6} md={3}><KpiCard icon={<TrendingUpIcon sx={{ fontSize: 32 }} />} title="年度管理费" value={`已收:¥${parseFloat(data.kpis.monthly_management_fee_received).toLocaleString()}`} subtitle={`应收:¥${parseFloat(data.kpis.monthly_management_fee_total).toLocaleString()}`} color="indigo" /></Grid>
-                <Grid item xs={12} sm={6} md={3}><KpiCard icon={<GroupsIcon sx={{ fontSize: 32 }} />} title="活跃客户数"value={data.kpis.active_contracts_count} color="sky" /></Grid>
+                {/* <Grid item xs={12} sm={6} md={3}><KpiCard icon={<GroupsIcon sx={{ fontSize: 32 }} />} title="活跃客户数"value={data.kpis.active_contracts_count} color="sky" /></Grid> */}
                 <Grid item xs={12} sm={6} md={3}><KpiCard icon={<BadgeIcon sx={{ fontSize: 32 }} />} title="在户员工数"value={data.kpis.active_employees_count} color="amber" /></Grid>
+                {/* --- 【新增的待收定金卡片】 --- */}
+                <Grid item xs={12} sm={6} md={3}>
+                    {/* 用一个带 onClick 事件的 Box 包裹，使其可点击 */}
+                    <Box onClick={() => navigate('/contracts/all?deposit_status=unpaid')}sx={{ cursor: 'pointer' }}>
+                        <KpiCard
+                            icon={<AccountBalanceWalletIcon sx={{ fontSize: 32 }} />}
+                            title="待收定金"
+                            value={data.kpis.pending_deposit_count}
+                            subtitle="点击查看详情"
+                            color="error" // 使用醒目的颜色
+                        />
+                    </Box>
+                </Grid>
+                {/* --- 新增结束 --- */}
                 <Grid item xs={12} sm={6} md={3}><KpiCard icon={<EventBusyIcon sx={{ fontSize: 32 }} />} title="即将到期合同"value={data.todo_lists.expiring_contracts.length} subtitle="30天内" color="warning" /></Grid>
             </Grid>
 

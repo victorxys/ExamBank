@@ -122,10 +122,27 @@ function Sidebar({ isCollapsed, setIsCollapsed }) {
   const handleCollapseToggle = () => setIsCollapsed(!isCollapsed);
 
   const handleMenuToggle = (path) => {
-    if (!isCollapsed) {
-      setOpenMenus(prev => ({ ...prev, [path]: !prev[path] }));
+    if (isCollapsed) return; // 如果是折叠状态，不处理点击展开
+
+    // 计算出当前点击菜单的新展开状态 (true 或 false)
+    const isOpening = !openMenus[path];
+
+    // 【新增逻辑开始】
+    // 如果我们正在展开“合同与账单”...
+    if (path === '/billing-management' && isOpening) {
+        // ...那么就一次性地把它自己和它的子菜单“合同管理”都设置为展开
+        setOpenMenus(prev => ({
+            ...prev,
+            '/billing-management': true, // 展开“合同与账单”
+            '/contracts': true,          // 同时展开“合同管理”
+        }));
     }
-  };
+    // 【新增逻辑结束】
+    else {
+        // 对于所有其他菜单项，保持原来的逻辑不变
+        setOpenMenus(prev => ({ ...prev, [path]: !prev[path] }));
+    }
+};
 
   const renderMenuItemsRecursive = (items, level = 0) => {
     return items
