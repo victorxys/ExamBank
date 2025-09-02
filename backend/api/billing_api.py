@@ -20,6 +20,9 @@ from pypinyin import pinyin, Style
 import os
 import uuid
 from werkzeug.utils import secure_filename
+from openpyxl import Workbook
+from openpyxl.styles import Font, Alignment
+from flask import send_file
 
 
 # --- 新增 AttendanceRecord 的导入 ---
@@ -758,13 +761,80 @@ def get_bills():
         filtered_bill_ids_query = query.with_entities(CustomerBill.id)
         filtered_bill_ids = [item[0] for item in filtered_bill_ids_query.all()]
 
-        total_management_fee = 0
+
+        # --- Linus 改造开始：计算新的财务摘要 ---
+        total_management_fee = D(0)
+        total_receivable = D(0)
+        total_deposit = D(0)
+        total_introduction_fee = D(0)
+        total_customer_increase = D(0)
+        total_employee_payable = D(0)
+        total_security_deposit = D(0)
+
         if filtered_bill_ids:
-            total_management_fee = db.session.query(
+            # 1. 先把原始管理费算出来
+            original_management_fee_query = db.session.query(
                 func.sum(CustomerBill.calculation_details['management_fee'].as_float())
             ).filter(
-                CustomerBill.id.in_(filtered_bill_ids)
-            ).scalar() or 0
+                CustomerBill.id.in_(filtered_bill_ids),
+                CustomerBill.calculation_details.has_key('management_fee')
+            )
+            original_total_management_fee =D(original_management_fee_query.scalar() or 0)
+
+            # 2. 找到与这些账单关联的所有薪酬单ID
+            payroll_ids_query = db.session.query(EmployeePayroll.id).join(
+                CustomerBill,
+                and_(
+                    EmployeePayroll.contract_id == CustomerBill.contract_id,
+                    EmployeePayroll.cycle_start_date ==CustomerBill.cycle_start_date,
+                    EmployeePayroll.is_substitute_payroll ==CustomerBill.is_substitute_bill
+                )
+            ).filter(CustomerBill.id.in_(filtered_bill_ids))
+            payroll_ids = [item[0] for item in payroll_ids_query.all()]
+
+            # 3. 一次性查询所有相关的财务调整项
+            adjustments_query = db.session.query(
+                FinancialAdjustment.adjustment_type,
+                FinancialAdjustment.amount,
+                FinancialAdjustment.description
+            ).filter(
+                or_(FinancialAdjustment.customer_bill_id.in_(filtered_bill_ids),
+                    FinancialAdjustment.employee_payroll_id.in_(payroll_ids)
+                )
+            )
+            all_adjustments = adjustments_query.all()
+
+            # 4. 遍历调整项，分类汇总
+            for adj in all_adjustments:
+                if adj.adjustment_type == AdjustmentType.DEPOSIT:
+                    total_deposit += adj.amount
+                elif adj.adjustment_type == AdjustmentType.INTRODUCTION_FEE:
+                    total_introduction_fee += adj.amount
+                elif adj.adjustment_type == AdjustmentType.CUSTOMER_INCREASE:
+                    total_customer_increase += adj.amount
+                elif adj.adjustment_type == AdjustmentType.EMPLOYEE_DECREASE:
+                    total_employee_payable += adj.amount
+
+                # 根据描述文字处理“保证金”
+                if adj.description and '保证金退款' in adj.description:
+                    total_security_deposit -= adj.amount
+                elif adj.description and '保证金' in adj.description:
+                    total_security_deposit += adj.amount
+
+            # 5. 计算最终的指标
+            # 新的管理费总计 = 原管理费 + 员工应缴款
+            total_management_fee = original_total_management_fee +total_employee_payable
+
+            # 应收款总计 = 各分项之和
+            total_receivable = (
+                total_deposit +
+                total_introduction_fee +
+                original_total_management_fee + # 注意：这里用的是【原始】管理费
+                total_customer_increase +
+                total_security_deposit +
+                total_employee_payable
+            )
+        # --- Linus 改造结束 ---
 
         paginated_results = query.paginate(
             page=page, per_page=per_page, error_out=False
@@ -789,7 +859,7 @@ def get_bills():
 
         for i, (bill, contract) in enumerate(paginated_results.items):
             payroll = EmployeePayroll.query.filter_by(
-                contract_id=bill.contract_id, cycle_start_date=bill.cycle_start_date
+                contract_id=bill.contract_id, cycle_start_date=bill.cycle_start_date, is_substitute_payroll=bill.is_substitute_bill
             ).first()
 
             invoice_balance = engine.calculate_invoice_balance(str(bill.id))
@@ -882,7 +952,8 @@ def get_bills():
                 "per_page": paginated_results.per_page,
                 "pages": paginated_results.pages,
                 "summary": {
-                    "total_management_fee": str(D(total_management_fee).quantize(D('0.01')))
+                    "total_management_fee": str(total_management_fee.quantize(D('0.01'))),
+                    "total_receivable": str(total_receivable.quantize(D('0.01')))
                 }
             }
         )
@@ -3174,36 +3245,37 @@ def get_dashboard_summary():
 
 @billing_bp.route("/export-management-fees", methods=["GET"])
 @admin_required
-def export_management_fees_csv():
+def export_management_fees():
     """
-    导出指定月份的管理费明细为CSV文件。
+    导出管理费明细为 Excel 文件 (最终排序修正版)。
     """
-    billing_month_str = request.args.get("billing_month")
-    if not billing_month_str:
-        return jsonify({"error": "必须提供账单月份 (billing_month) 参数"}), 400
-
     try:
-        billing_year, billing_month = map(int, billing_month_str.split("-"))
-
-        # 复用 get_bills 的查询逻辑来获取过滤后的账单
-        # (这是一个简化的版本，您可以根据需要从 get_bills 复制完整的过滤逻辑)
+        # 1. 获取筛选参数 (逻辑不变)
         search_term = request.args.get("search", "").strip()
         contract_type = request.args.get("type", "")
         status = request.args.get("status", "")
+        billing_month_str = request.args.get("billing_month")
         payment_status_filter = request.args.get("payment_status", "")
         payout_status_filter = request.args.get("payout_status", "")
 
-        contract_poly = with_polymorphic(BaseContract, "*")
-        query = db.session.query(CustomerBill, contract_poly).join(
-            contract_poly, CustomerBill.contract_id == contract_poly.id
-        ).outerjoin(
-            User, contract_poly.user_id == User.id
-        ).outerjoin(
-            ServicePersonnel, contract_poly.service_personnel_id == ServicePersonnel.id
-        ).filter(
-            CustomerBill.year == billing_year, CustomerBill.month == billing_month
-        )
+        if not billing_month_str:
+            return jsonify({"error": "必须提供账单月份 (billing_month) 参数"}), 400
 
+        billing_year, billing_month = map(int, billing_month_str.split("-"))
+
+        # 2. 构建查询 (逻辑不变, 已包含拼音搜索)
+        contract_poly = with_polymorphic(BaseContract, "*")
+        query = (
+            db.session.query(CustomerBill, contract_poly)
+            .select_from(CustomerBill)
+            .join(contract_poly, CustomerBill.contract_id == contract_poly.id)
+            .outerjoin(User, contract_poly.user_id == User.id)
+            .outerjoin(ServicePersonnel, contract_poly.service_personnel_id ==ServicePersonnel.id)
+        )
+        query = query.filter(
+            CustomerBill.year == billing_year, CustomerBill.month ==billing_month,
+            CustomerBill.calculation_details.has_key('management_fee')
+        )
         if status:
             query = query.filter(contract_poly.status == status)
         if contract_type:
@@ -3212,58 +3284,104 @@ def export_management_fees_csv():
             query = query.filter(
                 db.or_(
                     contract_poly.customer_name.ilike(f"%{search_term}%"),
+                    contract_poly.customer_name_pinyin.ilike(f"%{search_term}%"),
                     User.username.ilike(f"%{search_term}%"),
+                    User.name_pinyin.ilike(f"%{search_term}%"),
                     ServicePersonnel.name.ilike(f"%{search_term}%"),
+                    ServicePersonnel.name_pinyin.ilike(f"%{search_term}%"),
                 )
             )
         if payment_status_filter:
             query = query.filter(CustomerBill.payment_status ==PaymentStatus(payment_status_filter))
+        if payout_status_filter:
+            query = query.join(EmployeePayroll,and_(EmployeePayroll.contract_id == CustomerBill.contract_id,EmployeePayroll.cycle_start_date == CustomerBill.cycle_start_date))
+            query = query.filter(EmployeePayroll.payout_status ==PayoutStatus(payout_status_filter))
 
-        bills_with_contracts = query.order_by(contract_poly.customer_name).all()
+        bills_to_export = query.all()
 
-        # --- 关键修复：使用状态映射来显示正确的支付状态 ---
-        status_map = {
-            PaymentStatus.PAID: "已支付",
-            PaymentStatus.UNPAID: "未支付",
-            PaymentStatus.PARTIALLY_PAID: "部分支付",
-            PaymentStatus.OVERPAID: "超额支付",
-        }
+        # --- 核心重构：使用字典列表来存储数据 ---
+        data_rows = []
+        for bill, contract in bills_to_export:
+            original_management_fee = D(bill.calculation_details.get('management_fee', 0))
 
-        output = io.StringIO()
-        writer = csv.writer(output)
+            employee_payable = D(0)
+            payroll = EmployeePayroll.query.filter_by(
+                contract_id=bill.contract_id,
+                cycle_start_date=bill.cycle_start_date,
+                is_substitute_payroll=bill.is_substitute_bill
+            ).first()
+            if payroll:
+                payable_adjustments = FinancialAdjustment.query.filter_by(
+                    employee_payroll_id=payroll.id,
+                    adjustment_type=AdjustmentType.EMPLOYEE_DECREASE
+                ).all()
+                if payable_adjustments:
+                    employee_payable = sum(adj.amount for adj in payable_adjustments)
 
-        # 写入CSV表头
-        writer.writerow([
-            "客户姓名", "员工姓名", "合同类型", "管理费", "支付状态"
-        ])
+            total_management_fee = original_management_fee + employee_payable
 
-        # 写入数据行
-        for bill, contract in bills_with_contracts:
-            calc_details = bill.calculation_details or {}
-            management_fee = calc_details.get("management_fee", "0.00")
+            employee_name = ""
+            if bill.is_substitute_bill:
+                sub_record = bill.source_substitute_record
+                if sub_record:
+                    sub_employee = sub_record.substitute_user or sub_record.substitute_personnel
+                    employee_name = getattr(sub_employee, "username", getattr(sub_employee, "name", "未知替班员工"))
+                else:
+                    employee_name = "替班(记录丢失)"
+            else:
+                original_employee = contract.user or contract.service_personnel
+                employee_name = getattr(original_employee, "username", getattr(original_employee, "name", "未知员工"))
 
-            employee = contract.user or contract.service_personnel
-            employee_name = getattr(employee, 'username', getattr(employee, 'name', '未知'))
+            # 将计算结果存入字典
+            data_rows.append({
+                "customer_name": contract.customer_name,
+                "employee_name": employee_name,
+                "contract_type": get_contract_type_details(contract.type),
+                "original_fee": float(original_management_fee),
+                "employee_payable": float(employee_payable),
+                "total_fee": float(total_management_fee)
+            })
 
-            writer.writerow([
-                bill.customer_name,
-                employee_name,
-                get_contract_type_details(contract.type),
-                management_fee,
-                status_map.get(bill.payment_status, "未知") # <-- 使用 status_map
+        # --- 核心重构：按字典的 'total_fee' 键进行排序 ---
+        data_rows.sort(key=lambda x: x['total_fee'], reverse=True)
+
+        # 3. 创建 Excel 工作簿并写入数据
+        wb = Workbook()
+        ws = wb.active
+        ws.title = f"{billing_month_str} 管理费明细"
+
+        headers = ["客户姓名", "服务人员", "合同类型", "原始管理费","员工应缴款", "合计管理费"]
+        ws.append(headers)
+        for cell in ws[1]:
+            cell.font = Font(bold=True)
+            cell.alignment = Alignment(horizontal="center")
+
+        # --- 核心重构：从字典中按顺序提取值并写入 ---
+        for row_dict in data_rows:
+            ws.append([
+                row_dict['customer_name'],
+                row_dict['employee_name'],
+                row_dict['contract_type'],
+                row_dict['original_fee'],
+                row_dict['employee_payable'],
+                row_dict['total_fee']
             ])
 
-        output.seek(0)
+        # 4. 保存到内存并发送 (逻辑不变)
+        buffer = io.BytesIO()
+        wb.save(buffer)
+        buffer.seek(0)
 
-        return Response(
-            output,
-            mimetype="text/csv",
-            headers={"Content-Disposition": f"attachment;filename=management_fees_{billing_month_str}.csv"}
+        return send_file(
+            buffer,
+            as_attachment=True,
+            download_name=f"{billing_month_str}_management_fees_v3.xlsx",
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
 
     except Exception as e:
-        current_app.logger.error(f"导出管理费明细失败: {e}", exc_info=True)
-        return jsonify({"error": "导出失败，服务器内部错误"}), 500
+        current_app.logger.error(f"导出管理费失败: {e}", exc_info=True)
+        return jsonify({"error": "服务器内部错误，导出失败"}), 500
     
 @billing_bp.route("/conflicts", methods=['GET'])
 @admin_required
@@ -4047,3 +4165,174 @@ def set_invoice_needed_status(bill_id):
         db.session.rollback()
         current_app.logger.error(f"更新发票状态失败 (bill_id: {bill_id}): {e}",exc_info=True)
         return jsonify({"error": "服务器内部错误"}), 500
+    
+@billing_bp.route("/export-receivables", methods=["GET"])
+@admin_required
+def export_receivables():
+    """
+    导出应收款项总览为 Excel 文件 (最终排序修正版)。
+    """
+    try:
+        # 1. 获取筛选参数 (逻辑不变)
+        search_term = request.args.get("search", "").strip()
+        contract_type = request.args.get("type", "")
+        status = request.args.get("status", "")
+        billing_month_str = request.args.get("billing_month")
+        payment_status_filter = request.args.get("payment_status", "")
+        payout_status_filter = request.args.get("payout_status", "")
+
+        if not billing_month_str:
+            return jsonify({"error": "必须提供账单月份 (billing_month) 参数"}), 400
+
+        billing_year, billing_month = map(int, billing_month_str.split("-"))
+
+        # 2. 构建查询 (逻辑不变, 已包含拼音搜索)
+        contract_poly = with_polymorphic(BaseContract, "*")
+        query = (
+            db.session.query(CustomerBill, contract_poly)
+            .select_from(CustomerBill)
+            .join(contract_poly, CustomerBill.contract_id == contract_poly.id)
+            .outerjoin(User, contract_poly.user_id == User.id)
+            .outerjoin(
+                ServicePersonnel,
+                contract_poly.service_personnel_id == ServicePersonnel.id,
+            )
+        )
+        query = query.filter(
+            CustomerBill.year == billing_year, CustomerBill.month ==billing_month
+        )
+        if status:
+            query = query.filter(contract_poly.status == status)
+        if contract_type:
+            query = query.filter(contract_poly.type == contract_type)
+        if search_term:
+            query = query.filter(
+                db.or_(
+                    contract_poly.customer_name.ilike(f"%{search_term}%"),
+                    contract_poly.customer_name_pinyin.ilike(f"%{search_term}%"),
+                    User.username.ilike(f"%{search_term}%"),
+                    User.name_pinyin.ilike(f"%{search_term}%"),
+                    ServicePersonnel.name.ilike(f"%{search_term}%"),
+                    ServicePersonnel.name_pinyin.ilike(f"%{search_term}%"),
+                )
+            )
+        if payment_status_filter:
+            query = query.filter(CustomerBill.payment_status ==PaymentStatus(payment_status_filter))
+        if payout_status_filter:
+            query = query.join(EmployeePayroll,and_(EmployeePayroll.contract_id == CustomerBill.contract_id,EmployeePayroll.cycle_start_date == CustomerBill.cycle_start_date))
+            query = query.filter(EmployeePayroll.payout_status ==PayoutStatus(payout_status_filter))
+
+        bills_to_export = query.all()
+
+        # --- 核心重构：使用字典列表来存储数据 ---
+        data_rows = []
+        for bill, contract in bills_to_export:
+            management_fee = D(bill.calculation_details.get('management_fee',0) if bill.calculation_details else 0)
+            deposit = D(0)
+            introduction_fee = D(0)
+            customer_increase = D(0)
+            security_deposit = D(0)
+            employee_payable = D(0)
+
+            payroll = EmployeePayroll.query.filter_by(
+                contract_id=bill.contract_id,
+                cycle_start_date=bill.cycle_start_date,
+                is_substitute_payroll=bill.is_substitute_bill
+            ).first()
+
+            customer_adjustments = FinancialAdjustment.query.filter(FinancialAdjustment.customer_bill_id == bill.id).all()
+            employee_adjustments = []
+            if payroll:
+                employee_adjustments = FinancialAdjustment.query.filter(FinancialAdjustment.employee_payroll_id == payroll.id).all()
+
+            adjustments = customer_adjustments + employee_adjustments
+
+            for adj in adjustments:
+                if adj.adjustment_type == AdjustmentType.DEPOSIT:
+                    deposit += adj.amount
+                elif adj.adjustment_type == AdjustmentType.INTRODUCTION_FEE:
+                    introduction_fee += adj.amount
+                elif adj.adjustment_type == AdjustmentType.CUSTOMER_INCREASE:
+                    customer_increase += adj.amount
+                elif adj.adjustment_type == AdjustmentType.EMPLOYEE_DECREASE:
+                    employee_payable += adj.amount
+
+                if adj.description and '保证金退款' in adj.description:
+                    security_deposit -= adj.amount
+                elif adj.description and '保证金' in adj.description:
+                    security_deposit += adj.amount
+
+            total_receivable = management_fee + deposit + introduction_fee +customer_increase + security_deposit + employee_payable
+
+            employee_name = ""
+            if bill.is_substitute_bill:
+                sub_record = bill.source_substitute_record
+                if sub_record:
+                    sub_employee = sub_record.substitute_user or sub_record.substitute_personnel
+                    employee_name = getattr(sub_employee, "username", getattr(sub_employee, "name", "未知替班员工"))
+                else:
+                    employee_name = "替班(记录丢失)"
+            else:
+                original_employee = contract.user or contract.service_personnel
+                employee_name = getattr(original_employee, "username", getattr(original_employee, "name", "未知员工"))
+
+            data_rows.append({
+                "customer_name": contract.customer_name,
+                "employee_name": employee_name,
+                "contract_type": get_contract_type_details(contract.type),
+                "management_fee": float(management_fee),
+                "deposit": float(deposit),
+                "introduction_fee": float(introduction_fee),
+                "customer_increase": float(customer_increase),
+                "security_deposit": float(security_deposit),
+                "employee_payable": float(employee_payable),
+                "total_receivable": float(total_receivable)
+            })
+
+        # --- 核心重构：按字典的 'total_receivable' 键进行排序 ---
+        data_rows.sort(key=lambda x: x['total_receivable'], reverse=True)
+
+        # 3. 创建 Excel 工作簿并写入数据
+        wb = Workbook()
+        ws = wb.active
+        ws.title = f"{billing_month_str} 应收款明细"
+
+        headers = [
+            "客户姓名", "服务人员", "合同类型", "管理费", "定金",
+            "介绍费", "客户增款", "保证金", "员工应缴款", "总计"
+        ]
+        ws.append(headers)
+        for cell in ws[1]:
+            cell.font = Font(bold=True)
+            cell.alignment = Alignment(horizontal="center")
+
+        # --- 核心重构：从字典中按顺序提取值并写入 ---
+        for row_dict in data_rows:
+            ws.append([
+                row_dict['customer_name'],
+                row_dict['employee_name'],
+                row_dict['contract_type'],
+                row_dict['management_fee'],
+                row_dict['deposit'],
+                row_dict['introduction_fee'],
+                row_dict['customer_increase'],
+                row_dict['security_deposit'],
+                row_dict['employee_payable'],
+                row_dict['total_receivable']
+            ])
+
+        # 4. 保存到内存并发送 (逻辑不变)
+        buffer = io.BytesIO()
+        wb.save(buffer)
+        buffer.seek(0)
+
+        return send_file(
+            buffer,
+            as_attachment=True,
+            download_name=f"{billing_month_str}_receivables_export.xlsx",
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+
+    except Exception as e:
+        current_app.logger.error(f"导出应收款失败: {e}", exc_info=True)
+        return jsonify({"error": "服务器内部错误，导出失败"}), 500

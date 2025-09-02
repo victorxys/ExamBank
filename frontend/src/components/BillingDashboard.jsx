@@ -714,7 +714,7 @@ const BillingDashboard = () => {
             const url = window.URL.createObjectURL(new Blob([response.data]));
             const link = document.createElement('a');
             link.href = url;
-            const filename = `management_fees_${selectedBillingMonth}.csv`;
+            const filename = `${selectedBillingMonth}_本月管理费总计.xlsx`;
             link.setAttribute('download', filename);
             document.body.appendChild(link);
             link.click();
@@ -722,6 +722,38 @@ const BillingDashboard = () => {
 
         } catch (error) {
             setAlert({ open: true, message: `导出失败: ${error.message}`, severity: 'error' });
+        }
+    };
+    const handleExportReceivables = async () => {
+        try {
+            const params = new URLSearchParams({
+                billing_month: selectedBillingMonth,
+                ...filters
+            }).toString();
+
+            const response = await api.get(`/billing/export-receivables?${params}`, {
+                responseType: 'blob',
+            });
+
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            // 从后端响应头获取文件名，如果失败则使用默认名
+            const contentDisposition = response.headers['content-disposition'];
+            let filename = `${selectedBillingMonth}_本月应收款总计(含定金介绍费保证金).xlsx`;
+            if (contentDisposition) {
+                const filenameMatch = contentDisposition.match(/filename="(.+)"/);
+                if (filenameMatch && filenameMatch.length > 1) {
+                    filename = decodeURIComponent(filenameMatch[1]);
+                }
+            }
+            link.setAttribute('download', filename);
+            document.body.appendChild(link);
+            link.click();
+            link.parentNode.removeChild(link);
+
+        } catch (error) {
+            setAlert({ open: true, message: `导出失败: ${error.message}`,severity: 'error' });
         }
     };
 
@@ -733,29 +765,56 @@ const BillingDashboard = () => {
             title="月度账单管理" 
             description="选特定月份的待结算账单，并进行财务管理。" 
             actions={
-            summary && (
-              <Box display="flex" alignItems="center" gap={1} sx={{ color: 'white', mr: 2 }}>
-                <Typography variant="h6" component="span" sx={{color: 'white', opacity: 0.8}}>
-                  本月管理费总计:
-                </Typography>
-                <Typography
-                  variant="h5"
-                  component="span"
-                  sx={{ fontWeight: 'bold', color: 'white' }}
-                >
-                  ¥{parseFloat(summary.total_management_fee).toLocaleString('en-US')}
-                </Typography>                                
-                <Tooltip title="导出本月管理费明细 (CSV)">   
-                  <IconButton                                
-                    color="inherit" // 使用 inherit 来继承父组件的白色
-                    size="small"                             
-                    onClick={handleExport}                   
-                    sx={{ ml: 0.5 }}                         
-                  >                                          
-                    <DownloadIcon />                         
-                  </IconButton>                              
-                </Tooltip>                                   
-              </Box>                                         
+                summary && (
+                <Box display="flex" alignItems="center" gap={3} sx={{ color:'white', mr: 2 }}>
+                    {/* 本月管理费总计 */}
+                    <Box display="flex" alignItems="center" gap={1}>
+                    <Typography variant="h6" component="span" sx={{color: 'white', opacity: 0.8}}>
+                        本月管理费总计:
+                    </Typography>
+                    <Typography
+                        variant="h5"
+                        component="span"
+                        sx={{ fontWeight: 'bold', color: 'white' }}
+                    >
+                        ¥{parseFloat(summary.total_management_fee).toLocaleString('en-US')}
+                    </Typography>
+                    <Tooltip title="导出本月管理费明细 (Excel)">
+                        <IconButton
+                        color="inherit"
+                        size="small"
+                        onClick={handleExport}
+                        sx={{ ml: 0.5 }}
+                        >
+                        <DownloadIcon />
+                        </IconButton>
+                    </Tooltip>
+                    </Box>
+
+                    <Divider orientation="vertical" flexItem sx={{ bgcolor:'rgba(255, 255, 255, 0.3)' }} />
+
+                    {/* 本月应收款总计 */}
+                    <Box display="flex" alignItems="center" gap={1}>
+                    <Typography variant="h6" component="span" sx={{color: 'white', opacity: 0.8}}>
+                        本月应收款总计:
+                    </Typography>
+                    <Typography
+                        variant="h5"
+                        component="span"
+                        sx={{ fontWeight: 'bold', color: 'white' }}
+                    >
+                        ¥{summary.total_receivable ? parseFloat(summary.total_receivable).toLocaleString('en-US') : '0'}
+                    </Typography>
+                    {/* 这里为新的导出功能预留一个位置 */}
+                    
+                    <Tooltip title="导出本月应收款明细-含管理费、保证金、定金、介绍费 (Excel)">
+                    <IconButton color="inherit" size="small"onClick={handleExportReceivables}>
+                      <DownloadIcon />
+                    </IconButton>
+                  </Tooltip>
+                    
+                    </Box>
+                </Box>                                      
             )                                                
           }
         />

@@ -16,6 +16,7 @@ click-plugins==1.1.1
 click-repl==0.3.0
 cryptography==44.0.2
 decorator==4.4.2
+et_xmlfile==2.0.0
 filelock==3.18.0
 Flask==3.0.0
 Flask-Cors==4.0.0
@@ -24,10 +25,12 @@ Flask-Migrate==4.1.0
 Flask-SQLAlchemy==3.0.5
 fsspec==2025.3.2
 gevent==25.5.1
+google-ai-generativelanguage==0.6.15
 google-api-core==2.24.1
-google-api-python-client==2.169.0
+google-api-python-client==2.177.0
 google-auth==2.38.0
 google-auth-httplib2==0.2.0
+google-genai==1.3.0
 google-generativeai==0.8.5
 googleapis-common-protos==1.69.1
 gradio_client==1.10.2
@@ -52,6 +55,7 @@ MarkupSafe==3.0.2
 more-itertools==10.6.0
 moviepy==1.0.3
 numpy==2.3.0
+openpyxl==3.1.5
 optionaldict==0.1.2
 packaging==25.0
 pdf2image==1.16.3
@@ -72,6 +76,7 @@ pyee==12.1.1
 PyJWT==2.8.0
 PyMuPDF==1.26.0
 pyparsing==3.2.3
+pypinyin==0.54.0
 python-dateutil==2.9.0.post0
 python-dotenv==1.0.0
 pytz==2025.2
@@ -100,4 +105,3 @@ Werkzeug==3.1.3
 xmltodict==0.14.2
 zope.event==5.0
 zope.interface==7.2
-pypinyin==0.54.0

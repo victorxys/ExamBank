@@ -1511,7 +1511,7 @@ class BillingEngine:
                 db.session.add(
                     FinancialAdjustment(
                         customer_bill_id=bill.id,
-                        adjustment_type=AdjustmentType.CUSTOMER_INCREASE,
+                        adjustment_type=AdjustmentType.INTRODUCTION_FEE,
                         amount=contract.introduction_fee,
                         description="[系统添加] 介绍费",
                         date=bill.cycle_start_date,
