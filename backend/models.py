@@ -1974,6 +1974,8 @@ class AdjustmentType(enum.Enum):
     EMPLOYEE_INCREASE = "employee_increase"  # 员工增款 (付款)
     EMPLOYEE_DECREASE = "employee_decrease"  # 员工减款 (收款, 如交宿舍费)
     EMPLOYEE_CLIENT_PAYMENT = "employee_client_payment" # 【新增】客户直付给员工（公司账目核销）
+    EMPLOYEE_COMMISSION = "employee_commission" # 员工佣金/返点 (员工应缴）
+    EMPLOYEE_COMMISSION_OFFSET = "employee_commission_offset"   # 冲抵 转移后员工返佣
     DEFERRED_FEE = "deferred_fee"  # 顺延费用
     INTRODUCTION_FEE = "introduction_fee" # 介绍费
     DEPOSIT = "deposit" # 定金

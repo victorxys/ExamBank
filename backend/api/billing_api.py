@@ -74,6 +74,11 @@ ADJUSTMENT_TYPE_LABELS = {
     AdjustmentType.EMPLOYEE_INCREASE: "员工增款",
     AdjustmentType.EMPLOYEE_DECREASE: "员工减款",
     AdjustmentType.DEFERRED_FEE: "上期顺延费用",
+    AdjustmentType.EMPLOYEE_COMMISSION: "员工佣金",
+    AdjustmentType.EMPLOYEE_COMMISSION_OFFSET: "佣金冲账",
+    AdjustmentType.INTRODUCTION_FEE: "介绍费",
+    AdjustmentType.DEPOSIT: "定金",
+    AdjustmentType.EMPLOYEE_CLIENT_PAYMENT: "客户直付"
 }
 
 def _get_or_create_personnel_ref(name: str, phone: str = None):
@@ -813,7 +818,7 @@ def get_bills():
                     total_introduction_fee += adj.amount
                 elif adj.adjustment_type == AdjustmentType.CUSTOMER_INCREASE:
                     total_customer_increase += adj.amount
-                elif adj.adjustment_type == AdjustmentType.EMPLOYEE_DECREASE:
+                elif adj.adjustment_type == AdjustmentType.EMPLOYEE_COMMISSION: # 员工首月10%返佣
                     total_employee_payable += adj.amount
 
                 # 根据描述文字处理“保证金”
@@ -869,9 +874,13 @@ def get_bills():
             employee_payable_amount = D(0)
             employee_payable_is_settled = True # 如果没有应缴款，默认为已结清
             if payroll:
-                payable_adjustments = FinancialAdjustment.query.filter_by(
-                    employee_payroll_id=payroll.id,
-                    adjustment_type=AdjustmentType.EMPLOYEE_DECREASE
+                # --- 这是修改点 ---
+                payable_adjustments = FinancialAdjustment.query.filter(
+                    FinancialAdjustment.employee_payroll_id == payroll.id,
+                    FinancialAdjustment.adjustment_type.in_([
+                        AdjustmentType.EMPLOYEE_DECREASE,
+                        AdjustmentType.EMPLOYEE_COMMISSION
+                    ])
                 ).all()
 
                 if payable_adjustments:
@@ -1258,6 +1267,9 @@ def _apply_all_adjustments_and_settlements(adjustments_data, bill, payroll):
                 elif adj_type == AdjustmentType.EMPLOYEE_DECREASE:
                     new_record = PayoutRecord(employee_payroll_id=payroll.id,amount=abs(adj_amount) * -1, payout_date=settlement_date,method=settlement_method, notes=f"[员工缴款] {adj_description}",payer=employee_name, created_by_user_id=user_id)
                     record_type = 'payout'
+                elif adj_type == AdjustmentType.EMPLOYEE_COMMISSION:
+                    new_record = PayoutRecord(employee_payroll_id=payroll.id, amount=abs(adj_amount), payout_date=settlement_date, method=settlement_method,notes=f"[首月返佣] {adj_description}", payer='公司', created_by_user_id=user_id)
+                    record_type = 'payout'
 
                 if new_record:
                     db.session.add(new_record)
@@ -1290,7 +1302,7 @@ def _apply_all_adjustments_and_settlements(adjustments_data, bill, payroll):
                     if record_to_update:
                         record_to_update.method = settlement_method
                         # 根据类型决定金额是正是负
-                        if adj_type in [AdjustmentType.CUSTOMER_DECREASE,AdjustmentType.CUSTOMER_DISCOUNT, AdjustmentType.EMPLOYEE_DECREASE]:
+                        if adj_type in [AdjustmentType.CUSTOMER_DECREASE,AdjustmentType.CUSTOMER_DISCOUNT, AdjustmentType.EMPLOYEE_DECREASE, AdjustmentType.EMPLOYEE_COMMISSION]:
                              record_to_update.amount = abs(adj_amount) * -1
                         else:
                              record_to_update.amount = abs(adj_amount)
@@ -1360,6 +1372,9 @@ def _apply_all_adjustments_and_settlements(adjustments_data, bill, payroll):
                     record_type = 'payout'
                 elif adj_type ==AdjustmentType.EMPLOYEE_DECREASE:
                     new_record =PayoutRecord(employee_payroll_id=payroll.id, amount=abs(adj_amount) * -1, payout_date=settlement_date,method=settlement_method, notes=f"[员工缴款] {adj_description}", payer=employee_name, created_by_user_id=user_id)
+                    record_type = 'payout'
+                elif adj_type ==AdjustmentType.EMPLOYEE_COMMISSION:
+                    new_record =PayoutRecord(employee_payroll_id=payroll.id, amount=abs(adj_amount), payout_date=settlement_date,method=settlement_method, notes=f"[首月返佣] {adj_description}", payer='公司',created_by_user_id=user_id)
                     record_type = 'payout'
 
                 if new_record:
@@ -3197,26 +3212,22 @@ def get_dashboard_summary():
 
         # === 1. KPIs ===
         active_contracts_count = db.session.query(func.count(BaseContract.id)).filter(BaseContract.status == 'active').scalar() or 0
-        active_employees_count = db.session.query(func.count(distinct(BaseContract.user_id))).filter(
+        active_employees_count =db.session.query(func.count(distinct(BaseContract.user_id))).filter(
             BaseContract.status == 'active',
             BaseContract.user_id.isnot(None)
         ).scalar() or 0
 
-        # 直接查询出所有满足“未支付且金额>0”的有效定金，然后统计关联合同的数量
         pending_deposit_query = db.session.query(
             func.count(distinct(FinancialAdjustment.contract_id))
         ).join(
             BaseContract, FinancialAdjustment.contract_id == BaseContract.id
         ).outerjoin(
-            CustomerBill, FinancialAdjustment.customer_bill_id == CustomerBill.id
+            CustomerBill, FinancialAdjustment.customer_bill_id ==CustomerBill.id
         ).filter(
-            # 条件1: 是有效合同
             BaseContract.status == 'active',
             BaseContract.type.in_(['nanny', 'maternity_nurse']),
-            # 条件2: 是金额大于0的定金
             FinancialAdjustment.adjustment_type == AdjustmentType.DEPOSIT,
             FinancialAdjustment.amount > 0,
-            # 条件3: 并且不满足任何“已支付”的条件
             not_(or_(
                 FinancialAdjustment.status == 'PAID',
                 and_(FinancialAdjustment.status == 'BILLED',FinancialAdjustment.is_settled == True),
@@ -3225,14 +3236,12 @@ def get_dashboard_summary():
         )
         pending_deposit_count = pending_deposit_query.scalar() or 0
 
-        # 年度已收管理费
         yearly_management_fee_received = db.session.query(
             func.sum(case((CustomerBill.payment_status == PaymentStatus.PAID,CustomerBill.calculation_details['management_fee'].as_float()), else_=0))
         ).filter(
             CustomerBill.year == today.year
         ).scalar() or 0
 
-        # 年度应收管理费
         yearly_management_fee_total = db.session.query(
             func.sum(CustomerBill.calculation_details['management_fee'].as_float())
         ).filter(
@@ -3247,39 +3256,38 @@ def get_dashboard_summary():
             "pending_deposit_count": pending_deposit_count,
         }
 
-        # === 2. TODO Lists (逻辑不变) ===
-        # ... (此部分代码与上一版相同，为简洁省略，请保留你已有的代码) ...
+        # === 2. TODO Lists ===
         two_weeks_later = today + timedelta(weeks=2)
         expiring_contracts_query = BaseContract.query.filter(
             BaseContract.status == 'active',
-            func.date(BaseContract.end_date).between(today, today + timedelta(days=30))
+            func.date(BaseContract.end_date).between(today, today +timedelta(days=30))
         ).order_by(BaseContract.end_date.asc()).limit(5)
 
         expiring_contracts = [{
             "id": str(c.id),
             "customer_name": c.customer_name,
             "employee_name": (c.user.username if c.user else c.service_personnel.name if c.service_personnel else '未知'),
-            "end_date": (c.end_date.date() if isinstance(c.end_date, datetime) else c.end_date).isoformat(),
-            "expires_in_days": ((c.end_date.date() if isinstance(c.end_date, datetime) else c.end_date) - today).days
+            "end_date": (c.end_date.date() if isinstance(c.end_date, datetime)else c.end_date).isoformat(),
+            "expires_in_days": ((c.end_date.date() if isinstance(c.end_date,datetime) else c.end_date) - today).days
         } for c in expiring_contracts_query.all()]
 
         upcoming_maternity_contracts_query = MaternityNurseContract.query.filter(
             MaternityNurseContract.status == 'active',
             MaternityNurseContract.provisional_start_date.isnot(None),
-            func.date(MaternityNurseContract.provisional_start_date).between(today, today +timedelta(weeks=2))
+func.date(MaternityNurseContract.provisional_start_date).between(today, today+ timedelta(weeks=2))
         ).order_by(MaternityNurseContract.provisional_start_date.asc()).limit(5)
 
         upcoming_maternity_contracts = [{
             "id": str(c.id),
             "customer_name": c.customer_name,
             "provisional_start_date": (c.provisional_start_date.date() if isinstance(c.provisional_start_date, datetime) else c.provisional_start_date).isoformat(),
-            "days_until": ((c.provisional_start_date.date() if isinstance(c.provisional_start_date,datetime) else c.provisional_start_date) - today).days
+            "days_until": ((c.provisional_start_date.date() if isinstance(c.provisional_start_date, datetime) else c.provisional_start_date) -today).days
         } for c in upcoming_maternity_contracts_query.all()]
 
         pending_payments_query = CustomerBill.query.filter(
             CustomerBill.year == today.year,
             CustomerBill.month == today.month,
-            CustomerBill.payment_status.in_([PaymentStatus.UNPAID, PaymentStatus.PARTIALLY_PAID]),
+            CustomerBill.payment_status.in_([PaymentStatus.UNPAID,PaymentStatus.PARTIALLY_PAID]),
             CustomerBill.total_due > CustomerBill.total_paid
         ).order_by(CustomerBill.total_due.desc()).limit(5)
 
@@ -3296,51 +3304,97 @@ def get_dashboard_summary():
             "pending_payments": pending_payments
         }
 
+        # === 3. 应收款构成 (Receivables Summary for This Year) (V2 - 修正版) ===
+        this_year = today.year
 
-        # === 3. Charts (核心修改) ===
+        receivables_summary = {
+            "management_fee": D(0),
+            "introduction_fee": D(0),
+            "employee_commission": D(0),
+            "other_receivables": D(0)
+        }
+
+        customer_linked_adjustments = db.session.query(
+            FinancialAdjustment.adjustment_type,
+            func.sum(FinancialAdjustment.amount)
+        ).join(
+            CustomerBill, FinancialAdjustment.customer_bill_id ==CustomerBill.id
+        ).filter(
+            CustomerBill.year == this_year,
+            FinancialAdjustment.adjustment_type.in_([
+                AdjustmentType.INTRODUCTION_FEE,
+                AdjustmentType.CUSTOMER_INCREASE
+            ])
+        ).group_by(FinancialAdjustment.adjustment_type).all()
+
+        for adj_type, total_amount in customer_linked_adjustments:
+            if adj_type == AdjustmentType.INTRODUCTION_FEE:
+                receivables_summary["introduction_fee"] = total_amount or D(0)
+            elif adj_type == AdjustmentType.CUSTOMER_INCREASE:
+                receivables_summary["other_receivables"] = total_amount or D(0)
+
+        employee_commission_total = db.session.query(
+            func.sum(FinancialAdjustment.amount)
+        ).join(
+            EmployeePayroll, FinancialAdjustment.employee_payroll_id ==EmployeePayroll.id
+        ).filter(
+            EmployeePayroll.year == this_year,
+            FinancialAdjustment.adjustment_type ==AdjustmentType.EMPLOYEE_COMMISSION
+        ).scalar()
+        receivables_summary["employee_commission"] =D(employee_commission_total or 0)
+
+        total_management_fee = db.session.query(
+            func.sum(CustomerBill.calculation_details['management_fee'].as_float())
+        ).filter(
+            CustomerBill.year == this_year,
+            CustomerBill.calculation_details.has_key('management_fee')
+        ).scalar() or 0
+        receivables_summary["management_fee"] = D(total_management_fee)
+
+        final_receivables_summary = {
+            "management_fee": str(receivables_summary["management_fee"].quantize(D('0.01'))),
+            "introduction_fee": str(receivables_summary["introduction_fee"].quantize(D('0.01'))),
+            "employee_first_month_fee": str(receivables_summary["employee_commission"].quantize(D('0.01'))),
+            "other_receivables": str(receivables_summary["other_receivables"].quantize(D('0.01')))
+        }
+
+        # === 4. Charts ===
         last_12_months_dates = [today - relativedelta(months=i) for i in range(12)]
 
-        # --- 柱状图数据 ---
-        # 3.1 查询过去12个月的“应收”管理费
         due_revenue_data = db.session.query(
             CustomerBill.year,
             CustomerBill.month,
             func.sum(CustomerBill.calculation_details['management_fee'].as_float())
         ).filter(
-            func.date_trunc('month', func.to_date(func.concat(cast(CustomerBill.year, String), '-',cast(CustomerBill.month, String)), 'YYYY-MM')) >= func.date_trunc('month', today -relativedelta(months=11))
+            func.date_trunc('month',func.to_date(func.concat(cast(CustomerBill.year, String), '-',cast(CustomerBill.month, String)), 'YYYY-MM')) >= func.date_trunc('month',today - relativedelta(months=11))
         ).group_by(CustomerBill.year, CustomerBill.month).all()
         due_revenue_by_month = {f"{r.year}-{r.month}": float(r[2] or 0) for r in due_revenue_data}
 
-        # 3.2 查询过去12个月的“已收”管理费
         paid_revenue_data = db.session.query(
             CustomerBill.year,
             CustomerBill.month,
             func.sum(case((CustomerBill.payment_status == PaymentStatus.PAID,CustomerBill.calculation_details['management_fee'].as_float()), else_=0))
         ).filter(
-            func.date_trunc('month', func.to_date(func.concat(cast(CustomerBill.year, String), '-',cast(CustomerBill.month, String)), 'YYYY-MM')) >= func.date_trunc('month', today -relativedelta(months=11))
+            func.date_trunc('month',func.to_date(func.concat(cast(CustomerBill.year, String), '-',cast(CustomerBill.month, String)), 'YYYY-MM')) >= func.date_trunc('month',today - relativedelta(months=11))
         ).group_by(CustomerBill.year, CustomerBill.month).all()
         paid_revenue_by_month = {f"{r.year}-{r.month}": float(r[2] or 0) for r in paid_revenue_data}
 
-        # 3.3 组装成前端需要的数据结构
         revenue_trend = {
             "categories": [],
             "series": [{"name": "应收管理费", "data": []}],
-            "paid_data": [] # 新增一个数组，专门存放已收数据
+            "paid_data": []
         }
-        for dt in sorted(last_12_months_dates, key=lambda d: (d.year, d.month)):
+        for dt in sorted(last_12_months_dates, key=lambda d: (d.year,d.month)):
             month_key = f"{dt.year}-{dt.month}"
             revenue_trend["categories"].append(f"{dt.month}月")
             revenue_trend["series"][0]["data"].append(due_revenue_by_month.get(month_key, 0))
             revenue_trend["paid_data"].append(paid_revenue_by_month.get(month_key, 0))
 
-        # --- 饼图数据 ---
-        # 3.4 查询本年度“应收”管理费的分布
         distribution_query = db.session.query(
             BaseContract.type,
             func.sum(CustomerBill.calculation_details['management_fee'].as_float())
         ).join(CustomerBill).filter(
             CustomerBill.year == today.year
-            # 移除了 payment_status 的过滤条件
         ).group_by(BaseContract.type).all()
 
         management_fee_distribution = {
@@ -3356,7 +3410,8 @@ def get_dashboard_summary():
             "kpis": kpis,
             "todo_lists": todo_lists,
             "revenue_trend": revenue_trend,
-            "management_fee_distribution": management_fee_distribution
+            "management_fee_distribution": management_fee_distribution,
+            "receivables_summary": final_receivables_summary
         }
         return jsonify(summary)
 
@@ -3432,9 +3487,12 @@ def export_management_fees():
                 is_substitute_payroll=bill.is_substitute_bill
             ).first()
             if payroll:
-                payable_adjustments = FinancialAdjustment.query.filter_by(
-                    employee_payroll_id=payroll.id,
-                    adjustment_type=AdjustmentType.EMPLOYEE_DECREASE
+                payable_adjustments = FinancialAdjustment.query.filter(
+                    FinancialAdjustment.employee_payroll_id == payroll.id,
+                    FinancialAdjustment.adjustment_type.in_([
+                        AdjustmentType.EMPLOYEE_DECREASE,
+                        AdjustmentType.EMPLOYEE_COMMISSION
+                    ])
                 ).all()
                 if payable_adjustments:
                     employee_payable = sum(adj.amount for adj in payable_adjustments)
@@ -3743,7 +3801,8 @@ def transfer_financial_adjustment(adjustment_id):
             new_adj_in = FinancialAdjustment(
                 adjustment_type=source_adj.adjustment_type,
                 amount=source_adj.amount,
-                description=f"[转入] {original_type_label}: {original_description}",
+                # description=f"[转入] {original_type_label}: {original_description}",
+                description=f"[转入] {original_type_label}",
                 date=destination_bill.cycle_start_date,
                 details={
                     "status": "transferred_in",
@@ -3770,12 +3829,20 @@ def transfer_financial_adjustment(adjustment_id):
 
             # 3b. 在源账单下，创建一笔冲抵项
             offsetting_type = None
-            if source_adj.adjustment_type in [AdjustmentType.CUSTOMER_INCREASE,AdjustmentType.EMPLOYEE_DECREASE]:
+            source_type = source_adj.adjustment_type
+
+            # --- 这是核心修改 ---
+            if source_type == AdjustmentType.EMPLOYEE_COMMISSION:
+                # 对“员工佣金”(减款)，使用我们新的“佣金冲账”(增款)类型来抵消
+                offsetting_type = AdjustmentType.EMPLOYEE_COMMISSION_OFFSET
+            elif source_type in [AdjustmentType.CUSTOMER_INCREASE,AdjustmentType.EMPLOYEE_DECREASE]:
                 offsetting_type = AdjustmentType.CUSTOMER_DECREASE if not is_employee_adj else AdjustmentType.EMPLOYEE_INCREASE
-            elif source_adj.adjustment_type in [AdjustmentType.CUSTOMER_DECREASE,AdjustmentType.EMPLOYEE_INCREASE]:
+            elif source_type in [AdjustmentType.CUSTOMER_DECREASE,AdjustmentType.EMPLOYEE_INCREASE]:
                 offsetting_type = AdjustmentType.CUSTOMER_INCREASE if not is_employee_adj else AdjustmentType.EMPLOYEE_DECREASE
             else:
+                # 对于其他所有类型，默认的冲抵逻辑
                 offsetting_type = AdjustmentType.CUSTOMER_DECREASE if not is_employee_adj else AdjustmentType.EMPLOYEE_INCREASE
+            # --- 修改结束 ---
 
             offsetting_adj = FinancialAdjustment(
                 adjustment_type=offsetting_type,
@@ -4376,6 +4443,8 @@ def export_receivables():
                 elif adj.adjustment_type == AdjustmentType.CUSTOMER_INCREASE:
                     customer_increase += adj.amount
                 elif adj.adjustment_type == AdjustmentType.EMPLOYEE_DECREASE:
+                    employee_payable += adj.amount
+                elif adj.adjustment_type == AdjustmentType.EMPLOYEE_COMMISSION:
                     employee_payable += adj.amount
 
                 if adj.description and '保证金退款' in adj.description:

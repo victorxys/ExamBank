@@ -140,6 +140,7 @@ const getTooltipContent = (fieldName, billingDetails, isCustomer) => {
         '首月员工10%费用': '首月员工10%费用',
         '加班工资': '加班费',
         '实际劳务天数': 'base_work_days_reason',
+        '应发总额': '员工应发总额(Gross)',
        
     };
 

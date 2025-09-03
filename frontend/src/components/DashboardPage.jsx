@@ -71,6 +71,81 @@ const TodoListItem = ({ primary, secondary, amount, amountColor, type }) => {
     );
 };
 
+const ReceivablesSummary = ({ summary }) => {
+    const theme = useTheme();
+
+    // 为饼图准备数据和标签
+    const seriesData = [
+        parseFloat(summary.management_fee) || 0,
+        parseFloat(summary.introduction_fee) || 0,
+        parseFloat(summary.employee_first_month_fee) || 0,
+        // parseFloat(summary.other_receivables) || 0
+    ];
+
+    const labels = ['管理费', '介绍费', '员工首月佣金'];
+
+    const options = {
+        chart: {
+            type: 'pie', // <-- 图表类型改为 'pie'
+            height: 350,
+            fontFamily: theme.typography.fontFamily
+        },
+        labels: labels, // <-- 设置饼图的标签
+        colors: [
+            theme.palette.primary.main,
+            theme.palette.success.main,
+            theme.palette.info.main,
+            theme.palette.warning.main,
+        ],
+        tooltip: {
+            y: {
+                formatter: (val) => `¥ ${val.toLocaleString()}`
+            },
+            theme: 'dark'
+        },
+        legend: {
+            position: 'bottom'
+        },
+        title: {
+            text: '应收款构成',
+            align: 'center',
+            style: {
+                fontWeight: 'bold',
+                color: theme.palette.text.primary
+            }
+        },
+        // 优化数据标签显示，使其更易读
+        dataLabels: {
+            enabled: true,
+            formatter: function (val, opts) {
+                const name = opts.w.globals.labels[opts.seriesIndex];
+                // 当数值过小时，可能不显示标签，以避免重叠
+                if (val < 5) {
+                    return '';
+                }
+                return `${name} ${val.toFixed(1)}%`;
+            }
+        },
+        responsive: [{
+            breakpoint: 480,
+            options: {
+                chart: {
+                    width: 200
+                },
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }]
+    };
+
+    return (
+        <Paper elevation={2} sx={{ p: 3, borderRadius: 4, height: '100%' }}>
+            <ReactApexChart options={options} series={seriesData} type="pie"height={350} />
+        </Paper>
+    );
+};
+
 
 const DashboardPage = () => {
     const [data, setData] = useState(null);
@@ -158,24 +233,13 @@ const DashboardPage = () => {
                         <ReactApexChart options={barChartOptions} series={data.revenue_trend.series} type="bar" height={350} />
                     </Paper>
                 </Grid>
-                <Grid item xs={12} lg={4}>
-                    <Paper elevation={2} sx={{ p: 3, borderRadius: 4, height: '100%' }}>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                            <Typography variant="h6" sx={{ fontWeight: 'bold' }}>管理费构成</Typography>
-                            <ToggleButtonGroup value={pieChartTimespan} exclusive onChange={(e, newValue) => {if (newValue)setPieChartTimespan(newValue);}} size="small">
-                                <ToggleButton value="this_year">今年</ToggleButton>
-                                <ToggleButton value="last_12_months">近12月</ToggleButton>
-                            </ToggleButtonGroup>
-                        </Box>
-                        {pieChartData && pieChartData.series.length > 0 ? (
-                            <ReactApexChart options={pieChartOptions} series={pieChartData.series} type="pie" height={350} />
-                        ) : (
-                            <Box sx={{display: 'flex', height: 350, alignItems: 'center', justifyContent: 'center'}}>
-                                <Typography color="text.secondary">暂无数据</Typography>
-                            </Box>
-                        )}
-                    </Paper>
-                </Grid>
+                {/* ------------------- 以下是核心修改 ------------------- */}
+                    {/* 用新的应收款图表替换掉旧的饼图 */}
+                    <Grid item xs={12} lg={4}>
+                        {data.receivables_summary && <ReceivablesSummary summary=
+      {data.receivables_summary} />}
+                    </Grid>
+                    {/* ------------------- 以上是核心修改 ------------------- */}
                 <Grid item xs={12}>
                     <Paper elevation={2} sx={{ p: 3, borderRadius: 4 }}>
                         <Typography variant="h6" sx={{ fontWeight: 'bold' }} gutterBottom>核心待办事项</Typography>

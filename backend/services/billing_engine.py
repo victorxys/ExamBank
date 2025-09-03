@@ -792,7 +792,7 @@ class BillingEngine:
         self._handle_security_deposit(contract, bill)
         self._handle_introduction_fee(contract, bill)
         db.session.flush()
-        cust_increase, cust_decrease, emp_increase, emp_decrease, deferred_fee = (
+        cust_increase, cust_decrease, emp_increase, emp_decrease, deferred_fee,emp_commission = (
             self._get_adjustments(bill.id, payroll.id)
         )
         cust_discount = D(
@@ -1064,32 +1064,37 @@ class BillingEngine:
 
             if not previous_contract_exists:
                 # 只有在不存在更早的合同的情况下，才计算并创建服务费调整项
-                potential_income = (employee_base_payout + employee_overtime_payout +emp_increase - emp_decrease)
+                potential_income = (employee_base_payout +employee_overtime_payout + emp_increase - emp_decrease)
                 service_fee_due = (level * D("0.1")).quantize(QUANTIZER)
                 first_month_deduction = min(potential_income, service_fee_due)
 
                 if first_month_deduction > 0:
-                    # 采用“更新或创建”模式，确保幂等性
-                    existing_adj = FinancialAdjustment.query.filter_by(
-                        employee_payroll_id=payroll.id,
-                        description='[系统添加] 员工首月服务费'
+                    # ------------------- 以下是核心修改 (V2) -------------------
+
+                    # 增强检查：只要存在任何以“员工首月佣金”开头的描述，就认为已经处理过
+                    commission_already_handled = FinancialAdjustment.query.filter(
+                        FinancialAdjustment.employee_payroll_id == payroll.id,
+                        FinancialAdjustment.description.like('[系统添加] 员工首月佣金%')
                     ).first()
 
-                    if not existing_adj:
+                    if not commission_already_handled:
                         db.session.add(
                             FinancialAdjustment(
                                 employee_payroll_id=payroll.id,
-                                adjustment_type=AdjustmentType.EMPLOYEE_DECREASE,
+                                adjustment_type=AdjustmentType.EMPLOYEE_COMMISSION,
                                 amount=first_month_deduction,
-                                description="[系统添加] 员工首月服务费",
+                                description="[系统添加] 员工首月佣金",
                                 date=bill.cycle_start_date,
                             )
                         )
-                        log_extras["first_month_deduction_reason"] =f"首次合作，创建服务费调整项: min(当期总收入({potential_income:.2f}), 级别*10%({service_fee_due:.2f})) = {first_month_deduction:.2f}"
+                        log_extras["first_month_deduction_reason"] =f"首次合作，创建员工佣金调整项: min(当期总收入({potential_income:.2f}),级别*10%({service_fee_due:.2f})) = {first_month_deduction:.2f}"
                     else:
-                        log_extras["first_month_deduction_reason"] ="员工首月服务费调整项已存在。"
+                        log_extras["first_month_deduction_reason"] ="员工首月佣金调整项已被处理过（可能已创建或转移），不再重复创建。"
+
+                    # ------------------- 以上是核心修改 (V2) -------------------
             else:
-                log_extras["first_month_deduction_reason"] ="员工与客户已有过合作历史，不收取首月服务费。"
+                log_extras["first_month_deduction_reason"] ="员工与客户已有过合作历史，不收取首月佣金。"
+
         current_app.logger.debug(f"NannyDETAILS:log_extras:{log_extras}")
         # 返回的 details 中不再包含 first_month_deduction，因为它已经变成了调整项
         return {
@@ -1112,6 +1117,7 @@ class BillingEngine:
             "employee_overtime_payout": str(employee_overtime_payout),
             "employee_increase": str(emp_increase),
             "employee_decrease": str(emp_decrease),
+            "employee_commission": str(emp_commission),
             "customer_daily_rate": str(customer_daily_rate.quantize(QUANTIZER)),
             "employee_daily_rate": str(employee_daily_rate.quantize(QUANTIZER)),
             "deferred_fee": str(deferred_fee),
@@ -1974,30 +1980,39 @@ class BillingEngine:
             for adj in customer_adjustments
             if adj.adjustment_type == AdjustmentType.CUSTOMER_DECREASE
         )
-        # --- 在此下方新增对 DEFERRED_FEE 的处理 ---
         deferred_fee = sum(
             adj.amount
             for adj in customer_adjustments
             if adj.adjustment_type == AdjustmentType.DEFERRED_FEE
         )
-        # --- 新增结束 ---
 
         emp_increase = sum(
             adj.amount
             for adj in employee_adjustments
-            if adj.adjustment_type == AdjustmentType.EMPLOYEE_INCREASE
+            if adj.adjustment_type in [
+                AdjustmentType.EMPLOYEE_INCREASE,
+                AdjustmentType.EMPLOYEE_COMMISSION_OFFSET # <-- 把“佣金冲账”也算作增款
+            ]
         )
+        # --- 这是修改点：分别计算 DECREASE 和 COMMISSION ---
         emp_decrease = sum(
             adj.amount
             for adj in employee_adjustments
             if adj.adjustment_type == AdjustmentType.EMPLOYEE_DECREASE
         )
+        emp_commission = sum(
+            adj.amount
+            for adj in employee_adjustments
+            if adj.adjustment_type == AdjustmentType.EMPLOYEE_COMMISSION
+        )
+        # --- 修改结束 ---
 
-        # --- 修改返回值，增加 deferred_fee ---
-        return cust_increase, cust_decrease, emp_increase, emp_decrease, deferred_fee
+        # --- 修改返回值，增加 emp_commission ---
+        return cust_increase, cust_decrease, emp_increase, emp_decrease,deferred_fee, emp_commission
 
     def _calculate_final_amounts(self, bill, payroll, details):
         current_app.logger.info("开始进行final calculation of amounts.")
+        # ---客户应付总额计算("仅包含客户付给公司的费用，不含客户付给员工的费用。")
         total_due = (
             D(details.get("management_fee", 0))
             # + D(details.get("customer_overtime_fee", 0))
@@ -2011,18 +2026,31 @@ class BillingEngine:
             - D(details.get("discount", 0))
             # - D(details.get("substitute_deduction", 0))
         )
-        final_payout = (
-            D(details["employee_base_payout"])
-            + D(details["employee_overtime_payout"])
-            + D(details["employee_increase"])
-            + D(details.get("extension_fee", "0.00"))
-            - D(details["employee_decrease"])
-            # - D(details.get("first_month_deduction", 0))
-            - D(details.get("substitute_deduction", 0))  # 扣除替班费用
+        # --- 员工应付总额计算 (核心修改点) ---
+        # Gross Pay = Base + Overtime + Increase
+        employee_gross_payout = (
+            D(details.get("employee_base_payout", 0))
+            + D(details.get("employee_overtime_payout", 0))
+            + D(details.get("extension_fee", 0))
+            + D(details.get("employee_increase", 0))
         )
 
+        # Net Pay = Gross Pay - Deductions
+        # 注意：这里的 employee_decrease 仍然是需要扣除的，比如住宿费等
+        employee_net_payout = (
+            employee_gross_payout
+            - D(details.get("substitute_deduction", 0))
+            - D(details.get("employee_decrease", 0))
+            - D(details.get("employee_commission", 0)) # 佣金在计算实发金额时扣除
+        )
+        # 我们在 details 中同时记录 gross 和 net，方便日志和未来扩展
+        details["final_payout_gross"] = str(payroll.total_due)
+        details["final_payout_net"] = str(employee_net_payout.quantize(D("0.01")))
+
+        # payroll.total_due 现在代表“应发总额 (Gross Pay)”
+
         bill.total_due = total_due.quantize(D("1"))
-        payroll.total_due = final_payout.quantize(D("1"))
+        payroll.total_due = employee_gross_payout.quantize(D("1"))
 
         details["total_due"] = str(bill.total_due)
         details["final_payout"] = str(payroll.total_due)
@@ -2121,22 +2149,10 @@ class BillingEngine:
                     log["被替班扣款"] = (
                         f"从替班账单的基础劳务费中扣除 = {d.get('substitute_deduction', 0):.2f}"
                     )
-
-        # log["客应付款"] = (
-        #     f"基础劳务费({d.get('customer_base_fee', 0):.2f}) + 延长期服务费({d.get('extension_fee', 0):.2f}) + 加班费({d.get('customer_overtime_fee', 0):.2f}) + 管理费({d.get('management_fee', 0):.2f}) - 优惠({d.get('discount', 0):.2f}) - 被替班扣款({d.get('substitute_deduction', 0):.2f}) + 增款({d.get('customer_increase', 0):.2f}) - 减款({d.get('customer_decrease', 0):.2f}) = {d.get('total_due', 0):.2f}"
-        # )
-        # log["萌嫂应领款"] = (
-        #     f"基础工资({d.get('employee_base_payout', 0):.2f}) + 延长期服务费({d.get('extension_fee', 0):.2f}) + 加班工资({d.get('employee_overtime_payout', 0):.2f}) + 奖励/增款({d.get('employee_increase', 0):.2f}) - 服务费/减款({d.get('first_month_deduction',0) + d.get('employee_decrease', 0):.2f}) - 被替班扣款({d.get('substitute_deduction', 0):.2f}) = {d.get('final_payout', 0):.2f}"
-        # )
         # 简化日志，只显示非零内容
         # --- 客户应付款日志 ---
         customer_parts = []
-        # if d.get("customer_base_fee"):
-        #     customer_parts.append(f"基础劳务费({d['customer_base_fee']:.2f})")
-        # if d.get("extension_fee"):
-        #     customer_parts.append(f"延长期服务费({d['extension_fee']:.2f})")
-        # if d.get("customer_overtime_fee"):
-        #     customer_parts.append(f"加班费({d['customer_overtime_fee']:.2f})")
+       
         if d.get("management_fee"):
             customer_parts.append(f"管理费({d['management_fee']:.2f})")
         if d.get("customer_increase"):
@@ -2154,25 +2170,40 @@ class BillingEngine:
 
         log["客应付款"] = " + ".join(customer_parts).replace("+ -", "-") + f" = {d.get('total_due', 0):.2f}"
 
-        # --- 员工应领款日志 ---
-        employee_parts = []
+        # ------------------- 以下是核心修改 -------------------
+        # --- 员工应领款日志 (V2 - Gross & Net) ---
+
+        # 1. 应发总额 (Gross Pay)
+        gross_parts = []
         if d.get("employee_base_payout"):
-            employee_parts.append(f"基础工资({d['employee_base_payout']:.2f})")
+            gross_parts.append(f"基础工资({d['employee_base_payout']:.2f})")
         if d.get("extension_fee"):
-            employee_parts.append(f"延长期服务费({d['extension_fee']:.2f})")
+            gross_parts.append(f"延长期服务费({d['extension_fee']:.2f})")
         if d.get("employee_overtime_payout"):
-            employee_parts.append(f"加班工资({d['employee_overtime_payout']:.2f})")
+            gross_parts.append(f"加班工资({d['employee_overtime_payout']:.2f})")
         if d.get("employee_increase"):
-            employee_parts.append(f"增款({d['employee_increase']:.2f})")
+            gross_parts.append(f"增款({d['employee_increase']:.2f})")
 
-        # 处理减项
-        total_deduction = d.get("first_month_deduction", 0) + d.get("employee_decrease", 0)
-        if total_deduction:
-            employee_parts.append(f"- 服务费/减款({total_deduction:.2f})")
+        # 使用来自 _calculate_final_amounts 的新 key
+        log["萌嫂应领款"] = " + ".join(gross_parts) + f" = {d.get('final_payout_gross', 0):.2f}"
+
+        # 2. 实发总额 (Net Pay)
+        net_parts = [f"应发总额({d.get('final_payout_gross', 0):.2f})"]
         if d.get("substitute_deduction"):
-            employee_parts.append(f"- 被替班扣款({d['substitute_deduction']:.2f})")
+            net_parts.append(f"- 被替班扣款({d['substitute_deduction']:.2f})")
+        if d.get("employee_decrease"):
+            net_parts.append(f"- 其他减款({d['employee_decrease']:.2f})")
+        # 使用来自 _calculate_nanny_details 的新 key
+        if d.get("employee_commission"):
+            net_parts.append(f"- 佣金({d['employee_commission']:.2f})")
 
-        log["萌嫂应领款"] = " + ".join(employee_parts).replace("+ -", "-") + f" = {d.get('final_payout', 0):.2f}"
+        # 使用来自 _calculate_final_amounts 的新 key
+        log["员工实发总额(Net)"] = " ".join(net_parts).replace("  -", " -") +f" = {d.get('final_payout_net', 0):.2f}"
+
+        # 删除旧的日志条目
+        # if "萌嫂应领款" in log:
+        #     del log["萌嫂应领款"]
+        # ------------------- 修改结束 -------------------
 
         return log
 
