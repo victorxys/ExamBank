@@ -204,41 +204,42 @@ const ContractList = () => {
             <Box>
                 <AlertMessage open={alert.open} message={alert.message} severity={alert.severity} onClose={() => setAlert(prev => ({...prev, open:false}))} />
                 <PageHeader title="合同管理" description="查看、筛选和管理所有服务合同。" />
-                <Paper sx={{ p: 2, mb: 3 }}>
+                                <Paper sx={{ p: 2, mb: 3 }}>
                     <Grid container spacing={2} alignItems="center">
-                        <Grid item xs={12} sm={4}><TextField fullWidth label="搜索客户/员工" name="search" value={filters.search} onChange={handleFilterChange} size="small" /></Grid>
-                        <Grid item xs={6} sm={2}><FormControl fullWidth size="small"><InputLabel>类型</InputLabel><Select name="type" value={filters.type} label="类型" onChange={handleFilterChange}><MenuItem value=""><em>全部</em></MenuItem><MenuItem value="nanny">育儿嫂</MenuItem><MenuItem value="maternity_nurse">月嫂</MenuItem> <MenuItem value="nanny_trial">育儿嫂试工</MenuItem></Select></FormControl></Grid>
-                        {/* --- 核心修正 4：修改状态过滤器的选项 --- */}
+                        {/* 减少搜索框宽度 */}
+                        <Grid item xs={12} sm={3}><TextField fullWidth label="搜索客户/员工" name="search" value={filters.search} onChange={handleFilterChange} size="small" /></Grid>
+                        <Grid item xs={6} sm={2}><FormControl fullWidth size="small"><InputLabel>类型</InputLabel><Select name="type" value={filters.type}label="类型" onChange={handleFilterChange}><MenuItem value=""><em>全部</em></MenuItem><MenuItem value="nanny">育儿嫂</MenuItem><MenuItem value="maternity_nurse">月嫂</MenuItem> <MenuItem value="nanny_trial">育儿嫂试工</MenuItem></Select></FormControl></Grid>
                         <Grid item xs={6} sm={2}><FormControl fullWidth size="small"><InputLabel>状态</InputLabel><Select name="status" value={filters.status} label="状态" onChange={handleFilterChange}><MenuItem value="all"><em>全部状态</em></MenuItem><MenuItem value="active">服务中</MenuItem><MenuItem value="pending">待上户</MenuItem><MenuItem value="finished">已完成</MenuItem><MenuItem value="terminated">已终止</MenuItem><MenuItem value="trial_active">试工中</MenuItem><MenuItem value="trial_succeeded">试工成功</MenuItem></Select></FormControl></Grid>
-                        {/* 在状态(status)筛选框的 <Grid item> 之后，添加这个新的 <Grid item> */}
-                        <Grid item xs={6} sm={2}>
-                            <FormControl fullWidth size="small">
-                                <InputLabel>定金状态</InputLabel>
-                                <Select
-                                    name="deposit_status"
-                                    value={filters.deposit_status}
-                                    label="定金状态"
-                                    onChange={handleFilterChange}
-                                >
-                                    <MenuItem value=""><em>全部</em></MenuItem>
-                                    <MenuItem value="paid">已支付</MenuItem>
-                                    <MenuItem value="unpaid">未支付</MenuItem>
-                                </Select>
-                            </FormControl>
-                        </Grid>
-                        <Grid item xs={12} sm={4} sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
-                            {/* <Button variant="contained" startIcon={<AddIcon />}>新增合同</Button> */}
-                            {/* <Button variant="outlined" startIcon={<SyncIcon />}>同步合同</Button> */}
-                      
-                                <Button
-                                    variant="contained"
-                                    startIcon={<AddCircleOutlineIcon />}
-                                    onClick={() => setIsCreateModalOpen(true)}
-                                >
-                                    新增虚拟合同
-                                </Button>
-                        
-                            <Button variant="contained" onClick={handleTriggerSync} disabled={syncing} startIcon={syncing ? <CircularProgress size={20} color="inherit" /> : <SyncIcon />}>同步</Button>
+
+                        {/* 仅在类型为"月嫂"时显示定金状态筛选 */}
+                        {filters.type === 'maternity_nurse' && (
+                            <Grid item xs={6} sm={2}>
+                                <FormControl fullWidth size="small">
+                                    <InputLabel>定金状态</InputLabel>
+                                    <Select
+                                        name="deposit_status"
+                                        value={filters.deposit_status}
+                                        label="定金状态"
+                                        onChange={handleFilterChange}
+                                    >
+                                        <MenuItem value=""><em>全部</em></MenuItem>
+                                        <MenuItem value="paid">已支付</MenuItem>
+                                        <MenuItem value="unpaid">未支付</MenuItem>
+                                    </Select>
+                                </FormControl>
+                            </Grid>
+                        )}
+
+                        {/* 使用自动布局，让按钮组占据剩余空间 */}
+                        <Grid item xs={12} sm sx={{ display: 'flex',justifyContent: 'flex-end', gap: 1 }}>
+                            <Button
+                                variant="contained"
+                                startIcon={<AddCircleOutlineIcon />}
+                                onClick={() => setIsCreateModalOpen(true)}
+                            >
+                                新增虚拟合同
+                            </Button>
+                            <Button variant="contained"onClick={handleTriggerSync} disabled={syncing} startIcon={syncing ? <CircularProgress size={20} color="inherit" /> : <SyncIcon />}>同步</Button>
                         </Grid>
                     </Grid>
                 </Paper>

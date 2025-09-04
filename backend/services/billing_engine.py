@@ -572,7 +572,7 @@ class BillingEngine:
 
         # 从现有账单的周期中反向推算出实际试工天数
         # 注意：天数计算包含首尾，所以需要+1
-        actual_trial_days = (bill.cycle_end_date - bill.cycle_start_date).days + 1
+        actual_trial_days = (bill.cycle_end_date - bill.cycle_start_date).days
 
         current_app.logger.info(f"[TrialRECALC] 从账单 {bill.id} 推算出实际试工天数: {actual_trial_days}")
 
@@ -581,6 +581,7 @@ class BillingEngine:
 
         current_app.logger.info(f"[TrialRECALC] 合同 {contract.id} 的重新计算已完成。")
 
+    # 此函数没有被使用
     def _calculate_nanny_trial_details(self, contract, bill, payroll):
         """计算育儿嫂试工合同的所有财务细节。"""
         QUANTIZER = D("0.01")
@@ -590,7 +591,7 @@ class BillingEngine:
 
         attendance = self._get_or_create_attendance(contract, cycle_start, cycle_end)
         overtime_days = D(attendance.overtime_days)
-        cust_increase, cust_decrease, emp_increase, emp_decrease = (
+        cust_increase, cust_decrease, emp_increase, emp_decrease, deferred_fee,emp_commission = (
             self._get_adjustments(bill.id, payroll.id)
         )
 
@@ -615,7 +616,7 @@ class BillingEngine:
             "daily_rate": str(daily_rate),
             "customer_base_fee": str(base_fee),
             "customer_overtime_fee": str(overtime_fee),
-            "management_fee": "0.00",
+            "本次交管理费": "0.00",
             "customer_increase": str(cust_increase),
             "customer_decrease": str(cust_decrease),
             "employee_base_payout": str(base_fee),
@@ -1046,8 +1047,10 @@ class BillingEngine:
         # --- 【新逻辑】员工首月10%服务费 ---
         first_month_deduction = D(0)
         is_first_bill_of_contract = cycle_start == contract_start_date
+        current_app.logger.info("开始检查首月10%返佣逻辑")
 
         if is_first_bill_of_contract:
+            current_app.logger.info(f"合同 {contract.id} 进入首月佣金检查逻辑。")
             customer_name = contract.customer_name
             employee_id = contract.user_id or contract.service_personnel_id
 
@@ -1055,6 +1058,7 @@ class BillingEngine:
             previous_contract_exists = db.session.query(BaseContract.id).filter(
                 BaseContract.id != contract.id,
                 BaseContract.customer_name == customer_name,
+                BaseContract.type != 'nanny_trial',  # 排除试工合同
                 or_(
                     BaseContract.user_id == employee_id,
                     BaseContract.service_personnel_id == employee_id
@@ -1063,10 +1067,15 @@ class BillingEngine:
             ).first()
 
             if not previous_contract_exists:
+                current_app.logger.info(f"[CommissionCheck] No previous contract found for customer {customer_name} and employee {employee_id}. Proceeding with first month commission deduction check.")
                 # 只有在不存在更早的合同的情况下，才计算并创建服务费调整项
-                potential_income = (employee_base_payout +employee_overtime_payout + emp_increase - emp_decrease)
+                potential_income = (employee_base_payout + employee_overtime_payout + emp_increase - emp_decrease)
+                current_app.logger.info(f"[CommissionCheck] Calculated employee_base_payout: {employee_base_payout}, employee_overtime_payout: {employee_overtime_payout}, emp_increase: {emp_increase}, emp_decrease: {emp_decrease}, potential_income : {potential_income}")
                 service_fee_due = (level * D("0.1")).quantize(QUANTIZER)
-                first_month_deduction = min(potential_income, service_fee_due)
+                current_app.logger.info(f"[CommissionCheck] Calculated potential income: {potential_income}, service fee due (level*10%): {service_fee_due}")
+                # first_month_deduction = min(potential_income, service_fee_due)
+                first_month_deduction = service_fee_due
+                current_app.logger.info(f"[CommissionCheck first_month_deduction ] Final first month deduction to be applied: {first_month_deduction}")
 
                 if first_month_deduction > 0:
                     # ------------------- 以下是核心修改 (V2) -------------------
@@ -1087,13 +1096,19 @@ class BillingEngine:
                                 date=bill.cycle_start_date,
                             )
                         )
-                        log_extras["first_month_deduction_reason"] =f"首次合作，创建员工佣金调整项: min(当期总收入({potential_income:.2f}),级别*10%({service_fee_due:.2f})) = {first_month_deduction:.2f}"
+                        # log_extras["first_month_deduction_reason"] =f"首次合作，创建员工佣金调整项: min(当期总收入({potential_income:.2f}),级别*10%({service_fee_due:.2f})) = {first_month_deduction:.2f}"
+                        log_extras["first_month_deduction_reason"] =f"首次合作，创建员工佣金调整项: 级别*10%({service_fee_due:.2f})) = {first_month_deduction:.2f}"
                     else:
+                        
                         log_extras["first_month_deduction_reason"] ="员工首月佣金调整项已被处理过（可能已创建或转移），不再重复创建。"
-
+                else:
+                    current_app.logger.info(f"[CommissionCheck] Calculated first month deduction is {first_month_deduction}, no adjustment needed.")
+                    log_extras["first_month_deduction_reason"] ="首次合作，但计算出的首月佣金为0，无需创建调整项。"
                     # ------------------- 以上是核心修改 (V2) -------------------
             else:
-                log_extras["first_month_deduction_reason"] ="员工与客户已有过合作历史，不收取首月佣金。"
+                previous_contract_id = previous_contract_exists[0]
+                current_app.logger.info(f"[CommissionCheck] Found previous contract for customer {customer_name} and employee {employee_id}. Previouscontract ID: {previous_contract_id}")
+                log_extras["first_month_deduction_reason"] =f"员工与客户已有过合作历史（合同ID: {previous_contract_id}），不收取首月佣金。"
 
         current_app.logger.debug(f"NannyDETAILS:log_extras:{log_extras}")
         # 返回的 details 中不再包含 first_month_deduction，因为它已经变成了调整项
@@ -1329,7 +1344,7 @@ class BillingEngine:
 
         # 在这里处理保证金，然后再获取调整项
         self._handle_security_deposit(contract, bill)
-        cust_increase, cust_decrease, emp_increase, emp_decrease, deferred_fee = (
+        cust_increase, cust_decrease, emp_increase, emp_decrease, deferred_fee, emp_commission = (
             self._get_adjustments(bill.id, payroll.id)
         )
 
@@ -1505,15 +1520,15 @@ class BillingEngine:
         is_first_bill = bill_cycle_start_date == contract_start_date
 
         if is_first_bill:
-            existing_adj = FinancialAdjustment.query.filter_by(
-                customer_bill_id=bill.id,
-                description='[系统添加] 介绍费'
+            # --- 核心修复：使用 like 查询，避免在转移后重复创建 ---
+            # 检查是否存在任何以“[系统添加] 介绍费”开头的调整项
+            existing_adj = FinancialAdjustment.query.filter(
+                FinancialAdjustment.customer_bill_id == bill.id,
+                FinancialAdjustment.description.like('[系统添加] 介绍费%')
             ).first()
 
-            if existing_adj:
-                if existing_adj.amount != contract.introduction_fee:
-                    existing_adj.amount = contract.introduction_fee
-            else:
+            if not existing_adj:
+                # 如果完全不存在，则创建新的
                 db.session.add(
                     FinancialAdjustment(
                         customer_bill_id=bill.id,
@@ -1523,6 +1538,7 @@ class BillingEngine:
                         date=bill.cycle_start_date,
                     )
                 )
+            # 如果已存在（即使是被转移过的），则什么也不做，保留其现有状态
     def calculate_for_substitute(self, substitute_record_id, commit=True, overrides=None):
         """为单条替班记录生成专属的客户账单和员工薪酬单。"""
         sub_record = db.session.get(SubstituteRecord, substitute_record_id)
@@ -1610,7 +1626,7 @@ class BillingEngine:
             overrides = {}
 
         QUANTIZER = D("0.01")
-        cust_increase, cust_decrease, emp_increase, emp_decrease, deferred_fee= (
+        cust_increase, cust_decrease, emp_increase, emp_decrease, deferred_fee, emp_commission= (
             self._get_adjustments(bill.id, payroll.id)
         )
         # --- 核心修复：优先使用传入的覆盖值 ---
@@ -2033,14 +2049,14 @@ class BillingEngine:
             + D(details.get("employee_overtime_payout", 0))
             + D(details.get("extension_fee", 0))
             + D(details.get("employee_increase", 0))
+            - D(details.get("substitute_deduction", 0))
+            - D(details.get("employee_decrease", 0))
         )
 
         # Net Pay = Gross Pay - Deductions
         # 注意：这里的 employee_decrease 仍然是需要扣除的，比如住宿费等
         employee_net_payout = (
             employee_gross_payout
-            - D(details.get("substitute_deduction", 0))
-            - D(details.get("employee_decrease", 0))
             - D(details.get("employee_commission", 0)) # 佣金在计算实发金额时扣除
         )
         # 我们在 details 中同时记录 gross 和 net，方便日志和未来扩展
@@ -2104,8 +2120,12 @@ class BillingEngine:
                 log["本次交管理费"] = log_extras.get("management_fee_reason", "N/A")
                 if "refund_amount" in log_extras:
                     log["本次交管理费"] += f" | 末月退还: {log_extras['refund_amount']}"
-                if d.get("first_month_deduction", 0) > 0:
-                    log["首月员工10%费用"] = log_extras.get(
+                # if d.get("first_month_deduction", 0) > 0:
+                #     log["首月员工10%费用"] = log_extras.get(
+                #         "first_month_deduction_reason", "N/A"
+                #     )
+                # 不论是否有首月返佣的费用，都要记录日志
+                log["首月员工10%费用"] = log_extras.get(
                         "first_month_deduction_reason", "N/A"
                     )
             else:  # maternity_nurse & nanny_trial
@@ -2136,7 +2156,7 @@ class BillingEngine:
                         f"员工日薪({level:.2f}) * 基本劳务天数({base_work_days:.2f}) = {d.get('customer_base_fee', 0):.2f}"
                     )
                     log["管理费"] = log_extras.get("management_fee_reason", "N/A")
-                if calc_type == "nanny_trial" and d.get("first_month_deduction", 0) > 0:
+                if calc_type == "nanny_trial" > 0:
                     log["首月员工10%费用"] = log_extras.get(
                         "first_month_deduction_reason", "N/A"
                     )
@@ -2178,21 +2198,22 @@ class BillingEngine:
         if d.get("employee_base_payout"):
             gross_parts.append(f"基础工资({d['employee_base_payout']:.2f})")
         if d.get("extension_fee"):
-            gross_parts.append(f"延长期服务费({d['extension_fee']:.2f})")
+            gross_parts.append(f"+ 延长期服务费({d['extension_fee']:.2f})")
         if d.get("employee_overtime_payout"):
-            gross_parts.append(f"加班工资({d['employee_overtime_payout']:.2f})")
+            gross_parts.append(f"+ 加班工资({d['employee_overtime_payout']:.2f})")
         if d.get("employee_increase"):
-            gross_parts.append(f"增款({d['employee_increase']:.2f})")
+            gross_parts.append(f"+ 增款({d['employee_increase']:.2f})")
+        if d.get("substitute_deduction"):
+            gross_parts.append(f"- 被替班扣款({d['substitute_deduction']:.2f})")
+        if d.get("employee_decrease"):
+            gross_parts.append(f"- 其他减款({d['employee_decrease']:.2f})")
 
         # 使用来自 _calculate_final_amounts 的新 key
-        log["萌嫂应领款"] = " + ".join(gross_parts) + f" = {d.get('final_payout_gross', 0):.2f}"
+        log["萌嫂应领款"] = "".join(gross_parts) + f" = {d.get('final_payout_gross', 0):.2f}"
 
         # 2. 实发总额 (Net Pay)
         net_parts = [f"应发总额({d.get('final_payout_gross', 0):.2f})"]
-        if d.get("substitute_deduction"):
-            net_parts.append(f"- 被替班扣款({d['substitute_deduction']:.2f})")
-        if d.get("employee_decrease"):
-            net_parts.append(f"- 其他减款({d['employee_decrease']:.2f})")
+
         # 使用来自 _calculate_nanny_details 的新 key
         if d.get("employee_commission"):
             net_parts.append(f"- 佣金({d['employee_commission']:.2f})")
@@ -2221,12 +2242,12 @@ class BillingEngine:
 
         return bill, payroll
 
-    def _calculate_nanny_trial_termination_details(self, contract, actual_trial_days):
+    def _calculate_nanny_trial_termination_details(self, contract,actual_trial_days):
         """为试工失败结算生成详细的计算字典 (v16 - FINAL with Overtime)。"""
         QUANTIZER = D("0.01")
         level = D(contract.employee_level or 0)
         days = D(actual_trial_days)
-        
+
         # 核心修正：试工合同的 level 即为日薪，无需除以26
         daily_rate = level.quantize(QUANTIZER)
 
@@ -2234,13 +2255,15 @@ class BillingEngine:
         monthly_rate = daily_rate * 26
 
         # 获取考勤，计算加班
-        attendance = self._get_or_create_attendance(contract, contract.start_date, contract.end_date)
+        attendance = self._get_or_create_attendance(contract,contract.start_date, contract.end_date)
         overtime_days = D(attendance.overtime_days)
         overtime_fee = (daily_rate * overtime_days).quantize(QUANTIZER)
 
         # 统一计算基础劳务费和管理费
         base_fee = (daily_rate * days).quantize(QUANTIZER)
-        management_fee = (monthly_rate* D('0.2') / 30 * (days)).quantize(QUANTIZER)
+        management_fee = (monthly_rate* D('0.2') / 30 *(days)).quantize(QUANTIZER)
+
+        current_app.logger.info(f"[TrialTerm-v14] 计算试工合同 {contract.id} 结算细节: 级别 {level}, 日薪 {daily_rate}, 试工天数 {days}, 加班天数 {overtime_days}, 基础费 {base_fee}, 加班费 {overtime_fee}, 管理费 {management_fee}")
 
         details = {
             "type": "nanny_trial_termination",
@@ -2250,14 +2273,14 @@ class BillingEngine:
             "overtime_days": str(overtime_days),
             "total_days_worked": str(days + overtime_days),
             "daily_rate": str(daily_rate),
-            
+
             "customer_base_fee": str(base_fee),
             "employee_base_payout": str(base_fee),
             "customer_overtime_fee": str(overtime_fee),
             "employee_overtime_payout": str(overtime_fee),
-            
+
             "management_fee": str(management_fee),
-            
+
             "introduction_fee": str(contract.introduction_fee or "0.00"),
             "notes": contract.notes or "",
 

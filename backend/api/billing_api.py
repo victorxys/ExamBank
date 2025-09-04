@@ -220,7 +220,7 @@ def _get_billing_details_internal(
     })
     _fill_group_fields(customer_details["groups"][1]["fields"], calc_cust, ["base_work_days", "overtime_days", "total_days_worked", "substitute_days"])
     _fill_group_fields(customer_details["groups"][2]["fields"], calc_cust, ["management_fee", "management_fee_rate"])
-    if contract.type == "nanny" or contract.type == "maternity_nurse" or contract.type == "external_substitution":
+    if contract.type == "nanny" or contract.type == "maternity_nurse" or contract.type == "external_substitution" or contract.type == "nanny_trial":
         customer_details["groups"][2]["fields"]["本次交管理费"] = calc_cust.get("management_fee", "待计算")
 
     if customer_bill.is_substitute_bill:
@@ -289,6 +289,7 @@ def _get_billing_details_internal(
 
     if contract.type == 'nanny_trial':
         customer_details['groups'][0]['fields']['介绍费'] = str(getattr(contract, "introduction_fee", "0.00"))
+        customer_details['groups'][0]['fields']['管理费'] = calc_cust.get("management_fee", "待计算")
     customer_details['groups'][0]['fields']['合同备注'] = contract.notes or "—"
 
     later_bill_exists = db.session.query(db.session.query(CustomerBill).filter(CustomerBill.contract_id == contract.id,CustomerBill.is_substitute_bill == False, CustomerBill.cycle_start_date > customer_bill.cycle_start_date).exists()).scalar()
@@ -435,6 +436,7 @@ def _get_billing_details_internal(
         "cycle_end_date": cycle_end.isoformat(),
         "is_substitute_bill": customer_bill.is_substitute_bill,
             "contract_info": {
+            "contract_id": str(contract.id),
             "contract_type_label":get_contract_type_details(contract.type),
             "start_date": safe_isoformat(contract.start_date),
             "end_date": safe_isoformat(contract.end_date),
@@ -448,6 +450,8 @@ def _get_billing_details_internal(
 def _get_details_template(contract, cycle_start, cycle_end):
     is_maternity = contract.type == "maternity_nurse"
     is_nanny = contract.type == "nanny"
+    is_nanny_trial = contract.type == "nanny_trial"
+
     current_app.logger.info(
         f"[DEBUG] Generating billing details template for contract type: {contract.type}, is_maternity: {is_maternity}, is_nanny: {is_nanny}"
     )
@@ -517,6 +521,15 @@ def _get_details_template(contract, cycle_start, cycle_end):
             "加班费": "待计算",
             "被替班费用": "0.00",
             "首月员工10%费用": "待计算",
+        }
+    elif is_nanny_trial:
+        customer_groups[2]["fields"] = {
+            "本次交管理费": "待计算",
+        }
+        employee_groups[0]["fields"] = {
+            "级别": str(contract.employee_level or 0),
+            "基础劳务费": "待计算",
+            "加班费": "待计算",
         }
 
     return {"id": None, "groups": customer_groups}, {"id": None, "groups":employee_groups}
@@ -1015,25 +1028,50 @@ def get_billing_details():
         return jsonify({"error": "缺少 bill_id 参数"}), 400
 
     try:
-        # 1. 调用旧的内部函数获取基础信息
+        # --- 核心修复：在获取详情前，先执行一次静默重算 ---
+        target_bill = db.session.get(CustomerBill, bill_id)
+        if not target_bill:
+            return jsonify({"error": "账单未找到"}), 404
+
+        engine = BillingEngine()
+
+        # 根据账单类型调用不同的重算逻辑
+        if target_bill.is_substitute_bill:
+            if target_bill.source_substitute_record_id:
+                engine.calculate_for_substitute(
+                    substitute_record_id=target_bill.source_substitute_record_id,
+                    commit=False # 在此不提交，由后续统一提交
+                )
+        else:
+            engine.calculate_for_month(
+                year=target_bill.year,
+                month=target_bill.month,
+                contract_id=target_bill.contract_id,
+                force_recalculate=True,
+                cycle_start_date_override=target_bill.cycle_start_date
+            )
+
+        # 提交事务，确保所有计算结果都已写入数据库
+        db.session.commit()
+        # --- 修复结束 ---
+
+        # 1. 调用内部函数获取最新信息
         details = _get_billing_details_internal(bill_id=bill_id)
         if details is None:
             return jsonify({"error": "获取账单详情失败"}), 404
 
-        # 2. 调用新的发票余额计算引擎
-        engine = BillingEngine()
+        # 2. 调用发票余额计算引擎 (这部分可以保留，因为它可能依赖最新的计算结果)
         invoice_balance = engine.calculate_invoice_balance(bill_id)
 
         # 3. 将发票余额信息合并到返回结果中
         details["invoice_balance"] = invoice_balance
 
-        # 4. 单独补充账单自身的 "invoice_needed" 状态
-        target_bill = db.session.get(CustomerBill, bill_id)
+        # 4. 单独补充账单自身的 "invoice_needed" 状态 (target_bill 已在前面获取)
         details["invoice_needed"] = (target_bill.payment_details or {}).get("invoice_needed", False) if target_bill else False
-
 
         return jsonify(details)
     except Exception as e:
+        db.session.rollback() # 在发生异常时回滚，避免部分提交
         current_app.logger.error(f"获取账单详情失败: {e}", exc_info=True)
         return jsonify({"error": "获取账单详情时发生服务器内部错误"}), 500
 
@@ -2024,9 +2062,9 @@ def create_virtual_contract():
         if isinstance(new_contract, MaternityNurseContract):
             # 如果是月嫂合同，调用专属函数处理定金和介绍费
             create_maternity_nurse_contract_adjustments(new_contract)
-        else:
-            # 对于其他合同（育儿嫂、试工），只处理介绍费
-            upsert_introduction_fee_adjustment(new_contract)
+        # else:
+        #     # 对于其他合同（育儿嫂、试工），只处理介绍费
+        #     upsert_introduction_fee_adjustment(new_contract)
         # --- END: 新增逻辑结束 ---
         db.session.commit()
         current_app.logger.info(f"成功创建虚拟合同，ID: {new_contract.id}, 类型: {contract_type}")

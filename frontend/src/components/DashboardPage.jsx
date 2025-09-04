@@ -18,6 +18,7 @@ import { useTheme } from '@mui/material/styles';
 
 import api from '../api/axios';
 import PageHeader from './PageHeader';
+import FinancialManagementModal from './FinancialManagementModal';
 
 // KPI 卡片组件 (保持不变)
 const KpiCard = ({ icon, title, value, subtitle, color }) => {
@@ -47,7 +48,7 @@ const KpiCard = ({ icon, title, value, subtitle, color }) => {
 };
 
 // 待办事项列表项组件 (修改)
-const TodoListItem = ({ primary, secondary, amount, amountColor, type }) => {
+const TodoListItem = ({ primary, secondary, amount, amountColor, type, onClick}) => {
     const getIcon = () => {
         switch(type) {
             case 'expiring': return <EventBusyIcon color="warning" />;
@@ -57,7 +58,7 @@ const TodoListItem = ({ primary, secondary, amount, amountColor, type }) => {
         }
     };
     return (
-        <ListItem button sx={{ borderRadius: 2, '&:hover': { bgcolor: 'action.hover' } }}>
+        <ListItem button onClick={onClick} sx={{ borderRadius: 2, '&:hover': {bgcolor: 'action.hover' } }}>
             <ListItemIcon sx={{ minWidth: 40 }}>
                 {getIcon()}
             </ListItemIcon>
@@ -152,6 +153,9 @@ const DashboardPage = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [pieChartTimespan, setPieChartTimespan] = useState('this_year');
+    const [isModalOpen, setIsModalOpen] = useState(false); // <-- 2. 弹窗开关
+    const [selectedBillDetails, setSelectedBillDetails] = useState(null); // <-- 3. 存储账单详情
+    const [isModalLoading, setIsModalLoading] = useState(false); // <-- 4. 弹窗内部的加载状态
     const navigate = useNavigate(); 
     const theme = useTheme();
 
@@ -170,6 +174,30 @@ const DashboardPage = () => {
         };
         fetchData();
     }, []);
+
+    const handleBillClick = async (billId) => {
+        if (!billId) return;
+
+        setIsModalOpen(true);
+        setIsModalLoading(true);
+        setSelectedBillDetails(null); // 打开时先清空旧数据
+
+        try {
+            const response = await api.get('/billing/details', { params: {bill_id: billId } });
+            setSelectedBillDetails(response.data);
+        } catch (error) {
+            console.error("获取账单详情失败:", error);
+            alert("获取账单详情失败，请检查控制台。");
+            setIsModalOpen(false); // 出错时关闭弹窗
+        } finally {
+            setIsModalLoading(false);
+        }
+    };
+
+    const handleCloseModal = () => {
+        setIsModalOpen(false);
+        setSelectedBillDetails(null); // 关闭时清空数据
+    };
 
     const barChartOptions = {
         chart: { type: 'bar', height: 350, toolbar: { show: false }, fontFamily: theme.typography.fontFamily },
@@ -237,12 +265,12 @@ const DashboardPage = () => {
                     {/* 用新的应收款图表替换掉旧的饼图 */}
                     <Grid item xs={12} lg={4}>
                         {data.receivables_summary && <ReceivablesSummary summary=
-      {data.receivables_summary} />}
+                        {data.receivables_summary} />}
                     </Grid>
                     {/* ------------------- 以上是核心修改 ------------------- */}
-                <Grid item xs={12}>
+                                <Grid item xs={12}>
                     <Paper elevation={2} sx={{ p: 3, borderRadius: 4 }}>
-                        <Typography variant="h6" sx={{ fontWeight: 'bold' }} gutterBottom>核心待办事项</Typography>
+                        <Typography variant="h6" sx={{ fontWeight: 'bold' }}gutterBottom>核心待办事项</Typography>
                         <Grid container spacing={3}>
                             <Grid item xs={12} md={4}>
                                 <Typography variant="subtitle2" color="text.secondary">临近预产期 (14天内)</Typography>
@@ -250,6 +278,7 @@ const DashboardPage = () => {
                                     {data.todo_lists.approaching_provisional.map(c => (
                                         <TodoListItem
                                             key={'approaching-' + c.id}
+                                            onClick={() => navigate(`/contract/detail/${c.id}`)}
                                             type="approaching"
                                             primary={c.customer_name}
                                             secondary={`预产期: ${c.provisional_start_date} (${c.days_until}天后)`}
@@ -263,6 +292,7 @@ const DashboardPage = () => {
                                     {data.todo_lists.pending_payments.map(p => (
                                         <TodoListItem
                                             key={'payment-' + p.bill_id}
+                                            onClick={() => handleBillClick(p.bill_id)}
                                             type="payment"
                                             primary={p.customer_name}
                                             secondary={p.contract_type}
@@ -275,9 +305,10 @@ const DashboardPage = () => {
                             <Grid item xs={12} md={4}>
                                 <Typography variant="subtitle2" color="text.secondary">即将到期合同 (30天内)</Typography>
                                 <List dense>
-                                    {data.todo_lists.expiring_contracts.map(c => (
+                                    {data.todo_lists.expiring_contracts.map(c=> (
                                         <TodoListItem
                                             key={'expiring-' + c.id}
+                                            onClick={() => navigate(`/contract/detail/${c.id}`)}
                                             type="expiring"
                                             primary={`${c.customer_name} / ${c.employee_name}`}
                                             secondary={`${c.expires_in_days}天后到期 (${c.end_date})`}
@@ -289,6 +320,22 @@ const DashboardPage = () => {
                     </Paper>
                 </Grid>
             </Grid>
+            {/* --- 5. 在这里添加弹窗组件的渲染 --- */}
+            {isModalOpen && (
+                <FinancialManagementModal
+                    open={isModalOpen}
+                    onClose={handleCloseModal}
+                    billingDetails={selectedBillDetails}
+                    loading={isModalLoading}
+                    contract={selectedBillDetails?.contract_info}
+                    billingMonth={selectedBillDetails?.billing_month}
+                    onSave={() => {
+                        // 仪表盘是只读的，但 onSave 是必需的 prop，我们提供一个空实现
+                        // 如果需要刷新，可以在这里重新获取仪表盘数据
+                    }}
+                    onNavigateToBill={handleBillClick} // 允许在弹窗内部跳转到另一个账单
+                />
+            )}
         </Box>
     );
 };
