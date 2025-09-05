@@ -22,8 +22,9 @@ export const AdjustmentTypes = {
     employee_increase: { label: '萌嫂增款', type: 'employee', effect: 1 },
     employee_decrease: { label: '减萌嫂款', type: 'employee', effect: -1 },
     employee_commission: { label: '员工首月返佣', type: 'employee', effect: -1 }, // <-- 新增
-     employee_commission_offset: { label: '佣金冲账', type: 'employee', effect: 1 }, // <-- 新增
+    employee_commission_offset: { label: '佣金冲账', type: 'employee', effect: 1 }, // <-- 新增
     deferred_fee: { label: '上期顺延费用', type: 'customer', effect: 1 },
+    employee_client_payment: { label: '客户支付员工劳务费', type: 'employee', effect: 1 },
 };
 
 const AdjustmentDialog = ({ open, onClose, onSave, adjustment = null, typeFilter = 'all' }) => {

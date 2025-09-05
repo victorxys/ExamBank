@@ -23,6 +23,7 @@ from backend.models import (
     InvoiceRecord,
     PaymentRecord,
     PaymentStatus,
+    TrialOutcome,
 )
 
 from sqlalchemy import func, or_
@@ -2007,6 +2008,7 @@ class BillingEngine:
             for adj in employee_adjustments
             if adj.adjustment_type in [
                 AdjustmentType.EMPLOYEE_INCREASE,
+                AdjustmentType.EMPLOYEE_CLIENT_PAYMENT, # <-- 把“客户支付给员工的费用”也算作增款,一般是从试工合同中转过来的试工劳务费
                 AdjustmentType.EMPLOYEE_COMMISSION_OFFSET # <-- 把“佣金冲账”也算作增款
             ]
         )
@@ -2520,3 +2522,118 @@ class BillingEngine:
         current_app.logger.info(
             f"[RecalcByBill] 合同 {contract.id} 的所有账单已重算完毕。"
         )
+    
+    def process_trial_conversion(self, trial_contract_id: str,formal_contract_id: str, operator_id: str):
+        """
+        处理试工合同到正式合同的转换。
+        这是一个原子操作，包含状态更新和财务调整项的创建。
+        """
+        # current_app.logger.info("--- [CONVERSION-DEBUG] START ---")
+        # current_app.logger.info(f"[DEBUG-STEP 1] trial_id={trial_contract_id}, formal_id={formal_contract_id}")
+
+        # 1. 获取合同对象
+        trial_contract = db.session.get(NannyTrialContract, trial_contract_id)
+        if not trial_contract:
+            current_app.logger.error("[DEBUG-FAIL] Step 1a: NannyTrialContract not found.")
+            raise ValueError(f"试工合同 {trial_contract_id} 未找到。")
+        # current_app.logger.info("[DEBUG-STEP 2] Found trial_contract.")
+
+        formal_contract = db.session.get(NannyContract, formal_contract_id)
+        if not formal_contract:
+            current_app.logger.error("[DEBUG-FAIL] Step 2a: NannyContract not found.")
+            raise ValueError(f"正式合同 {formal_contract_id} 未找到。")
+        # current_app.logger.info("[DEBUG-STEP 3] Found formal_contract.")
+
+        # 2. 更新状态和关联
+        trial_contract.trial_outcome = TrialOutcome.SUCCESS
+        trial_contract.status = 'finished'
+        formal_contract.source_trial_contract_id = trial_contract.id
+        # current_app.logger.info("[DEBUG-STEP 4] Updated contract states in session.")
+
+        # 3. 计算试工期的价值
+        if not trial_contract.end_date or not trial_contract.start_date:
+             current_app.logger.error("[DEBUG-FAIL] Step 4a: Trial contract dates are null.")
+             raise ValueError("试工合同的起止日期不能为空。")
+        trial_days = (trial_contract.end_date - trial_contract.start_date).days+ 1
+        trial_level = D(trial_contract.employee_level or 0)
+        daily_rate = (trial_level / D(26)).quantize(D("0.01"))
+        trial_wages = (daily_rate * D(trial_days)).quantize(D("0.01"))
+        # current_app.logger.info(f"[DEBUG-STEP 5] Calculated trial value: {trial_wages}")
+
+        # 4. 找到正式合同的第一个账单和薪酬单
+        first_bill = CustomerBill.query.filter_by(contract_id=formal_contract.id, is_substitute_bill=False).order_by(CustomerBill.cycle_start_date.asc()).first()
+        first_payroll =EmployeePayroll.query.filter_by(contract_id=formal_contract.id,is_substitute_payroll=False).order_by(EmployeePayroll.cycle_start_date.asc()).first()
+        # current_app.logger.info("[DEBUG-STEP 6] Queried for first bill and payroll.")
+
+        if not first_bill or not first_payroll:
+            # current_app.logger.warning("[DEBUG-STEP 6a] First bill/payroll not found, attempting to generate.")
+            self.generate_all_bills_for_contract(formal_contract.id)
+            first_bill =CustomerBill.query.filter_by(contract_id=formal_contract.id,is_substitute_bill=False).order_by(CustomerBill.cycle_start_date.asc()).first()
+            first_payroll =EmployeePayroll.query.filter_by(contract_id=formal_contract.id,is_substitute_payroll=False).order_by(EmployeePayroll.cycle_start_date.asc()).first()
+            if not first_bill or not first_payroll:
+                current_app.logger.error("[DEBUG-FAIL] Step 6b: Failed to create first bill/payroll.")
+                raise Exception(f"无法为正式合同 {formal_contract.id} 找到或创建第一个账单/薪酬单。")
+        # current_app.logger.info(f"[DEBUG-STEP 7] Found first_bill (ID: {first_bill.id}) and first_payroll (ID: {first_payroll.id}).")
+
+        # 5. 在正式合同的第一个账单/薪酬单上创建财务调整项
+        # 员工薪酬单侧，创建一条类型为“客户直付”的调整项，并立即标记为已结算
+        current_app.logger.info(f"[DEBUG] 检查试工工资，金额为: {trial_wages}")
+        if trial_wages > 0:
+            # --- 修正：增加对员工姓名获取的健壮性 ---
+            employee_name = "未知员工"
+            if trial_contract.user:
+                employee_name = trial_contract.user.username
+            elif trial_contract.service_personnel:
+                employee_name = trial_contract.service_personnel.name
+            # --- 修正结束 ---
+
+            # trial_wages_desc = (
+            #     f"[客户直付] 来自客户({trial_contract.customer_name})-员工({employee_name})的"
+            #     f"试工合同(ID: {trial_contract.id})的劳务费。"
+            #     f"计算过程: {trial_days}天 * 日薪 {daily_rate}元 = {trial_wages}元"
+            # )
+            trial_wages_desc = f"[客户直付] 来自试工合同的劳务费"
+
+            client_payment_adj = FinancialAdjustment(
+                employee_payroll_id=first_payroll.id,
+                adjustment_type=AdjustmentType.EMPLOYEE_CLIENT_PAYMENT,
+                amount=trial_wages,
+                description=trial_wages_desc,
+                date=first_payroll.cycle_start_date,
+                # is_settled=True,
+                # settlement_date=trial_contract.end_date
+            )
+            db.session.add(client_payment_adj)
+            current_app.logger.info(f"已为薪酬单 {first_payroll.id} 添加金额为 {trial_wages} 的客户直付调整项。")
+        else:
+            current_app.logger.warning(f"[DEBUG] 试工工资为0，已跳过为薪酬单 {first_payroll.id} 创建调整项。")
+        
+        # 客户账单侧，创建一条类型为“介绍费”的调整项，并立即标记为已结算
+        introduction_fee = D(trial_contract.introduction_fee or 0)
+        if introduction_fee > 0:
+            # intro_fee_desc = f"[系统] 来自试工合同(ID: {trial_contract.id})的介绍费 (已在试工期间结清)"
+            intro_fee_desc = f"[系统] 来自试工合同的介绍费 (已结清)"
+            intro_fee_adj = FinancialAdjustment(customer_bill_id=first_bill.id,adjustment_type=AdjustmentType.INTRODUCTION_FEE, amount=introduction_fee,description=intro_fee_desc, date=first_bill.cycle_start_date, is_settled=True,settlement_date=trial_contract.start_date)
+            db.session.add(intro_fee_adj)
+        # current_app.logger.info("[DEBUG-STEP 9] Added introduction fee adjustment to session.")
+        payment_for_intro_fee = PaymentRecord(
+            customer_bill_id=first_bill.id,
+            amount=introduction_fee,
+            payment_date=trial_contract.start_date, # 收款日期就认为是试工开始日
+            method='TRIAL_FEE_TRANSFER', # 使用一个特殊方式以作区分
+            notes=f"[系统] 试工合同 {trial_contract.id} 介绍费转入",
+            created_by_user_id=operator_id
+        )
+        db.session.add(payment_for_intro_fee)
+        # current_app.logger.info(f"已为介绍费调整项创建对应的收款记录，金额 {introduction_fee}。")
+        # 6. 提交更改并触发重算
+        db.session.commit()
+        # current_app.logger.info("[DEBUG-STEP 10] Session committed.")
+
+        self.calculate_for_month(year=first_bill.year, month=first_bill.month,contract_id=formal_contract.id, force_recalculate=True,cycle_start_date_override=first_bill.cycle_start_date)
+        # current_app.logger.info("[DEBUG-STEP 11] Recalculation triggered.")
+        # current_app.logger.info("--- [CONVERSION-DEBUG] END ---")
+        db.session.refresh(first_bill)
+        _update_bill_payment_status(first_bill)
+        db.session.commit()
+        # current_app.logger.info(f"[DEBUG-STEP 12] Final payment status update for bill {first_bill.id} complete.")

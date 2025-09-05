@@ -48,6 +48,7 @@ from backend.models import (
     AdjustmentType,
     ExternalSubstitutionContract,
     NannyContract, 
+    TrialOutcome,
 )
 from backend.tasks import (
     sync_all_contracts_task,
@@ -1692,9 +1693,12 @@ def get_all_contracts():
         search_term = request.args.get("search", "").strip()
         contract_type = request.args.get("type", "")
         status = request.args.get("status", "active")
-        deposit_status_filter = request.args.get("deposit_status", "") # <-- 获取新参数
+        employee_id = request.args.get("employee_id")
+        customer_name = request.args.get("customer_name")
+        deposit_status_filter = request.args.get("deposit_status", "")
         sort_by = request.args.get("sort_by", None)
         sort_order = request.args.get("sort_order", "asc")
+        current_app.logger.info(f"Fetching contracts - Page: {page}, Per Page: {per_page}, Search: '{search_term}', Type: '{contract_type}', Status: '{status}', Employee ID: '{employee_id}', Deposit Status: '{deposit_status_filter}', Sort By: '{sort_by}', Sort Order: '{sort_order}'")
 
         # 2. 【关键修正】最终版的定金子查询，包含了所有支付逻辑
         deposit_adjustment_sq = db.session.query(
@@ -1754,6 +1758,21 @@ def get_all_contracts():
                     User.name_pinyin.ilike(f"%{search_term}%"),
                     ServicePersonnel.name.ilike(f"%{search_term}%"),
                     ServicePersonnel.name_pinyin.ilike(f"%{search_term}%"),
+                )
+            )
+        if employee_id:
+            # 员工ID可能在 user_id 或 service_personnel_id 字段中
+            query = query.filter(
+                db.or_(
+                    BaseContract.user_id == employee_id,
+                    BaseContract.service_personnel_id == employee_id
+                )
+            )
+        if customer_name:
+            query = query.filter(
+                db.or_(
+                    BaseContract.customer_name == customer_name,
+                    BaseContract.contact_person == customer_name
                 )
             )
         # --- 【新增逻辑】处理定金状态筛选 ---
@@ -2486,7 +2505,11 @@ def get_single_contract_details(contract_id):
 
         result = {
             "id": str(contract.id),
+            "source_trial_contract_id": str(contract.source_trial_contract_id) if hasattr(contract, 'source_trial_contract_id') and contract.source_trial_contract_id else None,
+            'user_id': str(contract.user_id) if contract.user_id else None,
+            'service_personnel_id': str(contract.service_personnel_id) if contract.service_personnel_id else None,
             "customer_name": contract.customer_name,
+            # 'trial_outcome': contract.trial_outcome.value if contract.trial_outcome else None,  
             "contact_person": contract.contact_person,
             "introduction_fee": contract.introduction_fee,
             "deposit_amount": getattr(contract, "deposit_amount", None),
@@ -2504,11 +2527,18 @@ def get_single_contract_details(contract_id):
             "remaining_months": remaining_months_str,
             "highlight_remaining": highlight_remaining,
             "notes": contract.notes,
-            "is_monthly_auto_renew": getattr(contract,'is_monthly_auto_renew', None),
+            # "is_monthly_auto_renew": getattr(contract,'is_monthly_auto_renew', None),
             # --- 使用新字段替换旧字段 ---
             "deposit_amount": str(final_deposit_amount),
             "deposit_paid": is_deposit_paid,
         }
+        if contract.type == 'nanny_trial':
+            result['trial_outcome'] = contract.trial_outcome.value if contract.trial_outcome else None
+            # 同时，把转换后的正式合同ID也加上，供前端使用
+            if hasattr(contract, 'converted_to_formal_contract') and contract.converted_to_formal_contract:
+                result['converted_to_formal_contract_id'] = str(contract.converted_to_formal_contract.id)
+
+        
         return jsonify(result)
 
     except Exception as e:
@@ -2577,6 +2607,10 @@ def terminate_contract(contract_id):
     contract = db.session.get(BaseContract, contract_id)
     if not contract:
         return jsonify({"error": "合同未找到"}), 404
+    
+    if isinstance(contract, NannyTrialContract):
+        contract.trial_outcome = TrialOutcome.FAILURE
+        current_app.logger.info(f"试工合同 {contract.id} 终止，结果设置为“失败”。")
 
     contract_start_date = contract.start_date.date() if isinstance(contract.start_date,datetime) else contract.start_date
     contract_end_date = contract.end_date.date() if isinstance(contract.end_date,datetime) else contract.end_date
@@ -3835,17 +3869,35 @@ def transfer_financial_adjustment(adjustment_id):
             original_description = source_adj.description
 
             # 3a. 在目标账单下创建“转入”项
-            original_type_label =ADJUSTMENT_TYPE_LABELS.get(source_adj.adjustment_type,source_adj.adjustment_type.name)
+            original_type_label=ADJUSTMENT_TYPE_LABELS.get(source_adj.adjustment_type,source_adj.adjustment_type.name)
+
+            # --- Linus 修正开始 ---
+            # 无论来源是客户账单还是员工工资单，我们都需要明确找到源头的“客户账单ID”
+            source_customer_bill_id = None
+            if is_employee_adj:
+                # 如果是员工侧的调整，我们需要根据其薪酬单找到对应的客户账单
+                source_customer_bill =CustomerBill.query.filter_by(
+                    contract_id=source_contract.id,
+                    cycle_start_date=source_bill_or_payroll.cycle_start_date,
+                    is_substitute_bill=source_bill_or_payroll.is_substitute_payroll
+                ).with_entities(CustomerBill.id).first()# 只查询ID，更高效
+                if source_customer_bill:
+                    source_customer_bill_id = str(source_customer_bill.id)
+            else:
+                # 如果是客户侧的调整，source_bill_or_payroll.id就是正确的客户账单ID
+                source_customer_bill_id = str(source_bill_or_payroll.id)
+            # --- Linus 修正结束 ---
+
             new_adj_in = FinancialAdjustment(
                 adjustment_type=source_adj.adjustment_type,
                 amount=source_adj.amount,
-                # description=f"[转入] {original_type_label}: {original_description}",
                 description=f"[转入] {original_type_label}",
                 date=destination_bill.cycle_start_date,
                 details={
                     "status": "transferred_in",
-                    "transferred_from_adjustment_id": str(source_adj.id),
-                    "transferred_from_bill_id": str(source_bill_or_payroll.id),
+                    "transferred_from_adjustment_id":str(source_adj.id),
+                    # 【关键修正】使用我们明确找到的客户账单ID
+                    "transferred_from_bill_id":source_customer_bill_id,
                     "transferred_from_bill_info": f"{source_bill_or_payroll.year}-{source_bill_or_payroll.month}"
                 }
             )
@@ -4589,100 +4641,75 @@ def get_pending_deposits():
     except Exception as e:
         current_app.logger.error(f"Failed to get pending deposits count: {e}",exc_info=True)
         return jsonify({"error": "Internal server error"}), 500
+
+@billing_bp.route("/nanny-trial-contracts/<uuid:trial_contract_id>/convert", methods=["POST"])
+@admin_required
+def convert_nanny_trial_contract(trial_contract_id):
+    """
+    将一个成功的试工合同转换为正式合同。
+    这会触发一个引擎服务，将试工期的费用和介绍费作为调整项附加到正式合同的第一个账单上。
+    """
+    data = request.get_json()
+    if not data or "formal_contract_id" not in data:
+        return jsonify({"error": "请求体中必须包含 'formal_contract_id'"}), 400
+
+    formal_contract_id = data["formal_contract_id"]
+
+    # 新增：获取当前操作员的ID
+    operator_id = get_jwt_identity()
+
+    try:
+        engine = BillingEngine()
+        # 修改：将 operator_id 传递给引擎函数
+        engine.process_trial_conversion(
+            trial_contract_id=str(trial_contract_id),
+            formal_contract_id=formal_contract_id,
+            operator_id=operator_id
+        )
+        return jsonify({"message":"试工合同已成功转换，相关费用已附加到正式合同的第一期账单中。"}), 200
+    except Exception as e:
+        current_app.logger.error(f"转换试工合同 {trial_contract_id} 时发生错误:{e}", exc_info=True)
+        # 返回一个更通用的错误信息给前端，具体的错误记录在日志中
+        return jsonify({"error": f"处理转换失败: {str(e)}"}), 500
+
+@billing_bp.route("/contracts/pending-trials", methods=["GET"])
+@admin_required
+def get_pending_trial_contracts():
+    """
+    获取所有已到期但未处理的试工合同，用于仪表盘待办事项。
+    """
+    try:
+        today = date.today()
+
+        # 查询所有状态为 PENDING 且结束日期已过的试工合同
+        pending_trials = NannyTrialContract.query.filter(
+            NannyTrialContract.trial_outcome == TrialOutcome.PENDING,
+            NannyTrialContract.end_date < today
+        ).join(
+            User, BaseContract.user_id == User.id, isouter=True
+        ).join(
+            ServicePersonnel, BaseContract.service_personnel_id ==ServicePersonnel.id, isouter=True
+        ).add_columns(
+            NannyTrialContract.id,
+            NannyTrialContract.customer_name,
+            NannyTrialContract.end_date,
+            User.username,
+            ServicePersonnel.name.label('sp_name')
+        ).order_by(NannyTrialContract.end_date.asc()).all()
+
+        results = []
+        for contract, _, _, _, user_name, sp_name in pending_trials:
+             employee_name = user_name or sp_name or "未知员工"
+             results.append({
+                "id": str(contract.id),
+                "customer_name": contract.customer_name,
+                "employee_name": employee_name,
+                "end_date": contract.end_date.isoformat(),
+                "message": f"与客户 {contract.customer_name}、员工 {employee_name} 的试工合同已于 {contract.end_date.strftime('%Y-%m-%d')}结束，请及时标记试工结果。"
+             })
+
+        return jsonify(results)
+    except Exception as e:
+        current_app.logger.error(f"获取待处理试工合同列表失败: {e}", exc_info=True)
+        return jsonify({"error": "获取待办事项列表时发生服务器内部错误"}), 500
     
-# @billing_bp.route("/contracts", methods=["GET"])
-# @jwt_required()
-# def get_contracts():
-#     """
-#     获取合同列表，支持筛选、分页，并附带定金金额和支付状态。
-#     """
-#     try:
-#         # 1. 获取所有前端传递的参数
-#         page = request.args.get('page', 1, type=int)
-#         per_page = request.args.get('per_page', 10, type=int)
-#         search_term = request.args.get('search', '').strip()
-#         type_filter = request.args.get('type', '')
-#         status_filter = request.args.get('status', '')
-#         deposit_status_filter = request.args.get('deposit_status', '')
-
-#         # 2. 创建定金子查询 (此部分逻辑正确，保持不变)
-#         deposit_adjustment_sq = db.session.query(
-#             FinancialAdjustment.contract_id,
-#             FinancialAdjustment.amount,
-#             FinancialAdjustment.status
-#         ).filter(
-#             FinancialAdjustment.adjustment_type == AdjustmentType.DEPOSIT
-#         ).subquery('deposit_adjustment')
-
-#         # 3. 【关键修正】构建主查询，正确地 JOIN User 和 ServicePersonnel
-#         query = db.session.query(
-#             BaseContract,
-#             deposit_adjustment_sq.c.amount.label('deposit_amount'),
-#             deposit_adjustment_sq.c.status.label('deposit_status'),
-#             User.username.label('user_employee_name'),
-#             ServicePersonnel.name.label('sp_employee_name')
-#         ).outerjoin(
-#             deposit_adjustment_sq, BaseContract.id ==deposit_adjustment_sq.c.contract_id
-#         ).outerjoin(
-#             User, BaseContract.user_id == User.id
-#         ).outerjoin(
-#             ServicePersonnel, BaseContract.service_personnel_id ==ServicePersonnel.id
-#         )
-
-#         # 4. 应用所有筛选条件
-#         if type_filter and type_filter != 'all':
-#             type_list = [t.strip() for t in type_filter.split(',')]
-#             query = query.filter(BaseContract.type.in_(type_list))
-#         if status_filter and status_filter != 'all':
-#             query = query.filter(BaseContract.status == status_filter)
-#         if deposit_status_filter == 'unpaid':
-#             query = query.filter(deposit_adjustment_sq.c.status != 'PAID')
-#         if search_term:
-#             # 【关键修正】搜索客户姓名、内部员工姓名、外部服务人员姓名
-#             query = query.filter(
-#                 or_(
-#                     BaseContract.customer_name.ilike(f'%{search_term}%'),
-#                     User.username.ilike(f'%{search_term}%'),
-#                     ServicePersonnel.name.ilike(f'%{search_term}%')
-#                 )
-#             )
-
-#         # 5. 排序和分页
-#         query = query.order_by(BaseContract.start_date.desc())
-#         pagination = query.paginate(page=page, per_page=per_page, error_out=False)
-#         results = pagination.items
-
-#         # 6. 【关键修正】格式化输出
-#         contracts_data = []
-#         for contract, deposit_amount, deposit_status, user_employee_name,sp_employee_name in results:
-#             # 正确地从两个可能的地方获取员工姓名
-#             employee_name = user_employee_name or sp_employee_name or "N/A"
-#             final_deposit_amount = deposit_amount if deposit_amount is not None else 0
-
-#             contract_dict = {
-#                 "id": str(contract.id),
-#                 "customer_name": contract.customer_name, # 直接从合同字段获取
-#                 "employee_name": employee_name,
-#                 "start_date": contract.start_date.isoformat(),
-#                 "end_date": contract.end_date.isoformat(),
-#                 "status": contract.status,
-#                 "type": contract.type,
-#                 "deposit_amount": str(final_deposit_amount),
-#                 "deposit_paid": (deposit_status == 'PAID'),
-#                 "contract_type_label": contract.type,
-#                 "contract_type_value": contract.type,
-#             }
-#             contracts_data.append(contract_dict)
-
-#         return jsonify({
-#             'items': contracts_data,
-#             'total': pagination.total,
-#             'page': pagination.page,
-#             'pages': pagination.pages
-#         })
-
-#     except Exception as e:
-#         current_app.logger.error(f"Failed to get contracts with final logic: {e}", exc_info=True)
-#         import traceback
-#         traceback.print_exc()
-#         return jsonify({"error": "Internal server error"}), 500

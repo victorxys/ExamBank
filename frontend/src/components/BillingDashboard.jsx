@@ -39,6 +39,7 @@ import PaymentProgress from './PaymentProgress';
 
 
 
+
 // 1. 修正 formatDate 函数，使其能优雅地处理双日期字符串
 const formatDate = (dateString) => {
     if (!dateString || dateString.includes('N/A')) return '—';

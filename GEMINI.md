@@ -199,6 +199,7 @@ claude mcp add spec-workflow-mcp -s user -- npx -y spec-workflow-mcp@latest
 *   **通用**:
     *   Commit messages 请遵循 Conventional Commits 规范。
     *   所有代码和注释都应使用中文。
+    *   在你修改或替换代码的时候，不要企图批量替换，请将需要修改的内容输出告诉我，我来手动替换。
 
 
 ## 常用命令
@@ -243,7 +244,6 @@ claude mcp add spec-workflow-mcp -s user -- npx -y spec-workflow-mcp@latest
 ## Gemini 交互指南
 
 *   在修改代码前，请先理解相关模块的上下文。
-*   在你修改或替换代码的时候，不要企图批量替换，请将需要修改的内容输出告诉我，我来手动替换。
 *   优先编写或更新测试。
 *   遵循现有的代码风格和项目结构。
 *   若不确定，请向我提问。

@@ -158,13 +158,18 @@ const DashboardPage = () => {
     const [isModalLoading, setIsModalLoading] = useState(false); // <-- 4. 弹窗内部的加载状态
     const navigate = useNavigate(); 
     const theme = useTheme();
+    const [pendingTrials, setPendingTrials] = useState([]);
 
     useEffect(() => {
         const fetchData = async () => {
             try {
                 setLoading(true);
-                const response = await api.get('/billing/dashboard/summary');
-                setData(response.data);
+                const [summaryRes, trialsRes] = await Promise.all([
+                    api.get('/billing/dashboard/summary'),
+                    api.get('/billing/contracts/pending-trials') // 并行获取待处理合同
+                ]);
+                setData(summaryRes.data);
+                setPendingTrials(trialsRes.data); // 设置新的 state
             } catch (err) {
                 setError('加载仪表盘数据失败，请稍后重试。');
                 console.error(err);
@@ -316,6 +321,22 @@ const DashboardPage = () => {
                                     ))}
                                 </List>
                             </Grid>
+                            {pendingTrials.length > 0 && (
+                                <Grid item xs={12}>
+                                    <Divider sx={{ my: 2 }} />
+                                    <Typography variant="subtitle2" color="error.main">待处理试工合同</Typography>
+                                    <List dense>
+                                        {pendingTrials.map(c => (
+                                            <TodoListItem
+                                                key={'trial-' + c.id}
+                                                onClick={() => navigate(`/contract/detail/${c.id}`)}
+                                                type="assignment" // 使用一个通用的图标类型
+                                                primary={c.message}
+                                            />
+                                        ))}
+                                    </List>
+                                </Grid>
+                            )}
                         </Grid>
                     </Paper>
                 </Grid>

@@ -1966,6 +1966,11 @@ class ServicePersonnel(db.Model):
     def __repr__(self):
         return f"<ServicePersonnel {self.name}>"
 
+class TrialOutcome(enum.Enum):
+    PENDING = "pending"
+    SUCCESS = "success"
+    FAILURE = "failure"
+
 
 class AdjustmentType(enum.Enum):
     CUSTOMER_INCREASE = "customer_increase"  # 客户增款 (收款)
@@ -2047,32 +2052,54 @@ class FinancialAdjustment(db.Model):
         nullable=True,
         comment="记录该笔支付的操作员ID"
     )
-
+    customer_bill = db.relationship('CustomerBill', backref=db.backref('financial_adjustments', lazy='dynamic'))
+    employee_payroll = db.relationship('EmployeePayroll', backref=db.backref('financial_adjustments', lazy='dynamic'))
     def to_dict(self):
-        return {
-            "id": str(self.id),
-            "adjustment_type": self.adjustment_type.value,
-            "amount": str(self.amount),
-            "description": self.description,
-            "date": self.date.isoformat() if self.date else None,
-            "contract_id": str(self.contract_id) if self.contract_id else None,
-            "customer_bill_id": str(self.customer_bill_id)
-            if self.customer_bill_id
-            else None,
-            "employee_payroll_id": str(self.employee_payroll_id)
-            if self.employee_payroll_id
-            else None,
-            "details": self.details,
-            "created_at": self.created_at.isoformat() if self.created_at else None,
-            "is_settled": self.is_settled,
-            "settlement_date": self.settlement_date.isoformat()
-            if self.settlement_date
-            else None,
-            "settlement_details": self.settlement_details,
-            "status": self.status,
-            "paid_amount": str(self.paid_amount) if self.paid_amount is not None else None,
-            "paid_at": self.paid_at.isoformat() if self.paid_at else None,
-        }
+        try:
+            # 这是你原来的字典定义，我保留了所有字段
+            data = {
+                "id": str(self.id),
+                "adjustment_type": self.adjustment_type.value,
+                "amount": str(self.amount),
+                "description": self.description,
+                "date": self.date.isoformat() if self.date else None,
+                "contract_id": str(self.contract_id) if self.contract_id else None,
+                "customer_bill_id": str(self.customer_bill_id) if self.customer_bill_id else None,
+                "employee_payroll_id": str(self.employee_payroll_id) if self.employee_payroll_id else None,
+                "details": self.details,
+                "created_at": self.created_at.isoformat() if self.created_at else None,
+                "is_settled": self.is_settled,
+                "settlement_date": self.settlement_date.isoformat() if self.settlement_date else None,
+                "settlement_details": self.settlement_details,
+                "status": self.status,
+                "paid_amount": str(self.paid_amount) if self.paid_amount is not None else None,
+                "paid_at": self.paid_at.isoformat() if self.paid_at else None,
+                "source_contract_id": None
+            }
+
+            # 这是我们之前写的逻辑，现在把它放在正确的位置
+            if self.description and "试工合同" in self.description:
+                contract = None
+                if self.customer_bill:
+                    contract = self.customer_bill.contract
+                elif self.employee_payroll:
+                    contract = self.employee_payroll.contract
+
+                if contract and hasattr(contract, 'source_trial_contract_id')and contract.source_trial_contract_id:
+                    data['source_contract_id'] = str(contract.source_trial_contract_id)
+
+            # 加上缺失的 return 语句
+            return data
+
+        except Exception as e:
+            # 这是我们的调试“陷阱”
+            print(f"--- FATAL SERIALIZATION ERROR ---")
+            print(f"ERROR: Failed to serialize FinancialAdjustment with ID: {self.id}.")
+            print(f"REASON: {e}")
+            import traceback
+            traceback.print_exc()
+            print(f"--- END OF ERROR ---")
+            return None
 
 class InvoiceRecord(db.Model):
     __tablename__ = "invoice_records"
@@ -2224,10 +2251,20 @@ class NannyContract(BaseContract):  # 育儿嫂合同
         default="pending",
         comment="(年签)管理费支付状态 (pending, paid, partial)",
     )
+    source_trial_contract_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey("contracts.id", ondelete="SET NULL"), nullable=True, index=True, comment="关联的源试工合同ID")
+
+    source_trial_contract = db.relationship(
+        'NannyTrialContract',
+        foreign_keys=[source_trial_contract_id],
+        backref=backref('converted_to_formal_contract', uselist=False),
+        remote_side=[BaseContract.id],
+        uselist=False
+    )
 
 
 class NannyTrialContract(BaseContract):  # 育儿嫂试工合同
     __mapper_args__ = {"polymorphic_identity": "nanny_trial"}
+    trial_outcome = db.Column(SAEnum(TrialOutcome), nullable=False,default=TrialOutcome.PENDING, server_default=TrialOutcome.PENDING.value, index=True, comment="试工结果 (pending, success, failure)")
 
 class ExternalSubstitutionContract(BaseContract):
     __tablename__ = 'external_substitution_contract'

@@ -15,7 +15,8 @@ import {
     ReceiptLong as ReceiptLongIcon, History as HistoryIcon,
     EditCalendar as EditCalendarIcon,
     CheckCircle as CheckCircleIcon, HighlightOff as HighlightOffIcon,
-    ArticleOutlined as ArticleOutlinedIcon
+    ArticleOutlined as ArticleOutlinedIcon,
+    Link as LinkIcon
 } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { Timeline } from '@mui/lab';
@@ -642,7 +643,29 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
         const substituteDays = data.calculation_details?.substitute_days;
         const substituteDeduction = data.calculation_details?.substitute_deduction;
 
-        const currentAdjustments = adjustments.filter(adj => AdjustmentTypes[adj.adjustment_type]?.type === (isCustomer ? 'customer' : 'employee'));
+        const currentAdjustments = adjustments.filter(adj => {
+            // 1. 仍然保留我们的安全检查
+            if (!adj) {
+                console.log('Filtering out a null/undefined adjustment item.');
+                return false;
+            }
+
+            // 2. 把判断的各个部分拆开，打印出来，看看到底是哪里出了问题
+            const expectedType = isCustomer ? 'customer' : 'employee';
+            const adjustmentConfig = AdjustmentTypes[adj.adjustment_type];
+            const actualType = adjustmentConfig?.type;
+
+            console.log({
+                'Backend adjustment_type': adj.adjustment_type,
+                'Lookup result in AdjustmentTypes map': adjustmentConfig,
+                'Type from map': actualType,
+                'Expected type for this card': expectedType,
+                'Does it match?': actualType === expectedType
+            });
+
+        // 3. 返回最终的判断结果
+        return actualType === expectedType;
+    });
         
         
         // 【V2.6 核心逻辑】开始：后端已统一处理，前端只做展示
@@ -859,7 +882,11 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                                                 billingDetails?.is_last_bill &&
                                                 !isEditMode && (
                                                     <Tooltip title="为本期账单延长服务天数">
-                                                        <IconButton size="small" sx={{ ml: 1 }}onClick={handleOpenExtensionDialog}>
+                                                        <IconButton size="small" sx={{ ml: 1 }}
+                                                            onClick={() => {
+                                                                onClose(); // 第一步：调用从 props 传进来的 onClose 函数来关闭弹窗
+                                                                navigate(`/contract/detail/${adj.source_contract_id}`); // 第二步：跳转到新页面
+                                                            }}>
                                                             <EditCalendarIcon fontSize="small" />
                                                         </IconButton>
                                                     </Tooltip>
@@ -1033,6 +1060,17 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                                                 return (
                                                     <Typography variant="body2"component="span" sx={{ whiteSpace: 'pre-wrap', color: 'text.secondary' }}>
                                                         {adj.description}
+                                                            {adj.source_contract_id && (
+                                                                <Tooltip title="查看源试工合同">
+                                                                    <IconButton
+                                                                        size="small"
+                                                                        onClick={() => navigate(`/contract/detail/${adj.source_contract_id}`)}
+                                                                        sx={{ ml: 1 }}
+                                                                    >
+                                                                        <LinkIcon fontSize="inherit" />
+                                                                    </IconButton>
+                                                                </Tooltip>
+                                                            )}
                                                     </Typography>
                                                 );
                                             })()}
