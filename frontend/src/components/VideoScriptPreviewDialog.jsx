@@ -22,10 +22,21 @@ const formatTime = (timeStr) => {
 const timeStrToMs = (timeStr) => {
     if (!timeStr || typeof timeStr !== 'string') return 0;
     const parts = timeStr.replace(',', '.').split(':');
-    if (parts.length !== 3) return 0;
-    const hours = parseFloat(parts[0]) || 0;
-    const minutes = parseFloat(parts[1]) || 0;
-    const seconds = parseFloat(parts[2]) || 0;
+    let hours = 0, minutes = 0, seconds = 0;
+
+    if (parts.length === 3) { // 标准格式: HH:MM:SS.ms
+        hours = parseFloat(parts[0]) || 0;
+        minutes = parseFloat(parts[1]) || 0;
+        seconds = parseFloat(parts[2]) || 0;
+    } else if (parts.length === 2) { // 省略小时的格式: MM:SS.ms
+        minutes = parseFloat(parts[0]) || 0;
+        seconds = parseFloat(parts[1]) || 0;
+    } else if (parts.length === 1) { // 只有秒的格式: SS.ms
+        seconds = parseFloat(parts[0]) || 0;
+    } else {
+        return 0; // 无法识别的格式
+    }
+
     return Math.round((hours * 3600 + minutes * 60 + seconds) * 1000);
 };
 const msToSrtTime = (ms) => {
@@ -68,7 +79,7 @@ const VideoScriptPreviewDialog = ({ open, onClose, synthesisTask, onScriptSave, 
             const allSentencesWithId = allSentences.map((s, i) => ({
                 ...s,
                 ui_id: `sentence-${i}`,
-                normalizedText: normalizeText(s.text),
+                normalizedText: normalizeText(s.sentence_text),
                 // ++++++++++++++++ 核心修复：在这里添加 srt_num ++++++++++++++++
                 // 我们将 order_index + 1 作为字幕的序号 (序号通常从1开始)
                 srt_num: (s.order_index !== undefined && s.order_index !== null) ? s.order_index + 1 : i + 1,

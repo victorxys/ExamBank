@@ -1389,6 +1389,18 @@ def merge_all_audios_for_content(self, training_content_id_str):
             )
             return {"status": "Error", "message": f"Merging process failed: {str(e)}"}
 
+def _get_slide_number(path_string):
+    """
+    安全地从文件名中提取幻灯片编号。
+    """
+    # 匹配 'slide_' 后面跟着的一串数字
+    match = re.search(r"slide_(\d+)", os.path.basename(path_string))
+    if match:
+        return int(match.group(1))
+
+    # 如果文件名不符合预期格式 (例如，可能是'.DS_Store'等隐藏文件), 
+    # 返回一个极大的数字，确保它被排在列表末尾，而不是让程序崩溃。
+    return float('inf')
 
 @celery_app.task(bind=True, name="tasks.analyze_video_script_task")
 def analyze_video_script_task(self, synthesis_id_str):
@@ -1445,15 +1457,13 @@ def analyze_video_script_task(self, synthesis_id_str):
                 preview_image_dir_name,
             )
 
-            # 使用更健壮的方式排序和获取相对路径
+            # 使用新的、更健壮的辅助函数进行排序
             image_relative_paths = sorted(
                 [
                     os.path.join(base_web_path, os.path.basename(img.filename))
                     for img in images
                 ],
-                key=lambda p: int(
-                    re.search(r"slide_(\\d+)", os.path.basename(p)).group(1)
-                ),
+                key=_get_slide_number,
             )
 
             synthesis_task.ppt_image_paths = image_relative_paths  # 保存路径列表
