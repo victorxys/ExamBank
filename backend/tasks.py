@@ -1929,7 +1929,7 @@ def synthesize_video_task(self, synthesis_id_str):
             # 执行写入，移除 buffersize 参数
             final_video_to_write.write_videofile(
                 video_save_path,
-                codec="libx64",
+                codec="libx264",
                 audio_codec="aac",
                 # ++++++++++++++++ 关键优化 ++++++++++++++++
                 # 1. 将线程数设置为您CPU的核心数（原始为4）
