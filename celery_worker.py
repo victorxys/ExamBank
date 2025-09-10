@@ -105,13 +105,16 @@ def setup_periodic_tasks(sender, **kwargs):
     print("✅ Celery Beat: 定时任务已通过 on_after_configure 信号成功设置。")
     print(f"✅ 'tasks.reset_daily_tts_usage' 将在每天的 太平洋时间 (PT) {pt_time_str} (即 北京时间 {beijing_time_str}) 执行。")
 
-# 可选的 FlaskTask 定义 (如果任务需要 Flask 上下文)
-# class FlaskTask(app.Task):
-#     def __call__(self, *args, **kwargs):
-#         from backend.app import app as flask_app # 确保你的 Flask app 可以这样导入
-#         with flask_app.app_context():
-#             return super().__call__(*args, **kwargs)
-# app.Task = FlaskTask
+# 为所有任务自动添加 Flask 应用上下文
+class FlaskTask(celery_app.Task):
+    def __call__(self, *args, **kwargs):
+        # 确保可以从 backend.app 导入 Flask app 实例
+        from backend.app import app as flask_app
+        with flask_app.app_context():
+            return super().__call__(*args, **kwargs)
+
+# 将自定义的 Task 类应用到 Celery 实例
+celery_app.Task = FlaskTask
 
 # 注意：不需要 if __name__ == '__main__': app.start()
 # 这个文件只用于定义 Celery app 实例
