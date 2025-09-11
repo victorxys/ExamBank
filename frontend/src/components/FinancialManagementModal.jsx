@@ -116,11 +116,31 @@ const formatValue = (key, value) => {
     return String(value);
 };
 
-const getTooltipContent = (fieldName, billingDetails, isCustomer) => {
+const getTooltipContent = (fieldName, billingDetails, isCustomer, adjustment = null) => {
+    // --- 新增：优先处理来自 adjustment 的 tooltip ---
+    if (adjustment) {
+        // 检查描述中是否包含括号括起来的计算过程
+        const calculationMatch = adjustment.description.match(/\((.*)\)/);
+        if (calculationMatch) {
+            const calculationText = calculationMatch[1];
+            return (
+                <Box sx={{ p: 1, maxWidth: 350 }}>
+                    <Typography variant="caption" sx={{ fontWeight: 'bold', color:'common.white', display: 'block', mb: 1 }}>
+                        计算过程
+                    </Typography>
+                    <Typography variant="body2" sx={{ fontFamily: 'monospace', color:'grey.200', whiteSpace: 'pre-wrap', wordBreak:'break-all' }}>
+                        {calculationText}
+                    </Typography>
+                </Box>
+            );
+        }
+    }
+    // --- 新增结束 ---
+
+    // 如果没有传入 adjustment，或者 adjustment 中没有计算过程，则执行原有的逻辑
     const details = isCustomer ? billingDetails?.customer_bill_details : billingDetails?.employee_payroll_details;
     const calc = details?.calculation_details;
 
-    // 1. 如果没有计算详情，或者计算详情里没有任何日志，则不显示 tooltip
     if (!calc || (!calc.calculation_log && !calc.log_extras)) {
         return null;
     }
@@ -138,31 +158,27 @@ const getTooltipContent = (fieldName, billingDetails, isCustomer) => {
         '萌嫂保证金(工资)': '员工工资',
         '5%奖励': '5%奖励',
         '萌嫂应领款': '萌嫂应领款',
-        // '本次交管理费': '本次交管理费',
         '首月员工10%费用': '首月员工10%费用',
         '加班工资': '加班费',
         '实际劳务天数': 'base_work_days_reason',
         '应发总额': '员工应发总额(Gross)',
-       
     };
 
     const logKey = fieldToLogKeyMap[fieldName];
     if (!logKey) return null;
 
-    // 2. 安全地访问日志来源
     const logSource = calc.calculation_log || {};
     const logExtrasSource = calc.log_extras || {};
-
     const logMessage = logExtrasSource[logKey] || logSource[logKey];
 
     if (!logMessage) return null;
 
     return (
         <Box sx={{ p: 1, maxWidth: 350 }}>
-            <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'common.white', display: 'block', mb: 1 }}>
+            <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'common.white',display: 'block', mb: 1 }}>
                 计算过程
             </Typography>
-            <Typography variant="body2" sx={{ fontFamily: 'monospace', color: 'grey.200', whiteSpace: 'pre-wrap', wordBreak:'break-all' }}>
+            <Typography variant="body2" sx={{ fontFamily: 'monospace', color: 'grey.200',whiteSpace: 'pre-wrap', wordBreak:'break-all' }}>
                 {logMessage}
             </Typography>
         </Box>
@@ -394,7 +410,7 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
             alert("无法保存，缺少关键的账单ID。");
             return;
         }
-        console.log("--- [DEBUG 3] Final payload to be sent. Adjustments are:", adjustments);
+        // console.log("--- [DEBUG 3] Final payload to be sent. Adjustments are:", adjustments);
 
         const payload = {
             bill_id: billId,
@@ -655,13 +671,13 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
             const adjustmentConfig = AdjustmentTypes[adj.adjustment_type];
             const actualType = adjustmentConfig?.type;
 
-            console.log({
-                'Backend adjustment_type': adj.adjustment_type,
-                'Lookup result in AdjustmentTypes map': adjustmentConfig,
-                'Type from map': actualType,
-                'Expected type for this card': expectedType,
-                'Does it match?': actualType === expectedType
-            });
+            // console.log({
+            //     'Backend adjustment_type': adj.adjustment_type,
+            //     'Lookup result in AdjustmentTypes map': adjustmentConfig,
+            //     'Type from map': actualType,
+            //     'Expected type for this card': expectedType,
+            //     'Does it match?': actualType === expectedType
+            // });
 
         // 3. 返回最终的判断结果
         return actualType === expectedType;
@@ -994,83 +1010,56 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                                                     </Typography>
                                                 </Box>
                                             }
-                                            secondary={(() => {
+    
+                                                secondary={(() => {
+                                                // --- 【最终版】 ---
+                                                const adjTooltipContent = getTooltipContent(null, billingDetails, !isCustomer, adj);
+                                                const mainDescription = adj.description.split('(')[0]; // 只显示括号前的主要描述
+
+                                                // 检查是否有转移链接的逻辑保持不变
                                                 const details = adj.details || {};
                                                 const status = details.status || '';
-
                                                 let linkBillId = null;
-                                                let linkText = '';
-                                                let preText = '';
-                                                let postText = '';
-
-                                                // 统一处理所有“转出”状态
-                                                if (status === 'transferred_out' ||status === 'transferred') {
+                                                if (status === 'transferred_out' || status ==='transferred' || status === 'offsetting_transfer') {
                                                     linkBillId = details.transferred_to_bill_id;
-                                                    const billInfo = details.transferred_to_bill_info;
-                                                    const month = billInfo ?parseInt(billInfo.split('-')[1], 10) : null;
-                                                    linkText = month ? `${month}月账单` : '目标账单';
-                                                    preText = `${adj.description.replace(' [已转移]', '')} [已转移至 `;
-                                                    postText = `]`;
-                                                }
-                                                // 统一处理所有“转入”状态
-                                                else if (status ==='transferred_in') {
+                                                } else if (status === 'transferred_in') {
                                                     linkBillId = details.transferred_from_bill_id;
-                                                    const billInfo = details.transferred_from_bill_info;
-                                                    const month = billInfo ?parseInt(billInfo.split('-')[1], 10) : null;
-                                                    linkText = month ? `来源的${month}月账单` : '来源账单';
-                                                    preText = `[从 `;
-                                                    postText = ` 转入]`;
-                                                }
-                                                // 处理新的“冲账”状态
-                                                else if (status ==='offsetting_transfer') {
-                                                    linkBillId = details.transferred_to_bill_id;
-                                                    const billInfo = details.transferred_to_bill_info;
-                                                    const month = billInfo ?parseInt(billInfo.split('-')[1], 10) : null;
-                                                    linkText = month ? `${month}月账单` : '目标账单';
-                                                    preText = `${adj.description} (至 `;
-                                                    postText = `)`;
                                                 }
 
-                                                // 如果识别出了一个可跳转的链接
-                                                if (linkBillId) {
-                                                    return (
-                                                        <Typography variant="body2"component="span" sx={{ whiteSpace: 'pre-wrap', color: 'text.secondary', display:'inline-flex', alignItems: 'center' }}>
-                                                            {preText}
-                                                            <Button
-                                                                size="small"
-                                                                variant="text"
-                                                                sx={{ p: 0, m: 0,height: 'auto', verticalAlign: 'baseline', lineHeight: 'inherit', mx: 0.5, minWidth: 'auto' }}
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    if(onNavigateToBill) {
-                                                                        onNavigateToBill(linkBillId);
-                                                                    } else {
-                                                                        alert('错误：无法执行跳转。');
-                                                                    }
-                                                                }}
-                                                            >
-                                                                {linkText}
-                                                            </Button>
-                                                            {postText}
-                                                        </Typography>
-                                                    );
-                                                }
-
-                                                // 对于所有其他普通情况，只显示描述
                                                 return (
-                                                    <Typography variant="body2"component="span" sx={{ whiteSpace: 'pre-wrap', color: 'text.secondary' }}>
-                                                        {adj.description}
-                                                            {adj.source_contract_id && (
-                                                                <Tooltip title="查看源试工合同">
-                                                                    <IconButton
-                                                                        size="small"
-                                                                        onClick={() => navigate(`/contract/detail/${adj.source_contract_id}`)}
-                                                                        sx={{ ml: 1 }}
-                                                                    >
-                                                                        <LinkIcon fontSize="inherit" />
-                                                                    </IconButton>
-                                                                </Tooltip>
-                                                            )}
+                                                    <Typography variant="body2" component="span" sx={{ display: 'inline-flex', alignItems: 'center', flexWrap: 'wrap' }}>
+                                                        {mainDescription}
+
+                                                        {/* 如果有计算过程，则显示InfoIcon */}
+                                                        {adjTooltipContent && (
+                                                            <Tooltip title={adjTooltipContent}arrow>
+                                                                <InfoIcon sx={{ fontSize:'1rem', color: 'action.active', ml: 0.5, cursor: 'help' }} />
+                                                            </Tooltip>
+                                                        )}
+
+                                                        {/* 如果有来源合同，则显示LinkIcon */}
+                                                        {adj.source_contract_id && !linkBillId&& (
+                                                            <Tooltip title="查看源试工合同">
+                                                                <IconButton
+                                                                    size="small"
+                                                                    onClick={(e) => { e.stopPropagation(); navigate(`/contract/detail/${adj.source_contract_id}`); onClose(); }}
+                                                                    sx={{ ml: 0.5, p: 0.2 }}
+                                                                >
+                                                                    <LinkIcon fontSize="inherit" />
+                                                                </IconButton>
+                                                            </Tooltip>
+                                                        )}
+
+                                                        {/* 如果有账单转移链接，则显示按钮 */}
+                                                        {linkBillId && (
+                                                             <Button
+                                                                size="small" variant="text"
+                                                                sx={{ p: 0, m: 0, height:'auto', verticalAlign: 'baseline', lineHeight: 'inherit', mx: 0.5, minWidth: 'auto' }}
+                                                                onClick={(e) => { e.stopPropagation(); if(onNavigateToBill) onNavigateToBill(linkBillId); }}
+                                                            >
+                                                                (查看详情)
+                                                            </Button>
+                                                        )}
                                                     </Typography>
                                                 );
                                             })()}

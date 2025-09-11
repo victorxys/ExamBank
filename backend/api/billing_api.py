@@ -1878,7 +1878,12 @@ def get_all_contracts():
 
             final_deposit_amount = deposit_amount if deposit_amount is not None else 0
 
-            # 【修改】在返回的字典中增加我们需要的字段
+            # 检查 试工合同 是否可以被标记为“试工成功", 即是否有后续合作的合同
+            can_convert = False
+            if contract.type == 'nanny_trial':
+                can_convert = _check_can_convert(contract)
+
+            
             results.append(
                 {
                     "id": str(contract.id),
@@ -1894,9 +1899,9 @@ def get_all_contracts():
                     "provisional_start_date": getattr(contract,"provisional_start_date", None),
                     "remaining_months": remaining_months_str,
                     "highlight_remaining": highlight_remaining,
-                    # --- 新增的字段 ---
                     "deposit_amount": str(final_deposit_amount),
                     "deposit_paid": (deposit_status == 'PAID'),
+                    "can_convert_to_formal": can_convert,
                 }
             )
 
@@ -1913,6 +1918,34 @@ def get_all_contracts():
     except Exception as e:
         current_app.logger.error(f"获取所有合同列表失败: {e}", exc_info=True)
         return jsonify({"error": str(e)}), 500
+
+def _check_can_convert(trial_contract):
+    """
+    检查一个试工合同是否有资格转换为正式合同。
+    资格标准：客户名下存在与该试工员工匹配的、状态为'active'的正式育儿嫂合同。
+    """
+    if not trial_contract or trial_contract.type != 'nanny_trial':
+        return False
+
+    # 确定员工ID，可能是 user_id 或 service_personnel_id
+    employee_id_to_check = trial_contract.user_id or trial_contract.service_personnel_id
+    if not employee_id_to_check:
+        return False
+
+    # 构建查询，查找匹配的正式合同
+    # exists() 是一个高效的查询，只要找到一个匹配项就会立即返回
+    has_eligible_formal_contract = db.session.query(
+        NannyContract.query.filter(
+            NannyContract.customer_name == trial_contract.customer_name,
+            or_(
+                NannyContract.user_id == employee_id_to_check,
+                NannyContract.service_personnel_id == employee_id_to_check
+            ),
+            NannyContract.status == 'active'
+        ).exists()
+    ).scalar()
+
+    return has_eligible_formal_contract
 
 # 你可能需要一个辅助函数，如果还没有的话
 def get_contract_type_details(type_string):
@@ -2502,6 +2535,11 @@ def get_single_contract_details(contract_id):
             if isinstance(dt_obj, datetime):
                 return dt_obj.date().isoformat()
             return dt_obj.isoformat()
+        
+        # 检查 试工合同 是否可以被标记为“试工成功", 即是否有后续合作的合同
+        can_convert = False
+        if contract.type == 'nanny_trial':
+            can_convert = _check_can_convert(contract)
 
         result = {
             "id": str(contract.id),
@@ -2509,7 +2547,6 @@ def get_single_contract_details(contract_id):
             'user_id': str(contract.user_id) if contract.user_id else None,
             'service_personnel_id': str(contract.service_personnel_id) if contract.service_personnel_id else None,
             "customer_name": contract.customer_name,
-            # 'trial_outcome': contract.trial_outcome.value if contract.trial_outcome else None,  
             "contact_person": contract.contact_person,
             "introduction_fee": contract.introduction_fee,
             "deposit_amount": getattr(contract, "deposit_amount", None),
@@ -2528,9 +2565,9 @@ def get_single_contract_details(contract_id):
             "highlight_remaining": highlight_remaining,
             "notes": contract.notes,
             # "is_monthly_auto_renew": getattr(contract,'is_monthly_auto_renew', None),
-            # --- 使用新字段替换旧字段 ---
             "deposit_amount": str(final_deposit_amount),
             "deposit_paid": is_deposit_paid,
+            "can_convert_to_formal": can_convert,
         }
         if contract.type == 'nanny_trial':
             result['trial_outcome'] = contract.trial_outcome.value if contract.trial_outcome else None
@@ -4672,41 +4709,63 @@ def convert_nanny_trial_contract(trial_contract_id):
         # 返回一个更通用的错误信息给前端，具体的错误记录在日志中
         return jsonify({"error": f"处理转换失败: {str(e)}"}), 500
 
+@billing_bp.route("/nanny-trial-contracts/<uuid:contract_id>/conversion-preview", methods=['GET', 'OPTIONS'])
+@jwt_required()
+def get_trial_conversion_preview(contract_id):
+    """
+    V4: 直接返回结构化的费用对象，包含金额和描述。
+    """
+    if request.method == 'OPTIONS':
+        return jsonify({'status': 'ok'}), 200
+
+    contract = db.session.get(NannyTrialContract, str(contract_id))
+    if not contract:
+        return jsonify({"error": "试工合同未找到"}), 404
+
+    try:
+        engine = BillingEngine()
+        costs = engine._calculate_trial_conversion_costs(contract)
+
+        # 将Decimal类型转换为字符串，以便JSON序列化
+        formatted_costs = {}
+        for key, value_dict in costs.items():
+            formatted_costs[key] = {
+                "amount": str(value_dict["amount"]),
+                "description": value_dict["description"]
+            }
+
+        return jsonify(formatted_costs)
+    except Exception as e:
+        current_app.logger.error(f"预览试工合同费用失败: {e}", exc_info=True)
+        return jsonify({"error": "计算预览费用时发生错误"}), 500
+
 @billing_bp.route("/contracts/pending-trials", methods=["GET"])
 @admin_required
 def get_pending_trial_contracts():
     """
-    获取所有已到期但未处理的试工合同，用于仪表盘待办事项。
+    V2: 返回完整的合同信息，包括 start_date 和 end_date。
     """
     try:
         today = date.today()
 
-        # 查询所有状态为 PENDING 且结束日期已过的试工合同
+        # 查询时不再需要复杂的 add_columns，直接获取完整的合同对象
         pending_trials = NannyTrialContract.query.filter(
             NannyTrialContract.trial_outcome == TrialOutcome.PENDING,
             NannyTrialContract.end_date < today
-        ).join(
-            User, BaseContract.user_id == User.id, isouter=True
-        ).join(
-            ServicePersonnel, BaseContract.service_personnel_id ==ServicePersonnel.id, isouter=True
-        ).add_columns(
-            NannyTrialContract.id,
-            NannyTrialContract.customer_name,
-            NannyTrialContract.end_date,
-            User.username,
-            ServicePersonnel.name.label('sp_name')
         ).order_by(NannyTrialContract.end_date.asc()).all()
 
         results = []
-        for contract, _, _, _, user_name, sp_name in pending_trials:
-             employee_name = user_name or sp_name or "未知员工"
-             results.append({
+        for contract in pending_trials:
+            employee_name = (contract.user.username if contract.user else contract.service_personnel.name if contract.service_personnel else '未知')
+            results.append({
                 "id": str(contract.id),
                 "customer_name": contract.customer_name,
                 "employee_name": employee_name,
-                "end_date": contract.end_date.isoformat(),
-                "message": f"与客户 {contract.customer_name}、员工 {employee_name} 的试工合同已于 {contract.end_date.strftime('%Y-%m-%d')}结束，请及时标记试工结果。"
-             })
+                "message": f"{contract.customer_name} - {employee_name} 的试工合同待处理",
+                "start_date": contract.start_date.isoformat() if contract.start_date else None,
+                "end_date": contract.end_date.isoformat() if contract.end_date else None,
+                "can_convert_to_formal": _check_can_convert(contract)
+            })
 
         return jsonify(results)
     except Exception as e:

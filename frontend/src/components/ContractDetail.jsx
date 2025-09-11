@@ -21,6 +21,8 @@ import api from '../api/axios';
 import PageHeader from './PageHeader';
 import AlertMessage from './AlertMessage';
 import FinancialManagementModal from './FinancialManagementModal';
+import { useTrialConversion } from '../hooks/useTrialConversion'; // <--- 添加这个
+import TrialConversionDialog from './modals/TrialConversionDialog'; // <--- 添加这个
 
 const formatDate = (isoString) => {
   if (!isoString) return '—';
@@ -158,7 +160,13 @@ const ContractDetail = () => {
     const [depositPaidAmount, setDepositPaidAmount] = useState('');
     const [depositSettlementNotes, setDepositSettlementNotes] = useState('定金收款'); 
 
-    
+    const conversionActions = useTrialConversion((formalContractId) => {
+    if (formalContractId) {
+            navigate(`/contract/detail/${formalContractId}`);
+        } else {
+            fetchData();
+        }
+    });
 
 
     const fetchData = useCallback(async () => {
@@ -707,20 +715,36 @@ const ContractDetail = () => {
                     actions={
                         // --- 修改 2: 在 PageHeader 中添加操作按钮 ---
                         <Stack direction="row" spacing={2}>
-                             <Button variant="contained" color="primary" startIcon={<ArrowBackIcon />} onClick={() => navigate(state?.from?.pathname|| '/contracts/all')}>
+                             <Button variant="contained" color="primary"startIcon={<ArrowBackIcon />} onClick={() => navigate(state?.from?.pathname||'/contracts/all')}>
                                 返回列表
                             </Button>
                             {contract.status === 'active' && contract.contract_type_value !== 'nanny_trial' && (
-                                <Button variant="contained" color="error" onClick={handleOpenTerminationDialog}>
+                                <Button variant="contained" color="error"onClick={handleOpenTerminationDialog}>
                                     终止合同
                                 </Button>
                             )}
-                            {contract.contract_type_value === 'nanny_trial' && contract.trial_outcome=== 'pending' && (
+                            {/* 试工合同的操作按钮 */}
+                            {contract.contract_type_value === 'nanny_trial'&& contract.trial_outcome=== 'pending' && (
                                 <>
-                                    <Button variant="contained" color="success" startIcon={<CheckCircleIcon />} onClick={handleTrialSucceeded}>
-                                        试工成功
-                                    </Button>
-                                    <Button variant="contained" color="error" startIcon={<CancelIcon />} onClick={handleOpenTerminationDialog}>
+                                    <Tooltip title={!contract.can_convert_to_formal ? "客户与员工名下无已生效的正式合同，无法关联" : ""}>
+                                        <span>
+                                            <Button
+                                                variant="contained"
+                                                color="success"
+                                                startIcon={<CheckCircleIcon />}
+                                                onClick={() =>conversionActions.openConversionDialog(contract)}
+                                                disabled={!contract.can_convert_to_formal}
+                                            >
+                                                试工成功
+                                            </Button>
+                                        </span>
+                                    </Tooltip>
+                                    <Button
+                                        variant="contained"
+                                        color="error"
+                                        startIcon={<CancelIcon />}
+                                        onClick={handleOpenTerminationDialog}// <-- 调用恢复的函数
+                                    >
                                         试工失败
                                     </Button>
                                 </>
@@ -1039,6 +1063,7 @@ const ContractDetail = () => {
                         </Button>
                     </DialogActions>
                 </Dialog>
+                <TrialConversionDialog {...conversionActions} />
             </Box>
         </LocalizationProvider>
     );

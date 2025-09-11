@@ -2077,8 +2077,13 @@ class FinancialAdjustment(db.Model):
                 "source_contract_id": None
             }
 
-            # 这是我们之前写的逻辑，现在把它放在正确的位置
-            if self.description and "试工合同" in self.description:
+            # --- 【核心修改】优先从 details 字段获取来源ID ---
+            if self.details and 'source_trial_contract_id' in self.details:
+                data['source_contract_id'] = self.details['source_trial_contract_id']
+            # --- 修改结束 ---
+
+            # 保留旧的逻辑作为兼容性回退
+            elif self.description and "试工合同" in self.description:
                 contract = None
                 if self.customer_bill:
                     contract = self.customer_bill.contract
@@ -2088,7 +2093,6 @@ class FinancialAdjustment(db.Model):
                 if contract and hasattr(contract, 'source_trial_contract_id')and contract.source_trial_contract_id:
                     data['source_contract_id'] = str(contract.source_trial_contract_id)
 
-            # 加上缺失的 return 语句
             return data
 
         except Exception as e:

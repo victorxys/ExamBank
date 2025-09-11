@@ -1,7 +1,9 @@
 // frontend/src/components/DashboardPage.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Paper, Box, Typography, Grid, CircularProgress, List, ListItem, ListItemText, ListItemIcon, Divider, Chip,ToggleButtonGroup, ToggleButton } from '@mui/material';
+import {
+    Paper, Box, Typography, Grid, CircularProgress, List, ListItem,ListItemText, ListItemIcon, Divider, Chip, Button,Tooltip, Stack, Dialog, DialogTitle, DialogContent, DialogActions, Alert, TextField, MenuItem
+} from '@mui/material';
 import {
     AccountBalanceWallet as AccountBalanceWalletIcon,
     Event as EventIcon, // 用于预产期
@@ -11,14 +13,22 @@ import {
     Assignment as AssignmentIcon,
     ArrowForward as ArrowForwardIcon,
     Badge as BadgeIcon,
-    PieChart as PieChartIcon
+    PieChart as PieChartIcon,
+    CheckCircle as CheckCircleIcon,
+    Cancel as CancelIcon
 } from '@mui/icons-material';
+import { DatePicker, LocalizationProvider } from '@mui/x-date-pickers';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import { zhCN } from 'date-fns/locale';
 import ReactApexChart from 'react-apexcharts';
 import { useTheme } from '@mui/material/styles';
 
 import api from '../api/axios';
 import PageHeader from './PageHeader';
 import FinancialManagementModal from './FinancialManagementModal';
+import AlertMessage from './AlertMessage';
+import { useTrialConversion } from '../hooks/useTrialConversion.js';
+import TrialConversionDialog from './modals/TrialConversionDialog.jsx';
 
 // KPI 卡片组件 (保持不变)
 const KpiCard = ({ icon, title, value, subtitle, color }) => {
@@ -160,25 +170,174 @@ const DashboardPage = () => {
     const theme = useTheme();
     const [pendingTrials, setPendingTrials] = useState([]);
 
-    useEffect(() => {
-        const fetchData = async () => {
-            try {
-                setLoading(true);
-                const [summaryRes, trialsRes] = await Promise.all([
-                    api.get('/billing/dashboard/summary'),
-                    api.get('/billing/contracts/pending-trials') // 并行获取待处理合同
-                ]);
-                setData(summaryRes.data);
-                setPendingTrials(trialsRes.data); // 设置新的 state
-            } catch (err) {
-                setError('加载仪表盘数据失败，请稍后重试。');
-                console.error(err);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchData();
+    const [alert, setAlert] = useState({ open: false, message: '', severity:'info' });
+
+    // --- 用于弹窗的状态 ---
+    // const [contractToProcess, setContractToProcess] = useState(null);
+    // const [terminationDialogOpen, setTerminationDialogOpen] = useState(false);
+    // const [terminationDate, setTerminationDate] = useState(null);
+    // const [conversionDialogOpen, setConversionDialogOpen] = useState(false);
+    // const [eligibleContracts, setEligibleContracts] = useState([]);
+    // const [loadingEligible, setLoadingEligible] = useState(false);
+    // const [selectedFormalContractId, setSelectedFormalContractId] = useState('');
+
+    // --- “试工失败”的逻辑 ---
+    const [terminationDialogOpen, setTerminationDialogOpen] = useState(false);
+    const [terminationDate, setTerminationDate] = useState(null);
+    const [contractToProcess, setContractToProcess] = useState(null);
+    // --- 逻辑结束 ---
+    
+
+    const formatDate = (isoString) => {
+        if (!isoString) return '—';
+        try {
+            const date = new Date(isoString);
+            if (isNaN(date.getTime())) return '无效日期';
+            return date.toLocaleDateString('zh-CN', { year: 'numeric', month:'2-digit', day: '2-digit' });
+        } catch (e) { return '无效日期'; }
+    };
+
+    const fetchData = useCallback(async () => {
+        try {
+            setLoading(true);
+            const [summaryRes, trialsRes] = await Promise.all([
+                api.get('/billing/dashboard/summary'),
+                api.get('/billing/contracts/pending-trials')
+            ]);
+            setData(summaryRes.data);
+
+            // 过滤掉2025年之前的试工合同
+            const twentyTwentyFive = new Date('2025-01-01');
+            const filteredTrials = trialsRes.data.filter(c => {
+                // 如果合同没有结束日期，则不应出现在“待处理”列表中
+                if (!c.start_date) {
+                    return false;
+                }
+                const startDate = new Date(c.start_date);
+                // 只显示2025年1月1日及以后结束的待处理合同
+                return startDate >= twentyTwentyFive;
+            });
+            setPendingTrials(filteredTrials);
+
+        } catch (err) {
+            setError('加载仪表盘数据失败，请稍后重试。');
+            console.error(err);
+        } finally {
+            setLoading(false);
+        }
     }, []);
+
+
+    useEffect(() => {
+        fetchData();
+    }, [fetchData]);
+
+    const refreshPendingTrials = async () => {
+        try {
+            const trialsRes = await api.get('/billing/contracts/pending-trials');
+            const twentyTwentyFive = new Date('2025-01-01');
+            const filteredTrials = trialsRes.data.filter(c => {
+                if (!c.end_date) {
+                    return false;
+                }
+                const endDate = new Date(c.end_date);
+                return endDate >= twentyTwentyFive;
+            });
+            setPendingTrials(filteredTrials);
+        } catch (err) {
+            console.error("Failed to refresh pending trials:", err);
+            setAlert({ open: true, message: '刷新待处理列表失败', severity: 'error' });
+        }
+    };
+    
+    const conversionActions = useTrialConversion((formalContractId) => {
+        // 无论用户选择哪个按钮，我们都先刷新待办列表
+        refreshPendingTrials();
+
+        // 如果 formalContractId 存在 (意味着用户点击了“查看正式合同”)，则执行跳转
+        if (formalContractId) {
+            navigate(`/contract/detail/${formalContractId}`);
+        }
+    });
+
+    // --- 弹窗相关的处理函数 ---
+    const handleOpenTerminationDialog = (contract) => {
+        setContractToProcess(contract);
+        const defaultDate = contract.start_date ? new Date(contract.start_date) : new Date();
+        setTerminationDate(defaultDate);
+        setTerminationDialogOpen(true);
+    };
+
+    const handleCloseTerminationDialog = () => {
+        setTerminationDialogOpen(false);
+        setContractToProcess(null);
+    };
+
+    const handleConfirmTermination = async () => {
+        if (!contractToProcess || !terminationDate) return;
+        try {
+            await api.post(`/billing/contracts/${contractToProcess.id}/terminate`, {
+                termination_date: terminationDate.toISOString().split('T')[0],
+            });
+            setAlert({ open: true, message: '试工合同已标记为失败。',severity: 'success' });
+            handleCloseTerminationDialog();
+            refreshPendingTrials(); // 调用局部刷新
+        } catch (error) {
+            setAlert({ open: true, message: `操作失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
+        }
+    };
+
+    // const handleTrialSucceeded = async (contract) => {
+    //     setContractToProcess(contract);
+    //     const employeeId = contract.user_id || contract.service_personnel_id;
+
+    //     setLoadingEligible(true);
+    //     setConversionDialogOpen(true);
+    //     setSelectedFormalContractId('');
+
+    //     try {
+    //         const response = await api.get('/billing/contracts', {
+    //             params: {
+    //                 customer_name: contract.customer_name,
+    //                 employee_id: employeeId,
+    //                 type: 'nanny',
+    //                 status: 'active',
+    //                 per_page: 100
+    //             }
+    //         });
+    //         const eligible = response.data.items.filter(c => c.id !==contract.id);
+    //         setEligibleContracts(eligible);
+    //     } catch (error) {
+    //         setAlert({ open: true, message: `获取可关联的正式合同列表失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
+    //         setConversionDialogOpen(false);
+    //     } finally {
+    //         setLoadingEligible(false);
+    //     }
+    // };
+
+    // const handleConfirmConversion = async () => {
+    //     if (!selectedFormalContractId) {
+    //         setAlert({ open: true, message: '请选择一个要关联的正式合同。',severity: 'warning' });
+    //         return;
+    //     }
+
+    //     try {
+    //         await api.post(`/billing/nanny-trial-contracts/${contractToProcess.id}/convert`, {
+    //             formal_contract_id: selectedFormalContractId
+    //         });
+
+    //         setAlert({ open: true, message: '试工合同转换成功！', severity:'success' });
+    //         setConversionDialogOpen(false);
+    //         fetchData(); // 重新加载数据
+    //     } catch (error) {
+    //         setAlert({ open: true, message: `操作失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
+    //     }
+    // };
+
+    // const handleCloseConversionDialog = () => {
+    //     setConversionDialogOpen(false);
+    //     setContractToProcess(null);
+    // };
 
     const handleBillClick = async (billId) => {
         if (!billId) return;
@@ -235,7 +394,9 @@ const DashboardPage = () => {
     if (!data) { return <Typography>暂无数据。</Typography>; }
 
     return (
+        <>
         <Box sx={{ p: 3 }}>
+            <AlertMessage open={alert.open} message={alert.message}severity={alert.severity} onClose={() => setAlert(prev => ({...prev, open:false}))} />
             <PageHeader title="运营仪表盘" description={`数据更新于 ${new Date().toLocaleDateString('zh-CN')} ${new Date().toLocaleTimeString('zh-CN')}`} />
 
             <Grid container spacing={3} mb={4}>
@@ -321,22 +482,54 @@ const DashboardPage = () => {
                                     ))}
                                 </List>
                             </Grid>
-                            {pendingTrials.length > 0 && (
-                                <Grid item xs={12}>
-                                    <Divider sx={{ my: 2 }} />
-                                    <Typography variant="subtitle2" color="error.main">待处理试工合同</Typography>
-                                    <List dense>
-                                        {pendingTrials.map(c => (
-                                            <TodoListItem
-                                                key={'trial-' + c.id}
-                                                onClick={() => navigate(`/contract/detail/${c.id}`)}
-                                                type="assignment" // 使用一个通用的图标类型
-                                                primary={c.message}
-                                            />
-                                        ))}
-                                    </List>
-                                </Grid>
-                            )}
+                                {pendingTrials.length > 0 && (
+                                    <Grid item xs={12}>
+                                        <Divider sx={{ my: 2 }} />
+                                        <Typography variant="subtitle2"color="error.main">待处理试工合同</Typography>
+                                        <List dense>
+                                            {pendingTrials.map(c => (
+                                                <ListItem
+                                                    key={'trial-' + c.id}
+                                                    secondaryAction={
+                                                        <Stack direction="row"spacing={1}>
+                                                            <Tooltip title={!c.can_convert_to_formal ? "客户与员工名下无已生效的正式合同，无法关联" : ""}>
+                                                                <span>
+                                                                    <Button
+                                                                        size="small"
+                                                                        variant="outlined"
+                                                                        color="success"
+                                                                        startIcon={<CheckCircleIcon />}
+                                                                        onClick={() => conversionActions.openConversionDialog(c)}
+                                                                        disabled={!c.can_convert_to_formal}
+                                                                    >
+                                                                        成功
+                                                                    </Button>
+                                                                </span>
+                                                            </Tooltip>
+                                                            <Button
+                                                                size="small"
+                                                                variant="outlined"
+                                                                color="error"
+                                                                startIcon={<CancelIcon />}
+                                                                onClick={() =>handleOpenTerminationDialog(c)}
+                                                            >
+                                                                失败
+                                                            </Button>
+                                                        </Stack>
+                                                    }
+                                                    sx={{ borderRadius: 2,'&:hover': { bgcolor: 'action.hover' } }}
+                                                >
+                                                    <ListItemText
+                                                        primary={<Typography variant="body1" sx={{ fontWeight: 500 }}>{c.message}</Typography>}
+                                                        secondary={`客户: ${c.customer_name} | 员工:${c.employee_name} | 试工周期: ${formatDate(c.start_date)} ~ ${formatDate(c.end_date)}`}
+                                                        onClick={() => navigate(`/contract/detail/${c.id}`)}
+                                                        sx={{ cursor: 'pointer' }}
+                                                    />
+                                                </ListItem>
+                                            ))}
+                                        </List>
+                                    </Grid>
+                                )}
                         </Grid>
                     </Paper>
                 </Grid>
@@ -358,6 +551,79 @@ const DashboardPage = () => {
                 />
             )}
         </Box>
+        {/* --- 在这里添加“试工成功”弹窗 ---
+        <Dialog open={conversionDialogOpen}onClose={handleCloseConversionDialog} fullWidth maxWidth="sm">
+            <DialogTitle>关联到正式合同</DialogTitle>
+                <DialogContent>
+                    <Typography variant="body2" color="text.secondary" sx={{mb: 2 }}>
+                        请为这个成功的试工合同选择一个要转入的正式育儿嫂合同。试工期间的费用将会附加到所选正式合同的第一个账单上。
+                    </Typography>
+
+                    {loadingEligible ? (
+                        <Box sx={{ display: 'flex', justifyContent: 'center',my: 3 }}>
+                            <CircularProgress />
+                        </Box>
+                    ) : eligibleContracts.length > 0 ? (
+                        <TextField
+                            select
+                            fullWidth
+                            variant="outlined"
+                            label="选择一个正式合同"
+                            value={selectedFormalContractId}
+                            onChange={(e) => setSelectedFormalContractId(e.target.value)}
+                        >
+                            {eligibleContracts.map((c) => (
+                                <MenuItem key={c.id} value={c.id}>
+                                    {`合同 (员工: ${c.employee_name}, 开始日期: ${formatDate(c.start_date)})`}
+                                </MenuItem>
+                            ))}
+                        </TextField>
+                    ) : (
+                        <Alert severity="warning">
+                            客户({contractToProcess?.customer_name})-员工({contractToProcess?.employee_name}):尚未签订正式育儿嫂合同,无法关联。
+                            <br/>
+                            请先签署正式合同后再执行此操作。
+                        </Alert>
+                    )}
+                </DialogContent>
+            <DialogActions>
+                <Button onClick={handleCloseConversionDialog}>取消</Button>
+                <Button
+                    onClick={handleConfirmConversion}
+                    variant="contained"
+                    color="primary"
+                    disabled={!selectedFormalContractId || loadingEligible}
+                >
+                    确认并转换
+                </Button>
+            </DialogActions>
+        </Dialog> */}
+        {/* --- 添加“试工失败”弹窗 --- */}
+        <Dialog open={terminationDialogOpen}onClose={handleCloseTerminationDialog}>
+            <DialogTitle>确认试工失败</DialogTitle>
+            <DialogContent>
+                <Alert severity="warning" sx={{ mt: 1, mb: 2 }}>
+                    您正在为 <b>{contractToProcess?.customer_name}({contractToProcess?.employee_name})</b> 的合同标记为“试工失败”。
+                    <br/>
+                    此操作将把合同的最终状态设置为“已终止”。
+                </Alert>
+                <DatePicker
+                    label="终止日期"
+                    value={terminationDate}
+                    onChange={(date) => setTerminationDate(date)}
+                    minDate={contractToProcess?.start_date ? new Date(contractToProcess.start_date) : undefined}
+                    sx={{ width: '100%', mt: 1 }}
+                />
+            </DialogContent>
+            <DialogActions>
+                <Button onClick={handleCloseTerminationDialog}>取消</Button>
+                <Button onClick={handleConfirmTermination} variant="contained" color="error">确认失败</Button>
+            </DialogActions>
+        </Dialog>
+
+        {/* --- 添加“试工成功”弹窗 --- */}
+        <TrialConversionDialog {...conversionActions} />
+        </>
     );
 };
 
