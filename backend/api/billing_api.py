@@ -4757,9 +4757,10 @@ def get_pending_trial_contracts():
     try:
         today = date.today()
 
-        # 查询时不再需要复杂的 add_columns，直接获取完整的合同对象
+        # 查询时不再需要复杂的 add_columns，直接获取完整的合同对象 只查询2025年9月1日之后的数据
         pending_trials = NannyTrialContract.query.filter(
             NannyTrialContract.trial_outcome == TrialOutcome.PENDING,
+            NannyTrialContract.start_date > date(2025, 9, 1)
             # NannyTrialContract.end_date < today
         ).order_by(NannyTrialContract.end_date.asc()).all()
 
