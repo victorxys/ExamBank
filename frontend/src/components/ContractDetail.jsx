@@ -527,6 +527,7 @@ const ContractDetail = () => {
             employee_name: contract.employee_name,
             contract_id: contract.id,
             contract_type_value: contract.contract_type_value,
+            billingMonth: bill.billing_period // <-- 核心修正：在这里传递月份信息
         });
 
         try {
@@ -1011,7 +1012,7 @@ const ContractDetail = () => {
                         open={modalOpen}
                         onClose={handleCloseBillModal}
                         contract={selectedBillContext}
-                        billingMonth={selectedBillDetails?.customer_bill_details?.billing_period}
+                        billingMonth={selectedBillContext?.billingMonth} // <-- 核心修正：使用我们保存的月份信息
                         billingDetails={selectedBillDetails}
                         loading={loadingModal}
                         onSave={handleSaveChangesInModal}

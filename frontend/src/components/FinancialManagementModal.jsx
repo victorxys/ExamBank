@@ -1403,7 +1403,7 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                         <IconButton onClick={() => onClose(billingDetails)} sx={{ ml: 1 }}><CloseIcon /></IconButton>
                     </Box>
                 </DialogTitle>
-                <DialogContent dividers sx={{ bgcolor: 'grey.50', p: { xs: 1, sm: 2, md: 3 }, position: 'relative', overflow: 'hidden' }}>
+                <DialogContent dividers sx={{ bgcolor: 'grey.50', p: { xs: 1, sm: 2, md: 3 }, position: 'relative' }}>
                     {isSwitchingMonth && (
                         <Box sx={{
                             position: 'absolute',
@@ -1428,7 +1428,7 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                         <Grid container spacing={3} sx={{ position: 'relative', zIndex: 1 }}>
                             <Grid item xs={12} md={6}>
                                 <Paper sx={{ p: 3, borderRadius: 2, boxShadow: 1, position: 'relative', overflow: 'hidden' }}>
-                                    <Box sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', fontSize: '10rem', fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.05)', zIndex: 0, pointerEvents: 'none', userSelect: 'none' }}>
+                                    <Box sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', fontSize: '8rem', fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.05)', zIndex: 0, pointerEvents: 'none', userSelect: 'none' }}>
                                         {watermarkText}
                                     </Box>
                                     <Typography variant="h3" gutterBottom component="div" sx={{ display: 'flex', alignItems: 'center' }}>
@@ -1440,7 +1440,7 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                             </Grid>
                             <Grid item xs={12} md={6}>
                                 <Paper sx={{ p: 3, borderRadius: 2, boxShadow: 1, position: 'relative', overflow: 'hidden' }}>
-                                     <Box sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', fontSize: '10rem', fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.05)', zIndex: 0, pointerEvents: 'none', userSelect: 'none' }}>
+                                     <Box sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', fontSize: '8rem', fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.05)', zIndex: 0, pointerEvents: 'none', userSelect: 'none' }}>
                                         {watermarkText}
                                     </Box>
                                     <Typography variant="h3" gutterBottom component="div" sx={{ display: 'flex', alignItems: 'center' }}>
