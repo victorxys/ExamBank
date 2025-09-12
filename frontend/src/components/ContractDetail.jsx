@@ -786,7 +786,7 @@ const ContractDetail = () => {
                     actions={
                         // --- 修改 2: 在 PageHeader 中添加操作按钮 ---
                         <Stack direction="row" spacing={2}>
-                             <Button variant="contained" color="primary"startIcon={<ArrowBackIcon />} onClick={() => navigate(state?.from?.pathname||'/contracts/all')}>
+                            <Button variant="contained" color="primary" startIcon={<ArrowBackIcon />} onClick={() =>navigate(state?.from || '/contracts/all')}>
                                 返回列表
                             </Button>
                             {contract.status === 'active' && contract.contract_type_value !== 'nanny_trial' && (

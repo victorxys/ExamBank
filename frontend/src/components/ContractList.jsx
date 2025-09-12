@@ -1,7 +1,7 @@
 // frontend/src/components/ContractList.jsx (支持排序和默认过滤)
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate, useParams, useLocation } from 'react-router-dom';
+import { useNavigate, useParams, useLocation, useSearchParams } from 'react-router-dom';
 import {
   Box, Button, Typography, Paper, Table, TableBody, TableCell, TableContainer,
   TableHead, TableRow, TablePagination, CircularProgress, Tooltip, Dialog, DialogTitle,
@@ -35,91 +35,72 @@ const ContractList = () => {
     const theme = useTheme();
     const navigate = useNavigate();
     const location = useLocation();
-    const { contractType } = useParams(); // 从URL获取合同类型
+    const { contractType: typeFromUrl } = useParams();
+    const [searchParams, setSearchParams] = useSearchParams(); // <-- 添加这一行
     const [contracts, setContracts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [alert, setAlert] = useState({ open: false, message: '', severity: 'info' });
-    const [page, setPage] = useState(0);
-    const [rowsPerPage, setRowsPerPage] = useState(10);
     const [totalContracts, setTotalContracts] = useState(0);
     const [syncing, setSyncing] = useState(false);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-
-    // --- 核心修正 1：修改默认状态并增加排序 state ---
-    const [filters, setFilters] = useState({ search: '', type: '', status: 'all', deposit_status:'' });
-    const [sortBy, setSortBy] = useState(null); // 'remaining_days' or null
-    const [sortOrder, setSortOrder] = useState('asc'); // 'asc' or 'desc'
-
+    const page = parseInt(searchParams.get('page') || '0', 10);
+    const rowsPerPage = parseInt(searchParams.get('rowsPerPage') || '10', 10);
+    const searchTerm = searchParams.get('search') || '';
+    const statusFilter = searchParams.get('status') || 'all';
+    const depositStatusFilter = searchParams.get('deposit_status') || '';
+    const sortBy = searchParams.get('sort_by') || null;
+    const sortOrder = searchParams.get('sort_order') || 'asc';
+    const typeFilter = searchParams.get('type') || (typeFromUrl === 'all' ? '' : typeFromUrl);
     const [terminationDialogOpen, setTerminationDialogOpen] = useState(false);
     const [contractToTerminate, setContractToTerminate] = useState(null);
     const [terminationDate, setTerminationDate] = useState(null);
-
     const [onboardingDialogOpen, setOnboardingDialogOpen] = useState(false);
     const [contractToSetDate, setContractToSetDate] = useState(null);
     const [newOnboardingDate, setNewOnboardingDate] = useState(null);
-
-    // 当URL参数变化时，更新筛选器
-    useEffect(() => {
-        const params = new URLSearchParams(location.search);
-        const depositStatusFromUrl = params.get('deposit_status') || '';
-        const typeFromUrl = contractType === 'all' ? '' : contractType;
-
-        setFilters(prev => ({
-            ...prev,
-            type: typeFromUrl || '',
-            deposit_status: depositStatusFromUrl
-        }));
-        setPage(0);
-    }, [contractType, location.search]);
-
     const fetchContracts = useCallback(async () => {
         setLoading(true);
         try {
             const params = {
                 page: page + 1,
                 per_page: rowsPerPage,
-                ...filters
+                search: searchTerm,
+                type: typeFilter,
+                status: statusFilter,
+                deposit_status: depositStatusFilter,
+                sort_by: sortBy,
+                sort_order: sortOrder,
             };
 
-            // --- 最终版核心修改 ---
-            // 如果UI上筛选的是'育儿嫂'，我们修改即将发往API的参数
             if (params.type === 'nanny') {
                 params.type = 'nanny,external_substitution';
             }
-            // --- 修改结束 ---
 
-            if (sortBy) {
-                params.sort_by = sortBy;
-                params.sort_order = sortOrder;
-            }
             const response = await api.get('/billing/contracts', { params });
             setContracts(response.data.items || []);
             setTotalContracts(response.data.total || 0);
         } catch (error) {
-            setAlert({ open: true, message: `获取合同列表失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
+            setAlert({ open: true, message: `获取合同列表失败: ${error.response?.data?.error ||error.message}`, severity: 'error' });
         } finally { setLoading(false); }
-    }, [page, rowsPerPage, filters, sortBy, sortOrder]);
+    }, [page, rowsPerPage, searchTerm, typeFilter, statusFilter, depositStatusFilter, sortBy,sortOrder]);
+
     useEffect(() => {
         fetchContracts();
     }, [fetchContracts]);
 
     const handleFilterChange = (e) => {
         const { name, value } = e.target;
-        setPage(0); // 重置页码
-        setFilters(prev => ({ ...prev, [name]: value }));
+        const newParams = new URLSearchParams(searchParams);
+        newParams.set(name, value);
+        newParams.set('page', '0'); // 筛选时重置到第一页
+        setSearchParams(newParams);
     };
 
-    // --- 核心修正 3：处理排序的函数 ---
     const handleSort = (column) => {
         const isAsc = sortBy === column && sortOrder === 'asc';
-        setSortOrder(isAsc ? 'desc' : 'asc');
-        setSortBy(column);
-    };
-
-    const handleOpenTerminationDialog = (contract) => {
-        setContractToTerminate(contract);
-        setTerminationDate(new Date(contract.end_date));
-        setTerminationDialogOpen(true);
+        const newParams = new URLSearchParams(searchParams);
+        newParams.set('sort_by', column);
+        newParams.set('sort_order', isAsc ? 'desc' : 'asc');
+        setSearchParams(newParams);
     };
 
     const handleCloseTerminationDialog = () => {
@@ -154,16 +135,6 @@ const ContractList = () => {
         } catch (error) {
             setAlert({ open: true, message: `触发同步失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
         } finally { setSyncing(false); }
-    };
-
-    const handleTrialSucceeded = async (contract) => {
-        try {
-            await api.post(`/billing/contracts/${contract.id}/succeed`);
-            setAlert({ open: true, message: '试工成功！该合同已完成。', severity: 'success' });
-            fetchContracts();
-        } catch (error) {
-            setAlert({ open: true, message: `操作失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
-        }
     };
 
     const handleOpenOnboardingDialog = (contract) => {
@@ -207,18 +178,18 @@ const ContractList = () => {
                                 <Paper sx={{ p: 2, mb: 3 }}>
                     <Grid container spacing={2} alignItems="center">
                         {/* 减少搜索框宽度 */}
-                        <Grid item xs={12} sm={3}><TextField fullWidth label="搜索客户/员工" name="search" value={filters.search} onChange={handleFilterChange} size="small" /></Grid>
-                        <Grid item xs={6} sm={2}><FormControl fullWidth size="small"><InputLabel>类型</InputLabel><Select name="type" value={filters.type}label="类型" onChange={handleFilterChange}><MenuItem value=""><em>全部</em></MenuItem><MenuItem value="nanny">育儿嫂</MenuItem><MenuItem value="maternity_nurse">月嫂</MenuItem> <MenuItem value="nanny_trial">育儿嫂试工</MenuItem></Select></FormControl></Grid>
-                        <Grid item xs={6} sm={2}><FormControl fullWidth size="small"><InputLabel>状态</InputLabel><Select name="status" value={filters.status} label="状态" onChange={handleFilterChange}><MenuItem value="all"><em>全部状态</em></MenuItem><MenuItem value="active">服务中</MenuItem><MenuItem value="pending">待上户</MenuItem><MenuItem value="finished">已完成</MenuItem><MenuItem value="terminated">已终止</MenuItem><MenuItem value="trial_active">试工中</MenuItem><MenuItem value="trial_succeeded">试工成功</MenuItem></Select></FormControl></Grid>
+                        <Grid item xs={12} sm={3}><TextField fullWidth label="搜索客户/员工" name="search" value={searchTerm} onChange={handleFilterChange} size="small" /></Grid>
+                        <Grid item xs={6} sm={2}><FormControl fullWidth size="small"><InputLabel>类型</InputLabel><Select name="type" value={typeFilter}label="类型" onChange={handleFilterChange}><MenuItem value=""><em>全部</em></MenuItem><MenuItem value="nanny">育儿嫂</MenuItem><MenuItem value="maternity_nurse">月嫂</MenuItem> <MenuItem value="nanny_trial">育儿嫂试工</MenuItem></Select></FormControl></Grid>
+                        <Grid item xs={6} sm={2}><FormControl fullWidth size="small"><InputLabel>状态</InputLabel><Select name="status" value={statusFilter} label="状态" onChange={handleFilterChange}><MenuItem value="all"><em>全部状态</em></MenuItem><MenuItem value="active">服务中</MenuItem><MenuItem value="pending">待上户</MenuItem><MenuItem value="finished">已完成</MenuItem><MenuItem value="terminated">已终止</MenuItem><MenuItem value="trial_active">试工中</MenuItem><MenuItem value="trial_succeeded">试工成功</MenuItem></Select></FormControl></Grid>
 
                         {/* 仅在类型为"月嫂"时显示定金状态筛选 */}
-                        {filters.type === 'maternity_nurse' && (
+                        {typeFilter === 'maternity_nurse' && (
                             <Grid item xs={6} sm={2}>
                                 <FormControl fullWidth size="small">
                                     <InputLabel>定金状态</InputLabel>
                                     <Select
                                         name="deposit_status"
-                                        value={filters.deposit_status}
+                                        value={depositStatusFilter}
                                         label="定金状态"
                                         onChange={handleFilterChange}
                                     >
@@ -364,7 +335,7 @@ const ContractList = () => {
                                     <TableCell align="center">
                                         {/* --- 修改 3: 动态渲染操作按钮 --- */}
                                         <Stack direction="column" spacing={1} alignItems="center">
-                                            <Button variant="outlined" size="small" onClick={() =>navigate(`/contract/detail/${contract.id}`, { state: { from:location } })}>查看详情</Button>
+                                            <Button variant="outlined" size="small" onClick={() => navigate(`/contract/detail/${contract.id}`, { state: { from: location.pathname + location.search } })}>查看详情</Button>
                                         </Stack>
                                         {/* ----------------------------------------- */}
                                     </TableCell>
@@ -374,7 +345,24 @@ const ContractList = () => {
                             )}
                         </TableBody>
                     </Table>
-                    <TablePagination component="div" count={totalContracts} page={page} onPageChange={(e, newPage) => setPage(newPage)}rowsPerPage={rowsPerPage} onRowsPerPageChange={(e) => { setRowsPerPage(parseInt(e.target.value, 10)); setPage(0); }} labelRowsPerPage="每页行数:" />
+                    <TablePagination
+                        component="div"
+                        count={totalContracts}
+                        page={page}
+                        onPageChange={(e, newPage) => {
+                            const newParams = new URLSearchParams(searchParams);
+                            newParams.set('page', newPage.toString());
+                            setSearchParams(newParams);
+                        }}
+                        rowsPerPage={rowsPerPage}
+                        onRowsPerPageChange={(e) => {
+                            const newParams = new URLSearchParams(searchParams);
+                            newParams.set('rowsPerPage', parseInt(e.target.value, 10));
+                            newParams.set('page', '0');
+                            setSearchParams(newParams);
+                        }}
+                        labelRowsPerPage="每页行数:"
+                    />
                 </TableContainer>
                 <Dialog open={terminationDialogOpen} onClose={handleCloseTerminationDialog}>
                     <DialogTitle>确认合同操作</DialogTitle>
