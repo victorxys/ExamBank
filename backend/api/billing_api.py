@@ -185,6 +185,20 @@ def _get_billing_details_internal(
         customer_bill.cycle_end_date,
     )
 
+    # --- Gemini: Add navigation boundary checks ---
+    has_prev_bill = db.session.query(CustomerBill.query.filter(
+        CustomerBill.contract_id == contract.id,
+        CustomerBill.cycle_start_date < customer_bill.cycle_start_date,
+        CustomerBill.is_substitute_bill == False
+    ).exists()).scalar()
+
+    has_next_bill = db.session.query(CustomerBill.query.filter(
+        CustomerBill.contract_id == contract.id,
+        CustomerBill.cycle_start_date > customer_bill.cycle_start_date,
+        CustomerBill.is_substitute_bill == False
+    ).exists()).scalar()
+    # --- End of boundary checks ---
+
     employee_payroll = EmployeePayroll.query.filter_by(
         contract_id=contract.id,
         cycle_start_date=cycle_start,
@@ -254,14 +268,6 @@ def _get_billing_details_internal(
         })
         _fill_group_fields(employee_details["groups"][0]["fields"], calc_payroll, ["employee_base_payout","employee_overtime_payout", "first_month_deduction", "substitute_deduction"],is_substitute_payroll=employee_payroll.is_substitute_payroll)
         
-    # adjustment_filters = []
-    # if customer_bill:
-    #     adjustment_filters.append(FinancialAdjustment.customer_bill_id == customer_bill.id)
-    # if employee_payroll:
-    #     adjustment_filters.append(FinancialAdjustment.employee_payroll_id == employee_payroll.id)
-    # adjustments = FinancialAdjustment.query.filter(or_(*adjustment_filters)).all() if adjustment_filters else []
-
-    # --- 核心修复：使用两次独立查询然后合并，确保数据完整 ---
     customer_adjustments = []
     if customer_bill:
         customer_adjustments =FinancialAdjustment.query.filter_by(customer_bill_id=customer_bill.id).all()
@@ -270,13 +276,11 @@ def _get_billing_details_internal(
     if employee_payroll:
         employee_adjustments =FinancialAdjustment.query.filter_by(employee_payroll_id=employee_payroll.id).all()
 
-    # 使用字典合并，可以自动去重（虽然这里基本不会有重合）
     adjustments_map = {adj.id: adj for adj in customer_adjustments}
     for adj in employee_adjustments:
         adjustments_map[adj.id] = adj
 
     adjustments = list(adjustments_map.values())
-    # --- 修复结束 ---
 
     overtime_days = 0
     if customer_bill.is_substitute_bill:
@@ -297,10 +301,6 @@ def _get_billing_details_internal(
     is_last_bill = not later_bill_exists
     
     
-    # --- ITERATION v3: START (Linus Fixed) ---
-    # 统一处理所有合同类型的“延长服务”逻辑
-
-    # 1. 确定合同是否符合延长的基本资格及其权威结束日期
     is_eligible_for_extension = False
     authoritative_end_date = None
 
@@ -314,20 +314,16 @@ def _get_billing_details_internal(
             authoritative_end_date = getattr(contract,'expected_offboarding_date', None) or contract.end_date
         elif contract_type == 'external_substitution':
             is_eligible_for_extension = True
-            # 【关键修正】临时替班合同没有“预计下户日期”，直接用合同结束日期
             authoritative_end_date = contract.end_date
 
-    # 2. 如果符合资格，则执行统一的计算和注入逻辑
     current_app.logger.info(f"检查合同 {contract.id} 的延长服务资格: is_eligible_for_extension={is_eligible_for_extension}, authoritative_end_date={authoritative_end_date}")
     if is_eligible_for_extension and authoritative_end_date:
         current_app.logger.info(f"合同 {contract.id} 符合延长服务资格，权威结束日期为 {authoritative_end_date}")
-        # --- 关键修复：在比较前，确保两个对象都是 date 类型 ---
         bill_end_date_obj =customer_bill.cycle_end_date
         auth_end_date_obj = authoritative_end_date
 
         bill_end_date = bill_end_date_obj.date() if isinstance(bill_end_date_obj, datetime) else bill_end_date_obj
         auth_end_date = auth_end_date_obj.date() if isinstance(auth_end_date_obj, datetime) else auth_end_date
-        # --- 修复结束 ---
 
         if bill_end_date and auth_end_date and bill_end_date > auth_end_date:
             extension_days = (bill_end_date -auth_end_date).days
@@ -352,7 +348,6 @@ def _get_billing_details_internal(
                 if "log_extras" not in customer_details["calculation_details"]:
                     customer_details["calculation_details"]["log_extras"] = {}
 
-                # 注入到 customer_details
                 for group in customer_details["groups"]:
                     if group["name"] == "劳务周期":
                         group["fields"]["延长服务天数"] = str(extension_days)
@@ -363,13 +358,11 @@ def _get_billing_details_internal(
                         group["fields"]["延长期管理费"] = str(extension_manage_fee)
                         customer_details["calculation_details"]["log_extras"]["extension_manage_fee_reason"] = extension_manage_fee_log
 
-                # 注入到 employee_details
                 if employee_details and employee_details.get("groups"):
                     for group in employee_details["groups"]:
                         if group["name"] in ["薪酬明细", "劳务周期"]:
                              group["fields"]["延长服务天数"] = str(extension_days)
                              group["fields"]["延长期服务费"] = str(extension_fee)
-    # --- ITERATION v3: END ---
     remaining_months_str = "N/A"
     highlight_remaining = False
     today = date.today()
@@ -410,7 +403,6 @@ def _get_billing_details_internal(
                 remaining_months_str = "已结束"
         else:
             remaining_months_str = "已结束"
-    # --- END: Copy logic for remaining_months ---
 
     def safe_isoformat(dt_obj):
         if not dt_obj:
@@ -444,7 +436,9 @@ def _get_billing_details_internal(
             "notes": contract.notes,
             "remaining_months": remaining_months_str,
             "is_monthly_auto_renew": getattr(contract,'is_monthly_auto_renew', None)
-        }
+        },
+        "has_prev_bill": has_prev_bill,
+        "has_next_bill": has_next_bill
     }
 
 
@@ -1025,23 +1019,41 @@ def get_billing_summaries():
 @admin_required
 def get_billing_details():
     bill_id = request.args.get("bill_id")
-    if not bill_id:
-        return jsonify({"error": "缺少 bill_id 参数"}), 400
+    contract_id = request.args.get("contract_id")
+    month_str = request.args.get("month")
+
+    target_bill = None
+
+    if bill_id:
+        target_bill = db.session.get(CustomerBill, bill_id)
+    elif contract_id and month_str:
+        try:
+            year, month = map(int, month_str.split('-'))
+            # 假设在月份导航时，我们总是关注主账单而非替班账单
+            target_bill = CustomerBill.query.filter_by(
+                contract_id=contract_id,
+                year=year,
+                month=month,
+                is_substitute_bill=False
+            ).order_by(CustomerBill.cycle_start_date.desc()).first()
+        except ValueError:
+            return jsonify({"error": "无效的月份格式，应为 YYYY-MM"}), 400
+    
+    if not target_bill:
+        error_msg = f"账单未找到。查询参数: bill_id={bill_id}, contract_id={contract_id}, month={month_str}"
+        return jsonify({"error": error_msg}), 404
+
+    # 从这里开始，我们确保已经获取到了 target_bill，后续逻辑可以统一
+    bill_id = str(target_bill.id)
 
     try:
-        # --- 核心修复：在获取详情前，先执行一次静默重算 ---
-        target_bill = db.session.get(CustomerBill, bill_id)
-        if not target_bill:
-            return jsonify({"error": "账单未找到"}), 404
-
         engine = BillingEngine()
 
-        # 根据账单类型调用不同的重算逻辑
         if target_bill.is_substitute_bill:
             if target_bill.source_substitute_record_id:
                 engine.calculate_for_substitute(
                     substitute_record_id=target_bill.source_substitute_record_id,
-                    commit=False # 在此不提交，由后续统一提交
+                    commit=False
                 )
         else:
             engine.calculate_for_month(
@@ -1052,28 +1064,20 @@ def get_billing_details():
                 cycle_start_date_override=target_bill.cycle_start_date
             )
 
-        # 提交事务，确保所有计算结果都已写入数据库
         db.session.commit()
-        # --- 修复结束 ---
 
-        # 1. 调用内部函数获取最新信息
         details = _get_billing_details_internal(bill_id=bill_id)
         if details is None:
             return jsonify({"error": "获取账单详情失败"}), 404
 
-        # 2. 调用发票余额计算引擎 (这部分可以保留，因为它可能依赖最新的计算结果)
         invoice_balance = engine.calculate_invoice_balance(bill_id)
-
-        # 3. 将发票余额信息合并到返回结果中
         details["invoice_balance"] = invoice_balance
-
-        # 4. 单独补充账单自身的 "invoice_needed" 状态 (target_bill 已在前面获取)
-        details["invoice_needed"] = (target_bill.payment_details or {}).get("invoice_needed", False) if target_bill else False
+        details["invoice_needed"] = (target_bill.payment_details or {}).get("invoice_needed", False)
 
         return jsonify(details)
     except Exception as e:
-        db.session.rollback() # 在发生异常时回滚，避免部分提交
-        current_app.logger.error(f"获取账单详情失败: {e}", exc_info=True)
+        db.session.rollback()
+        current_app.logger.error(f"获取账单详情失败 (bill_id: {bill_id}): {e}", exc_info=True)
         return jsonify({"error": "获取账单详情时发生服务器内部错误"}), 500
 
 

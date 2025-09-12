@@ -16,7 +16,9 @@ import {
     EditCalendar as EditCalendarIcon,
     CheckCircle as CheckCircleIcon, HighlightOff as HighlightOffIcon,
     ArticleOutlined as ArticleOutlinedIcon,
-    Link as LinkIcon
+    Link as LinkIcon,
+    ArrowBackIosNew as ArrowBackIosNewIcon,
+    ArrowForwardIos as ArrowForwardIosIcon
 } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { Timeline } from '@mui/lab';
@@ -193,7 +195,6 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
     const [isEditMode, setIsEditMode] = useState(false);
     const [editableOvertime, setEditableOvertime] = useState(0);
     const [adjustments, setAdjustments] = useState([]);
-    // const [editableSettlement, setEditableSettlement] = useState({});
     const [editableInvoice, setEditableInvoice] = useState({ number: '', amount: '', date: null });
     const [isAdjustmentDialogOpen, setIsAdjustmentDialogOpen] = useState(false);
     const [editingAdjustment, setEditingAdjustment] = useState(null);
@@ -205,7 +206,15 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
     const [isSubstituteDialogOpen, setIsSubstituteDialogOpen] = useState(false);
     const [substituteRecords, setSubstituteRecords] = useState([]);
     const [editableActualWorkDays, setEditableActualWorkDays] = useState(26);
+    
+    // --- Gemini: New State Management ---
+    const [currentBillingMonth, setCurrentBillingMonth] = useState(billingMonth);
     const [billingDetails, setBillingDetails] = useState(initialBillingDetails);
+    const [isSwitchingMonth, setIsSwitchingMonth] = useState(false);
+    const [hasPrevBill, setHasPrevBill] = useState(false);
+    const [hasNextBill, setHasNextBill] = useState(false);
+    // --- End of New State ---
+
     const [isExtensionDialogOpen, setIsExtensionDialogOpen] = useState(false);
     const [extensionDate, setExtensionDate] = useState(null);
     const [isInvoiceNeeded, setIsInvoiceNeeded] = useState(false);
@@ -218,20 +227,19 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
     const [isPayoutDialogOpen, setIsPayoutDialogOpen] = useState(false);
 
     useEffect(() => {
-         if (initialBillingDetails) {
-            const effectiveNeeded = initialBillingDetails.invoice_balance?.auto_invoice_needed || false;
-            const updatedDetails = {
-                ...initialBillingDetails,
-                invoice_needed: effectiveNeeded
-            };
-            setBillingDetails(updatedDetails);
-        } else {
-            setBillingDetails(null);
-        }
-    }, [initialBillingDetails]);
+        setCurrentBillingMonth(billingMonth);
+        setBillingDetails(initialBillingDetails);
+    }, [billingMonth, initialBillingDetails]);
 
     useEffect(() => {
         if (open && billingDetails) {
+            // Reset edit mode when bill changes
+            setIsEditMode(false);
+
+            // Set navigation boundaries
+            setHasPrevBill(billingDetails.has_prev_bill || false);
+            setHasNextBill(billingDetails.has_next_bill || false);
+
             const customerDetails = billingDetails.customer_bill_details || {};
             const employeeDetails = billingDetails.employee_payroll_details || {};
             
@@ -251,9 +259,6 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
 
             setEditableInvoices(billingDetails.invoice_balance?.invoice_records || []);
 
-            const customerPayment = customerDetails.payment_status || {};
-            const employeePayment = employeeDetails.payment_status || {};
-
             if (customerDetails.id || employeeDetails.id) {
                 setLoadingLogs(true);
                 api.get('/billing/logs', { params: { bill_id: customerDetails.id, payroll_id: employeeDetails.id } })
@@ -267,7 +272,45 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                     .catch(err => console.error("获取替班记录失败:", err));
             }
         }
-    }, [open, billingDetails]);
+    }, [open, billingDetails, contract?.contract_id]);
+
+    // --- Gemini: New Month Change Handler ---
+    const handleMonthChange = async (direction) => {
+        if (!currentBillingMonth || !contract?.contract_id) return;
+
+        setIsSwitchingMonth(true);
+        setAlert({ open: false, message: '', severity: 'info' });
+
+        const [year, month] = currentBillingMonth.split('-').map(Number);
+        const currentDate = new Date(year, month - 1, 1);
+
+        if (direction === 'prev') {
+            currentDate.setMonth(currentDate.getMonth() - 1);
+        } else {
+            currentDate.setMonth(currentDate.getMonth() + 1);
+        }
+
+        const newYear = currentDate.getFullYear();
+        const newMonth = String(currentDate.getMonth() + 1).padStart(2, '0');
+        const newBillingMonth = `${newYear}-${newMonth}`;
+
+        try {
+            const response = await api.get('/billing/details', {
+                params: {
+                    contract_id: contract.contract_id,
+                    month: newBillingMonth,
+                }
+            });
+            setBillingDetails(response.data);
+            setCurrentBillingMonth(newBillingMonth);
+        } catch (error) {
+            console.error(`获取 ${newBillingMonth} 账单失败:`, error);
+            setAlert({ open: true, message: `无法加载 ${newBillingMonth} 的账单数据。`, severity: 'error' });
+        } finally {
+            setIsSwitchingMonth(false);
+        }
+    };
+    // --- End of New Handler ---
 
     const handleOpenSubstituteDialog = () => {
         setIsSubstituteDialogOpen(true);
@@ -891,7 +934,9 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                                             
                                             {key === '劳务时间段' &&
                                                 (
-                                                    (contract?.contract_type_value=== 'nanny' && !contract?.is_monthly_auto_renew) ||
+                                                    (
+                                                        contract?.contract_type_value=== 'nanny' && !contract?.is_monthly_auto_renew
+                                                    ) ||
                                                     contract?.contract_type_value=== 'maternity_nurse' ||
                                                     contract?.contract_type_value=== 'external_substitution'
                                                 ) &&
@@ -1288,6 +1333,8 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
         );
     };
 
+    const watermarkText = currentBillingMonth ? `${parseInt(currentBillingMonth.split('-')[1], 10)}月` : '';
+
     return (
         <>
             <AlertMessage
@@ -1299,7 +1346,6 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
             <Dialog
                 open={open}
                 onClose={(event, reason) => {
-                    // Material-UI 在通过 ESC 或点击遮罩层关闭时，会提供 reason
                     if (reason && (reason === 'backdropClick' || reason === 'escapeKeyDown')) {
                         onClose(billingDetails);
                     }
@@ -1309,12 +1355,20 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                 scroll="paper"
             >
                 <DialogTitle variant="h5" sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                     <Box sx={{ display: 'flex', alignItems:'center', gap: 2 }}>
-                        <Box>
-                            财务管理 - {contract?.customer_name} ({contract?.employee_name} / {billingMonth})
+                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <IconButton onClick={() => handleMonthChange('prev')} size="small" disabled={!hasPrevBill || isSwitchingMonth}>
+                                <ArrowBackIosNewIcon fontSize="inherit" />
+                            </IconButton>
+                            <Typography variant="h5" component="span" sx={{ minWidth: '180px', textAlign: 'center' }}>
+                                财务管理 - {currentBillingMonth}
+                            </Typography>
+                            <IconButton onClick={() => handleMonthChange('next')} size="small" disabled={!hasNextBill || isSwitchingMonth}>
+                                <ArrowForwardIosIcon fontSize="inherit" />
+                            </IconButton>
                         </Box>
                         <Box sx={{ display: 'flex', alignItems: 'center', borderLeft: 1, borderColor: 'divider', pl: 2 }}>
-                            <Typography variant="subtitle1"color="text.secondary">合同简介</Typography>
+                            <Typography variant="subtitle1" color="text.secondary">合同简介</Typography>
                             <Tooltip title={infoTooltip}>
                                 <IconButton size="small" sx={{ml: 0.5 }}>
                                     <InfoIcon fontSize="small"/>
@@ -1323,22 +1377,18 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                         </Box>
                     </Box>
                     <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                        {/* --- Gemini-generated code: Start --- */}
-                        {/* 仅在非替班账单时显示“添加替班记录”按钮 */}
                         {!billingDetails?.is_substitute_bill && (
                             <Button
                                 variant="outlined"
                                 size="small"
                                 startIcon={<PeopleAltIcon />}
                                 onClick={handleOpenSubstituteDialog}
-                                disabled={isEditMode}
-                                sx={{ mr: 2 }} // <-- 与右侧按钮保持距离
+                                disabled={isEditMode || isSwitchingMonth}
+                                sx={{ mr: 2 }}
                             >
                                 添加替班记录
                             </Button>
                         )}
-                        {/* --- Gemini-generated code: End --- */}
-
                         <Button
                             component="a"
                             href={`/contract/detail/${contract?.contract_id}`}
@@ -1353,13 +1403,34 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                         <IconButton onClick={() => onClose(billingDetails)} sx={{ ml: 1 }}><CloseIcon /></IconButton>
                     </Box>
                 </DialogTitle>
-                <DialogContent dividers sx={{ bgcolor: 'grey.50', p: { xs: 1, sm: 2, md: 3 } }}>
-                    {isEditMode && (<Alert severity="info" sx={{ mb: 2 }}>您正处于编辑模式。所有更改将在点击“保存”后生效。</Alert>)}
-                    {loading ? (<Box sx={{ display: 'flex', justifyContent: 'center', p: 5 }}><CircularProgress /></Box>) 
+                <DialogContent dividers sx={{ bgcolor: 'grey.50', p: { xs: 1, sm: 2, md: 3 }, position: 'relative', overflow: 'hidden' }}>
+                    {isSwitchingMonth && (
+                        <Box sx={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            backgroundColor: 'rgba(255, 255, 255, 0.7)',
+                            display: 'flex',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            zIndex: 10,
+                        }}>
+                            <CircularProgress />
+                        </Box>
+                    )}
+
+                    {isEditMode && (<Alert severity="info" sx={{ mb: 2, position: 'relative', zIndex: 1 }}>您正处于编辑模式。所有更改将在点击“保存”后生效。</Alert>)}
+                    
+                    {(loading && !isSwitchingMonth) ? (<Box sx={{ display: 'flex', justifyContent: 'center', p: 5 }}><CircularProgress /></Box>) 
                     : billingDetails ? (
-                        <Grid container spacing={3}>
+                        <Grid container spacing={3} sx={{ position: 'relative', zIndex: 1 }}>
                             <Grid item xs={12} md={6}>
-                                <Paper sx={{ p: 3, borderRadius: 2, boxShadow: 1 }}>
+                                <Paper sx={{ p: 3, borderRadius: 2, boxShadow: 1, position: 'relative', overflow: 'hidden' }}>
+                                    <Box sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', fontSize: '10rem', fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.05)', zIndex: 0, pointerEvents: 'none', userSelect: 'none' }}>
+                                        {watermarkText}
+                                    </Box>
                                     <Typography variant="h3" gutterBottom component="div" sx={{ display: 'flex', alignItems: 'center' }}>
                                         客户账单
                                         {customerData.calculation_details?.type === 'substitute' && <Chip label="替" color="warning" size="small" sx={{ ml: 1 }} />}
@@ -1368,7 +1439,10 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                                 </Paper>
                             </Grid>
                             <Grid item xs={12} md={6}>
-                                <Paper sx={{ p: 3, borderRadius: 2, boxShadow: 1 }}>
+                                <Paper sx={{ p: 3, borderRadius: 2, boxShadow: 1, position: 'relative', overflow: 'hidden' }}>
+                                     <Box sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', fontSize: '10rem', fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.05)', zIndex: 0, pointerEvents: 'none', userSelect: 'none' }}>
+                                        {watermarkText}
+                                    </Box>
                                     <Typography variant="h3" gutterBottom component="div" sx={{ display: 'flex', alignItems: 'center' }}>
                                         员工薪酬
                                         {employeeData.calculation_details?.type === 'substitute' && <Chip label="替" color="warning" size="small" sx={{ ml: 1 }} />}
@@ -1376,7 +1450,6 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                                     {renderCardContent(employeeData, false, billingDetails)}
                                 </Paper>
                             </Grid>
-                                                    {/* --- 发票管理模块 (最终修正版) --- */}
                             {billingDetails?.customer_bill_details && (
                                 <Grid item xs={12}>
                                     <Paper sx={{ p: 3, borderRadius: 2, boxShadow: 1 }}>
@@ -1460,8 +1533,6 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                                     </Paper>
                                 </Grid>
                             )}
-                            {/* --- 发票管理模块结束 --- */}
-                            {/* --- 替班记录展示 --- */}
                             {!billingDetails?.is_substitute_bill && (
                                 <Grid item xs={12}>
                                     <Paper sx={{ p: 3, borderRadius: 2, boxShadow: 1 }}>
@@ -1476,9 +1547,8 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                                                     {relevantSubstituteRecords.length > 0 ? relevantSubstituteRecords.map(record => (
                                                         <ListItem
                                                             key={record.id}
-                                                            button // 让列表项可点击
+                                                            button
                                                             onClick={() => {
-                                                                // 假设 'record' 对象中包含了替班账单的ID，字段名为 substitute_customer_bill_id
                                                                 if (onNavigateToBill && record.substitute_customer_bill_id) {
                                                                     onNavigateToBill(record.substitute_customer_bill_id);
                                                                 } else {
@@ -1496,7 +1566,7 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                                                                     aria-label="delete"
                                                                     disabled={isEditMode}
                                                                     onClick={(e) => {
-                                                                        e.stopPropagation(); // 核心细节：阻止事件冒泡，避免在点删除时触发导航
+                                                                        e.stopPropagation(); 
                                                                         handleDeleteSubstitute(record.id);
                                                                     }}
                                                                 >
@@ -1532,20 +1602,19 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                 </DialogContent>
                 <DialogActions sx={{ p: 2 }}>
                     {isEditMode ? (<><Button onClick={handleCancelEdit} variant="text" startIcon={<CancelIcon />}>取消</Button><Button onClick={handleSave} variant="contained" color="primary" startIcon={<SaveIcon />}>保存并重新计算</Button></>) 
-                    : (<><Button onClick={() => onClose(billingDetails)}>关闭</Button><Button onClick={handleEnterEditMode} variant="contained" startIcon={<EditIcon />}>进入编辑模式</Button></>)}
+                    : (<><Button onClick={() => onClose(billingDetails)}>关闭</Button><Button onClick={handleEnterEditMode} variant="contained" startIcon={<EditIcon />} disabled={isSwitchingMonth}>进入编辑模式</Button></>)}
                 </DialogActions>
             </Dialog>
             <InvoiceDetailsDialog
                 open={isInvoiceDialogOpen}
                 onClose={() => setIsInvoiceDialogOpen(false)}
                 onSave={(newInvoices) => {
-                    // 立即调用 onSave 来持久化更改
                     onSave({
                         bill_id: billingDetails.customer_bill_details.id,
                         overtime_days: editableOvertime,
                         actual_work_days: editableActualWorkDays,
                         adjustments: adjustments,
-                        invoices: newInvoices, // 使用弹窗返回的最新发票列表
+                        invoices: newInvoices, 
                         invoice_needed: billingDetails.invoice_needed,
                     });
                 }}
@@ -1573,7 +1642,7 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                 onSave={handleSaveSubstitute}
                 contractId={contract?.contract_id}
                 contractType={contract?.contract_type_value}
-                billMonth={billingMonth}
+                billMonth={currentBillingMonth}
                 originalBillCycleStart={billingDetails?.cycle_start_date}
                 originalBillCycleEnd={billingDetails?.cycle_end_date}
             />
