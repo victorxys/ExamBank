@@ -1176,7 +1176,7 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                                                 <TableCell align="right">{formatValue('', p.amount)}</TableCell>
                                                 <TableCell align="center">
                                                     {p.image_url ? (
-                                                        <IconButton component="a" href={`/api/financial_records/uploads/${p.image_url.substring('/uploads/'.length)}`} target="_blank" rel="noopener noreferrer" size="small">
+                                                        <IconButton component="a" href={p.image_url} target="_blank" rel="noopener noreferrer" size="small">
                                                             <ArticleOutlinedIcon fontSize="small" />
                                                         </IconButton>
                                                     ) : (
@@ -1250,7 +1250,7 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                                                 <TableCell align="right">{formatValue('', p.amount)}</TableCell>
                                                 <TableCell align="center">
                                                     {p.image_url ? (
-                                                        <IconButton component="a" href={`/api/financial_records/uploads/${p.image_url.substring('/uploads/'.length)}`} target="_blank" rel="noopener noreferrer" size="small">
+                                                        <IconButton component="a" href={p.image_url} target="_blank" rel="noopener noreferrer" size="small">
                                                             <ArticleOutlinedIcon fontSize="small" />
                                                         </IconButton>
                                                     ) : (

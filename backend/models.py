@@ -1,4 +1,5 @@
 # backend/models.py
+from flask import current_app, url_for
 import uuid
 import enum
 from sqlalchemy import Enum as SAEnum
@@ -2362,18 +2363,28 @@ class PaymentRecord(db.Model):
     created_by_user = db.relationship('User')
 
     def to_dict(self):
-        return {
+        data = {
             "id": str(self.id),
             "customer_bill_id": str(self.customer_bill_id),
             "amount": str(self.amount),
             "payment_date": self.payment_date.isoformat() if self.payment_date else None,
             "method": self.method,
             "notes": self.notes,
-            "image_url": self.image_url,
-            "created_by_user_id": str(self.created_by_user_id),
-            "created_by_user_name": self.created_by_user.username if self.created_by_user else None,
-            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "image_url": self.image_url, # 先包含原始的相对路径
+            # ... 其他字段
         }
+        # 如果存在图片路径，则动态生成完整 URL 并覆盖
+        if self.image_url:
+            try:
+                backend_host = current_app.config.get('BACKEND_BASE_URL', '')
+                # 从相对路径中提取出真正的文件名
+                filename = self.image_url.split('/')[-1]
+                url_path = url_for('billing_api.serve_financial_record_upload',filename=filename)
+                data['image_url'] = f"{backend_host}{url_path}"
+            except RuntimeError:
+                # 如果在应用上下文之外调用，则只返回相对路径
+                pass
+        return data
 
 class PayoutStatus(enum.Enum):
     UNPAID = 'unpaid'
@@ -2399,19 +2410,27 @@ class PayoutRecord(db.Model):
     created_by_user = db.relationship('User')
 
     def to_dict(self):
-        return {
+        data = {
             "id": str(self.id),
             "employee_payroll_id": str(self.employee_payroll_id),
             "amount": str(self.amount),
             "payout_date": self.payout_date.isoformat() if self.payout_date else None,
             "method": self.method,
             "notes": self.notes,
-            "image_url": self.image_url,
             "payer": self.payer,
-            "created_by_user_id": str(self.created_by_user_id),
-            "created_by_user_name": self.created_by_user.username if self.created_by_user else None,
-            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "image_url": self.image_url, # 先包含原始的相对路径
+            # ... 其他字段
         }
+        # 如果存在图片路径，则动态生成完整 URL 并覆盖
+        if self.image_url:
+            try:
+                backend_host = current_app.config.get('BACKEND_BASE_URL', '')
+                filename = self.image_url.split('/')[-1]
+                url_path = url_for('billing_api.serve_financial_record_upload',filename=filename)
+                data['image_url'] = f"{backend_host}{url_path}"
+            except RuntimeError:
+                pass
+        return data
 # --- V2.0 重构 CustomerBill 模型 ---
 
 class CustomerBill(db.Model):

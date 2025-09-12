@@ -106,6 +106,7 @@ app.config["TTS_AUDIO_BASE_URL_FOR_API"] = "/static/tts_audio"  # 前端拼接�
 app.config["DEFAULT_GRADIO_PT_FILE_PATH"] = (
     "seed_1397_restored_emb.pt"  # 默认的 Gradio 模型文件路径
 )
+app.config['BACKEND_BASE_URL'] = os.environ.get('BACKEND_BASE_URL', 'http://localhost:5001')
 
 # 默认的 Gradio 参数
 app.config["DEFAULT_GRADIO_PARAMS"] = {

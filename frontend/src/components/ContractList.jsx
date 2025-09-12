@@ -45,7 +45,8 @@ const ContractList = () => {
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const page = parseInt(searchParams.get('page') || '0', 10);
     const rowsPerPage = parseInt(searchParams.get('rowsPerPage') || '10', 10);
-    const searchTerm = searchParams.get('search') || '';
+    // const searchTerm = searchParams.get('search') || '';
+    const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '');
     const statusFilter = searchParams.get('status') || 'all';
     const depositStatusFilter = searchParams.get('deposit_status') || '';
     const sortBy = searchParams.get('sort_by') || null;
@@ -57,6 +58,29 @@ const ContractList = () => {
     const [onboardingDialogOpen, setOnboardingDialogOpen] = useState(false);
     const [contractToSetDate, setContractToSetDate] = useState(null);
     const [newOnboardingDate, setNewOnboardingDate] = useState(null);
+
+    // 2. useEffect 监听 searchTerm 的变化
+    useEffect(() => {
+        // 3. 设置一个 500ms 的定时器
+        const debounceTimer = setTimeout(() => {
+            // 4. 定时器触发后，才更新 URL
+            const newParams = new URLSearchParams(searchParams);
+            newParams.set('search', searchTerm);
+            newParams.set('page', '0');
+            setSearchParams(newParams);
+        }, 500); // 500ms 的延迟
+
+        // 清除函数：在下一次 effect 执行前，清除上一个定时器
+        return () => {
+            clearTimeout(debounceTimer);
+        };
+    }, [searchTerm, searchParams, setSearchParams]); // 依赖项
+
+    const handleInputChange = (e) => {
+        // onChange 只更新本地 state，不触碰 URL
+        setSearchTerm(e.target.value);
+    };
+
     const fetchContracts = useCallback(async () => {
         setLoading(true);
         try {
@@ -178,7 +202,7 @@ const ContractList = () => {
                                 <Paper sx={{ p: 2, mb: 3 }}>
                     <Grid container spacing={2} alignItems="center">
                         {/* 减少搜索框宽度 */}
-                        <Grid item xs={12} sm={3}><TextField fullWidth label="搜索客户/员工" name="search" value={searchTerm} onChange={handleFilterChange} size="small" /></Grid>
+                        <Grid item xs={12} sm={3}><TextField fullWidth label="搜索客户/员工" name="search" value={searchTerm} onChange={handleInputChange} size="small" /></Grid>
                         <Grid item xs={6} sm={2}><FormControl fullWidth size="small"><InputLabel>类型</InputLabel><Select name="type" value={typeFilter}label="类型" onChange={handleFilterChange}><MenuItem value=""><em>全部</em></MenuItem><MenuItem value="nanny">育儿嫂</MenuItem><MenuItem value="maternity_nurse">月嫂</MenuItem> <MenuItem value="nanny_trial">育儿嫂试工</MenuItem></Select></FormControl></Grid>
                         <Grid item xs={6} sm={2}><FormControl fullWidth size="small"><InputLabel>状态</InputLabel><Select name="status" value={statusFilter} label="状态" onChange={handleFilterChange}><MenuItem value="all"><em>全部状态</em></MenuItem><MenuItem value="active">服务中</MenuItem><MenuItem value="pending">待上户</MenuItem><MenuItem value="finished">已完成</MenuItem><MenuItem value="terminated">已终止</MenuItem><MenuItem value="trial_active">试工中</MenuItem><MenuItem value="trial_succeeded">试工成功</MenuItem></Select></FormControl></Grid>
 

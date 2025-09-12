@@ -1,6 +1,6 @@
 # backend/api/billing_api.py (添加考勤录入API)
 
-from flask import Blueprint, jsonify, current_app, request, Response
+from flask import Blueprint, jsonify, current_app, request, Response, send_from_directory, url_for
 from flask_jwt_extended import jwt_required
 from sqlalchemy import or_, case, and_, not_, exists, func, distinct, extract, cast, String
 from sqlalchemy.orm import with_polymorphic, attributes
@@ -4085,19 +4085,34 @@ def add_payment_record(bill_id):
     if not data or not data.get('amount') or not data.get('payment_date'):
         return jsonify({"error": "必须提供支付金额和支付日期"}), 400
 
-    image_url = None
-    if 'image' in request.files:
+
+    # ==================== 新的代码 ====================
+    db_image_path = None
+    full_url_for_frontend = None
+
+    # 检查 'image' 是否存在，并且用户确实上传了文件（文件名不为空）
+    if 'image' in request.files and request.files['image'].filename != '':
         image_file = request.files['image']
-        image_url = _handle_image_upload(image_file)
+
+        # 调用新函数，它会返回两个值
+        db_path, full_url = _handle_image_upload(image_file)
+
+        # 如果上传和处理成功
+        if db_path:
+            db_image_path = db_path
+            full_url_for_frontend = full_url
+    # ==================== 替换结束 ====================
 
     try:
+        # ==================== 第一个修改点 ====================
+        # 创建 PaymentRecord 对象时，使用 db_image_path
         new_payment = PaymentRecord(
             customer_bill_id=bill.id,
             amount=D(data['amount']),
             payment_date=date_parse(data['payment_date']).date(),
             method=data.get('method'),
             notes=data.get('notes'),
-            image_url=image_url,
+            image_url=db_image_path,  # <-- 使用 db_image_path
             created_by_user_id=get_jwt_identity()
         )
         db.session.add(new_payment)
@@ -4109,11 +4124,37 @@ def add_payment_record(bill_id):
 
         db.session.commit()
 
-        return jsonify({"message": "支付记录添加成功"}), 201
+        # ==================== 在这里添加调试日志 ====================
+        current_app.logger.info("================ DEBUGGING URL GENERATION ================")
+
+        # 检查从配置中读取的值
+        backend_host_from_config = current_app.config.get('BACKEND_BASE_URL', '!!! CONFIG KEY NOT FOUND !!!')
+        current_app.logger.info(f"1. 从 app.config 读取的 BACKEND_BASE_URL: '{backend_host_from_config}'")
+
+        # 检查 url_for 生成的路径部分
+        # 我们假设 full_url_for_frontend 变量已经被正确设置
+        if full_url_for_frontend:
+            path_part = full_url_for_frontend.replace(backend_host_from_config, "")
+            current_app.logger.info(f"2. 推断出的 URL 路径部分: '{path_part}'")
+        else:
+            current_app.logger.info("2. full_url_for_frontend 变量为空，无法推断路径！")
+
+        # 检查最终要返回给前端的完整 URL
+        current_app.logger.info(f"3. 最终准备在 JSON 中返回的 file_url: '{full_url_for_frontend}'")
+
+        current_app.logger.info("========================================================")
+        # ========================== 日志代码结束 ==========================
+
+        # ==================== 第二个修改点 ====================
+        # 在返回的 JSON 中，把完整的 URL (full_url_for_frontend) 发给前端
+        return jsonify({
+            "message": "支付记录添加成功",
+            "file_url": full_url_for_frontend
+        }), 201
 
     except Exception as e:
         db.session.rollback()
-        current_app.logger.error(f"添加支付记录失败 (bill_id: {bill_id}): {e}",exc_info=True)
+        current_app.logger.error(f"添加支付记录失败 (bill_id: {bill_id}): {e}", exc_info=True)
         return jsonify({"error": "服务器内部错误"}), 500
     
 def _update_payroll_payout_status(payroll: EmployeePayroll):
@@ -4153,12 +4194,26 @@ def add_payout_record(payroll_id):
     if not data or not data.get('amount') or not data.get('payout_date'):
         return jsonify({"error": "必须提供支付金额和支付日期"}), 400
 
-    image_url = None
-    if 'image' in request.files:
+    # ==================== 新的代码 ====================
+    db_image_path = None
+    full_url_for_frontend = None
+
+    # 检查 'image' 是否存在，并且用户确实上传了文件（文件名不为空）
+    if 'image' in request.files and request.files['image'].filename != '':
         image_file = request.files['image']
-        image_url = _handle_image_upload(image_file)
+
+        # 调用新函数，它会返回两个值
+        db_path, full_url = _handle_image_upload(image_file)
+
+        # 如果上传和处理成功
+        if db_path:
+            db_image_path = db_path
+            full_url_for_frontend = full_url
+    # ==================== 替换结束 ====================
 
     try:
+        # ==================== 第一个修改点 ====================
+        # 创建 PayoutRecord 对象时，使用 db_image_path
         new_payout = PayoutRecord(
             employee_payroll_id=payroll.id,
             amount=D(data['amount']),
@@ -4166,7 +4221,7 @@ def add_payout_record(payroll_id):
             method=data.get('method'),
             notes=data.get('notes'),
             payer=data.get('payer'),
-            image_url=image_url,
+            image_url=db_image_path,  # <-- 使用 db_image_path 而不是旧的 image_url
             created_by_user_id=get_jwt_identity()
         )
         db.session.add(new_payout)
@@ -4178,11 +4233,16 @@ def add_payout_record(payroll_id):
 
         db.session.commit()
 
-        return jsonify({"message": "工资发放记录添加成功"}), 201
+        # ==================== 第二个修改点 ====================
+        # 在返回的 JSON 中，把完整的 URL (full_url_for_frontend) 发给前端
+        return jsonify({
+            "message": "工资发放记录添加成功",
+            "file_url": full_url_for_frontend
+        }), 201
 
     except Exception as e:
         db.session.rollback()
-        current_app.logger.error(f"添加工资发放记录失败 (payroll_id: {payroll_id}):{e}", exc_info=True)
+        current_app.logger.error(f"添加工资发放记录失败: {e}", exc_info=True)
         return jsonify({"error": "服务器内部错误"}), 500
 
 @billing_bp.route("/payments/<uuid:payment_id>", methods=["DELETE", "OPTIONS"])
@@ -4239,24 +4299,49 @@ def _allowed_file(filename):
     ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+# ==================== 新版本的文件处理函数 ====================
 def _handle_image_upload(file_storage):
-    """Saves an image from a FileStorage object and returns its URL."""
+    """
+    从 FileStorage 对象保存图片。
+    返回两个值:
+    1. db_path: 用于存入数据库的相对路径 (e.g., 'financial_records/...')
+    2. full_url: 用于返回给前端的完整可访问 URL
+    """
     if not file_storage or file_storage.filename == '':
-        return None
+        return None, None
 
     if _allowed_file(file_storage.filename):
         filename = secure_filename(file_storage.filename)
+        # 我们只需要唯一文件名部分，用于URL生成和存储
         unique_filename = str(uuid.uuid4()) + "_" + filename
 
-        # 确保上传目录存在
-        upload_folder = os.path.join(current_app.instance_path, 'uploads','financial_records')
+        # 构造物理保存路径
+        upload_folder = os.path.join(current_app.instance_path, 'uploads', 'financial_records')
         os.makedirs(upload_folder, exist_ok=True)
-
         file_path = os.path.join(upload_folder, unique_filename)
+
+        # 保存文件
         file_storage.save(file_path)
 
-        # 返回用于存入数据库的URL路径
-        return f"/uploads/financial_records/{unique_filename}"
+        # --- 这是核心修改点 ---
+
+        # 1. 准备存入数据库的相对路径
+        # 路径分隔符应该用 '/'，以保证跨平台兼容性
+        db_path = f"financial_records/{unique_filename}"
+
+        # 2. 为前端生成完整的、可访问的 URL
+        # 'billing_api.serve_financial_record_upload' 是你上一步创建的那个路由函数名
+        full_url = url_for(
+            'billing_api.serve_financial_record_upload',
+            filename=unique_filename,
+            _external=True
+        )
+
+        # 返回两个值
+        return db_path, full_url
+
+    return None, None
+# ========================== 函数结束 ==========================
 
 @billing_bp.route("/contracts/<string:contract_id>/enable-auto-renew", methods=["POST", "OPTIONS"])
 @admin_required
@@ -4760,7 +4845,7 @@ def get_pending_trial_contracts():
         # 查询时不再需要复杂的 add_columns，直接获取完整的合同对象 只查询2025年9月1日之后的数据
         pending_trials = NannyTrialContract.query.filter(
             NannyTrialContract.trial_outcome == TrialOutcome.PENDING,
-            NannyTrialContract.start_date > date(2025, 9, 1)
+            NannyTrialContract.end_date > date(2025, 9, 1)
             # NannyTrialContract.end_date < today
         ).order_by(NannyTrialContract.end_date.asc()).all()
 
@@ -4782,3 +4867,19 @@ def get_pending_trial_contracts():
         current_app.logger.error(f"获取待处理试工合同列表失败: {e}", exc_info=True)
         return jsonify({"error": "获取待办事项列表时发生服务器内部错误"}), 500
     
+# ==================== 第一步：创建文件服务路由 ====================
+@billing_bp.route('/uploads/financial_records/<path:filename>')
+@jwt_required() # 关键：保护这个端点，只有登录用户能访问
+def serve_financial_record_upload(filename):
+    """
+    安全地提供 instance/uploads/financial_records 目录下的文件。
+    """
+    # 智能地构造到 instance/uploads/financial_records 的绝对路径
+    directory = os.path.join(current_app.instance_path, 'uploads', 'financial_records')
+
+    # 使用 send_from_directory 安全地发送文件
+    try:
+        return send_from_directory(directory, filename, as_attachment=False)
+    except FileNotFoundError:
+        return jsonify({"error": "文件未找到"}), 404
+# ========================== 新增代码结束 ==========================

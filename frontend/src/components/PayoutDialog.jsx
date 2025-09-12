@@ -30,8 +30,21 @@ const PayoutDialog = ({ open, onClose, onSave, totalDue = 0, totalPaidOut = 0, r
     const [payer, setPayer] = useState('公司代付'); // 新增 state
     const [files, setFiles] = useState([]);
 
+    // ==================== 第一步：创建独立的文件处理函数 ====================
+    const handleNewFiles = (acceptedFiles) => {
+        if (acceptedFiles && acceptedFiles.length > 0) {
+            const newFiles = acceptedFiles.map(file => Object.assign(file, {
+                preview: URL.createObjectURL(file)
+            }));
+            // 使用函数式更新，在现有文件列表的基础上追加新文件
+            setFiles(prevFiles => [...prevFiles, ...newFiles]);
+        }
+    };
+    // ========================== 新增代码结束 ==========================
+    
+    
     // 【新增】常用支付方式
-    const commonMethods = ['银行转账', '微信', '支付宝'];
+    const commonMethods = ['微信', '支付宝', '银行转账'];
 
     const { getRootProps, getInputProps } = useDropzone({
         accept: {
@@ -39,12 +52,40 @@ const PayoutDialog = ({ open, onClose, onSave, totalDue = 0, totalPaidOut = 0, r
             'image/png': ['.png'],
             'image/gif': ['.gif']
         },
-        onDrop: acceptedFiles => {
-            setFiles(acceptedFiles.map(file => Object.assign(file, {
-                preview: URL.createObjectURL(file)
-            })));
-        }
+        onDrop: handleNewFiles
     });
+
+    // 第二步.2: 修改 useEffect，调用 handleNewFiles
+    useEffect(() => {
+        if (!open) {
+            return;
+        }
+
+        const handlePaste = (event) => {
+            const items = event.clipboardData.items;
+            const imageFiles = []; // 创建一个数组来收集所有粘贴的图片
+            for (let i = 0; i < items.length; i++) {
+                const item = items[i];
+                if (item.kind === 'file' && item.type.startsWith('image/')) {
+                    const file = item.getAsFile();
+                    if (file) {
+                        imageFiles.push(file);
+                    }
+                }
+            }
+            if (imageFiles.length > 0) {
+                // 一次性处理所有粘贴的图片
+                handleNewFiles(imageFiles);
+            }
+        };
+
+        window.addEventListener('paste', handlePaste);
+
+        return () => {
+            window.removeEventListener('paste', handlePaste);
+        };
+    }, [open]); // 依赖项里不再需要 onDrop
+    // ========================== 新增代码结束 ==========================
 
     const thumbs = files.map(file => (
         <div style={{ display: 'inline-flex', borderRadius: 2, border: '1px solid #eaeaea', marginBottom: 8, marginRight: 8,width: 100, height: 100, padding: 4, boxSizing: 'border-box' }} key={file.name}>
