@@ -219,6 +219,7 @@ const CreateVirtualContractModal = ({ open, onClose, onSuccess }) => {
         }
         if (payload.contract_type === 'nanny_trial') {
             payload.employee_level = payload.daily_rate;
+            delete payload.management_fee_amount; // <-- 添加这一行
         }
 
         if (payload.start_date) payload.start_date = new Date(payload.start_date).toISOString();
@@ -242,14 +243,14 @@ const CreateVirtualContractModal = ({ open, onClose, onSuccess }) => {
     // --- START: Mutual Exclusion Logic for Nanny Trial Contracts ---
     const isTrialContract = formData.contract_type === 'nanny_trial';
     const introFeeValue = parseFloat(formData.introduction_fee);
-    const mgmtFeeValue = parseFloat(formData.management_fee_amount);
+    const mgmtFeeRateValue = parseFloat(formData.management_fee_rate); // <-- 使用费率
 
-    const isIntroFeeDisabled = isTrialContract && mgmtFeeValue > 0;
-    const isMgmtFeeDisabled = isTrialContract && introFeeValue > 0;
+    const isIntroFeeDisabled = isTrialContract && mgmtFeeRateValue > 0;
+    const isMgmtRateDisabled = isTrialContract && introFeeValue > 0;
 
-    const introFeeHelperText = isIntroFeeDisabled ?"试工合同不能与管理费同时存在" : "";
-    const mgmtFeeHelperText = isMgmtFeeDisabled ?"试工合同不能与介绍费同时存在" : "";
-    // --- END: Mutual Exclusion Logic ---
+    const introFeeHelperText = isIntroFeeDisabled ? "不能与管理费率同时存在" : "";
+    const mgmtRateHelperText = isMgmtRateDisabled ? "不能与介绍费同时存在" : "";
+    // --- END: Mutual Exclusion Logic --
 
     return (
         <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
@@ -371,12 +372,12 @@ const CreateVirtualContractModal = ({ open, onClose, onSuccess }) => {
                         {formData.contract_type === 'nanny_trial' && (
                             <>
                                 <Grid item xs={12} sm={6}>
-                                    <TextField required fullWidth name="daily_rate" label="日薪 (元)" type="number" value={formData.daily_rate}onChange={handleInputChange} helperText="级别/26，可手动修改" />
+                                    <TextField required fullWidth name="daily_rate" label="日薪(元)" type="number" value={formData.daily_rate} onChange={handleInputChange} helperText="级别/26，可手动修改" />
                                 </Grid>
                                 <Grid item xs={12} sm={6}>
-                                    <Tooltip title={isIntroFeeDisabled ?"试工合同不能与管理费同时存在" : ""}>
+                                    <Tooltip title={isIntroFeeDisabled ?"不能与管理费率同时存在" : ""}>
                                         <TextField
-                                            fullWidth name="introduction_fee"label="介绍费 (元)" type="number"
+                                            fullWidth name="introduction_fee" label="介绍费 (元)" type="number"
                                             value={formData.introduction_fee}
                                             onChange={handleInputChange}
                                             disabled={isIntroFeeDisabled}
@@ -385,15 +386,24 @@ const CreateVirtualContractModal = ({ open, onClose, onSuccess }) => {
                                         />
                                     </Tooltip>
                                 </Grid>
+
+                                {/* --- 核心修改：将“管理费金额”替换为“管理费率” --- */}
                                 <Grid item xs={12} sm={6}>
-                                    <Tooltip title={isMgmtFeeDisabled ?"试工合同不能与介绍费同时存在" : ""}>
+                                    <Tooltip title={isMgmtRateDisabled ? "不能与介绍费同时存在": ""}>
                                         <TextField
-                                            fullWidth name="management_fee_amount" label="管理费 (元)" type="number"
-                                            value={formData.management_fee_amount}
-                                            onChange={handleInputChange}
-                                            disabled={isMgmtFeeDisabled}
-                                            error={isMgmtFeeDisabled}
-                                            helperText={mgmtFeeHelperText}
+                                            fullWidth
+                                            name="management_fee_rate"
+                                            label="管理费率 (%)"
+                                            type="number"
+                                            value={formData.management_fee_rate * 100} // 将 0.2 显示为 20
+                                            onChange={(e) => {
+                                                const rate = parseFloat(e.target.value);
+                                                // 用户输入 20，我们存储为 0.2
+                                                setFormData(prev => ({ ...prev,management_fee_rate: isNaN(rate) ? 0 : rate / 100 }));
+                                            }}
+                                            disabled={isMgmtRateDisabled}
+                                            error={isMgmtRateDisabled}
+                                            helperText={mgmtRateHelperText}
                                         />
                                     </Tooltip>
                                 </Grid>

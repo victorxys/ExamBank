@@ -1332,11 +1332,13 @@ class BillingEngine:
 
         # 1. 管理费和管理费率计算
         management_fee = ((customer_deposit - level)/26 * (base_work_days)).quantize(QUANTIZER)
-        management_fee_rate = (
-            (management_fee / customer_deposit).quantize(D("0.0001"))
-            if customer_deposit > 0
-            else D(0)
-        )
+        # --- 【健壮性修复】优先使用合同上存储的费率 ---
+        if contract.management_fee_rate is not None:
+            management_fee_rate = D(contract.management_fee_rate)
+        elif customer_deposit > 0:
+            management_fee_rate = (management_fee / customer_deposit).quantize(D("0.0001"))
+        else:
+            management_fee_rate = D(0)
         log_extras["management_fee_reason"] = (
             f"客交保证金({customer_deposit:.2f}) - 级别({level:.2f}) / 26 * 劳务天数({base_work_days}) = {management_fee:.2f}"
         )
@@ -1756,7 +1758,7 @@ class BillingEngine:
         
         QUANTIZER = D("0.01")
         level = D(contract.employee_level or 0)
-        management_fee_rate = D(getattr(contract, 'management_fee_rate', 0.20))
+        management_fee_rate = D(contract.management_fee_rate or 0.20)
 
         # --- 关键修复：在这里定义清晰的日期变量 ---
         # 1. bill_end_date 是当前账单的结束日期，这应该是最新的、可能已延长过的日期
@@ -2640,11 +2642,15 @@ class BillingEngine:
             }
 
         # 3. 获取管理费
-        management_fee = D(trial_contract.management_fee_amount or '0')
-        if management_fee > 0:
-            costs["management_fee"] = {
-                "amount": management_fee,
-                "description": "合同约定的试工管理费",
-            }
+        management_fee_rate = D(trial_contract.management_fee_rate or '0')
+        management_fee = D(0)
+        if management_fee_rate > 0:
+            # 根据费率计算管理费
+            management_fee = (trial_service_fee * management_fee_rate).quantize(D('0.01'))
+            if management_fee > 0:
+                costs["management_fee"] = {
+                    "amount": management_fee,
+                    "description": f"试工服务费({trial_service_fee}) * 管理费率({management_fee_rate:.0%})",
+                }
 
         return costs

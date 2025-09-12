@@ -11,7 +11,7 @@ import {
 } from '@mui/material';
 import {
     ArrowBack as ArrowBackIcon, Edit as EditIcon, CheckCircle as CheckCircleIcon,Info as InfoIcon,
-    Cancel as CancelIcon, Save as SaveIcon, Link as LinkIcon, EventBusy as EventBusyIcon
+    Cancel as CancelIcon, Save as SaveIcon, Link as LinkIcon, EventBusy as EventBusyIcon ,ReceiptLong as ReceiptLongIcon,
 } from '@mui/icons-material';
 import { DatePicker, LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -153,6 +153,7 @@ const ContractDetail = () => {
     const [eligibleContracts, setEligibleContracts] = useState([]);
     const [loadingEligible, setLoadingEligible] = useState(false);
     const [selectedFormalContractId, setSelectedFormalContractId] = useState('');
+    // const [targetBillId, setTargetBillId] = useState(null);
 
     const [depositDialogOpen, setDepositDialogOpen] = useState(false);
     const [selectedAdjustment, setSelectedAdjustment] = useState(null);
@@ -207,6 +208,33 @@ const ContractDetail = () => {
         }
     }, [contractId, fetchData]);
 
+    useEffect(() => {
+        if (contract?.trial_outcome === 'success' && contract.converted_to_formal_contract_id){
+            api.get(`/billing/contracts/${contract.converted_to_formal_contract_id}/bills`)
+                .then(response => {
+                    const formalBills = response.data;
+                    if (formalBills && formalBills.length > 0) {
+                        const targetBill = formalBills[0];
+                        targetBill.isTransferredBill = true;
+
+                        setBills(prevBills => {
+                            // --- 【核心修正】在添加前，检查账单是否已存在 ---
+                            const isAlreadyPresent = prevBills.some(b => b.id === targetBill.id);
+                            if (isAlreadyPresent) {
+                                // 如果已存在，直接返回旧的列表，不做任何改动
+                                return prevBills;
+                            }
+                            // 如果不存在，则将新账单添加到列表开头
+                            return [targetBill, ...prevBills];
+                        });
+                    }
+                })
+                .catch(err => {
+                    console.error("获取目标账单失败:", err);
+                });
+        }
+    }, [contract]);
+
     if (loading) return <CircularProgress />;
     if (!contract) return <Typography>未找到合同信息。</Typography>;
 
@@ -259,6 +287,22 @@ const ContractDetail = () => {
             />
         </Grid>
     ) : null;
+
+    // --- 新增：费用转移目标账单的链接 ---
+    // const transferredToBillField = targetBillId ? (
+    //     <Grid item xs={12} sm={6} md={4}>
+    //         <Typography variant="body2" color="text.secondary" gutterBottom>费用结算</Typography>
+    //         <Chip
+    //             icon={<ReceiptLongIcon />}
+    //             label="查看费用所在账单"
+    //             variant="filled"
+    //             color="info"
+    //             size="small"
+    //             onClick={() => handleOpenBillModal({ id: targetBillId })}
+    //             sx={{ cursor: 'pointer' }}
+    //         />
+    //     </Grid>
+    // ) : null;
 
     const handleOpenOnboardingDialog = (contract) => {
         setContractToSetDate(contract);
@@ -549,7 +593,7 @@ const ContractDetail = () => {
         // '优惠金额': `¥${formatCurrency(contract.discount_amount)}`,
     } : contract.contract_type_value === 'nanny_trial' ? {
         '合同类型': '育儿嫂试工',
-        '级别/月薪': `¥${formatCurrency(contract.employee_level)}`,
+        '级别/日薪': `¥${formatCurrency(contract.employee_level)}`,
     } : contract.contract_type_value === 'external_substitution' ? {
         '合同类型': '临时替班合同',
         '管理费': `¥${formatCurrency(contract.management_fee_amount)}`,
@@ -650,20 +694,47 @@ const ContractDetail = () => {
         </Grid>
     ) : null;
 
-    const introFeeField = (['nanny', 'nanny_trial'].includes(contract.contract_type_value)) ? (
-        <EditableDetailItem
-            label="介绍费"
-            value={introFee}
-            isEditing={isEditingIntroFee}
-            onEdit={() => setIsEditingIntroFee(true)}
-            onSave={handleUpdateIntroFee}
-            onCancel={() => {
-                setIsEditingIntroFee(false);
-                setIntroFee(contract.introduction_fee || '0');
-            }}
-            onChange={(e) => setIntroFee(e.target.value)}
-        />
+
+    // --- 【核心修改】根据管理费率或介绍费，动态显示不同内容 ---
+    const isTrialWithRate = contract.contract_type_value === 'nanny_trial' && contract.management_fee_rate > 0;
+
+    // 1. 定义管理费率字段
+    const managementRateField = isTrialWithRate ? (
+        <Grid item xs={12} sm={6} md={4}>
+            <Typography variant="body2" color="text.secondary" gutterBottom>管理费率</Typography>
+            <Typography variant="body1" component="div" sx={{ fontWeight: 500 }}>
+                {`${contract.management_fee_rate * 100}%`}
+            </Typography>
+        </Grid>
     ) : null;
+
+    // 2. 改造介绍费字段
+    const introFeeField = (['nanny', 'nanny_trial'].includes(contract.contract_type_value)) ? (
+        isTrialWithRate ? (
+            // 如果按费率收费，则显示提示文字
+            <Grid item xs={12} sm={6} md={4}>
+                <Typography variant="body2" color="text.secondary" gutterBottom>介绍费</Typography>
+                <Typography variant="body1" component="div" sx={{ fontStyle: 'italic', color:'text.secondary' }}>
+                    {`按${contract.management_fee_rate * 100}%收取管理费, 免收介绍费`}
+                </Typography>
+            </Grid>
+        ) : (
+            // 否则，保持原有的可编辑介绍费字段
+            <EditableDetailItem
+                label="介绍费"
+                value={introFee}
+                isEditing={isEditingIntroFee}
+                onEdit={() => setIsEditingIntroFee(true)}
+                onSave={handleUpdateIntroFee}
+                onCancel={() => {
+                    setIsEditingIntroFee(false);
+                    setIntroFee(contract.introduction_fee || '0');
+                }}
+                onChange={(e) => setIntroFee(e.target.value)}
+            />
+        )
+    ) : null;
+    // --- 修改结束 ---
 
     const notesField = (
         <EditableNotesItem
@@ -768,8 +839,10 @@ const ContractDetail = () => {
                                 {onboardingDateField}
                                 {depositField}
                                 {autoRenewField}
+                                {managementRateField}
                                 {introFeeField}
                                 {notesField}
+                                {/* {transferredToBillField} */}
                             </Grid>
                         </Paper>
                     </Grid>
@@ -853,27 +926,45 @@ const ContractDetail = () => {
                                             <TableCell>服务周期</TableCell>
                                             <TableCell>劳务天数</TableCell>
                                             <TableCell>加班天数</TableCell>
-                                            <TableCell>应付金额</TableCell>
+                                            <TableCell>应付/已付金额</TableCell>
                                             <TableCell>支付状态</TableCell>
                                             <TableCell align="right">操作</TableCell>
                                         </TableRow>
                                     </TableHead>
-                                    <TableBody>
+                                                                        <TableBody>
                                         {bills.map((bill) => (
-                                            <TableRow key={bill.id} hover>
-                                                <TableCell>{bill.billing_period}</TableCell>
-                                                <TableCell>{formatDate(bill.cycle_start_date)} ~ {formatDate(bill.cycle_end_date)}</TableCell>
-                                                    <TableCell>
+                                            <TableRow
+                                                key={bill.id}
+                                                hover
+                                                
+                                            >
+                                                <TableCell>
+                                                    {bill.billing_period}
+                                                    {bill.isTransferredBill && (
+                                                        <Tooltip title="试工费用已结算至此账单">
+                                                            <Chip label="费用转移至此账单" size="small" sx={{ ml: 1 }} />
+                                                        </Tooltip>
+                                                    )}
+                                                </TableCell>
+                                                <TableCell>{formatDate(bill.cycle_start_date)}~ {formatDate(bill.cycle_end_date)}</TableCell>
+                                                <TableCell>
                                                     {bill.base_work_days} 天
                                                     {bill.is_substitute_bill && (
-                                                        <Chip label="替" size="small" color="info"sx={{ ml: 1 }} />
+                                                        <Chip label="替" size="small" color="info" sx={{ ml: 1 }} />
                                                     )}
                                                 </TableCell>
                                                 <TableCell>{bill.overtime_days} 天</TableCell>
-                                                <TableCell sx={{fontWeight: 'bold'}}>{`¥${formatCurrency(bill.total_due)}`}</TableCell>
+                                                <TableCell sx={{fontWeight: 'bold', fontFamily:'monospace'}}>
+                                                    <Typography variant="body2" component="div">
+                                                        应付: ¥{formatCurrency(bill.total_due)}
+                                                    </Typography>
+                                                    <Typography variant="caption" component="div" color="success.dark">
+                                                        已付: ¥{formatCurrency(bill.total_paid)}
+                                                    </Typography>
+                                                </TableCell>
                                                 <TableCell><Chip label={bill.status} color={bill.status=== '已支付' ? 'success' : 'warning'} size="small" /></TableCell>
                                                 <TableCell align="right">
-                                                <Button variant="contained" size="small" onClick={() =>handleOpenBillModal(bill)}>
+                                                <Button variant="contained" size="small"onClick={() =>handleOpenBillModal(bill)}>
                                                     去管理
                                                 </Button>
                                                 </TableCell>

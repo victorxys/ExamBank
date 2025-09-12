@@ -2231,6 +2231,8 @@ class BaseContract(db.Model):
         db.Numeric(10, 2), nullable=True, comment="月管理费金额 (元/月)，从金数据同步的管理费金额"
     )
 
+    management_fee_rate = db.Column(db.Numeric(4, 2), nullable=True, comment="管理费费率, e.g., 0.20 for 20%")
+
     invoice_needed = db.Column(db.Boolean, nullable=False, default=False, server_default='false', comment="本合同是否需要开票")
 
     __mapper_args__ = {"polymorphic_on": type, "polymorphic_identity": "base"}
@@ -2269,13 +2271,15 @@ class NannyContract(BaseContract):  # 育儿嫂合同
 class NannyTrialContract(BaseContract):  # 育儿嫂试工合同
     __mapper_args__ = {"polymorphic_identity": "nanny_trial"}
     trial_outcome = db.Column(SAEnum(TrialOutcome), nullable=False,default=TrialOutcome.PENDING, server_default=TrialOutcome.PENDING.value, index=True, comment="试工结果 (pending, success, failure)")
+    
+    
 
 class ExternalSubstitutionContract(BaseContract):
     __tablename__ = 'external_substitution_contract'
     __table_args__ = {'comment': '外部替班合同'}
 
     id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('contracts.id', ondelete="CASCADE"), primary_key=True)
-    management_fee_rate = db.Column(db.Numeric(5, 2), nullable=False, default=0.20,comment="管理费率")
+    
 
     __mapper_args__ = {
         'polymorphic_identity': 'external_substitution',
@@ -2286,9 +2290,6 @@ class MaternityNurseContract(BaseContract):  # 月嫂合同
     # 月嫂定金统一为3000
     deposit_amount = db.Column(db.Numeric(10, 2), default=3000, comment="定金")
     # security_deposit_paid = db.Column(db.Numeric(10, 2), default=0, comment='客交保证金')
-    management_fee_rate = db.Column(
-        db.Numeric(4, 2), nullable=True, comment="管理费费率, e.g., 0.15 for 15%"
-    )
     discount_amount = db.Column(db.Numeric(10, 2), default=0, comment="优惠金额")
 
 

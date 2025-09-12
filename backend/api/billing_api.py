@@ -2089,10 +2089,18 @@ def create_virtual_contract():
                 security_deposit_paid=D(data["employee_level"])
             )
         elif contract_type == "nanny_trial":
+            # --- 【核心修改】处理管理费率和介绍费的互斥逻辑 ---
+            intro_fee = D(data.get("introduction_fee") or 0)
+            rate = D(data.get("management_fee_rate") or 0)
+
+            if intro_fee > 0 and rate > 0:
+                return jsonify({"error": "介绍费和管理费率不能同时填写。"}), 400
+
             new_contract = NannyTrialContract(
                 **common_params,
                 status="trial_active",
-                introduction_fee=D(data.get("introduction_fee") or 0)
+                introduction_fee=intro_fee,
+                management_fee_rate=rate
             )
         # 【新增分支】
         elif contract_type == "external_substitution":
@@ -2266,6 +2274,7 @@ def get_bills_for_contract(contract_id):
                 "cycle_start_date": bill.cycle_start_date.isoformat() if bill.cycle_start_date else "N/A",
                 "cycle_end_date": bill.cycle_end_date.isoformat() if bill.cycle_end_date else "N/A",
                 "total_due": str(bill.total_due),
+                "total_paid": str(bill.total_paid),
                 "status": status_map.get(bill.payment_status, "未知"), # <-- V2 修改
                 "payment_status_label": status_map.get(bill.payment_status, "未知"), # <-- V2 新增
                 "customer_is_paid": bill.payment_status == PaymentStatus.PAID, # <-- V2 新增
