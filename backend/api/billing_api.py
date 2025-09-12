@@ -4760,7 +4760,7 @@ def get_pending_trial_contracts():
         # 查询时不再需要复杂的 add_columns，直接获取完整的合同对象
         pending_trials = NannyTrialContract.query.filter(
             NannyTrialContract.trial_outcome == TrialOutcome.PENDING,
-            NannyTrialContract.end_date < today
+            # NannyTrialContract.end_date < today
         ).order_by(NannyTrialContract.end_date.asc()).all()
 
         results = []

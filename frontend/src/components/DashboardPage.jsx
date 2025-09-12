@@ -207,7 +207,7 @@ const DashboardPage = () => {
             setData(summaryRes.data);
 
             // 过滤掉2025年之前的试工合同
-            const twentyTwentyFive = new Date('2025-01-01');
+            const twentyTwentyFive = new Date('2025-09-01');
             const filteredTrials = trialsRes.data.filter(c => {
                 // 如果合同没有结束日期，则不应出现在“待处理”列表中
                 if (!c.start_date) {
@@ -235,7 +235,7 @@ const DashboardPage = () => {
     const refreshPendingTrials = async () => {
         try {
             const trialsRes = await api.get('/billing/contracts/pending-trials');
-            const twentyTwentyFive = new Date('2025-01-01');
+            const twentyTwentyFive = new Date('2025-09-01');
             const filteredTrials = trialsRes.data.filter(c => {
                 if (!c.end_date) {
                     return false;
@@ -249,7 +249,7 @@ const DashboardPage = () => {
             setAlert({ open: true, message: '刷新待处理列表失败', severity: 'error' });
         }
     };
-    
+
     const conversionActions = useTrialConversion((formalContractId) => {
         // 无论用户选择哪个按钮，我们都先刷新待办列表
         refreshPendingTrials();
