@@ -77,6 +77,8 @@ CORS(
     origins=[
         "http://localhost:5175",
         "https://ai.mengyimengsao.com",
+        "https://mengai.mengyimengsao.com",
+        "https://hr.mengyimengsao.com",
         "https://www.mengyimengsao.com",
     ],
 )
