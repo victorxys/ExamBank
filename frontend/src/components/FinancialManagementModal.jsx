@@ -1056,58 +1056,72 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                                                 </Box>
                                             }
     
-                                                secondary={(() => {
-                                                // --- 【最终版】 ---
-                                                const adjTooltipContent = getTooltipContent(null, billingDetails, !isCustomer, adj);
-                                                const mainDescription = adj.description.split('(')[0]; // 只显示括号前的主要描述
+                                        secondary={(() => {
+                                            const adjTooltipContent = getTooltipContent(null, billingDetails, !isCustomer, adj);
+                                            const mainDescription = adj.description.split('(')[0];
 
-                                                // 检查是否有转移链接的逻辑保持不变
-                                                const details = adj.details || {};
-                                                const status = details.status || '';
-                                                let linkBillId = null;
-                                                if (status === 'transferred_out' || status ==='transferred' || status === 'offsetting_transfer') {
-                                                    linkBillId = details.transferred_to_bill_id;
-                                                } else if (status === 'transferred_in') {
-                                                    linkBillId = details.transferred_from_bill_id;
-                                                }
+                                            const details = adj.details || {};
+                                            const status = details.status || '';
+                                            let linkBillId = null;
+                                            if (status === 'transferred_out' || status === 'transferred' || status ==='offsetting_transfer') {
+                                                linkBillId = details.transferred_to_bill_id;
+                                            } else if (status === 'transferred_in') {
+                                                linkBillId = details.transferred_from_bill_id;
+                                            }
 
-                                                return (
-                                                    <Typography variant="body2" component="span" sx={{ display: 'inline-flex', alignItems: 'center', flexWrap: 'wrap' }}>
-                                                        {mainDescription}
+                                            // --- 兼容三种链接情况的最终逻辑 ---
+                                            const sourceContractId = details.source_contract_id || adj.source_contract_id;
+                                            const destinationContractId = details.destination_contract_id;
 
-                                                        {/* 如果有计算过程，则显示InfoIcon */}
-                                                        {adjTooltipContent && (
-                                                            <Tooltip title={adjTooltipContent}arrow>
-                                                                <InfoIcon sx={{ fontSize:'1rem', color: 'action.active', ml: 0.5, cursor: 'help' }} />
-                                                            </Tooltip>
-                                                        )}
+                                            let linkContractId = null;
+                                            let tooltipTitle = "";
 
-                                                        {/* 如果有来源合同，则显示LinkIcon */}
-                                                        {adj.source_contract_id && !linkBillId&& (
-                                                            <Tooltip title="查看源试工合同">
-                                                                <IconButton
-                                                                    size="small"
-                                                                    onClick={(e) => { e.stopPropagation(); navigate(`/contract/detail/${adj.source_contract_id}`); onClose(); }}
-                                                                    sx={{ ml: 0.5, p: 0.2 }}
-                                                                >
-                                                                    <LinkIcon fontSize="inherit" />
-                                                                </IconButton>
-                                                            </Tooltip>
-                                                        )}
+                                            if (sourceContractId) {
+                                                linkContractId = sourceContractId;
+                                                tooltipTitle = details.source_contract_id ? "查看费用来源合同" : "查看源试工合同";
+                                            } else if (destinationContractId) {
+                                                linkContractId = destinationContractId;
+                                                tooltipTitle = "查看费用覆盖的新合同";
+                                            }
+                                            // --- 兼容逻辑结束 ---
 
-                                                        {/* 如果有账单转移链接，则显示按钮 */}
-                                                        {linkBillId && (
-                                                             <Button
-                                                                size="small" variant="text"
-                                                                sx={{ p: 0, m: 0, height:'auto', verticalAlign: 'baseline', lineHeight: 'inherit', mx: 0.5, minWidth: 'auto' }}
-                                                                onClick={(e) => { e.stopPropagation(); if(onNavigateToBill) onNavigateToBill(linkBillId); }}
+                                            return (
+                                                <Typography variant="body2" component="span" sx={{ display: 'inline-flex', alignItems:'center', flexWrap: 'wrap' }}>
+                                                    {mainDescription}
+
+                                                    {adjTooltipContent && (
+                                                        <Tooltip title={adjTooltipContent} arrow>
+                                                            <InfoIcon sx={{ fontSize: '1rem', color: 'action.active', ml: 0.5, cursor:'help' }} />
+                                                        </Tooltip>
+                                                    )}
+
+                                                    {/* --- 使用最终兼容逻辑来渲染合同跳转链接 --- */}
+                                                    {linkContractId && !linkBillId && (
+                                                        <Tooltip title={tooltipTitle}>
+                                                            <IconButton
+                                                                size="small"
+                                                                onClick={(e) => { e.stopPropagation(); navigate(`/contract/detail/${linkContractId}`); onClose(); }}
+                                                                sx={{ ml: 0.5, p: 0.2 }}
                                                             >
-                                                                (查看详情)
-                                                            </Button>
-                                                        )}
-                                                    </Typography>
-                                                );
-                                            })()}
+                                                                <LinkIcon fontSize="inherit" />
+                                                            </IconButton>
+                                                        </Tooltip>
+                                                    )}
+                                                    {/* --- 渲染逻辑结束 --- */}
+
+                                                    {/* 账单内跳转逻辑保持不变 */}
+                                                    {linkBillId && (
+                                                        <Button
+                                                            size="small" variant="text"
+                                                            sx={{ p: 0, m: 0, height: 'auto', verticalAlign: 'baseline', lineHeight:'inherit', mx: 0.5, minWidth: 'auto' }}
+                                                            onClick={(e) => { e.stopPropagation(); if (onNavigateToBill) onNavigateToBill(linkBillId); }}
+                                                        >
+                                                            (查看详情)
+                                                        </Button>
+                                                    )}
+                                                </Typography>
+                                            );
+                                        })()}
                                         />
                                     </ListItem>
                                 );

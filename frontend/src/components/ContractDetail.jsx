@@ -7,7 +7,7 @@ import {
   Box, Typography, Paper, Grid, CircularProgress, Button,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Chip,Tooltip,
   List, ListItem, ListItemText, Divider, Dialog, DialogTitle, DialogContent,MenuItem,
-  DialogActions, Alert, Stack, IconButton, TextField, InputAdornment, Switch
+  DialogActions, Alert, Stack, IconButton, TextField, InputAdornment, Switch,FormControlLabel
 } from '@mui/material';
 import {
     ArrowBack as ArrowBackIcon, Edit as EditIcon, CheckCircle as CheckCircleIcon,Info as InfoIcon,
@@ -132,6 +132,12 @@ const ContractDetail = () => {
     const [terminationDialogOpen, setTerminationDialogOpen] = useState(false);
     const [terminationDate, setTerminationDate] = useState(null);
 
+    const [isTransfer, setIsTransfer] = useState(false);
+    const [substitutes, setSubstitutes] = useState([]);
+    const [selectedSubstituteUserId, setSelectedSubstituteUserId] = useState('');
+    const [selectedNewContractId, setSelectedNewContractId] = useState('');
+    const [loadingTransferOptions, setLoadingTransferOptions] = useState(false);
+
     const [isEditingIntroFee, setIsEditingIntroFee] = useState(false);
     const [introFee, setIntroFee] = useState('');
 
@@ -207,6 +213,41 @@ const ContractDetail = () => {
             fetchData();
         }
     }, [contractId, fetchData]);
+
+    // 修正后的useEffect，使用 customer_name 进行筛选
+    useEffect(() => {
+        // 如果用户选择了“转签”并且选择了一个员工
+        if (isTransfer && selectedSubstituteUserId) {
+            const fetchEligibleContracts = async () => {
+                setLoadingTransferOptions(true);
+                setEligibleContracts([]); // 先清空
+                setSelectedNewContractId(''); // 重置合同选择
+                try {
+                    // 根据客户姓名和新选的员工ID来获取合同
+                    const contractsRes = await api.get('/billing/contracts',{
+                        params: {
+                            customer_name: contract.customer_name, // <-- 【修正】使用 customer_name
+                            employee_id: selectedSubstituteUserId,
+                            status: 'active',
+                            per_page: 100
+                        }
+                    });
+                    // 同样要过滤掉当前正在操作的合同
+                    const eligible = contractsRes.data.items.filter(c => c.id!== contractId);
+                    setEligibleContracts(eligible);
+                } catch (error) {
+                    setAlert({ open: true, message: `获取目标合同列表失败: ${error.message}`, severity: 'warning' });
+                } finally {
+                    setLoadingTransferOptions(false);
+                }
+            };
+
+            fetchEligibleContracts();
+        } else {
+            // 如果没有选择员工，就清空合同列表
+            setEligibleContracts([]);
+        }
+    }, [isTransfer, selectedSubstituteUserId, contractId, contract?.customer_name]); // 依赖项也要更新
 
     useEffect(() => {
         if (contract?.trial_outcome === 'success' && contract.converted_to_formal_contract_id){
@@ -386,30 +427,72 @@ const ContractDetail = () => {
         }
     };
 
-    const handleOpenTerminationDialog = () => {
+    const handleOpenTerminationDialog = async () => {
         if (!contract) return;
-        // 使用合同的开始日期作为默认终止日期，如果开始日期不存在，则回退到今天
-        const defaultDate = contract.start_date ? new Date(contract.start_date) :new Date();
+
+        const defaultDate = contract.start_date ? new Date(contract.start_date) : new Date();
         setTerminationDate(defaultDate);
         setTerminationDialogOpen(true);
+
+        // 重置所有转签相关的状态
+        setIsTransfer(false);
+        setSelectedSubstituteUserId('');
+        setSelectedNewContractId('');
+        setEligibleContracts([]); // 清空旧的合同列表
+        setSubstitutes([]); // 清空旧的替班列表
+
+        setLoadingTransferOptions(true);
+        try {
+            // 现在只获取替班员工列表
+            const substitutesRes = await api.get(`/contracts/${contractId}/substitutes`);
+            // 去重，确保每个替班员工只在下拉列表中出现一次
+            const uniqueSubstitutes = Array.from(new Map(substitutesRes.data.map(item => [item.substitute_user_id, item])).values());
+            setSubstitutes(uniqueSubstitutes);
+        } catch (error) {
+            setAlert({ open: true, message: `获取替班员工列表失败: ${error.message}`, severity: 'warning' });
+        } finally {
+            setLoadingTransferOptions(false);
+        }
     };
+
 
     const handleCloseTerminationDialog = () => {
         setTerminationDialogOpen(false);
         setTerminationDate(null);
+        // 关闭时也要重置转签状态
+        setIsTransfer(false);
     };
 
     const handleConfirmTermination = async () => {
         if (!contract || !terminationDate) return;
+
+        // 基础的请求体
+        let payload = {
+            termination_date: terminationDate.toISOString().split('T')[0],
+        };
+
+        // 如果用户选择了“转签”
+        if (isTransfer) {
+            // 验证是否已选择员工和目标合同
+            if (!selectedSubstituteUserId || !selectedNewContractId) {
+                setAlert({ open: true, message:'请选择要转签的员工和目标合同', severity: 'warning' });
+                return; // 中断执行
+            }
+            // 如果验证通过，在请求体中加入 transfer_options
+            payload.transfer_options = {
+                substitute_user_id: selectedSubstituteUserId,
+                new_contract_id: selectedNewContractId,
+            };
+        }
+
         try {
-            await api.post(`/billing/contracts/${contract.id}/terminate`, {
-                termination_date: terminationDate.toISOString().split('T')[0],
-            });
-            setAlert({ open: true, message: '合同已终止，正在为您重算最后一期账单...', severity: 'success' });
+            // 使用我们构建好的 payload 发起请求
+            await api.post(`/billing/contracts/${contract.id}/terminate`,payload);
+            setAlert({ open: true, message: '合同终止操作成功！', severity:'success' });
             handleCloseTerminationDialog();
             fetchData(); // 重新获取数据以更新页面
         } catch (error) {
-            setAlert({ open: true, message: `操作失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
+            setAlert({ open: true, message: `操作失败: ${error.response?.data?.message || error.message}`, severity: 'error' });
         }
     };
 
@@ -984,13 +1067,11 @@ const ContractDetail = () => {
                 </Grid>
 
                 {/* --- 修改 3: 添加确认弹窗 --- */}
-                <Dialog open={terminationDialogOpen} onClose={handleCloseTerminationDialog}>
-                    <DialogTitle>确认合同操作</DialogTitle>
+                <Dialog open={terminationDialogOpen}onClose={handleCloseTerminationDialog} fullWidth maxWidth="sm">
+                    <DialogTitle>确认合同终止操作</DialogTitle>
                     <DialogContent>
                         <Alert severity="warning" sx={{ mt: 1, mb: 2 }}>
-                            您正在为 <b>{contract?.customer_name} ({contract?.employee_name})</b> 的合同进行操作。
-                            <br/>
-                            此操作将把合同的最终状态设置为“已终止”并重算最后一期账单。
+                            您正在为 <b>{contract?.customer_name}({contract?.employee_name})</b> 的合同进行操作。
                         </Alert>
                         <DatePicker
                             label="终止日期"
@@ -999,6 +1080,51 @@ const ContractDetail = () => {
                             minDate={contract.start_date ? new Date(contract.start_date) : undefined}
                             sx={{ width: '100%', mt: 1 }}
                         />
+                        {/* --- 新增：转签开关 --- */}
+                        <FormControlLabel
+                            control={<Switch checked={isTransfer} onChange={(e) => setIsTransfer(e.target.checked)} />}
+                            label="是否为转签新合同？（将当前合同的替班费用转移到新合同）"
+                            sx={{ mt: 2 }}
+                        />
+                        {/* --- 新增：转签选项的条件渲染 --- */}
+                        {isTransfer && (
+                            <Box sx={{ mt: 2, border: '1px dashed grey', p: 2, borderRadius: 1 }}>
+                                {loadingTransferOptions ? <CircularProgress size={24} /> : (
+                                    <Stack spacing={2}>
+                                        <TextField
+                                            select
+                                            fullWidth
+                                            label="选择替班员工"
+                                            value={selectedSubstituteUserId}
+                                            onChange={(e) =>setSelectedSubstituteUserId(e.target.value)}
+                                            helperText={substitutes.length=== 0 ? "此合同无替班记录" : "选择要转正的员工"}
+                                            disabled={substitutes.length ===0}
+                                        >
+                                            {substitutes.map(sub => (
+                                                <MenuItem key={sub.substitute_user_id} value={sub.substitute_user_id}>
+                                                    {sub.substitute_user_name}
+                                                </MenuItem>
+                                            ))}
+                                        </TextField>
+                                        <TextField
+                                            select
+                                            fullWidth
+                                            label="选择要转入的新合同"
+                                            value={selectedNewContractId}
+                                            onChange={(e) =>setSelectedNewContractId(e.target.value)}
+                                            helperText={eligibleContracts.length === 0 ? "未找到该员工与客户间的生效合同" : ""}
+                                            disabled={!selectedSubstituteUserId || eligibleContracts.length === 0}
+                                        >
+                                            {eligibleContracts.map(c => (
+                                                <MenuItem key={c.id}value={c.id}>
+                                                    {`合同: ${c.employee_name} (${formatDate(c.start_date)} - ${formatDate(c.end_date)})`}
+                                                </MenuItem>
+                                            ))}
+                                        </TextField>
+                                    </Stack>
+                                )}
+                            </Box>
+                        )}
                     </DialogContent>
                     <DialogActions>
                         <Button onClick={handleCloseTerminationDialog}>取消</Button>

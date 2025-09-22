@@ -61,7 +61,7 @@ const CreateVirtualContractModal = ({ open, onClose, onSuccess }) => {
             const startDate = new Date(formData.start_date);
             if (!isNaN(startDate.getTime())) {
                 const newEndDate = new Date(startDate);
-                newEndDate.setDate(newEndDate.getDate() + 6);
+                newEndDate.setDate(newEndDate.getDate() + 7);
                 const endTimeChanged = formData.end_date?.getTime() !==newEndDate.getTime();
                 if (endTimeChanged) {
                     setFormData(prev => ({ ...prev, end_date: newEndDate }));

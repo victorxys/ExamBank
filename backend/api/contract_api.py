@@ -12,7 +12,9 @@ from backend.models import (
 )
 from backend.tasks import calculate_monthly_billing_task
 from backend.services.billing_engine import BillingEngine
-from backend.api.billing_api import _get_billing_details_internal
+from backend.services.contract_service import cancel_substitute_bill_due_to_transfer, apply_transfer_credits_to_new_contract
+# from backend.api.billing_api import _get_billing_details_internal
+from backend.api.utils import get_billing_details_internal
 from datetime import datetime
 import decimal
 from sqlalchemy.exc import IntegrityError
@@ -70,7 +72,7 @@ def create_substitute_record(contract_id):
         affected_bill_id = engine.process_substitution(new_record.id)
 
         # 3. Fetch the latest details of the affected bill
-        latest_details = _get_billing_details_internal(bill_id=affected_bill_id)
+        latest_details = get_billing_details_internal(bill_id=affected_bill_id)
 
         return jsonify(
             {
@@ -210,8 +212,10 @@ def delete_substitute_record(record_id):
 @contract_bp.route("/<uuid:contract_id>/terminate", methods=["POST"])
 @jwt_required()
 def terminate_contract(contract_id):
+    current_app.logger.debug(f"=========开始终止合同========={contract_id}")
     data = request.get_json()
     termination_date_str = data.get("termination_date")
+    transfer_options = data.get("transfer_options")
 
     if not termination_date_str:
         return jsonify({"error": "Termination date is required"}), 400
@@ -223,74 +227,95 @@ def terminate_contract(contract_id):
 
     contract = BaseContract.query.get_or_404(contract_id)
 
-    # --- 修复开始: 精确删除未来月份的账单，而不是当月的 ---
-    termination_year = termination_date.year
-    termination_month = termination_date.month
+    try:
+        # 如果是转签，按顺序执行新的总指挥逻辑
+        if transfer_options:
+            new_contract_id = transfer_options.get("new_contract_id")
+            substitute_user_id = transfer_options.get("substitute_user_id")
+            if not new_contract_id or not substitute_user_id:
+                raise ValueError("转签失败：缺少新合同ID或替班员工ID。")
+            
+            new_contract = db.session.get(BaseContract, new_contract_id)
+            if not new_contract:
+                raise ValueError(f"转签失败：新合同 {new_contract_id} 未找到。")
+            substitute_user = db.session.get(User, substitute_user_id)
+            if not substitute_user:
+                raise ValueError(f"转签失败：替班员工 {substitute_user_id} 未找到。")
 
-    # 构建查询，查找所有在终止月份之后的账单
-    bills_to_delete_query = CustomerBill.query.with_entities(CustomerBill.id).filter(
-        CustomerBill.contract_id == contract_id,
-        ((CustomerBill.year == termination_year) & (CustomerBill.month > termination_month)) |
-        (CustomerBill.year > termination_year)
-    )
-    bill_ids_to_delete = [item[0] for item in bills_to_delete_query.all()]
+            # 第1步：作废旧合同的替班账单
+            cancel_substitute_bill_due_to_transfer(
+                db.session,
+                old_contract=contract,
+                new_contract=new_contract,
+                substitute_user=substitute_user,
+                termination_date=termination_date
+            )
 
-    # 构建查询，查找所有在终止月份之后的薪酬单
-    payrolls_to_delete_query = EmployeePayroll.query.with_entities(
-        EmployeePayroll.id
-    ).filter(
-        EmployeePayroll.contract_id == contract_id,
-        ((EmployeePayroll.year == termination_year) & (EmployeePayroll.month > termination_month)) |
-        (EmployeePayroll.year > termination_year)
-    )
-    payroll_ids_to_delete = [item[0] for item in payrolls_to_delete_query.all()]
-    # --- 修复结束 ---
+            # 第2步：计算旧合同的应退款项
+            engine = BillingEngine()
+            refunds = engine.calculate_termination_refunds(contract, termination_date)
 
-    if bill_ids_to_delete:
-        FinancialActivityLog.query.filter(
-            FinancialActivityLog.customer_bill_id.in_(bill_ids_to_delete)
-        ).delete(synchronize_session=False)
+            # 第3步：将退款作为信用额度应用到新合同
+            apply_transfer_credits_to_new_contract(
+                db.session,
+                new_contract=new_contract,
+                credits=refunds,
+                old_contract_id=str(contract.id),
+                termination_date=termination_date
+            )
+            
+            message = f"合同 {contract_id} 已成功终止，并完成费用转签。"
 
-    if payroll_ids_to_delete:
-        FinancialActivityLog.query.filter(
-            FinancialActivityLog.employee_payroll_id.in_(payroll_ids_to_delete)
-        ).delete(synchronize_session=False)
+        # 不论是否转签，最后都要执行终止操作
+        termination_year = termination_date.year
+        termination_month = termination_date.month
 
-    if bill_ids_to_delete:
-        CustomerBill.query.filter(CustomerBill.id.in_(bill_ids_to_delete)).delete(
-            synchronize_session=False
+        bills_to_delete_query = CustomerBill.query.with_entities(CustomerBill.id).filter(
+            CustomerBill.contract_id == contract_id,
+            ((CustomerBill.year == termination_year) & (CustomerBill.month > termination_month)) |
+            (CustomerBill.year > termination_year)
         )
+        bill_ids_to_delete = [item[0] for item in bills_to_delete_query.all()]
 
-    if payroll_ids_to_delete:
-        EmployeePayroll.query.filter(
-            EmployeePayroll.id.in_(payroll_ids_to_delete)
-        ).delete(synchronize_session=False)
+        payrolls_to_delete_query = EmployeePayroll.query.with_entities(EmployeePayroll.id).filter(
+            EmployeePayroll.contract_id == contract_id,
+            ((EmployeePayroll.year == termination_year) & (EmployeePayroll.month > termination_month)) |
+            (EmployeePayroll.year > termination_year)
+        )
+        payroll_ids_to_delete = [item[0] for item in payrolls_to_delete_query.all()]
 
-    contract.status = "terminated"
-    contract.end_date = termination_date
+        if bill_ids_to_delete:
+            FinancialActivityLog.query.filter(FinancialActivityLog.customer_bill_id.in_(bill_ids_to_delete)).delete(synchronize_session=False)
+            CustomerBill.query.filter(CustomerBill.id.in_(bill_ids_to_delete)).delete(synchronize_session=False)
 
-    if contract.type == "maternity_nurse":
-        contract.expected_offboarding_date = termination_date
+        if payroll_ids_to_delete:
+            FinancialActivityLog.query.filter(FinancialActivityLog.employee_payroll_id.in_(payroll_ids_to_delete)).delete(synchronize_session=False)
+            EmployeePayroll.query.filter(EmployeePayroll.id.in_(payroll_ids_to_delete)).delete(synchronize_session=False)
 
-    year = termination_date.year
-    month = termination_date.month
+        contract.status = "terminated"
+        contract.end_date = termination_date
+        if hasattr(contract, 'expected_offboarding_date'):
+            contract.expected_offboarding_date = termination_date
 
-    # 关键修复：先提交数据库事务，再触发异步任务，防止并发竞争
-    db.session.commit()
+        # 如果不是转签，才需要重算最后一期账单。转签的账单由转移的费用本身来体现。
+        if not transfer_options:
+            calculate_monthly_billing_task.delay(
+                termination_year, termination_month, contract_id=str(contract.id), force_recalculate=True
+            )
+            message = f"合同 {contract_id} 已终止，正在为您重算最后一期账单..."
 
-    calculate_monthly_billing_task.delay(
-        year, month, contract_id=str(contract_id), force_recalculate=True
-    )
+        # 统一提交数据库事务
+        db.session.commit()
+        current_app.logger.info(message)
+        return jsonify({"message": message}), 200
 
-    current_app.logger.info(
-        f"Contract {contract_id} terminated on {termination_date}. Recalculation triggered for {year}-{month}."
-    )
-
-    return jsonify(
-        {
-            "message": f"Contract {contract_id} has been terminated. Recalculation for {year}-{month} is in progress."
-        }
-    )
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(
+            f"Error during contract termination for {contract_id}: {e}",
+            exc_info=True
+        )
+        return jsonify({"error": "operation_failed", "message": str(e)}), 500
 
 
 @contract_bp.route("/<uuid:contract_id>/succeed", methods=["POST"])

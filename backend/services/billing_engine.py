@@ -275,6 +275,8 @@ class BillingEngine:
     def calculate_for_month(
         self, year: int, month: int, contract_id=None, force_recalculate=False, actual_work_days_override=None, cycle_start_date_override=None , end_date_override = None
     ):
+                # <--- 在这里增加下面这行 --->
+        current_app.logger.debug(f"[DEBUG-ENGINE] calculate_for_month called with: year={year}, month={month}, contract_id={contract_id}, force_recalculate={force_recalculate}, actual_work_days_override={actual_work_days_override}, end_date_override={end_date_override}")
         current_app.logger.info(
             f"开始计算contract:{contract_id}  {year}-{month} 的账单 force_recalculate:{force_recalculate}"
         )
@@ -302,7 +304,7 @@ class BillingEngine:
                 )
             elif contract.type == "nanny":
                 self._calculate_nanny_bill_for_month(
-                    contract, year, month, force_recalculate, actual_work_days_override , end_date_override=None
+                    contract, year, month, force_recalculate, actual_work_days_override , end_date_override=end_date_override
                 )
             elif contract.type == "nanny_trial":
                 self._calculate_nanny_trial_bill(
@@ -632,64 +634,143 @@ class BillingEngine:
             },
         }
 
+    def calculate_termination_refunds(self, contract: BaseContract, termination_date: date) -> dict:
+        """
+        (V1-新增) 计算合同终止时的应退款项（保证金、管理费）。
+        这是一个纯计算函数，不修改数据库。
+        """
+        if not contract:
+            return {'deposit_refund': D('0'), 'management_fee_refund': D('0')}
+
+        QUANTIZER = D("0.01")
+        refunds = {
+            'deposit_refund': D(getattr(contract, 'security_deposit_paid', 0) or 0).quantize(QUANTIZER),
+            'management_fee_refund': D('0')
+        }
+
+        # --- 计算管理费退款 --- 
+        is_monthly_renew = getattr(contract, 'is_monthly_auto_renew', False)
+        
+        if is_monthly_renew:
+            # 月签合同：退还当月剩余天数的管理费
+            term_month = termination_date.month
+            term_year = termination_date.year
+            _, days_in_month = calendar.monthrange(term_year, term_month)
+            
+            # 找到当月的账单，以获取当月管理费总额
+            current_bill = CustomerBill.query.filter(
+                CustomerBill.contract_id == contract.id,
+                CustomerBill.year == term_year,
+                CustomerBill.month == term_month,
+                CustomerBill.is_substitute_bill == False
+            ).first()
+
+            if current_bill and current_bill.calculation_details:
+                monthly_management_fee = D(current_bill.calculation_details.get('management_fee', '0'))
+                if monthly_management_fee > 0:
+                    daily_fee = monthly_management_fee / days_in_month
+                    remaining_days = days_in_month - termination_date.day
+                    refund_amount = (daily_fee * remaining_days).quantize(QUANTIZER)
+                    refunds['management_fee_refund'] = refund_amount
+        else:
+            # 非月签合同：退还已付但未消耗的总管理费
+            # 1. 找到首期账单，因为非月签的管理费是在首期一次性收取的
+            first_bill = CustomerBill.query.filter(
+                CustomerBill.contract_id == contract.id,
+                CustomerBill.is_substitute_bill == False
+            ).order_by(CustomerBill.cycle_start_date.asc()).first()
+
+            if first_bill and first_bill.calculation_details:
+                total_paid_management_fee = D(first_bill.calculation_details.get('management_fee', '0'))
+                
+                if total_paid_management_fee > 0:
+                    # 2. 计算已消耗的管理费
+                    contract_start_date = self._to_date(contract.start_date)
+                    days_served = (termination_date - contract_start_date).days
+                    
+                    # 假设总管理费是基于整个合同周期的，计算日均管理费
+                    total_contract_days = (self._to_date(contract.end_date) - contract_start_date).days
+                    if total_contract_days > 0:
+                        daily_fee = total_paid_management_fee / total_contract_days
+                        consumed_fee = (daily_fee * days_served).quantize(QUANTIZER)
+                        refund_amount = (total_paid_management_fee - consumed_fee).quantize(QUANTIZER)
+                        refunds['management_fee_refund'] = refund_amount
+
+        current_app.logger.info(f"为合同 {contract.id} 计算出的退款为: {refunds}")
+        return refunds
+
     def _calculate_nanny_bill_for_month(
         self, contract: NannyContract, year: int, month: int, force_recalculate=False, actual_work_days_override=None, end_date_override=None
     ):
         """育儿嫂计费逻辑的主入口。"""
+        # 调试日志 1: 检查传入的参数
+        current_app.logger.debug(f"[DEBUG-ENGINE] _calculate_nanny_bill_for_month called with: end_date_override={end_date_override}, actual_work_days_override={actual_work_days_override}")
+
         current_app.logger.info(
             f"  [NannyCALC] 开始处理育儿嫂合同 {contract.id} for {year}-{month}"
         )
+
         bill_to_recalculate = None
         if force_recalculate:
-            # 尝试找到与当前年月匹配的现有账单
             bill_to_recalculate = CustomerBill.query.filter_by(
-                contract_id=contract.id,
-                year=year,
-                month=month,
-                is_substitute_bill=False
+                contract_id=contract.id, year=year, month=month, is_substitute_bill=False
             ).first()
 
+        # --- 修正逻辑开始 ---
         if bill_to_recalculate:
-            # 如果找到了要重算的账单，就用它的周期
             cycle_start = bill_to_recalculate.cycle_start_date
-            cycle_end = bill_to_recalculate.cycle_end_date
+            # 调试日志 2: 检查从数据库读取的原始周期结束日
+            current_app.logger.debug(f"[DEBUG-ENGINE] Found existing bill. Initial cycle_end from DB: {bill_to_recalculate.cycle_end_date}")
+
+            # 关键修正：如果 end_date_override 存在，它必须覆盖从数据库读出的旧日期
+            if end_date_override:
+                cycle_end = end_date_override
+                current_app.logger.debug(f"[DEBUG-ENGINE] end_date_override is present. Overriding cycle_end to: {cycle_end}")
+            else:
+                cycle_end = bill_to_recalculate.cycle_end_date
+
             current_app.logger.info(f"    [NannyCALC] 强制重算，使用现有账单 {bill_to_recalculate.id} 的周期: {cycle_start} to {cycle_end}")
         else:
-            # 否则（非重算或重算但未找到账单），按常规逻辑推导周期
             cycle_start, cycle_end = self._get_nanny_cycle_for_month(contract, year, month, end_date_override)
+        # --- 修正逻辑结束 ---
+
         current_app.logger.info(f" cycle_start: {cycle_start}")
         if not cycle_start:
             current_app.logger.info(
-                f"    [NannyCALC] 合同 {contract.id} {contract.customer_name} {contract.jinshuju_entry_id} {contract.start_date} {contract.end_date} 在 {year}-{month} 无需创建账单，跳过。"
+                f"    [NannyCALC] 合同 {contract.id} 在 {year}-{month} 无需创建账单，跳过。"
             )
             return
+
+        # --- 新增逻辑：根据最终的周期，计算工作日覆盖值 ---
+        local_actual_work_days_override = actual_work_days_override
+        if end_date_override and local_actual_work_days_override is None:
+            start_date_obj, end_date_obj = self._to_date(cycle_start), self._to_date(cycle_end)
+            if start_date_obj and end_date_obj:
+                days = (end_date_obj - start_date_obj).days + 1
+                local_actual_work_days_override = days
+                # 调试日志 3: 检查新计算出的工作日
+                current_app.logger.debug(f"[DEBUG-ENGINE] Calculated actual_work_days_override: {local_actual_work_days_override} days")
+        # --- 新增逻辑结束 ---
 
         bill, payroll = self._get_or_create_bill_and_payroll(
             contract, year, month, cycle_start, cycle_end
         )
 
-        if (
-            not force_recalculate
-            and bill.calculation_details
-            and "calculation_log" in bill.calculation_details
-        ):
-            current_app.logger.info(
-                f"    [NannyCALC] 合同 {contract.id} 的账单已存在且无需重算，跳过。"
-            )
+        if (not force_recalculate and bill.calculation_details and "calculation_log" in bill.calculation_details):
+            current_app.logger.info(f"    [NannyCALC] 合同 {contract.id} 的账单已存在且无需重算，跳过。")
             return
 
-        current_app.logger.info(
-            f"    [NannyCALC] 为合同 {contract.id} 执行计算 (周期: {cycle_start} to {cycle_end})"
-        )
-        current_app.logger.info(f"actual_work_days_override:{actual_work_days_override}")
-        details = self._calculate_nanny_details(contract, bill, payroll, actual_work_days_override)
+        current_app.logger.info(f"    [NannyCALC] 为合同 {contract.id} 执行计算 (周期: {cycle_start} to {cycle_end})")
+        # 调试日志 4: 检查最终传入计算函数的参数
+        current_app.logger.debug(f"[DEBUG-ENGINE] Before details calculation: cycle_start={cycle_start}, cycle_end={cycle_end}, actual_work_days_override={local_actual_work_days_override}")
+
+        # 使用我们新计算的 local_actual_work_days_override
+        details = self._calculate_nanny_details(contract, bill, payroll, local_actual_work_days_override)
         bill, payroll = self._calculate_final_amounts(bill, payroll, details)
-        current_app.logger.info(
-            f"    [NannyCALC] 计算育儿嫂合同应收金额 {contract.id} 的账单总应收金额: {bill.total_due}"
-        )
+
+        current_app.logger.info(f"    [NannyCALC] 计算育儿嫂合同应收金额 {contract.id} 的账单总应收金额: {bill.total_due}")
         log = self._create_calculation_log(details)
         self._update_bill_with_log(bill, payroll, details, log)
-
         current_app.logger.info(f"    [NannyCALC] 计算完成 for contract {contract.id}")
 
     def _get_nanny_cycle_for_month(self, contract, year, month, end_date_override=None):
@@ -2066,17 +2147,16 @@ class BillingEngine:
             - D(details.get("employee_commission", 0)) # 佣金在计算实发金额时扣除
         )
         # 我们在 details 中同时记录 gross 和 net，方便日志和未来扩展
-        details["final_payout_gross"] = str(payroll.total_due)
-        details["final_payout_net"] = str(employee_net_payout.quantize(D("0.01")))
-
-        # payroll.total_due 现在代表“应发总额 (Gross Pay)”
-
+        # 1. 先用新计算出的正确金额更新账单和薪酬单对象
         bill.total_due = total_due.quantize(D("1"))
         payroll.total_due = employee_gross_payout.quantize(D("1"))
 
+        # 2. 然后，再用刚刚更新过的、正确的值去填充用于日志的 details 字典
         details["total_due"] = str(bill.total_due)
         details["final_payout"] = str(payroll.total_due)
-
+        details["final_payout_gross"] = str(payroll.total_due)
+        details["final_payout_net"] = str(employee_net_payout.quantize(D("0.01")))
+       
         return bill, payroll
 
     def _create_calculation_log(self, details):

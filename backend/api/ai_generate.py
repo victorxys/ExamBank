@@ -952,10 +952,18 @@ def generate_audio_with_gemini_tts(
     )
 
     try:
-        transport = httpx.HTTPTransport(proxy=proxy_url) if proxy_url else None
-        mounts = {"all://": transport} if transport else None
+        # --- 关键修改：在这里添加重试 ---
+        client_args = {"timeout": 180.0}
 
-        with httpx.Client(mounts=mounts, timeout=180.0) as client:
+        if proxy_url:
+            # 如果有代理，在 Transport 上配置重试
+            transport = httpx.HTTPTransport(proxy=proxy_url, retries=3)
+            client_args['mounts'] = {"all://": transport}
+        else:
+            # 如果没有代理，直接在 Client 上配置重试
+            client_args['retries'] = 3
+
+        with httpx.Client(**client_args) as client:
             with client.stream(
                 "POST", api_url, headers=headers, json=payload
             ) as response:
