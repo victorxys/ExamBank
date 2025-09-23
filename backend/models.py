@@ -2458,7 +2458,7 @@ class CustomerBill(db.Model):
     cycle_end_date = db.Column(db.DateTime(timezone=True), nullable=False)
 
     customer_name = db.Column(
-        db.String(255), nullable=False, index=True
+        db.String(255), nullable=False
     )
 
     payment_details = db.Column(

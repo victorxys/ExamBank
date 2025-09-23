@@ -16,7 +16,7 @@ from datetime import date, timedelta, datetime, timezone
 import decimal
 from dateutil.relativedelta import relativedelta
 from collections import defaultdict
-from pypinyin import pinyin, Style
+from pypinyin import pinyin, Style, lazy_pinyin
 import os
 import uuid
 from werkzeug.utils import secure_filename
@@ -113,16 +113,14 @@ def _get_or_create_personnel_ref(name: str, phone: str = None):
         return {"type": "service_personnel", "id": sp.id}
 
     # 5. 如果都找不到，则创建新的 ServicePersonnel
-    # --- 新增：生成拼音 ---
-    name_pinyin_full = "".join(item[0] for item in pinyin(name, style=Style.NORMAL))
+    name_pinyin_full = "".join(lazy_pinyin(name))
     name_pinyin_initials = "".join(item[0] for item in pinyin(name, style=Style.FIRST_LETTER))
-    name_pinyin_combined = f"{name_pinyin_full} {name_pinyin_initials}"
-    # --- 结束 ---
+    name_pinyin_combined = f"{name_pinyin_full}{name_pinyin_initials}"
 
     new_sp = ServicePersonnel(
         name=name,
         phone_number=phone,
-        name_pinyin=name_pinyin_combined # <-- 在这里使用生成的拼音
+        name_pinyin=name_pinyin_combined
     )
     db.session.add(new_sp)
     db.session.flush()
@@ -2062,7 +2060,7 @@ def create_virtual_contract():
         customer_name = data["customer_name"]
         cust_pinyin_full = "".join(item[0] for item in pinyin(customer_name,style=Style.NORMAL))
         cust_pinyin_initials = "".join(item[0] for item in pinyin(customer_name,style=Style.FIRST_LETTER))
-        customer_name_pinyin = f"{cust_pinyin_full} {cust_pinyin_initials}"
+        customer_name_pinyin = f"{cust_pinyin_full}{cust_pinyin_initials}"
 
         common_params = {
             "customer_name": data["customer_name"],
@@ -2480,7 +2478,7 @@ def get_single_contract_details(contract_id):
             FinancialAdjustment.contract_id == contract_id,
             FinancialAdjustment.adjustment_type == AdjustmentType.DEPOSIT
         ).first()
-
+        is_monthly_auto_renew = contract.is_monthly_auto_renew
         # 2. 在 Python 中应用我们最终确定的业务逻辑
         final_deposit_amount = 0
         is_deposit_paid = False
@@ -2588,6 +2586,7 @@ def get_single_contract_details(contract_id):
             "remaining_months": remaining_months_str,
             "highlight_remaining": highlight_remaining,
             "notes": contract.notes,
+            "is_monthly_auto_renew":is_monthly_auto_renew,
             # "is_monthly_auto_renew": getattr(contract,'is_monthly_auto_renew', None),
             "deposit_amount": str(final_deposit_amount),
             "deposit_paid": is_deposit_paid,
