@@ -2986,7 +2986,8 @@ def terminate_contract(contract_id):
                 _, days_in_month = calendar.monthrange(termination_date.year, termination_date.month)
                 if days_in_month > 0:
                     daily_fee = monthly_management_fee / D(days_in_month)
-                    remaining_days = days_in_month - termination_date.day
+                    # 按剩余天数退还管理费，因此需要 +1
+                    remaining_days = days_in_month - termination_date.day + 1
                     
                     if remaining_days > 0:
                         refund_amount = (daily_fee * D(remaining_days)).quantize(D("0.01"))
