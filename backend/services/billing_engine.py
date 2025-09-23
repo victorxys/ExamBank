@@ -2328,7 +2328,7 @@ class BillingEngine:
 
         return bill, payroll
 
-    def _calculate_nanny_trial_termination_details(self, contract,actual_trial_days):
+    def _calculate_nanny_trial_termination_details(self, contract,actual_trial_days, bill, payroll):
         """为试工失败结算生成详细的计算字典 (v16 - FINAL with Overtime)。"""
         QUANTIZER = D("0.01")
         level = D(contract.employee_level or 0)
@@ -2350,7 +2350,11 @@ class BillingEngine:
         management_fee = (monthly_rate* D('0.2') / 30 *(days)).quantize(QUANTIZER)
 
         current_app.logger.info(f"[TrialTerm-v14] 计算试工合同 {contract.id} 结算细节: 级别 {level}, 日薪 {daily_rate}, 试工天数 {days}, 加班天数 {overtime_days}, 基础费 {base_fee}, 加班费 {overtime_fee}, 管理费 {management_fee}")
-
+        # --- 【核心修复】调用 _get_adjustments 来加载实际的财务调整项 ---
+        cust_increase, cust_decrease, emp_increase, emp_decrease, deferred_fee, emp_commission = (
+            self._get_adjustments(bill.id, payroll.id)
+        )
+        # --- 修复结束 ---
         details = {
             "type": "nanny_trial_termination",
             "level": str(level),
@@ -2370,10 +2374,14 @@ class BillingEngine:
             "introduction_fee": str(contract.introduction_fee or "0.00"),
             "notes": contract.notes or "",
 
-            "customer_increase": "0.00",
-            "customer_decrease": "0.00",
-            "employee_increase": "0.00",
-            "employee_decrease": "0.00",
+            # --- 【核心修复】使用加载到的真实数据，而不是硬编码的0 ---
+            "customer_increase": str(cust_increase),
+            "customer_decrease": str(cust_decrease),
+            "employee_increase": str(emp_increase),
+            "employee_decrease": str(emp_decrease),
+            "employee_commission": str(emp_commission),
+            # --- 修复结束 ---
+            
             "first_month_deduction": "0.00",
             "discount": "0.00",
             "substitute_deduction": "0.00",
@@ -2392,15 +2400,14 @@ class BillingEngine:
         """
         current_app.logger.info(f"[TrialTerm-v14] 开始处理试工合同 {contract.id}，实际天数: {actual_trial_days}")
 
-        with db.session.begin_nested():
-            # 1. 获取包含所有基础组件的 details 字典
-            details = self._calculate_nanny_trial_termination_details(contract, actual_trial_days)
-
-            # 2. 创建或获取账单/薪酬单
+        with db.session.begin_nested(): 
+            # 1. 创建或获取账单/薪酬单
             term_date = contract.start_date + timedelta(days=actual_trial_days)
             bill, payroll = self._get_or_create_bill_and_payroll(
                 contract, term_date.year, term_date.month, contract.start_date, term_date
             )
+            # 2. 获取包含所有基础组件的 details 字典
+            details = self._calculate_nanny_trial_termination_details(contract, actual_trial_days, bill, payroll)
 
             # 3. 根据业务场景，动态修改 details 字典
             has_intro_fee = D(details['introduction_fee']) > 0

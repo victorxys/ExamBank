@@ -131,7 +131,7 @@ const getTooltipContent = (fieldName, billingDetails, isCustomer, adjustment = n
                         计算过程
                     </Typography>
                     <Typography variant="body2" sx={{ fontFamily: 'monospace', color:'grey.200', whiteSpace: 'pre-wrap', wordBreak:'break-all' }}>
-                        {calculationText}
+                        {adjustment.description}
                     </Typography>
                 </Box>
             );
@@ -943,11 +943,7 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                                                 billingDetails?.is_last_bill &&
                                                 !isEditMode && (
                                                     <Tooltip title="为本期账单延长服务天数">
-                                                        <IconButton size="small" sx={{ ml: 1 }}
-                                                            onClick={() => {
-                                                                onClose(); // 第一步：调用从 props 传进来的 onClose 函数来关闭弹窗
-                                                                navigate(`/contract/detail/${adj.source_contract_id}`); // 第二步：跳转到新页面
-                                                            }}>
+                                                        <IconButton size="small" sx={{ ml: 1 }}onClick={handleOpenExtensionDialog}>
                                                             <EditCalendarIcon fontSize="small" />
                                                         </IconButton>
                                                     </Tooltip>
@@ -1058,7 +1054,7 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
     
                                         secondary={(() => {
                                             const adjTooltipContent = getTooltipContent(null, billingDetails, !isCustomer, adj);
-                                            const mainDescription = adj.description.split('(')[0];
+                                            const mainDescription = adj.description;
 
                                             const details = adj.details || {};
                                             const status = details.status || '';
@@ -1086,7 +1082,7 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                                             // --- 兼容逻辑结束 ---
 
                                             return (
-                                                <Typography variant="body2" component="span" sx={{ display: 'inline-flex', alignItems:'center', flexWrap: 'wrap' }}>
+                                                <Typography variant="body2" component="span" sx={{ display: 'inline-flex', alignItems:'center', flexWrap: 'wrap', whiteSpace: 'pre-wrap', wordBreak: 'break-word'}}>
                                                     {mainDescription}
 
                                                     {adjTooltipContent && (
