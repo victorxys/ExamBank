@@ -83,7 +83,25 @@ const CreateVirtualContractModal = ({ open, onClose, onSuccess }) => {
             }
         }
     }, [formData.contract_type, formData.employee_level, formData.management_fee_rate]);
+    
+    useEffect(() => {
+        // 仅当是育儿嫂合同、开启了自动续签、且已填写开始日期时触发
+        if (formData.contract_type === 'nanny' && formData.is_monthly_auto_renew && formData.start_date) {
+            const startDate = new Date(formData.start_date);
+            if (!isNaN(startDate.getTime())) {
+                // 计算开始日期当月的最后一天
+                const year = startDate.getFullYear();
+                const month = startDate.getMonth();
+                const lastDayOfMonth = new Date(year, month+ 1, 0);
 
+                // 为防止无限循环，仅当计算出的日期与当前状态不同时才更新
+                const currentEndDate = formData.end_date ?new Date(formData.end_date) : null;
+                if (!currentEndDate || currentEndDate.getTime() !== lastDayOfMonth.getTime()) {
+                    setFormData(prev => ({ ...prev,end_date: lastDayOfMonth }));
+                }
+            }
+        }
+    }, [formData.is_monthly_auto_renew, formData.start_date, formData.contract_type]);
 
     const handleChange = (event) => {
         const { name, value } = event.target;
@@ -304,7 +322,11 @@ const CreateVirtualContractModal = ({ open, onClose, onSuccess }) => {
                                 )}
                             />
                         </Grid>
-
+                        {formData.contract_type === 'nanny' && (
+                            <Grid item xs={12}>
+                                <FormControlLabel control={<Switch checked={formData.is_monthly_auto_renew} onChange={handleSwitchChange} name="is_monthly_auto_renew" />}label="是否自动续签" />
+                            </Grid>
+                        )}
                         {formData.contract_type === 'external_substitution' ?(
                             <>
                                 <Grid item xs={12} sm={6}><DateTimePicker label="服务开始时间 *" value={formData.start_date} onChange={(v) =>handleDateChange('start_date', v)} sx={{ width: '100%' }} /></Grid>
@@ -362,9 +384,6 @@ const CreateVirtualContractModal = ({ open, onClose, onSuccess }) => {
                                 </Grid>
                                 <Grid item xs={12} sm={6}>
                                     <TextField fullWidth name="management_fee_amount" label="管理费 (元/月)" type="number" value={formData.management_fee_amount} onChange={handleInputChange} helperText="默认按级别10%计算，可修改" />
-                                </Grid>
-                                <Grid item xs={12}>
-                                    <FormControlLabel control={<Switch checked={formData.is_monthly_auto_renew} onChange={handleSwitchChange} name="is_monthly_auto_renew" />} label="是否自动续签" />
                                 </Grid>
                             </>
                         )}

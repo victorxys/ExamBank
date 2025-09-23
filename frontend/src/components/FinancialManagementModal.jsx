@@ -104,7 +104,7 @@ const formatValue = (key, value) => {
         return <Box component="span" sx={{ color: 'text.disabled' }}>{value || '—'}</Box>;
     if (key === '加班天数' || key === '替班天数' || key === '基本劳务天数' || key === '实际劳务天数' || key === '总劳务天数') {
         const num = parseFloat(value);
-        return isNaN(num) ? `${value} 天` : `${num.toFixed(2)} 天`;
+        return isNaN(num) ? `${value} 天` : `${num.toFixed(3)} 天`;
     }
     if (key.includes('费率')) {
         const num = Number(value);
@@ -853,7 +853,7 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                                                     variant="standard"
                                                     size="small"
                                                     inputProps={{
-                                                        step: 0.1,
+                                                        step: 0.001,
                                                         style: { textAlign: 'right', fontFamily: 'monospace', fontWeight: 500 }
                                                     }}
                                                     sx={{ maxWidth: '80px' }}
@@ -882,7 +882,7 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                                                     variant="standard"
                                                     size="small"
                                                     inputProps={{
-                                                        step: 0.01,
+                                                        step: 0.001,
                                                         style: { textAlign: 'right', fontFamily: 'monospace', fontWeight: 500 }
                                                     }}
                                                     sx={{ maxWidth: '80px' }}

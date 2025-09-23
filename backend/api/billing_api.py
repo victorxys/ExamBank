@@ -3228,7 +3228,7 @@ def defer_customer_bill(bill_id):
             customer_bill_id=next_bill.id,
             adjustment_type=AdjustmentType.DEFERRED_FEE,
             amount=amount_to_defer,
-            description=f"[系统添加] 从账单 {bill_to_defer.id} 顺延",
+            description=f"[系统添加] 从 {bill_to_defer.month} 月账单顺延到本月",
             date=next_bill.cycle_start_date
         )
         db.session.add(deferred_fee_adjustment)
@@ -3238,7 +3238,7 @@ def defer_customer_bill(bill_id):
             customer_bill_id=bill_to_defer.id,
             adjustment_type=AdjustmentType.CUSTOMER_DECREASE,
             amount=amount_to_defer,
-            description=f"[系统添加] 顺延至账单 {next_bill.id}",
+            description=f"[系统添加] 顺延至{next_bill.month}月账单",
             date=bill_to_defer.cycle_end_date
         )
         db.session.add(offsetting_adjustment)
