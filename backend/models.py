@@ -1985,6 +1985,7 @@ class AdjustmentType(enum.Enum):
     DEFERRED_FEE = "deferred_fee"  # 顺延费用
     INTRODUCTION_FEE = "introduction_fee" # 介绍费
     DEPOSIT = "deposit" # 定金
+    COMPANY_PAID_SALARY = "company_paid_salary" # 公司代付工资
 
 
 class FinancialAdjustment(db.Model):

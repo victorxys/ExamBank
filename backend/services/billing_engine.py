@@ -2074,7 +2074,8 @@ class BillingEngine:
             for adj in customer_adjustments
             if adj.adjustment_type in [
                 AdjustmentType.CUSTOMER_INCREASE,
-                AdjustmentType.INTRODUCTION_FEE
+                AdjustmentType.INTRODUCTION_FEE,
+                AdjustmentType.COMPANY_PAID_SALARY,
             ]
         )
         cust_decrease = sum(

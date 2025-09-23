@@ -4220,26 +4220,17 @@ def add_payout_record(payroll_id):
     if not data or not data.get('amount') or not data.get('payout_date'):
         return jsonify({"error": "必须提供支付金额和支付日期"}), 400
 
-    # ==================== 新的代码 ====================
     db_image_path = None
     full_url_for_frontend = None
 
-    # 检查 'image' 是否存在，并且用户确实上传了文件（文件名不为空）
     if 'image' in request.files and request.files['image'].filename != '':
         image_file = request.files['image']
-
-        # 调用新函数，它会返回两个值
         db_path, full_url = _handle_image_upload(image_file)
-
-        # 如果上传和处理成功
         if db_path:
             db_image_path = db_path
             full_url_for_frontend = full_url
-    # ==================== 替换结束 ====================
 
     try:
-        # ==================== 第一个修改点 ====================
-        # 创建 PayoutRecord 对象时，使用 db_image_path
         new_payout = PayoutRecord(
             employee_payroll_id=payroll.id,
             amount=D(data['amount']),
@@ -4247,10 +4238,41 @@ def add_payout_record(payroll_id):
             method=data.get('method'),
             notes=data.get('notes'),
             payer=data.get('payer'),
-            image_url=db_image_path,  # <-- 使用 db_image_path 而不是旧的 image_url
+            image_url=db_image_path,
             created_by_user_id=get_jwt_identity()
         )
         db.session.add(new_payout)
+
+        # --- 核心逻辑：处理公司代付 ---
+        if new_payout.payer == '公司代付':
+            customer_bill = CustomerBill.query.filter_by(
+                contract_id=payroll.contract_id,
+                cycle_start_date=payroll.cycle_start_date,
+                is_substitute_bill=payroll.is_substitute_payroll
+            ).first()
+
+            if customer_bill:
+                # --- 优化描述文本 ---
+                employee = payroll.contract.user or payroll.contract.service_personnel
+                employee_name = employee.username if hasattr(employee, 'username') and employee.username else (employee.name if hasattr(employee, 'name') else '未知员工')
+                payroll_month = payroll.month
+                description = f"[系统] 公司代付员工:{employee_name} {payroll_month}月工资"
+                # --- 优化结束 ---
+
+                company_paid_adj = FinancialAdjustment(
+                    customer_bill_id=customer_bill.id,
+                    adjustment_type=AdjustmentType.COMPANY_PAID_SALARY,
+                    amount=new_payout.amount,
+                    description=description, # 使用新的描述
+                    date=new_payout.payout_date
+                )
+                db.session.add(company_paid_adj)
+                _log_activity(customer_bill, payroll, "系统自动创建客户增款", details={
+                    "reason": "公司代付员工工资",
+                    "amount": str(new_payout.amount),
+                    "description": description
+                })
+        # --- 核心逻辑结束 ---
 
         _update_payroll_payout_status(payroll)
 
@@ -4259,8 +4281,6 @@ def add_payout_record(payroll_id):
 
         db.session.commit()
 
-        # ==================== 第二个修改点 ====================
-        # 在返回的 JSON 中，把完整的 URL (full_url_for_frontend) 发给前端
         return jsonify({
             "message": "工资发放记录添加成功",
             "file_url": full_url_for_frontend

@@ -19,6 +19,7 @@ export const AdjustmentTypes = {
     customer_discount: { label: '优惠', type: 'customer', effect: -1 },
     deposit: { label: '定金', type: 'customer', effect: 1 }, // <-- 新增
     introduction_fee: { label: '介绍费', type: 'customer', effect: 1 }, // <-- 新增
+    company_paid_salary: { label: '公司代付工资', type: 'customer', effect: 1 }, // <-- 新增
     employee_increase: { label: '萌嫂增款', type: 'employee', effect: 1 },
     employee_decrease: { label: '减萌嫂款', type: 'employee', effect: -1 },
     employee_commission: { label: '员工首月返佣', type: 'employee', effect: -1 }, // <-- 新增
