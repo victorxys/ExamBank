@@ -2796,8 +2796,49 @@ def terminate_contract(contract_id):
 
             original_end_date = contract_end_date
             if termination_date < original_end_date:
-                if termination_date.year == contract_start_date.year and termination_date.month ==contract_start_date.month:
-                    current_app.logger.info(f"合同 {contract.id} 在首月内终止，将重算首月管理费。")
+                if termination_date.year == contract_start_date.year and termination_date.month == contract_start_date.month:
+                    current_app.logger.info(f"合同 {contract.id} 在首月内终止，开始计算管理费退款。")
+
+                    # 对于在首月内终止的非月签合同，需要退还剩余天数的管理费
+                    total_management_fee = contract.management_fee_amount if contract.management_fee_amount > 0 else(D(contract.employee_level) * D("0.1"))
+
+                    # 使用30天标准计算日管理费，与多月合同的逻辑保持一致
+                    daily_management_fee = (total_management_fee / D(30)).quantize(D("0.0001"))
+                    # 根据合同剩余天数 + 1 来退还管理费
+                    days_to_refund = (original_end_date - termination_date).days + 1
+
+                    if days_to_refund > 0:
+                        refund_amount = (daily_management_fee * D(days_to_refund)).quantize(D("0.01"))
+
+                        if refund_amount > 0:
+                            # 找到当月的账单（对于单月合同，也就是唯一账单）
+                            final_bill = CustomerBill.query.filter(
+                                CustomerBill.contract_id == str(contract_id),
+                                CustomerBill.year == termination_date.year,
+                                CustomerBill.month == termination_date.month,
+                            ).first()
+
+                            if final_bill:
+                                description = f"[系统] 单月合同提前终止退款: 日管理费({daily_management_fee:.4f}) * 退款天数({days_to_refund}) = {refund_amount:.2f}元"
+
+                                # 确保幂等性
+                                existing_refund = FinancialAdjustment.query.filter(
+                                    FinancialAdjustment.customer_bill_id == final_bill.id,
+                                    FinancialAdjustment.adjustment_type == AdjustmentType.CUSTOMER_DECREASE,
+                                    FinancialAdjustment.description.like(f"[系统] 单月合同提前终止退款%")
+                                ).first()
+
+                                if not existing_refund:
+                                    db.session.add(
+                                        FinancialAdjustment(
+                                            customer_bill_id=final_bill.id,
+                                            adjustment_type=AdjustmentType.CUSTOMER_DECREASE,
+                                            amount=refund_amount,
+                                            description=description,
+                                            date=termination_date,
+                                        )
+                                    )
+                                    current_app.logger.info(f"为合同 {contract.id} 的账单 {final_bill.id} 创建了管理费退款调整项: {description}")
                 else:
                     level = D(contract.employee_level or 0)
                     monthly_management_fee = (level * D("0.1")).quantize(D("0.01"))
@@ -2933,6 +2974,54 @@ def terminate_contract(contract_id):
                             )
                         )
                         current_app.logger.info(f"为最终账单 {final_bill.id} 创建了管理费退款项 {total_refund_amount:.2f}元。")
+        elif isinstance(contract, NannyContract) and contract.is_monthly_auto_renew:
+            # 为月签合同处理管理费退款
+            current_app.logger.info(f"合同 {contract.id} 是月签合同，开始处理管理费退款补丁。")
+            
+            # 1. 独立、可靠地计算应退金额
+            monthly_management_fee = D(contract.management_fee_amount or 0)
+            if monthly_management_fee <= 0 and contract.employee_level:
+                monthly_management_fee = (D(contract.employee_level) * D("0.1")).quantize(D("0.01"))
+            
+            if monthly_management_fee > 0:
+                _, days_in_month = calendar.monthrange(termination_date.year, termination_date.month)
+                if days_in_month > 0:
+                    daily_fee = monthly_management_fee / D(days_in_month)
+                    remaining_days = days_in_month - termination_date.day
+                    
+                    if remaining_days > 0:
+                        refund_amount = (daily_fee * D(remaining_days)).quantize(D("0.01"))
+                        
+                        if refund_amount > 0:
+                            # 2. 找到当月账单
+                            final_bill = CustomerBill.query.filter(
+                                CustomerBill.contract_id == str(contract_id),
+                                CustomerBill.year == termination_date.year,
+                                CustomerBill.month == termination_date.month,
+                                CustomerBill.is_substitute_bill == False
+                            ).first()
+                            description = f"[系统] 月签合同终止退款: {monthly_management_fee:.2f}元/月 / 30天 * {remaining_days}天 = {refund_amount:.2f}元"
+                            if final_bill:
+                                # 3. 创建财务调整项，确保幂等性
+                                                                # 确保幂等性，防止重复创建
+                                existing_refund = FinancialAdjustment.query.filter(
+                                    FinancialAdjustment.customer_bill_id == final_bill.id,
+                                    FinancialAdjustment.adjustment_type == AdjustmentType.CUSTOMER_DECREASE,
+                                    FinancialAdjustment.description.like(f"[系统] 月签合同终止退款%")
+                                ).first()
+                                current_app.logger.debug(f"====>找到refund= {existing_refund}")
+                                if not existing_refund:
+                                    current_app.logger.debug(f"没有找到refund")
+                                    db.session.add(
+                                        FinancialAdjustment(
+                                            customer_bill_id=final_bill.id,
+                                            adjustment_type=AdjustmentType.CUSTOMER_DECREASE,
+                                            amount=refund_amount,
+                                            description=description,
+                                            date=termination_date,
+                                        )
+                                    )
+                                    current_app.logger.info(f"为月签合同 {contract.id} 的账单 {final_bill.id} 创建了管理费退款调整项 {refund_amount:.2f}元。")
         # 统一提交数据库事务
         db.session.commit()
         current_app.logger.info(message)
