@@ -859,6 +859,15 @@ const ContractDetail = () => {
             />
         </Grid>
     ) : null;
+    
+    const terminationDateField = contract.status === 'terminated' ? (
+        <Grid item xs={12} sm={6} md={4}>
+            <Typography variant="body2" color="text.secondary" gutterBottom>终止时间</Typography>
+            <Typography variant="body1" component="div" sx={{ fontWeight: 500, color: 'error.main' }}>
+                {formatDate(contract.termination_date)}
+            </Typography>
+        </Grid>
+    ) : null;
 
     return (
         <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={zhCN}>
@@ -917,9 +926,10 @@ const ContractDetail = () => {
                             <Grid container spacing={3}>
                                 {Object.entries(baseFields).map(([label, value]) => <DetailItem key={label} label={label} value={value} />)}
                                 {Object.entries(specificFields).map(([label, value]) => <DetailItem key={label} label={label} value={value} />)}
-                                {trialOutcomeField} {/* <--- 加上试工结果 */}
-                                {convertedToField}  {/* <--- 加上转换链接 */}
+                                {trialOutcomeField}
+                                {convertedToField}
                                 {sourceContractField}
+                                {terminationDateField}
                                 {onboardingDateField}
                                 {depositField}
                                 {autoRenewField}

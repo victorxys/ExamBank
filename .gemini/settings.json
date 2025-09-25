@@ -1,3 +1,5 @@
 {
-  "theme": "Default Light"
+  "ui": {
+    "theme": "Default Light"
+  }
 }

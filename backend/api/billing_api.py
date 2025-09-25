@@ -2478,7 +2478,7 @@ def get_single_contract_details(contract_id):
             FinancialAdjustment.contract_id == contract_id,
             FinancialAdjustment.adjustment_type == AdjustmentType.DEPOSIT
         ).first()
-        is_monthly_auto_renew = contract.is_monthly_auto_renew
+        is_monthly_auto_renew = getattr(contract, 'is_monthly_auto_renew', False)
         # 2. 在 Python 中应用我们最终确定的业务逻辑
         final_deposit_amount = 0
         is_deposit_paid = False
@@ -2591,6 +2591,7 @@ def get_single_contract_details(contract_id):
             "deposit_amount": str(final_deposit_amount),
             "deposit_paid": is_deposit_paid,
             "can_convert_to_formal": can_convert,
+            "termination_date": safe_isoformat(contract.termination_date),
         }
         if contract.type == 'nanny_trial':
             result['trial_outcome'] = contract.trial_outcome.value if contract.trial_outcome else None
@@ -2674,6 +2675,7 @@ def terminate_contract(contract_id):
     contract = db.session.get(BaseContract, str(contract_id))
     if not contract:
         return jsonify({"error": "Contract not found"}), 404
+    contract.termination_date = termination_date
     original_end_date = contract.end_date.date() if isinstance(contract.end_date, datetime) else contract.end_date
     contract_start_date = contract.start_date.date() if isinstance(contract.start_date, datetime) else contract.start_date
     contract_end_date = contract.end_date.date() if isinstance(contract.end_date,datetime) else contract.end_date

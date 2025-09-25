@@ -2214,6 +2214,7 @@ class BaseContract(db.Model):
         index=True,
         comment="active, finished, terminated, trial_active, trial_succeeded",
     )
+    termination_date = db.Column(db.DateTime(timezone=True), nullable=True, comment="合同终止日期") 
     notes = db.Column(db.Text, comment="通用备注")
     introduction_fee = db.Column(db.Numeric(10, 2), nullable=True, comment="介绍费")
     created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
