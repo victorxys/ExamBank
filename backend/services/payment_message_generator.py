@@ -4,7 +4,7 @@ import json
 import os
 import decimal
 from flask import current_app
-from backend.models import db, CustomerBill, FinancialAdjustment, AdjustmentType, CompanyBankAccount
+from backend.models import db, CustomerBill, FinancialAdjustment, AdjustmentType, CompanyBankAccount, PaymentRecord
 
 # 使用 render_template_string 来渲染从文件读取的模板字符串
 from flask import render_template_string
@@ -55,19 +55,25 @@ class PaymentMessageGenerator:
     def _generate_for_single_customer(self, customer_name: str, bills: list[CustomerBill]) -> str:
         """为单个客户的多张账单生成合并的消息。"""
         bill_fragments = []
-        grand_total_due = D('0.00')
+        grand_total_pending = D('0.00')
 
         for bill in sorted(bills, key=lambda b: b.cycle_start_date):
             context = self._build_context_for_bill(bill)
-            bill_fragments.append(self._render_bill_fragment(context))
-            grand_total_due += bill.total_due
+            # 只有在有内容可显示时才创建片段
+            if context['line_items']:
+                bill_fragments.append(self._render_bill_fragment(context))
+                grand_total_pending += context['pending_amount']
+
+        # 如果没有任何可催款项，则不生成消息
+        if not bill_fragments:
+            return ""
 
         company_account = CompanyBankAccount.query.filter_by(is_default=True, is_active=True).first()
 
-        return self._render_consolidated_wrapper(customer_name, bill_fragments, grand_total_due, company_account)
+        return self._render_consolidated_wrapper(customer_name, bill_fragments, grand_total_pending, company_account)
 
     def _build_context_for_bill(self, bill: CustomerBill) -> dict:
-        """为单个账单构建用于渲染的上下文(V3.5 - 修复零值过滤bug)。"""
+        """为单个账单构建用于渲染的上下文(V3.6 - 包含支付记录)。"""
         calculation_details = bill.calculation_details or {}
         calculation_log = calculation_details.get('calculation_log', {})
         adjustments = FinancialAdjustment.query.filter_by(customer_bill_id=bill.id).all()
@@ -84,10 +90,11 @@ class PaymentMessageGenerator:
             if desc:
                 try:
                     if '=' in desc:
-                        result_val_str = desc.split('=')[-1].strip()
-                        if D(result_val_str) == 0:
-                            continue
-                    final_line_items.append({"name": name, "description": desc})
+                        result_val_str = desc.split('=')[-1].strip().replace('元','')
+                        if D(result_val_str) != 0:
+                            final_line_items.append({"name": name, "description": desc})
+                    else:
+                        final_line_items.append({"name": name, "description": desc})
                 except (ValueError, IndexError, decimal.InvalidOperation):
                     final_line_items.append({"name": name, "description": desc})
 
@@ -95,17 +102,27 @@ class PaymentMessageGenerator:
         for adj in adjustments:
             if adj.amount == 0:
                 continue
-
             name = self._get_adjustment_name(adj)
             description = self._get_adjustment_description(adj)
             final_line_items.append({"name": name, "description": description})
         
+        # 3. 获取支付记录
+        payments = bill.payment_records.order_by(PaymentRecord.payment_date.asc()).all()
+        pending_amount = bill.total_due - bill.total_paid
+
+        # 如果所有项目都为0，并且没有待付金额，则不生成任何内容
+        if not final_line_items and pending_amount <= 0:
+            return {"line_items": [], "pending_amount": D('0.00')}
+
         return {
             "customer_name": bill.contract.customer_name,
             "employee_name": bill.contract.user.username if bill.contract.user else bill.contract.service_personnel.name,
             "bill_date_range": f"{bill.cycle_start_date.strftime('%Y-%m-%d')} ~ {bill.cycle_end_date.strftime('%Y-%m-%d')}",
             "line_items": final_line_items,
-            "total_due": bill.total_due
+            "total_due": bill.total_due,
+            "total_paid": bill.total_paid,
+            "pending_amount": pending_amount,
+            "payments": payments
         }
 
     def _get_adjustment_name(self, adj: FinancialAdjustment) -> str:

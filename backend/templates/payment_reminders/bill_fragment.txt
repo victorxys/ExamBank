@@ -1,5 +1,14 @@
-{# 通用账单片段模板 #}
+{# 通用账单片段模板 V2 #}
 {{ customer_name }}——{{ employee_name }} ({{ bill_date_range }}):
 {% for item in line_items %}
   - {{ item.name }}: {{ item.description }}
 {% endfor %}
+
+{% if total_paid > 0 and payments %}
+- - - - - - - - - -
+  已收记录:
+{% for payment in payments %}
+  - {{ payment.payment_date.strftime('%Y-%m-%d') }}: -{{ payment.amount | round(2) }}元 ({{ payment.method or '收款' }})
+{% endfor %}
+  待付尾款: {{ pending_amount | round(2) }}元
+{% endif %}

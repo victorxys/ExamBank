@@ -353,7 +353,8 @@ const CreateVirtualContractModal = ({ open, onClose, onSuccess }) => {
                                             <MenuItem value={0.25}>25%</MenuItem>
                                             <MenuItem value={0.20}>20%</MenuItem>
                                             <MenuItem value={0.15}>15%</MenuItem>
-                                            {![0.15, 0.20, 0.25].includes(formData.deposit_rate) && <MenuItem value={formData.deposit_rate}>自定义:{(formData.deposit_rate * 100).toFixed(2)}%</MenuItem>}
+                                            <MenuItem value={0.10}>10%</MenuItem>
+                                            {![0.15, 0.20, 0.25, 0.10].includes(formData.deposit_rate) && <MenuItem value={formData.deposit_rate}>自定义:{(formData.deposit_rate * 100).toFixed(2)}%</MenuItem>}
                                         </Select>
                                     </FormControl>
                                 </Grid>
