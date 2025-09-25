@@ -1988,6 +1988,22 @@ class AdjustmentType(enum.Enum):
     COMPANY_PAID_SALARY = "company_paid_salary" # 公司代付工资
 
 
+class CompanyBankAccount(db.Model):
+    __tablename__ = 'company_bank_accounts'
+    __table_args__ = {'comment': '公司收款账户信息'}
+
+    id = db.Column(db.Integer, primary_key=True)
+    account_nickname = db.Column(db.String(100), nullable=False, comment='账户别名，如 \'公司招行主账户\'')
+    payee_name = db.Column(db.String(100), nullable=False, comment='收款户名')
+    account_number = db.Column(db.String(100), nullable=False, comment='银行账号')
+    bank_name = db.Column(db.String(200), nullable=False, comment='开户行全称')
+    is_default = db.Column(db.Boolean, nullable=False, default=False, server_default='false', comment='是否为默认账户')
+    is_active = db.Column(db.Boolean, nullable=False, default=True, server_default='true', comment='是否启用')
+
+    def __repr__(self):
+        return f'<CompanyBankAccount {self.account_nickname}>'
+
+
 class FinancialAdjustment(db.Model):
     __tablename__ = "financial_adjustments"
     __table_args__ = {"comment": "财务调整项(增/减款)"}

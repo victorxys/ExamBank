@@ -33,6 +33,7 @@ import TransferDepositDialog from './TransferDepositDialog';
 import PaymentDialog from './PaymentDialog';
 import AlertMessage from './AlertMessage';
 import PayoutDialog from './PayoutDialog';
+import PaymentMessageModal from './PaymentMessageModal';
 
 
 // --- 辅助函数 ---
@@ -226,6 +227,10 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
     const [alert, setAlert] = useState({ open: false, message: '', severity: 'info' });
     const [isPayoutDialogOpen, setIsPayoutDialogOpen] = useState(false);
 
+    const [isMessageModalOpen, setIsMessageModalOpen] = useState(false);
+    const [generatedMessage, setGeneratedMessage] = useState('');
+    const [isGeneratingMessage, setIsGeneratingMessage] = useState(false);
+
     useEffect(() => {
         setCurrentBillingMonth(billingMonth);
         setBillingDetails(initialBillingDetails);
@@ -273,6 +278,27 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
             }
         }
     }, [open, billingDetails, contract?.contract_id]);
+
+    const handleGenerateSingleMessage = async () => {
+        const billId = billingDetails?.customer_bill_details?.id;
+        if (!billId) {
+            setAlert({ open: true, message: '无法生成消息，缺少账单ID', severity: 'error' });
+            return;
+        }
+        setIsGeneratingMessage(true);
+        try {
+            const response = await api.post('/billing/generate_payment_message', {
+                bill_ids: [billId],
+            });
+            setGeneratedMessage(response.data.message);
+            setIsMessageModalOpen(true);
+        } catch (error) {
+            console.error("生成催款消息失败:", error);
+            setAlert({ open: true, message: `生成消息失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
+        } finally {
+            setIsGeneratingMessage(false);
+        }
+    };
 
     // --- Gemini: New Month Change Handler ---
     const handleMonthChange = async (direction) => {
@@ -1442,8 +1468,11 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                                         {watermarkText}
                                     </Box>
                                     <Typography variant="h3" gutterBottom component="div" sx={{ display: 'flex', alignItems: 'center' }}>
-                                        客户账单
-                                        {customerData.calculation_details?.type === 'substitute' && <Chip label="替" color="warning" size="small" sx={{ ml: 1 }} />}
+                                        客户账单 ~ 
+                                         <Typography variant="h5" component="span" color="text.secondary">
+                                               {contract?.customer_name}
+                                        </Typography>
+                                        {customerData.calculation_details?.type === 'substitute' && <Chip label="替班" color="warning" size="small" sx={{ ml: 1 }} />}
                                     </Typography>
                                     {renderCardContent(customerData, true, billingDetails)}
                                 </Paper>
@@ -1458,7 +1487,7 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                                          <Typography variant="h5" component="span" color="text.secondary">
                                                {contract?.employee_name}
                                         </Typography>
-                                        {employeeData.calculation_details?.type === 'substitute' && <Chip label="替" color="warning" size="small" sx={{ ml: 1 }} />}
+                                        {employeeData.calculation_details?.type === 'substitute' && <Chip label="替班" color="warning" size="small" sx={{ ml: 1 }} />}
                                     </Typography>
                                     {renderCardContent(employeeData, false, billingDetails)}
                                 </Paper>
@@ -1614,8 +1643,18 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                     ) : (<Typography color="text.secondary" sx={{ p: 3, textAlign: 'center' }}>无此月份的账单数据，请先计算账单。</Typography>)}
                 </DialogContent>
                 <DialogActions sx={{ p: 2 }}>
-                    {isEditMode ? (<><Button onClick={handleCancelEdit} variant="text" startIcon={<CancelIcon />}>取消</Button><Button onClick={handleSave} variant="contained" color="primary" startIcon={<SaveIcon />}>保存并重新计算</Button></>) 
-                    : (<><Button onClick={() => onClose(billingDetails)}>关闭</Button><Button onClick={handleEnterEditMode} variant="contained" startIcon={<EditIcon />} disabled={isSwitchingMonth}>进入编辑模式</Button></>)}
+                    {isEditMode ? (<>
+                    <Button onClick={handleCancelEdit} variant="text" startIcon={<CancelIcon />}>取消</Button><Button onClick={handleSave} variant="contained" color="primary" startIcon={<SaveIcon />}>保存并重新计算</Button></>) 
+                    : (<>
+                    <Button 
+                        onClick={handleGenerateSingleMessage} 
+                        variant="outlined"
+                        disabled={isGeneratingMessage || isSwitchingMonth}
+                        startIcon={isGeneratingMessage ? <CircularProgress size={20} /> : null}
+                    >
+                        生成催款信息
+                    </Button>
+                    <Button onClick={() => onClose(billingDetails)}>关闭</Button><Button onClick={handleEnterEditMode} variant="contained" startIcon={<EditIcon />} disabled={isSwitchingMonth}>进入编辑模式</Button></>)}
                 </DialogActions>
             </Dialog>
             <InvoiceDetailsDialog
@@ -1709,6 +1748,12 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                 totalPaidOut={billingDetails?.employee_payroll_details?.payout_status?.total_paid_out}
                 recordType="payout"
                 recordId={billingDetails?.employee_payroll_details?.id}
+            />
+            <PaymentMessageModal
+                open={isMessageModalOpen}
+                onClose={() => setIsMessageModalOpen(false)}
+                initialMessage={generatedMessage}
+                onAlert={(msg, sev) => setAlert({ open: true, message: msg, severity: sev })}
             />
         </>
     );

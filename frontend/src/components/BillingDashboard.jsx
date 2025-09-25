@@ -36,6 +36,7 @@ import useTaskPolling from '../utils/useTaskPolling';
 import FinancialManagementModal from './FinancialManagementModal';
 import BatchSettlementModal from './BatchSettlementModal'
 import PaymentProgress from './PaymentProgress';
+import PaymentMessageModal from './PaymentMessageModal'; 
 
 
 
@@ -273,7 +274,10 @@ const BillingDashboard = () => {
     const [selectedContractForDetail, setSelectedContractForDetail] = useState(null);
     const [billingDetails, setBillingDetails] = useState(null);
     const [selected, setSelected] = useState([]); // <-- 添加此行，用于存储选中的账单ID
-    const [batchSettlementModalOpen, setBatchSettlementModalOpen] = useState(false); // <-- 添加此行
+    const [batchSettlementModalOpen, setBatchSettlementModalOpen] = useState(false);
+    const [isGeneratingMessage, setIsGeneratingMessage] = useState(false);
+    const [isMessageModalOpen,setIsMessageModalOpen] = useState(false)
+    const [generatedMessage, setGeneratedMessage] = useState('');
 
     // --- 新增：用于在模态框中编辑考勤的状态 ---
     const [editableAttendance, setEditableAttendance] = useState(null);
@@ -758,6 +762,41 @@ const BillingDashboard = () => {
         }
     };
 
+    const handleGenerateMessage = async () => {
+        if (selected.length === 0) { // 注意：您的选择状态变量可能是 selected
+            setAlert({ open: true, message: '请至少选择一个账单', severity: 'warning' });
+            return;
+        }
+        setIsGeneratingMessage(true);
+        try {
+            const response = await api.post('/billing/generate_payment_message', {
+                bill_ids: selected, // 注意：您的选择状态变量可能是 selected
+            });
+            // 将获取到的消息存入 state，并打开弹窗
+            setGeneratedMessage(response.data.message);
+            setIsMessageModalOpen(true);
+        } catch (error) {
+            console.error("生成催款消息失败:", error);
+            setAlert({ open: true, message: `生成消息失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
+        } finally {
+            setIsGeneratingMessage(false);
+        }
+    };
+
+    const handleCopyMessage = () => {
+        navigator.clipboard.writeText(generatedMessage).then(() => {
+            setAlert({ open: true, message: '消息已复制到剪贴板', severity: 'success' });
+        }, (err) => {
+            console.error('复制失败: ', err);
+            setAlert({ open: true, message: '复制失败', severity: 'error' });
+        });
+    };
+
+    const handleCloseMessageModal = () => {
+        setIsMessageModalOpen(false);
+        setGeneratedMessage('');
+    };
+
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={zhCN}>
       <Box>
@@ -874,6 +913,15 @@ const BillingDashboard = () => {
                         disabled={selected.length === 0}
                     >
                         批量结算 ({selected.length})
+                    </Button>
+
+                    <Button
+                        variant="contained"
+                        onClick={handleGenerateMessage}
+                        disabled={selected.length === 0 || isGeneratingMessage}
+                        startIcon={isGeneratingMessage ? <CircularProgress size={20} color="inherit" /> : null}
+                    >
+                        生成催款信息 ({selected.length})
                     </Button>
                     
                   
@@ -1213,6 +1261,12 @@ const BillingDashboard = () => {
                 </Button>
             </DialogActions>
         </Dialog>
+        <PaymentMessageModal
+            open={isMessageModalOpen}
+            onClose={() => setIsMessageModalOpen(false)}
+            initialMessage={generatedMessage}
+            onAlert={(msg, sev) => setAlert({ open: true, message: msg, severity: sev })}
+        />
     </Box>
   </LocalizationProvider>
   );

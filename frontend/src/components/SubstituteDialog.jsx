@@ -26,13 +26,13 @@ const SubstituteDialog = ({ open, onClose, onSave, contractId, billMonth, contra
       if (contractType) {
         setSubstituteType(contractType);
         if (contractType === 'nanny') {
-          setManagementFeeRate(0);
+          setManagementFeeRate('0'); // 2. 育儿嫂替班时设为0
         } else {
-          setManagementFeeRate(0.25);
+          setManagementFeeRate('25'); // 3. 月嫂替班时默认25
         }
       } else {
         setSubstituteType('maternity_nurse');
-        setManagementFeeRate(0.25);
+        setManagementFeeRate('25'); // 4. 默认情况也是25
       }
 
       if (originalBillCycleStart) {
@@ -80,7 +80,7 @@ const SubstituteDialog = ({ open, onClose, onSave, contractId, billMonth, contra
       end_date: endDate?.toISOString(),
       employee_level: employeeLevel,
       substitute_type: substituteType,
-      management_fee_rate: substituteType === 'maternity_nurse' ? managementFeeRate : 0,
+      management_fee_rate: substituteType === 'maternity_nurse' ? (parseFloat(managementFeeRate) / 100) : 0
     };
 
     onSave(substituteData);
@@ -158,7 +158,7 @@ const SubstituteDialog = ({ open, onClose, onSave, contractId, billMonth, contra
                   if (e.target.value === 'nanny') {
                     setManagementFeeRate(0);
                   } else {
-                    setManagementFeeRate(0.25);
+                    setManagementFeeRate(25);
                   }
                 }}
               >
@@ -178,17 +178,16 @@ const SubstituteDialog = ({ open, onClose, onSave, contractId, billMonth, contra
           </Grid>
           {substituteType === 'maternity_nurse' && (
             <Grid item xs={6}>
-              <FormControl fullWidth>
-                <InputLabel>管理费率</InputLabel>
-                <Select
-                  value={managementFeeRate}
-                  label="管理费率"
-                  onChange={(e) => setManagementFeeRate(parseFloat(e.target.value))}
-                >
-                  <MenuItem value={0.25}>25%</MenuItem>
-                  <MenuItem value={0.15}>15%</MenuItem>
-                </Select>
-              </FormControl>
+              <TextField
+                label="管理费率 (%)"
+                fullWidth
+                type="number"
+                value={managementFeeRate}
+                onChange={(e) => setManagementFeeRate(e.target.value)}
+                InputProps={{
+                  endAdornment: <Typography>%</Typography>,
+                }}
+              />
             </Grid>
           )}
         </Grid>

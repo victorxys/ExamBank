@@ -49,6 +49,7 @@ from backend.models import (
     ExternalSubstitutionContract,
     NannyContract, 
     TrialOutcome,
+    CompanyBankAccount,
 )
 from backend.tasks import (
     sync_all_contracts_task,
@@ -65,6 +66,7 @@ from backend.services.contract_service import (
     apply_transfer_credits_to_new_contract
 )
 from backend.api.utils import get_billing_details_internal, get_contract_type_details
+from backend.services.payment_message_generator import PaymentMessageGenerator
 
 D = decimal.Decimal
 
@@ -4931,3 +4933,44 @@ def serve_financial_record_upload(filename):
     except FileNotFoundError:
         return jsonify({"error": "文件未找到"}), 404
 # ========================== 新增代码结束 ==========================
+
+
+
+
+@billing_bp.route("/generate_payment_message", methods=["POST"])
+@admin_required
+def generate_payment_message():
+    data = request.get_json()
+    bill_ids = data.get("bill_ids")
+
+    if not bill_ids:
+        return jsonify({"error": "缺少 bill_ids 参数"}), 400
+
+    try:
+        generator = PaymentMessageGenerator()
+        message = generator.generate_for_bills(bill_ids)
+        return jsonify({"message": message})
+    except Exception as e:
+        current_app.logger.error(f"生成催款消息失败: {e}", exc_info=True)
+        return jsonify({"error": "生成消息时发生服务器内部错误"}), 500
+    
+@billing_bp.route("/company_bank_accounts", methods=["GET"])
+@admin_required
+def get_company_bank_accounts():
+    """
+    获取所有启用的公司银行账户列表。
+    """
+    try:
+        accounts = CompanyBankAccount.query.filter_by(is_active=True).order_by(CompanyBankAccount.is_default.desc()).all()
+        results = [{
+            "id": acc.id,
+            "account_nickname": acc.account_nickname,
+            "payee_name": acc.payee_name,
+            "account_number": acc.account_number,
+            "bank_name": acc.bank_name,
+            "is_default": acc.is_default
+        } for acc in accounts]
+        return jsonify(results)
+    except Exception as e:
+        current_app.logger.error(f"获取公司银行账户列表失败: {e}", exc_info=True)
+        return jsonify({"error": "服务器内部错误"}), 500

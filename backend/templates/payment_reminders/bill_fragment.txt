@@ -1,0 +1,5 @@
+{# 通用账单片段模板 #}
+{{ customer_name }}——{{ employee_name }} ({{ bill_date_range }}):
+{% for item in line_items %}
+  - {{ item.name }}: {{ item.description }}
+{% endfor %}

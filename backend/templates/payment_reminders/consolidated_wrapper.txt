@@ -1,0 +1,13 @@
+{{ bill_fragments | join('
+--------------------
+') }}
+
+费用总计：{{ grand_total_amount }}元
+
+{% if company_account %}
+户名：{{ company_account.payee_name }}
+帐号：{{ company_account.account_number }}
+银行：{{ company_account.bank_name }}
+{% endif %}
+
+
