@@ -1454,7 +1454,10 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                                         {watermarkText}
                                     </Box>
                                     <Typography variant="h3" gutterBottom component="div" sx={{ display: 'flex', alignItems: 'center' }}>
-                                        员工薪酬
+                                        员工薪酬 ~ 
+                                         <Typography variant="h5" component="span" color="text.secondary">
+                                               {contract?.employee_name}
+                                        </Typography>
                                         {employeeData.calculation_details?.type === 'substitute' && <Chip label="替" color="warning" size="small" sx={{ ml: 1 }} />}
                                     </Typography>
                                     {renderCardContent(employeeData, false, billingDetails)}
