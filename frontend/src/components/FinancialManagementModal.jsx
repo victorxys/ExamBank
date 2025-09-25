@@ -376,25 +376,32 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
     const handleDeleteSubstitute = async (recordId) => {
         if (window.confirm("确定要删除这条替班记录吗？相关账单将重新计算。")) {
             try {
-                const response = await api.delete(`/contracts/substitutes/${recordId}`);
-                if (response.status === 200) {
-                    setAlert({ open: true, message: '替班记录删除成功！', severity: 'success' });
-                    setSubstituteRecords(prev => prev.filter(r => r.id !== recordId));
-                } else if (response.status === 409) {
-                    if (window.confirm("注意：此替班记录关联的账单已产生操作日志。\n\n是否要强制删除此记录及其所有关联日志？此操作不可逆！")) {
-                        const forceResponse = await api.delete(`/contracts/substitutes/${recordId}?force=true`);
-                        if (forceResponse.status === 200) {
+                // 正常尝试删除
+                await api.delete(`/contracts/substitutes/${recordId}`);
+                
+                // 如果上面没有抛出错误（即 status 2xx），则代表成功
+                setAlert({ open: true, message: '替班记录删除成功！', severity: 'success' });
+                setSubstituteRecords(prev => prev.filter(r => r.id !== recordId));
+                // 可以在这里触发账单刷新逻辑
+                
+            } catch (error) {
+                // 专门处理 409 Conflict 错误
+                if (error.response && error.response.status === 409) {
+                    if (window.confirm("注意：此替班记录关联的账单已产生操作日志。\\n\\n是否要强制删除此记录及其所有关联日志？此操作不可逆！")) {
+                        try {
+                            // 发送带 force=true 参数的强制删除请求
+                            await api.delete(`/contracts/substitutes/${recordId}?force=true`);
                             setAlert({ open: true, message: '强制删除成功！', severity: 'success' });
                             setSubstituteRecords(prev => prev.filter(r => r.id !== recordId));
-                        } else {
-                            setAlert({ open: true, message: `强制删除失败: ${forceResponse.data?.message || '未知错误'}`,severity: 'error' });
+                            // 可以在这里也触发账单刷新逻辑
+                        } catch (forceError) {
+                            setAlert({ open: true, message: `强制删除失败: ${forceError.response?.data?.message || '未知错误'}`, severity: 'error' });
                         }
                     }
                 } else {
-                    setAlert({ open: true, message: `删除失败: ${response.data?.message || '未知错误'}`, severity: 'error' });
+                    // 处理其他所有错误 (如 500, 网络问题等)
+                    setAlert({ open: true, message: `删除失败: ${error.response?.data?.message || error.message}`, severity: 'error' });
                 }
-            } catch (error) {
-                setAlert({ open: true, message: `删除失败: ${error.message}`, severity: 'error' });
             }
         }
     };
