@@ -132,7 +132,7 @@ const SubstituteDialog = ({ open, onClose, onSave, contractId, billMonth, contra
               ampm={false}
               timeSteps={{ minutes: 30 }}
               minDateTime={originalBillCycleStart ? new Date(originalBillCycleStart) : null}
-              maxDateTime={originalBillCycleEnd ? new Date(originalBillCycleEnd) : null}
+              // maxDateTime={originalBillCycleEnd ? new Date(originalBillCycleEnd) : null}
             />
           </Grid>
           <Grid item xs={6}>
@@ -143,7 +143,7 @@ const SubstituteDialog = ({ open, onClose, onSave, contractId, billMonth, contra
               ampm={false}
               timeSteps={{ minutes: 30 }}
               minDateTime={startDate || (originalBillCycleStart ? new Date(originalBillCycleStart) : null)}
-              maxDateTime={originalBillCycleEnd ? new Date(originalBillCycleEnd) : null}
+              // maxDateTime={originalBillCycleEnd ? new Date(originalBillCycleEnd) : null}
             />
           </Grid>
           
