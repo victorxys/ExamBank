@@ -2510,7 +2510,7 @@ class CustomerBill(db.Model):
         lazy="dynamic",
         cascade="all, delete-orphan",
     )
-    actual_work_days = db.Column(db.Numeric(10, 2), nullable=True, comment="实际劳务天数")
+    actual_work_days = db.Column(db.Numeric(10, 3), nullable=True, comment="实际劳务天数")
     is_substitute_bill = db.Column(
         db.Boolean,
         default=False,

@@ -857,7 +857,7 @@ class BillingEngine:
         """计算育儿嫂合同的所有财务细节。"""
         current_app.logger.info(f"    [NannyDETAILS] 计算育儿嫂合同 {contract.id} 的详细信息。")
         log_extras = {}
-        QUANTIZER = D("0.01")
+        QUANTIZER = D("0.001")
         self._attach_pending_adjustments(contract, bill)
         extension_fee = D(0)
         level = D(contract.employee_level or 0)
@@ -947,7 +947,7 @@ class BillingEngine:
         # 优先使用从API传入的覆盖值
         if actual_work_days_override is not None:
             base_work_days = D(actual_work_days_override)
-            log_extras["base_work_days_reason"] = f"使用用户传入的实际劳务天数 ({actual_work_days_override:.2f})"
+            log_extras["base_work_days_reason"] = f"使用用户传入的实际劳务天数 ({actual_work_days_override:.3f})"
             # 同步更新数据库中的字段，确保前端刷新后能看到正确的值
             bill.actual_work_days = actual_work_days_override
             payroll.actual_work_days = actual_work_days_override
@@ -1203,7 +1203,7 @@ class BillingEngine:
             "level": str(level),
             "cycle_period": f"{cycle_start.isoformat()} to {cycle_end.isoformat()}",
             "base_work_days": str(base_work_days),
-            "overtime_days":  f"{overtime_days:.2f}",
+            "overtime_days":  f"{overtime_days:.3f}",
             "total_days_worked": str(total_days_worked),
             "substitute_days": str(total_substitute_days),
             "substitute_deduction": str(substitute_deduction_from_sub_records.quantize(QUANTIZER)),

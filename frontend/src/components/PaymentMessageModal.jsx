@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import {
   Box, Button, Typography, Modal, TextField, DialogActions,
-  Select, MenuItem, FormControl, InputLabel, Grid, CircularProgress
+  Select, MenuItem, FormControl, InputLabel, Grid, CircularProgress, IconButton, Tooltip
 } from '@mui/material';
+import { ContentCopy as ContentCopyIcon } from '@mui/icons-material';
 import api from '../api/axios';
 
 const PaymentMessageModal = ({ open, onClose, initialMessage, onAlert }) => {
@@ -12,16 +13,20 @@ const PaymentMessageModal = ({ open, onClose, initialMessage, onAlert }) => {
   const [selectedAccountId, setSelectedAccountId] = useState('');
   const [isBeautified, setIsBeautified] = useState(false);
   const [isBeautifying, setIsBeautifying] = useState(false);
+  const [isCompanyEditable, setIsCompanyEditable] = useState(true);
+  const [isEmployeeEditable, setIsEmployeeEditable] = useState(true);
+
 
   useEffect(() => {
     if (open) {
-      // 每次打开弹窗时重置状态
       setCompanyMessage(initialMessage?.company_summary || '');
       setEmployeeMessage(initialMessage?.employee_summary || '');
       setIsBeautified(false);
       setIsBeautifying(false);
+      setIsCompanyEditable(true);
+      setIsEmployeeEditable(true);
 
-      // 获取银行账户列表
+
       api.get('/billing/company_bank_accounts')
         .then(response => {
           setBankAccounts(response.data);
@@ -68,11 +73,15 @@ const PaymentMessageModal = ({ open, onClose, initialMessage, onAlert }) => {
     setIsBeautifying(true);
     try {
       const response = await api.post('/billing/beautify-message', dataToSend);
-      // 移除Markdown代码块标记，但保留换行和emoji
-      const cleanedMessage = response.data.beautified_message.replace(/```/g, '');
-      setCompanyMessage(cleanedMessage);
-      setEmployeeMessage(''); // 清空右侧
-      setIsBeautified(true); // 标记为已美化
+      
+      const companyText = response.data.company_beautified?.replace(/```/g, '') || '';
+      const employeeText = response.data.employee_beautified?.replace(/```/g, '') || '';
+
+      setCompanyMessage(companyText);
+      setEmployeeMessage(employeeText);
+      setIsBeautified(true);
+      setIsCompanyEditable(false);
+      setIsEmployeeEditable(false);
       onAlert('AI美化成功！', 'success');
     } catch (error) {
       console.error("AI美化失败:", error);
@@ -82,13 +91,9 @@ const PaymentMessageModal = ({ open, onClose, initialMessage, onAlert }) => {
     }
   };
 
-  const handleCopyMessage = () => {
-    const messageToCopy = isBeautified 
-      ? companyMessage 
-      : `【对公账户】\n${companyMessage}\n\n【对私账户】\n${employeeMessage}`;
-      
-    navigator.clipboard.writeText(messageToCopy).then(() => {
-      onAlert('消息已复制到剪贴板', 'success');
+  const handleCopyToClipboard = (text) => {
+    navigator.clipboard.writeText(text).then(() => {
+      onAlert('已复制到剪贴板', 'success');
     }, (err) => {
       console.error('复制失败: ', err);
       onAlert('复制失败', 'error');
@@ -112,7 +117,7 @@ const PaymentMessageModal = ({ open, onClose, initialMessage, onAlert }) => {
         <Typography variant="h6" component="h2">
           催款信息
         </Typography>
-        <FormControl fullWidth margin="normal" size="small" sx={{ maxWidth: 400 }} disabled={isBeautified}>
+        <FormControl fullWidth margin="normal" size="small" sx={{ maxWidth: 400 }} disabled={isBeautified && !isCompanyEditable}>
           <InputLabel>收款账户 (仅影响对公部分)</InputLabel>
           <Select
             value={selectedAccountId}
@@ -128,8 +133,8 @@ const PaymentMessageModal = ({ open, onClose, initialMessage, onAlert }) => {
         </FormControl>
         
         <Grid container spacing={2} sx={{ mt: 1, mb: 2 }}>
-          <Grid item xs={12} md={isBeautified ? 12 : 6}>
-            <Typography variant="subtitle1" gutterBottom>{isBeautified ? 'AI美化后' : '对公部分'}</Typography>
+          <Grid item xs={12} md={6}>
+            <Typography variant="subtitle1" gutterBottom>{isBeautified ? 'AI美化 (对公部分)' : '对公部分'}</Typography>
             <TextField
               multiline
               fullWidth
@@ -137,32 +142,53 @@ const PaymentMessageModal = ({ open, onClose, initialMessage, onAlert }) => {
               value={companyMessage}
               onChange={(e) => setCompanyMessage(e.target.value)}
               variant="outlined"
-              sx={{ whiteSpace: 'pre-wrap', bgcolor: 'grey.100' }}
+              InputProps={{
+                readOnly: !isCompanyEditable,
+              }}
+              sx={{ whiteSpace: 'pre-wrap', bgcolor: isCompanyEditable ? 'white' : 'grey.100' }}
             />
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, mt: 1 }}>
+              {isBeautified && !isCompanyEditable && (
+                <Button size="small" onClick={() => setIsCompanyEditable(true)}>
+                  微调修改
+                </Button>
+              )}
+              <Button size="small" startIcon={<ContentCopyIcon />} onClick={() => handleCopyToClipboard(companyMessage)}>
+                复制
+              </Button>
+            </Box>
           </Grid>
-          {!isBeautified && (
-            <Grid item xs={12} md={6}>
-              <Typography variant="subtitle1" gutterBottom>对私部分</Typography>
-              <TextField
-                multiline
-                fullWidth
-                rows={15}
-                value={employeeMessage}
-                onChange={(e) => setEmployeeMessage(e.target.value)}
-                variant="outlined"
-                sx={{ whiteSpace: 'pre-wrap', bgcolor: 'grey.100' }}
-              />
-            </Grid>
-          )}
+          <Grid item xs={12} md={6}>
+            <Typography variant="subtitle1" gutterBottom>{isBeautified ? 'AI美化 (对员工)' : '对员工'}</Typography>
+            <TextField
+              multiline
+              fullWidth
+              rows={15}
+              value={employeeMessage}
+              onChange={(e) => setEmployeeMessage(e.target.value)}
+              variant="outlined"
+              InputProps={{
+                readOnly: !isEmployeeEditable,
+              }}
+              sx={{ whiteSpace: 'pre-wrap', bgcolor: isEmployeeEditable ? 'white' : 'grey.100' }}
+            />
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, mt: 1 }}>
+              {isBeautified && !isEmployeeEditable && (
+                <Button size="small" onClick={() => setIsEmployeeEditable(true)}>
+                  微调修改
+                </Button>
+              )}
+              <Button size="small" startIcon={<ContentCopyIcon />} onClick={() => handleCopyToClipboard(employeeMessage)}>
+                复制
+              </Button>
+            </Box>
+          </Grid>
         </Grid>
 
         <DialogActions>
           <Button onClick={onClose}>关闭</Button>
           <Button onClick={handleBeautify} variant="outlined" disabled={isBeautifying || isBeautified}>
             {isBeautifying ? <CircularProgress size={24} /> : 'AI美化信息'}
-          </Button>
-          <Button onClick={handleCopyMessage} variant="contained">
-            复制内容
           </Button>
         </DialogActions>
       </Box>

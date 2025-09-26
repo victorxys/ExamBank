@@ -4970,12 +4970,13 @@ def beautify_payment_message():
     user_id = get_jwt_identity()
 
     try:
-        beautified_text = transform_text_with_llm(
+        beautified_data = transform_text_with_llm(
             input_text=input_text,
             prompt_identifier="SimplifiedBill",
             user_id=user_id
         )
-        return jsonify({"beautified_message": beautified_text})
+        # 直接返回LLM生成的JSON对象
+        return jsonify(beautified_data)
     except Exception as e:
         current_app.logger.error(f"美化账单信息失败: {e}", exc_info=True)
         return jsonify({"error": "AI美化失败，请稍后重试"}), 500
