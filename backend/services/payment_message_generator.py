@@ -4,7 +4,8 @@ import json
 import os
 import decimal
 from flask import current_app
-from backend.models import db, CustomerBill, FinancialAdjustment, AdjustmentType, CompanyBankAccount, PaymentRecord
+from sqlalchemy import func
+from backend.models import db, CustomerBill, FinancialAdjustment, AdjustmentType, CompanyBankAccount, PaymentRecord, EmployeePayroll, PayoutRecord
 
 # 使用 render_template_string 来渲染从文件读取的模板字符串
 from flask import render_template_string
@@ -151,6 +152,9 @@ class PaymentMessageGenerator:
             if name in ['基础劳务费', '加班费']:
                 employee_line_items.append(item)
                 employee_total += amount
+            elif name == '被替班扣款':
+                employee_line_items.append(item)
+                employee_total -= amount # 这是扣款，所以是减法
             elif name in ['本次交管理费', '管理费']:
                 company_line_items.append(item)
                 company_total += amount
@@ -167,12 +171,28 @@ class PaymentMessageGenerator:
             else:
                 company_total += adj.amount
 
-        # 3. 获取支付记录 (支付默认冲抵公司款项)
-        payments = bill.payment_records.order_by(PaymentRecord.payment_date.asc()).all()
-        total_paid = bill.total_paid
+        # 3. 获取客户付款记录 (冲抵公司款项)
+        customer_payments = bill.payment_records.order_by(PaymentRecord.payment_date.asc()).all()
+        customer_total_paid = bill.total_paid
+        company_pending = company_total - customer_total_paid
 
-        company_pending = company_total - total_paid
-        employee_pending = employee_total
+        # 4. 获取员工工资发放记录 (冲抵员工款项)
+        payroll = EmployeePayroll.query.filter_by(
+            contract_id=bill.contract_id,
+            cycle_start_date=bill.cycle_start_date,
+            is_substitute_payroll=bill.is_substitute_bill
+        ).first()
+        
+        employee_total_paid = D(0)
+        employee_payouts = []
+        if payroll:
+            payout_sum = db.session.query(func.sum(PayoutRecord.amount)).filter(
+                PayoutRecord.employee_payroll_id == payroll.id
+            ).scalar()
+            employee_total_paid = payout_sum or D(0)
+            employee_payouts = payroll.payout_records.order_by(PayoutRecord.payout_date.asc()).all()
+        
+        employee_pending = employee_total - employee_total_paid
 
         # --- 确定员工姓名 ---
         employee_name = ""
@@ -190,8 +210,9 @@ class PaymentMessageGenerator:
             "employee_line_items": employee_line_items,
             "company_pending_amount": company_pending,
             "employee_pending_amount": employee_pending,
-            "payments": payments,
-            "total_paid": total_paid,
+            "payments": customer_payments, # 这是客户付款记录
+            "total_paid": customer_total_paid, # 这是客户付款总额
+            "employee_payouts": employee_payouts, # 新增：员工工资发放记录
         }
 
     def _get_adjustment_name(self, adj: FinancialAdjustment) -> str:
