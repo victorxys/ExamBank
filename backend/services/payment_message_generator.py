@@ -132,7 +132,17 @@ class PaymentMessageGenerator:
             if not desc: continue
             
             try:
-                amount = D(desc.split('=')[-1].strip().replace('元','')) if '=' in desc else D(0)
+                value_part = None
+                if '=' in desc:
+                    value_part = desc.split('=')[-1]
+                elif ':' in desc:
+                    value_part = desc.split(':')[-1]
+
+                if value_part:
+                    amount = D(value_part.strip().replace('元',''))
+                else:
+                    amount = D(0)
+
                 if amount == 0: continue # 如果金额为0，则不显示此条
             except (ValueError, IndexError, decimal.InvalidOperation):
                 amount = D(-1) # 解析失败时假设其不为0，直接显示
