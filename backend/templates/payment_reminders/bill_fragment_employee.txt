@@ -1,0 +1,8 @@
+{# 员工部分账单片段 #}
+{{ customer_name }}——{{ employee_name }} ({{ bill_date_range }}):
+{% for item in employee_line_items %}
+  - {{ item.name }}: {{ item.description }}
+{% endfor %}
+{% if employee_pending_amount != 0 %}
+  待付员工小计: {{ employee_pending_amount | round(2) }}元
+{% endif %}

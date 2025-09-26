@@ -1,27 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import {
   Box, Button, Typography, Modal, TextField, DialogActions,
-  Select, MenuItem, FormControl, InputLabel
+  Select, MenuItem, FormControl, InputLabel, Grid
 } from '@mui/material';
 import api from '../api/axios';
 
 const PaymentMessageModal = ({ open, onClose, initialMessage, onAlert }) => {
-  const [message, setMessage] = useState('');
+  const [companyMessage, setCompanyMessage] = useState('');
+  const [employeeMessage, setEmployeeMessage] = useState('');
   const [bankAccounts, setBankAccounts] = useState([]);
   const [selectedAccountId, setSelectedAccountId] = useState('');
-  const [originalMessage, setOriginalMessage] = useState('');
 
   useEffect(() => {
     if (open) {
-      // 当弹窗打开时，用传入的初始消息设置状态
-      setMessage(initialMessage);
-      setOriginalMessage(initialMessage); // 保存一份原始消息用于后续替换
+      // 当弹窗打开时，用传入的初始消息对象设置状态
+      setCompanyMessage(initialMessage?.company_summary || '');
+      setEmployeeMessage(initialMessage?.employee_summary || '');
 
       // 获取银行账户列表
       api.get('/billing/company_bank_accounts')
         .then(response => {
           setBankAccounts(response.data);
-          // 找到默认账户并设置为当前选中
           const defaultAccount = response.data.find(acc => acc.is_default);
           if (defaultAccount) {
             setSelectedAccountId(defaultAccount.id);
@@ -40,44 +39,25 @@ const PaymentMessageModal = ({ open, onClose, initialMessage, onAlert }) => {
     const newAccountId = event.target.value;
     setSelectedAccountId(newAccountId);
 
-    const oldAccount = bankAccounts.find(acc => message.includes(acc.payee_name) && message.includes(acc.account_number));
     const newAccount = bankAccounts.find(acc => acc.id === newAccountId);
+    if (!newAccount) return;
 
-    if (newAccount) {
-      // 最终修正：在模板字符串中直接使用 \n 来表示换行
-      const newBankInfo = `户名：${newAccount.payee_name}\n帐号：${newAccount.account_number}\n银行：${newAccount.bank_name}`;
+    const newBankInfo = `户名：${newAccount.payee_name}\n帐号：${newAccount.account_number}\n银行：${newAccount.bank_name}`;
 
-      let messageUpdated = false;
-
-      if (oldAccount) {
-        // 最终修正：这里也使用 \n
-        const oldBankInfo = `户名：${oldAccount.payee_name}\n帐号：${oldAccount.account_number}\n银行：${oldAccount.bank_name}`;
-        
-        // 注意：JS的 .includes() 对于多行字符串可能行为不一致，但 replace 可以正常工作
-        // 为了保险起见，我们直接尝试替换
-        const newMessage = message.replace(oldBankInfo, newBankInfo);
-        
-        if (newMessage !== message) {
-            setMessage(newMessage);
-            messageUpdated = true;
-        }
-      }
-
-      // 如果精确替换失败（例如用户手动修改过），则使用后备方案
-      if (!messageUpdated) {
-        const bankInfoStartIndex = message.lastIndexOf('户名：');
+    setCompanyMessage(prevMessage => {
+        const bankInfoStartIndex = prevMessage.lastIndexOf('户名：');
         if (bankInfoStartIndex !== -1) {
-          setMessage(message.substring(0, bankInfoStartIndex) + newBankInfo);
+            return prevMessage.substring(0, bankInfoStartIndex) + newBankInfo;
         } else {
-          // 如果连“户名：”都找不到了，就追加到末尾
-          setMessage(prevMessage => prevMessage + '\\n\\n' + newBankInfo);
+            // 如果找不到，就在末尾追加
+            return prevMessage + '\n\n' + newBankInfo;
         }
-      }
-    }
+    });
   };
 
   const handleCopyMessage = () => {
-    navigator.clipboard.writeText(message).then(() => {
+    const combinedMessage = `【对公账户】\n${companyMessage}\n\n【对私账户】\n${employeeMessage}`;
+    navigator.clipboard.writeText(combinedMessage).then(() => {
       onAlert('消息已复制到剪贴板', 'success');
     }, (err) => {
       console.error('复制失败: ', err);
@@ -92,7 +72,8 @@ const PaymentMessageModal = ({ open, onClose, initialMessage, onAlert }) => {
         top: '50%',
         left: '50%',
         transform: 'translate(-50%, -50%)',
-        width: 800,
+        width: '90%',
+        maxWidth: 1200, // 增加最大宽度
         bgcolor: 'background.paper',
         boxShadow: 24,
         p: 4,
@@ -101,11 +82,11 @@ const PaymentMessageModal = ({ open, onClose, initialMessage, onAlert }) => {
         <Typography variant="h6" component="h2">
           催款信息
         </Typography>
-        <FormControl fullWidth margin="normal" size="small">
-          <InputLabel>收款账户</InputLabel>
+        <FormControl fullWidth margin="normal" size="small" sx={{ maxWidth: 400 }}>
+          <InputLabel>收款账户 (仅影响对公部分)</InputLabel>
           <Select
             value={selectedAccountId}
-            label="收款账户"
+            label="收款账户 (仅影响对公部分)"
             onChange={handleAccountChange}
           >
             {bankAccounts.map((acc) => (
@@ -115,19 +96,38 @@ const PaymentMessageModal = ({ open, onClose, initialMessage, onAlert }) => {
             ))}
           </Select>
         </FormControl>
-        <TextField
-          multiline
-          fullWidth
-          rows={15}
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          variant="outlined"
-          sx={{ mt: 1, mb: 2, whiteSpace: 'pre-wrap', bgcolor: 'grey.100' }}
-        />
+        
+        <Grid container spacing={2} sx={{ mt: 1, mb: 2 }}>
+          <Grid item xs={12} md={6}>
+            <Typography variant="subtitle1" gutterBottom>对公部分</Typography>
+            <TextField
+              multiline
+              fullWidth
+              rows={15}
+              value={companyMessage}
+              onChange={(e) => setCompanyMessage(e.target.value)}
+              variant="outlined"
+              sx={{ whiteSpace: 'pre-wrap', bgcolor: 'grey.100' }}
+            />
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <Typography variant="subtitle1" gutterBottom>对私部分</Typography>
+            <TextField
+              multiline
+              fullWidth
+              rows={15}
+              value={employeeMessage}
+              onChange={(e) => setEmployeeMessage(e.target.value)}
+              variant="outlined"
+              sx={{ whiteSpace: 'pre-wrap', bgcolor: 'grey.100' }}
+            />
+          </Grid>
+        </Grid>
+
         <DialogActions>
           <Button onClick={onClose}>关闭</Button>
           <Button onClick={handleCopyMessage} variant="contained">
-            复制内容
+            复制完整内容
           </Button>
         </DialogActions>
       </Box>
