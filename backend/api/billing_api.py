@@ -4937,6 +4937,8 @@ def serve_financial_record_upload(filename):
 
 
 
+from backend.api.ai_generate import transform_text_with_llm
+
 @billing_bp.route("/generate_payment_message", methods=["POST"])
 @admin_required
 def generate_payment_message():
@@ -4948,12 +4950,36 @@ def generate_payment_message():
 
     try:
         generator = PaymentMessageGenerator()
-        message = generator.generate_for_bills(bill_ids)
-        return jsonify({"message": message})
+        message_data = generator.generate_for_bills(bill_ids)
+        return jsonify(message_data)
     except Exception as e:
         current_app.logger.error(f"生成催款消息失败: {e}", exc_info=True)
         return jsonify({"error": "生成消息时发生服务器内部错误"}), 500
-    
+
+@billing_bp.route("/beautify-message", methods=["POST"])
+@admin_required
+def beautify_payment_message():
+    data = request.get_json()
+    company_summary = data.get("company_summary", "")
+    employee_summary = data.get("employee_summary", "")
+
+    if not company_summary and not employee_summary:
+        return jsonify({"error": "没有需要美化的内容"}), 400
+
+    input_text = f"【应付公司款项】\n{company_summary}\n\n【应付员工款项】\n{employee_summary}"
+    user_id = get_jwt_identity()
+
+    try:
+        beautified_text = transform_text_with_llm(
+            input_text=input_text,
+            prompt_identifier="SimplifiedBill",
+            user_id=user_id
+        )
+        return jsonify({"beautified_message": beautified_text})
+    except Exception as e:
+        current_app.logger.error(f"美化账单信息失败: {e}", exc_info=True)
+        return jsonify({"error": "AI美化失败，请稍后重试"}), 500
+
 @billing_bp.route("/company_bank_accounts", methods=["GET"])
 @admin_required
 def get_company_bank_accounts():

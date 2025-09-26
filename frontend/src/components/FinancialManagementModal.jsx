@@ -290,7 +290,7 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
             const response = await api.post('/billing/generate_payment_message', {
                 bill_ids: [billId],
             });
-            setGeneratedMessage(response.data.message);
+            setGeneratedMessage(response.data);
             setIsMessageModalOpen(true);
         } catch (error) {
             console.error("生成催款消息失败:", error);

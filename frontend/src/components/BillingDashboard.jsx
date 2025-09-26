@@ -773,7 +773,7 @@ const BillingDashboard = () => {
                 bill_ids: selected, // 注意：您的选择状态变量可能是 selected
             });
             // 将获取到的消息存入 state，并打开弹窗
-            setGeneratedMessage(response.data.message);
+            setGeneratedMessage(response.data);
             setIsMessageModalOpen(true);
         } catch (error) {
             console.error("生成催款消息失败:", error);
