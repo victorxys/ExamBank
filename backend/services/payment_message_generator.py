@@ -84,7 +84,8 @@ class PaymentMessageGenerator:
         core_items_map = {
             '基础劳务费': calculation_log.get('基础劳务费'),
             '加班费': calculation_log.get('加班费'),
-            '本次交管理费': calculation_log.get('本次交管理费')
+            '本次交管理费': calculation_log.get('本次交管理费'),
+            '管理费': calculation_log.get('管理费'),
         }
         for name, desc in core_items_map.items():
             if desc:
@@ -114,9 +115,25 @@ class PaymentMessageGenerator:
         if not final_line_items and pending_amount <= 0:
             return {"line_items": [], "pending_amount": D('0.00')}
 
+        # --- 核心修复：根据账单类型确定员工姓名 ---
+        employee_name = ""
+        if bill.is_substitute_bill and bill.source_substitute_record:
+            sub_record = bill.source_substitute_record
+            if sub_record.substitute_user:
+                employee_name = sub_record.substitute_user.username
+            elif sub_record.substitute_personnel:
+                employee_name = sub_record.substitute_personnel.name
+        else:
+            #  fallback to original logic for main bills
+            if bill.contract and bill.contract.user:
+                employee_name = bill.contract.user.username
+            elif bill.contract and bill.contract.service_personnel:
+                employee_name = bill.contract.service_personnel.name
+        # --- 修复结束 ---
+
         return {
             "customer_name": bill.contract.customer_name,
-            "employee_name": bill.contract.user.username if bill.contract.user else bill.contract.service_personnel.name,
+            "employee_name": employee_name,
             "bill_date_range": f"{bill.cycle_start_date.strftime('%Y-%m-%d')} ~ {bill.cycle_end_date.strftime('%Y-%m-%d')}",
             "line_items": final_line_items,
             "total_due": bill.total_due,

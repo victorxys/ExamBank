@@ -1,6 +1,5 @@
-{# 多账单合并包装模板 V2 #}
+{# 多账单合并包装模板 V3 #}
 {{ bill_fragments | join('\n--------------------\n') }}
-
 费用总计 (待付): {{ grand_total_amount }}元
 
 {% if company_account %}

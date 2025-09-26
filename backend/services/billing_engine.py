@@ -905,6 +905,8 @@ class BillingEngine:
             record_start_date = record.start_date.date()
             record_end_date = record.end_date.date()
 
+            
+
             overlap_start = max(cycle_start, record_start_date)
             overlap_end = min(cycle_end, record_end_date)
             if overlap_start <= overlap_end:
