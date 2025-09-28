@@ -3,6 +3,7 @@
 | 版本 | 日期 | 作者 | 变更内容 |
 | :--- | :--- | :--- | :--- |
 | 1.0 | 2025-09-25 | Linus Torvalds | 初始草案 |
+| 1.1 | 2025-09-26 | Linus Torvalds | 更新开发进展 |
 
 ## 1. 需求背景与目标
 
@@ -150,3 +151,20 @@
 -   **边缘情况**:
     -   **账单作废**: 如果一张 `CustomerBill` 被作废，必须触发一个任务来更新其父 `MonthlyStatement` 的总金额和状态。
     -   **部分支付**: 支付流程必须能正确处理部分支付，并相应更新 `Statement` 和 `Bill` 的状态。
+
+## 8. 开发进展
+
+### 8.1. 后端逻辑 (已完成)
+
+-   **[已完成]** 已确认 `MonthlyStatement` 和 `CustomerBill` 的数据库模型已根据设计文档正确实现。
+-   **[已完成]** 已确认异步任务 `process_statement_for_bill` 已在 `backend/tasks.py` 中实现，其逻辑符合设计要求。
+-   **[已完成]** 发现 `process_statement_for_bill` 任务在账单创建或更新后并未被触发。
+-   **[已完成]** 为了解决现有代码中数据库提交逻辑分散的问题，我在 `BillingEngine` 内部实现了一个追踪机制，用于收集在单次操作中所有被修改的账单。
+-   **[已完成]** 已修改核心的计费任务 (`calculate_monthly_billing_task`, `post_virtual_contract_creation_task`)，确保它们在数据库事务提交后，能为所有受影响的账单触发 `process_statement_for_bill` 任务。
+-   **[已完成]** 已将 `BillingEngine` 中的 `process_substitution` 和 `process_trial_termination` 函数重构为不直接提交数据库事务，并为它们创建了相应的 Celery 任务 (`process_substitution_task`, `process_trial_termination_task`)。这些任务现在负责处理事务，并能在完成后正确触发月度结算单的处理流程。
+-   **[已完成]** 在 `backend/api/statement_api.py` 中实现了月度结算单的 `GET` API，用于获取结算单列表和详情。
+-   **[已完成]** 在 `BillingEngine` 中实现了 `process_statement_payment` 方法，用于处理支付和按 FIFO 规则分配款项。同时在 `statement_api.py` 中添加了 `POST /api/statements/{id}/pay` 接口来调用此逻辑。
+
+### 8.2. 下一步计划
+
+-   **[待办]** 实现前端界面，包括月度结算单列表页和详情页，并集成支付功能。

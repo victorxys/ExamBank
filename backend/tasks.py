@@ -34,6 +34,10 @@ from backend.models import (
     NannyContract,
     BaseContract,
     ExternalSubstitutionContract,
+    MonthlyStatement,
+    CustomerBill,
+    PaymentStatus,
+    NannyTrialContract,
 )
 from backend.api.ai_generate import generate_video_script  # 导入新函数
 from backend.api.ai_generate import (
@@ -2366,10 +2370,90 @@ def resplit_and_match_sentences_task(self, final_tts_script_id_str):
             raise  # 让Celery知道任务失败了
 
 
+from decimal import Decimal as D
+
 # ==============================================================================
 # SECTION 3: Billing and Contract Management Tasks
 # ==============================================================================
 
+@celery_app.task(bind=True, name="tasks.process_statement_for_bill")
+def process_statement_for_bill(self, bill_id):
+    """
+    After a CustomerBill is created or updated, this task ensures it's linked to the correct
+    MonthlyStatement, creating the statement if it doesn't exist, and updates aggregates.
+    """
+    app = create_flask_app_for_task()
+    with app.app_context():
+        logger = get_task_logger(__name__)
+        logger.info(f"[StatementTask] Processing bill_id: {bill_id}")
+
+        bill = CustomerBill.query.get(bill_id)
+        if not bill:
+            logger.error(f"[StatementTask] CustomerBill with id {bill_id} not found.")
+            return
+
+        try:
+            # 1. Find or create the MonthlyStatement
+            statement = MonthlyStatement.query.filter_by(
+                customer_name=bill.customer_name,
+                year=bill.year,
+                month=bill.month
+            ).with_for_update().first()
+
+            if not statement:
+                logger.info(f"[StatementTask] No statement found for {bill.customer_name} {bill.year}-{bill.month}. Creating a new one.")
+                statement = MonthlyStatement(
+                    customer_name=bill.customer_name,
+                    year=bill.year,
+                    month=bill.month,
+                    status='UNPAID'
+                )
+                db.session.add(statement)
+                db.session.flush() # Flush to get the new statement ID
+
+            # 2. Associate the bill with the statement
+            if bill.statement_id != statement.id:
+                bill.statement_id = statement.id
+                logger.info(f"[StatementTask] Bill {bill.id} associated with statement {statement.id}.")
+
+            # 3. Recalculate statement's total_amount
+            # Use a direct query for efficiency
+            total_due_agg = db.session.query(
+                func.sum(CustomerBill.total_due)
+            ).filter(
+                CustomerBill.statement_id == statement.id
+            ).scalar()
+            statement.total_amount = total_due_agg or D('0.00')
+            logger.info(f"[StatementTask] Recalculated statement {statement.id} total_amount: {statement.total_amount}")
+
+            # 4. Recalculate statement's paid_amount (This is more complex, for now we can sum up from bills)
+            # A better approach would be to have payments linked to statements directly in the future.
+            total_paid_agg = db.session.query(
+                func.sum(CustomerBill.total_paid)
+            ).filter(
+                CustomerBill.statement_id == statement.id
+            ).scalar()
+            statement.paid_amount = total_paid_agg or D('0.00')
+            logger.info(f"[StatementTask] Recalculated statement {statement.id} paid_amount: {statement.paid_amount}")
+
+            # 5. Update statement status
+            if statement.paid_amount <= 0:
+                statement.status = 'UNPAID'
+            elif statement.paid_amount < statement.total_amount:
+                statement.status = 'PARTIALLY_PAID'
+            elif statement.paid_amount == statement.total_amount:
+                statement.status = 'PAID'
+            else: # overpaid
+                statement.status = 'OVERPAID'
+            logger.info(f"[StatementTask] Updated statement {statement.id} status to {statement.status}.")
+
+            db.session.commit()
+            logger.info(f"[StatementTask] Successfully processed bill {bill_id} and updated statement {statement.id}.")
+
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"[StatementTask] Error processing bill {bill_id}: {e}", exc_info=True)
+            raise self.retry(exc=e)
 
 @celery_app.on_after_configure.connect
 def setup_periodic_tasks(sender, **kwargs):
@@ -2566,11 +2650,19 @@ def calculate_monthly_billing_task(
             task_logger.info(
                 f"Finished monthly billing task for {year}-{month}, Contract: {contract_id}"
             )
+
+            # Trigger statement processing for all affected bills
+            if engine.processed_bills_for_statement_update:
+                task_logger.info(f"Triggering statement processing for {len(engine.processed_bills_for_statement_update)} bills.")
+                for bill_id in engine.processed_bills_for_statement_update:
+                    process_statement_for_bill.delay(bill_id)
+
             return {
                 "status": "Success",
                 "message": f"Billing calculation for {year}-{month} is complete.",
             }
         except Exception as e:
+            db.session.rollback()
             task_logger.error(
                 f"Monthly billing task for {year}-{month}, Contract: {contract_id} failed: {e}",
                 exc_info=True,
@@ -2659,6 +2751,12 @@ def generate_all_bills_for_contract_task(contract_id):
             current_app.logger.info(f"===== [GenerateAllBillsTask] 合同 {contract.id} 的所有账单已成功处理。 =====")
             db.session.commit() # 所有操作成功后，统一提交
 
+            # Trigger statement processing for all affected bills
+            if engine.processed_bills_for_statement_update:
+                logger.info(f"Triggering statement processing for {len(engine.processed_bills_for_statement_update)} bills.")
+                for bill_id in engine.processed_bills_for_statement_update:
+                    process_statement_for_bill.delay(bill_id)
+
         except Exception as e:
             db.session.rollback()
             current_app.logger.error(f"[GenerateAllBillsTask] 为合同 {contract_id} 生成账单时发生严重错误: {e}", exc_info=True)
@@ -2680,10 +2778,9 @@ def post_virtual_contract_creation_task(self, contract_id):
                 raise self.retry()
 
             logger.info(f"[PostCreationTask] 已找到合同 {contract_id}，类型: {contract.type}，开始处理...")
-
+            engine = BillingEngine()
             # --- 核心修改：同时处理育儿嫂和外部替班合同 ---
             if isinstance(contract, (NannyContract, ExternalSubstitutionContract)):
-                engine = BillingEngine()
 
                 logger.info(f"[PostCreationTask] 为合同 {contract.id} 生成初始账单...")
                 engine.generate_all_bills_for_contract(contract.id, force_recalculate=True)
@@ -2700,6 +2797,11 @@ def post_virtual_contract_creation_task(self, contract_id):
 
             db.session.commit()
             logger.info(f"合同 {contract_id} 的所有后续操作已成功提交到数据库。")
+            # Trigger statement processing for all affected bills
+            if engine.processed_bills_for_statement_update:
+                logger.info(f"Triggering statement processing for {len(engine.processed_bills_for_statement_update)} bills.")
+                for bill_id in engine.processed_bills_for_statement_update:
+                    process_statement_for_bill.delay(bill_id)
 
         except Exception as exc:
             db.session.rollback()
@@ -2708,3 +2810,70 @@ def post_virtual_contract_creation_task(self, contract_id):
         finally:
             db.session.remove()
             logger.info(f"[PostCreationTask] 数据库会话已为任务 {self.request.id} 清理。")
+
+@celery_app.task(bind=True, name="tasks.process_substitution_task")
+def process_substitution_task(self, record_id):
+    """
+    一个包装器任务，用于安全地调用 BillingEngine.process_substitution，
+    并确保后续的月度结算单处理任务被触发。
+    """
+    app = create_flask_app_for_task()
+    with app.app_context():
+        engine = BillingEngine()
+        try:
+            engine.process_substitution(record_id)
+            db.session.commit()
+            current_app.logger.info(f"[SubTask] 成功处理了替班记录 {record_id}。")
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(
+                f"[SubTask] 处理替班记录 {record_id} 时出错: {e}",
+                exc_info=True,
+            )
+            # 重新抛出异常，以便Celery知道任务失败，并根据配置进行重试
+            raise
+        finally:
+            # 无论成功或失败，都触发月度结算单处理
+            if engine.processed_bills_for_statement_update:
+                current_app.logger.info(
+                    f"[SubTask] 准备为 {len(engine.processed_bills_for_statement_update)} 个已处理的账单触发月度结算单更新任务。"
+                )
+                for bill_id in engine.processed_bills_for_statement_update:
+                    process_statement_for_bill.delay(bill_id)
+            else:
+                current_app.logger.info("[SubTask] 没有需要更新月度结算单的账单。")
+
+@celery_app.task(bind=True, name="tasks.process_trial_termination_task")
+def process_trial_termination_task(self, contract_id, actual_trial_days):
+    """
+    一个包装器任务，用于安全地调用 BillingEngine.process_trial_termination，
+    并确保后续的月度结算单处理任务被触发。
+    """
+    app = create_flask_app_for_task()
+    with app.app_context():
+        contract = db.session.get(NannyTrialContract, contract_id)
+        if not contract:
+            current_app.logger.error(f"[TrialTermTask] 试工合同 {contract_id} 未找到。")
+            return
+
+        engine = BillingEngine()
+        try:
+            engine.process_trial_termination(contract, actual_trial_days)
+            db.session.commit()
+            current_app.logger.info(f"[TrialTermTask] 成功处理了试工合同 {contract_id} 的终止流程。")
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(
+                f"[TrialTermTask] 处理试工合同 {contract_id} 终止时出错: {e}",
+                exc_info=True,
+            )
+            raise
+        finally:
+            if engine.processed_bills_for_statement_update:
+                current_app.logger.info(
+                    f"[TrialTermTask] 准备为 {len(engine.processed_bills_for_statement_update)} 个已处理的账单触发月度结算单更新任务。"
+                )
+                for bill_id in engine.processed_bills_for_statement_update:
+                    process_statement_for_bill.delay(bill_id)
+            else:
+                current_app.logger.info("[TrialTermTask] 没有需要更新月度结算单的账单。")

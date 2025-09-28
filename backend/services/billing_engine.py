@@ -63,6 +63,9 @@ def _update_bill_payment_status(bill: CustomerBill):
     current_app.logger.info(f"Updated bill {bill.id} status to {bill.payment_status.value} with total_paid {bill.total_paid}")
 
 class BillingEngine:
+    def __init__(self):
+        self.processed_bills_for_statement_update = []
+
     def _to_date(self, dt_obj):
         """健壮的辅助函数，将 datetime 或 date 对象统一转换为纯 date 对象。"""
         # 因为我们已从 datetime 导入了 datetime 类，所以这里的 `datetime` 是正确的类型
@@ -410,12 +413,8 @@ class BillingEngine:
 
     def process_substitution(self, record_id):
         """
-        处理单个替班记录的完整流程，这是一个原子操作。
-        1. 查找或创建原始账单。
-        2. 关联替班记录。
-        3. 如果是月嫂合同，则顺延周期。
-        4. 创建替班账单。
-        5. 重新计算原始账单。
+        处理单个替班记录的完整流程。
+        注意：此函数不再管理数据库事务（commit/rollback），应由调用方（如Celery任务）处理。
         """
         sub_record = db.session.get(SubstituteRecord, record_id)
         if not sub_record:
@@ -429,8 +428,25 @@ class BillingEngine:
             )
             return
 
-        try:
-            # 1. 查找或创建受影响的原始账单
+        # 1. 查找或创建受影响的原始账单
+        original_bill = CustomerBill.query.filter(
+            CustomerBill.contract_id == main_contract.id,
+            CustomerBill.is_substitute_bill.is_not(True),
+            CustomerBill.cycle_start_date <= sub_record.end_date,
+            CustomerBill.cycle_end_date >= sub_record.start_date,
+        ).first()
+
+        if not original_bill:
+            current_app.logger.info(
+                f"[SubProcessing] 未找到替班期间 {sub_record.start_date}-{sub_record.end_date} 的原始账单，将尝试生成它。"
+            )
+            target_year, target_month = (
+                sub_record.end_date.year,
+                sub_record.end_date.month,
+            )
+            self.calculate_for_month(
+                target_year, target_month, main_contract.id, force_recalculate=True
+            )
             original_bill = CustomerBill.query.filter(
                 CustomerBill.contract_id == main_contract.id,
                 CustomerBill.is_substitute_bill.is_not(True),
@@ -438,122 +454,64 @@ class BillingEngine:
                 CustomerBill.cycle_end_date >= sub_record.start_date,
             ).first()
 
-            if not original_bill:
-                current_app.logger.info(
-                    f"[SubProcessing] 未找到替班期间 {sub_record.start_date}-{sub_record.end_date} 的原始账单，将尝试生成它。"
-                )
-                # 确定应该为哪个月份生成账单（以替班结束日为准）
-                target_year, target_month = (
-                    sub_record.end_date.year,
-                    sub_record.end_date.month,
-                )
-                self.calculate_for_month(
-                    target_year, target_month, main_contract.id, force_recalculate=True
-                )
+        if not original_bill:
+            raise Exception(
+                f"无法为替班记录 {record_id} 找到或创建对应的原始账单。"
+            )
 
-                # 再次查找
-                original_bill = CustomerBill.query.filter(
-                    CustomerBill.contract_id == main_contract.id,
-                    CustomerBill.is_substitute_bill.is_not(True),
-                    CustomerBill.cycle_start_date <= sub_record.end_date,
-                    CustomerBill.cycle_end_date >= sub_record.start_date,
-                ).first()
+        # 2. 关联替班记录到原始账单
+        sub_record.original_customer_bill_id = original_bill.id
+        db.session.add(sub_record)
+        current_app.logger.info(
+            f"[SubProcessing] 替班记录 {sub_record.id} 已关联到原始账单 {original_bill.id}"
+        )
 
-            if not original_bill:
-                raise Exception(
-                    f"无法为替班记录 {record_id} 找到或创建对应的原始账单。"
-                )
-
-            # 2. 关联替班记录到原始账单
-            sub_record.original_customer_bill_id = original_bill.id
-            db.session.add(sub_record)
+        # 3. 如果是月嫂合同，处理周期顺延
+        if main_contract.type == "maternity_nurse":
+            substitute_days = (sub_record.end_date - sub_record.start_date).days
+            postponement_delta = timedelta(days=substitute_days)
             current_app.logger.info(
-                f"[SubProcessing] 替班记录 {sub_record.id} 已关联到原始账单 {original_bill.id}"
+                f"[SubProcessing] 月嫂合同 {main_contract.id} 替班 {substitute_days} 天，开始顺延周期。"
             )
+            if main_contract.expected_offboarding_date:
+                main_contract.expected_offboarding_date += postponement_delta
+            original_bill.cycle_end_date += postponement_delta
+            future_bills = CustomerBill.query.filter(
+                CustomerBill.contract_id == main_contract.id,
+                CustomerBill.is_substitute_bill.is_not(True),
+                CustomerBill.cycle_start_date > original_bill.cycle_start_date,
+            ).all()
+            future_payrolls = EmployeePayroll.query.filter(
+                EmployeePayroll.contract_id == main_contract.id,
+                EmployeePayroll.is_substitute_payroll.is_not(True),
+                EmployeePayroll.cycle_start_date > original_bill.cycle_start_date,
+            ).all()
+            for bill in future_bills:
+                bill.cycle_start_date += postponement_delta
+                bill.cycle_end_date += postponement_delta
+            for payroll in future_payrolls:
+                payroll.cycle_start_date += postponement_delta
+                payroll.cycle_end_date += postponement_delta
+            db.session.flush()
 
-            # 3. 如果是月嫂合同，处理周期顺延
-            if main_contract.type == "maternity_nurse":
-                substitute_days = (sub_record.end_date - sub_record.start_date).days
-                postponement_delta = timedelta(days=substitute_days)
+        # 4. 为替班记录生成新的独立账单
+        self.calculate_for_substitute(record_id, commit=False)
 
-                current_app.logger.info(
-                    f"[SubProcessing] 月嫂合同 {main_contract.id} 替班 {substitute_days} 天,postponement_delta {postponement_delta}，开始顺延周期。"
-                )
+        # 5. 强制重算原始账单
+        current_app.logger.info(
+            f"[SubProcessing] 准备重算原始账单 {original_bill.id}。"
+        )
+        self.calculate_for_month(
+            original_bill.year,
+            original_bill.month,
+            original_bill.contract_id,
+            force_recalculate=True,
+        )
 
-                # 顺延主合同的预计下户日期
-                if main_contract.expected_offboarding_date:
-                    main_contract.expected_offboarding_date += postponement_delta
-                    current_app.logger.info(
-                        f"  -> 主合同预计下户日期顺延至: {main_contract.expected_offboarding_date}"
-                    )
-
-                # 延长当前账单周期
-                original_bill.cycle_end_date += postponement_delta
-                current_app.logger.info(
-                    f"  -> 当前账单 {original_bill.id} 周期延长至: {original_bill.cycle_end_date}"
-                )
-
-                # 顺延所有未来的账单和薪酬单
-                future_bills = (
-                    CustomerBill.query.filter(
-                        CustomerBill.contract_id == main_contract.id,
-                        CustomerBill.is_substitute_bill.is_not(True),
-                        CustomerBill.cycle_start_date > original_bill.cycle_start_date,
-                    )
-                    .order_by(CustomerBill.cycle_start_date)
-                    .all()
-                )
-
-                future_payrolls = (
-                    EmployeePayroll.query.filter(
-                        EmployeePayroll.contract_id == main_contract.id,
-                        EmployeePayroll.is_substitute_payroll.is_not(True),
-                        EmployeePayroll.cycle_start_date
-                        > original_bill.cycle_start_date,
-                    )
-                    .order_by(EmployeePayroll.cycle_start_date)
-                    .all()
-                )
-
-                for bill in future_bills:
-                    bill.cycle_start_date += postponement_delta
-                    bill.cycle_end_date += postponement_delta
-                for payroll in future_payrolls:
-                    payroll.cycle_start_date += postponement_delta
-                    payroll.cycle_end_date += postponement_delta
-
-                current_app.logger.info(
-                    f"  -> {len(future_bills)} 个未来账单和 {len(future_payrolls)} 个未来薪酬单已顺延。"
-                )
-                db.session.flush()  # 确保顺延的日期在当前事务中可
-
-            # 4. 为替班记录生成新的独立账单
-            self.calculate_for_substitute(record_id, commit=False)  # 传入 commit=False
-
-            # 5. 强制重算原始账单
-            current_app.logger.info(
-                f"[SubProcessing] 准备重算原始账单 {original_bill.id}。"
-            )
-            self.calculate_for_month(
-                original_bill.year,
-                original_bill.month,
-                original_bill.contract_id,
-                force_recalculate=True,
-            )
-
-            db.session.commit()
-            current_app.logger.info(
-                "[SubProcessing] 替班流程处理完毕，所有更改已提交。"
-            )
-            return original_bill.id
-
-        except Exception as e:
-            db.session.rollback()
-            current_app.logger.error(
-                f"[SubProcessing] 处理替班记录 {record_id} 时发生错误: {e}",
-                exc_info=True,
-            )
-            raise e
+        current_app.logger.info(
+            "[SubProcessing] 替班流程处理完毕，等待外部事务提交。"
+        )
+        return original_bill.id
 
     def _calculate_nanny_trial_bill(self, contract, year, month, force_recalculate=False):
         """
@@ -2318,16 +2276,21 @@ class BillingEngine:
         return log
 
     def _update_bill_with_log(self, bill, payroll, details, log):
-        details["calculation_log"] = log
-        current_app.logger.info(f"[SAVE-CHECK] Bill ID {bill.id}: log_extras to be saved: {details.get('log_extras')}")
         bill.calculation_details = details
-        payroll.calculation_details = details.copy()
-
-        attributes.flag_modified(bill, "calculation_details")
-        attributes.flag_modified(payroll, "calculation_details")
-
+        bill.calculation_log = log
         db.session.add(bill)
-        db.session.add(payroll)
+        if payroll:
+            payroll.calculation_details = details
+            payroll.calculation_log = log
+            db.session.add(payroll)
+
+        # --- 新增：将处理过的账单ID添加到待更新列表中 ---
+        if bill.id and bill.id not in self.processed_bills_for_statement_update:
+            self.processed_bills_for_statement_update.append(bill.id)
+            current_app.logger.info(
+                f"[StatementTracker] Bill {bill.id} has been marked for statement update."
+            )
+        # --- 新增结束 ---
 
         return bill, payroll
 
@@ -2397,38 +2360,51 @@ class BillingEngine:
         }
         return details
     
-    def process_trial_termination(self, contract, actual_trial_days):
+    def process_trial_termination(self, contract: NannyTrialContract, actual_trial_days: int):
         """
-        处理育儿嫂试工失败的最终结算 (v14 - Simplified Logic)。
+        (V15 - UNIFIED) 统一的试工合同终止/结算函数。
+        注意：此函数不再管理数据库事务，应由调用方（如Celery任务）处理。
         """
-        current_app.logger.info(f"[TrialTerm-v14] 开始处理试工合同 {contract.id}，实际天数: {actual_trial_days}")
+        current_app.logger.info(
+            f"[TrialTERM] 开始处理试工合同 {contract.id} 的终止流程，实际试工天数: {actual_trial_days}。"
+        )
+        if not isinstance(contract, NannyTrialContract):
+            raise TypeError("此函数仅适用于育儿嫂试工合同。")
 
-        with db.session.begin_nested(): 
-            # 1. 创建或获取账单/薪酬单
-            term_date = contract.start_date + timedelta(days=actual_trial_days)
+        bill = CustomerBill.query.filter_by(
+            contract_id=contract.id, is_substitute_bill=False
+        ).first()
+        payroll = EmployeePayroll.query.filter_by(
+            contract_id=contract.id, is_substitute_payroll=False
+        ).first()
+
+        if not bill or not payroll:
+            current_app.logger.info(f"[TrialTERM] 未找到现有账单/工资单，将创建新的。")
             bill, payroll = self._get_or_create_bill_and_payroll(
-                contract, term_date.year, term_date.month, contract.start_date, term_date
+                contract,
+                contract.start_date.year,
+                contract.start_date.month,
+                contract.start_date,
+                contract.start_date + timedelta(days=actual_trial_days),
             )
-            # 2. 获取包含所有基础组件的 details 字典
-            details = self._calculate_nanny_trial_termination_details(contract, actual_trial_days, bill, payroll)
+        else:
+            current_app.logger.info(
+                f"[TrialTERM] 找到现有账单 {bill.id} 和工资单 {payroll.id}，将进行更新。"
+            )
+            bill.cycle_end_date = bill.cycle_start_date + timedelta(days=actual_trial_days)
+            payroll.cycle_end_date = payroll.cycle_start_date + timedelta(days=actual_trial_days)
 
-            # 3. 根据业务场景，动态修改 details 字典
-            has_intro_fee = D(details['introduction_fee']) > 0
+        details = self._calculate_nanny_trial_details(contract, bill, payroll)
+        bill, payroll = self._calculate_final_amounts(bill, payroll, details)
+        log = self._create_calculation_log(details)
+        self._update_bill_with_log(bill, payroll, details, log)
 
-            if has_intro_fee:
-                # 情况一: 有介绍费 -> 不收管理费
-                details['management_fee'] = "0.00"
-                details['log_extras']['management_fee_reason'] = "已有介绍费,试工不收取管理费"
-            else:
-                # 情况二: 没有介绍费 -> 正常收取管理费 (details中已包含)
-                pass
+        if contract.trial_outcome == TrialOutcome.CONVERTED_TO_FORMAL:
+            self._transfer_introduction_fee_to_formal(contract, bill)
 
-            # 4. 将 details 传递给标准流程进行最终计算和保存
-            bill, payroll = self._calculate_final_amounts(bill, payroll, details)
-            log = self._create_calculation_log(details)
-            self._update_bill_with_log(bill, payroll, details, log)
+        current_app.logger.info(f"[TrialTERM] 试工合同 {contract.id} 终止流程处理完毕，等待外部事务提交。")
 
-        current_app.logger.info(f"[TrialTerm-v14] 合同 {contract.id} 结算处理完成。")
+        return bill.id, payroll.id
 
     # v5.5 设计方案的核心实现
     def calculate_invoice_balance(self, target_bill_id: str):
@@ -2744,3 +2720,83 @@ class BillingEngine:
                 }
 
         return costs
+    
+    def process_statement_payment(self, statement_id: int, payment_amount: 'D', payment_date: 'date', payment_method: str, notes: str, operator_id: 'uuid'):
+        """
+        处理对月度结算单的支付。
+        在一个事务中完成支付金额的分配和所有相关状态的更新。
+        """
+        from backend.models import MonthlyStatement, CustomerBill, PaymentRecord, PaymentStatus
+
+        # 1. 验证并获取结算单，同时使用行级锁防止并发修改
+        statement = db.session.query(MonthlyStatement).filter_by(id=statement_id).with_for_update().first()
+        if not statement:
+            raise ValueError(f"ID为 {statement_id} 的月度结算单不存在。")
+
+        # 2. 获取所有关联的、未完全支付的账单，按FIFO原则排序 (最早的账单在前)
+        bills_to_pay = sorted(
+            [b for b in statement.bills if b.payment_status != PaymentStatus.PAID],
+            key=lambda b: (b.cycle_start_date is None, b.cycle_start_date)
+        )
+
+        if not bills_to_pay:
+            current_app.logger.warning(f"结算单 {statement_id} 没有需要支付的账单。")
+            # 如果没有需要支付的账单，也认为操作是“成功”的，只是什么也没做
+            return
+
+        remaining_payment = payment_amount
+        
+        # 3. 遍历账单，分配支付金额
+        for bill in bills_to_pay:
+            if remaining_payment <= D('0'):
+                break
+
+            amount_due_on_bill = bill.total_due - (bill.paid_amount or D('0'))
+            if amount_due_on_bill <= D('0'):
+                continue
+
+            payment_for_this_bill = min(remaining_payment, amount_due_on_bill)
+
+            # a. 创建支付记录
+            payment_record = PaymentRecord(
+                customer_bill_id=bill.id,
+                amount=payment_for_this_bill,
+                payment_date=payment_date,
+                method=payment_method,
+                notes=notes,
+                created_by_user_id=operator_id
+            )
+            db.session.add(payment_record)
+            current_app.logger.info(f"为账单 {bill.id} 创建了 {payment_for_this_bill} 元的支付记录。")
+
+            # b. 更新账单的 paid_amount 和 status
+            bill.paid_amount = (bill.paid_amount or D('0')) + payment_for_this_bill
+            if bill.paid_amount >= bill.total_due:
+                bill.payment_status = PaymentStatus.PAID
+            else:
+                bill.payment_status = PaymentStatus.PARTIALLY_PAID
+            db.session.add(bill)
+            current_app.logger.info(f"账单 {bill.id} 的状态更新为 {bill.payment_status.value}，已付金额 {bill.paid_amount}。")
+
+            remaining_payment -= payment_for_this_bill
+
+        # 4. 更新月度结算单的总已付金额和状态
+        # 重新从数据库中聚合，这是最准确的方式
+        total_paid_for_statement = db.session.query(func.sum(CustomerBill.paid_amount)).filter(
+            CustomerBill.statement_id == statement.id
+        ).scalar() or D('0')
+        
+        statement.paid_amount = total_paid_for_statement
+        if statement.paid_amount >= statement.total_amount:
+            statement.status = 'PAID'
+        elif statement.paid_amount > D('0'):
+            statement.status = 'PARTIALLY_PAID'
+        else:
+            statement.status = 'UNPAID'
+        db.session.add(statement)
+        current_app.logger.info(f"结算单 {statement.id} 的状态更新为 {statement.status}，总已付金额 {statement.paid_amount}。")
+
+        if remaining_payment > D('0'):
+            current_app.logger.warning(f"支付完成后，仍有 {remaining_payment} 元未分配（可能发生超付）。")
+        
+        # 此函数不提交事务，由调用方负责
