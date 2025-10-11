@@ -455,10 +455,13 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
     };
 
     const handleDeletePayment = async (paymentId) => {
-        if (window.confirm("确定要删除这笔收款记录吗？")) {
+        if (window.confirm("确定要删除这笔收款记录吗？此操作将同步更新关联银行流水的已分配额度。")) {
             try {
-                await api.delete(`/billing/payments/${paymentId}`);
-                setAlert({ open: true, message: '收款记录已删除', severity: 'success' });
+                // 核心修正：调用新的、正确的后端端点
+                await api.delete(`/payment-records/${paymentId}`);
+                setAlert({ open: true, message: '收款记录已删除，关联流水已更新', severity: 'success' });
+
+                // 刷新账单详情以显示最新状态
                 const response = await api.get('/billing/details', { params: { bill_id: billingDetails.customer_bill_details.id } });
                 setBillingDetails(response.data);
             } catch (error) {

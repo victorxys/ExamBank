@@ -2003,6 +2003,109 @@ class CompanyBankAccount(db.Model):
     def __repr__(self):
         return f'<CompanyBankAccount {self.account_nickname}>'
 
+class TransactionDirection(enum.Enum):
+    CREDIT = "CREDIT"  # 收款/入账
+    DEBIT = "DEBIT"    # 付款/出账
+
+class BankTransactionStatus(enum.Enum):
+    UNMATCHED = "unmatched"              # 未匹配/未分配
+    PARTIALLY_ALLOCATED = "partially_allocated" # 部分分配
+    MATCHED = "matched"                  # 完全分配/已匹配
+    PENDING_CONFIRMATION = "pending_confirmation" # 待确认 (用于简单一对一匹配建议)
+    IGNORED = "ignored"                  # 已忽略
+    ERROR = "error"                      # 匹配出错
+
+class BankTransaction(db.Model):
+    __tablename__ = 'bank_transactions'
+    __table_args__ = {'comment': '银行交易流水表'}
+
+    id = db.Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    transaction_id = db.Column(db.String(255), nullable=True, unique=True, index=True, comment="交易流水号")
+    transaction_time = db.Column(db.DateTime(timezone=True), nullable=False, index=True, comment="交易时间")
+    amount = db.Column(db.Numeric(12, 2), nullable=False, comment="交易金额")
+    payer_name = db.Column(db.String(255), nullable=False, index=True, comment="收(付)方名称")
+    summary = db.Column(db.Text, nullable=True, comment="摘要")
+    
+    transaction_method = db.Column(db.String(100), nullable=True, comment="交易方式")
+    currency = db.Column(db.String(20), nullable=True, comment="交易币种")
+    business_type = db.Column(db.String(100), nullable=True, comment="业务类型")
+    payer_account = db.Column(db.String(255), nullable=True, comment="收(付)方账号")
+    direction = db.Column(
+        SAEnum(TransactionDirection, name="transactiondirection"),
+        nullable=False,
+        index=True,
+        comment="交易方向 (credit/debit)"
+    )
+    raw_text = db.Column(db.Text, nullable=True, comment="原始交易行文本")
+    
+    status = db.Column(
+        SAEnum(BankTransactionStatus, name="banktransactionstatus"),
+        nullable=False,
+        default=BankTransactionStatus.UNMATCHED,
+        server_default=BankTransactionStatus.UNMATCHED.value,
+        index=True,
+        comment="匹配状态"
+    )
+
+    allocated_amount = db.Column(db.Numeric(12, 2), nullable=False, default=0, server_default='0', comment="已被分配的金额")
+
+    created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
+    updated_at = db.Column(db.DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    payment_records = db.relationship('PaymentRecord', back_populates='bank_transaction', cascade='all, delete-orphan', lazy='dynamic')
+
+    def __repr__(self):
+        return f'<BankTransaction {self.id} {self.payer_name} {self.amount}>'
+
+class PayerAlias(db.Model):
+    __tablename__ = 'payer_aliases'
+    __table_args__ = (
+        # 一个付款人名称只能被别名到一个合同
+        db.UniqueConstraint('payer_name', name='uq_payer_aliases_payer_name'),
+        {'comment': '付款人别名表'}
+    )
+
+    id = db.Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    
+    # 付款人名称，来自银行流水
+    payer_name = db.Column(db.String(255), nullable=False, index=True, comment="银行流水中的付款人名称")
+    
+    # --- 【核心修改】关联到合同ID ---
+    contract_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('contracts.id', ondelete="CASCADE"), nullable=False, index=True, comment="关联到的合同ID")
+    # --------------------------------
+
+    notes = db.Column(db.Text, nullable=True, comment="备注")
+    created_by_user_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('user.id', ondelete="SET NULL"), nullable=True)
+    created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
+
+    created_by = db.relationship('User')
+    contract = db.relationship('BaseContract', backref=db.backref('payer_aliases', lazy='dynamic'))
+
+    def __repr__(self):
+        return f'<PayerAlias "{self.payer_name}" -> Contract {self.contract_id}>'
+
+class MonthlyStatement(db.Model):
+    __tablename__ = 'monthly_statements'
+    __table_args__ = (
+        db.UniqueConstraint('customer_name', 'year', 'month', name='uq_customer_name_year_month'),
+        {'comment': '月度结算单，用于聚合客户的月度账单'}
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    customer_name = db.Column(db.String(255), nullable=False, index=True)
+    year = db.Column(db.Integer, nullable=False, index=True)
+    month = db.Column(db.Integer, nullable=False, index=True)
+    total_amount = db.Column(db.Numeric(10, 2), nullable=False, server_default='0.00')
+    paid_amount = db.Column(db.Numeric(10, 2), nullable=False, server_default='0.00')
+    status = db.Column(db.String(20), nullable=False, default='UNPAID', server_default='UNPAID', index=True)
+    created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
+    updated_at = db.Column(db.DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    bills = db.relationship('CustomerBill', back_populates='statement', lazy='dynamic')
+
+    def __repr__(self):
+        return f'<MonthlyStatement {self.id} for {self.customer_name} - {self.year}-{self.month}>'
+
 
 class FinancialAdjustment(db.Model):
     __tablename__ = "financial_adjustments"
@@ -2368,6 +2471,7 @@ class PaymentRecord(db.Model):
     __table_args__ = {'comment': '针对客户账单的支付记录表'}
 
     id = db.Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    bank_transaction_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('bank_transactions.id', ondelete='SET NULL'), nullable=True, index=True, comment='关联的银行交易流水ID')
     customer_bill_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('customer_bills.id', ondelete='CASCADE'), nullable=False,index=True)
     amount = db.Column(db.Numeric(12, 2), nullable=False, comment='本次支付金额')
     payment_date = db.Column(db.Date, nullable=False, comment='支付日期')
@@ -2379,6 +2483,8 @@ class PaymentRecord(db.Model):
 
     customer_bill = db.relationship('CustomerBill', back_populates='payment_records')
     created_by_user = db.relationship('User')
+
+    bank_transaction = db.relationship('BankTransaction', back_populates='payment_records')
 
     def to_dict(self):
         data = {
@@ -2526,6 +2632,8 @@ class CustomerBill(db.Model):
         comment="关联的替班记录ID",
     )
 
+    statement_id = db.Column(db.Integer, db.ForeignKey('monthly_statements.id', ondelete='SET NULL'), nullable=True, index=True)
+
     # --- V2.0 字段演进 ---
     payment_status = db.Column(
         SAEnum(PaymentStatus),
@@ -2539,6 +2647,7 @@ class CustomerBill(db.Model):
 
     # --- V2.0 关系建立 ---
     payment_records = db.relationship('PaymentRecord', back_populates='customer_bill', cascade='all, delete-orphan', lazy='dynamic')
+    statement = db.relationship('MonthlyStatement', back_populates='bills')
 
 
 # --- 【V2.0 重构 EmployeePayroll 模型】 ---
