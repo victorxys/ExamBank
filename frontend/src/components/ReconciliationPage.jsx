@@ -1,6 +1,7 @@
 // frontend/src/components/ReconciliationPage.jsx
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { reconciliationApi } from '../api/reconciliationApi';
 import { payerAliasApi } from '../api/payerAliasApi';
 import api from '../api/axios';
@@ -490,20 +491,48 @@ const TransactionDetailsPanel = ({ transaction, category, onAllocationSuccess, s
         </Box>
     );
 };
+
 export default function ReconciliationPage() {
+    const { year: yearParam, month: monthParam } = useParams();
+    const navigate = useNavigate();
+
     const [categorizedTxns, setCategorizedTxns] = useState({ pending_confirmation: [], manual_allocation: [], unmatched: [], confirmed: [] });
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [selectedTxn, setSelectedTxn] = useState(null);
     const [activeTab, setActiveTab] = useState('pending_confirmation');
-    const [accountingPeriod, setAccountingPeriod] = useState({ year: new Date().getFullYear(), month: new Date().getMonth() + 1 });
+    
+    const [accountingPeriod, setAccountingPeriod] = useState(() => {
+        const year = parseInt(yearParam, 10);
+        const month = parseInt(monthParam, 10);
+        if (year && month) {
+            return { year, month };
+        }
+        return { year: new Date().getFullYear(), month: new Date().getMonth() + 1 };
+    });
+
     const [operationPeriod, setOperationPeriod] = useState(accountingPeriod);
     const [alertInfo, setAlertInfo] = useState({ open: false, message: '', severity: 'info' });
 
     useEffect(() => {
+        const year = parseInt(yearParam, 10);
+        const month = parseInt(monthParam, 10);
+
+        if (year && month) {
+            if (year !== accountingPeriod.year || month !== accountingPeriod.month) {
+                setAccountingPeriod({ year, month });
+            }
+        } else if (yearParam === undefined && monthParam === undefined) {
+            const now = new Date();
+            navigate(`/billing/reconcile/${now.getFullYear()}/${now.getMonth() + 1}`, { replace: true });
+        }
+    }, [yearParam, monthParam, navigate, accountingPeriod.year, accountingPeriod.month]);
+
+    useEffect(() => {
         setOperationPeriod(accountingPeriod);
     }, [accountingPeriod, selectedTxn]);
+    
     const [billModalOpen, setBillModalOpen] = useState(false);
     const [loadingBillDetails, setLoadingBillDetails] = useState(false);
     const [selectedBillDetails, setSelectedBillDetails] = useState(null);
@@ -515,6 +544,7 @@ export default function ReconciliationPage() {
     };
 
     const fetchTransactions = useCallback(async () => {
+        if (!accountingPeriod.year || !accountingPeriod.month) return;
         setIsLoading(true);
         setError(null);
         setSelectedTxn(null);
@@ -541,7 +571,8 @@ export default function ReconciliationPage() {
 
     const handlePeriodChange = (event) => {
         const { name, value } = event.target;
-        setAccountingPeriod(prev => ({ ...prev, [name]: parseInt(value, 10) }));
+        const newPeriod = { ...accountingPeriod, [name]: parseInt(value, 10) };
+        navigate(`/billing/reconcile/${newPeriod.year}/${newPeriod.month}`);
     };
 
     const handleDialogSubmit = async (lines) => {
@@ -560,16 +591,14 @@ export default function ReconciliationPage() {
         setSelectedTxn(categorizedTxns[newValue]?.[0] || null);
     };
     
-    const handleOpenBillModal = async (bill) => { // <--- 直接接收 bill 对象
+    const handleOpenBillModal = async (bill) => {
         if (!bill || !bill.id) return;
         setBillModalOpen(true);
         setLoadingBillDetails(true);
-        // console.log("bill ---", bill)
         try {
             const response = await api.get('/billing/details', { params: { bill_id: bill.id } });
             
             setSelectedBillDetails(response.data);
-            // 直接使用传入的 bill 对象设置上下文
             setSelectedBillContext({
                 customer_name: bill.customer_name,
                 employee_name: bill.employee_name,

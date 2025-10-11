@@ -354,7 +354,7 @@ function App() {
           <Route path="/contracts" element={<PrivateRoute element={<Navigate to="/contracts/all" />} />} />
           <Route path="/contracts/:contractType" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}><ContractList /></Suspense>} />} />
           <Route path="/billing" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}><BillingDashboard /></Suspense>} />} />
-          <Route path="/billing/reconcile" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}><ReconciliationPage /></Suspense>} />} />
+          <Route path="/billing/reconcile/:year?/:month?" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}><ReconciliationPage /></Suspense>} />} />
           <Route path="/contract/detail/:contractId" element={<ContractDetail />} />
           <Route path="/tools/conflict-checker" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}><ConflictCheckerPage /></Suspense>} />} />
 
