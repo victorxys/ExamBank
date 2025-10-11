@@ -10,7 +10,7 @@ import {
   Dashboard as DashboardIcon, School as SchoolIcon, LibraryBooks as LibraryBooksIcon,
   QuestionAnswer as QuestionAnswerIcon, Assignment as AssignmentIcon, AssignmentTurnedIn as AssignmentTurnedInIcon,
   People as PeopleIcon, Menu as MenuIcon, ChevronLeft as ChevronLeftIcon,
-  ChevronRight as ChevronRightIcon, Settings as SettingsIcon, Api as ApiIcon,
+  ChevronRight as ChevronRightIcon, Settings as SettingsIcon, Api as ApiIcon, AccountBalanceWallet as AccountBalanceWalletIcon,
   Description as DescriptionIcon, History as HistoryIcon, ExpandLess, ExpandMore, Warning as WarningIcon
 } from '@mui/icons-material';
 import logo from '../assets/logo.svg';
@@ -43,6 +43,15 @@ export const allMenuItems = [
       },
       { text: '账单管理', icon: <HistoryIcon />, path: '/billing', adminOnly: true },
       { text: '合同冲突检测', icon: <WarningIcon />, path: '/tools/conflict-checker', adminOnly: true },
+    ]
+  },
+  {
+    text: '银行对账中心',
+    icon: <AccountBalanceWalletIcon />,
+    path: '/billing/reconcile-group', // Placeholder path for the group
+    adminOnly: true,
+    subItems: [
+      { text: '客户回款', path: '/billing/reconcile', adminOnly: true },
     ]
   },
   { text: '我的课程', icon: <SchoolIcon />, path: '/my-courses', adminOnly: false },
