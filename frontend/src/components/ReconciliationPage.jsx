@@ -663,7 +663,7 @@ export default function ReconciliationPage() {
             <Box sx={{ px: 0, py: 0 }}>
                 <Grid container spacing={3}>
                     <Grid item xs={12} md={4}>
-                        <Card sx={{ height: '85vh', display: 'flex', flexDirection: 'column' }}>
+                        <Card sx={{ height: '82vh', display: 'flex', flexDirection: 'column' }}>
                             <CardHeader title="待处理流水" action={<Button variant="contained" onClick={() => setIsDialogOpen(true)}>导入银行流水</Button>} />
                             <CardContent sx={{
                                 flexGrow: 1,
@@ -726,7 +726,7 @@ export default function ReconciliationPage() {
                         </Card>
                     </Grid>
                     <Grid item xs={12} md={8}>
-                        <Card sx={{ height: '85vh', display: 'flex', flexDirection: 'column' }}>
+                        <Card sx={{ height: '82vh', display: 'flex', flexDirection: 'column' }}>
                             <Box sx={{ borderBottom: 1, borderColor: 'divider', flexShrink: 0 }}>
                                 <Tabs value={activeTab} onChange={handleTabChange} aria-label="reconciliation tabs">
                                     <Tab label={`待确认 (${categorizedTxns.pending_confirmation.length})`} value="pending_confirmation" />
