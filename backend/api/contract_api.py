@@ -9,6 +9,7 @@ from backend.models import (
     CustomerBill,
     EmployeePayroll,
     FinancialActivityLog,
+    PaymentStatus,
 )
 from backend.tasks import calculate_monthly_billing_task
 from backend.services.billing_engine import BillingEngine
@@ -18,7 +19,7 @@ from backend.api.utils import get_billing_details_internal
 from datetime import datetime
 import decimal
 from sqlalchemy.exc import IntegrityError
-
+from sqlalchemy import or_
 D = decimal.Decimal
 
 contract_bp = Blueprint("contract_api", __name__, url_prefix="/api/contracts")
@@ -340,3 +341,96 @@ def succeed_trial_contract(contract_id):
         f"Trial contract {contract_id} has been marked as 'trial_succeeded'."
     )
     return jsonify({"message": "Trial contract marked as succeeded."})
+
+
+@contract_bp.route("/search-unpaid-bills", methods=["GET"])
+@jwt_required()
+def search_unpaid_bills():
+    """
+    根据客户名或拼音，搜索指定年月下未付清的账单。
+    """
+    search_term = request.args.get("search", "").strip()
+    year = request.args.get("year", type=int)
+    month = request.args.get("month", type=int)
+
+    if not search_term or not year or not month:
+        return jsonify([])
+
+    try:
+        pinyin_search_term = search_term.replace(" ", "")
+        
+        query = db.session.query(CustomerBill).join(BaseContract).filter(
+            or_(
+                BaseContract.customer_name.ilike(f"%{search_term}%"),
+                BaseContract.customer_name_pinyin.ilike(f"%{pinyin_search_term}%")
+            ),
+            CustomerBill.year == year,
+            CustomerBill.month == month,
+            CustomerBill.total_due > 0,
+            or_(
+                CustomerBill.payment_status == PaymentStatus.UNPAID,
+                CustomerBill.payment_status == PaymentStatus.PARTIALLY_PAID
+            )
+        ).limit(20) # 限制返回结果，避免过多数据
+
+        bills = query.all()
+
+        results = [
+            {
+                "bill_id": str(bill.id),
+                "customer_name": bill.contract.customer_name,
+                "employee_name": bill.contract.service_personnel.name if bill.contract.service_personnel else (bill.contract.user.username if bill.contract.user else "未知"),
+                "cycle": f"{bill.cycle_start_date.strftime('%Y-%m-%d')} to {bill.cycle_end_date.strftime('%Y-%m-%d')}",
+                "amount_remaining": str(bill.total_due - bill.total_paid)
+            }
+            for bill in bills
+        ]
+        
+        return jsonify(results)
+
+    except Exception as e:
+        current_app.logger.error(f"Failed to search unpaid bills: {e}", exc_info=True)
+        return jsonify({"error": "Internal server error"}), 500
+    
+# 在 backend/api/contract_api.py 文件末尾添加
+
+@contract_bp.route("", methods=["GET"])
+@jwt_required()
+def search_contracts():
+    """
+    搜索合同。支持按客户姓名或拼音进行模糊搜索。
+    """
+    search_term = request.args.get("search", "").strip()
+    
+    if not search_term:
+        return jsonify([])
+
+    # 为了性能，限制返回结果的数量
+    limit = request.args.get("limit", 10, type=int)
+
+    try:
+        # 同时搜索客户姓名和拼音字段
+        pinyin_search_term = search_term.replace(" ", "")
+        query = BaseContract.query.filter(
+            or_(
+                BaseContract.customer_name.ilike(f"%{search_term}%"),
+                BaseContract.customer_name_pinyin.ilike(f"%{pinyin_search_term}%")
+            )
+        ).limit(limit)
+
+        contracts = query.all()
+
+        # 我们只需要合同ID和客户名，避免返回过多不必要的数据
+        results = [
+            {
+                "id": str(contract.id),
+                "customer_name": contract.customer_name
+            }
+            for contract in contracts
+        ]
+        
+        return jsonify(results)
+
+    except Exception as e:
+        current_app.logger.error(f"Failed to search contracts: {e}", exc_info=True)
+        return jsonify({"error": "Internal server error"}), 500

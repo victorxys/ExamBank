@@ -905,6 +905,14 @@ const BillingDashboard = () => {
                 {/* Actions */}
                 <Grid item xs={12} md="auto" sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 2 }}>
                     <TextField label="账单月份" type="month" size="small" value={selectedBillingMonth} onChange={(e) => setSelectedBillingMonth(e.target.value)} InputLabelProps={{ shrink: true }} />
+                    <Button
+                        variant="outlined"
+                        color="primary"
+                        startIcon={<AccountBalanceWalletIcon />}
+                        onClick={() => navigate('/billing/reconcile')}
+                    >
+                        银行流水对账
+                    </Button>
                     {/* 批量结算按钮 */}
                     <Button
                         variant="contained"

@@ -14,6 +14,7 @@ import io # <-- 添加此行
 import calendar
 from datetime import date, timedelta, datetime, timezone
 import decimal
+from decimal import Decimal
 from dateutil.relativedelta import relativedelta
 from collections import defaultdict
 from pypinyin import pinyin, Style, lazy_pinyin
@@ -5001,3 +5002,122 @@ def get_company_bank_accounts():
     except Exception as e:
         current_app.logger.error(f"获取公司银行账户列表失败: {e}", exc_info=True)
         return jsonify({"error": "服务器内部错误"}), 500
+
+@billing_bp.route("/search-unpaid-bills", methods=["GET", "OPTIONS"]) # <--- 使用正确的蓝图，并添加 OPTIONS
+@jwt_required()
+def search_unpaid_bills():
+    """
+    根据客户名或拼音，搜索指定年月下未付清的账单。
+    """
+    if request.method == 'OPTIONS': # <--- 添加 OPTIONS 请求处理
+        return jsonify({'message': 'CORS preflight successful'}), 200
+
+    search_term = request.args.get("search", "").strip()
+    year = request.args.get("year", type=int)
+    month = request.args.get("month", type=int)
+
+    if not search_term or not year or not month:
+        return jsonify([])
+
+    try:
+        pinyin_search_term = search_term.replace(" ", "")
+        
+        query = db.session.query(CustomerBill).join(BaseContract).filter(
+            or_(
+                BaseContract.customer_name.ilike(f"%{search_term}%"),
+                BaseContract.customer_name_pinyin.ilike(f"%{pinyin_search_term}%")
+            ),
+            CustomerBill.year == year,
+            CustomerBill.month == month,
+            CustomerBill.total_due > 0,
+            or_(
+                CustomerBill.payment_status == PaymentStatus.UNPAID,
+                CustomerBill.payment_status == PaymentStatus.PARTIALLY_PAID
+            )
+        ).limit(20)
+
+        bills = query.all()
+
+        results = [
+            {
+                "id": str(bill.id),
+                "contract_id": str(bill.contract_id), 
+                "customer_name": bill.contract.customer_name,
+                "employee_name": bill.contract.service_personnel.name if bill.contract.service_personnel else (bill.contract.user.username if bill.contract.user else "未知"),
+                "cycle": f"{bill.cycle_start_date.strftime('%Y-%m-%d')} to {bill.cycle_end_date.strftime('%Y-%m-%d')}",
+                "amount_remaining": str(bill.total_due - bill.total_paid)
+            }
+            for bill in bills
+        ]
+        
+        return jsonify(results)
+
+    except Exception as e:
+        current_app.logger.error(f"Failed to search unpaid bills: {e}", exc_info=True)
+        return jsonify({"error": "Internal server error"}), 500
+    
+@billing_bp.route("/unpaid-bills-by-customer", methods=["GET"])
+@jwt_required()
+def get_unpaid_bills_by_customer():
+    """
+    根据客户名和年月，获取该客户所有未付清的账单。
+    """
+    customer_name = request.args.get("customer_name")
+    year = request.args.get("year", type=int)
+    month = request.args.get("month", type=int)
+
+    if not customer_name or not year or not month:
+        return jsonify({"error": "customer_name, year, and month are required."}), 400
+
+    try:
+        # 查找该客户名下的所有合同
+        contracts = BaseContract.query.filter_by(customer_name=customer_name).all()
+        if not contracts:
+            return jsonify([])
+
+        contract_ids = [c.id for c in contracts]
+
+        # 查找这些合同在指定年月下所有未付清的账单
+        unpaid_bills = CustomerBill.query.filter(
+            CustomerBill.contract_id.in_(contract_ids),
+            CustomerBill.year == year,
+            CustomerBill.month == month,
+            CustomerBill.total_due > 0
+        ).all()
+
+        results = []
+        for bill in unpaid_bills:
+            payments = []
+            for pr in bill.payment_records:
+                if pr.bank_transaction:
+                    payments.append({
+                        'payer_name': pr.bank_transaction.payer_name,
+                        'amount': str(pr.amount)
+                    })
+
+            results.append({
+                "id": str(bill.id),
+                "contract_id": str(bill.contract_id),
+                "customer_name": bill.contract.customer_name,
+                "employee_name": bill.contract.service_personnel.name if bill.contract.service_personnel else (bill.contract.user.username if bill.contract.user else "未知"),
+                "cycle": f"{bill.cycle_start_date.strftime('%Y-%m-%d')} to {bill.cycle_end_date.strftime('%Y-%m-%d')}",
+                "bill_month": bill.month,
+                "year": bill.year,
+                "total_due": str(bill.total_due),
+                "total_paid": str(bill.total_paid),
+                "amount_remaining": str(bill.total_due - bill.total_paid),
+                "payments": payments
+            })
+
+        # 按“待付金额”倒序排序
+        sorted_results = sorted(
+            results,
+            key=lambda x: Decimal(x['amount_remaining']),
+            reverse=True
+        )
+        
+        return jsonify(sorted_results)
+
+    except Exception as e:
+        current_app.logger.error(f"Failed to get unpaid bills for {customer_name}: {e}", exc_info=True)
+        return jsonify({"error": "Internal server error"}), 500

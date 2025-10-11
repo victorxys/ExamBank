@@ -66,6 +66,9 @@ from backend.api.billing_api import billing_bp
 from backend.api.user_api import user_api  
 from backend.api.contract_api import contract_bp 
 from backend.api.financial_adjustment_api import financial_adjustment_api
+# from backend.api.statement_api import statement_bp
+from backend.api.bank_statement_api import bank_statement_api
+from backend.api.payer_alias_api import payer_alias_api
 
 
 
@@ -255,11 +258,10 @@ app.register_blueprint(wechat_share_bp, url_prefix="/api/wechat")
 app.register_blueprint(employee_self_evaluation_bp)
 app.register_blueprint(evaluation_aspect_bp)
 app.register_blueprint(evaluation_category_bp)
-app.register_blueprint(evaluation_item_api_bp)  # 确认蓝图名称
-app.register_blueprint(evaluation_order_bp)  # 新增注册
-app.register_blueprint(llm_config_bp)  # 修改注册
-app.register_blueprint(llm_log_bp)  # 新增注册
-# \app.register_blueprint(tts_bp) # 注册 TTS 蓝图
+app.register_blueprint(evaluation_item_api_bp)
+app.register_blueprint(evaluation_order_bp)
+app.register_blueprint(llm_config_bp)
+app.register_blueprint(llm_log_bp)
 app.register_blueprint(tts_bp, url_prefix="/api/tts")
 
 app.register_blueprint(course_resource_bp)
@@ -270,6 +272,9 @@ app.register_blueprint(user_api)
 app.register_blueprint(contract_bp)
 
 app.register_blueprint(financial_adjustment_api, url_prefix="/api")
+app.register_blueprint(bank_statement_api) 
+app.register_blueprint(payer_alias_api) 
+# app.register_blueprint(statement_bp, url_prefix="/api") 
 
 
 
@@ -4259,5 +4264,6 @@ def serve_uploaded_media(filepath):
 
 from backend import management_commands
 management_commands.register_commands(app)
+
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=5000)
