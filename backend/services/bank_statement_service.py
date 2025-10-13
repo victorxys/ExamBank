@@ -37,11 +37,26 @@ class BankStatementService:
             db.extract('month', BankTransaction.transaction_time) == month
         ).order_by(BankTransaction.transaction_time.desc()).all()
 
+        ignored_txns = BankTransaction.query.filter(
+            BankTransaction.direction == TransactionDirection.CREDIT,
+            BankTransaction.status == BankTransactionStatus.IGNORED,
+            db.extract('year', BankTransaction.transaction_time) == year,
+            db.extract('month', BankTransaction.transaction_time) == month
+        ).order_by(BankTransaction.transaction_time.desc()).all()
+
+        ignored_txns = BankTransaction.query.filter(
+            BankTransaction.direction == TransactionDirection.CREDIT,
+            BankTransaction.status == BankTransactionStatus.IGNORED,
+            db.extract('year', BankTransaction.transaction_time) == year,
+            db.extract('month', BankTransaction.transaction_time) == month
+        ).order_by(BankTransaction.transaction_time.desc()).all()
+
         categorized_results = {
             "pending_confirmation": [],
             "manual_allocation": [],
             "unmatched": [],
-            "confirmed": []
+            "confirmed": [],
+            "ignored": []
         }
 
         for txn in confirmed_txns:
@@ -119,6 +134,9 @@ class BankStatementService:
                 })
             else: # len(unpaid_bills) == 0
                 categorized_results["unmatched"].append(self._format_txn(txn))
+
+        for txn in ignored_txns:
+            categorized_results["ignored"].append(self._format_txn(txn))
 
         return categorized_results
     def delete_payment_record_and_reverse_allocation(self, payment_record_id: str, operator_id: str) -> dict:
@@ -629,3 +647,40 @@ class BankStatementService:
             db.session.rollback()
             current_app.logger.error(f"Allocation failed for txn {bank_transaction_id}: {e}", exc_info=True)
             return {"error": f"An unexpected error occurred: {str(e)}"}
+
+    def ignore_transaction(self, transaction_id: str, operator_id: str) -> dict:
+        bank_txn = BankTransaction.query.get(transaction_id)
+        if not bank_txn:
+            return {"error": "Bank transaction not found"}
+
+        if bank_txn.status not in [BankTransactionStatus.UNMATCHED, BankTransactionStatus.PARTIALLY_ALLOCATED]:
+            return {"error": f"Transaction status is '{bank_txn.status.value}', cannot be ignored."}
+
+        try:
+            bank_txn.status = BankTransactionStatus.IGNORED
+            db.session.commit()
+            return {"success": True, "message": "Transaction ignored."}
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Failed to ignore transaction {transaction_id}: {e}", exc_info=True)
+            return {"error": "An unexpected error occurred."}
+
+    def unignore_transaction(self, transaction_id: str, operator_id: str) -> dict:
+        bank_txn = BankTransaction.query.get(transaction_id)
+        if not bank_txn:
+            return {"error": "Bank transaction not found"}
+
+        if bank_txn.status != BankTransactionStatus.IGNORED:
+            return {"error": f"Transaction status is '{bank_txn.status.value}', cannot be un-ignored."}
+
+        try:
+            if bank_txn.allocated_amount > 0:
+                bank_txn.status = BankTransactionStatus.PARTIALLY_ALLOCATED
+            else:
+                bank_txn.status = BankTransactionStatus.UNMATCHED
+            db.session.commit()
+            return {"success": True, "message": "Transaction un-ignored."}
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Failed to un-ignore transaction {transaction_id}: {e}", exc_info=True)
+            return {"error": "An unexpected error occurred."}

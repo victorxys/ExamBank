@@ -311,6 +311,7 @@ const BankStatementUploader = lazy(() => import('./components/BankStatementUploa
 const ReconciliationPage = lazy(() => import('./components/ReconciliationPage'));
 // 仪表盘
 const DashboardPage = lazy(() => import('./components/DashboardPage'));
+const SankeyPreview = lazy(() => import('./components/SankeyPreview')); // Sankey Preview
 
 
 // --- 5. App 组件主体 ---
@@ -363,6 +364,7 @@ function App() {
         {/* 应用简单布局的路由 */}
         <Route element={<SimpleLayoutInternal />}>
           {/* --- 5. 使用 Suspense 包裹懒加载组件 --- */}
+          <Route path="/sankey-preview" element={<Suspense fallback={<LoadingFallback />}><SankeyPreview /></Suspense>} />
           <Route path="/login" element={<Suspense fallback={<LoadingFallback />}> <LoginPage /> </Suspense>} />
           <Route path="/client-evaluation/:userId" element={<Suspense fallback={<LoadingFallback />}> <ClientEvaluation /> </Suspense>} />
           <Route path="/public-employee-self-evaluation" element={<Suspense fallback={<LoadingFallback />}> <PublicEmployeeSelfEvaluation /> </Suspense>} />

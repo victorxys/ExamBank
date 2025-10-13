@@ -74,7 +74,7 @@ const PasteStatementDialog = ({ open, onClose, onSubmit }) => {
         </Dialog>
     );
 };
-const TransactionDetailsPanel = ({ transaction, category, onAllocationSuccess, setAlertInfo, accountingPeriod, setOperationPeriod, onOpenBillModal }) => {
+const TransactionDetailsPanel = ({ transaction, category, onAllocationSuccess, onStatusUpdate, setAlertInfo, accountingPeriod, setOperationPeriod, onOpenBillModal }) => {
     const [allocations, setAllocations] = useState({});
     const [isSaving, setIsSaving] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
@@ -227,6 +227,36 @@ const TransactionDetailsPanel = ({ transaction, category, onAllocationSuccess, s
         }
     };
 
+    const handleIgnore = async () => {
+        if (!transaction) return;
+        if (!window.confirm(`确定要忽略这笔来自 "${transaction.payer_name}" 的流水吗？`)) return;
+        setIsSaving(true);
+        try {
+            await reconciliationApi.ignoreTransaction(transaction.id);
+            setAlertInfo({ open: true, message: '流水已忽略', severity: 'success' });
+            onStatusUpdate(transaction.id, category, 'ignored');
+        } catch (err) {
+            setAlertInfo({ open: true, message: `操作失败: ${err.message}`, severity: 'error' });
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleUnignore = async () => {
+        if (!transaction) return;
+        setIsSaving(true);
+        try {
+            await reconciliationApi.unignoreTransaction(transaction.id);
+            setAlertInfo({ open: true, message: '已撤销忽略', severity: 'success' });
+            const targetCategory = transaction.allocated_amount > 0 ? 'manual_allocation' : 'unmatched';
+            onStatusUpdate(transaction.id, 'ignored', targetCategory);
+        } catch (err) {
+            setAlertInfo({ open: true, message: `操作失败: ${err.message}`, severity: 'error' });
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
     const totalAllocatedInThisSession = Object.entries(allocations).reduce((sum, [, amount]) => sum.plus(new Decimal(amount || 0)), new Decimal(0));
     const totalTxnAmount = transaction ? new Decimal(transaction.amount) : new Decimal(0);
     const alreadyAllocated = transaction ? new Decimal(transaction.allocated_amount) : new Decimal(0);
@@ -339,15 +369,6 @@ const TransactionDetailsPanel = ({ transaction, category, onAllocationSuccess, s
                         </Paper>
                     ))}
                 </Stack>
-
-                <Box sx={{ mt: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    {transaction.matched_by === 'alias' ? (
-                        <Button variant="outlined" color="warning" onClick={handleCancelAlias} disabled={isSaving}>解除别名关系</Button>
-                    ) : <Box />}
-                    <Button variant="contained" onClick={handleSave} disabled={isSaveDisabled}>
-                        {isSaving ? '处理中...' : (category === 'unmatched' ? '保存分配并创建别名' : '保存分配')}
-                    </Button>
-                </Box>
             </Box>
         );
     };
@@ -367,6 +388,55 @@ const TransactionDetailsPanel = ({ transaction, category, onAllocationSuccess, s
         }
     };
 
+    const renderActions = () => {
+        switch (category) {
+            case 'pending_confirmation':
+                return (
+                    <Box sx={{ mt: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Button variant="outlined" color="warning" onClick={handleIgnore} disabled={isSaving}>忽略此流水</Button>
+                        <Box>
+                            {transaction.matched_by === 'alias' && (
+                                <Button variant="outlined" color="warning" onClick={handleCancelAlias} disabled={isSaving} sx={{ mr: 2 }}>解除支付关系</Button>
+                            )}
+                            <Button variant="contained" onClick={handleSave} disabled={isSaving}>确认并保存</Button>
+                        </Box>
+                    </Box>
+                );
+            case 'manual_allocation':
+                return (
+                     <Box sx={{ mt: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Button variant="outlined" color="warning" onClick={handleIgnore} disabled={isSaving}>忽略此流水</Button>
+                        <Button variant="contained" onClick={handleSave} disabled={isSaveDisabled}>
+                            {isSaving ? '处理中...' : '保存分配'}
+                        </Button>
+                    </Box>
+                );
+            case 'unmatched':
+                return (
+                    <Box sx={{ mt: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Button variant="outlined" color="warning" onClick={handleIgnore} disabled={isSaving}>忽略此流水</Button>
+                        <Button variant="contained" onClick={handleSave} disabled={!selectedCustomerName || isSaveDisabled}>
+                            {isSaving ? '处理中...' : '保存分配并创建别名'}
+                        </Button>
+                    </Box>
+                );
+            case 'confirmed':
+                return (
+                    <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
+                        <Button variant="outlined" color="error" onClick={handleCancelAllocation} disabled={isSaving}>撤销分配</Button>
+                    </Box>
+                );
+            case 'ignored':
+                return (
+                    <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
+                        <Button variant="outlined" color="info" onClick={handleUnignore} disabled={isSaving}>撤销忽略</Button>
+                    </Box>
+                );
+            default:
+                return null;
+        }
+    }
+
     const renderContent = () => {
         switch (category) {
             case 'pending_confirmation':
@@ -382,12 +452,7 @@ const TransactionDetailsPanel = ({ transaction, category, onAllocationSuccess, s
                                 <Button variant="outlined" size="small" onClick={() => onOpenBillModal(transaction.matched_bill)} sx={{ ml: 2 }}>查看账单</Button>
                             </ListItem>
                         </List>
-                        <Box sx={{ mt: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            {transaction.matched_by === 'alias' && (
-                                <Button variant="outlined" color="warning" onClick={handleCancelAlias} disabled={isSaving}>解除支付关系</Button>
-                            )}
-                            <Button variant="contained" onClick={handleSave} disabled={isSaving}>确认并保存</Button>
-                        </Box>
+                        {renderActions()}
                     </Box>
                 );
             case 'manual_allocation':
@@ -395,7 +460,7 @@ const TransactionDetailsPanel = ({ transaction, category, onAllocationSuccess, s
                     return <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>;
                 }
                 if (selectedCustomerName && customerBills.length > 0) {
-                    return renderAllocationUI(customerBills, selectedCustomerName);
+                    return <>{renderAllocationUI(customerBills, selectedCustomerName)}{renderActions()}</>;
                 }
                 if (selectedCustomerName) {
                     return <Typography sx={{ p: 2, color: 'text.secondary' }}>未找到该客户在 {accountingPeriod.year}年{accountingPeriod.month}月 的未付账单。</Typography>;
@@ -429,7 +494,7 @@ const TransactionDetailsPanel = ({ transaction, category, onAllocationSuccess, s
                                 </ListItem>
                             ))}
                         </List>
-                        <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}><Button variant="outlined" color="error" onClick={handleCancelAllocation} disabled={isSaving}>撤销分配</Button></Box>
+                        {renderActions()}
                     </Box>
                 );
             case 'unmatched':
@@ -456,6 +521,14 @@ const TransactionDetailsPanel = ({ transaction, category, onAllocationSuccess, s
                                 )}
                             </Box>
                         )}
+                        {renderActions()}
+                    </Box>
+                );
+            case 'ignored':
+                return (
+                    <Box>
+                        <Alert severity="info" sx={{ mb: 2 }}>此流水已于 {new Date(transaction.updated_at).toLocaleString('zh-CN')} 被忽略。</Alert>
+                        {renderActions()}
                     </Box>
                 );
             default:
@@ -496,7 +569,7 @@ export default function ReconciliationPage() {
     const { year: yearParam, month: monthParam } = useParams();
     const navigate = useNavigate();
 
-    const [categorizedTxns, setCategorizedTxns] = useState({ pending_confirmation: [], manual_allocation: [], unmatched: [], confirmed: [] });
+    const [categorizedTxns, setCategorizedTxns] = useState({ pending_confirmation: [], manual_allocation: [], unmatched: [], confirmed: [], ignored: [] });
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -551,7 +624,7 @@ export default function ReconciliationPage() {
         try {
             const response = await reconciliationApi.getUnmatchedTransactions(accountingPeriod);
             setCategorizedTxns(response.data);
-            const firstTabWithData = ['pending_confirmation', 'manual_allocation', 'unmatched', 'confirmed'].find(tab => response.data[tab]?.length > 0);
+            const firstTabWithData = ['pending_confirmation', 'manual_allocation', 'unmatched', 'confirmed', 'ignored'].find(tab => response.data[tab]?.length > 0);
             if (firstTabWithData) {
                 setActiveTab(firstTabWithData);
                 setSelectedTxn(response.data[firstTabWithData][0]);
@@ -564,6 +637,40 @@ export default function ReconciliationPage() {
             setIsLoading(false);
         }
     }, [accountingPeriod]);
+
+    const handleStatusUpdate = (transactionId, fromCategory, toCategory) => {
+        setCategorizedTxns(currentTxns => {
+            const sourceList = [...(currentTxns[fromCategory] || [])];
+            const destList = [...(currentTxns[toCategory] || [])];
+    
+            const transactionIndex = sourceList.findIndex(t => t.id === transactionId);
+            if (transactionIndex === -1) {
+                return currentTxns; // Should not happen
+            }
+    
+            // 1. Remove from source list
+            const [movedTxn] = sourceList.splice(transactionIndex, 1);
+    
+            // 2. Update status and add to destination list
+            movedTxn.status = toCategory; // Assuming the category name matches the status value
+            destList.unshift(movedTxn); // Add to the top of the new list
+    
+            // 3. Determine next selected transaction
+            let nextSelectedTxn = null;
+            if (sourceList.length > 0) {
+                // Select the next one, or the previous one if it was the last
+                nextSelectedTxn = sourceList[Math.min(transactionIndex, sourceList.length - 1)];
+            }
+            setSelectedTxn(nextSelectedTxn);
+    
+            // 4. Return the new state
+            return {
+                ...currentTxns,
+                [fromCategory]: sourceList,
+                [toCategory]: destList,
+            };
+        });
+    };
 
     useEffect(() => {
         fetchTransactions();
@@ -762,6 +869,7 @@ export default function ReconciliationPage() {
                                     <Tab label={`待手动分配 (${categorizedTxns.manual_allocation.length})`} value="manual_allocation" />
                                     <Tab label={`未匹配 (${categorizedTxns.unmatched.length})`} value="unmatched" />
                                     <Tab label={`已确认 (${categorizedTxns.confirmed.length})`} value="confirmed" />
+                                    <Tab label={`已忽略 (${categorizedTxns.ignored.length})`} value="ignored" />
                                 </Tabs>
                             </Box>
                             <CardContent sx={{ position: 'relative', flexGrow: 1, overflowY: 'auto' }}>
@@ -771,6 +879,7 @@ export default function ReconciliationPage() {
                                         transaction={selectedTxn} 
                                         category={activeTab} 
                                         onAllocationSuccess={fetchTransactions}
+                                        onStatusUpdate={handleStatusUpdate}
                                         setAlertInfo={setAlertInfo}
                                         accountingPeriod={operationPeriod} // <-- Use the new operationPeriod state
                                         setOperationPeriod={setOperationPeriod} // <-- Pass the setter function
