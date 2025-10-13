@@ -9,6 +9,7 @@ import AlertMessage from './AlertMessage';
 import FinancialManagementModal from './FinancialManagementModal';
 import PageHeader from './PageHeader';
 import { Decimal } from 'decimal.js';
+import { pinyin } from 'pinyin-pro';
 
 // --- Material-UI Imports ---
 import {
@@ -74,7 +75,7 @@ const PasteStatementDialog = ({ open, onClose, onSubmit }) => {
         </Dialog>
     );
 };
-const TransactionDetailsPanel = ({ transaction, category, onAllocationSuccess, setAlertInfo, accountingPeriod, setOperationPeriod, onOpenBillModal }) => {
+const TransactionDetailsPanel = ({ transaction, category, onAllocationSuccess, onStatusUpdate, setAlertInfo, accountingPeriod, setOperationPeriod, onOpenBillModal }) => {
     const [allocations, setAllocations] = useState({});
     const [isSaving, setIsSaving] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
@@ -125,7 +126,10 @@ const TransactionDetailsPanel = ({ transaction, category, onAllocationSuccess, s
         setAllocations({});
         setSearchTerm('');
         setSearchResults([]);
-        setSelectedCustomerName(null);
+
+        if (category !== 'unmatched') {
+            setSelectedCustomerName(null);
+        }
 
         if (transaction) {
             if (category === 'pending_confirmation' && transaction.matched_bill) {
@@ -138,7 +142,6 @@ const TransactionDetailsPanel = ({ transaction, category, onAllocationSuccess, s
             }
         }
     }, [transaction, category]);
-
     useEffect(() => {
         if (!searchTerm) {
             setSearchResults([]);
@@ -164,7 +167,10 @@ const TransactionDetailsPanel = ({ transaction, category, onAllocationSuccess, s
         }
         setIsLoadingBills(true);
         api.get('/billing/unpaid-bills-by-customer', { params: { customer_name: selectedCustomerName, year: accountingPeriod.year, month: accountingPeriod.month } })
-            .then(response => setCustomerBills(response.data))
+            .then(response => {
+                // console.log("Data received for customer bills:", response.data);
+                setCustomerBills(response.data);
+            })
             .catch(err => setAlertInfo({ open: true, message: `获取客户账单失败: ${err.message}`, severity: 'error' }))
             .finally(() => setIsLoadingBills(false));
     }, [selectedCustomerName, accountingPeriod]);
@@ -183,26 +189,39 @@ const TransactionDetailsPanel = ({ transaction, category, onAllocationSuccess, s
             setAlertInfo({ open: true, message: "请输入至少一笔有效的分配金额。", severity: 'warning' });
             return;
         }
-        
+
         setIsSaving(true);
         try {
+            let aliasMessage = '';
+            let aliasSeverity = 'info';
+
             if (category === 'unmatched' && allocationsPayload.length > 0) {
-                const firstAllocatedBillId = parseInt(allocationsPayload[0].bill_id, 10);
-                const billToGetContractFrom = customerBills.find(b => b.id === firstAllocatedBillId);
+                const firstAllocatedBillId = allocationsPayload[0].bill_id; // ID是字符串，直接使用
+                const billToGetContractFrom = customerBills.find(b => b.id === firstAllocatedBillId); // 字符串对字符串比较
 
                 if (billToGetContractFrom?.contract_id) {
-                    await payerAliasApi.createAlias({
-                        payer_name: transaction.payer_name,
-                        contract_id: billToGetContractFrom.contract_id,
-                    });
-                    setAlertInfo({ open: true, message: '别名创建成功', severity: 'info' });
+                    try {
+                        await payerAliasApi.createAlias({
+                            payer_name: transaction.payer_name,
+                            contract_id: billToGetContractFrom.contract_id,
+                        });
+                        aliasMessage = '别名已自动创建。';
+                    } catch (aliasErr) {
+                        aliasMessage = `创建别名失败: ${aliasErr.message}。`;
+                        aliasSeverity = 'error';
+                    }
                 } else {
-                    console.error("Could not find contract_id for the allocated bill. Alias not created.");
+                    aliasMessage = '未创建别名，因为账单缺少合同信息。';
+                    aliasSeverity = 'warning';
+                    console.error("Could not find contract_id for the allocated bill. Bill object:", billToGetContractFrom);
                 }
             }
 
             await reconciliationApi.allocateTransaction({ transactionId: transaction.id, allocations: allocationsPayload });
-            setAlertInfo({ open: true, message: "分配成功！", severity: 'success' });
+
+            const finalMessage = `分配成功！${aliasMessage ? ` (${aliasMessage})` : ''}`;
+            setAlertInfo({ open: true, message: finalMessage, severity: aliasMessage && aliasSeverity !== 'info' ? aliasSeverity :'success' });
+
             onAllocationSuccess();
 
         } catch (err) {
@@ -222,6 +241,36 @@ const TransactionDetailsPanel = ({ transaction, category, onAllocationSuccess, s
             onAllocationSuccess();
         } catch (err) {
             setAlertInfo({ open: true, message: `撤销失败: ${err.message}`, severity: 'error' });
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleIgnore = async () => {
+        if (!transaction) return;
+        if (!window.confirm(`确定要忽略这笔来自 "${transaction.payer_name}" 的流水吗？`)) return;
+        setIsSaving(true);
+        try {
+            await reconciliationApi.ignoreTransaction(transaction.id);
+            setAlertInfo({ open: true, message: '流水已忽略', severity: 'success' });
+            onStatusUpdate(transaction.id, category, 'ignored');
+        } catch (err) {
+            setAlertInfo({ open: true, message: `操作失败: ${err.message}`, severity: 'error' });
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleUnignore = async () => {
+        if (!transaction) return;
+        setIsSaving(true);
+        try {
+            await reconciliationApi.unignoreTransaction(transaction.id);
+            setAlertInfo({ open: true, message: '已撤销忽略', severity: 'success' });
+            const targetCategory = transaction.allocated_amount > 0 ? 'manual_allocation' : 'unmatched';
+            onStatusUpdate(transaction.id, 'ignored', targetCategory);
+        } catch (err) {
+            setAlertInfo({ open: true, message: `操作失败: ${err.message}`, severity: 'error' });
         } finally {
             setIsSaving(false);
         }
@@ -339,15 +388,6 @@ const TransactionDetailsPanel = ({ transaction, category, onAllocationSuccess, s
                         </Paper>
                     ))}
                 </Stack>
-
-                <Box sx={{ mt: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    {transaction.matched_by === 'alias' ? (
-                        <Button variant="outlined" color="warning" onClick={handleCancelAlias} disabled={isSaving}>解除别名关系</Button>
-                    ) : <Box />}
-                    <Button variant="contained" onClick={handleSave} disabled={isSaveDisabled}>
-                        {isSaving ? '处理中...' : (category === 'unmatched' ? '保存分配并创建别名' : '保存分配')}
-                    </Button>
-                </Box>
             </Box>
         );
     };
@@ -367,6 +407,56 @@ const TransactionDetailsPanel = ({ transaction, category, onAllocationSuccess, s
         }
     };
 
+    const renderActions = () => {
+        switch (category) {
+            case 'pending_confirmation':
+                return (
+                    <Box sx={{ mt: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Button variant="outlined" color="warning" onClick={handleIgnore} disabled={isSaving}>忽略此流水</Button>
+                        <Box>
+                            {transaction.matched_by === 'alias' && (
+                                <Button variant="outlined" color="warning" onClick={handleCancelAlias} disabled={isSaving} sx={{ mr: 2 }}>解除支付关系</Button>
+                            )}
+                            <Button variant="contained" onClick={handleSave} disabled={isSaving}>确认并保存</Button>
+                        </Box>
+                    </Box>
+                );
+            case 'manual_allocation':
+                return (
+                     <Box sx={{ mt: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Button variant="outlined" color="warning" onClick={handleIgnore} disabled={isSaving}>忽略此流水</Button>
+                        <Button variant="contained" onClick={handleSave} disabled={isSaveDisabled}>
+                            {isSaving ? '处理中...' : '保存分配'}
+                        </Button>
+                    </Box>
+                );
+            case 'unmatched':
+                return (
+                    <Box sx={{ mt: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Button variant="outlined" color="warning" onClick={handleIgnore} disabled={isSaving}>忽略此流水</Button>
+                        <Button variant="contained" onClick={handleSave} disabled={!selectedCustomerName || isSaveDisabled}>
+                            {isSaving ? '处理中...' : '保存分配并创建别名'}
+                        </Button>
+                    </Box>
+                );
+            case 'confirmed':
+            case 'processed':
+                return (
+                    <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
+                        <Button variant="outlined" color="error" onClick={handleCancelAllocation} disabled={isSaving}>撤销分配</Button>
+                    </Box>
+                );
+            case 'ignored':
+                return (
+                    <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
+                        <Button variant="outlined" color="info" onClick={handleUnignore} disabled={isSaving}>撤销忽略</Button>
+                    </Box>
+                );
+            default:
+                return null;
+        }
+    }
+
     const renderContent = () => {
         switch (category) {
             case 'pending_confirmation':
@@ -382,12 +472,7 @@ const TransactionDetailsPanel = ({ transaction, category, onAllocationSuccess, s
                                 <Button variant="outlined" size="small" onClick={() => onOpenBillModal(transaction.matched_bill)} sx={{ ml: 2 }}>查看账单</Button>
                             </ListItem>
                         </List>
-                        <Box sx={{ mt: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            {transaction.matched_by === 'alias' && (
-                                <Button variant="outlined" color="warning" onClick={handleCancelAlias} disabled={isSaving}>解除支付关系</Button>
-                            )}
-                            <Button variant="contained" onClick={handleSave} disabled={isSaving}>确认并保存</Button>
-                        </Box>
+                        {renderActions()}
                     </Box>
                 );
             case 'manual_allocation':
@@ -395,17 +480,22 @@ const TransactionDetailsPanel = ({ transaction, category, onAllocationSuccess, s
                     return <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>;
                 }
                 if (selectedCustomerName && customerBills.length > 0) {
-                    return renderAllocationUI(customerBills, selectedCustomerName);
+                    return <>{renderAllocationUI(customerBills, selectedCustomerName)}{renderActions()}</>;
                 }
                 if (selectedCustomerName) {
                     return <Typography sx={{ p: 2, color: 'text.secondary' }}>未找到该客户在 {accountingPeriod.year}年{accountingPeriod.month}月 的未付账单。</Typography>;
                 }
                 return <Typography sx={{ p: 2, color: 'text.secondary' }}>正在加载客户账单...</Typography>;
             case 'confirmed':
+            case 'processed':
                 const customerName = transaction.allocated_to_bills?.[0]?.customer_name;
+                const alertMessage = category === 'processed'
+                    ? `此流水已于 ${new Date(transaction.updated_at).toLocaleString('zh-CN')} 处理完毕。`
+                    : `此流水已于 ${new Date(transaction.updated_at).toLocaleString('zh-CN')} 确认分配。`;
+
                 return (
                     <Box>
-                        <Alert severity="info" sx={{ mb: 2 }}>此流水已于 {new Date(transaction.updated_at).toLocaleString('zh-CN')} 确认分配。</Alert>
+                        <Alert severity={category === 'processed' ? 'success' : 'info'} sx={{ mb: 2 }}>{alertMessage}</Alert>
                         <Typography variant="h6" gutterBottom>
                             付款人: {transaction.payer_name}
                             {customerName && transaction.payer_name !== customerName && (
@@ -427,9 +517,8 @@ const TransactionDetailsPanel = ({ transaction, category, onAllocationSuccess, s
                                     </Grid>
                                     <Box sx={{ flex: '0 1 auto', ml: 'auto' }}><Button variant="outlined" size="small" onClick={() =>onOpenBillModal(bill)}>查看账单</Button></Box>
                                 </ListItem>
-                            ))}
-                        </List>
-                        <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}><Button variant="outlined" color="error" onClick={handleCancelAllocation} disabled={isSaving}>撤销分配</Button></Box>
+                            ))}</List>
+                        {renderActions()}
                     </Box>
                 );
             case 'unmatched':
@@ -456,6 +545,14 @@ const TransactionDetailsPanel = ({ transaction, category, onAllocationSuccess, s
                                 )}
                             </Box>
                         )}
+                        {renderActions()}
+                    </Box>
+                );
+            case 'ignored':
+                return (
+                    <Box>
+                        <Alert severity="info" sx={{ mb: 2 }}>此流水已于 {new Date(transaction.updated_at).toLocaleString('zh-CN')} 被忽略。</Alert>
+                        {renderActions()}
                     </Box>
                 );
             default:
@@ -496,7 +593,7 @@ export default function ReconciliationPage() {
     const { year: yearParam, month: monthParam } = useParams();
     const navigate = useNavigate();
 
-    const [categorizedTxns, setCategorizedTxns] = useState({ pending_confirmation: [], manual_allocation: [], unmatched: [], confirmed: [] });
+        const [categorizedTxns, setCategorizedTxns] = useState({ pending_confirmation: [], manual_allocation: [], unmatched: [], confirmed: [], processed: [], ignored: [] });
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -514,6 +611,7 @@ export default function ReconciliationPage() {
 
     const [operationPeriod, setOperationPeriod] = useState(accountingPeriod);
     const [alertInfo, setAlertInfo] = useState({ open: false, message: '', severity: 'info' });
+    const [payerSearchTerm, setPayerSearchTerm] = useState('');
 
     useEffect(() => {
         const year = parseInt(yearParam, 10);
@@ -550,11 +648,33 @@ export default function ReconciliationPage() {
         setSelectedTxn(null);
         try {
             const response = await reconciliationApi.getUnmatchedTransactions(accountingPeriod);
-            setCategorizedTxns(response.data);
-            const firstTabWithData = ['pending_confirmation', 'manual_allocation', 'unmatched', 'confirmed'].find(tab => response.data[tab]?.length > 0);
+            const originalData = response.data;
+            const processed = [];
+            const confirmed = [];
+
+            if (originalData.confirmed) {
+                originalData.confirmed.forEach(txn => {
+                    const totalAmount = new Decimal(txn.amount || 0);
+                    const allocatedAmount = new Decimal(txn.allocated_amount || 0);
+                    if (totalAmount.equals(allocatedAmount) && totalAmount.gt(0)) {
+                        processed.push(txn);
+                    } else {
+                        confirmed.push(txn);
+                    }
+                });
+            }
+    
+            const newData = {
+                ...originalData,
+                confirmed: confirmed,
+                processed: processed,
+            };
+            setCategorizedTxns(newData);
+
+            const firstTabWithData = ['pending_confirmation', 'manual_allocation', 'unmatched', 'confirmed', 'processed', 'ignored'].find(tab => newData[tab]?.length > 0);
             if (firstTabWithData) {
                 setActiveTab(firstTabWithData);
-                setSelectedTxn(response.data[firstTabWithData][0]);
+                setSelectedTxn(newData[firstTabWithData][0]);
             } else {
                 setActiveTab('pending_confirmation');
             }
@@ -564,6 +684,40 @@ export default function ReconciliationPage() {
             setIsLoading(false);
         }
     }, [accountingPeriod]);
+
+    const handleStatusUpdate = (transactionId, fromCategory, toCategory) => {
+        setCategorizedTxns(currentTxns => {
+            const sourceList = [...(currentTxns[fromCategory] || [])];
+            const destList = [...(currentTxns[toCategory] || [])];
+    
+            const transactionIndex = sourceList.findIndex(t => t.id === transactionId);
+            if (transactionIndex === -1) {
+                return currentTxns; // Should not happen
+            }
+    
+            // 1. Remove from source list
+            const [movedTxn] = sourceList.splice(transactionIndex, 1);
+    
+            // 2. Update status and add to destination list
+            movedTxn.status = toCategory; // Assuming the category name matches the status value
+            destList.unshift(movedTxn); // Add to the top of the new list
+    
+            // 3. Determine next selected transaction
+            let nextSelectedTxn = null;
+            if (sourceList.length > 0) {
+                // Select the next one, or the previous one if it was the last
+                nextSelectedTxn = sourceList[Math.min(transactionIndex, sourceList.length - 1)];
+            }
+            setSelectedTxn(nextSelectedTxn);
+    
+            // 4. Return the new state
+            return {
+                ...currentTxns,
+                [fromCategory]: sourceList,
+                [toCategory]: destList,
+            };
+        });
+    };
 
     useEffect(() => {
         fetchTransactions();
@@ -630,6 +784,35 @@ export default function ReconciliationPage() {
     };
 
     const currentList = useMemo(() => categorizedTxns[activeTab] || [], [categorizedTxns, activeTab]);
+
+    const filteredList = useMemo(() => {
+        const list = currentList || [];
+        if (!payerSearchTerm) {
+            return list;
+        }
+        const searchTerm = payerSearchTerm.toLowerCase();
+        return list.filter(txn => {
+            if (!txn || !txn.payer_name) return false;
+            const payerName = txn.payer_name.toLowerCase();
+            if (payerName.includes(searchTerm)) {
+                return true;
+            }
+            try {
+                const pinyinName = pinyin(payerName, { toneType: 'none', nonZh: 'consecutive' }).toLowerCase();
+                if (pinyinName.includes(searchTerm)) {
+                    return true;
+                }
+                const pinyinInitials = pinyin(payerName, { pattern: 'first', toneType: 'none', nonZh: 'consecutive' }).toLowerCase();
+                if (pinyinInitials.includes(searchTerm)) {
+                    return true;
+                }
+            } catch (e) {
+                console.error("pinyin-pro failed:", e);
+                return true; // 如果拼音库失败，就默认显示该项
+            }
+            return false;
+        });
+    }, [currentList, payerSearchTerm]);
     const watermarkText = accountingPeriod ? `${accountingPeriod.month}月` : '';
 
     return (
@@ -693,7 +876,22 @@ export default function ReconciliationPage() {
                 <Grid container spacing={3}>
                     <Grid item xs={12} md={4}>
                         <Card sx={{ height: '82vh', display: 'flex', flexDirection: 'column' }}>
-                            <CardHeader title="待处理流水" action={<Button variant="contained" onClick={() => setIsDialogOpen(true)}>导入银行流水</Button>} />
+                            <CardHeader
+                                title="待处理流水"
+                                action={
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                        <TextField
+                                            label="搜付款人"
+                                            variant="outlined"
+                                            size="small"
+                                            value={payerSearchTerm}
+                                            onChange={(e) => setPayerSearchTerm(e.target.value)}
+                                            sx={{ width: 100 }}
+                                        />
+                                        <Button variant="contained" onClick={() => setIsDialogOpen(true)}>导入银行流水</Button>
+                                    </Box>
+                                }
+                            />
                             <CardContent sx={{
                                 flexGrow: 1,
                                 overflowY: 'auto',
@@ -705,7 +903,7 @@ export default function ReconciliationPage() {
                                 {error && <Alert severity="error">{error}</Alert>}
                                 {!isLoading && !error && (
                                 <List sx={{py: 0}}>
-                                    {currentList.length > 0 ? currentList.map((txn) => {
+                                    {filteredList.length > 0 ? filteredList.map((txn) => {
                                         const totalAmount = new Decimal(txn.amount || 0);
                                         const allocatedAmount = new Decimal(txn.allocated_amount || 0);
                                         const remainingAmount = totalAmount.minus(allocatedAmount);
@@ -748,7 +946,7 @@ export default function ReconciliationPage() {
                                                 <Divider component="li" />
                                             </React.Fragment>
                                         );
-                                    }) : <Typography sx={{ textAlign: 'center', p: 4, color: 'text.secondary' }}>当前分类下没有待处理流水。</Typography>}
+                                     }) : <Typography sx={{ textAlign: 'center', p: 4, color: 'text.secondary' }}>{payerSearchTerm ? '没有找到匹配的流水' :'当前分类下没有待处理流水。'}</Typography>}
                                 </List>
                                 )}
                             </CardContent>
@@ -762,6 +960,8 @@ export default function ReconciliationPage() {
                                     <Tab label={`待手动分配 (${categorizedTxns.manual_allocation.length})`} value="manual_allocation" />
                                     <Tab label={`未匹配 (${categorizedTxns.unmatched.length})`} value="unmatched" />
                                     <Tab label={`已确认 (${categorizedTxns.confirmed.length})`} value="confirmed" />
+                                    <Tab label={`已处理 (${categorizedTxns.processed.length})`} value="processed" />
+                                    <Tab label={`已忽略 (${categorizedTxns.ignored.length})`} value="ignored" />
                                 </Tabs>
                             </Box>
                             <CardContent sx={{ position: 'relative', flexGrow: 1, overflowY: 'auto' }}>
@@ -771,6 +971,7 @@ export default function ReconciliationPage() {
                                         transaction={selectedTxn} 
                                         category={activeTab} 
                                         onAllocationSuccess={fetchTransactions}
+                                        onStatusUpdate={handleStatusUpdate}
                                         setAlertInfo={setAlertInfo}
                                         accountingPeriod={operationPeriod} // <-- Use the new operationPeriod state
                                         setOperationPeriod={setOperationPeriod} // <-- Pass the setter function

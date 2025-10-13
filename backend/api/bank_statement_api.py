@@ -142,3 +142,23 @@ def cancel_allocation(bank_transaction_id):
         return jsonify(result), 400
 
     return jsonify(result), 200
+
+@bank_statement_api.route("/api/bank-transactions/<bank_transaction_id>/ignore", methods=["POST"])
+@jwt_required()
+def ignore_transaction_route(bank_transaction_id):
+    operator_id = get_jwt_identity()
+    service = BankStatementService()
+    result = service.ignore_transaction(bank_transaction_id, operator_id)
+    if result.get("error"):
+        return jsonify(result), 400
+    return jsonify(result), 200
+
+@bank_statement_api.route("/api/bank-transactions/<bank_transaction_id>/unignore", methods=["POST"])
+@jwt_required()
+def unignore_transaction_route(bank_transaction_id):
+    operator_id = get_jwt_identity()
+    service = BankStatementService()
+    result = service.unignore_transaction(bank_transaction_id, operator_id)
+    if result.get("error"):
+        return jsonify(result), 400
+    return jsonify(result), 200
