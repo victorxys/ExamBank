@@ -9,6 +9,7 @@ import AlertMessage from './AlertMessage';
 import FinancialManagementModal from './FinancialManagementModal';
 import PageHeader from './PageHeader';
 import { Decimal } from 'decimal.js';
+import { pinyin } from 'pinyin-pro';
 
 // --- Material-UI Imports ---
 import {
@@ -125,7 +126,10 @@ const TransactionDetailsPanel = ({ transaction, category, onAllocationSuccess, o
         setAllocations({});
         setSearchTerm('');
         setSearchResults([]);
-        setSelectedCustomerName(null);
+
+        if (category !== 'unmatched') {
+            setSelectedCustomerName(null);
+        }
 
         if (transaction) {
             if (category === 'pending_confirmation' && transaction.matched_bill) {
@@ -138,7 +142,6 @@ const TransactionDetailsPanel = ({ transaction, category, onAllocationSuccess, o
             }
         }
     }, [transaction, category]);
-
     useEffect(() => {
         if (!searchTerm) {
             setSearchResults([]);
@@ -164,7 +167,10 @@ const TransactionDetailsPanel = ({ transaction, category, onAllocationSuccess, o
         }
         setIsLoadingBills(true);
         api.get('/billing/unpaid-bills-by-customer', { params: { customer_name: selectedCustomerName, year: accountingPeriod.year, month: accountingPeriod.month } })
-            .then(response => setCustomerBills(response.data))
+            .then(response => {
+                // console.log("Data received for customer bills:", response.data);
+                setCustomerBills(response.data);
+            })
             .catch(err => setAlertInfo({ open: true, message: `获取客户账单失败: ${err.message}`, severity: 'error' }))
             .finally(() => setIsLoadingBills(false));
     }, [selectedCustomerName, accountingPeriod]);
@@ -183,26 +189,39 @@ const TransactionDetailsPanel = ({ transaction, category, onAllocationSuccess, o
             setAlertInfo({ open: true, message: "请输入至少一笔有效的分配金额。", severity: 'warning' });
             return;
         }
-        
+
         setIsSaving(true);
         try {
+            let aliasMessage = '';
+            let aliasSeverity = 'info';
+
             if (category === 'unmatched' && allocationsPayload.length > 0) {
-                const firstAllocatedBillId = parseInt(allocationsPayload[0].bill_id, 10);
-                const billToGetContractFrom = customerBills.find(b => b.id === firstAllocatedBillId);
+                const firstAllocatedBillId = allocationsPayload[0].bill_id; // ID是字符串，直接使用
+                const billToGetContractFrom = customerBills.find(b => b.id === firstAllocatedBillId); // 字符串对字符串比较
 
                 if (billToGetContractFrom?.contract_id) {
-                    await payerAliasApi.createAlias({
-                        payer_name: transaction.payer_name,
-                        contract_id: billToGetContractFrom.contract_id,
-                    });
-                    setAlertInfo({ open: true, message: '别名创建成功', severity: 'info' });
+                    try {
+                        await payerAliasApi.createAlias({
+                            payer_name: transaction.payer_name,
+                            contract_id: billToGetContractFrom.contract_id,
+                        });
+                        aliasMessage = '别名已自动创建。';
+                    } catch (aliasErr) {
+                        aliasMessage = `创建别名失败: ${aliasErr.message}。`;
+                        aliasSeverity = 'error';
+                    }
                 } else {
-                    console.error("Could not find contract_id for the allocated bill. Alias not created.");
+                    aliasMessage = '未创建别名，因为账单缺少合同信息。';
+                    aliasSeverity = 'warning';
+                    console.error("Could not find contract_id for the allocated bill. Bill object:", billToGetContractFrom);
                 }
             }
 
             await reconciliationApi.allocateTransaction({ transactionId: transaction.id, allocations: allocationsPayload });
-            setAlertInfo({ open: true, message: "分配成功！", severity: 'success' });
+
+            const finalMessage = `分配成功！${aliasMessage ? ` (${aliasMessage})` : ''}`;
+            setAlertInfo({ open: true, message: finalMessage, severity: aliasMessage && aliasSeverity !== 'info' ? aliasSeverity :'success' });
+
             onAllocationSuccess();
 
         } catch (err) {
@@ -421,6 +440,7 @@ const TransactionDetailsPanel = ({ transaction, category, onAllocationSuccess, o
                     </Box>
                 );
             case 'confirmed':
+            case 'processed':
                 return (
                     <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
                         <Button variant="outlined" color="error" onClick={handleCancelAllocation} disabled={isSaving}>撤销分配</Button>
@@ -467,10 +487,15 @@ const TransactionDetailsPanel = ({ transaction, category, onAllocationSuccess, o
                 }
                 return <Typography sx={{ p: 2, color: 'text.secondary' }}>正在加载客户账单...</Typography>;
             case 'confirmed':
+            case 'processed':
                 const customerName = transaction.allocated_to_bills?.[0]?.customer_name;
+                const alertMessage = category === 'processed'
+                    ? `此流水已于 ${new Date(transaction.updated_at).toLocaleString('zh-CN')} 处理完毕。`
+                    : `此流水已于 ${new Date(transaction.updated_at).toLocaleString('zh-CN')} 确认分配。`;
+
                 return (
                     <Box>
-                        <Alert severity="info" sx={{ mb: 2 }}>此流水已于 {new Date(transaction.updated_at).toLocaleString('zh-CN')} 确认分配。</Alert>
+                        <Alert severity={category === 'processed' ? 'success' : 'info'} sx={{ mb: 2 }}>{alertMessage}</Alert>
                         <Typography variant="h6" gutterBottom>
                             付款人: {transaction.payer_name}
                             {customerName && transaction.payer_name !== customerName && (
@@ -492,8 +517,7 @@ const TransactionDetailsPanel = ({ transaction, category, onAllocationSuccess, o
                                     </Grid>
                                     <Box sx={{ flex: '0 1 auto', ml: 'auto' }}><Button variant="outlined" size="small" onClick={() =>onOpenBillModal(bill)}>查看账单</Button></Box>
                                 </ListItem>
-                            ))}
-                        </List>
+                            ))}</List>
                         {renderActions()}
                     </Box>
                 );
@@ -569,7 +593,7 @@ export default function ReconciliationPage() {
     const { year: yearParam, month: monthParam } = useParams();
     const navigate = useNavigate();
 
-    const [categorizedTxns, setCategorizedTxns] = useState({ pending_confirmation: [], manual_allocation: [], unmatched: [], confirmed: [], ignored: [] });
+        const [categorizedTxns, setCategorizedTxns] = useState({ pending_confirmation: [], manual_allocation: [], unmatched: [], confirmed: [], processed: [], ignored: [] });
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -587,6 +611,7 @@ export default function ReconciliationPage() {
 
     const [operationPeriod, setOperationPeriod] = useState(accountingPeriod);
     const [alertInfo, setAlertInfo] = useState({ open: false, message: '', severity: 'info' });
+    const [payerSearchTerm, setPayerSearchTerm] = useState('');
 
     useEffect(() => {
         const year = parseInt(yearParam, 10);
@@ -623,11 +648,33 @@ export default function ReconciliationPage() {
         setSelectedTxn(null);
         try {
             const response = await reconciliationApi.getUnmatchedTransactions(accountingPeriod);
-            setCategorizedTxns(response.data);
-            const firstTabWithData = ['pending_confirmation', 'manual_allocation', 'unmatched', 'confirmed', 'ignored'].find(tab => response.data[tab]?.length > 0);
+            const originalData = response.data;
+            const processed = [];
+            const confirmed = [];
+
+            if (originalData.confirmed) {
+                originalData.confirmed.forEach(txn => {
+                    const totalAmount = new Decimal(txn.amount || 0);
+                    const allocatedAmount = new Decimal(txn.allocated_amount || 0);
+                    if (totalAmount.equals(allocatedAmount) && totalAmount.gt(0)) {
+                        processed.push(txn);
+                    } else {
+                        confirmed.push(txn);
+                    }
+                });
+            }
+    
+            const newData = {
+                ...originalData,
+                confirmed: confirmed,
+                processed: processed,
+            };
+            setCategorizedTxns(newData);
+
+            const firstTabWithData = ['pending_confirmation', 'manual_allocation', 'unmatched', 'confirmed', 'processed', 'ignored'].find(tab => newData[tab]?.length > 0);
             if (firstTabWithData) {
                 setActiveTab(firstTabWithData);
-                setSelectedTxn(response.data[firstTabWithData][0]);
+                setSelectedTxn(newData[firstTabWithData][0]);
             } else {
                 setActiveTab('pending_confirmation');
             }
@@ -737,6 +784,35 @@ export default function ReconciliationPage() {
     };
 
     const currentList = useMemo(() => categorizedTxns[activeTab] || [], [categorizedTxns, activeTab]);
+
+    const filteredList = useMemo(() => {
+        const list = currentList || [];
+        if (!payerSearchTerm) {
+            return list;
+        }
+        const searchTerm = payerSearchTerm.toLowerCase();
+        return list.filter(txn => {
+            if (!txn || !txn.payer_name) return false;
+            const payerName = txn.payer_name.toLowerCase();
+            if (payerName.includes(searchTerm)) {
+                return true;
+            }
+            try {
+                const pinyinName = pinyin(payerName, { toneType: 'none', nonZh: 'consecutive' }).toLowerCase();
+                if (pinyinName.includes(searchTerm)) {
+                    return true;
+                }
+                const pinyinInitials = pinyin(payerName, { pattern: 'first', toneType: 'none', nonZh: 'consecutive' }).toLowerCase();
+                if (pinyinInitials.includes(searchTerm)) {
+                    return true;
+                }
+            } catch (e) {
+                console.error("pinyin-pro failed:", e);
+                return true; // 如果拼音库失败，就默认显示该项
+            }
+            return false;
+        });
+    }, [currentList, payerSearchTerm]);
     const watermarkText = accountingPeriod ? `${accountingPeriod.month}月` : '';
 
     return (
@@ -800,7 +876,22 @@ export default function ReconciliationPage() {
                 <Grid container spacing={3}>
                     <Grid item xs={12} md={4}>
                         <Card sx={{ height: '82vh', display: 'flex', flexDirection: 'column' }}>
-                            <CardHeader title="待处理流水" action={<Button variant="contained" onClick={() => setIsDialogOpen(true)}>导入银行流水</Button>} />
+                            <CardHeader
+                                title="待处理流水"
+                                action={
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                        <TextField
+                                            label="搜付款人"
+                                            variant="outlined"
+                                            size="small"
+                                            value={payerSearchTerm}
+                                            onChange={(e) => setPayerSearchTerm(e.target.value)}
+                                            sx={{ width: 100 }}
+                                        />
+                                        <Button variant="contained" onClick={() => setIsDialogOpen(true)}>导入银行流水</Button>
+                                    </Box>
+                                }
+                            />
                             <CardContent sx={{
                                 flexGrow: 1,
                                 overflowY: 'auto',
@@ -812,7 +903,7 @@ export default function ReconciliationPage() {
                                 {error && <Alert severity="error">{error}</Alert>}
                                 {!isLoading && !error && (
                                 <List sx={{py: 0}}>
-                                    {currentList.length > 0 ? currentList.map((txn) => {
+                                    {filteredList.length > 0 ? filteredList.map((txn) => {
                                         const totalAmount = new Decimal(txn.amount || 0);
                                         const allocatedAmount = new Decimal(txn.allocated_amount || 0);
                                         const remainingAmount = totalAmount.minus(allocatedAmount);
@@ -855,7 +946,7 @@ export default function ReconciliationPage() {
                                                 <Divider component="li" />
                                             </React.Fragment>
                                         );
-                                    }) : <Typography sx={{ textAlign: 'center', p: 4, color: 'text.secondary' }}>当前分类下没有待处理流水。</Typography>}
+                                     }) : <Typography sx={{ textAlign: 'center', p: 4, color: 'text.secondary' }}>{payerSearchTerm ? '没有找到匹配的流水' :'当前分类下没有待处理流水。'}</Typography>}
                                 </List>
                                 )}
                             </CardContent>
@@ -869,6 +960,7 @@ export default function ReconciliationPage() {
                                     <Tab label={`待手动分配 (${categorizedTxns.manual_allocation.length})`} value="manual_allocation" />
                                     <Tab label={`未匹配 (${categorizedTxns.unmatched.length})`} value="unmatched" />
                                     <Tab label={`已确认 (${categorizedTxns.confirmed.length})`} value="confirmed" />
+                                    <Tab label={`已处理 (${categorizedTxns.processed.length})`} value="processed" />
                                     <Tab label={`已忽略 (${categorizedTxns.ignored.length})`} value="ignored" />
                                 </Tabs>
                             </Box>
