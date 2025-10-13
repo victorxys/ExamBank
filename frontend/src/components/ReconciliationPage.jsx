@@ -136,6 +136,7 @@ const TransactionDetailsPanel = ({ transaction, category, onAllocationSuccess, o
                 const bill = transaction.matched_bill;
                 const amountToAllocate = Math.min(parseFloat(transaction.amount), parseFloat(bill.amount_remaining));
                 setAllocations({ [bill.id]: amountToAllocate.toString() });
+                setSelectedCustomerName(bill.customer_name);
             } else if (category === 'manual_allocation' && transaction.unpaid_bills?.length > 0) {
                 const customerName = transaction.unpaid_bills[0].customer_name;
                 setSelectedCustomerName(customerName);
@@ -327,7 +328,7 @@ const TransactionDetailsPanel = ({ transaction, category, onAllocationSuccess, o
             })
             .sort((a, b) => {
                 if (a.year !== b.year) return a.year - b.year;
-                return a.month - b.month;
+                return a.bill_month - b.bill_month; // 修复了一个之前版本的小bug
             });
 
         return (
@@ -341,53 +342,59 @@ const TransactionDetailsPanel = ({ transaction, category, onAllocationSuccess, o
                         <IconButton onClick={handleNextMonth} size="small"><ArrowForwardIosIcon fontSize="inherit" /></IconButton>
                     </Box>
                 </Box>
-                <Typography variant="subtitle1" gutterBottom sx={{ mb: 2 }}>
-                    该客户在 {accountingPeriod.year}年{accountingPeriod.month}月 有以下未付账单:
-                </Typography>
-                
-                <Stack spacing={2} ref={billListRef}>
-                    {validBills.map((bill, index) => (
-                        <Paper key={bill.id} variant="outlined" sx={{ p: 2 }}>
-                            <Grid container spacing={2} alignItems="center">
-                                {/* Column 1 */}
-                                <Grid item xs={12} md={6}>
-                                    <Box>
-                                        <Typography variant="body1" component="div" sx={{ display: 'flex', alignItems: 'center' }}>
-                                            {`账单周期: ${bill.cycle}`}
-                                            {(category === 'manual_allocation' || category === 'unmatched') && bill.bill_month && (
-                                                <Chip label={`${bill.bill_month}月账单`} size="small" {...getBillMonthChipProps(bill, accountingPeriod)} />
-                                            )}
-                                        </Typography>
-                                        <Typography variant="body2" color="text.secondary">{`员工: ${bill.employee_name}`}</Typography>
-                                    </Box>
-                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
-                                        <TextField type="number" size="small" sx={{ width: '130px' }} placeholder="0.00" value={allocations[bill.id] || ''} onChange={(e) =>handleAllocationChange(bill.id, e.target.value)} InputProps={{ startAdornment: <Typography component="span" sx={{ mr: 1 }}>¥</Typography>}} />
-                                        <Button size="small" variant="outlined" onClick={() => handleSmartFill(bill.id)}>自动</Button>
-                                        {index === validBills.length - 1 && (<Button size="small" variant="outlined" onClick={() => handleSmartFill(bill.id)}>剩余</Button>)}
-                                    </Box>
-                                </Grid>
 
-                                {/* Column 2 */}
-                                <Grid item xs={12} md={4}>
-                                    <Box sx={{ fontFamily: 'monospace', textAlign: 'left' }}>
-                                        <Typography variant="body2">应付: ¥{bill.total_due}</Typography>
-                                        <Typography variant="body2" color="text.secondary">已付: ¥{bill.total_paid}</Typography>
-                                        {bill.payments && bill.payments.map((p, i) => (<Typography variant="caption" color="text.secondary" key={i}>{`↳ ${p.payer_name}: ¥${p.amount}`}</Typography>))}
-                                        {bill.paid_by_this_txn && parseFloat(bill.paid_by_this_txn) > 0 && (<Typography variant="body2" color="primary.main">{`↳ 本次流水已付:¥${bill.paid_by_this_txn}`}</Typography>)}
-                                        <Typography variant="body2" fontWeight="bold" color="error.main">待付: ¥{bill.amount_remaining}</Typography>
-                                    </Box>
-                                </Grid>
+                {validBills.length > 0 ? (
+                    <Stack spacing={2} ref={billListRef}>
+                        <Typography variant="subtitle1" gutterBottom sx={{ mb: 1 }}>
+                            该客户在 {accountingPeriod.year}年{accountingPeriod.month}月 有以下未付账单:
+                        </Typography>
+                        {validBills.map((bill, index) => (
+                            <Paper key={bill.id} variant="outlined" sx={{ p: 2, backgroundColor: 'transparent' }}>
+                                <Grid container spacing={2} alignItems="center">
+                                    {/* Column 1 */}
+                                    <Grid item xs={12} md={6}>
+                                        <Box>
+                                            <Typography variant="body1" component="div" sx={{ display: 'flex', alignItems: 'center' }}>
+                                                {`账单周期: ${bill.cycle}`}
+                                                {(category === 'manual_allocation' || category === 'unmatched' || category ==='pending_confirmation') && bill.bill_month && (
+                                                    <Chip label={`${bill.bill_month}月账单`} size="small" {...getBillMonthChipProps(bill, accountingPeriod)} />
+                                                )}
+                                            </Typography>
+                                            <Typography variant="body2" color="text.secondary">{`员工: ${bill.employee_name}`}</Typography>
+                                        </Box>
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
+                                            <TextField type="number" size="small" sx={{ width: '130px' }} placeholder="0.00" value={allocations[bill.id] || ''} onChange={(e) =>handleAllocationChange(bill.id, e.target.value)} InputProps={{ startAdornment:<Typography component="span" sx={{ mr: 1 }}>¥</Typography>}} />
+                                            <Button size="small" variant="outlined" onClick={() => handleSmartFill(bill.id)}>自动</Button>
+                                            {index === validBills.length - 1 && (<Button size="small" variant="outlined" onClick={() => handleSmartFill(bill.id)}>剩余</Button>)}
+                                        </Box>
+                                    </Grid>
 
-                                {/* Column 3 */}
-                                <Grid item xs={12} md={2}>
-                                    <Box sx={{ textAlign: 'right' }}>
-                                        <Button variant="outlined" size="small" onClick={() => onOpenBillModal(bill)}>查看账单</Button>
-                                    </Box>
+                                    {/* Column 2 */}
+                                    <Grid item xs={12} md={4}>
+                                        <Box sx={{ fontFamily: 'monospace', textAlign: 'left' }}>
+                                            <Typography variant="body2">应付: ¥{bill.total_due}</Typography>
+                                            <Typography variant="body2" color="text.secondary">已付: ¥{bill.total_paid}</Typography>
+                                            {bill.payments && bill.payments.map((p, i) => (<Typography variant="caption" color="text.secondary" key={i}>{`↳ ${p.payer_name}: ¥${p.amount}`}</Typography>))}
+                                            {bill.paid_by_this_txn && parseFloat(bill.paid_by_this_txn) > 0 && (<Typography variant="body2" color="primary.main">{`↳ 本次流水已付:¥${bill.paid_by_this_txn}`}</Typography>)}
+                                            <Typography variant="body2" fontWeight="bold" color="error.main">待付: ¥{bill.amount_remaining}</Typography>
+                                        </Box>
+                                    </Grid>
+
+                                    {/* Column 3 */}
+                                    <Grid item xs={12} md={2}>
+                                        <Box sx={{ textAlign: 'right' }}>
+                                            <Button variant="outlined" size="small" onClick={() => onOpenBillModal(bill)}>查看账单</Button>
+                                        </Box>
+                                    </Grid>
                                 </Grid>
-                            </Grid>
-                        </Paper>
-                    ))}
-                </Stack>
+                            </Paper>
+                        ))}
+                    </Stack>
+                ) : (
+                    <Typography sx={{ p: 3, textAlign: 'center', color: 'text.secondary' }}>
+                        在 {accountingPeriod.year}年{accountingPeriod.month}月 未找到该客户的未付账单。
+                    </Typography>
+                )}
             </Box>
         );
     };
@@ -415,9 +422,11 @@ const TransactionDetailsPanel = ({ transaction, category, onAllocationSuccess, o
                         <Button variant="outlined" color="warning" onClick={handleIgnore} disabled={isSaving}>忽略此流水</Button>
                         <Box>
                             {transaction.matched_by === 'alias' && (
-                                <Button variant="outlined" color="warning" onClick={handleCancelAlias} disabled={isSaving} sx={{ mr: 2 }}>解除支付关系</Button>
+                                <Button variant="outlined" color="warning" onClick={handleCancelAlias} disabled={isSaving} sx={{ mr: 2}}>解除支付关系</Button>
                             )}
-                            <Button variant="contained" onClick={handleSave} disabled={isSaving}>确认并保存</Button>
+                            <Button variant="contained" onClick={handleSave} disabled={isSaving || remainingAmount.lt(0)}>
+                                {isSaving ? '处理中...' : '确认并保存'}
+                            </Button>
                         </Box>
                     </Box>
                 );
@@ -460,20 +469,25 @@ const TransactionDetailsPanel = ({ transaction, category, onAllocationSuccess, o
     const renderContent = () => {
         switch (category) {
             case 'pending_confirmation':
+                if (isLoadingBills && !customerBills.length) {
+                    return (
+                        <Box>
+                            <Alert severity="info" sx={{ mb: 2 }}>
+                                正在加载客户 “{transaction.matched_bill.customer_name}” 在 {accountingPeriod.year}年{accountingPeriod.month}月 的账单...
+                            </Alert>
+                            <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>
+                        </Box>
+                    );
+                }
+
                 return (
-                    <Box>
+                    <>
                         <Alert severity="success" sx={{ mb: 2 }}>
-                            系统已通过 {transaction.matched_by === 'alias' ? '别名/支付关系' : '客户名'} 自动匹配到唯一账单，请确认。
+                            系统已通过 {transaction.matched_by === 'alias' ? '别名/支付关系' : '客户名'}自动匹配到账单，请确认或修改分配。
                         </Alert>
-                        <Typography variant="h5" gutterBottom>客户: {transaction.matched_bill.customer_name} ~ 员工: {transaction.matched_bill.employee_name}</Typography>
-                        <List>
-                            <ListItem divider sx={{ alignItems: 'center' }}>
-                                <ListItemText primary={`账单周期: ${transaction.matched_bill.cycle}`} secondary={`应付: ${transaction.matched_bill.total_due} | 待付: ${transaction.matched_bill.amount_remaining}`} />
-                                <Button variant="outlined" size="small" onClick={() => onOpenBillModal(transaction.matched_bill)} sx={{ ml: 2 }}>查看账单</Button>
-                            </ListItem>
-                        </List>
+                        {renderAllocationUI(customerBills, selectedCustomerName || transaction.matched_bill.customer_name)}
                         {renderActions()}
-                    </Box>
+                    </>
                 );
             case 'manual_allocation':
                 if (isLoadingBills) {
@@ -483,7 +497,7 @@ const TransactionDetailsPanel = ({ transaction, category, onAllocationSuccess, o
                     return <>{renderAllocationUI(customerBills, selectedCustomerName)}{renderActions()}</>;
                 }
                 if (selectedCustomerName) {
-                    return <Typography sx={{ p: 2, color: 'text.secondary' }}>未找到该客户在 {accountingPeriod.year}年{accountingPeriod.month}月 的未付账单。</Typography>;
+                    return <Typography sx={{ p: 2, color: 'text.secondary' }}>未找到该客户在{accountingPeriod.year}年{accountingPeriod.month}月 的未付账单。</Typography>;
                 }
                 return <Typography sx={{ p: 2, color: 'text.secondary' }}>正在加载客户账单...</Typography>;
             case 'confirmed':
@@ -539,7 +553,7 @@ const TransactionDetailsPanel = ({ transaction, category, onAllocationSuccess, o
                             <Box sx={{ mt: 4 }}>
                                 <Divider sx={{ mb: 2 }}><Chip label="第二步：分配金额" /></Divider>
                                 {isLoadingBills ? <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box> : (
-                                    customerBills.length > 0 
+                                    customerBills.length > 0
                                         ? renderAllocationUI(customerBills, selectedCustomerName)
                                         : <Typography sx={{ p: 2, color: 'text.secondary' }}>未找到该客户在此会计月份的未付账单。</Typography>
                                 )}
@@ -952,9 +966,9 @@ export default function ReconciliationPage() {
                             </CardContent>
                         </Card>
                     </Grid>
-                    <Grid item xs={12} md={8}>
-                        <Card sx={{ height: '82vh', display: 'flex', flexDirection: 'column' }}>
-                            <Box sx={{ borderBottom: 1, borderColor: 'divider', flexShrink: 0 }}>
+                                        <Grid item xs={12} md={8}>
+                        <Card sx={{ height: '82vh', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+                            <Box sx={{ borderBottom: 1, borderColor: 'divider', flexShrink: 0, zIndex: 2, backgroundColor:'background.paper' }}>
                                 <Tabs value={activeTab} onChange={handleTabChange} aria-label="reconciliation tabs">
                                     <Tab label={`待确认 (${categorizedTxns.pending_confirmation.length})`} value="pending_confirmation" />
                                     <Tab label={`待手动分配 (${categorizedTxns.manual_allocation.length})`} value="manual_allocation" />
@@ -964,20 +978,31 @@ export default function ReconciliationPage() {
                                     <Tab label={`已忽略 (${categorizedTxns.ignored.length})`} value="ignored" />
                                 </Tabs>
                             </Box>
-                            <CardContent sx={{ position: 'relative', flexGrow: 1, overflowY: 'auto' }}>
-                                <Box sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', fontSize: '8rem', fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.04)', zIndex: 0, pointerEvents: 'none', userSelect: 'none' }}>{watermarkText}</Box>
-                                <Box sx={{ position: 'relative', zIndex: 1, width: '100%' }}>
-                                    <TransactionDetailsPanel 
-                                        transaction={selectedTxn} 
-                                        category={activeTab} 
-                                        onAllocationSuccess={fetchTransactions}
-                                        onStatusUpdate={handleStatusUpdate}
-                                        setAlertInfo={setAlertInfo}
-                                        accountingPeriod={operationPeriod} // <-- Use the new operationPeriod state
-                                        setOperationPeriod={setOperationPeriod} // <-- Pass the setter function
-                                        onOpenBillModal={handleOpenBillModal}
-                                    />
-                                </Box>
+                            <Box sx={{
+                                position: 'absolute',
+                                top: '50%',
+                                left: '50%',
+                                transform: 'translate(-50%, -50%)',
+                                fontSize: '8rem',
+                                fontWeight: 'bold',
+                                color: 'rgba(0, 0, 0, 0.04)',
+                                zIndex: 1,
+                                pointerEvents: 'none',
+                                userSelect: 'none'
+                            }}>
+                                {watermarkText}
+                            </Box>
+                            <CardContent sx={{ flexGrow: 1, overflowY: 'auto', position: 'relative', zIndex: 2, backgroundColor:'transparent' }}>
+                                <TransactionDetailsPanel
+                                    transaction={selectedTxn}
+                                    category={activeTab}
+                                    onAllocationSuccess={fetchTransactions}
+                                    onStatusUpdate={handleStatusUpdate}
+                                    setAlertInfo={setAlertInfo}
+                                    accountingPeriod={operationPeriod}
+                                    setOperationPeriod={setOperationPeriod}
+                                    onOpenBillModal={handleOpenBillModal}
+                                />
                             </CardContent>
                         </Card>
                     </Grid>
