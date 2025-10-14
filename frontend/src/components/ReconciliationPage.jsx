@@ -23,7 +23,13 @@ import {
     ArrowBackIosNew as ArrowBackIosNewIcon,
     ArrowForwardIos as ArrowForwardIosIcon
 } from '@mui/icons-material';
-
+const formatCurrency = (value) => {
+    const num = new Decimal(value || 0).toNumber();
+    return num.toLocaleString('zh-CN', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    });
+};
 // --- Paste Statement Dialog Component ---
 const PasteStatementDialog = ({ open, onClose, onSubmit }) => {
     const [statementText, setStatementText] = useState('');
@@ -379,11 +385,11 @@ const TransactionDetailsPanel = ({
                                     </Grid>
                                     <Grid item xs={12} md={4}>
                                         <Box sx={{ fontFamily: 'monospace', textAlign: 'left' }}>
-                                            <Typography variant="body2">应付: ¥{bill.total_due}</Typography>
-                                            <Typography variant="body2" color="text.secondary">已付: ¥{bill.total_paid}</Typography>
-                                            {bill.payments && bill.payments.map((p, i) => (<Typography variant="caption" color="text.secondary" key={i}>{`↳ ${p.payer_name}: ¥${p.amount}`}</Typography>))}
-                                            {bill.paid_by_this_txn && parseFloat(bill.paid_by_this_txn) > 0 && (<Typography variant="body2" color="primary.main">{`↳ 本次流水已付:¥${bill.paid_by_this_txn}`}</Typography>)}
-                                            <Typography variant="body2" fontWeight="bold" color="error.main">待付: ¥{bill.amount_remaining}</Typography>
+                                            <Typography variant="body2">应付: ¥{formatCurrency(bill.total_due)}</Typography>
+                                            <Typography variant="body2" color="text.secondary">已付: ¥{formatCurrency(bill.total_paid)}</Typography>
+                                            {bill.payments && bill.payments.map((p, i) => (<Typography variant="caption" color="text.secondary" key={i}>{`↳ ${p.payer_name}: ¥${formatCurrency(p.amount)}`}</Typography>))}
+                                            {bill.paid_by_this_txn && parseFloat(bill.paid_by_this_txn) > 0 && (<Typography variant="body2" color="primary.main">{`↳ 本次流水已付:¥${formatCurrency(bill.paid_by_this_txn)}`}</Typography>)}
+                                            <Typography variant="body2" fontWeight="bold" color="error.main">待付: ¥{formatCurrency(bill.amount_remaining)}</Typography>
                                         </Box>
                                     </Grid>
                                     <Grid item xs={12} md={2}>
@@ -529,10 +535,10 @@ const TransactionDetailsPanel = ({
                                 <ListItem key={`${bill.id}-${index}`} id={`bill-item-${bill.id}`} divider sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'center', py: 2}}>
                                     <Box sx={{ flex: '1 1 300px', minWidth: '250px' }}><Typography variant="body1">{bill.employee_name}</Typography><Typography variant="body2" color="text.secondary">{bill.cycle}</Typography></Box>
                                     <Grid container spacing={1} sx={{ flex: '2 1 400px', minWidth: '300px', fontFamily: 'monospace' }}>
-                                        <Grid item xs={6} sm={3}><Typography variant="caption" color="text.secondary">应收总额</Typography><Typography variant="body2">¥{bill.total_due}</Typography></Grid>
-                                        <Grid item xs={6} sm={3}><Typography variant="caption" color="text.secondary">本次分配</Typography><Typography variant="body2" color="success.main" fontWeight="bold">¥{bill.allocated_amount_from_this_txn}</Typography></Grid>
-                                        <Grid item xs={6} sm={3}><Typography variant="caption" color="text.secondary">实收总额</Typography><Typography variant="body2">¥{bill.total_paid}</Typography></Grid>
-                                        <Grid item xs={6} sm={3}><Typography variant="caption" color="text.secondary">剩余待收</Typography><Typography variant="body2" color="error.main" fontWeight="bold">¥{bill.amount_remaining}</Typography></Grid>
+                                        <Grid item xs={6} sm={3}><Typography variant="caption" color="text.secondary">应收总额</Typography><Typography variant="body2">¥{formatCurrency(bill.total_due)}</Typography></Grid>
+                                        <Grid item xs={6} sm={3}><Typography variant="caption" color="text.secondary">本次分配</Typography><Typography variant="body2" color="success.main" fontWeight="bold">¥{formatCurrency(bill.allocated_amount_from_this_txn)}</Typography></Grid>
+                                        <Grid item xs={6} sm={3}><Typography variant="caption" color="text.secondary">实收总额</Typography><Typography variant="body2">¥{formatCurrency(bill.total_paid)}</Typography></Grid>
+                                        <Grid item xs={6} sm={3}><Typography variant="caption" color="text.secondary">剩余待收</Typography><Typography variant="body2" color="error.main" fontWeight="bold">¥{formatCurrency(bill.amount_remaining)}</Typography></Grid>
                                     </Grid>
                                     <Box sx={{ flex: '0 1 auto', ml: 'auto' }}><Button variant="outlined" size="small" onClick={() =>onOpenBillModal(bill)}>查看账单</Button></Box>
                                 </ListItem>
@@ -597,17 +603,17 @@ const TransactionDetailsPanel = ({
     return (
         <Box sx={{ p: 3 }}>
             <Box mb={3} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Typography variant="h5" gutterBottom>{transaction.payer_name} : ¥{new Decimal(transaction.amount).toFixed(2)}</Typography>
+                <Typography variant="h5" gutterBottom>{transaction.payer_name} : ¥{formatCurrency(transaction.amount)}</Typography>
                 <Typography variant="body2" color="text.secondary">
                     {new Date(transaction.transaction_time).toLocaleString('zh-CN')} | {transaction.summary || '无摘要'}
                 </Typography>
             </Box>
 
             <Grid container spacing={1} alignItems="center" sx={{ mb: 3, p: 2, border: '1px solid', borderColor: 'divider', borderRadius:1, textAlign: 'center' }}>
-                <Grid item xs={6} sm={3}><Typography variant="body2" component="div">流水总额:<br/><Typography component="div" variant="h6" fontWeight="bold">¥{totalTxnAmount.toFixed(2)}</Typography></Typography></Grid>
-                <Grid item xs={6} sm={3}><Typography variant="body2" component="div">已分配:<br/><Typography component="div" variant="h6"fontWeight="bold" color="text.secondary">¥{alreadyAllocated.toFixed(2)}</Typography></Typography></Grid>
-                <Grid item xs={6} sm={3}><Typography variant="body2" component="div">本次分配:<br/><Typography component="div" variant="h6" fontWeight="bold" color="primary">¥{totalAllocatedInThisSession.toFixed(2)}</Typography></Typography></Grid>
-                <Grid item xs={6} sm={3}><Typography variant="body2" component="div">剩余可分配:<br/><Typography component="div" variant="h6" fontWeight="bold" color={remainingAmount.lt(0) ? 'error' : 'warning.main'}>¥{remainingAmount.toFixed(2)}</Typography></Typography></Grid>
+                <Grid item xs={6} sm={3}><Typography variant="body2" component="div">回款额:<br/><Typography component="div" variant="h5" fontWeight="bold">¥{formatCurrency(totalTxnAmount)}</Typography></Typography></Grid>
+                <Grid item xs={6} sm={3}><Typography variant="body2" component="div">已分配:<br/><Typography component="div" variant="h5"fontWeight="bold" color="text.secondary">¥{formatCurrency(alreadyAllocated)}</Typography></Typography></Grid>
+                <Grid item xs={6} sm={3}><Typography variant="body2" component="div">本次分配:<br/><Typography component="div" variant="h5" fontWeight="bold" color="primary">¥{formatCurrency(totalAllocatedInThisSession)}</Typography></Typography></Grid>
+                <Grid item xs={6} sm={3}><Typography variant="body2" component="div">剩余可分配:<br/><Typography component="div" variant="h5" fontWeight="bold" color={remainingAmount.lt(0) ? 'error' : 'warning.main'}>¥{formatCurrency(remainingAmount)}</Typography></Typography></Grid>
             </Grid>
 
             {renderContent()}
@@ -954,6 +960,39 @@ export default function ReconciliationPage() {
         });
     }, [currentList, payerSearchTerm]);
 
+    const kpiStats = useMemo(() => {
+        // 从所有分类中（除了“已忽略”）聚合流水
+        const allNonIgnored = Object.entries(categorizedTxns)
+            .filter(([key]) => key !== 'ignored')
+            .flatMap(([, txns]) => txns);
+
+        // 回款总额 = 所有非忽略流水的总金额
+        const totalReceived = allNonIgnored.reduce((sum, txn) => sum.plus(new Decimal(txn.amount || 0)), new Decimal(0));
+
+        // 已分配总额 = 所有非忽略流水的已分配金额
+        const totalAllocated = allNonIgnored.reduce((sum, txn) => sum.plus(new Decimal(txn.allocated_amount || 0)), new Decimal(0));
+
+        // 未分配金额 = 回款总额 - 已分配总额
+        const unallocatedAmount = totalReceived.minus(totalAllocated);
+
+        // 已忽略金额 = “已忽略”分类下所有流水的总金额
+        const ignoredAmount = (categorizedTxns.ignored || []).reduce((sum, txn) => sum.plus(new Decimal(txn.amount || 0)), new Decimal(0));
+
+        const formatNumber = (decimalValue) => {
+            return decimalValue.toNumber().toLocaleString('zh-CN', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+        };
+
+        return {
+            totalReceived: formatNumber(totalReceived),
+            totalAllocated: formatNumber(totalAllocated),
+            unallocatedAmount: formatNumber(unallocatedAmount),
+            ignoredAmount: formatNumber(ignoredAmount)
+        };
+    }, [categorizedTxns]);
+
     const watermarkText = accountingPeriod ? `${accountingPeriod.month}月` : '';
 
     return (
@@ -981,6 +1020,32 @@ export default function ReconciliationPage() {
                     </Box>
                 )}
             />
+            <Grid container spacing={3} sx={{ px: 0, mb: 2 }}>
+                <Grid item xs={6} sm={3}>
+                    <Paper sx={{ p: 2, textAlign: 'center' }}>
+                        <Typography variant="overline" color="text.secondary">回款总额</Typography>
+                        <Typography variant="h5" fontWeight="bold">¥{kpiStats.totalReceived}</Typography>
+                    </Paper>
+                </Grid>
+                <Grid item xs={6} sm={3}>
+                    <Paper sx={{ p: 2, textAlign: 'center' }}>
+                        <Typography variant="overline" color="text.secondary">已分配总额</Typography>
+                        <Typography variant="h5" fontWeight="bold" color="success.main">¥{kpiStats.totalAllocated}</Typography>
+                    </Paper>
+                </Grid>
+                <Grid item xs={6} sm={3}>
+                    <Paper sx={{ p: 2, textAlign: 'center' }}>
+                        <Typography variant="overline" color="text.secondary">未分配金额</Typography>
+                        <Typography variant="h5" fontWeight="bold" color="warning.main">¥{kpiStats.unallocatedAmount}</Typography>
+                    </Paper>
+                </Grid>
+                <Grid item xs={6} sm={3}>
+                    <Paper sx={{ p: 2, textAlign: 'center' }}>
+                        <Typography variant="overline" color="text.secondary">已忽略金额</Typography>
+                        <Typography variant="h5" fontWeight="bold" color="text.secondary">¥{kpiStats.ignoredAmount}</Typography>
+                    </Paper>
+                </Grid>
+            </Grid>
             <Box sx={{ px: 0, py: 0 }}>
                 <Grid container spacing={3}>
                     <Grid item xs={12} md={4}>
@@ -1023,9 +1088,9 @@ export default function ReconciliationPage() {
                                                                         <Grid item xs={4}><Typography variant="caption" color="text.secondary">总额</Typography></Grid>
                                                                         <Grid item xs={4}><Typography variant="caption" color="text.secondary">已分配</Typography></Grid>
                                                                         <Grid item xs={4}><Typography variant="caption" color="text.secondary">待分配</Typography></Grid>
-                                                                        <Grid item xs={4}><Typography variant="body2" fontWeight="bold">¥{totalAmount.toFixed(2)}</Typography></Grid>
-                                                                        <Grid item xs={4}><Typography variant="body2" color="text.secondary">¥{allocatedAmount.toFixed(2)}</Typography></Grid>
-                                                                        <Grid item xs={4}><Typography variant="body2" fontWeight="bold" color={remainingColor}>¥{remainingAmount.toFixed(2)}</Typography></Grid>
+                                                                        <Grid item xs={4}><Typography variant="body2" fontWeight="bold">¥{formatCurrency(totalAmount)}</Typography></Grid>
+                                                                        <Grid item xs={4}><Typography variant="body2" color="text.secondary">¥{formatCurrency(allocatedAmount)}</Typography></Grid>
+                                                                        <Grid item xs={4}><Typography variant="body2" fontWeight="bold" color={remainingColor}>¥{formatCurrency(remainingAmount)}</Typography></Grid>
                                                                     </Grid>
                                                                     <Typography variant="caption" color="text.secondary" sx={{ display:'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', mt: 0.5, textAlign: 'left' }}>
                                                                         {new Date(txn.transaction_time).toLocaleDateString()} | {txn.summary || '无'}
