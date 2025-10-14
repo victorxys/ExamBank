@@ -118,10 +118,11 @@ const IgnoreRemarkDialog = ({ open, onClose, onSubmit }) => {
 };
 const TransactionDetailsPanel = ({
     transaction, category, onAllocationSuccess, onStatusUpdate, setAlertInfo,
-    accountingPeriod, setOperationPeriod, onOpenBillModal,
+    accountingPeriod, setOperationPeriod, onOpenBillModal, mainAccountingPeriod,
     // Props lifted from parent
     searchTerm, setSearchTerm, searchResults, isSearching,
     selectedCustomerName, setSelectedCustomerName,
+    selectedSearchOption, setSelectedSearchOption,
     customerBills, isLoadingBills
 }) => {
     const [allocations, setAllocations] = useState({});
@@ -320,20 +321,14 @@ const TransactionDetailsPanel = ({
         }
     };
 
-    const getBillMonthChipProps = (bill, accountingPeriod) => {
-        const isCurrent = bill.year === accountingPeriod.year && bill.bill_month === accountingPeriod.month;
+    const getBillMonthChipProps = (bill) => {
+        // 使用 mainAccountingPeriod 进行比较
+        const isCurrent = bill.year === mainAccountingPeriod.year && bill.bill_month === mainAccountingPeriod.month;
         if (isCurrent) {
-            return { color: 'primary', sx: { ml: 1 } };
+            return { color: 'primary', variant: 'filled', sx: { ml: 1 } };
+        } else {
+            return { color: 'warning', variant: 'filled', sx: { ml: 1 } };
         }
-        const now = new Date(accountingPeriod.year, accountingPeriod.month - 1);
-        const billDate = new Date(bill.year, bill.bill_month - 1);
-        let monthDiff = (now.getFullYear() - billDate.getFullYear()) * 12;
-        monthDiff += now.getMonth() - billDate.getMonth();
-        if (monthDiff < 0) {
-            return { color: 'primary', sx: { ml: 1 } };
-        }
-        const opacity = Math.min(0.6 + monthDiff * 0.1, 1);
-        return { sx: { ml: 1, backgroundColor: `rgba(237, 108, 2, ${opacity})`, color: 'white' } };
     };
     const renderAllocationUI = (bills, customerName) => {
         const validBills = [...bills]
@@ -372,7 +367,7 @@ const TransactionDetailsPanel = ({
                                             <Typography variant="body1" component="div" sx={{ display: 'flex', alignItems: 'center' }}>
                                                 {`账单周期: ${bill.cycle}`}
                                                 {(category === 'manual_allocation' || category === 'unmatched' || category ==='pending_confirmation') && bill.bill_month && (
-                                                    <Chip label={`${bill.bill_month}月账单`} size="small" {...getBillMonthChipProps(bill,accountingPeriod)} />
+                                                    <Chip label={`${bill.bill_month}月账单`} size="small" {...getBillMonthChipProps(bill)} />
                                                 )}
                                             </Typography>
                                             <Typography variant="body2" color="text.secondary">{`员工: ${bill.employee_name}`}</Typography>
@@ -504,11 +499,9 @@ const TransactionDetailsPanel = ({
                 if (isLoadingBills) {
                     return <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>;
                 }
-                if (selectedCustomerName && customerBills.length > 0) {
-                    return <>{renderAllocationUI(customerBills, selectedCustomerName)}{renderActions()}</>;
-                }
                 if (selectedCustomerName) {
-                    return <Typography sx={{ p: 2, color: 'text.secondary' }}>未找到该客户在{accountingPeriod.year}年{accountingPeriod.month}月 的未付账单。</Typography>;
+                    // 只要选择了客户，就渲染UI容器
+                    return <>{renderAllocationUI(customerBills, selectedCustomerName)}{renderActions()}</>;
                 }
                 return <Typography sx={{ p: 2, color: 'text.secondary' }}>正在加载客户账单...</Typography>;
             case 'confirmed':
@@ -550,22 +543,25 @@ const TransactionDetailsPanel = ({
                 return (
                     <Box>
                         <Alert severity="warning" sx={{ mb: 2 }}>未找到与付款人 “{transaction.payer_name}” 关联的客户。</Alert>
-                        <Typography variant="subtitle1" gutterBottom>第一步：从系统中搜索并选择一个客户：</Typography>
+                        <Typography variant="subtitle1" gutterBottom>第一步：从系统中搜索并选择一个客户或员工：</Typography>
                         <Autocomplete
                             options={searchResults}
                             getOptionLabel={(option) => option.display || ''}
+                            isOptionEqualToValue={(option, value) => option.display === value.display}
+                            value={selectedSearchOption} // <-- 核心修改：value 绑定到对象 state
                             loading={isSearching}
                             onInputChange={(event, newInputValue) => setSearchTerm(newInputValue)}
                             onChange={(event, newValue) => {
+                                setSelectedSearchOption(newValue); // 核心修改：更新对象 state
                                 if (newValue) {
-                                    // 如果选中的是员工，则使用其关联的 customer_name
+                                    // 提取字符串给应用逻辑使用
                                     const customerToSet = newValue.type === 'employee' ? newValue.customer_name : newValue.name;
                                     setSelectedCustomerName(customerToSet);
                                 } else {
                                     setSelectedCustomerName(null);
                                 }
                             }}
-                            filterOptions={(x) => x} // 后端已完成过滤
+                            filterOptions={(x) => x}
                             renderInput={(params) => (<TextField {...params} label="搜索客户或员工姓名" />)}
                             renderOption={(props, option) => (
                                 <li {...props} key={option.display}>
@@ -585,11 +581,11 @@ const TransactionDetailsPanel = ({
                         {selectedCustomerName && (
                             <Box sx={{ mt: 4 }}>
                                 <Divider sx={{ mb: 2 }}><Chip label="第二步：分配金额" /></Divider>
-                                {isLoadingBills ? <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box> : (
-                                    customerBills.length > 0
-                                        ? renderAllocationUI(customerBills, selectedCustomerName)
-                                        : <Typography sx={{ p: 2, color: 'text.secondary' }}>未找到该客户在此会计月份的未付账单。</Typography>
-                                )}
+                                {isLoadingBills
+                                    ? <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>
+                                    // 总是渲染UI容器，它内部会处理空状态
+                                    : renderAllocationUI(customerBills, selectedCustomerName)
+                                }
                             </Box>
                         )}
                         {renderActions()}
@@ -674,6 +670,7 @@ export default function ReconciliationPage() {
     const [searchResults, setSearchResults] = useState([]);
     const [isSearching, setIsSearching] = useState(false);
     const [selectedCustomerName, setSelectedCustomerName] = useState(null);
+    const [selectedSearchOption, setSelectedSearchOption] = useState(null);
     const [customerBills, setCustomerBills] = useState([]);
     const [isLoadingBills, setIsLoadingBills] = useState(false);
 
@@ -712,6 +709,7 @@ export default function ReconciliationPage() {
             setSelectedCustomerName(null);
             setSearchTerm('');
             setSearchResults([]);
+            setSelectedSearchOption(null);
         }
         setActiveTab(newValue);
         setSelectedTxn(categorizedTxns[newValue]?.[0] || null);
@@ -905,7 +903,7 @@ export default function ReconciliationPage() {
 
     useEffect(() => {
         setOperationPeriod(accountingPeriod);
-    }, [accountingPeriod, selectedTxn]);
+    }, [accountingPeriod, activeTab]);
 
     useEffect(() => {
         // 这个钩子现在只负责在特定页签下自动选择客户
@@ -928,7 +926,8 @@ export default function ReconciliationPage() {
             return;
         }
         setIsLoadingBills(true);
-        api.get('/billing/unpaid-bills-by-customer', { params: { customer_name: selectedCustomerName, year: accountingPeriod.year, month:accountingPeriod.month } })
+        // 核心修正：API调用使用 operationPeriod
+        api.get('/billing/unpaid-bills-by-customer', { params: { customer_name: selectedCustomerName, year: operationPeriod.year, month:operationPeriod.month } })
             .then(response => {
                 setCustomerBills(response.data);
             })
@@ -938,13 +937,18 @@ export default function ReconciliationPage() {
             .finally(() => {
                 setIsLoadingBills(false);
             });
-    }, [selectedCustomerName, accountingPeriod]);
+    // 核心修正：依赖项改为 operationPeriod
+    }, [selectedCustomerName, operationPeriod]);
 
     useEffect(() => {
         if (!searchTerm) {
             setSearchResults([]);
             return;
         }
+
+        // 核心修正：当开始一次新的搜索时，清除上一次的选择
+        setSelectedSearchOption(null);
+
         setIsSearching(true);
         const delayDebounceFn = setTimeout(() => {
             api.get('/billing/search-unpaid-bills', { params: { search: searchTerm, year: accountingPeriod.year, month: accountingPeriod.month } })
@@ -1156,12 +1160,15 @@ export default function ReconciliationPage() {
                                     setAlertInfo={setAlertInfo}
                                     accountingPeriod={operationPeriod}
                                     setOperationPeriod={setOperationPeriod}
+                                    mainAccountingPeriod={accountingPeriod} 
                                     onOpenBillModal={handleOpenBillModal}
                                     searchTerm={searchTerm}
                                     setSearchTerm={setSearchTerm}
                                     searchResults={searchResults}
                                     isSearching={isSearching}
                                     selectedCustomerName={selectedCustomerName}
+                                    selectedSearchOption={selectedSearchOption}
+                                    setSelectedSearchOption={setSelectedSearchOption}                                    
                                     setSelectedCustomerName={setSelectedCustomerName}
                                     customerBills={customerBills}
                                     isLoadingBills={isLoadingBills}
