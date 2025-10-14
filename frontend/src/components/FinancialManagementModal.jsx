@@ -464,6 +464,11 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                 // 刷新账单详情以显示最新状态
                 const response = await api.get('/billing/details', { params: { bill_id: billingDetails.customer_bill_details.id } });
                 setBillingDetails(response.data);
+
+                // 新增：调用 onSave 回调函数通知父组件刷新
+                if (onSave) {
+                    onSave();
+                }
             } catch (error) {
                 setAlert({ open: true, message: `删除失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
             }
