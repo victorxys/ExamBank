@@ -2046,6 +2046,7 @@ class BankTransaction(db.Model):
         index=True,
         comment="匹配状态"
     )
+    ignore_remark = db.Column(db.Text, nullable=True, comment="忽略原因")
 
     allocated_amount = db.Column(db.Numeric(12, 2), nullable=False, default=0, server_default='0', comment="已被分配的金额")
 

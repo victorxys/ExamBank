@@ -27,8 +27,8 @@ export const reconciliationApi = {
     cancelAllocation: (transactionId) => {
         return api.post(`/bank-transactions/${transactionId}/cancel-allocation`);
     },
-    ignoreTransaction: (transactionId) => {
-        return api.post(`/bank-transactions/${transactionId}/ignore`);
+    ignoreTransaction: (transactionId, data) => {
+        return api.post(`/bank-transactions/${transactionId}/ignore`,data);
     },
     unignoreTransaction: (transactionId) => {
         return api.post(`/bank-transactions/${transactionId}/unignore`);

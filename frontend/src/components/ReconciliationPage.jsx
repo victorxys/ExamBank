@@ -76,6 +76,40 @@ const PasteStatementDialog = ({ open, onClose, onSubmit }) => {
     );
 };
 
+const IgnoreRemarkDialog = ({ open, onClose, onSubmit }) => {
+    const [remark, setRemark] = useState('');
+
+    const handleSubmit = () => {
+        onSubmit(remark);
+        setRemark(''); // Reset after submit
+        onClose();
+    };
+
+    return (
+        <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+            <DialogTitle>忽略流水</DialogTitle>
+            <DialogContent>
+                <TextField
+                    autoFocus
+                    margin="dense"
+                    id="ignore-remark"
+                    label="忽略原因（选填）"
+                    fullWidth
+                    multiline
+                    rows={4}
+                    variant="outlined"
+                    placeholder="请填写忽略这笔流水的原因，例如：测试流水、重复流水等。"
+                    value={remark}
+                    onChange={(e) => setRemark(e.target.value)}
+                />
+            </DialogContent>
+            <DialogActions>
+                <Button onClick={onClose}>取消</Button>
+                <Button onClick={handleSubmit} variant="contained" color="warning">确认忽略</Button>
+            </DialogActions>
+        </Dialog>
+    );
+};
 const TransactionDetailsPanel = ({
     transaction, category, onAllocationSuccess, onStatusUpdate, setAlertInfo,
     accountingPeriod, setOperationPeriod, onOpenBillModal,
@@ -86,6 +120,8 @@ const TransactionDetailsPanel = ({
 }) => {
     const [allocations, setAllocations] = useState({});
     const [isSaving, setIsSaving] = useState(false);
+    const [isIgnoreDialogOpen, setIsIgnoreDialogOpen] = useState(false);
+
 
     const handleMonthChange = (delta) => {
         const newDate = new Date(accountingPeriod.year, accountingPeriod.month - 1 + delta);
@@ -105,8 +141,10 @@ const TransactionDetailsPanel = ({
         const transactionChanged = prevTransactionIdRef.current !== transaction?.id;
         const customerChanged = prevSelectedCustomerNameRef.current !== selectedCustomerName;
 
+        // 只有当用户主动切换流水或客户时，才执行自动滚动
         if (transactionChanged || customerChanged) {
             const bills = customerBills;
+
             if (bills && bills.length > 0 && billListRef.current) {
                 const closestBill = [...bills].sort((a, b) => {
                     const diffA = Math.abs((a.year - accountingPeriod.year) * 12 + (a.bill_month - accountingPeriod.month));
@@ -124,18 +162,26 @@ const TransactionDetailsPanel = ({
                 }
             }
         }
+
+        // 为下一次渲染更新“上一次”的ID和名称
         prevTransactionIdRef.current = transaction?.id;
         prevSelectedCustomerNameRef.current = selectedCustomerName;
+
     }, [customerBills, transaction, category, accountingPeriod, selectedCustomerName]);
+    
 
     useEffect(() => {
+        // 这个钩子现在只负责管理自己内部的、与父组件无关的状态
         setAllocations({});
+
+        // 为“待确认”页签预填分配金额
         if (transaction && category === 'pending_confirmation' && transaction.matched_bill) {
             const bill = transaction.matched_bill;
             const amountToAllocate = Math.min(parseFloat(transaction.amount), parseFloat(bill.amount_remaining));
             setAllocations({ [bill.id]: amountToAllocate.toString() });
         }
     }, [transaction, category]);
+  
 
     const handleAllocationChange = (billId, value) => {
         setAllocations(prev => ({ ...prev, [billId]: value }));
@@ -158,8 +204,8 @@ const TransactionDetailsPanel = ({
             let aliasSeverity = 'info';
 
             if (category === 'unmatched' && allocationsPayload.length > 0) {
-                const firstAllocatedBillId = allocationsPayload[0].bill_id;
-                const billToGetContractFrom = customerBills.find(b => b.id === firstAllocatedBillId);
+                const firstAllocatedBillId = allocationsPayload[0].bill_id; // ID是字符串，直接使用
+                const billToGetContractFrom = customerBills.find(b => b.id === firstAllocatedBillId); // 字符串对字符串比较
 
                 if (billToGetContractFrom?.contract_id) {
                     try {
@@ -180,16 +226,19 @@ const TransactionDetailsPanel = ({
             }
 
             await reconciliationApi.allocateTransaction({ transactionId: transaction.id, allocations: allocationsPayload });
+
             const finalMessage = `分配成功！${aliasMessage ? ` (${aliasMessage})` : ''}`;
             setAlertInfo({ open: true, message: finalMessage, severity: aliasMessage && aliasSeverity !== 'info' ? aliasSeverity :'success' });
+
             onAllocationSuccess();
+
         } catch (err) {
             setAlertInfo({ open: true, message: `操作失败: ${err.message}`, severity: 'error' });
         } finally {
             setIsSaving(false);
         }
     };
-
+    
     const handleCancelAllocation = async () => {
         if (!transaction) return;
         if (!window.confirm(`确定要撤销付款人 "${transaction.payer_name}" 的这笔分配吗？`)) return;
@@ -205,12 +254,16 @@ const TransactionDetailsPanel = ({
         }
     };
 
-    const handleIgnore = async () => {
+    const handleIgnore = () => {
         if (!transaction) return;
-        if (!window.confirm(`确定要忽略这笔来自 "${transaction.payer_name}" 的流水吗？`)) return;
+        setIsIgnoreDialogOpen(true);
+    };
+
+    const handleConfirmIgnore = async (remark) => {
+        if (!transaction) return;
         setIsSaving(true);
         try {
-            await reconciliationApi.ignoreTransaction(transaction.id);
+            await reconciliationApi.ignoreTransaction(transaction.id, { remark });
             setAlertInfo({ open: true, message: '流水已忽略', severity: 'success' });
             onStatusUpdate(transaction.id, category, 'ignored');
         } catch (err) {
@@ -517,7 +570,14 @@ const TransactionDetailsPanel = ({
             case 'ignored':
                 return (
                     <Box>
-                        <Alert severity="info" sx={{ mb: 2 }}>此流水已于 {new Date(transaction.updated_at).toLocaleString('zh-CN')}被忽略。</Alert>
+                        <Alert severity="info" sx={{ mb: 2 }}>
+                            此流水已于 {new Date(transaction.updated_at).toLocaleString('zh-CN')} 被忽略。
+                            {transaction.ignore_remark && (
+                                <Typography variant="body2" sx={{ mt: 1.5, pt: 1.5, borderTop: 1, borderColor: 'divider', fontStyle:'italic' }}>
+                                    原因: {transaction.ignore_remark}
+                                </Typography>
+                            )}
+                        </Alert>
                         {renderActions()}
                     </Box>
                 );
@@ -551,6 +611,11 @@ const TransactionDetailsPanel = ({
             </Grid>
 
             {renderContent()}
+            <IgnoreRemarkDialog
+                open={isIgnoreDialogOpen}
+                onClose={() => setIsIgnoreDialogOpen(false)}
+                onSubmit={handleConfirmIgnore}
+            />
         </Box>
     );
 };
@@ -614,6 +679,12 @@ export default function ReconciliationPage() {
     };
 
     const handleTabChange = (event, newValue) => {
+        // 当切换到或离开“未匹配”页签时，重置所有相关状态
+        if (newValue === 'unmatched' || activeTab === 'unmatched') {
+            setSelectedCustomerName(null);
+            setSearchTerm('');
+            setSearchResults([]);
+        }
         setActiveTab(newValue);
         setSelectedTxn(categorizedTxns[newValue]?.[0] || null);
     };
@@ -809,7 +880,7 @@ export default function ReconciliationPage() {
     }, [accountingPeriod, selectedTxn]);
 
     useEffect(() => {
-        // 这个钩子现在能正确处理所有页签的客户上下文逻辑
+        // 这个钩子现在只负责在特定页签下自动选择客户
         if (activeTab === 'manual_allocation' && selectedTxn?.unpaid_bills?.length > 0) {
             const customerName = selectedTxn.unpaid_bills[0].customer_name;
             if (customerName !== selectedCustomerName) {
@@ -820,16 +891,8 @@ export default function ReconciliationPage() {
             if (customerName !== selectedCustomerName) {
                 setSelectedCustomerName(customerName);
             }
-        } else if (activeTab !== 'unmatched') {
-            // 对于任何不是“未匹配”的页签，如果当前有客户被选中，就清空它
-            if (selectedCustomerName !== null) {
-                setSelectedCustomerName(null);
-            }
         }
-        // 重要：当 activeTab === 'unmatched' 时，这个钩子不做任何事，
-        // 从而保留用户手动选择的客户，不再错误地重置它。
-
-    }, [selectedTxn, activeTab, selectedCustomerName]); // 将 selectedCustomerName 加入依赖数组
+    }, [selectedTxn, activeTab, selectedCustomerName]);
 
     useEffect(() => {
         if (!selectedCustomerName) {
