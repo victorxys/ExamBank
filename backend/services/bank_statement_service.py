@@ -267,6 +267,7 @@ class BankStatementService:
             "summary": txn.summary,
             "status": txn.status.value,
             "updated_at": txn.updated_at.isoformat() if txn.updated_at else None,
+            "ignore_remark": txn.ignore_remark,
         }
     
     def _find_contract_for_txn(self, txn: BankTransaction) -> BaseContract | None:
@@ -648,7 +649,7 @@ class BankStatementService:
             current_app.logger.error(f"Allocation failed for txn {bank_transaction_id}: {e}", exc_info=True)
             return {"error": f"An unexpected error occurred: {str(e)}"}
 
-    def ignore_transaction(self, transaction_id: str, operator_id: str) -> dict:
+    def ignore_transaction(self, transaction_id: str, operator_id: str, remark: str = None) -> dict:
         bank_txn = BankTransaction.query.get(transaction_id)
         if not bank_txn:
             return {"error": "Bank transaction not found"}
@@ -658,13 +659,13 @@ class BankStatementService:
 
         try:
             bank_txn.status = BankTransactionStatus.IGNORED
+            bank_txn.ignore_remark = remark
             db.session.commit()
             return {"success": True, "message": "Transaction ignored."}
         except Exception as e:
             db.session.rollback()
             current_app.logger.error(f"Failed to ignore transaction {transaction_id}: {e}", exc_info=True)
             return {"error": "An unexpected error occurred."}
-
     def unignore_transaction(self, transaction_id: str, operator_id: str) -> dict:
         bank_txn = BankTransaction.query.get(transaction_id)
         if not bank_txn:

@@ -5003,15 +5003,9 @@ def get_company_bank_accounts():
         current_app.logger.error(f"获取公司银行账户列表失败: {e}", exc_info=True)
         return jsonify({"error": "服务器内部错误"}), 500
 
-@billing_bp.route("/search-unpaid-bills", methods=["GET", "OPTIONS"]) # <--- 使用正确的蓝图，并添加 OPTIONS
+@billing_bp.route("/search-unpaid-bills", methods=["GET"])
 @jwt_required()
 def search_unpaid_bills():
-    """
-    根据客户名或拼音，搜索指定年月下未付清的账单。
-    """
-    if request.method == 'OPTIONS': # <--- 添加 OPTIONS 请求处理
-        return jsonify({'message': 'CORS preflight successful'}), 200
-
     search_term = request.args.get("search", "").strip()
     year = request.args.get("year", type=int)
     month = request.args.get("month", type=int)
@@ -5021,39 +5015,77 @@ def search_unpaid_bills():
 
     try:
         pinyin_search_term = search_term.replace(" ", "")
-        
-        query = db.session.query(CustomerBill).join(BaseContract).filter(
+        results = []
+
+        # 1. Find all contracts that have unpaid bills in the given month/year
+        contracts_with_unpaid_bills_subquery = db.session.query(CustomerBill.contract_id).filter(
+            CustomerBill.year == year,
+            CustomerBill.month == month,
+            CustomerBill.total_due > CustomerBill.total_paid
+        ).distinct().subquery()
+
+        # 2. Search for Customers within those contracts
+        customer_matches = db.session.query(BaseContract.customer_name).filter(
+            BaseContract.id.in_(contracts_with_unpaid_bills_subquery),
             or_(
                 BaseContract.customer_name.ilike(f"%{search_term}%"),
                 BaseContract.customer_name_pinyin.ilike(f"%{pinyin_search_term}%")
-            ),
-            CustomerBill.year == year,
-            CustomerBill.month == month,
-            CustomerBill.total_due > 0,
-            or_(
-                CustomerBill.payment_status == PaymentStatus.UNPAID,
-                CustomerBill.payment_status == PaymentStatus.PARTIALLY_PAID
             )
-        ).limit(20)
+        ).distinct().limit(10).all()
 
-        bills = query.all()
+        for name, in customer_matches:
+            results.append({
+                "type": "customer",
+                "name": name,
+                "display": name
+            })
 
-        results = [
-            {
-                "id": str(bill.id),
-                "contract_id": str(bill.contract_id), 
-                "customer_name": bill.contract.customer_name,
-                "employee_name": bill.contract.service_personnel.name if bill.contract.service_personnel else (bill.contract.user.username if bill.contract.user else "未知"),
-                "cycle": f"{bill.cycle_start_date.strftime('%Y-%m-%d')} to {bill.cycle_end_date.strftime('%Y-%m-%d')}",
-                "amount_remaining": str(bill.total_due - bill.total_paid)
-            }
-            for bill in bills
-        ]
+        # 3. Search for Employees (ServicePersonnel) within those contracts
+        personnel_matches = db.session.query(ServicePersonnel.name, BaseContract.customer_name).join(
+            BaseContract, ServicePersonnel.id == BaseContract.service_personnel_id
+        ).filter(
+            BaseContract.id.in_(contracts_with_unpaid_bills_subquery),
+            or_(
+                ServicePersonnel.name.ilike(f"%{search_term}%"),
+                ServicePersonnel.name_pinyin.ilike(f"%{pinyin_search_term}%")
+            )
+        ).distinct().limit(10).all()
+
+        for emp_name, cust_name in personnel_matches:
+            results.append({
+                "type": "employee",
+                "name": emp_name,
+                "customer_name": cust_name,
+                "display": f"{emp_name} (员工, 客户: {cust_name})"
+            })
+
+        # 4. Search for Employees (internal Users) within those contracts
+        user_matches = db.session.query(User.username, BaseContract.customer_name).join(
+            BaseContract, User.id == BaseContract.user_id
+        ).filter(
+            BaseContract.id.in_(contracts_with_unpaid_bills_subquery),
+            or_(
+                User.username.ilike(f"%{search_term}%"),
+                User.name_pinyin.ilike(f"%{pinyin_search_term}%")
+            )
+        ).distinct().limit(10).all()
+
+        for emp_name, cust_name in user_matches:
+            results.append({
+                "type": "employee",
+                "name": emp_name,
+                "customer_name": cust_name,
+                "display": f"{emp_name} (员工, 客户: {cust_name})"
+            })
+
+        # 5. Deduplicate and return
+        final_results = list({item['display']: item for item in results}.values())
         
-        return jsonify(results)
+        return jsonify(final_results)
 
     except Exception as e:
         current_app.logger.error(f"Failed to search unpaid bills: {e}", exc_info=True)
+        return jsonify({"error": "Internal server error"}), 500
         return jsonify({"error": "Internal server error"}), 500
     
 @billing_bp.route("/unpaid-bills-by-customer", methods=["GET"])

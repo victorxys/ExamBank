@@ -147,8 +147,10 @@ def cancel_allocation(bank_transaction_id):
 @jwt_required()
 def ignore_transaction_route(bank_transaction_id):
     operator_id = get_jwt_identity()
+    data = request.get_json() or {}
+    remark = data.get("remark")
     service = BankStatementService()
-    result = service.ignore_transaction(bank_transaction_id, operator_id)
+    result = service.ignore_transaction(bank_transaction_id, operator_id, remark=remark)
     if result.get("error"):
         return jsonify(result), 400
     return jsonify(result), 200
