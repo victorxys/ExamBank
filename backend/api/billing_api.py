@@ -5021,7 +5021,7 @@ def search_unpaid_bills():
         contracts_with_unpaid_bills_subquery = db.session.query(CustomerBill.contract_id).filter(
             CustomerBill.year == year,
             CustomerBill.month == month,
-            # CustomerBill.total_due > CustomerBill.total_paid
+            # CustomerBill.total_due > CustomerBill.total_paid  #暂时取消限制，显示所有账单
         ).distinct().subquery()
 
         # 2. Search for Customers within those contracts
