@@ -37,6 +37,7 @@ import FinancialManagementModal from './FinancialManagementModal';
 import BatchSettlementModal from './BatchSettlementModal'
 import PaymentProgress from './PaymentProgress';
 import PaymentMessageModal from './PaymentMessageModal'; 
+import { Decimal } from 'decimal.js';
 
 
 
@@ -979,16 +980,32 @@ const BillingDashboard = () => {
                   {loading ? ( <TableRow><TableCell colSpan={7} align="center" sx={{py: 5}}><CircularProgress /></TableCell></TableRow> )
                   : (
                     (contracts).map((bill) => {
-                    const isItemSelected = selected.indexOf(bill.id) !== -1; // 判断是否选中
+                    const isItemSelected = selected.indexOf(bill.id) !== -1;
+
+                    // --- 新增：计算账单是否已结清 ---
+                    const amountDue = new Decimal(bill.customer_payable || 0);
+                    const amountPaid = new Decimal(bill.customer_total_paid || 0);
+                    const isEffectivelyPaid = amountPaid.gte(amountDue);
+                    // --- 结束 ---
+
                     return(
                       <TableRow
                         hover
                         key={bill.id}
-                        onClick={(event) => handleClick(event, bill.id)} // 添加点击事件
+                        onClick={(event) => handleClick(event, bill.id)}
                         role="checkbox"
                         aria-checked={isItemSelected}
                         tabIndex={-1}
                         selected={isItemSelected}
+                        // --- 新增：根据结清状态应用样式 ---
+                        sx={isEffectivelyPaid ? {
+                            bgcolor: alpha(theme.palette.success.light, 0.1), // 淡绿色背景
+                            '& td': {
+                                color: 'text.disabled', // 文字变灰
+                                // textDecoration: 'line-through', // 删除线
+                                textDecorationColor: alpha(theme.palette.success.main, 0.5) // 绿色删除线
+                            }
+                        } : {}}
                       >
                         {/* 新增的复选框单元格 */}
                         <TableCell padding="checkbox">
@@ -1084,7 +1101,7 @@ const BillingDashboard = () => {
                                         {bill.is_deferred ? (
                                             <Chip label="已顺延" size="small" variant="outlined" color="info" />
                                         ) : (
-                                            bill.customer_is_paid
+                                            isEffectivelyPaid
                                                 ? <CheckCircleIcon color="success" fontSize="small" />
                                                 : <HighlightOffIcon color="disabled" fontSize="small" />
                                         )}
