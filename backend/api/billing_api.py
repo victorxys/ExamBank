@@ -5114,7 +5114,7 @@ def get_unpaid_bills_by_customer():
             CustomerBill.contract_id.in_(contract_ids),
             CustomerBill.year == year,
             CustomerBill.month == month,
-            CustomerBill.total_due > 0
+            # CustomerBill.total_due > 0
         ).all()
 
         results = []
