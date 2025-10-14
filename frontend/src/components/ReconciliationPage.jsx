@@ -553,12 +553,34 @@ const TransactionDetailsPanel = ({
                         <Typography variant="subtitle1" gutterBottom>第一步：从系统中搜索并选择一个客户：</Typography>
                         <Autocomplete
                             options={searchResults}
-                            getOptionLabel={(option) => option || ''}
+                            getOptionLabel={(option) => option.display || ''}
                             loading={isSearching}
                             onInputChange={(event, newInputValue) => setSearchTerm(newInputValue)}
-                            onChange={(event, newValue) => setSelectedCustomerName(newValue)}
-                            filterOptions={(x) => x}
-                            renderInput={(params) => (<TextField {...params} label="搜索客户姓名或拼音" />)}
+                            onChange={(event, newValue) => {
+                                if (newValue) {
+                                    // 如果选中的是员工，则使用其关联的 customer_name
+                                    const customerToSet = newValue.type === 'employee' ? newValue.customer_name : newValue.name;
+                                    setSelectedCustomerName(customerToSet);
+                                } else {
+                                    setSelectedCustomerName(null);
+                                }
+                            }}
+                            filterOptions={(x) => x} // 后端已完成过滤
+                            renderInput={(params) => (<TextField {...params} label="搜索客户或员工姓名" />)}
+                            renderOption={(props, option) => (
+                                <li {...props} key={option.display}>
+                                    <Grid container alignItems="center">
+                                        <Grid item xs>
+                                            {option.name}
+                                            {option.type === 'employee' && (
+                                                <Typography variant="body2" color="text.secondary">
+                                                    (员工, 客户: {option.customer_name})
+                                                </Typography>
+                                            )}
+                                        </Grid>
+                                    </Grid>
+                                </li>
+                            )}
                         />
                         {selectedCustomerName && (
                             <Box sx={{ mt: 4 }}>
@@ -927,8 +949,7 @@ export default function ReconciliationPage() {
         const delayDebounceFn = setTimeout(() => {
             api.get('/billing/search-unpaid-bills', { params: { search: searchTerm, year: accountingPeriod.year, month: accountingPeriod.month } })
                 .then(response => {
-                    const uniqueCustomerNames = [...new Set(response.data.map(item => item.customer_name))];
-                    setSearchResults(uniqueCustomerNames);
+                    setSearchResults(response.data);
                 })
                 .catch(err => console.error("Search failed:", err))
                 .finally(() => setIsSearching(false));
