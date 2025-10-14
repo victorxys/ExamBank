@@ -16,13 +16,18 @@ import {
     Box, Button, Card, CardContent, CardHeader, CircularProgress, Grid, MenuItem,
     Typography, List, ListItem, ListItemText, ListItemButton, Divider, Select, Autocomplete,
     Dialog, DialogTitle, DialogContent, DialogActions, TextField, Alert, FormControl, InputLabel,
-    Tabs, Tab, Chip, Tooltip, IconButton, Paper,Stack
+    Tabs, Tab, Chip, Tooltip, IconButton, Paper, Stack, Avatar
 } from '@mui/material';
 import {
     ContentCopy as ContentCopyIcon,
     ArrowBackIosNew as ArrowBackIosNewIcon,
-    ArrowForwardIos as ArrowForwardIosIcon
+    ArrowForwardIos as ArrowForwardIosIcon,
+    AccountBalanceWallet as AccountBalanceWalletIcon,
+    PlaylistAddCheck as PlaylistAddCheckIcon,
+    HourglassEmpty as HourglassEmptyIcon,
+    Block as BlockIcon
 } from '@mui/icons-material';
+import { useTheme, alpha } from '@mui/material/styles';
 const formatCurrency = (value) => {
     const num = new Decimal(value || 0).toNumber();
     return num.toLocaleString('zh-CN', {
@@ -644,6 +649,7 @@ const TransactionDetailsPanel = ({
     );
 };
 export default function ReconciliationPage() {
+    const theme = useTheme();
     const { year: yearParam, month: monthParam } = useParams();
     const navigate = useNavigate();
 
@@ -1046,28 +1052,48 @@ export default function ReconciliationPage() {
                 )}
             />
             <Grid container spacing={3} sx={{ px: 0, mb: 2 }}>
-                <Grid item xs={6} sm={3}>
-                    <Paper sx={{ p: 2, textAlign: 'center' }}>
-                        <Typography variant="overline" color="text.secondary">回款总额</Typography>
-                        <Typography variant="h5" fontWeight="bold">¥{kpiStats.totalReceived}</Typography>
+                <Grid item xs={12} sm={6} md={3}>
+                    <Paper sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <Avatar sx={{ bgcolor: alpha(theme.palette.primary.main, 0.1), color: 'primary.main', width: 48, height: 48 }}>
+                            <AccountBalanceWalletIcon />
+                        </Avatar>
+                        <Box>
+                            <Typography variant="button" color="text.secondary">回款总额</Typography>
+                            <Typography variant="h5" fontWeight="bold">¥{kpiStats.totalReceived}</Typography>
+                        </Box>
                     </Paper>
                 </Grid>
-                <Grid item xs={6} sm={3}>
-                    <Paper sx={{ p: 2, textAlign: 'center' }}>
-                        <Typography variant="overline" color="text.secondary">已分配总额</Typography>
-                        <Typography variant="h5" fontWeight="bold" color="success.main">¥{kpiStats.totalAllocated}</Typography>
+                <Grid item xs={12} sm={6} md={3}>
+                    <Paper sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <Avatar sx={{ bgcolor: alpha(theme.palette.success.main, 0.1), color: 'success.main', width: 48, height: 48 }}>
+                            <PlaylistAddCheckIcon />
+                        </Avatar>
+                        <Box>
+                            <Typography variant="button" color="text.secondary">已分配总额</Typography>
+                            <Typography variant="h5" fontWeight="bold" color="success.dark">¥{kpiStats.totalAllocated}</Typography>
+                        </Box>
                     </Paper>
                 </Grid>
-                <Grid item xs={6} sm={3}>
-                    <Paper sx={{ p: 2, textAlign: 'center' }}>
-                        <Typography variant="overline" color="text.secondary">未分配金额</Typography>
-                        <Typography variant="h5" fontWeight="bold" color="warning.main">¥{kpiStats.unallocatedAmount}</Typography>
+                <Grid item xs={12} sm={6} md={3}>
+                    <Paper sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <Avatar sx={{ bgcolor: alpha(theme.palette.warning.main, 0.1), color: 'warning.main', width: 48, height: 48 }}>
+                            <HourglassEmptyIcon />
+                        </Avatar>
+                        <Box>
+                            <Typography variant="button" color="text.secondary">未分配金额</Typography>
+                            <Typography variant="h5" fontWeight="bold" color="warning.dark">¥{kpiStats.unallocatedAmount}</Typography>
+                        </Box>
                     </Paper>
                 </Grid>
-                <Grid item xs={6} sm={3}>
-                    <Paper sx={{ p: 2, textAlign: 'center' }}>
-                        <Typography variant="overline" color="text.secondary">已忽略金额</Typography>
-                        <Typography variant="h5" fontWeight="bold" color="text.secondary">¥{kpiStats.ignoredAmount}</Typography>
+                <Grid item xs={12} sm={6} md={3}>
+                    <Paper sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <Avatar sx={{ bgcolor: 'grey.200', color: 'text.secondary', width: 48, height: 48 }}>
+                            <BlockIcon />
+                        </Avatar>
+                        <Box>
+                            <Typography variant="button" color="text.secondary">已忽略金额</Typography>
+                            <Typography variant="h5" fontWeight="bold" color="text.secondary">¥{kpiStats.ignoredAmount}</Typography>
+                        </Box>
                     </Paper>
                 </Grid>
             </Grid>
