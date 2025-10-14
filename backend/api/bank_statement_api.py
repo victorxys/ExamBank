@@ -1,146 +1,71 @@
-from flask import Blueprint, request, jsonify, current_app
+
+from flask import Blueprint, jsonify, request, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from flask import request
-from backend.services.bank_statement_service import BankStatementService, BankTransaction, BankTransactionStatus
+from backend.models import db, BankTransaction, BankTransactionStatus, TransactionDirection
+from backend.services.bank_statement_service import BankStatementService
+from sqlalchemy import or_, and_, extract
+import io
+import csv
+from decimal import Decimal
 
-bank_statement_api = Blueprint("bank_statement_api", __name__)
+bank_statement_api = Blueprint('bank_statement_api', __name__)
 
-
-# backend/api/bank_statement_api.py
-
-@bank_statement_api.route("/api/bank-statement/reconcile", methods=["POST"])
-@jwt_required()
-def reconcile_statement():
-    """
-    接收银行对账单文本，仅进行解析和存储。
-    """
-    
-    data = request.get_json()
-    # --- 修改这里，接收一个 "statement_lines" 数组 ---
-    if not data or "statement_lines" not in data or not isinstance(data["statement_lines"], list):
-        return jsonify({"error": "请求体必须包含 'statement_lines' 数组"}), 400
-
-    statement_lines = data["statement_lines"]
-    # -------------------------------------------------
-    operator_id = get_jwt_identity()
-
-    if not operator_id:
-        return jsonify({"error": "无法获取操作员信息，请确认您已登录"}), 401
-
-    try:
-        service = BankStatementService()
-        
-        # 只调用解析和存储，并接收返回结果
-        result = service.parse_and_store_statement(statement_lines, operator_id)
-        
-        return jsonify(result), 200
-
-    except Exception as e:
-        # 在实际应用中，这里应该有更详细的错误日志
-        return jsonify({"error": f"处理过程中发生错误: {str(e)}"}), 500
-    
-@bank_statement_api.route("/api/bank-transactions", methods=["GET"])
+@bank_statement_api.route('/api/bank-statement/unmatched-transactions', methods=['GET'])
 @jwt_required()
 def get_unmatched_transactions():
-    """
-    获取并分类所有未处理的银行流水。
-    """
-    try:
-        year = request.args.get('year', type=int)
-        month = request.args.get('month', type=int)
-        if not year or not month:
-            return jsonify({"error": "Query parameters 'year' and 'month' are required."}), 400
-
-        service = BankStatementService()
-        categorized_data = service.get_and_categorize_transactions(year, month)
-        
-        return jsonify(categorized_data), 200
-
-    except Exception as e:
-        current_app.logger.error(f"Failed to fetch and categorize transactions: {e}", exc_info=True)
-        return jsonify({"error": f"获取流水失败: {str(e)}"}), 500
+    service = BankStatementService()
+    year = request.args.get('year', type=int)
+    month = request.args.get('month', type=int)
     
-@bank_statement_api.route("/api/bank-transactions/<bank_transaction_id>/matching-details", methods=["GET"])
-@jwt_required()
-def get_matching_details(bank_transaction_id):
-    """
-    为指定的银行流水ID查找匹配的客户和指定年月的未付账单。
-    """
-    # --- 从 URL query string 中获取 year 和 month ---
-    try:
-        year = request.args.get('year', type=int)
-        month = request.args.get('month', type=int)
-        if not year or not month:
-            return jsonify({"error": "Query parameters 'year' and 'month' are required."}), 400
-    except (ValueError, TypeError):
-        return jsonify({"error": "Query parameters 'year' and 'month' must be integers."}), 400
-    # ---------------------------------------------
+    if not year or not month:
+        return jsonify({"error": "Year and month are required"}), 400
+        
+    transactions = service.get_and_categorize_transactions(year, month)
+    return jsonify(transactions)
 
+@bank_statement_api.route('/api/bank-statement/statement', methods=['POST'])
+@jwt_required()
+def post_bank_statement():
+    if 'statement' not in request.files:
+        return jsonify({"error": "No statement file part"}), 400
+    file = request.files['statement']
+    if file.filename == '':
+        return jsonify({"error": "No selected file"}), 400
+    
     try:
         service = BankStatementService()
-        # --- 将 year 和 month 传递给 service 方法 ---
-        result = service.find_customer_and_unpaid_bills(bank_transaction_id, year, month)
-        # -----------------------------------------
-        
-        if result.get("error"):
-            return jsonify(result), 404
-        
+        result = service.import_statement(file)
         return jsonify(result), 200
-
     except Exception as e:
-        current_app.logger.error(f"Failed to fetch matching details for txn {bank_transaction_id}: {e}", exc_info=True)
-        return jsonify({"error": f"获取匹配详情失败: {str(e)}"}), 500
-    
-@bank_statement_api.route("/api/bank-transactions/<bank_transaction_id>/allocate", methods=["POST"])
-@jwt_required()
-def allocate_transaction(bank_transaction_id):
-    """
-    接收前端的分配方案，并执行分配。
-    """
-    data = request.get_json()
-    if not data or "allocations" not in data or not isinstance(data["allocations"], list):
-        return jsonify({"error": "Request body must contain an 'allocations' array."}), 400
+        current_app.logger.error(f"Failed to process statement: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
 
-    allocations = data["allocations"]
+@bank_statement_api.route('/api/bank-transactions/<bank_transaction_id>/allocate', methods=['POST'])
+@jwt_required()
+def allocate_transaction_route(bank_transaction_id):
+    data = request.get_json()
+    allocations = data.get('allocations')
     operator_id = get_jwt_identity()
+
+    if not allocations:
+        return jsonify({"error": "Allocations data is required"}), 400
 
     service = BankStatementService()
     result = service.allocate_transaction(bank_transaction_id, allocations, operator_id)
-
-    if result.get("error"):
-        return jsonify(result), 400 # 或者 500，取决于错误类型
-
-    return jsonify(result), 200
-
-@bank_statement_api.route("/api/payment-records/<payment_record_id>", methods=["DELETE"])
-@jwt_required()
-def delete_payment_record(payment_record_id):
-    """
-    删除单个支付记录并反转相关的分配。
-    """
-    operator_id = get_jwt_identity()
-    service = BankStatementService()
-    result = service.delete_payment_record_and_reverse_allocation(payment_record_id, operator_id)
-
+    
     if result.get("error"):
         return jsonify(result), 400
-
+    
     return jsonify(result), 200
 
-@bank_statement_api.route("/api/bank-transactions/<bank_transaction_id>/cancel-allocation", methods=["POST"])
+@bank_statement_api.route('/api/bank-transactions/<bank_transaction_id>/cancel-allocation', methods=['POST'])
 @jwt_required()
-def cancel_allocation(bank_transaction_id):
-    """
-    接收前端的撤销分配请求。
-    """
+def cancel_allocation_route(bank_transaction_id):
     operator_id = get_jwt_identity()
-    
     service = BankStatementService()
     result = service.cancel_allocation(bank_transaction_id, operator_id)
-
     if result.get("error"):
         return jsonify(result), 400
-
     return jsonify(result), 200
 
 @bank_statement_api.route("/api/bank-transactions/<bank_transaction_id>/ignore", methods=["POST"])
@@ -164,3 +89,102 @@ def unignore_transaction_route(bank_transaction_id):
     if result.get("error"):
         return jsonify(result), 400
     return jsonify(result), 200
+
+@bank_statement_api.route('/api/bank-transactions', methods=['GET'])
+@jwt_required()
+def get_all_transactions():
+    """
+    获取所有银行流水记录，支持分页、按月筛选和多字段搜索。
+    """
+    try:
+        # --- 获取查询参数 ---
+        year = request.args.get('year', type=int)
+        month = request.args.get('month', type=int)
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 20, type=int)
+        search_term = request.args.get('search_term', '', type=str).strip()
+        status = request.args.get('status', '', type=str).strip()
+        direction = request.args.get('direction', '', type=str).strip()
+
+        if not year or not month:
+            return jsonify({"error": "Year and month parameters are required"}), 400
+
+        # --- 构建基础查询 ---
+        query = BankTransaction.query.filter(
+            extract('year', BankTransaction.transaction_time) == year,
+            extract('month', BankTransaction.transaction_time) == month
+        )
+
+        # --- 应用状态筛选 ---
+        if status:
+            try:
+                status_enum = BankTransactionStatus(status)
+                query = query.filter(BankTransaction.status == status_enum)
+            except ValueError:
+                return jsonify({"error": f"Invalid status value: {status}"}), 400
+
+        # --- 应用方向筛选 ---
+        if direction:
+            try:
+                direction_enum = TransactionDirection(direction.upper())
+                query = query.filter(BankTransaction.direction == direction_enum)
+            except ValueError:
+                return jsonify({"error": f"Invalid direction value: {direction}"}), 400
+
+        # --- 应用多字段搜索 ---
+        if search_term:
+            pinyin_search_term = search_term.replace(" ", "")
+            query = query.filter(
+                or_(
+                    BankTransaction.transaction_id.ilike(f"%{search_term}%"),
+                    BankTransaction.payer_name.ilike(f"%{search_term}%"),
+                    BankTransaction.payer_name_pinyin.ilike(f"%{pinyin_search_term}%"),
+                    BankTransaction.summary.ilike(f"%{search_term}%")
+                )
+            )
+
+        # --- 排序和分页 ---
+        query = query.order_by(BankTransaction.transaction_time.desc())
+        paginated_txns = query.paginate(page=page, per_page=per_page, error_out=False)
+        
+        # --- 格式化返回结果 ---
+        results = []
+        for txn in paginated_txns.items:
+            # 点击流水后，需要查看其分配详情，这里可以预先准备一些信息
+            allocations = []
+            if txn.status in [BankTransactionStatus.MATCHED, BankTransactionStatus.PARTIALLY_ALLOCATED]:
+                for record in txn.payment_records:
+                    bill = record.customer_bill
+                    if bill:
+                        allocations.append({
+                            'customer_name': bill.contract.customer_name,
+                            'employee_name': bill.contract.service_personnel.name if bill.contract.service_personnel else (bill.contract.user.username if bill.contract.user else "未知"),
+                            'cycle': f"{bill.cycle_start_date.strftime('%Y-%m-%d')} to {bill.cycle_end_date.strftime('%Y-%m-%d')}",
+                            'allocated_amount': str(record.amount)
+                        })
+
+            results.append({
+                'id': str(txn.id),
+                'transaction_id': txn.transaction_id,
+                'transaction_time': txn.transaction_time.isoformat(),
+                'payer_name': txn.payer_name,
+                'amount': str(txn.amount),
+                'summary': txn.summary,
+                'status': txn.status.value,
+                'direction': txn.direction.value,
+                'allocated_amount': str(txn.allocated_amount),
+                'allocations': allocations, # 分配详情
+                'ignore_remark': txn.ignore_remark
+            })
+
+        return jsonify({
+            'items': results,
+            'total': paginated_txns.total,
+            'page': paginated_txns.page,
+            'per_page': paginated_txns.per_page,
+            'pages': paginated_txns.pages,
+        })
+
+    except Exception as e:
+        current_app.logger.error(f"Failed to get all transactions: {e}", exc_info=True)
+        return jsonify({"error": "Internal server error"}), 500

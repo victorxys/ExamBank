@@ -791,7 +791,17 @@ export default function ReconciliationPage() {
                     }
                 });
             }
-            const newData = { ...originalData, confirmed, processed };
+            const newData = {
+                pending_confirmation: [],
+                manual_allocation: [],
+                unmatched: [],
+                confirmed: [],
+                processed: [],
+                ignored: [],
+                ...originalData,
+                confirmed, // This will overwrite originalData.confirmed
+                processed, // This will overwrite originalData.processed
+            };
             setCategorizedTxns(newData);
 
             const firstTabWithData = ['pending_confirmation', 'manual_allocation', 'unmatched', 'confirmed', 'processed', 'ignored'].find(tab => newData[tab]?.length > 0);

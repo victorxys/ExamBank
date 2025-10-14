@@ -9,8 +9,14 @@ export const reconciliationApi = {
 
     getUnmatchedTransactions: ({ year, month }) => {
         // Axios 会自动将 params 对象转换为 URL 查询字符串
-        return api.get('/bank-transactions', { 
+        return api.get('/bank-statement/unmatched-transactions', { 
             params: { year, month } 
+        });
+    },
+
+    getAllTransactions: ({ year, month, page, per_page, search_term, status }) => {
+        return api.get('/bank-transactions', {
+            params: { year, month, page, per_page, search_term, status }
         });
     },
 
