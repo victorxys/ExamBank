@@ -1,6 +1,6 @@
 // frontend/src/components/Sidebar.jsx (Refactored for recursive menus)
 import React, { useState, useEffect, useCallback } from 'react';
-import { Link as RouterLink, useLocation } from 'react-router-dom';
+import { Link as RouterLink, useLocation, useParams } from 'react-router-dom';
 import {
   Box, List, ListItemButton, ListItemIcon, ListItemText, Drawer, Typography,
   Divider, IconButton, useMediaQuery, Tooltip, Collapse, AppBar, Toolbar
@@ -52,8 +52,9 @@ export const allMenuItems = [
     path: '/billing/reconcile-group', // Placeholder path for the group
     adminOnly: true,
     subItems: [
-      { text: '客户回款', icon: <PaymentIcon />, path: '/billing/reconcile', adminOnly: true },
-      { text: '付员工工资', icon: <PaymentsIcon />, path: '/billing/salary-payment', adminOnly: true },
+      { text: '客户回款', icon: <PaymentIcon />, path: '/billing/reconcile', adminOnly: true, isFinancial: true },
+      { text: '流水总览', icon: <DescriptionIcon />, path: '/finance/all-transactions', adminOnly: true, isFinancial: true },
+      { text: '对外付款', icon: <PaymentsIcon />, path: '/billing/salary-payment', adminOnly: true },
     ]
   },
   { text: '我的课程', icon: <SchoolIcon />, path: '/my-courses', adminOnly: false },
@@ -107,6 +108,7 @@ const findParentPaths = (items, currentPath) => {
 
 function Sidebar({ isCollapsed, setIsCollapsed }) {
   const location = useLocation();
+  const { year: yearParam, month: monthParam } = useParams();
   const [mobileOpen, setMobileOpen] = useState(false);
   const userInfo = hasToken();
   const theme = useTheme();
@@ -156,10 +158,18 @@ function Sidebar({ isCollapsed, setIsCollapsed }) {
 };
 
   const renderMenuItemsRecursive = (items, level = 0) => {
+    const year = yearParam || new Date().getFullYear();
+    const month = monthParam || new Date().getMonth() + 1;
+
     return items
       .filter(item => userInfo?.role === 'admin' || !item.adminOnly)
       .map((item) => {
-        const isSelected = !item.subItems && location.pathname === item.path;
+        let finalPath = item.path;
+        if (item.isFinancial) {
+            finalPath = `${item.path}/${year}/${month}`;
+        }
+
+        const isSelected = !item.subItems && location.pathname.startsWith(item.path);
         const hasSubItems = item.subItems && item.subItems.length > 0;
         const isOpen = hasSubItems && openMenus[item.path];
 
@@ -175,7 +185,7 @@ function Sidebar({ isCollapsed, setIsCollapsed }) {
           <React.Fragment key={item.path || item.text}>
             <ListItemButton
               component={hasSubItems ? 'div' : RouterLink}
-              to={hasSubItems ? undefined : item.path}
+              to={hasSubItems ? undefined : finalPath}
               selected={isSelected}
               onClick={handleItemClick}
               sx={{

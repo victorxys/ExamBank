@@ -309,6 +309,8 @@ const ContractDetail = lazy(() => import('./components/ContractDetail')); // 新
 const ConflictCheckerPage = lazy(() => import('./components/ConflictCheckerPage'));
 const BankStatementUploader = lazy(() => import('./components/BankStatementUploader'));
 const ReconciliationPage = lazy(() => import('./components/ReconciliationPage'));
+const AllBankTransactions = lazy(() => import('./components/AllBankTransactions'));
+const OutboundPayments = lazy(() => import('./components/OutboundPayments')); // 新增
 // 仪表盘
 const DashboardPage = lazy(() => import('./components/DashboardPage'));
 const SankeyPreview = lazy(() => import('./components/SankeyPreview')); // Sankey Preview
@@ -356,6 +358,8 @@ function App() {
           <Route path="/contracts/:contractType" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}><ContractList /></Suspense>} />} />
           <Route path="/billing" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}><BillingDashboard /></Suspense>} />} />
           <Route path="/billing/reconcile/:year?/:month?" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}><ReconciliationPage /></Suspense>} />} />
+          <Route path="/finance/all-transactions/:year?/:month?" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}><AllBankTransactions /></Suspense>} />} />
+          <Route path="/billing/salary-payment/:year?/:month?" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}><OutboundPayments /></Suspense>} />} />
           <Route path="/contract/detail/:contractId" element={<ContractDetail />} />
           <Route path="/tools/conflict-checker" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}><ConflictCheckerPage /></Suspense>} />} />
 
