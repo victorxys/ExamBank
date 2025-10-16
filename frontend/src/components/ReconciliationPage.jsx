@@ -16,7 +16,7 @@ import {
     Box, Button, Card, CardContent, CardHeader, CircularProgress, Grid, MenuItem,
     Typography, List, ListItem, ListItemText, ListItemButton, Divider, Select, Autocomplete,
     Dialog, DialogTitle, DialogContent, DialogActions, TextField, Alert, FormControl, InputLabel,
-    Tabs, Tab, Chip, Tooltip, IconButton, Paper, Stack, Avatar
+    Tabs, Tab, Chip, Tooltip, IconButton, Paper, Stack, Avatar, FormControlLabel, Checkbox
 } from '@mui/material';
 import {
     ContentCopy as ContentCopyIcon,
@@ -89,10 +89,12 @@ const PasteStatementDialog = ({ open, onClose, onSubmit }) => {
 
 const IgnoreRemarkDialog = ({ open, onClose, onSubmit }) => {
     const [remark, setRemark] = useState('');
+    const [isPermanent, setIsPermanent] = useState(false);
 
     const handleSubmit = () => {
-        onSubmit(remark);
-        setRemark(''); // Reset after submit
+        onSubmit(remark, isPermanent);
+        setRemark('');
+        setIsPermanent(false);
         onClose();
     };
 
@@ -112,6 +114,17 @@ const IgnoreRemarkDialog = ({ open, onClose, onSubmit }) => {
                     placeholder="请填写忽略这笔流水的原因，例如：测试流水、重复流水等。"
                     value={remark}
                     onChange={(e) => setRemark(e.target.value)}
+                />
+                <FormControlLabel
+                    control={
+                        <Checkbox
+                            checked={isPermanent}
+                            onChange={(e) => setIsPermanent(e.target.checked)}
+                            name="permanentIgnore"
+                            color="primary"
+                        />
+                    }
+                    label="永久忽略此付款/收款人"
                 />
             </DialogContent>
             <DialogActions>
@@ -271,11 +284,11 @@ const TransactionDetailsPanel = ({
         setIsIgnoreDialogOpen(true);
     };
 
-    const handleConfirmIgnore = async (remark) => {
+    const handleConfirmIgnore = async (remark, isPermanent) => {
         if (!transaction) return;
         setIsSaving(true);
         try {
-            await reconciliationApi.ignoreTransaction(transaction.id, { remark });
+            await reconciliationApi.ignoreTransaction(transaction.id, { remark, is_permanent: isPermanent });
             setAlertInfo({ open: true, message: '流水已忽略', severity: 'success' });
             onStatusUpdate(transaction.id, category, 'ignored');
         } catch (err) {
@@ -954,6 +967,29 @@ export default function ReconciliationPage() {
     useEffect(() => {
         setOperationPeriod(accountingPeriod);
     }, [accountingPeriod, activeTab]);
+
+    const prevCustomerNameRef = useRef();
+    useEffect(() => {
+        const getCustomerName = (txn) => {
+            if (!txn) return null;
+            // 检查所有可能的字段以可靠地获取客户名称
+            if (txn.customer_name) return txn.customer_name;
+            if (txn.matched_bill?.customer_name) return txn.matched_bill.customer_name;
+            if (txn.allocated_to_bills?.[0]?.customer_name) return txn.allocated_to_bills[0].customer_name;
+            if (txn.unpaid_bills?.[0]?.customer_name) return txn.unpaid_bills[0].customer_name;
+            return null;
+        };
+
+        const currentCustomerName = getCustomerName(selectedTxn);
+
+        // 当选择的客户发生变化时，重置操作月份为当前账期
+        if (prevCustomerNameRef.current !== currentCustomerName) {
+            setOperationPeriod(accountingPeriod);
+        }
+
+        // 为下一次渲染更新ref
+        prevCustomerNameRef.current = currentCustomerName;
+    }, [selectedTxn, accountingPeriod]);
 
     useEffect(() => {
         // 这个钩子现在只负责在特定页签下自动选择客户
