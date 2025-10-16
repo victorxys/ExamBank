@@ -840,12 +840,10 @@ export default function ReconciliationPage() {
                 pending_confirmation: [],
                 manual_allocation: [],
                 unmatched: [],
-                confirmed: [],
-                processed: [],
                 ignored: [],
                 ...originalData,
-                confirmed, // This will overwrite originalData.confirmed
-                processed, // This will overwrite originalData.processed
+                confirmed: confirmed, 
+                processed: processed,
             };
             setCategorizedTxns(newData);
 
@@ -881,7 +879,15 @@ export default function ReconciliationPage() {
                     }
                 });
             }
-            const newData = { ...originalData, confirmed, processed };
+            const newData = {
+                pending_confirmation: [],
+                manual_allocation: [],
+                unmatched: [],
+                ignored: [],
+                ...originalData,
+                confirmed: confirmed, 
+                processed: processed,
+            };
 
             const oldCategory = activeTab;
             const oldList = categorizedTxns[oldCategory] || [];
