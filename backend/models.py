@@ -2017,7 +2017,10 @@ class BankTransactionStatus(enum.Enum):
 
 class BankTransaction(db.Model):
     __tablename__ = 'bank_transactions'
-    __table_args__ = {'comment': '银行交易流水表'}
+    __table_args__ = (
+        db.Index('idx_bank_transactions_associated_object', 'associated_object_type', 'associated_object_id'),
+        {'comment': '银行交易流水表'}
+    )
 
     id = db.Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     transaction_id = db.Column(db.String(255), nullable=True, unique=True, index=True, comment="交易流水号")
@@ -2049,6 +2052,11 @@ class BankTransaction(db.Model):
     ignore_remark = db.Column(db.Text, nullable=True, comment="忽略原因")
 
     allocated_amount = db.Column(db.Numeric(12, 2), nullable=False, default=0, server_default='0', comment="已被分配的金额")
+
+    # --- Polymorphic Association Fields ---
+    associated_object_type = db.Column(db.String(50), nullable=True, comment="关联对象的模型名称 (e.g., 'Contract', 'User', 'ServicePersonnel')")
+    associated_object_id = db.Column(PG_UUID(as_uuid=True), nullable=True, comment="关联对象的主键ID")
+    # ------------------------------------
 
     created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
     updated_at = db.Column(db.DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

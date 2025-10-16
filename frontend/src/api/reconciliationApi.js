@@ -14,10 +14,37 @@ export const reconciliationApi = {
         });
     },
 
-    getAllTransactions: ({ year, month, page, per_page, search_term, status }) => {
+    getAllTransactions: ({ year, month, page, per_page, search_term, status, direction }) => {
         return api.get('/bank-transactions', {
+            params: { year, month, page, per_page, search_term, status, direction }
+        });
+    },
+
+    
+    getCategorizedOutboundTransactions: ({ year, month }) => {
+        return api.get('/outbound-transactions/categorized', {
+            params: { year, month }
+        });
+    },
+
+    getPayableItems: ({ year, month }) => {
+        return api.get('/payable-items', {
+            params: { year, month }
+        });
+    },
+
+    searchPayableItems: (searchTerm) => {
+        return api.get('/search-payable-items', { params: { search: searchTerm } });
+    },
+
+    getOutboundTransactions: ({ year, month, page, per_page, search_term, status }) => {
+        return api.get('/outbound-transactions', {
             params: { year, month, page, per_page, search_term, status }
         });
+    },
+
+    allocateOutboundTransaction: (transactionId, payload) => {
+        return api.post(`/outbound-transactions/${transactionId}/allocate`, payload);
     },
 
     getMatchingDetails: ({ transactionId, year, month }) => {

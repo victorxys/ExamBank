@@ -2,7 +2,7 @@ import re
 from datetime import datetime
 from decimal import Decimal
 from flask import current_app
-from backend.models import db, BankTransaction, BankTransactionStatus, CustomerBill, PaymentRecord, PaymentStatus, User, BaseContract,PayerAlias,FinancialActivityLog,TransactionDirection
+from backend.models import db, BankTransaction, BankTransactionStatus, CustomerBill, PaymentRecord, PaymentStatus, User, BaseContract,PayerAlias,FinancialActivityLog,TransactionDirection, ServicePersonnel, EmployeePayroll, FinancialAdjustment, PayoutStatus, AdjustmentType
 from sqlalchemy import and_, or_
 import traceback
 import decimal
@@ -11,6 +11,438 @@ class BankStatementService:
     """
     处理银行对账单的解析、存储和匹配服务。
     """
+    def serialize_transaction(self, txn: BankTransaction) -> dict:
+        """
+        Serializes a BankTransaction object into a dictionary, including the polymorphic associated object.
+        """
+        base_data = {
+            'id': str(txn.id),
+            'transaction_id': txn.transaction_id,
+            'transaction_time': txn.transaction_time.isoformat(),
+            'payer_name': txn.payer_name,
+            'amount': str(txn.amount),
+            'summary': txn.summary,
+            'status': txn.status.value,
+            'direction': txn.direction.value,
+            'allocated_amount': str(txn.allocated_amount),
+            'ignore_remark': txn.ignore_remark,
+            'updated_at': txn.updated_at.isoformat() if txn.updated_at else None, # <-- FIX: Add updated_at
+            'associated_object': None # Default to None
+        }
+
+        if txn.associated_object_type and txn.associated_object_id:
+            associated_object_data = None
+            try:
+                if txn.associated_object_type == 'Contract':
+                    obj = db.session.get(BaseContract, txn.associated_object_id)
+                    if obj:
+                        associated_object_data = {
+                            'type': 'Contract',
+                            'id': str(obj.id),
+                            'display_name': f"合同: {obj.customer_name}",
+                            'link': f'/contracts/{obj.id}' # Example link
+                        }
+                elif txn.associated_object_type == 'User':
+                    obj = db.session.get(User, txn.associated_object_id)
+                    if obj:
+                        associated_object_data = {
+                            'type': 'User',
+                            'id': str(obj.id),
+                            'display_name': f"员工: {obj.username}",
+                            'link': f'/users/{obj.id}' # Example link
+                        }
+                elif txn.associated_object_type == 'ServicePersonnel':
+                    obj = db.session.get(ServicePersonnel, txn.associated_object_id)
+                    if obj:
+                        associated_object_data = {
+                            'type': 'ServicePersonnel',
+                            'id': str(obj.id),
+                            'display_name': f"服务人员: {obj.name}",
+                            'link': f'/service_personnel/{obj.id}' # Example link
+                        }
+                base_data['associated_object'] = associated_object_data
+            except Exception as e:
+                current_app.logger.error(f"Error fetching associated object for transaction {txn.id}: {e}")
+
+        allocations = []
+        if txn.status in [BankTransactionStatus.MATCHED, BankTransactionStatus.PARTIALLY_ALLOCATED]:
+            if txn.direction == TransactionDirection.CREDIT:
+                for record in txn.payment_records:
+                    bill = record.customer_bill
+                    if bill and bill.contract:
+                        allocations.append({
+                            'type': 'CustomerBill',
+                            'display_name': f"账单: {bill.contract.customer_name} - {bill.cycle}",
+                            'total_due': str(bill.total_due),
+                            'amount_remaining': str(bill.total_due - bill.total_paid),
+                            'allocated_amount_from_this_txn': str(record.amount)
+                        })
+            elif txn.direction == TransactionDirection.DEBIT:
+                # Reverse lookup for FinancialAdjustments
+                adjustments = FinancialAdjustment.query.filter(
+                    FinancialAdjustment.settlement_details.op('->')('payments').op('@>')(f'[{{\"bank_transaction_id\": \"{txn.transaction_id}\"}}]')
+                ).all()
+                for adj in adjustments:
+                    payment_info = next((p for p in adj.settlement_details['payments'] if p['bank_transaction_id']== txn.transaction_id), None)
+                    if payment_info:
+                        allocations.append({
+                            'type': 'FinancialAdjustment',
+                            'display_name': f"退款: {adj.description}",
+                            'total_due': str(adj.amount),
+                            'amount_remaining': "0.00", # Refunds are settled in full
+                            'allocated_amount_from_this_txn': str(payment_info.get('amount'))
+                        })
+
+                # Reverse lookup for EmployeePayrolls
+                payrolls = EmployeePayroll.query.filter(
+                    EmployeePayroll.payout_details.op('->')('payments').op('@>')(f'[{{\"bank_transaction_id\": \"{txn.transaction_id}\"}}]')
+                ).all()
+                for payroll in payrolls:
+                    payment_info = next((p for p in payroll.payout_details['payments'] if p['bank_transaction_id']== txn.transaction_id), None)
+                    if payment_info:
+                        employee = payroll.contract.service_personnel or payroll.contract.user
+                        employee_name = employee.name if hasattr(employee, 'name') else employee.username
+                        allocations.append({
+                            'type': 'EmployeePayroll',
+                            'display_name': f"工资: {employee_name} ({payroll.year}-{payroll.month})",
+                            'total_due': str(payroll.total_due),
+                            'amount_remaining': str(payroll.total_due - payroll.total_paid_out),
+                            'allocated_amount_from_this_txn': str(payment_info.get('amount'))
+                        })
+
+        base_data['allocations'] = allocations
+
+        return base_data
+
+    def get_payable_items(self, year: int, month: int) -> dict:
+        """
+        获取指定年月的所有待支付项目。
+        """
+        payable_items = {
+            'payrolls': [],
+            'adjustments': []
+        }
+
+        # 查询指定年月未支付或部分支付的工资单
+        unpaid_payrolls = EmployeePayroll.query.filter(
+            EmployeePayroll.year == year,
+            EmployeePayroll.month == month,
+            EmployeePayroll.payout_status.in_([PayoutStatus.UNPAID, PayoutStatus.PARTIALLY_PAID])
+        ).order_by(EmployeePayroll.cycle_start_date.desc()).all()
+
+        for payroll in unpaid_payrolls:
+            payable_items['payrolls'].append({
+                'target_id': str(payroll.id),
+                'target_type': 'EmployeePayroll',
+                'display_name': f"工资单: {payroll.contract.customer_name} - {payroll.year}/{payroll.month}",
+                'amount_due': str(payroll.total_due - payroll.total_paid_out),
+                'date': payroll.cycle_end_date.isoformat(),
+                'contract_id': str(payroll.contract_id) # <-- FIX: Add contract_id
+            })
+
+        # 查询指定年月待退款的财务调整项
+        pending_refunds = FinancialAdjustment.query.filter(
+            db.extract('year', FinancialAdjustment.date) == year,
+            db.extract('month', FinancialAdjustment.date) == month,
+            FinancialAdjustment.adjustment_type == AdjustmentType.CUSTOMER_DECREASE,
+            FinancialAdjustment.is_settled == False
+        ).order_by(FinancialAdjustment.date.desc()).all()
+
+        for refund in pending_refunds:
+            payable_items['adjustments'].append({
+                'target_id': str(refund.id),
+                'target_type': 'FinancialAdjustment',
+                'display_name': f"退款: {refund.description}",
+                'amount_due': str(refund.amount),
+                'date': refund.date.isoformat(),
+                'contract_id': str(refund.contract_id) if refund.contract_id else None # <-- FIX: Add contract_id
+            })
+
+        return payable_items
+
+    def allocate_outbound_transaction(self, bank_transaction_id: str, allocations: list, operator_id: str) -> dict:
+        bank_txn = BankTransaction.query.get(bank_transaction_id)
+        if not bank_txn:
+            return {"error": "Bank transaction not found"}
+
+        if bank_txn.direction != TransactionDirection.DEBIT:
+            return {"error": "This method is for debit transactions only."}
+
+        if bank_txn.status not in [BankTransactionStatus.UNMATCHED, BankTransactionStatus.PARTIALLY_ALLOCATED]:
+            return {"error": f"Transaction status is '{bank_txn.status.value}', cannot be allocated."}
+
+        total_allocation_amount = sum(Decimal(alloc['amount']) for alloc in allocations if Decimal(alloc.get('amount')or 0) > 0)
+
+        if total_allocation_amount > (bank_txn.amount - bank_txn.allocated_amount):
+            return {"error": "Total allocated amount exceeds transaction's remaining amount."}
+
+        try:
+            user = User.query.get(operator_id)
+            if not user:
+                raise Exception(f"Operator with id {operator_id} not found.")
+
+            is_first_allocation = (bank_txn.status == BankTransactionStatus.UNMATCHED)
+
+            for i, alloc in enumerate(allocations):
+                target_type = alloc['target_type']
+                target_id = alloc['target_id']
+                amount_to_allocate = Decimal(alloc.get('amount') or 0)
+
+                if amount_to_allocate <= 0:
+                    continue
+
+                target_contract_id = None
+
+                if target_type == 'EmployeePayroll':
+                    target_obj = EmployeePayroll.query.get(target_id)
+                    if not target_obj:
+                        raise Exception(f"EmployeePayroll with id {target_id} not found.")
+                    target_obj.total_paid_out += amount_to_allocate
+                    target_obj.payout_status = PayoutStatus.PAID if target_obj.total_paid_out >= target_obj.total_due else PayoutStatus.PARTIALLY_PAID
+                    target_contract_id = target_obj.contract_id
+
+                    # Store transaction info in payout_details JSON field
+                    if not target_obj.payout_details:
+                        target_obj.payout_details = {}
+                    if 'payments' not in target_obj.payout_details:
+                        target_obj.payout_details['payments'] = []
+                    target_obj.payout_details['payments'].append({
+                        'bank_transaction_id': bank_txn.transaction_id,
+                        'amount': str(amount_to_allocate),
+                        'paid_at': bank_txn.transaction_time.isoformat()
+                    })
+
+                elif target_type == 'FinancialAdjustment':
+                    target_obj = FinancialAdjustment.query.get(target_id)
+                    if not target_obj:
+                        raise Exception(f"FinancialAdjustment with id {target_id} not found.")
+                    target_obj.is_settled = True
+                    target_obj.settlement_date = bank_txn.transaction_time.date()
+                    target_obj.status = 'PAID'
+                    target_contract_id = target_obj.contract_id
+
+                    # Store transaction info in settlement_details JSON field
+                    if not target_obj.settlement_details:
+                        target_obj.settlement_details = {}
+                    if 'payments' not in target_obj.settlement_details:
+                        target_obj.settlement_details['payments'] = []
+                    target_obj.settlement_details['payments'].append({
+                        'bank_transaction_id': bank_txn.transaction_id,
+                        'amount': str(amount_to_allocate),
+                        'paid_at': bank_txn.transaction_time.isoformat()
+                    })
+                else:
+                    raise Exception(f"Unsupported target type: {target_type}")
+
+                # 在首次分配的第一个项目上，设置多态关联和支付别名
+                if i == 0:
+                    bank_txn.associated_object_type = target_type
+                    bank_txn.associated_object_id = target_id
+
+                    if is_first_allocation and target_contract_id:
+                        # 尝试创建别名，如果已存在则忽略
+                        existing_alias = PayerAlias.query.filter_by(payer_name=bank_txn.payer_name).first()
+                        if not existing_alias:
+                            try:
+                                new_alias = PayerAlias(
+                                    payer_name=bank_txn.payer_name,
+                                    contract_id=target_contract_id,
+                                    created_by_user_id=operator_id
+                                )
+                                db.session.add(new_alias)
+                            except Exception as alias_e:
+                                print(f"Could not create alias, possibly already exists. Error: {alias_e}")
+
+
+            # 更新银行流水状态
+            bank_txn.allocated_amount += total_allocation_amount
+            if bank_txn.allocated_amount >= bank_txn.amount:
+                bank_txn.status = BankTransactionStatus.MATCHED
+            else:
+                bank_txn.status = BankTransactionStatus.PARTIALLY_ALLOCATED
+
+            db.session.commit()
+            return {"success": True, "message": "Outbound allocation successful."}
+
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"Outbound allocation failed for txn {bank_transaction_id}: {e}", exc_info=True)
+            return {"error": f"An unexpected error occurred: {str(e)}"}
+        
+    def get_and_categorize_outbound_transactions(self, year: int, month: int) -> dict:
+        print("\n--- [DEBUG] Starting outbound categorization ---")
+        print(f"--- [DEBUG] Period: {year}-{month}")
+
+        # 1. Fetch transactions by status
+        base_query = BankTransaction.query.filter(
+            BankTransaction.direction == TransactionDirection.DEBIT,
+            db.extract('year', BankTransaction.transaction_time) == year,
+            db.extract('month', BankTransaction.transaction_time) == month
+        )
+
+        txns_to_process = base_query.filter(BankTransaction.status.in_([
+            BankTransactionStatus.UNMATCHED,
+            BankTransactionStatus.PARTIALLY_ALLOCATED
+        ])).all()
+        print(f"--- [DEBUG] Found {len(txns_to_process)} total transactions to process (UNMATCHED or PARTIALLY_ALLOCATED).")
+
+        confirmed_txns = base_query.filter(BankTransaction.status == BankTransactionStatus.MATCHED).all()
+        ignored_txns = base_query.filter(BankTransaction.status == BankTransactionStatus.IGNORED).all()
+
+        # 2. Fetch all potential allocation targets for the period
+        payable_items = self.get_payable_items(year, month)
+        all_payables = payable_items['payrolls'] + payable_items['adjustments']
+        print(f"--- [DEBUG] Found {len(all_payables)} payable items for the period.")
+
+        # 3. Initialize results dictionary
+        categorized_results = {
+            "pending_confirmation": [],
+            "manual_allocation": [],
+            "unmatched": [],
+            "confirmed": [self.serialize_transaction(txn) for txn in confirmed_txns],
+            "ignored": [self.serialize_transaction(txn) for txn in ignored_txns]
+        }
+
+        # 4. Process all UNMATCHED and PARTIALLY_ALLOCATED transactions in a single loop
+        print("--- [DEBUG] Starting processing loop...")
+        for txn in txns_to_process:
+            print(f"--- [DEBUG] Processing txn ID: {txn.id}, Status: {txn.status.value}")
+            serialized_txn = self.serialize_transaction(txn)
+
+            # FIX: Compare enum values directly for robustness
+            if txn.status.value == BankTransactionStatus.PARTIALLY_ALLOCATED.value:
+                print(f"--- [DEBUG] -> Matched Rule 1 (PARTIALLY_ALLOCATED).")
+
+                contract_id = None
+                if txn.associated_object_id:
+                    if txn.associated_object_type == 'EmployeePayroll':
+                        item = db.session.get(EmployeePayroll, txn.associated_object_id)
+                        if item: contract_id = str(item.contract_id)
+                    elif txn.associated_object_type == 'FinancialAdjustment':
+                        item = db.session.get(FinancialAdjustment, txn.associated_object_id)
+                        if item: contract_id = str(item.contract_id)
+
+                related_payables = all_payables
+                if contract_id:
+                    print(f"--- [DEBUG] --> Filtering payables for contract_id: {contract_id}")
+                    related_payables = [p for p in all_payables if p.get('contract_id') == contract_id]
+                else:
+                    print(f"--- [DEBUG] --> No contract_id found for partially allocated txn, showing all payables.")
+
+                categorized_results["manual_allocation"].append({**serialized_txn, "payable_items":related_payables})
+                categorized_results["unmatched"].append(serialized_txn)
+                continue
+
+            # Rule 2: If strictly UNMATCHED, apply the suggestion logic
+            if txn.status.value == BankTransactionStatus.UNMATCHED.value:
+                print(f"--- [DEBUG] -> Matched Rule 2 (UNMATCHED).")
+                matching_payables = [p for p in all_payables if D(p['amount_due']) == txn.amount]
+
+                if len(matching_payables) == 1:
+                    print(f"--- [DEBUG] --> Found single exact match. Adding to 'pending_confirmation'.")
+                    categorized_results["pending_confirmation"].append({
+                        **serialized_txn,
+                        "matched_item": matching_payables[0]
+                    })
+                else:
+                    print(f"--- [DEBUG] --> No single exact match ({len(matching_payables)} found). Adding to 'unmatched'.")
+                    categorized_results["unmatched"].append(serialized_txn)
+
+        print("--- [DEBUG] Finished processing loop.")
+        print(f"--- [DEBUG] Final counts: manual_allocation={len(categorized_results['manual_allocation'])}, unmatched={len(categorized_results['unmatched'])}")
+        print("--- [DEBUG] Ending outbound categorization ---\n")
+        return categorized_results
+
+    
+    
+
+
+    def search_payable_items(self, search_term: str) -> dict:
+        print(f"--- DEBUG: Starting search_payable_items with term: '{search_term}' ---")
+        results = []
+        pinyin_search_term = search_term.replace(" ", "")
+        print(f"--- DEBUG: Pinyin search term: '{pinyin_search_term}' ---")
+
+        matching_contract_ids = set()
+
+        # 1. 根据客户姓名或拼音查找合同
+        contracts_by_customer = BaseContract.query.filter(
+            or_(
+                BaseContract.customer_name.ilike(f"%{search_term}%"),
+                BaseContract.customer_name_pinyin.ilike(f"%{pinyin_search_term}%")
+            )
+        ).all()
+        customer_contract_ids = {c.id for c in contracts_by_customer}
+        print(f"--- DEBUG: Found {len(customer_contract_ids)} contracts by customer name: {customer_contract_ids} ---")
+        matching_contract_ids.update(customer_contract_ids)
+
+        # 2. 根据员工姓名或拼音查找关联的合同
+        matching_user_ids = [u.id for u in User.query.filter(or_(User.username.ilike(f"%{search_term}%"),User.name_pinyin.ilike(f"%{pinyin_search_term}%"))).all()]
+        print(f"--- DEBUG: Found {len(matching_user_ids)} matching user IDs: {matching_user_ids} ---")
+
+        matching_sp_ids = [sp.id for sp in ServicePersonnel.query.filter(or_(ServicePersonnel.name.ilike(f"%{search_term}%"), ServicePersonnel.name_pinyin.ilike(f"%{pinyin_search_term}%"))).all()]
+        print(f"--- DEBUG: Found {len(matching_sp_ids)} matching service personnel IDs: {matching_sp_ids} ---")
+
+        if matching_user_ids or matching_sp_ids:
+            contracts_by_employee = BaseContract.query.filter(
+                or_(
+                    BaseContract.user_id.in_(matching_user_ids),
+                    BaseContract.service_personnel_id.in_(matching_sp_ids)
+                )
+            ).all()
+            employee_contract_ids = {c.id for c in contracts_by_employee}
+            print(f"--- DEBUG: Found {len(employee_contract_ids)} contracts via employees: {employee_contract_ids} ---")
+            matching_contract_ids.update(employee_contract_ids)
+
+        print(f"--- DEBUG: Final combined set of {len(matching_contract_ids)} contract IDs: {matching_contract_ids} ---")
+
+        if not matching_contract_ids:
+            print("--- DEBUG: No matching contract IDs found, returning empty results. ---")
+            return {'results': []}
+
+        # 3. 根据收集到的合同ID，查找待支付项
+        final_contract_id_list = list(matching_contract_ids)
+
+        # 查找待付工资单
+        payrolls = EmployeePayroll.query.filter(
+            EmployeePayroll.contract_id.in_(final_contract_id_list),
+            EmployeePayroll.payout_status.in_([PayoutStatus.UNPAID, PayoutStatus.PARTIALLY_PAID])
+        ).limit(10).all()
+        print(f"--- DEBUG: Found {len(payrolls)} matching unpaid payrolls. ---")
+
+        for payroll in payrolls:
+            employee = payroll.contract.service_personnel or payroll.contract.user
+            if employee:
+                employee_name = employee.name if hasattr(employee, 'name') else employee.username
+                results.append({
+                    'type': 'EmployeePayroll',
+                    'id': str(payroll.id),
+                    'display': f"工资单: {employee_name} (客户: {payroll.contract.customer_name})",
+                    'name': employee_name,
+                    'amount_due': str(payroll.total_due - payroll.total_paid_out)
+                })
+
+        # 查找待退款
+        refunds = FinancialAdjustment.query.filter(
+            FinancialAdjustment.contract_id.in_(final_contract_id_list),
+            FinancialAdjustment.adjustment_type == AdjustmentType.CUSTOMER_DECREASE,
+            FinancialAdjustment.is_settled == False
+        ).limit(10).all()
+        print(f"--- DEBUG: Found {len(refunds)} matching pending refunds. ---")
+
+        for refund in refunds:
+            if refund.contract:
+                results.append({
+                    'type': 'FinancialAdjustment',
+                    'id': str(refund.id),
+                    'display': f"退款: {refund.contract.customer_name} - {refund.description}",
+                    'name': refund.contract.customer_name,
+                    'amount_due': str(refund.amount)
+                })
+
+        print(f"--- DEBUG: Returning a total of {len(results)} items. ---")
+        return {'results': results}
+
     def get_and_categorize_transactions(self, year: int, month: int) -> dict:
         """
         获取指定年月的银行流水，并将其分为四类。

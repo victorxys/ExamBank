@@ -1,4 +1,3 @@
-
 from flask import Blueprint, jsonify, request, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from backend.models import db, BankTransaction, BankTransactionStatus, TransactionDirection
@@ -9,6 +8,64 @@ import csv
 from decimal import Decimal
 
 bank_statement_api = Blueprint('bank_statement_api', __name__)
+
+@bank_statement_api.route('/api/search-payable-items', methods=['GET'])
+@jwt_required()
+def search_payable_items_route():
+    search_term = request.args.get('search', '', type=str)
+    if not search_term:
+        return jsonify(results=[])
+    service = BankStatementService()
+    results = service.search_payable_items(search_term)
+    return jsonify(results)
+
+@bank_statement_api.route('/api/outbound-transactions/categorized', methods=['GET'])
+@jwt_required()
+def get_categorized_outbound_transactions():
+    service = BankStatementService()
+    year = request.args.get('year', type=int)
+    month = request.args.get('month', type=int)
+    if not year or not month:
+        return jsonify({"error": "Year and month are required"}), 400
+    try:
+        transactions = service.get_and_categorize_outbound_transactions(year, month)
+        return jsonify(transactions)
+    except Exception as e:
+        current_app.logger.error(f"Failed to get categorized outbound transactions: {e}", exc_info=True)
+        return jsonify({"error": "Internal server error"}), 500
+
+@bank_statement_api.route('/api/payable-items', methods=['GET'])
+@jwt_required()
+def get_payable_items_route():
+    service = BankStatementService()
+    year = request.args.get('year', type=int)
+    month = request.args.get('month', type=int)
+    if not year or not month:
+        return jsonify({"error": "Year and month are required"}), 400
+    try:
+        items = service.get_payable_items(year, month)
+        return jsonify(items)
+    except Exception as e:
+        current_app.logger.error(f"Failed to get payable items: {e}", exc_info=True)
+        return jsonify({"error": "Internal server error"}), 500
+
+@bank_statement_api.route('/api/outbound-transactions/<bank_transaction_id>/allocate', methods=['POST'])
+@jwt_required()
+def allocate_outbound_transaction_route(bank_transaction_id):
+    data = request.get_json()
+    allocations = data.get('allocations')
+    operator_id = get_jwt_identity()
+
+    if not allocations:
+        return jsonify({"error": "Allocations data is required"}), 400
+
+    service = BankStatementService()
+    result = service.allocate_outbound_transaction(bank_transaction_id, allocations, operator_id)
+    
+    if result.get("error"):
+        return jsonify(result), 400
+    
+    return jsonify(result), 200
 
 @bank_statement_api.route('/api/bank-statement/unmatched-transactions', methods=['GET'])
 @jwt_required()
@@ -187,4 +244,71 @@ def get_all_transactions():
 
     except Exception as e:
         current_app.logger.error(f"Failed to get all transactions: {e}", exc_info=True)
+        return jsonify({"error": "Internal server error"}), 500
+
+@bank_statement_api.route('/api/outbound-transactions', methods=['GET'])
+@jwt_required()
+def get_outbound_transactions():
+    """
+    获取所有对外付款的银行流水记录，使用新的序列化方法。
+    """
+    try:
+        service = BankStatementService()
+        # --- 获取查询参数 ---
+        year = request.args.get('year', type=int)
+        month = request.args.get('month', type=int)
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 20, type=int)
+        search_term = request.args.get('search_term', '', type=str).strip()
+        status = request.args.get('status', '', type=str).strip()
+
+        if not year or not month:
+            return jsonify({"error": "Year and month parameters are required"}), 400
+
+        # --- 构建基础查询 (硬编码方向为 DEBIT) ---
+        query = BankTransaction.query.filter(
+            extract('year', BankTransaction.transaction_time) == year,
+            extract('month', BankTransaction.transaction_time) == month,
+            BankTransaction.direction == TransactionDirection.DEBIT
+        )
+
+        # --- 应用状态筛选 ---
+        if status:
+            try:
+                status_enum = BankTransactionStatus(status)
+                query = query.filter(BankTransaction.status == status_enum)
+            except ValueError:
+                return jsonify({"error": f"Invalid status value: {status}"}), 400
+
+        # --- 应用多字段搜索 ---
+        if search_term:
+            # Simple pinyin search for payer_name
+            pinyin_search_term = search_term.replace(" ", "")
+            search_filter = or_(
+                BankTransaction.transaction_id.ilike(f"%{search_term}%"),
+                BankTransaction.payer_name.ilike(f"%{search_term}%"),
+                BankTransaction.summary.ilike(f"%{search_term}%")
+            )
+            # Check if a related pinyin column exists before adding to query
+            if hasattr(BankTransaction, 'payer_name_pinyin'):
+                 search_filter.append(BankTransaction.payer_name_pinyin.ilike(f"%{pinyin_search_term}%"))
+            query = query.filter(search_filter)
+
+        # --- 排序和分页 ---
+        query = query.order_by(BankTransaction.transaction_time.desc())
+        paginated_txns = query.paginate(page=page, per_page=per_page, error_out=False)
+        
+        # --- 格式化返回结果 (使用新的 Service 方法) ---
+        results = [service.serialize_transaction(txn) for txn in paginated_txns.items]
+
+        return jsonify({
+            'items': results,
+            'total': paginated_txns.total,
+            'page': paginated_txns.page,
+            'per_page': paginated_txns.per_page,
+            'pages': paginated_txns.pages,
+        })
+
+    except Exception as e:
+        current_app.logger.error(f"Failed to get outbound transactions: {e}", exc_info=True)
         return jsonify({"error": "Internal server error"}), 500
