@@ -2,7 +2,7 @@ import re
 from datetime import datetime
 from decimal import Decimal
 from flask import current_app
-from backend.models import db, BankTransaction, BankTransactionStatus, CustomerBill, PaymentRecord, PaymentStatus, User, BaseContract,PayerAlias,FinancialActivityLog,TransactionDirection, ServicePersonnel, EmployeePayroll, FinancialAdjustment, PayoutStatus, AdjustmentType
+from backend.models import db, BankTransaction, BankTransactionStatus, CustomerBill, PaymentRecord, PaymentStatus, User, BaseContract,PayerAlias,FinancialActivityLog,TransactionDirection, ServicePersonnel, EmployeePayroll, FinancialAdjustment, PayoutStatus, AdjustmentType, PermanentIgnoreList
 from sqlalchemy import and_, or_
 import traceback
 import decimal
@@ -851,6 +851,19 @@ class BankStatementService:
                 continue
 
             try:
+                # 检查是否在永久忽略名单中
+                ignore_rule = PermanentIgnoreList.query.filter_by(
+                    payer_name=parsed_data['payer_name'],
+                    direction=parsed_data['direction']
+                ).first()
+
+                status = BankTransactionStatus.UNMATCHED
+                ignore_remark = None
+
+                if ignore_rule:
+                    status = BankTransactionStatus.IGNORED
+                    ignore_remark = f"{ignore_rule.initial_remark or ''} (永久忽略)".strip()
+
                 bank_txn = BankTransaction(
                     transaction_id=parsed_data['transaction_id'],
                     transaction_time=parsed_data['transaction_time'],
@@ -859,7 +872,8 @@ class BankStatementService:
                     summary=parsed_data['summary'],
                     direction=parsed_data['direction'],
                     raw_text=parsed_data['raw_text'],
-                    status=BankTransactionStatus.UNMATCHED
+                    status=status,
+                    ignore_remark=ignore_remark
                 )
                 db.session.add(bank_txn)
                 new_imports += 1
@@ -1083,7 +1097,7 @@ class BankStatementService:
             current_app.logger.error(f"Allocation failed for txn {bank_transaction_id}: {e}", exc_info=True)
             return {"error": f"An unexpected error occurred: {str(e)}"}
 
-    def ignore_transaction(self, transaction_id: str, operator_id: str, remark: str = None) -> dict:
+    def ignore_transaction(self, transaction_id: str, operator_id: str, remark: str = None, is_permanent: bool = False) -> dict:
         bank_txn = BankTransaction.query.get(transaction_id)
         if not bank_txn:
             return {"error": "Bank transaction not found"}
@@ -1092,14 +1106,34 @@ class BankStatementService:
             return {"error": f"Transaction status is '{bank_txn.status.value}', cannot be ignored."}
 
         try:
+            final_remark = remark
+            if is_permanent:
+                # 检查是否已存在规则，防止重复
+                existing_rule = PermanentIgnoreList.query.filter_by(
+                    payer_name=bank_txn.payer_name,
+                    direction=bank_txn.direction
+                ).first()
+
+                if not existing_rule:
+                    new_rule = PermanentIgnoreList(
+                        payer_name=bank_txn.payer_name,
+                        direction=bank_txn.direction,
+                        initial_remark=remark,
+                        created_by_user_id=operator_id
+                    )
+                    db.session.add(new_rule)
+                
+                final_remark = f"{remark or ''} (永久忽略)".strip()
+
             bank_txn.status = BankTransactionStatus.IGNORED
-            bank_txn.ignore_remark = remark
+            bank_txn.ignore_remark = final_remark
             db.session.commit()
             return {"success": True, "message": "Transaction ignored."}
         except Exception as e:
             db.session.rollback()
             current_app.logger.error(f"Failed to ignore transaction {transaction_id}: {e}", exc_info=True)
-            return {"error": "An unexpected error occurred."}
+            return {"error": "An unexpected error occurred." }  
+                    
     def unignore_transaction(self, transaction_id: str, operator_id: str) -> dict:
         bank_txn = BankTransaction.query.get(transaction_id)
         if not bank_txn:
@@ -1109,12 +1143,28 @@ class BankStatementService:
             return {"error": f"Transaction status is '{bank_txn.status.value}', cannot be un-ignored."}
 
         try:
+            # 检查并删除永久忽略规则
+            rule_to_delete = PermanentIgnoreList.query.filter_by(
+                payer_name=bank_txn.payer_name,
+                direction=bank_txn.direction
+            ).first()
+
+            message = "Transaction un-ignored."
+            if rule_to_delete:
+                db.session.delete(rule_to_delete)
+                message = "Transaction un-ignored and permanent rule removed."
+
+            # 重置流水状态
             if bank_txn.allocated_amount > 0:
                 bank_txn.status = BankTransactionStatus.PARTIALLY_ALLOCATED
             else:
                 bank_txn.status = BankTransactionStatus.UNMATCHED
+            
+            # 清空忽略备注
+            bank_txn.ignore_remark = None
+
             db.session.commit()
-            return {"success": True, "message": "Transaction un-ignored."}
+            return {"success": True, "message": message}
         except Exception as e:
             db.session.rollback()
             current_app.logger.error(f"Failed to un-ignore transaction {transaction_id}: {e}", exc_info=True)
