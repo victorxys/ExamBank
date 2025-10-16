@@ -2093,6 +2093,31 @@ class PayerAlias(db.Model):
     def __repr__(self):
         return f'<PayerAlias "{self.payer_name}" -> Contract {self.contract_id}>'
 
+
+class PermanentIgnoreList(db.Model):
+    __tablename__ = 'permanent_ignore_list'
+    __table_args__ = (
+        db.UniqueConstraint('payer_name', 'direction', name='uq_payer_name_direction'),
+        {'comment': '永久忽略名单'}
+    )
+
+    id = db.Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    payer_name = db.Column(db.String(255), nullable=False, index=True, comment="要忽略的收/付款方名称")
+    direction = db.Column(
+        SAEnum(TransactionDirection, name="transactiondirection_permanent_ignore"),
+        nullable=False,
+        index=True,
+        comment="交易方向 (CREDIT/DEBIT)"
+    )
+    initial_remark = db.Column(db.Text, nullable=True, comment="首次忽略时填写的原始原因")
+    created_by_user_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('user.id', ondelete="SET NULL"), nullable=True)
+    created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
+
+    created_by = db.relationship('User')
+
+    def __repr__(self):
+        return f'<PermanentIgnoreList {self.payer_name} ({self.direction.name})>'
+
 class MonthlyStatement(db.Model):
     __tablename__ = 'monthly_statements'
     __table_args__ = (

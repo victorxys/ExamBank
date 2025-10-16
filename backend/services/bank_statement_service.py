@@ -559,13 +559,15 @@ class BankStatementService:
                     "matched_bill": self._format_bill(unpaid_bills[0], txn.id),
                     "matched_by": "alias" if alias else "name"
                 })
-            elif len(unpaid_bills) > 1:
+            else: # Covers len(unpaid_bills) == 0 and len(unpaid_bills) > 1
+                # 只要能识别出合同，就说明客户是已知的
+                customer_name = contracts[0].customer_name
                 categorized_results["manual_allocation"].append({
                     **self._format_txn(txn),
-                    "unpaid_bills": [self._format_bill(b, txn.id) for b in unpaid_bills]
+                    "unpaid_bills": [self._format_bill(b, txn.id) for b in unpaid_bills],
+                    "customer_name": customer_name,  # 明确附加客户名称
+                    "matched_by": "alias" if alias else "name" # 附加匹配方式
                 })
-            else: # len(unpaid_bills) == 0
-                categorized_results["unmatched"].append(self._format_txn(txn))
 
         for txn in ignored_txns:
             categorized_results["ignored"].append(self._format_txn(txn))

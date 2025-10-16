@@ -5105,50 +5105,83 @@ def get_unpaid_bills_by_customer():
         # 查找该客户名下的所有合同
         contracts = BaseContract.query.filter_by(customer_name=customer_name).all()
         if not contracts:
-            return jsonify([])
+            return jsonify({"bills": [], "closest_bill_period": None})
 
         contract_ids = [c.id for c in contracts]
 
         # 查找这些合同在指定年月下所有未付清的账单
-        unpaid_bills = CustomerBill.query.filter(
+        unpaid_bills_in_period = CustomerBill.query.filter(
             CustomerBill.contract_id.in_(contract_ids),
             CustomerBill.year == year,
             CustomerBill.month == month,
-            CustomerBill.total_due > 0
+            CustomerBill.total_due > CustomerBill.total_paid
         ).all()
 
-        results = []
-        for bill in unpaid_bills:
-            payments = []
-            for pr in bill.payment_records:
-                if pr.bank_transaction:
-                    payments.append({
-                        'payer_name': pr.bank_transaction.payer_name,
-                        'amount': str(pr.amount)
-                    })
+        if unpaid_bills_in_period:
+            results = []
+            for bill in unpaid_bills_in_period:
+                payments = []
+                for pr in bill.payment_records:
+                    if pr.bank_transaction:
+                        payments.append({
+                            'payer_name': pr.bank_transaction.payer_name,
+                            'amount': str(pr.amount)
+                        })
 
-            results.append({
-                "id": str(bill.id),
-                "contract_id": str(bill.contract_id),
-                "customer_name": bill.contract.customer_name,
-                "employee_name": bill.contract.service_personnel.name if bill.contract.service_personnel else (bill.contract.user.username if bill.contract.user else "未知"),
-                "cycle": f"{bill.cycle_start_date.strftime('%Y-%m-%d')} to {bill.cycle_end_date.strftime('%Y-%m-%d')}",
-                "bill_month": bill.month,
-                "year": bill.year,
-                "total_due": str(bill.total_due),
-                "total_paid": str(bill.total_paid),
-                "amount_remaining": str(bill.total_due - bill.total_paid),
-                "payments": payments
-            })
+                results.append({
+                    "id": str(bill.id),
+                    "contract_id": str(bill.contract_id),
+                    "customer_name": bill.contract.customer_name,
+                    "employee_name": bill.contract.service_personnel.name if bill.contract.service_personnel else (bill.contract.user.username if bill.contract.user else "未知"),
+                    "cycle": f"{bill.cycle_start_date.strftime('%Y-%m-%d')} to {bill.cycle_end_date.strftime('%Y-%m-%d')}",
+                    "bill_month": bill.month,
+                    "year": bill.year,
+                    "total_due": str(bill.total_due),
+                    "total_paid": str(bill.total_paid),
+                    "amount_remaining": str(bill.total_due - bill.total_paid),
+                    "payments": payments
+                })
 
-        # 按“待付金额”倒序排序
-        sorted_results = sorted(
-            results,
-            key=lambda x: Decimal(x['amount_remaining']),
-            reverse=True
-        )
-        
-        return jsonify(sorted_results)
+            sorted_results = sorted(
+                results,
+                key=lambda x: Decimal(x['amount_remaining']),
+                reverse=True
+            )
+            return jsonify({"bills": sorted_results, "closest_bill_period": None})
+        else:
+            # 当月无账单，查找最近的未付账单
+            all_unpaid_bills = CustomerBill.query.filter(
+                CustomerBill.contract_id.in_(contract_ids),
+                CustomerBill.total_due > CustomerBill.total_paid
+            ).all()
+
+            if not all_unpaid_bills:
+                current_app.logger.info(f"[DEBUG] No unpaid bills found at all. Returning empty with contract context.")
+                # 客户有合同，但没有任何未付账单。提供一个合同ID给前端用于“查看合同”。
+                latest_contract = sorted(contracts, key=lambda c: c.start_date, reverse=True)[0]
+                return jsonify({"bills": [], "closest_bill_period": None, "relevant_contract_id": str(latest_contract.id)})
+
+            closest_bill = None
+            min_abs_distance = float('inf')
+
+            for bill in all_unpaid_bills:
+                distance = (bill.year - year) * 12 + (bill.month - month)
+                abs_distance = abs(distance)
+
+                if abs_distance < min_abs_distance:
+                    min_abs_distance = abs_distance
+                    closest_bill = bill
+                elif abs_distance == min_abs_distance:
+                    # 距离相同时，优先选择过去的账单
+                    if distance < 0:
+                        closest_bill = bill
+
+            closest_bill_period = {
+                "year": closest_bill.year,
+                "month": closest_bill.month
+            } if closest_bill else None
+
+            return jsonify({"bills": [], "closest_bill_period": closest_bill_period})
 
     except Exception as e:
         current_app.logger.error(f"Failed to get unpaid bills for {customer_name}: {e}", exc_info=True)
