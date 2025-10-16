@@ -510,19 +510,24 @@ class BankStatementService:
             if txn.status == BankTransactionStatus.PARTIALLY_ALLOCATED:
                 contract = self._find_contract_for_txn(txn)
                 unpaid_bills = []
+                customer_name = None
                 if contract:
+                    customer_name = contract.customer_name
                     unpaid_bills = CustomerBill.query.filter(
                         CustomerBill.contract_id == contract.id,
-                        CustomerBill.total_due > 0,
-                        or_(
-                            CustomerBill.payment_status == PaymentStatus.UNPAID,
-                            CustomerBill.payment_status == PaymentStatus.PARTIALLY_PAID
-                        )
+                        CustomerBill.total_due > CustomerBill.total_paid,
                     ).all()
                 
+                # 判断是否为代付
+                matched_by = 'name'
+                if customer_name and txn.payer_name != customer_name:
+                    matched_by = 'alias'
+
                 categorized_results["manual_allocation"].append({
                     **self._format_txn(txn),
-                    "unpaid_bills": [self._format_bill(b, txn.id) for b in unpaid_bills]
+                    "unpaid_bills": [self._format_bill(b, txn.id) for b in unpaid_bills],
+                    "customer_name": customer_name,
+                    "matched_by": matched_by
                 })
                 continue
 

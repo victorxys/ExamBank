@@ -2,6 +2,7 @@ from flask import Blueprint, jsonify, request, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from backend.models import db, BankTransaction, BankTransactionStatus, TransactionDirection
 from backend.services.bank_statement_service import BankStatementService
+from backend.api.billing_api import delete_payment_record as delete_payment_record_from_billing # 导入目标函数
 from sqlalchemy import or_, and_, extract
 import io
 import csv
@@ -96,6 +97,16 @@ def post_bank_statement():
     except Exception as e:
         current_app.logger.error(f"Failed to process statement: {e}", exc_info=True)
         return jsonify({"error": str(e)}), 500
+
+
+# 为前端错误的URL /api/payment-records/ 创建一个别名路由
+@bank_statement_api.route("/api/payment-records/<uuid:payment_id>", methods=["DELETE", "OPTIONS"])
+@jwt_required()
+def handle_delete_payment_record_alias(payment_id):
+    """这是一个别名路由，用于处理前端错误的API调用，将请求转发到正确的函数。"""
+    if request.method == 'OPTIONS':
+        return jsonify({'status': 'ok'}), 200
+    return delete_payment_record_from_billing(payment_id)
 
 @bank_statement_api.route('/api/bank-transactions/<bank_transaction_id>/allocate', methods=['POST'])
 @jwt_required()
