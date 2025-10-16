@@ -1098,22 +1098,20 @@ class BankStatementService:
             return {"error": f"An unexpected error occurred: {str(e)}"}
 
     def ignore_transaction(self, transaction_id: str, operator_id: str, remark: str = None, is_permanent: bool = False) -> dict:
+        # 1. 获取主操作流水
         bank_txn = BankTransaction.query.get(transaction_id)
         if not bank_txn:
             return {"error": "Bank transaction not found"}
-
         if bank_txn.status not in [BankTransactionStatus.UNMATCHED, BankTransactionStatus.PARTIALLY_ALLOCATED]:
             return {"error": f"Transaction status is '{bank_txn.status.value}', cannot be ignored."}
-
         try:
+            # 2. 准备忽略原因和永久规则
             final_remark = remark
             if is_permanent:
-                # 检查是否已存在规则，防止重复
                 existing_rule = PermanentIgnoreList.query.filter_by(
                     payer_name=bank_txn.payer_name,
                     direction=bank_txn.direction
                 ).first()
-
                 if not existing_rule:
                     new_rule = PermanentIgnoreList(
                         payer_name=bank_txn.payer_name,
@@ -1121,18 +1119,39 @@ class BankStatementService:
                         initial_remark=remark,
                         created_by_user_id=operator_id
                     )
-                    db.session.add(new_rule)
-                
+                db.session.add(new_rule)
+            
                 final_remark = f"{remark or ''} (永久忽略)".strip()
-
+            # 3. 查找当月所有其他符合条件的流水
+            txn_month = bank_txn.transaction_time.month
+            txn_year = bank_txn.transaction_time.year
+            other_txns_to_ignore = BankTransaction.query.filter(
+                BankTransaction.id != transaction_id, # 排除当前操作的流水
+                BankTransaction.payer_name == bank_txn.payer_name,
+                BankTransaction.direction == bank_txn.direction,
+                db.extract('year', BankTransaction.transaction_time) == txn_year,
+                db.extract('month', BankTransaction.transaction_time) == txn_month,
+                BankTransaction.status.in_([
+                    BankTransactionStatus.UNMATCHED, 
+                    BankTransactionStatus.PARTIALLY_ALLOCATED
+                ])
+            ).all()
+            # 4. 忽略主操作流水
             bank_txn.status = BankTransactionStatus.IGNORED
             bank_txn.ignore_remark = final_remark
+            
+            # 5. 忽略所有其他找到的流水
+            for txn in other_txns_to_ignore:
+                txn.status = BankTransactionStatus.IGNORED
+                txn.ignore_remark = final_remark
+            total_ignored = len(other_txns_to_ignore) + 1
+            current_app.logger.info(f"Ignoring {total_ignored} transactions for payer '{bank_txn.payer_name}' in {txn_year}-{txn_month}.")
             db.session.commit()
-            return {"success": True, "message": "Transaction ignored."}
+            return {"success": True, "message": f"{total_ignored} transaction(s) ignored."}
         except Exception as e:
             db.session.rollback()
             current_app.logger.error(f"Failed to ignore transaction {transaction_id}: {e}", exc_info=True)
-            return {"error": "An unexpected error occurred." }  
+            return {"error": "An unexpected error occurred."}  
                     
     def unignore_transaction(self, transaction_id: str, operator_id: str) -> dict:
         bank_txn = BankTransaction.query.get(transaction_id)

@@ -288,9 +288,9 @@ const TransactionDetailsPanel = ({
         if (!transaction) return;
         setIsSaving(true);
         try {
-            await reconciliationApi.ignoreTransaction(transaction.id, { remark, is_permanent: isPermanent });
-            setAlertInfo({ open: true, message: '流水已忽略', severity: 'success' });
-            onStatusUpdate(transaction.id, category, 'ignored');
+            const response = await reconciliationApi.ignoreTransaction(transaction.id, { remark, is_permanent: isPermanent });
+            setAlertInfo({ open: true, message: response.data.message || '流水已忽略', severity: 'success' });
+            onAllocationSuccess(); // 改为调用softRefresh来完全更新UI
         } catch (err) {
             setAlertInfo({ open: true, message: `操作失败: ${err.message}`, severity: 'error' });
         } finally {
