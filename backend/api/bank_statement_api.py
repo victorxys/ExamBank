@@ -131,8 +131,10 @@ def ignore_transaction_route(bank_transaction_id):
     operator_id = get_jwt_identity()
     data = request.get_json() or {}
     remark = data.get("remark")
+    is_permanent = data.get("is_permanent", False) # 从请求中读取标志
     service = BankStatementService()
-    result = service.ignore_transaction(bank_transaction_id, operator_id, remark=remark)
+    # 将标志传递给服务层
+    result = service.ignore_transaction(bank_transaction_id, operator_id, remark=remark, is_permanent=is_permanent)
     if result.get("error"):
         return jsonify(result), 400
     return jsonify(result), 200
@@ -312,3 +314,17 @@ def get_outbound_transactions():
     except Exception as e:
         current_app.logger.error(f"Failed to get outbound transactions: {e}", exc_info=True)
         return jsonify({"error": "Internal server error"}), 500
+
+@bank_statement_api.route('/api/bank-statement/reconcile', methods=['POST'])
+@jwt_required()
+def post_pasted_statement():
+    data = request.get_json()
+    # 根据日志，前端发送的是一个包含 statement_lines 键的对象
+    lines = data.get('statement_lines') 
+    if not lines or not isinstance(lines, list):
+        return jsonify({"error": "Request body must be a JSON object with a 'statement_lines' array."}), 400
+    
+    operator_id = get_jwt_identity()
+    service = BankStatementService()
+    result = service.parse_and_store_statement(lines, operator_id)
+    return jsonify(result), 200
