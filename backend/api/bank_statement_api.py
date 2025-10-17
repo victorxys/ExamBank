@@ -41,10 +41,22 @@ def get_payable_items_route():
     service = BankStatementService()
     year = request.args.get('year', type=int)
     month = request.args.get('month', type=int)
+    
+    # --- NEW: Check for payee-specific filtering ---
+    payee_type = request.args.get('payee_type', type=str)
+    payee_id = request.args.get('payee_id', type=str)
+
     if not year or not month:
         return jsonify({"error": "Year and month are required"}), 400
+
     try:
-        items = service.get_payable_items(year, month)
+        if payee_type and payee_id:
+            # If payee info is provided, get items for that specific payee
+            items = service.get_payable_items_for_payee(payee_type, payee_id, year, month)
+        else:
+            # Otherwise, get all payable items for the month
+            items = service.get_payable_items(year, month)
+        
         return jsonify(items)
     except Exception as e:
         current_app.logger.error(f"Failed to get payable items: {e}", exc_info=True)

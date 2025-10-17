@@ -3,7 +3,7 @@
 from flask import current_app
 from datetime import date, datetime
 import decimal
-
+from flask_jwt_extended import get_jwt_identity
 from backend.models import (
     db,
     CustomerBill,
@@ -13,6 +13,7 @@ from backend.models import (
     NannyContract,
     MaternityNurseContract,
     NannyTrialContract,
+    FinancialActivityLog,
 )
 from backend.services.billing_engine import BillingEngine
 
@@ -407,3 +408,27 @@ def get_billing_details_internal(
         "has_prev_bill": has_prev_bill,
         "has_next_bill": has_next_bill
     }
+
+def _log_activity(bill, payroll, action, details=None, contract=None):
+    """
+    记录一条财务活动日志。
+    """
+    user_id = get_jwt_identity()
+
+    final_contract_id = None
+    if contract:
+        final_contract_id = contract.id
+    elif bill and hasattr(bill, 'contract_id'):
+        final_contract_id = bill.contract_id
+    elif payroll and hasattr(payroll, 'contract_id'):
+        final_contract_id = payroll.contract_id
+
+    log = FinancialActivityLog(
+        customer_bill_id=bill.id if bill else None,
+        employee_payroll_id=payroll.id if payroll else None,
+        contract_id=final_contract_id,
+        user_id=user_id,
+        action=action,
+        details=details,
+    )
+    db.session.add(log)

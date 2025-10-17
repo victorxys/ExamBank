@@ -23,7 +23,9 @@ from backend.models import (
     InvoiceRecord,
     PaymentRecord,
     PaymentStatus,
+    PayoutStatus,
     TrialOutcome,
+    PayoutRecord,
 )
 
 from sqlalchemy import func, or_
@@ -61,6 +63,29 @@ def _update_bill_payment_status(bill: CustomerBill):
 
     db.session.add(bill)
     current_app.logger.info(f"Updated bill {bill.id} status to {bill.payment_status.value} with total_paid {bill.total_paid}")
+
+def _update_payroll_payout_status(payroll: EmployeePayroll):
+    """
+    根据一个薪酬单的所有支付记录，更新其 total_paid_out 和 payout_status.
+    """
+    if not payroll:
+        return
+
+    total_paid_out = db.session.query(func.sum(PayoutRecord.amount)).filter(
+        PayoutRecord.employee_payroll_id == payroll.id
+    ).scalar() or D(0)
+
+    payroll.total_paid_out = total_paid_out.quantize(D("0.01"))
+
+    if payroll.total_paid_out <= 0:
+        payroll.payout_status = PayoutStatus.UNPAID
+    elif payroll.total_paid_out < payroll.total_due:
+        payroll.payout_status = PayoutStatus.PARTIALLY_PAID
+    else: # total_paid_out >= payroll.total_due
+        payroll.payout_status = PayoutStatus.PAID
+
+    db.session.add(payroll)
+    current_app.logger.info(f"Updated payroll {payroll.id} status to {payroll.payout_status.value} with total_paid_out {payroll.total_paid_out}")
 
 class BillingEngine:
     def _to_date(self, dt_obj):

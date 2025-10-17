@@ -27,9 +27,9 @@ export const reconciliationApi = {
         });
     },
 
-    getPayableItems: ({ year, month }) => {
+    getPayableItems: ({ year, month, payee_type, payee_id }) => {
         return api.get('/payable-items', {
-            params: { year, month }
+            params: { year, month, payee_type, payee_id }
         });
     },
 

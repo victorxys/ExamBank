@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { reconciliationApi } from '../api/reconciliationApi';
+import api from '../api/axios';
 import PageHeader from './PageHeader';
 import AlertMessage from './AlertMessage';
+import FinancialManagementModal from './FinancialManagementModal';
 import { Decimal } from 'decimal.js';
 import { pinyin } from 'pinyin-pro';
 
@@ -10,14 +12,17 @@ import {
     Box, Button, Card, CardContent, CardHeader, CircularProgress, Grid, MenuItem,
     Typography, List, ListItem, ListItemText, ListItemButton, Divider, Select, Autocomplete,
     Dialog, DialogTitle, DialogContent, DialogActions, TextField, Alert, FormControl, InputLabel,
-    Tabs, Tab, Paper, Stack, Tooltip, IconButton, Chip, Avatar
+    Tabs, Tab, Paper, Stack, Tooltip, IconButton, Chip, Avatar,
+    FormControlLabel, Checkbox
 } from '@mui/material';
 import {
     ContentCopy as ContentCopyIcon,
     AccountBalanceWallet as AccountBalanceWalletIcon,
     PlaylistAddCheck as PlaylistAddCheckIcon,
     HourglassEmpty as HourglassEmptyIcon,
-    Block as BlockIcon
+    Block as BlockIcon,
+    ArrowBackIosNew as ArrowBackIosNewIcon,
+    ArrowForwardIos as ArrowForwardIosIcon
 } from '@mui/icons-material';
 import { useTheme, alpha } from '@mui/material/styles';
 
@@ -28,12 +33,43 @@ const formatCurrency = (value) => {
 
 const IgnoreRemarkDialog = ({ open, onClose, onSubmit }) => {
     const [remark, setRemark] = useState('');
-    const handleSubmit = () => { onSubmit(remark); setRemark(''); onClose(); };
+    const [isPermanent, setIsPermanent] = useState(false);
+
+    const handleSubmit = () => {
+        onSubmit(remark, isPermanent);
+        setRemark('');
+        setIsPermanent(false);
+        onClose();
+    };
+
     return (
         <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
             <DialogTitle>忽略流水</DialogTitle>
             <DialogContent>
-                <TextField autoFocus margin="dense" label="忽略原因（选填）" fullWidth multiline rows={4} variant="outlined" value={remark} onChange={(e) => setRemark(e.target.value)} />
+                <TextField
+                    autoFocus
+                    margin="dense"
+                    id="ignore-remark"
+                    label="忽略原因（选填）"
+                    fullWidth
+                    multiline
+                    rows={4}
+                    variant="outlined"
+                    placeholder="请填写忽略这笔流水的原因，例如：测试流水、重复流水等。"
+                    value={remark}
+                    onChange={(e) => setRemark(e.target.value)}
+                />
+                <FormControlLabel
+                    control={
+                        <Checkbox
+                            checked={isPermanent}
+                            onChange={(e) => setIsPermanent(e.target.checked)}
+                            name="permanentIgnore"
+                            color="primary"
+                        />
+                    }
+                    label="永久忽略此收款人"
+                />
             </DialogContent>
             <DialogActions>
                 <Button onClick={onClose}>取消</Button>
@@ -43,7 +79,7 @@ const IgnoreRemarkDialog = ({ open, onClose, onSubmit }) => {
     );
 };
 
-const OutboundDetailsPanel = ({ transaction, category, onAllocationSuccess, setAlertInfo, accountingPeriod,onStatusUpdate }) => {
+const OutboundDetailsPanel = ({ transaction, category, onAllocationSuccess, setAlertInfo, accountingPeriod, onStatusUpdate, onOpenBillModal }) => {
     const [allocations, setAllocations] = useState({});
     const [isSaving, setIsSaving] = useState(false);
     const [isIgnoreDialogOpen, setIsIgnoreDialogOpen] = useState(false);
@@ -52,8 +88,58 @@ const OutboundDetailsPanel = ({ transaction, category, onAllocationSuccess, setA
     const [searchResults, setSearchResults] = useState([]);
     const [isSearching, setIsSearching] = useState(false);
     const [selectedPayable, setSelectedPayable] = useState(null);
+    
     const [payableItems, setPayableItems] = useState([]);
-    const [loadingPayables, setLoadingPayables] = useState(false);
+    const [isLoadingPayables, setIsLoadingPayables] = useState(false);
+    const [operationPeriod, setOperationPeriod] = useState(accountingPeriod);
+    const [closestItemInfo, setClosestItemInfo] = useState(null);
+    const [relevantContractId, setRelevantContractId] = useState(null);
+
+    useEffect(() => {
+        setOperationPeriod(accountingPeriod);
+    }, [accountingPeriod]);
+
+    useEffect(() => {
+        setAllocations({});
+        setSearchTerm('');
+        setSearchResults([]);
+        setSelectedPayable(null);
+        setOperationPeriod(accountingPeriod);
+    }, [transaction, category, accountingPeriod]);
+
+    useEffect(() => {
+        if (transaction && category === 'manual_allocation' && transaction.payee_info) {
+            setIsLoadingPayables(true);
+            const params = {
+                ...operationPeriod,
+                payee_type: transaction.payee_info.type,
+                payee_id: transaction.payee_info.id,
+            };
+
+            reconciliationApi.getPayableItems(params)
+                .then(response => {
+                    const { items, closest_item_period, relevant_contract_id } = response.data;
+                    setPayableItems(items || []);
+                    setClosestItemInfo(closest_item_period);
+                    setRelevantContractId(relevant_contract_id);
+                })
+                .catch(err => setAlertInfo({ open: true, message: '获取待支付项目失败', severity: 'error' }))
+                .finally(() => setIsLoadingPayables(false));
+        } else {
+            setPayableItems([]);
+            setClosestItemInfo(null);
+            setRelevantContractId(null);
+        }
+    }, [transaction, category, operationPeriod, setAlertInfo]);
+
+
+    const handleMonthChange = (delta) => {
+        const newDate = new Date(operationPeriod.year, operationPeriod.month - 1 + delta);
+        setOperationPeriod({
+            year: newDate.getFullYear(),
+            month: newDate.getMonth() + 1,
+        });
+    };
 
     const handleConfirmSuggestion = async () => {
         if (!transaction?.matched_item) return;
@@ -72,60 +158,12 @@ const OutboundDetailsPanel = ({ transaction, category, onAllocationSuccess, setA
         }
     };
 
-    useEffect(() => {
-        setAllocations({});
-        setSearchTerm('');
-        setSearchResults([]);
-        setSelectedPayable(null);
-
-        // Case 1: A partially allocated item is selected. It has a pre-filtered list of payables.
-        if (transaction && transaction.payable_items) {
-            setPayableItems(transaction.payable_items);
-
-        // Case 2: The "Manual Allocation" tab is active, but the selected item doesn't have a pre-filtered list.
-        // Fetch all payables for the month as a fallback.
-        } else if (transaction && category === 'manual_allocation') {
-            setLoadingPayables(true);
-            reconciliationApi.getPayableItems(accountingPeriod)
-                .then(response => setPayableItems([...response.data.payrolls, ...response.data.adjustments]))
-                .catch(err => setAlertInfo({ open: true, message: '获取待支付项目失败', severity: 'error' }))
-                .finally(() => setLoadingPayables(false));
-        } else {
-            setPayableItems([]);
-        }
-    }, [transaction, category, accountingPeriod, setAlertInfo]);
-
-    useEffect(() => {
-        if (!searchTerm) {
-            setSearchResults([]);
-            return;
-        }
-        setIsSearching(true);
-        const timer = setTimeout(() => {
-            reconciliationApi.searchPayableItems(searchTerm)
-                .then(res => {
-                    const uniqueResults = [];
-                    const seenIds = new Set();
-                    (res.data.results || []).forEach(item => {
-                        if (!seenIds.has(item.id)) {
-                            seenIds.add(item.id);
-                            uniqueResults.push(item);
-                        }
-                    });
-                    setSearchResults(uniqueResults);
-                })
-                .catch(err => console.error("Search failed:", err))
-                .finally(() => setIsSearching(false));
-        }, 500);
-        return () => clearTimeout(timer);
-    }, [searchTerm]);
-
     const handleAllocationChange = (targetId, value) => {
         setAllocations(prev => ({ ...prev, [targetId]: value }));
     };
 
     const handleSave = async () => {
-        const itemsToProcess = category === 'unmatched' ? (selectedPayable ? [selectedPayable] : []) :payableItems;
+        const itemsToProcess = category === 'unmatched' ? (selectedPayable ? [selectedPayable] : []) : payableItems;
         const allocationsPayload = Object.entries(allocations)
             .map(([target_id, amount]) => {
                 const item = itemsToProcess.find(p => p.target_id === target_id || p.id === target_id);
@@ -169,13 +207,13 @@ const OutboundDetailsPanel = ({ transaction, category, onAllocationSuccess, setA
         }
     };
 
-    const handleIgnore = async (remark) => {
+    const handleConfirmIgnore = async (remark, isPermanent) => {
         if (!transaction) return;
         setIsSaving(true);
         try {
-            await reconciliationApi.ignoreTransaction(transaction.id, { remark });
-            setAlertInfo({ open: true, message: '流水已忽略', severity: 'success' });
-            onStatusUpdate(transaction.id, category, 'ignored');
+            const response = await reconciliationApi.ignoreTransaction(transaction.id, { remark, is_permanent: isPermanent });
+            setAlertInfo({ open: true, message: response.data.message || '流水已忽略', severity: 'success' });
+            onAllocationSuccess();
         } catch (err) {
             setAlertInfo({ open: true, message: `操作失败: ${err.message}`, severity: 'error' });
         } finally {
@@ -188,10 +226,9 @@ const OutboundDetailsPanel = ({ transaction, category, onAllocationSuccess, setA
         if (!transaction) return;
         setIsSaving(true);
         try {
-            await reconciliationApi.unignoreTransaction(transaction.id);
-            setAlertInfo({ open: true, message: '已撤销忽略', severity: 'success' });
-            const targetCategory = transaction.allocated_amount > 0 ? 'manual_allocation' : 'unmatched';
-            onStatusUpdate(transaction.id, 'ignored', targetCategory);
+            const response = await reconciliationApi.unignoreTransaction(transaction.id);
+            setAlertInfo({ open: true, message: response.data.message || '已撤销忽略', severity: 'success' });
+            onAllocationSuccess();
         } catch (err) {
             setAlertInfo({ open: true, message: `操作失败: ${err.message}`, severity: 'error' });
         } finally {
@@ -204,14 +241,75 @@ const OutboundDetailsPanel = ({ transaction, category, onAllocationSuccess, setA
     const totalAllocatedInSession = Object.values(allocations).reduce((sum, amount) => sum.plus(new Decimal(amount|| 0)), new Decimal(0));
     const remainingAmount = totalTxnAmount.minus(alreadyAllocated).minus(totalAllocatedInSession);
 
+    const handleSmartFill = (billId, type) => {
+        const otherAllocationsInSession = Object.entries(allocations)
+            .filter(([key,]) => key !== String(billId))
+            .reduce((sum, [, amount]) => sum.plus(new Decimal(amount || 0)), new Decimal(0));
+
+        const fillableAmount = totalTxnAmount.minus(alreadyAllocated).minus(otherAllocationsInSession);
+
+        if (fillableAmount.lte(0)) {
+            setAlertInfo({ open: true, message: '没有足够的剩余金额进行分配', severity: 'info' });
+            return;
+        }
+
+        const bill = payableItems.find(b => b.id === billId);
+        if (!bill) return;
+
+        const amountRemainingOnBill = new Decimal(bill.amount_remaining || 0);
+        let finalFillAmount;
+
+        if (type === 'full') {
+            finalFillAmount = Decimal.min(fillableAmount, amountRemainingOnBill);
+        } else { // 'remaining'
+            finalFillAmount = fillableAmount;
+        }
+
+        handleAllocationChange(billId, finalFillAmount.toFixed(2));
+    };
+
+    const getBillMonthChipProps = (item) => {
+        const isCurrent = item.year === accountingPeriod.year && item.month === accountingPeriod.month;
+        if (isCurrent) {
+            return { color: 'primary', variant: 'filled', sx: { ml: 1 } };
+        } else {
+            return { color: 'warning', variant: 'filled', sx: { ml: 1 } };
+        }
+    };
+
     const renderAllocationUI = (items) => (
         <Stack spacing={2}>
-            {items.map(item => (
-                <Paper key={item.target_id || item.id} variant="outlined" sx={{ p: 2 }}>
-                    <Typography variant="body1" fontWeight="bold">{item.display_name || item.display}</Typography>
-                    <Grid container spacing={2} alignItems="center" sx={{ mt: 1 }}>
-                        <Grid item xs={6}><Typography variant="body2">待付: ¥{formatCurrency(item.amount_due)}</Typography></Grid>
-                        <Grid item xs={6}><TextField label="本次分配" size="small" type="number" value={allocations[item.target_id || item.id] || ''} onChange={e => handleAllocationChange(item.target_id || item.id,e.target.value)} /></Grid>
+            {items.map((item, index) => (
+                <Paper key={item.id} variant="outlined" sx={{ p: 2 }}>
+                     <Grid container spacing={2} alignItems="center">
+                        <Grid item xs={12} md={6}>
+                            <Box>
+                                <Typography variant="body1" component="div" sx={{ display: 'flex', alignItems: 'center' }}>
+                                    {item.display_name}
+                                    {item.month && (
+                                        <Chip label={`${item.month}月账单`} size="small" {...getBillMonthChipProps(item)} />
+                                    )}
+                                </Typography>
+                                <Typography variant="body2" color="text.secondary">{item.cycle}</Typography>
+                            </Box>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
+                                <TextField type="number" size="small" sx={{ width: '130px' }} placeholder="0.00" value={allocations[item.id] || ''} onChange={(e) => handleAllocationChange(item.id, e.target.value)} InputProps={{ startAdornment: <Typography component="span" sx={{ mr: 1 }}>¥</Typography>}} />
+                                <Button size="small" variant="outlined" onClick={() => handleSmartFill(item.id, 'full')}>自动</Button>
+                                {index === items.length - 1 && (
+                                    <Button size="small" variant="outlined" onClick={() => handleSmartFill(item.id, 'remaining')}>剩余</Button>
+                                )}
+                            </Box>
+                        </Grid>
+                        <Grid item xs={12} md={4}>
+                            <Box sx={{ fontFamily: 'monospace', textAlign: 'left' }}>
+                                <Typography variant="body2">应付: ¥{formatCurrency(item.total_due)}</Typography>
+                                <Typography variant="body2" color="text.secondary">已付: ¥{formatCurrency(item.total_paid)}</Typography>
+                                <Typography variant="body2" fontWeight="bold" color="error.main">待付: ¥{formatCurrency(item.amount_remaining)}</Typography>
+                            </Box>
+                        </Grid>
+                        <Grid item xs={12} md={2} sx={{ textAlign: 'right' }}>
+                            <Button variant="outlined" size="small" onClick={() => onOpenBillModal(item)}>查看账单</Button>
+                        </Grid>
                     </Grid>
                 </Paper>
             ))}
@@ -235,55 +333,62 @@ const OutboundDetailsPanel = ({ transaction, category, onAllocationSuccess, setA
                     </Box>
                 );
             case 'manual_allocation':
-                const existingAllocs = transaction.allocations || [];
                 const hasPayableItems = payableItems && payableItems.length > 0;
 
                 return (
                     <Box>
-                        {existingAllocs.length > 0 && (
-                            <Box mb={hasPayableItems ? 3 : 0}>
-                                <Typography variant="subtitle2" gutterBottom sx={{ color: 'text.secondary', borderBottom: 1, borderColor: 'divider', pb: 1, mb: 2 }}>已分配项</Typography>
-                                <List dense disablePadding>
-                                    {existingAllocs.map((alloc, index) => (
-                                        <ListItem key={index} sx={{ pl: 0 }}>
-                                            <ListItemText
-                                                primary={alloc.display_name}
-                                                secondary={
-                                                    <Typography variant="body2" color="text.secondary">
-                                                        {`本次已分配: `}
-                                                        <Typography component="span" variant="body2" fontWeight="bold" color="success.main">
-                                                            ¥{formatCurrency(alloc.allocated_amount_from_this_txn)}
-                                                        </Typography>
-                                                    </Typography>
-                                                }
-                                            />
-                                        </ListItem>
-                                    ))}
-                                </List>
+                         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <Typography variant="h6">
+                                    收款人: {transaction.payee_info?.name}
+                                </Typography>
+                                {transaction.matched_by === 'alias' && (
+                                    <Chip label="代收" color="secondary" size="small" />
+                                )}
                             </Box>
-                        )}
-
-                        {loadingPayables && <CircularProgress />}
-
-                        {!loadingPayables && hasPayableItems && (
-                            <Box mt={existingAllocs.length > 0 ? 3 : 0}>
-                                <Typography variant="subtitle2" gutterBottom sx={{ color: 'text.secondary', borderBottom: 1, borderColor: 'divider', pb: 1, mb: 2 }}>可分配项</Typography>
-                                {renderAllocationUI(payableItems)}
+                            <Box>
+                                <IconButton onClick={() => handleMonthChange(-1)} size="small"><ArrowBackIosNewIcon fontSize="inherit" /></IconButton>
+                                <Typography component="span" variant="subtitle1" sx={{ mx: 1 }}>{operationPeriod.year}年{operationPeriod.month}月</Typography>
+                                <IconButton onClick={() => handleMonthChange(1)} size="small"><ArrowForwardIosIcon fontSize="inherit" /></IconButton>
                             </Box>
-                        )}
+                        </Box>
 
-                        {!loadingPayables && !hasPayableItems && existingAllocs.length === 0 && (
-                            <Alert severity="info">没有找到可供分配的付款项目。</Alert>
-                        )}
+                        {isLoadingPayables ? <CircularProgress /> :
+                            hasPayableItems ? (
+                                <Box>
+                                    <Typography variant="subtitle2" gutterBottom sx={{ color: 'text.secondary', borderBottom: 1, borderColor: 'divider', pb: 1, mb: 2 }}>可分配项</Typography>
+                                    {renderAllocationUI(payableItems)}
+                                </Box>
+                            ) : (
+                                <Box sx={{ p: 3, textAlign: 'center', color: 'text.secondary' }}>
+                                    <Typography>
+                                        在 {operationPeriod.year}年{operationPeriod.month}月 未找到该收款人的待付款项。
+                                    </Typography>
+                                    {closestItemInfo ? (
+                                        <Typography variant="body2" sx={{ mt: 1 }}>
+                                            此收款人最近一笔待付款项在 {closestItemInfo.year}年{closestItemInfo.month}月。
+                                        </Typography>
+                                    ) : relevantContractId ? (
+                                        <Typography variant="body2" sx={{ mt: 1 }}>
+                                            当前收款人只有合同没有待付款项, 点击
+                                            <Button 
+                                                variant="text" 
+                                                size="small"
+                                                onClick={() => window.open(`/contract/detail/${relevantContractId}`, '_blank')}
+                                                sx={{ verticalAlign: 'baseline', mx: 0.5 }}
+                                            >
+                                                查看合同
+                                            </Button>
+                                            以确认详情。
+                                        </Typography>
+                                    ) : null}
+                                </Box>
+                            )
+                        }
 
                         <Box sx={{ mt: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <Button variant="outlined" color="warning" onClick={() => setIsIgnoreDialogOpen(true)}>忽略此流水</Button>
                             <Box>
-                                {existingAllocs.length > 0 && (
-                                    <Button variant="outlined" color="error" onClick={handleCancelAllocation} disabled={isSaving} sx={{ mr: 2 }}>
-                                        撤销全部分配
-                                    </Button>
-                                )}
                                 {hasPayableItems && (
                                     <Button variant="contained" onClick={handleSave} disabled={isSaving}>
                                         {isSaving ? '处理中...' : '保存分配'}
@@ -317,8 +422,12 @@ const OutboundDetailsPanel = ({ transaction, category, onAllocationSuccess, setA
                                     <Grid item xs={6} sm={3}><Typography variant="caption" color="text.secondary">本次分配</Typography><Typography variant="body2" color="success.main" fontWeight="bold">¥{formatCurrency(alloc.allocated_amount_from_this_txn)}</Typography></Grid>
                                     <Grid item xs={6} sm={3}><Typography variant="caption" color="text.secondary">剩余待付</Typography><Typography variant="body2" color="error.main" fontWeight="bold">¥{formatCurrency(alloc.amount_remaining)}</Typography></Grid>
                                 </Grid>
+                                <Box sx={{ flex: '0 1 auto', ml: 'auto' }}><Button variant="outlined" size="small" onClick={() => onOpenBillModal(alloc)}>查看账单</Button></Box>
                             </ListItem>
                         ))}</List>
+                        <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
+                            <Button variant="outlined" color="error" onClick={handleCancelAllocation} disabled={isSaving}>撤销全部分配</Button>
+                        </Box>
                     </Box>
                 );
             case 'ignored':
@@ -366,7 +475,7 @@ const OutboundDetailsPanel = ({ transaction, category, onAllocationSuccess, setA
             </Grid>
 
             {renderContent()}
-            <IgnoreRemarkDialog open={isIgnoreDialogOpen} onClose={() => setIsIgnoreDialogOpen(false)}onSubmit={handleIgnore} />
+            <IgnoreRemarkDialog open={isIgnoreDialogOpen} onClose={() => setIsIgnoreDialogOpen(false)}onSubmit={handleConfirmIgnore} />
         </Box>
     );
 };
@@ -382,6 +491,11 @@ export default function OutboundPayments() {
     const [selectedTxn, setSelectedTxn] = useState(null);
     const [alertInfo, setAlertInfo] = useState({ open: false, message: '', severity: 'info' });
     const [payerSearchTerm, setPayerSearchTerm] = useState('');
+
+    const [billModalOpen, setBillModalOpen] = useState(false);
+    const [loadingBillDetails, setLoadingBillDetails] = useState(false);
+    const [selectedBillDetails, setSelectedBillDetails] = useState(null);
+    const [selectedBillContext, setSelectedBillContext] = useState(null);
 
     const accountingPeriod = useMemo(() => {
         const year = parseInt(yearParam, 10);
@@ -423,21 +537,17 @@ export default function OutboundPayments() {
             };
             setCategorizedTxns(newCategorized);
 
-            // After a refresh, try to find the previously selected transaction
             const currentSelectedId = selectedTxn?.id;
             let nextSelectedTxn = null;
             if (currentSelectedId) {
-                // Find in the current active tab first
                 nextSelectedTxn = (newCategorized[activeTab] || []).find(t => t.id === currentSelectedId);
             }
 
-            // If not found in current tab (maybe it moved), or nothing was selected
             if (!nextSelectedTxn) {
                 const listForCurrentTab = newCategorized[activeTab] || [];
                 if (listForCurrentTab.length > 0) {
                     nextSelectedTxn = listForCurrentTab[0];
                 } else {
-                    // If current tab is now empty, find the first available tab and select its first item
                     const firstTabWithData = ['pending_confirmation', 'manual_allocation', 'unmatched', 'confirmed', 'processed', 'ignored'].find(tab => newCategorized[tab]?.length > 0);
                     if (firstTabWithData && activeTab !== firstTabWithData) {
                         setActiveTab(firstTabWithData);
@@ -459,6 +569,47 @@ export default function OutboundPayments() {
     useEffect(() => {
         fetchAndSetData();
     }, [accountingPeriod]);
+
+    const handleOpenBillModal = async (item) => {
+        let billId, contractId, customerName, employeeName;
+
+        if (item.target_type === 'EmployeePayroll' || item.target_type === 'FinancialAdjustment') {
+            billId = item.target_id;
+        } else if (item.id) { // Fallback for bill-like objects
+            billId = item.id;
+        }
+
+        if (!billId) {
+            setAlertInfo({ open: true, message: '无法确定要查看的账单ID', severity: 'error' });
+            return;
+        }
+
+        setBillModalOpen(true);
+        setLoadingBillDetails(true);
+        try {
+            const response = await api.get(`/billing/payable-details/${billId}`, { 
+                params: { item_type: item.target_type || 'CustomerBill' } 
+            });
+            setSelectedBillDetails(response.data);
+            const contractInfo = response.data.contract_info;
+            setSelectedBillContext({
+                customer_name: contractInfo.customer_name,
+                employee_name: contractInfo.employee_name,
+                contract_id: contractInfo.contract_id,
+                billingMonth: `${accountingPeriod.year}-${String(accountingPeriod.month).padStart(2, '0')}`
+            });
+        } catch (err) {
+            setAlertInfo({ open: true, message: `获取账单详情失败: ${err.message}`, severity: 'error' });
+        } finally {
+            setLoadingBillDetails(false);
+        }
+    };
+
+    const handleCloseBillModal = () => {
+        setBillModalOpen(false);
+        setSelectedBillDetails(null);
+        setSelectedBillContext(null);
+    };
 
     const handlePeriodChange = (event) => {
         const { name, value } = event.target;
@@ -508,8 +659,11 @@ export default function OutboundPayments() {
             if (payerName.includes(searchTerm)) return true;
             try {
                 const pinyinName = pinyin(payerName, { toneType: 'none', nonZh: 'consecutive' }).replace(/\s/g, '').toLowerCase();
-                return pinyinName.includes(searchTerm);
+                if (pinyinName.includes(searchTerm)) return true;
+                 const pinyinInitials = pinyin(payerName, { pattern: 'first', toneType: 'none', nonZh: 'consecutive' }).replace(/\s/g, '').toLowerCase();
+                if (pinyinInitials.includes(searchTerm)) return true;
             } catch (e) { return true; }
+            return false;
         });
     }, [currentList, payerSearchTerm]);
 
@@ -657,12 +811,24 @@ export default function OutboundPayments() {
                                     onStatusUpdate={handleStatusUpdate}
                                     setAlertInfo={setAlertInfo}
                                     accountingPeriod={accountingPeriod}
+                                    onOpenBillModal={handleOpenBillModal}
                                 />
                             </CardContent>
                         </Card>
                     </Grid>
                 </Grid>
             </Box>
+            {billModalOpen && (
+                <FinancialManagementModal
+                    open={billModalOpen}
+                    onClose={handleCloseBillModal}
+                    contract={selectedBillContext}
+                    billingMonth={selectedBillContext?.billingMonth}
+                    billingDetails={selectedBillDetails}
+                    loading={loadingBillDetails}
+                    onSave={fetchAndSetData}
+                />
+            )}
         </Box>
     );
 }
