@@ -9,9 +9,9 @@ export const payerAliasApi = {
             notes
         });
     },
-    deleteAlias: (payerName) => {
+    deleteAlias: (payerName, params = {}) => {
         // 注意 URL编码，以防付款人姓名包含特殊字符
-        return api.delete(`/payer-aliases/${encodeURIComponent(payerName)}`);
+        return api.delete(`/payer-aliases/${encodeURIComponent(payerName)}`, { params });
     }
     
 };

@@ -26,6 +26,7 @@ from backend.models import (
     PayoutStatus,
     TrialOutcome,
     PayoutRecord,
+    BankTransactionStatus,
 )
 
 from sqlalchemy import func, or_
@@ -36,24 +37,18 @@ D = decimal.Decimal
 CTX = decimal.Context(prec=10)
 
 
-
 def _update_bill_payment_status(bill: CustomerBill):
     """
-    根据一个账单的所有支付记录，更新其 total_paid 和 payment_status.
+    根据一个账单的 total_due 和 total_paid，更新其 payment_status.
+    这个函数不再重新计算 total_paid，调用者有责任在调用此函数前确保 bill.total_paid 是正确的。
     """
     if not bill:
         return
 
-    # 计算已支付总额
-    total_paid = db.session.query(func.sum(PaymentRecord.amount)).filter(
-        PaymentRecord.customer_bill_id == bill.id
-    ).scalar() or D(0)
-
-    bill.total_paid = total_paid.quantize(D("0.01"))
-
     # 更新支付状态
     if bill.total_paid <= 0:
         bill.payment_status = PaymentStatus.UNPAID
+        bill.total_paid = D('0') # 确保不会是负数
     elif bill.total_paid < bill.total_due:
         bill.payment_status = PaymentStatus.PARTIALLY_PAID
     elif bill.total_paid == bill.total_due:
@@ -62,7 +57,7 @@ def _update_bill_payment_status(bill: CustomerBill):
         bill.payment_status = PaymentStatus.OVERPAID
 
     db.session.add(bill)
-    current_app.logger.info(f"Updated bill {bill.id} status to {bill.payment_status.value} with total_paid {bill.total_paid}")
+    current_app.logger.info(f"Updated bill {bill.id} status to {bill.payment_status.value} based on total_paid {bill.total_paid}")
 
 def _update_payroll_payout_status(payroll: EmployeePayroll):
     """
@@ -2769,3 +2764,37 @@ class BillingEngine:
                 }
 
         return costs
+    
+def delete_payment_record_and_reverse_allocation(payment_id):
+    """
+    (Service Function) Deletes a payment record and reverses its financial impact.
+    DOES NOT COMMIT the transaction. The caller is responsible for the session commit.
+    Returns the objects that were modified for logging purposes.
+    """
+    payment = db.session.get(PaymentRecord, payment_id)
+    if not payment:
+        raise ValueError(f"Payment record with ID {payment_id} not found.")
+
+    bill = payment.customer_bill
+    transaction = payment.bank_transaction
+
+    # Reverse impact on CustomerBill
+    if bill:
+        bill.total_paid = (bill.total_paid or D(0)) - payment.amount
+        _update_bill_payment_status(bill)
+
+    # Reverse impact on BankTransaction
+    if transaction:
+        transaction.allocated_amount = (transaction.allocated_amount or D(0)) - payment.amount
+        # 核心修正：使用导入的 Enum 成员，而不是字符串
+        if transaction.allocated_amount <= 0:
+            transaction.status = BankTransactionStatus.UNMATCHED
+            transaction.allocated_amount = D('0')
+        else:
+            transaction.status = BankTransactionStatus.PARTIALLY_ALLOCATED
+        db.session.add(transaction)
+
+    current_app.logger.info(f"Payment record {payment_id} and its effects will be deleted from session upon commit.")
+    db.session.delete(payment)
+
+    return bill, transaction
