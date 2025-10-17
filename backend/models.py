@@ -2093,6 +2093,32 @@ class PayerAlias(db.Model):
     def __repr__(self):
         return f'<PayerAlias "{self.payer_name}" -> Contract {self.contract_id}>'
 
+class PayeeAlias(db.Model):
+    __tablename__ = 'payee_aliases'
+    __table_args__ = (
+        db.UniqueConstraint('alias_name', name='uq_payee_aliases_alias_name'),
+        {'comment': '收款人别名表（用于代收工资等场景）'}
+    )
+
+    id = db.Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    alias_name = db.Column(db.String(255), nullable=False, index=True, comment="银行流水中的收款方名称（代收人）")
+    
+    # 实际收款人 (员工)
+    target_user_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('user.id', ondelete="CASCADE"), nullable=True, index=True)
+    target_service_personnel_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('service_personnel.id', ondelete="CASCADE"), nullable=True, index=True)
+
+    notes = db.Column(db.Text, nullable=True, comment="备注")
+    created_by_user_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('user.id', ondelete="SET NULL"), nullable=True)
+    created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
+
+    created_by = db.relationship('User', foreign_keys=[created_by_user_id])
+    target_user = db.relationship('User', foreign_keys=[target_user_id])
+    target_service_personnel = db.relationship('ServicePersonnel')
+
+    def __repr__(self):
+        target = self.target_user.username if self.target_user else (self.target_service_personnel.name if self.target_service_personnel else 'Unknown')
+        return f'<PayeeAlias "{self.alias_name}" -> {target}>'
+
 
 class PermanentIgnoreList(db.Model):
     __tablename__ = 'permanent_ignore_list'

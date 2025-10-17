@@ -2,6 +2,7 @@
   "ui": {
     "theme": "Default Light"
   },
+  "useSmartEdit": true,
   "mcpServers": {
     "chrome-devtools": {
       "command": "npx",

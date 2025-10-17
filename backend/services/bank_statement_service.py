@@ -2,15 +2,52 @@ import re
 from datetime import datetime
 from decimal import Decimal
 from flask import current_app
-from backend.models import db, BankTransaction, BankTransactionStatus, CustomerBill, PaymentRecord, PaymentStatus, User, BaseContract,PayerAlias,FinancialActivityLog,TransactionDirection, ServicePersonnel, EmployeePayroll, FinancialAdjustment, PayoutStatus, AdjustmentType, PermanentIgnoreList
-from sqlalchemy import and_, or_
+from backend.models import db, BankTransaction, BankTransactionStatus, CustomerBill, PaymentRecord, PayoutRecord, PaymentStatus, User, BaseContract,PayerAlias,PayeeAlias,FinancialActivityLog,TransactionDirection, ServicePersonnel, EmployeePayroll, FinancialAdjustment, PayoutStatus, AdjustmentType, PermanentIgnoreList
+from sqlalchemy import and_, or_, func
 import traceback
 import decimal
 D = decimal.Decimal
+from backend.services.billing_engine import _update_payroll_payout_status, _update_bill_payment_status
+from backend.api.utils import get_billing_details_internal, _log_activity
+
 class BankStatementService:
     """
     处理银行对账单的解析、存储和匹配服务。
     """
+    def get_payable_details(self, item_id: str, item_type: str) -> dict | None:
+        """Gets the full billing details for a given payable item."""
+        bill_id = None
+        if item_type == 'EmployeePayroll':
+            payroll = db.session.get(EmployeePayroll, item_id)
+            if payroll:
+                # Find the corresponding customer bill
+                customer_bill = CustomerBill.query.filter(
+                    CustomerBill.contract_id == payroll.contract_id,
+                    CustomerBill.cycle_start_date == payroll.cycle_start_date,
+                    CustomerBill.is_substitute_bill == payroll.is_substitute_payroll
+                ).first()
+                if customer_bill:
+                    bill_id = customer_bill.id
+        elif item_type == 'FinancialAdjustment':
+            adjustment = db.session.get(FinancialAdjustment, item_id)
+            if adjustment:
+                if adjustment.customer_bill_id:
+                    bill_id = adjustment.customer_bill_id
+                elif adjustment.employee_payroll_id:
+                    payroll = db.session.get(EmployeePayroll, adjustment.employee_payroll_id)
+                    if payroll:
+                        customer_bill = CustomerBill.query.filter(
+                            CustomerBill.contract_id == payroll.contract_id,
+                            CustomerBill.cycle_start_date == payroll.cycle_start_date,
+                            CustomerBill.is_substitute_bill == payroll.is_substitute_payroll
+                        ).first()
+                        if customer_bill:
+                            bill_id = customer_bill.id
+
+        if bill_id:
+            return get_billing_details_internal(bill_id=str(bill_id))
+        
+        return None
     def serialize_transaction(self, txn: BankTransaction) -> dict:
         """
         Serializes a BankTransaction object into a dictionary, including the polymorphic associated object.
@@ -78,28 +115,13 @@ class BankStatementService:
                             'allocated_amount_from_this_txn': str(record.amount)
                         })
             elif txn.direction == TransactionDirection.DEBIT:
-                # Reverse lookup for FinancialAdjustments
-                adjustments = FinancialAdjustment.query.filter(
-                    FinancialAdjustment.settlement_details.op('->')('payments').op('@>')(f'[{{\"bank_transaction_id\": \"{txn.transaction_id}\"}}]')
+                # Correct logic for PayoutRecords (EmployeePayroll)
+                payout_records = PayoutRecord.query.filter(
+                    PayoutRecord.notes.like(f"%[银行流水分配: {txn.transaction_id}]%")
                 ).all()
-                for adj in adjustments:
-                    payment_info = next((p for p in adj.settlement_details['payments'] if p['bank_transaction_id']== txn.transaction_id), None)
-                    if payment_info:
-                        allocations.append({
-                            'type': 'FinancialAdjustment',
-                            'display_name': f"退款: {adj.description}",
-                            'total_due': str(adj.amount),
-                            'amount_remaining': "0.00", # Refunds are settled in full
-                            'allocated_amount_from_this_txn': str(payment_info.get('amount'))
-                        })
-
-                # Reverse lookup for EmployeePayrolls
-                payrolls = EmployeePayroll.query.filter(
-                    EmployeePayroll.payout_details.op('->')('payments').op('@>')(f'[{{\"bank_transaction_id\": \"{txn.transaction_id}\"}}]')
-                ).all()
-                for payroll in payrolls:
-                    payment_info = next((p for p in payroll.payout_details['payments'] if p['bank_transaction_id']== txn.transaction_id), None)
-                    if payment_info:
+                for record in payout_records:
+                    payroll = record.employee_payroll
+                    if payroll:
                         employee = payroll.contract.service_personnel or payroll.contract.user
                         employee_name = employee.name if hasattr(employee, 'name') else employee.username
                         allocations.append({
@@ -107,6 +129,21 @@ class BankStatementService:
                             'display_name': f"工资: {employee_name} ({payroll.year}-{payroll.month})",
                             'total_due': str(payroll.total_due),
                             'amount_remaining': str(payroll.total_due - payroll.total_paid_out),
+                            'allocated_amount_from_this_txn': str(record.amount)
+                        })
+
+                # Correct, restored logic for FinancialAdjustments (refunds)
+                adjustments = FinancialAdjustment.query.filter(
+                    FinancialAdjustment.settlement_details.op('->')('payments').op('@>')(f'[{{\"bank_transaction_id\": \"{txn.transaction_id}\"}}]')
+                ).all()
+                for adj in adjustments:
+                    payment_info = next((p for p in adj.settlement_details['payments'] if p['bank_transaction_id'] == txn.transaction_id), None)
+                    if payment_info:
+                        allocations.append({
+                            'type': 'FinancialAdjustment',
+                            'display_name': f"退款: {adj.description}",
+                            'total_due': str(adj.amount),
+                            'amount_remaining': "0.00",  # Refunds are settled in full
                             'allocated_amount_from_this_txn': str(payment_info.get('amount'))
                         })
 
@@ -197,20 +234,27 @@ class BankStatementService:
                     target_obj = EmployeePayroll.query.get(target_id)
                     if not target_obj:
                         raise Exception(f"EmployeePayroll with id {target_id} not found.")
-                    target_obj.total_paid_out += amount_to_allocate
-                    target_obj.payout_status = PayoutStatus.PAID if target_obj.total_paid_out >= target_obj.total_due else PayoutStatus.PARTIALLY_PAID
-                    target_contract_id = target_obj.contract_id
+                    
+                    # Create a PayoutRecord to log this payment event
+                    payout_record = PayoutRecord(
+                        employee_payroll_id=target_obj.id,
+                        amount=amount_to_allocate,
+                        payout_date=bank_txn.transaction_time.date(),
+                        method="银行转账",
+                        notes=f"[银行流水分配: {bank_txn.transaction_id}] {bank_txn.summary or ''}".strip(),
+                        payer="公司代付",
+                        created_by_user_id=operator_id
+                    )
+                    db.session.add(payout_record)
 
-                    # Store transaction info in payout_details JSON field
-                    if not target_obj.payout_details:
-                        target_obj.payout_details = {}
-                    if 'payments' not in target_obj.payout_details:
-                        target_obj.payout_details['payments'] = []
-                    target_obj.payout_details['payments'].append({
-                        'bank_transaction_id': bank_txn.transaction_id,
-                        'amount': str(amount_to_allocate),
-                        'paid_at': bank_txn.transaction_time.isoformat()
-                    })
+                    # Update the total paid amount and status on the payroll
+                    target_obj.total_paid_out += amount_to_allocate
+                    if target_obj.total_paid_out >= target_obj.total_due:
+                        target_obj.payout_status = PayoutStatus.PAID
+                    else:
+                        target_obj.payout_status = PayoutStatus.PARTIALLY_PAID
+                    
+                    target_contract_id = target_obj.contract_id
 
                 elif target_type == 'FinancialAdjustment':
                     target_obj = FinancialAdjustment.query.get(target_id)
@@ -269,11 +313,88 @@ class BankStatementService:
             current_app.logger.error(f"Outbound allocation failed for txn {bank_transaction_id}: {e}", exc_info=True)
             return {"error": f"An unexpected error occurred: {str(e)}"}
         
-    def get_and_categorize_outbound_transactions(self, year: int, month: int) -> dict:
-        print("\n--- [DEBUG] Starting outbound categorization ---")
-        print(f"--- [DEBUG] Period: {year}-{month}")
+    def _find_oldest_payable_item_for_payee(self, payee_info: dict) -> dict | None:
+        """
+        为指定的收款人查找最老的一笔未结清款项（工资单或退款）。
+        """
+        if not payee_info or 'type' not in payee_info or 'id' not in payee_info:
+            return None
 
-        # 1. Fetch transactions by status
+        payee_type = payee_info['type']
+        payee_id = payee_info['id']
+        
+        oldest_payroll = None
+        oldest_refund = None
+
+        # 根据收款人类型查找关联合同
+        contract_ids = []
+        if payee_type == 'user':
+            contracts = BaseContract.query.filter_by(user_id=payee_id).all()
+            contract_ids = [c.id for c in contracts]
+        elif payee_type == 'service_personnel':
+            contracts = BaseContract.query.filter_by(service_personnel_id=payee_id).all()
+            contract_ids = [c.id for c in contracts]
+        elif payee_type == 'customer':
+            # 注意：客户可能由姓名标识，而不是ID
+            contracts = BaseContract.query.filter_by(customer_name=payee_id).all()
+            contract_ids = [c.id for c in contracts]
+
+        if not contract_ids:
+            return None
+
+        # 查找最老的未付工资单
+        oldest_payroll = EmployeePayroll.query.filter(
+            EmployeePayroll.contract_id.in_(contract_ids),
+            EmployeePayroll.payout_status.in_([PayoutStatus.UNPAID, PayoutStatus.PARTIALLY_PAID])
+        ).order_by(EmployeePayroll.cycle_start_date.asc()).first()
+
+        # 查找最老的未付退款
+        oldest_refund = FinancialAdjustment.query.filter(
+            FinancialAdjustment.contract_id.in_(contract_ids),
+            FinancialAdjustment.adjustment_type == AdjustmentType.CUSTOMER_DECREASE,
+            FinancialAdjustment.is_settled == False
+        ).order_by(FinancialAdjustment.date.asc()).first()
+
+        # 比较哪个更老
+        oldest_item = None
+        if oldest_payroll and oldest_refund:
+            if oldest_payroll.cycle_start_date <= oldest_refund.date:
+                oldest_item = oldest_payroll
+            else:
+                oldest_item = oldest_refund
+        elif oldest_payroll:
+            oldest_item = oldest_payroll
+        elif oldest_refund:
+            oldest_item = oldest_refund
+        
+        if not oldest_item:
+            return None
+
+        # 格式化返回
+        if isinstance(oldest_item, EmployeePayroll):
+            employee = oldest_item.contract.service_personnel or oldest_item.contract.user
+            employee_name = employee.name if hasattr(employee, 'name') else employee.username
+            return {
+                'target_id': str(oldest_item.id),
+                'target_type': 'EmployeePayroll',
+                'display_name': f"工资单: {employee_name} - {oldest_item.year}/{oldest_item.month}",
+                'amount_due': str(oldest_item.total_due - oldest_item.total_paid_out),
+                'date': oldest_item.cycle_end_date.isoformat(),
+                'is_cross_month_suggestion': True
+            }
+        elif isinstance(oldest_item, FinancialAdjustment):
+            return {
+                'target_id': str(oldest_item.id),
+                'target_type': 'FinancialAdjustment',
+                'display_name': f"退款: {oldest_item.description}",
+                'amount_due': str(oldest_item.amount),
+                'date': oldest_item.date.isoformat(),
+                'is_cross_month_suggestion': True
+            }
+        
+        return None
+
+    def get_and_categorize_outbound_transactions(self, year: int, month: int) -> dict:
         base_query = BankTransaction.query.filter(
             BankTransaction.direction == TransactionDirection.DEBIT,
             db.extract('year', BankTransaction.transaction_time) == year,
@@ -283,74 +404,90 @@ class BankStatementService:
         txns_to_process = base_query.filter(BankTransaction.status.in_([
             BankTransactionStatus.UNMATCHED,
             BankTransactionStatus.PARTIALLY_ALLOCATED
-        ])).all()
-        print(f"--- [DEBUG] Found {len(txns_to_process)} total transactions to process (UNMATCHED or PARTIALLY_ALLOCATED).")
+        ])).order_by(BankTransaction.payer_name).all()
 
-        confirmed_txns = base_query.filter(BankTransaction.status == BankTransactionStatus.MATCHED).all()
+        confirmed_txns = base_query.filter(BankTransaction.status.in_([
+            BankTransactionStatus.MATCHED,
+            BankTransactionStatus.PARTIALLY_ALLOCATED
+        ])).all()
         ignored_txns = base_query.filter(BankTransaction.status == BankTransactionStatus.IGNORED).all()
 
-        # 2. Fetch all potential allocation targets for the period
-        payable_items = self.get_payable_items(year, month)
-        all_payables = payable_items['payrolls'] + payable_items['adjustments']
-        print(f"--- [DEBUG] Found {len(all_payables)} payable items for the period.")
-
-        # 3. Initialize results dictionary
         categorized_results = {
             "pending_confirmation": [],
             "manual_allocation": [],
             "unmatched": [],
             "confirmed": [self.serialize_transaction(txn) for txn in confirmed_txns],
+            "processed": [], # Placeholder, logic can be added if needed
             "ignored": [self.serialize_transaction(txn) for txn in ignored_txns]
         }
 
-        # 4. Process all UNMATCHED and PARTIALLY_ALLOCATED transactions in a single loop
-        print("--- [DEBUG] Starting processing loop...")
+        payable_items_this_month = self.get_payable_items(year, month)
+        all_payables = payable_items_this_month['payrolls'] + payable_items_this_month['adjustments']
+
         for txn in txns_to_process:
-            print(f"--- [DEBUG] Processing txn ID: {txn.id}, Status: {txn.status.value}")
-            serialized_txn = self.serialize_transaction(txn)
+            payee_found = False
+            payee_info = {}
+            matched_by = 'name'
+            payer_name_lower = func.lower(txn.payer_name)
 
-            # FIX: Compare enum values directly for robustness
-            if txn.status.value == BankTransactionStatus.PARTIALLY_ALLOCATED.value:
-                print(f"--- [DEBUG] -> Matched Rule 1 (PARTIALLY_ALLOCATED).")
-
-                contract_id = None
-                if txn.associated_object_id:
-                    if txn.associated_object_type == 'EmployeePayroll':
-                        item = db.session.get(EmployeePayroll, txn.associated_object_id)
-                        if item: contract_id = str(item.contract_id)
-                    elif txn.associated_object_type == 'FinancialAdjustment':
-                        item = db.session.get(FinancialAdjustment, txn.associated_object_id)
-                        if item: contract_id = str(item.contract_id)
-
-                related_payables = all_payables
-                if contract_id:
-                    print(f"--- [DEBUG] --> Filtering payables for contract_id: {contract_id}")
-                    related_payables = [p for p in all_payables if p.get('contract_id') == contract_id]
+            # 1. 身份识别 (不区分大小写)
+            # Step 1: Check the CORRECT alias table for outbound payments
+            payee_alias = PayeeAlias.query.filter(func.lower(PayeeAlias.alias_name) == payer_name_lower).first()
+            if payee_alias:
+                payee_found = True
+                matched_by = 'alias'
+                if payee_alias.target_user:
+                    payee_info = {'id': str(payee_alias.target_user_id), 'type': 'user', 'name': payee_alias.target_user.username}
+                elif payee_alias.target_service_personnel:
+                    payee_info = {'id': str(payee_alias.target_service_personnel_id), 'type': 'service_personnel', 'name': payee_alias.target_service_personnel.name}
+            
+            # Step 2: Fallback to direct name matching if no alias found
+            if not payee_found:
+                user = User.query.filter(func.lower(User.username) == payer_name_lower).first()
+                if user:
+                    payee_found = True
+                    payee_info = {'id': str(user.id), 'type': 'user', 'name': user.username}
                 else:
-                    print(f"--- [DEBUG] --> No contract_id found for partially allocated txn, showing all payables.")
+                    sp = ServicePersonnel.query.filter(func.lower(ServicePersonnel.name) == payer_name_lower).first()
+                    if sp:
+                        payee_found = True
+                        payee_info = {'id': str(sp.id), 'type': 'service_personnel', 'name': sp.name}
 
-                categorized_results["manual_allocation"].append({**serialized_txn, "payable_items":related_payables})
-                categorized_results["unmatched"].append(serialized_txn)
+            if not payee_found:
+                # Step 3: Fallback to customer name for refunds
+                customer_contract = BaseContract.query.filter(func.lower(BaseContract.customer_name) == payer_name_lower).first()
+                if customer_contract:
+                    payee_found = True
+                    payee_info = {'id': customer_contract.customer_name, 'type': 'customer', 'name': customer_contract.customer_name}
+
+            # 2. 分类
+            if not payee_found:
+                categorized_results["unmatched"].append(self.serialize_transaction(txn))
                 continue
 
-            # Rule 2: If strictly UNMATCHED, apply the suggestion logic
-            if txn.status.value == BankTransactionStatus.UNMATCHED.value:
-                print(f"--- [DEBUG] -> Matched Rule 2 (UNMATCHED).")
-                matching_payables = [p for p in all_payables if D(p['amount_due']) == txn.amount]
+            # 如果找到了收款人，检查是否有精确匹配的待付款项
+            matching_payables = [p for p in all_payables if D(p['amount_due']) == txn.amount and payee_info['name'] in p['display_name']]
+            
+            if len(matching_payables) == 1 and txn.status == BankTransactionStatus.UNMATCHED:
+                categorized_results["pending_confirmation"].append({
+                    **self.serialize_transaction(txn),
+                    "matched_item": matching_payables[0],
+                    "matched_by": matched_by,
+                    "payee_info": payee_info
+                })
+            else:
+                # 如果在当月找不到精确匹配的，则为该收款人查找最老的一笔欠款作为建议
+                oldest_payable_suggestion = None
+                if len(matching_payables) == 0:
+                    oldest_payable_suggestion = self._find_oldest_payable_item_for_payee(payee_info)
 
-                if len(matching_payables) == 1:
-                    print(f"--- [DEBUG] --> Found single exact match. Adding to 'pending_confirmation'.")
-                    categorized_results["pending_confirmation"].append({
-                        **serialized_txn,
-                        "matched_item": matching_payables[0]
-                    })
-                else:
-                    print(f"--- [DEBUG] --> No single exact match ({len(matching_payables)} found). Adding to 'unmatched'.")
-                    categorized_results["unmatched"].append(serialized_txn)
+                categorized_results["manual_allocation"].append({
+                    **self.serialize_transaction(txn),
+                    "matched_by": matched_by,
+                    "payee_info": payee_info,
+                    "oldest_payable_suggestion": oldest_payable_suggestion
+                })
 
-        print("--- [DEBUG] Finished processing loop.")
-        print(f"--- [DEBUG] Final counts: manual_allocation={len(categorized_results['manual_allocation'])}, unmatched={len(categorized_results['unmatched'])}")
-        print("--- [DEBUG] Ending outbound categorization ---\n")
         return categorized_results
 
     
@@ -442,6 +579,108 @@ class BankStatementService:
 
         print(f"--- DEBUG: Returning a total of {len(results)} items. ---")
         return {'results': results}
+
+    def _format_payable_item(self, item):
+        if isinstance(item, EmployeePayroll):
+            employee = item.contract.service_personnel or item.contract.user
+            employee_name = employee.name if hasattr(employee, 'name') else employee.username
+            return {
+                'id': str(item.id),
+                'target_id': str(item.id),
+                'target_type': 'EmployeePayroll',
+                'display_name': f"工资: {employee_name} ({item.year}-{item.month})",
+                'cycle': f"{item.cycle_start_date.strftime('%Y-%m-%d')} to {item.cycle_end_date.strftime('%Y-%m-%d')}",
+                'year': item.year,
+                'month': item.month,
+                'total_due': str(item.total_due),
+                'total_paid': str(item.total_paid_out),
+                'amount_remaining': str(item.total_due - item.total_paid_out),
+                'contract_id': str(item.contract_id)
+            }
+        elif isinstance(item, FinancialAdjustment):
+            return {
+                'id': str(item.id),
+                'target_id': str(item.id),
+                'target_type': 'FinancialAdjustment',
+                'display_name': f"退款: {item.description}",
+                'cycle': item.date.strftime('%Y-%m-%d'),
+                'year': item.date.year,
+                'month': item.date.month,
+                'total_due': str(item.amount),
+                'total_paid': str(item.paid_amount) if item.is_settled and item.paid_amount else ('0.00'),
+                'amount_remaining': '0.00' if item.is_settled else str(item.amount),
+                'contract_id': str(item.contract_id)
+            }
+        return None
+
+    def get_payable_items_for_payee(self, payee_type: str, payee_id: str, year: int, month: int) -> dict:
+        current_app.logger.info(f"[DEBUG] Entering get_payable_items_for_payee for {payee_type}:{payee_id} @ {year}-{month}")
+
+        contract_ids = []
+        if payee_type == 'user':
+            contracts = BaseContract.query.filter_by(user_id=payee_id).all()
+            contract_ids = [c.id for c in contracts]
+        elif payee_type == 'service_personnel':
+            contracts = BaseContract.query.filter_by(service_personnel_id=payee_id).all()
+            contract_ids = [c.id for c in contracts]
+        elif payee_type == 'customer':
+            contracts = BaseContract.query.filter_by(customer_name=payee_id).all()
+            contract_ids = [c.id for c in contracts]
+
+        if not contract_ids:
+            return {"items": [], "closest_item_period": None, "relevant_contract_id": None}
+
+        # 1. Find items for the current month
+        payrolls = EmployeePayroll.query.filter(
+            EmployeePayroll.contract_id.in_(contract_ids),
+            EmployeePayroll.year == year,
+            EmployeePayroll.month == month,
+            EmployeePayroll.payout_status.in_([PayoutStatus.UNPAID, PayoutStatus.PARTIALLY_PAID])
+        ).all()
+
+        refunds = FinancialAdjustment.query.filter(
+            FinancialAdjustment.contract_id.in_(contract_ids),
+            db.extract('year', FinancialAdjustment.date) == year,
+            db.extract('month', FinancialAdjustment.date) == month,
+            FinancialAdjustment.adjustment_type == AdjustmentType.CUSTOMER_DECREASE,
+            FinancialAdjustment.is_settled == False
+        ).all()
+
+        items_in_month = payrolls + refunds
+
+        # 2. If items found, format and return them
+        if items_in_month:
+            formatted_items = [self._format_payable_item(item) for item in items_in_month if self._format_payable_item(item) is not None]
+            return {"items": formatted_items, "closest_item_period": None, "relevant_contract_id": None}
+
+        # 3. If no items in month, find closest item or relevant contract
+        else:
+            all_payrolls = EmployeePayroll.query.filter(
+                EmployeePayroll.contract_id.in_(contract_ids),
+                EmployeePayroll.payout_status.in_([PayoutStatus.UNPAID, PayoutStatus.PARTIALLY_PAID])
+            ).all()
+            all_refunds = FinancialAdjustment.query.filter(
+                FinancialAdjustment.contract_id.in_(contract_ids),
+                FinancialAdjustment.adjustment_type == AdjustmentType.CUSTOMER_DECREASE,
+                FinancialAdjustment.is_settled == False
+            ).all()
+
+            all_unpaid_items = all_payrolls + all_refunds
+
+            if all_unpaid_items:
+                target_date = datetime(year, month, 1)
+                closest_item = min(all_unpaid_items, key=lambda x: abs(((x.year if hasattr(x, 'year') else x.date.year) - target_date.year) * 12 + ((x.month if hasattr(x, 'month') else x.date.month) - target_date.month)))
+                
+                closest_period = {
+                    'year': closest_item.year if hasattr(closest_item, 'year') else closest_item.date.year,
+                    'month': closest_item.month if hasattr(closest_item, 'month') else closest_item.date.month
+                }
+                return {"items": [], "closest_item_period": closest_period, "relevant_contract_id": None}
+            
+            # 4. If no unpaid items at all, find the latest contract
+            else:
+                latest_contract = BaseContract.query.filter(BaseContract.id.in_(contract_ids)).order_by(BaseContract.created_at.desc()).first()
+                return {"items": [], "closest_item_period": None, "relevant_contract_id": str(latest_contract.id) if latest_contract else None}
 
     def get_and_categorize_transactions(self, year: int, month: int) -> dict:
         """
@@ -642,7 +881,7 @@ class BankStatementService:
     def cancel_allocation(self, bank_transaction_id: str, operator_id: str) -> dict:
         """
         撤销一笔银行流水的全部分配。
-        这是一个事务性操作。
+        这是一个事务性操作，现在同时支持 CREDIT 和 DEBIT 流水。
         """
         bank_txn = BankTransaction.query.get(bank_transaction_id)
         if not bank_txn:
@@ -656,35 +895,47 @@ class BankStatementService:
             if not user:
                 raise Exception(f"Operator with id {operator_id} not found.")
 
-            payments_to_delete = bank_txn.payment_records.all()
-            total_cancelled_amount = Decimal('0')
-
-            for payment in payments_to_delete:
-                bill = payment.customer_bill
-                amount_to_revert = payment.amount
-                total_cancelled_amount += amount_to_revert
-
-                # 1. 回滚客户账单 (CustomerBill)
-                if bill:
-                    bill.total_paid -= amount_to_revert
-                    if bill.total_paid <= 0:
-                        bill.payment_status = PaymentStatus.UNPAID
-                    else:
-                        bill.payment_status = PaymentStatus.PARTIALLY_PAID
+            if bank_txn.direction == TransactionDirection.CREDIT:
+                # --- Logic for INBOUND payments (Credit) ---
+                payments_to_delete = bank_txn.payment_records.all()
+                for payment in payments_to_delete:
+                    bill = payment.customer_bill
+                    if bill:
+                        bill.total_paid -= payment.amount
+                        _update_bill_payment_status(bill)
                     
-                    # 2. 删除相关的财务活动日志
                     FinancialActivityLog.query.filter(
                         FinancialActivityLog.details.op('->>')('payment_record_id') == str(payment.id)
                     ).delete(synchronize_session=False)
+                    db.session.delete(payment)
 
-                # 3. 删除支付记录 (PaymentRecord)
-                db.session.delete(payment)
+            elif bank_txn.direction == TransactionDirection.DEBIT:
+                # --- NEW Logic for OUTBOUND payments (Debit) ---
+                payouts_to_delete = PayoutRecord.query.filter(
+                    PayoutRecord.notes.like(f"%[银行流水分配: {bank_txn.transaction_id}]%")
+                ).all()
 
-            # 4. 回滚银行流水 (BankTransaction)
-            bank_txn.allocated_amount -= total_cancelled_amount
+                for payout in payouts_to_delete:
+                    payroll = payout.employee_payroll
+                    if payroll:
+                        payroll.total_paid_out -= payout.amount
+                        _update_payroll_payout_status(payroll)
+                    
+                    # Also delete associated FinancialActivityLog if any
+                    FinancialActivityLog.query.filter(
+                        FinancialActivityLog.details.op('->>')('payout_record_id') == str(payout.id)
+                    ).delete(synchronize_session=False)
+                    db.session.delete(payout)
+
+            # Reset the bank transaction status
+            bank_txn.allocated_amount = Decimal('0')
             bank_txn.status = BankTransactionStatus.UNMATCHED
-            if bank_txn.allocated_amount < 0: # 安全检查
-                bank_txn.allocated_amount = Decimal('0')
+            bank_txn.associated_object_id = None
+            bank_txn.associated_object_type = None
+
+            _log_activity(None, None, "撤销了流水分配", details={
+                "message": f"操作员 {user.username} 撤销了对银行流水 {bank_txn.transaction_id} 的所有分配。"
+            }, contract=None) # We might not have a single contract context here
 
             db.session.commit()
             return {"success": True, "message": "Allocation cancelled successfully."}

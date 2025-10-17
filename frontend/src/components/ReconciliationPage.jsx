@@ -373,6 +373,7 @@ const TransactionDetailsPanel = ({
                     </Box>
                     <Box>
                         <IconButton onClick={handlePrevMonth} size="small"><ArrowBackIosNewIcon fontSize="inherit" /></IconButton>
+                        <Typography component="span" variant="subtitle1" sx={{ mx: 1 }}>{accountingPeriod.year}年{accountingPeriod.month}月</Typography>
                         <IconButton onClick={handleNextMonth} size="small"><ArrowForwardIosIcon fontSize="inherit" /></IconButton>
                     </Box>
                 </Box>

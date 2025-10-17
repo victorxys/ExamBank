@@ -54,7 +54,7 @@ export const allMenuItems = [
     subItems: [
       { text: '客户回款', icon: <PaymentIcon />, path: '/billing/reconcile', adminOnly: true, isFinancial: true },
       { text: '流水总览', icon: <DescriptionIcon />, path: '/finance/all-transactions', adminOnly: true, isFinancial: true },
-      { text: '对外付款', icon: <PaymentsIcon />, path: '/billing/salary-payment', adminOnly: true },
+      { text: '对外付款', icon: <PaymentsIcon />, path: '/billing/salary-payment', adminOnly: true, isFinancial: true },
     ]
   },
   { text: '我的课程', icon: <SchoolIcon />, path: '/my-courses', adminOnly: false },

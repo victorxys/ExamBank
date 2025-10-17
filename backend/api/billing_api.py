@@ -10,6 +10,8 @@ from sqlalchemy.orm import with_polymorphic # <--- 别忘了导入
 from sqlalchemy import func, distinct
 from sqlalchemy.sql import extract
 import csv # <-- 添加此行
+import re
+import re
 import io # <-- 添加此行
 import calendar
 from datetime import date, timedelta, datetime, timezone
@@ -51,6 +53,8 @@ from backend.models import (
     NannyContract, 
     TrialOutcome,
     CompanyBankAccount,
+    BankTransaction, 
+    BankTransactionStatus
 )
 from backend.tasks import (
     sync_all_contracts_task,
@@ -58,16 +62,16 @@ from backend.tasks import (
     post_virtual_contract_creation_task,
     generate_all_bills_for_contract_task,
 )  # 导入新任务
-from backend.services.billing_engine import BillingEngine
-from backend.services.billing_engine import _update_bill_payment_status
+from backend.services.billing_engine import BillingEngine, _update_bill_payment_status, _update_payroll_payout_status
 from backend.models import AdjustmentType
 from backend.services.contract_service import (
     create_maternity_nurse_contract_adjustments,
     cancel_substitute_bill_due_to_transfer,
     apply_transfer_credits_to_new_contract
 )
-from backend.api.utils import get_billing_details_internal, get_contract_type_details
+from backend.api.utils import get_billing_details_internal, get_contract_type_details, _log_activity
 from backend.services.payment_message_generator import PaymentMessageGenerator
+from backend.services.bank_statement_service import BankStatementService
 
 D = decimal.Decimal
 
@@ -130,33 +134,33 @@ def _get_or_create_personnel_ref(name: str, phone: str = None):
     current_app.logger.info(f"创建了新的服务人员: {name} (Pinyin: {name_pinyin_combined})")
     return {"type": "service_personnel", "id": new_sp.id}
 
-# 创建一个辅助函数来记录日志
-def _log_activity(bill, payroll, action, details=None, contract=None):
-    """
-    记录一条财务活动日志。
-    这是一个向后兼容的更新，增加了可选的 contract 参数。
-    """
-    user_id = get_jwt_identity()
+# # 创建一个辅助函数来记录日志
+# def _log_activity(bill, payroll, action, details=None, contract=None):
+#     """
+#     记录一条财务活动日志。
+#     这是一个向后兼容的更新，增加了可选的 contract 参数。
+#     """
+#     user_id = get_jwt_identity()
 
-    # --- 新增：智能获取合同ID ---
-    final_contract_id = None
-    if contract:
-        final_contract_id = contract.id
-    elif bill and hasattr(bill, 'contract_id'):
-        final_contract_id = bill.contract_id
-    elif payroll and hasattr(payroll, 'contract_id'):
-        final_contract_id = payroll.contract_id
-    # --- 新增结束 ---
+#     # --- 新增：智能获取合同ID ---
+#     final_contract_id = None
+#     if contract:
+#         final_contract_id = contract.id
+#     elif bill and hasattr(bill, 'contract_id'):
+#         final_contract_id = bill.contract_id
+#     elif payroll and hasattr(payroll, 'contract_id'):
+#         final_contract_id = payroll.contract_id
+#     # --- 新增结束 ---
 
-    log = FinancialActivityLog(
-        customer_bill_id=bill.id if bill else None,
-        employee_payroll_id=payroll.id if payroll else None,
-        contract_id=final_contract_id,  # <-- 使用我们最终获取到的ID
-        user_id=user_id,
-        action=action,
-        details=details,
-    )
-    db.session.add(log)
+#     log = FinancialActivityLog(
+#         customer_bill_id=bill.id if bill else None,
+#         employee_payroll_id=payroll.id if payroll else None,
+#         contract_id=final_contract_id,  # <-- 使用我们最终获取到的ID
+#         user_id=user_id,
+#         action=action,
+#         details=details,
+#     )
+#     db.session.add(log)
 
 
 # def _get_billing_details_internal(
@@ -4102,6 +4106,22 @@ def transfer_financial_adjustment(adjustment_id):
 
 
 
+@billing_bp.route("/payable-details/<item_id>", methods=["GET"])
+@admin_required
+def get_payable_details(item_id):
+    item_type = request.args.get("item_type")
+    if not item_type:
+        return jsonify({"error": "item_type query parameter is required"}), 400
+
+    service = BankStatementService()
+    details = service.get_payable_details(item_id, item_type)
+
+    if details is None:
+        return jsonify({"error": "Details not found for the given item"}), 404
+
+    return jsonify(details)
+
+
 @billing_bp.route("/bills/<string:bill_id>/payments", methods=["POST", "OPTIONS"])
 @admin_required
 def add_payment_record(bill_id):
@@ -4188,28 +4208,7 @@ def add_payment_record(bill_id):
         current_app.logger.error(f"添加支付记录失败 (bill_id: {bill_id}): {e}", exc_info=True)
         return jsonify({"error": "服务器内部错误"}), 500
     
-def _update_payroll_payout_status(payroll: EmployeePayroll):
-    """
-    根据一个薪酬单的所有支付记录，更新其 total_paid_out 和 payout_status.
-    """
-    if not payroll:
-        return
 
-    total_paid_out = db.session.query(func.sum(PayoutRecord.amount)).filter(
-        PayoutRecord.employee_payroll_id == payroll.id
-    ).scalar() or D(0)
-
-    payroll.total_paid_out = total_paid_out.quantize(D("0.01"))
-
-    if payroll.total_paid_out <= 0:
-        payroll.payout_status = PayoutStatus.UNPAID
-    elif payroll.total_paid_out < payroll.total_due:
-        payroll.payout_status = PayoutStatus.PARTIALLY_PAID
-    else: # total_paid_out >= payroll.total_due
-        payroll.payout_status = PayoutStatus.PAID
-
-    db.session.add(payroll)
-    current_app.logger.info(f"Updated payroll {payroll.id} status to {payroll.payout_status.value} with total_paid_out {payroll.total_paid_out}")
 
 @billing_bp.route("/payrolls/<string:payroll_id>/payouts", methods=["POST", "OPTIONS"])
 @admin_required
@@ -4333,8 +4332,25 @@ def delete_payout_record(payout_id):
 
     payroll = payout_record.employee_payroll
     log_details = payout_record.to_dict()
+    amount_to_revert = payout_record.amount
 
     try:
+        # --- NEW: Reverse bank transaction allocation ---
+        if payout_record.notes and '[银行流水分配:' in payout_record.notes:
+            match = re.search(r'\[银行流水分配: (\S+)\]', payout_record.notes)
+            if match:
+                bank_txn_id = match.group(1)
+                bank_txn = BankTransaction.query.filter_by(transaction_id=bank_txn_id).first()
+                if bank_txn:
+                    bank_txn.allocated_amount -= amount_to_revert
+                    if bank_txn.allocated_amount <= 0:
+                        bank_txn.status = BankTransactionStatus.UNMATCHED
+                        bank_txn.allocated_amount = Decimal('0')
+                    else:
+                        bank_txn.status = BankTransactionStatus.PARTIALLY_ALLOCATED
+                    db.session.add(bank_txn)
+                    current_app.logger.info(f"Reverted {amount_to_revert} from BankTransaction {bank_txn.id}")
+
         db.session.delete(payout_record)
         _update_payroll_payout_status(payroll)
         log_action = f"删除了工资发放记录，金额: {log_details['amount']}"
@@ -5184,5 +5200,23 @@ def get_unpaid_bills_by_customer():
             return jsonify({"bills": [], "closest_bill_period": closest_bill_period})
 
     except Exception as e:
-        current_app.logger.error(f"Failed to get unpaid bills for {customer_name}: {e}", exc_info=True)
+        return jsonify({"error": "服务器内部错误"}), 500
+
+@billing_bp.route("/payable-items-by-payee", methods=["GET"])
+@jwt_required()
+def get_payable_items_by_payee():
+    payee_type = request.args.get("payee_type")
+    payee_id = request.args.get("payee_id")
+    year = request.args.get("year", type=int)
+    month = request.args.get("month", type=int)
+
+    if not all([payee_type, payee_id, year, month]):
+        return jsonify({"error": "payee_type, payee_id, year, and month are required."}), 400
+
+    try:
+        service = BankStatementService()
+        result = service.get_payable_items_for_payee(payee_type, payee_id, year, month)
+        return jsonify(result)
+    except Exception as e:
+        current_app.logger.error(f"Failed to get payable items for payee {payee_id}: {e}", exc_info=True)
         return jsonify({"error": "Internal server error"}), 500
