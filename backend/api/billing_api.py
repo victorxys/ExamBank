@@ -4301,24 +4301,18 @@ def delete_payment_record(payment_id):
     if request.method == 'OPTIONS':
         return jsonify({'status': 'ok'}), 200
 
-    payment_record = db.session.get(PaymentRecord, payment_id)
-    if not payment_record:
-        return jsonify({"error": "支付记录未找到"}), 404
+    user_id = get_jwt_identity()
+    service = BankStatementService()
+    result = service.delete_payment_record_and_reverse_allocation(str(payment_id), user_id)
 
-    bill = payment_record.customer_bill
-    log_details = payment_record.to_dict()
-
-    try:
-        db.session.delete(payment_record)
-        _update_bill_payment_status(bill)
-        log_action = f"删除了支付记录，金额: {log_details['amount']}"
-        _log_activity(bill, None, log_action, details=log_details)
-        db.session.commit()
-        return jsonify({"message": "支付记录删除成功"}), 200
-    except Exception as e:
-        db.session.rollback()
-        current_app.logger.error(f"删除支付记录失败 (id: {payment_id}): {e}",exc_info=True)
-        return jsonify({"error": "服务器内部错误"}), 500
+    if "error" in result:
+        # 根据错误类型返回不同的状态码
+        if "not found" in result["error"].lower():
+            return jsonify(result), 404
+        else:
+            return jsonify(result), 500
+            
+    return jsonify(result), 200
 
 @billing_bp.route("/payouts/<uuid:payout_id>", methods=["DELETE", "OPTIONS"])
 @admin_required
@@ -5104,38 +5098,47 @@ def search_unpaid_bills():
         return jsonify({"error": "Internal server error"}), 500
         return jsonify({"error": "Internal server error"}), 500
     
-@billing_bp.route("/unpaid-bills-by-customer", methods=["GET"])
+@billing_bp.route("/bills-by-customer", methods=["GET"])
 @jwt_required()
-def get_unpaid_bills_by_customer():
+def get_bills_by_customer():
     """
-    根据客户名和年月，获取该客户所有未付清的账单。
+    根据客户名和年月，获取该客户所有的账单，并计算每个账单从特定流水中已支付的金额。
     """
     customer_name = request.args.get("customer_name")
     year = request.args.get("year", type=int)
     month = request.args.get("month", type=int)
+    bank_transaction_id = request.args.get("bank_transaction_id") # 新增参数
 
     if not customer_name or not year or not month:
         return jsonify({"error": "customer_name, year, and month are required."}), 400
 
     try:
-        # 查找该客户名下的所有合同
         contracts = BaseContract.query.filter_by(customer_name=customer_name).all()
         if not contracts:
             return jsonify({"bills": [], "closest_bill_period": None})
 
         contract_ids = [c.id for c in contracts]
 
-        # 查找这些合同在指定年月下所有未付清的账单
-        unpaid_bills_in_period = CustomerBill.query.filter(
+        bills_in_period = CustomerBill.query.filter(
             CustomerBill.contract_id.in_(contract_ids),
             CustomerBill.year == year,
-            CustomerBill.month == month,
-            CustomerBill.total_due > CustomerBill.total_paid
+            CustomerBill.month == month
         ).all()
 
-        if unpaid_bills_in_period:
+        if bills_in_period:
             results = []
-            for bill in unpaid_bills_in_period:
+            for bill in bills_in_period:
+                # --- 新增计算 paid_by_this_txn 的逻辑 ---
+                paid_by_this_txn = D('0')
+                if bank_transaction_id:
+                    payments_from_this_txn = PaymentRecord.query.filter_by(
+                        customer_bill_id=bill.id,
+                        bank_transaction_id=bank_transaction_id
+                    ).all()
+                    if payments_from_this_txn:
+                        paid_by_this_txn = sum(p.amount for p in payments_from_this_txn)
+                # --- 逻辑结束 ---
+
                 payments = []
                 for pr in bill.payment_records:
                     if pr.bank_transaction:
@@ -5155,7 +5158,8 @@ def get_unpaid_bills_by_customer():
                     "total_due": str(bill.total_due),
                     "total_paid": str(bill.total_paid),
                     "amount_remaining": str(bill.total_due - bill.total_paid),
-                    "payments": payments
+                    "payments": payments,
+                    "paid_by_this_txn": str(paid_by_this_txn) # 新增字段
                 })
 
             sorted_results = sorted(
@@ -5163,17 +5167,16 @@ def get_unpaid_bills_by_customer():
                 key=lambda x: Decimal(x['amount_remaining']),
                 reverse=True
             )
+            current_app.logger.info(f"--- BACKEND DATA --- {sorted_results}")
+            current_app.logger.info(f"[DEBUG] Bills being sent to frontend: {results}")
             return jsonify({"bills": sorted_results, "closest_bill_period": None})
         else:
-            # 当月无账单，查找最近的未付账单
             all_unpaid_bills = CustomerBill.query.filter(
                 CustomerBill.contract_id.in_(contract_ids),
                 CustomerBill.total_due > CustomerBill.total_paid
             ).all()
 
             if not all_unpaid_bills:
-                current_app.logger.info(f"[DEBUG] No unpaid bills found at all. Returning empty with contract context.")
-                # 客户有合同，但没有任何未付账单。提供一个合同ID给前端用于“查看合同”。
                 latest_contract = sorted(contracts, key=lambda c: c.start_date, reverse=True)[0]
                 return jsonify({"bills": [], "closest_bill_period": None, "relevant_contract_id": str(latest_contract.id)})
 
@@ -5188,7 +5191,6 @@ def get_unpaid_bills_by_customer():
                     min_abs_distance = abs_distance
                     closest_bill = bill
                 elif abs_distance == min_abs_distance:
-                    # 距离相同时，优先选择过去的账单
                     if distance < 0:
                         closest_bill = bill
 

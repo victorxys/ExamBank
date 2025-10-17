@@ -580,7 +580,20 @@ class BankStatementService:
         print(f"--- DEBUG: Returning a total of {len(results)} items. ---")
         return {'results': results}
 
-    def _format_payable_item(self, item):
+    def _format_payable_item(self, item, bank_transaction_id=None):
+        paid_by_this_txn = D('0')
+        if bank_transaction_id:
+            if isinstance(item, EmployeePayroll):
+                payout_record = PayoutRecord.query.filter(
+                    PayoutRecord.employee_payroll_id == item.id,
+                    PayoutRecord.notes.like(f"%[银行流水分配: {bank_transaction_id}]%")
+                ).first()
+                if payout_record:
+                    paid_by_this_txn = payout_record.amount
+            elif isinstance(item, FinancialAdjustment):
+                # Assuming similar logic for adjustments if they can be partially paid by a txn
+                pass
+
         if isinstance(item, EmployeePayroll):
             employee = item.contract.service_personnel or item.contract.user
             employee_name = employee.name if hasattr(employee, 'name') else employee.username
@@ -595,7 +608,8 @@ class BankStatementService:
                 'total_due': str(item.total_due),
                 'total_paid': str(item.total_paid_out),
                 'amount_remaining': str(item.total_due - item.total_paid_out),
-                'contract_id': str(item.contract_id)
+                'contract_id': str(item.contract_id),
+                'paid_by_this_txn': str(paid_by_this_txn)
             }
         elif isinstance(item, FinancialAdjustment):
             return {
@@ -609,11 +623,12 @@ class BankStatementService:
                 'total_due': str(item.amount),
                 'total_paid': str(item.paid_amount) if item.is_settled and item.paid_amount else ('0.00'),
                 'amount_remaining': '0.00' if item.is_settled else str(item.amount),
-                'contract_id': str(item.contract_id)
+                'contract_id': str(item.contract_id),
+                'paid_by_this_txn': str(paid_by_this_txn)
             }
         return None
 
-    def get_payable_items_for_payee(self, payee_type: str, payee_id: str, year: int, month: int) -> dict:
+    def get_payable_items_for_payee(self, payee_type: str, payee_id: str, year: int, month: int, bank_transaction_id: str = None) -> dict:
         current_app.logger.info(f"[DEBUG] Entering get_payable_items_for_payee for {payee_type}:{payee_id} @ {year}-{month}")
 
         contract_ids = []
@@ -635,7 +650,6 @@ class BankStatementService:
             EmployeePayroll.contract_id.in_(contract_ids),
             EmployeePayroll.year == year,
             EmployeePayroll.month == month,
-            EmployeePayroll.payout_status.in_([PayoutStatus.UNPAID, PayoutStatus.PARTIALLY_PAID])
         ).all()
 
         refunds = FinancialAdjustment.query.filter(
@@ -650,7 +664,7 @@ class BankStatementService:
 
         # 2. If items found, format and return them
         if items_in_month:
-            formatted_items = [self._format_payable_item(item) for item in items_in_month if self._format_payable_item(item) is not None]
+            formatted_items = [self._format_payable_item(item, bank_transaction_id) for item in items_in_month if self._format_payable_item(item) is not None]
             return {"items": formatted_items, "closest_item_period": None, "relevant_contract_id": None}
 
         # 3. If no items in month, find closest item or relevant contract
@@ -1318,10 +1332,29 @@ class BankStatementService:
 
                 # 2. 更新客户账单 (CustomerBill)
                 bill.total_paid += amount_to_pay
-                if bill.total_paid >= bill.total_due:
-                    bill.payment_status = PaymentStatus.PAID
-                else:
-                    bill.payment_status = PaymentStatus.PARTIALLY_PAID
+                _update_bill_payment_status(bill)
+
+                # --- NEW: Auto-create alias if payer name mismatches customer name ---
+                if bank_txn.payer_name != bill.contract.customer_name:
+                    # 核心修正：使用 payer_name 和 contract_id 联合查询
+                    existing_alias = PayerAlias.query.filter_by(
+                        payer_name=bank_txn.payer_name,
+                        contract_id=bill.contract_id
+                    ).first()
+
+                    if not existing_alias:
+                        # 只有在这个精确的关联不存在时，才创建
+                        try:
+                            new_alias = PayerAlias(
+                                payer_name=bank_txn.payer_name,
+                                contract_id=bill.contract_id,
+                                created_by_user_id=operator_id
+                            )
+                            db.session.add(new_alias)
+                            current_app.logger.info(f"Automatically created alias: '{bank_txn.payer_name}' -> Contract {bill.contract_id}")
+                        except Exception as alias_e:
+                            current_app.logger.error(f"Could not auto-create alias. Error: {alias_e}")
+                # --- END NEW ---
                 
                 # --- 【新增】创建财务活动日志 ---
                 log_entry = FinancialActivityLog(

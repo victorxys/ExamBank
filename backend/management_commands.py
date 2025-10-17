@@ -2,10 +2,61 @@
 
 import click
 from flask.cli import with_appcontext
-from backend.services.billing_engine import BillingEngine
-from backend.models import BaseContract, db
+from backend.services.billing_engine import BillingEngine, _update_bill_payment_status
+from backend.models import BaseContract, db, CustomerBill, PaymentRecord, PaymentStatus
+from sqlalchemy import func
+from decimal import Decimal
 
 def register_commands(app):
+    @app.cli.command("fix-bill-totals")
+    @with_appcontext
+    def fix_bill_totals_command():
+        """
+        修复所有客户账单的实收总额(total_paid)和支付状态(payment_status)。
+        这个脚本会遍历所有账单，根据关联的支付记录重新计算总额。
+        """
+        print("--- 开始修复历史账单的实收总额和支付状态 ---")
+        
+        try:
+            all_bills = CustomerBill.query.all()
+            total_bills = len(all_bills)
+            updated_count = 0
+            
+            print(f"找到 {total_bills} 个账单需要检查。")
+
+            for i, bill in enumerate(all_bills):
+                # 重新计算实收总额
+                correct_total_paid = db.session.query(func.sum(PaymentRecord.amount)).filter(
+                    PaymentRecord.customer_bill_id == bill.id
+                ).scalar() or Decimal('0')
+                
+                correct_total_paid = correct_total_paid.quantize(Decimal("0.01"))
+
+                # 检查是否需要更新
+                if bill.total_paid != correct_total_paid:
+                    updated_count += 1
+                    print(f"  -> [{i+1}/{total_bills}] 发现不一致: 账单ID {bill.id} | 旧总额: {bill.total_paid} | 新总额: {correct_total_paid}")
+                    bill.total_paid = correct_total_paid
+                
+                # 无论总额是否变化，都重新检查一下状态
+                original_status = bill.payment_status
+                _update_bill_payment_status(bill)
+                if bill.payment_status != original_status:
+                    if not (bill.total_paid == correct_total_paid): # Only log status change if total was not already being updated
+                         print(f"     - 状态更新: 账单ID {bill.id} | 旧状态: {original_status.value} | 新状态: {bill.payment_status.value}")
+
+            if updated_count > 0:
+                db.session.commit()
+                print(f"\n--- 修复完成 ---")
+                print(f"共检查 {total_bills} 个账单，更新了 {updated_count} 个账单的实收总额。")
+            else:
+                print("\n--- 检查完成 ---")
+                print("所有账单的实收总额都已是最新，无需修复。")
+
+        except Exception as e:
+            db.session.rollback()
+            print(f"执行修复任务时发生严重错误: {e}")
+
     @app.cli.command("recalc-bills")
     @click.option("--year", required=True, type=int, help="要计算的年份 (例如: 2025)")
     @click.option("--month", required=True, type=int, help="要计算的月份 (例如: 8)")

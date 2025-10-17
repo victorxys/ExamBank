@@ -2069,8 +2069,8 @@ class BankTransaction(db.Model):
 class PayerAlias(db.Model):
     __tablename__ = 'payer_aliases'
     __table_args__ = (
-        # 一个付款人名称只能被别名到一个合同
-        db.UniqueConstraint('payer_name', name='uq_payer_aliases_payer_name'),
+        # 一个付款人可以为多个合同代付，但同一个付款人和同一个合同的组合必须是唯一的
+        db.UniqueConstraint('payer_name', 'contract_id', name='uq_payer_name_contract_id'),
         {'comment': '付款人别名表'}
     )
 
@@ -2079,9 +2079,8 @@ class PayerAlias(db.Model):
     # 付款人名称，来自银行流水
     payer_name = db.Column(db.String(255), nullable=False, index=True, comment="银行流水中的付款人名称")
     
-    # --- 【核心修改】关联到合同ID ---
+    # 关联到合同ID
     contract_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('contracts.id', ondelete="CASCADE"), nullable=False, index=True, comment="关联到的合同ID")
-    # --------------------------------
 
     notes = db.Column(db.Text, nullable=True, comment="备注")
     created_by_user_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('user.id', ondelete="SET NULL"), nullable=True)
