@@ -2650,9 +2650,9 @@ class BillingEngine:
             f"[RecalcByBill] 合同 {contract.id} 的所有账单已重算完毕。"
         )
     
-    def process_trial_conversion(self, trial_contract_id: str,formal_contract_id: str,operator_id: str):
+    def process_trial_conversion(self, trial_contract_id: str, formal_contract_id: str, operator_id: str):
         """
-        V9 (最终版): 将计算过程直接、可靠地写入 description 字段。
+        V11 (最终修正版): 处理试工转正，精确处理重叠及非重叠期间的薪资和管理费。
         """
         trial_contract = db.session.get(NannyTrialContract, trial_contract_id)
         if not trial_contract:
@@ -2665,149 +2665,159 @@ class BillingEngine:
         if trial_contract.trial_outcome != TrialOutcome.PENDING:
             raise ValueError("该试工合同已被处理，无法再次转换。")
 
+        # 1. 更新合同状态
         trial_contract.trial_outcome = TrialOutcome.SUCCESS
         trial_contract.status = 'finished'
         formal_contract.source_trial_contract_id = trial_contract.id
 
-        costs = self._calculate_trial_conversion_costs(trial_contract)
-
-        first_bill = CustomerBill.query.filter_by(contract_id=formal_contract.id,is_substitute_bill=False).order_by(CustomerBill.cycle_start_date.asc()).first()
-        first_payroll = EmployeePayroll.query.filter_by(contract_id=formal_contract.id,is_substitute_payroll=False).order_by(EmployeePayroll.cycle_start_date.asc()).first()
+        # 2. 准备基础数据和账单
+        first_bill = CustomerBill.query.filter_by(contract_id=formal_contract.id, is_substitute_bill=False).order_by(CustomerBill.cycle_start_date.asc()).first()
+        first_payroll = EmployeePayroll.query.filter_by(contract_id=formal_contract.id, is_substitute_payroll=False).order_by(EmployeePayroll.cycle_start_date.asc()).first()
 
         if not first_bill or not first_payroll:
             self.generate_all_bills_for_contract(formal_contract.id)
-            first_bill = CustomerBill.query.filter_by(contract_id=formal_contract.id,is_substitute_bill=False).order_by(CustomerBill.cycle_start_date.asc()).first()
-            first_payroll = EmployeePayroll.query.filter_by(contract_id=formal_contract.id,is_substitute_payroll=False).order_by(EmployeePayroll.cycle_start_date.asc()).first()
+            first_bill = CustomerBill.query.filter_by(contract_id=formal_contract.id, is_substitute_bill=False).order_by(CustomerBill.cycle_start_date.asc()).first()
+            first_payroll = EmployeePayroll.query.filter_by(contract_id=formal_contract.id, is_substitute_payroll=False).order_by(EmployeePayroll.cycle_start_date.asc()).first()
             if not first_bill or not first_payroll:
                 raise Exception(f"无法为正式合同 {formal_contract.id} 找到或创建第一个账单/薪酬单。")
 
-        source_details = {"source_trial_contract_id": str(trial_contract.id)}
+        trial_start = self._to_date(trial_contract.start_date)
+        trial_end = self._to_date(trial_contract.end_date)
+        formal_start = self._to_date(formal_contract.start_date)
+        
+        # 3. 计算日期重叠和非重叠部分
+        non_overlap_days = 0
+        if formal_start > trial_start:
+            non_overlap_end = min(trial_end, formal_start - timedelta(days=1))
+            if non_overlap_end >= trial_start:
+                non_overlap_days = (non_overlap_end - trial_start).days + 1
 
-        if "trial_service_fee" in costs:
-            fee_info = costs["trial_service_fee"]
-            amount = fee_info["amount"]
-            calculation_desc = fee_info["description"]
+        overlap_days = 0
+        if formal_start <= trial_end:
+            overlap_start = max(trial_start, formal_start)
+            overlap_end = trial_end
+            if overlap_end >= overlap_start:
+                overlap_days = (overlap_end - overlap_start).days + 1
+        
+        non_overlap_days = max(0, non_overlap_days)
+        overlap_days = max(0, overlap_days)
 
-            # 1. 在客户账单上创建“客户增款”项
-            # bill_adj = FinancialAdjustment(
-            #     customer_bill_id=first_bill.id,
-            #     adjustment_type=AdjustmentType.CUSTOMER_INCREASE,
-            #     amount=amount,
-            #     description=f"[系统] 转入试工服务费 ({calculation_desc})",
-            #     date=first_bill.cycle_start_date,
-            #     details=source_details
-            # )
-            # db.session.add(bill_adj)
+        # 4. 处理非重叠部分的工资转移 (只影响员工薪酬单)
+        if non_overlap_days > 0:
+            trial_daily_rate = D(trial_contract.employee_level or '0')
+            transfer_amount = (trial_daily_rate * D(non_overlap_days)).quantize(D("0.01"))
+            if transfer_amount > 0:
+                db.session.add(FinancialAdjustment(
+                    employee_payroll_id=first_payroll.id,
+                    adjustment_type=AdjustmentType.EMPLOYEE_CLIENT_PAYMENT,
+                    amount=transfer_amount,
+                    description=f"[客户直付] 试工劳务费 (非重叠期 {non_overlap_days} 天)",
+                    date=first_payroll.cycle_start_date,
+                    details={"source_trial_contract_id": str(trial_contract.id)}
+                ))
 
-            # 2. 在员工薪酬单上创建“客户直付”项
-            payroll_adj = FinancialAdjustment(
-                employee_payroll_id=first_payroll.id,
-                adjustment_type=AdjustmentType.EMPLOYEE_CLIENT_PAYMENT,
-                amount=amount,
-                description=f"[客户直付] 试工劳务费 ({calculation_desc})",
-                date=first_payroll.cycle_start_date,
-                details=source_details
-            )
-            db.session.add(payroll_adj)
+        # 5. 处理重叠部分的工资和管理费差额
+        if overlap_days > 0:
+            # a. 工资差额调整 (仅员工侧)
+            trial_daily_rate = D(trial_contract.employee_level or '0')
+            formal_daily_rate = D(formal_contract.employee_level or '0') / D(26)
+            salary_diff = (formal_daily_rate - trial_daily_rate) * D(overlap_days)
+            salary_diff = salary_diff.quantize(D("0.01"))
 
-        if "introduction_fee" in costs:
-            fee_info = costs["introduction_fee"]
-            intro_fee_adj = FinancialAdjustment(customer_bill_id=first_bill.id,adjustment_type=AdjustmentType.INTRODUCTION_FEE, amount=fee_info["amount"], description=f"[系统] 来自试工合同的介绍费 (已结清)", date=first_bill.cycle_start_date, is_settled=True,settlement_date=trial_contract.start_date, details=source_details)
+            if salary_diff > 0:
+                description = (
+                    f"[系统] 试工转正薪资差异调整 (重叠期 {overlap_days} 天, "
+                    f"正式日薪: {formal_daily_rate:.2f}, 试工日薪: {trial_daily_rate:.2f})"
+                )
+                db.session.add(FinancialAdjustment(
+                    employee_payroll_id=first_payroll.id,
+                    adjustment_type=AdjustmentType.EMPLOYEE_DECREASE,
+                    amount=salary_diff,
+                    description=description,
+                    date=first_payroll.cycle_start_date,
+                    details={"source_trial_contract_id": str(trial_contract.id)}
+                ))
+
+            # b. 管理费差额调整 (仅客户侧)
+            #   i. 计算按正式合同标准，为重叠期收了多少管理费
+            formal_monthly_fee = D(formal_contract.management_fee_amount or '0')
+            if formal_monthly_fee <= 0:
+                 formal_monthly_fee = (D(formal_contract.employee_level or '0') * D('0.1')).quantize(D("0.01"))
+            
+            formal_daily_mgmt_fee = formal_monthly_fee / D(30)
+            fee_charged_for_overlap = (formal_daily_mgmt_fee * D(overlap_days)).quantize(D("0.01"))
+
+            #   ii. 计算按试工合同标准，重叠期本应收多少管理费
+            fee_should_have_been = D(0)
+            has_intro_fee = (trial_contract.introduction_fee or 0) > 0
+            notes_has_mgmt_fee = "管理费" in (trial_contract.notes or "")
+            trial_level = D(trial_contract.employee_level or '0')
+            if not (has_intro_fee and not notes_has_mgmt_fee):
+                fee_should_have_been = (trial_level * D('0.2') / D(30) * D(overlap_days)).quantize(D("0.01"))
+
+            #   iii. 计算差额并创建减款
+            management_fee_diff = fee_charged_for_overlap - fee_should_have_been
+            if management_fee_diff > 0:
+                trial_level = D(trial_contract.employee_level or '0')
+                trial_daily_mgmt_fee = (trial_level * D('0.2') / D(30)) if not (has_intro_fee and not notes_has_mgmt_fee) else D(0)
+                description = (
+                    f"[系统] 试工转正管理费差异调整 (重叠期 {overlap_days} 天, "
+                    f"正式日管理费: {formal_daily_mgmt_fee:.2f}, 试工日管理费: {trial_daily_mgmt_fee:.2f})"
+                )
+                db.session.add(FinancialAdjustment(
+                    customer_bill_id=first_bill.id,
+                    adjustment_type=AdjustmentType.CUSTOMER_DECREASE,
+                    amount=management_fee_diff,
+                    description=description,
+                    date=first_bill.cycle_start_date,
+                    details={"source_trial_contract_id": str(trial_contract.id)}
+                ))
+
+        # 6. 处理介绍费 (逻辑不变)
+        introduction_fee = D(trial_contract.introduction_fee or '0')
+        if introduction_fee > 0:
+            intro_fee_adj = FinancialAdjustment(customer_bill_id=first_bill.id,adjustment_type=AdjustmentType.INTRODUCTION_FEE, amount=introduction_fee, description=f"[系统] 来自试工合同的介绍费 (已结清)", date=first_bill.cycle_start_date, is_settled=True,settlement_date=trial_contract.start_date, details={"source_trial_contract_id": str(trial_contract.id)})
             db.session.add(intro_fee_adj)
-            payment_for_intro_fee = PaymentRecord(customer_bill_id=first_bill.id,amount=fee_info["amount"], payment_date=trial_contract.start_date, method='TRIAL_FEE_TRANSFER',notes=f"[系统] 试工合同 介绍费转入", created_by_user_id=operator_id)
+            payment_for_intro_fee = PaymentRecord(customer_bill_id=first_bill.id,amount=introduction_fee, payment_date=trial_contract.start_date, method='TRIAL_FEE_TRANSFER',notes=f"[系统] 试工合同 介绍费转入", created_by_user_id=operator_id)
             db.session.add(payment_for_intro_fee)
 
-        if "management_fee" in costs:
-            fee_info = costs["management_fee"]
-            management_fee_adj = FinancialAdjustment(customer_bill_id=first_bill.id,adjustment_type=AdjustmentType.CUSTOMER_INCREASE, amount=fee_info["amount"], description=f"[系统] 从试工合同 转入试工管理费", date=first_bill.cycle_start_date,details=source_details)
-            db.session.add(management_fee_adj)
-
+        # 7. 提交并重算
         db.session.commit()
         self.calculate_for_month(year=first_bill.year,month=first_bill.month,contract_id=formal_contract.id, force_recalculate=True,cycle_start_date_override=first_bill.cycle_start_date)
         db.session.refresh(first_bill)
         _update_bill_payment_status(first_bill)
         db.session.commit()
 
-
-
-    def _calculate_trial_conversion_costs(self, trial_contract):
+    def delete_payment_record_and_reverse_allocation(payment_id):
         """
-        计算试工合同成功转换时产生的各项费用。
-        V2: 返回包含计算过程的详细字典。
+        (Service Function) Deletes a payment record and reverses its financial impact.
+        DOES NOT COMMIT the transaction. The caller is responsible for the session commit.
+        Returns the objects that were modified for logging purposes.
         """
-        if not isinstance(trial_contract, NannyTrialContract):
-            return {}
+        payment = db.session.get(PaymentRecord, payment_id)
+        if not payment:
+            raise ValueError(f"Payment record with ID {payment_id} not found.")
 
-        costs = {}
+        bill = payment.customer_bill
+        transaction = payment.bank_transaction
 
-        # 试工天数计算
-        trial_duration_days = (self._to_date(trial_contract.end_date) - self._to_date(trial_contract.start_date)).days
-        if trial_duration_days < 0:
-            trial_duration_days = 0
+        # Reverse impact on CustomerBill
+        if bill:
+            bill.total_paid = (bill.total_paid or D(0)) - payment.amount
+            _update_bill_payment_status(bill)
 
-        # 1. 计算试工服务费
-        trial_level = D(trial_contract.employee_level or '0')
-        daily_rate = (trial_level).quantize(D("0.01"))
-        trial_service_fee = (daily_rate * D(trial_duration_days)).quantize(D('0.01'))
+        # Reverse impact on BankTransaction
+        if transaction:
+            transaction.allocated_amount = (transaction.allocated_amount or D(0)) - payment.amount
+            # 核心修正：使用导入的 Enum 成员，而不是字符串
+            if transaction.allocated_amount <= 0:
+                transaction.status = BankTransactionStatus.UNMATCHED
+                transaction.allocated_amount = D('0')
+            else:
+                transaction.status = BankTransactionStatus.PARTIALLY_ALLOCATED
+            db.session.add(transaction)
 
-        if trial_service_fee > 0:
-            costs["trial_service_fee"] = {
-                "amount": trial_service_fee,
-                "description": f"试工日薪({daily_rate}) * 试工天数({trial_duration_days})",
-            }
+        current_app.logger.info(f"Payment record {payment_id} and its effects will be deleted from session upon commit.")
+        db.session.delete(payment)
 
-        # 2. 获取介绍费
-        introduction_fee = D(trial_contract.introduction_fee or '0')
-        if introduction_fee > 0:
-            costs["introduction_fee"] = {
-                "amount": introduction_fee,
-                "description": "合同约定的介绍费",
-            }
-
-        # 3. 获取管理费
-        management_fee_rate = D(trial_contract.management_fee_rate or '0')
-        management_fee = D(0)
-        if management_fee_rate > 0:
-            # 根据费率计算管理费
-            management_fee = (trial_service_fee * management_fee_rate).quantize(D('0.01'))
-            if management_fee > 0:
-                costs["management_fee"] = {
-                    "amount": management_fee,
-                    "description": f"试工服务费({trial_service_fee}) * 管理费率({management_fee_rate:.0%})",
-                }
-
-        return costs
-    
-def delete_payment_record_and_reverse_allocation(payment_id):
-    """
-    (Service Function) Deletes a payment record and reverses its financial impact.
-    DOES NOT COMMIT the transaction. The caller is responsible for the session commit.
-    Returns the objects that were modified for logging purposes.
-    """
-    payment = db.session.get(PaymentRecord, payment_id)
-    if not payment:
-        raise ValueError(f"Payment record with ID {payment_id} not found.")
-
-    bill = payment.customer_bill
-    transaction = payment.bank_transaction
-
-    # Reverse impact on CustomerBill
-    if bill:
-        bill.total_paid = (bill.total_paid or D(0)) - payment.amount
-        _update_bill_payment_status(bill)
-
-    # Reverse impact on BankTransaction
-    if transaction:
-        transaction.allocated_amount = (transaction.allocated_amount or D(0)) - payment.amount
-        # 核心修正：使用导入的 Enum 成员，而不是字符串
-        if transaction.allocated_amount <= 0:
-            transaction.status = BankTransactionStatus.UNMATCHED
-            transaction.allocated_amount = D('0')
-        else:
-            transaction.status = BankTransactionStatus.PARTIALLY_ALLOCATED
-        db.session.add(transaction)
-
-    current_app.logger.info(f"Payment record {payment_id} and its effects will be deleted from session upon commit.")
-    db.session.delete(payment)
-
-    return bill, transaction
+        return bill, transaction

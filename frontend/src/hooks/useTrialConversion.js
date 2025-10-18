@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import api from '../api/axios';
 
 export const useTrialConversion = (onActionComplete) => {
@@ -21,25 +21,48 @@ export const useTrialConversion = (onActionComplete) => {
         setConversionSuccess(false);
 
         setLoadingEligible(true);
-        setLoadingCosts(true);
         try {
             const employeeId = contract.user_id || contract.service_personnel_id;
-            const [eligibleRes, costsRes] = await Promise.all([
-                api.get('/billing/contracts', {
-                    params: { customer_name: contract.customer_name,employee_id: employeeId, type: 'nanny', status: 'active', per_page: 100 }
-                }),
-                api.get(`/billing/nanny-trial-contracts/${contract.id}/conversion-preview`)
-            ]);
-            setEligibleContracts(eligibleRes.data.items.filter(c => c.id !==contract.id));
-            setConversionCosts(costsRes.data); // <-- 直接设置costs对象
+            const eligibleRes = await api.get('/billing/contracts', {
+                params: { customer_name: contract.customer_name, employee_id: employeeId, type: 'nanny', status: 'active', per_page: 100 }
+            });
+            const eligible = eligibleRes.data.items.filter(c => c.id !== contract.id);
+            setEligibleContracts(eligible);
+            // If there's only one eligible contract, pre-select it.
+            if (eligible.length === 1) {
+                setSelectedFormalContractId(eligible[0].id);
+            }
         } catch (error) {
-            setAlert({ open: true, message: `获取转换详情失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
+            setAlert({ open: true, message: `获取可关联的正式合同列表失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
             setConversionDialogOpen(false);
         } finally {
             setLoadingEligible(false);
-            setLoadingCosts(false);
         }
     }, []);
+
+    // This new useEffect will fetch the costs when a formal contract is selected
+    useEffect(() => {
+        if (selectedFormalContractId && contractToProcess) {
+            setLoadingCosts(true);
+            setConversionCosts(null);
+            api.get(`/billing/nanny-trial-contracts/${contractToProcess.id}/conversion-preview`, {
+                params: { formal_contract_id: selectedFormalContractId }
+            })
+            .then(response => {
+                setConversionCosts(response.data);
+            })
+            .catch(error => {
+                setAlert({ open: true, message: `获取预览费用失败: ${error.response?.data?.error || error.message}`, severity: 'warning' });
+            })
+            .finally(() => {
+                setLoadingCosts(false);
+            });
+        } else {
+            // Clear costs if no formal contract is selected
+            setConversionCosts(null);
+        }
+    }, [selectedFormalContractId, contractToProcess]);
+
 
     const closeConversionDialog = useCallback(() => {
         setConversionDialogOpen(false);
