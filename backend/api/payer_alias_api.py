@@ -5,7 +5,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from sqlalchemy.exc import IntegrityError
 
 from ..models import db, PayerAlias, BaseContract, PaymentRecord, BankTransaction, CustomerBill
-from ..services.billing_engine import delete_payment_record_and_reverse_allocation
+from ..services.bank_statement_service import BankStatementService
 
 payer_alias_api = Blueprint("payer_alias_api", __name__, url_prefix="/api/payer-aliases")
 
@@ -72,6 +72,7 @@ def delete_payer_alias(payer_name):
     如果有关联的付款，会根据 `delete_payments` 参数决定行为。
     """
     delete_payments = request.args.get('delete_payments', 'false').lower() == 'true'
+    operator_id = get_jwt_identity()
 
     try:
         # 注意：此接口现在会删除该付款人名下的所有别名关系
@@ -92,8 +93,9 @@ def delete_payer_alias(payer_name):
 
             if payments_to_delete:
                 if delete_payments:
+                    service = BankStatementService()
                     for payment in payments_to_delete:
-                        delete_payment_record_and_reverse_allocation(payment.id)
+                        service.delete_payment_record_and_reverse_allocation(str(payment.id), operator_id)
                 else:
                     return jsonify({
                         "error": "Conflict: This alias has associated payments.",

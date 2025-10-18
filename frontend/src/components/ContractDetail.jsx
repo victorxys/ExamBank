@@ -7,7 +7,7 @@ import {
   Box, Typography, Paper, Grid, CircularProgress, Button,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Chip,Tooltip,
   List, ListItem, ListItemText, Divider, Dialog, DialogTitle, DialogContent,MenuItem,
-  DialogActions, Alert, Stack, IconButton, TextField, InputAdornment, Switch,FormControlLabel
+  DialogActions, Alert, Stack, IconButton, TextField, InputAdornment, Switch, FormControlLabel, Radio, RadioGroup, FormControl, FormLabel
 } from '@mui/material';
 import {
     ArrowBack as ArrowBackIcon, Edit as EditIcon, CheckCircle as CheckCircleIcon,Info as InfoIcon,
@@ -131,6 +131,7 @@ const ContractDetail = () => {
     // --- 修改 1: 迁移状态和逻辑 ---
     const [terminationDialogOpen, setTerminationDialogOpen] = useState(false);
     const [terminationDate, setTerminationDate] = useState(null);
+    const [chargeOnTerminationDate, setChargeOnTerminationDate] = useState(true);
 
     const [isTransfer, setIsTransfer] = useState(false);
     const [substitutes, setSubstitutes] = useState([]);
@@ -469,6 +470,7 @@ const ContractDetail = () => {
         // 基础的请求体
         let payload = {
             termination_date: terminationDate.toISOString().split('T')[0],
+            charge_on_termination_date: chargeOnTerminationDate,
         };
 
         // 如果用户选择了“转签”
@@ -1090,6 +1092,17 @@ const ContractDetail = () => {
                             minDate={contract.start_date ? new Date(contract.start_date) : undefined}
                             sx={{ width: '100%', mt: 1 }}
                         />
+                        <FormControl component="fieldset" sx={{ mt: 2 }}>
+                            <FormLabel component="legend">管理费计算规则</FormLabel>
+                            <RadioGroup
+                                row
+                                value={chargeOnTerminationDate}
+                                onChange={(e) => setChargeOnTerminationDate(e.target.value === 'true')}
+                            >
+                                <FormControlLabel value={true} control={<Radio />} label="收取终止日当天管理费" />
+                                <FormControlLabel value={false} control={<Radio />} label="不收取当天管理费" />
+                            </RadioGroup>
+                        </FormControl>
                         {/* --- 新增：转签开关 --- */}
                         <FormControlLabel
                             control={<Switch checked={isTransfer} onChange={(e) => setIsTransfer(e.target.checked)} />}

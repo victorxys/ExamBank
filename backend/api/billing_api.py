@@ -2670,6 +2670,7 @@ def terminate_contract(contract_id):
     data = request.get_json()
     termination_date_str = data.get("termination_date")
     transfer_options = data.get("transfer_options")
+    charge_on_termination_date = data.get("charge_on_termination_date", True)
 
     if not termination_date_str:
         return jsonify({"error": "Termination date is required"}), 400
@@ -2984,43 +2985,47 @@ def terminate_contract(contract_id):
                         current_app.logger.info(f"为最终账单 {final_bill.id} 创建了管理费退款项 {total_refund_amount:.2f}元。")
         elif isinstance(contract, NannyContract) and contract.is_monthly_auto_renew:
             # 为月签合同处理管理费退款
-            current_app.logger.info(f"合同 {contract.id} 是月签合同，开始处理管理费退款补丁。")
+            current_app.logger.info(f"合同 {contract.id} 是月签合同，开始处理管理费退款。规则: charge_on_termination_date={charge_on_termination_date}")
             
-            # 1. 独立、可靠地计算应退金额
             monthly_management_fee = D(contract.management_fee_amount or 0)
             if monthly_management_fee <= 0 and contract.employee_level:
                 monthly_management_fee = (D(contract.employee_level) * D("0.1")).quantize(D("0.01"))
             
             if monthly_management_fee > 0:
-                _, days_in_month = calendar.monthrange(termination_date.year, termination_date.month)
-                if days_in_month > 0:
-                    daily_fee = monthly_management_fee / D(days_in_month)
-                    # 按剩余天数退还管理费，因此需要 +1
-                    remaining_days = days_in_month - termination_date.day + 1
+                final_bill = CustomerBill.query.filter(
+                    CustomerBill.contract_id == str(contract_id),
+                    CustomerBill.year == termination_date.year,
+                    CustomerBill.month == termination_date.month,
+                    CustomerBill.is_substitute_bill == False
+                ).first()
+
+                if final_bill:
+                    cycle_start = final_bill.cycle_start_date.date() if isinstance(final_bill.cycle_start_date, datetime) else final_bill.cycle_start_date
+                    cycle_end = final_bill.cycle_end_date.date() if isinstance(final_bill.cycle_end_date, datetime) else final_bill.cycle_end_date
                     
-                    if remaining_days > 0:
-                        refund_amount = (daily_fee * D(remaining_days)).quantize(D("0.01"))
+                    days_in_cycle = (cycle_end - cycle_start).days + 1
+                    
+                    if days_in_cycle > 0:
+                        daily_fee = (monthly_management_fee / D(days_in_cycle)).quantize(D("0.0001"))
                         
-                        if refund_amount > 0:
-                            # 2. 找到当月账单
-                            final_bill = CustomerBill.query.filter(
-                                CustomerBill.contract_id == str(contract_id),
-                                CustomerBill.year == termination_date.year,
-                                CustomerBill.month == termination_date.month,
-                                CustomerBill.is_substitute_bill == False
-                            ).first()
-                            description = f"[系统] 月签合同终止退款: {monthly_management_fee:.2f}元/月 / 30天 * {remaining_days}天 = {refund_amount:.2f}元"
-                            if final_bill:
-                                # 3. 创建财务调整项，确保幂等性
-                                                                # 确保幂等性，防止重复创建
+                        if charge_on_termination_date:
+                            remaining_days = (cycle_end - termination_date).days
+                        else:
+                            remaining_days = (cycle_end - termination_date).days + 1
+                        
+                        if remaining_days > 0:
+                            refund_amount = (daily_fee * D(remaining_days)).quantize(D("0.01"))
+                            
+                            if refund_amount > 0:
+                                description = f"[系统] 月签合同终止退款: {monthly_management_fee:.2f}元/月(周期) / {days_in_cycle}天 * {remaining_days}天 = {refund_amount:.2f}元"
+                                
                                 existing_refund = FinancialAdjustment.query.filter(
                                     FinancialAdjustment.customer_bill_id == final_bill.id,
                                     FinancialAdjustment.adjustment_type == AdjustmentType.CUSTOMER_DECREASE,
                                     FinancialAdjustment.description.like(f"[系统] 月签合同终止退款%")
                                 ).first()
-                                current_app.logger.debug(f"====>找到refund= {existing_refund}")
+
                                 if not existing_refund:
-                                    current_app.logger.debug(f"没有找到refund")
                                     db.session.add(
                                         FinancialAdjustment(
                                             customer_bill_id=final_bill.id,
@@ -4868,28 +4873,103 @@ def convert_nanny_trial_contract(trial_contract_id):
 @jwt_required()
 def get_trial_conversion_preview(contract_id):
     """
-    V4: 直接返回结构化的费用对象，包含金额和描述。
+    V6: (最终版) 精确预览试工转正的所有财务影响。
     """
     if request.method == 'OPTIONS':
         return jsonify({'status': 'ok'}), 200
 
-    contract = db.session.get(NannyTrialContract, str(contract_id))
-    if not contract:
+    formal_contract_id = request.args.get("formal_contract_id")
+    if not formal_contract_id:
+        return jsonify({})
+
+    trial_contract = db.session.get(NannyTrialContract, str(contract_id))
+    if not trial_contract:
         return jsonify({"error": "试工合同未找到"}), 404
+
+    formal_contract = db.session.get(NannyContract, formal_contract_id)
+    if not formal_contract:
+        return jsonify({"error": "正式合同未找到"}), 404
 
     try:
         engine = BillingEngine()
-        costs = engine._calculate_trial_conversion_costs(contract)
+        trial_start = engine._to_date(trial_contract.start_date)
+        trial_end = engine._to_date(trial_contract.end_date)
+        formal_start = engine._to_date(formal_contract.start_date)
 
-        # 将Decimal类型转换为字符串，以便JSON序列化
-        formatted_costs = {}
-        for key, value_dict in costs.items():
-            formatted_costs[key] = {
-                "amount": str(value_dict["amount"]),
-                "description": value_dict["description"]
+        # --- 1. 计算日期重叠和非重叠部分 ---
+        non_overlap_days = 0
+        if formal_start > trial_start:
+            non_overlap_end = min(trial_end, formal_start - timedelta(days=1))
+            if non_overlap_end >= trial_start:
+                non_overlap_days = (non_overlap_end - trial_start).days + 1
+        
+        overlap_days = 0
+        if formal_start <= trial_end:
+            overlap_start = max(trial_start, formal_start)
+            overlap_end = trial_end
+            if overlap_end >= overlap_start:
+                overlap_days = (overlap_end - overlap_start).days + 1
+        
+        non_overlap_days = max(0, non_overlap_days)
+        overlap_days = max(0, overlap_days)
+
+        costs = {}
+
+        # --- 2. 计算非重叠期的转移工资 ---
+        if non_overlap_days > 0:
+            trial_daily_rate = D(trial_contract.employee_level or '0')
+            transfer_amount = (trial_daily_rate * D(non_overlap_days)).quantize(D("0.01"))
+            if transfer_amount > 0:
+                costs["non_overlap_salary"] = {
+                    "amount": str(transfer_amount),
+                    "description": f"纯试工期 {non_overlap_days} 天劳务费 (按试工标准)"
+                }
+
+        # --- 3. 计算重叠期的薪资和管理费差额 ---
+        if overlap_days > 0:
+            # a. 薪资差额
+            trial_daily_rate = D(trial_contract.employee_level or '0')
+            formal_daily_rate = D(formal_contract.employee_level or '0') / D(26)
+            salary_diff = (formal_daily_rate - trial_daily_rate) * D(overlap_days)
+            salary_diff = salary_diff.quantize(D("0.01"))
+            if salary_diff > 0:
+                costs["overlap_salary_adjustment"] = {
+                    "amount": str(salary_diff),
+                    "description": f"重叠期 {overlap_days} 天薪资差额 (员工减款)"
+                }
+
+            # b. 管理费差额
+            formal_monthly_fee = D(formal_contract.management_fee_amount or '0')
+            if formal_monthly_fee <= 0:
+                 formal_monthly_fee = (D(formal_contract.employee_level or '0') * D('0.1')).quantize(D("0.01"))
+            
+            if formal_monthly_fee > 0:
+                formal_daily_mgmt_fee = formal_monthly_fee / D(30)
+                fee_charged_for_overlap = (formal_daily_mgmt_fee * D(overlap_days)).quantize(D("0.01"))
+                
+                fee_should_have_been = D(0)
+                has_intro_fee = (trial_contract.introduction_fee or 0) > 0
+                notes_has_mgmt_fee = "管理费" in (trial_contract.notes or "")
+                if not (has_intro_fee and not notes_has_mgmt_fee):
+                    trial_level = D(trial_contract.employee_level or '0')
+                    fee_should_have_been = (trial_level * D('0.2') / D(30) * D(overlap_days)).quantize(D("0.01"))
+
+                management_fee_diff = fee_charged_for_overlap - fee_should_have_been
+                if management_fee_diff > 0:
+                    costs["management_fee_adjustment"] = {
+                        "amount": str(management_fee_diff),
+                        "description": f"重叠期 {overlap_days} 天管理费差额 (客户减款)"
+                    }
+
+        # --- 4. 计算介绍费 ---
+        introduction_fee = D(trial_contract.introduction_fee or '0')
+        if introduction_fee > 0:
+            costs["introduction_fee"] = {
+                "amount": str(introduction_fee),
+                "description": "介绍费 (一次性收取)"
             }
 
-        return jsonify(formatted_costs)
+        return jsonify(costs)
     except Exception as e:
         current_app.logger.error(f"预览试工合同费用失败: {e}", exc_info=True)
         return jsonify({"error": "计算预览费用时发生错误"}), 500
