@@ -654,7 +654,7 @@ class BillingEngine:
             },
         }
 
-    def calculate_termination_refunds(self, contract: BaseContract, termination_date: date) -> dict:
+    def calculate_termination_refunds(self, contract: BaseContract, termination_date: date, charge_on_termination_date: bool = True) -> dict:
         """
         (V1-新增) 计算合同终止时的应退款项（保证金、管理费）。
         这是一个纯计算函数，不修改数据库。
@@ -675,9 +675,7 @@ class BillingEngine:
             # 月签合同：退还当月剩余天数的管理费
             term_month = termination_date.month
             term_year = termination_date.year
-            _, days_in_month = calendar.monthrange(term_year, term_month)
             
-            # 找到当月的账单，以获取当月管理费总额
             current_bill = CustomerBill.query.filter(
                 CustomerBill.contract_id == contract.id,
                 CustomerBill.year == term_year,
@@ -688,13 +686,24 @@ class BillingEngine:
             if current_bill and current_bill.calculation_details:
                 monthly_management_fee = D(current_bill.calculation_details.get('management_fee', '0'))
                 if monthly_management_fee > 0:
-                    daily_fee = monthly_management_fee / days_in_month
-                    remaining_days = days_in_month - termination_date.day
-                    refund_amount = (daily_fee * remaining_days).quantize(QUANTIZER)
-                    refunds['management_fee_refund'] = refund_amount
+                    cycle_start = self._to_date(current_bill.cycle_start_date)
+                    cycle_end = self._to_date(current_bill.cycle_end_date)
+                    
+                    days_in_cycle = (cycle_end - cycle_start).days + 1
+                    
+                    if days_in_cycle > 0:
+                        daily_fee = (monthly_management_fee / D(days_in_cycle)).quantize(D("0.0001"))
+                        
+                        if charge_on_termination_date:
+                            remaining_days = (cycle_end - termination_date).days
+                        else:
+                            remaining_days = (cycle_end - termination_date).days + 1
+                        
+                        if remaining_days > 0:
+                            refund_amount = (daily_fee * D(remaining_days)).quantize(QUANTIZER)
+                            refunds['management_fee_refund'] = refund_amount
         else:
             # 非月签合同：退还已付但未消耗的总管理费
-            # 1. 找到首期账单，因为非月签的管理费是在首期一次性收取的
             first_bill = CustomerBill.query.filter(
                 CustomerBill.contract_id == contract.id,
                 CustomerBill.is_substitute_bill == False
@@ -704,17 +713,21 @@ class BillingEngine:
                 total_paid_management_fee = D(first_bill.calculation_details.get('management_fee', '0'))
                 
                 if total_paid_management_fee > 0:
-                    # 2. 计算已消耗的管理费
                     contract_start_date = self._to_date(contract.start_date)
-                    days_served = (termination_date - contract_start_date).days
                     
-                    # 假设总管理费是基于整个合同周期的，计算日均管理费
-                    total_contract_days = (self._to_date(contract.end_date) - contract_start_date).days
+                    if charge_on_termination_date:
+                        days_served = (termination_date - contract_start_date).days + 1
+                    else:
+                        days_served = (termination_date - contract_start_date).days
+                    
+                    total_contract_days = (self._to_date(contract.end_date) - contract_start_date).days + 1
+                    
                     if total_contract_days > 0:
                         daily_fee = total_paid_management_fee / total_contract_days
                         consumed_fee = (daily_fee * days_served).quantize(QUANTIZER)
                         refund_amount = (total_paid_management_fee - consumed_fee).quantize(QUANTIZER)
-                        refunds['management_fee_refund'] = refund_amount
+                        if refund_amount > 0:
+                            refunds['management_fee_refund'] = refund_amount
 
         current_app.logger.info(f"为合同 {contract.id} 计算出的退款为: {refunds}")
         return refunds
