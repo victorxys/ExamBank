@@ -138,6 +138,7 @@ const ContractDetail = () => {
     const [selectedSubstituteUserId, setSelectedSubstituteUserId] = useState('');
     const [selectedNewContractId, setSelectedNewContractId] = useState('');
     const [loadingTransferOptions, setLoadingTransferOptions] = useState(false);
+    const [filterMethod, setFilterMethod] = useState('employee');
 
     const [isEditingIntroFee, setIsEditingIntroFee] = useState(false);
     const [introFee, setIntroFee] = useState('');
@@ -217,38 +218,56 @@ const ContractDetail = () => {
 
     // 修正后的useEffect，使用 customer_name 进行筛选
     useEffect(() => {
-        // 如果用户选择了“转签”并且选择了一个员工
-        if (isTransfer && selectedSubstituteUserId) {
-            const fetchEligibleContracts = async () => {
-                setLoadingTransferOptions(true);
-                setEligibleContracts([]); // 先清空
-                setSelectedNewContractId(''); // 重置合同选择
-                try {
-                    // 根据客户姓名和新选的员工ID来获取合同
-                    const contractsRes = await api.get('/billing/contracts',{
+        if (!isTransfer) {
+            setEligibleContracts([]);
+            return;
+        }
+
+        const fetchEligibleContracts = async () => {
+            setLoadingTransferOptions(true);
+            setEligibleContracts([]);
+            setSelectedNewContractId('');
+            try {
+                let contractsData = [];
+                if (filterMethod === 'customer') {
+                    const response = await api.get('/billing/contracts/eligible-for-transfer', {
                         params: {
-                            customer_name: contract.customer_name, // <-- 【修正】使用 customer_name
+                            customer_name: contract.customer_name,
+                            exclude_contract_id: contractId
+                        }
+                    });
+                    contractsData = response.data.map(c => {
+                        const match = c.label.match(/ - (.*) \((.*)生效\)/);
+                        return {
+                            id: c.id,
+                            employee_name: match ? match[1] : '未知员工',
+                            start_date: match ? match[2] : null,
+                            end_date: null 
+                        };
+                    });
+                } else if (filterMethod === 'employee' && selectedSubstituteUserId) {
+                    const response = await api.get('/billing/contracts', {
+                        params: {
+                            customer_name: contract.customer_name,
                             employee_id: selectedSubstituteUserId,
                             status: 'active',
                             per_page: 100
                         }
                     });
-                    // 同样要过滤掉当前正在操作的合同
-                    const eligible = contractsRes.data.items.filter(c => c.id!== contractId);
-                    setEligibleContracts(eligible);
-                } catch (error) {
-                    setAlert({ open: true, message: `获取目标合同列表失败: ${error.message}`, severity: 'warning' });
-                } finally {
-                    setLoadingTransferOptions(false);
+                    contractsData = response.data.items.filter(c => c.id !== contractId);
                 }
-            };
+                setEligibleContracts(contractsData);
 
-            fetchEligibleContracts();
-        } else {
-            // 如果没有选择员工，就清空合同列表
-            setEligibleContracts([]);
-        }
-    }, [isTransfer, selectedSubstituteUserId, contractId, contract?.customer_name]); // 依赖项也要更新
+            } catch (error) {
+                setAlert({ open: true, message: `获取目标合同列表失败: ${error.message}`, severity: 'warning' });
+            } finally {
+                setLoadingTransferOptions(false);
+            }
+        };
+
+        fetchEligibleContracts();
+
+    }, [isTransfer, filterMethod, selectedSubstituteUserId, contractId, contract?.customer_name]);
 
     useEffect(() => {
         if (contract?.trial_outcome === 'success' && contract.converted_to_formal_contract_id){
@@ -467,32 +486,34 @@ const ContractDetail = () => {
     const handleConfirmTermination = async () => {
         if (!contract || !terminationDate) return;
 
-        // 基础的请求体
         let payload = {
             termination_date: terminationDate.toISOString().split('T')[0],
             charge_on_termination_date: chargeOnTerminationDate,
         };
 
-        // 如果用户选择了“转签”
         if (isTransfer) {
-            // 验证是否已选择员工和目标合同
-            if (!selectedSubstituteUserId || !selectedNewContractId) {
-                setAlert({ open: true, message:'请选择要转签的员工和目标合同', severity: 'warning' });
-                return; // 中断执行
+            if (!selectedNewContractId) {
+                setAlert({ open: true, message: '请选择要转入的目标合同', severity: 'warning' });
+                return;
             }
-            // 如果验证通过，在请求体中加入 transfer_options
+            if (filterMethod === 'employee' && !selectedSubstituteUserId) {
+                setAlert({ open: true, message: '请选择要转签的员工', severity: 'warning' });
+                return;
+            }
+
             payload.transfer_options = {
-                substitute_user_id: selectedSubstituteUserId,
                 new_contract_id: selectedNewContractId,
             };
+            if (filterMethod === 'employee' && selectedSubstituteUserId) {
+                payload.transfer_options.substitute_user_id = selectedSubstituteUserId;
+            }
         }
 
         try {
-            // 使用我们构建好的 payload 发起请求
-            await api.post(`/billing/contracts/${contract.id}/terminate`,payload);
-            setAlert({ open: true, message: '合同终止操作成功！', severity:'success' });
+            await api.post(`/billing/contracts/${contract.id}/terminate`, payload);
+            setAlert({ open: true, message: '合同终止操作成功！', severity: 'success' });
             handleCloseTerminationDialog();
-            fetchData(); // 重新获取数据以更新页面
+            fetchData();
         } catch (error) {
             setAlert({ open: true, message: `操作失败: ${error.response?.data?.message || error.message}`, severity: 'error' });
         }
@@ -1112,34 +1133,44 @@ const ContractDetail = () => {
                         {/* --- 新增：转签选项的条件渲染 --- */}
                         {isTransfer && (
                             <Box sx={{ mt: 2, border: '1px dashed grey', p: 2, borderRadius: 1 }}>
+                                <FormControl component="fieldset" sx={{ mb: 2 }}>
+                                    <FormLabel component="legend">筛选目标合同方式</FormLabel>
+                                    <RadioGroup row value={filterMethod} onChange={(e) => setFilterMethod(e.target.value)}>
+                                        <FormControlLabel value="employee" control={<Radio />} label="按替班员工" />
+                                        <FormControlLabel value="customer" control={<Radio />} label="按客户" />
+                                    </RadioGroup>
+                                </FormControl>
+
                                 {loadingTransferOptions ? <CircularProgress size={24} /> : (
                                     <Stack spacing={2}>
-                                        <TextField
-                                            select
-                                            fullWidth
-                                            label="选择替班员工"
-                                            value={selectedSubstituteUserId}
-                                            onChange={(e) =>setSelectedSubstituteUserId(e.target.value)}
-                                            helperText={substitutes.length=== 0 ? "此合同无替班记录" : "选择要转正的员工"}
-                                            disabled={substitutes.length ===0}
-                                        >
-                                            {substitutes.map(sub => (
-                                                <MenuItem key={sub.substitute_user_id} value={sub.substitute_user_id}>
-                                                    {sub.substitute_user_name}
-                                                </MenuItem>
-                                            ))}
-                                        </TextField>
+                                        {filterMethod === 'employee' && (
+                                            <TextField
+                                                select
+                                                fullWidth
+                                                label="选择替班员工"
+                                                value={selectedSubstituteUserId}
+                                                onChange={(e) => setSelectedSubstituteUserId(e.target.value)}
+                                                helperText={substitutes.length === 0 ? "此合同无替班记录" : "选择要转正的员工"}
+                                                disabled={substitutes.length === 0}
+                                            >
+                                                {substitutes.map(sub => (
+                                                    <MenuItem key={sub.substitute_user_id} value={sub.substitute_user_id}>
+                                                        {sub.substitute_user_name}
+                                                    </MenuItem>
+                                                ))}
+                                            </TextField>
+                                        )}
                                         <TextField
                                             select
                                             fullWidth
                                             label="选择要转入的新合同"
                                             value={selectedNewContractId}
-                                            onChange={(e) =>setSelectedNewContractId(e.target.value)}
-                                            helperText={eligibleContracts.length === 0 ? "未找到该员工与客户间的生效合同" : ""}
-                                            disabled={!selectedSubstituteUserId || eligibleContracts.length === 0}
+                                            onChange={(e) => setSelectedNewContractId(e.target.value)}
+                                            helperText={eligibleContracts.length === 0 ? "未找到符合条件的生效合同" : ""}
+                                            disabled={(filterMethod === 'employee' && !selectedSubstituteUserId) || eligibleContracts.length === 0}
                                         >
                                             {eligibleContracts.map(c => (
-                                                <MenuItem key={c.id}value={c.id}>
+                                                <MenuItem key={c.id} value={c.id}>
                                                     {`合同: ${c.employee_name} (${formatDate(c.start_date)} - ${formatDate(c.end_date)})`}
                                                 </MenuItem>
                                             ))}

@@ -2650,9 +2650,9 @@ class BillingEngine:
             f"[RecalcByBill] 合同 {contract.id} 的所有账单已重算完毕。"
         )
     
-    def process_trial_conversion(self, trial_contract_id: str, formal_contract_id: str, operator_id: str):
+    def process_trial_conversion(self, trial_contract_id: str, formal_contract_id: str, operator_id: str, conversion_costs: dict = None):
         """
-        V11 (最终修正版): 处理试工转正，精确处理重叠及非重叠期间的薪资和管理费。
+        V12: 处理试工转正，允许从前端覆盖计算出的费用。
         """
         trial_contract = db.session.get(NannyTrialContract, trial_contract_id)
         if not trial_contract:
@@ -2690,14 +2690,14 @@ class BillingEngine:
         if formal_start > trial_start:
             non_overlap_end = min(trial_end, formal_start - timedelta(days=1))
             if non_overlap_end >= trial_start:
-                non_overlap_days = (non_overlap_end - trial_start).days + 1
+                non_overlap_days = (non_overlap_end - trial_start).days
 
         overlap_days = 0
         if formal_start <= trial_end:
             overlap_start = max(trial_start, formal_start)
             overlap_end = trial_end
             if overlap_end >= overlap_start:
-                overlap_days = (overlap_end - overlap_start).days + 1
+                overlap_days = (overlap_end - overlap_start).days
         
         non_overlap_days = max(0, non_overlap_days)
         overlap_days = max(0, overlap_days)
@@ -2718,56 +2718,56 @@ class BillingEngine:
 
         # 5. 处理重叠部分的工资和管理费差额
         if overlap_days > 0:
-            # a. 工资差额调整 (仅员工侧)
-            trial_daily_rate = D(trial_contract.employee_level or '0')
-            formal_daily_rate = D(formal_contract.employee_level or '0') / D(26)
-            salary_diff = (formal_daily_rate - trial_daily_rate) * D(overlap_days)
-            salary_diff = salary_diff.quantize(D("0.01"))
+            if conversion_costs:
+                # 如果前端提供了费用，直接使用
+                salary_diff = D(conversion_costs.get('overlap_salary_adjustment', {}).get('amount', '0'))
+                management_fee_diff = D(conversion_costs.get('management_fee_adjustment', {}).get('amount', '0'))
+            else:
+                # 否则，在后端重新计算
+                trial_daily_rate = D(trial_contract.employee_level or '0')
+                formal_daily_rate = D(formal_contract.employee_level or '0') / D(26)
+                salary_diff = (formal_daily_rate - trial_daily_rate) * D(overlap_days)
+                salary_diff = salary_diff.quantize(D("0.01"))
 
-            if salary_diff > 0:
+                formal_monthly_fee = D(formal_contract.management_fee_amount or '0')
+                if formal_monthly_fee <= 0:
+                    formal_monthly_fee = (D(formal_contract.employee_level or '0') * D('0.1')).quantize(D("0.01"))
+                
+                formal_daily_mgmt_fee = formal_monthly_fee / D(30)
+                fee_charged_for_overlap = (formal_daily_mgmt_fee * D(overlap_days)).quantize(D("0.01"))
+
+                fee_should_have_been = D(0)
+                has_intro_fee = (trial_contract.introduction_fee or 0) > 0
+                notes_has_mgmt_fee = "管理费" in (trial_contract.notes or "")
+                if not (has_intro_fee and not notes_has_mgmt_fee):
+                    trial_level = D(trial_contract.employee_level or '0')
+                    fee_should_have_been = (trial_level * D('0.2') / D(30) * D(overlap_days)).quantize(D("0.01"))
+
+                management_fee_diff = fee_charged_for_overlap - fee_should_have_been
+
+            # a. 工资差额调整 (仅员工侧)
+            if salary_diff != 0:
                 description = (
-                    f"[系统] 试工转正薪资差异调整 (重叠期 {overlap_days} 天, "
-                    f"正式日薪: {formal_daily_rate:.2f}, 试工日薪: {trial_daily_rate:.2f})"
+                    f"[系统] 试工转正薪资差异调整 (重叠期 {overlap_days} 天)"
                 )
                 db.session.add(FinancialAdjustment(
                     employee_payroll_id=first_payroll.id,
-                    adjustment_type=AdjustmentType.EMPLOYEE_DECREASE,
-                    amount=salary_diff,
+                    adjustment_type=AdjustmentType.EMPLOYEE_DECREASE if salary_diff > 0 else AdjustmentType.EMPLOYEE_INCREASE,
+                    amount=abs(salary_diff),
                     description=description,
                     date=first_payroll.cycle_start_date,
                     details={"source_trial_contract_id": str(trial_contract.id)}
                 ))
 
             # b. 管理费差额调整 (仅客户侧)
-            #   i. 计算按正式合同标准，为重叠期收了多少管理费
-            formal_monthly_fee = D(formal_contract.management_fee_amount or '0')
-            if formal_monthly_fee <= 0:
-                 formal_monthly_fee = (D(formal_contract.employee_level or '0') * D('0.1')).quantize(D("0.01"))
-            
-            formal_daily_mgmt_fee = formal_monthly_fee / D(30)
-            fee_charged_for_overlap = (formal_daily_mgmt_fee * D(overlap_days)).quantize(D("0.01"))
-
-            #   ii. 计算按试工合同标准，重叠期本应收多少管理费
-            fee_should_have_been = D(0)
-            has_intro_fee = (trial_contract.introduction_fee or 0) > 0
-            notes_has_mgmt_fee = "管理费" in (trial_contract.notes or "")
-            trial_level = D(trial_contract.employee_level or '0')
-            if not (has_intro_fee and not notes_has_mgmt_fee):
-                fee_should_have_been = (trial_level * D('0.2') / D(30) * D(overlap_days)).quantize(D("0.01"))
-
-            #   iii. 计算差额并创建减款
-            management_fee_diff = fee_charged_for_overlap - fee_should_have_been
-            if management_fee_diff > 0:
-                trial_level = D(trial_contract.employee_level or '0')
-                trial_daily_mgmt_fee = (trial_level * D('0.2') / D(30)) if not (has_intro_fee and not notes_has_mgmt_fee) else D(0)
+            if management_fee_diff != 0:
                 description = (
-                    f"[系统] 试工转正管理费差异调整 (重叠期 {overlap_days} 天, "
-                    f"正式日管理费: {formal_daily_mgmt_fee:.2f}, 试工日管理费: {trial_daily_mgmt_fee:.2f})"
+                    f"[系统] 试工转正管理费差异调整 (重叠期 {overlap_days} 天)"
                 )
                 db.session.add(FinancialAdjustment(
                     customer_bill_id=first_bill.id,
-                    adjustment_type=AdjustmentType.CUSTOMER_DECREASE,
-                    amount=management_fee_diff,
+                    adjustment_type=AdjustmentType.CUSTOMER_DECREASE if management_fee_diff > 0 else AdjustmentType.CUSTOMER_INCREASE,
+                    amount=abs(management_fee_diff),
                     description=description,
                     date=first_bill.cycle_start_date,
                     details={"source_trial_contract_id": str(trial_contract.id)}
