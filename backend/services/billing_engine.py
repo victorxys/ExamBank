@@ -1917,6 +1917,10 @@ class BillingEngine:
         log_extras["customer_payable_reason"] = f"客户应付: 日薪({daily_rate:.2f}) * 服务天数({service_days:.2f}) = {customer_payable:.2f}"
         log_extras["employee_payout_reason"] = f"员工工资: 等同于客户应付金额 = {employee_payout:.2f}"
         # --- 修正结束 ---
+
+        cust_increase, cust_decrease, emp_increase, emp_decrease, deferred_fee, emp_commission = (
+            self._get_adjustments(bill.id, payroll.id)
+        )
         
         extension_fee = D(0)
         # --- 关键修复：使用正确的日期进行比较 ---
@@ -1960,9 +1964,9 @@ class BillingEngine:
             "employee_base_payout": str(employee_payout), "overtime_days":"0.00",
             "total_days_worked": f"{service_days:.2f}", "substitute_days":"0.00",
             "substitute_deduction": "0.00", "extension_fee": str(extension_fee),"customer_overtime_fee": "0.00",
-            "customer_increase": "0.00", "customer_decrease": "0.00", "discount": "0.00",
-            "employee_overtime_payout": "0.00", "employee_increase": "0.00","employee_decrease": "0.00",
-            "deferred_fee": "0.00", "log_extras": log_extras,
+            "customer_increase": str(cust_increase), "customer_decrease": str(cust_decrease), "discount": "0.00",
+            "employee_overtime_payout": "0.00", "employee_increase": str(emp_increase),"employee_decrease": str(emp_decrease),
+            "deferred_fee": str(deferred_fee), "log_extras": log_extras,
         }
 
     def _get_or_create_bill_and_payroll(
@@ -2110,7 +2114,13 @@ class BillingEngine:
             if adj.adjustment_type in [
                 AdjustmentType.CUSTOMER_INCREASE,
                 AdjustmentType.INTRODUCTION_FEE,
+                AdjustmentType.COMPANY_PAID_SALARY,
             ]
+        )
+        cust_increase += sum(
+            adj.amount
+            for adj in employee_adjustments
+            if adj.adjustment_type == AdjustmentType.COMPANY_PAID_SALARY
         )
         cust_decrease = sum(
             adj.amount
@@ -2129,13 +2139,8 @@ class BillingEngine:
             if adj.adjustment_type in [
                 AdjustmentType.EMPLOYEE_INCREASE,
                 AdjustmentType.EMPLOYEE_CLIENT_PAYMENT, # <-- 把“客户支付给员工的费用”也算作增款,一般是从试工合同中转过来的试工劳务费
-                AdjustmentType.EMPLOYEE_COMMISSION_OFFSET # <-- 把“佣金冲账”也算作增款
+                AdjustmentType.EMPLOYEE_COMMISSION_OFFSET, # <-- 把“佣金冲账”也算作增款
             ]
-        )
-        emp_increase += sum(
-            adj.amount
-            for adj in customer_adjustments
-            if adj.adjustment_type == AdjustmentType.COMPANY_PAID_SALARY
         )
         # --- 这是修改点：分别计算 DECREASE 和 COMMISSION ---
         emp_decrease = sum(
@@ -2150,8 +2155,9 @@ class BillingEngine:
         )
         # --- 修改结束 ---
 
-        # --- 修改返回值，增加 emp_commission ---
-        return cust_increase, cust_decrease, emp_increase, emp_decrease,deferred_fee, emp_commission
+                # --- 修改返回值，增加 emp_commission ---
+
+        return cust_increase, cust_decrease, emp_increase, emp_decrease, deferred_fee, emp_commission
 
     def _calculate_final_amounts(self, bill, payroll, details):
         current_app.logger.info("开始进行final calculation of amounts.")
@@ -2196,7 +2202,6 @@ class BillingEngine:
         details["final_payout"] = str(payroll.total_due)
         details["final_payout_gross"] = str(payroll.total_due)
         details["final_payout_net"] = str(employee_net_payout.quantize(D("0.01")))
-       
         return bill, payroll
 
     def _create_calculation_log(self, details):
