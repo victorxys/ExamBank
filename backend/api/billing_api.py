@@ -2750,14 +2750,16 @@ def terminate_contract(contract_id):
             raise ValueError("无法找到用于处理退款的最终账单。")
 
         # 步骤 3: 手动计算管理费退款，并添加到最终账单
+        current_app.logger.info(f"=====contract.is_monthly_auto_renew======{contract.is_monthly_auto_renew}")
         if isinstance(contract, NannyContract):
             monthly_management_fee = contract.management_fee_amount if contract.management_fee_amount and contract.management_fee_amount > 0 else (D(contract.employee_level or '0') * D("0.1"))
             if monthly_management_fee > 0 and termination_date < original_end_date:
                 daily_management_fee = (monthly_management_fee / D(30)).quantize(D("0.0001"))
                 management_refund_item = None
                 if not contract.is_monthly_auto_renew:
-                    if termination_date.year == contract_start_date.year and termination_date.month ==contract_start_date.month:
-                        days_to_refund = (original_end_date - termination_date).days + 1
+                    current_app.logger.info(f"=====termination_date.year={termination_date.year} == original_end_date.year={original_end_date.year} and termination_date.month = {termination_date.month}, original_end_date.month={original_end_date.month}===")
+                    if termination_date.year == original_end_date.year and termination_date.month ==original_end_date.month:
+                        days_to_refund = (original_end_date - termination_date).days if charge_on_termination_date else (original_end_date - termination_date).days + 1
                         if days_to_refund > 0:
                             amount = (daily_management_fee * D(days_to_refund)).quantize(D("0.01"))
                             if amount > 0:
@@ -2765,8 +2767,12 @@ def terminate_contract(contract_id):
                     else:
                         description_parts = ["合同提前终止，管理费退款计算如下："]
                         term_month_refund_amount = D(0)
-                        refund_days_term = 30 - termination_date.day
+
+                        _, days_in_month = calendar.monthrange(termination_date.year, termination_date.month)
+                        refund_days_term = (days_in_month - termination_date.day) if charge_on_termination_date else(days_in_month - termination_date.day + 1)
+
                         if refund_days_term > 0: term_month_refund_amount = (D(refund_days_term) *daily_management_fee).quantize(D("0.01"))
+
                         full_months_count = 0
                         full_months_total_amount = D(0)
                         full_months_start_date = None
@@ -2778,6 +2784,7 @@ def terminate_contract(contract_id):
                             full_months_count += 1
                             current_month_start += relativedelta(months=1)
                         if full_months_count > 0: full_months_total_amount = monthly_management_fee *D(full_months_count)
+
                         original_end_month_refund_amount = D(0)
                         is_original_end_month_a_full_month = False
                         if not (termination_date.year == original_end_date.year and termination_date.month ==original_end_date.month):
@@ -2789,6 +2796,7 @@ def terminate_contract(contract_id):
                             else:
                                 refund_days_original_end = original_end_date.day
                                 if refund_days_original_end > 0: original_end_month_refund_amount =(D(refund_days_original_end) * daily_management_fee).quantize(D("0.01"))
+
                         total_refund_amount = term_month_refund_amount + full_months_total_amount +original_end_month_refund_amount
                         if total_refund_amount > 0:
                             if term_month_refund_amount > 0: description_parts.append(f"  - 终止月({termination_date.month}月{termination_date.day}日)剩余 {refund_days_term} 天: {term_month_refund_amount:.2f}元")
