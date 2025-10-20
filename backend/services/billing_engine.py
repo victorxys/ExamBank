@@ -1782,7 +1782,7 @@ class BillingEngine:
         else:
             time_difference = sub_record.end_date - sub_record.start_date
             precise_substitute_days = D(time_difference.total_seconds()) / D(86400)
-            substitute_days = precise_substitute_days.quantize(D('0.01'))
+            substitute_days = precise_substitute_days.quantize(D('0.001'))
 
         if overrides.get('overtime_days') is not None:
             overtime_days = D(overrides['overtime_days'])

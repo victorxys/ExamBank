@@ -2758,7 +2758,7 @@ class EmployeePayroll(db.Model):
         lazy="dynamic",
         cascade="all, delete-orphan",
     )
-    actual_work_days = db.Column(db.Numeric(10, 2), nullable=True, comment="实际劳务天数")
+    actual_work_days = db.Column(db.Numeric(10, 3), nullable=True, comment="实际劳务天数")
     is_substitute_payroll = db.Column(
         db.Boolean,
         default=False,
@@ -2817,7 +2817,7 @@ class AttendanceRecord(db.Model):
     # ----------------------------------------
 
     total_days_worked = db.Column(db.Numeric(10, 2), nullable=False, comment="总出勤天数")
-    overtime_days = db.Column(db.Numeric(10, 2), default=0, comment="非节假日加班天数")
+    overtime_days = db.Column(db.Numeric(10, 3), default=0, comment="非节假日加班天数")
     statutory_holiday_days = db.Column(
         db.Numeric(10, 2), default=0, comment="法定节假日工作天数"
     )
@@ -2876,9 +2876,7 @@ class SubstituteRecord(db.Model):
     # 替班的起止日期
     start_date = db.Column(db.DateTime(timezone=True), nullable=False, comment="替班开始日期时间")
     end_date = db.Column(db.DateTime(timezone=True), nullable=False, comment="替班结束日期时间")
-    overtime_days = db.Column(
-        db.Numeric(2, 1), nullable=False, server_default="0", comment="替班期间的加班天数"
-    )
+    overtime_days = db.Column(db.Numeric(10, 3), nullable=False, server_default="0", comment="替班期间的加班天数")
 
     notes = db.Column(db.Text, nullable=True, comment="替班备注")
     created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
