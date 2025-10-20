@@ -2110,7 +2110,6 @@ class BillingEngine:
             if adj.adjustment_type in [
                 AdjustmentType.CUSTOMER_INCREASE,
                 AdjustmentType.INTRODUCTION_FEE,
-                AdjustmentType.COMPANY_PAID_SALARY,
             ]
         )
         cust_decrease = sum(
@@ -2132,6 +2131,11 @@ class BillingEngine:
                 AdjustmentType.EMPLOYEE_CLIENT_PAYMENT, # <-- 把“客户支付给员工的费用”也算作增款,一般是从试工合同中转过来的试工劳务费
                 AdjustmentType.EMPLOYEE_COMMISSION_OFFSET # <-- 把“佣金冲账”也算作增款
             ]
+        )
+        emp_increase += sum(
+            adj.amount
+            for adj in customer_adjustments
+            if adj.adjustment_type == AdjustmentType.COMPANY_PAID_SALARY
         )
         # --- 这是修改点：分别计算 DECREASE 和 COMMISSION ---
         emp_decrease = sum(
