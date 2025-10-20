@@ -229,6 +229,46 @@ class TestNannyBillingEngine(unittest.TestCase):
         self.assertEqual(bill.total_due, D("5820.50"))
         self.assertEqual(payroll.final_payout, D("5149.75"))
 
+    def test_company_paid_salary_adjustment(self):
+        employee = ServicePersonnel(name="公司代付工资育儿嫂")
+        self.session.add(employee)
+        self.session.flush()
+        contract = NannyContract(
+            customer_name="公司代付工资客户",
+            service_personnel_id=employee.id,
+            status="active",
+            employee_level="5200",
+            start_date=date(2025, 1, 1),
+            end_date=date(2025, 12, 31),
+            is_monthly_auto_renew=True,
+            jinshuju_entry_id="test-nanny-7",
+        )
+        self.session.add(contract)
+        self.session.commit()
+        self.sync_service._pre_create_bills_for_active_contract(contract)
+        bill = CustomerBill.query.filter_by(
+            contract_id=contract.id, year=2025, month=8
+        ).first()
+        payroll = EmployeePayroll.query.filter_by(
+            contract_id=contract.id, year=2025, month=8
+        ).first()
+        company_paid_salary = FinancialAdjustment(
+            adjustment_type=AdjustmentType.COMPANY_PAID_SALARY,
+            amount=D("1000.00"),
+            description="公司代付部分工资",
+            date=date(2025, 8, 10),
+            customer_bill_id=bill.id,
+        )
+        self.session.add(company_paid_salary)
+        self.session.commit()
+        self.engine.calculate_for_month(
+            year=2025, month=8, contract_id=contract.id, force_recalculate=True
+        )
+        # The customer's bill should not be affected
+        self.assertEqual(bill.total_due, D("5720.00"))
+        # The employee's payroll should be increased
+        self.assertEqual(payroll.total_due, D("6200.00"))
+
     def test_calculate_nanny_bill_with_substitute(self):
         main_employee = ServicePersonnel(name="主育儿嫂")
         sub_employee = ServicePersonnel(name="替班育儿嫂")
