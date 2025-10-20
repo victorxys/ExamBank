@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Box, Button, Typography, Paper, Table, TableBody, TableCell, TableContainer,
-  TableHead, TableRow, TablePagination, IconButton, CircularProgress,
+  TableHead, TableRow, TablePagination, IconButton, CircularProgress,TableFooter,
   TextField, Select, MenuItem, FormControl, InputLabel, Chip, Tooltip, Checkbox,
   Card, CardHeader, CardContent, Grid, Dialog, DialogTitle, DialogContent, DialogActions, Divider, List, ListItem, ListItemText, ListItemIcon, Alert
 } from '@mui/material';
@@ -798,6 +798,9 @@ const BillingDashboard = () => {
         setGeneratedMessage('');
     };
 
+    const customerPayableTotal = contracts.reduce((acc, bill) => new Decimal(acc).plus(new Decimal(bill.customer_payable || 0)).toNumber(), 0);
+    const employeePayoutTotal = contracts.reduce((acc, bill) => new Decimal(acc).plus(new Decimal(bill.employee_payout || 0)).toNumber(), 0);
+
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={zhCN}>
       <Box>
@@ -1177,6 +1180,24 @@ const BillingDashboard = () => {
                     })
                   )}
                 </TableBody>
+                <TableFooter>
+                  <TableRow sx={{ '& > *': { borderBottom: 'none' } }}>
+                    <TableCell colSpan={8} align="right" sx={{ fontWeight: 'bold', fontSize: '1.1rem' }}>
+                        当页小记:
+                    </TableCell>
+                    <TableCell sx={{ fontWeight: 'bold', fontSize: '1.1rem' }}>
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                            <Typography sx={{ fontWeight: 'bold', color: 'error.main' }}>
+                                ¥{customerPayableTotal.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </Typography>
+                            <Typography sx={{ fontWeight: 'bold', color: 'success.main' }}>
+                                ¥{employeePayoutTotal.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </Typography>
+                        </Box>
+                    </TableCell>
+                    <TableCell></TableCell>
+                  </TableRow>
+                </TableFooter>
               </Table>
               <TablePagination component="div" count={totalContracts} page={page} onPageChange={(e, newPage) => setPage(newPage)} rowsPerPage={rowsPerPage} onRowsPerPageChange={(e) => { setRowsPerPage(parseInt(e.target.value, 10)); setPage(0); }} labelRowsPerPage="每页行数:" />
             </TableContainer>
