@@ -1,6 +1,5 @@
 import os
 import sys
-import traceback
 
 # --- 设置项目根目录 ---
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))

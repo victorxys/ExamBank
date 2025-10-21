@@ -43,7 +43,7 @@ from backend.api.evaluation import (
 from backend.api.user_profile import get_user_profile
 from backend.db import get_db_connection
 from backend.models import db, UserCourseAccess  #
-from backend.tasks import run_llm_function_async  # <<<--- 确保导入通用任务
+# from backend.tasks import run_llm_function_async  # <<<--- 确保导入通用任务
 
 # from backend.api.evaluation_visibility import bp as evaluation_visibility_bp
 # from backend.api.evaluation_item import bp as evaluation_item_bp

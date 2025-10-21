@@ -1986,6 +1986,7 @@ class AdjustmentType(enum.Enum):
     INTRODUCTION_FEE = "introduction_fee" # 介绍费
     DEPOSIT = "deposit" # 定金
     COMPANY_PAID_SALARY = "company_paid_salary" # 公司代付工资
+    SUBSTITUTE_MANAGEMENT_FEE = "substitute_management_fee" # 替班管理费
 
 
 class CompanyBankAccount(db.Model):
@@ -2277,12 +2278,12 @@ class FinancialAdjustment(db.Model):
 
         except Exception as e:
             # 这是我们的调试“陷阱”
-            print(f"--- FATAL SERIALIZATION ERROR ---")
+            print("--- FATAL SERIALIZATION ERROR ---")
             print(f"ERROR: Failed to serialize FinancialAdjustment with ID: {self.id}.")
             print(f"REASON: {e}")
             import traceback
             traceback.print_exc()
-            print(f"--- END OF ERROR ---")
+            print("--- END OF ERROR ---")
             return None
 
 class InvoiceRecord(db.Model):
@@ -2882,7 +2883,9 @@ class SubstituteRecord(db.Model):
     created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
 
     main_contract = db.relationship(
-        "BaseContract", backref=db.backref("substitute_records", lazy="dynamic")
+        "BaseContract",
+        foreign_keys=[main_contract_id],
+        backref=db.backref("substitute_records", lazy="dynamic"),
     )
     substitute_user = db.relationship("User")
     substitute_personnel = db.relationship("ServicePersonnel")
@@ -2905,11 +2908,13 @@ class SubstituteRecord(db.Model):
         "CustomerBill",
         backref=backref("source_substitute_record", uselist=False),
         foreign_keys=[generated_bill_id],
+        post_update=True, # 解决循环依赖
     )
     generated_payroll = db.relationship(
         "EmployeePayroll",
         backref=backref("source_substitute_record", uselist=False),
         foreign_keys=[generated_payroll_id],
+        post_update=True, # 解决循环依赖
     )
     # ------------------------------------
 

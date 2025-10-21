@@ -1,6 +1,5 @@
 # backend/api/utils.py
 
-from flask import current_app
 from datetime import date, datetime
 import decimal
 from flask_jwt_extended import get_jwt_identity
@@ -11,8 +10,6 @@ from backend.models import (
     FinancialAdjustment,
     AttendanceRecord,
     NannyContract,
-    MaternityNurseContract,
-    NannyTrialContract,
     FinancialActivityLog,
 )
 from backend.services.billing_engine import BillingEngine
