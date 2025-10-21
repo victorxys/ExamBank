@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { reconciliationApi } from '../api/reconciliationApi';
 import PageHeader from './PageHeader'; // 引入PageHeader
+import { pinyin } from 'pinyin-pro'; // 导入pinyin-pro库
 import {
   Box, Typography, TextField, Button, Table, TableBody, TableCell, TableContainer, 
   TableHead, TableRow, Paper, Modal, CircularProgress, Alert, Pagination,
@@ -79,6 +80,35 @@ const AllBankTransactions = () => {
     };
     doFetch();
   }, [activeFilters, page]);
+
+  const filteredTransactions = useMemo(() => {
+    const list = transactions || [];
+    if (!inputFilters.search_term) return list;
+    const searchTerm = inputFilters.search_term.toLowerCase();
+    return list.filter(txn => {
+      if (!txn) return false;
+
+      // 搜索流水号
+      if (txn.transaction_id && txn.transaction_id.toLowerCase().includes(searchTerm)) return true;
+      // 搜索备注
+      if (txn.summary && txn.summary.toLowerCase().includes(searchTerm)) return true;
+
+      // 搜索打款人姓名 (原有逻辑)
+      if (txn.payer_name) {
+        const payerName = txn.payer_name.toLowerCase();
+        if (payerName.includes(searchTerm)) return true;
+        try {
+          const pinyinName = pinyin(payerName, { toneType: 'none', nonZh: 'consecutive' }).replace(/\s/g, '').toLowerCase();
+          if (pinyinName.includes(searchTerm)) return true;
+          const pinyinInitials = pinyin(payerName, { pattern: 'first', toneType: 'none', nonZh: 'consecutive' }).replace(/\s/g, '').toLowerCase();
+          if (pinyinInitials.includes(searchTerm)) return true;
+        } catch (e) {
+          console.error("pinyin-pro failed:", e);
+        }
+      }
+      return false;
+    });
+  }, [transactions, inputFilters.search_term]);
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
@@ -179,7 +209,7 @@ const AllBankTransactions = () => {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {transactions.map((row) => (
+                  {filteredTransactions.map((row) => (
                     <TableRow key={row.id}>
                       <TableCell>{new Date(row.transaction_time).toLocaleString()}</TableCell>
                       <TableCell>{row.transaction_id}</TableCell>
