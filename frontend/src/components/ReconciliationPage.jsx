@@ -800,6 +800,27 @@ export default function ReconciliationPage() {
             setAlertInfo({ open: true, message: `提交失败: ${err.message}`, severity: 'error' });
         }
     };
+    
+    const handleSaveBillDetails = async (payload) => {
+        setLoadingBillDetails(true); // 开始加载
+        try {
+            const response = await api.post('/billing/batch-update', payload);
+            const newDetails = response.data.latest_details;
+
+            // 用后端返回的最新数据，更新弹窗的 state
+            setSelectedBillDetails(newDetails);
+
+            setAlertInfo({ open: true, message: response.data.message || "保存成功！", severity:'success' });
+
+            // 同时刷新对账页面左侧的流水列表，以反映可能的账单状态变化
+            softRefresh();
+
+        } catch (error) {
+            setAlertInfo({ open: true, message: `保存失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
+        } finally {
+            setLoadingBillDetails(false); // 结束加载
+        }
+    };
 
     const handleTabChange = (event, newValue) => {
         setOverrideCustomerName(null);
@@ -1397,7 +1418,7 @@ export default function ReconciliationPage() {
                     billingMonth={selectedBillContext?.billingMonth}
                     billingDetails={selectedBillDetails}
                     loading={loadingBillDetails}
-                    onSave={softRefresh}
+                    onSave={handleSaveBillDetails}
                     onNavigateToBill={(billId) => {
                         console.log("Navigate to bill ID:", billId);
                     }}
