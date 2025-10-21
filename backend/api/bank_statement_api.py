@@ -1,12 +1,9 @@
 from flask import Blueprint, jsonify, request, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from backend.models import db, BankTransaction, BankTransactionStatus, TransactionDirection
+from backend.models import BankTransaction, BankTransactionStatus, TransactionDirection
 from backend.services.bank_statement_service import BankStatementService
 from backend.api.billing_api import delete_payment_record as delete_payment_record_from_billing # 导入目标函数
-from sqlalchemy import or_, and_, extract
-import io
-import csv
-from decimal import Decimal
+from sqlalchemy import or_, extract
 
 bank_statement_api = Blueprint('bank_statement_api', __name__)
 

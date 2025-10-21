@@ -1,20 +1,15 @@
 # backend/api/billing_api.py (添加考勤录入API)
 
-from flask import Blueprint, jsonify, current_app, request, Response, send_from_directory, url_for
+from flask import Blueprint, jsonify, current_app, request, send_from_directory, url_for
 from flask_jwt_extended import jwt_required
-from sqlalchemy import or_, case, and_, not_, exists, func, distinct, extract, cast, String
+from sqlalchemy import or_, case, and_, not_, func, distinct, cast, String
 from sqlalchemy.orm import with_polymorphic, attributes
 from flask_jwt_extended import get_jwt_identity
 from dateutil.parser import parse as date_parse
-from sqlalchemy.orm import with_polymorphic # <--- 别忘了导入
-from sqlalchemy import func, distinct
-from sqlalchemy.sql import extract
-import csv # <-- 添加此行
-import re
 import re
 import io # <-- 添加此行
 import calendar
-from datetime import date, timedelta, datetime, timezone
+from datetime import date, timedelta, datetime
 import decimal
 from decimal import Decimal
 from dateutil.relativedelta import relativedelta
@@ -26,7 +21,6 @@ from werkzeug.utils import secure_filename
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment
 from flask import send_file
-from celery.exceptions import TimeoutError
 
 # --- 新增 AttendanceRecord 的导入 ---
 from backend.models import (
@@ -34,7 +28,6 @@ from backend.models import (
     BaseContract,
     User,
     ServicePersonnel,
-    NannyContract,
     MaternityNurseContract,
     NannyTrialContract,
     AttendanceRecord,
@@ -42,7 +35,6 @@ from backend.models import (
     EmployeePayroll,
     FinancialAdjustment,
     FinancialActivityLog,
-    SubstituteRecord,
     InvoiceRecord,
     PaymentStatus,
     PaymentRecord,
@@ -62,16 +54,15 @@ from backend.tasks import (
     post_virtual_contract_creation_task,
     generate_all_bills_for_contract_task,
 )  # 导入新任务
-from backend.services.billing_engine import BillingEngine, _update_bill_payment_status, _update_payroll_payout_status
-from backend.models import AdjustmentType
+from backend.services.billing_engine import BillingEngine, _update_bill_payment_status, _update_payroll_payout_status, calculate_substitute_management_fee
 from backend.services.contract_service import (
     create_maternity_nurse_contract_adjustments,
-    cancel_substitute_bill_due_to_transfer,
-    apply_transfer_credits_to_new_contract
+    cancel_substitute_bill_due_to_transfer
 )
 from backend.api.utils import get_billing_details_internal, get_contract_type_details, _log_activity
 from backend.services.payment_message_generator import PaymentMessageGenerator
 from backend.services.bank_statement_service import BankStatementService
+
 
 D = decimal.Decimal
 
@@ -2659,8 +2650,6 @@ def update_contract(contract_id):
         return jsonify({"error": "更新失败"}), 500
 
 
-from backend.services.billing_engine import BillingEngine
-from backend.services.contract_service import cancel_substitute_bill_due_to_transfer, apply_transfer_credits_to_new_contract
 
 
 @billing_bp.route("/contracts/<uuid:contract_id>/terminate", methods=["POST"])
@@ -2871,6 +2860,23 @@ def terminate_contract(contract_id):
         elif all_refund_items:
              message = f"合同 {contract.id} 已终止，并已在最终账单生成退款项。"
 
+        # 【新增逻辑】检查并生成提前终止合同产生的替班管理费
+        for sub_record in contract.substitute_records:
+            current_app.logger.debug(f"[API-Terminate] Processing sub_record: {sub_record.id}, start_date: {sub_record.start_date}, end_date: {sub_record.end_date}")
+            total_fee = calculate_substitute_management_fee(
+                sub_record, contract, contract_termination_date=termination_date
+            )
+            current_app.logger.debug(f"[API-Terminate] Calculated total_fee for sub_record {sub_record.id}: {total_fee}")
+            if total_fee > 0:
+                sub_record.substitute_management_fee = total_fee
+                db.session.add(sub_record)
+                current_app.logger.info(
+                    f"因合同 {contract.id} 提前终止，为替班记录 {sub_record.id} 更新了 {total_fee} 元的管理费。"
+                )
+            else:
+                current_app.logger.info(
+                    f"因合同 {contract.id} 提前终止，替班记录 {sub_record.id} 未产生管理费 (total_fee: {total_fee})."
+                )
         db.session.commit()
         current_app.logger.info(message)
         return jsonify({"message": message}), 200
@@ -5121,7 +5127,7 @@ def get_bills_by_customer():
 
             return jsonify({"bills": [], "closest_bill_period": closest_bill_period})
 
-    except Exception as e:
+    except Exception:
         return jsonify({"error": "服务器内部错误"}), 500
 
 @billing_bp.route("/payable-items-by-payee", methods=["GET"])

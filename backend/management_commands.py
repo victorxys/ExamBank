@@ -3,7 +3,7 @@
 import click
 from flask.cli import with_appcontext
 from backend.services.billing_engine import BillingEngine, _update_bill_payment_status
-from backend.models import BaseContract, db, CustomerBill, PaymentRecord, PaymentStatus
+from backend.models import BaseContract, db, CustomerBill, PaymentRecord
 from sqlalchemy import func
 from decimal import Decimal
 
@@ -47,7 +47,7 @@ def register_commands(app):
 
             if updated_count > 0:
                 db.session.commit()
-                print(f"\n--- 修复完成 ---")
+                print("\n--- 修复完成 ---")
                 print(f"共检查 {total_bills} 个账单，更新了 {updated_count} 个账单的实收总额。")
             else:
                 print("\n--- 检查完成 ---")
@@ -142,7 +142,7 @@ def register_commands(app):
                     print(f"  -> 处理合同 {contract.id} 时发生错误: {e}")
                     db.session.rollback()
 
-            print(f"--- 所有合同的全生命周期账单重算任务执行完毕 ---")
+            print("--- 所有合同的全生命周期账单重算任务执行完毕 ---")
 
         except Exception as e:
             print(f"执行重算任务时发生严重错误: {e}")

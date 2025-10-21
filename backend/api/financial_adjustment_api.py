@@ -2,8 +2,6 @@
 from flask import Blueprint, request, jsonify
 from sqlalchemy.exc import IntegrityError
 from ..models import db, FinancialAdjustment, AdjustmentType
-from ..extensions import celery
-import uuid
 
 financial_adjustment_api = Blueprint('financial_adjustment_api', __name__)
 

@@ -1,9 +1,8 @@
-import re
 from datetime import datetime
 from decimal import Decimal
 from flask import current_app
 from backend.models import db, BankTransaction, BankTransactionStatus, CustomerBill, PaymentRecord, PayoutRecord, PaymentStatus, User, BaseContract,PayerAlias,PayeeAlias,FinancialActivityLog,TransactionDirection, ServicePersonnel, EmployeePayroll, FinancialAdjustment, PayoutStatus, AdjustmentType, PermanentIgnoreList
-from sqlalchemy import and_, or_, func
+from sqlalchemy import or_, func
 import traceback
 import decimal
 D = decimal.Decimal

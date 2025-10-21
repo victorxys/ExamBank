@@ -71,11 +71,17 @@ const formatDateTimeRange = (startStr, endStr) => {
         const endDate = new Date(endStr);
         if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) return '无效日期';
 
-        // 检查开始和结束时间是否都为午夜 (00:00:00)，以此判断是否为旧数据
-        const isOldData = startDate.getHours() === 0 && startDate.getMinutes() === 0 &&
-                          endDate.getHours() === 0 && endDate.getMinutes() === 0;
+        console.log("DEBUG: startStr:", startStr, "startDate:", startDate);
+        console.log("DEBUG: endStr:", endStr, "endDate:", endDate);
+        console.log("DEBUG: startDate.getHours():", startDate.getHours(),"startDate.getMinutes():", startDate.getMinutes());
+        console.log("DEBUG: endDate.getHours():", endDate.getHours(), "endDate.getMinutes():",endDate.getMinutes());
 
-        const formatDateOnly = (date) => date.toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' }).replace(/\//g, '-');
+        // 检查开始和结束时间是否都为午夜 (00:00:00)，以此判断是否为旧数据
+        const isOldData = startStr.includes('T00:00:00') && endStr.includes('T00:00:00');
+
+        console.log("DEBUG: isOldData:", isOldData);
+
+        const formatDateOnly = (date) => date.toLocaleDateString('zh-CN', { year: 'numeric', month:'2-digit', day: '2-digit' }).replace(/\//g, '-');
         const formatDateTime = (date) => date.toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute:'2-digit', hour12: false }).replace(/\//g, '-');
         if (isOldData) {
             // 如果是旧数据，只显示日期
@@ -85,9 +91,10 @@ const formatDateTimeRange = (startStr, endStr) => {
             return `${formatDateTime(startDate)} ~ ${formatDateTime(endDate)}`;
         }
     } catch (e) {
+        console.error("Error in formatDateTimeRange:", e);
         return '无效日期范围';
     }
-};             
+};            
 
 const formatDate = (dateString) => {
     if (!dateString || dateString.includes('N/A')) return '—';
@@ -100,10 +107,24 @@ const formatDate = (dateString) => {
     }
 };
 
-const formatValue = (key, value) => {
+
+const formatValue = (key, value, calculationDetails) => { // 添加 calculationDetails 参数
     if (value === null || value === undefined || value === '' || String(value).includes('待计算'))
         return <Box component="span" sx={{ color: 'text.disabled' }}>{value || '—'}</Box>;
-    if (key === '加班天数' || key === '替班天数' || key === '基本劳务天数' || key === '实际劳务天数' || key === '总劳务天数') {
+
+    // Handle '劳务时间段' specifically
+    if (key === '劳务时间段') {
+        // 使用 calculationDetails 中新的精确日期时间字段（如果可用）
+        if (calculationDetails?.cycle_start_datetime && calculationDetails?.cycle_end_datetime) {
+            return formatDateTimeRange(calculationDetails.cycle_start_datetime,calculationDetails.cycle_end_datetime);
+        }
+        // 如果新字段不可用，则回退到原始值
+        if (!value || !value.includes(' to ')) return String(value);
+        const [startStr, endStr] = value.split(' to ').map(d => d.trim());
+        return formatDateTimeRange(startStr, endStr);
+    }
+
+    if (key === '加班天数' || key === '替班天数' || key === '基本劳务天数' || key ==='实际劳务天数' || key === '总劳务天数') {
         const num = parseFloat(value);
         return isNaN(num) ? `${value} 天` : `${num.toFixed(3)} 天`;
     }
@@ -348,7 +369,12 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
 
     const handleSaveSubstitute = async (substituteData) => {
         try {
-            const response = await api.post(`/contracts/${contract.contract_id}/substitutes`, substituteData);
+            // Add originalBillId to substituteData
+            const payload = {
+                ...substituteData,
+                original_bill_id: billingDetails?.customer_bill_details?.id,
+            };
+            const response = await api.post(`/contracts/${contract.contract_id}/substitutes`,payload);
 
             // 不要用 alert()，要用 setAlert() 来触发你自己的提示组件
             setAlert({ open: true, message: '替班记录添加成功！', severity: 'success' });
@@ -369,10 +395,9 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
         } catch (error) {
             console.error("保存替班记录失败:", error);
             // 错误提示同样要用 setAlert
-            setAlert({ open: true, message: '添加替班记录失败，同一时间段可能已有替班记录，不能重复添加。', severity: 'error'});
+            setAlert({ open: true, message:'添加替班记录失败，同一时间段可能已有替班记录，不能重复添加。', severity: 'error'});
         }
     };
-
     const handleDeleteSubstitute = async (recordId) => {
         if (window.confirm("确定要删除这条替班记录吗？相关账单将重新计算。")) {
             try {
@@ -964,8 +989,8 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                                     <React.Fragment key={key}>
                                         <Grid item xs={5}><Typography variant="body2" color="text.secondary">{(isNannyContract &&isBaseWorkDaysField) ? '实际劳务天数' : key}:</Typography></Grid>
                                         <Grid item xs={7} sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center'}}>
-                                            <Typography variant="body1" sx={{ textAlign: 'right', fontWeight: 500, fontFamily:'monospace' }}>
-                                                {formatValue((isNannyContract && isBaseWorkDaysField) ? '实际劳务天数' : key,value)}
+                                            <Typography variant="body1" sx={{ textAlign: 'right',fontWeight: 500, fontFamily:'monospace' }}>
+                                                {formatValue((isNannyContract &&isBaseWorkDaysField) ? '实际劳务天数' : key, value, data.calculation_details)}
                                             </Typography>
                                             {tooltipContent && !isEditMode && (
                                                 <Tooltip title={tooltipContent} arrow>
@@ -1712,6 +1737,7 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                 billMonth={currentBillingMonth}
                 originalBillCycleStart={billingDetails?.cycle_start_date}
                 originalBillCycleEnd={billingDetails?.cycle_end_date}
+                originalBillId={billingDetails?.customer_bill_details?.id}
             />
             <Dialog open={isExtensionDialogOpen} onClose={handleCloseExtensionDialog} maxWidth="xs" fullWidth>
                 <DialogTitle>延长服务期</DialogTitle>

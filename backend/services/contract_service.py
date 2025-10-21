@@ -7,14 +7,11 @@ from backend.models import (
     FinancialAdjustment,
     AdjustmentType,
     SubstituteRecord,
-    ServicePersonnel,
     User,
     CustomerBill,
     EmployeePayroll,
-    FinancialActivityLog,
 )
 from datetime import date
-from backend.services.billing_engine import BillingEngine
 from decimal import Decimal
 
 def upsert_introduction_fee_adjustment(contract: BaseContract):
@@ -114,7 +111,7 @@ def cancel_substitute_bill_due_to_transfer(db_session, old_contract: BaseContrac
                     customer_bill_id=bill.id, 
                     adjustment_type=AdjustmentType.CUSTOMER_DECREASE, 
                     amount=bill.total_due, 
-                    description=f"[系统] 转签作废: 费用已由新合同覆盖", 
+                    description="[系统] 转签作废: 费用已由新合同覆盖", 
                     date=termination_date, 
                     status='BILLED', 
                     is_settled=True, 
@@ -130,7 +127,7 @@ def cancel_substitute_bill_due_to_transfer(db_session, old_contract: BaseContrac
                     employee_payroll_id=payroll.id, 
                     adjustment_type=AdjustmentType.EMPLOYEE_DECREASE, 
                     amount=payroll.total_due, 
-                    description=f"[系统] 转签作废: 薪酬已由新合同覆盖", 
+                    description="[系统] 转签作废: 薪酬已由新合同覆盖", 
                     date=termination_date, 
                     status='BILLED', 
                     is_settled=True, 
@@ -158,7 +155,7 @@ def apply_transfer_credits_to_new_contract(db_session, new_contract: BaseContrac
             customer_bill_id=first_bill_of_new_contract.id,
             adjustment_type=AdjustmentType.CUSTOMER_DECREASE,
             amount=deposit_refund,
-            description=f"[从前合同转入] 保证金冲抵",
+            description="[从前合同转入] 保证金冲抵",
             date=termination_date,
             status='PENDING',
             details={'source_contract_id': old_contract_id}
@@ -170,7 +167,7 @@ def apply_transfer_credits_to_new_contract(db_session, new_contract: BaseContrac
             customer_bill_id=first_bill_of_new_contract.id,
             adjustment_type=AdjustmentType.CUSTOMER_DECREASE,
             amount=management_fee_refund,
-            description=f"[从前合同转入] 管理费冲抵",
+            description="[从前合同转入] 管理费冲抵",
             date=termination_date,
             status='PENDING',
             details={'source_contract_id': old_contract_id}
