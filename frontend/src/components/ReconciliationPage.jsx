@@ -196,11 +196,8 @@ const TransactionDetailsPanel = ({
 
 
     useEffect(() => {
-        const transactionChanged = prevTransactionIdRef.current !== transaction?.id;
-        const customerChanged = prevSelectedCustomerNameRef.current !== selectedCustomerName;
-
-        // 只有当用户主动切换流水或客户时，才执行自动滚动
-        if (transactionChanged || customerChanged) {
+        // 只有当流水改变时，才执行自动滚动和更新ref
+        if (prevTransactionIdRef.current !== transaction?.id) {
             const bills = customerBills;
 
             if (bills && bills.length > 0 && billListRef.current) {
@@ -1060,6 +1057,11 @@ export default function ReconciliationPage() {
         // 这个钩子现在只负责在特定页签下自动选择客户
         let customerNameToSet = null;
 
+        // 如果用户正在切换客户，则不自动设置客户名
+        if (isSwitchingCustomer) {
+            return;
+        }
+
         if (activeTab === 'manual_allocation' && selectedTxn) {
             // 优先从流水对象上直接获取客户名称
             if (selectedTxn.customer_name) {
@@ -1076,7 +1078,7 @@ export default function ReconciliationPage() {
         }
 
         // 仅当需要设置的客户名与当前状态不同时才更新，避免不必要的重渲染
-        if (customerNameToSet && customerNameToSet !== selectedCustomerName) {
+        if (customerNameToSet !== selectedCustomerName) {
             setSelectedCustomerName(customerNameToSet);
         }
         // 当清除流水选择或切换到不相关的页签时，也清除客户选择
@@ -1085,36 +1087,38 @@ export default function ReconciliationPage() {
                 setSelectedCustomerName(null);
             }
         }
-    }, [selectedTxn, activeTab]); // 从依赖项中移除 selectedCustomerName 防止循环触发
+    }, [selectedTxn, activeTab, isSwitchingCustomer, selectedCustomerName]); // 增加 selectedCustomerName 作为依赖项，确保及时更新
 
     useEffect(() => {
-                if (!effectiveCustomerName || !selectedTxn?.id) {
-                    setCustomerBills([]);
-                    setClosestBillInfo(null);
-                    setRelevantContractId(null);
-                    return;
-                }
-                setIsLoadingBills(true);
-                api.get('/billing/bills-by-customer', { 
-                    params: { 
-                        customer_name: effectiveCustomerName, 
-                        year: operationPeriod.year, 
-                        month: operationPeriod.month,
-                        bank_transaction_id: selectedTxn.id
-                    } 
-                })
-            .then(response => {
-                setCustomerBills(response.data.bills);
-                setClosestBillInfo(response.data.closest_bill_period);
-                setRelevantContractId(response.data.relevant_contract_id);
-            })
-            .catch(err => {
-                setAlertInfo({ open: true, message: `获取客户账单失败: ${err.message}`, severity: 'error' });
-            })
-            .finally(() => {
-                setIsLoadingBills(false);
-            });
-    }, [effectiveCustomerName, operationPeriod, selectedTxn]);
+        const customerNameFromTxn = selectedTxn?.customer_name || selectedTxn?.matched_bill?.customer_name || selectedTxn?.allocated_to_bills?.[0]?.customer_name || selectedTxn?.unpaid_bills?.[0]?.customer_name;
+
+        if (!customerNameFromTxn || !selectedTxn?.id) {
+            setCustomerBills([]);
+            setClosestBillInfo(null);
+            setRelevantContractId(null);
+            return;
+        }
+        setIsLoadingBills(true);
+        api.get('/billing/bills-by-customer', { 
+            params: { 
+                customer_name: customerNameFromTxn, // 直接使用从selectedTxn中获取的客户名称
+                year: operationPeriod.year, 
+                month: operationPeriod.month,
+                bank_transaction_id: selectedTxn.id
+            } 
+        })
+        .then(response => {
+            setCustomerBills(response.data.bills);
+            setClosestBillInfo(response.data.closest_bill_period);
+            setRelevantContractId(response.data.relevant_contract_id);
+        })
+        .catch(err => {
+            setAlertInfo({ open: true, message: `获取客户账单失败: ${err.message}`, severity: 'error' });
+        })
+        .finally(() => {
+            setIsLoadingBills(false);
+        });
+    }, [selectedTxn, operationPeriod]); // 依赖项改为 selectedTxn 和 operationPeriod
 
     useEffect(() => {
         if (!searchTerm) {
