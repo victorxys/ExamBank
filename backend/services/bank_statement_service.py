@@ -783,15 +783,25 @@ class BankStatementService:
                 })
                 continue
 
-            # --- NEW LOGIC for UNMATCHED transactions ---
-            alias = PayerAlias.query.filter_by(payer_name=txn.payer_name).first()
+            # --- NEW LOGIC for UNMATCHED transactions (V2) ---
+            # 一个付款人可能对应多个客户（合同），所以必须查找所有可能性
+            aliases = PayerAlias.query.filter_by(payer_name=txn.payer_name).all()
+            
+            # 收集所有可能的合同
             contracts = []
-            if alias:
-                contract = db.session.get(BaseContract, alias.contract_id)
-                if contract:
-                    contracts.append(contract)
+            matched_by = None # 'alias', 'name', or None
+            
+            if aliases:
+                matched_by = 'alias'
+                contract_ids = {alias.contract_id for alias in aliases}
+                found_contracts = BaseContract.query.filter(BaseContract.id.in_(contract_ids)).all()
+                contracts.extend(found_contracts)
             else:
-                contracts = BaseContract.query.filter_by(customer_name=txn.payer_name).all()
+                # 如果没有别名，回退到按客户名称直接匹配
+                found_contracts = BaseContract.query.filter_by(customer_name=txn.payer_name).all()
+                if found_contracts:
+                    matched_by = 'name'
+                    contracts.extend(found_contracts)
 
             if not contracts:
                 categorized_results["unmatched"].append(self._format_txn(txn))
@@ -801,9 +811,7 @@ class BankStatementService:
             
             unpaid_bills = CustomerBill.query.filter(
                 CustomerBill.contract_id.in_(contract_ids),
-                CustomerBill.year == year,
-                CustomerBill.month == month,
-                CustomerBill.total_due > 0,
+                CustomerBill.total_due > CustomerBill.total_paid,
                 or_(
                     CustomerBill.payment_status == PaymentStatus.UNPAID,
                     CustomerBill.payment_status == PaymentStatus.PARTIALLY_PAID
@@ -814,7 +822,7 @@ class BankStatementService:
                 categorized_results["pending_confirmation"].append({
                     **self._format_txn(txn),
                     "matched_bill": self._format_bill(unpaid_bills[0], txn.id),
-                    "matched_by": "alias" if alias else "name"
+                    "matched_by": matched_by
                 })
             else: # Covers len(unpaid_bills) == 0 and len(unpaid_bills) > 1
                 # 只要能识别出合同，就说明客户是已知的
@@ -823,7 +831,7 @@ class BankStatementService:
                     **self._format_txn(txn),
                     "unpaid_bills": [self._format_bill(b, txn.id) for b in unpaid_bills],
                     "customer_name": customer_name,  # 明确附加客户名称
-                    "matched_by": "alias" if alias else "name" # 附加匹配方式
+                    "matched_by": matched_by # 附加匹配方式
                 })
 
         for txn in ignored_txns:

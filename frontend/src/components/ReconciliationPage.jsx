@@ -172,7 +172,8 @@ const TransactionDetailsPanel = ({
     selectedCustomerName, setSelectedCustomerName,
     selectedSearchOption, setSelectedSearchOption,
     customerBills, isLoadingBills, closestBillInfo, relevantContractId,
-    isSwitchingCustomer,setIsSwitchingCustomer,setOverrideCustomerName
+    isSwitchingCustomer,setIsSwitchingCustomer,setOverrideCustomerName,
+    overrideCustomerName
 }) => {
     const [allocations, setAllocations] = useState({});
     const [isSaving, setIsSaving] = useState(false);
@@ -352,61 +353,89 @@ const TransactionDetailsPanel = ({
     };
 
     const renderAllocationUI = (bills, customerName) => {
-        const validBills = [...bills].filter(bill => bill && bill.id).sort((a, b) => a.year !== b.year ? a.year - b.year : a.bill_month - b.bill_month);
-        return (
-            <Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Typography variant="h6">客户: {customerName}</Typography>
-                        {transaction.matched_by === 'alias' && <Chip label="代付" color="warning" size="small" />}
-                        {!['confirmed', 'processed'].includes(category) && (
-                            <Button size="small" startIcon={<SwitchAccountIcon />} onClick={() => setIsSwitchingCustomer(true)}>切换客户</Button>
-                        )}
+        const groupedBills = bills.reduce((acc, bill) => {
+            const customer = bill.customer_name;
+            if (!acc[customer]) {
+                acc[customer] = [];
+            }
+            acc[customer].push(bill);
+            return acc;
+        }, {});
+
+        // 如果没有任何账单，显示月份导航和提示信息
+        if (Object.keys(groupedBills).length === 0) {
+            return (
+                 <Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Typography variant="h6">客户: {customerName}</Typography>
+                            {!['confirmed', 'processed'].includes(category) && (
+                                <Button size="small" startIcon={<SwitchAccountIcon />} onClick={() =>setIsSwitchingCustomer(true)}>切换客户</Button>
+                            )}
+                        </Box>
+                        <Box>
+                            <IconButton onClick={() => setOperationPeriod(prev => ({...prev, month: prev.month - 1}))}size="small"><ArrowBackIosNewIcon fontSize="inherit" /></IconButton>
+                            <Typography component="span" variant="subtitle1" sx={{ mx: 1 }}>{accountingPeriod.year}年{accountingPeriod.month}月</Typography>
+                            <IconButton onClick={() => setOperationPeriod(prev => ({...prev, month: prev.month + 1}))}size="small"><ArrowForwardIosIcon fontSize="inherit" /></IconButton>
+                        </Box>
                     </Box>
-                    <Box>
-                        <IconButton onClick={() => setOperationPeriod(prev => ({...prev, month: prev.month - 1}))}size="small"><ArrowBackIosNewIcon fontSize="inherit" /></IconButton>
-                        <Typography component="span" variant="subtitle1" sx={{ mx: 1 }}>{accountingPeriod.year}年{accountingPeriod.month}月</Typography>
-                        <IconButton onClick={() => setOperationPeriod(prev => ({...prev, month: prev.month + 1}))}size="small"><ArrowForwardIosIcon fontSize="inherit" /></IconButton>
-                    </Box>
-                </Box>
-                {validBills.length > 0 ? (
-                    <Stack spacing={2} ref={billListRef}>
-                        <Typography variant="subtitle1" gutterBottom sx={{ mb: 1 }}>该客户在 {accountingPeriod.year}年{accountingPeriod.month}月 的所有账单:</Typography>
-                        {validBills.map((bill, index) => (
-                            <Paper key={bill.id} variant="outlined" sx={{ p: 2, backgroundColor: 'transparent' }}>
-                                <Grid container spacing={2} alignItems="center">
-                                    <Grid item xs={12} md={6}>
-                                        <Box>
-                                            <Typography variant="body1" component="div" sx={{ display: 'flex',alignItems: 'center' }}>{`账单周期: ${bill.cycle}`}<Chip label={`${bill.bill_month}月账单`} size="small" {...getBillMonthChipProps(bill)} /></Typography>
-                                            <Typography variant="body2" color="text.secondary">{`员工: ${bill.employee_name}`}</Typography>
-                                        </Box>
-                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
-                                            <TextField type="number" size="small" sx={{ width: '130px' }}placeholder="0.00" value={allocations[bill.id] || ''} onChange={(e) => handleAllocationChange(bill.id, e.target.value)} InputProps={{ startAdornment: <Typography component="span" sx={{ mr: 1 }}>¥</Typography> }} />
-                                            <Button size="small" variant="outlined" onClick={() => handleSmartFill(bill.id)}>自动</Button>
-                                            {index === validBills.length - 1 && (<Button size="small" variant="outlined" onClick={() => handleSmartFill(bill.id, 'remaining')}>剩余</Button>)}
-                                        </Box>
-                                    </Grid>
-                                    <Grid item xs={12} md={4}>
-                                        <Box sx={{ fontFamily: 'monospace', textAlign: 'left' }}>
-                                            <Typography variant="body2">应付: ¥{formatCurrency(bill.total_due)}</Typography>
-                                            <Typography variant="body2" color="text.secondary">已付: ¥{formatCurrency(bill.total_paid)}</Typography>
-                                            {bill.payments && bill.payments.map((p, i) => (<Typography variant="caption" color="text.secondary" key={i}>{`↳ ${p.payer_name}: ¥${formatCurrency(p.amount)}`}</Typography>))}
-                                            {new Decimal(bill.paid_by_this_txn || 0).gt(0) && (<Typography variant="body2" color="primary.main">{`↳ 本次流水已付:¥${formatCurrency(bill.paid_by_this_txn)}`}</Typography>)}
-                                            <Typography variant="body2" fontWeight="bold" color={new Decimal(bill.amount_remaining).gt(0) ? 'error.main' : 'inherit'}>待付: ¥{formatCurrency(bill.amount_remaining)}</Typography>
-                                        </Box>
-                                    </Grid>
-                                    <Grid item xs={12} md={2} sx={{ textAlign: 'right' }}><Button variant="outlined"size="small" onClick={() => onOpenBillModal(bill)}>查看账单</Button></Grid>
-                                </Grid>
-                            </Paper>
-                        ))}
-                    </Stack>
-                ) : (
                     <Box sx={{ p: 3, textAlign: 'center', color: 'text.secondary' }}>
                         <Typography>在 {accountingPeriod.year}年{accountingPeriod.month}月 未找到该客户的账单。</Typography>
                         {closestBillInfo && <Typography variant="body2" sx={{ mt: 1 }}>此客户最近一张账单在{closestBillInfo.year}年{closestBillInfo.month}月。</Typography>}
-                        {relevantContractId && <Typography variant="body2" sx={{ mt: 1 }}>当前客户只有合同没有账单,点击<Button variant="text" size="small" onClick={() => window.open(`/contract/detail/${relevantContractId}`,'_blank')} sx={{ verticalAlign: 'baseline', mx: 0.5 }}>查看合同</Button>查看合同详情</Typography>}
+                        {relevantContractId && <Typography variant="body2" sx={{ mt: 1 }}>当前客户只有合同没有账单,点击<Button variant="text" size="small" onClick={() =>window.open(`/contract/detail/${relevantContractId}`,'_blank')} sx={{ verticalAlign: 'baseline', mx: 0.5 }}>查看合同</Button>查看合同详情</Typography>}
                     </Box>
-                )}
+                </Box>
+            );
+        }
+
+        return (
+            <Box>
+                {Object.entries(groupedBills).map(([customer, billsForCustomer]) => (
+                    <Paper key={customer} sx={{ p: 2, mb: 3 }} variant="outlined">
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <Typography variant="h6">客户: {customer}</Typography>
+                                {transaction.matched_by === 'alias' && <Chip label="代付" color="warning" size="small" />}
+                                {!['confirmed', 'processed'].includes(category) && (
+                                    <Button size="small" startIcon={<SwitchAccountIcon />} onClick={() =>setIsSwitchingCustomer(true)}>切换客户</Button>
+                                )}
+                            </Box>
+                             <Box>
+                                <IconButton onClick={() => setOperationPeriod(prev => ({...prev, month: prev.month -1}))}size="small"><ArrowBackIosNewIcon fontSize="inherit" /></IconButton>
+                                <Typography component="span" variant="subtitle1" sx={{ mx: 1 }}>{accountingPeriod.year}年{accountingPeriod.month}月</Typography>
+                                <IconButton onClick={() => setOperationPeriod(prev => ({...prev, month: prev.month +1}))}size="small"><ArrowForwardIosIcon fontSize="inherit" /></IconButton>
+                            </Box>
+                        </Box>
+                        <Stack spacing={2} ref={billListRef}>
+                            {billsForCustomer.sort((a, b) => a.year !== b.year ? a.year - b.year : a.bill_month - b.bill_month).map((bill) => (
+                                <Paper key={bill.id} variant="outlined" sx={{ p: 2, backgroundColor: 'transparent'}}>
+                                    <Grid container spacing={2} alignItems="center">
+                                        <Grid item xs={12} md={6}>
+                                            <Box>
+                                                <Typography variant="body1" component="div" sx={{ display: 'flex',alignItems: 'center' }}>{`账单周期: ${bill.cycle}`}<Chip label={`${bill.bill_month}月账单`} size="small" {...getBillMonthChipProps(bill)} /></Typography>
+                                                <Typography variant="body2" color="text.secondary">{`员工: ${bill.employee_name}`}</Typography>
+                                            </Box>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
+                                                <TextField type="number" size="small" sx={{ width: '130px'}}placeholder="0.00" value={allocations[bill.id] || ''} onChange={(e) => handleAllocationChange(bill.id, e.target.value)} InputProps={{ startAdornment: <Typography component="span" sx={{ mr: 1 }}>¥</Typography> }} />
+                                                <Button size="small" variant="outlined" onClick={() =>handleSmartFill(bill.id)}>自动</Button>
+                                            </Box>
+                                        </Grid>
+                                        <Grid item xs={12} md={4}>
+                                            <Box sx={{ fontFamily: 'monospace', textAlign: 'left' }}>
+                                                <Typography variant="body2">应付: ¥{formatCurrency(bill.total_due)}</Typography>
+                                                <Typography variant="body2" color="text.secondary">已付: ¥{formatCurrency(bill.total_paid)}</Typography>
+                                                {bill.payments && bill.payments.map((p, i) => (<Typography variant="caption" color="text.secondary" key={i}>{`↳ ${p.payer_name}: ¥${formatCurrency(p.amount)}`}</Typography>))}
+                                                {new Decimal(bill.paid_by_this_txn || 0).gt(0) && (<Typography variant="body2" color="primary.main">{`↳ 本次流水已付:¥${formatCurrency(bill.paid_by_this_txn)}`}</Typography>)}
+                                                <Typography variant="body2" fontWeight="bold" color={new Decimal(bill.amount_remaining).gt(0) ? 'error.main' : 'inherit'}>待付: ¥{formatCurrency(bill.amount_remaining)}</Typography>
+                                            </Box>
+                                        </Grid>
+                                        <Grid item xs={12} md={2} sx={{ textAlign: 'right' }}><Button variant="outlined"size="small" onClick={() => onOpenBillModal(bill)}>查看账单</Button></Grid>
+                                    </Grid>
+                                </Paper>
+                            ))}
+                        </Stack>
+                    </Paper>
+                ))}
             </Box>
         );
     };
@@ -505,6 +534,8 @@ const TransactionDetailsPanel = ({
     }
 
     const renderContent = () => {
+        const effectiveCustomerName = overrideCustomerName || selectedCustomerName;
+
         switch (category) {
             case 'pending_confirmation':
                 if (isSwitchingCustomer) {
@@ -547,7 +578,7 @@ const TransactionDetailsPanel = ({
                     return (
                         <Box>
                             <Alert severity="info" sx={{ mb: 2 }}>
-                                正在加载客户 “{transaction.matched_bill.customer_name}” 在 {accountingPeriod.year}年{accountingPeriod.month}月 的账单...
+                                正在加载客户 “{effectiveCustomerName || transaction.matched_bill.customer_name}” 在 {accountingPeriod.year}年{accountingPeriod.month}月 的账单...
                             </Alert>
                             <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>
                         </Box>
@@ -559,7 +590,7 @@ const TransactionDetailsPanel = ({
                         <Alert severity="success" sx={{ mb: 2 }}>
                             系统已通过 {transaction.matched_by === 'alias' ? '别名/支付关系' : '客户名'}自动匹配到账单，请确认或修改分配。
                         </Alert>
-                        {renderAllocationUI(customerBills, selectedCustomerName || transaction.matched_bill.customer_name)}
+                        {renderAllocationUI(customerBills, effectiveCustomerName || transaction.matched_bill.customer_name)}
                         {renderActions()}
                     </>
                 );
@@ -568,7 +599,7 @@ const TransactionDetailsPanel = ({
                 if (isLoadingBills) {
                     return <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>;
                 }
-                if (!selectedCustomerName) {
+                if (!effectiveCustomerName) {
                     return <Alert severity="info">正在加载客户账单信息...</Alert>;
                 }
                 return (
@@ -576,7 +607,7 @@ const TransactionDetailsPanel = ({
                         <Alert severity="info" sx={{ mb: 2 }}>
                             此流水已分配给以下账单。
                         </Alert>
-                        {renderAllocationUI(customerBills, selectedCustomerName)}
+                        {renderAllocationUI(customerBills, effectiveCustomerName)}
                         {renderActions()}
                     </>
                 );
@@ -617,8 +648,37 @@ const TransactionDetailsPanel = ({
                         );
                     }
 
+                    // --- 核心修复开始 ---
+                    const potentialCustomers = transaction?.unpaid_bills
+                        ? [...new Set(transaction.unpaid_bills.map(bill => bill.customer_name).filter(Boolean))]
+                        : [];
+
+                    if (!selectedCustomerName && potentialCustomers.length > 1) {
+                        return (
+                            <Box sx={{ p: 3 }}>
+                                <Alert severity="info" sx={{ mb: 2 }}>
+                                    此付款人关联到多个客户，请选择一个以继续：
+                                </Alert>
+                                <List>
+                                    {potentialCustomers.map(customer => (
+                                        <ListItemButton key={customer} onClick={() => setSelectedCustomerName(customer)}>
+                                            <ListItemText primary={customer} />
+                                        </ListItemButton>
+                                    ))}
+                                </List>
+                            </Box>
+                        );
+                    }
+                    // --- 核心修复结束 ---
+
                     if (isLoadingBills) return <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>;
-                    if (selectedCustomerName) return <>{renderAllocationUI(customerBills,selectedCustomerName)}{renderActions()}</>;
+                    if (effectiveCustomerName) return <>{renderAllocationUI(customerBills, effectiveCustomerName)}{renderActions()}</>;
+                    
+                    // 如果没有匹配的客户，显示提示信息
+                    if (potentialCustomers.length === 0) {
+                         return <Typography sx={{ p: 2, color: 'text.secondary' }}>未找到与此付款人关联的任何客户账单。</Typography>;
+                    }
+
                     return <Typography sx={{ p: 2, color: 'text.secondary' }}>正在加载客户账单...</Typography>;
             case 'unmatched':
                 return (
@@ -659,13 +719,13 @@ const TransactionDetailsPanel = ({
                                 </li>
                             )}
                         />
-                        {selectedCustomerName && (
+                        {effectiveCustomerName && (
                             <Box sx={{ mt: 4 }}>
                                 <Divider sx={{ mb: 2 }}><Chip label="第二步：分配金额" /></Divider>
                                 {isLoadingBills
                                     ? <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>
                                     // 总是渲染UI容器，它内部会处理空状态
-                                    : renderAllocationUI(customerBills, selectedCustomerName)
+                                    : renderAllocationUI(customerBills, effectiveCustomerName)
                                 }
                             </Box>
                         )}
@@ -735,6 +795,7 @@ export default function ReconciliationPage() {
     const theme = useTheme();
     const { year: yearParam, month: monthParam } = useParams();
     const navigate = useNavigate();
+    const fetchBillsIdRef = useRef(0);
 
     // --- State for ReconciliationPage ---
     const [categorizedTxns, setCategorizedTxns] = useState({ pending_confirmation: [], manual_allocation: [], unmatched: [], confirmed:[], processed: [], ignored: [] });
@@ -759,6 +820,7 @@ export default function ReconciliationPage() {
     const [searchResults, setSearchResults] = useState([]);
     const [isSearching, setIsSearching] = useState(false);
     const [selectedCustomerName, setSelectedCustomerName] = useState(null);
+    
     const [selectedSearchOption, setSelectedSearchOption] = useState(null);
     const [customerBills, setCustomerBills] = useState([]);
     const [isLoadingBills, setIsLoadingBills] = useState(false);
@@ -777,6 +839,58 @@ export default function ReconciliationPage() {
     const [isSwitchingCustomer, setIsSwitchingCustomer] = useState(false);
     const [overrideCustomerName, setOverrideCustomerName] = useState(null);
     const effectiveCustomerName = overrideCustomerName || selectedCustomerName;
+
+    useEffect(() => {
+        // 当用户从左侧列表选择一条新的流水时，重置所有与“切换客户”相关的状态
+        setOverrideCustomerName(null);
+        setIsSwitchingCustomer(false);
+        setSelectedSearchOption(null);
+        setSearchTerm('');
+    }, [selectedTxn]); // 这个effect只在selectedTxn变化时执行
+
+    useEffect(() => {
+        // This effect is to automatically select a customer when it's unambiguous.
+        
+        // Don't interfere if user is actively switching customer
+        if (isSwitchingCustomer || overrideCustomerName) return;
+
+        if (!selectedTxn) {
+            setSelectedCustomerName(null);
+            return;
+        }
+
+        // 1. For "pending_confirmation", customer is pre-matched.
+        if (activeTab === 'pending_confirmation' && selectedTxn.matched_bill?.customer_name) {
+            setSelectedCustomerName(selectedTxn.matched_bill.customer_name);
+            return;
+        }
+
+        // 2. For "confirmed" or "processed", customer is on the allocated bills.
+        if ((activeTab === 'confirmed' || activeTab === 'processed') && selectedTxn.allocated_to_bills?.length > 0) {
+            setSelectedCustomerName(selectedTxn.allocated_to_bills[0].customer_name);
+            return;
+        }
+
+        // 3. For "manual_allocation", check for a single potential customer.
+        if (activeTab === 'manual_allocation') {
+            if (selectedTxn.customer_name) { // Backend might provide a direct match
+                setSelectedCustomerName(selectedTxn.customer_name);
+                return;
+            }
+            if (selectedTxn.unpaid_bills) {
+                const potentialCustomers = [...new Set(selectedTxn.unpaid_bills.map(bill => bill.customer_name).filter(Boolean))];
+                if (potentialCustomers.length === 1) {
+                    setSelectedCustomerName(potentialCustomers[0]);
+                    return;
+                }
+            }
+        }
+
+        // 4. For all other cases (like "unmatched" or ambiguous "manual_allocation"),
+        // ensure customer is not selected, so UI can prompt for selection.
+        setSelectedCustomerName(null);
+
+    }, [selectedTxn, activeTab, isSwitchingCustomer, overrideCustomerName]);
     
     // --- Handlers ---
     const handleAlertClose = (event, reason) => {
@@ -1013,7 +1127,7 @@ export default function ReconciliationPage() {
             if (tabsThatUseCustomerBills.includes(activeTab) && selectedCustomerName && selectedTxn?.id) {
                 const billsResponse = await api.get('/billing/bills-by-customer', { 
                     params: { 
-                        customer_name: selectedCustomerName, 
+                        // customer_name: selectedCustomerName, 
                         year: operationPeriod.year, 
                         month: operationPeriod.month,
                         bank_transaction_id: selectedTxn.id
@@ -1048,6 +1162,14 @@ export default function ReconciliationPage() {
     }, [fetchTransactions]);
 
     useEffect(() => {
+        // 当用户从左侧列表选择一条新的流水时，重置所有与“切换客户”相关的状态
+        setOverrideCustomerName(null);
+        setIsSwitchingCustomer(false);
+        setSelectedSearchOption(null);
+        setSearchTerm('');
+    }, [selectedTxn]);
+
+    useEffect(() => {
         setOperationPeriod(accountingPeriod);
     }, [accountingPeriod, activeTab]);
 
@@ -1074,72 +1196,52 @@ export default function ReconciliationPage() {
         prevCustomerNameRef.current = currentCustomerName;
     }, [selectedTxn, accountingPeriod]);
 
-    useEffect(() => {
-        // 这个钩子现在只负责在特定页签下自动选择客户
-        let customerNameToSet = null;
-
-        // 如果用户正在切换客户，则不自动设置客户名
-        if (isSwitchingCustomer) {
-            return;
-        }
-
-        if (activeTab === 'manual_allocation' && selectedTxn) {
-            // 优先从流水对象上直接获取客户名称
-            if (selectedTxn.customer_name) {
-                customerNameToSet = selectedTxn.customer_name;
-            } 
-            // 降级到旧逻辑作为安全保障
-            else if (selectedTxn.unpaid_bills?.length > 0) {
-                customerNameToSet = selectedTxn.unpaid_bills[0].customer_name;
-            }
-        } else if (activeTab === 'pending_confirmation' && selectedTxn?.matched_bill) {
-            customerNameToSet = selectedTxn.matched_bill.customer_name;
-        } else if ((activeTab === 'confirmed' || activeTab === 'processed') && selectedTxn?.allocated_to_bills?.length > 0) {
-            customerNameToSet = selectedTxn.allocated_to_bills[0].customer_name;
-        }
-
-        // 仅当需要设置的客户名与当前状态不同时才更新，避免不必要的重渲染
-        if (customerNameToSet !== selectedCustomerName) {
-            setSelectedCustomerName(customerNameToSet);
-        }
-        // 当清除流水选择或切换到不相关的页签时，也清除客户选择
-        else if (!selectedTxn || !['manual_allocation', 'pending_confirmation', 'confirmed', 'processed'].includes(activeTab)) {
-            if (selectedCustomerName !== null) {
-                setSelectedCustomerName(null);
-            }
-        }
-    }, [selectedTxn, activeTab, isSwitchingCustomer, selectedCustomerName]); // 增加 selectedCustomerName 作为依赖项，确保及时更新
 
     useEffect(() => {
-        const customerNameFromTxn = selectedTxn?.customer_name || selectedTxn?.matched_bill?.customer_name || selectedTxn?.allocated_to_bills?.[0]?.customer_name || selectedTxn?.unpaid_bills?.[0]?.customer_name;
-
-        if (!customerNameFromTxn || !selectedTxn?.id) {
+        // 如果没有选择流水，则清空账单，不做任何操作
+        if (!selectedTxn?.id) {
             setCustomerBills([]);
             setClosestBillInfo(null);
             setRelevantContractId(null);
             return;
         }
+
+        const fetchId = ++fetchBillsIdRef.current;
+
+        // 准备API请求参数
+        const params = {
+            year: operationPeriod.year,
+            month: operationPeriod.month,
+            bank_transaction_id: selectedTxn.id
+        };
+
+        // 核心逻辑：只有在用户手动“切换客户”后，才在请求中加入customer_name参数
+        if (overrideCustomerName) {
+            params.customer_name = overrideCustomerName;
+        }
+
         setIsLoadingBills(true);
-        api.get('/billing/bills-by-customer', { 
-            params: { 
-                customer_name: customerNameFromTxn, // 直接使用从selectedTxn中获取的客户名称
-                year: operationPeriod.year, 
-                month: operationPeriod.month,
-                bank_transaction_id: selectedTxn.id
-            } 
-        })
-        .then(response => {
-            setCustomerBills(response.data.bills);
-            setClosestBillInfo(response.data.closest_bill_period);
-            setRelevantContractId(response.data.relevant_contract_id);
-        })
-        .catch(err => {
-            setAlertInfo({ open: true, message: `获取客户账单失败: ${err.message}`, severity: 'error' });
-        })
-        .finally(() => {
-            setIsLoadingBills(false);
-        });
-    }, [selectedTxn, operationPeriod]); // 依赖项改为 selectedTxn 和 operationPeriod
+        api.get('/billing/bills-by-customer', { params })
+            .then(response => {
+                // 防止旧的请求结果覆盖新的结果
+                if (fetchId === fetchBillsIdRef.current) {
+                    setCustomerBills(response.data.bills);
+                    setClosestBillInfo(response.data.closest_bill_period);
+                    setRelevantContractId(response.data.relevant_contract_id);
+                }
+            })
+            .catch(err => {
+                if (fetchId === fetchBillsIdRef.current) {
+                    setAlertInfo({ open: true, message: `获取客户账单失败: ${err.message}`, severity: 'error' });
+                }
+            })
+            .finally(() => {
+                if (fetchId === fetchBillsIdRef.current) {
+                    setIsLoadingBills(false);
+                }
+            });
+    // 依赖项：当这些关键状态改变时，重新触发账单获取
+    }, [overrideCustomerName, selectedTxn, operationPeriod]);
 
     useEffect(() => {
         if (!searchTerm) {
@@ -1404,6 +1506,7 @@ export default function ReconciliationPage() {
                                     isSwitchingCustomer={isSwitchingCustomer}
                                     setIsSwitchingCustomer={setIsSwitchingCustomer}
                                     setOverrideCustomerName={setOverrideCustomerName}
+                                    overrideCustomerName={overrideCustomerName}
                                 />
                             </CardContent>
                         </Card>
