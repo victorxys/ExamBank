@@ -1631,29 +1631,28 @@ class BillingEngine:
         sub_record.generated_bill_id = bill.id
         sub_record.generated_payroll_id = payroll.id
 
-        # Create or get the adjustment with a placeholder amount
-        adjustment = FinancialAdjustment.query.filter_by(
-            customer_bill_id=bill.id,
-            description="[系统] 替班服务费"
-        ).first()
-        if not adjustment:
-            adjustment = FinancialAdjustment(
-                customer_bill_id=bill.id,
-                adjustment_type=AdjustmentType.COMPANY_PAID_SALARY,
-                amount=0, # Placeholder
-                description="[系统] 替班服务费",
-                date=sub_record.start_date,
-            )
-            db.session.add(adjustment)
-            db.session.flush()
-
         # First calculation to get the correct payroll total
         details = self._calculate_substitute_details(sub_record, main_contract, bill, payroll, overrides)
         bill, payroll = self._calculate_final_amounts(bill, payroll, details)
-
-        # Update the adjustment with the payroll total
-        adjustment.amount = payroll.total_due
-        db.session.flush()
+        if sub_record.substitute_type == "nanny":
+            # Create or get the adjustment with a placeholder amount
+            adjustment = FinancialAdjustment.query.filter_by(
+                customer_bill_id=bill.id,
+                description="[系统] 替班服务费"
+            ).first()
+            if not adjustment:
+                adjustment = FinancialAdjustment(
+                    customer_bill_id=bill.id,
+                    adjustment_type=AdjustmentType.COMPANY_PAID_SALARY,
+                    amount=0, # Placeholder
+                    description="[系统] 替班服务费",
+                    date=sub_record.start_date,
+                )
+                db.session.add(adjustment)
+                db.session.flush()
+                # Update the adjustment with the payroll total
+                adjustment.amount = payroll.total_due
+                db.session.flush()
 
         # Recalculate with the correct adjustment amount
         details = self._calculate_substitute_details(sub_record, main_contract, bill, payroll, overrides)
