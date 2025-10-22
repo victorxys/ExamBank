@@ -5117,11 +5117,28 @@ def get_bills_by_customer():
                         'amount': str(pr.amount)
                     })
 
+            # --- Start of new logic for employee_name ---
+            employee_name = "未知员工"
+            if bill.is_substitute_bill:
+                sub_record = bill.source_substitute_record
+                if sub_record:
+                    sub_employee = sub_record.substitute_user or sub_record.substitute_personnel
+                    if sub_employee:
+                        employee_name = getattr(sub_employee, 'username', getattr(sub_employee, 'name', '未知替班员工'))
+                else:
+                    employee_name = "替班(记录丢失)"
+            else:
+                original_employee = bill.contract.user or bill.contract.service_personnel
+                if original_employee:
+                    employee_name = getattr(original_employee, 'username', getattr(original_employee, 'name', '未知员工'))
+            # --- End of new logic ---
+
             results.append({
                 "id": str(bill.id),
                 "contract_id": str(bill.contract.id),
                 "customer_name": bill.contract.customer_name,
-                "employee_name": bill.contract.service_personnel.name if bill.contract.service_personnel else(bill.contract.user.username if bill.contract.user else "未知"),
+                "employee_name": employee_name,
+                "is_substitute_bill": bill.is_substitute_bill,
                 "cycle": f"{bill.cycle_start_date.strftime('%Y-%m-%d')} to {bill.cycle_end_date.strftime('%Y-%m-%d')}",
                 "bill_month": bill.month,
                 "year": bill.year,

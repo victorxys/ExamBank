@@ -742,11 +742,25 @@ class BillingEngine:
         self, contract: NannyContract, bill: CustomerBill, payroll: EmployeePayroll, actual_work_days_override=None
     ):
         """计算育儿嫂合同的所有财务细节。"""
+
+        # 从数据库里重新加载这个账单对象，不相信任何缓存
+        current_app.logger.info(f"--- [PARANOID_CHECK]...")
+        fresh_bill_from_db = db.session.get(CustomerBill, bill.id)
+        if fresh_bill_from_db:
+            current_app.logger.info(f"--- [PARANOID_CHECK] Freshly fetched bill has is_substitute_bill = {fresh_bill_from_db.is_substitute_bill} ---")
+            if fresh_bill_from_db.is_substitute_bill:
+                current_app.logger.error(f"--- [PARANOID_CHECK] CRITICAL ERROR: The bill with ID {bill.id} is indeed a substitute bill in the DB. Aborting calculation.")
+                return {}
+        else:
+            current_app.logger.error(f"--- [PARANOID_CHECK] CRITICAL ERROR: Could not re-fetch bill with ID: {bill.id} from DB. ---")
         current_app.logger.info(f"    [NannyDETAILS] 计算育儿嫂合同 {contract.id} 的详细信息。")
         log_extras = {}
         QUANTIZER = D("0.001")
         self._attach_pending_adjustments(contract, bill)
         extension_fee = D(0)
+
+        extension_management_fee = D(0)
+
         level = D(contract.employee_level or 0)
         original_cycle_start_datetime = bill.cycle_start_date
         original_cycle_end_datetime = bill.cycle_end_date
@@ -1017,29 +1031,31 @@ class BillingEngine:
             log_extras["management_fee_reason"] = management_fee_reason
 
             current_app.logger.info(f"检查是否进入“延长服务期逻辑”:is_last_bill_period:{is_last_bill_period},cycle_end:{cycle_end},contract_end_date:{contract_end_date},authoritative_end_date:{authoritative_end_date}")
-            if is_last_bill_period and cycle_end > contract_end_date:
-                current_app.logger.info(f"合同 {contract.id} 进入末期延长计费逻辑。")
-                # 场景：这是被延长的最后一期账单
+            if not bill.is_substitute_bill:
+                if is_last_bill_period and cycle_end > contract_end_date:
+                    current_app.logger.info(f"合同 {contract.id} 进入末期延长计费逻辑。")
+                    # 场景：这是被延长的最后一期账单
 
-                # 1. 计算延长天数和费用
-                extension_fee = D(0)
-                # 使用 authoritative_end_date 进行比较
-                current_app.logger.info(f"检查是否进入延长服务期逻辑 authoritative_end_date and cycle_end > authoritative_end_date :{authoritative_end_date} -- {cycle_end} --  {authoritative_end_date}")
-                if authoritative_end_date and contract_end_date < authoritative_end_date:
-                    extension_days = (authoritative_end_date - contract_end_date).days
-                    current_app.logger.info(f"延长周期的extension_days======:{extension_days}")
-                    if extension_days > 0:
-                        daily_rate = level / D(26)
-                        extension_fee = (daily_rate *D(extension_days)).quantize(QUANTIZER)
-                        log_extras["extension_days_reason"] = f"原合同于 {authoritative_end_date.strftime('%m月%d日')} 结束，延长至 {cycle_end.strftime('%m月%d日')}，共 {extension_days} 天。"
-                        log_extras["extension_fee_reason"] = f"延期劳务费: 日薪({daily_rate:.2f}) * 延长天数({extension_days}) = {extension_fee:.2f}"
+                    # 1. 计算延长天数和费用
+                    extension_fee = D(0)
+                    # 使用 authoritative_end_date 进行比较
+                    current_app.logger.info(f"检查是否进入延长服务期逻辑 authoritative_end_date and cycle_end > authoritative_end_date :{authoritative_end_date} -- {cycle_end} --  {authoritative_end_date}")
+                    if authoritative_end_date and contract_end_date < authoritative_end_date:
+                        extension_days = (authoritative_end_date - contract_end_date).days
+                        current_app.logger.info(f"延长周期的extension_days======:{extension_days}")
+                        if extension_days > 0:
+                            daily_rate = level / D(26)
+                            extension_fee = (daily_rate *D(extension_days)).quantize(QUANTIZER)
+                            log_extras["extension_days_reason"] = f"原合同于 {authoritative_end_date.strftime('%m月%d日')} 结束，延长至 {cycle_end.strftime('%m月%d日')}，共 {extension_days} 天。"
+                            log_extras["extension_fee_reason"] = f"延期劳务费: 日薪({daily_rate:.2f}) * 延长天数({extension_days}) = {extension_fee:.2f}"
 
-                        management_fee_daily_rate = (management_fee_amount or (level *D("0.1"))) / D(30)
-                        extension_management_fee = (management_fee_daily_rate *D(extension_days)).quantize(QUANTIZER)
-                        if extension_management_fee > 0:
-                            # 【关键修复】确保日志被正确记录
-                            log_extras["management_fee_reason"] = log_extras.get("management_fee_reason", "") + f" + 延期管理费: 日管理费({management_fee_daily_rate:.2f}) * {extension_days}天 ={extension_management_fee:.2f}"
-                            management_fee += extension_management_fee
+                            management_fee_daily_rate = (management_fee_amount or (level *D("0.1"))) / D(30)
+                            extension_management_fee = (management_fee_daily_rate *D(extension_days)).quantize(QUANTIZER)
+                            current_app.logger.info(f"--- [DEBUG-EXT] Calculated extension_management_fee: {extension_management_fee} ---")
+                            if extension_management_fee > 0:
+                                # 【关键修复】确保日志被正确记录
+                                log_extras["management_fee_reason"] = log_extras.get("management_fee_reason", "") + f" + 延期管理费: 日管理费({management_fee_daily_rate:.2f}) * {extension_days}天 ={extension_management_fee:.2f}"
+                                management_fee += extension_management_fee
             
         # --- 【新逻辑】员工首月10%服务费 ---
         first_month_deduction = D(0)
@@ -1109,7 +1125,7 @@ class BillingEngine:
 
         current_app.logger.debug(f"NannyDETAILS:log_extras:{log_extras}")
         # 返回的 details 中不再包含 first_month_deduction，因为它已经变成了调整项
-        return {
+        details_to_return = {
             "type": "nanny",
             "level": str(level),
             "cycle_period": f"{cycle_start.isoformat()} to {cycle_end.isoformat()}",
@@ -1121,6 +1137,7 @@ class BillingEngine:
             "substitute_days": str(total_substitute_days),
             "substitute_deduction": str(substitute_deduction_from_sub_records.quantize(QUANTIZER)),
             "extension_fee": f"{extension_fee:.2f}",
+            "extension_management_fee": f"{extension_management_fee:.2f}",
             "customer_base_fee": str(customer_base_fee),
             "customer_overtime_fee": str(customer_overtime_fee),
             "management_fee": str(management_fee),
@@ -1138,6 +1155,8 @@ class BillingEngine:
             "log_extras": log_extras,
             "substitute_deduction_logs": substitute_deduction_logs,
         }
+        current_app.logger.info(f"--- [DEBUG-EXT] Keys in details dict before returning: {list(details_to_return.keys())} ---")
+        return details_to_return
 
     def _calculate_maternity_nurse_bill_for_month(
         self,
@@ -1578,6 +1597,11 @@ class BillingEngine:
             )
             db.session.add(bill)
 
+        # ---> 在这里加上下面的代码 <---
+        db.session.flush() # 确保 bill 对象有 ID
+        current_app.logger.info(f"--- [CALC_SUB_CHECK] Found or created substitute bill with ID: {bill.id} ---")
+        # ---> 修改结束 <---    
+
         substitute_employee_id = (
             sub_record.substitute_user_id or sub_record.substitute_personnel_id
         )
@@ -1647,6 +1671,8 @@ class BillingEngine:
         )
 
     def _calculate_substitute_details(self, sub_record, main_contract, bill, payroll, overrides=None):
+        current_app.logger.info(f"--- [SUB_DETAILS_CHECK] Entered for bill ID: {bill.id}, is_substitute_bill: {bill.is_substitute_bill} ---")
+        current_app.logger.info(f"--- [SUB_DETAILS_CHECK] Substitute record ID: {sub_record.id}, Fee from record: {sub_record.substitute_management_fee}, Type: {sub_record.substitute_type} ---")
         """计算替班记录的财务细节。"""
         if overrides is None:
             overrides = {}
@@ -2289,6 +2315,13 @@ class BillingEngine:
         return log
 
     def _update_bill_with_log(self, bill, payroll, details, log):
+        current_app.logger.info(f"--- [DEBUG] Entered _update_bill_with_log for bill ID: {bill.id} ---")
+        if details:
+            current_app.logger.info(f"--- [DEBUG] Keys in details dict: {list(details.keys())} ---")
+            if details.get("log_extras"):
+                current_app.logger.info(f"--- [DEBUG] Keys in log_extras: {list(details['log_extras'].keys())} ---")
+        else:
+            current_app.logger.warning(f"--- [DEBUG] details dictionary is empty or None for bill ID: {bill.id} ---")
         details["calculation_log"] = log
         current_app.logger.info(f"[SAVE-CHECK] Bill ID {bill.id}: log_extras to be saved: {details.get('log_extras')}")
         bill.calculation_details = details

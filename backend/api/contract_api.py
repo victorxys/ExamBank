@@ -52,15 +52,14 @@ def create_substitute_record(contract_id):
         main_contract = BaseContract.query.get(contract_id)
         if not main_contract:
             return jsonify({"error": "Main contract not found"}), 404
-        
-        current_app.logger.debug(f"[API-CreateSub] Found main_contract: ID={main_contract.id}, Status={main_contract.status}, EndDate={main_contract.end_date}, AutoRenew={getattr(main_contract, 'is_monthly_auto_renew', False)}")
+
+        current_app.logger.debug(f"[API-CreateSub] Found main_contract: ID={main_contract.id},Status={main_contract.status}, EndDate={main_contract.end_date}, AutoRenew={getattr(main_contract, 'is_monthly_auto_renew', False)}")
 
         substitute_user = User.query.get(data["substitute_user_id"])
         if not substitute_user:
             return jsonify({"error": "Substitute user not found"}), 404
 
-        # ... (previous code remains the same)
-
+        # 先创建一个包含所有前端数据的完整 record 对象
         new_record = SubstituteRecord(
             main_contract_id=str(contract_id),
             substitute_user_id=data["substitute_user_id"],
@@ -69,30 +68,39 @@ def create_substitute_record(contract_id):
             substitute_salary=employee_level,
             substitute_type=substitute_type,
             original_customer_bill_id=original_bill_id,
-            substitute_management_fee=D("0"), # Initialize with 0
         )
 
-        # Calculate the fee
-        total_fee = calculate_substitute_management_fee(new_record, main_contract)
-        
-        if total_fee > 0:
+        # 现在，根据业务逻辑决定 substitute_management_fee 的值
+        if substitute_type == 'maternity_nurse':
+            # 月嫂替班：直接使用前端传来的费率
+            management_fee_value = D(data.get("management_fee_rate") or 0)
+            if management_fee_value > 1:
+                management_fee_value = management_fee_value / D(100)
+            new_record.substitute_management_fee = management_fee_value
+
+        elif substitute_type == 'nanny':
+            # 育儿嫂替班：调用函数计算合同外的管理费
+            # 这次我们传递的是一个包含了薪资的完整对象
+            total_fee = calculate_substitute_management_fee(new_record, main_contract)
             new_record.substitute_management_fee = total_fee
+
+        else:
+            # 其他未知情况，费用为0
+            new_record.substitute_management_fee = D(0)
 
         db.session.add(new_record)
         db.session.flush()
 
-        # ... (rest of the code remains the same)
-
         engine = BillingEngine()
         engine.calculate_for_substitute(new_record.id)
-        
+
         if original_bill_id:
             original_bill = CustomerBill.query.get(original_bill_id)
             if original_bill:
                 engine.calculate_for_month(
-                    original_bill.year, 
-                    original_bill.month, 
-                    original_bill.contract_id, 
+                    original_bill.year,
+                    original_bill.month,
+                    original_bill.contract_id,
                     force_recalculate=True
                 )
 

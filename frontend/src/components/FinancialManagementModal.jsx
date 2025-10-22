@@ -1510,7 +1510,7 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                                     <Typography variant="h3" gutterBottom component="div" sx={{ display: 'flex', alignItems: 'center' }}>
                                         客户账单 ~ 
                                          <Typography variant="h5" component="span" color="text.secondary">
-                                               {contract?.customer_name}
+                                               {customerData?.customer_name || contract?.customer_name}
                                         </Typography>
                                         {customerData.calculation_details?.type === 'substitute' && <Chip label="替班" color="warning" size="small" sx={{ ml: 1 }} />}
                                     </Typography>
@@ -1525,7 +1525,7 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                                     <Typography variant="h3" gutterBottom component="div" sx={{ display: 'flex', alignItems: 'center' }}>
                                         员工薪酬 ~ 
                                          <Typography variant="h5" component="span" color="text.secondary">
-                                               {contract?.employee_name}
+                                               {employeeData?.employee_name || contract?.employee_name}
                                         </Typography>
                                         {employeeData.calculation_details?.type === 'substitute' && <Chip label="替班" color="warning" size="small" sx={{ ml: 1 }} />}
                                     </Typography>
