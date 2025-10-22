@@ -46,7 +46,8 @@ from backend.models import (
     TrialOutcome,
     CompanyBankAccount,
     BankTransaction, 
-    BankTransactionStatus
+    BankTransactionStatus,
+    PayerAlias
 )
 from backend.tasks import (
     sync_all_contracts_task,
@@ -4946,28 +4947,32 @@ def search_unpaid_bills():
     year = request.args.get("year", type=int)
     month = request.args.get("month", type=int)
 
+    # DEBUG: Log entry and parameters
+    current_app.logger.info("--- [search_unpaid_bills] START ---")
+    current_app.logger.info(f"Params: search='{search_term}', year={year}, month={month}")
+
     if not search_term or not year or not month:
+        current_app.logger.info("Missing parameters, returning empty list.")
+        current_app.logger.info("--- [search_unpaid_bills] END ---")
         return jsonify([])
 
     try:
         pinyin_search_term = search_term.replace(" ", "")
         results = []
-
-        # 1. Find all contracts that have unpaid bills in the given month/year
-        contracts_with_unpaid_bills_subquery = db.session.query(CustomerBill.contract_id).filter(
+        
+        # 1. Search for Customers
+        current_app.logger.info("Step 1: Searching for Customers...")
+        customer_matches = db.session.query(BaseContract.customer_name).join(
+            CustomerBill, BaseContract.id == CustomerBill.contract_id
+        ).filter(
             CustomerBill.year == year,
             CustomerBill.month == month,
-            # CustomerBill.total_due > CustomerBill.total_paid  #暂时取消限制，显示所有账单
-        ).distinct().subquery()
-
-        # 2. Search for Customers within those contracts
-        customer_matches = db.session.query(BaseContract.customer_name).filter(
-            BaseContract.id.in_(contracts_with_unpaid_bills_subquery),
             or_(
                 BaseContract.customer_name.ilike(f"%{search_term}%"),
                 BaseContract.customer_name_pinyin.ilike(f"%{pinyin_search_term}%")
             )
         ).distinct().limit(10).all()
+        current_app.logger.info(f"Found {len(customer_matches)} customer matches: {customer_matches}")
 
         for name, in customer_matches:
             results.append({
@@ -4976,16 +4981,21 @@ def search_unpaid_bills():
                 "display": name
             })
 
-        # 3. Search for Employees (ServicePersonnel) within those contracts
+        # 2. Search for Employees (ServicePersonnel)
+        current_app.logger.info("Step 2: Searching for Employees (ServicePersonnel)...")
         personnel_matches = db.session.query(ServicePersonnel.name, BaseContract.customer_name).join(
             BaseContract, ServicePersonnel.id == BaseContract.service_personnel_id
+        ).join(
+            CustomerBill, BaseContract.id == CustomerBill.contract_id
         ).filter(
-            BaseContract.id.in_(contracts_with_unpaid_bills_subquery),
+            CustomerBill.year == year,
+            CustomerBill.month == month,
             or_(
                 ServicePersonnel.name.ilike(f"%{search_term}%"),
                 ServicePersonnel.name_pinyin.ilike(f"%{pinyin_search_term}%")
             )
         ).distinct().limit(10).all()
+        current_app.logger.info(f"Found {len(personnel_matches)} ServicePersonnel matches: {personnel_matches}")
 
         for emp_name, cust_name in personnel_matches:
             results.append({
@@ -4995,16 +5005,21 @@ def search_unpaid_bills():
                 "display": f"{emp_name} (员工, 客户: {cust_name})"
             })
 
-        # 4. Search for Employees (internal Users) within those contracts
+        # 3. Search for Employees (internal Users)
+        current_app.logger.info("Step 3: Searching for Employees (Users)...")
         user_matches = db.session.query(User.username, BaseContract.customer_name).join(
             BaseContract, User.id == BaseContract.user_id
+        ).join(
+            CustomerBill, BaseContract.id == CustomerBill.contract_id
         ).filter(
-            BaseContract.id.in_(contracts_with_unpaid_bills_subquery),
+            CustomerBill.year == year,
+            CustomerBill.month == month,
             or_(
                 User.username.ilike(f"%{search_term}%"),
                 User.name_pinyin.ilike(f"%{pinyin_search_term}%")
             )
         ).distinct().limit(10).all()
+        current_app.logger.info(f"Found {len(user_matches)} User matches: {user_matches}")
 
         for emp_name, cust_name in user_matches:
             results.append({
@@ -5013,15 +5028,20 @@ def search_unpaid_bills():
                 "customer_name": cust_name,
                 "display": f"{emp_name} (员工, 客户: {cust_name})"
             })
+        
+        current_app.logger.info(f"Total results before deduplication: {len(results)}")
 
-        # 5. Deduplicate and return
+        # 4. Deduplicate and return
         final_results = list({item['display']: item for item in results}.values())
+        current_app.logger.info(f"Final results after deduplication: {len(final_results)}")
+        current_app.logger.info(f"Final results content: {final_results}")
+        current_app.logger.info("--- [search_unpaid_bills] END ---")
         
         return jsonify(final_results)
 
     except Exception as e:
         current_app.logger.error(f"Failed to search unpaid bills: {e}", exc_info=True)
-        return jsonify({"error": "Internal server error"}), 500
+        current_app.logger.info("--- [search_unpaid_bills] END (with error) ---")
         return jsonify({"error": "Internal server error"}), 500
     
 @billing_bp.route("/bills-by-customer", methods=["GET"])
@@ -5029,105 +5049,94 @@ def search_unpaid_bills():
 def get_bills_by_customer():
     """
     根据客户名和年月，获取该客户所有的账单，并计算每个账单从特定流水中已支付的金额。
+    V4: 明确区分“切换客户”和“自动匹配”两种场景。
     """
-    customer_name = request.args.get("customer_name")
+    customer_name_filter = request.args.get("customer_name")
     year = request.args.get("year", type=int)
     month = request.args.get("month", type=int)
-    bank_transaction_id = request.args.get("bank_transaction_id") # 新增参数
+    bank_transaction_id = request.args.get("bank_transaction_id")
 
-    if not customer_name or not year or not month:
-        return jsonify({"error": "customer_name, year, and month are required."}), 400
+    if not year or not month:
+        return jsonify({"error": "year and month are required."}), 400
+
+    if not bank_transaction_id and not customer_name_filter:
+        return jsonify({"error": "bank_transaction_id or customer_name is required."}), 400
 
     try:
-        contracts = BaseContract.query.filter_by(customer_name=customer_name).all()
-        if not contracts:
-            return jsonify({"bills": [], "closest_bill_period": None})
+        relevant_contract_ids = set()
 
-        contract_ids = [c.id for c in contracts]
+        # --- 新逻辑：优先处理手动指定的客户 ---
+        if customer_name_filter:
+            current_app.logger.info(f"[bills-by-customer] 优先处理指定客户: {customer_name_filter}")
+            contracts_by_name = BaseContract.query.filter_by(customer_name=customer_name_filter).all()
+            for contract in contracts_by_name:
+                relevant_contract_ids.add(contract.id)
 
-        bills_in_period = CustomerBill.query.filter(
-            CustomerBill.contract_id.in_(contract_ids),
+        # --- 否则，按原逻辑通过银行流水自动匹配 ---
+        elif bank_transaction_id:
+            current_app.logger.info(f"[bills-by-customer] 通过银行流水ID自动匹配合同: {bank_transaction_id}")
+            bank_txn = db.session.get(BankTransaction, bank_transaction_id)
+            if bank_txn:
+                # 1. 查找别名合同 (代付)
+                aliases = PayerAlias.query.filter_by(payer_name=bank_txn.payer_name).all()
+                for alias in aliases:
+                    relevant_contract_ids.add(alias.contract_id)
+
+                # 2. 查找同名客户合同 (本人付款)
+                direct_contracts = BaseContract.query.filter_by(customer_name=bank_txn.payer_name).all()
+                for contract in direct_contracts:
+                    relevant_contract_ids.add(contract.id)
+
+        if not relevant_contract_ids:
+            return jsonify({"bills": [], "closest_bill_period": None, "relevant_contract_id": None})
+
+        # --- 查询并返回账单 ---
+        query = CustomerBill.query.filter(
+            CustomerBill.contract_id.in_(list(relevant_contract_ids)),
             CustomerBill.year == year,
             CustomerBill.month == month
-        ).all()
+        )
+        bills_in_period = query.order_by(CustomerBill.total_due.desc()).all()
 
-        if bills_in_period:
-            results = []
-            for bill in bills_in_period:
-                # --- 新增计算 paid_by_this_txn 的逻辑 ---
-                paid_by_this_txn = D('0')
-                if bank_transaction_id:
-                    payments_from_this_txn = PaymentRecord.query.filter_by(
-                        customer_bill_id=bill.id,
-                        bank_transaction_id=bank_transaction_id
-                    ).all()
-                    if payments_from_this_txn:
-                        paid_by_this_txn = sum(p.amount for p in payments_from_this_txn)
-                # --- 逻辑结束 ---
+        results = []
+        for bill in bills_in_period:
+            paid_by_this_txn = D('0')
+            if bank_transaction_id:
+                payments_from_this_txn = PaymentRecord.query.filter_by(
+                    customer_bill_id=bill.id,
+                    bank_transaction_id=bank_transaction_id
+                ).all()
+                if payments_from_this_txn:
+                    paid_by_this_txn = sum(p.amount for p in payments_from_this_txn)
 
-                payments = []
-                for pr in bill.payment_records:
-                    if pr.bank_transaction:
-                        payments.append({
-                            'payer_name': pr.bank_transaction.payer_name,
-                            'amount': str(pr.amount)
-                        })
+            payments = []
+            for pr in bill.payment_records:
+                if pr.bank_transaction:
+                    payments.append({
+                        'payer_name': pr.bank_transaction.payer_name,
+                        'amount': str(pr.amount)
+                    })
 
-                results.append({
-                    "id": str(bill.id),
-                    "contract_id": str(bill.contract_id),
-                    "customer_name": bill.contract.customer_name,
-                    "employee_name": bill.contract.service_personnel.name if bill.contract.service_personnel else (bill.contract.user.username if bill.contract.user else "未知"),
-                    "cycle": f"{bill.cycle_start_date.strftime('%Y-%m-%d')} to {bill.cycle_end_date.strftime('%Y-%m-%d')}",
-                    "bill_month": bill.month,
-                    "year": bill.year,
-                    "total_due": str(bill.total_due),
-                    "total_paid": str(bill.total_paid),
-                    "amount_remaining": str(bill.total_due - bill.total_paid),
-                    "payments": payments,
-                    "paid_by_this_txn": str(paid_by_this_txn) # 新增字段
-                })
+            results.append({
+                "id": str(bill.id),
+                "contract_id": str(bill.contract.id),
+                "customer_name": bill.contract.customer_name,
+                "employee_name": bill.contract.service_personnel.name if bill.contract.service_personnel else(bill.contract.user.username if bill.contract.user else "未知"),
+                "cycle": f"{bill.cycle_start_date.strftime('%Y-%m-%d')} to {bill.cycle_end_date.strftime('%Y-%m-%d')}",
+                "bill_month": bill.month,
+                "year": bill.year,
+                "total_due": str(bill.total_due),
+                "total_paid": str(bill.total_paid),
+                "amount_remaining": str(bill.total_due - bill.total_paid),
+                "payments": payments,
+                "paid_by_this_txn": str(paid_by_this_txn)
+            })
 
-            sorted_results = sorted(
-                results,
-                key=lambda x: Decimal(x['amount_remaining']),
-                reverse=True
-            )
-            current_app.logger.info(f"--- BACKEND DATA --- {sorted_results}")
-            current_app.logger.info(f"[DEBUG] Bills being sent to frontend: {results}")
-            return jsonify({"bills": sorted_results, "closest_bill_period": None})
-        else:
-            all_unpaid_bills = CustomerBill.query.filter(
-                CustomerBill.contract_id.in_(contract_ids),
-                CustomerBill.total_due > CustomerBill.total_paid
-            ).all()
+        sorted_results = sorted(results, key=lambda x: Decimal(x['amount_remaining']), reverse=True)
+        return jsonify({"bills": sorted_results, "closest_bill_period": None, "relevant_contract_id": None})
 
-            if not all_unpaid_bills:
-                latest_contract = sorted(contracts, key=lambda c: c.start_date, reverse=True)[0]
-                return jsonify({"bills": [], "closest_bill_period": None, "relevant_contract_id": str(latest_contract.id)})
-
-            closest_bill = None
-            min_abs_distance = float('inf')
-
-            for bill in all_unpaid_bills:
-                distance = (bill.year - year) * 12 + (bill.month - month)
-                abs_distance = abs(distance)
-
-                if abs_distance < min_abs_distance:
-                    min_abs_distance = abs_distance
-                    closest_bill = bill
-                elif abs_distance == min_abs_distance:
-                    if distance < 0:
-                        closest_bill = bill
-
-            closest_bill_period = {
-                "year": closest_bill.year,
-                "month": closest_bill.month
-            } if closest_bill else None
-
-            return jsonify({"bills": [], "closest_bill_period": closest_bill_period})
-
-    except Exception:
+    except Exception as e:
+        current_app.logger.error(f"获取客户账单失败: {e}", exc_info=True)
         return jsonify({"error": "服务器内部错误"}), 500
 
 @billing_bp.route("/payable-items-by-payee", methods=["GET"])
