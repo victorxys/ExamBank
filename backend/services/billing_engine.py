@@ -960,32 +960,54 @@ class BillingEngine:
                 else:
                     # --- 默认规则：起止日号数不同，按三段式天数计算 ---
                     current_app.logger.info(f"合同 {contract.id} 使用按天三段式管理费计算模式。")
+                    # 日单价按30天计算，这是固定业务规则
                     daily_management_fee = (monthly_management_fee / D(30)).quantize(D("0.0001"))
                     start = contract_start_date
                     end = contract_end_date
 
                     if start.year == end.year and start.month == end.month:
-                        total_days = min(30, (end - start).days + 1)
-                        management_fee = (daily_management_fee *D(total_days)).quantize(QUANTIZER)
-                        management_fee_reason = f"非月签合同(不足一月)按天收取: {total_days}天 = {management_fee:.2f}元"
+                        # --- 单月合同逻辑 ---
+                        days_in_month = calendar.monthrange(start.year, start.month)[1]
+                        is_full_calendar_month = (start.day == 1 and end.day == days_in_month)
+                        
+                        actual_days = (end - start).days + 1
+                        # 如果是完整日历月，则按30天收费，否则按实际天数
+                        chargeable_days = 30 if is_full_calendar_month else actual_days
+                        
+                        management_fee = (daily_management_fee * D(chargeable_days)).quantize(QUANTIZER)
+                        management_fee_reason = f"非月签合同(不足一月)按天收取: {actual_days}天 = {management_fee:.2f}元"
                     else:
-                        days_in_start_month = calendar.monthrange(start.year, start.month)[1]
-                        first_month_days = min(30, days_in_start_month - start.day + 1)
-                        first_month_fee = (daily_management_fee *D(first_month_days)).quantize(QUANTIZER)
+                        # --- 跨月合同三段式逻辑 ---
 
-                        last_month_days = min(30, end.day)
-                        last_month_fee = (daily_management_fee *D(last_month_days)).quantize(QUANTIZER)
+                        # 首月计算
+                        is_full_first_month = (start.day == 1)
+                        first_month_log_days = calendar.monthrange(start.year, start.month)[1] - start.day + 1
+                        # 如果首月是1号开始，则视为整月，按30天计算费用
+                        first_month_chargeable_days = 30 if is_full_first_month else first_month_log_days
+                        first_month_fee = (daily_management_fee * D(first_month_chargeable_days)).quantize(QUANTIZER)
 
-                        full_months_count = (end.year - start.year) * 12 + (end.month -start.month) - 1
+                        # 末月计算
+                        days_in_end_month = calendar.monthrange(end.year, end.month)[1]
+                        is_full_last_month = (end.day == days_in_end_month)
+                        last_month_log_days = end.day
+                        # 如果末月是最后一天结束，则视为整月，按30天计算费用
+                        last_month_chargeable_days = 30 if is_full_last_month else last_month_log_days
+                        last_month_fee = (daily_management_fee * D(last_month_chargeable_days)).quantize(QUANTIZER)
+
+                        # 中间整月计算 (逻辑保持不变)
+                        full_months_count = (end.year - start.year) * 12 + (end.month - start.month) - 1
+                        
                         full_months_fee = D(0)
                         if full_months_count > 0:
                             full_months_fee = monthly_management_fee * D(full_months_count)
 
                         management_fee = first_month_fee + full_months_fee + last_month_fee
-                        reason_parts = [f"首月({first_month_days}天):{first_month_fee:.2f}"]
+                        
+                        # 使用日志天数生成日志，但使用计费天数进行计算
+                        reason_parts = [f"首月({first_month_log_days}天):{first_month_fee:.2f}"]
                         if full_months_fee > 0:
                             reason_parts.append(f"中间{full_months_count}整月:{full_months_fee:.2f}")
-                        reason_parts.append(f"末月({last_month_days}天):{last_month_fee:.2f}")
+                        reason_parts.append(f"末月({last_month_log_days}天):{last_month_fee:.2f}")
                         management_fee_reason = f"非月签合同首月一次性收取 ({' + '.join(reason_parts)}) = {management_fee:.2f}元"
             else:
                 # 非首月，非月签合同不收管理费
