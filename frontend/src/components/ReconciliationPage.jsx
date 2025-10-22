@@ -413,7 +413,10 @@ const TransactionDetailsPanel = ({
                                         <Grid item xs={12} md={6}>
                                             <Box>
                                                 <Typography variant="body1" component="div" sx={{ display: 'flex',alignItems: 'center' }}>{`账单周期: ${bill.cycle}`}<Chip label={`${bill.bill_month}月账单`} size="small" {...getBillMonthChipProps(bill)} /></Typography>
-                                                <Typography variant="body2" color="text.secondary">{`员工: ${bill.employee_name}`}</Typography>
+                                                <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center' }}>
+                                                    {`员工: ${bill.employee_name}`}
+                                                    {bill.is_substitute_bill && <Chip label="替班" color="warning" size="small" sx={{ ml: 1 }} />}
+                                                </Typography>
                                             </Box>
                                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
                                                 <TextField type="number" size="small" sx={{ width: '130px'}}placeholder="0.00" value={allocations[bill.id] || ''} onChange={(e) => handleAllocationChange(bill.id, e.target.value)} InputProps={{ startAdornment: <Typography component="span" sx={{ mr: 1 }}>¥</Typography> }} />

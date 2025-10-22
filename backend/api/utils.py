@@ -35,6 +35,9 @@ def _fill_group_fields(group_fields, calc, field_keys, is_substitute_payroll=Fal
                 "overtime_days": "加班天数",
                 "total_days_worked": "总劳务天数",
                 "substitute_days": "被替班天数",
+                "extension_days": "延长服务天数",
+                "extension_fee": "延长期服务费",
+                "extension_management_fee": "延长期管理费",
                 "customer_base_fee": "基础劳务费",
                 "customer_overtime_fee": "加班费",
                 "management_fee": "管理费",
@@ -201,8 +204,11 @@ def get_billing_details_internal(
             'total_paid': str(customer_bill.total_paid)
         }
     })
-    _fill_group_fields(customer_details["groups"][1]["fields"], calc_cust, ["base_work_days", "overtime_days", "total_days_worked", "substitute_days"])
-    _fill_group_fields(customer_details["groups"][2]["fields"], calc_cust, ["management_fee", "management_fee_rate"])
+    # "劳务周期" group
+    _fill_group_fields(customer_details["groups"][1]["fields"], calc_cust, ["base_work_days","overtime_days", "total_days_worked", "substitute_days", "extension_days"])
+
+    # "费用明细" group
+    _fill_group_fields(customer_details["groups"][2]["fields"], calc_cust, ["management_fee","management_fee_rate", "extension_fee", "extension_management_fee"])
     if contract.type == "nanny" or contract.type == "maternity_nurse" or contract.type == "external_substitution" or contract.type == "nanny_trial":
         customer_details["groups"][2]["fields"]["本次交管理费"] = calc_cust.get("management_fee", "待计算")
 
@@ -219,7 +225,7 @@ def get_billing_details_internal(
         for group in customer_details["groups"]:
             if group["name"] == "费用明细":
                 group["fields"]["延长期服务费"] = extension_fee_str
-                group["fields"]["延长期管理费"] = "待计算"
+                # group["fields"]["延长期管理费"] = "待计算"
 
     if employee_payroll:
         calc_payroll = employee_payroll.calculation_details or {}
@@ -268,66 +274,66 @@ def get_billing_details_internal(
     is_last_bill = not later_bill_exists
     
     
-    is_eligible_for_extension = False
-    authoritative_end_date = None
+    # is_eligible_for_extension = False
+    # authoritative_end_date = None
 
-    if is_last_bill:
-        contract_type = contract.type
-        if contract_type == 'nanny' and not getattr(contract, 'is_monthly_auto_renew', False):
-            is_eligible_for_extension = True
-            authoritative_end_date = contract.end_date
-        elif contract_type == 'maternity_nurse':
-            is_eligible_for_extension = True
-            authoritative_end_date = getattr(contract,'expected_offboarding_date', None) or contract.end_date
-        elif contract_type == 'external_substitution':
-            is_eligible_for_extension = True
-            authoritative_end_date = contract.end_date
+    # if is_last_bill:
+    #     contract_type = contract.type
+    #     if contract_type == 'nanny' and not getattr(contract, 'is_monthly_auto_renew', False):
+    #         is_eligible_for_extension = True
+    #         authoritative_end_date = contract.end_date
+    #     elif contract_type == 'maternity_nurse':
+    #         is_eligible_for_extension = True
+    #         authoritative_end_date = getattr(contract,'expected_offboarding_date', None) or contract.end_date
+    #     elif contract_type == 'external_substitution':
+    #         is_eligible_for_extension = True
+    #         authoritative_end_date = contract.end_date
 
-    if is_eligible_for_extension and authoritative_end_date:
-        bill_end_date_obj =customer_bill.cycle_end_date
-        auth_end_date_obj = authoritative_end_date
+    # if is_eligible_for_extension and authoritative_end_date:
+    #     bill_end_date_obj =customer_bill.cycle_end_date
+    #     auth_end_date_obj = authoritative_end_date
 
-        bill_end_date = bill_end_date_obj.date() if isinstance(bill_end_date_obj, datetime) else bill_end_date_obj
-        auth_end_date = auth_end_date_obj.date() if isinstance(auth_end_date_obj, datetime) else auth_end_date
+    #     bill_end_date = bill_end_date_obj.date() if isinstance(bill_end_date_obj, datetime) else bill_end_date_obj
+    #     auth_end_date = auth_end_date_obj.date() if isinstance(auth_end_date_obj, datetime) else auth_end_date
 
-        if bill_end_date and auth_end_date and bill_end_date > auth_end_date:
-            extension_days = (bill_end_date -auth_end_date).days
+    #     if bill_end_date and auth_end_date and bill_end_date > auth_end_date:
+    #         extension_days = (bill_end_date -auth_end_date).days
 
-            if extension_days > 0:
-                extension_log = f"原合同于 {auth_end_date.strftime('%m月%d日')} 结束，手动延长至{bill_end_date.strftime('%m月%d日')}，共{extension_days} 天。"
+    #         if extension_days > 0:
+    #             extension_log = f"原合同于 {auth_end_date.strftime('%m月%d日')} 结束，手动延长至{bill_end_date.strftime('%m月%d日')}，共{extension_days} 天。"
 
-                level = D(contract.employee_level or'0')
-                daily_rate = level / D(26)
-                extension_fee = (daily_rate *D(extension_days)).quantize(D('0.01'))
-                extension_fee_log = f"级别({level:.2f})/26 * 延长天数延期了({extension_days}) = {extension_fee:.2f}"
+    #             level = D(contract.employee_level or'0')
+    #             daily_rate = level / D(26)
+    #             extension_fee = (daily_rate *D(extension_days)).quantize(D('0.01'))
+    #             extension_fee_log = f"级别({level:.2f})/26 * 延长天数延期了({extension_days}) = {extension_fee:.2f}"
 
-                if contract.management_fee_amount is not None:
-                    management_fee = D(contract.management_fee_amount)
-                else:
-                    management_fee = (level * D('0.1')).quantize(D('0.01'))
-                extension_manage_fee = management_fee * D(extension_days) / D(30)
-                extension_manage_fee_log = f"延长期管理费({management_fee:.2f})/30 * 延长天数延期了({extension_days}) = {extension_manage_fee:.2f}"
+    #             if contract.management_fee_amount is not None:
+    #                 management_fee = D(contract.management_fee_amount)
+    #             else:
+    #                 management_fee = (level * D('0.1')).quantize(D('0.01'))
+    #             extension_manage_fee = management_fee * D(extension_days) / D(30)
+    #             extension_manage_fee_log = f"延长期管理费({management_fee:.2f})/30 * 延长天数延期了({extension_days}) = {extension_manage_fee:.2f}"
 
-                if "calculation_details" not in customer_details:
-                    customer_details["calculation_details"] = {}
-                if "log_extras" not in customer_details["calculation_details"]:
-                    customer_details["calculation_details"]["log_extras"] = {}
+    #             if "calculation_details" not in customer_details:
+    #                 customer_details["calculation_details"] = {}
+    #             if "log_extras" not in customer_details["calculation_details"]:
+    #                 customer_details["calculation_details"]["log_extras"] = {}
 
-                for group in customer_details["groups"]:
-                    if group["name"] == "劳务周期":
-                        group["fields"]["延长服务天数"] = str(extension_days)
-                        customer_details["calculation_details"]["log_extras"]["extension_days_reason"] = extension_log
-                    if group["name"] == "费用明细":
-                        group["fields"]["延长期服务费"] = str(extension_fee)
-                        customer_details["calculation_details"]["log_extras"]["extension_fee_reason"] = extension_fee_log
-                        group["fields"]["延长期管理费"] = str(extension_manage_fee)
-                        customer_details["calculation_details"]["log_extras"]["extension_manage_fee_reason"] = extension_manage_fee_log
+    #             for group in customer_details["groups"]:
+    #                 if group["name"] == "劳务周期":
+    #                     group["fields"]["延长服务天数"] = str(extension_days)
+    #                     customer_details["calculation_details"]["log_extras"]["extension_days_reason"] = extension_log
+    #                 if group["name"] == "费用明细":
+    #                     group["fields"]["延长期服务费"] = str(extension_fee)
+    #                     customer_details["calculation_details"]["log_extras"]["extension_fee_reason"] = extension_fee_log
+    #                     group["fields"]["延长期管理费"] = str(extension_manage_fee)
+    #                     customer_details["calculation_details"]["log_extras"]["extension_manage_fee_reason"] = extension_manage_fee_log
 
-                if employee_details and employee_details.get("groups"):
-                    for group in employee_details["groups"]:
-                        if group["name"] in ["薪酬明细", "劳务周期"]:
-                             group["fields"]["延长服务天数"] = str(extension_days)
-                             group["fields"]["延长期服务费"] = str(extension_fee)
+    #             if employee_details and employee_details.get("groups"):
+    #                 for group in employee_details["groups"]:
+    #                     if group["name"] in ["薪酬明细", "劳务周期"]:
+    #                          group["fields"]["延长服务天数"] = str(extension_days)
+    #                          group["fields"]["延长期服务费"] = str(extension_fee)
     remaining_months_str = "N/A"
     highlight_remaining = False
     today = date.today()
@@ -375,6 +381,21 @@ def get_billing_details_internal(
         if isinstance(dt_obj, datetime):
             return dt_obj.date().isoformat()
         return dt_obj.isoformat()
+
+    # --- Linus's Patch ---
+    final_employee = None
+    if customer_bill.is_substitute_bill and customer_bill.source_substitute_record:
+        sub_record = customer_bill.source_substitute_record
+        final_employee = sub_record.substitute_user or sub_record.substitute_personnel
+    else:
+        final_employee = contract.user or contract.service_personnel
+
+    if final_employee:
+        employee_details['employee_id'] = str(final_employee.id)
+        employee_name = getattr(final_employee, 'username', getattr(final_employee, 'name', '未知员工'))
+        employee_details['employee_name'] = employee_name
+    # --- End of Patch ---
+    
     return {
         "customer_bill_details": customer_details,
         "employee_payroll_details": employee_details,
@@ -393,7 +414,7 @@ def get_billing_details_internal(
         "cycle_start_date": cycle_start.isoformat(),
         "cycle_end_date": cycle_end.isoformat(),
         "is_substitute_bill": customer_bill.is_substitute_bill,
-            "contract_info": {
+        "contract_info": {
             "contract_id": str(contract.id),
             "contract_type_label":get_contract_type_details(contract.type),
             "start_date": safe_isoformat(contract.start_date),
