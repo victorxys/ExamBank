@@ -48,18 +48,17 @@ def create_substitute_record(contract_id):
         employee_level = D(data["employee_level"])
         substitute_type = data["substitute_type"]
         original_bill_id = data.get("original_bill_id")
+        substitute_management_fee_rate = D(data.get("substitute_management_fee_rate", 0))
 
         main_contract = BaseContract.query.get(contract_id)
         if not main_contract:
             return jsonify({"error": "Main contract not found"}), 404
 
-        current_app.logger.debug(f"[API-CreateSub] Found main_contract: ID={main_contract.id},Status={main_contract.status}, EndDate={main_contract.end_date}, AutoRenew={getattr(main_contract, 'is_monthly_auto_renew', False)}")
-
         substitute_user = User.query.get(data["substitute_user_id"])
         if not substitute_user:
             return jsonify({"error": "Substitute user not found"}), 404
 
-        # 先创建一个包含所有前端数据的完整 record 对象
+        # 1. 创建记录并立即保存费率
         new_record = SubstituteRecord(
             main_contract_id=str(contract_id),
             substitute_user_id=data["substitute_user_id"],
@@ -68,32 +67,27 @@ def create_substitute_record(contract_id):
             substitute_salary=employee_level,
             substitute_type=substitute_type,
             original_customer_bill_id=original_bill_id,
+            substitute_management_fee_rate=substitute_management_fee_rate,
         )
 
-        # 现在，根据业务逻辑决定 substitute_management_fee 的值
-        if substitute_type == 'maternity_nurse':
-            # 月嫂替班：直接使用前端传来的费率
-            management_fee_value = D(data.get("management_fee_rate") or 0)
-            if management_fee_value > 1:
-                management_fee_value = management_fee_value / D(100)
-            new_record.substitute_management_fee = management_fee_value
-
-        elif substitute_type == 'nanny':
-            # 育儿嫂替班：调用函数计算合同外的管理费
-            # 这次我们传递的是一个包含了薪资的完整对象
+        # 2. 根据类型，选择性地预计算费用金额
+        if substitute_type == 'nanny':
+            # 育儿嫂：调用辅助函数计算仅超出合同期的管理费
+            # 该函数现在将使用 new_record 上已保存的费率
             total_fee = calculate_substitute_management_fee(new_record, main_contract)
             new_record.substitute_management_fee = total_fee
-
-        else:
-            # 其他未知情况，费用为0
-            new_record.substitute_management_fee = D(0)
+        elif substitute_type == 'maternity_nurse':
+            # 月嫂：不在API层面计算费用金额，其逻辑更复杂，完全由后续的BillingEngine处理
+            new_record.substitute_management_fee = D(0) # 提供一个默认值
 
         db.session.add(new_record)
-        db.session.flush()
+        db.session.flush() # flush以获取new_record.id
 
+        # 3. 调用计费引擎，它将使用已保存的费率和金额进行最终的账单生成
         engine = BillingEngine()
         engine.calculate_for_substitute(new_record.id)
 
+        # 如果影响了原始账单，也触发重算
         if original_bill_id:
             original_bill = CustomerBill.query.get(original_bill_id)
             if original_bill:
@@ -104,6 +98,8 @@ def create_substitute_record(contract_id):
                     force_recalculate=True
                 )
 
+        db.session.commit()
+
         current_app.logger.debug(f"--- [API-CreateSub] END for contract: {contract_id} ---")
         return jsonify(
             {
@@ -112,7 +108,8 @@ def create_substitute_record(contract_id):
             }
         ), 201
 
-    except ValueError:
+    except (ValueError, decimal.InvalidOperation):
+        db.session.rollback()
         return jsonify({"error": "Invalid date or amount format"}), 400
     except Exception as e:
         db.session.rollback()
@@ -483,4 +480,45 @@ def search_contracts():
 
     except Exception as e:
         current_app.logger.error(f"Failed to search contracts: {e}", exc_info=True)
+        return jsonify({"error": "Internal server error"}), 500
+
+@contract_bp.route("/<uuid:contract_id>/substitute-context", methods=["GET"])
+@jwt_required()
+def get_contract_substitute_context(contract_id):
+    """
+    获取用于判断替班管理费逻辑的合同上下文信息。
+    """
+    try:
+        contract = db.session.query(BaseContract).get(contract_id)
+
+        if not contract:
+            return jsonify({"error": "Contract not found"}), 404
+
+        contract_type_key = "non_auto_renewing"
+        effective_end_date = None
+
+        # 判断是否为自动续签的育儿嫂合同 (NannyContract)
+        if contract.type == 'nanny' and hasattr(contract, 'is_monthly_auto_renew') and contract.is_monthly_auto_renew:
+            contract_type_key = "auto_renewing"
+            # 对于自动续签合同，只有终止日期有意义
+            if contract.termination_date:
+                effective_end_date = contract.termination_date
+            else:
+                # 没有终止日期，视为无限期
+                effective_end_date = None
+        else:
+            # 对于所有其他类型的合同 (非自动续签育儿嫂, 月嫂等)
+            contract_type_key = "non_auto_renewing"
+            if contract.termination_date:
+                effective_end_date = max(contract.end_date, contract.termination_date)
+            else:
+                effective_end_date = contract.end_date
+
+        return jsonify({
+            "contract_type": contract_type_key,
+            "effective_end_date": effective_end_date.isoformat() if effective_end_date else None
+        })
+
+    except Exception as e:
+        current_app.logger.error(f"Failed to get contract substitute context for {contract_id}: {e}",exc_info=True)
         return jsonify({"error": "Internal server error"}), 500

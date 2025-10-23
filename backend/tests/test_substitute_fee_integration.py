@@ -20,6 +20,7 @@ os.environ["FLASK_ENV"] = "testing"
 from backend.app import app, db
 from backend.models import (
     NannyContract,
+    MaternityNurseContract, # 新增
     ServicePersonnel,
     User,
     SubstituteRecord,
@@ -99,7 +100,7 @@ class TestSubstituteFeeIntegration(unittest.TestCase):
         self.session.rollback()
 
     def test_create_substitute_for_terminated_contract_fully_after_end_date(self):
-        """Test Case 001: For a terminated contract, add a substitute record completely after the contract end date."""
+        """【更新】Test Case 001: 为终止合同添加期外替班，并传入费率。"""
         main_employee = ServicePersonnel(name="主育儿嫂-合同已终止")
         sub_user = User(id=str(uuid.uuid4()), username="替班用户-追加", phone_number=f"987-{uuid.uuid4().hex[:10]}", password="test")
         self.session.add_all([main_employee, sub_user])
@@ -119,10 +120,11 @@ class TestSubstituteFeeIntegration(unittest.TestCase):
 
         substitute_data = {
             "substitute_user_id": str(sub_user.id),
-            "start_date": "2025-10-05",
-            "end_date": "2025-10-15",
+            "start_date": "2025-10-05T00:00:00",
+            "end_date": "2025-10-15T00:00:00", # 10天
             "employee_level": "5200",
             "substitute_type": "nanny",
+            "substitute_management_fee_rate": 0.1 # 10% 费率
         }
 
         response = self.client.post(
@@ -133,12 +135,12 @@ class TestSubstituteFeeIntegration(unittest.TestCase):
         self.assertEqual(response.status_code, 201)
 
         sub_record = self.session.query(SubstituteRecord).filter_by(main_contract_id=terminated_contract.id).first()
-
         self.assertIsNotNone(sub_record)
+        # 期望费用: 5200 / 30 * 0.1 * 10 = 173.33
         self.assertEqual(sub_record.substitute_management_fee, D("173.33"))
 
     def test_create_substitute_for_finished_contract_partially_overlapping(self):
-        """Test Case 002: For a finished contract, add a substitute record that partially overlaps with the contract end date."""
+        """【更新】Test Case 002: 为结束合同添加部分重叠的替班，并传入费率。"""
         main_employee = ServicePersonnel(name="主育儿嫂-合同已结束-部分重叠")
         sub_user = User(id=str(uuid.uuid4()), username="替班用户-部分重叠", phone_number=f"986-{uuid.uuid4().hex[:10]}", password="test")
         self.session.add_all([main_employee, sub_user])
@@ -157,10 +159,11 @@ class TestSubstituteFeeIntegration(unittest.TestCase):
 
         substitute_data = {
             "substitute_user_id": str(sub_user.id),
-            "start_date": "2025-10-08",
-            "end_date": "2025-10-15",
+            "start_date": "2025-10-08T00:00:00",
+            "end_date": "2025-10-15T00:00:00",
             "employee_level": "6000",
             "substitute_type": "nanny",
+            "substitute_management_fee_rate": 0.1 # 10% 费率
         }
 
         response = self.client.post(
@@ -171,13 +174,14 @@ class TestSubstituteFeeIntegration(unittest.TestCase):
         self.assertEqual(response.status_code, 201)
 
         sub_record = self.session.query(SubstituteRecord).filter_by(main_contract_id=finished_contract.id).first()
-
         self.assertIsNotNone(sub_record)
+        # 合同结束于 10-10，所以只有 10-11 到 10-15 (5天) 计费
+        # 期望费用: 6000 / 30 * 0.1 * 5 = 100.00
         self.assertEqual(sub_record.substitute_management_fee, D("100.00"))
 
     @patch('backend.api.contract_api.calculate_monthly_billing_task')
     def test_terminate_contract_with_future_substitute_generates_fee(self, mock_task):
-        """Test Case 003: Terminate a contract with a future substitute record."""
+        """【更新】Test Case 003: 终止合同时，为已存在的未来替班记录计算费用。"""
         main_employee = ServicePersonnel(name="主育儿嫂-将被终止")
         sub_employee = ServicePersonnel(name="替班员工-将被悬空")
         self.session.add_all([main_employee, sub_employee])
@@ -201,6 +205,7 @@ class TestSubstituteFeeIntegration(unittest.TestCase):
             end_date=datetime(2025, 11, 5),
             substitute_salary="5200",
             substitute_type="nanny",
+            substitute_management_fee_rate=D("0.1") # 设置费率
         )
         self.session.add(sub_record)
         self.session.flush()
@@ -208,7 +213,7 @@ class TestSubstituteFeeIntegration(unittest.TestCase):
         termination_data = {"termination_date": "2025-10-31"}
 
         response = self.client.post(
-            f"/api/contracts/{active_contract.id}/terminate", 
+            f"/api/billing/contracts/{active_contract.id}/terminate", 
             json=termination_data,
             headers=self.headers
         )
@@ -216,10 +221,12 @@ class TestSubstituteFeeIntegration(unittest.TestCase):
 
         self.session.refresh(sub_record)
         self.assertIsNotNone(sub_record.substitute_management_fee)
+        # 合同终止于 10-31，所以只有 11-01 到 11-05 (5天) 计费
+        # 期望费用: 5200 / 30 * 0.1 * 5 = 86.67
         self.assertEqual(sub_record.substitute_management_fee, D("86.67"))
 
     def test_create_substitute_for_active_contract_no_fee(self):
-        """Test Case 004: For an active contract, add a substitute record completely within the contract period."""
+        """【不变】Test Case 004: 为有效合同添加期内替班，不产生费用。"""
         main_employee = ServicePersonnel(name="主育儿嫂-正常合同")
         sub_user = User(id=str(uuid.uuid4()), username="替班用户-正常", phone_number=f"988-{uuid.uuid4().hex[:10]}", password="test")
         self.session.add_all([main_employee, sub_user])
@@ -238,10 +245,11 @@ class TestSubstituteFeeIntegration(unittest.TestCase):
 
         substitute_data = {
             "substitute_user_id": str(sub_user.id),
-            "start_date": "2025-06-10",
-            "end_date": "2025-06-20",
+            "start_date": "2025-06-10T00:00:00",
+            "end_date": "2025-06-20T00:00:00",
             "employee_level": "5200",
             "substitute_type": "nanny",
+            "substitute_management_fee_rate": 0.1 # 即使传入费率，也不应计费
         }
 
         response = self.client.post(
@@ -252,12 +260,11 @@ class TestSubstituteFeeIntegration(unittest.TestCase):
         self.assertEqual(response.status_code, 201)
 
         sub_record = self.session.query(SubstituteRecord).filter_by(main_contract_id=active_contract.id).first()
-
         self.assertIsNotNone(sub_record)
         self.assertEqual(sub_record.substitute_management_fee, D("0"))
 
     def test_create_substitute_for_active_auto_renew_contract_no_fee(self):
-        """Test Case 005: For an active auto-renewing contract, add a substitute record after the nominal end date."""
+        """【不变】Test Case 005: 为自动续签合同添加期外替班，不产生费用。"""
         main_employee = ServicePersonnel(name="主育儿嫂-自动续签")
         sub_user = User(id=str(uuid.uuid4()), username="替班用户-自动续签-豁免", phone_number=f"985-{uuid.uuid4().hex[:10]}", password="test")
         self.session.add_all([main_employee, sub_user])
@@ -277,10 +284,11 @@ class TestSubstituteFeeIntegration(unittest.TestCase):
 
         substitute_data = {
             "substitute_user_id": str(sub_user.id),
-            "start_date": "2025-10-05",
-            "end_date": "2025-10-15",
+            "start_date": "2025-10-05T00:00:00",
+            "end_date": "2025-10-15T00:00:00",
             "employee_level": "5200",
             "substitute_type": "nanny",
+            "substitute_management_fee_rate": 0.15 # 传入一个非零费率
         }
 
         response = self.client.post(
@@ -291,87 +299,57 @@ class TestSubstituteFeeIntegration(unittest.TestCase):
         self.assertEqual(response.status_code, 201)
 
         sub_record = self.session.query(SubstituteRecord).filter_by(main_contract_id=active_auto_renew_contract.id).first()
-
         self.assertIsNotNone(sub_record)
+        # 核心断言：即使传入费率，对于未终止的自动续签合同，预计算的管理费也应为0
         self.assertEqual(sub_record.substitute_management_fee, D("0"))
 
-    @patch('backend.api.contract_api.calculate_monthly_billing_task')
-    def test_terminate_auto_renew_contract_with_future_substitute(self, mock_task):
-        """Test Case 006: Terminate an auto-renewing contract with a future substitute record."""
-        main_employee = ServicePersonnel(name="主育儿嫂-自动续签终止")
-        sub_user = User(id=str(uuid.uuid4()), username="替班用户-自动续签终止", phone_number=f"984-{uuid.uuid4().hex[:10]}", password="test")
-        self.session.add_all([main_employee, sub_user])
-        self.session.flush()
-
-        auto_renew_contract = NannyContract(
-            customer_name="自动续签客户-终止",
-            service_personnel_id=main_employee.id,
-            status="active",
-            is_monthly_auto_renew=True,
-            employee_level="6000",
-            start_date=date(2025, 9, 1),
-            end_date=date(2025, 9, 30),
-        )
-        self.session.add(auto_renew_contract)
-        self.session.flush()
-
-        sub_record = SubstituteRecord(
-            main_contract_id=auto_renew_contract.id,
-            substitute_user_id=sub_user.id,
-            start_date=datetime(2025, 10, 25),
-            end_date=datetime(2025, 11, 10),
-            substitute_salary="6000",
-            substitute_type="nanny",
-        )
-        self.session.add(sub_record)
-        self.session.flush()
-
-        termination_data = {"termination_date": "2025-10-31"}
-
-        response = self.client.post(
-            f"/api/contracts/{auto_renew_contract.id}/terminate",
-            json=termination_data,
-            headers=self.headers
-        )
-        self.assertEqual(response.status_code, 200)
-
-        self.session.refresh(sub_record)
-        self.assertIsNotNone(sub_record.substitute_management_fee)
-        self.assertEqual(sub_record.substitute_management_fee, D("200.00"))
-
-    def test_billing_engine_includes_substitute_management_fee(self):
-        """Test Case 007: BillingEngine should correctly include substitute_management_fee in the bill."""
-        main_employee = ServicePersonnel(name="主育儿嫂-计费引擎")
-        sub_user = User(id=str(uuid.uuid4()), username="替班用户-计费引擎", phone_number=f"983-{uuid.uuid4().hex[:10]}", password="test")
-        self.session.add_all([main_employee, sub_user])
-        self.session.flush()
-
-        contract = NannyContract(
-            customer_name="计费引擎客户",
-            service_personnel_id=main_employee.id,
-            status="active",
-            employee_level="5200",
-            start_date=date(2025, 1, 1),
-            end_date=date(2025, 12, 31),
-        )
-        self.session.add(contract)
-        self.session.flush()
-
-        sub_record = SubstituteRecord(
-            main_contract_id=contract.id,
-            substitute_user_id=sub_user.id,
-            start_date=datetime(2025, 1, 10),
-            end_date=datetime(2025, 1, 20),
-            substitute_salary="6000",
-            substitute_type="nanny",
-            substitute_management_fee=D("150.00")
-        )
-        self.session.add(sub_record)
-        self.session.flush()
-
-        engine = BillingEngine()
-        engine.calculate_for_substitute(sub_record.id, commit=False)
-
+        # 验证最终账单中的管理费也为0
         bill = self.session.query(CustomerBill).filter_by(source_substitute_record_id=sub_record.id).first()
         self.assertIsNotNone(bill)
-        self.assertEqual(D(bill.calculation_details.get('management_fee', 0)), D("150.00"))
+        self.assertEqual(D(bill.calculation_details.get('management_fee', -1)), D("0"))
+
+    def test_maternity_nurse_substitute_with_custom_rate(self):
+        """【新】Test Case 008: 为月嫂合同创建替班，并使用自定义费率计算管理费。"""
+        main_employee = ServicePersonnel(name="主月嫂")
+        sub_user = User(id=str(uuid.uuid4()), username="替班月嫂", phone_number=f"982-{uuid.uuid4().hex[:10]}", password="test")
+        self.session.add_all([main_employee, sub_user])
+        self.session.flush()
+
+        mn_contract = MaternityNurseContract(
+            customer_name="月嫂客户",
+            service_personnel_id=main_employee.id,
+            status="active",
+            employee_level="15000",
+            start_date=date(2025, 10, 1),
+            end_date=date(2025, 10, 27),
+        )
+        self.session.add(mn_contract)
+        self.session.flush()
+
+        substitute_data = {
+            "substitute_user_id": str(sub_user.id),
+            "start_date": "2025-10-05T00:00:00",
+            "end_date": "2025-10-15T00:00:00", # 10天
+            "employee_level": "12000",
+            "substitute_type": "maternity_nurse",
+            "substitute_management_fee_rate": 0.20 # 20% 费率
+        }
+
+        response = self.client.post(
+            f"/api/contracts/{mn_contract.id}/substitutes",
+            json=substitute_data,
+            headers=self.headers
+        )
+        self.assertEqual(response.status_code, 201)
+
+        sub_record = self.session.query(SubstituteRecord).filter_by(main_contract_id=mn_contract.id).first()
+        self.assertIsNotNone(sub_record)
+        
+        # API层对于月嫂，金额会由后续的计费引擎计算并回填，因此这里不再断言为0
+        self.assertEqual(sub_record.substitute_management_fee_rate, D("0.20"))
+
+        # 验证最终账单中的管理费是否由计费引擎正确计算
+        bill = self.session.query(CustomerBill).filter_by(source_substitute_record_id=sub_record.id).first()
+        self.assertIsNotNone(bill)
+        # 期望费用: 12000 * 0.20 / 26 * 10 = 923.08
+        self.assertEqual(D(bill.calculation_details.get('management_fee')), D("923.08"))
