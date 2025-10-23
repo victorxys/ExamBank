@@ -5049,7 +5049,7 @@ def search_unpaid_bills():
 def get_bills_by_customer():
     """
     根据客户名和年月，获取该客户所有的账单，并计算每个账单从特定流水中已支付的金额。
-    V4: 明确区分“切换客户”和“自动匹配”两种场景。
+    V5: 能够同时处理付款人自身和其代付的多个客户，返回所有相关方的账单和纯合同信息。
     """
     customer_name_filter = request.args.get("customer_name")
     year = request.args.get("year", type=int)
@@ -5063,43 +5063,46 @@ def get_bills_by_customer():
         return jsonify({"error": "bank_transaction_id or customer_name is required."}), 400
 
     try:
-        relevant_contract_ids = set()
-
-        # --- 新逻辑：优先处理手动指定的客户 ---
+        # Step 1: Identify all relevant customer names
+        relevant_customer_names = set()
         if customer_name_filter:
-            current_app.logger.info(f"[bills-by-customer] 优先处理指定客户: {customer_name_filter}")
-            contracts_by_name = BaseContract.query.filter_by(customer_name=customer_name_filter).all()
-            for contract in contracts_by_name:
-                relevant_contract_ids.add(contract.id)
-
-        # --- 否则，按原逻辑通过银行流水自动匹配 ---
+            relevant_customer_names.add(customer_name_filter)
         elif bank_transaction_id:
-            current_app.logger.info(f"[bills-by-customer] 通过银行流水ID自动匹配合同: {bank_transaction_id}")
             bank_txn = db.session.get(BankTransaction, bank_transaction_id)
             if bank_txn:
-                # 1. 查找别名合同 (代付)
+                # Add the payer of the transaction itself as a potential relevant customer
+                relevant_customer_names.add(bank_txn.payer_name)
+                # Find all customers this payer is an alias for
                 aliases = PayerAlias.query.filter_by(payer_name=bank_txn.payer_name).all()
                 for alias in aliases:
-                    relevant_contract_ids.add(alias.contract_id)
+                    contract = db.session.get(BaseContract, alias.contract_id)
+                    if contract:
+                        relevant_customer_names.add(contract.customer_name)
 
-                # 2. 查找同名客户合同 (本人付款)
-                direct_contracts = BaseContract.query.filter_by(customer_name=bank_txn.payer_name).all()
-                for contract in direct_contracts:
-                    relevant_contract_ids.add(contract.id)
+        if not relevant_customer_names:
+            return jsonify({"bills": [], "contracts_only": [], "closest_bill_period": None})
 
-        if not relevant_contract_ids:
-            return jsonify({"bills": [], "closest_bill_period": None, "relevant_contract_id": None})
+        # Step 2: Fetch data for all relevant customers
+        all_bills_results = []
+        contracts_only_results = []
+        
+        # Get all relevant contracts at once to get their IDs
+        all_relevant_contracts = BaseContract.query.filter(
+            BaseContract.customer_name.in_(list(relevant_customer_names))
+        ).all()
+        all_relevant_contract_ids = [c.id for c in all_relevant_contracts]
 
-        # --- 查询并返回账单 ---
-        query = CustomerBill.query.filter(
-            CustomerBill.contract_id.in_(list(relevant_contract_ids)),
+        # Get all bills for all relevant contracts in the period
+        bills_in_period = CustomerBill.query.filter(
+            CustomerBill.contract_id.in_(all_relevant_contract_ids),
             CustomerBill.year == year,
             CustomerBill.month == month
-        )
-        bills_in_period = query.order_by(CustomerBill.total_due.desc()).all()
+        ).all()
 
-        results = []
+        # Process bills found
+        customers_with_bills = set()
         for bill in bills_in_period:
+            customers_with_bills.add(bill.contract.customer_name)
             paid_by_this_txn = D('0')
             if bank_transaction_id:
                 payments_from_this_txn = PaymentRecord.query.filter_by(
@@ -5117,23 +5120,17 @@ def get_bills_by_customer():
                         'amount': str(pr.amount)
                     })
 
-            # --- Start of new logic for employee_name ---
             employee_name = "未知员工"
             if bill.is_substitute_bill:
                 sub_record = bill.source_substitute_record
-                if sub_record:
+                if sub_record and (sub_record.substitute_user or sub_record.substitute_personnel):
                     sub_employee = sub_record.substitute_user or sub_record.substitute_personnel
-                    if sub_employee:
-                        employee_name = getattr(sub_employee, 'username', getattr(sub_employee, 'name', '未知替班员工'))
-                else:
-                    employee_name = "替班(记录丢失)"
-            else:
+                    employee_name = getattr(sub_employee, 'username', getattr(sub_employee, 'name', '未知替班员工'))
+            elif bill.contract and (bill.contract.user or bill.contract.service_personnel):
                 original_employee = bill.contract.user or bill.contract.service_personnel
-                if original_employee:
-                    employee_name = getattr(original_employee, 'username', getattr(original_employee, 'name', '未知员工'))
-            # --- End of new logic ---
+                employee_name = getattr(original_employee, 'username', getattr(original_employee, 'name', '未知员工'))
 
-            results.append({
+            all_bills_results.append({
                 "id": str(bill.id),
                 "contract_id": str(bill.contract.id),
                 "customer_name": bill.contract.customer_name,
@@ -5149,8 +5146,29 @@ def get_bills_by_customer():
                 "paid_by_this_txn": str(paid_by_this_txn)
             })
 
-        sorted_results = sorted(results, key=lambda x: Decimal(x['amount_remaining']), reverse=True)
-        return jsonify({"bills": sorted_results, "closest_bill_period": None, "relevant_contract_id": None})
+        # Step 3: Identify customers without bills and add them to contracts_only list
+        customers_without_bills = relevant_customer_names - customers_with_bills
+        current_app.logger.info(f"Customers without bills: {customers_without_bills}")
+        for customer_name in customers_without_bills:
+            # Find an active contract for this customer to provide a relevant ID
+            active_contract = BaseContract.query.filter(
+                BaseContract.customer_name == customer_name,
+                # BaseContract.status == 'active'
+            ).first()
+            if active_contract:
+                contracts_only_results.append({
+                    'customer_name': customer_name,
+                    'relevant_contract_id': str(active_contract.id)
+                })
+
+        # Step 4: Sort and return the consolidated results
+        sorted_bills = sorted(all_bills_results, key=lambda x: Decimal(x['amount_remaining']), reverse=True)
+        
+        return jsonify({
+            "bills": sorted_bills,
+            "contracts_only": contracts_only_results,
+            "closest_bill_period": None # Placeholder, logic can be added if needed
+        })
 
     except Exception as e:
         current_app.logger.error(f"获取客户账单失败: {e}", exc_info=True)
