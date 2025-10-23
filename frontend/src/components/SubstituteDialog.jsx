@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions, Button,
-  TextField, Grid, Autocomplete, CircularProgress, Select, MenuItem, InputLabel, FormControl, Typography
+  TextField, Grid, Autocomplete, CircularProgress, Select, MenuItem, InputLabel, FormControl, Typography, FormHelperText
 } from '@mui/material';
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
 import api from '../api/axios';
@@ -12,40 +12,89 @@ const SubstituteDialog = ({ open, onClose, onSave, contractId, billMonth, contra
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
   const [employeeLevel, setEmployeeLevel] = useState('');
-  const [substituteType, setSubstituteType] = useState('maternity_nurse'); // 'maternity_nurse' or 'nanny'
-  const [managementFeeRate, setManagementFeeRate] = useState(0.25);
+  const [substituteType, setSubstituteType] = useState('maternity_nurse');
+  const [managementFeeRate, setManagementFeeRate] = useState('25');
+  const [isRateDisabled, setIsRateDisabled] = useState(false);
+  const [rateHelperText, setRateHelperText] = useState('');
   const [userOptions, setUserOptions] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [contractContext, setContractContext] = useState(null);
+  const [isLoadingContext, setIsLoadingContext] = useState(false);
 
   useEffect(() => {
-    if (open) {
-      setSubstituteUser(null);
-      setEmployeeLevel('');
-      setUserOptions([]);
+    if (open && contractId) {
+      setIsLoadingContext(true);
+      api.get(`/contracts/${contractId}/substitute-context`)
+        .then(response => {
+          setContractContext(response.data);
+        })
+        .catch(error => {
+          console.error("获取合同上下文失败:", error);
+          setContractContext(null); // 出错时重置
+        })
+        .finally(() => {
+          setIsLoadingContext(false);
+        });
+    }
+  }, [open, contractId]);
 
-      if (contractType) {
-        setSubstituteType(contractType);
-        if (contractType === 'nanny') {
-          setManagementFeeRate('0'); // 2. 育儿嫂替班时设为0
-        } else {
-          setManagementFeeRate('25'); // 3. 月嫂替班时默认25
+  useEffect(() => {
+    if (!open) return;
+
+    // 重置基础状态
+    setSubstituteUser(null);
+    setEmployeeLevel('');
+    setUserOptions([]);
+    setSubstituteType(contractType || 'maternity_nurse');
+
+    // 设置默认时间
+    const start = originalBillCycleStart ? new Date(originalBillCycleStart) : new Date();
+    start.setHours(8, 0, 0, 0); // 设置默认开始时间为 08:00
+
+    const end = new Date(start);
+    end.setDate(start.getDate() + 1);
+    end.setHours(8, 0, 0, 0); // 设置默认结束时间为 08:00
+
+    setStartDate(start);
+    setEndDate(end);
+
+  }, [open, contractType, originalBillCycleStart]);
+
+  useEffect(() => {
+    if (substituteType === 'maternity_nurse') {
+      setManagementFeeRate('25');
+      setIsRateDisabled(false);
+      setRateHelperText('月嫂替班管理费率通常为25%。');
+    } else if (substituteType === 'nanny') {
+      if (isLoadingContext) {
+        setRateHelperText('正在获取合同信息...');
+        setIsRateDisabled(true);
+      } else if (contractContext) {
+        const { contract_type, effective_end_date } = contractContext;
+        if (contract_type === 'auto_renewing') {
+          setManagementFeeRate('0');
+          setIsRateDisabled(true);
+          setRateHelperText('自动续签合同的替班，不收取管理费。');
+        } else { // non_auto_renewing
+          if (effective_end_date && startDate && new Date(startDate) > new Date(effective_end_date)) {
+            setManagementFeeRate('10'); // 合同期外，默认10%
+            setIsRateDisabled(false);
+            setRateHelperText('替班发生在合同期外，请输入管理费率。');
+          } else {
+            setManagementFeeRate('0');
+            setIsRateDisabled(true);
+            setRateHelperText('合同期内的替班，不收取管理费。');
+          }
         }
       } else {
-        setSubstituteType('maternity_nurse');
-        setManagementFeeRate('25'); // 4. 默认情况也是25
-      }
-
-      if (originalBillCycleStart) {
-        setStartDate(new Date(originalBillCycleStart));
-        const nextDay = new Date(originalBillCycleStart);
-        nextDay.setDate(nextDay.getDate() + 1);
-        setEndDate(nextDay);
-      } else {
-        setStartDate(null);
-        setEndDate(null);
+        // Fallback if context fails to load
+        setManagementFeeRate('0');
+        setIsRateDisabled(true);
+        setRateHelperText('无法加载合同信息，费率默认为0。');
       }
     }
-  }, [open, billMonth, contractType, originalBillCycleStart]);
+  }, [substituteType, startDate, contractContext, isLoadingContext]);
+
 
   const handleUserSearch = async (event, value) => {
     if (!value) {
@@ -64,15 +113,22 @@ const SubstituteDialog = ({ open, onClose, onSave, contractId, billMonth, contra
   };
 
   const handleSave = () => {
-     // 1. 必填项校验
-    if (!substituteUser) {
-      alert('请选择替班人员！');
-      return; // 阻止保存
+    if (!substituteUser || !employeeLevel || !startDate || !endDate) {
+      alert('请填写所有必填项！');
+      return;
     }
-    if (!employeeLevel || String(employeeLevel).trim() === '') {
-      alert('请输入替班员工的级别/月薪！');
-      return; // 阻止保存
+
+    if (endDate <= startDate) {
+        alert('结束时间必须晚于开始时间！');
+        return;
     }
+
+    const rate = parseFloat(managementFeeRate);
+    if (isNaN(rate)) {
+        alert('请输入有效的管理费率数字！');
+        return;
+    }
+
     const substituteData = {
       main_contract_id: contractId,
       substitute_user_id: substituteUser?.id,
@@ -80,7 +136,7 @@ const SubstituteDialog = ({ open, onClose, onSave, contractId, billMonth, contra
       end_date: endDate?.toISOString(),
       employee_level: employeeLevel,
       substitute_type: substituteType,
-      management_fee_rate: substituteType === 'maternity_nurse' ? (parseFloat(managementFeeRate) / 100) : 0
+      substitute_management_fee_rate: rate / 100,
     };
 
     onSave(substituteData);
@@ -120,7 +176,7 @@ const SubstituteDialog = ({ open, onClose, onSave, contractId, billMonth, contra
           {(originalBillCycleStart && originalBillCycleEnd) && (
             <Grid item xs={12}>
               <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                只能在当前账单周期 {new Date(originalBillCycleStart).toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' })} ~ {new Date(originalBillCycleEnd).toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' })} 内添加替班。
+                当前账单周期: {new Date(originalBillCycleStart).toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' })} ~ {new Date(originalBillCycleEnd).toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' })}。
               </Typography>
             </Grid>
           )}
@@ -131,8 +187,6 @@ const SubstituteDialog = ({ open, onClose, onSave, contractId, billMonth, contra
               onChange={setStartDate}
               ampm={false}
               timeSteps={{ minutes: 30 }}
-              minDateTime={originalBillCycleStart ? new Date(originalBillCycleStart) : null}
-              // maxDateTime={originalBillCycleEnd ? new Date(originalBillCycleEnd) : null}
             />
           </Grid>
           <Grid item xs={6}>
@@ -142,8 +196,7 @@ const SubstituteDialog = ({ open, onClose, onSave, contractId, billMonth, contra
               onChange={setEndDate}
               ampm={false}
               timeSteps={{ minutes: 30 }}
-              minDateTime={startDate || (originalBillCycleStart ? new Date(originalBillCycleStart) : null)}
-              // maxDateTime={originalBillCycleEnd ? new Date(originalBillCycleEnd) : null}
+              minDateTime={startDate}
             />
           </Grid>
           
@@ -153,14 +206,7 @@ const SubstituteDialog = ({ open, onClose, onSave, contractId, billMonth, contra
               <Select
                 value={substituteType}
                 label="替班类型"
-                onChange={(e) => {
-                  setSubstituteType(e.target.value);
-                  if (e.target.value === 'nanny') {
-                    setManagementFeeRate(0);
-                  } else {
-                    setManagementFeeRate(25);
-                  }
-                }}
+                onChange={(e) => setSubstituteType(e.target.value)}
               >
                 <MenuItem value="maternity_nurse">月嫂</MenuItem>
                 <MenuItem value="nanny">育儿嫂</MenuItem>
@@ -176,20 +222,22 @@ const SubstituteDialog = ({ open, onClose, onSave, contractId, billMonth, contra
               onChange={(e) => setEmployeeLevel(e.target.value)}
             />
           </Grid>
-          {substituteType === 'maternity_nurse' && (
-            <Grid item xs={6}>
-              <TextField
-                label="管理费率 (%)"
-                fullWidth
-                type="number"
-                value={managementFeeRate}
-                onChange={(e) => setManagementFeeRate(e.target.value)}
-                InputProps={{
-                  endAdornment: <Typography>%</Typography>,
-                }}
-              />
-            </Grid>
-          )}
+          <Grid item xs={6}>
+            <FormControl fullWidth>
+                <TextField
+                    label="管理费率 (%)"
+                    fullWidth
+                    type="number"
+                    value={managementFeeRate}
+                    onChange={(e) => setManagementFeeRate(e.target.value)}
+                    disabled={isRateDisabled || isLoadingContext}
+                    InputProps={{
+                        endAdornment: <Typography>%</Typography>,
+                    }}
+                />
+                <FormHelperText>{rateHelperText}</FormHelperText>
+            </FormControl>
+          </Grid>
         </Grid>
       </DialogContent>
       <DialogActions>

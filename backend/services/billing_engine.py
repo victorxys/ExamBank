@@ -1671,7 +1671,7 @@ class BillingEngine:
 
     def _calculate_substitute_details(self, sub_record, main_contract, bill, payroll, overrides=None):
         current_app.logger.info(f"--- [SUB_DETAILS_CHECK] Entered for bill ID: {bill.id}, is_substitute_bill: {bill.is_substitute_bill} ---")
-        current_app.logger.info(f"--- [SUB_DETAILS_CHECK] Substitute record ID: {sub_record.id}, Fee from record: {sub_record.substitute_management_fee}, Type: {sub_record.substitute_type} ---")
+        current_app.logger.info(f"--- [SUB_DETAILS_CHECK] Substitute record ID: {sub_record.id}, Fee RATE from record: {sub_record.substitute_management_fee_rate}, Type: {sub_record.substitute_type} ---")
         """计算替班记录的财务细节。"""
         if overrides is None:
             overrides = {}
@@ -1680,10 +1680,10 @@ class BillingEngine:
         cust_increase, cust_decrease, emp_increase, emp_decrease, deferred_fee, emp_commission= (
             self._get_adjustments(bill.id, payroll.id)
         )
-        # --- 核心修复：优先使用传入的覆盖值 ---
+
         if overrides.get('actual_work_days') is not None:
             substitute_days = D(overrides['actual_work_days'])
-            bill.actual_work_days = substitute_days # 持久化这个手动输入的值
+            bill.actual_work_days = substitute_days
         else:
             time_difference = sub_record.end_date - sub_record.start_date
             precise_substitute_days = D(time_difference.total_seconds()) / D(86400)
@@ -1691,14 +1691,13 @@ class BillingEngine:
 
         if overrides.get('overtime_days') is not None:
             overtime_days = D(overrides['overtime_days'])
-            # 替班记录本身没有考勤表，所以直接更新替班记录上的加班天数
             sub_record.overtime_days = overtime_days
         else:
             overtime_days = D(sub_record.overtime_days or 0)
-        # --- 修复结束 ---
 
         substitute_level = D(sub_record.substitute_salary)
         substitute_type = sub_record.substitute_type
+        management_fee_rate = D(sub_record.substitute_management_fee_rate or 0)
 
         details = {
             "type": "substitute",
@@ -1710,8 +1709,8 @@ class BillingEngine:
                 sub_record.substitute_user_id or sub_record.substitute_personnel_id
             ),
             "cycle_period": f"{sub_record.start_date.isoformat()} to {sub_record.end_date.isoformat()}",
-            "cycle_start_datetime": sub_record.start_date.isoformat(), # New field for precise datetime
-            "cycle_end_datetime": sub_record.end_date.isoformat(),     # New field for precise datetime
+            "cycle_start_datetime": sub_record.start_date.isoformat(),
+            "cycle_end_datetime": sub_record.end_date.isoformat(),
             "base_work_days": str(substitute_days),
             "overtime_days": str(overtime_days),
             "total_days_worked": str(substitute_days + overtime_days),
@@ -1723,6 +1722,7 @@ class BillingEngine:
             "first_month_deduction": "0.00",
             "log_extras": {},
             "level": str(substitute_level),
+            "management_fee_rate": str(management_fee_rate),
         }
 
         overtime_daily_rate = substitute_level / D(26)
@@ -1733,91 +1733,65 @@ class BillingEngine:
             f"替班加班费: 替班级别({substitute_level:.2f})/26 * 加班天数({overtime_days:.2f})"
         )
 
+        management_fee = D(0)
+
         if substitute_type == "maternity_nurse":
-            management_fee_rate = D(sub_record.substitute_management_fee)
-            customer_daily_rate = (
-                substitute_level * (D(1) - management_fee_rate) / D(26)
-            )
-            customer_base_fee = (customer_daily_rate * substitute_days).quantize(
-                QUANTIZER
-            )
-            employee_daily_rate = (
-                substitute_level * (D(1) - management_fee_rate) / D(26)
-            )
-            employee_base_payout = (employee_daily_rate * substitute_days).quantize(
-                QUANTIZER
-            )
-            management_fee = (
-                substitute_level * management_fee_rate / D(26) * substitute_days
-            ).quantize(QUANTIZER)
-            details["log_extras"]["management_fee_reason"] = (
-                f"替班管理费: 替班级别({substitute_level:.2f}) * 管理费率({management_fee_rate*100}%) / 26 * 替班天数({substitute_days:.3f}) = {management_fee:.2f}"
-            )
-            details.update(
-                {
-                    "daily_rate": str(customer_daily_rate.quantize(QUANTIZER)),
-                    "employee_daily_rate": str(employee_daily_rate.quantize(QUANTIZER)),
-                    "management_fee_rate": str(management_fee_rate),
-                    "customer_base_fee": str(customer_base_fee),
-                    "management_fee": str(management_fee),
-                    "employee_base_payout": str(employee_base_payout),
-                }
-            )
+            customer_daily_rate = (substitute_level * (D(1) - management_fee_rate) / D(26))
+            customer_base_fee = (customer_daily_rate * substitute_days).quantize(QUANTIZER)
+            employee_daily_rate = customer_daily_rate # 月嫂替班，客户和员工日薪相同
+            employee_base_payout = customer_base_fee
+
+            if management_fee_rate > 0:
+                management_fee = (substitute_level * management_fee_rate / D(26) *substitute_days).quantize(QUANTIZER)
+                details["log_extras"]["management_fee_reason"] = (
+                    f"月嫂替班管理费: 级别({substitute_level:.2f}) * 费率({management_fee_rate:.2%}) /26 * 天数({substitute_days:.3f}) = {management_fee:.2f}"
+                )
+            else:
+                 details["log_extras"]["management_fee_reason"] = "管理费率为0，不收取管理费。"
+
+            details.update({
+                "daily_rate": str(customer_daily_rate.quantize(QUANTIZER)),
+                "employee_daily_rate": str(employee_daily_rate.quantize(QUANTIZER)),
+                "customer_base_fee": str(customer_base_fee),
+                "employee_base_payout": str(employee_base_payout),
+            })
             details["log_extras"]["customer_fee_reason"] = (
-                f"月嫂替班客户费用: 替班级别({substitute_level:.2f})*(1-{management_fee_rate*100}%)/26 * 替班天数({substitute_days:.3f})= {customer_base_fee:.2f}"
+                f"月嫂替班客户费用: 级别({substitute_level:.2f})*(1-{management_fee_rate:.2%})/26 * 天数({substitute_days:.3f})= {customer_base_fee:.2f}"
             )
             details["log_extras"]["employee_payout_reason"] = (
-                f"月嫂替班员工工资: 替班级别({substitute_level:.2f})*(1-{management_fee_rate*100}%)/26 * 替班天数({substitute_days:.3f})= {employee_base_payout:.2f}"
+                f"月嫂替班员工工资: 级别({substitute_level:.2f})*(1-{management_fee_rate:.2%})/26 * 天数({substitute_days:.3f})= {employee_base_payout:.2f}"
             )
 
         elif substitute_type == "nanny":
-            management_fee = D(sub_record.substitute_management_fee or 0)
             daily_rate = substitute_level / D(26)
             base_fee = (daily_rate * substitute_days).quantize(QUANTIZER)
             customer_base_fee = base_fee
             employee_base_payout = base_fee
 
-            # Calculate billable_days for logging purposes 计算管理费过程
-            sub_start = sub_record.start_date # 保持为 datetime
-            sub_end = sub_record.end_date     # 保持为 datetime
-
-            effective_end_date = main_contract.termination_date or main_contract.end_date
-            # 确保 contract_end 也是一个 datetime 对象，以便进行精确比较
-            if isinstance(effective_end_date, datetime):
-                contract_end = effective_end_date
+            # 对于育儿嫂，直接读取在API层预先计算好的管理费金额
+            management_fee = D(sub_record.substitute_management_fee or 0)
+            if management_fee > 0:
+                details["log_extras"]["management_fee_reason"] = f"育儿嫂合同外替班管理费: {management_fee:.2f}元 (按 {management_fee_rate:.2%} 的费率计算)"
             else:
-                # 如果它是一个 date 对象，将其转换为午夜的 datetime，以便进行比较
-                contract_end = datetime(effective_end_date.year, effective_end_date.month,effective_end_date.day, 0, 0, 0, tzinfo=sub_start.tzinfo)
+                details["log_extras"]["management_fee_reason"] = "不收取管理费 (费率为0或未超出合同期)。"
 
-
-            billing_start_date = max(contract_end, sub_start)
-
-            precise_billable_days = D(0)
-            if billing_start_date < sub_end:
-                time_difference = sub_end - billing_start_date
-                precise_billable_days = D(time_difference.total_seconds()) / D(86400)
-
-            current_app.logger.debug(f"DEBUG: precise_billable_days calculated: {precise_billable_days}") # 添加此调试日志
-
-            details["log_extras"]["management_fee_reason"] = f"合同外替班管理费: 月薪 {substitute_level.quantize(D('0.01'))} / 30天 * 10% * {precise_billable_days.quantize(D('0.001'))}天 = {management_fee.quantize(D('0.01'))}元"
-
-            details.update(
-                {
-                    "daily_rate": str(daily_rate.quantize(QUANTIZER)),
-                    "employee_daily_rate": str(daily_rate.quantize(QUANTIZER)),
-                    "management_fee_rate": str(0),
-                    "customer_base_fee": str(customer_base_fee),
-                    "management_fee": str(management_fee),
-                    "employee_base_payout": str(employee_base_payout),
-                }
-            )
+            details.update({
+                "daily_rate": str(daily_rate.quantize(QUANTIZER)),
+                "employee_daily_rate": str(daily_rate.quantize(QUANTIZER)),
+                "customer_base_fee": str(customer_base_fee),
+                "employee_base_payout": str(employee_base_payout),
+            })
             details["log_extras"]["customer_fee_reason"] = (
-                f"育儿嫂替班客户费用: 替班级别({substitute_level:.2f})/26 * 替班天数({substitute_days:.3f}) = {customer_base_fee:.2f}"
+                f"育儿嫂替班客户费用: 级别({substitute_level:.2f})/26 * 天数({substitute_days:.3f}) = {customer_base_fee:.2f}"
             )
             details["log_extras"]["employee_payout_reason"] = (
-                f"育儿嫂替班员工工资: 替班级别({substitute_level:.2f})/26 * 替班天数({substitute_days:.3f}) = {employee_base_payout:.2f}"
+                f"育儿嫂替班员工工资: 级别({substitute_level:.2f})/26 * 天数({substitute_days:.3f}) = {employee_base_payout:.2f}"
             )
 
+        # 将最终计算出的管理费金额存入 details 和数据库记录
+        details["management_fee"] = str(management_fee)
+        sub_record.substitute_management_fee = management_fee
+        db.session.add(sub_record)
 
         return details
     
@@ -2801,8 +2775,17 @@ def calculate_substitute_management_fee(sub_record, main_contract, contract_term
     计算替班记录的管理费。
     管理费只在替班超出主合同服务期时产生。
     """
+    # 如果是未终止的自动续签合同，则无论如何都不产生合同外的管理费
+    if getattr(main_contract, 'is_monthly_auto_renew', False) and not main_contract.termination_date:
+        return D("0")
+
     QUANTIZER = D("0.01")
-    management_fee_rate = D("0.1")  # 默认10%
+    # 从记录中动态获取费率，如果不存在则默认为0
+    management_fee_rate = D(sub_record.substitute_management_fee_rate or 0)
+
+    # 如果费率为0，则无需计算，直接返回0
+    if management_fee_rate <= 0:
+        return D("0")
 
     current_app.logger.debug(f"[CalcSubFee] sub_record ID: {sub_record.id}") # 添加此日志
     current_app.logger.debug(f"[CalcSubFee] sub_start: {sub_record.start_date}, sub_end: {sub_record.end_date}") # 添加此日志

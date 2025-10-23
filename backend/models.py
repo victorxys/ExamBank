@@ -2873,6 +2873,13 @@ class SubstituteRecord(db.Model):
     substitute_management_fee = db.Column(
         db.Numeric(10, 2), default=0, comment="替班产生的额外管理费"
     )
+    substitute_management_fee_rate = db.Column(
+        db.Numeric(5, 4),
+        nullable=True,
+        default=0,
+        server_default="0.0000",
+        comment="替班期间的管理费率 (例如 0.10 表示 10%)",
+    )
 
     # 替班的起止日期
     start_date = db.Column(db.DateTime(timezone=True), nullable=False, comment="替班开始日期时间")
