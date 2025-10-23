@@ -171,7 +171,7 @@ const TransactionDetailsPanel = ({
     searchTerm, setSearchTerm, searchResults, isSearching,
     selectedCustomerName, setSelectedCustomerName,
     selectedSearchOption, setSelectedSearchOption,
-    customerBills, isLoadingBills, closestBillInfo, relevantContractId,
+    customerBills, contractsOnly, isLoadingBills, closestBillInfo,
     isSwitchingCustomer,setIsSwitchingCustomer,setOverrideCustomerName,
     overrideCustomerName
 }) => {
@@ -362,64 +362,65 @@ const TransactionDetailsPanel = ({
             return acc;
         }, {});
 
-        // 如果没有任何账单，显示月份导航和提示信息
-        if (Object.keys(groupedBills).length === 0) {
+        const noBillsAndNoContracts = Object.keys(groupedBills).length === 0 && contractsOnly.length=== 0;
+
+        if (noBillsAndNoContracts) {
             return (
-                 <Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Typography variant="h6">客户: {customerName}</Typography>
-                            {!['confirmed', 'processed'].includes(category) && (
-                                <Button size="small" startIcon={<SwitchAccountIcon />} onClick={() =>setIsSwitchingCustomer(true)}>切换客户</Button>
-                            )}
-                        </Box>
-                        <Box>
-                            <IconButton onClick={() => setOperationPeriod(prev => ({...prev, month: prev.month - 1}))}size="small"><ArrowBackIosNewIcon fontSize="inherit" /></IconButton>
-                            <Typography component="span" variant="subtitle1" sx={{ mx: 1 }}>{accountingPeriod.year}年{accountingPeriod.month}月</Typography>
-                            <IconButton onClick={() => setOperationPeriod(prev => ({...prev, month: prev.month + 1}))}size="small"><ArrowForwardIosIcon fontSize="inherit" /></IconButton>
-                        </Box>
-                    </Box>
-                    <Box sx={{ p: 3, textAlign: 'center', color: 'text.secondary' }}>
-                        <Typography>在 {accountingPeriod.year}年{accountingPeriod.month}月 未找到该客户的账单。</Typography>
-                        {closestBillInfo && <Typography variant="body2" sx={{ mt: 1 }}>此客户最近一张账单在{closestBillInfo.year}年{closestBillInfo.month}月。</Typography>}
-                        {relevantContractId && <Typography variant="body2" sx={{ mt: 1 }}>当前客户只有合同没有账单,点击<Button variant="text" size="small" onClick={() =>window.open(`/contract/detail/${relevantContractId}`,'_blank')} sx={{ verticalAlign: 'baseline', mx: 0.5 }}>查看合同</Button>查看合同详情</Typography>}
-                    </Box>
-                </Box>
-            );
+                <Box>
+                   <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',mb: 1 }}>
+                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                           <Typography variant="h6">客户: {customerName}</Typography>
+                           {!['confirmed', 'processed'].includes(category) && (
+                               <Button size="small" startIcon={<SwitchAccountIcon />} onClick={() =>setIsSwitchingCustomer(true)}>切换客户</Button>
+                           )}
+                       </Box>
+                       <Box>
+                           <IconButton onClick={() => setOperationPeriod(prev => ({...prev, month:prev.month - 1}))} size="small"><ArrowBackIosNewIcon fontSize="inherit" /></IconButton>
+                           <Typography component="span" variant="subtitle1" sx={{ mx: 1}}>{accountingPeriod.year}年{accountingPeriod.month}月</Typography>
+                           <IconButton onClick={() => setOperationPeriod(prev => ({...prev, month:prev.month + 1}))} size="small"><ArrowForwardIosIcon fontSize="inherit" /></IconButton>
+                       </Box>
+                   </Box>
+                   <Box sx={{ p: 3, textAlign: 'center', color: 'text.secondary' }}>
+                       <Typography>在 {accountingPeriod.year}年{accountingPeriod.month}月未找到该客户的账单或有效合同。</Typography>
+                       {closestBillInfo && <Typography variant="body2" sx={{ mt: 1 }}>此客户最近一张账单在{closestBillInfo.year}年{closestBillInfo.month}月。</Typography>}
+                   </Box>
+               </Box>
+           );
         }
 
         return (
             <Box>
+                {/* 第一部分：渲染有账单的客户 */}
                 {Object.entries(groupedBills).map(([customer, billsForCustomer]) => (
                     <Paper key={customer} sx={{ p: 2, mb: 3 }} variant="outlined">
-                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent:'space-between', mb: 1 }}>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                 <Typography variant="h6">客户: {customer}</Typography>
                                 {transaction.matched_by === 'alias' && <Chip label="代付" color="warning" size="small" />}
                                 {!['confirmed', 'processed'].includes(category) && (
-                                    <Button size="small" startIcon={<SwitchAccountIcon />} onClick={() =>setIsSwitchingCustomer(true)}>切换客户</Button>
+                                    <Button size="small" startIcon={<SwitchAccountIcon />} onClick={()=>setIsSwitchingCustomer(true)}>切换客户</Button>
                                 )}
                             </Box>
                              <Box>
-                                <IconButton onClick={() => setOperationPeriod(prev => ({...prev, month: prev.month -1}))}size="small"><ArrowBackIosNewIcon fontSize="inherit" /></IconButton>
-                                <Typography component="span" variant="subtitle1" sx={{ mx: 1 }}>{accountingPeriod.year}年{accountingPeriod.month}月</Typography>
-                                <IconButton onClick={() => setOperationPeriod(prev => ({...prev, month: prev.month +1}))}size="small"><ArrowForwardIosIcon fontSize="inherit" /></IconButton>
+                                <IconButton onClick={() => setOperationPeriod(prev => ({...prev, month:prev.month -1}))} size="small"><ArrowBackIosNewIcon fontSize="inherit" /></IconButton>
+                                <Typography component="span" variant="subtitle1" sx={{ mx: 1}}>{accountingPeriod.year}年{accountingPeriod.month}月</Typography>
+                                <IconButton onClick={() => setOperationPeriod(prev => ({...prev, month:prev.month +1}))} size="small"><ArrowForwardIosIcon fontSize="inherit" /></IconButton>
                             </Box>
                         </Box>
                         <Stack spacing={2} ref={billListRef}>
                             {billsForCustomer.sort((a, b) => a.year !== b.year ? a.year - b.year : a.bill_month - b.bill_month).map((bill) => (
-                                <Paper key={bill.id} variant="outlined" sx={{ p: 2, backgroundColor: 'transparent'}}>
+                                <Paper key={bill.id} id={`bill-item-${bill.id}`} variant="outlined"sx={{ p: 2, backgroundColor: 'transparent'}}>
                                     <Grid container spacing={2} alignItems="center">
                                         <Grid item xs={12} md={6}>
                                             <Box>
-                                                <Typography variant="body1" component="div" sx={{ display: 'flex',alignItems: 'center' }}>{`账单周期: ${bill.cycle}`}<Chip label={`${bill.bill_month}月账单`} size="small" {...getBillMonthChipProps(bill)} /></Typography>
-                                                <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center' }}>
+                                                <Typography variant="body1" component="div" sx={{display: 'flex',alignItems: 'center' }}>{`账单周期: ${bill.cycle}`}<Chip label={`${bill.bill_month}月账单`} size="small" {...getBillMonthChipProps(bill)} /></Typography>
+                                                <Typography variant="body2" color="text.secondary"sx={{ display: 'flex', alignItems: 'center' }}>
                                                     {`员工: ${bill.employee_name}`}
                                                     {bill.is_substitute_bill && <Chip label="替班" color="warning" size="small" sx={{ ml: 1 }} />}
                                                 </Typography>
                                             </Box>
-                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
-                                                <TextField type="number" size="small" sx={{ width: '130px'}}placeholder="0.00" value={allocations[bill.id] || ''} onChange={(e) => handleAllocationChange(bill.id, e.target.value)} InputProps={{ startAdornment: <Typography component="span" sx={{ mr: 1 }}>¥</Typography> }} />
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1,mt: 1 }}>
+                                                <TextField type="number" size="small" sx={{ width:'130px'}} placeholder="0.00" value={allocations[bill.id] || ''} onChange={(e) => handleAllocationChange(bill.id, e.target.value)} InputProps={{ startAdornment: <Typography component="span" sx={{ mr: 1 }}>¥</Typography> }} />
                                                 <Button size="small" variant="outlined" onClick={() =>handleSmartFill(bill.id)}>自动</Button>
                                             </Box>
                                         </Grid>
@@ -427,9 +428,7 @@ const TransactionDetailsPanel = ({
                                             <Box sx={{ fontFamily: 'monospace', textAlign: 'left' }}>
                                                 <Typography variant="body2">应付: ¥{formatCurrency(bill.total_due)}</Typography>
                                                 <Typography variant="body2" color="text.secondary">已付: ¥{formatCurrency(bill.total_paid)}</Typography>
-                                                {bill.payments && bill.payments.map((p, i) => (<Typography variant="caption" color="text.secondary" key={i}>{`↳ ${p.payer_name}: ¥${formatCurrency(p.amount)}`}</Typography>))}
-                                                {new Decimal(bill.paid_by_this_txn || 0).gt(0) && (<Typography variant="body2" color="primary.main">{`↳ 本次流水已付:¥${formatCurrency(bill.paid_by_this_txn)}`}</Typography>)}
-                                                <Typography variant="body2" fontWeight="bold" color={new Decimal(bill.amount_remaining).gt(0) ? 'error.main' : 'inherit'}>待付: ¥{formatCurrency(bill.amount_remaining)}</Typography>
+                                                {bill.payments && bill.payments.map((p, i) => (<Typography variant="caption" color="text.secondary" key={i}>{`↳ ${p.payer_name}:¥${formatCurrency(p.amount)}`}</Typography>))}{new Decimal(bill.paid_by_this_txn || 0).gt(0) && (<Typography variant="body2" color="primary.main">{`↳本次流水已付:¥${formatCurrency(bill.paid_by_this_txn)}`}</Typography>)}<Typography variant="body2" fontWeight="bold" color={new Decimal(bill.amount_remaining).gt(0) ?'error.main' : 'inherit'}>待付: ¥{formatCurrency(bill.amount_remaining)}</Typography>
                                             </Box>
                                         </Grid>
                                         <Grid item xs={12} md={2} sx={{ textAlign: 'right' }}><Button variant="outlined"size="small" onClick={() => onOpenBillModal(bill)}>查看账单</Button></Grid>
@@ -438,6 +437,27 @@ const TransactionDetailsPanel = ({
                             ))}
                         </Stack>
                     </Paper>
+                ))}
+
+                {/* 第二部分：渲染只有合同的客户 */}
+                {contractsOnly.map(info => (
+                    !groupedBills[info.customer_name] && (
+                        <Paper key={info.customer_name} sx={{ p: 2, mb: 3 }} variant="outlined">
+                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent:'space-between', mb: 1 }}>
+                                <Typography variant="h6">客户: {info.customer_name}</Typography>
+                            </Box>
+                            <Box sx={{ p: 3, textAlign: 'center', color: 'text.secondary' }}>
+                                <Typography>在 {accountingPeriod.year}年{accountingPeriod.month}月未找到该客户的账单。</Typography>
+                                <Typography variant="body2" sx={{ mt: 1 }}>
+                                    当前客户只有合同没有账单,点击
+                                    <Button variant="text" size="small" onClick={() => window.open(`/contract/detail/${info.relevant_contract_id}`, '_blank')} sx={{ verticalAlign: 'baseline', mx: 0.5}}>
+                                        查看合同
+                                    </Button>
+                                    查看合同详情
+                                </Typography>
+                            </Box>
+                        </Paper>
+                    )
                 ))}
             </Box>
         );
@@ -1200,51 +1220,54 @@ export default function ReconciliationPage() {
     }, [selectedTxn, accountingPeriod]);
 
 
-    useEffect(() => {
-        // 如果没有选择流水，则清空账单，不做任何操作
-        if (!selectedTxn?.id) {
-            setCustomerBills([]);
-            setClosestBillInfo(null);
-            setRelevantContractId(null);
-            return;
-        }
+    const [contractsOnly, setContractsOnly] = useState([]);
 
-        const fetchId = ++fetchBillsIdRef.current;
+useEffect(() => {
+    // 如果没有选择流水，则清空账单，不做任何操作
+    if (!selectedTxn?.id) {
+        setCustomerBills([]);
+        setClosestBillInfo(null);
+        setContractsOnly([]); // 清空纯合同列表
+        return;
+    }
 
-        // 准备API请求参数
-        const params = {
-            year: operationPeriod.year,
-            month: operationPeriod.month,
-            bank_transaction_id: selectedTxn.id
-        };
+    const fetchId = ++fetchBillsIdRef.current;
 
-        // 核心逻辑：只有在用户手动“切换客户”后，才在请求中加入customer_name参数
-        if (overrideCustomerName) {
-            params.customer_name = overrideCustomerName;
-        }
+    // 准备API请求参数
+    const params = {
+        year: operationPeriod.year,
+        month: operationPeriod.month,
+        bank_transaction_id: selectedTxn.id
+    };
 
-        setIsLoadingBills(true);
-        api.get('/billing/bills-by-customer', { params })
-            .then(response => {
-                // 防止旧的请求结果覆盖新的结果
-                if (fetchId === fetchBillsIdRef.current) {
-                    setCustomerBills(response.data.bills);
-                    setClosestBillInfo(response.data.closest_bill_period);
-                    setRelevantContractId(response.data.relevant_contract_id);
-                }
-            })
-            .catch(err => {
-                if (fetchId === fetchBillsIdRef.current) {
-                    setAlertInfo({ open: true, message: `获取客户账单失败: ${err.message}`, severity: 'error' });
-                }
-            })
-            .finally(() => {
-                if (fetchId === fetchBillsIdRef.current) {
-                    setIsLoadingBills(false);
-                }
-            });
-    // 依赖项：当这些关键状态改变时，重新触发账单获取
-    }, [overrideCustomerName, selectedTxn, operationPeriod]);
+    // 核心逻辑：只有在用户手动“切换客户”后，才在请求中加入customer_name参数
+    if (overrideCustomerName) {
+        params.customer_name = overrideCustomerName;
+    }
+
+    setIsLoadingBills(true);
+    api.get('/billing/bills-by-customer', { params })
+        .then(response => {
+            // 防止旧的请求结果覆盖新的结果
+            if (fetchId === fetchBillsIdRef.current) {
+                setCustomerBills(response.data.bills);
+                setContractsOnly(response.data.contracts_only || []); // 更新纯合同列表
+                setClosestBillInfo(response.data.closest_bill_period);
+                // 不再使用单一的 relevantContractId，因为信息现在更丰富
+            }
+        })
+        .catch(err => {
+            if (fetchId === fetchBillsIdRef.current) {
+                setAlertInfo({ open: true, message: `获取客户账单失败: ${err.message}`, severity:'error' });
+            }
+        })
+        .finally(() => {
+            if (fetchId === fetchBillsIdRef.current) {
+                setIsLoadingBills(false);
+            }
+        });
+// 依赖项：当这些关键状态改变时，重新触发账单获取
+}, [overrideCustomerName, selectedTxn, operationPeriod]);
 
     useEffect(() => {
         if (!searchTerm) {
@@ -1505,11 +1528,12 @@ export default function ReconciliationPage() {
                                     customerBills={customerBills}
                                     isLoadingBills={isLoadingBills}
                                     closestBillInfo={closestBillInfo}
-                                    relevantContractId={relevantContractId}
+                                    // relevantContractId={relevantContractId}
                                     isSwitchingCustomer={isSwitchingCustomer}
                                     setIsSwitchingCustomer={setIsSwitchingCustomer}
                                     setOverrideCustomerName={setOverrideCustomerName}
                                     overrideCustomerName={overrideCustomerName}
+                                    contractsOnly={contractsOnly}
                                 />
                             </CardContent>
                         </Card>
