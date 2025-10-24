@@ -444,7 +444,10 @@ const TransactionDetailsPanel = ({
                     !groupedBills[info.customer_name] && (
                         <Paper key={info.customer_name} sx={{ p: 2, mb: 3 }} variant="outlined">
                             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent:'space-between', mb: 1 }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                 <Typography variant="h6">客户: {info.customer_name}</Typography>
+                                <Button size="small" startIcon={<SwitchAccountIcon />} onClick={() =>setIsSwitchingCustomer(true)}>切换客户</Button>
+                                </Box>
                             </Box>
                             <Box sx={{ p: 3, textAlign: 'center', color: 'text.secondary' }}>
                                 <Typography>在 {accountingPeriod.year}年{accountingPeriod.month}月未找到该客户的账单。</Typography>
