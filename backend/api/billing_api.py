@@ -1442,7 +1442,32 @@ def _apply_all_adjustments_and_settlements(adjustments_data, bill, payroll):
 @billing_bp.route("/batch-update", methods=["POST"])
 @admin_required
 def batch_update_billing_details():
-    data = request.get_json()
+    # First, check if the request has the correct Content-Type header
+    content_type = request.headers.get('Content-Type', '')
+
+    # If no Content-Type header or not application/json, try to detect and handle accordingly
+    if not content_type or not content_type.startswith('application/json'):
+        # Try to parse as JSON anyway, in case the client omitted Content-Type
+        # but still sent JSON data (common frontend behavior)
+        try:
+            if request.data:
+                data = request.get_data(as_text=True)
+                if data.strip():
+                    import json
+                    data = json.loads(data)
+                else:
+                    data = {}
+            else:
+                data = {}
+        except Exception as e:
+            return jsonify({"error": f"请求体解析失败: {str(e)}"}), 400
+    else:
+        # Normal JSON request with proper Content-Type header
+        try:
+            data = request.get_json()
+        except Exception as e:
+            return jsonify({"error": f"JSON解析失败: {str(e)}"}), 400
+
     bill_id = data.get("bill_id")
     if not bill_id:
         return jsonify({"error": "请求体中缺少 bill_id"}), 400
@@ -4010,7 +4035,7 @@ def add_payment_record(bill_id):
             created_by_user_id=get_jwt_identity()
         )
         db.session.add(new_payment)
-
+        bill.total_paid += new_payment.amount
         _update_bill_payment_status(bill)
 
         log_action = f"新增了支付记录，金额: {new_payment.amount:.2f}"
