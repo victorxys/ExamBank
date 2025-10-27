@@ -1242,7 +1242,6 @@ def update_single_contract(contract_id):
         return jsonify({"error": "更新合同失败，服务器内部错误"}), 500
 
 def _apply_all_adjustments_and_settlements(adjustments_data, bill, payroll):
-    """(V9 - 最终正确记账版) 处理所有调整项，确保结算记录归属正确。"""
     user_id = get_jwt_identity()
     old_adjustments = FinancialAdjustment.query.filter(
         or_(FinancialAdjustment.customer_bill_id == bill.id,FinancialAdjustment.employee_payroll_id == payroll.id)
@@ -1250,20 +1249,9 @@ def _apply_all_adjustments_and_settlements(adjustments_data, bill, payroll):
     old_adjustments_map = {str(adj.id): adj for adj in old_adjustments}
     new_adjustments_ids = {str(adj.get('id')) for adj in adjustments_data if adj.get('id')}
 
-    employee = payroll.contract.user or payroll.contract.service_personnel
-    employee_name = employee.username if hasattr(employee, 'username') else employee.name if employee else "未知员工"
-
-    # 删除
+    # Deletion Logic
     for old_id, old_adj in old_adjustments_map.items():
         if old_id not in new_adjustments_ids:
-            # --- 日志记录：删除 ---
-            log_details = {
-                "type":ADJUSTMENT_TYPE_LABELS.get(old_adj.adjustment_type,old_adj.adjustment_type.name),
-                "amount": str(old_adj.amount),
-                "description": old_adj.description,
-            }
-            _log_activity(bill, payroll, "删除了财务调整项",details=log_details)
-            # --- 日志结束 ---
 
             if old_adj.is_settled and old_adj.details and'linked_record' in old_adj.details:
                 linked_record_info = old_adj.details['linked_record']
@@ -1274,7 +1262,8 @@ def _apply_all_adjustments_and_settlements(adjustments_data, bill, payroll):
                     db.session.query(PayoutRecord).filter_by(id=record_id).delete()
             db.session.delete(old_adj)
 
-    # 新增或更新
+    # 关键修复：在处理新增/更新前，先将删除操作刷新到会话中
+    db.session.flush()
     for adj_data in adjustments_data:
         adj_id = str(adj_data.get('id', ''))
         adj_type = AdjustmentType(adj_data["adjustment_type"])
@@ -1375,6 +1364,8 @@ def _apply_all_adjustments_and_settlements(adjustments_data, bill, payroll):
 
         elif not adj_id or 'temp' in adj_id:
             # 新增调整项的逻辑
+            current_app.logger.info(f"[ADJ_CREATE_DEBUG] Preparing to create new adjustment with data: {adj_data}")
+
             new_adj = FinancialAdjustment(
                 adjustment_type=adj_type, amount=abs(adj_amount),description=adj_description,
                 date=bill.cycle_start_date,is_settled=is_settled,
@@ -1388,8 +1379,9 @@ def _apply_all_adjustments_and_settlements(adjustments_data, bill, payroll):
                 AdjustmentType.CUSTOMER_DISCOUNT,
                 AdjustmentType.INTRODUCTION_FEE,
                 AdjustmentType.DEFERRED_FEE,
-                AdjustmentType.DEPOSIT
-            ]
+                AdjustmentType.DEPOSIT,
+                AdjustmentType.COMPANY_PAID_SALARY # <--- 修正：将公司代付工资归类为客户账单侧的调整
+            ]            
             if adj_type in customer_types:
                 new_adj.customer_bill_id = bill.id
             else:
