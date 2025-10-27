@@ -2771,27 +2771,47 @@ def terminate_contract(contract_id):
             is_substitute_payroll=final_bill.is_substitute_bill
         ).first()
 
-        if final_payroll and final_payroll.total_due > 0:
-            # V3修正: 按类型检查，而不是按描述检查
+        if final_payroll and final_payroll.calculation_details:
+            base_payout = D(final_payroll.calculation_details.get('employee_base_payout', '0'))
+            
+            # [最终版逻辑] 创建或更新“公司代付工资”项
+            # 1. 计算正确的应付金额
+            amount_to_set = base_payout
+            # 金额上限仅对非试工合同生效
+            if contract.type != 'nanny_trial':
+                employee_level = D(contract.employee_level or '0')
+                amount_to_set = min(base_payout, employee_level)
+            
+            final_amount = amount_to_set.quantize(D("1"))
+
+            # 2. 查找现有的调整项
             existing_salary_adj = FinancialAdjustment.query.filter_by(
                 customer_bill_id=final_bill.id,
                 adjustment_type=AdjustmentType.COMPANY_PAID_SALARY
             ).first()
-            if not existing_salary_adj:
-                # 新增: 金额不能超过员工级别
-                employee_level = D(contract.employee_level or '0')
-                amount_to_add = min(final_payroll.total_due, employee_level).quantize(D("1"))
 
+            should_recalculate = False
+            if existing_salary_adj:
+                # 3a. 如果存在且金额不符，则更新
+                if existing_salary_adj.amount != final_amount:
+                    current_app.logger.info(f"更新账单 {final_bill.id} 的'公司代付工资'项金额: {existing_salary_adj.amount} -> {final_amount}")
+                    existing_salary_adj.amount = final_amount
+                    db.session.add(existing_salary_adj)
+                    should_recalculate = True
+            elif final_amount > 0:
+                # 3b. 如果不存在，则创建
                 db.session.add(FinancialAdjustment(
                     customer_bill_id=final_bill.id,
                     adjustment_type=AdjustmentType.COMPANY_PAID_SALARY,
-                    amount=amount_to_add,
-                    description="[系统] 公司代付员工工资",
+                    amount=final_amount,
+                    description="[系统] 公司代付工资",
                     date=termination_date
                 ))
-                current_app.logger.info(f"为最终账单 {final_bill.id} 添加了 {final_payroll.total_due} 元的'公司代付工资'调整项。")
-        
-                # 再次重算账单以包含此项
+                current_app.logger.info(f"为账单 {final_bill.id} 创建了'公司代付工资'项，金额为: {final_amount}")
+                should_recalculate = True
+            
+            # 4. 如果发生了创建或更新，则重算
+            if should_recalculate:
                 engine.calculate_for_month(
                     year=termination_year,
                     month=termination_month,

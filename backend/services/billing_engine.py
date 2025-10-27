@@ -661,27 +661,46 @@ class BillingEngine:
         cycle_end_date = self._to_date(cycle_end) # cycle_end is available in this scope
         is_final_month = contract_end_date and cycle_end_date and cycle_end_date.year == contract_end_date.year and cycle_end_date.month == contract_end_date.month
 
-        if is_non_monthly and is_final_month and payroll.total_due > 0:
-            # 修正: 按类型检查，而不是按描述
+        # [最终版逻辑] 为非月签合同的最后一个月，创建或更新“公司代付工资”项
+        is_non_monthly = not contract.is_monthly_auto_renew
+        contract_end_date = self._to_date(end_date_override or contract.end_date)
+        cycle_end_date = self._to_date(cycle_end) # cycle_end is available in this scope
+        is_final_month = contract_end_date and cycle_end_date and cycle_end_date.year == contract_end_date.year and cycle_end_date.month == contract_end_date.month
+        
+        if is_final_month:
+            # 1. 基于“基础劳务费”计算正确的应付金额
+            base_payout = D(details.get('employee_base_payout', '0'))
+            employee_level = D(contract.employee_level or '0')
+            amount_to_set = min(base_payout, employee_level).quantize(D("1"))
+
+            # 2. 按类型查找现有的调整项
             existing_adj = FinancialAdjustment.query.filter_by(
                 customer_bill_id=bill.id,
                 adjustment_type=AdjustmentType.COMPANY_PAID_SALARY
             ).first()
-            if not existing_adj:
-                # 新增: 金额不能超过员工级别
-                employee_level = D(contract.employee_level or '0')
-                amount_to_add = min(payroll.total_due, employee_level).quantize(D("1"))
 
+            should_recalculate = False
+            if existing_adj:
+                # 3a. 如果存在且金额不符，则更新
+                if existing_adj.amount != amount_to_set:
+                    current_app.logger.info(f"更新账单 {bill.id} 的'公司代付工资'项金额: {existing_adj.amount} -> {amount_to_set}")
+                    existing_adj.amount = amount_to_set
+                    db.session.add(existing_adj)
+                    should_recalculate = True
+            elif amount_to_set > 0:
+                # 3b. 如果不存在且金额大于0，则创建
                 db.session.add(FinancialAdjustment(
                     customer_bill_id=bill.id,
                     adjustment_type=AdjustmentType.COMPANY_PAID_SALARY,
-                    amount=amount_to_add,
-                    description="[系统] 公司代付员工工资",
+                    amount=amount_to_set,
+                    description="[系统] 公司代付工资",
                     date=cycle_end_date
                 ))
-                current_app.logger.info(f"为非月签合同 {contract.id} 的最终账单 {bill.id} 添加了 '公司代付工资' 调整项，重新计算最终金额。")
-                
-                # 重新计算，以包含新的调整项
+                should_recalculate = True
+
+            # 4. 如果发生了创建或更新，则必须重算
+            if should_recalculate:
+                current_app.logger.info(f"因“公司代付工资”项创建/更新，重新计算账单 {bill.id}")
                 details = self._calculate_nanny_details(contract, bill, payroll, local_actual_work_days_override)
                 bill, payroll = self._calculate_final_amounts(bill, payroll, details)
 

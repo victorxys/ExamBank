@@ -198,29 +198,40 @@ def register_commands(app):
                     continue
 
                 try:
-                    # 新增: 金额不能超过员工级别
-                    employee_level = Decimal(contract.employee_level or '0')
-                    amount_to_add = min(payroll.total_due, employee_level).quantize(Decimal("1"))
+                    # 修正: 根据合同类型决定金额计算方式
+                    amount_to_add = Decimal('0')
+                    if contract.type == 'nanny_trial':
+                        # 试工合同：按实际应发总额，不设上限
+                        amount_to_add = payroll.total_due.quantize(Decimal("1"))
+                    else:
+                        # 其他合同（育儿嫂等）：金额不能超过员工级别
+                        employee_level = Decimal(contract.employee_level or '0')
+                        amount_to_add = min(payroll.total_due, employee_level).quantize(Decimal("1"))
 
-                    new_adj = FinancialAdjustment(
-                        customer_bill_id=last_bill.id,
-                        adjustment_type=AdjustmentType.COMPANY_PAID_SALARY,
-                        amount=amount_to_add,
-                        description="[系统] 公司代付员工工资",
-                        date=last_bill.cycle_end_date.date()
-                    )
-                    db.session.add(new_adj)
-                    
-                    engine.calculate_for_month(
-                        year=last_bill.year,
-                        month=last_bill.month,
-                        contract_id=contract.id,
-                        force_recalculate=True,
-                        cycle_start_date_override=last_bill.cycle_start_date
-                    )
-                    db.session.commit()
-                    processed_count += 1
-                    print(f" -> 成功添加调整项，金额: {payroll.total_due}")
+                    if amount_to_add > 0:
+                        new_adj = FinancialAdjustment(
+                            customer_bill_id=last_bill.id,
+                            adjustment_type=AdjustmentType.COMPANY_PAID_SALARY,
+                            amount=amount_to_add,
+                            description="[系统] 公司代付员工工资",
+                            date=last_bill.cycle_end_date.date()
+                        )
+                        db.session.add(new_adj)
+
+                        engine.calculate_for_month(
+                            year=last_bill.year,
+                            month=last_bill.month,
+                            contract_id=contract.id,
+                            force_recalculate=True,
+                            cycle_start_date_override=last_bill.cycle_start_date
+                        )
+                        db.session.commit()
+                        processed_count += 1
+                        # 使用 amount_to_add 保证打印的金额是最终正确的金额
+                        print(f" -> 成功添加调整项，金额: {amount_to_add}")
+                    else:
+                        print(" -> 跳过 (计算出的代付金额为0)")
+
                 except Exception as e:
                     print(f" -> 失败: {e}")
                     db.session.rollback()
