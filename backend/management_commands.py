@@ -3,7 +3,7 @@
 import click
 from flask.cli import with_appcontext
 from backend.services.billing_engine import BillingEngine, _update_bill_payment_status
-from backend.models import BaseContract, db, CustomerBill, PaymentRecord
+from backend.models import BaseContract, db, CustomerBill, PaymentRecord,FinancialAdjustment,EmployeePayroll, AdjustmentType
 from sqlalchemy import func
 from decimal import Decimal
 
@@ -142,7 +142,86 @@ def register_commands(app):
                     print(f"  -> 处理合同 {contract.id} 时发生错误: {e}")
                     db.session.rollback()
 
-            print("--- 所有合同的全生命周期账单重算任务执行完毕 ---")
-
         except Exception as e:
             print(f"执行重算任务时发生严重错误: {e}")
+
+
+    @app.cli.command("add-salary-adjustments")
+    @with_appcontext
+    def add_salary_adjustments_command():
+        """为所有已结束合同的最后一个月账单，追溯添加“公司代付工资”调整项。"""
+        print("--- 开始为已结束的合同追溯添加“公司代付工资”调整项 ---")
+        try:
+            engine = BillingEngine()
+            contracts_to_process = BaseContract.query.filter(
+                BaseContract.status.in_(["terminated", "finished"])
+            ).all()
+
+            if not contracts_to_process:
+                print("没有找到需要处理的已结束合同。")
+                return
+
+            total = len(contracts_to_process)
+            processed_count = 0
+            print(f"找到 {total} 个已结束的合同需要检查。")
+
+            for i, contract in enumerate(contracts_to_process):
+                print(f"[{i+1}/{total}] 正在检查合同 ID: {contract.id} | 客户: {contract.customer_name} ...", end='')
+                
+                last_bill = CustomerBill.query.filter_by(
+                    contract_id=contract.id, 
+                    is_substitute_bill=False
+                ).order_by(CustomerBill.cycle_end_date.desc()).first()
+
+                if not last_bill:
+                    print(" -> 跳过 (无有效账单)")
+                    continue
+
+                existing_adj = FinancialAdjustment.query.filter_by(
+                    customer_bill_id=last_bill.id,
+                    description="[系统] 公司代付员工工资"
+                ).first()
+
+                if existing_adj:
+                    print(" -> 跳过 (调整项已存在)")
+                    continue
+
+                payroll = EmployeePayroll.query.filter_by(
+                    contract_id=contract.id,
+                    cycle_start_date=last_bill.cycle_start_date,
+                    is_substitute_payroll=False
+                ).first()
+
+                if not payroll or not payroll.total_due or payroll.total_due <= 0:
+                    print(" -> 跳过 (无有效薪酬或薪酬为0)")
+                    continue
+
+                try:
+                    new_adj = FinancialAdjustment(
+                        customer_bill_id=last_bill.id,
+                        adjustment_type=AdjustmentType.COMPANY_PAID_SALARY,
+                        amount=payroll.total_due.quantize(Decimal("1")),
+                        description="[系统] 公司代付员工工资",
+                        date=last_bill.cycle_end_date.date()
+                    )
+                    db.session.add(new_adj)
+                    
+                    engine.calculate_for_month(
+                        year=last_bill.year,
+                        month=last_bill.month,
+                        contract_id=contract.id,
+                        force_recalculate=True,
+                        cycle_start_date_override=last_bill.cycle_start_date
+                    )
+                    db.session.commit()
+                    processed_count += 1
+                    print(f" -> 成功添加调整项，金额: {payroll.total_due}")
+                except Exception as e:
+                    print(f" -> 失败: {e}")
+                    db.session.rollback()
+
+            print(f"\n--- 任务执行完毕 ---")
+            print(f"共检查 {total} 个合同，成功为 {processed_count} 个账单添加了调整项。")
+
+        except Exception as e:
+            print(f"执行任务时发生严重错误: {e}")

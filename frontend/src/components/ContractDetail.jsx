@@ -633,7 +633,8 @@ const ContractDetail = () => {
             employee_name: contract.employee_name,
             contract_id: contract.id,
             contract_type_value: contract.contract_type_value,
-            billingMonth: bill.billing_period // <-- 核心修正：在这里传递月份信息
+            status: contract.status, // Pass status to the modal
+            billingMonth: bill.billing_period
         });
 
         try {

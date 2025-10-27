@@ -252,6 +252,35 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
     const [generatedMessage, setGeneratedMessage] = useState('');
     const [isGeneratingMessage, setIsGeneratingMessage] = useState(false);
 
+    const [isTransferBalanceDialogOpen, setIsTransferBalanceDialogOpen] = useState(false);
+
+    const handleConfirmTransferBalance = async (destinationContractId) => {
+        const billId = billingDetails?.customer_bill_details?.id;
+        if (!billId) {
+            setAlert({ open: true, message: '无法操作，缺少账单ID', severity: 'error' });
+            return;
+        }
+        try {
+            const response = await api.post(
+                `/billing/bills/${billId}/transfer-balance`,
+                { destination_contract_id: destinationContractId }
+            );
+            setAlert({ open: true, message: '余额结转成功！', severity: 'success' });
+            setIsTransferBalanceDialogOpen(false);
+            // Refresh the data
+            if (response.data.latest_details) {
+                setBillingDetails(response.data.latest_details);
+            } else {
+                // Or refetch
+                const freshDetails = await api.get('/billing/details', { params: { bill_id: billId } });
+                setBillingDetails(freshDetails.data);
+            }
+        } catch (error) {
+            console.error("余额结转失败:", error);
+            setAlert({ open: true, message: `操作失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
+        }
+    };
+
     useEffect(() => {
         setCurrentBillingMonth(billingMonth);
         setBillingDetails(initialBillingDetails);
@@ -1241,6 +1270,20 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                                 </Box>
                             </Box>
                         </Grid>
+
+                        {/* Transfer Balance Button */}
+                        {isCustomer && billingDetails.is_last_bill && ['terminated', 'finished'].includes(contract?.status) && Math.abs(pendingAmount) > 0.01 && (
+                            <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'center', mt: 1 }}>
+                                <Button 
+                                    variant="contained"
+                                    color="secondary"
+                                    onClick={() => setIsTransferBalanceDialogOpen(true)}
+                                >
+                                    转移此账单余额
+                                </Button>
+                            </Grid>
+                        )}
+
                         <Grid item xs={12}>
                             <Divider sx={{ my: 1 }} />
                         </Grid>
@@ -1771,6 +1814,12 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                 adjustment={transferringAdjustment}
                 sourceContract={contract}
                 onConfirm={(destinationContractId) => handleInitiateTransfer(null,destinationContractId)}
+            />
+            <TransferDepositDialog
+                open={isTransferBalanceDialogOpen}
+                onClose={() => setIsTransferBalanceDialogOpen(false)}
+                sourceContract={contract}
+                onConfirm={handleConfirmTransferBalance}
             />
             <PaymentDialog
                 open={isPaymentDialogOpen}
