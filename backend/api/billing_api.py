@@ -2772,15 +2772,20 @@ def terminate_contract(contract_id):
         ).first()
 
         if final_payroll and final_payroll.total_due > 0:
+            # V3修正: 按类型检查，而不是按描述检查
             existing_salary_adj = FinancialAdjustment.query.filter_by(
                 customer_bill_id=final_bill.id,
-                description="[系统] 公司代付员工工资"
+                adjustment_type=AdjustmentType.COMPANY_PAID_SALARY
             ).first()
             if not existing_salary_adj:
+                # 新增: 金额不能超过员工级别
+                employee_level = D(contract.employee_level or '0')
+                amount_to_add = min(final_payroll.total_due, employee_level).quantize(D("1"))
+
                 db.session.add(FinancialAdjustment(
                     customer_bill_id=final_bill.id,
                     adjustment_type=AdjustmentType.COMPANY_PAID_SALARY,
-                    amount=final_payroll.total_due.quantize(D("1")),
+                    amount=amount_to_add,
                     description="[系统] 公司代付员工工资",
                     date=termination_date
                 ))

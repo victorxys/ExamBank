@@ -177,9 +177,10 @@ def register_commands(app):
                     print(" -> 跳过 (无有效账单)")
                     continue
 
+                # 修正: 按类型检查，而不是按描述
                 existing_adj = FinancialAdjustment.query.filter_by(
                     customer_bill_id=last_bill.id,
-                    description="[系统] 公司代付员工工资"
+                    adjustment_type=AdjustmentType.COMPANY_PAID_SALARY
                 ).first()
 
                 if existing_adj:
@@ -197,10 +198,14 @@ def register_commands(app):
                     continue
 
                 try:
+                    # 新增: 金额不能超过员工级别
+                    employee_level = Decimal(contract.employee_level or '0')
+                    amount_to_add = min(payroll.total_due, employee_level).quantize(Decimal("1"))
+
                     new_adj = FinancialAdjustment(
                         customer_bill_id=last_bill.id,
                         adjustment_type=AdjustmentType.COMPANY_PAID_SALARY,
-                        amount=payroll.total_due.quantize(Decimal("1")),
+                        amount=amount_to_add,
                         description="[系统] 公司代付员工工资",
                         date=last_bill.cycle_end_date.date()
                     )

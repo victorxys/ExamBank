@@ -662,15 +662,20 @@ class BillingEngine:
         is_final_month = contract_end_date and cycle_end_date and cycle_end_date.year == contract_end_date.year and cycle_end_date.month == contract_end_date.month
 
         if is_non_monthly and is_final_month and payroll.total_due > 0:
+            # 修正: 按类型检查，而不是按描述
             existing_adj = FinancialAdjustment.query.filter_by(
                 customer_bill_id=bill.id,
-                description="[系统] 公司代付员工工资"
+                adjustment_type=AdjustmentType.COMPANY_PAID_SALARY
             ).first()
             if not existing_adj:
+                # 新增: 金额不能超过员工级别
+                employee_level = D(contract.employee_level or '0')
+                amount_to_add = min(payroll.total_due, employee_level).quantize(D("1"))
+
                 db.session.add(FinancialAdjustment(
                     customer_bill_id=bill.id,
                     adjustment_type=AdjustmentType.COMPANY_PAID_SALARY,
-                    amount=payroll.total_due.quantize(D("1")),
+                    amount=amount_to_add,
                     description="[系统] 公司代付员工工资",
                     date=cycle_end_date
                 ))
@@ -2423,6 +2428,30 @@ class BillingEngine:
 
             # 4. 将 details 传递给标准流程进行最终计算和保存
             bill, payroll = self._calculate_final_amounts(bill, payroll, details)
+
+            # 新增：为试工失败合同添加“公司代付工资”
+            if payroll.total_due > 0:
+                existing_adj = FinancialAdjustment.query.filter_by(
+                    customer_bill_id=bill.id,
+                    adjustment_type=AdjustmentType.COMPANY_PAID_SALARY
+                ).first()
+                if not existing_adj:
+                    # 修正: 试工合同按实际应发总额代付，不设上限，仅取整
+                    amount_to_add = payroll.total_due.quantize(D("1"))
+                    
+                    db.session.add(FinancialAdjustment(
+                        customer_bill_id=bill.id,
+                        adjustment_type=AdjustmentType.COMPANY_PAID_SALARY,
+                        amount=amount_to_add,
+                        description="[系统] 公司代付员工工资",
+                        date=bill.cycle_end_date.date()
+                    ))
+                    current_app.logger.info(f"为试工失败合同 {contract.id} 添加了 '公司代付工资' 项, 金额: {amount_to_add}")
+                    
+                    # 重新计算最终金额
+                    details = self._calculate_nanny_trial_termination_details(contract, actual_trial_days, bill, payroll)
+                    bill, payroll = self._calculate_final_amounts(bill, payroll, details)
+
             log = self._create_calculation_log(details)
             self._update_bill_with_log(bill, payroll, details, log)
 
