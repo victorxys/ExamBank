@@ -254,11 +254,11 @@ def register_commands(app):
         
         try:
             adjustments_to_delete = FinancialAdjustment.query.filter_by(
-                description="[系统] 公司代付员工工资"
+                description="[系统] 公司代付工资"
             ).all()
 
             if not adjustments_to_delete:
-                print("没有找到需要删除的“[系统] 公司代付员工工资”调整项ảng")
+                print("没有找到需要删除的“[系统] 公司代付工资”调整项ảng")
                 return
 
             total = len(adjustments_to_delete)
