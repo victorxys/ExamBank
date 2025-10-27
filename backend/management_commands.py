@@ -225,3 +225,67 @@ def register_commands(app):
 
         except Exception as e:
             print(f"执行任务时发生严重错误: {e}")
+
+    @app.cli.command("delete-salary-adjustments")
+    @click.option('--dry-run', is_flag=True, help='只打印将要删除的条目，不实际执行删除操作。')
+    @with_appcontext
+    def delete_salary_adjustments_command(dry_run):
+        """删除所有由系统自动添加的“公司代付工资”财务调整项，并重算相关账单。"""
+        if not dry_run:
+            print("---【警告】即将开始删除操作，此过程不可逆。---")
+        else:
+            print("---【演习模式】将查找并列出要删除的调整项，但不会实际操作数据库。---")
+        
+        try:
+            adjustments_to_delete = FinancialAdjustment.query.filter_by(
+                description="[系统] 公司代付员工工资"
+            ).all()
+
+            if not adjustments_to_delete:
+                print("没有找到需要删除的“[系统] 公司代付员工工资”调整项。")
+                return
+
+            total = len(adjustments_to_delete)
+            print(f"找到 {total} 条需要处理的调整项。")
+            
+            engine = BillingEngine()
+            processed_count = 0
+
+            for i, adj in enumerate(adjustments_to_delete):
+                bill = adj.customer_bill
+                if not bill:
+                    print(f"[{i+1}/{total}] 调整项 ID: {adj.id} 缺少关联账单，跳过。")
+                    continue
+
+                print(f"[{i+1}/{total}] 准备处理 账单ID: {bill.id} (合同: {bill.contract_id}) 的调整项 (ID: {adj.id})")
+
+                if not dry_run:
+                    try:
+                        db.session.delete(adj)
+                        
+                        engine.calculate_for_month(
+                            year=bill.year,
+                            month=bill.month,
+                            contract_id=bill.contract_id,
+                            force_recalculate=True,
+                            cycle_start_date_override=bill.cycle_start_date
+                        )
+                        db.session.commit()
+                        processed_count += 1
+                        print(f"  -> 成功删除调整项并重算账单。")
+                    except Exception as e:
+                        print(f"  -> 处理时发生错误: {e}")
+                        db.session.rollback()
+                else:
+                    print(f"  -> [演习] 将删除此调整项并重算账单。")
+
+            print("\n--- 任务执行完毕 ---")
+            if not dry_run:
+                print(f"共处理 {total} 条调整项，成功删除并重算了 {processed_count} 个账单。")
+            else:
+                print(f"演习结束，共发现 {total} 条可删除的调整项。")
+
+        except Exception as e:
+            print(f"执行删除任务时发生严重错误: {e}")
+            if not dry_run:
+                db.session.rollback()
