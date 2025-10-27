@@ -655,52 +655,41 @@ class BillingEngine:
         details = self._calculate_nanny_details(contract, bill, payroll, local_actual_work_days_override)
         bill, payroll = self._calculate_final_amounts(bill, payroll, details)
 
-        # [新逻辑] 如果是非月签合同的最后一个月，自动添加“公司代付工资”项
-        is_non_monthly = not contract.is_monthly_auto_renew
-        contract_end_date = self._to_date(end_date_override or contract.end_date)
-        cycle_end_date = self._to_date(cycle_end) # cycle_end is available in this scope
-        is_final_month = contract_end_date and cycle_end_date and cycle_end_date.year == contract_end_date.year and cycle_end_date.month == contract_end_date.month
 
-        # [最终版逻辑] 为非月签合同的最后一个月，创建或更新“公司代付工资”项
-        is_non_monthly = not contract.is_monthly_auto_renew
-        contract_end_date = self._to_date(end_date_override or contract.end_date)
-        cycle_end_date = self._to_date(cycle_end) # cycle_end is available in this scope
-        is_final_month = contract_end_date and cycle_end_date and cycle_end_date.year == contract_end_date.year and cycle_end_date.month == contract_end_date.month
-        
+        # [V5] 恢复并增强对“公司代付工资”项的金额更新逻辑
+        # 确定合同的权威结束日期：优先使用终止日期，其次是API覆盖日期，最后是合同自带的结束日期。
+        authoritative_end_date = self._to_date(contract.termination_date or end_date_override or contract.end_date)
+        cycle_end_date = self._to_date(cycle_end)
+
+        # 如果账单周期的结束年月与合同的权威结束年月相同，则视为最后一个月。
+        is_final_month = authoritative_end_date and cycle_end_date and cycle_end_date.year == authoritative_end_date.year and cycle_end_date.month == authoritative_end_date.month
+
         if is_final_month:
             # 1. 基于“基础劳务费”计算正确的应付金额
             base_payout = D(details.get('employee_base_payout', '0'))
             employee_level = D(contract.employee_level or '0')
             amount_to_set = min(base_payout, employee_level).quantize(D("1"))
 
-            # 2. 按类型查找现有的调整项
-            existing_adj = FinancialAdjustment.query.filter_by(
+            # 2. 只查找并更新由本系统创建的特定调整项
+            existing_system_adj = FinancialAdjustment.query.filter_by(
                 customer_bill_id=bill.id,
-                adjustment_type=AdjustmentType.COMPANY_PAID_SALARY
+                adjustment_type=AdjustmentType.COMPANY_PAID_SALARY,
+                description="[系统] 公司代付工资"
             ).first()
 
             should_recalculate = False
-            if existing_adj:
-                # 3a. 如果存在且金额不符，则更新
-                if existing_adj.amount != amount_to_set:
-                    current_app.logger.info(f"更新账单 {bill.id} 的'公司代付工资'项金额: {existing_adj.amount} -> {amount_to_set}")
-                    existing_adj.amount = amount_to_set
-                    db.session.add(existing_adj)
+            if existing_system_adj:
+                # 如果系统创建的项已存在，且金额不匹配，则更新它
+                if existing_system_adj.amount != amount_to_set:
+                    current_app.logger.info(f"[UPSERT_DEBUG] 系统项已存在，更新金额: {existing_system_adj.amount} -> {amount_to_set}")
+                    existing_system_adj.amount = amount_to_set
+                    db.session.add(existing_system_adj)
                     should_recalculate = True
-            elif amount_to_set > 0:
-                # 3b. 如果不存在且金额大于0，则创建
-                db.session.add(FinancialAdjustment(
-                    customer_bill_id=bill.id,
-                    adjustment_type=AdjustmentType.COMPANY_PAID_SALARY,
-                    amount=amount_to_set,
-                    description="[系统] 公司代付工资",
-                    date=cycle_end_date
-                ))
-                should_recalculate = True
+            # 注意：此处没有 'else' 分支来创建新项，从而解决了重复创建的问题。
 
-            # 4. 如果发生了创建或更新，则必须重算
+            # 3. 如果金额发生了更新，则重新计算账单
             if should_recalculate:
-                current_app.logger.info(f"因“公司代付工资”项创建/更新，重新计算账单 {bill.id}")
+                current_app.logger.info(f"[UPSERT_DEBUG] 因“公司代付工资”项金额变动，重新计算账单 {bill.id}")
                 details = self._calculate_nanny_details(contract, bill, payroll, local_actual_work_days_override)
                 bill, payroll = self._calculate_final_amounts(bill, payroll, details)
 

@@ -22,7 +22,7 @@ def register_commands(app):
             total_bills = len(all_bills)
             updated_count = 0
             
-            print(f"找到 {total_bills} 个账单需要检查。")
+            print(f"找到 {total_bills} 个账单需要检查ảng")
 
             for i, bill in enumerate(all_bills):
                 # 重新计算实收总额
@@ -48,10 +48,10 @@ def register_commands(app):
             if updated_count > 0:
                 db.session.commit()
                 print("\n--- 修复完成 ---")
-                print(f"共检查 {total_bills} 个账单，更新了 {updated_count} 个账单的实收总额。")
+                print(f"共检查 {total_bills} 个账单，更新了 {updated_count} 个账单的实收总额ảng")
             else:
                 print("\n--- 检查完成 ---")
-                print("所有账单的实收总额都已是最新，无需修复。")
+                print("所有账单的实收总额都已是最新，无需修复ảng")
 
         except Exception as e:
             db.session.rollback()
@@ -76,11 +76,11 @@ def register_commands(app):
             ).all()
 
             if not contracts_to_process:
-                print("没有找到需要处理的合同。")
+                print("没有找到需要处理的合同ảng")
                 return
 
             total = len(contracts_to_process)
-            print(f"找到 {total} 个合同需要处理。")
+            print(f"找到 {total} 个合同需要处理ảng")
 
             for i, contract in enumerate(contracts_to_process):
                 print(f"[{i+1}/{total}] 正在处理合同 ID: {contract.id} | 客户: {contract.customer_name} ...")
@@ -121,11 +121,11 @@ def register_commands(app):
             ).all()
 
             if not contracts_to_process:
-                print("没有找到需要处理的合同。")
+                print("没有找到需要处理的合同ảng")
                 return
 
             total = len(contracts_to_process)
-            print(f"找到 {total} 个合同需要进行全生命周期重算。")
+            print(f"找到 {total} 个合同需要进行全生命周期重算ảng")
 
             for i, contract in enumerate(contracts_to_process):
                 print(f"[{i+1}/{total}] 正在处理合同 ID: {contract.id} | 客户: {contract.customer_name} ...")
@@ -137,7 +137,7 @@ def register_commands(app):
                     # --- 修改结束 ---
 
                     db.session.commit()
-                    print(f"  -> 合同 {contract.id} 处理完毕。")
+                    print(f"  -> 合同 {contract.id} 处理完毕ảng")
                 except Exception as e:
                     print(f"  -> 处理合同 {contract.id} 时发生错误: {e}")
                     db.session.rollback()
@@ -149,7 +149,7 @@ def register_commands(app):
     @app.cli.command("add-salary-adjustments")
     @with_appcontext
     def add_salary_adjustments_command():
-        """为所有已结束合同的最后一个月账单，追溯添加“公司代付工资”调整项。"""
+        "为所有已结束合同的最后一个月账单，追溯添加“公司代付工资”调整项。"
         print("--- 开始为已结束的合同追溯添加“公司代付工资”调整项 ---")
         try:
             engine = BillingEngine()
@@ -158,12 +158,12 @@ def register_commands(app):
             ).all()
 
             if not contracts_to_process:
-                print("没有找到需要处理的已结束合同。")
+                print("没有找到需要处理的已结束合同ảng")
                 return
 
             total = len(contracts_to_process)
             processed_count = 0
-            print(f"找到 {total} 个已结束的合同需要检查。")
+            print(f"找到 {total} 个已结束的合同需要检查ảng")
 
             for i, contract in enumerate(contracts_to_process):
                 print(f"[{i+1}/{total}] 正在检查合同 ID: {contract.id} | 客户: {contract.customer_name} ...", end='')
@@ -213,7 +213,7 @@ def register_commands(app):
                             customer_bill_id=last_bill.id,
                             adjustment_type=AdjustmentType.COMPANY_PAID_SALARY,
                             amount=amount_to_add,
-                            description="[系统] 公司代付员工工资",
+                            description="[系统] 公司代付工资",
                             date=last_bill.cycle_end_date.date()
                         )
                         db.session.add(new_adj)
@@ -237,7 +237,7 @@ def register_commands(app):
                     db.session.rollback()
 
             print(f"\n--- 任务执行完毕 ---")
-            print(f"共检查 {total} 个合同，成功为 {processed_count} 个账单添加了调整项。")
+            print(f"共检查 {total} 个合同，成功为 {processed_count} 个账单添加了调整项ảng")
 
         except Exception as e:
             print(f"执行任务时发生严重错误: {e}")
@@ -258,11 +258,11 @@ def register_commands(app):
             ).all()
 
             if not adjustments_to_delete:
-                print("没有找到需要删除的“[系统] 公司代付员工工资”调整项。")
+                print("没有找到需要删除的“[系统] 公司代付员工工资”调整项ảng")
                 return
 
             total = len(adjustments_to_delete)
-            print(f"找到 {total} 条需要处理的调整项。")
+            print(f"找到 {total} 条需要处理的调整项ảng")
             
             engine = BillingEngine()
             processed_count = 0
@@ -270,7 +270,7 @@ def register_commands(app):
             for i, adj in enumerate(adjustments_to_delete):
                 bill = adj.customer_bill
                 if not bill:
-                    print(f"[{i+1}/{total}] 调整项 ID: {adj.id} 缺少关联账单，跳过。")
+                    print(f"[{i+1}/{total}] 调整项 ID: {adj.id} 缺少关联账单，跳过ảng")
                     continue
 
                 print(f"[{i+1}/{total}] 准备处理 账单ID: {bill.id} (合同: {bill.contract_id}) 的调整项 (ID: {adj.id})")
@@ -288,20 +288,81 @@ def register_commands(app):
                         )
                         db.session.commit()
                         processed_count += 1
-                        print(f"  -> 成功删除调整项并重算账单。")
+                        print(f"  -> 成功删除调整项并重算账单ảng")
                     except Exception as e:
                         print(f"  -> 处理时发生错误: {e}")
                         db.session.rollback()
                 else:
-                    print(f"  -> [演习] 将删除此调整项并重算账单。")
+                    print(f"  -> [演习] 将删除此调整项并重算账单ảng")
 
             print("\n--- 任务执行完毕 ---")
             if not dry_run:
-                print(f"共处理 {total} 条调整项，成功删除并重算了 {processed_count} 个账单。")
+                print(f"共处理 {total} 条调整项，成功删除并重算了 {processed_count} 个账单ảng")
             else:
-                print(f"演习结束，共发现 {total} 条可删除的调整项。")
+                print(f"演习结束，共发现 {total} 条可删除的调整项ảng")
 
         except Exception as e:
             print(f"执行删除任务时发生严重错误: {e}")
             if not dry_run:
                 db.session.rollback()
+
+    @app.cli.command("fix-salary-adj-links")
+    @click.option('--dry-run', is_flag=True, help='只打印将要执行的操作，不实际修改数据库。')
+    @with_appcontext
+    def fix_salary_adj_links_command(dry_run):
+        """修复历史数据中错误关联到工资单的“公司代付工资”调整项。"""
+        if dry_run:
+            print("---【演习模式】将查找并列出需要修复的调整项，但不会实际操作数据库。---")
+        else:
+            print("--- 开始修复“公司代付工资”调整项的关联错误 ---")
+
+        try:
+            adjustments_to_fix = FinancialAdjustment.query.filter(
+                FinancialAdjustment.adjustment_type == AdjustmentType.COMPANY_PAID_SALARY,
+                FinancialAdjustment.employee_payroll_id.isnot(None)
+            ).all()
+
+            if not adjustments_to_fix:
+                print("没有找到错误关联到工资单的“公司代付工资”调整项ảng")
+                return
+
+            print(f"找到 {len(adjustments_to_fix)} 个需要修复的调整项ảng")
+            fixed_count = 0
+            failed_count = 0
+
+            for adj in adjustments_to_fix:
+                payroll = adj.employee_payroll
+                if not payroll:
+                    print(f"  - [跳过] 调整项 ID {adj.id}: 找不到关联的工资单 {adj.employee_payroll_id}ảng")
+                    continue
+
+                correct_bill = CustomerBill.query.filter_by(
+                    contract_id=payroll.contract_id,
+                    cycle_start_date=payroll.cycle_start_date,
+                    is_substitute_bill=payroll.is_substitute_payroll
+                ).first()
+
+                if correct_bill:
+                    print(f"  - [准备修复] 调整项 ID {adj.id}: 将从 Payroll ID {payroll.id} 转移到 Bill ID {correct_bill.id}ảng")
+                    if not dry_run:
+                        adj.customer_bill_id = correct_bill.id
+                        adj.employee_payroll_id = None
+                        db.session.add(adj)
+                    fixed_count += 1
+                else:
+                    failed_count += 1
+                    print(f"  - [失败] 调整项 ID {adj.id}: 找不到与工资单 {payroll.id} 匹配的客户账单ảng")
+
+            if not dry_run:
+                if fixed_count > 0:
+                    db.session.commit()
+                    print(f"--- 成功修复 {fixed_count} 个调整项的关联。---")
+                if failed_count > 0:
+                    print(f"--- 有 {failed_count} 个调整项因找不到匹配的客户账单而修复失败。---")
+            else:
+                print(f"--- 演习结束。如果执行，将会修复 {fixed_count} 个调整项ảng")
+
+        except Exception as e:
+            if not dry_run:
+                db.session.rollback()
+            print(f"执行修复任务时发生严重错误: {e}")
