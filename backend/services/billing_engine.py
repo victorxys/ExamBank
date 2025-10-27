@@ -655,6 +655,31 @@ class BillingEngine:
         details = self._calculate_nanny_details(contract, bill, payroll, local_actual_work_days_override)
         bill, payroll = self._calculate_final_amounts(bill, payroll, details)
 
+        # [新逻辑] 如果是非月签合同的最后一个月，自动添加“公司代付工资”项
+        is_non_monthly = not contract.is_monthly_auto_renew
+        contract_end_date = self._to_date(end_date_override or contract.end_date)
+        cycle_end_date = self._to_date(cycle_end) # cycle_end is available in this scope
+        is_final_month = contract_end_date and cycle_end_date and cycle_end_date.year == contract_end_date.year and cycle_end_date.month == contract_end_date.month
+
+        if is_non_monthly and is_final_month and payroll.total_due > 0:
+            existing_adj = FinancialAdjustment.query.filter_by(
+                customer_bill_id=bill.id,
+                description="[系统] 公司代付员工工资"
+            ).first()
+            if not existing_adj:
+                db.session.add(FinancialAdjustment(
+                    customer_bill_id=bill.id,
+                    adjustment_type=AdjustmentType.COMPANY_PAID_SALARY,
+                    amount=payroll.total_due.quantize(D("1")),
+                    description="[系统] 公司代付员工工资",
+                    date=cycle_end_date
+                ))
+                current_app.logger.info(f"为非月签合同 {contract.id} 的最终账单 {bill.id} 添加了 '公司代付工资' 调整项，重新计算最终金额。")
+                
+                # 重新计算，以包含新的调整项
+                details = self._calculate_nanny_details(contract, bill, payroll, local_actual_work_days_override)
+                bill, payroll = self._calculate_final_amounts(bill, payroll, details)
+
         current_app.logger.info(f"    [NannyCALC] 计算育儿嫂合同应收金额 {contract.id} 的账单总应收金额: {bill.total_due}")
         log = self._create_calculation_log(details)
         self._update_bill_with_log(bill, payroll, details, log)
@@ -2309,32 +2334,35 @@ class BillingEngine:
         return bill, payroll
 
     def _calculate_nanny_trial_termination_details(self, contract,actual_trial_days, bill, payroll):
-        """为试工失败结算生成详细的计算字典 (v16 - FINAL with Overtime)。"""
+        """为试工失败结算生成详细的计算字典 (v17 - 月薪取整逻辑)。"""
         QUANTIZER = D("0.01")
-        level = D(contract.employee_level or 0)
+        level = D(contract.employee_level or 0) # level 在试工合同中代表日薪
         days = D(actual_trial_days)
 
-        # 核心修正：试工合同的 level 即为日薪，无需除以26
-        daily_rate = level.quantize(QUANTIZER)
-
-        # 试工合同月薪,用来准确算出日管理费
-        monthly_rate = daily_rate * 26
+        # 核心修正：应用新的月薪取整规则
+        original_daily_rate = level.quantize(QUANTIZER)
+        provisional_monthly_salary = original_daily_rate * 26
+        # 四舍五入到百位
+        rounded_monthly_salary = D(round(provisional_monthly_salary, -2))
+        # 基于取整后的月薪，反算出一个用于后续计算的、更精确的日薪
+        final_daily_rate = (rounded_monthly_salary / D(26))
 
         # 获取考勤，计算加班
         attendance = self._get_or_create_attendance(contract,contract.start_date, contract.end_date)
         overtime_days = D(attendance.overtime_days)
-        overtime_fee = (daily_rate * overtime_days).quantize(QUANTIZER)
+        # 使用修正后的日薪计算加班费
+        overtime_fee = (final_daily_rate * overtime_days).quantize(QUANTIZER)
 
-        # 统一计算基础劳务费和管理费
-        base_fee = (daily_rate * days).quantize(QUANTIZER)
-        management_fee = (monthly_rate* D('0.2') / 30 *(days)).quantize(QUANTIZER)
+        # 使用修正后的日薪和月薪计算基础劳务费和管理费
+        base_fee = (final_daily_rate * days).quantize(QUANTIZER)
+        management_fee = (rounded_monthly_salary * D('0.2') / 30 * days).quantize(QUANTIZER)
 
-        current_app.logger.info(f"[TrialTerm-v14] 计算试工合同 {contract.id} 结算细节: 级别 {level}, 日薪 {daily_rate}, 试工天数 {days}, 加班天数 {overtime_days}, 基础费 {base_fee}, 加班费 {overtime_fee}, 管理费 {management_fee}")
-        # --- 【核心修复】调用 _get_adjustments 来加载实际的财务调整项 ---
+        current_app.logger.info(f"[TrialTerm-v17] 计算试工合同 {contract.id} 结算细节: 级别 {level}, 取整后日薪 {final_daily_rate}, 试工天数 {days}, 加班天数 {overtime_days}, 基础费 {base_fee}, 加班费 {overtime_fee}, 管理费 {management_fee}")
+        
         cust_increase, cust_decrease, emp_increase, emp_decrease, deferred_fee, emp_commission = (
             self._get_adjustments(bill.id, payroll.id)
         )
-        # --- 修复结束 ---
+        
         details = {
             "type": "nanny_trial_termination",
             "level": str(level),
@@ -2342,34 +2370,27 @@ class BillingEngine:
             "base_work_days": str(days),
             "overtime_days": str(overtime_days),
             "total_days_worked": str(days + overtime_days),
-            "daily_rate": str(daily_rate),
-
+            "daily_rate": str(final_daily_rate.quantize(QUANTIZER)),
             "customer_base_fee": str(base_fee),
             "employee_base_payout": str(base_fee),
             "customer_overtime_fee": str(overtime_fee),
             "employee_overtime_payout": str(overtime_fee),
-
             "management_fee": str(management_fee),
-
             "introduction_fee": str(contract.introduction_fee or "0.00"),
             "notes": contract.notes or "",
-
-            # --- 【核心修复】使用加载到的真实数据，而不是硬编码的0 ---
             "customer_increase": str(cust_increase),
             "customer_decrease": str(cust_decrease),
             "employee_increase": str(emp_increase),
             "employee_decrease": str(emp_decrease),
             "employee_commission": str(emp_commission),
-            # --- 修复结束 ---
-            
             "first_month_deduction": "0.00",
             "discount": "0.00",
             "substitute_deduction": "0.00",
-
             "log_extras": {
-                "management_fee_reason": f"月薪({level*26})/30天 * 20% * 试工天数({days}) = {management_fee:.2f}",
-                "employee_payout_reason": f"日薪({daily_rate}) * 试工天数({days}) = {base_fee:.2f}",
-                "overtime_fee_reason": f"日薪({daily_rate}) * 加班天数({overtime_days}) = {overtime_fee:.2f}"
+                "salary_rounding_reason": f"临时月薪({original_daily_rate:.2f}*26 = {provisional_monthly_salary:.2f}) 取整为 {rounded_monthly_salary:.2f}。所有费用基于此计算。",
+                "management_fee_reason": f"取整后月薪({rounded_monthly_salary:.2f})/30天 * 20% * 试工天数({days}) = {management_fee:.2f}",
+                "employee_payout_reason": f"取整后日薪({final_daily_rate:.4f}) * 试工天数({days}) = {base_fee:.2f}",
+                "overtime_fee_reason": f"取整后日薪({final_daily_rate:.4f}) * 加班天数({overtime_days}) = {overtime_fee:.2f}"
             },
         }
         return details

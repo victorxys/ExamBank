@@ -2764,6 +2764,38 @@ def terminate_contract(contract_id):
         if not final_bill:
             raise ValueError("无法找到用于处理退款的最终账单。")
 
+        # [新逻辑] 添加“公司代付工资”调整项
+        final_payroll = EmployeePayroll.query.filter_by(
+            contract_id=str(contract.id),
+            cycle_start_date=final_bill.cycle_start_date,
+            is_substitute_payroll=final_bill.is_substitute_bill
+        ).first()
+
+        if final_payroll and final_payroll.total_due > 0:
+            existing_salary_adj = FinancialAdjustment.query.filter_by(
+                customer_bill_id=final_bill.id,
+                description="[系统] 公司代付员工工资"
+            ).first()
+            if not existing_salary_adj:
+                db.session.add(FinancialAdjustment(
+                    customer_bill_id=final_bill.id,
+                    adjustment_type=AdjustmentType.COMPANY_PAID_SALARY,
+                    amount=final_payroll.total_due.quantize(D("1")),
+                    description="[系统] 公司代付员工工资",
+                    date=termination_date
+                ))
+                current_app.logger.info(f"为最终账单 {final_bill.id} 添加了 {final_payroll.total_due} 元的'公司代付工资'调整项。")
+        
+                # 再次重算账单以包含此项
+                engine.calculate_for_month(
+                    year=termination_year,
+                    month=termination_month,
+                    contract_id=str(contract.id),
+                    force_recalculate=True,
+                    end_date_override=termination_date
+                )
+                db.session.refresh(final_bill)
+
         # 步骤 3: 手动计算管理费退款，并添加到最终账单
         current_app.logger.info(f"=====contract.is_monthly_auto_renew======{contract.is_monthly_auto_renew}")
         if isinstance(contract, NannyContract):
@@ -2825,16 +2857,19 @@ def terminate_contract(contract_id):
                             description_parts.append(f"  - 总计：{total_refund_amount:.2f}元")
                             management_refund_item = {'amount': total_refund_amount, 'description': '\n'.join(description_parts)}
                 elif contract.is_monthly_auto_renew:
-                    cycle_start = final_bill.cycle_start_date.date(); cycle_end = final_bill.cycle_end_date.date()
-                    days_in_cycle = (cycle_end - cycle_start).days + 1
-                    if days_in_cycle > 0:
-                        daily_fee = (monthly_management_fee / D(days_in_cycle)).quantize(D("0.0001"))
-                        remaining_days = (cycle_end - termination_date).days if charge_on_termination_date else(cycle_end - termination_date).days + 1
-                        if remaining_days > 0:
-                            amount = (daily_fee * D(remaining_days)).quantize(D("0.01"))
-                            if amount > 0:
-                                management_refund_item = {'amount': amount, 'description': f"[系统] 月签合同终止退管理费: {monthly_management_fee:.2f}元/月(周期) / {days_in_cycle}天 * {remaining_days}天 = {amount:.2f}元"}
-
+                    # V2 修正：月签合同应基于标准30天来计算日管理费，并计算到月底的剩余天数
+                    daily_fee = (monthly_management_fee / D(30)).quantize(D("0.0001"))
+    
+                    # 获取终止日所在月的最后一天，作为原始周期结束日
+                    _, num_days_in_month = calendar.monthrange(termination_date.year, termination_date.month)
+                    original_cycle_end = date(termination_date.year, termination_date.month, num_days_in_month)
+    
+                    remaining_days = (original_cycle_end - termination_date).days if charge_on_termination_date else (original_cycle_end - termination_date).days + 1
+                    
+                    if remaining_days > 0:
+                        amount = (daily_fee * D(remaining_days)).quantize(D("0.01"))
+                        if amount > 0:
+                            management_refund_item = {'amount': amount, 'description': f"[系统] 月签合同终止退管理费: 日管理费({daily_fee:.4f}) * 退款天数({remaining_days}) = {amount:.2f}元"}
                 if management_refund_item:
                     existing_refund = FinancialAdjustment.query.filter_by(customer_bill_id=final_bill.id,description=management_refund_item['description']).first()
                     if not existing_refund:
@@ -2911,6 +2946,10 @@ def terminate_contract(contract_id):
         db.session.rollback()
         current_app.logger.error(f"Error during contract termination for {contract_id}: {e}", exc_info=True)
         return jsonify({"error": "operation_failed", "message": str(e)}), 500
+
+
+
+
 
     
 
@@ -5217,3 +5256,115 @@ def get_payable_items_by_payee():
     except Exception as e:
         current_app.logger.error(f"Failed to get payable items for payee {payee_id}: {e}", exc_info=True)
         return jsonify({"error": "Internal server error"}), 500
+
+
+@billing_bp.route("/bills/<uuid:bill_id>/transfer-balance", methods=["POST"])
+@admin_required
+def transfer_bill_balance(bill_id):
+    """
+    V2 - 按需将账单的全部余额创建为一个调整项，并立即将其转移到另一合同。
+    此版本包含正确的财务结转逻辑，确保源账单归零，目标账单正确接收余额。
+    """
+    data = request.get_json()
+    destination_contract_id = data.get("destination_contract_id")
+    if not destination_contract_id:
+        return jsonify({"error": "必须提供目标合同ID (destination_contract_id)"}), 400
+
+    try:
+        with db.session.begin_nested():
+            source_bill = db.session.get(CustomerBill, str(bill_id))
+            if not source_bill:
+                return jsonify({"error": "源账单未找到"}), 404
+
+            dest_contract = db.session.get(BaseContract, destination_contract_id)
+            if not dest_contract:
+                return jsonify({"error": "目标合同未找到"}), 404
+
+            # 确保这是一个已终止或已完成合同的最后一个账单
+            contract = source_bill.contract
+            is_last_bill = not db.session.query(CustomerBill.id).filter(
+                CustomerBill.contract_id == contract.id,
+                CustomerBill.cycle_start_date > source_bill.cycle_start_date
+            ).first()
+
+            if contract.status not in ['terminated', 'finished'] or not is_last_bill:
+                return jsonify({"error": "只能对已终止/已完成合同的最后一个账单执行余额转移"}), 400
+
+            # 强制重算一次，确保余额最新
+            engine = BillingEngine()
+            engine.calculate_for_month(
+                year=source_bill.year, month=source_bill.month, contract_id=source_bill.contract_id, 
+                force_recalculate=True, cycle_start_date_override=source_bill.cycle_start_date
+            )
+            db.session.flush()
+            db.session.refresh(source_bill)
+
+            final_balance = source_bill.total_due
+            if final_balance == D(0):
+                return jsonify({"message": "账单余额为零，无需转移。"}), 200
+
+            # 找到目标合同的第一个账单
+            dest_bill = CustomerBill.query.filter_by(contract_id=dest_contract.id, is_substitute_bill=False).order_by(CustomerBill.cycle_start_date.asc()).first()
+            if not dest_bill:
+                return jsonify({"error": "目标合同尚未生成任何账单，无法接收余额。"}), 404
+
+            # 获取员工姓名以生成更友好的描述
+            source_employee = source_bill.contract.user or source_bill.contract.service_personnel
+            source_employee_name = source_employee.username if hasattr(source_employee, 'username') else source_employee.name
+            dest_employee = dest_contract.user or dest_contract.service_personnel
+            dest_employee_name = dest_employee.username if hasattr(dest_employee, 'username') else dest_employee.name
+
+            # 在源账单上创建“转出”项以归零账单
+            if final_balance > 0: # 客户欠款
+                source_adj_type = AdjustmentType.CUSTOMER_DECREASE
+                dest_adj_type = AdjustmentType.CUSTOMER_INCREASE
+                amount = final_balance
+            else: # 客户有余款
+                source_adj_type = AdjustmentType.CUSTOMER_INCREASE
+                dest_adj_type = AdjustmentType.CUSTOMER_DECREASE
+                amount = -final_balance # amount 必须为正
+
+            source_adj = FinancialAdjustment(
+                customer_bill_id=source_bill.id,
+                amount=amount,
+                adjustment_type=source_adj_type,
+                description=f"[系统] 余额转出至: {dest_contract.customer_name}-{dest_employee_name}",
+                date=source_bill.cycle_end_date.date(),
+                details={"status": "transferred_out"}
+            )
+            db.session.add(source_adj)
+            db.session.flush()
+
+            # 在目标账单上创建“转入”项
+            dest_adj = FinancialAdjustment(
+                customer_bill_id=dest_bill.id,
+                amount=amount,
+                adjustment_type=dest_adj_type,
+                description=f"[系统] 余额从: {source_bill.contract.customer_name}-{source_employee_name} 转入",
+                date=dest_bill.cycle_start_date.date(),
+                details={
+                    "status": "transferred_in",
+                    "transferred_from_adjustment_id": str(source_adj.id),
+                    "transferred_from_bill_id": str(source_bill.id)
+                }
+            )
+            db.session.add(dest_adj)
+            db.session.flush()
+
+            # 关联两个调整项
+            source_adj.details["transferred_to_adjustment_id"] = str(dest_adj.id)
+            source_adj.details["transferred_to_bill_id"] = str(dest_bill.id)
+            attributes.flag_modified(source_adj, "details")
+
+        # 事务提交后，重算两个账单
+        engine.calculate_for_month(year=source_bill.year, month=source_bill.month, contract_id=source_bill.contract_id, force_recalculate=True)
+        engine.calculate_for_month(year=dest_bill.year, month=dest_bill.month, contract_id=dest_bill.contract_id, force_recalculate=True)
+        db.session.commit()
+
+        latest_details = get_billing_details_internal(bill_id=str(source_bill.id))
+        return jsonify({"message": "余额结转成功！", "latest_details": latest_details})
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"为账单 {bill_id} 执行余额转移时发生意外错误: {e}", exc_info=True)
+        return jsonify({"error": "执行余额转移失败，服务器内部错误"}), 500
