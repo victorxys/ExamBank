@@ -23,7 +23,7 @@ export const AdjustmentTypes = {
     substitute_management_fee: { label: '替班管理费', type: 'customer', effect: 1 },
     employee_increase: { label: '萌嫂增款', type: 'employee', effect: 1 },
     employee_decrease: { label: '减萌嫂款', type: 'employee', effect: -1 },
-    deposit_paid_salary: { label: '保证金支付工资', type: 'employee', effect: -1 },
+    deposit_paid_salary: { label: '保证金支付工资', type: 'employee', effect: 1 },
     employee_commission: { label: '员工首月返佣', type: 'employee', effect: -1 },
     employee_commission_offset: { label: '佣金冲账', type: 'employee', effect: 1 },
     deferred_fee: { label: '上期顺延费用', type: 'customer', effect: 1 },

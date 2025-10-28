@@ -71,15 +71,15 @@ const formatDateTimeRange = (startStr, endStr) => {
         const endDate = new Date(endStr);
         if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) return '无效日期';
 
-        console.log("DEBUG: startStr:", startStr, "startDate:", startDate);
-        console.log("DEBUG: endStr:", endStr, "endDate:", endDate);
-        console.log("DEBUG: startDate.getHours():", startDate.getHours(),"startDate.getMinutes():", startDate.getMinutes());
-        console.log("DEBUG: endDate.getHours():", endDate.getHours(), "endDate.getMinutes():",endDate.getMinutes());
+        // console.log("DEBUG: startStr:", startStr, "startDate:", startDate);
+        // console.log("DEBUG: endStr:", endStr, "endDate:", endDate);
+        // console.log("DEBUG: startDate.getHours():", startDate.getHours(),"startDate.getMinutes():", startDate.getMinutes());
+        // console.log("DEBUG: endDate.getHours():", endDate.getHours(), "endDate.getMinutes():",endDate.getMinutes());
 
         // 检查开始和结束时间是否都为午夜 (00:00:00)，以此判断是否为旧数据
         const isOldData = startStr.includes('T00:00:00') && endStr.includes('T00:00:00');
 
-        console.log("DEBUG: isOldData:", isOldData);
+        // console.log("DEBUG: isOldData:", isOldData);
 
         const formatDateOnly = (date) => date.toLocaleDateString('zh-CN', { year: 'numeric', month:'2-digit', day: '2-digit' }).replace(/\//g, '-');
         const formatDateTime = (date) => date.toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute:'2-digit', hour12: false }).replace(/\//g, '-');

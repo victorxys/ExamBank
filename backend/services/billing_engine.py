@@ -38,25 +38,32 @@ CTX = decimal.Context(prec=10)
 
 def _update_bill_payment_status(bill: CustomerBill):
     """
-    根据一个账单的 total_due 和 total_paid，更新其 payment_status.
-    这个函数不再重新计算 total_paid，调用者有责任在调用此函数前确保 bill.total_paid 是正确的。
+    根据账单的总应付、总实付，更新其支付状态。
     """
-    if not bill:
-        return
+    # 核心修正：不再依赖可能缓存的 bill.payment_records 集合，
+    # 而是直接从数据库会话中查询最新的支付总额。
+    session = db.object_session(bill)
+    if not session:
+        # 如果对象不是 session 的一部分，则无法查询。这是一种保护。
+        current_app.logger.warning(f"无法从账单 {bill.id} 获取数据库会话，跳过状态更新。")
+        # 尝试使用 bill.payment_records 作为后备，尽管它可能是旧的
+        bill.total_paid = D(sum(p.amount for p in bill.payment_records) or 0)
+    else:
+        # 这是首选的、最可靠的方法
+        total_paid_query = session.query(func.sum(PaymentRecord.amount)).filter(PaymentRecord.customer_bill_id == bill.id)
+        total_paid = total_paid_query.scalar() or 0
+        bill.total_paid = D(total_paid)
 
-    # 更新支付状态
-    if bill.total_paid <= 0:
-        bill.payment_status = PaymentStatus.UNPAID
-        bill.total_paid = D('0') # 确保不会是负数
-    elif bill.total_paid < bill.total_due:
-        bill.payment_status = PaymentStatus.PARTIALLY_PAID
-    elif bill.total_paid == bill.total_due:
+    # 更新支付状态，增加对超付的处理
+    if bill.total_due is not None and bill.total_paid >= bill.total_due:
         bill.payment_status = PaymentStatus.PAID
-    else: # total_paid > bill.total_due
+    elif bill.total_paid > 0 and (bill.total_due is None or bill.total_paid < bill.total_due):
+        bill.payment_status = PaymentStatus.PARTIALLY_PAID
+    elif bill.total_due is not None and bill.total_paid > bill.total_due:
         bill.payment_status = PaymentStatus.OVERPAID
-
-    db.session.add(bill)
-    current_app.logger.info(f"Updated bill {bill.id} status to {bill.payment_status.value} based on total_paid {bill.total_paid}")
+    else:
+        # 涵盖 total_paid <= 0 的情况
+        bill.payment_status = PaymentStatus.UNPAID
 
 def _update_payroll_payout_status(payroll: EmployeePayroll):
     """

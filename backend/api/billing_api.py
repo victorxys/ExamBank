@@ -1245,6 +1245,7 @@ def _apply_all_adjustments_and_settlements(adjustments_data, bill, payroll):
 
     # 关键修复：在处理新增/更新前，先将删除操作刷新到会话中
     db.session.flush()
+    current_app.logger.info(f"处理财务调整项，共 {len(adjustments_data)} 项。")
     for adj_data in adjustments_data:
         adj_id = str(adj_data.get('id', ''))
         adj_type = AdjustmentType(adj_data["adjustment_type"])
@@ -1254,39 +1255,46 @@ def _apply_all_adjustments_and_settlements(adjustments_data, bill, payroll):
         settlement_date_str = adj_data.get('settlement_date')
         settlement_date = date_parse(settlement_date_str).date() if settlement_date_str else date.today()
         settlement_details = adj_data.get('settlement_details')
-
+        current_app.logger.info(f"处理调整项，ID: {adj_id or '新建'}, 类型: {adj_type.name}, 金额: {adj_amount}, 结算状态: {is_settled}")
         if adj_id and adj_id in old_adjustments_map:
+            current_app.logger.info(f"=== 发现已有调整项，准备更新 ID: {adj_id} ===")
             existing_adj = old_adjustments_map[adj_id]
             if existing_adj.details is None: existing_adj.details = {}
 
             settlement_method = (settlement_details or {}).get('notes') or'settlement'
-
+            current_app.logger.info(f"处理调整项更新，ID: {adj_id}, 类型: {adj_type.name}, 金额: {adj_amount}, 结算状态: {is_settled}")
             # 状态变更1：从未结算 -> 已结算 (创建记录)
             if is_settled and not existing_adj.is_settled:
+                # current_app.logger.info(f"[SETTLEMENT_DEBUG] Condition MET: is_settled and not existing_adj.is_settled. Creating record for adj_type: {adj_type.value}")
                 new_record, record_type = None, None
                 record_notes = f"[来自结算调整项] {adj_description}"
+                settlement_method = (settlement_details or {}).get('notes') or 'settlement'
 
-                if adj_type == AdjustmentType.CUSTOMER_INCREASE:
-                    new_record = PaymentRecord(customer_bill_id=bill.id, amount=abs(adj_amount), payment_date=settlement_date, method=settlement_method,notes=record_notes, created_by_user_id=user_id)
+                customer_increase_types = [AdjustmentType.CUSTOMER_INCREASE,AdjustmentType.INTRODUCTION_FEE, AdjustmentType.DEPOSIT, AdjustmentType.COMPANY_PAID_SALARY,AdjustmentType.SUBSTITUTE_MANAGEMENT_FEE, AdjustmentType.DEFERRED_FEE, AdjustmentType.COMPANY_PAID_SALARY]
+                customer_decrease_types = [AdjustmentType.CUSTOMER_DECREASE,AdjustmentType.CUSTOMER_DISCOUNT]
+                employee_increase_types = [AdjustmentType.EMPLOYEE_INCREASE,AdjustmentType.EMPLOYEE_CLIENT_PAYMENT,AdjustmentType.DEPOSIT_PAID_SALARY]
+                employee_decrease_types = [AdjustmentType.EMPLOYEE_DECREASE]  # EMPLOYEE_COMMISSION 首月返佣 不计入已发总额计算
+
+                if adj_type in customer_increase_types:
+                    new_record = PaymentRecord(customer_bill_id=bill.id, amount=abs(adj_amount),payment_date=settlement_date, method=settlement_method, notes=record_notes,created_by_user_id=user_id)
                     record_type = 'payment'
-                elif adj_type in [AdjustmentType.CUSTOMER_DECREASE,AdjustmentType.CUSTOMER_DISCOUNT]:
-                    # 【关键修正】客户侧的减款/优惠是负向的“收款记录”
-                    new_record = PaymentRecord(customer_bill_id=bill.id, amount=abs(adj_amount) * -1, payment_date=settlement_date, method=settlement_method,notes=f"[客户退款] {adj_description}", created_by_user_id=user_id)
+                elif adj_type in customer_decrease_types:
+                    new_record = PaymentRecord(customer_bill_id=bill.id, amount=abs(adj_amount)* -1, payment_date=settlement_date, method=settlement_method, notes=f"[客户退款]{adj_description}", created_by_user_id=user_id)
                     record_type = 'payment'
-                elif adj_type == AdjustmentType.EMPLOYEE_INCREASE:
-                    new_record = PayoutRecord(employee_payroll_id=payroll.id,amount=abs(adj_amount), payout_date=settlement_date, method=settlement_method,notes=record_notes, payer='公司', created_by_user_id=user_id)
+                elif adj_type in employee_increase_types:
+                    new_record = PayoutRecord(employee_payroll_id=payroll.id, amount=abs(adj_amount), payout_date=settlement_date, method=settlement_method, notes=record_notes, payer='公司', created_by_user_id=user_id)
                     record_type = 'payout'
-                elif adj_type == AdjustmentType.EMPLOYEE_DECREASE:
-                    new_record = PayoutRecord(employee_payroll_id=payroll.id,amount=abs(adj_amount) * -1, payout_date=settlement_date,method=settlement_method, notes=f"[员工缴款] {adj_description}",payer=employee_name, created_by_user_id=user_id)
-                    record_type = 'payout'
-                elif adj_type == AdjustmentType.EMPLOYEE_COMMISSION:
-                    new_record = PayoutRecord(employee_payroll_id=payroll.id, amount=abs(adj_amount), payout_date=settlement_date, method=settlement_method,notes=f"[首月返佣] {adj_description}", payer='公司', created_by_user_id=user_id)
+                elif adj_type in employee_decrease_types:
+                    payer_name = payroll.contract.user.username if payroll.contract.user else payroll.contract.service_personnel.name
+                    new_record = PayoutRecord(employee_payroll_id=payroll.id, amount=abs(adj_amount) * -1, payout_date=settlement_date, method=settlement_method, notes=f"[员工缴款]{adj_description}", payer=payer_name, created_by_user_id=user_id)
                     record_type = 'payout'
 
                 if new_record:
+                    # current_app.logger.info(f"[SETTLEMENT_DEBUG] new_record created. Type: {record_type}, Amount: {new_record.amount}")
                     db.session.add(new_record)
                     db.session.flush()
-                    existing_adj.details['linked_record'] = {'id': str(new_record.id), 'type': record_type}
+                    existing_adj.details['linked_record'] = {'id': str(new_record.id), 'type':record_type}
+
 
             # 状态变更2：从已结算 -> 未结算 (删除记录)
             elif not is_settled and existing_adj.is_settled:
@@ -2758,7 +2766,7 @@ def terminate_contract(contract_id):
         # 步骤 4: 手动计算管理费退款，并添加到最终账单
         if isinstance(contract, NannyContract):
             monthly_management_fee = contract.management_fee_amount if contract.management_fee_amount and contract.management_fee_amount > 0 else (D(contract.employee_level or '0') * D("0.1"))
-            if monthly_management_fee > 0 and termination_date < original_end_date:
+            if monthly_management_fee > 0 and (contract.is_monthly_auto_renew or termination_date < original_end_date):
                 daily_management_fee = (monthly_management_fee / D(30)).quantize(D("0.0001"))
                 management_refund_item = None
                 if not contract.is_monthly_auto_renew:
