@@ -4196,7 +4196,7 @@ def add_payout_record(payroll_id):
                 )
                 db.session.add(company_paid_adj)
                 _log_activity(customer_bill, payroll, "系统自动创建客户增款", details={
-                    "reason": "公司代付员工工资",
+                    "reason": "公司代付工资",
                     "amount": str(new_payout.amount),
                     "description": description
                 })

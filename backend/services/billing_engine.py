@@ -668,7 +668,7 @@ class BillingEngine:
             # 1. 基于“基础劳务费”计算正确的应付金额
             base_payout = D(details.get('employee_base_payout', '0'))
             employee_level = D(contract.employee_level or '0')
-            amount_to_set = min(base_payout, employee_level).quantize(D("1"))
+            amount_to_set = min(payroll.total_due, employee_level).quantize(D("1"))
 
             # 2. 只查找并更新由本系统创建的特定调整项
             existing_system_adj = FinancialAdjustment.query.filter_by(
@@ -2438,27 +2438,58 @@ class BillingEngine:
             bill, payroll = self._calculate_final_amounts(bill, payroll, details)
 
             # 新增：为试工失败合同添加“公司代付工资”
-            if payroll.total_due > 0:
-                existing_adj = FinancialAdjustment.query.filter_by(
-                    customer_bill_id=bill.id,
-                    adjustment_type=AdjustmentType.COMPANY_PAID_SALARY
+            # [V6] 为试工合同更新或创建“公司代付工资”项
+            # 1. 根据新需求计算金额: min(应发总额, 月薪)
+            total_payout = payroll.total_due
+            # 重新计算取整后的月薪
+            original_daily_rate = D(contract.employee_level or '0')
+            provisional_monthly_salary = original_daily_rate * 26
+            rounded_monthly_salary = D(round(provisional_monthly_salary, -2))
+            
+            amount_to_set = min(total_payout, rounded_monthly_salary).quantize(D("1"))
+            current_app.logger.info(f"[UPSERT_DEBUG-TRIAL] 应发总额: {total_payout}, 月薪: {rounded_monthly_salary}, 计算出的代付金额: {amount_to_set}")
+
+            # 2. 只查找并更新由本系统创建的特定调整项
+            existing_system_adj = FinancialAdjustment.query.filter_by(
+                customer_bill_id=bill.id,
+                adjustment_type=AdjustmentType.COMPANY_PAID_SALARY,
+                description="[系统] 公司代付工资"
+            ).first()
+
+            should_recalculate = False
+            if existing_system_adj:
+                # 如果系统创建的项已存在，且金额不匹配，则更新它
+                if existing_system_adj.amount != amount_to_set:
+                    current_app.logger.info(f"[UPSERT_DEBUG-TRIAL] 系统项已存在，更新金额: {existing_system_adj.amount} -> {amount_to_set}")
+                    existing_system_adj.amount = amount_to_set
+                    db.session.add(existing_system_adj)
+                    should_recalculate = True
+            else:
+                # 如果系统创建的项不存在，检查是否已有任何手动的“公司代付工资”项
+                any_other_salary_adj = FinancialAdjustment.query.filter(
+                    FinancialAdjustment.customer_bill_id == bill.id,
+                    FinancialAdjustment.adjustment_type == AdjustmentType.COMPANY_PAID_SALARY
                 ).first()
-                if not existing_adj:
-                    # 修正: 试工合同按实际应发总额代付，不设上限，仅取整
-                    amount_to_add = payroll.total_due.quantize(D("1"))
-                    
+
+                if not any_other_salary_adj and amount_to_set > 0:
+                    # 仅当任何同类型调整项都不存在时，才创建系统项
+                    current_app.logger.info(f"[UPSERT_DEBUG-TRIAL] 系统项和手动项均不存在，创建新的系统项，金额: {amount_to_set}")
                     db.session.add(FinancialAdjustment(
                         customer_bill_id=bill.id,
                         adjustment_type=AdjustmentType.COMPANY_PAID_SALARY,
-                        amount=amount_to_add,
-                        description="[系统] 公司代付员工工资",
+                        amount=amount_to_set,
+                        description="[系统] 公司代付工资", # <--- 使用正确描述
                         date=bill.cycle_end_date.date()
                     ))
-                    current_app.logger.info(f"为试工失败合同 {contract.id} 添加了 '公司代付工资' 项, 金额: {amount_to_add}")
-                    
-                    # 重新计算最终金额
-                    details = self._calculate_nanny_trial_termination_details(contract, actual_trial_days, bill, payroll)
-                    bill, payroll = self._calculate_final_amounts(bill, payroll, details)
+                    should_recalculate = True
+                else:
+                    current_app.logger.info("[UPSERT_DEBUG-TRIAL] 已存在手动代付工资项，系统不进行任何操作。")
+
+            # 3. 如果金额发生了更新或创建，则重新计算账单
+            if should_recalculate:
+                current_app.logger.info(f"[UPSERT_DEBUG-TRIAL] 因“公司代付工资”项变动，重新计算账单 {bill.id}")
+                details = self._calculate_nanny_trial_termination_details(contract, actual_trial_days, bill, payroll)
+                bill, payroll = self._calculate_final_amounts(bill, payroll, details)
 
             log = self._create_calculation_log(details)
             self._update_bill_with_log(bill, payroll, details, log)
