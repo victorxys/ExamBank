@@ -468,13 +468,27 @@ const BillingDashboard = () => {
         const billId = latestBillData?.customer_bill_details?.id;
 
         if (billId) {
+            // --- 核心修复：使用小写字符串进行比较 ---
+            const employeePayableAdjustments = latestBillData?.adjustments?.filter(
+                adj => (adj?.adjustment_type || '').toString().trim() === 'employee_decrease' ||
+                       (adj?.adjustment_type || '').toString().trim() === 'employee_commission'
+            ) || [];
+
+            const newEmployeePayableAmount = employeePayableAdjustments.reduce(
+                (sum, adj) => new Decimal(sum).plus(new Decimal(adj.amount || 0)),
+                new Decimal(0)
+            ).toString();
+
+            const newEmployeePayableIsSettled = employeePayableAdjustments.length > 0
+                ? employeePayableAdjustments.every(adj => adj.is_settled)
+                : true;
+
             setContracts(prevContracts =>
                 prevContracts.map(contractRow => {
                     if (contractRow.id === billId) {
-                        const customerStatus =latestBillData.customer_bill_details?.payment_status;
-                        const employeeStatus =latestBillData.employee_payroll_details?.payout_status;
+                        const customerStatus = latestBillData.customer_bill_details?.payment_status;
+                        const employeeStatus = latestBillData.employee_payroll_details?.payout_status;
 
-                        // --- 核心修正：增加状态标签的映射和更新 ---
                         const paymentStatusMap = {
                             'paid': '已支付',
                             'unpaid': '未支付',
@@ -486,20 +500,21 @@ const BillingDashboard = () => {
                             'unpaid': '未发放',
                             'partially_paid': '部分发放',
                         };
-                        // --- 修正结束 ---
 
-                    return {
-                        ...contractRow,
-                        customer_payable:latestBillData.customer_bill_details?.final_amount?.客应付款,
-                        customer_total_paid: customerStatus?.total_paid, // <--- 把这个值也更新了
-                        customer_is_paid:customerStatus?.status === 'paid',
-                        employee_payout: latestBillData.employee_payroll_details?.final_amount?.萌嫂应领款,
-                        employee_is_paid:employeeStatus?.status === 'paid',
-                        invoice_needed: latestBillData.invoice_needed,
-                        remaining_invoice_amount:latestBillData.invoice_balance?.remaining_un_invoiced,
-                        payment_status_label:paymentStatusMap[customerStatus?.status] || '未知',
-                        payout_status_label:payoutStatusMap[employeeStatus?.status] || '未知',
-                    };
+                        return {
+                            ...contractRow,
+                            customer_payable: latestBillData.customer_bill_details?.final_amount?.客应付款,
+                            customer_total_paid: customerStatus?.total_paid,
+                            customer_is_paid: customerStatus?.status === 'paid',
+                            employee_payout: latestBillData.employee_payroll_details?.final_amount?.萌嫂应领款,
+                            employee_is_paid: employeeStatus?.status === 'paid',
+                            invoice_needed: latestBillData.invoice_needed,
+                            remaining_invoice_amount: latestBillData.invoice_balance?.remaining_un_invoiced,
+                            payment_status_label: paymentStatusMap[customerStatus?.status] ||'未知',
+                            payout_status_label: payoutStatusMap[employeeStatus?.status] ||'未知',
+                            employee_payable_amount: newEmployeePayableAmount,
+                            employee_payable_is_settled: newEmployeePayableIsSettled,
+                        };
                     }
                     return contractRow;
                 })
