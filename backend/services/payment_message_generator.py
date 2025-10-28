@@ -24,7 +24,7 @@ ADJUSTMENT_TYPE_LABELS = {
     AdjustmentType.DEFERRED_FEE: "上期顺延费用",
     AdjustmentType.INTRODUCTION_FEE: "介绍费",
     AdjustmentType.DEPOSIT: "保证金",
-    AdjustmentType.COMPANY_PAID_SALARY: "公司代付工资"
+    AdjustmentType.COMPANY_PAID_SALARY: "保证金代付员工工资"
 }
 
 class PaymentMessageGenerator:
@@ -189,6 +189,15 @@ class PaymentMessageGenerator:
             if adj.amount == 0: continue
 
             if adj.adjustment_type in internal_adjustment_types:
+                continue
+
+            if adj.adjustment_type == AdjustmentType.DEPOSIT_PAID_SALARY:
+                item = {
+                    "name": "已由保证金支付工资",
+                    "description": f"-{abs(adj.amount):.2f}元"
+                }
+                employee_line_items.append(item)
+                employee_total -= adj.amount
                 continue
             
             item = {

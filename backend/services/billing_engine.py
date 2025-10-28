@@ -28,7 +28,7 @@ from backend.models import (
     BankTransactionStatus,
 )
 
-from sqlalchemy import func, or_
+from sqlalchemy import func, or_,and_
 from sqlalchemy.orm import attributes
 from sqlalchemy.exc import IntegrityError
 
@@ -430,35 +430,34 @@ class BillingEngine:
 
 
     def _calculate_nanny_trial_bill(self, contract, year, month, force_recalculate=False):
-        """
-        处理育儿嫂试工合同的重新计算请求 (v15 - UNIFIED LOGIC)。
+        """为育儿嫂试工合同计算账单和薪酬 (V2 - 纯计算)"""
+        current_app.logger.info(f"  [TrialCALC_V2] 开始处理试工合同 {contract.id} for {year}-{month}")
 
-        此函数是试工合同重新计算的唯一入口，作为一个“桥梁”将调用统一的结算函数。
-        初始账单生成也由 `process_trial_termination` 处理。
-        """
-        # 仅在强制重算时执行（即由用户编辑后触发）
-        if not force_recalculate:
+        # 1. 验证合同是否应在本月结算
+        if not (contract.end_date and contract.end_date.year == year and contract.end_date.month== month):
+            current_app.logger.info(f"    [TrialCALC_V2] 试工合同 {contract.id} 不在本月结算，跳过。")
             return
 
-        current_app.logger.info(f"[TrialRECALC] 开始为试工合同 {contract.id} 执行强制重算。")
+        cycle_start, cycle_end = contract.start_date, contract.end_date
 
-        # 试工合同只有一个账单，找到它
-        bill = CustomerBill.query.filter_by(contract_id=contract.id, is_substitute_bill=False).first()
+        bill, payroll = self._get_or_create_bill_and_payroll(contract, year, month, cycle_start,cycle_end)
 
-        if not bill:
-            current_app.logger.error(f"[TrialRECALC] 无法找到合同 {contract.id} 对应的试工账单进行重算。")
+        if not force_recalculate and bill.calculation_details and 'calculation_log' in bill.calculation_details:
+            current_app.logger.info(f"    [TrialCALC_V2] 合同 {contract.id} 的账单已存在且无需重算，跳过。")
             return
 
-        # 从现有账单的周期中反向推算出实际试工天数
-        # 注意：天数计算包含首尾，所以需要+1
-        actual_trial_days = (bill.cycle_end_date - bill.cycle_start_date).days
+        # 2. 核心计算逻辑
+        trial_days = (self._to_date(cycle_end) - self._to_date(cycle_start)).days
+        details = self._calculate_nanny_trial_termination_details(contract, trial_days, bill,payroll)
 
-        current_app.logger.info(f"[TrialRECALC] 从账单 {bill.id} 推算出实际试工天数: {actual_trial_days}")
+        # 3. 更新最终金额
+        bill, payroll = self._calculate_final_amounts(bill, payroll, details)
 
-        # 调用包含最终正确业务逻辑的主函数，进行重算
-        self.process_trial_termination(contract, actual_trial_days)
+        # 4. 创建并保存日志
+        log = self._create_calculation_log(details)
+        self._update_bill_with_log(bill, payroll, details, log)
 
-        current_app.logger.info(f"[TrialRECALC] 合同 {contract.id} 的重新计算已完成。")
+        current_app.logger.info(f"    [TrialCALC_V2] 计算完成 for contract {contract.id}")
 
     # 此函数没有被使用
     def _calculate_nanny_trial_details(self, contract, bill, payroll):
@@ -587,15 +586,10 @@ class BillingEngine:
         return refunds
 
     def _calculate_nanny_bill_for_month(
-        self, contract: NannyContract, year: int, month: int, force_recalculate=False, actual_work_days_override=None, end_date_override=None
+        self, contract: NannyContract, year: int, month: int, force_recalculate=False,actual_work_days_override=None, end_date_override=None
     ):
-        """育儿嫂计费逻辑的主入口。"""
-        # 调试日志 1: 检查传入的参数
+        """育儿嫂计费逻辑的主入口 (V20 - 简化为单次计算)。"""
         current_app.logger.debug(f"[DEBUG-ENGINE] _calculate_nanny_bill_for_month called with: end_date_override={end_date_override}, actual_work_days_override={actual_work_days_override}")
-
-        current_app.logger.info(
-            f"  [NannyCALC] 开始处理育儿嫂合同 {contract.id} for {year}-{month}"
-        )
 
         bill_to_recalculate = None
         if force_recalculate:
@@ -603,100 +597,33 @@ class BillingEngine:
                 contract_id=contract.id, year=year, month=month, is_substitute_bill=False
             ).first()
 
-        # --- 修正逻辑开始 ---
         if bill_to_recalculate:
             cycle_start = bill_to_recalculate.cycle_start_date
-            # 调试日志 2: 检查从数据库读取的原始周期结束日
-            current_app.logger.debug(f"[DEBUG-ENGINE] Found existing bill. Initial cycle_end from DB: {bill_to_recalculate.cycle_end_date}")
-
-            # 关键修正：如果 end_date_override 存在，它必须覆盖从数据库读出的旧日期
-            if end_date_override:
-                cycle_end = end_date_override
-                current_app.logger.debug(f"[DEBUG-ENGINE] end_date_override is present. Overriding cycle_end to: {cycle_end}")
-            else:
-                cycle_end = bill_to_recalculate.cycle_end_date
-
-            current_app.logger.info(f"    [NannyCALC] 强制重算，使用现有账单 {bill_to_recalculate.id} 的周期: {cycle_start} to {cycle_end}")
+            cycle_end = end_date_override or bill_to_recalculate.cycle_end_date
         else:
-            cycle_start, cycle_end = self._get_nanny_cycle_for_month(contract, year, month, end_date_override)
-        # --- 修正逻辑结束 ---
+            cycle_start, cycle_end = self._get_nanny_cycle_for_month(contract, year, month,end_date_override)
 
-        current_app.logger.info(f" cycle_start: {cycle_start}")
         if not cycle_start:
-            current_app.logger.info(
-                f"    [NannyCALC] 合同 {contract.id} 在 {year}-{month} 无需创建账单，跳过。"
-            )
+            current_app.logger.info(f"[NannyCALC] 合同 {contract.id} 在 {year}-{month} 无需创建账单，跳过。")
             return
 
-        # --- 新增逻辑：根据最终的周期，计算工作日覆盖值 ---
         local_actual_work_days_override = actual_work_days_override
         if end_date_override and local_actual_work_days_override is None:
-            start_date_obj, end_date_obj = self._to_date(cycle_start), self._to_date(cycle_end)
-            if start_date_obj and end_date_obj:
-                days = (end_date_obj - start_date_obj).days + 1
-                local_actual_work_days_override = days
-                # 调试日志 3: 检查新计算出的工作日
-                current_app.logger.debug(f"[DEBUG-ENGINE] Calculated actual_work_days_override: {local_actual_work_days_override} days")
-        # --- 新增逻辑结束 ---
+            days = (self._to_date(cycle_end) - self._to_date(cycle_start)).days + 1
+            local_actual_work_days_override = days
+        
+        bill, payroll = self._get_or_create_bill_and_payroll(contract, year, month, cycle_start, cycle_end)
 
-        bill, payroll = self._get_or_create_bill_and_payroll(
-            contract, year, month, cycle_start, cycle_end
-        )
-
-        if (not force_recalculate and bill.calculation_details and "calculation_log" in bill.calculation_details):
-            current_app.logger.info(f"    [NannyCALC] 合同 {contract.id} 的账单已存在且无需重算，跳过。")
+        if not force_recalculate and bill.calculation_details and "calculation_log" in bill.calculation_details:
+            current_app.logger.info(f"[NannyCALC] 合同 {contract.id} 的账单已存在且无需重算，跳过。")
             return
 
-        current_app.logger.info(f"    [NannyCALC] 为合同 {contract.id} 执行计算 (周期: {cycle_start} to {cycle_end})")
-        # 调试日志 4: 检查最终传入计算函数的参数
-        current_app.logger.debug(f"[DEBUG-ENGINE] Before details calculation: cycle_start={cycle_start}, cycle_end={cycle_end}, actual_work_days_override={local_actual_work_days_override}")
-
-        # 使用我们新计算的 local_actual_work_days_override
+        # --- 简化为单次计算 ---
         details = self._calculate_nanny_details(contract, bill, payroll, local_actual_work_days_override)
-        bill, payroll = self._calculate_final_amounts(bill, payroll, details)
-
-
-        # [V5] 恢复并增强对“公司代付工资”项的金额更新逻辑
-        # 确定合同的权威结束日期：优先使用终止日期，其次是API覆盖日期，最后是合同自带的结束日期。
-        authoritative_end_date = self._to_date(contract.termination_date or end_date_override or contract.end_date)
-        cycle_end_date = self._to_date(cycle_end)
-
-        # 如果账单周期的结束年月与合同的权威结束年月相同，则视为最后一个月。
-        is_final_month = authoritative_end_date and cycle_end_date and cycle_end_date.year == authoritative_end_date.year and cycle_end_date.month == authoritative_end_date.month
-
-        if is_final_month:
-            # 1. 基于“基础劳务费”计算正确的应付金额
-            base_payout = D(details.get('employee_base_payout', '0'))
-            employee_level = D(contract.employee_level or '0')
-            amount_to_set = min(payroll.total_due, employee_level).quantize(D("1"))
-
-            # 2. 只查找并更新由本系统创建的特定调整项
-            existing_system_adj = FinancialAdjustment.query.filter_by(
-                customer_bill_id=bill.id,
-                adjustment_type=AdjustmentType.COMPANY_PAID_SALARY,
-                description="[系统] 公司代付工资"
-            ).first()
-
-            should_recalculate = False
-            if existing_system_adj:
-                # 如果系统创建的项已存在，且金额不匹配，则更新它
-                if existing_system_adj.amount != amount_to_set:
-                    current_app.logger.info(f"[UPSERT_DEBUG] 系统项已存在，更新金额: {existing_system_adj.amount} -> {amount_to_set}")
-                    existing_system_adj.amount = amount_to_set
-                    db.session.add(existing_system_adj)
-                    should_recalculate = True
-            # 注意：此处没有 'else' 分支来创建新项，从而解决了重复创建的问题。
-
-            # 3. 如果金额发生了更新，则重新计算账单
-            if should_recalculate:
-                current_app.logger.info(f"[UPSERT_DEBUG] 因“公司代付工资”项金额变动，重新计算账单 {bill.id}")
-                details = self._calculate_nanny_details(contract, bill, payroll, local_actual_work_days_override)
-                bill, payroll = self._calculate_final_amounts(bill, payroll, details)
-
-        current_app.logger.info(f"    [NannyCALC] 计算育儿嫂合同应收金额 {contract.id} 的账单总应收金额: {bill.total_due}")
+        final_bill, final_payroll = self._calculate_final_amounts(bill, payroll, details)
         log = self._create_calculation_log(details)
-        self._update_bill_with_log(bill, payroll, details, log)
-        current_app.logger.info(f"    [NannyCALC] 计算完成 for contract {contract.id}")
+        self._update_bill_with_log(final_bill, final_payroll, details, log)
+        current_app.logger.info(f"[NannyCALC] 计算完成 for contract {contract.id}")
 
     def _get_nanny_cycle_for_month(self, contract, year, month, end_date_override=None):
         """计算指定育儿嫂合同在目标年月的服务周期。"""
@@ -1100,7 +1027,7 @@ class BillingEngine:
         is_first_bill_of_contract = cycle_start == contract_start_date
         current_app.logger.info("开始检查首月10%返佣逻辑")
 
-        if is_first_bill_of_contract:
+        if is_first_bill_of_contract and not (isinstance(contract, NannyTrialContract) and contract.trial_outcome == TrialOutcome.SUCCESS):
             current_app.logger.info(f"合同 {contract.id} 进入首月佣金检查逻辑。")
             customer_name = contract.customer_name
             employee_id = contract.user_id or contract.service_personnel_id
@@ -1502,6 +1429,9 @@ class BillingEngine:
 
     def _handle_security_deposit(self, contract, bill):
         """(最终版) 处理保证金的收退逻辑，采用“更新或创建”模式。"""
+        # 规则：试工合同没有任何保证金逻辑
+        if isinstance(contract, NannyTrialContract):
+            return
         current_app.logger.info(f"--- [DEPOSIT-HANDLER-V2] START for Bill ID: {bill.id} ---")
 
         if not contract.security_deposit_paid or contract.security_deposit_paid<= 0:
@@ -1691,6 +1621,8 @@ class BillingEngine:
                 # Update the adjustment with the payroll total
                 adjustment.amount = payroll.total_due
                 db.session.flush()
+                # (V18) 同步镜像调整项
+                self._mirror_company_paid_salary_adjustment(adjustment, payroll)
 
         # Recalculate with the correct adjustment amount
         details = self._calculate_substitute_details(sub_record, main_contract, bill, payroll, overrides)
@@ -2106,11 +2038,10 @@ class BillingEngine:
             for adj in employee_adjustments
             if adj.adjustment_type in [
                 AdjustmentType.EMPLOYEE_INCREASE,
-                AdjustmentType.EMPLOYEE_CLIENT_PAYMENT, # <-- 把“客户支付给员工的费用”也算作增款,一般是从试工合同中转过来的试工劳务费
-                AdjustmentType.EMPLOYEE_COMMISSION_OFFSET, # <-- 把“佣金冲账”也算作增款
+                AdjustmentType.EMPLOYEE_CLIENT_PAYMENT,
+                AdjustmentType.EMPLOYEE_COMMISSION_OFFSET,
             ]
         )
-        # --- 这是修改点：分别计算 DECREASE 和 COMMISSION ---
         emp_decrease = sum(
             adj.amount
             for adj in employee_adjustments
@@ -2121,11 +2052,8 @@ class BillingEngine:
             for adj in employee_adjustments
             if adj.adjustment_type == AdjustmentType.EMPLOYEE_COMMISSION
         )
-        # --- 修改结束 ---
 
-                # --- 修改返回值，增加 emp_commission ---
-
-        return cust_increase, cust_decrease, emp_increase, emp_decrease, deferred_fee, emp_commission
+        return cust_increase, cust_decrease, emp_increase, emp_decrease, deferred_fee,emp_commission
 
     def _calculate_final_amounts(self, bill, payroll, details):
         current_app.logger.info("开始进行final calculation of amounts.")
@@ -2463,6 +2391,8 @@ class BillingEngine:
                     current_app.logger.info(f"[UPSERT_DEBUG-TRIAL] 系统项已存在，更新金额: {existing_system_adj.amount} -> {amount_to_set}")
                     existing_system_adj.amount = amount_to_set
                     db.session.add(existing_system_adj)
+                    # (V18) 同步镜像调整项
+                    # _mirror_company_paid_salary_adjustment(existing_system_adj, payroll)
                     should_recalculate = True
             else:
                 # 如果系统创建的项不存在，检查是否已有任何手动的“公司代付工资”项
@@ -2474,13 +2404,16 @@ class BillingEngine:
                 if not any_other_salary_adj and amount_to_set > 0:
                     # 仅当任何同类型调整项都不存在时，才创建系统项
                     current_app.logger.info(f"[UPSERT_DEBUG-TRIAL] 系统项和手动项均不存在，创建新的系统项，金额: {amount_to_set}")
-                    db.session.add(FinancialAdjustment(
+                    new_adj = FinancialAdjustment(
                         customer_bill_id=bill.id,
                         adjustment_type=AdjustmentType.COMPANY_PAID_SALARY,
                         amount=amount_to_set,
                         description="[系统] 公司代付工资", # <--- 使用正确描述
                         date=bill.cycle_end_date.date()
-                    ))
+                    )
+                    db.session.add(new_adj)
+                    # (V18) 同步镜像调整项
+                    # _mirror_company_paid_salary_adjustment(new_adj, payroll)
                     should_recalculate = True
                 else:
                     current_app.logger.info("[UPSERT_DEBUG-TRIAL] 已存在手动代付工资项，系统不进行任何操作。")
@@ -2682,11 +2615,127 @@ class BillingEngine:
         current_app.logger.info(
             f"[RecalcByBill] 合同 {contract.id} 的所有账单已重算完毕。"
         )
+
+    def create_final_salary_adjustments(self, bill_id: str):
+        """
+        为给定的最后一个月账单创建“公司代付工资”及其镜像调整项。
+        此函数是幂等的：如果调整项已存在，它会检查并更新金额；如果不存在，则创建。
+        """
+        bill = db.session.get(CustomerBill, bill_id)
+        if not bill:
+            current_app.logger.error(f"[FinalAdj] 找不到账单ID: {bill_id}")
+            return
+
+        contract = bill.contract
+        payroll = EmployeePayroll.query.filter_by(
+            contract_id=contract.id,
+            cycle_start_date=bill.cycle_start_date,
+            is_substitute_payroll=bill.is_substitute_bill
+        ).first()
+
+        if not payroll:
+            current_app.logger.error(f"[FinalAdj] 找不到与账单 {bill_id} 关联的薪酬单。")
+            return
+
+        # 1. 使用 payroll.total_due 作为干净的应发总额
+        #    因为调用此函数前，calculate_for_month 已经运行过，且不再包含最终调整项逻辑。
+        gross_pay = payroll.total_due
+
+        # 2. 计算应设置的金额
+        amount_to_set = D('0')
+        if contract.type == 'nanny_trial':
+            # 试工合同：按实际应发总额，不设上限
+            amount_to_set = gross_pay.quantize(D("1"))
+        else:
+            # 其他合同（育儿嫂等）：金额不能超过员工级别
+            employee_level = D(contract.employee_level or '0')
+            amount_to_set = min(gross_pay, employee_level).quantize(D("1"))
+
+        # 3. 创建或更新主调整项和镜像调整项
+        existing_adj = FinancialAdjustment.query.filter_by(
+            customer_bill_id=bill.id,
+            adjustment_type=AdjustmentType.COMPANY_PAID_SALARY,
+            description="[系统] 公司代付工资"
+        ).first()
+
+        if amount_to_set <= 0:
+            current_app.logger.info(f"[FinalAdj] 计算出的代付金额为0或更少，为账单 {bill_id} 清理可能存在的旧调整项。")
+            if existing_adj:
+                if existing_adj.mirrored_adjustment:
+                    db.session.delete(existing_adj.mirrored_adjustment)
+                db.session.delete(existing_adj)
+        else:
+            if existing_adj:
+                if existing_adj.amount != amount_to_set:
+                    current_app.logger.info(f"[FinalAdj] 更新公司代付工资 for bill {bill.id}: {existing_adj.amount} -> {amount_to_set}")
+                    existing_adj.amount = amount_to_set
+                    db.session.add(existing_adj)
+                    self._mirror_company_paid_salary_adjustment(existing_adj, payroll)
+            else:
+                current_app.logger.info(f"[FinalAdj] 创建新的公司代付工资 for bill {bill.id}: {amount_to_set}")
+                new_adj = FinancialAdjustment(
+                    customer_bill_id=bill.id,
+                    adjustment_type=AdjustmentType.COMPANY_PAID_SALARY,
+                    amount=amount_to_set,
+                    description="[系统] 公司代付工资",
+                    date=bill.cycle_end_date
+                )
+                db.session.add(new_adj)
+                self._mirror_company_paid_salary_adjustment(new_adj, payroll)
+
+        # 4. 触发一次重算来更新总额
+        current_app.logger.info(f"[FinalAdj] 调整项已创建/更新/清理，为账单 {bill.id} 触发最终重算。")
+        self.calculate_for_month(
+            year=bill.year,
+            month=bill.month,
+            contract_id=contract.id,
+            force_recalculate=True,
+            cycle_start_date_override=bill.cycle_start_date
+        )
+
+    def _mirror_company_paid_salary_adjustment(self, company_adj: FinancialAdjustment, payroll:EmployeePayroll):
+        """
+        (V18) 创建或更新'公司代付工资'的镜像调整项'保证金支付工资'。
+        确保两条记录互相关联，且金额相反。
+        """
+        if not company_adj or not payroll:
+            return
+
+        if isinstance(payroll.contract, NannyTrialContract):
+            current_app.logger.info(f"[MIRROR_ADJ] 合同 {payroll.contract.id} 是试工合同，跳过创建镜像调整项。")
+            return
+
+        mirrored_adj = company_adj.mirrored_adjustment
+        new_amount = company_adj.amount
+
+        if mirrored_adj:
+            if mirrored_adj.amount != new_amount:
+                current_app.logger.info(f"[MIRROR_ADJ] Updating mirrored adjustment {mirrored_adj.id} amount from {mirrored_adj.amount} to {new_amount}")
+                mirrored_adj.amount = new_amount
+                db.session.add(mirrored_adj)
+        else:
+            current_app.logger.info(f"[MIRROR_ADJ] Creating new mirrored adjustment for company adjustment {company_adj.id}")
+            new_adj = FinancialAdjustment(
+                employee_payroll_id=payroll.id,
+                adjustment_type=AdjustmentType.DEPOSIT_PAID_SALARY,
+                amount=new_amount,
+                description="[系统] 保证金支付工资",
+                date=company_adj.date,
+                mirrored_adjustment_id=company_adj.id
+            )
+            db.session.add(new_adj)
+            db.session.flush()
+            company_adj.mirrored_adjustment_id = new_adj.id
+            db.session.add(company_adj)
     
-    def process_trial_conversion(self, trial_contract_id: str, formal_contract_id: str, operator_id: str, conversion_costs: dict = None):
+    def process_trial_conversion(self, trial_contract_id: str, formal_contract_id: str,operator_id: str, conversion_costs: dict = None):
         """
-        V12: 处理试工转正，允许从前端覆盖计算出的费用。
+        V22 (最终修复版): 处理试工转正。
+        1. 为成功的试工合同创建并结算其自身的账单。
+        2. 在试工账单上冲销与正式合同重叠的费用。
+        3. 将非重叠费用结转至正式合同，并将试工账单清零。
         """
+        current_app.logger.info(f"--- [TRIAL_CONVERT_START] 试工合同 {trial_contract_id} -> 正式合同 {formal_contract_id} ---")
         trial_contract = db.session.get(NannyTrialContract, trial_contract_id)
         if not trial_contract:
             raise ValueError(f"试工合同 {trial_contract_id} 未找到。")
@@ -2698,32 +2747,50 @@ class BillingEngine:
         if trial_contract.trial_outcome != TrialOutcome.PENDING:
             raise ValueError("该试工合同已被处理，无法再次转换。")
 
-        # 1. 更新合同状态
+        # 步骤 1: 更新合同状态
         trial_contract.trial_outcome = TrialOutcome.SUCCESS
         trial_contract.status = 'finished'
         formal_contract.source_trial_contract_id = trial_contract.id
+        current_app.logger.info(f"[TRIAL_CONVERT_LOG] 1. 合同状态已更新。")
 
-        # 2. 准备基础数据和账单
-        first_bill = CustomerBill.query.filter_by(contract_id=formal_contract.id, is_substitute_bill=False).order_by(CustomerBill.cycle_start_date.asc()).first()
-        first_payroll = EmployeePayroll.query.filter_by(contract_id=formal_contract.id, is_substitute_payroll=False).order_by(EmployeePayroll.cycle_start_date.asc()).first()
+        # 步骤 2: 为成功的试工合同创建并结算其自身的账单
+        trial_days = (self._to_date(trial_contract.end_date) - self._to_date(trial_contract.start_date)).days + 1
+        term_date = self._to_date(trial_contract.end_date)
+
+        trial_bill, trial_payroll = self._get_or_create_bill_and_payroll(
+            trial_contract, term_date.year, term_date.month, trial_contract.start_date,term_date
+        )
+
+        details = self._calculate_nanny_trial_termination_details(trial_contract, trial_days,trial_bill, trial_payroll)
+        self._calculate_final_amounts(trial_bill, trial_payroll, details)
+        log = self._create_calculation_log(details)
+        self._update_bill_with_log(trial_bill, trial_payroll, details, log)
+        db.session.commit()
+        current_app.logger.info(f"[TRIAL_CONVERT_LOG] 2. 试工账单创建并初次结算完成。")
+        current_app.logger.info(f"   -> 初始客户应付 (trial_bill.total_due): {trial_bill.total_due}")
+        current_app.logger.info(f"   -> 初始员工应发 (trial_payroll.total_due): {trial_payroll.total_due}")
+
+        # 步骤 3: 准备正式合同的账单
+        first_bill = CustomerBill.query.filter_by(contract_id=formal_contract.id,is_substitute_bill=False).order_by(CustomerBill.cycle_start_date.asc()).first()
+        first_payroll = EmployeePayroll.query.filter_by(contract_id=formal_contract.id,is_substitute_payroll=False).order_by(EmployeePayroll.cycle_start_date.asc()).first()
 
         if not first_bill or not first_payroll:
             self.generate_all_bills_for_contract(formal_contract.id)
-            first_bill = CustomerBill.query.filter_by(contract_id=formal_contract.id, is_substitute_bill=False).order_by(CustomerBill.cycle_start_date.asc()).first()
-            first_payroll = EmployeePayroll.query.filter_by(contract_id=formal_contract.id, is_substitute_payroll=False).order_by(EmployeePayroll.cycle_start_date.asc()).first()
+            first_bill = CustomerBill.query.filter_by(contract_id=formal_contract.id,is_substitute_bill=False).order_by(CustomerBill.cycle_start_date.asc()).first()
+            first_payroll = EmployeePayroll.query.filter_by(contract_id=formal_contract.id,is_substitute_payroll=False).order_by(EmployeePayroll.cycle_start_date.asc()).first()
             if not first_bill or not first_payroll:
                 raise Exception(f"无法为正式合同 {formal_contract.id} 找到或创建第一个账单/薪酬单。")
 
+        # 步骤 4: 计算重叠与非重叠天数
         trial_start = self._to_date(trial_contract.start_date)
         trial_end = self._to_date(trial_contract.end_date)
         formal_start = self._to_date(formal_contract.start_date)
-        
-        # 3. 计算日期重叠和非重叠部分
+
         non_overlap_days = 0
         if formal_start > trial_start:
             non_overlap_end = min(trial_end, formal_start - timedelta(days=1))
             if non_overlap_end >= trial_start:
-                non_overlap_days = (non_overlap_end - trial_start).days
+                non_overlap_days = (non_overlap_end - trial_start).days + 1
 
         overlap_days = 0
         if formal_start <= trial_end:
@@ -2731,95 +2798,101 @@ class BillingEngine:
             overlap_end = trial_end
             if overlap_end >= overlap_start:
                 overlap_days = (overlap_end - overlap_start).days
-        
+
         non_overlap_days = max(0, non_overlap_days)
         overlap_days = max(0, overlap_days)
+        current_app.logger.info(f"[TRIAL_CONVERT_LOG] 4. 重叠天数: {overlap_days}, 非重叠天数: {non_overlap_days}")
 
-        # 4. 处理非重叠部分的工资转移 (只影响员工薪酬单)
-        if non_overlap_days > 0:
-            trial_daily_rate = D(trial_contract.employee_level or '0')
-            transfer_amount = (trial_daily_rate * D(non_overlap_days)).quantize(D("0.01"))
-            if transfer_amount > 0:
-                db.session.add(FinancialAdjustment(
-                    employee_payroll_id=first_payroll.id,
-                    adjustment_type=AdjustmentType.EMPLOYEE_CLIENT_PAYMENT,
-                    amount=transfer_amount,
-                    description=f"[客户直付] 试工劳务费 (非重叠期 {non_overlap_days} 天)",
-                    date=first_payroll.cycle_start_date,
-                    details={"source_trial_contract_id": str(trial_contract.id)}
-                ))
-
-        # 5. 处理重叠部分的工资和管理费差额
+        # 步骤 5: 在【试工账单】上冲销【重叠期】的费用
         if overlap_days > 0:
-            if conversion_costs:
-                # 如果前端提供了费用，直接使用
-                salary_diff = D(conversion_costs.get('overlap_salary_adjustment', {}).get('amount', '0'))
-                management_fee_diff = D(conversion_costs.get('management_fee_adjustment', {}).get('amount', '0'))
-            else:
-                # 否则，在后端重新计算
-                trial_daily_rate = D(trial_contract.employee_level or '0')
-                formal_daily_rate = D(formal_contract.employee_level or '0') / D(26)
-                salary_diff = (formal_daily_rate - trial_daily_rate) * D(overlap_days)
-                salary_diff = salary_diff.quantize(D("0.01"))
+            trial_daily_rate = D(trial_contract.employee_level or '0')
+            overlap_salary = (trial_daily_rate * D(overlap_days)).quantize(D("0.01"))
 
-                formal_monthly_fee = D(formal_contract.management_fee_amount or '0')
-                if formal_monthly_fee <= 0:
-                    formal_monthly_fee = (D(formal_contract.employee_level or '0') * D('0.1')).quantize(D("0.01"))
-                
-                formal_daily_mgmt_fee = formal_monthly_fee / D(30)
-                fee_charged_for_overlap = (formal_daily_mgmt_fee * D(overlap_days)).quantize(D("0.01"))
+            trial_monthly_rate = trial_daily_rate * 26
+            overlap_mgmt_fee = (trial_monthly_rate * D('0.2') / 30 *D(overlap_days)).quantize(D("0.01"))
+            current_app.logger.info(f"[TRIAL_CONVERT_LOG] 5. 计算出重叠期冲抵金额: 工资={overlap_salary}, 管理费={overlap_mgmt_fee}")
 
-                fee_should_have_been = D(0)
-                has_intro_fee = (trial_contract.introduction_fee or 0) > 0
-                notes_has_mgmt_fee = "管理费" in (trial_contract.notes or "")
-                if not (has_intro_fee and not notes_has_mgmt_fee):
-                    trial_level = D(trial_contract.employee_level or '0')
-                    fee_should_have_been = (trial_level * D('0.2') / D(30) * D(overlap_days)).quantize(D("0.01"))
-
-                management_fee_diff = fee_charged_for_overlap - fee_should_have_been
-
-            # a. 工资差额调整 (仅员工侧)
-            if salary_diff != 0:
-                description = (
-                    f"[系统] 试工转正薪资差异调整 (重叠期 {overlap_days} 天)"
-                )
+            if overlap_salary > 0:
                 db.session.add(FinancialAdjustment(
-                    employee_payroll_id=first_payroll.id,
-                    adjustment_type=AdjustmentType.EMPLOYEE_DECREASE if salary_diff > 0 else AdjustmentType.EMPLOYEE_INCREASE,
-                    amount=abs(salary_diff),
-                    description=description,
-                    date=first_payroll.cycle_start_date,
-                    details={"source_trial_contract_id": str(trial_contract.id)}
+                    employee_payroll_id=trial_payroll.id,
+                    adjustment_type=AdjustmentType.EMPLOYEE_DECREASE,
+                    amount=overlap_salary,
+                    description=f"[系统] 转正冲抵重叠期工资 ({overlap_days}天)",
+                    date=trial_bill.cycle_end_date
+                ))
+            if overlap_mgmt_fee > 0:
+                db.session.add(FinancialAdjustment(
+                    customer_bill_id=trial_bill.id,
+                    adjustment_type=AdjustmentType.CUSTOMER_DECREASE,
+                    amount=overlap_mgmt_fee,
+                    description=f"[系统] 转正冲抵重叠期管理费 ({overlap_days}天)",
+                    date=trial_bill.cycle_end_date
                 ))
 
-            # b. 管理费差额调整 (仅客户侧)
-            if management_fee_diff != 0:
-                description = (
-                    f"[系统] 试工转正管理费差异调整 (重叠期 {overlap_days} 天)"
-                )
-                db.session.add(FinancialAdjustment(
-                    customer_bill_id=first_bill.id,
-                    adjustment_type=AdjustmentType.CUSTOMER_DECREASE if management_fee_diff > 0 else AdjustmentType.CUSTOMER_INCREASE,
-                    amount=abs(management_fee_diff),
-                    description=description,
-                    date=first_bill.cycle_start_date,
-                    details={"source_trial_contract_id": str(trial_contract.id)}
-                ))
+        # 步骤 6: 重新计算试工账单，以确定非重叠部分的准确余额
+        current_app.logger.info(f"[TRIAL_CONVERT_LOG] 6. 准备对试工账单进行中期重算...")
+        self.calculate_for_month(year=trial_bill.year, month=trial_bill.month,contract_id=trial_contract.id, force_recalculate=True)
+        db.session.commit()
+        db.session.refresh(trial_bill)
+        db.session.refresh(trial_payroll)
+        current_app.logger.info(f"   -> 中期重算后客户应付 (trial_bill.total_due): {trial_bill.total_due}")
+        current_app.logger.info(f"   -> 中期重算后员工应发 (trial_payroll.total_due): {trial_payroll.total_due}")
 
-        # 6. 处理介绍费 (逻辑不变)
+        # 步骤 7: 将【非重叠期】的费用（即试工账单的当前余额）转移到【正式合同】
+        non_overlap_salary = trial_payroll.total_due
+        non_overlap_mgmt_fee = trial_bill.total_due
+        current_app.logger.info(f"[TRIAL_CONVERT_LOG] 7. 计算出非重叠期余额并准备转移: 工资={non_overlap_salary}, 管理费={non_overlap_mgmt_fee}")
+
+        if non_overlap_salary > 0:
+            db.session.add(FinancialAdjustment(
+                employee_payroll_id=first_payroll.id,
+                adjustment_type=AdjustmentType.EMPLOYEE_CLIENT_PAYMENT,
+                amount=non_overlap_salary,
+                description=f"[客户直付] 试工劳务费 (非重叠期 {non_overlap_days} 天)",
+                date=first_payroll.cycle_start_date,
+                details={"source_trial_contract_id": str(trial_contract.id)}
+            ))
+            db.session.add(FinancialAdjustment(
+                employee_payroll_id=trial_payroll.id,
+                adjustment_type=AdjustmentType.EMPLOYEE_DECREASE,
+                amount=non_overlap_salary,
+                description=f"[系统] 试工成功,非重叠{non_overlap_days}天工资转至正式合同",
+                date=trial_bill.cycle_end_date
+            ))
+
+        if non_overlap_mgmt_fee > 0:
+            db.session.add(FinancialAdjustment(
+                customer_bill_id=first_bill.id,
+                adjustment_type=AdjustmentType.CUSTOMER_INCREASE,
+                amount=non_overlap_mgmt_fee,
+                description=f"[系统] 从试工合同转入非重叠期管理费 ({non_overlap_days}天)",
+                date=first_bill.cycle_start_date,
+                details={"source_trial_contract_id": str(trial_contract.id)}
+            ))
+            db.session.add(FinancialAdjustment(
+                customer_bill_id=trial_bill.id,
+                adjustment_type=AdjustmentType.CUSTOMER_DECREASE,
+                amount=non_overlap_mgmt_fee,
+                description=f"[系统] 试工成功,非重叠{non_overlap_days}天管理费转至正式合同",
+                date=trial_bill.cycle_end_date
+            ))
+
+        # 步骤 8: 处理【介绍费】
         introduction_fee = D(trial_contract.introduction_fee or '0')
         if introduction_fee > 0:
-            intro_fee_adj = FinancialAdjustment(customer_bill_id=first_bill.id,adjustment_type=AdjustmentType.INTRODUCTION_FEE, amount=introduction_fee, description="[系统] 来自试工合同的介绍费 (已结清)", date=first_bill.cycle_start_date, is_settled=True,settlement_date=trial_contract.start_date, details={"source_trial_contract_id": str(trial_contract.id)})
+            current_app.logger.info(f"[TRIAL_CONVERT_LOG] 8. 处理介绍费: {introduction_fee}")
+            intro_fee_adj = FinancialAdjustment(customer_bill_id=first_bill.id,adjustment_type=AdjustmentType.INTRODUCTION_FEE, amount=introduction_fee, description=f"[系统]来自试工合同的介绍费 (已结清)", date=first_bill.cycle_start_date, is_settled=True,settlement_date=trial_contract.start_date, details={"source_trial_contract_id": str(trial_contract.id)})
             db.session.add(intro_fee_adj)
-            payment_for_intro_fee = PaymentRecord(customer_bill_id=first_bill.id,amount=introduction_fee, payment_date=trial_contract.start_date, method='TRIAL_FEE_TRANSFER',notes="[系统] 试工合同 介绍费转入", created_by_user_id=operator_id)
+            payment_for_intro_fee = PaymentRecord(customer_bill_id=first_bill.id,amount=introduction_fee, payment_date=trial_contract.start_date, method='TRIAL_FEE_TRANSFER',notes=f"[系统] 试工合同 介绍费转入", created_by_user_id=operator_id)
             db.session.add(payment_for_intro_fee)
 
-        # 7. 提交并重算
+        # 步骤 9: 最终重算，并提交
+        current_app.logger.info(f"[TRIAL_CONVERT_LOG] 9. 准备对两个关联合同的账单进行最终重算。")
         db.session.commit()
-        self.calculate_for_month(year=first_bill.year,month=first_bill.month,contract_id=formal_contract.id, force_recalculate=True,cycle_start_date_override=first_bill.cycle_start_date)
-        db.session.refresh(first_bill)
-        _update_bill_payment_status(first_bill)
+        self.calculate_for_month(year=trial_bill.year, month=trial_bill.month,contract_id=trial_contract.id, force_recalculate=True)
+        self.calculate_for_month(year=first_bill.year, month=first_bill.month,contract_id=formal_contract.id, force_recalculate=True)
         db.session.commit()
+        current_app.logger.info(f"--- [TRIAL_CONVERT_END] 流程结束。 ---")
 
     def delete_payment_record_and_reverse_allocation(payment_id):
         """

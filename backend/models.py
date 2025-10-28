@@ -1979,14 +1979,15 @@ class AdjustmentType(enum.Enum):
     CUSTOMER_DISCOUNT = "customer_discount"  # 客户优惠
     EMPLOYEE_INCREASE = "employee_increase"  # 员工增款 (付款)
     EMPLOYEE_DECREASE = "employee_decrease"  # 员工减款 (收款, 如交宿舍费)
-    EMPLOYEE_CLIENT_PAYMENT = "employee_client_payment" # 【新增】客户直付给员工（公司账目核销）
-    EMPLOYEE_COMMISSION = "employee_commission" # 员工佣金/返点 (员工应缴）
-    EMPLOYEE_COMMISSION_OFFSET = "employee_commission_offset"   # 冲抵 转移后员工返佣
+    EMPLOYEE_CLIENT_PAYMENT = "employee_client_payment"  # 客户直付给员工（公司账目核销）
+    EMPLOYEE_COMMISSION = "employee_commission"  # 员工佣金/返点 (员工应缴）
+    EMPLOYEE_COMMISSION_OFFSET = "employee_commission_offset"  # 冲抵 转移后员工返佣
     DEFERRED_FEE = "deferred_fee"  # 顺延费用
-    INTRODUCTION_FEE = "introduction_fee" # 介绍费
-    DEPOSIT = "deposit" # 定金
-    COMPANY_PAID_SALARY = "company_paid_salary" # 公司代付工资
-    SUBSTITUTE_MANAGEMENT_FEE = "substitute_management_fee" # 替班管理费
+    INTRODUCTION_FEE = "introduction_fee"  # 介绍费
+    DEPOSIT = "deposit"  # 定金
+    COMPANY_PAID_SALARY = "company_paid_salary"  # 公司代付工资
+    SUBSTITUTE_MANAGEMENT_FEE = "substitute_management_fee"  # 替班管理费
+    DEPOSIT_PAID_SALARY = "deposit_paid_salary"  # 保证金支付工资
 
 
 class CompanyBankAccount(db.Model):
@@ -2199,6 +2200,22 @@ class FinancialAdjustment(db.Model):
     )
     details = db.Column(PG_JSONB, nullable=True, comment="用于存储保证金转移等额外信息的JSON字段")
     created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
+
+    mirrored_adjustment_id = db.Column(
+        PG_UUID(as_uuid=True),
+        db.ForeignKey("financial_adjustments.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+        comment="关联的镜像财务调整项ID"
+    )
+
+    mirrored_adjustment = db.relationship(
+        'FinancialAdjustment',
+        remote_side=[id],
+        backref=db.backref('mirror_of', uselist=False),
+        uselist=False,
+        post_update=True
+    )
 
     # --- 新增字段 ---
     is_settled = db.Column(
