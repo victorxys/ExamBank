@@ -1,5 +1,5 @@
 # backend/api/financial_adjustment_api.py
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 from sqlalchemy.exc import IntegrityError
 from ..models import db, FinancialAdjustment, AdjustmentType
 
@@ -122,20 +122,26 @@ def update_financial_adjustment(adjustment_id):
 @financial_adjustment_api.route('/financial-adjustments/<uuid:adjustment_id>', methods=['DELETE'])
 def delete_financial_adjustment(adjustment_id):
     """
-    删除一条财务调整记录.
-    (警告: 应有严格的权限控制, 此处为基本实现).
+    删除一条财务调整记录, 并确保其镜像关联项也被原子性地删除。
     """
     adjustment = FinancialAdjustment.query.get_or_404(adjustment_id)
-    
-    # 在此可以加入业务逻辑，例如：只允许删除手动创建且未关联核心业务的记录
-    # if adjustment.customer_bill_id or adjustment.employee_payroll_id:
-    #     return jsonify({"error": "Cannot delete adjustments linked to bills or payrolls"}), 403
 
-    db.session.delete(adjustment)
     try:
+        # 检查并删除它所镜像的原始调整项
+        if adjustment.mirror_of:
+            db.session.delete(adjustment.mirror_of)
+
+        # 检查并删除它的镜像调整项
+        if adjustment.mirrored_adjustment:
+            db.session.delete(adjustment.mirrored_adjustment)
+
+        # 最后删除自己
+        db.session.delete(adjustment)
+
         db.session.commit()
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": "An unexpected error occurred", "message": str(e)}), 500
-        
-    return '', 204
+        current_app.logger.error(f"删除财务调整项失败: {e}")
+        return jsonify(error="删除失败，已回滚事务"), 500
+
+    return jsonify(message="财务调整项及关联项已成功删除"), 200

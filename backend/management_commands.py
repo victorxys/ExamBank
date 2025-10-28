@@ -145,11 +145,10 @@ def register_commands(app):
         except Exception as e:
             print(f"执行重算任务时发生严重错误: {e}")
 
-
     @app.cli.command("add-salary-adjustments")
     @with_appcontext
     def add_salary_adjustments_command():
-        "为所有已结束合同的最后一个月账单，追溯添加“公司代付工资”调整项。"
+        """为所有已结束合同的最后一个月账单，追溯添加“公司代付工资”及镜像调整项。"""
         print("--- 开始为已结束的合同追溯添加“公司代付工资”调整项 ---")
         try:
             engine = BillingEngine()
@@ -158,18 +157,18 @@ def register_commands(app):
             ).all()
 
             if not contracts_to_process:
-                print("没有找到需要处理的已结束合同ảng")
+                print("没有找到需要处理的已结束合同。")
                 return
 
             total = len(contracts_to_process)
             processed_count = 0
-            print(f"找到 {total} 个已结束的合同需要检查ảng")
+            print(f"找到 {total} 个已结束的合同需要检查。")
 
             for i, contract in enumerate(contracts_to_process):
                 print(f"[{i+1}/{total}] 正在检查合同 ID: {contract.id} | 客户: {contract.customer_name} ...", end='')
-                
+
                 last_bill = CustomerBill.query.filter_by(
-                    contract_id=contract.id, 
+                    contract_id=contract.id,
                     is_substitute_bill=False
                 ).order_by(CustomerBill.cycle_end_date.desc()).first()
 
@@ -177,108 +176,67 @@ def register_commands(app):
                     print(" -> 跳过 (无有效账单)")
                     continue
 
-                # 修正: 按类型检查，而不是按描述
-                existing_adj = FinancialAdjustment.query.filter_by(
-                    customer_bill_id=last_bill.id,
-                    adjustment_type=AdjustmentType.COMPANY_PAID_SALARY
-                ).first()
-
-                if existing_adj:
-                    print(" -> 跳过 (调整项已存在)")
-                    continue
-
-                payroll = EmployeePayroll.query.filter_by(
-                    contract_id=contract.id,
-                    cycle_start_date=last_bill.cycle_start_date,
-                    is_substitute_payroll=False
-                ).first()
-
-                if not payroll or not payroll.total_due or payroll.total_due <= 0:
-                    print(" -> 跳过 (无有效薪酬或薪酬为0)")
-                    continue
-
+                # 直接调用新的、职责单一的函数来处理
                 try:
-                    # 修正: 根据合同类型决定金额计算方式
-                    amount_to_add = Decimal('0')
-                    if contract.type == 'nanny_trial':
-                        # 试工合同：按实际应发总额，不设上限
-                        amount_to_add = payroll.total_due.quantize(Decimal("1"))
-                    else:
-                        # 其他合同（育儿嫂等）：金额不能超过员工级别
-                        employee_level = Decimal(contract.employee_level or '0')
-                        amount_to_add = min(payroll.total_due, employee_level).quantize(Decimal("1"))
-
-                    if amount_to_add > 0:
-                        new_adj = FinancialAdjustment(
-                            customer_bill_id=last_bill.id,
-                            adjustment_type=AdjustmentType.COMPANY_PAID_SALARY,
-                            amount=amount_to_add,
-                            description="[系统] 公司代付工资",
-                            date=last_bill.cycle_end_date.date()
-                        )
-                        db.session.add(new_adj)
-
-                        engine.calculate_for_month(
-                            year=last_bill.year,
-                            month=last_bill.month,
-                            contract_id=contract.id,
-                            force_recalculate=True,
-                            cycle_start_date_override=last_bill.cycle_start_date
-                        )
-                        db.session.commit()
-                        processed_count += 1
-                        # 使用 amount_to_add 保证打印的金额是最终正确的金额
-                        print(f" -> 成功添加调整项，金额: {amount_to_add}")
-                    else:
-                        print(" -> 跳过 (计算出的代付金额为0)")
+                    engine.create_final_salary_adjustments(last_bill.id)
+                    db.session.commit()
+                    processed_count += 1
+                    print(f" -> 已处理并触发重算。")
 
                 except Exception as e:
                     print(f" -> 失败: {e}")
                     db.session.rollback()
 
-            print(f"\n--- 任务执行完毕 ---")
-            print(f"共检查 {total} 个合同，成功为 {processed_count} 个账单添加了调整项ảng")
+            print(f"\\n--- 任务执行完毕 ---")
+            print(f"共检查 {total} 个合同，成功为 {processed_count} 个账单处理了最终调整项。")
 
         except Exception as e:
             print(f"执行任务时发生严重错误: {e}")
+            
 
     @app.cli.command("delete-salary-adjustments")
     @click.option('--dry-run', is_flag=True, help='只打印将要删除的条目，不实际执行删除操作。')
     @with_appcontext
     def delete_salary_adjustments_command(dry_run):
-        """删除所有由系统自动添加的“公司代付工资”财务调整项，并重算相关账单。"""
+        """删除所有由系统自动添加的“公司代付工资”及其镜像财务调整项，并重算相关账单。"""
         if not dry_run:
             print("---【警告】即将开始删除操作，此过程不可逆。---")
         else:
             print("---【演习模式】将查找并列出要删除的调整项，但不会实际操作数据库。---")
-        
+
         try:
             adjustments_to_delete = FinancialAdjustment.query.filter_by(
                 description="[系统] 公司代付工资"
             ).all()
 
             if not adjustments_to_delete:
-                print("没有找到需要删除的“[系统] 公司代付工资”调整项ảng")
+                print("没有找到需要删除的“[系统] 公司代付工资”调整项。")
                 return
 
             total = len(adjustments_to_delete)
-            print(f"找到 {total} 条需要处理的调整项ảng")
-            
+            print(f"找到 {total} 条需要处理的主调整项。")
+
             engine = BillingEngine()
             processed_count = 0
 
             for i, adj in enumerate(adjustments_to_delete):
                 bill = adj.customer_bill
                 if not bill:
-                    print(f"[{i+1}/{total}] 调整项 ID: {adj.id} 缺少关联账单，跳过ảng")
+                    print(f"[{i+1}/{total}] 调整项 ID: {adj.id} 缺少关联账单，跳过。")
                     continue
 
-                print(f"[{i+1}/{total}] 准备处理 账单ID: {bill.id} (合同: {bill.contract_id}) 的调整项 (ID: {adj.id})")
+                print(f"[{i+1}/{total}] 准备处理 账单ID: {bill.id} (合同: {bill.contract_id}) 的主调整项 (ID: {adj.id})")
 
                 if not dry_run:
                     try:
+                        # 同时删除镜像调整项
+                        if adj.mirrored_adjustment:
+                            print(f"  -> 同时删除镜像调整项 ID: {adj.mirrored_adjustment.id}")
+                            db.session.delete(adj.mirrored_adjustment)
+
                         db.session.delete(adj)
-                        
+
+                        # 重算会清理所有不一致的地方
                         engine.calculate_for_month(
                             year=bill.year,
                             month=bill.month,
@@ -288,18 +246,21 @@ def register_commands(app):
                         )
                         db.session.commit()
                         processed_count += 1
-                        print(f"  -> 成功删除调整项并重算账单ảng")
+                        print(f"  -> 成功删除调整项并重算账单。")
                     except Exception as e:
                         print(f"  -> 处理时发生错误: {e}")
                         db.session.rollback()
                 else:
-                    print(f"  -> [演习] 将删除此调整项并重算账单ảng")
+                    if adj.mirrored_adjustment:
+                        print(f"  -> [演习] 将删除此调整项及其镜像 (ID: {adj.mirrored_adjustment.id})并重算账单。")
+                    else:
+                        print(f"  -> [演习] 将删除此调整项并重算账单。")
 
-            print("\n--- 任务执行完毕 ---")
+            print(f"\\n--- 任务执行完毕 ---")
             if not dry_run:
-                print(f"共处理 {total} 条调整项，成功删除并重算了 {processed_count} 个账单ảng")
+                print(f"共处理 {total} 条主调整项，成功删除并重算了 {processed_count} 个账单。")
             else:
-                print(f"演习结束，共发现 {total} 条可删除的调整项ảng")
+                print(f"演习结束，共发现 {total} 条可删除的主调整项。")
 
         except Exception as e:
             print(f"执行删除任务时发生严重错误: {e}")

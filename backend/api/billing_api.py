@@ -1046,36 +1046,17 @@ def get_billing_details():
     bill_id = str(target_bill.id)
 
     try:
-        engine = BillingEngine()
-
-        if target_bill.is_substitute_bill:
-            if target_bill.source_substitute_record_id:
-                engine.calculate_for_substitute(
-                    substitute_record_id=target_bill.source_substitute_record_id,
-                    commit=False
-                )
-        else:
-            engine.calculate_for_month(
-                year=target_bill.year,
-                month=target_bill.month,
-                contract_id=target_bill.contract_id,
-                force_recalculate=True,
-                cycle_start_date_override=target_bill.cycle_start_date
-            )
-
-        db.session.commit()
-
         details = get_billing_details_internal(bill_id=bill_id)
         if details is None:
             return jsonify({"error": "获取账单详情失败"}), 404
 
+        engine = BillingEngine()
         invoice_balance = engine.calculate_invoice_balance(bill_id)
         details["invoice_balance"] = invoice_balance
         details["invoice_needed"] = (target_bill.payment_details or {}).get("invoice_needed", False)
 
         return jsonify(details)
     except Exception as e:
-        db.session.rollback()
         current_app.logger.error(f"获取账单详情失败 (bill_id: {bill_id}): {e}", exc_info=True)
         return jsonify({"error": "获取账单详情时发生服务器内部错误"}), 500
 
@@ -1600,6 +1581,19 @@ def batch_update_billing_details():
                 force_recalculate=True, actual_work_days_override=new_actual_work_days,
                 cycle_start_date_override=bill.cycle_start_date
             )
+
+        # --- 核心修复：在重算后，检查是否为最终账单，若是则更新最终薪资调整项 ---
+        contract = bill.contract
+        if contract.status in ['terminated', 'finished']:
+            last_bill_in_db = CustomerBill.query.filter(
+                CustomerBill.contract_id == contract.id,
+                CustomerBill.is_substitute_bill == False
+            ).order_by(CustomerBill.cycle_end_date.desc()).first()
+
+            if last_bill_in_db and last_bill_in_db.id == bill.id:
+                current_app.logger.info(f"账单 {bill.id} 是最终账单，更新公司代付工资调整项。")
+                engine.create_final_salary_adjustments(bill.id)
+        # --- 修复结束 ---
         
 
         # --- 4.5. 在重算总额后，更新最终状态 ---
@@ -2693,7 +2687,7 @@ def terminate_contract(contract_id):
 
     contract.termination_date = termination_date
     original_end_date = contract.end_date.date() if isinstance(contract.end_date, datetime) else contract.end_date
-    contract_start_date = contract.start_date.date() if isinstance(contract.start_date, datetime) else contract.start_date
+    contract_start_date = contract.start_date.date() if isinstance(contract.start_date,datetime) else contract.start_date
 
     if isinstance(contract, NannyTrialContract):
         contract.trial_outcome = TrialOutcome.FAILURE
@@ -2720,7 +2714,7 @@ def terminate_contract(contract_id):
 
         bills_to_delete_query = CustomerBill.query.with_entities(CustomerBill.id).filter(
             CustomerBill.contract_id == str(contract.id),
-            ((CustomerBill.year == termination_year) & (CustomerBill.month > termination_month)) |
+            ((CustomerBill.year == termination_year) & (CustomerBill.month > termination_month))|
             (CustomerBill.year > termination_year)
         )
         bill_ids_to_delete = [item[0] for item in bills_to_delete_query.all()]
@@ -2730,7 +2724,7 @@ def terminate_contract(contract_id):
 
         payrolls_to_delete_query = EmployeePayroll.query.with_entities(EmployeePayroll.id).filter(
             EmployeePayroll.contract_id == str(contract_id),
-            ((EmployeePayroll.year == termination_year) & (EmployeePayroll.month > termination_month)) |
+            ((EmployeePayroll.year == termination_year) & (EmployeePayroll.month >termination_month)) |
             (EmployeePayroll.year > termination_year)
         )
         payroll_ids_to_delete = [item[0] for item in payrolls_to_delete_query.all()]
@@ -2742,7 +2736,7 @@ def terminate_contract(contract_id):
         if hasattr(contract, 'expected_offboarding_date'):
             contract.expected_offboarding_date = termination_date
 
-        # 步骤 2: 重算最后一期账单 (引擎会自动处理保证金等退款)
+        # 步骤 2: 重算最后一期账单，得到干净的应付总额
         engine = BillingEngine()
         engine.calculate_for_month(
             year=termination_year,
@@ -2751,77 +2745,23 @@ def terminate_contract(contract_id):
             force_recalculate=True,
             end_date_override=termination_date
         )
+        db.session.commit()
 
+        # 步骤 3: 基于干净的账单，调用新函数来创建最终的薪资调整项
         final_bill = CustomerBill.query.filter(CustomerBill.contract_id == str(contract.id)).order_by(CustomerBill.cycle_end_date.desc()).first()
-        if not final_bill:
-            raise ValueError("无法找到用于处理退款的最终账单。")
+        if final_bill:
+            engine.create_final_salary_adjustments(final_bill.id)
+            db.session.commit()
+        else:
+            raise ValueError("无法找到用于处理最终调整项的账单。")
 
-        # [新逻辑] 添加“公司代付工资”调整项
-        final_payroll = EmployeePayroll.query.filter_by(
-            contract_id=str(contract.id),
-            cycle_start_date=final_bill.cycle_start_date,
-            is_substitute_payroll=final_bill.is_substitute_bill
-        ).first()
-
-        if final_payroll and final_payroll.calculation_details:
-            base_payout = D(final_payroll.calculation_details.get('employee_base_payout', '0'))
-            
-            # [最终版逻辑] 创建或更新“公司代付工资”项
-            # 1. 计算正确的应付金额
-            amount_to_set = base_payout
-            # 金额上限仅对非试工合同生效
-            if contract.type != 'nanny_trial':
-                employee_level = D(contract.employee_level or '0')
-                amount_to_set = min(base_payout, employee_level)
-            
-            final_amount = amount_to_set.quantize(D("1"))
-
-            # 2. 查找现有的调整项
-            existing_salary_adj = FinancialAdjustment.query.filter_by(
-                customer_bill_id=final_bill.id,
-                adjustment_type=AdjustmentType.COMPANY_PAID_SALARY
-            ).first()
-
-            should_recalculate = False
-            if existing_salary_adj:
-                # 3a. 如果存在且金额不符，则更新
-                if existing_salary_adj.amount != final_amount:
-                    current_app.logger.info(f"更新账单 {final_bill.id} 的'公司代付工资'项金额: {existing_salary_adj.amount} -> {final_amount}")
-                    existing_salary_adj.amount = final_amount
-                    db.session.add(existing_salary_adj)
-                    should_recalculate = True
-            elif final_amount > 0:
-                # 3b. 如果不存在，则创建
-                db.session.add(FinancialAdjustment(
-                    customer_bill_id=final_bill.id,
-                    adjustment_type=AdjustmentType.COMPANY_PAID_SALARY,
-                    amount=final_amount,
-                    description="[系统] 公司代付工资",
-                    date=termination_date
-                ))
-                current_app.logger.info(f"为账单 {final_bill.id} 创建了'公司代付工资'项，金额为: {final_amount}")
-                should_recalculate = True
-            
-            # 4. 如果发生了创建或更新，则重算
-            if should_recalculate:
-                engine.calculate_for_month(
-                    year=termination_year,
-                    month=termination_month,
-                    contract_id=str(contract.id),
-                    force_recalculate=True,
-                    end_date_override=termination_date
-                )
-                db.session.refresh(final_bill)
-
-        # 步骤 3: 手动计算管理费退款，并添加到最终账单
-        current_app.logger.info(f"=====contract.is_monthly_auto_renew======{contract.is_monthly_auto_renew}")
+        # 步骤 4: 手动计算管理费退款，并添加到最终账单
         if isinstance(contract, NannyContract):
             monthly_management_fee = contract.management_fee_amount if contract.management_fee_amount and contract.management_fee_amount > 0 else (D(contract.employee_level or '0') * D("0.1"))
             if monthly_management_fee > 0 and termination_date < original_end_date:
                 daily_management_fee = (monthly_management_fee / D(30)).quantize(D("0.0001"))
                 management_refund_item = None
                 if not contract.is_monthly_auto_renew:
-                    current_app.logger.info(f"=====termination_date.year={termination_date.year} == original_end_date.year={original_end_date.year} and termination_date.month = {termination_date.month}, original_end_date.month={original_end_date.month}===")
                     if termination_date.year == original_end_date.year and termination_date.month ==original_end_date.month:
                         days_to_refund = (original_end_date - termination_date).days if charge_on_termination_date else (original_end_date - termination_date).days + 1
                         if days_to_refund > 0:
@@ -2874,15 +2814,13 @@ def terminate_contract(contract_id):
                             description_parts.append(f"  - 总计：{total_refund_amount:.2f}元")
                             management_refund_item = {'amount': total_refund_amount, 'description': '\n'.join(description_parts)}
                 elif contract.is_monthly_auto_renew:
-                    # V2 修正：月签合同应基于标准30天来计算日管理费，并计算到月底的剩余天数
                     daily_fee = (monthly_management_fee / D(30)).quantize(D("0.0001"))
-    
-                    # 获取终止日所在月的最后一天，作为原始周期结束日
+
                     _, num_days_in_month = calendar.monthrange(termination_date.year, termination_date.month)
                     original_cycle_end = date(termination_date.year, termination_date.month, num_days_in_month)
-    
+
                     remaining_days = (original_cycle_end - termination_date).days if charge_on_termination_date else (original_cycle_end - termination_date).days + 1
-                    
+
                     if remaining_days > 0:
                         amount = (daily_fee * D(remaining_days)).quantize(D("0.01"))
                         if amount > 0:
@@ -2892,7 +2830,7 @@ def terminate_contract(contract_id):
                     if not existing_refund:
                         db.session.add(FinancialAdjustment(customer_bill_id=final_bill.id,adjustment_type=AdjustmentType.CUSTOMER_DECREASE, amount=management_refund_item['amount'],description=management_refund_item['description'], date=termination_date))
 
-        # 步骤 4: 查找最终账单上所有的退款项（包括引擎生成的和我们刚加的）
+        # 步骤 5: 查找最终账单上所有的退款项（包括引擎生成的和我们刚加的）
         all_refund_items = FinancialAdjustment.query.filter(
             FinancialAdjustment.customer_bill_id == final_bill.id,
             FinancialAdjustment.adjustment_type == AdjustmentType.CUSTOMER_DECREASE
@@ -2900,7 +2838,7 @@ def terminate_contract(contract_id):
 
         message = f"合同 {contract.id} 已成功终止。"
 
-        # 步骤 5: 如果是转签，则处理转移和冲抵
+        # 步骤 6: 如果是转签，则处理转移和冲抵
         if transfer_options and all_refund_items:
             new_contract_id = transfer_options.get("new_contract_id")
             new_contract = db.session.get(BaseContract, new_contract_id)
@@ -2911,7 +2849,6 @@ def terminate_contract(contract_id):
 
             for item in all_refund_items:
                 if item.amount > 0:
-                    # 动作A: 在新合同上创建“减款”
                     db.session.add(FinancialAdjustment(
                         customer_bill_id=first_bill_of_new_contract.id,
                         adjustment_type=AdjustmentType.CUSTOMER_DECREASE,
@@ -2920,7 +2857,6 @@ def terminate_contract(contract_id):
                         date=termination_date, status='PENDING',
                         details={'source_contract_id': str(contract.id), 'source_adjustment_id': str(item.id)}
                     ))
-                    # 动作B: 在旧合同上创建“增款”以冲抵
                     db.session.add(FinancialAdjustment(
                         customer_bill_id=final_bill.id,
                         adjustment_type=AdjustmentType.CUSTOMER_INCREASE,
@@ -2932,7 +2868,7 @@ def terminate_contract(contract_id):
             substitute_user_id = transfer_options.get("substitute_user_id")
             if substitute_user_id:
                 substitute_user = db.session.get(User, substitute_user_id)
-                if substitute_user: cancel_substitute_bill_due_to_transfer(db.session, old_contract=contract,new_contract=new_contract, substitute_user=substitute_user, termination_date=termination_date)
+                if substitute_user: cancel_substitute_bill_due_to_transfer(db.session, old_contract=contract,new_contract=new_contract, substitute_user=substitute_user,termination_date=termination_date)
 
             message = f"合同 {contract.id} 已成功终止，并完成费用转签。"
         elif all_refund_items:

@@ -8,7 +8,7 @@ import {
   ListItemIcon, ListItemText, ListItemSecondaryAction, Alert, Switch, TextField, 
   FormControlLabel, Chip, TableContainer, Table, TableHead, TableRow, TableCell, TableBody, TableFooter
 } from '@mui/material';
-import { 
+import {
     Edit as EditIcon, Save as SaveIcon, Close as CloseIcon, Cancel as CancelIcon, 
     Add as AddIcon, Remove as RemoveIcon, Info as InfoIcon, Delete as DeleteIcon,
     ArrowUpward as ArrowUpwardIcon, ArrowDownward as ArrowDownwardIcon,
@@ -17,10 +17,10 @@ import {
     CheckCircle as CheckCircleIcon, HighlightOff as HighlightOffIcon,
     ArticleOutlined as ArticleOutlinedIcon,
     Link as LinkIcon,
+    Lock as LockIcon, // <-- 添加图标
     ArrowBackIosNew as ArrowBackIosNewIcon,
     ArrowForwardIos as ArrowForwardIosIcon
-} from '@mui/icons-material';
-import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+} from '@mui/icons-material';import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { Timeline } from '@mui/lab';
 
 import api from '../api/axios'; 
@@ -607,8 +607,26 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
         setIsAdjustmentDialogOpen(false);
         setEditingAdjustment(null);
     };
-    const handleDeleteAdjustment = (id) => {
-        setAdjustments(prev => prev.filter(a => a.id !== id));
+    const handleDeleteAdjustment = async (id) => {
+        try {
+            await api.delete(`/financial-adjustments/${id}`);
+            setAlert({ open: true, message: '财务调整项已成功删除', severity: 'success' });
+
+            // 重新获取最新的账单详情以刷新整个模态框的状态
+            const billId = billingDetails.customer_bill_details.id;
+            if (billId) {
+                const response = await api.get('/billing/details', { params: { bill_id: billId } });
+                setBillingDetails(response.data);
+            } else {
+                // 如果没有 billId，可能需要一个更通用的刷新逻辑，或者提示错误
+                console.error("无法刷新账单：缺少 bill_id");
+                setAlert({ open: true, message: '删除成功，但刷新失败，请手动刷新', severity: 'warning' });
+            }
+
+        } catch (error) {
+            console.error("删除财务调整项失败:", error);
+            setAlert({ open: true, message: `删除失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
+        }
     };
     const handleInvoiceNeededChange = async (event) => {
         const checked = event.target.checked;
@@ -1057,27 +1075,43 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                         <Divider textAlign="left" sx={{ mb: 1.5 }}><Typography variant="overline" color="text.secondary">财务调整</Typography></Divider>
                         <List dense disablePadding>
                             {currentAdjustments.map(adj => {
-                                const isReadOnly = adj.adjustment_type ==='deferred_fee';
-                                // 新的、更通用的可转移判断条件
-                                // 精确检查，允许对“转入”的条目进行再次转移
+                                // (V18) 增加专门的逻辑来识别和处理镜像调整项
+                                const isMirrored = adj.adjustment_type === 'DEPOSIT_PAID_SALARY' && adj.mirrored_adjustment_id;
+                                const isOriginalWithMirror = adj.adjustment_type === 'COMPANY_PAID_SALARY' && adj.mirrored_adjustment_id;
+                                const isSystemCalculated = isMirrored || isOriginalWithMirror;
+
+                                // 是否可编辑：系统计算的条目（原始项和镜像项）和顺延费用不可编辑
+                                const isEditable = !isSystemCalculated && adj.adjustment_type !== 'deferred_fee';
+
+                                // 是否可删除：已结算、已转移或顺延费用不可删除。系统计算的条目可以删除。
+                                const isPartOfTransfer = adj.details?.status?.includes('transfer');
+                                const isSettled = adj.is_settled;
+                                const isDeletable = adj.adjustment_type !== 'deferred_fee' && !isPartOfTransfer && !isSettled;
+
+                                const tooltipForLock = isMirrored
+                                    ? "此为'公司代付工资'的系统镜像项，金额自动同步，不可直接编辑。"
+                                    : isOriginalWithMirror
+                                    ? "此调整项已生成镜像项，修改或删除将同步进行。"
+                                    : "";
+
                                 const isTransferable = !isEditMode &&
-                                                       !adj.is_settled && // 【新增】已结算的条目不能转移
-                                                       adj.description !=='[系统添加] 保证金' && // 防止对初始保证金操作，它应通过退款流程
-                                                       (!adj.details || !['transferred_out', 'offsetting_transfer'].includes(adj.details.status));
+                                    !adj.is_settled &&
+                                    adj.description !== '[系统添加] 保证金' &&
+                                    (!adj.details || !['transferred_out', 'offsetting_transfer'].includes(adj.details.status));
+
                                 return (
                                     <ListItem
                                         key={adj.id}
-                                        button={isEditMode && !isReadOnly}
-                                        onClick={isEditMode && !isReadOnly ? () =>{ setEditingAdjustment(adj); setIsAdjustmentDialogOpen(true); } : undefined}
+                                        button={isEditMode && isEditable} // 使用 isEditable
+                                        onClick={isEditMode && isEditable ? () => { setEditingAdjustment(adj); setIsAdjustmentDialogOpen(true); } : undefined}
                                         secondaryAction={
-                                            <Box sx={{ display: 'flex', alignItems:'center', gap: 1 }}>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                                 {isTransferable && (
                                                     <Chip
                                                         label="转移"
                                                         size="small"
                                                         onClick={(e) => {
                                                             e.stopPropagation();
-                                                            // 直接调用新的主函数
                                                             handleInitiateTransfer(adj);
                                                         }}
                                                         clickable
@@ -1086,29 +1120,24 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                                                     />
                                                 )}
                                                 {isEditMode && (() => {
-                                                    const isPartOfTransfer = adj.details?.status?.includes('transfer');
-                                                    const isSettled = adj.is_settled;
-                                                    const isDeletable = !isReadOnly&& !isPartOfTransfer && !isSettled;
-
                                                     let tooltipTitle = '';
                                                     if (!isDeletable) {
-                                                        if (isSettled) tooltipTitle= '请先取消结算，再执行删除';
-                                                        else if (isPartOfTransfer)tooltipTitle = '有关联的转移记录，无法直接删除';
-                                                        else if (isReadOnly)tooltipTitle = '系统生成的条目，无法删除';
+                                                        if (isSettled) tooltipTitle = '请先取消结算，再执行删除';
+                                                        else if (isPartOfTransfer) tooltipTitle = '有关联的转移记录，无法直接删除';
+                                                        else if (adj.adjustment_type === 'deferred_fee') tooltipTitle = '系统生成的条目，无法删除';
                                                     }
 
                                                     return (
                                                         <Tooltip title={tooltipTitle}>
-                                                            {/* Tooltip 需要一个容器来包裹被禁用的组件 */}
                                                             <span>
                                                                 <IconButton
                                                                     edge="end"
                                                                     size="small"
-                                                                    onClick={(e) =>{
+                                                                    onClick={(e) => {
                                                                         e.stopPropagation();
                                                                         handleDeleteAdjustment(adj.id);
                                                                     }}
-                                                                        disabled={!isDeletable}
+                                                                    disabled={!isDeletable}
                                                                 >
                                                                     <DeleteIcon fontSize="small" />
                                                                 </IconButton>
@@ -1131,10 +1160,14 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                                                         <Typography component="span" variant="body1">
                                                             {AdjustmentTypes[adj.adjustment_type]?.label}
                                                         </Typography>
+                                                        {isSystemCalculated && (
+                                                            <Tooltip title={tooltipForLock} arrow>
+                                                                <LockIcon fontSize="small" color="action" />
+                                                            </Tooltip>
+                                                        )}
                                                         {adj.is_settled && (
                                                             <Chip label="已结算" color="success" size="small" variant="outlined" />
                                                         )}
-                                                        {/* 新增的结算详情提示 */}
                                                         {adj.is_settled && (
                                                             <Tooltip title={`结算日期: ${adj.settlement_date || '无'} | 备注: ${(adj.settlement_details && adj.settlement_details.notes) || '无'}`}> 
                                                                 <InfoIcon sx={{ fontSize: '1rem', color: 'action.active', ml: 0.5, cursor: 'help' }} />
@@ -1160,7 +1193,6 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                                                 linkBillId = details.transferred_from_bill_id;
                                             }
 
-                                            // --- 兼容三种链接情况的最终逻辑 ---
                                             const sourceContractId = details.source_contract_id || adj.source_contract_id;
                                             const destinationContractId = details.destination_contract_id;
 
@@ -1174,7 +1206,6 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                                                 linkContractId = destinationContractId;
                                                 tooltipTitle = "查看费用覆盖的新合同";
                                             }
-                                            // --- 兼容逻辑结束 ---
 
                                             return (
                                                 <Typography variant="body2" component="span" sx={{ display: 'inline-flex', alignItems:'center', flexWrap: 'wrap', whiteSpace: 'pre-wrap', wordBreak: 'break-word'}}>
@@ -1186,7 +1217,6 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                                                         </Tooltip>
                                                     )}
 
-                                                    {/* --- 使用最终兼容逻辑来渲染合同跳转链接 --- */}
                                                     {linkContractId && !linkBillId && (
                                                         <Tooltip title={tooltipTitle}>
                                                             <IconButton
@@ -1198,9 +1228,7 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                                                             </IconButton>
                                                         </Tooltip>
                                                     )}
-                                                    {/* --- 渲染逻辑结束 --- */}
 
-                                                    {/* 账单内跳转逻辑保持不变 */}
                                                     {linkBillId && (
                                                         <Button
                                                             size="small" variant="text"
