@@ -58,50 +58,79 @@ def register_commands(app):
             print(f"执行修复任务时发生严重错误: {e}")
 
     @app.cli.command("recalc-bills")
-    @click.option("--year", required=True, type=int, help="要计算的年份 (例如: 2025)")
-    @click.option("--month", required=True, type=int, help="要计算的月份 (例如: 8)")
+    @click.option("--year", type=int, help="要计算的年份 (例如: 2025)。与 --month 一同使用。")
+    @click.option("--month", type=int, help="要计算的月份 (例如: 8)。与 --year 一同使用。")
+    @click.option("--contract-id", type=str, help="要单独重算账单的合同ID。可与 --year/--month 结合使用。")
     @with_appcontext
-    def recalc_bills_command(year, month):
+    def recalc_bills_command(year, month, contract_id):
         """
-        强制重新计算指定月份的所有有效合同的账单。
+        强制重新计算账单。
+
+        - 提供 --year 和 --month: 重算该月份所有有效合同的账单。
+        - 提供 --contract-id: 重算该合同整个生命周期的所有账单。
+        - 提供 --contract-id, --year, --month: 只重算该合同在该月份的账单。
         """
-        print(f"--- 开始强制重算 {year}年{month}月 的所有账单 ---")
+        engine = BillingEngine()
 
-        try:
-            engine = BillingEngine()
-
-            # 查询所有需要处理的合同
-            contracts_to_process = BaseContract.query.filter(
-                BaseContract.status.in_(["active", "terminated", "trial_active", "trial_succeeded"])
-            ).all()
-
-            if not contracts_to_process:
-                print("没有找到需要处理的合同ảng")
-                return
-
-            total = len(contracts_to_process)
-            print(f"找到 {total} 个合同需要处理ảng")
-
-            for i, contract in enumerate(contracts_to_process):
-                print(f"[{i+1}/{total}] 正在处理合同 ID: {contract.id} | 客户: {contract.customer_name} ...")
+        if contract_id:
+            if year and month:
+                # --- 场景1: 重算指定合同在指定月份的账单 ---
+                print(f"--- 开始为合同 {contract_id} 强制重算 {year}年{month}月 的账单 ---")
                 try:
-                    # 直接调用核心计算函数，并设置 force_recalculate=True
                     engine.calculate_for_month(
                         year=year,
                         month=month,
-                        contract_id=contract.id,
+                        contract_id=contract_id,
                         force_recalculate=True
                     )
-                    # 每次成功后提交，以防单个合同失败影响全部
                     db.session.commit()
+                    print("--- 重算完毕 ---")
                 except Exception as e:
-                    print(f"  -> 处理合同 {contract.id} 时发生错误: {e}")
+                    print(f"  -> 处理合同时发生错误: {e}")
                     db.session.rollback()
+            else:
+                # --- 场景2: 重算指定合同的全生命周期账单 ---
+                print(f"--- 开始为合同 {contract_id} 强制重算其所有历史账单 ---")
+                try:
+                    engine.recalculate_all_bills_for_contract(contract_id=contract_id)
+                    db.session.commit()
+                    print("--- 全生命周期重算完毕 ---")
+                except Exception as e:
+                    print(f"  -> 处理合同时发生错误: {e}")
+                    db.session.rollback()
+        elif year and month:
+            # --- 场景3: 重算某月份的所有合同 (保留原逻辑) ---
+            print(f"--- 开始强制重算 {year}年{month}月 的所有账单 ---")
+            try:
+                contracts_to_process = BaseContract.query.filter(
+                    BaseContract.status.in_(["active", "terminated", "trial_active", "trial_succeeded"])
+                ).all()
+                if not contracts_to_process:
+                    print("没有找到需要处理的合同。")
+                    return
 
-            print(f"--- {year}年{month}月 的账单重算任务执行完毕 ---")
+                total = len(contracts_to_process)
+                print(f"找到 {total} 个合同需要处理。")
 
-        except Exception as e:
-            print(f"执行重算任务时发生严重错误: {e}")
+                for i, contract in enumerate(contracts_to_process):
+                    print(f"[{i+1}/{total}] 正在处理合同 ID: {contract.id} | 客户: {contract.customer_name} ...")
+                    try:
+                        engine.calculate_for_month(
+                            year=year,
+                            month=month,
+                            contract_id=contract.id,
+                            force_recalculate=True
+                        )
+                        db.session.commit()
+                    except Exception as e:
+                        print(f"  -> 处理合同 {contract.id} 时发生错误: {e}")
+                        db.session.rollback()
+                print(f"--- {year}年{month}月 的账单重算任务执行完毕 ---")
+            except Exception as e:
+                print(f"执行重算任务时发生严重错误: {e}")
+        else:
+            print("错误: 请提供 --year 和 --month 参数，或提供 --contract-id 参数。")
+            print("请使用 'flask recalc-bills --help' 查看帮助。")
 
 
     @app.cli.command("recalc-all-bills-full-lifecycle")
