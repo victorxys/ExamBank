@@ -1,6 +1,6 @@
 // frontend/src/components/FinancialManagementModal.jsx (最终重构版)
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box, Button, Typography, Paper, Grid, Dialog, DialogTitle, DialogContent, 
@@ -215,6 +215,7 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
     const [latestSavedData, setLatestSavedData] = useState(null);
     const navigate = useNavigate();
     const [isEditMode, setIsEditMode] = useState(false);
+    const billIdRef = useRef(null);
     const [editableOvertime, setEditableOvertime] = useState(0);
     const [adjustments, setAdjustments] = useState([]);
     const [editableInvoice, setEditableInvoice] = useState({ number: '', amount: '', date: null });
@@ -253,6 +254,7 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
     const [isGeneratingMessage, setIsGeneratingMessage] = useState(false);
 
     const [isTransferBalanceDialogOpen, setIsTransferBalanceDialogOpen] = useState(false);
+    const [deletionHappened, setDeletionHappened] = useState(false);
 
     const handleConfirmTransferBalance = async (destinationContractId) => {
         const billId = billingDetails?.customer_bill_details?.id;
@@ -288,8 +290,13 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
 
     useEffect(() => {
         if (open && billingDetails) {
-            // Reset edit mode when bill changes
-            setIsEditMode(false);
+            const newBillId = billingDetails.customer_bill_details?.id;
+
+            // 仅当账单ID实际发生变化时（例如切换月份），才重置编辑模式
+            if (newBillId !== billIdRef.current) {
+                setIsEditMode(false);
+                billIdRef.current = newBillId;
+            }
 
             // Set navigation boundaries
             setHasPrevBill(billingDetails.has_prev_bill || false);
@@ -558,13 +565,19 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
             // settlement_status: editableSettlement,
             invoices: editableInvoices,
             invoice_needed: billingDetails.invoice_needed,
+            was_deletion: deletionHappened,
         };
 
         onSave(payload);
         setIsEditMode(false);
+        setDeletionHappened(false);
     };
 
-    const handleEnterEditMode = () => setIsEditMode(true);
+    const handleEnterEditMode = () => {
+        setIsEditMode(true);
+        setDeletionHappened(false);
+    };
+
     const handleCancelEdit = () => {
         if (billingDetails) {
             const customerDetails = billingDetails.customer_bill_details || {};
@@ -581,7 +594,7 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
             const employeePayment = employeeDetails.payment_status || {};
         }
         if (initialBillingDetails) {
-            const effectiveNeeded = initialBillingDetails.invoice_balance?.auto_invoice_needed || false;
+            const effectiveNeeded = initialBillingDetails.invoice_balance?.auto_invoice_needed ||false;
             const updatedDetails = {
                 ...initialBillingDetails,
                 invoice_needed: effectiveNeeded
@@ -589,7 +602,9 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
             setBillingDetails(updatedDetails);
         }
         setIsEditMode(false);
+        setDeletionHappened(false);
     };
+    
     const handleSaveAdjustment = (savedAdj) => {
         console.log("--- [DEBUG 2] AdjustmentDialog saved. Data from dialog:", savedAdj);
         setAdjustments(prev => {
@@ -607,26 +622,9 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
         setIsAdjustmentDialogOpen(false);
         setEditingAdjustment(null);
     };
-    const handleDeleteAdjustment = async (id) => {
-        try {
-            await api.delete(`/financial-adjustments/${id}`);
-            setAlert({ open: true, message: '财务调整项已成功删除', severity: 'success' });
-
-            // 重新获取最新的账单详情以刷新整个模态框的状态
-            const billId = billingDetails.customer_bill_details.id;
-            if (billId) {
-                const response = await api.get('/billing/details', { params: { bill_id: billId } });
-                setBillingDetails(response.data);
-            } else {
-                // 如果没有 billId，可能需要一个更通用的刷新逻辑，或者提示错误
-                console.error("无法刷新账单：缺少 bill_id");
-                setAlert({ open: true, message: '删除成功，但刷新失败，请手动刷新', severity: 'warning' });
-            }
-
-        } catch (error) {
-            console.error("删除财务调整项失败:", error);
-            setAlert({ open: true, message: `删除失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
-        }
+    const handleDeleteAdjustment = (id) => {
+        setAdjustments(prev => prev.filter(adj => adj.id !== id));
+        setDeletionHappened(true);
     };
     const handleInvoiceNeededChange = async (event) => {
         const checked = event.target.checked;

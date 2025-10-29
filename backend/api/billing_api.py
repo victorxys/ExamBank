@@ -1230,9 +1230,14 @@ def _apply_all_adjustments_and_settlements(adjustments_data, bill, payroll):
     old_adjustments_map = {str(adj.id): adj for adj in old_adjustments}
     new_adjustments_ids = {str(adj.get('id')) for adj in adjustments_data if adj.get('id')}
 
+    was_deletion = False # 初始化标志
+
     # Deletion Logic
     for old_id, old_adj in old_adjustments_map.items():
         if old_id not in new_adjustments_ids:
+            was_deletion = True # 在实际删除时设置标志
+            # !!! 新增日志 !!!
+            current_app.logger.info(f"!!! DELETION DETECTED !!! Deleting adj {old_adj.id} ('{old_adj.description}'). Flag was_deletion is now True.")
 
             if old_adj.is_settled and old_adj.details and'linked_record' in old_adj.details:
                 linked_record_info = old_adj.details['linked_record']
@@ -1262,24 +1267,24 @@ def _apply_all_adjustments_and_settlements(adjustments_data, bill, payroll):
             if existing_adj.details is None: existing_adj.details = {}
 
             settlement_method = (settlement_details or {}).get('notes') or'settlement'
-            current_app.logger.info(f"处理调整项更新，ID: {adj_id}, 类型: {adj_type.name}, 金额: {adj_amount}, 结算状态: {is_settled}")
+            current_app.logger.info(f"处理调整项更新，ID: {adj_id}, 类型: {adj_type.name}, 金额:{adj_amount}, 结算状态: {is_settled}")
             # 状态变更1：从未结算 -> 已结算 (创建记录)
             if is_settled and not existing_adj.is_settled:
-                # current_app.logger.info(f"[SETTLEMENT_DEBUG] Condition MET: is_settled and not existing_adj.is_settled. Creating record for adj_type: {adj_type.value}")
+                # current_app.logger.info(f"[SETTLEMENT_DEBUG] Condition MET: is_settled and notexisting_adj.is_settled. Creating record for adj_type: {adj_type.value}")
                 new_record, record_type = None, None
                 record_notes = f"[来自结算调整项] {adj_description}"
                 settlement_method = (settlement_details or {}).get('notes') or 'settlement'
 
-                customer_increase_types = [AdjustmentType.CUSTOMER_INCREASE,AdjustmentType.INTRODUCTION_FEE, AdjustmentType.DEPOSIT, AdjustmentType.COMPANY_PAID_SALARY,AdjustmentType.SUBSTITUTE_MANAGEMENT_FEE, AdjustmentType.DEFERRED_FEE, AdjustmentType.COMPANY_PAID_SALARY]
-                customer_decrease_types = [AdjustmentType.CUSTOMER_DECREASE,AdjustmentType.CUSTOMER_DISCOUNT]
-                employee_increase_types = [AdjustmentType.EMPLOYEE_INCREASE,AdjustmentType.EMPLOYEE_CLIENT_PAYMENT,AdjustmentType.DEPOSIT_PAID_SALARY]
+                customer_increase_types =[AdjustmentType.CUSTOMER_INCREASE,AdjustmentType.INTRODUCTION_FEE, AdjustmentType.DEPOSIT,AdjustmentType.COMPANY_PAID_SALARY,AdjustmentType.SUBSTITUTE_MANAGEMENT_FEE,AdjustmentType.DEFERRED_FEE, AdjustmentType.COMPANY_PAID_SALARY]
+                customer_decrease_types =[AdjustmentType.CUSTOMER_DECREASE,AdjustmentType.CUSTOMER_DISCOUNT]
+                employee_increase_types =[AdjustmentType.EMPLOYEE_INCREASE,AdjustmentType.EMPLOYEE_CLIENT_PAYMENT,AdjustmentType.DEPOSIT_PAID_SALARY]
                 employee_decrease_types = [AdjustmentType.EMPLOYEE_DECREASE]  # EMPLOYEE_COMMISSION 首月返佣 不计入已发总额计算
 
                 if adj_type in customer_increase_types:
-                    new_record = PaymentRecord(customer_bill_id=bill.id, amount=abs(adj_amount),payment_date=settlement_date, method=settlement_method, notes=record_notes,created_by_user_id=user_id)
+                    new_record = PaymentRecord(customer_bill_id=bill.id, amount=abs(adj_amount),payment_date=settlement_date, method=settlement_method,notes=record_notes,created_by_user_id=user_id)
                     record_type = 'payment'
                 elif adj_type in customer_decrease_types:
-                    new_record = PaymentRecord(customer_bill_id=bill.id, amount=abs(adj_amount)* -1, payment_date=settlement_date, method=settlement_method, notes=f"[客户退款]{adj_description}", created_by_user_id=user_id)
+                    new_record = PaymentRecord(customer_bill_id=bill.id, amount=abs(adj_amount)*-1, payment_date=settlement_date, method=settlement_method, notes=f"[客户退款]{adj_description}", created_by_user_id=user_id)
                     record_type = 'payment'
                 elif adj_type in employee_increase_types:
                     new_record = PayoutRecord(employee_payroll_id=payroll.id, amount=abs(adj_amount), payout_date=settlement_date, method=settlement_method, notes=record_notes, payer='公司', created_by_user_id=user_id)
@@ -1322,7 +1327,7 @@ def _apply_all_adjustments_and_settlements(adjustments_data, bill, payroll):
                     if record_to_update:
                         record_to_update.method = settlement_method
                         # 根据类型决定金额是正是负
-                        if adj_type in [AdjustmentType.CUSTOMER_DECREASE,AdjustmentType.CUSTOMER_DISCOUNT, AdjustmentType.EMPLOYEE_DECREASE, AdjustmentType.EMPLOYEE_COMMISSION]:
+                        if adj_type in[AdjustmentType.CUSTOMER_DECREASE,AdjustmentType.CUSTOMER_DISCOUNT,AdjustmentType.EMPLOYEE_DECREASE, AdjustmentType.EMPLOYEE_COMMISSION]:
                              record_to_update.amount = abs(adj_amount) * -1
                         else:
                              record_to_update.amount = abs(adj_amount)
@@ -1340,13 +1345,13 @@ def _apply_all_adjustments_and_settlements(adjustments_data, bill, payroll):
             if existing_adj.amount != abs(adj_amount):
                 change_details['amount'] = {'from': str(existing_adj.amount), 'to': str(abs(adj_amount))}
             if existing_adj.description != adj_description:
-                change_details['description'] = {'from':existing_adj.description, 'to': adj_description}
+                change_details['description'] = {'from':existing_adj.description, 'to':adj_description}
             if existing_adj.is_settled != is_settled:
-                change_details['is_settled'] = {'from':existing_adj.is_settled, 'to': is_settled}
+                change_details['is_settled'] = {'from':existing_adj.is_settled, 'to':is_settled}
 
             if change_details:
                 # 加上调整项的基础信息，方便识别
-                change_details['type'] =ADJUSTMENT_TYPE_LABELS.get(existing_adj.adjustment_type,existing_adj.adjustment_type.name)
+                change_details['type']=ADJUSTMENT_TYPE_LABELS.get(existing_adj.adjustment_type,existing_adj.adjustment_type.name)
                 change_details['original_description'] =existing_adj.description
                 _log_activity(bill, payroll,"更新了财务调整项", details=change_details)
             # --- 日志结束 ---
@@ -1370,7 +1375,7 @@ def _apply_all_adjustments_and_settlements(adjustments_data, bill, payroll):
                 AdjustmentType.DEFERRED_FEE,
                 AdjustmentType.DEPOSIT,
                 AdjustmentType.COMPANY_PAID_SALARY # <--- 修正：将公司代付工资归类为客户账单侧的调整
-            ]            
+            ]
             if adj_type in customer_types:
                 new_adj.customer_bill_id = bill.id
             else:
@@ -1394,31 +1399,30 @@ def _apply_all_adjustments_and_settlements(adjustments_data, bill, payroll):
                 record_notes = f"[来自结算调整项] {adj_description}"
 
                 if adj_type ==AdjustmentType.CUSTOMER_INCREASE:
-                    new_record =PaymentRecord(customer_bill_id=bill.id, amount=abs(adj_amount), payment_date=settlement_date,method=settlement_method, notes=record_notes,created_by_user_id=user_id)
+                    new_record =PaymentRecord(customer_bill_id=bill.id, amount=abs(adj_amount),payment_date=settlement_date,method=settlement_method,notes=record_notes,created_by_user_id=user_id)
                     record_type = 'payment'
                 elif adj_type in[AdjustmentType.CUSTOMER_DECREASE,AdjustmentType.CUSTOMER_DISCOUNT]:
-                    new_record =PaymentRecord(customer_bill_id=bill.id, amount=abs(adj_amount)* -1, payment_date=settlement_date, method=settlement_method,notes=f"[客户退款] {adj_description}",created_by_user_id=user_id)
+                    new_record =PaymentRecord(customer_bill_id=bill.id, amount=abs(adj_amount)*-1, payment_date=settlement_date, method=settlement_method,notes=f"[客户退款]{adj_description}",created_by_user_id=user_id)
                     record_type = 'payment'
                 elif adj_type ==AdjustmentType.EMPLOYEE_INCREASE:
                     new_record =PayoutRecord(employee_payroll_id=payroll.id, amount=abs(adj_amount), payout_date=settlement_date,method=settlement_method, notes=record_notes, payer='公司',created_by_user_id=user_id)
                     record_type = 'payout'
                 elif adj_type ==AdjustmentType.EMPLOYEE_DECREASE:
-                    new_record =PayoutRecord(employee_payroll_id=payroll.id, amount=abs(adj_amount) * -1, payout_date=settlement_date,method=settlement_method, notes=f"[员工缴款] {adj_description}", payer=employee_name, created_by_user_id=user_id)
+                    new_record =PayoutRecord(employee_payroll_id=payroll.id, amount=abs(adj_amount) * -1, payout_date=settlement_date,method=settlement_method, notes=f"[员工缴款]{adj_description}", payer=employee_name, created_by_user_id=user_id)
                     record_type = 'payout'
                 elif adj_type ==AdjustmentType.EMPLOYEE_COMMISSION:
-                    new_record =PayoutRecord(employee_payroll_id=payroll.id, amount=abs(adj_amount), payout_date=settlement_date,method=settlement_method, notes=f"[首月返佣] {adj_description}", payer='公司',created_by_user_id=user_id)
+                    new_record =PayoutRecord(employee_payroll_id=payroll.id, amount=abs(adj_amount), payout_date=settlement_date,method=settlement_method, notes=f"[首月返佣]{adj_description}", payer='公司',created_by_user_id=user_id)
                     record_type = 'payout'
 
                 if new_record:
                     db.session.add(new_record)
                     db.session.flush() # 刷新以获取 new_record.id
-                    new_adj.details['linked_record'] = {'id':str(new_record.id), 'type': record_type}
+                    new_adj.details['linked_record'] = {'id':str(new_record.id), 'type':record_type}
                     attributes.flag_modified(new_adj,"details")
             # --- 修复结束 ---
-
-    # 在所有循环结束后，统一更新一次账单和薪酬单的状态
-    # _update_bill_payment_status(bill)
-    # _update_payroll_payout_status(payroll)
+    if was_deletion:
+        current_app.logger.info(f"!!! FLAG CHECK !!! Deletion occurred in _apply_all_adjustments_and_settlements for bill {bill.id}. Returning was_deletion=True.")
+    return was_deletion
 
 @billing_bp.route("/batch-update", methods=["POST"])
 @admin_required
@@ -1485,7 +1489,7 @@ def batch_update_billing_details():
 
         # 记录原始加班天数
         original_overtime_days = D("0")
-        attendance_record =AttendanceRecord.query.filter_by(contract_id=bill.contract_id,cycle_start_date=bill.cycle_start_date).first()
+        attendance_record=AttendanceRecord.query.filter_by(contract_id=bill.contract_id,cycle_start_date=bill.cycle_start_date).first()
         if attendance_record:
             original_overtime_days =attendance_record.overtime_days
 
@@ -1506,7 +1510,7 @@ def batch_update_billing_details():
                 if inv_id and str(inv_id) in existing_invoices_map:
                     invoice_to_update = existing_invoices_map[str(inv_id)]
                     invoice_to_update.amount = D(inv_data.get('amount', '0'))
-                    invoice_to_update.issue_date = date_parse(inv_data.get('issue_date')).date() if inv_data.get('issue_date')else None
+                    invoice_to_update.issue_date = date_parse(inv_data.get('issue_date')).date()if inv_data.get('issue_date')else None
                     invoice_to_update.invoice_number = inv_data.get('invoice_number')
                     invoice_to_update.notes = inv_data.get('notes')
                 elif not inv_id or 'temp' in str(inv_id):
@@ -1528,9 +1532,9 @@ def batch_update_billing_details():
             payroll.actual_work_days = new_actual_work_days
 
         new_overtime_decimal = D(str(data.get("overtime_days", "0")))
-        attendance_record = AttendanceRecord.query.filter_by(contract_id=bill.contract_id,cycle_start_date=bill.cycle_start_date).first()
+        attendance_record=AttendanceRecord.query.filter_by(contract_id=bill.contract_id,cycle_start_date=bill.cycle_start_date).first()
         if attendance_record:
-            if attendance_record.overtime_days.quantize(D('0.01')) != new_overtime_decimal.quantize(D('0.01')):
+            if attendance_record.overtime_days.quantize(D('0.01'))!=new_overtime_decimal.quantize(D('0.01')):
                 attendance_record.overtime_days = new_overtime_decimal
         elif new_overtime_decimal > 0:
             employee_id = bill.contract.user_id or bill.contract.service_personnel_id
@@ -1545,9 +1549,13 @@ def batch_update_billing_details():
             bill.invoice_needed = data.get('invoice_needed', False)
 
         # --- 3. 处理财务调整项 ---
+        was_deletion = False
         if 'adjustments' in data:
             adjustments_data = data.get('adjustments', [])
-            _apply_all_adjustments_and_settlements(adjustments_data, bill, payroll)
+            was_deletion = _apply_all_adjustments_and_settlements(adjustments_data,bill,payroll)
+
+        # !!! 新增日志 !!!
+        current_app.logger.info(f"!!! FLAG CHECK !!! In batch_update_billing_details, was_deletion is: {was_deletion}")
 
         # --- 4. 运行引擎重算 ---
         # --- 3.5. 汇总并记录日志 ---
@@ -1556,12 +1564,12 @@ def batch_update_billing_details():
             log_details['加班天数'] = {'from': str(original_overtime_days), 'to': str(new_overtime_decimal)}
 
         new_actual_work_days = D(str(data['actual_work_days'])) if 'actual_work_days' in data and data['actual_work_days']is not None and data['actual_work_days'] != '' else None
-        if new_actual_work_days is not None and original_actual_work_days != new_actual_work_days:
+        if new_actual_work_days is not None and original_actual_work_days!=new_actual_work_days:
             log_details['实际工作天数'] = {'from': str(original_actual_work_days), 'to': str(new_actual_work_days)}
 
         new_invoice_needed = data.get('invoice_needed', False)
         if original_invoice_needed != new_invoice_needed:
-            log_details['是否需要开票'] = {'from':original_invoice_needed, 'to': new_invoice_needed}
+            log_details['是否需要开票'] = {'from':original_invoice_needed, 'to':new_invoice_needed}
 
         new_invoices_info = [f"发票号: {inv.get('invoice_number')}, 金额: {inv.get('amount')}, 日期: {inv.get('issue_date')}" for inv in data.get('invoices', [])]
         if set(original_invoices_info) != set(new_invoices_info):
@@ -1590,21 +1598,31 @@ def batch_update_billing_details():
                 cycle_start_date_override=bill.cycle_start_date
             )
 
+        # --- 核心修复：在重算后，检查是否为最终账单，若是则更新最终薪资调整项 ---
+        contract = bill.contract
+        if contract.status in ['terminated', 'finished']:
+            last_bill_in_db = CustomerBill.query.filter(
+                CustomerBill.contract_id == contract.id,
+                CustomerBill.is_substitute_bill == False
+            ).order_by(CustomerBill.cycle_end_date.desc()).first()
 
-        
+            if last_bill_in_db and last_bill_in_db.id == bill.id:
+                # !!! 新增日志 !!!
+                current_app.logger.info(f"!!! CALLING FINAL ADJUSTMENTS !!! Bill {bill.id} is afinal bill. Calling create_final_salary_adjustments with allow_creation={not was_deletion}.")
+                engine.create_final_salary_adjustments(bill.id, allow_creation=not was_deletion)
+        # --- 修复结束 ---
+
 
         # --- 4.5. 在重算总额后，更新最终状态 ---
         _update_bill_payment_status(bill)
         _update_payroll_payout_status(payroll)
-        
-
         # --- 5. 提交所有更改 ---
         db.session.commit()
 
 
         # --- 6. 返回最新数据 ---
         latest_details = get_billing_details_internal(bill_id=bill.id)
- 
+
         # 【核心修复】手动为返回的数据附加最新的发票余额信息
         if latest_details:
             engine = BillingEngine()
