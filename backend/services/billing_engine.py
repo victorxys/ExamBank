@@ -2623,7 +2623,8 @@ class BillingEngine:
             f"[RecalcByBill] 合同 {contract.id} 的所有账单已重算完毕。"
         )
 
-    def create_final_salary_adjustments(self, bill_id: str):
+    def create_final_salary_adjustments(self, bill_id: str, allow_creation: bool = True):
+        current_app.logger.info(f"!!! ENGINE CALL !!! create_final_salary_adjustments called for bill {bill_id} with allow_creation={allow_creation}")
         """
         为给定的最后一个月账单创建“公司代付工资”及其镜像调整项。
         此函数是幂等的：如果调整项已存在，它会检查并更新金额；如果不存在，则创建。
@@ -2678,7 +2679,7 @@ class BillingEngine:
                     existing_adj.amount = amount_to_set
                     db.session.add(existing_adj)
                     self._mirror_company_paid_salary_adjustment(existing_adj, payroll)
-            else:
+            elif allow_creation:
                 current_app.logger.info(f"[FinalAdj] 创建新的公司代付工资 for bill {bill.id}: {amount_to_set}")
                 new_adj = FinancialAdjustment(
                     customer_bill_id=bill.id,
