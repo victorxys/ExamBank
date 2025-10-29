@@ -2821,7 +2821,7 @@ class BillingEngine:
 
             trial_monthly_rate = trial_daily_rate * 26
             # 获取管理费率，如果合同上没有，则默认为10%
-            management_fee_rate = D(trial_contract.management_fee_rate iftrial_contract.management_fee_rate is not None else '0.1')
+            management_fee_rate = D(trial_contract.management_fee_rate if trial_contract.management_fee_rate is not None else '0.1')
             overlap_mgmt_fee = (trial_monthly_rate * management_fee_rate / 30*D(overlap_days)).quantize(D("0.01"))
             current_app.logger.info(f"[TRIAL_CONVERT_LOG] 5. 计算出重叠期冲抵金额: 工资={overlap_salary}, 管理费={overlap_mgmt_fee}")
 
