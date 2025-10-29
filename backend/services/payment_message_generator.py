@@ -194,7 +194,7 @@ class PaymentMessageGenerator:
             if adj.adjustment_type == AdjustmentType.DEPOSIT_PAID_SALARY:
                 item = {
                     "name": "已由保证金支付工资",
-                    "description": f"-{abs(adj.amount):.2f}元"
+                    "description": f"{abs(adj.amount):.2f}元"
                 }
                 employee_line_items.append(item)
                 employee_total -= adj.amount
@@ -233,6 +233,8 @@ class PaymentMessageGenerator:
             employee_total_paid = payout_sum or D(0)
             employee_payouts = payroll.payout_records.order_by(PayoutRecord.payout_date.asc()).all()
         
+        if payroll:
+            employee_total = payroll.total_due
         employee_pending = employee_total - employee_total_paid
 
         # 7. 确定员工姓名

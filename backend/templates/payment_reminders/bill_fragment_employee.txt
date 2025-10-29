@@ -7,7 +7,7 @@
 {% if employee_payouts %}
   已付工资记录:
 {% for payout in employee_payouts %}
-  - {{ payout.payout_date.strftime('%Y-%m-%d') }}: -{{ payout.amount | round(2) }}元 ({{ payout.method or '工资' }})
+  - {{ payout.payout_date.strftime('%Y-%m-%d') }}: {{ payout.amount | round(2) }}元 ({{ payout.method or '工资' }})
 {% endfor %}
 {% endif %}
 
