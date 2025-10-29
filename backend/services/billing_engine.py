@@ -2304,7 +2304,9 @@ class BillingEngine:
 
         # 使用修正后的日薪和月薪计算基础劳务费和管理费
         base_fee = (final_daily_rate * days).quantize(QUANTIZER)
-        management_fee = (rounded_monthly_salary * D('0.1') / 30 * days).quantize(QUANTIZER)
+        # 获取管理费率，如果合同上没有，则默认为10%
+        management_fee_rate = D(contract.management_fee_rate if contract.management_fee_rate is not None else '0.1')
+        management_fee = (rounded_monthly_salary * management_fee_rate / 30 * days).quantize(QUANTIZER)
 
         current_app.logger.info(f"[TrialTerm-v17] 计算试工合同 {contract.id} 结算细节: 级别 {level}, 取整后日薪 {final_daily_rate}, 试工天数 {days}, 加班天数 {overtime_days}, 基础费 {base_fee}, 加班费 {overtime_fee}, 管理费 {management_fee}")
         
@@ -2337,7 +2339,7 @@ class BillingEngine:
             "substitute_deduction": "0.00",
             "log_extras": {
                 "salary_rounding_reason": f"临时月薪({original_daily_rate:.2f}*26 = {provisional_monthly_salary:.2f}) 取整为 {rounded_monthly_salary:.2f}。所有费用基于此计算。",
-                "management_fee_reason": f"取整后月薪({rounded_monthly_salary:.2f})/30天 * 20% * 试工天数({days}) = {management_fee:.2f}",
+                "management_fee_reason": f"取整后月薪({rounded_monthly_salary:.2f})/30天 * {management_fee_rate:.0%} * 试工天数({days}) = {management_fee:.2f}",
                 "employee_payout_reason": f"取整后日薪({final_daily_rate:.4f}) * 试工天数({days}) = {base_fee:.2f}",
                 "overtime_fee_reason": f"取整后日薪({final_daily_rate:.4f}) * 加班天数({overtime_days}) = {overtime_fee:.2f}"
             },
@@ -2818,7 +2820,9 @@ class BillingEngine:
             overlap_salary = (trial_daily_rate * D(overlap_days)).quantize(D("0.01"))
 
             trial_monthly_rate = trial_daily_rate * 26
-            overlap_mgmt_fee = (trial_monthly_rate * D('0.2') / 30 *D(overlap_days)).quantize(D("0.01"))
+            # 获取管理费率，如果合同上没有，则默认为10%
+            management_fee_rate = D(trial_contract.management_fee_rate iftrial_contract.management_fee_rate is not None else '0.1')
+            overlap_mgmt_fee = (trial_monthly_rate * management_fee_rate / 30*D(overlap_days)).quantize(D("0.01"))
             current_app.logger.info(f"[TRIAL_CONVERT_LOG] 5. 计算出重叠期冲抵金额: 工资={overlap_salary}, 管理费={overlap_mgmt_fee}")
 
             if overlap_salary > 0:
