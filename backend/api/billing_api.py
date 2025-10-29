@@ -1590,18 +1590,7 @@ def batch_update_billing_details():
                 cycle_start_date_override=bill.cycle_start_date
             )
 
-        # --- 核心修复：在重算后，检查是否为最终账单，若是则更新最终薪资调整项 ---
-        contract = bill.contract
-        if contract.status in ['terminated', 'finished']:
-            last_bill_in_db = CustomerBill.query.filter(
-                CustomerBill.contract_id == contract.id,
-                CustomerBill.is_substitute_bill == False
-            ).order_by(CustomerBill.cycle_end_date.desc()).first()
 
-            if last_bill_in_db and last_bill_in_db.id == bill.id:
-                current_app.logger.info(f"账单 {bill.id} 是最终账单，更新公司代付工资调整项。")
-                engine.create_final_salary_adjustments(bill.id)
-        # --- 修复结束 ---
         
 
         # --- 4.5. 在重算总额后，更新最终状态 ---
