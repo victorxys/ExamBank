@@ -632,6 +632,24 @@ class BillingEngine:
         self._update_bill_with_log(final_bill, final_payroll, details, log)
         current_app.logger.info(f"[NannyCALC] 计算完成 for contract {contract.id}")
 
+        # --- Linus-style Change: Unify final billing logic ---
+        # Check if this is the final bill for a naturally expiring contract and trigger final adjustments.
+        contract_end_date = self._to_date(contract.end_date)
+        cycle_end_date = self._to_date(cycle_end)
+        is_auto_renew = getattr(contract, 'is_monthly_auto_renew', False)
+
+        if contract_end_date and cycle_end_date and cycle_end_date >= contract_end_date and not is_auto_renew and contract.status == 'active':
+            # [Recursion Fix] Check if final adjustments already exist to prevent infinite loop.
+            final_adj_exists = db.session.query(FinancialAdjustment.id).filter_by(
+                customer_bill_id=bill.id,
+                adjustment_type=AdjustmentType.COMPANY_PAID_SALARY,
+                description="[系统] 公司代付工资"
+            ).first()
+
+            if not final_adj_exists:
+                current_app.logger.info(f"[NannyCALC] 合同 {contract.id} 为自然到期，触发最终结算调整。")
+                self.create_final_salary_adjustments(bill.id)
+
     def _get_nanny_cycle_for_month(self, contract, year, month, end_date_override=None):
         """计算指定育儿嫂合同在目标年月的服务周期。"""
         contract_end_date = end_date_override or contract.end_date
@@ -1100,6 +1118,7 @@ class BillingEngine:
         # 返回的 details 中不再包含 first_month_deduction，因为它已经变成了调整项
         details_to_return = {
             "type": "nanny",
+            "is_last_bill": is_last_bill,
             "level": str(level),
             "cycle_period": f"{cycle_start.isoformat()} to {cycle_end.isoformat()}",
             "cycle_start_datetime": original_cycle_start_datetime.isoformat(), # New field for precise datetime

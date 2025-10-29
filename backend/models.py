@@ -2500,13 +2500,13 @@ class FinancialActivityLog(db.Model):
     # 关联到具体的账单或薪酬单
     customer_bill_id = db.Column(
         PG_UUID(as_uuid=True),
-        db.ForeignKey("customer_bills.id"),
+        db.ForeignKey("customer_bills.id", ondelete="CASCADE"),
         nullable=True,
         index=True,
     )
     employee_payroll_id = db.Column(
         PG_UUID(as_uuid=True),
-        db.ForeignKey("employee_payrolls.id"),
+        db.ForeignKey("employee_payrolls.id", ondelete="CASCADE"),
         nullable=True,
         index=True,
     )
