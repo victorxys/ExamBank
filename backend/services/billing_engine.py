@@ -918,10 +918,11 @@ class BillingEngine:
                     management_fee_reason = f"末期账单不足月，按天收取: 级别({level})*10%/30 * min(周期天数({cycle_duration_days}), 30) = {management_fee:.2f}"
                 log_extras["management_fee_reason"] = management_fee_reason
             else:
-                management_fee = (level * D("0.1")).quantize(QUANTIZER)
                 if management_fee_amount:
+                    management_fee = management_fee_amount.quantize(QUANTIZER)
                     management_fee_reason = f"月签合同整月，按月收取: {management_fee_amount} "
                 else:
+                    management_fee = (level * D("0.1")).quantize(QUANTIZER)
                     management_fee_reason = f"月签合同整月，按月收取: {level} * 10%"
                 log_extras["management_fee_reason"] = management_fee_reason
         else:
