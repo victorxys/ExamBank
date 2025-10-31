@@ -24,16 +24,18 @@ import {
 import { Timeline } from '@mui/lab';
 
 import api from '../api/axios'; 
+import { mergeBills } from '../api/bill_merge';
 import AdjustmentDialog, { AdjustmentTypes } from './AdjustmentDialog';
 import InvoiceDetailsDialog from './InvoiceDetailsDialog';
 import LogItem from './LogItem';
-import { PeopleAlt as PeopleAltIcon } from '@mui/icons-material';
+import { CallMerge as CallMergeIcon, PeopleAlt as PeopleAltIcon } from '@mui/icons-material';
 import SubstituteDialog from './SubstituteDialog';
 import TransferDepositDialog from './TransferDepositDialog';
 import PaymentDialog from './PaymentDialog';
 import AlertMessage from './AlertMessage';
 import PayoutDialog from './PayoutDialog';
 import PaymentMessageModal from './PaymentMessageModal';
+import MergePreviewModal from './MergePreviewModal'; // 新增导入
 
 
 // --- 辅助函数 ---
@@ -255,6 +257,61 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
 
     const [isTransferBalanceDialogOpen, setIsTransferBalanceDialogOpen] = useState(false);
     const [deletionHappened, setDeletionHappened] = useState(false);
+    const [successorContract, setSuccessorContract] = useState(null);
+    const [isMergePreviewOpen, setIsMergePreviewOpen] = useState(false);
+    const [isProcessingSuccessorAction, setIsProcessingSuccessorAction] = useState(false);
+    const [mergePreviewData, setMergePreviewData] = useState(null);
+    const [previewDataForModal, setPreviewDataForModal] = useState({ transferableAdjustments: [], sourceContractInfo: null, targetContractInfo: null });
+
+    const handleOpenMergePreview = async () => {
+        if (!billingDetails?.customer_bill_details?.id || !successorContract?.id) {
+            setAlert({ open: true, message: '缺少源账单ID或续约合同ID，无法获取预览。', severity:'error' });
+            return;
+        }
+
+        setIsProcessingSuccessorAction(true);
+        setMergePreviewData(null); // 清空旧数据
+        try {
+            // 调用新的 bill_merge API
+            const response = await mergeBills(billingDetails.customer_bill_details.id,successorContract.id, true);
+            setMergePreviewData(response.data);
+            setIsMergePreviewOpen(true);
+        } catch (error) {
+            setAlert({
+                open: true,
+                message: `获取合并预览失败: ${error.response?.data?.message || error.message}`,
+                severity: 'error'
+            });
+        } finally {
+            setIsProcessingSuccessorAction(false);
+        }
+    };
+
+    const handlePostMergeRefresh = async () => {
+        const billId = billIdRef.current;
+        if (!billId) {
+            setAlert({ open: true, message: '刷新失败，缺少账单ID', severity: 'error' });
+            return;
+        }
+
+        setIsMergePreviewOpen(false);
+        setAlert({ open: true, message: '合并操作成功！正在刷新数据...', severity: 'success' });
+
+        try {
+            const detailsResponse = await api.get('/billing/details', {
+                params: { bill_id: billId }
+            });
+            setBillingDetails(detailsResponse.data);
+            // 刷新后，也重置续约合同状态，因为源账单不再是 is_last_bill
+            setSuccessorContract(null);
+        } catch (error) {
+            setAlert({
+                open: true,
+                message: `刷新数据失败: ${error.response?.data?.error || error.message}`,
+                severity: 'error'
+            });
+        }
+    };
 
     const handleConfirmTransferBalance = async (destinationContractId) => {
         const billId = billingDetails?.customer_bill_details?.id;
@@ -332,6 +389,22 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                 api.get(`/contracts/${contract.contract_id}/substitutes`)
                     .then(res => setSubstituteRecords(res.data))
                     .catch(err => console.error("获取替班记录失败:", err));
+
+                // --- 新增逻辑 ---
+                if (billingDetails.is_last_bill) {
+                    api.get(`/contracts/${contract.contract_id}/successor`)
+                        .then(res => {
+                            if (res.status === 200) {
+                                setSuccessorContract(res.data);
+                            } else {
+                                setSuccessorContract(null);
+                            }
+                        })
+                        .catch(() => setSuccessorContract(null));
+                } else {
+                    setSuccessorContract(null);
+                }
+                // --- 新增结束 ---
             }
         }
     }, [open, billingDetails, contract?.contract_id]);
@@ -1183,12 +1256,18 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                                             const mainDescription = adj.description;
 
                                             const details = adj.details || {};
-                                            const status = details.status || '';
-                                            let linkBillId = null;
-                                            if (status === 'transferred_out' || status === 'transferred' || status ==='offsetting_transfer') {
-                                                linkBillId = details.transferred_to_bill_id;
-                                            } else if (status === 'transferred_in') {
-                                                linkBillId = details.transferred_from_bill_id;
+
+                                            // --- 核心修正：优先使用新的、简单的 linked_bill_id ---
+                                            let linkBillId = details.linked_bill_id || details.linked_payroll_id;
+
+                                            // 如果新的字段不存在，则回退到旧的逻辑以保持兼容
+                                            if (!linkBillId) {
+                                                const status = details.status || '';
+                                                if (status === 'transferred_out' || status === 'transferred' || status ==='offsetting_transfer') {
+                                                    linkBillId = details.transferred_to_bill_id;
+                                                } else if (status === 'transferred_in') {
+                                                    linkBillId = details.transferred_from_bill_id;
+                                                }
                                             }
 
                                             const sourceContractId = details.source_contract_id || adj.source_contract_id;
@@ -1763,6 +1842,17 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                     >
                         生成催款信息
                     </Button>
+                        {successorContract && !isEditMode && (
+                            <Button
+                                variant="contained"
+                                color="secondary"
+                                startIcon={isProcessingSuccessorAction ? <CircularProgress size={20} /> : <CallMergeIcon />}
+                                onClick={handleOpenMergePreview} // <--- 修改这里
+                                disabled={isSwitchingMonth || isProcessingSuccessorAction}
+                            >
+                                {isProcessingSuccessorAction ? '获取预览中...' : '合并至续约账单'} 
+                            </Button>
+                        )}
                     <Button onClick={() => onClose(billingDetails)}>关闭</Button><Button onClick={handleEnterEditMode} variant="contained" startIcon={<EditIcon />} disabled={isSwitchingMonth}>进入编辑模式</Button></>)}
                 </DialogActions>
             </Dialog>
@@ -1870,6 +1960,15 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                 onClose={() => setIsMessageModalOpen(false)}
                 initialMessage={generatedMessage}
                 onAlert={(msg, sev) => setAlert({ open: true, message: msg, severity: sev })}
+            />
+            {/* 新增：合并预览模态框 */}
+            <MergePreviewModal
+                open={isMergePreviewOpen}
+                onClose={() => setIsMergePreviewOpen(false)}
+                onConfirm={handlePostMergeRefresh}
+                previewData={mergePreviewData}
+                sourceBillId={billingDetails?.customer_bill_details?.id}
+                targetContractId={successorContract?.id}
             />
         </>
     );

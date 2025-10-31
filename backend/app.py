@@ -69,6 +69,7 @@ from backend.api.financial_adjustment_api import financial_adjustment_api
 # from backend.api.statement_api import statement_bp
 from backend.api.bank_statement_api import bank_statement_api
 from backend.api.payer_alias_api import payer_alias_api
+from backend.api.bill_merge_api import bill_merge_bp
 
 
 
@@ -273,7 +274,8 @@ app.register_blueprint(contract_bp)
 
 app.register_blueprint(financial_adjustment_api, url_prefix="/api")
 app.register_blueprint(bank_statement_api) 
-app.register_blueprint(payer_alias_api) 
+app.register_blueprint(payer_alias_api)
+app.register_blueprint(bill_merge_bp) 
 # app.register_blueprint(statement_bp, url_prefix="/api") 
 
 

@@ -299,7 +299,7 @@ class BillingEngine:
         # _update_bill_payment_status(bill) # <-- 直接调用模块内的函数，不加 self
 
     def calculate_for_month(
-        self, year: int, month: int, contract_id=None, force_recalculate=False, actual_work_days_override=None, cycle_start_date_override=None , end_date_override = None
+        self, year: int, month: int, contract_id=None, force_recalculate=False, actual_work_days_override=None, cycle_start_date_override=None , end_date_override = None, _internal_call=False
     ):
                 # <--- 在这里增加下面这行 --->
         current_app.logger.debug(f"[DEBUG-ENGINE] calculate_for_month called with: year={year}, month={month}, contract_id={contract_id}, force_recalculate={force_recalculate}, actual_work_days_override={actual_work_days_override}, end_date_override={end_date_override}")
@@ -620,6 +620,9 @@ class BillingEngine:
             local_actual_work_days_override = days
         
         bill, payroll = self._get_or_create_bill_and_payroll(contract, year, month, cycle_start, cycle_end)
+        if not bill or not payroll:
+            current_app.logger.info(f"[NannyCALC] 周期 {cycle_start} 的账单无法获取或创建（可能已被合并），计算中止。")
+            return
 
         if not force_recalculate and bill.calculation_details and "calculation_log" in bill.calculation_details:
             current_app.logger.info(f"[NannyCALC] 合同 {contract.id} 的账单已存在且无需重算，跳过。")
@@ -853,7 +856,9 @@ class BillingEngine:
             log_extras["base_work_days_reason"] = f"默认逻辑: min(周期天数({cycle_actual_days}), 26)"
         # --- END NEW LOGIC ---
         
-        total_days_worked = base_work_days + overtime_days - D(total_substitute_days)
+        # total_days_worked = base_work_days + overtime_days - D(total_substitute_days)
+        # 移除替班天数
+        total_days_worked = base_work_days + overtime_days
 
         # 育儿嫂普通合同日薪定义
         customer_daily_rate = level / D(26)
@@ -1126,8 +1131,10 @@ class BillingEngine:
             "base_work_days": str(base_work_days),
             "overtime_days":  f"{overtime_days:.3f}",
             "total_days_worked": str(total_days_worked),
-            "substitute_days": str(total_substitute_days),
-            "substitute_deduction": str(substitute_deduction_from_sub_records.quantize(QUANTIZER)),
+            # "substitute_days": str(total_substitute_days),
+            "substitute_days": "0",
+            # "substitute_deduction": str(substitute_deduction_from_sub_records.quantize(QUANTIZER)),
+            "substitute_deduction": "0.00",
             "extension_fee": f"{extension_fee:.2f}",
             "extension_management_fee": f"{extension_management_fee:.2f}",
             "customer_base_fee": str(customer_base_fee),
@@ -1145,7 +1152,7 @@ class BillingEngine:
             "employee_daily_rate": str(employee_daily_rate.quantize(QUANTIZER)),
             "deferred_fee": str(deferred_fee),
             "log_extras": log_extras,
-            "substitute_deduction_logs": substitute_deduction_logs,
+            # "substitute_deduction_logs": substitute_deduction_logs,
         }
         current_app.logger.info(f"--- [DEBUG-EXT] Keys in details dict before returning: {list(details_to_return.keys())} ---")
         return details_to_return
@@ -1562,6 +1569,7 @@ class BillingEngine:
                 f"[SubCALC] 替班记录 {substitute_record_id} 未找到。"
             )
             return
+        db.session.refresh(sub_record)
 
         current_app.logger.info(f"[SubCALC] 开始为替班记录 {sub_record.id} 生成账单。")
 
@@ -2035,19 +2043,14 @@ class BillingEngine:
             employee_payroll_id=payroll_id
         ).all()
 
+        # 计算增款项（不再包含公司代付工资和保证金代付工资）
         cust_increase = sum(
             adj.amount
             for adj in customer_adjustments
             if adj.adjustment_type in [
                 AdjustmentType.CUSTOMER_INCREASE,
                 AdjustmentType.INTRODUCTION_FEE,
-                AdjustmentType.COMPANY_PAID_SALARY,
             ]
-        )
-        cust_increase += sum(
-            adj.amount
-            for adj in employee_adjustments
-            if adj.adjustment_type == AdjustmentType.COMPANY_PAID_SALARY
         )
         cust_decrease = sum(
             adj.amount
@@ -2085,18 +2088,27 @@ class BillingEngine:
     def _calculate_final_amounts(self, bill, payroll, details):
         current_app.logger.info("开始进行final calculation of amounts.")
         # ---客户应付总额计算("仅包含客户付给公司的费用，不含客户付给员工的费用。")
+        
+        # --- [核心修改] 在计算客户应付之前，先统计代付工资总额 ---
+        total_paid_salary_adjustments = D(0)
+        if bill and not bill.is_substitute_bill:
+            # 统计账单上的公司代付工资和保证金代付工资调整项总额
+            for adj in db.session.query(FinancialAdjustment).filter(
+                FinancialAdjustment.customer_bill_id == bill.id,
+                FinancialAdjustment.adjustment_type.in_([AdjustmentType.COMPANY_PAID_SALARY, AdjustmentType.DEPOSIT_PAID_SALARY])
+            ).all():
+                total_paid_salary_adjustments += adj.amount
+
+        # 客户仅需支付管理费等费用，不包括已经由公司或保证金代付的工资
         total_due = (
             D(details.get("management_fee", 0))
-            # + D(details.get("customer_overtime_fee", 0))
-            # + D(details.get("customer_base_fee", 0))
             + D(details.get("introduction_fee", 0))
             + D(details.get("customer_increase", 0))
-            # + D(details.get("extension_fee", "0.00"))
             + D(details.get("deferred_fee", "0.00"))
             + D(details.get("extension_fee_reason", "0.00"))
+            + total_paid_salary_adjustments  # 减去所有代付的工资
             - D(details.get("customer_decrease", 0))
             - D(details.get("discount", 0))
-            # - D(details.get("substitute_deduction", 0))
         )
         # --- 员工应付总额计算 (核心修改点) ---
         # Gross Pay = Base + Overtime + Increase
@@ -2105,7 +2117,7 @@ class BillingEngine:
             + D(details.get("employee_overtime_payout", 0))
             + D(details.get("extension_fee", 0))
             + D(details.get("employee_increase", 0))
-            - D(details.get("substitute_deduction", 0))
+            # - D(details.get("substitute_deduction", 0))
             - D(details.get("employee_decrease", 0))
         )
 
@@ -2667,21 +2679,15 @@ class BillingEngine:
             current_app.logger.error(f"[FinalAdj] 找不到与账单 {bill_id} 关联的薪酬单。")
             return
 
-        # 1. 使用 payroll.total_due 作为干净的应发总额
-        #    因为调用此函数前，calculate_for_month 已经运行过，且不再包含最终调整项逻辑。
         gross_pay = payroll.total_due
-
-        # 2. 计算应设置的金额
         amount_to_set = D('0')
+
         if contract.type == 'nanny_trial':
-            # 试工合同：按实际应发总额，不设上限
             amount_to_set = gross_pay.quantize(D("1"))
         else:
-            # 其他合同（育儿嫂等）：金额不能超过员工级别
             employee_level = D(contract.employee_level or '0')
             amount_to_set = min(gross_pay, employee_level).quantize(D("1"))
 
-        # 3. 创建或更新主调整项和镜像调整项
         existing_adj = FinancialAdjustment.query.filter_by(
             customer_bill_id=bill.id,
             adjustment_type=AdjustmentType.COMPANY_PAID_SALARY,
@@ -2713,15 +2719,10 @@ class BillingEngine:
                 db.session.add(new_adj)
                 self._mirror_company_paid_salary_adjustment(new_adj, payroll)
 
-        # 4. 触发一次重算来更新总额
-        current_app.logger.info(f"[FinalAdj] 调整项已创建/更新/清理，为账单 {bill.id} 触发最终重算。")
-        self.calculate_for_month(
-            year=bill.year,
-            month=bill.month,
-            contract_id=contract.id,
-            force_recalculate=True,
-            cycle_start_date_override=bill.cycle_start_date
-        )
+        # 【核心修正】删除触发递归调用的代码块
+        # 不再需要画蛇添足地调用 calculate_for_month，因为调整项已经加入到会话中，
+        # 在当前事务提交后，账单的总额会自动更新。
+        current_app.logger.info(f"[FinalAdj] 调整项已创建/更新/清理 for bill {bill.id}。函数执行完毕。")
 
     def _mirror_company_paid_salary_adjustment(self, company_adj: FinancialAdjustment, payroll:EmployeePayroll):
         """
@@ -2913,10 +2914,14 @@ class BillingEngine:
         introduction_fee = D(trial_contract.introduction_fee or '0')
         if introduction_fee > 0:
             current_app.logger.info(f"[TRIAL_CONVERT_LOG] 8. 处理介绍费: {introduction_fee}")
-            intro_fee_adj = FinancialAdjustment(customer_bill_id=first_bill.id,adjustment_type=AdjustmentType.INTRODUCTION_FEE, amount=introduction_fee, description=f"[系统]来自试工合同的介绍费 (已结清)", date=first_bill.cycle_start_date, is_settled=True,settlement_date=trial_contract.start_date, details={"source_trial_contract_id": str(trial_contract.id)})
+            # 转移介绍费 不显示为已支付
+            # intro_fee_adj = FinancialAdjustment(customer_bill_id=first_bill.id,adjustment_type=AdjustmentType.INTRODUCTION_FEE, amount=introduction_fee, description=f"[系统]来自试工合同的介绍费", date=first_bill.cycle_start_date, is_settled=True,settlement_date=trial_contract.start_date, details={"source_trial_contract_id": str(trial_contract.id)})
+            intro_fee_adj = FinancialAdjustment(customer_bill_id=first_bill.id,adjustment_type=AdjustmentType.INTRODUCTION_FEE, amount=introduction_fee, description=f"[系统]来自试工合同的介绍费", date=first_bill.cycle_start_date, is_settled=False, details={"source_trial_contract_id": str(trial_contract.id)})
             db.session.add(intro_fee_adj)
-            payment_for_intro_fee = PaymentRecord(customer_bill_id=first_bill.id,amount=introduction_fee, payment_date=trial_contract.start_date, method='TRIAL_FEE_TRANSFER',notes=f"[系统] 试工合同 介绍费转入", created_by_user_id=operator_id)
-            db.session.add(payment_for_intro_fee)
+
+            # 转移介绍费 不显示为已支付
+            # payment_for_intro_fee = PaymentRecord(customer_bill_id=first_bill.id,amount=introduction_fee, payment_date=trial_contract.start_date, method='TRIAL_FEE_TRANSFER',notes=f"[系统] 试工合同 介绍费转入", created_by_user_id=operator_id)
+            # db.session.add(payment_for_intro_fee)
 
         # 步骤 9: 最终重算，并提交
         current_app.logger.info(f"[TRIAL_CONVERT_LOG] 9. 准备对两个关联合同的账单进行最终重算。")
