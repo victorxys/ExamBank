@@ -1705,7 +1705,7 @@ def get_eligible_contracts_for_transfer():
         eligible_contracts = BaseContract.query.filter(
             BaseContract.customer_name == customer_name,
             BaseContract.id != exclude_contract_id,
-            BaseContract.status == 'active'
+            # BaseContract.status == 'active'
         ).order_by(BaseContract.start_date.desc()).all()
 
         results = [
