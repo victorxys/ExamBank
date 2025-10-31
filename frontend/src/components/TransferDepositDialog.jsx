@@ -3,88 +3,83 @@
 import React, { useState, useEffect } from 'react';
 import {
     Dialog, DialogTitle, DialogContent, DialogActions, Button, Typography,
-    Box, CircularProgress, FormControl, InputLabel, Select, MenuItem, Alert
+    Box, CircularProgress, FormControl, InputLabel, Select, MenuItem, Alert,
+    FormControlLabel, Switch
 } from '@mui/material';
 import api from '../api/axios';
 
 const TransferDepositDialog = ({ open, onClose, adjustment, sourceContract, onConfirm, sourceBillEndDate }) => {
-    const [eligibleContracts, setEligibleContracts] = useState([]);
-    const [selectedContractId, setSelectedContractId] = useState('');
+    const [eligibleItems, setEligibleItems] = useState([]);
+    const [selectedId, setSelectedId] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
+    const [transferToSubstitute, setTransferToSubstitute] = useState(false);
 
     useEffect(() => {
         if (open && sourceContract) {
             setIsLoading(true);
             setError('');
-            setEligibleContracts([]);
-            setSelectedContractId('');
+            setEligibleItems([]);
+            setSelectedId('');
 
-            api.get('/billing/contracts/eligible-for-transfer', {
-                params: {
-                    customer_name: sourceContract.customer_name,
-                    exclude_contract_id: sourceContract.contract_id
-                }
-            })
+            const endpoint = transferToSubstitute 
+                ? '/billing/contracts/substitute-bills' 
+                : '/billing/contracts/eligible-for-transfer';
+            
+            const params = {
+                customer_name: sourceContract.customer_name,
+                exclude_contract_id: sourceContract.contract_id
+            };
+
+            api.get(endpoint, { params })
             .then(response => {
-                let contracts = response.data;
-                console.log("sourceBillEndDate received from prop:", sourceBillEndDate);
+                let items = response.data;
 
-                if (sourceBillEndDate) {
+                if (!transferToSubstitute && sourceBillEndDate) {
                     const currentBillEndDate = new Date(sourceBillEndDate);
-                    // 将账单结束日的时间设为0，只比较日期
                     currentBillEndDate.setHours(0, 0, 0, 0);
-                    console.log("Parsed currentBillEndDate for comparison:", currentBillEndDate);
 
-                    contracts = contracts.filter(contract => {
-                        // 从 label 中提取日期: "... (YYYY-MM-DD生效)"
+                    items = items.filter(contract => {
                         const match = contract.label.match(/\((\d{4}-\d{2}-\d{2})生效\)/);
-                        
-                        // 如果 label 格式不匹配，则过滤掉该合同
                         if (!match || !match[1]) {
                             console.warn(`Could not parse date from contract label: "${contract.label}"`);
                             return false;
                         }
                         
                         const targetContractStartDate = new Date(match[1]);
-                        // 同样将目标合同的开始时间设为0，确保日期比较的准确性
                         targetContractStartDate.setHours(0, 0, 0, 0);
 
-                        const isEligible = targetContractStartDate > currentBillEndDate;
-
-                        console.log(
-                            `[Debug] Comparing: Target Start Date (${match[1]}) > Bill End Date (${sourceBillEndDate})? Result: ${isEligible}`,
-                            { target: targetContractStartDate, billEnd: currentBillEndDate }
-                        );
-
-                        return isEligible;
+                        return targetContractStartDate >= currentBillEndDate;
                     });
                 }
 
-                setEligibleContracts(contracts);
-                if (contracts.length === 0) {
-                    setError('该客户名下没有其他可供转移的有效合同。');
+                setEligibleItems(items);
+                if (items.length === 0) {
+                    setError(transferToSubstitute ? '该客户名下没有可供转移的替班账单。' : '该客户名下没有其他符合条件的有效合同。');
                 }
             })
             .catch(err => {
-                console.error("获取可转移合同列表失败:", err);
-                setError('加载合同列表失败，请检查网络或联系管理员。');
+                console.error(`获取可转移列表失败 (mode: ${transferToSubstitute ? 'substitute' : 'contract'}):`, err);
+                setError('加载列表失败，请检查网络或联系管理员。');
             })
             .finally(() => {
                 setIsLoading(false);
             });
         }
-    }, [open, sourceContract, sourceBillEndDate]);
+    }, [open, sourceContract, sourceBillEndDate, transferToSubstitute]);
 
     const handleConfirm = () => {
-        if (selectedContractId) {
-            onConfirm(selectedContractId);
+        if (selectedId) {
+            onConfirm({
+                destinationType: transferToSubstitute ? 'bill' : 'contract',
+                destinationId: selectedId
+            });
         }
     };
 
     return (
         <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-            <DialogTitle>转移保证金</DialogTitle>
+            <DialogTitle>转移保证金或余额</DialogTitle>
             <DialogContent>
                 {adjustment && (
                     <Typography gutterBottom>
@@ -95,27 +90,45 @@ const TransferDepositDialog = ({ open, onClose, adjustment, sourceContract, onCo
                         的保证金退款进行转移。
                     </Typography>
                 )}
-                <Box sx={{ mt: 3 }}>
+                
+                <FormControlLabel
+                    control={
+                        <Switch
+                            checked={transferToSubstitute}
+                            onChange={(e) => {
+                                setTransferToSubstitute(e.target.checked);
+                                setSelectedId(''); // Reset selection on switch
+                            }}
+                            name="transferToSubstituteSwitch"
+                        />
+                    }
+                    label="转移到客户名下其他替班账单"
+                    sx={{ mt: 1, mb: 1, color: 'text.secondary' }}
+                />
+
+                <Box sx={{ mt: 2 }}>
                     {isLoading ? (
                         <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100px' }}>
                             <CircularProgress />
-                            <Typography sx={{ ml: 2 }}>正在加载可选合同...</Typography>
+                            <Typography sx={{ ml: 2 }}>正在加载可选目标...</Typography>
                         </Box>
                     ) : error ? (
                         <Alert severity="warning">{error}</Alert>
                     ) : (
                         <FormControl fullWidth>
-                            <InputLabel id="destination-contract-select-label">请选择一个目标合同</InputLabel>
+                            <InputLabel id="destination-select-label">
+                                {transferToSubstitute ? '请选择一个目标替班账单' : '请选择一个目标合同'}
+                            </InputLabel>
                             <Select
-                                labelId="destination-contract-select-label"
-                                id="destination-contract-select"
-                                value={selectedContractId}
-                                label="请选择一个目标合同"
-                                onChange={(e) => setSelectedContractId(e.target.value)}
+                                labelId="destination-select-label"
+                                id="destination-select"
+                                value={selectedId}
+                                label={transferToSubstitute ? '请选择一个目标替班账单' : '请选择一个目标合同'}
+                                onChange={(e) => setSelectedId(e.target.value)}
                             >
-                                {eligibleContracts.map(contract => (
-                                    <MenuItem key={contract.id} value={contract.id}>
-                                        {contract.label}
+                                {eligibleItems.map(item => (
+                                    <MenuItem key={item.id} value={item.id}>
+                                        {item.label}
                                     </MenuItem>
                                 ))}
                             </Select>
@@ -128,7 +141,7 @@ const TransferDepositDialog = ({ open, onClose, adjustment, sourceContract, onCo
                 <Button
                     onClick={handleConfirm}
                     variant="contained"
-                    disabled={!selectedContractId || isLoading}
+                    disabled={!selectedId || isLoading}
                 >
                     确认转移
                 </Button>
