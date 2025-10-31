@@ -987,6 +987,7 @@ export default function ReconciliationPage() {
                 customer_name: bill.customer_name,
                 employee_name: bill.employee_name,
                 contract_id: bill.contract_id,
+                status: bill.contract_status,
                 billingMonth: `${accountingPeriod.year}-${String(accountingPeriod.month).padStart(2, '0')}`
             });
         } catch (err) {
@@ -1164,7 +1165,7 @@ export default function ReconciliationPage() {
                 setRelevantContractId(billsResponse.data.relevant_contract_id);
             }
         } catch (err) {
-            console.error("Soft refresh failed:", err);
+            // console.error("Soft refresh failed:", err);
             setAlertInfo({ open: true, message: '数据刷新失败', severity: 'error' });
         }
     };
@@ -1226,42 +1227,59 @@ export default function ReconciliationPage() {
     const [contractsOnly, setContractsOnly] = useState([]);
 
 useEffect(() => {
-    // 如果没有选择流水，则清空账单，不做任何操作
-    if (!selectedTxn?.id) {
-        setCustomerBills([]);
-        setClosestBillInfo(null);
-        setContractsOnly([]); // 清空纯合同列表
-        return;
-    }
-
     const fetchId = ++fetchBillsIdRef.current;
-
-    // 准备API请求参数
     const params = {
         year: operationPeriod.year,
         month: operationPeriod.month,
-        bank_transaction_id: selectedTxn.id
     };
 
-    // 核心逻辑：只有在用户手动“切换客户”后，才在请求中加入customer_name参数
-    if (overrideCustomerName) {
-        params.customer_name = overrideCustomerName;
+    let shouldFetch = false;
+    let logReason = "";
+
+    const customerToFetch = overrideCustomerName || selectedCustomerName;
+
+    // --- 核心逻辑修正 ---
+    // 场景一: 在“未匹配”页签，我们只关心用户手动选择的客户
+    if (activeTab === 'unmatched') {
+        if (customerToFetch) {
+            params.customer_name = customerToFetch;
+            shouldFetch = true;
+            logReason = `Customer selected in 'unmatched' tab (Name: ${customerToFetch})`;
+        }
+    }
+    // 场景二: 在其他页签，我们关心的是选中的流水
+    else if (selectedTxn?.id) {
+        params.bank_transaction_id = selectedTxn.id;
+        // 在这些页签，如果用户正在“切换客户”，我们也把客户名带上
+        if (customerToFetch) {
+             params.customer_name = customerToFetch;
+        }
+        shouldFetch = true;
+        logReason = `Transaction selected on tab '${activeTab}' (ID: ${selectedTxn.id})`;
+    }
+    // --- 修正结束 ---
+
+    // console.log(`[DEBUG] Bills fetch trigger check. Should fetch: ${shouldFetch}. Reason: ${logReason}. Params:`, params);
+
+    if (!shouldFetch) {
+        setCustomerBills([]);
+        setContractsOnly([]);
+        setClosestBillInfo(null);
+        return;
     }
 
     setIsLoadingBills(true);
     api.get('/billing/bills-by-customer', { params })
         .then(response => {
-            // 防止旧的请求结果覆盖新的结果
             if (fetchId === fetchBillsIdRef.current) {
                 setCustomerBills(response.data.bills);
-                setContractsOnly(response.data.contracts_only || []); // 更新纯合同列表
+                setContractsOnly(response.data.contracts_only || []);
                 setClosestBillInfo(response.data.closest_bill_period);
-                // 不再使用单一的 relevantContractId，因为信息现在更丰富
             }
         })
         .catch(err => {
             if (fetchId === fetchBillsIdRef.current) {
-                setAlertInfo({ open: true, message: `获取客户账单失败: ${err.message}`, severity:'error' });
+                setAlertInfo({ open: true, message: `获取客户账单失败: ${err.message}`, severity: 'error' });
             }
         })
         .finally(() => {
@@ -1269,8 +1287,7 @@ useEffect(() => {
                 setIsLoadingBills(false);
             }
         });
-// 依赖项：当这些关键状态改变时，重新触发账单获取
-}, [overrideCustomerName, selectedTxn, operationPeriod]);
+}, [overrideCustomerName, selectedTxn, operationPeriod, selectedCustomerName, activeTab]);
 
     useEffect(() => {
         if (!searchTerm) {
@@ -1553,7 +1570,7 @@ useEffect(() => {
                     loading={loadingBillDetails}
                     onSave={handleSaveBillDetails}
                     onNavigateToBill={(billId) => {
-                        console.log("Navigate to bill ID:", billId);
+                        // console.log("Navigate to bill ID:", billId);
                     }}
                 />
             )}

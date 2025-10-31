@@ -5165,6 +5165,7 @@ def get_bills_by_customer():
             all_bills_results.append({
                 "id": str(bill.id),
                 "contract_id": str(bill.contract.id),
+                "contract_status": bill.contract.status,
                 "customer_name": bill.contract.customer_name,
                 "employee_name": employee_name,
                 "is_substitute_bill": bill.is_substitute_bill,
