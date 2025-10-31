@@ -2091,7 +2091,7 @@ class BillingEngine:
         
         # --- [核心修改] 在计算客户应付之前，先统计代付工资总额 ---
         total_paid_salary_adjustments = D(0)
-        if bill and not bill.is_substitute_bill:
+        if bill: # 移除 not bill.is_substitute_bill，确保替班账单也能统计代付工资调整项
             # 统计账单上的公司代付工资和保证金代付工资调整项总额
             for adj in db.session.query(FinancialAdjustment).filter(
                 FinancialAdjustment.customer_bill_id == bill.id,

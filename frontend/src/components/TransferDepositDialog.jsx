@@ -7,7 +7,7 @@ import {
 } from '@mui/material';
 import api from '../api/axios';
 
-const TransferDepositDialog = ({ open, onClose, adjustment, sourceContract, onConfirm }) => {
+const TransferDepositDialog = ({ open, onClose, adjustment, sourceContract, onConfirm, sourceBillEndDate }) => {
     const [eligibleContracts, setEligibleContracts] = useState([]);
     const [selectedContractId, setSelectedContractId] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -27,8 +27,42 @@ const TransferDepositDialog = ({ open, onClose, adjustment, sourceContract, onCo
                 }
             })
             .then(response => {
-                setEligibleContracts(response.data);
-                if (response.data.length === 0) {
+                let contracts = response.data;
+                console.log("sourceBillEndDate received from prop:", sourceBillEndDate);
+
+                if (sourceBillEndDate) {
+                    const currentBillEndDate = new Date(sourceBillEndDate);
+                    // 将账单结束日的时间设为0，只比较日期
+                    currentBillEndDate.setHours(0, 0, 0, 0);
+                    console.log("Parsed currentBillEndDate for comparison:", currentBillEndDate);
+
+                    contracts = contracts.filter(contract => {
+                        // 从 label 中提取日期: "... (YYYY-MM-DD生效)"
+                        const match = contract.label.match(/\((\d{4}-\d{2}-\d{2})生效\)/);
+                        
+                        // 如果 label 格式不匹配，则过滤掉该合同
+                        if (!match || !match[1]) {
+                            console.warn(`Could not parse date from contract label: "${contract.label}"`);
+                            return false;
+                        }
+                        
+                        const targetContractStartDate = new Date(match[1]);
+                        // 同样将目标合同的开始时间设为0，确保日期比较的准确性
+                        targetContractStartDate.setHours(0, 0, 0, 0);
+
+                        const isEligible = targetContractStartDate > currentBillEndDate;
+
+                        console.log(
+                            `[Debug] Comparing: Target Start Date (${match[1]}) > Bill End Date (${sourceBillEndDate})? Result: ${isEligible}`,
+                            { target: targetContractStartDate, billEnd: currentBillEndDate }
+                        );
+
+                        return isEligible;
+                    });
+                }
+
+                setEligibleContracts(contracts);
+                if (contracts.length === 0) {
                     setError('该客户名下没有其他可供转移的有效合同。');
                 }
             })
@@ -40,7 +74,7 @@ const TransferDepositDialog = ({ open, onClose, adjustment, sourceContract, onCo
                 setIsLoading(false);
             });
         }
-    }, [open, sourceContract]);
+    }, [open, sourceContract, sourceBillEndDate]);
 
     const handleConfirm = () => {
         if (selectedContractId) {
