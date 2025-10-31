@@ -214,6 +214,7 @@ const getTooltipContent = (fieldName, billingDetails, isCustomer, adjustment = n
 
 // --- 主组件 ---
 const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billingDetails: initialBillingDetails, loading, onSave, onNavigateToBill }) => {
+    // console.log("[DEBUG] FinancialManagementModal received contract prop:", contract);
     const [latestSavedData, setLatestSavedData] = useState(null);
     const navigate = useNavigate();
     const [isEditMode, setIsEditMode] = useState(false);
