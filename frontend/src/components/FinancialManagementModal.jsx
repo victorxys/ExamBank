@@ -314,16 +314,21 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
         }
     };
 
-    const handleConfirmTransferBalance = async (destinationContractId) => {
+    const handleConfirmTransferBalance = async (transferData) => {
+        const { destinationType, destinationId } = transferData;
         const billId = billingDetails?.customer_bill_details?.id;
         if (!billId) {
             setAlert({ open: true, message: '无法操作，缺少账单ID', severity: 'error' });
             return;
         }
         try {
+            const payload = destinationType === 'bill'
+                ? { destination_bill_id: destinationId }
+                : { destination_contract_id: destinationId };
+
             const response = await api.post(
                 `/billing/bills/${billId}/transfer-balance`,
-                { destination_contract_id: destinationContractId }
+                payload
             );
             setAlert({ open: true, message: '余额结转成功！', severity: 'success' });
             setIsTransferBalanceDialogOpen(false);
