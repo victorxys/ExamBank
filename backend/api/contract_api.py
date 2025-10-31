@@ -421,6 +421,7 @@ def find_successor_contract(contract_id):
             BaseContract.customer_name == current_contract.customer_name,
             BaseContract.type == current_contract.type,
             BaseContract.service_personnel_id == current_contract.service_personnel_id,
+            BaseContract.user_id == current_contract.user_id,
             BaseContract.id != current_contract.id,
             BaseContract.start_date >= effective_end_date, # 新合同在当前合同实际结束后开始
             BaseContract.status != 'terminated'  # <-- 新增的过滤条件

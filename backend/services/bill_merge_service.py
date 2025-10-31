@@ -69,13 +69,14 @@ class BillMergeService:
                 adjustments_to_delete.append(self._format_adj(adj, "员工工资单"))
 
         # 修正: 使用 total_due 属性
-        customer_balance = source_bill.total_due
+        customer_balance = source_bill.total_due - source_bill.total_paid
         for adj in source_bill.financial_adjustments:
             if adj.adjustment_type == AdjustmentType.COMPANY_PAID_SALARY:
                 customer_balance -= adj.amount
 
         # 修正: 使用 total_due 属性
-        payroll_balance = source_payroll.total_due
+        # current_app.logger.debug(f"[MergeDebug] Source payroll total_due: {source_payroll}")
+        payroll_balance = source_payroll.total_due - source_payroll.total_paid_out
         # for adj in source_payroll.financial_adjustments:
         #      if adj.adjustment_type == AdjustmentType.DEPOSIT_PAID_SALARY:
         #         payroll_balance -= adj.amount
@@ -313,10 +314,17 @@ class BillMergeService:
         contract = bill.contract
         if not contract: return {"bill_id": str(bill.id)}
 
+        employee = contract.user or contract.service_personnel
+        employee_name = "未知员工"
+        if employee:
+            employee_name = getattr(employee, 'username', getattr(employee, 'name', '未知员工'))
+
         return {
             "bill_id": str(bill.id),
-            "contract_name": f"{contract.customer_name}的{get_contract_type_details(contract.type)}合同",
+            "contract_id": str(contract.id), # <-- 新增：合同ID
+            "contract_name": f"{contract.customer_name}的{get_contract_type_details(contract.type )}合同",
             "customer_name": contract.customer_name,
+            "employee_name": employee_name, # <-- 新增：员工姓名
             "period": f"{bill.year}-{bill.month:02d}",
             "start_date": contract.start_date.strftime('%Y-%m-%d') if contract.start_date else None,
             "end_date": contract.end_date.strftime('%Y-%m-%d') if contract.end_date else None,
