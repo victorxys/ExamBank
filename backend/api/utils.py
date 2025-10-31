@@ -270,7 +270,11 @@ def get_billing_details_internal(
         customer_details['groups'][0]['fields']['管理费'] = calc_cust.get("management_fee", "待计算")
     customer_details['groups'][0]['fields']['合同备注'] = contract.notes or "—"
 
-    later_bill_exists = db.session.query(db.session.query(CustomerBill).filter(CustomerBill.contract_id == contract.id,CustomerBill.is_substitute_bill == False, CustomerBill.cycle_start_date > customer_bill.cycle_start_date).exists()).scalar()
+    later_bill_exists = db.session.query(CustomerBill.query.filter(
+        CustomerBill.contract_id == contract.id,
+        CustomerBill.is_substitute_bill == False, 
+        CustomerBill.cycle_start_date > customer_bill.cycle_start_date
+    ).exists()).scalar()
     is_last_bill = not later_bill_exists
     
     

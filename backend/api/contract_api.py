@@ -18,7 +18,7 @@ from backend.services.contract_service import cancel_substitute_bill_due_to_tran
 from datetime import datetime
 import decimal
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy import or_
+from sqlalchemy import or_, extract
 from sqlalchemy.orm import joinedload
 D = decimal.Decimal
 
@@ -236,136 +236,6 @@ def delete_substitute_record(record_id):
         return jsonify({"error": "Internal server error"}), 500
 
 
-# 已在 billing_api 中实现
-# @contract_bp.route("/<uuid:contract_id>/terminate", methods=["POST"])
-# @jwt_required()
-# def terminate_contract(contract_id):
-#     current_app.logger.debug(f"=========开始终止合同========={contract_id}")
-#     data = request.get_json()
-#     termination_date_str = data.get("termination_date")
-#     transfer_options = data.get("transfer_options")
-#     current_app.logger.debug(f"[API-Terminate] Received termination_date_str: {termination_date_str}")
-#     if not termination_date_str:
-#         return jsonify({"error": "Termination date is required"}), 400
-
-#     try:
-#         termination_date = datetime.strptime(termination_date_str, "%Y-%m-%d").date()
-#         current_app.logger.debug(f"[API-Terminate] Parsed termination_date: {termination_date}")# 添加此日志
-#     except ValueError:
-#         return jsonify({"error": "Invalid date format. Use YYYY-MM-DD."}), 400
-
-#     contract =db.session.query(BaseContract).options(joinedload(BaseContract.substitute_records)).get_or_404(contract_id)
-#     current_app.logger.debug(f"[API-Terminate] Contract status before termination: {contract.status}, end_date: {contract.end_date}") # 添加此日志
-
-#     try:
-#         # 如果是转签，按顺序执行新的总指挥逻辑
-#         if transfer_options:
-#             new_contract_id = transfer_options.get("new_contract_id")
-#             substitute_user_id = transfer_options.get("substitute_user_id")
-#             if not new_contract_id or not substitute_user_id:
-#                 raise ValueError("转签失败：缺少新合同ID或替班员工ID。")
-            
-#             new_contract = db.session.get(BaseContract, new_contract_id)
-#             if not new_contract:
-#                 raise ValueError(f"转签失败：新合同 {new_contract_id} 未找到。")
-#             substitute_user = db.session.get(User, substitute_user_id)
-#             if not substitute_user:
-#                 raise ValueError(f"转签失败：替班员工 {substitute_user_id} 未找到。")
-
-#             # 第1步：作废旧合同的替班账单
-#             cancel_substitute_bill_due_to_transfer(
-#                 db.session,
-#                 old_contract=contract,
-#                 new_contract=new_contract,
-#                 substitute_user=substitute_user,
-#                 termination_date=termination_date
-#             )
-
-#             # 第2步：计算旧合同的应退款项
-#             engine = BillingEngine()
-#             refunds = engine.calculate_termination_refunds(contract, termination_date)
-
-#             # 第3步：将退款作为信用额度应用到新合同
-#             apply_transfer_credits_to_new_contract(
-#                 db.session,
-#                 new_contract=new_contract,
-#                 credits=refunds,
-#                 old_contract_id=str(contract.id),
-#                 termination_date=termination_date
-#             )
-            
-#             message = f"合同 {contract_id} 已成功终止，并完成费用转签。"
-
-#         # 不论是否转签，最后都要执行终止操作
-#         termination_year = termination_date.year
-#         termination_month = termination_date.month
-
-#         bills_to_delete_query = CustomerBill.query.with_entities(CustomerBill.id).filter(
-#             CustomerBill.contract_id == contract_id,
-#             ((CustomerBill.year == termination_year) & (CustomerBill.month > termination_month)) |
-#             (CustomerBill.year > termination_year)
-#         )
-#         bill_ids_to_delete = [item[0] for item in bills_to_delete_query.all()]
-
-#         payrolls_to_delete_query = EmployeePayroll.query.with_entities(EmployeePayroll.id).filter(
-#             EmployeePayroll.contract_id == contract_id,
-#             ((EmployeePayroll.year == termination_year) & (EmployeePayroll.month > termination_month)) |
-#             (EmployeePayroll.year > termination_year)
-#         )
-#         payroll_ids_to_delete = [item[0] for item in payrolls_to_delete_query.all()]
-
-#         if bill_ids_to_delete:
-#             FinancialActivityLog.query.filter(FinancialActivityLog.customer_bill_id.in_(bill_ids_to_delete)).delete(synchronize_session=False)
-#             CustomerBill.query.filter(CustomerBill.id.in_(bill_ids_to_delete)).delete(synchronize_session=False)
-
-#         if payroll_ids_to_delete:
-#             FinancialActivityLog.query.filter(FinancialActivityLog.employee_payroll_id.in_(payroll_ids_to_delete)).delete(synchronize_session=False)
-#             EmployeePayroll.query.filter(EmployeePayroll.id.in_(payroll_ids_to_delete)).delete(synchronize_session=False)
-
-#         contract.status = "terminated"
-#         contract.end_date = termination_date
-#         if hasattr(contract, 'expected_offboarding_date'):
-#             contract.expected_offboarding_date = termination_date
-
-#         # 如果不是转签，才需要重算最后一期账单。转签的账单由转移的费用本身来体现。
-#         if not transfer_options:
-#             calculate_monthly_billing_task.delay(
-#                 termination_year, termination_month, contract_id=str(contract.id), force_recalculate=True
-#             )
-#             message = f"合同 {contract_id} 已终止，正在为您重算最后一期账单..."
-
-#         # 【新增逻辑】检查并生成提前终止合同产生的替班管理费
-#         for sub_record in contract.substitute_records:
-#             current_app.logger.debug(f"[API-Terminate] Processing sub_record: {sub_record.id}, start_date: {sub_record.start_date}, end_date: {sub_record.end_date}") # 添加此日志
-#             total_fee = calculate_substitute_management_fee(
-#                 sub_record, contract, contract_termination_date=termination_date
-#             )
-#             current_app.logger.debug(f"[API-Terminate] Calculated total_fee for sub_record {sub_record.id}: {total_fee}") # 添加此日志
-#             if total_fee > 0:
-#                 sub_record.substitute_management_fee = total_fee
-#                 db.session.add(sub_record)
-#                 current_app.logger.info(
-#                     f"因合同 {contract.id} 提前终止，为替班记录 {sub_record.id} 更新了 {total_fee} 元的管理费。"
-#                 )
-#             else: # 为调试添加此 else 块
-#                 current_app.logger.info(
-#                     f"因合同 {contract.id} 提前终止，替班记录 {sub_record.id} 未产生管理费 (total_fee: {total_fee})."
-#                 )
-
-#         # 统一提交数据库事务
-#         db.session.commit()
-#         current_app.logger.info(message)
-#         return jsonify({"message": message}), 200
-
-#     except Exception as e:
-#         db.session.rollback()
-#         current_app.logger.error(
-#             f"Error during contract termination for {contract_id}: {e}",
-#             exc_info=True
-#         )
-#         return jsonify({"error": "operation_failed", "message": str(e)}), 500
-
-
 @contract_bp.route("/<uuid:contract_id>/succeed", methods=["POST"])
 @jwt_required()
 def succeed_trial_contract(contract_id):
@@ -521,4 +391,53 @@ def get_contract_substitute_context(contract_id):
 
     except Exception as e:
         current_app.logger.error(f"Failed to get contract substitute context for {contract_id}: {e}",exc_info=True)
+        return jsonify({"error": "Internal server error"}), 500
+    
+@contract_bp.route("/<uuid:contract_id>/successor", methods=["GET"])
+@jwt_required()
+def find_successor_contract(contract_id):
+    """
+    查找并返回给定合同的续约合同。
+    """
+    current_app.logger.info(f"[SuccessorCheck] 开始为合同 {contract_id} 查找续约合同...")
+    try:
+        current_contract = BaseContract.query.get(contract_id)
+        if not current_contract:
+            current_app.logger.warning(f"[SuccessorCheck] 合同 {contract_id} 未找到")
+            return jsonify({"error": "Contract not found"}), 404
+
+        # 确定合同的实际结束日期，优先使用终止日期
+        effective_end_date = current_contract.termination_date or current_contract.end_date
+        current_app.logger.info(f"[SuccessorCheck] 合同 {contract_id} 的类型为 {current_contract.type}, 状态为 {current_contract.status}")
+        current_app.logger.info(f"[SuccessorCheck] 原始 end_date: {current_contract.end_date}, 原始 termination_date: {current_contract.termination_date}")
+        current_app.logger.info(f"[SuccessorCheck] 计算出的实际结束日期 (effective_end_date): {effective_end_date}")
+
+        if not effective_end_date:
+            current_app.logger.info(f"[SuccessorCheck] 合同 {contract_id} 没有有效的结束日期，无法查找续约合同。")
+            return "", 204
+
+        # 查找续约合同
+        successor = BaseContract.query.filter(
+            BaseContract.customer_name == current_contract.customer_name,
+            BaseContract.type == current_contract.type,
+            BaseContract.service_personnel_id == current_contract.service_personnel_id,
+            BaseContract.id != current_contract.id,
+            BaseContract.start_date >= effective_end_date, # 新合同在当前合同实际结束后开始
+            BaseContract.status != 'terminated'  # <-- 新增的过滤条件
+        ).order_by(BaseContract.start_date.asc()).first()
+
+        if successor:
+            current_app.logger.info(f"[SuccessorCheck] 找到了续约合同 {successor.id}，开始日期: {successor.start_date}")
+            return jsonify({
+                "id": str(successor.id),
+                "customer_name": successor.customer_name,
+                "start_date": successor.start_date.isoformat(),
+                "end_date": successor.end_date.isoformat()
+            })
+        else:
+            current_app.logger.info(f"[SuccessorCheck] 未找到 {contract_id} 的续约合同。")
+            return "", 204
+            
+    except Exception as e:
+        current_app.logger.error(f"查找续约合同失败 {contract_id}: {e}", exc_info=True)
         return jsonify({"error": "Internal server error"}), 500

@@ -2726,6 +2726,16 @@ class CustomerBill(db.Model):
     payment_records = db.relationship('PaymentRecord', back_populates='customer_bill', cascade='all, delete-orphan', lazy='dynamic')
     statement = db.relationship('MonthlyStatement', back_populates='bills')
 
+    # --- V2.1 解决合并死循环 ---
+    is_merged = db.Column(
+        db.Boolean,
+        nullable=False,
+        default=False,
+        server_default="false",
+        index=True,
+        comment="是否已被合并到另一张账单"
+    )
+
 
 # --- 【V2.0 重构 EmployeePayroll 模型】 ---
 class EmployeePayroll(db.Model):
