@@ -1937,6 +1937,7 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                 onClose={() => setIsTransferBalanceDialogOpen(false)}
                 sourceContract={contract}
                 onConfirm={handleConfirmTransferBalance}
+                sourceBillEndDate={billingDetails?.cycle_end_date}
             />
             <PaymentDialog
                 open={isPaymentDialogOpen}

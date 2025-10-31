@@ -1697,7 +1697,6 @@ def get_eligible_contracts_for_transfer():
     """
     customer_name = request.args.get("customer_name")
     exclude_contract_id = request.args.get("exclude_contract_id")
-
     if not customer_name or not exclude_contract_id:
         return jsonify({"error": "缺少 customer_name 或 exclude_contract_id 参数"}), 400
 
@@ -5167,6 +5166,7 @@ def get_bills_by_customer():
                 "contract_id": str(bill.contract.id),
                 "contract_status": bill.contract.status,
                 "customer_name": bill.contract.customer_name,
+                "contract_type":bill.contract.type,
                 "employee_name": employee_name,
                 "is_substitute_bill": bill.is_substitute_bill,
                 "cycle": f"{bill.cycle_start_date.strftime('%Y-%m-%d')} to {bill.cycle_end_date.strftime('%Y-%m-%d')}",

@@ -988,6 +988,7 @@ export default function ReconciliationPage() {
                 employee_name: bill.employee_name,
                 contract_id: bill.contract_id,
                 status: bill.contract_status,
+                contract_type_value: bill.contract_type,
                 billingMonth: `${accountingPeriod.year}-${String(accountingPeriod.month).padStart(2, '0')}`
             });
         } catch (err) {
