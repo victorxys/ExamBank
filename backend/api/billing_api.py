@@ -5267,7 +5267,7 @@ def transfer_bill_balance(bill_id):
             db.session.flush()
             db.session.refresh(source_bill)
 
-            final_balance = source_bill.total_due
+            final_balance = source_bill.total_due - source_bill.total_paid
             if final_balance == D(0):
                 return jsonify({"message": "账单余额为零，无需转移。"}), 200
 

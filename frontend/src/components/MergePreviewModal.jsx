@@ -8,6 +8,7 @@ import {
     OpenInNew as OpenInNewIcon
 } from '@mui/icons-material';
 import { mergeBills } from '../api/bill_merge';
+import { useNavigate } from 'react-router-dom'; // 1. 导入 useNavigate
 
 const formatAmount = (amount) => {
     const num = Number(amount);
@@ -41,6 +42,7 @@ const MergePreviewModal = ({
 }) => {
   const [error, setError] = useState('');
   const [isMerging, setIsMerging] = useState(false);
+  const navigate = useNavigate(); // 2. 初始化 navigate
 
   const handleConfirmMerge = async () => {
     setIsMerging(true);
@@ -57,26 +59,12 @@ const MergePreviewModal = ({
   };
 
   const renderPreviewContent = () => {
-    // --- 调试日志 ---
-    console.log("DEBUG: Rendering MergePreviewContent. Full previewData:", previewData);
-    // --- 调试日志结束 ---
-
     if (!previewData || !previewData.preview) {
         return <Alert severity="info">正在加载预览数据...</Alert>;
     }
-
     const { customer_bill, employee_payroll, to_be_deleted } = previewData.preview;
-
-    // --- 调试日志 ---
-    console.log("DEBUG: Data for Employee Payroll section:", employee_payroll);
-    if (employee_payroll && employee_payroll.actions) {
-        console.log("DEBUG: Employee Payroll actions array:", employee_payroll.actions);
-    }
-    // --- 调试日志结束 ---
-
     return (
         <Grid container spacing={2}>
-            {/* Customer Bill Section */}
             <Grid item xs={12} md={6}>
                 <Typography variant="h6" gutterBottom>客户账单变更</Typography>
                 <Paper variant="outlined" sx={{ p: 1, maxHeight: 300, overflow: 'auto' }}>
@@ -89,13 +77,11 @@ const MergePreviewModal = ({
                     </Typography>
                 </Paper>
             </Grid>
-
-            {/* Employee Payroll Section */}
             <Grid item xs={12} md={6}>
                 <Typography variant="h6" gutterBottom>员工工资单变更</Typography>
                 <Paper variant="outlined" sx={{ p: 1, maxHeight: 300, overflow: 'auto' }}>
                     <List dense>
-                        {employee_payroll.actions.map((action, index) => <ActionItem key={`emp-${ index}`} action={action} />)}
+                        {employee_payroll.actions.map((action, index) => <ActionItem key={`emp- ${index}`} action={action} />)}
                         {employee_payroll.commission_actions.map((action, index) => <ActionItem key={`comm-${index}`} action={action} />)}
                     </List>
                     <Divider sx={{ my: 1 }} />
@@ -104,8 +90,6 @@ const MergePreviewModal = ({
                     </Typography>
                 </Paper>
             </Grid>
-
-            {/* Deletions Section */}
             {to_be_deleted && to_be_deleted.length > 0 && (
                 <Grid item xs={12}>
                     <Divider sx={{mt: 2, mb: 1}}><Chip label="将被删除的代付项" /></Divider>
@@ -114,11 +98,7 @@ const MergePreviewModal = ({
                             <ListItem key={`del-${index}`}>
                                 <ListItemText
                                     primary={`${item.scope}中的调整项: ${item.description}`}
-                                    secondary={
-                                        <React.Fragment>
-                                            金额: {formatAmount(item.amount)}
-                                        </React.Fragment>
-                                    }
+                                    secondary={ <React.Fragment> 金额: {formatAmount(item.amount)} </React.Fragment> }
                                 />
                             </ListItem>
                         ))}
@@ -137,10 +117,11 @@ const MergePreviewModal = ({
     const sourceInfo = previewData?.source_info;
     const targetInfo = previewData?.target_info;
 
-    const handleOpenBill = (billId) => {
-        // 在新窗口中打开账单详情页，URL结构需要根据你的路由配置来确定
-        // 这里我们假设一个路由 /bill-details/:billId
-        window.open(`/bill-details/${billId}`, '_blank');
+    // 3. 修改跳转逻辑
+    const handleOpenContract = (contractId) => {
+        if (!contractId) return;
+        // 在新窗口中打开合同详情页
+        window.open(`/contract/detail/${contractId}`, '_blank');
     };
 
     return (
@@ -153,6 +134,8 @@ const MergePreviewModal = ({
             <Paper variant="outlined" sx={{ p: 2, height: '100%' }}>
               <Typography variant="h6" gutterBottom>源账单</Typography>
               <Typography variant="body2">客户: {sourceInfo?.customer_name || '...'}</Typography >
+              {/* 4. 显示员工姓名 */}
+              <Typography variant="body2">员工: {sourceInfo?.employee_name || '...'}</Typography >
               <Typography variant="body2" sx={{ wordBreak: 'break-all' }}>合同: {sourceInfo?. contract_name || '...'}</Typography>
               <Typography variant="body2" color="text.secondary">账单期间: {sourceInfo?.period || '...'}</Typography>
               <Typography variant="body2" color="text.secondary">合同有效期: {sourceInfo?. start_date || '...'} ~ {sourceInfo?.end_date || '...'}</Typography>
@@ -167,13 +150,16 @@ const MergePreviewModal = ({
             <Paper variant="outlined" sx={{ p: 2, height: '100%' }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Typography variant="h6" gutterBottom>目标账单</Typography>
-                    <Tooltip title="在新窗口中查看目标账单">
-                        <IconButton size="small" onClick={() => handleOpenBill(targetInfo. bill_id)} disabled={!targetInfo?.bill_id}>
+                    {/* 5. 修改按钮的 onClick 事件和 disabled 条件 */}
+                    <Tooltip title="在新窗口中查看目标合同">
+                        <IconButton size="small" onClick={() => handleOpenContract(targetInfo?. contract_id)} disabled={!targetInfo?.contract_id}>
                             <OpenInNewIcon fontSize="small" />
                         </IconButton>
                     </Tooltip>
                 </Box>
               <Typography variant="body2">客户: {targetInfo?.customer_name || '...'}</Typography >
+              {/* 4. 显示员工姓名 */}
+              <Typography variant="body2">员工: {targetInfo?.employee_name || '...'}</Typography >
               <Typography variant="body2" sx={{ wordBreak: 'break-all' }}>合同: {targetInfo?. contract_name || '...'}</Typography>
               <Typography variant="body2" color="text.secondary">账单期间: {targetInfo?.period || '...'}</Typography>
               <Typography variant="body2" color="text.secondary">合同有效期: {targetInfo?. start_date || '...'} ~ {targetInfo?.end_date || '...'}</Typography>
