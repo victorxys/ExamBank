@@ -1446,6 +1446,7 @@ def get_users():
     search = request.args.get("search", "")
     sort_by = request.args.get("sort_by", "created_at")
     sort_order = request.args.get("sort_order", "desc")
+    status_filter = request.args.get("status", None)
 
     # 验证排序字段
     valid_sort_fields = [
@@ -1474,7 +1475,11 @@ def get_users():
             pinyin_search_term = search.replace(" ", "")
             where_conditions.append("(u.username ILIKE %s OR u.phone_number ILIKE %s OR u.name_pinyin ILIKE %s)")
             params.extend([f"%{search}%", f"%{search}%", f"%{pinyin_search_term}%"])
-
+        # 新增：根据 status_filter 过滤用户
+        if status_filter and status_filter != 'all':
+            where_conditions.append("u.status = %s")
+            params.append(status_filter)
+            
         where_clause = " AND ".join(where_conditions) if where_conditions else "TRUE"
 
         # 获取总记录数
