@@ -413,7 +413,18 @@ const TransactionDetailsPanel = ({
                                     <Grid container spacing={2} alignItems="center">
                                         <Grid item xs={12} md={6}>
                                             <Box>
-                                                <Typography variant="body1" component="div" sx={{display: 'flex',alignItems: 'center' }}>{`账单周期: ${bill.cycle}`}<Chip label={`${bill.bill_month}月账单`} size="small" {...getBillMonthChipProps(bill)} /></Typography>
+                                                <Typography variant="body1" component="div" sx={{ display: 'flex',alignItems: 'center' }}>
+                                                    {`账单周期: ${bill.cycle}`}
+                                                    <Chip label={`${bill.bill_month}月账单`} size="small" {...getBillMonthChipProps(bill)} />
+                                                    {bill.contract_status && ( // 仅当合同状态存在时才显示
+                                                        <Chip
+                                                            label={getContractStatusLabel(bill. contract_status)}
+                                                            color={getContractStatusColor(bill. contract_status)}
+                                                            size="small"
+                                                            sx={{ ml: 1 }}
+                                                        />
+                                                    )}
+                                                </Typography>
                                                 <Typography variant="body2" color="text.secondary"sx={{ display: 'flex', alignItems: 'center' }}>
                                                     {`员工: ${bill.employee_name}`}
                                                     {bill.is_substitute_bill && <Chip label="替班" color="warning" size="small" sx={{ ml: 1 }} />}
@@ -464,6 +475,26 @@ const TransactionDetailsPanel = ({
                 ))}
             </Box>
         );
+    };
+    
+    const getContractStatusLabel = (status) => {
+        switch (status) {
+            case 'active': return '进行中';
+            case 'terminated': return '已终止';
+            case 'finished': return '已完成';
+            case 'trial': return '试用期';
+            default: return status; // 默认返回原始状态
+        }
+    };
+
+    const getContractStatusColor = (status) => {
+        switch (status) {
+            case 'active': return 'success';
+            case 'terminated': return 'error';
+            case 'finished': return 'info';
+            case 'trial': return 'warning';
+            default: return 'default'; // 默认颜色
+        }
     };
 
     const handleForceCancelAlias = async (payerName) => {
