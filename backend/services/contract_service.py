@@ -174,6 +174,41 @@ def apply_transfer_credits_to_new_contract(db_session, new_contract: BaseContrac
         ))
         current_app.logger.info(f"已将 {management_fee_refund} 的管理费冲抵额度应用到新合同 {new_contract.id}")
 
+def _find_predecessor_contract_internal(contract_id: str) -> BaseContract | None:
+    """
+    内部函数：查找并返回给定合同的前序合同对象。
+    """
+    current_app.logger.info(f"[PredecessorCheckInternal] 开始为合同 {contract_id} 查找前序合同...")
+    try:
+        current_contract = BaseContract.query.get(contract_id)
+        if not current_contract:
+            current_app.logger.warning(f"[PredecessorCheckInternal] 合同 {contract_id} 未找到")
+            return None
+
+        start_date = current_contract.start_date
+        if not start_date:
+            current_app.logger.info(f"[PredecessorCheckInternal] 合同 {contract_id} 没有有效的开始日期，无法查找前序合同。")
+            return None
+
+        # 查找同一客户下，在当前合同开始前已经结束的合同
+        predecessor = BaseContract.query.filter(
+            BaseContract.customer_name == current_contract.customer_name,
+            BaseContract.id != current_contract.id,
+            BaseContract.end_date <= start_date,
+            # BaseContract.status.in_(['terminated', 'finished'])
+        ).order_by(BaseContract.end_date.desc()).first()
+
+        if predecessor:
+            current_app.logger.info(f"[PredecessorCheckInternal] 找到了前序合同 {predecessor.id} ，结束日期: {predecessor.end_date}")
+            return predecessor
+        else:
+            current_app.logger.info(f"[PredecessorCheckInternal] 未找到 {contract_id} 的前序合同。")
+            return None
+
+    except Exception as e:
+        current_app.logger.error(f"查找前序合同失败 {contract_id}: {e}", exc_info=True)
+        return None
+
 def _find_successor_contract_internal(contract_id: str) -> BaseContract | None:
     """
     内部函数：查找并返回给定合同的续约合同对象。

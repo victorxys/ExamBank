@@ -1337,15 +1337,38 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
                         </Grid>
 
                         {/* Transfer Balance Button 取消当前合同状态的条件 && ['terminated', 'finished'].includes(contract?.status)  */}
-                        {isCustomer && billingDetails.is_last_bill && Math.abs(pendingAmount) > 0.01 && (
-                            <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'center', mt: 1 }}>
-                                <Button 
+                        {isCustomer && billingDetails.is_last_bill && Math.abs(pendingAmount) >= 0.01 && (
+                            <Grid item xs={12} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mt: 1 }}>
+                                {billingDetails.successor_contract_id && !billingDetails. is_balance_transferred_out && (
+                                    <Alert severity="info" sx={{ mb: 1, width: '100%' }}>
+                                        有后续合同，是否转移保证金及其他客户账单费用？
+                                    </Alert>
+                                )}
+                                <Button
                                     variant="contained"
                                     color="secondary"
                                     onClick={() => setIsTransferBalanceDialogOpen(true)}
+                                    sx={{ width: 'fit-content' }}
                                 >
                                     转移客户账单余额
                                 </Button>
+                            </Grid>
+                        )}
+                        {isCustomer && billingDetails.predecessor_info && !billingDetails.predecessor_info.is_balance_transferred_in && (
+                            <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'center', mt: 1 }}>
+                                <Alert severity="warning" sx={{ width: '100%' }}>
+                                    <Typography variant="body2">
+                                        有前序合同尚未转移保证金，
+                                        <Button
+                                            variant="text"
+                                            size="small"
+                                            onClick={() => onNavigateToBill(billingDetails. predecessor_info.last_bill_id)}
+                                            sx={{ p: 0, minWidth: 'auto', verticalAlign: 'baseline' }}
+                                        >
+                                            前往查看并转移？
+                                        </Button>
+                                    </Typography>
+                                </Alert>
                             </Grid>
                         )}
 

@@ -4737,6 +4737,15 @@ def _format_bill_for_reconciliation(bill, bank_transaction_id=None):
         if successor:
             successor_contract_id = str(successor.id)
 
+    is_balance_transferred = False
+    if is_last_bill and successor_contract_id:
+        # 查找是否有描述中包含“余额转出至”的财务调整项
+        transfer_adjustment_exists = db.session.query(FinancialAdjustment.query.filter(
+            FinancialAdjustment.customer_bill_id == bill.id,
+            FinancialAdjustment.description.like('%转移至续约合同')
+        ).exists()).scalar()
+        is_balance_transferred = transfer_adjustment_exists
+
     return {
         "id": str(bill.id),
         "contract_id": str(bill.contract.id),
@@ -4756,6 +4765,7 @@ def _format_bill_for_reconciliation(bill, bank_transaction_id=None):
         "is_merged": bill.is_merged,
         "is_last_bill": is_last_bill,
         "successor_contract_id": successor_contract_id,
+        "is_balance_transferred": is_balance_transferred, 
         "merge_target_bill": None  # 默认设为 None
     }
 

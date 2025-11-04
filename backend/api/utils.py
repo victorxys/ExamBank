@@ -13,6 +13,7 @@ from backend.models import (
     FinancialActivityLog,
 )
 from backend.services.billing_engine import BillingEngine
+from backend.services.contract_service import _find_successor_contract_internal, _find_predecessor_contract_internal
 
 D = decimal.Decimal
 
@@ -204,7 +205,7 @@ def get_billing_details_internal(
         "id": str(customer_bill.id),
         "is_merged": customer_bill.is_merged,
         "calculation_details": calc_cust,
-        "final_amount": {"客应付款": str(customer_bill.total_due)}, 
+        "final_amount": {"客应付款": str(customer_bill.total_due)},
         "payment_status": {
             'status': customer_bill.payment_status.value,
             'total_due': str(customer_bill.total_due),
@@ -216,12 +217,12 @@ def get_billing_details_internal(
     if contract.status:
         customer_details['contract_status'] = contract.status
     # "劳务周期" group
-    _fill_group_fields(customer_details["groups"][1]["fields"], calc_cust, ["base_work_days","overtime_days", "total_days_worked", "substitute_days", "extension_days"])
+    _fill_group_fields(customer_details["groups"][1]["fields"], calc_cust, ["base_work_days", "overtime_days", "total_days_worked", "substitute_days", "extension_days"])
 
     # "费用明细" group
-    _fill_group_fields(customer_details["groups"][2]["fields"], calc_cust, ["management_fee","management_fee_rate", "extension_fee", "extension_management_fee"])
+    _fill_group_fields(customer_details["groups"][2]["fields"], calc_cust, ["management_fee", "management_fee_rate", "extension_fee", "extension_management_fee"])
     if contract.type == "nanny" or contract.type == "maternity_nurse" or contract.type == "external_substitution" or contract.type == "nanny_trial":
-        customer_details["groups"][2]["fields"]["本次交管理费"] = calc_cust.get("management_fee", "待计算")
+        customer_details["groups"][2]["fields"]["本次交管理费"] = calc_cust.get("management_fee" , "待计算")
 
     if customer_bill.is_substitute_bill:
         sub_record = customer_bill.source_substitute_record
@@ -230,7 +231,7 @@ def get_billing_details_internal(
                 if group["name"] == "级别与保证金":
                     group["fields"]["级别"] = str(sub_record.substitute_salary or "0")
                     break
-    
+
     extension_fee_str = calc_cust.get("extension_fee")
     if extension_fee_str and float(extension_fee_str) > 0:
         for group in customer_details["groups"]:
@@ -243,15 +244,15 @@ def get_billing_details_internal(
         employee_details.update({
             "id": str(employee_payroll.id),
             "calculation_details": calc_payroll,
-            "final_amount": {"萌嫂应领款": str(employee_payroll.total_due)}, 
+            "final_amount": {"萌嫂应领款": str(employee_payroll.total_due)},
             "payout_status": {
                 'status': employee_payroll.payout_status.value,
                 'total_due': str(employee_payroll.total_due),
                 'total_paid_out': str(employee_payroll.total_paid_out)
             }
         })
-        _fill_group_fields(employee_details["groups"][0]["fields"], calc_payroll, ["employee_base_payout","employee_overtime_payout", "first_month_deduction", "substitute_deduction"],is_substitute_payroll=employee_payroll.is_substitute_payroll)
-        
+        _fill_group_fields(employee_details["groups"][0]["fields"], calc_payroll, [ "employee_base_payout","employee_overtime_payout", "first_month_deduction", "substitute_deduction"],is_substitute_payroll=employee_payroll.is_substitute_payroll)
+
     customer_adjustments = []
     if customer_bill:
         customer_adjustments =FinancialAdjustment.query.filter_by(customer_bill_id=customer_bill.id).all()
@@ -283,11 +284,11 @@ def get_billing_details_internal(
 
     later_bill_exists = db.session.query(CustomerBill.query.filter(
         CustomerBill.contract_id == contract.id,
-        CustomerBill.is_substitute_bill == False, 
+        CustomerBill.is_substitute_bill == False,
         CustomerBill.cycle_start_date > customer_bill.cycle_start_date
     ).exists()).scalar()
     is_last_bill = not later_bill_exists
-    
+
     remaining_months_str = "N/A"
     highlight_remaining = False
     today = date.today()
@@ -303,7 +304,7 @@ def get_billing_details_internal(
 
     end_date_for_calc = end_date_obj.date() if isinstance(end_date_obj, datetime) else end_date_obj
 
-    if isinstance(contract, NannyContract) and getattr(contract, "is_monthly_auto_renew", False):
+    if isinstance(contract, NannyContract) and getattr(contract, "is_monthly_auto_renew", False ):
         remaining_months_str = "月签"
     elif start_date_for_calc and end_date_for_calc:
         if start_date_for_calc > today:
@@ -349,7 +350,43 @@ def get_billing_details_internal(
         employee_name = getattr(final_employee, 'username', getattr(final_employee, 'name', '未知员工'))
         employee_details['employee_name'] = employee_name
     # --- End of Patch ---
-    
+
+    # --- Logic for predecessor and successor contracts ---
+    successor_contract_id = None
+    is_balance_transferred_out = False
+    if is_last_bill:
+        successor = _find_successor_contract_internal(str(contract.id))
+        if successor:
+            successor_contract_id = str(successor.id)
+            transfer_out_exists = db.session.query(FinancialAdjustment.query.filter(
+                FinancialAdjustment.customer_bill_id == customer_bill.id,
+                FinancialAdjustment.description.like('%余额转出至%')
+            ).exists()).scalar()
+            is_balance_transferred_out = transfer_out_exists
+
+    is_first_bill = not has_prev_bill
+    predecessor_info = None
+    if is_first_bill:
+        predecessor = _find_predecessor_contract_internal(str(contract.id))
+        if predecessor:
+            last_bill_of_predecessor = CustomerBill.query.filter(
+                CustomerBill.contract_id == predecessor.id,
+                CustomerBill.is_substitute_bill == False
+            ).order_by(CustomerBill.cycle_end_date.desc()).first()
+
+            if last_bill_of_predecessor:
+                balance_received_exists = db.session.query(FinancialAdjustment.query.filter(
+                    FinancialAdjustment.customer_bill_id == customer_bill.id,
+                    FinancialAdjustment.description.like('%余额从%转入%')
+                ).exists()).scalar()
+
+                predecessor_info = {
+                    "contract_id": str(predecessor.id),
+                    "last_bill_id": str(last_bill_of_predecessor.id),
+                    "is_balance_transferred_in": balance_received_exists
+                }
+    # --- End of logic ---
+
     return {
         "customer_bill_details": customer_details,
         "employee_payroll_details": employee_details,
@@ -368,7 +405,7 @@ def get_billing_details_internal(
         "cycle_start_date": cycle_start.isoformat(),
         "cycle_end_date": cycle_end.isoformat(),
         "is_substitute_bill": customer_bill.is_substitute_bill,
-        "display_month": f"{customer_bill.year}-{customer_bill.month:02d}", # <-- 【新增】返回年月
+        "display_month": f"{customer_bill.year}-{customer_bill.month:02d}",
         "contract_info": {
             "contract_id": str(contract.id),
             "contract_type_label":get_contract_type_details(contract.type),
@@ -383,7 +420,11 @@ def get_billing_details_internal(
         "has_prev_bill": has_prev_bill,
         "prev_bill_id": prev_bill_id,
         "has_next_bill": has_next_bill,
-        "next_bill_id": next_bill_id
+        "next_bill_id": next_bill_id,
+        # --- New fields for transfer logic ---
+        "successor_contract_id": successor_contract_id,
+        "is_balance_transferred_out": is_balance_transferred_out,
+        "predecessor_info": predecessor_info
     }
 
 def _log_activity(bill, payroll, action, details=None, contract=None):
