@@ -22,6 +22,7 @@ import {
   useMediaQuery,
   TablePagination,
   CircularProgress,
+  Select,
 } from '@mui/material';
 import { Edit as EditIcon, Delete as DeleteIcon, Add as AddIcon, Assessment as AssessmentIcon, VpnKey as PermissionsIcon} from '@mui/icons-material';
 import { MenuItem } from '@mui/material';
@@ -42,12 +43,16 @@ import { useNavigate } from 'react-router-dom';
 import PageHeader from './PageHeader';
 
 const UserManagement = () => {
+  // 1. 首先声明所有基础 Hooks (useTheme, useNavigate)
   const theme = useTheme();
   const navigate = useNavigate();
+
+  // 2. 集中声明所有的状态 (useState)
   const [users, setUsers] = useState([]);
   const [open, setOpen] = useState(false);
   const [editUser, setEditUser] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [filterStatus, setFilterStatus] = useState('active');
   const [formData, setFormData] = useState({
     username: '',
     phone_number: '',
@@ -56,11 +61,6 @@ const UserManagement = () => {
     email: '',
     status: 'active'
   });
-  
-  // 监听搜索条件变化，重置页码
-  useEffect(() => {
-    setPage(0);
-  }, [searchTerm]);
   const [alertMessage, setAlertMessage] = useState(null);
   const [alertOpen, setAlertOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -69,20 +69,13 @@ const UserManagement = () => {
   const [totalUsers, setTotalUsers] = useState(0);
   const [sortBy, setSortBy] = useState('created_at');
   const [sortOrder, setSortOrder] = useState('desc');
-
-  // --- 新增权限管理相关状态 ---
   const [permissionDialogOpen, setPermissionDialogOpen] = useState(false);
-  const [userForPermissions, setUserForPermissions] = useState(null); // { id: string, username: string }
-  // --- 结束新增 ---
-  
-  // 使用媒体查询检测是否为移动设备
+  const [userForPermissions, setUserForPermissions] = useState(null);
+
+  // 3. 声明其他 Hooks (useMediaQuery)
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
-  useEffect(() => {
-    fetchUsers();
-  }, [page, rowsPerPage, searchTerm, sortBy, sortOrder]);
-
-  // 使用 useCallback 包裹 fetchUsers
+  // 4. 声明所有 useCallback 函数
   const fetchUsers = useCallback(async () => {
     try {
       setLoading(true);
@@ -95,25 +88,35 @@ const UserManagement = () => {
       if (searchTerm) {
         params.append('search', searchTerm);
       }
+      if (filterStatus && filterStatus !== 'all') {
+        params.append('status', filterStatus);
+      }
       const response = await api.get(`/users?${params.toString()}`);
-      // ... 处理 response ...
       if (response.data && response.data.items) {
         setUsers(response.data.items);
         setTotalUsers(response.data.total);
-        // setTotalPages(response.data.total_pages); // 如果不用，可以注释掉
       } else {
-        // ... 错误处理 ...
+        setAlertMessage({ severity: 'error', message: '获取用户数据格式不正确' });
+        setAlertOpen(true);
       }
     } catch (error) {
-      // ... 错误处理 ...
-      setAlertMessage({ severity: error, message: '获取用户列表失败' });
+      setAlertMessage({ severity: 'error', message: '获取用户列表失败' });
       setAlertOpen(true);
     } finally {
       setLoading(false);
     }
-  // 将 fetchUsers 内部使用的依赖项添加到 useCallback 的依赖数组
-  }, [page, rowsPerPage, searchTerm, sortBy, sortOrder]); // 确保包含所有依赖项
+  }, [page, rowsPerPage, searchTerm, sortBy, sortOrder, filterStatus]);
 
+  // 5. 最后声明所有 useEffect
+  useEffect(() => {
+    setPage(0);
+  }, [searchTerm, filterStatus]);
+
+  useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
+
+  // 6. 声明所有普通函数
   const handleOpenPermissionDialog = (user) => {
     setUserForPermissions({ id: user.id, username: user.username });
     setPermissionDialogOpen(true);
@@ -125,10 +128,9 @@ const UserManagement = () => {
     if (saved) {
       setAlertMessage({ severity: 'success', message: '用户权限保存成功！' });
       setAlertOpen(true);
-      // 可以考虑是否需要刷新用户列表或其他操作
     }
   };
-  
+
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
   };
@@ -137,7 +139,7 @@ const UserManagement = () => {
     setRowsPerPage(parseInt(event.target.value, 10));
     setPage(0);
   };
-  
+
   const handleSort = (column) => {
     const isAsc = sortBy === column && sortOrder === 'asc';
     setSortOrder(isAsc ? 'desc' : 'asc');
@@ -248,6 +250,18 @@ const UserManagement = () => {
                     },
                   }}
                 />
+                <Select
+                    size="small"
+                    value={filterStatus}
+                    onChange={(e) => setFilterStatus(e.target.value)}
+                    displayEmpty
+                    inputProps={{ 'aria-label': 'Select status' }}
+                    sx={{ minWidth: 120 }}
+                >
+                    <MenuItem value="active">已激活</MenuItem>
+                    <MenuItem value="inactive">未激活</MenuItem>
+                    <MenuItem value="all">所有</MenuItem>
+                </Select>
               </Box>
               <Button
                 variant="contained"
