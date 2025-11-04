@@ -373,7 +373,7 @@ const TransactionDetailsPanel = ({
                         
                     </Box>
                 </Grid>
-                <Grid item xs={12} md={3}>
+                <Grid item xs={12} md={2}>
                     <Box sx={{ fontFamily: 'monospace', textAlign: 'left' }}>
                         <Typography variant="body2">应付: ¥{formatCurrency(bill.total_due)}</ Typography>
                         <Typography variant="body2" color="text.secondary">已付: ¥{formatCurrency (bill.total_paid)}</Typography>
@@ -382,8 +382,21 @@ const TransactionDetailsPanel = ({
                         <Typography variant="body2" fontWeight="bold" color={new Decimal(bill. amount_remaining).gt(0) ? 'error.main' : 'inherit'}>待付: ¥{formatCurrency(bill.amount_remaining )}</Typography>
                     </Box>
                 </Grid>
-                <Grid item xs={12} md={2} sx={{ textAlign: 'right', alignSelf: 'flex-start' }}>
-                    <Button variant="outlined" size="small" onClick={() => onOpenBillModal (bill)}>查看账单</Button>
+                <Grid item xs={12} md={3} sx={{ textAlign: 'right', alignSelf: 'flex-start' }}> { /* 将 md={2} 修改为 md={3} */}
+                    {bill.is_last_bill && bill.successor_contract_id && !bill. is_balance_transferred && (
+                    <Button
+                        variant="contained"
+                        color="info"
+                        size="small"
+                        onClick={() => onOpenBillModal(bill)} // 这将打开当前账单的详情弹窗
+                        sx={{ mb: 1, whiteSpace: 'nowrap' }} // 添加 whiteSpace: 'nowrap'
+                    >
+                        转移管理费
+                    </Button>
+                    )}
+                    <Button variant="outlined" size="small" onClick={() => onOpenBillModal (bill)} sx={{ whiteSpace: 'nowrap' }}> {/* 添加 whiteSpace: 'nowrap' */}
+                        查看账单
+                    </Button>
                 </Grid>
             </Grid>
         </Paper>
