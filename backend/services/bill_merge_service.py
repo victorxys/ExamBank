@@ -134,6 +134,9 @@ class BillMergeService:
             self._balance_bill(source_bill, target_bill)
             self._balance_payroll(source_payroll, target_payroll, source_bill, target_bill)
 
+            # 【核心新增】在平衡工资单后，删除源工资单中的“保证金支付工资”调整项
+            self._delete_deposit_paid_salary_adjustment(source_payroll)
+
             # 3. 转移员工返佣 (此逻辑保持不变)
             self._transfer_commissions(source_payroll, target_payroll, source_bill.id,target_bill.id)
 
@@ -195,7 +198,7 @@ class BillMergeService:
             contract_id=source_bill.contract_id,
             adj_type=op_adj_type,
             amount=amount,
-            description=f"续约合并冲抵",
+            description=f"[冲抵]客户待付/待退费用转移至续约合同",
             details={"linked_bill_id": str(target_bill.id)}
         )
         self._create_adjustment(
@@ -203,7 +206,7 @@ class BillMergeService:
             contract_id=target_bill.contract_id,
             adj_type=mirror_adj_type,
             amount=amount,
-            description=f"续约合并转移",
+            description=f"[转入]前合同合并转入客户待付/待退费用",
             details={"linked_bill_id": str(source_bill.id)}
         )
 
@@ -239,7 +242,7 @@ class BillMergeService:
             contract_id=source_payroll.contract_id,
             adj_type=op_adj_type,
             amount=amount,
-            description=f"续约合并冲抵",
+            description=f"[冲抵]员工待付工资转移至续约合同",
             details={"linked_bill_id": str(target_bill.id)}
         )
         self._create_adjustment(
@@ -247,7 +250,7 @@ class BillMergeService:
             contract_id=target_payroll.contract_id,
             adj_type=mirror_adj_type,
             amount=amount,
-            description=f"续约合并转移",
+            description=f"[转入]前合同合并转入员工待付工资",
             details={"linked_bill_id": str(source_bill.id)}
         )
 
@@ -377,3 +380,14 @@ class BillMergeService:
             #     details={"linked_bill_id": str(source_bill.id)}
             # )
             db.session.delete(company_paid_adj)
+
+    def _delete_deposit_paid_salary_adjustment(self, source_payroll):
+        """
+        删除源工资单中的“保证金支付工资”调整项。
+        """
+        deposit_paid_adj = FinancialAdjustment.query.filter_by(
+            employee_payroll_id=source_payroll.id,
+            adjustment_type=AdjustmentType.DEPOSIT_PAID_SALARY
+        ).first()
+        if deposit_paid_adj:
+            db.session.delete(deposit_paid_adj)

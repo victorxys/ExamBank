@@ -173,3 +173,47 @@ def apply_transfer_credits_to_new_contract(db_session, new_contract: BaseContrac
             details={'source_contract_id': old_contract_id}
         ))
         current_app.logger.info(f"已将 {management_fee_refund} 的管理费冲抵额度应用到新合同 {new_contract.id}")
+
+def _find_successor_contract_internal(contract_id: str) -> BaseContract | None:
+    """
+    内部函数：查找并返回给定合同的续约合同对象。
+    此函数不处理HTTP响应，只返回 SQLAlchemy 对象或 None。
+    """
+    current_app.logger.info(f"[SuccessorCheckInternal] 开始为合同 {contract_id} 查找续约合同...")
+    try:
+        current_contract = BaseContract.query.get(contract_id)
+        if not current_contract:
+            current_app.logger.warning(f"[SuccessorCheckInternal] 合同 {contract_id} 未找到")
+            return None
+
+        # 确定合同的实际结束日期，优先使用终止日期
+        effective_end_date = current_contract.termination_date or current_contract.end_date
+        current_app.logger.info(f"[SuccessorCheckInternal] 合同 {contract_id} 的类型为 {current_contract.type}, 状态为 {current_contract.status}")
+        current_app.logger.info(f"[SuccessorCheckInternal] 原始 end_date: {current_contract.end_date}, 原始 termination_date: {current_contract.termination_date}")
+        current_app.logger.info(f"[SuccessorCheckInternal] 计算出的实际结束日期 (effective_end_date): {effective_end_date}")
+
+        if not effective_end_date:
+            current_app.logger.info(f"[SuccessorCheckInternal] 合同 {contract_id} 没有有效的结束日期，无法查找续约合同。")
+            return None
+
+        # 查找续约合同
+        successor = BaseContract.query.filter(
+            BaseContract.customer_name == current_contract.customer_name,
+            BaseContract.type == current_contract.type,
+            BaseContract.service_personnel_id == current_contract.service_personnel_id,
+            BaseContract.user_id == current_contract.user_id,
+            BaseContract.id != current_contract.id,
+            BaseContract.start_date >= effective_end_date, # 新合同在当前合同实际结束后开始
+            BaseContract.status != 'terminated'  # <-- 新增的过滤条件
+        ).order_by(BaseContract.start_date.asc()).first()
+
+        if successor:
+            current_app.logger.info(f"[SuccessorCheckInternal] 找到了续约合同 {successor.id} ，开始日期: {successor.start_date}")
+            return successor
+        else:
+            current_app.logger.info(f"[SuccessorCheckInternal] 未找到 {contract_id} 的续约合同。" )
+            return None
+
+    except Exception as e:
+        current_app.logger.error(f"查找续约合同失败 {contract_id}: {e}", exc_info=True)
+        return None

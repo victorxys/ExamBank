@@ -62,6 +62,7 @@ from backend.services.contract_service import (
     cancel_substitute_bill_due_to_transfer
 )
 from backend.api.utils import get_billing_details_internal, get_contract_type_details, _log_activity
+from backend.services.contract_service import _find_successor_contract_internal
 from backend.services.payment_message_generator import PaymentMessageGenerator
 from backend.services.bank_statement_service import BankStatementService
 
@@ -4692,12 +4693,78 @@ def search_unpaid_bills():
         current_app.logger.info("--- [search_unpaid_bills] END (with error) ---")
         return jsonify({"error": "Internal server error"}), 500
     
+def _format_bill_for_reconciliation(bill, bank_transaction_id=None):
+    """
+    一个辅助函数，用于将单个账单对象格式化为对账页面所需的前端字典格式。
+    """
+    paid_by_this_txn = D('0')
+    if bank_transaction_id:
+        payments_from_this_txn = PaymentRecord.query.filter_by(
+            customer_bill_id=bill.id,
+            bank_transaction_id=bank_transaction_id
+        ).all()
+        if payments_from_this_txn:
+            paid_by_this_txn = sum(p.amount for p in payments_from_this_txn)
+
+    payments = []
+    for pr in bill.payment_records:
+        if pr.bank_transaction:
+            payments.append({
+                'payer_name': pr.bank_transaction.payer_name,
+                'amount': str(pr.amount)
+            })
+
+    employee_name = "未知员工"
+    if bill.is_substitute_bill:
+        sub_record = bill.source_substitute_record
+        if sub_record and (sub_record.substitute_user or sub_record.substitute_personnel):
+            sub_employee = sub_record.substitute_user or sub_record.substitute_personnel
+            employee_name = getattr(sub_employee, 'username', getattr(sub_employee, 'name', '未知替班员工'))
+    elif bill.contract and (bill.contract.user or bill.contract.service_personnel):
+        original_employee = bill.contract.user or bill.contract.service_personnel
+        employee_name = getattr(original_employee, 'username', getattr(original_employee, 'name' , '未知员工'))
+
+    later_bill_exists = db.session.query(CustomerBill.query.filter(
+        CustomerBill.contract_id == bill.contract_id,
+        CustomerBill.is_substitute_bill == False,
+        CustomerBill.cycle_start_date > bill.cycle_start_date
+    ).exists()).scalar()
+    is_last_bill = not later_bill_exists
+
+    successor_contract_id = None
+    if is_last_bill:
+        successor = _find_successor_contract_internal(str(bill.contract_id))
+        if successor:
+            successor_contract_id = str(successor.id)
+
+    return {
+        "id": str(bill.id),
+        "contract_id": str(bill.contract.id),
+        "contract_status": bill.contract.status,
+        "customer_name": bill.contract.customer_name,
+        "contract_type": bill.contract.type,
+        "employee_name": employee_name,
+        "is_substitute_bill": bill.is_substitute_bill,
+        "cycle": f"{bill.cycle_start_date.strftime('%Y-%m-%d')} to {bill.cycle_end_date.strftime('%Y-%m-%d')}",
+        "bill_month": bill.month,
+        "year": bill.year,
+        "total_due": str(bill.total_due),
+        "total_paid": str(bill.total_paid),
+        "amount_remaining": str(bill.total_due - bill.total_paid),
+        "payments": payments,
+        "paid_by_this_txn": str(paid_by_this_txn),
+        "is_merged": bill.is_merged,
+        "is_last_bill": is_last_bill,
+        "successor_contract_id": successor_contract_id,
+        "merge_target_bill": None  # 默认设为 None
+    }
+
 @billing_bp.route("/bills-by-customer", methods=["GET"])
 @jwt_required()
 def get_bills_by_customer():
     """
     根据客户名和年月，获取该客户所有的账单，并计算每个账单从特定流水中已支付的金额。
-    V5: 能够同时处理付款人自身和其代付的多个客户，返回所有相关方的账单和纯合同信息。
+    V6: 当发现可合并账单时，会主动附带上目标账单的信息。
     """
     customer_name_filter = request.args.get("customer_name")
     year = request.args.get("year", type=int)
@@ -4711,16 +4778,13 @@ def get_bills_by_customer():
         return jsonify({"error": "bank_transaction_id or customer_name is required."}), 400
 
     try:
-        # Step 1: Identify all relevant customer names
         relevant_customer_names = set()
         if customer_name_filter:
             relevant_customer_names.add(customer_name_filter)
         elif bank_transaction_id:
             bank_txn = db.session.get(BankTransaction, bank_transaction_id)
             if bank_txn:
-                # Add the payer of the transaction itself as a potential relevant customer
                 relevant_customer_names.add(bank_txn.payer_name)
-                # Find all customers this payer is an alias for
                 aliases = PayerAlias.query.filter_by(payer_name=bank_txn.payer_name).all()
                 for alias in aliases:
                     contract = db.session.get(BaseContract, alias.contract_id)
@@ -4730,80 +4794,41 @@ def get_bills_by_customer():
         if not relevant_customer_names:
             return jsonify({"bills": [], "contracts_only": [], "closest_bill_period": None})
 
-        # Step 2: Fetch data for all relevant customers
-        all_bills_results = []
-        contracts_only_results = []
-        
-        # Get all relevant contracts at once to get their IDs
         all_relevant_contracts = BaseContract.query.filter(
             BaseContract.customer_name.in_(list(relevant_customer_names))
         ).all()
         all_relevant_contract_ids = [c.id for c in all_relevant_contracts]
 
-        # Get all bills for all relevant contracts in the period
         bills_in_period = CustomerBill.query.filter(
             CustomerBill.contract_id.in_(all_relevant_contract_ids),
             CustomerBill.year == year,
             CustomerBill.month == month
         ).all()
 
-        # Process bills found
+        all_bills_results = []
         customers_with_bills = set()
+
         for bill in bills_in_period:
+            bill_data = _format_bill_for_reconciliation(bill, bank_transaction_id)
+
+            if bill_data['is_last_bill'] and bill_data['successor_contract_id']:
+                target_bill = CustomerBill.query.filter_by(
+                    contract_id=bill_data['successor_contract_id'],
+                    is_substitute_bill=False
+                ).order_by(CustomerBill.cycle_start_date.asc()).first()
+
+                if target_bill:
+                    # 目标账单不需要计算银行流水分配，所以第二个参数传None
+                    bill_data['merge_target_bill'] = _format_bill_for_reconciliation(target_bill, None)
+
+            all_bills_results.append(bill_data)
             customers_with_bills.add(bill.contract.customer_name)
-            paid_by_this_txn = D('0')
-            if bank_transaction_id:
-                payments_from_this_txn = PaymentRecord.query.filter_by(
-                    customer_bill_id=bill.id,
-                    bank_transaction_id=bank_transaction_id
-                ).all()
-                if payments_from_this_txn:
-                    paid_by_this_txn = sum(p.amount for p in payments_from_this_txn)
 
-            payments = []
-            for pr in bill.payment_records:
-                if pr.bank_transaction:
-                    payments.append({
-                        'payer_name': pr.bank_transaction.payer_name,
-                        'amount': str(pr.amount)
-                    })
-
-            employee_name = "未知员工"
-            if bill.is_substitute_bill:
-                sub_record = bill.source_substitute_record
-                if sub_record and (sub_record.substitute_user or sub_record.substitute_personnel):
-                    sub_employee = sub_record.substitute_user or sub_record.substitute_personnel
-                    employee_name = getattr(sub_employee, 'username', getattr(sub_employee, 'name', '未知替班员工'))
-            elif bill.contract and (bill.contract.user or bill.contract.service_personnel):
-                original_employee = bill.contract.user or bill.contract.service_personnel
-                employee_name = getattr(original_employee, 'username', getattr(original_employee, 'name', '未知员工'))
-
-            all_bills_results.append({
-                "id": str(bill.id),
-                "contract_id": str(bill.contract.id),
-                "contract_status": bill.contract.status,
-                "customer_name": bill.contract.customer_name,
-                "contract_type":bill.contract.type,
-                "employee_name": employee_name,
-                "is_substitute_bill": bill.is_substitute_bill,
-                "cycle": f"{bill.cycle_start_date.strftime('%Y-%m-%d')} to {bill.cycle_end_date.strftime('%Y-%m-%d')}",
-                "bill_month": bill.month,
-                "year": bill.year,
-                "total_due": str(bill.total_due),
-                "total_paid": str(bill.total_paid),
-                "amount_remaining": str(bill.total_due - bill.total_paid),
-                "payments": payments,
-                "paid_by_this_txn": str(paid_by_this_txn)
-            })
-
-        # Step 3: Identify customers without bills and add them to contracts_only list
+        contracts_only_results = []
         customers_without_bills = relevant_customer_names - customers_with_bills
-        current_app.logger.info(f"Customers without bills: {customers_without_bills}")
         for customer_name in customers_without_bills:
-            # Find an active contract for this customer to provide a relevant ID
             active_contract = BaseContract.query.filter(
                 BaseContract.customer_name == customer_name,
-                # BaseContract.status == 'active'
             ).first()
             if active_contract:
                 contracts_only_results.append({
@@ -4811,13 +4836,12 @@ def get_bills_by_customer():
                     'relevant_contract_id': str(active_contract.id)
                 })
 
-        # Step 4: Sort and return the consolidated results
         sorted_bills = sorted(all_bills_results, key=lambda x: Decimal(x['amount_remaining']), reverse=True)
-        
+
         return jsonify({
             "bills": sorted_bills,
             "contracts_only": contracts_only_results,
-            "closest_bill_period": None # Placeholder, logic can be added if needed
+            "closest_bill_period": None
         })
 
     except Exception as e:

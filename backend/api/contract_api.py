@@ -13,7 +13,11 @@ from backend.models import (
 )
 from backend.tasks import calculate_monthly_billing_task
 from backend.services.billing_engine import BillingEngine, calculate_substitute_management_fee
-from backend.services.contract_service import cancel_substitute_bill_due_to_transfer, apply_transfer_credits_to_new_contract
+from backend.services.contract_service import (
+    cancel_substitute_bill_due_to_transfer,
+    apply_transfer_credits_to_new_contract,
+    _find_successor_contract_internal
+)
 # from backend.api.billing_api import _get_billing_details_internal
 from datetime import datetime
 import decimal
@@ -398,37 +402,11 @@ def get_contract_substitute_context(contract_id):
 def find_successor_contract(contract_id):
     """
     查找并返回给定合同的续约合同。
+    此函数现在作为API包装器，调用内部服务函数。
     """
-    current_app.logger.info(f"[SuccessorCheck] 开始为合同 {contract_id} 查找续约合同...")
     try:
-        current_contract = BaseContract.query.get(contract_id)
-        if not current_contract:
-            current_app.logger.warning(f"[SuccessorCheck] 合同 {contract_id} 未找到")
-            return jsonify({"error": "Contract not found"}), 404
-
-        # 确定合同的实际结束日期，优先使用终止日期
-        effective_end_date = current_contract.termination_date or current_contract.end_date
-        current_app.logger.info(f"[SuccessorCheck] 合同 {contract_id} 的类型为 {current_contract.type}, 状态为 {current_contract.status}")
-        current_app.logger.info(f"[SuccessorCheck] 原始 end_date: {current_contract.end_date}, 原始 termination_date: {current_contract.termination_date}")
-        current_app.logger.info(f"[SuccessorCheck] 计算出的实际结束日期 (effective_end_date): {effective_end_date}")
-
-        if not effective_end_date:
-            current_app.logger.info(f"[SuccessorCheck] 合同 {contract_id} 没有有效的结束日期，无法查找续约合同。")
-            return "", 204
-
-        # 查找续约合同
-        successor = BaseContract.query.filter(
-            BaseContract.customer_name == current_contract.customer_name,
-            BaseContract.type == current_contract.type,
-            BaseContract.service_personnel_id == current_contract.service_personnel_id,
-            BaseContract.user_id == current_contract.user_id,
-            BaseContract.id != current_contract.id,
-            BaseContract.start_date >= effective_end_date, # 新合同在当前合同实际结束后开始
-            BaseContract.status != 'terminated'  # <-- 新增的过滤条件
-        ).order_by(BaseContract.start_date.asc()).first()
-
+        successor = _find_successor_contract_internal(str(contract_id))
         if successor:
-            current_app.logger.info(f"[SuccessorCheck] 找到了续约合同 {successor.id}，开始日期: {successor.start_date}")
             return jsonify({
                 "id": str(successor.id),
                 "customer_name": successor.customer_name,
@@ -436,9 +414,7 @@ def find_successor_contract(contract_id):
                 "end_date": successor.end_date.isoformat()
             })
         else:
-            current_app.logger.info(f"[SuccessorCheck] 未找到 {contract_id} 的续约合同。")
             return "", 204
-            
     except Exception as e:
         current_app.logger.error(f"查找续约合同失败 {contract_id}: {e}", exc_info=True)
         return jsonify({"error": "Internal server error"}), 500
