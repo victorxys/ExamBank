@@ -641,7 +641,7 @@ class BillingEngine:
         cycle_end_date = self._to_date(cycle_end)
         is_auto_renew = getattr(contract, 'is_monthly_auto_renew', False)
 
-        if contract_end_date and cycle_end_date and cycle_end_date >= contract_end_date and not is_auto_renew and contract.status == 'active':
+        if contract_end_date and cycle_end_date and cycle_end_date >= contract_end_date and not is_auto_renew and contract.status in ['active', 'finished']:
             # [Recursion Fix] Check if final adjustments already exist to prevent infinite loop.
             final_adj_exists = db.session.query(FinancialAdjustment.id).filter_by(
                 customer_bill_id=bill.id,
@@ -2694,12 +2694,15 @@ class BillingEngine:
             description="[系统] 公司代付工资"
         ).first()
 
+        adjustment_was_changed = False
+
         if amount_to_set <= 0:
             current_app.logger.info(f"[FinalAdj] 计算出的代付金额为0或更少，为账单 {bill_id} 清理可能存在的旧调整项。")
             if existing_adj:
                 if existing_adj.mirrored_adjustment:
                     db.session.delete(existing_adj.mirrored_adjustment)
                 db.session.delete(existing_adj)
+                adjustment_was_changed = True
         else:
             if existing_adj:
                 if existing_adj.amount != amount_to_set:
@@ -2707,6 +2710,7 @@ class BillingEngine:
                     existing_adj.amount = amount_to_set
                     db.session.add(existing_adj)
                     self._mirror_company_paid_salary_adjustment(existing_adj, payroll)
+                    adjustment_was_changed = True
             elif allow_creation:
                 current_app.logger.info(f"[FinalAdj] 创建新的公司代付工资 for bill {bill.id}: {amount_to_set}")
                 new_adj = FinancialAdjustment(
@@ -2718,11 +2722,18 @@ class BillingEngine:
                 )
                 db.session.add(new_adj)
                 self._mirror_company_paid_salary_adjustment(new_adj, payroll)
+                adjustment_was_changed = True
 
-        # 【核心修正】删除触发递归调用的代码块
-        # 不再需要画蛇添足地调用 calculate_for_month，因为调整项已经加入到会话中，
-        # 在当前事务提交后，账单的总额会自动更新。
-        current_app.logger.info(f"[FinalAdj] 调整项已创建/更新/清理 for bill {bill.id}。函数执行完毕。")
+        if adjustment_was_changed:
+            current_app.logger.info(f"[FinalAdj] 公司代付工资调整项已变更，为账单 {bill.id} 触发重算。")
+            db.session.flush()
+            details = self._calculate_nanny_details(contract, bill, payroll, bill.actual_work_days)
+            final_bill, final_payroll = self._calculate_final_amounts(bill, payroll, details)
+            log = self._create_calculation_log(details)
+            self._update_bill_with_log(final_bill, final_payroll, details, log)
+            current_app.logger.info(f"[FinalAdj] 账单 {bill.id} 重算完成。")
+        else:
+            current_app.logger.info(f"[FinalAdj] 调整项无需变更 for bill {bill.id} 。函数执行完毕。")
 
     def _mirror_company_paid_salary_adjustment(self, company_adj: FinancialAdjustment, payroll:EmployeePayroll):
         """

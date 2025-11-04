@@ -202,6 +202,7 @@ def get_billing_details_internal(
     calc_cust = customer_bill.calculation_details or {}
     customer_details.update({
         "id": str(customer_bill.id),
+        "is_merged": customer_bill.is_merged,
         "calculation_details": calc_cust,
         "final_amount": {"客应付款": str(customer_bill.total_due)}, 
         "payment_status": {
@@ -367,6 +368,7 @@ def get_billing_details_internal(
         "cycle_start_date": cycle_start.isoformat(),
         "cycle_end_date": cycle_end.isoformat(),
         "is_substitute_bill": customer_bill.is_substitute_bill,
+        "display_month": f"{customer_bill.year}-{customer_bill.month:02d}", # <-- 【新增】返回年月
         "contract_info": {
             "contract_id": str(contract.id),
             "contract_type_label":get_contract_type_details(contract.type),

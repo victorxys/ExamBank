@@ -581,28 +581,38 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
         }
     };
 
-    const handleSave = () => {
+    const handleSave = async () => { // 1. 声明为 async 函数
         const billId = billingDetails?.customer_bill_details?.id;
         if (!billId) {
-            alert("无法保存，缺少关键的账单ID。");
+            setAlert({ open: true, message: "无法保存，缺少关键的账单ID。", severity: 'error' });
             return;
         }
-        // console.log("--- [DEBUG 3] Final payload to be sent. Adjustments are:", adjustments);
 
         const payload = {
             bill_id: billId,
             overtime_days: editableOvertime,
             actual_work_days: editableActualWorkDays,
-            adjustments: adjustments, // <-- 使用净化后的数据
-            // settlement_status: editableSettlement,
+            adjustments: adjustments,
             invoices: editableInvoices,
             invoice_needed: billingDetails.invoice_needed,
             was_deletion: deletionHappened,
         };
 
-        onSave(payload);
-        setIsEditMode(false);
-        setDeletionHappened(false);
+        try {
+            await onSave(payload); // 2. 等待 onSave 完成
+
+            // 3. onSave 成功后，触发刷新并提示用户
+            setAlert({ open: true, message: '保存成功！正在刷新数据...', severity: 'success' });
+            setRefreshKey(prevKey => prevKey + 1); // <-- 核心：触发刷新
+
+            setIsEditMode(false);
+            setDeletionHappened(false);
+
+        } catch (error) {
+            // 4. 如果 onSave 失败，显示错误
+            console.error("保存失败:", error);
+            setAlert({ open: true, message: `保存失败: ${error.message}`, severity: 'error' });
+        }
     };
 
     const handleEnterEditMode = () => {
@@ -1533,8 +1543,11 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
                             <IconButton onClick={() => handleNavigation('prev')} size="small" disabled={!billingDetails?.prev_bill_id || isLoading}>
                                 <ArrowBackIosNewIcon fontSize="inherit" />
                             </IconButton>
-                            <Typography variant="h5" component="span" sx={{ minWidth: '180px', textAlign: 'center' }}>
+                                                        <Typography variant="h5" component="span" sx={{ minWidth: '180px', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                 财务管理 - {billingDetails?.display_month}
+                                {billingDetails?.customer_bill_details?.is_merged && (
+                                    <Chip label="已合并" color="success" size="small" sx={{ ml: 1 }} />
+                                )}
                             </Typography>
                             <IconButton onClick={() => handleNavigation('next')} size="small" disabled={!billingDetails?.next_bill_id || isLoading}>
                                 <ArrowForwardIosNewIcon fontSize="inherit" />
@@ -1791,15 +1804,19 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
                         生成催款信息
                     </Button>
                         {successorContract && !isEditMode && (
-                            <Button
-                                variant="contained"
-                                color="secondary"
-                                startIcon={isProcessingSuccessorAction ? <CircularProgress size={20} /> : <CallMergeIcon />}
-                                onClick={handleOpenMergePreview} // <--- 修改这里
-                                disabled={isLoading || isProcessingSuccessorAction}
-                            >
-                                {isProcessingSuccessorAction ? '获取预览中...' : '合并客户&员工费用到续约账单'} 
-                            </Button>
+                            <Tooltip title={billingDetails?.customer_bill_details?.is_merged ? "此账单已被合并转移,无法再次操作" : ""}>
+                                <span> {/* Tooltip 需要一个子元素来绑定 */}
+                                    <Button
+                                        variant="contained"
+                                        color="secondary"
+                                        startIcon={isProcessingSuccessorAction ? < CircularProgress size={20} /> : <CallMergeIcon />}
+                                        onClick={handleOpenMergePreview}
+                                        disabled={isLoading || isProcessingSuccessorAction || billingDetails?.customer_bill_details?.is_merged}
+                                    >
+                                        {isProcessingSuccessorAction ? '获取预览中...' : '合并客户&员工费用到续约账单'}
+                                    </Button>
+                                </span>
+                            </Tooltip>
                         )}
                     <Button onClick={() => onClose(billingDetails)}>关闭</Button><Button onClick={handleEnterEditMode} variant="contained" startIcon={<EditIcon />} disabled={isLoading}>进入编辑模式</Button></>)}
                 </DialogActions>
