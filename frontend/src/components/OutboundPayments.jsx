@@ -822,10 +822,11 @@ export default function OutboundPayments() {
                 <FinancialManagementModal
                     open={billModalOpen}
                     onClose={handleCloseBillModal}
-                    contract={selectedBillContext}
-                    billingMonth={selectedBillContext?.billingMonth}
-                    billingDetails={selectedBillDetails}
-                    loading={loadingBillDetails}
+                    // contract={selectedBillContext}
+                    // billingMonth={selectedBillContext?.billingMonth}
+                    // billingDetails={selectedBillDetails}
+                    // loading={loadingBillDetails}
+                    billId={selectedBillDetails?.customer_bill_details?.id}
                     onSave={fetchAndSetData}
                 />
             )}

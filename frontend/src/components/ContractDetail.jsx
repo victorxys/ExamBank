@@ -1192,10 +1192,7 @@ const ContractDetail = () => {
                     <FinancialManagementModal
                         open={modalOpen}
                         onClose={handleCloseBillModal}
-                        contract={selectedBillContext}
-                        billingMonth={selectedBillContext?.billingMonth} // <-- 核心修正：使用我们保存的月份信息
-                        billingDetails={selectedBillDetails}
-                        loading={loadingModal}
+                        billId={selectedBillDetails?.customer_bill_details?.id}
                         onSave={handleSaveChangesInModal}
                         onNavigateToBill={(billId) => navigate(`/billing?find_bill_id=${billId}`)}
                     />
