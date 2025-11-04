@@ -1223,10 +1223,7 @@ const BillingDashboard = () => {
             <FinancialManagementModal
                 open={detailDialogOpen}
                 onClose={handleCloseDetailDialog}
-                contract={selectedContractForDetail}
-                billingMonth={selectedBillingMonth}
-                billingDetails={billingDetails}
-                loading={loadingDetail}
+                billId={selectedContractForDetail?.id}
                 onSave={handleSaveChanges}
                 onNavigateToBill={handleFindAndOpenBill}
             />

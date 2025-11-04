@@ -858,6 +858,7 @@ export default function ReconciliationPage() {
     const [loadingBillDetails, setLoadingBillDetails] = useState(false);
     const [selectedBillDetails, setSelectedBillDetails] = useState(null);
     const [selectedBillContext, setSelectedBillContext] = useState(null);
+    const [refreshBillsKey, setRefreshBillsKey] = useState(0);
 
     
     const prevTransactionIdRef = useRef();
@@ -1002,6 +1003,7 @@ export default function ReconciliationPage() {
         setBillModalOpen(false);
         setSelectedBillDetails(null);
         setSelectedBillContext(null);
+        setRefreshBillsKey(k => k + 1);
     };
 
     const handleStatusUpdate = (transactionId, fromCategory, toCategory) => {
@@ -1288,7 +1290,7 @@ useEffect(() => {
                 setIsLoadingBills(false);
             }
         });
-}, [overrideCustomerName, selectedTxn, operationPeriod, selectedCustomerName, activeTab]);
+}, [overrideCustomerName, selectedTxn, operationPeriod, selectedCustomerName, activeTab, refreshBillsKey]);
 
     useEffect(() => {
         if (!searchTerm) {
@@ -1565,14 +1567,9 @@ useEffect(() => {
                 <FinancialManagementModal
                     open={billModalOpen}
                     onClose={handleCloseBillModal}
-                    contract={selectedBillContext}
-                    billingMonth={selectedBillContext?.billingMonth}
-                    billingDetails={selectedBillDetails}
-                    loading={loadingBillDetails}
+                    billId={selectedBillDetails?.customer_bill_details?.id}
                     onSave={handleSaveBillDetails}
-                    onNavigateToBill={(billId) => {
-                        // console.log("Navigate to bill ID:", billId);
-                    }}
+                    onNavigateToBill={(billId) => handleOpenBillModal({ id: billId })}
                 />
             )}
         </Box>

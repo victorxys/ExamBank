@@ -19,8 +19,10 @@ import {
     Link as LinkIcon,
     Lock as LockIcon, // <-- 添加图标
     ArrowBackIosNew as ArrowBackIosNewIcon,
-    ArrowForwardIos as ArrowForwardIosIcon
-} from '@mui/icons-material';import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+    ArrowForwardIos as ArrowForwardIosNewIcon
+    
+} from '@mui/icons-material';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { Timeline } from '@mui/lab';
 
 import api from '../api/axios'; 
@@ -213,56 +215,51 @@ const getTooltipContent = (fieldName, billingDetails, isCustomer, adjustment = n
 
 
 // --- 主组件 ---
-const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billingDetails: initialBillingDetails, loading, onSave, onNavigateToBill }) => {
-    // console.log("[DEBUG] FinancialManagementModal received contract prop:", contract);
-    const [latestSavedData, setLatestSavedData] = useState(null);
+const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToBill }) => {
     const navigate = useNavigate();
+    const [currentBillId, setCurrentBillId] = useState(billId);
+    const [billingDetails, setBillingDetails] = useState(null);
+    const [contract, setContract] = useState(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState(null);
+
     const [isEditMode, setIsEditMode] = useState(false);
-    const billIdRef = useRef(null);
     const [editableOvertime, setEditableOvertime] = useState(0);
     const [adjustments, setAdjustments] = useState([]);
-    const [editableInvoice, setEditableInvoice] = useState({ number: '', amount: '', date: null });
-    const [isAdjustmentDialogOpen, setIsAdjustmentDialogOpen] = useState(false);
-    const [editingAdjustment, setEditingAdjustment] = useState(null);
-    const [adjustmentFilter, setAdjustmentFilter] = useState('all');
+    const [editableInvoices, setEditableInvoices] = useState([]);
     const [activityLogs, setActivityLogs] = useState([]);
     const [loadingLogs, setLoadingLogs] = useState(false);
-    const [isCycleEditDialogOpen, setIsCycleEditDialogOpen] = useState(false);
-    const [editableCycle, setEditableCycle] = useState({ start: null, end: null });
-    const [isSubstituteDialogOpen, setIsSubstituteDialogOpen] = useState(false);
     const [substituteRecords, setSubstituteRecords] = useState([]);
+    const [successorContract, setSuccessorContract] = useState(null);
     const [editableActualWorkDays, setEditableActualWorkDays] = useState(26);
-    
-    // --- Gemini: New State Management ---
-    const [currentBillingMonth, setCurrentBillingMonth] = useState(billingMonth);
-    const [billingDetails, setBillingDetails] = useState(initialBillingDetails);
-    const [isSwitchingMonth, setIsSwitchingMonth] = useState(false);
-    const [hasPrevBill, setHasPrevBill] = useState(false);
-    const [hasNextBill, setHasNextBill] = useState(false);
-    // --- End of New State ---
+    const [editableInvoice, setEditableInvoice] = useState({ number: '', amount: '', date: null }); // Added for invoice editing
 
+    // Dialog states
+    const [isAdjustmentDialogOpen, setIsAdjustmentDialogOpen] = useState(false);
+    const [editingAdjustment, setEditingAdjustment] = useState(null);
+    const [isSubstituteDialogOpen, setIsSubstituteDialogOpen] = useState(false);
+    const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
+    const [isPayoutDialogOpen, setIsPayoutDialogOpen] = useState(false);
+    const [isInvoiceDialogOpen, setIsInvoiceDialogOpen] = useState(false);
     const [isExtensionDialogOpen, setIsExtensionDialogOpen] = useState(false);
     const [extensionDate, setExtensionDate] = useState(null);
-    const [isInvoiceNeeded, setIsInvoiceNeeded] = useState(false);
-    const [editableInvoices, setEditableInvoices] = useState([]);
-    const [isInvoiceDialogOpen, setIsInvoiceDialogOpen] = useState(false);
     const [isTransferDialogOpen, setIsTransferDialogOpen] = useState(false);
     const [transferringAdjustment, setTransferringAdjustment] = useState(null);
-    const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
-    const [alert, setAlert] = useState({ open: false, message: '', severity: 'info' });
-    const [isPayoutDialogOpen, setIsPayoutDialogOpen] = useState(false);
-
     const [isMessageModalOpen, setIsMessageModalOpen] = useState(false);
+    const [isMergePreviewOpen, setIsMergePreviewOpen] = useState(false);
+    const [isCycleEditDialogOpen, setIsCycleEditDialogOpen] = useState(false); // Added for cycle edit dialog
+    const [editableCycle, setEditableCycle] = useState({ start: null, end: null }); // Added for cycle edit dialog
+    const [adjustmentFilter, setAdjustmentFilter] = useState('all');
+    const [isTransferBalanceDialogOpen, setIsTransferBalanceDialogOpen] = useState(false);
+    
+    // Other UI-related states
+    const [alert, setAlert] = useState({ open: false, message: '', severity: 'info' });
     const [generatedMessage, setGeneratedMessage] = useState('');
     const [isGeneratingMessage, setIsGeneratingMessage] = useState(false);
-
-    const [isTransferBalanceDialogOpen, setIsTransferBalanceDialogOpen] = useState(false);
-    const [deletionHappened, setDeletionHappened] = useState(false);
-    const [successorContract, setSuccessorContract] = useState(null);
-    const [isMergePreviewOpen, setIsMergePreviewOpen] = useState(false);
     const [isProcessingSuccessorAction, setIsProcessingSuccessorAction] = useState(false);
     const [mergePreviewData, setMergePreviewData] = useState(null);
-    const [previewDataForModal, setPreviewDataForModal] = useState({ transferableAdjustments: [], sourceContractInfo: null, targetContractInfo: null });
+    const [deletionHappened, setDeletionHappened] = useState(false);
+    const [refreshKey, setRefreshKey] = useState(0);
 
     const handleOpenMergePreview = async () => {
         if (!billingDetails?.customer_bill_details?.id || !successorContract?.id) {
@@ -288,30 +285,10 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
         }
     };
 
-    const handlePostMergeRefresh = async () => {
-        const billId = billIdRef.current;
-        if (!billId) {
-            setAlert({ open: true, message: '刷新失败，缺少账单ID', severity: 'error' });
-            return;
-        }
-
+    const handlePostMergeRefresh = () => {
         setIsMergePreviewOpen(false);
         setAlert({ open: true, message: '合并操作成功！正在刷新数据...', severity: 'success' });
-
-        try {
-            const detailsResponse = await api.get('/billing/details', {
-                params: { bill_id: billId }
-            });
-            setBillingDetails(detailsResponse.data);
-            // 刷新后，也重置续约合同状态，因为源账单不再是 is_last_bill
-            setSuccessorContract(null);
-        } catch (error) {
-            setAlert({
-                open: true,
-                message: `刷新数据失败: ${error.response?.data?.error || error.message}`,
-                severity: 'error'
-            });
-        }
+        setRefreshKey(prevKey => prevKey + 1);
     };
 
     const handleConfirmTransferBalance = async (transferData) => {
@@ -326,94 +303,98 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                 ? { destination_bill_id: destinationId }
                 : { destination_contract_id: destinationId };
 
-            const response = await api.post(
+            await api.post(
                 `/billing/bills/${billId}/transfer-balance`,
                 payload
             );
-            setAlert({ open: true, message: '余额结转成功！', severity: 'success' });
+            setAlert({ open: true, message: '余额结转成功！正在刷新...', severity: 'success' });
             setIsTransferBalanceDialogOpen(false);
-            // Refresh the data
-            if (response.data.latest_details) {
-                setBillingDetails(response.data.latest_details);
-            } else {
-                // Or refetch
-                const freshDetails = await api.get('/billing/details', { params: { bill_id: billId } });
-                setBillingDetails(freshDetails.data);
-            }
+
+            // 触发刷新，而不是关闭
+            setRefreshKey(prevKey => prevKey + 1);
+
         } catch (error) {
             console.error("余额结转失败:", error);
             setAlert({ open: true, message: `操作失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
         }
     };
-
+    // 当外部 billId prop 变化时，同步更新内部的 currentBillId
     useEffect(() => {
-        setCurrentBillingMonth(billingMonth);
-        setBillingDetails(initialBillingDetails);
-    }, [billingMonth, initialBillingDetails]);
+        setCurrentBillId(billId);
+    }, [billId]);
 
+    // 核心数据获取逻辑: 当 currentBillId 变化时，获取所有相关数据
+    // 核心数据获取与处理逻辑
     useEffect(() => {
-        if (open && billingDetails) {
-            const newBillId = billingDetails.customer_bill_details?.id;
+        if (open && currentBillId) {
+            const fetchAndProcessDetails = async () => {
+                setIsLoading(true);
+                setError(null);
+                setBillingDetails(null);
 
-            // 仅当账单ID实际发生变化时（例如切换月份），才重置编辑模式
-            if (newBillId !== billIdRef.current) {
-                setIsEditMode(false);
-                billIdRef.current = newBillId;
-            }
+                try {
+                    // 1. 获取核心账单数据
+                    const response = await api.get('/billing/details', { params: { bill_id: currentBillId } });
+                    const details = response.data;
 
-            // Set navigation boundaries
-            setHasPrevBill(billingDetails.has_prev_bill || false);
-            setHasNextBill(billingDetails.has_next_bill || false);
+                    setBillingDetails(details);
+                    setContract(details.contract_info);
 
-            const customerDetails = billingDetails.customer_bill_details || {};
-            const employeeDetails = billingDetails.employee_payroll_details || {};
-            
-            setEditableOvertime(parseFloat(billingDetails.attendance?.overtime_days) || 0);
-            
-            setAdjustments(billingDetails.adjustments || []);
+                    // 2. 重置编辑模式和相关状态
+                    setIsEditMode(false);
+                    setEditableOvertime(parseFloat(details.attendance?.overtime_days) || 0);
+                    setAdjustments(details.adjustments || []);
+                    setEditableInvoices(details.invoice_balance?.invoice_records || []);
 
-            const actualDaysFromBill = customerDetails.actual_work_days;
-            const baseDaysFromCalc = customerDetails.calculation_details?.base_work_days;
-            if (actualDaysFromBill !== null && actualDaysFromBill !== undefined) {
-                setEditableActualWorkDays(parseFloat(actualDaysFromBill));
-            } else if (baseDaysFromCalc !== null && baseDaysFromCalc !== undefined) {
-                setEditableActualWorkDays(parseFloat(baseDaysFromCalc));
-            } else {
-                setEditableActualWorkDays(26);
-            }
+                    const customerDetails = details.customer_bill_details || {};
+                    const actualDaysFromBill = customerDetails.actual_work_days;
+                    const baseDaysFromCalc = customerDetails.calculation_details?.base_work_days;
 
-            setEditableInvoices(billingDetails.invoice_balance?.invoice_records || []);
+                    if (actualDaysFromBill !== null && actualDaysFromBill !== undefined) {
+                        setEditableActualWorkDays(parseFloat(actualDaysFromBill));
+                    } else if (baseDaysFromCalc !== null && baseDaysFromCalc !== undefined) {
+                        setEditableActualWorkDays(parseFloat(baseDaysFromCalc));
+                    } else {
+                        setEditableActualWorkDays(26);
+                    }
 
-            if (customerDetails.id || employeeDetails.id) {
-                setLoadingLogs(true);
-                api.get('/billing/logs', { params: { bill_id: customerDetails.id, payroll_id: employeeDetails.id } })
-                    .then(res => setActivityLogs(res.data))
-                    .catch(err => console.error("获取日志失败:", err))
-                    .finally(() => setLoadingLogs(false));
-            }
-            if (contract?.contract_id) {
-                api.get(`/contracts/${contract.contract_id}/substitutes`)
-                    .then(res => setSubstituteRecords(res.data))
-                    .catch(err => console.error("获取替班记录失败:", err));
+                    // 3. 获取关联的子数据 (日志、替班、续约)
+                    const payrollId = details.employee_payroll_details?.id;
+                    const contractId = details.contract_info?.contract_id;
 
-                // --- 新增逻辑 ---
-                if (billingDetails.is_last_bill) {
-                    api.get(`/contracts/${contract.contract_id}/successor`)
-                        .then(res => {
-                            if (res.status === 200) {
-                                setSuccessorContract(res.data);
-                            } else {
-                                setSuccessorContract(null);
-                            }
-                        })
-                        .catch(() => setSuccessorContract(null));
-                } else {
-                    setSuccessorContract(null);
+                    if (currentBillId || payrollId) {
+                        setLoadingLogs(true);
+                        api.get('/billing/logs', { params: { bill_id: currentBillId, payroll_id: payrollId } })
+                            .then(res => setActivityLogs(res.data))
+                            .catch(err => console.error("获取日志失败:", err))
+                            .finally(() => setLoadingLogs(false));
+                    }
+
+                    if (contractId) {
+                        api.get(`/contracts/${contractId}/substitutes`)
+                            .then(res => setSubstituteRecords(res.data))
+                            .catch(err => console.error("获取替班记录失败:", err));
+
+                        if (details.is_last_bill) {
+                            api.get(`/contracts/${contractId}/successor`)
+                                .then(res => setSuccessorContract(res.status === 200 ? res.data : null))
+                                .catch(() => setSuccessorContract(null));
+                        } else {
+                            setSuccessorContract(null);
+                        }
+                    }
+
+                } catch (err) {
+                    console.error("Failed to fetch and process billing details:", err);
+                    setError(`无法加载账单数据: ${err.response?.data?.error || err.message}`);
+                } finally {
+                    setIsLoading(false);
                 }
-                // --- 新增结束 ---
-            }
+            };
+
+            fetchAndProcessDetails();
         }
-    }, [open, billingDetails, contract?.contract_id]);
+    }, [open, currentBillId, refreshKey]);
 
     const handleGenerateSingleMessage = async () => {
         const billId = billingDetails?.customer_bill_details?.id;
@@ -436,43 +417,15 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
         }
     };
 
-    // --- Gemini: New Month Change Handler ---
-    const handleMonthChange = async (direction) => {
-        if (!currentBillingMonth || !contract?.contract_id) return;
+    const handleNavigation = (direction) => {
+        const targetBillId = direction === 'prev'
+            ? billingDetails?.prev_bill_id
+            : billingDetails?.next_bill_id;
 
-        setIsSwitchingMonth(true);
-        setAlert({ open: false, message: '', severity: 'info' });
-
-        const [year, month] = currentBillingMonth.split('-').map(Number);
-        const currentDate = new Date(year, month - 1, 1);
-
-        if (direction === 'prev') {
-            currentDate.setMonth(currentDate.getMonth() - 1);
-        } else {
-            currentDate.setMonth(currentDate.getMonth() + 1);
-        }
-
-        const newYear = currentDate.getFullYear();
-        const newMonth = String(currentDate.getMonth() + 1).padStart(2, '0');
-        const newBillingMonth = `${newYear}-${newMonth}`;
-
-        try {
-            const response = await api.get('/billing/details', {
-                params: {
-                    contract_id: contract.contract_id,
-                    month: newBillingMonth,
-                }
-            });
-            setBillingDetails(response.data);
-            setCurrentBillingMonth(newBillingMonth);
-        } catch (error) {
-            console.error(`获取 ${newBillingMonth} 账单失败:`, error);
-            setAlert({ open: true, message: `无法加载 ${newBillingMonth} 的账单数据。`, severity: 'error' });
-        } finally {
-            setIsSwitchingMonth(false);
+        if (targetBillId) {
+            setCurrentBillId(targetBillId); // 更新ID，这将自动触发useEffect重新获取数据
         }
     };
-    // --- End of New Handler ---
 
     const handleOpenSubstituteDialog = () => {
         setIsSubstituteDialogOpen(true);
@@ -672,14 +625,6 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
             const customerPayment = customerDetails.payment_status || {};
             const employeePayment = employeeDetails.payment_status || {};
         }
-        if (initialBillingDetails) {
-            const effectiveNeeded = initialBillingDetails.invoice_balance?.auto_invoice_needed ||false;
-            const updatedDetails = {
-                ...initialBillingDetails,
-                invoice_needed: effectiveNeeded
-            };
-            setBillingDetails(updatedDetails);
-        }
         setIsEditMode(false);
         setDeletionHappened(false);
     };
@@ -809,16 +754,6 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
     const handleCycleDateChange = (name, newDate) => {
         setEditableCycle(prev => ({ ...prev, [name]: newDate }));
     };
-    // 目标：在员工薪酬卡片中也显示“劳务周期”
-    // 方法：从客户账单数据中找到“劳务周期”组，并将其添加到员工薪酬数据的组列表的开头。
-    const laborCycleGroup = customerData?.groups?.find(g => g.name === '劳务周期');
-
-    if (laborCycleGroup && employeeData?.groups) {
-      // 检查是否已存在，防止重复添加
-      if (!employeeData.groups.some(g => g.name === '劳务周期')) {
-        employeeData.groups.unshift(laborCycleGroup);
-      }
-    }
     const handleSaveCycle = async () => {
         if (!editableCycle.start || !editableCycle.end) {
             alert("请提供完整的周期起止日期！");
@@ -884,6 +819,15 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
     ) : '加载合同信息...';
     const renderCardContent = (data, isCustomer, billingDetails) => {
         if (!data || !data.groups) return null;
+
+        let finalGroups = data.groups;
+        if (!isCustomer) { // It's the employee card
+            const customerData = billingDetails?.customer_bill_details || {};
+            const laborCycleGroup = customerData?.groups?.find(g => g.name === '劳务周期');
+            if (laborCycleGroup && !data.groups.some(g => g.name === '劳务周期')) {
+                finalGroups = [laborCycleGroup, ...data.groups];
+            }
+        }
         const isSubstituteBill = data.calculation_details?.type === 'substitute';
         const isNannyContract = contract?.contract_type_value === 'nanny';
         const isTrialTerminationBill = data.calculation_details?.type === 'nanny_trial_termination';
@@ -958,7 +902,7 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
 
         return (
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-                {data.groups.map(group => (
+                {finalGroups.map(group => (
                     <Box key={group.name}>
                         <Divider textAlign="left" sx={{ mb: 1.5 }}><Typography variant="overline" color="text.secondary">{group.name}</Typography></Divider>
                         <Grid container rowSpacing={1.5} columnSpacing={2}>
@@ -1382,15 +1326,15 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                             </Box>
                         </Grid>
 
-                        {/* Transfer Balance Button */}
-                        {isCustomer && billingDetails.is_last_bill && ['terminated', 'finished'].includes(contract?.status) && Math.abs(pendingAmount) > 0.01 && (
+                        {/* Transfer Balance Button 取消当前合同状态的条件 && ['terminated', 'finished'].includes(contract?.status)  */}
+                        {isCustomer && billingDetails.is_last_bill && Math.abs(pendingAmount) > 0.01 && (
                             <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'center', mt: 1 }}>
                                 <Button 
                                     variant="contained"
                                     color="secondary"
                                     onClick={() => setIsTransferBalanceDialogOpen(true)}
                                 >
-                                    转移此账单余额
+                                    转移客户账单余额
                                 </Button>
                             </Grid>
                         )}
@@ -1563,7 +1507,6 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
         );
     };
 
-    const watermarkText = currentBillingMonth ? `${parseInt(currentBillingMonth.split('-')[1], 10)}月` : '';
 
     return (
         <>
@@ -1587,14 +1530,14 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                 <DialogTitle variant="h5" sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <IconButton onClick={() => handleMonthChange('prev')} size="small" disabled={!hasPrevBill || isSwitchingMonth}>
+                            <IconButton onClick={() => handleNavigation('prev')} size="small" disabled={!billingDetails?.prev_bill_id || isLoading}>
                                 <ArrowBackIosNewIcon fontSize="inherit" />
                             </IconButton>
                             <Typography variant="h5" component="span" sx={{ minWidth: '180px', textAlign: 'center' }}>
-                                财务管理 - {currentBillingMonth}
+                                财务管理 - {billingDetails?.display_month}
                             </Typography>
-                            <IconButton onClick={() => handleMonthChange('next')} size="small" disabled={!hasNextBill || isSwitchingMonth}>
-                                <ArrowForwardIosIcon fontSize="inherit" />
+                            <IconButton onClick={() => handleNavigation('next')} size="small" disabled={!billingDetails?.next_bill_id || isLoading}>
+                                <ArrowForwardIosNewIcon fontSize="inherit" />
                             </IconButton>
                         </Box>
                         <Box sx={{ display: 'flex', alignItems: 'center', borderLeft: 1, borderColor: 'divider', pl: 2 }}>
@@ -1613,7 +1556,7 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                                 size="small"
                                 startIcon={<PeopleAltIcon />}
                                 onClick={handleOpenSubstituteDialog}
-                                disabled={isEditMode || isSwitchingMonth}
+                                disabled={isEditMode || isLoading}
                                 sx={{ mr: 2 }}
                             >
                                 添加替班记录
@@ -1634,7 +1577,7 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                     </Box>
                 </DialogTitle>
                 <DialogContent dividers sx={{ bgcolor: 'grey.50', p: { xs: 1, sm: 2, md: 3 }, position: 'relative' }}>
-                    {isSwitchingMonth && (
+                    {isLoading && (
                         <Box sx={{
                             position: 'absolute',
                             top: 0,
@@ -1653,13 +1596,12 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
 
                     {isEditMode && (<Alert severity="info" sx={{ mb: 2, position: 'relative', zIndex: 1 }}>您正处于编辑模式。所有更改将在点击“保存”后生效。</Alert>)}
                     
-                    {(loading && !isSwitchingMonth) ? (<Box sx={{ display: 'flex', justifyContent: 'center', p: 5 }}><CircularProgress /></Box>) 
-                    : billingDetails ? (
+                    {billingDetails ? (
                         <Grid container spacing={3} sx={{ position: 'relative', zIndex: 1 }}>
                             <Grid item xs={12} md={6}>
                                 <Paper sx={{ p: 3, borderRadius: 2, boxShadow: 1, position: 'relative', overflow: 'hidden' }}>
                                     <Box sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', fontSize: '8rem', fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.05)', zIndex: 0, pointerEvents: 'none', userSelect: 'none' }}>
-                                        {watermarkText}
+                                        {billingDetails?.display_month ? `${parseInt(billingDetails.display_month.split('-')[1], 10)}月` : ''}
                                     </Box>
                                     <Typography variant="h3" gutterBottom component="div" sx={{ display: 'flex', alignItems: 'center' }}>
                                         客户账单 ~ 
@@ -1674,7 +1616,7 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                             <Grid item xs={12} md={6}>
                                 <Paper sx={{ p: 3, borderRadius: 2, boxShadow: 1, position: 'relative', overflow: 'hidden' }}>
                                      <Box sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', fontSize: '8rem', fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.05)', zIndex: 0, pointerEvents: 'none', userSelect: 'none' }}>
-                                        {watermarkText}
+                                        {billingDetails?.display_month ? `${parseInt(billingDetails.display_month.split('-')[1], 10)}月` : ''}
                                     </Box>
                                     <Typography variant="h3" gutterBottom component="div" sx={{ display: 'flex', alignItems: 'center' }}>
                                         员工薪酬 ~ 
@@ -1843,7 +1785,7 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                     <Button 
                         onClick={handleGenerateSingleMessage} 
                         variant="outlined"
-                        disabled={isGeneratingMessage || isSwitchingMonth}
+                        disabled={isGeneratingMessage || isLoading}
                         startIcon={isGeneratingMessage ? <CircularProgress size={20} /> : null}
                     >
                         生成催款信息
@@ -1854,12 +1796,12 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                                 color="secondary"
                                 startIcon={isProcessingSuccessorAction ? <CircularProgress size={20} /> : <CallMergeIcon />}
                                 onClick={handleOpenMergePreview} // <--- 修改这里
-                                disabled={isSwitchingMonth || isProcessingSuccessorAction}
+                                disabled={isLoading || isProcessingSuccessorAction}
                             >
-                                {isProcessingSuccessorAction ? '获取预览中...' : '合并至续约账单'} 
+                                {isProcessingSuccessorAction ? '获取预览中...' : '合并客户&员工费用到续约账单'} 
                             </Button>
                         )}
-                    <Button onClick={() => onClose(billingDetails)}>关闭</Button><Button onClick={handleEnterEditMode} variant="contained" startIcon={<EditIcon />} disabled={isSwitchingMonth}>进入编辑模式</Button></>)}
+                    <Button onClick={() => onClose(billingDetails)}>关闭</Button><Button onClick={handleEnterEditMode} variant="contained" startIcon={<EditIcon />} disabled={isLoading}>进入编辑模式</Button></>)}
                 </DialogActions>
             </Dialog>
             <InvoiceDetailsDialog
@@ -1899,7 +1841,6 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                 onSave={handleSaveSubstitute}
                 contractId={contract?.contract_id}
                 contractType={contract?.contract_type_value}
-                billMonth={currentBillingMonth}
                 originalBillCycleStart={billingDetails?.cycle_start_date}
                 originalBillCycleEnd={billingDetails?.cycle_end_date}
                 originalBillId={billingDetails?.customer_bill_details?.id}
@@ -1920,23 +1861,6 @@ const FinancialManagementModal = ({ open, onClose, contract, billingMonth, billi
                     <Button onClick={handleConfirmExtension} variant="contained">确认延长</Button>
                 </DialogActions>
             </Dialog>
-            <Dialog open={isTransferDialogOpen} onClose={handleCloseTransferDialog}>
-                <DialogTitle>转移保证金</DialogTitle>
-                <DialogContent>
-                    <Typography>（转移功能开发中...）</Typography>
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={handleCloseTransferDialog}>取消</Button>
-                </DialogActions>
-            </Dialog>
-                    
-            <TransferDepositDialog
-                open={isTransferDialogOpen}
-                onClose={handleCloseTransferDialog}
-                adjustment={transferringAdjustment}
-                sourceContract={contract}
-                onConfirm={(destinationContractId) => handleInitiateTransfer(null,destinationContractId)}
-            />
             <TransferDepositDialog
                 open={isTransferBalanceDialogOpen}
                 onClose={() => setIsTransferBalanceDialogOpen(false)}

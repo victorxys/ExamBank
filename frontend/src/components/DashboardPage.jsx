@@ -539,10 +539,11 @@ const DashboardPage = () => {
                 <FinancialManagementModal
                     open={isModalOpen}
                     onClose={handleCloseModal}
-                    billingDetails={selectedBillDetails}
-                    loading={isModalLoading}
-                    contract={selectedBillDetails?.contract_info}
-                    billingMonth={selectedBillDetails?.billing_month}
+                    // billingDetails={selectedBillDetails}
+                    // loading={isModalLoading}
+                    // contract={selectedBillDetails?.contract_info}
+                    // billingMonth={selectedBillDetails?.billing_month}
+                    billId={selectedBillDetails?.customer_bill_details?.id}
                     onSave={() => {
                         // 仪表盘是只读的，但 onSave 是必需的 prop，我们提供一个空实现
                         // 如果需要刷新，可以在这里重新获取仪表盘数据

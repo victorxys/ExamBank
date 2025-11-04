@@ -161,17 +161,23 @@ def get_billing_details_internal(
         customer_bill.cycle_end_date,
     )
 
-    has_prev_bill = db.session.query(CustomerBill.query.filter(
+    prev_bill = CustomerBill.query.filter(
         CustomerBill.contract_id == contract.id,
         CustomerBill.cycle_start_date < customer_bill.cycle_start_date,
         CustomerBill.is_substitute_bill == False
-    ).exists()).scalar()
+    ).order_by(CustomerBill.cycle_start_date.desc()).first()
 
-    has_next_bill = db.session.query(CustomerBill.query.filter(
+    next_bill = CustomerBill.query.filter(
         CustomerBill.contract_id == contract.id,
         CustomerBill.cycle_start_date > customer_bill.cycle_start_date,
         CustomerBill.is_substitute_bill == False
-    ).exists()).scalar()
+    ).order_by(CustomerBill.cycle_start_date.asc()).first()
+
+    has_prev_bill = prev_bill is not None
+    prev_bill_id = str(prev_bill.id) if prev_bill else None
+
+    has_next_bill = next_bill is not None
+    next_bill_id = str(next_bill.id) if next_bill else None
 
     employee_payroll = EmployeePayroll.query.filter_by(
         contract_id=contract.id,
@@ -204,6 +210,10 @@ def get_billing_details_internal(
             'total_paid': str(customer_bill.total_paid)
         }
     })
+    if contract.customer_name:
+        customer_details['customer_name'] = contract.customer_name
+    if contract.status:
+        customer_details['contract_status'] = contract.status
     # "劳务周期" group
     _fill_group_fields(customer_details["groups"][1]["fields"], calc_cust, ["base_work_days","overtime_days", "total_days_worked", "substitute_days", "extension_days"])
 
@@ -277,67 +287,6 @@ def get_billing_details_internal(
     ).exists()).scalar()
     is_last_bill = not later_bill_exists
     
-    
-    # is_eligible_for_extension = False
-    # authoritative_end_date = None
-
-    # if is_last_bill:
-    #     contract_type = contract.type
-    #     if contract_type == 'nanny' and not getattr(contract, 'is_monthly_auto_renew', False):
-    #         is_eligible_for_extension = True
-    #         authoritative_end_date = contract.end_date
-    #     elif contract_type == 'maternity_nurse':
-    #         is_eligible_for_extension = True
-    #         authoritative_end_date = getattr(contract,'expected_offboarding_date', None) or contract.end_date
-    #     elif contract_type == 'external_substitution':
-    #         is_eligible_for_extension = True
-    #         authoritative_end_date = contract.end_date
-
-    # if is_eligible_for_extension and authoritative_end_date:
-    #     bill_end_date_obj =customer_bill.cycle_end_date
-    #     auth_end_date_obj = authoritative_end_date
-
-    #     bill_end_date = bill_end_date_obj.date() if isinstance(bill_end_date_obj, datetime) else bill_end_date_obj
-    #     auth_end_date = auth_end_date_obj.date() if isinstance(auth_end_date_obj, datetime) else auth_end_date
-
-    #     if bill_end_date and auth_end_date and bill_end_date > auth_end_date:
-    #         extension_days = (bill_end_date -auth_end_date).days
-
-    #         if extension_days > 0:
-    #             extension_log = f"原合同于 {auth_end_date.strftime('%m月%d日')} 结束，手动延长至{bill_end_date.strftime('%m月%d日')}，共{extension_days} 天。"
-
-    #             level = D(contract.employee_level or'0')
-    #             daily_rate = level / D(26)
-    #             extension_fee = (daily_rate *D(extension_days)).quantize(D('0.01'))
-    #             extension_fee_log = f"级别({level:.2f})/26 * 延长天数延期了({extension_days}) = {extension_fee:.2f}"
-
-    #             if contract.management_fee_amount is not None:
-    #                 management_fee = D(contract.management_fee_amount)
-    #             else:
-    #                 management_fee = (level * D('0.1')).quantize(D('0.01'))
-    #             extension_manage_fee = management_fee * D(extension_days) / D(30)
-    #             extension_manage_fee_log = f"延长期管理费({management_fee:.2f})/30 * 延长天数延期了({extension_days}) = {extension_manage_fee:.2f}"
-
-    #             if "calculation_details" not in customer_details:
-    #                 customer_details["calculation_details"] = {}
-    #             if "log_extras" not in customer_details["calculation_details"]:
-    #                 customer_details["calculation_details"]["log_extras"] = {}
-
-    #             for group in customer_details["groups"]:
-    #                 if group["name"] == "劳务周期":
-    #                     group["fields"]["延长服务天数"] = str(extension_days)
-    #                     customer_details["calculation_details"]["log_extras"]["extension_days_reason"] = extension_log
-    #                 if group["name"] == "费用明细":
-    #                     group["fields"]["延长期服务费"] = str(extension_fee)
-    #                     customer_details["calculation_details"]["log_extras"]["extension_fee_reason"] = extension_fee_log
-    #                     group["fields"]["延长期管理费"] = str(extension_manage_fee)
-    #                     customer_details["calculation_details"]["log_extras"]["extension_manage_fee_reason"] = extension_manage_fee_log
-
-    #             if employee_details and employee_details.get("groups"):
-    #                 for group in employee_details["groups"]:
-    #                     if group["name"] in ["薪酬明细", "劳务周期"]:
-    #                          group["fields"]["延长服务天数"] = str(extension_days)
-    #                          group["fields"]["延长期服务费"] = str(extension_fee)
     remaining_months_str = "N/A"
     highlight_remaining = False
     today = date.today()
@@ -424,11 +373,15 @@ def get_billing_details_internal(
             "start_date": safe_isoformat(contract.start_date),
             "end_date": safe_isoformat(contract.end_date),
             "notes": contract.notes,
+            "customer_name": contract.customer_name,
+            "status": contract.status,
             "remaining_months": remaining_months_str,
             "is_monthly_auto_renew": getattr(contract,'is_monthly_auto_renew', None)
         },
         "has_prev_bill": has_prev_bill,
-        "has_next_bill": has_next_bill
+        "prev_bill_id": prev_bill_id,
+        "has_next_bill": has_next_bill,
+        "next_bill_id": next_bill_id
     }
 
 def _log_activity(bill, payroll, action, details=None, contract=None):
