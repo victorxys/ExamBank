@@ -43,67 +43,8 @@ celery_app  = Celery( # 通常将 Celery 实例命名为 app 或 celery_app
     include=['backend.tasks'] # Celery 会从 sys.path (包含当前目录) 查找 backend.tasks
 )
 
-celery_app .conf.update(
-    task_serializer='json',
-    accept_content=['json'],
-    result_serializer='json',
-    timezone='Asia/Shanghai',
-    enable_utc=True,
-)
-
-# ++++++++++++++++ 动态计算太平洋时间午夜对应的上海时间 ++++++++++++++++
-
-@celery_app.on_after_configure.connect
-def setup_periodic_tasks(sender, **kwargs):
-    """
-    配置定时任务，并打印对用户友好的多时区时间。
-    """
-    # 1. 设置Celery Beat的主时钟为太平洋时间
-    sender.conf.timezone = 'America/Los_Angeles'
-
-    # --- 定义我们的定时任务时间 ---
-    run_hour_pt = 0   # 太平洋时间 0 点
-    run_minute_pt = 1 # 太平洋时间 1 分
-
-    # 2. 添加主要的重置任务
-    sender.add_periodic_task(
-        crontab(hour=run_hour_pt, minute=run_minute_pt),
-        sender.signature('tasks.reset_daily_tts_usage'),
-        name='reset-tts-usage-at-pt-midnight'
-    )
-    
-    # 【核心新增】为“同步合同”任务，添加一个每分钟执行一次的调试计划
-    sender.add_periodic_task(
-        crontab(minute=1),  # 每小时第一分钟执行
-        sender.signature('tasks.sync_all_contracts'),
-        name='sync-contracts-hourly'
-    )
-
-    sender.add_periodic_task(
-        crontab(hour=2, minute=0, day_of_week='monday'),
-        sender.signature('tasks.auto_check_and_extend_renewal_bills'),
-        name='auto-extend-renewal-bills-weekly'
-    )
-    # ++++++++++++++++ 增强的、对用户友好的日志输出 ++++++++++++++++
-    
-    # 3. 获取太平洋时区和北京时区对象
-    pacific_tz = pytz.timezone('America/Los_Angeles')
-    beijing_tz = pytz.timezone('Asia/Shanghai')
-
-    # 4. 创建一个代表“今天太平洋时间目标时刻”的时间对象
-    #    我们用一个虚拟的日期，因为我们只关心小时和分钟的转换
-    now_in_pt = datetime.now(pacific_tz)
-    target_time_pt = now_in_pt.replace(hour=run_hour_pt, minute=run_minute_pt, second=0, microsecond=0)
-
-    # 5. 将这个太平洋时间对象，转换为北京时间
-    target_time_beijing = target_time_pt.astimezone(beijing_tz)
-
-    # 6. 格式化输出
-    pt_time_str = target_time_pt.strftime('%H:%M')
-    beijing_time_str = target_time_beijing.strftime('%H:%M')
-    
-    print("✅ Celery Beat: 定时任务已通过 on_after_configure 信号成功设置。")
-    print(f"✅ 'tasks.reset_daily_tts_usage' 将在每天的 太平洋时间 (PT) {pt_time_str} (即 北京时间 {beijing_time_str}) 执行。")
+# 从 celeryconfig.py 文件加载所有配置
+celery_app.config_from_object('celeryconfig')
 
 # 为所有任务自动添加 Flask 应用上下文
 class FlaskTask(celery_app.Task):

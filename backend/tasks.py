@@ -3,7 +3,7 @@ import logging
 import os
 import re
 import uuid
-from datetime import datetime
+from datetime import datetime, date
 from pydub import AudioSegment
 from pydub.exceptions import CouldntDecodeError
 import time
@@ -2371,26 +2371,26 @@ def resplit_and_match_sentences_task(self, final_tts_script_id_str):
 # ==============================================================================
 
 
-@celery_app.on_after_configure.connect
-def setup_periodic_tasks(sender, **kwargs):
-    # Crontab for daily reset task
-    sender.add_periodic_task(
-        crontab(hour=0, minute=5),  # 每天凌晨 00:05
-        reset_daily_tts_usage_task.s(),
-        name="reset daily tts usage at midnight",
-    )
-    # Crontab for auto-renewal bill generation
-    sender.add_periodic_task(
-        crontab(minute="1", hour="0", day_of_week="1"),  # 每周一 00:01
-        auto_check_and_extend_renewal_bills_task.s(),
-        name="auto check and extend renewal bills every monday",
-    )
-    # Crontab for syncing contracts from Jinshuju
-    sender.add_periodic_task(
-        crontab(minute=0, hour='*'),  # 每小时的0分执行
-        sync_all_contracts_task.s(),
-        name="sync contracts from jinshuju every hour",
-    )
+# @celery_app.on_after_configure.connect
+# def setup_periodic_tasks(sender, **kwargs):
+#     # Crontab for daily reset task
+#     sender.add_periodic_task(
+#         crontab(hour=0, minute=5),  # 每天凌晨 00:05
+#         reset_daily_tts_usage_task.s(),
+#         name="reset daily tts usage at midnight",
+#     )
+#     # Crontab for auto-renewal bill generation
+#     sender.add_periodic_task(
+#         crontab(minute="1", hour="0", day_of_week="1"),  # 每周一 00:01
+#         auto_check_and_extend_renewal_bills_task.s(),
+#         name="auto check and extend renewal bills every monday",
+#     )
+#     # Crontab for syncing contracts from Jinshuju
+#     sender.add_periodic_task(
+#         crontab(minute=0, hour='*'),  # 每小时的0分执行
+#         sync_all_contracts_task.s(),
+#         name="sync contracts from jinshuju every hour",
+#     )
 
 
 @celery_app.task(bind=True, name="tasks.auto_check_and_extend_renewal_bills")
@@ -2708,3 +2708,34 @@ def post_virtual_contract_creation_task(self, contract_id):
         finally:
             db.session.remove()
             logger.info(f"[PostCreationTask] 数据库会话已为任务 {self.request.id} 清理。")
+
+@celery_app.task(name='tasks.update_contract_statuses')
+def update_contract_statuses():
+    """
+    每天扫描一次，将已到期的、非自动续约的育儿嫂合同状态更新为“已完成”。
+    """
+    try:
+        today = date.today()
+        # 查询所有状态为'active'、非自动续约且结束日期已过的育儿嫂合同
+        contracts_to_finish = NannyContract.query.filter(
+            NannyContract.is_monthly_auto_renew == False,
+            NannyContract.status == 'active',
+            NannyContract.end_date < today
+        ).all()
+
+        if not contracts_to_finish:
+            logging.info("Contract Status Update Task: No contracts found to update.")
+            return "No contracts to update."
+
+        count = len(contracts_to_finish)
+        for contract in contracts_to_finish:
+            contract.status = 'finished'
+            logging.info(f"Contract Status Update: Updating contract {contract.id} to 'finished'.")
+
+        db.session.commit()
+        logging.info(f"Contract Status Update: Successfully updated {count} contracts to 'finished' status.")
+        return f"Successfully updated {count} contracts to 'finished' status."
+    except Exception as e:
+        logging.error(f"Error in update_contract_statuses task: {e}", exc_info=True)
+        db.session.rollback()
+        raise
