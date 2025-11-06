@@ -336,6 +336,10 @@ class BillingEngine:
                 self._calculate_nanny_trial_bill(
                     contract, year, month, force_recalculate
                 )
+            elif contract.type == "formal":
+                self._calculate_formal_contract_bill_for_month(
+                    contract, year, month, force_recalculate
+                )
             # 【新增分支】
             elif contract.type == "external_substitution":
                 # --- 核心修复：建立权威结束日期的统一规则 ---
@@ -355,6 +359,18 @@ class BillingEngine:
                 bill, payroll = self._calculate_final_amounts(bill, payroll, details)
                 log = self._create_calculation_log(details)
                 self._update_bill_with_log(bill, payroll, details, log)
+
+    def _calculate_formal_contract_bill_for_month(
+        self, contract: BaseContract, year: int, month: int, force_recalculate=False
+    ):
+        current_app.logger.info(
+            f"=====[FORMAL CALC] 开始处理正式合同 {contract.id} for {year}-{month}"
+        )
+        # Placeholder for actual formal contract billing logic
+        # For now, we just log that it's being processed.
+        current_app.logger.info(
+            f"      [FORMAL CALC] 正式合同 {contract.id} 的账单计算逻辑待实现。"
+        )
 
     def generate_all_bills_for_contract(self, contract_id, force_recalculate=True):
         """

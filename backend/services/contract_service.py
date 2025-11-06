@@ -10,9 +10,14 @@ from backend.models import (
     User,
     CustomerBill,
     EmployeePayroll,
+    ContractTemplate,
+    SigningStatus,
+    EmployeeSalaryHistory,
+    ServicePersonnel,
 )
 from datetime import date
 from decimal import Decimal
+import uuid
 
 def upsert_introduction_fee_adjustment(contract: BaseContract):
     """
@@ -252,3 +257,218 @@ def _find_successor_contract_internal(contract_id: str) -> BaseContract | None:
     except Exception as e:
         current_app.logger.error(f"查找续约合同失败 {contract_id}: {e}", exc_info=True)
         return None
+
+def update_salary_history_on_contract_activation(contract: BaseContract):
+    """
+    当合同激活时，为服务人员创建或更新薪资历史记录。
+    """
+    if not contract.service_personnel_id or not contract.employee_level or Decimal(contract.employee_level) <= 0:
+        current_app.logger.info(f"合同 {contract.id} 没有关联服务人员或有效薪资，跳过薪资历史记录更新。")
+        return
+
+    # 查找该员工最近的一条薪资记录
+    previous_salary_record = EmployeeSalaryHistory.query.filter_by(
+        employee_id=contract.service_personnel_id
+    ).order_by(EmployeeSalaryHistory.effective_date.desc()).first()
+
+    previous_salary = previous_salary_record.base_salary if previous_salary_record else Decimal( '0')
+
+    # 检查是否已存在针对此合同的薪资记录，避免重复创建
+    existing_record_for_contract = EmployeeSalaryHistory.query.filter_by(
+        contract_id=contract.id
+    ).first()
+
+    if existing_record_for_contract:
+        current_app.logger.warning(f"已存在针对合同 {contract.id} 的薪资记录，将进行更新。")
+        existing_record_for_contract.previous_salary = previous_salary
+        existing_record_for_contract.base_salary = contract.employee_level
+        existing_record_for_contract.effective_date = contract.start_date
+        db.session.add(existing_record_for_contract)
+    else:
+        new_salary_record = EmployeeSalaryHistory(
+            employee_id=contract.service_personnel_id,
+            contract_id=contract.id,
+            base_salary=contract.employee_level,
+            effective_date=contract.start_date,
+            notes=f"合同 {contract.type} 激活"
+        )
+        db.session.add(new_salary_record)
+        current_app.logger.info(f"为员工 {contract.service_personnel_id} 创建了新的薪资历史记录，新薪资为 {contract.employee_level}。")
+
+class ContractService:
+    def __init__(self):
+        pass
+
+    # Placeholder for future methods
+    def create_contract_from_template(self, template_id: str, contract_data: dict) -> BaseContract:
+        template = ContractTemplate.query.get(template_id)
+        if not template:
+            raise ValueError(f"合同模板 {template_id} 未找到。")
+
+        # Extract common fields from contract_data (assuming they match BaseContract fields)
+        # Note: 'id', 'created_at', 'updated_at' will be generated automatically
+        common_contract_fields = {
+            "customer_id": contract_data.get("customer_id"),
+            "service_personnel_id": contract_data.get("service_personnel_id"),
+            "user_id": contract_data.get("user_id"), # 操作人ID
+            "contract_type": contract_data.get("contract_type"), # Should probably come from template as well
+            "start_date": contract_data.get("start_date"),
+            "end_date": contract_data.get("end_date"),
+            "total_amount": contract_data.get("total_amount"),
+            "status": contract_data.get("status", "pending"), # Default status
+            "customer_name": contract_data.get("customer_name"),
+            "service_personnel_name": contract_data.get("service_personnel_name"),
+            "type": "formal", # This contract is a formal contract
+        }
+
+        # Extract BaseContract specific fields
+        formal_contract_fields = {
+            "template_id": template.id,
+            "service_content": contract_data.get("service_content"),
+            "service_type": contract_data.get("service_type"),
+            "is_auto_renew": contract_data.get("is_auto_renew", False),
+            "attachment_content": contract_data.get("attachment_content"),
+             # signing_status, customer_signature, employee_signature are handled by defaults or later
+        }
+
+        # Merge all fields, prioritizing contract_data for general fields
+        all_fields = {**common_contract_fields, **formal_contract_fields}
+
+        new_contract = BaseContract(**all_fields)
+        db.session.add(new_contract)
+        # db.session.flush() # Flush to get ID if needed for immediate use, but not strictly necessary here
+
+        current_app.logger.info(f"成功从模板 {template_id} 创建正式合同 {new_contract.id}。")
+        return new_contract
+
+    def renew_contract(self, old_contract_id: str, new_contract_data: dict) -> BaseContract:
+        old_contract = BaseContract.query.get(old_contract_id)
+        if not old_contract:
+            raise ValueError(f"原合同 {old_contract_id} 未找到。")
+
+        # Prepare data for the new contract, inheriting from the old one
+        # and overriding with new_contract_data
+        new_contract_fields = {
+            "customer_id": new_contract_data.get("customer_id", old_contract.customer_id),
+            "service_personnel_id": new_contract_data.get("service_personnel_id", old_contract.service_personnel_id),
+            "user_id": new_contract_data.get("user_id", old_contract.user_id),
+            "contract_type": new_contract_data.get("contract_type", old_contract.contract_type),
+            "start_date": new_contract_data.get("start_date", old_contract.start_date),
+            "end_date": new_contract_data.get("end_date", old_contract.end_date),
+            "total_amount": new_contract_data.get("total_amount", old_contract.total_amount),
+            "status": new_contract_data.get("status", SigningStatus.UNSIGNED), # Renewed contract starts as unsigned
+            "customer_name": new_contract_data.get("customer_name", old_contract.customer_name),
+            "service_personnel_name": new_contract_data.get("service_personnel_name", old_contract.service_personnel_name),
+            "type": "formal",
+            "template_id": new_contract_data.get("template_id", old_contract.template_id),
+            "service_content": new_contract_data.get("service_content", old_contract.service_content),
+            "service_type": new_contract_data.get("service_type", old_contract.service_type),
+            "is_auto_renew": new_contract_data.get("is_auto_renew", old_contract.is_auto_renew),
+            "attachment_content": new_contract_data.get("attachment_content", old_contract.attachment_content),
+            "previous_contract_id": old_contract.id, # Link to the old contract
+        }
+
+        renewed_contract = BaseContract(**new_contract_fields)
+        db.session.add(renewed_contract)
+        # db.session.flush() # Flush to get ID if needed for immediate use
+
+        current_app.logger.info(f"成功续约合同 {old_contract_id}，创建新合同 {renewed_contract.id}。")
+        return renewed_contract
+
+    def transfer_management_fees(self, old_contract_id: str, new_contract_id: str, amount: Decimal):
+        pass
+
+
+    def update_employee_salary_history(self, employee_id: str, contract_id: str, salary_data: dict):
+        employee = ServicePersonnel.query.get(employee_id)
+        if not employee:
+            raise ValueError(f"员工 {employee_id} 未找到。")
+
+        contract = BaseContract.query.get(contract_id)
+        if not contract:
+            raise ValueError(f"合同 {contract_id} 未找到。")
+
+        if contract.type == 'nanny_trial':
+            current_app.logger.info(f"合同 {contract.id} 是试工合同(nanny_trial)，跳过薪酬历史记录创建。")
+            return None
+
+        effective_date = salary_data.get("effective_date", contract.start_date.date())
+        new_salary = salary_data.get("base_salary")
+
+        if not new_salary:
+            raise ValueError("新薪资(base_salary)未提供。")
+
+        # 检查此生效日期是否已存在记录
+        existing_record_for_date = EmployeeSalaryHistory.query.filter_by(
+            employee_id=employee.id,
+            effective_date=effective_date
+        ).first()
+
+        if existing_record_for_date:
+            current_app.logger.info(f"员工 {employee_id} 在日期 {effective_date} 已存在薪酬记录，跳过创建。")
+            return existing_record_for_date
+
+        # --- 核心优化：查找旧工资并生成详细备注 ---
+        previous_salary_record = EmployeeSalaryHistory.query.filter(
+            EmployeeSalaryHistory.employee_id == employee.id,
+            EmployeeSalaryHistory.effective_date < effective_date
+        ).order_by(EmployeeSalaryHistory.effective_date.desc()).first()
+
+        old_salary = previous_salary_record.base_salary if previous_salary_record else Decimal( '0')
+
+        notes = f"客户 {contract.customer_name} 合同于 {effective_date.strftime('%Y-%m-%d')} "
+        if old_salary == Decimal('0'):
+            notes += f"初始建档薪资为 {new_salary}。"
+        elif new_salary > old_salary:
+            notes += f"涨薪，从 {old_salary} 调整为 {new_salary}。"
+        elif new_salary < old_salary:
+            notes += f"降薪，从 {old_salary} 调整为 {new_salary}。"
+        else:
+            notes += f"薪资平调，仍为 {new_salary}。"
+        # --- 优化结束 ---
+
+        # 创建新的薪资历史记录
+        new_salary_record = EmployeeSalaryHistory(
+            employee_id=employee.id,
+            contract_id=contract.id,
+            base_salary=new_salary,
+            effective_date=effective_date,
+            notes=notes,
+        )
+        db.session.add(new_salary_record)
+
+        current_app.logger.info(f"成功为员工 {employee_id} 在合同 {contract.id} 下创建薪酬历史记录。")
+        return new_salary_record
+    
+    def sign_contract(self, contract_id: str, signer_type: str, signature_data: str) -> BaseContract:
+        contract = BaseContract.query.get(contract_id)
+        if not contract:
+            raise ValueError(f"合同 {contract_id} 未找到。")
+
+        if signer_type == "customer":
+            contract.customer_signature = signature_data
+            contract.signing_status = SigningStatus.CUSTOMER_SIGNED
+            current_app.logger.info(f"合同 {contract_id} 客户已签署。")
+        elif signer_type == "employee":
+            contract.employee_signature = signature_data
+            contract.signing_status = SigningStatus.EMPLOYEE_SIGNED
+            current_app.logger.info(f"合同 {contract_id} 员工已签署。")
+        else:
+            raise ValueError(f"无效的签署者类型: {signer_type}。")
+
+        # If both have signed, mark as fully signed
+        if contract.customer_signature and contract.employee_signature:
+            contract.signing_status = SigningStatus.FULLY_SIGNED
+            current_app.logger.info(f"合同 {contract_id} 已完全签署。")
+
+        # Generate separate signing tokens if they don't exist
+        if not contract.customer_signing_token:
+            contract.customer_signing_token = str(uuid.uuid4())
+            current_app.logger.info(f"为合同 {contract_id} 生成了新的客户签署令牌。")
+
+        if not contract.employee_signing_token:
+            contract.employee_signing_token = str(uuid.uuid4())
+            current_app.logger.info(f"为合同 {contract_id} 生成了新的员工签署令牌。")
+
+        db.session.add(contract)
+        return contract

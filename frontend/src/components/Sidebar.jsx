@@ -42,6 +42,7 @@ export const allMenuItems = [
           { text: '试工合同', path: '/contracts/nanny_trial', adminOnly: true },
         ]
       },
+      { text: '合同模板管理', icon: <DescriptionIcon />, path: '/contract-templates', adminOnly: true },
       { text: '账单管理', icon: <HistoryIcon />, path: '/billing', adminOnly: true },
       { text: '合同冲突检测', icon: <WarningIcon />, path: '/tools/conflict-checker', adminOnly: true },
     ]
