@@ -15,10 +15,13 @@ from backend.models import (
     SigningStatus, # 导入 SigningStatus 枚举
     Customer, # 导入 Customer
     ServicePersonnel, # 导入 ServicePersonnel
-    NannyContract,MaternityNurseContract,NannyTrialContract, ExternalSubstitutionContract
+    NannyContract,MaternityNurseContract,NannyTrialContract, ExternalSubstitutionContract,
+    CompanyBankAccount,
+    FinancialAdjustment,
+    PaymentRecord
 )
 from backend.tasks import calculate_monthly_billing_task
-from backend.services.billing_engine import BillingEngine, calculate_substitute_management_fee
+from backend.services.billing_engine import BillingEngine, calculate_substitute_management_fee, _update_bill_payment_status
 from backend.services.contract_service import (
     cancel_substitute_bill_due_to_transfer,
     apply_transfer_credits_to_new_contract,
@@ -601,12 +604,22 @@ def create_formal_contract():
         db.session.add(new_contract)
         db.session.commit()
 
+        # 触发后台任务以生成初始账单
+        trigger_initial_bill_generation_task.delay(str(new_contract.id))
+        current_app.logger.info(f"合同 {new_contract.id} 已创建，已提交后台任务以生成初始账单。")
+
+        # --- 构造完整的签名URL ---
+        frontend_base_url = current_app.config.get('FRONTEND_BASE_URL')
+        customer_url = f"{frontend_base_url}/sign/{new_contract.customer_signing_token}"
+        employee_url = f"{frontend_base_url}/sign/{new_contract.employee_signing_token}"
 
         return jsonify({
             "message": "正式合同创建成功",
             "contract_id": str(new_contract.id),
             "customer_signing_token": new_contract.customer_signing_token,
             "employee_signing_token": new_contract.employee_signing_token,
+            "customer_signing_url": customer_url, # <-- 新增
+            "employee_signing_url": employee_url, # <-- 新增
         }), 201
 
     except Exception as e:
@@ -753,8 +766,7 @@ def submit_signature(token):
                 contract.signing_status = SigningStatus.SIGNED
                 contract.status = "active"
                 update_salary_history_on_contract_activation(contract)
-                trigger_initial_bill_generation_task.delay(str(contract.id))
-                current_app.logger.info(f"合同 {contract.id} 已激活，已提交后台任务以生成初始账单。")
+                current_app.logger.info(f"合同 {contract.id} 已激活。")
             else:
                 contract.signing_status = SigningStatus.CUSTOMER_SIGNED
 
@@ -777,8 +789,7 @@ def submit_signature(token):
                 contract.signing_status = SigningStatus.SIGNED
                 contract.status = "active"
                 update_salary_history_on_contract_activation(contract)
-                trigger_initial_bill_generation_task.delay(str(contract.id))
-                current_app.logger.info(f"合同 {contract.id} 已激活，已提交后台任务以生成初始账单。")
+                current_app.logger.info(f"合同 {contract.id} 已激活。")
             else:
                 contract.signing_status = SigningStatus.EMPLOYEE_SIGNED
 
@@ -822,3 +833,125 @@ def get_private_asset(asset_id):
     except FileNotFoundError:
         current_app.logger.error(f"Asset file not found on disk: {filename} in dir {private_asset_dir}")
         return "Asset file not found", 404
+
+
+@contract_bp.route("/<string:contract_id>/signing-messages", methods=["GET"])
+@jwt_required()
+def generate_signing_messages(contract_id):
+    """
+    为新创建的合同生成客户和员工的签署通知消息 (V3 - 包含支付记录)。
+    """
+    try:
+        # 1. 关联加载获取合同、客户及服务人员信息
+        contract = BaseContract.query.options(
+            joinedload(BaseContract.customer),
+            joinedload(BaseContract.service_personnel)
+        ).filter_by(id=contract_id).first()
+
+        if not contract:
+            return jsonify({"error": "合同未找到"}), 404
+
+        customer_name = contract.customer.name if contract.customer else contract.customer_name
+        employee_name = contract.service_personnel.name if contract.service_personnel else "服务人员"
+
+        # 2. 根据合同类型选择正确的银行账户
+        if contract.type == 'maternity_nurse':
+            account_nickname = '萌姨萌嫂账号'
+        else:
+            account_nickname = '家福安账号'
+
+        bank_account = CompanyBankAccount.query.filter_by(account_nickname=account_nickname, is_active=True).first()
+        if not bank_account:
+            return jsonify({"error": f"未找到昵称为 '{account_nickname}' 的有效公司银行账户"}), 500
+
+        # 3. 查找第一期账单
+        first_bill = CustomerBill.query.filter_by(
+            contract_id=contract_id,
+            is_substitute_bill=False
+        ).order_by(CustomerBill.cycle_start_date.asc()).first()
+
+        # 4. 构建签署链接
+        frontend_base_url = current_app.config.get('FRONTEND_BASE_URL', '')
+        customer_signing_url = f"{frontend_base_url}/sign/{contract.customer_signing_token}"
+        employee_signing_url = f"{frontend_base_url}/sign/{contract.employee_signing_token}"
+
+        # 5. 生成客户消息
+        customer_message_lines = []
+        customer_message_lines.append(f"{customer_name}——{employee_name}：签约 {contract.start_date.strftime('%Y.%m.%d')}~{contract.end_date.strftime('%Y.%m.%d')}，")
+
+        payment_records = []
+        if first_bill:
+            # --- V3 核心修改：强制刷新账单支付状态 ---
+            _update_bill_payment_status(first_bill)
+            db.session.commit()
+            db.session.refresh(first_bill)
+
+            # --- 提取费用详情 ---
+            calculation_details = first_bill.calculation_details or {}
+            log = calculation_details.get('calculation_log', {})
+
+            if '本次交管理费' in log and log['本次交管理费']:
+                full_desc = log['本次交管理费']
+                if '=' in full_desc:
+                    desc = full_desc.split('=')[-1].strip()
+                else:
+                    desc = full_desc.split(':', 1)[-1].strip() if ':' in full_desc else full_desc
+                customer_message_lines.append(f"本次交管理费：{desc}")
+
+            adjustments = FinancialAdjustment.query.filter_by(customer_bill_id=first_bill.id). all()
+            for adj in adjustments:
+                if adj.adjustment_type not in ['employee_salary_adjustment', 'employee_bonus', 'employee_deduction']:
+                    customer_message_lines.append(f"{adj.description.strip()}：{adj.amount:.2f} 元")
+
+            # --- 添加总计和已支付 ---
+            amount_to_pay = first_bill.total_due
+            customer_message_lines.append(f"费用总计：{amount_to_pay:.2f}元")
+            if first_bill.total_paid > 0:
+                customer_message_lines.append(f"已支付：{first_bill.total_paid:.2f}元")
+                customer_message_lines.append(f"还需支付：{(amount_to_pay - first_bill.total_paid):.2f}元，")
+            else:
+                 customer_message_lines.append("，") # 保持格式一致
+
+            # 查询收款记录
+            payment_records = PaymentRecord.query.filter_by(customer_bill_id=first_bill.id ).order_by(PaymentRecord.payment_date.asc()).all()
+        else:
+            current_app.logger.warning(f"合同 {contract_id} 的首期账单尚未生成，消息中将不包含费用信息。")
+
+        customer_message_lines.append(f"户名：{bank_account.payee_name}")
+        customer_message_lines.append(f"帐号：{bank_account.account_number}")
+        customer_message_lines.append(f"银行：{bank_account.bank_name}")
+        customer_message_lines.append("\n合同：")
+        customer_message_lines.append(customer_signing_url)
+        customer_message_lines.append("1、 请点开上面链接，将甲方内容填写完整")
+        customer_message_lines.append("2、 阅读完内容后，最下面签字、提交")
+        customer_message_lines.append("3、 看见提交成功即可")
+
+        # --- V3 新增：附上收款记录 ---
+        if payment_records:
+            customer_message_lines.append("\n--- 收款记录 ---")
+            for p in payment_records:
+                payment_date_str = p.payment_date.strftime('%Y-%m-%d') if p.payment_date else 'N/A'
+                # 【已修复】移除.2和f之间的空格
+                customer_message_lines.append(f"日期: {payment_date_str}, 金额: {p.amount:.2f}, 方式: {p.method}, 备注: {p.notes}")
+
+        # 6. 生成员工消息 (保持不变)
+        employee_message_lines = []
+        employee_message_lines.append(f"{customer_name}——{employee_name}：签约 {contract.start_date.strftime('%Y.%m.%d')}~{contract.end_date.strftime('%Y.%m.%d')}，")
+        employee_message_lines.append(f"月薪：{contract.employee_level or '待定'}，")
+        employee_message_lines.append("\n合同：")
+        employee_message_lines.append(employee_signing_url)
+        employee_message_lines.append("1、 请点开上面链接，将乙方内容填写完整")
+        employee_message_lines.append("2、 阅读完内容后，最下面签字、提交")
+        employee_message_lines.append("3. 看见提交成功即可")
+
+        customer_message = '\n'.join(customer_message_lines).replace("[系统添加] ", "").strip()
+        employee_message = '\n'.join(employee_message_lines).replace("[系统添加] ", "").strip()
+
+        return jsonify({
+            "customer_message": customer_message,
+            "employee_message": employee_message
+        })
+
+    except Exception as e:
+        current_app.logger.error(f"为合同 {contract_id} 生成签署消息失败: {e}", exc_info=True)
+        return jsonify({"error": "内部服务器错误"}), 500

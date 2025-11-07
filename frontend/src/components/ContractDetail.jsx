@@ -12,6 +12,7 @@ import {
 import {
     ArrowBack as ArrowBackIcon, Edit as EditIcon, CheckCircle as CheckCircleIcon,Info as InfoIcon,
     Cancel as CancelIcon, Save as SaveIcon, Link as LinkIcon, EventBusy as EventBusyIcon ,ReceiptLong as ReceiptLongIcon,
+    Message as MessageIcon
 } from '@mui/icons-material';
 import { DatePicker, LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -23,6 +24,7 @@ import AlertMessage from './AlertMessage';
 import FinancialManagementModal from './FinancialManagementModal';
 import { useTrialConversion } from '../hooks/useTrialConversion'; // <--- 添加这个
 import TrialConversionDialog from './modals/TrialConversionDialog'; // <--- 添加这个
+import SigningMessageModal from './SigningMessageModal'; // Import the new modal
 
 const formatDate = (isoString) => {
   if (!isoString) return '—';
@@ -169,6 +171,11 @@ const ContractDetail = () => {
     const [depositPaidAmount, setDepositPaidAmount] = useState('');
     const [depositSettlementNotes, setDepositSettlementNotes] = useState('定金收款'); 
 
+    // State for the new signing message modal
+    const [signingModalOpen, setSigningModalOpen] = useState(false);
+    const [signingMessage, setSigningMessage] = useState('');
+    const [signingModalTitle, setSigningModalTitle] = useState('');
+
     const conversionActions = useTrialConversion((formalContractId) => {
     if (formalContractId) {
             navigate(`/contract/detail/${formalContractId}`);
@@ -298,6 +305,24 @@ const ContractDetail = () => {
 
     if (loading) return <CircularProgress />;
     if (!contract) return <Typography>未找到合同信息。</Typography>;
+
+    const handleOpenSigningModal = async (type) => {
+        setAlert({ open: false, message: '', severity: 'info' });
+        try {
+            const response = await api.get(`/contracts/${contractId}/signing-messages`);
+            if (type === 'customer') {
+                setSigningMessage(response.data.customer_message);
+                setSigningModalTitle('客户签约提醒消息');
+            } else {
+                setSigningMessage(response.data.employee_message);
+                setSigningModalTitle('员工签约提醒消息');
+            }
+            setSigningModalOpen(true);
+        } catch (error) {
+            setAlert({ open: true, message: `获取签约消息失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
+        }
+    };
+
 
     const TRIAL_OUTCOME_INFO = {
         pending: { label: '待处理', color: 'warning' },
@@ -900,19 +925,29 @@ const ContractDetail = () => {
                 <PageHeader
                     title="合同详情"
                     description={`${contract.customer_name} - ${contract.employee_name}`}
-                    actions={
-                        // --- 修改 2: 在 PageHeader 中添加操作按钮 ---
+                                        actions={
                         <Stack direction="row" spacing={2}>
                             <Button variant="contained" color="primary" startIcon={<ArrowBackIcon />} onClick={() =>navigate(state?.from || '/contracts/all')}>
                                 返回列表
                             </Button>
+                            {/* 如果合同未签署，则显示签约消息按钮 */}
+                            {contract.signing_status !== 'SIGNED' && (
+                                <>
+                                    <Button variant="contained" color="primary" startIcon={<MessageIcon />} onClick={() => handleOpenSigningModal('customer')}>
+                                        客户签约消息
+                                    </Button>
+                                    <Button variant="contained" color="primary" startIcon={<MessageIcon />} onClick={() => handleOpenSigningModal('employee')}>
+                                        员工签约消息
+                                    </Button>
+                                </>
+                            )}
                             {contract.status === 'active' && contract.contract_type_value !== 'nanny_trial' && (
-                                <Button variant="contained" color="error"onClick={handleOpenTerminationDialog}>
+                                <Button variant="contained" color="error" onClick={handleOpenTerminationDialog}>
                                     终止合同
                                 </Button>
                             )}
                             {/* 试工合同的操作按钮 */}
-                            {contract.contract_type_value === 'nanny_trial'&& contract.trial_outcome=== 'pending' && (
+                            {contract.contract_type_value === 'nanny_trial'&& contract. trial_outcome=== 'pending' && (
                                 <>
                                     <Tooltip title={!contract.can_convert_to_formal ? "客户与员工名下无已生效的正式合同，无法关联" : ""}>
                                         <span>
@@ -920,7 +955,7 @@ const ContractDetail = () => {
                                                 variant="contained"
                                                 color="success"
                                                 startIcon={<CheckCircleIcon />}
-                                                onClick={() =>conversionActions.openConversionDialog(contract)}
+                                                onClick={() =>conversionActions. openConversionDialog(contract)}
                                                 disabled={!contract.can_convert_to_formal}
                                             >
                                                 试工成功
@@ -931,14 +966,13 @@ const ContractDetail = () => {
                                         variant="contained"
                                         color="error"
                                         startIcon={<CancelIcon />}
-                                        onClick={handleOpenTerminationDialog}// <-- 调用恢复的函数
+                                        onClick={handleOpenTerminationDialog}
                                     >
                                         试工失败
                                     </Button>
                                 </>
                             )}
                         </Stack>
-                        // -----------------------------------------
                     }
                 />
 
@@ -1334,6 +1368,12 @@ const ContractDetail = () => {
                     </DialogActions>
                 </Dialog>
                 <TrialConversionDialog {...conversionActions} />
+                                <SigningMessageModal
+                    open={signingModalOpen}
+                    onClose={() => setSigningModalOpen(false)}
+                    title={signingModalTitle}
+                    initialMessage={signingMessage}
+                />
             </Box>
         </LocalizationProvider>
     );
