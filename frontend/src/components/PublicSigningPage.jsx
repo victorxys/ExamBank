@@ -270,41 +270,41 @@ const PublicSigningPage = () => {
         ? "月嫂合同签署" 
         : "家政服务合同签署";
 
-    return (
-        <Container maxWidth="md" sx={{ py: 4 }}>
-            {/* --- 1. Logo部分 (模仿 ClientEvaluation) --- */}
-            <Box
-                component="img"
-                src={logoSvg} // 使用导入的 logoSvg
-                alt="Logo"
-                sx={{
-                    width: { xs: 80, sm: 100 }, // 尺寸响应式
-                    height: 'auto',
-                    display: 'block', // 独占一行
-                    margin: '0 auto', // 居中
-                    mb: { xs: 2, sm: 3 } // 底部外边距
-                }}
-            />
+     return (
+        <Container maxWidth="md" sx={{ py: 4, position: 'relative' }}> {/* 为绝对定位的Chip设置相对定位 */}
+
+            {/* --- 1. Logo 和 状态芯片 区域 (Logo居中，芯片在右上角) --- */}
+            <Box sx={{ mb: { xs: 2, sm: 3 }, display: 'flex', justifyContent: 'center' }}>
+                <Box
+                    component="img"
+                    src={logoSvg} // 使用导入的 logoSvg
+                    alt="Logo"
+                    sx={{
+                        width: { xs: 80, sm: 100 },
+                        height: 'auto',
+                        display: 'block',
+                        // 因为Box已经居中，这里不需要 margin: '0 auto'
+                    }}
+                />
+                {/* 状态芯片通过绝对定位，放在Container的右上角 */}
+                <Box sx={{ position: 'absolute', top: { xs: 8, sm: 16 }, right: { xs: 8, sm: 16 } }}>
+                    {getStatusChip()}
+                </Box>
+            </Box>
 
             {/* --- 2. 头部渐变Banner (模仿 ClientEvaluation) --- */}
             <Box
                 sx={{
-                    background: `linear-gradient(87deg, ${theme.palette.primary.main} 0, ${theme.palette.primary.dark} 100%)`, // 渐变背景
-                    borderRadius: '0.375rem', // 圆角
-                    p: { xs: 2, sm: 3 }, // 内边距，响应式
+                    background: `linear-gradient(87deg, ${theme.palette.primary.main} 0, ${theme.palette.primary.dark} 100%)`,
+                    borderRadius: '0.375rem',
+                    p: { xs: 2, sm: 3 },
                     mb: { xs: 2, sm: 3 }, // 底部外边距
-                    color: 'white', // 白色文本
+                    color: 'white',
                     textAlign: 'center', // 文本居中
-                    position: 'relative', // 用于内部绝对定位元素
                     minHeight: { xs: 100, sm: 120 } // 确保最小高度
                 }}
             >
-                {/* 状态芯片放在Banner的右上角 */}
-                <Box sx={{ position: 'absolute', top: { xs: 8, sm: 16 }, right: { xs: 8, sm: 16 } }}>
-                    {getStatusChip()}
-                </Box>
-                
-                <Typography variant="h2" component="h1" color="white" gutterBottom sx={{ mt: { xs : 2, sm: 0 } }}>
+                <Typography variant="h1" component="h1" color="white" gutterBottom sx={{ mt: { xs : 2, sm: 0 } }}>
                     {pageTitle}
                 </Typography>
                 <Typography variant="body1" color="white" sx={{ opacity: 0.8 }}>
@@ -322,32 +322,33 @@ const PublicSigningPage = () => {
                 </Grid>
             </Paper>
             
+            {/* ... 接下来是 renderCoreDetails(), 合同条款, 签名区等 ... */}
              {contract && renderCoreDetails()}
             
             <Paper sx={{ p: 4, mb: 3 }}>
                 <Box sx={{ 
-          
+                    // p: 2, removed, already in parent Box.
+                    
                     borderRadius: 1, 
                     '& p': { my: 1, lineHeight: 1.7 },
-                    // --- 在这里添加针对图片的响应式样式 ---
                     '& img': {
-                        maxWidth: '100%',     // 确保图片宽度不会超出容器
-                        height: 'auto',        // 保持图片宽高比
-                        display: 'block',      // 将图片变为块级元素，便于居中
-                        margin: '0 auto',      // 图片水平居中
-                        objectFit: 'contain'   // 确保图片完整显示，不被裁剪
+                        maxWidth: '100%',     
+                        height: 'auto',        
+                        display: 'block',      
+                        margin: '0 auto',      
+                        objectFit: 'contain'   
                     }
                 }}>
                     <ReactMarkdown>
                         {contract.template_content
-                            ? contract.template_content.replace(/(?<=[^\s])\*\*(?=[^\s])/g, '** ')
+                            ? contract.template_content.replace(/(?<=[^\s])\*\*(?=[^\s])/g, '** ' )
                             : '合同条款内容加载中...'}
                     </ReactMarkdown>
                 </Box>
                 {contract.attachment_content && (
                     <Box sx={{ mt: 3 }}>
                         <Typography variant="h3" gutterBottom>补充协议</Typography>
-                        <Box sx={{ whiteSpace: 'pre-wrap', p: 2, border: '1px solid #e0e0e0', borderRadius: 1 }}>
+                        <Box sx={{ whiteSpace: 'pre-wrap', p: 2}}>
                             {contract.attachment_content}
                         </Box>
                     </Box>
