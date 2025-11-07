@@ -2,178 +2,219 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import {
     Container, Box, Typography, Paper, Grid, Button, CircularProgress,
-    Alert, Divider, Card, CardContent, CardHeader, Chip
+    Alert, Divider, Card, CardContent, CardHeader, Chip, TextField
 } from '@mui/material';
 import api from '../api/axios';
 import ReactMarkdown from 'react-markdown';
 import SignatureCanvas from 'react-signature-canvas';
+
+const partyInfoDefault = {
+    name: '',
+    phone_number: '',
+    id_card_number: '',
+    address: ''
+};
 
 const PublicSigningPage = () => {
     const { token } = useParams();
     const [contract, setContract] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
-    const [submitting, setSubmitting] = useState({ customer: false, employee: false });
-    const [isResigning, setIsResigning] = useState({ customer: false, employee: false });
+    const [submitting, setSubmitting] = useState(false);
+    const [isResigning, setIsResigning] = useState(false);
+
+    // Refactored State: One state for form values
+    const [formValues, setFormValues] = useState({
+        customer: partyInfoDefault,
+        employee: partyInfoDefault,
+    });
+
     const customerSigCanvas = useRef(null);
     const employeeSigCanvas = useRef(null);
 
-    const fetchContract = useCallback(async () => {
-        setLoading(true);
-        try {
-            const response = await api.get(`/contracts/sign/${token}`);
-            setContract(response.data);
-            setError('');
-        } catch (err) {
-            setError(err.response?.data?.error || '加载合同失败，链接可能已失效。');
-        } finally {
-            setLoading(false);
-        }
+    // Effect 1: Fetch contract data from server
+    useEffect(() => {
+        const fetchContract = async () => {
+            setLoading(true);
+            try {
+                const response = await api.get(`/contracts/sign/${token}`);
+                setContract(response.data);
+                setError('');
+            } catch (err) {
+                setError(err.response?.data?.error || '加载合同失败，链接可能已失效。');
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchContract();
     }, [token]);
 
+    // Effect 2: Populate form when contract data is available
     useEffect(() => {
-        fetchContract();
-    }, [fetchContract]);
+        if (contract) {
+            const initialCustomerInfo = (contract.customer_info && contract.customer_info.id)
+                ? contract.customer_info
+                : { ...partyInfoDefault, name: contract.customer_name === '待认领' ? '' : contract.customer_name };
 
-    const handleSign = async (role) => {
-        const sigCanvas = role === 'customer' ? customerSigCanvas.current : employeeSigCanvas. current;
+            const initialEmployeeInfo = (contract.employee_info && contract.employee_info.id)
+                ? contract.employee_info
+                : partyInfoDefault;
+
+            console.log('Populating form with:', { initialCustomerInfo, initialEmployeeInfo });
+
+            setFormValues({
+                customer: initialCustomerInfo,
+                employee: initialEmployeeInfo
+            });
+        }
+    }, [contract]);
+
+    const isPartyInfoValid = (info) => {
+        return info.name && info.phone_number && info.id_card_number && info.address;
+    };
+
+    const handleSign = async () => {
+        const role = contract.role;
+        const sigCanvas = role === 'customer' ? customerSigCanvas.current : employeeSigCanvas.current;
+
         if (sigCanvas.isEmpty()) {
             setError(`请在签名区域写下您的签名。`);
             return;
         }
 
         const signature = sigCanvas.toDataURL('image/png');
-        setSubmitting(prev => ({ ...prev, [role]: true }));
+        setSubmitting(true);
         setError('');
 
+        let payload = { signature };
+
+        if (role === 'customer') {
+            if (!isPartyInfoValid(formValues.customer)) {
+                setError('请将您的个人信息填写完整后再签署。');
+                setSubmitting(false);
+                return;
+            }
+            payload.customer_info = formValues.customer;
+        } else if (role === 'employee') {
+            if (!isPartyInfoValid(formValues.employee)) {
+                setError('请将您的个人信息填写完整后再签署。');
+                setSubmitting(false);
+                return;
+            }
+            payload.employee_info = formValues.employee;
+        }
+
         try {
-            await api.post(`/contracts/sign/${token}`, { signature });
-            // After signing, clear the resigning state and refresh the contract data
-            setIsResigning(prev => ({ ...prev, [role]: false }));
-            fetchContract();
-        } catch (err)
-{
+            await api.post(`/contracts/sign/${token}`, payload);
+            setIsResigning(false);
+            // Re-fetch contract data to show the new state
+            const response = await api.get(`/contracts/sign/${token}`);
+            setContract(response.data);
+        } catch (err) {
             setError(err.response?.data?.error || '签名提交失败，请重试。');
         } finally {
-            setSubmitting(prev => ({ ...prev, [role]: false }));
+            setSubmitting(false);
         }
     };
 
-    const renderPartyInfo = (title, party) => (
-        <Card variant="outlined">
-            <CardHeader title={title} />
-            <CardContent>
-                {party ? (
-                    <Grid container spacing={1}>
-                        <Grid item xs={4}><Typography variant="body2" color="text.secondary"> 姓名:</Typography></Grid>
-                        <Grid item xs={8}><Typography>{party.name}</Typography></Grid>
-                        <Grid item xs={4}><Typography variant="body2" color="text.secondary"> 身份证号:</Typography></Grid>
-                        <Grid item xs={8}><Typography>{party.id_card_number}</Typography></Grid>
-                        <Grid item xs={4}><Typography variant="body2" color="text.secondary"> 联系电话:</Typography></Grid>
-                        <Grid item xs={8}><Typography>{party.phone_number}</Typography></Grid>
-                        <Grid item xs={4}><Typography variant="body2" color="text.secondary"> 地址:</Typography></Grid>
-                        <Grid item xs={8}><Typography>{party.address}</Typography></Grid>
-                    </Grid>
-                ) : <Typography>信息不可用</Typography>}
-            </CardContent>
-        </Card>
-    );
+    const handleInfoChange = (role, e) => {
+        const { name, value } = e.target;
+        setFormValues(prev => ({
+            ...prev,
+            [role]: {
+                ...prev[role],
+                [name]: value
+            }
+        }));
+    };
 
-    const renderSigningArea = (role, existingSignature) => {
-        const title = role === 'customer' ? '甲方 (客户) 签名区' : '乙方 (服务人员) 签名区';
+
+    const renderEditablePartyInfo = (role) => {
+        const title = role === 'customer' ? '甲方 (客户) 信息' : '乙方 (服务人员) 信息';
         const isCurrentUser = contract.role === role;
+        const info = formValues[role];
+
+        const hasSigned = (role === 'customer' && contract.customer_signature) ||
+                        (role === 'employee' && contract.employee_signature);
+
+        // 核心修改：如果用户正在“重新签署”，则不禁用表单
+        const isFieldDisabled = !isCurrentUser || (hasSigned && !isResigning);
+
+        return (
+            <Card variant="outlined">
+                <CardHeader title={title} action={hasSigned ? <Chip label="已签署" color= "success" size="small" /> : null} />
+                <CardContent component="form" noValidate autoComplete="off">
+                    <Grid container spacing={2}>
+                        <Grid item xs={12} sm={6}>
+                            <TextField fullWidth required name="name" label="姓名" value={info. name || ''} onChange={(e) => handleInfoChange(role, e)} disabled={isFieldDisabled} />
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                            <TextField fullWidth required name="phone_number" label="联系电话" value={info.phone_number || ''} onChange={(e) => handleInfoChange(role, e)} disabled={isFieldDisabled} />
+                        </Grid>
+                        <Grid item xs={12}>
+                            <TextField fullWidth required name="id_card_number" label="身份证号" value={info.id_card_number || ''} onChange={(e) => handleInfoChange(role, e)} disabled={isFieldDisabled} />
+                        </Grid>
+                        <Grid item xs={12}>
+                            <TextField fullWidth required name="address" label="联系地址" value={info.address || ''} onChange={(e) => handleInfoChange(role, e)} disabled={isFieldDisabled} />
+                        </Grid>
+                    </Grid>
+                </CardContent>
+            </Card>
+        );
+    };
+
+        const renderSigningArea = () => {
+        const role = contract.role;
+        const title = role === 'customer' ? '甲方 (客户) 签名区' : '乙方 (服务人员) 签名区';
+        const existingSignature = role === 'customer' ? contract.customer_signature : contract. employee_signature;
         const signed = !!existingSignature;
         const sigCanvasRef = role === 'customer' ? customerSigCanvas : employeeSigCanvas;
-        const isCurrentUserResigning = isResigning[role];
 
-        const showCanvas = isCurrentUser && (!signed || isCurrentUserResigning);
+        const showCanvas = !signed || isResigning;
+        const canSign = isPartyInfoValid(formValues[role]);
 
         return (
             <Paper sx={{ p: 3, mt: 3, border: 1, borderColor: signed ? 'success.main' : 'grey.300' }}>
                 <Typography variant="h6" gutterBottom>{title}</Typography>
-
                 {!showCanvas ? (
-                    // 场景1: 显示签名状态 (非签名模式)
                     <Box>
-                        {signed ? (
-                            // 如果已签名
-                            <>
-                                {isCurrentUser ? (
-                                    // A. 如果是当前用户, 显示自己的签名图片和重签按钮
-                                    <>
-                                        <img src={existingSignature} alt="signature" style={{ maxWidth: '100%', maxHeight: '150px', borderBottom: '1px solid #ccc' }} />
-                                        <Typography variant="caption" display="block" sx={{mt: 1 }}>您已签署</Typography>
-                                        {contract.signing_status !== 'signed' && (
-                                            <Button
-                                                variant="text"
-                                                size="small"
-                                                sx={{mt: 1}}
-                                                onClick={() => setIsResigning(prev => ({...prev, [role]: true}))}
-                                            >
-                                                重新签署
-                                            </Button>
-                                        )}
-                                    </>
-                                ) : (
-                                    // B. 如果是对方, 只显示状态,不显示图片
-                                    <Typography variant="body1" color="success.main">
-                                        对方已签署
-                                    </Typography>
-                                )}
-                            </>
-                        ) : (
-                            // 如果未签名
-                            <Typography sx={{ color: 'text.secondary', fontStyle: 'italic' }}>
-                                (待签署)
-                            </Typography>
+                        <img src={existingSignature} alt="signature" style={{ maxWidth: '100%', maxHeight: '150px', borderBottom: '1px solid #ccc' }} />
+                        <Typography variant="caption" display="block" sx={{mt: 1}}>您已签署</ Typography>
+                        {/* 恢复“重新签署”按钮，并添加条件：只有在合同未完全签署时才显示 */}
+                        {contract.signing_status !== 'signed' && (
+                             <Button variant="text" size="small" sx={{mt: 1}} onClick={() => setIsResigning(true)}>
+                                重新签署
+                            </Button>
                         )}
                     </Box>
                 ) : (
-                    // 场景2: 当前用户进行签名或重签
                     <>
                         <Box sx={{ border: '1px dashed grey', borderRadius: 1, mb: 2, touchAction : 'none' }}>
-                            <SignatureCanvas
-                                ref={sigCanvasRef}
-                                penColor='black'
-                                canvasProps={{ width: 500, height: 200, className: 'sigCanvas', style: { width: '100%' } }}
-                            />
+                            <SignatureCanvas ref={sigCanvasRef} penColor='black' canvasProps={{ width: 500, height: 200, className: 'sigCanvas', style: { width: '100%' } }} />
                         </Box>
                         <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', mt: 2 }}>
-                            <Button
-                                variant="outlined"
-                                onClick={() => sigCanvasRef.current.clear()}
-                                disabled={submitting[role]}
-                                sx={{ mr: 2 }}
-                            >
+                            <Button variant="outlined" onClick={() => sigCanvasRef.current.clear ()} disabled={submitting} sx={{ mr: 2 }}>
                                 清除
                             </Button>
-                            <Button
-                                variant="contained"
-                                color="primary"
-                                size="large"
-                                onClick={() => handleSign(role)}
-                                disabled={submitting[role]}
-                            >
-                                {submitting[role] ? <CircularProgress size={24} color="inherit" /> : '确认签署'}
+                            <Button variant="contained" color="primary" size="large" onClick={handleSign} disabled={submitting || !canSign}>
+                                {submitting ? <CircularProgress size={24} color="inherit" /> : '确认签署'}
                             </Button>
                         </Box>
+
+                        {!canSign && (
+                            <Alert severity="warning" sx={{ mt: 2, justifyContent: 'center' }}>
+ 请完整填写您的个人信息（姓名、电话、身份证号、地址），然后才可完成签署。
+                            </Alert>
+                        )}
                     </>
                 )}
             </Paper>
         );
     };
 
-    if (loading) {
-        return <Container sx={{ py: 5, textAlign: 'center' }}><CircularProgress /></Container>;
-    }
-
-    if (error && !contract) {
-        return <Container sx={{ py: 5 }}><Alert severity="error">{error}</Alert></Container>;
-    }
-
-    if (!contract) {
-        return null;
-    }
+    if (loading) return <Container sx={{ py: 5, textAlign: 'center' }}><CircularProgress /></ Container>;
+    if (error && !contract) return <Container sx={{ py: 5 }}><Alert severity="error">{error}</ Alert></Container>;
+    if (!contract) return null;
 
     const getStatusChip = () => {
         switch (contract.signing_status) {
@@ -192,26 +233,21 @@ const PublicSigningPage = () => {
                     <Typography variant="h4" gutterBottom>合同签署</Typography>
                     {getStatusChip()}
                 </Box>
-                <Typography variant="body2" color="text.secondary">合同ID: {contract.contract_id }</Typography>
                 <Divider sx={{ my: 2 }} />
                 {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
                 <Grid container spacing={3}>
-                    <Grid item xs={12} md={6}>{renderPartyInfo('甲方 (客户)', contract. customer_info)}</Grid>
-                    <Grid item xs={12} md={6}>{renderPartyInfo('乙方 (服务人员)', contract. employee_info)}</Grid>
+                    <Grid item xs={12} md={6}>{renderEditablePartyInfo('customer')}</Grid>
+                    <Grid item xs={12} md={6}>{renderEditablePartyInfo('employee')}</Grid>
                 </Grid>
             </Paper>
 
             <Paper sx={{ p: 4, mb: 3 }}>
                 <Typography variant="h5" gutterBottom>合同条款</Typography>
-                <Box sx={{
-                    mt: 2, p: 2, border: '1px solid #e0e0e0', borderRadius: 1,
-                    '& h1, & h2, & h3, & h4': { mt: 2.5, mb: 1.5 },
-                    '& p': { my: 1, lineHeight: 1.7 },
-                    '& ul, & ol': { pl: 3 },
-                    '& li': { mb: 0.5 }
-                }}>
+                <Box sx={{ mt: 2, p: 2, border: '1px solid #e0e0e0', borderRadius: 1, '& p': { my: 1, lineHeight: 1.7 } }}>
                     <ReactMarkdown>
-                        {contract.service_content || '合同条款内容加载中...'}
+                        {contract.service_content
+                            ? contract.service_content.replace(/(?<=[^\s])\*\*(?=[^\s])/g, '** ')
+                            : '合同条款内容加载中...'}
                     </ReactMarkdown>
                 </Box>
                 {contract.attachment_content && (
@@ -224,9 +260,8 @@ const PublicSigningPage = () => {
                 )}
             </Paper>
 
-            {/* 最终渲染逻辑 */}
-            {renderSigningArea('customer', contract.customer_signature)}
-            {renderSigningArea('employee', contract.employee_signature)}
+            {/* Only show the signing area for the current user */}
+            {contract.role && renderSigningArea()}
 
             <Box sx={{ mt: 4, textAlign: 'center' }}>
                 <Button variant="outlined" onClick={() => window.close()}>关闭页面</Button>

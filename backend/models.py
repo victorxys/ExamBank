@@ -2398,7 +2398,7 @@ class BaseContract(db.Model):
         index=True,
         comment="金数据中的原始数据Entry ID或serial_number",
     )
-    customer_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('customer.id', ondelete= "RESTRICT"), nullable=False, index=True, comment="关联的客户ID")
+    customer_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('customer.id', ondelete= "RESTRICT"), nullable=True, index=True, comment="关联的客户ID")
     customer_name = db.Column(db.String(255), nullable=False, index=True)
     customer_name_pinyin = db.Column(
         db.String(500), nullable=True, index=True, comment="客户姓名拼音"

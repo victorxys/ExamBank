@@ -379,7 +379,8 @@ class BillingEngine:
         # 【调试代码 2】
         # current_app.logger.info(f"[ENGINE-DEBUG] Engine received contract ID: {contract_id}, Type: {type(contract_id)}")
         # 关键修复 1: 使用 query().filter_by() 代替 get()，以在事务中可靠地找到对象
-        contract = db.session.query(BaseContract).filter_by(id=contract_id).first()
+        contract_poly = db.with_polymorphic(BaseContract, "*")
+        contract = db.session.query(contract_poly).filter(BaseContract.id == contract_id).first()
         if not contract:
             current_app.logger.error(f"[FullLifecycle] Contract {contract_id} not found.")
             return

@@ -34,6 +34,7 @@ from backend.models import (
     NannyContract,
     BaseContract,
     ExternalSubstitutionContract,
+    NannyTrialContract,
 )
 from backend.api.ai_generate import generate_video_script  # 导入新函数
 from backend.api.ai_generate import (
@@ -2777,3 +2778,46 @@ def update_contract_statuses():
         logging.error(f"Error in update_contract_statuses task: {e}", exc_info=True)
         db.session.rollback()
         raise
+
+@celery_app.task(name="tasks.trigger_initial_bill_generation")
+def trigger_initial_bill_generation_task(contract_id):
+    """
+    为一个新激活的合同触发初始账单生成。
+    """
+    app = create_flask_app_for_task()
+    with app.app_context():
+        try:
+            # 使用 with_polymorphic 加载所有子类属性
+            contract_poly = db.with_polymorphic(BaseContract, "*")
+            contract = db.session.query(contract_poly).filter(BaseContract.id == contract_id).first()
+
+            if not contract:
+                logger.error(f"[InitialBillTask] 合同 {contract_id} 未找到。")
+                return
+
+            # 检查合同类型是否需要立即生成账单
+            if isinstance(contract, (NannyContract, NannyTrialContract, ExternalSubstitutionContract)):
+                from backend.services.billing_engine import BillingEngine
+                engine = BillingEngine()
+
+                logger.info(f"为新激活的合同 {contract.id} (类型: {contract.type}) 生成初始账单...")
+                engine.generate_all_bills_for_contract(contract.id, force_recalculate=True)
+                logger.info(f"合同 {contract.id} 的初始账单已生成。")
+
+                if isinstance(contract, NannyContract) and contract.is_monthly_auto_renew:
+                    logger.info(f"为合同 {contract.id} 触发首次自动续签检查...")
+                    engine.extend_auto_renew_bills(contract.id)
+                    logger.info(f"合同 {contract.id} 的首次自动续签检查完成。")
+            else:
+                logger.info(f"合同 {contract.id} 类型为 {contract.type} ，无需在此处自动生成账单。")
+
+            # --- 关键修复：提交数据库事务 ---
+            db.session.commit()
+            logger.info(f"已为合同 {contract_id} 的账单生成操作提交数据库事务。")
+            # --- 修复结束 ---
+
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"为合同 {contract_id} 生成初始账单时发生错误: {e}", exc_info=True)
+            # 重新抛出异常，以便Celery知道任务失败了
+            raise

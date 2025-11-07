@@ -3,12 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import {
     Dialog, DialogTitle, DialogContent, DialogActions, Button, Grid, TextField,
     Select, MenuItem, InputLabel, FormControl, FormControlLabel, Switch, Box,
-    CircularProgress, Alert, Autocomplete, Chip, Typography, FormHelperText, Tooltip
+    CircularProgress, Alert, Autocomplete, Chip, Typography, FormHelperText, Tooltip,
+    InputAdornment, IconButton
 } from '@mui/material';
-import AddIcon from '@mui/icons-material/Add';
+import VisibilityIcon from '@mui/icons-material/Visibility';
 import { DatePicker, DateTimePicker } from '@mui/x-date-pickers';
 import { debounce } from 'lodash';
 import api from '../api/axios';
+import ReactMarkdown from 'react-markdown'; 
 
 const initialState = {
     template_id: '',
@@ -77,6 +79,9 @@ const CreateFormalContractModal = ({ open, onClose, onSuccess }) => {
 
     const searchTimeout = useRef(null);
 
+    const [previewOpen, setPreviewOpen] = useState(false);
+    const [previewContent, setPreviewContent] = useState('');
+
     useEffect(() => {
         console.log('Modal open effect triggered. Open:', open);
         if (open) {
@@ -90,6 +95,57 @@ const CreateFormalContractModal = ({ open, onClose, onSuccess }) => {
             setEmployeeOptions([]);
         }
     }, [open]);
+    
+    useEffect(() => {
+        if (formData.contract_type && templates.length > 0) {
+            const matchedTemplate = templates.find(t => t.contract_type === formData.contract_type );
+            if (matchedTemplate && matchedTemplate.id !== formData.template_id) {
+                setFormData(prev => ({ ...prev, template_id: matchedTemplate.id }));
+            }
+        }
+    }, [formData.contract_type, templates]);
+
+    useEffect(() => {
+        const level = parseFloat(formData.employee_level);
+        const type = formData.contract_type;
+        const updates = {};
+
+        if (isNaN(level) || level <= 0) {
+            return;
+        }
+
+        if (type === 'nanny') {
+            updates.management_fee_amount = (level * 0.10).toFixed(2);
+        }
+        else if (type === 'nanny_trial') {
+            updates.daily_rate = (level / 26).toFixed(2);
+        }
+        else if (type === 'maternity_nurse') {
+            const rate = parseFloat(formData.deposit_rate);
+            if (rate > 0 && rate < 1) {
+                const calculatedDeposit = level / (1 - rate);
+                const calculatedMgmtFee = calculatedDeposit * rate;
+                updates.security_deposit_paid = calculatedDeposit.toFixed(2);
+                updates.management_fee_amount = calculatedMgmtFee.toFixed(2);
+            }
+        }
+        // --- 新增逻辑开始 ---
+        else if (type === 'external_substitution') {
+            const rate = parseFloat(formData.management_fee_rate);
+            if (rate > 0) {
+                const management_fee = level * rate;
+                updates.management_fee_amount = management_fee.toFixed(2);
+            } else {
+                updates.management_fee_amount = '';
+            }
+        }
+        // --- 新增逻辑结束 ---
+
+        if (Object.keys(updates).length > 0) {
+            setFormData(prev => ({ ...prev, ...updates }));
+        }
+
+    }, [formData.employee_level, formData.contract_type, formData.deposit_rate, formData. management_fee_rate]); // <-- 依赖项增加了 management_fee_rate
 
     const fetchTemplates = async () => {
         setLoadingTemplates(true);
@@ -157,58 +213,68 @@ const CreateFormalContractModal = ({ open, onClose, onSuccess }) => {
     };
 
     const handleSubmit = async (event) => {
+        const formatDateForBackend = (date) => {
+            if (!date) return null;
+            const d = new Date(date);
+            // 通过减去时区偏移量来“欺骗” toISOString，使其输出我们想要的本地日期
+            d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+            return d.toISOString().split('T')[0];
+        };
         event.preventDefault();
-        console.log("1. handleSubmit triggered."); // <-- 添加
-
         setLoading(true);
         setError('');
 
-        if (!selectedCustomer || !selectedEmployee) {
-            console.log("Exit reason: Customer or Employee not selected."); // <-- 添加
-            setError("错误：必须选择一个客户和服务人员。");
+        if (!selectedEmployee) {
+            setError("错误：必须选择一个服务人员。");
             setLoading(false);
             return;
         }
 
-        const payload = {
-            ...formData,
-            customer_id: selectedCustomer.id,
-            service_personnel_id: selectedEmployee.id,
-        };
-        console.log("2. Payload created:", payload); // <-- 添加
+        const payload = { ...formData };
 
+        // 修正后的客户信息处理逻辑
+        if (typeof selectedCustomer === 'object' && selectedCustomer !== null) {
+            // 场景1: 用户从下拉列表中选择了一个已存在的客户
+            payload.customer_id = selectedCustomer.id;
+            payload.customer_name = selectedCustomer.name;
+        } else if (customerInputValue) {
+            // 场景2: 用户在输入框中手动输入了文字 (新客户或未选择的老客户)
+            payload.customer_name = customerInputValue;
+            delete payload.customer_id;
+        } else {
+            // 场景3: 用户没有选择，输入框也是空的
+            delete payload.customer_id;
+            delete payload.customer_name;
+        }
+
+        payload.service_personnel_id = selectedEmployee.id;
+
+        // 后续的验证逻辑保持不变...
         if (!payload.template_id) {
-            console.log("Exit reason: Template ID missing."); // <-- 添加
             setError("错误：必须选择一个合同模板。");
             setLoading(false);
             return;
         }
         if (!payload.start_date || !payload.end_date) {
-            console.log("Exit reason: Start or End date missing."); // <-- 添加
             setError("错误：合同开始日期和结束日期是必填项。");
             setLoading(false);
             return;
         }
         if (payload.contract_type === 'maternity_nurse' && !payload.provisional_start_date) {
-            console.log("Exit reason: Provisional start date missing for maternity nurse."); // <-- 添加
             setError("错误：月嫂合同需要填写预产期。");
             setLoading(false);
             return;
         }
 
-        console.log("3. All validations passed. Preparing to send API request."); // <-- 添加
-
-        if (payload.start_date) payload.start_date = new Date(payload.start_date).toISOString();
-        if (payload.end_date) payload.end_date = new Date(payload.end_date).toISOString();
-        if (payload.provisional_start_date) payload.provisional_start_date = new Date(payload. provisional_start_date).toISOString();
+        payload.start_date = formatDateForBackend(payload.start_date);
+        payload.end_date = formatDateForBackend(payload.end_date);
+        payload.provisional_start_date = formatDateForBackend(payload.provisional_start_date);
 
         try {
-            console.log("4. Sending API request to /contracts/formal with payload:", payload); // <-- 添加
             const response = await api.post('/contracts/formal', payload);
-            console.log("5. API request successful.", response); // <-- 添加
             onSuccess();
         } catch (err) {
-            console.error("API Error:", err); // <-- 修改
+            console.error("创建正式合同失败:", err);
             setError(err.response?.data?.error || '创建失败，请检查所有必填项。');
         } finally {
             setLoading(false);
@@ -274,38 +340,34 @@ const CreateFormalContractModal = ({ open, onClose, onSuccess }) => {
         const { name, value } = event.target;
         setFormData(prev => {
             const newFormData = { ...prev, [name]: value };
-            if (name === 'contract_type' && value === 'external_substitution'){
-                const now = new Date();
-                const defaultStartDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 6, 30);
-                const defaultEndDate = new Date(defaultStartDate.getTime() + 60 * 60 * 1000);
-                newFormData.start_date = defaultStartDate;
-                newFormData.end_date = defaultEndDate;
+
+            // --- 逻辑合并：当合同类型改变时 ---
+            if (name === 'contract_type') {
+                if (value === 'external_substitution') {
+                    const now = new Date();
+                    const defaultStartDate = new Date(now.getFullYear(), now.getMonth(), now. getDate(), 6, 30);
+                    const defaultEndDate = new Date(defaultStartDate.getTime() + 60 * 60 * 1000);
+                    newFormData.start_date = defaultStartDate;
+                    newFormData.end_date = defaultEndDate;
+                }
+                // 如果需要，可以在这里为其他合同类型设置默认值
             }
-            const level = parseFloat(newFormData.employee_level);
-            const type = newFormData.contract_type;
-            if (name === 'employee_level' && type === 'nanny') {
-                newFormData.management_fee_amount = level > 0 ? (level * 0.10).toFixed(2) : '';
-            }
-            if (name === 'employee_level' && type === 'nanny_trial') {
-                newFormData.daily_rate = level > 0 ? (level / 26).toFixed(2) :'';
-            }
-            if (type === 'maternity_nurse' && ['employee_level','deposit_rate', 'security_deposit_paid'].includes(name)) {
-                const rate = parseFloat(newFormData.deposit_rate);
-                const deposit = parseFloat(newFormData.security_deposit_paid);
-                if ((name === 'employee_level' || name === 'deposit_rate') &&level > 0 && rate > 0 && rate < 1) {
-                    const calculatedDeposit = level / (1 - rate);
-                    const calculatedMgmtFee = calculatedDeposit * rate;
-                    newFormData.security_deposit_paid = calculatedDeposit.toFixed(2);
-                    newFormData.management_fee_amount = calculatedMgmtFee.toFixed(2);
-                } else if (name === 'security_deposit_paid' && level > 0 &&deposit > level) {
+
+            // 当月嫂合同的保证金或比例变化时，反向计算
+            if (newFormData.contract_type === 'maternity_nurse' && name === 'security_deposit_paid') {
+                const deposit = parseFloat(value);
+                const level = parseFloat(newFormData.employee_level);
+                if (level > 0 && deposit > level) {
                     const calculatedRate = 1 - (level / deposit);
                     const calculatedMgmtFee = deposit - level;
                     const predefinedRates = [0.15, 0.20, 0.25];
-                    const closestRate = predefinedRates.find(r => Math.abs(r -calculatedRate) < 0.001);
+                    const closestRate = predefinedRates.find(r => Math.abs(r - calculatedRate) < 0.001);
+
                     newFormData.deposit_rate = closestRate || calculatedRate;
                     newFormData.management_fee_amount = calculatedMgmtFee.toFixed(2);
                 }
             }
+
             return newFormData;
         });
     };
@@ -353,7 +415,19 @@ const CreateFormalContractModal = ({ open, onClose, onSuccess }) => {
                 <DialogContent dividers>
                     {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
                     <Grid container spacing={3}>
-                        <Grid item xs={12}>
+                                                <Grid item xs={12} sm={6}>
+                            <FormControl fullWidth required>
+                                <InputLabel>合同类型</InputLabel>
+                                <Select name="contract_type" value={formData.contract_type} label="合同类型" onChange={handleChange}>
+                                    <MenuItem value="nanny">育儿嫂合同</MenuItem>
+                                    <MenuItem value="maternity_nurse">月嫂合同</MenuItem>
+                                    <MenuItem value="nanny_trial">育儿嫂试工合同</MenuItem>
+                                    <MenuItem value="external_substitution">外部替班合同</ MenuItem>
+                                </Select>
+                            </FormControl>
+                        </Grid>
+
+                        <Grid item xs={12} sm={6}>
                             <FormControl fullWidth required>
                                 <InputLabel>合同模板</InputLabel>
                                 <Select
@@ -362,6 +436,22 @@ const CreateFormalContractModal = ({ open, onClose, onSuccess }) => {
                                     label="合同模板"
                                     onChange={handleChange}
                                     disabled={loadingTemplates}
+                                    endAdornment={
+                                        <InputAdornment position="end" sx={{ mr: 2 }}>
+                                            <IconButton
+                                                onClick={() => {
+                                                    const selected = templates.find(t => t.id === formData.template_id);
+                                                    if (selected) {
+                                                        setPreviewContent(selected.content);
+                                                        setPreviewOpen(true);
+                                                    }
+                                                }}
+                                                disabled={!formData.template_id}
+                                            >
+                                                <VisibilityIcon />
+                                            </IconButton>
+                                        </InputAdornment>
+                                    }
                                 >
                                     {loadingTemplates ? (
                                         <MenuItem value="" disabled><em>加载中...</em></MenuItem>
@@ -375,56 +465,55 @@ const CreateFormalContractModal = ({ open, onClose, onSuccess }) => {
                                 </Select>
                             </FormControl>
                         </Grid>
-
-                        <Grid item xs={12} sm={6}>
-                            <FormControl fullWidth required>
-                                <InputLabel>合同类型</InputLabel>
-                                <Select name="contract_type" value={formData.contract_type} label="合同类型" onChange={handleChange}>
-                                    <MenuItem value="nanny">育儿嫂合同</MenuItem>
-                                    <MenuItem value="maternity_nurse">月嫂合同</MenuItem>
-                                    <MenuItem value="nanny_trial">育儿嫂试工合同</MenuItem>
-                                    <MenuItem value="external_substitution">外部替班合同</MenuItem>
-                                </Select>
-                            </FormControl>
-                        </Grid>
-                        <Grid item xs={12} sm={6}><TextField required fullWidth name="employee_level" label="级别 (月薪/元)" type="number" value={formData.employee_level} onChange={handleChange} /></Grid>
                         
-                        <Grid item xs={12} sm={6}>
-                            <Autocomplete
-                                open={openCustomer}
-                                onOpen={() => setOpenCustomer(true)}
-                                onClose={() => setOpenCustomer(false)}
-                                filterOptions={(x) => x}
-                                options={customerOptions}
-                                getOptionLabel={(option) => (option && option.name) || ''}
-                                value={selectedCustomer}
-                                inputValue={customerInputValue}
-                                isOptionEqualToValue={(option, value) => option && value && option.id === value.id}
-                                onChange={(event, newValue) => {
-                                    setSelectedCustomer(newValue);
-                                    if (newValue) {
-                                        setFormData(prev => ({
-                                            ...prev,
-                                            customer_id_card: newValue.id_card_number || '',
-                                            customer_address: newValue.address || '',
-                                        }));
-                                    }
-                                }}
-                                onInputChange={(event, newInputValue, reason) => {
-                                    setCustomerInputValue(newInputValue);
-                                    if (reason === 'input') {
-                                        searchParties(newInputValue, 'customer');
-                                    }
-                                }}
-                                loading={loadingCustomers}
-                                renderInput={(params) => (
-                                    <TextField {...params} required label="客户名称" placeholder= "搜索客户"
-                                        InputProps={{ ...params.InputProps, endAdornment: (<> {loadingCustomers ? <CircularProgress color="inherit" size={20} /> : null}{params.InputProps.endAdornment}</>), }}
-                                    />
-                                )}
-                            />
-                            
-                        </Grid>
+                        
+                    <Grid item xs={12} sm={6}>
+                        <Autocomplete
+                            fullWidth
+                            freeSolo
+                            open={openCustomer}
+                            onOpen={() => setOpenCustomer(true)}
+                            onClose={() => setOpenCustomer(false)}
+                            filterOptions={(x) => x} // 禁用前端筛选，直接显示后端返回的结果
+                            options={customerOptions}
+                            getOptionLabel={(option) => (typeof option === 'string' ? option : option.name) || ""}
+                            value={selectedCustomer}
+                            inputValue={customerInputValue}
+                            onChange={(event, newValue) => {
+                                setSelectedCustomer(newValue);
+                                if (typeof newValue === 'object' && newValue) {
+                                    setFormData(prev => ({
+                                        ...prev,
+                                        customer_id_card: newValue.id_card_number || '',
+                                        customer_address: newValue.address || '',
+                                    }));
+                                }
+                            }}
+                            onInputChange={(event, newInputValue, reason) => {
+                                setCustomerInputValue(newInputValue);
+                                if (reason === 'input') {
+                                    searchParties(newInputValue, 'customer');
+                                }
+                            }}
+                            loading={loadingCustomers}
+                            renderInput={(params) => (
+                                <TextField
+                                    {...params}
+                                    label="选择或输入客户姓名 (可留空)"
+                                    placeholder="输入汉字或拼音搜索"
+                                    InputProps={{
+                                        ...params.InputProps,
+                                        endAdornment: (
+                                            <>
+                                                {loadingCustomers ? <CircularProgress color= "inherit" size={20} /> : null}
+                                                {params.InputProps.endAdornment}
+                                            </>
+                                        ),
+                                    }}
+                                />
+                            )}
+                        />
+                    </Grid>
 
                         <Grid item xs={12} sm={6}>
                             <Autocomplete
@@ -548,7 +637,8 @@ const CreateFormalContractModal = ({ open, onClose, onSuccess }) => {
                         </Grid>
 
                         {formData.contract_type === 'maternity_nurse' && (
-                            <>
+                            <>  <Grid item xs={12} sm={4}><TextField required fullWidth name="employee_level" label="级别 (月薪/元)" type="number" value={formData.employee_level} onChange={handleChange} onWheel={(e) => e.target.blur()}/></Grid>
+                                <Grid item xs={12} sm={4}><TextField fullWidth name="deposit_amount" label="定金 (元)" type="number" value={formData.deposit_amount} onChange={handleInputChange} helperText="默认为3000元" onWheel={(e) => e.target.blur()}/></Grid>
                                 <Grid item xs={12} sm={4}>
                                     <FormControl fullWidth>
                                         <InputLabel>保证金比例</InputLabel>
@@ -561,18 +651,18 @@ const CreateFormalContractModal = ({ open, onClose, onSuccess }) => {
                                         </Select>
                                     </FormControl>
                                 </Grid>
-                                <Grid item xs={12} sm={4}><TextField fullWidth name="security_deposit_paid" label="客交保证金 (元)" type="number" value={formData.security_deposit_paid} onChange={handleChange} /></Grid>
-                                <Grid item xs={12} sm={4}><TextField fullWidth disabled name="management_fee_amount" label="管理费 (自动计算)" type="number" value={formData.management_fee_amount} /></Grid>
-                                <Grid item xs={12}><TextField fullWidth name="deposit_amount" label="定金 (元)" type="number" value={formData.deposit_amount} onChange={handleInputChange} helperText="默认为3000元" /></Grid>
+                                <Grid item xs={12} sm={6}><TextField fullWidth name="security_deposit_paid" label="客交保证金 (元)" type="number" value={formData.security_deposit_paid} onChange={handleChange} onWheel={(e) => e.target.blur()} /></Grid>
+                                <Grid item xs={12} sm={6}><TextField fullWidth disabled name="management_fee_amount" label="管理费 (自动计算)" type="number" value={formData.management_fee_amount} /></Grid>
+                                
                             </>
                         )}
 
                         {formData.contract_type === 'nanny' && (
-                            <>
-                                <Grid item xs={12} sm={6}>
-                                    <TextField fullWidth name="introduction_fee" label="介绍费 (元)" type="number" value={formData.introduction_fee} onChange={handleInputChange} />
+                            <>  <Grid item xs={12} sm={4}><TextField required fullWidth name="employee_level" label="级别 (月薪/元)" type="number" value={formData.employee_level} onChange={handleChange} onWheel={(e) => e.target.blur()}/></Grid>
+                                <Grid item xs={12} sm={4}>
+                                    <TextField fullWidth name="introduction_fee" label="介绍费 (元)" type="number" value={formData.introduction_fee} onChange={handleInputChange} onWheel={(e) => e.target.blur()}/>
                                 </Grid>
-                                <Grid item xs={12} sm={6}>
+                                <Grid item xs={12} sm={4}>
                                     <TextField fullWidth name="management_fee_amount" label="管理费 (元/月)" type="number" value={formData.management_fee_amount} onChange={handleInputChange} helperText="默认按级别10%计算，可修改" />
                                 </Grid>
                             </>
@@ -581,7 +671,7 @@ const CreateFormalContractModal = ({ open, onClose, onSuccess }) => {
                         {formData.contract_type === 'nanny_trial' && (
                             <>
                                 <Grid item xs={12} sm={6}>
-                                    <TextField required fullWidth name="daily_rate" label="日薪(元)" type="number" value={formData.daily_rate} onChange={handleInputChange} helperText="级别/26，可手动修改" />
+                                    <TextField required fullWidth name="daily_rate" label="日薪(元)" type="number" value={formData.daily_rate} onChange={handleInputChange} helperText="级别/26，可手动修改" onWheel={(e) => e.target.blur()}/>
                                 </Grid>
                                 <Grid item xs={12} sm={6}>
                                     <Tooltip title={isIntroFeeDisabled ?"不能与管理费率同时存在" : ""}>
@@ -592,6 +682,7 @@ const CreateFormalContractModal = ({ open, onClose, onSuccess }) => {
                                             disabled={isIntroFeeDisabled}
                                             error={isIntroFeeDisabled}
                                             helperText={introFeeHelperText}
+                                            onWheel={(e) => e.target.blur()}
                                         />
                                     </Tooltip>
                                 </Grid>
@@ -610,8 +701,39 @@ const CreateFormalContractModal = ({ open, onClose, onSuccess }) => {
                                             disabled={isMgmtRateDisabled}
                                             error={isMgmtRateDisabled}
                                             helperText={mgmtRateHelperText}
+                                            onWheel={(e) => e.target.blur()}
                                         />
                                     </Tooltip>
+                                </Grid>
+                            </>
+                        )}
+                                                {/* --- 新增：外部替班合同的专属字段 --- */}
+                        {formData.contract_type === 'external_substitution' && (
+                            <>
+                                <Grid item xs={12} sm={6}>
+                                    <TextField
+                                        fullWidth
+                                        name="management_fee_rate"
+                                        label="管理费率 (%)"
+                                        type="number"
+                                        value={formData.management_fee_rate * 100}
+                                        onChange={(e) => {
+                                            const rate = parseFloat(e.target.value);
+                                            setFormData(prev => ({ ...prev, management_fee_rate: isNaN(rate) ? 0 : rate / 100 }));
+                                        }}
+                                        helperText="默认20%"
+                                        onWheel={(e) => e.target.blur()}
+                                    />
+                                </Grid>
+                                <Grid item xs={12} sm={6}>
+                                    <TextField
+                                        fullWidth
+                                        disabled
+                                        name="management_fee_amount"
+                                        label="管理费 (自动计算)"
+                                        value={formData.management_fee_amount}
+                                        onWheel={(e) => e.target.blur()}
+                                    />
                                 </Grid>
                             </>
                         )}
@@ -626,6 +748,19 @@ const CreateFormalContractModal = ({ open, onClose, onSuccess }) => {
                     </Button>
                 </DialogActions>
             </Box>
+            <Dialog open={previewOpen} onClose={() => setPreviewOpen(false)} maxWidth="md" fullWidth>
+                <DialogTitle>预览合同模板</DialogTitle>
+                <DialogContent dividers>
+                    <Box sx={{ '& p': { my: 1, lineHeight: 1.7 } }}>
+                        <ReactMarkdown>
+                            {previewContent}
+                        </ReactMarkdown>
+                    </Box>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setPreviewOpen(false)}>关闭</Button>
+                </DialogActions>
+            </Dialog>
         </Dialog>
     );
 };

@@ -15,7 +15,7 @@ from backend.models import (
     EmployeeSalaryHistory,
     ServicePersonnel,
 )
-from datetime import date
+from datetime import date,datetime
 from decimal import Decimal
 import uuid
 
@@ -261,39 +261,47 @@ def _find_successor_contract_internal(contract_id: str) -> BaseContract | None:
 def update_salary_history_on_contract_activation(contract: BaseContract):
     """
     当合同激活时，为服务人员创建或更新薪资历史记录。
+    (V2: 处理同一天激活多个合同的情况)
     """
     if not contract.service_personnel_id or not contract.employee_level or Decimal(contract.employee_level) <= 0:
         current_app.logger.info(f"合同 {contract.id} 没有关联服务人员或有效薪资，跳过薪资历史记录更新。")
         return
 
-    # 查找该员工最近的一条薪资记录
-    previous_salary_record = EmployeeSalaryHistory.query.filter_by(
-        employee_id=contract.service_personnel_id
-    ).order_by(EmployeeSalaryHistory.effective_date.desc()).first()
+    # 确保我们只使用日期部分进行比较
+    effective_date = contract.start_date.date() if isinstance(contract.start_date, datetime) else contract.start_date
 
-    previous_salary = previous_salary_record.base_salary if previous_salary_record else Decimal( '0')
-
-    # 检查是否已存在针对此合同的薪资记录，避免重复创建
-    existing_record_for_contract = EmployeeSalaryHistory.query.filter_by(
-        contract_id=contract.id
+    # --- 核心修复：基于 (employee_id, effective_date) 查找记录 ---
+    existing_record_for_date = EmployeeSalaryHistory.query.filter_by(
+        employee_id=contract.service_personnel_id,
+        effective_date=effective_date
     ).first()
 
-    if existing_record_for_contract:
-        current_app.logger.warning(f"已存在针对合同 {contract.id} 的薪资记录，将进行更新。")
-        existing_record_for_contract.previous_salary = previous_salary
-        existing_record_for_contract.base_salary = contract.employee_level
-        existing_record_for_contract.effective_date = contract.start_date
-        db.session.add(existing_record_for_contract)
+    if existing_record_for_date:
+        # 如果当天已存在记录，则更新它
+        current_app.logger.warning(
+            f"员工 {contract.service_personnel_id} 在 {effective_date} 已有薪资记录。"
+            f"将使用后激活的合同 {contract.id} 的信息进行更新。"
+        )
+        existing_record_for_date.base_salary = contract.employee_level
+        existing_record_for_date.contract_id = contract.id # 将记录关联到最新的合同
+        existing_record_for_date.notes = (
+            f"更新：由合同 {contract.type} ({contract.id}) 激活/更新"
+        )
+        db.session.add(existing_record_for_date)
     else:
+        # 如果当天不存在记录，则创建新记录
         new_salary_record = EmployeeSalaryHistory(
             employee_id=contract.service_personnel_id,
             contract_id=contract.id,
             base_salary=contract.employee_level,
-            effective_date=contract.start_date,
-            notes=f"合同 {contract.type} 激活"
+            effective_date=effective_date,
+            notes=f"由合同 {contract.type} ({contract.id}) 激活"
         )
         db.session.add(new_salary_record)
-        current_app.logger.info(f"为员工 {contract.service_personnel_id} 创建了新的薪资历史记录，新薪资为 {contract.employee_level}。")
+        current_app.logger.info(
+            f"为员工 {contract.service_personnel_id} 创建了新的薪资历史记录，"
+            f"生效日期: {effective_date}, 新薪资为 {contract.employee_level}。"
+        )
 
 class ContractService:
     def __init__(self):

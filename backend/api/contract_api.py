@@ -1,5 +1,6 @@
 # backend/api/contract_api.py
-from flask import Blueprint, jsonify, request, current_app
+from flask import Blueprint, jsonify, request, current_app, send_from_directory
+import os
 from flask_jwt_extended import jwt_required
 from backend.models import (
     db,
@@ -14,7 +15,7 @@ from backend.models import (
     SigningStatus, # 导入 SigningStatus 枚举
     Customer, # 导入 Customer
     ServicePersonnel, # 导入 ServicePersonnel
-    NannyContract,MaternityNurseContract,NannyTrialContract
+    NannyContract,MaternityNurseContract,NannyTrialContract, ExternalSubstitutionContract
 )
 from backend.tasks import calculate_monthly_billing_task
 from backend.services.billing_engine import BillingEngine, calculate_substitute_management_fee
@@ -31,6 +32,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy import or_, extract
 from sqlalchemy.orm import joinedload
 D = decimal.Decimal
+from backend.tasks import calculate_monthly_billing_task, trigger_initial_bill_generation_task
 
 contract_bp = Blueprint("contract_api", __name__, url_prefix="/api/contracts")
 
@@ -488,45 +490,63 @@ import uuid
 @jwt_required()
 def create_formal_contract():
     """
-    创建新的正式合同（已重构为支持多态）。
+    创建新的正式合同 (支持现有客户、新客户、或无客户信息创建)。
     """
     data = request.get_json()
     current_app.logger.debug(f"--- [API-CreateFormalContract] START ---")
     current_app.logger.debug(f"[API-CreateFormalContract] Received data: {data}")
 
-    required_fields = ["template_id", "customer_id", "service_personnel_id", "start_date", "end_date", "contract_type"]
-    for field in required_fields:
-        if field not in data or not data[field]:
+    # --- Validation (Only base fields are strictly required) ---
+    base_required = ["template_id", "service_personnel_id", "start_date", "end_date", "contract_type"]
+    for field in base_required:
+        if not data.get(field):
             return jsonify({"error": f"缺少必填字段: {field}"}), 400
 
     try:
-        customer = Customer.query.get(data["customer_id"])
-        if not customer:
-            return jsonify({"error": "客户未找到"}), 404
-
+        # --- Fetch related objects that are always required ---
         service_personnel = ServicePersonnel.query.get(data["service_personnel_id"])
         if not service_personnel:
             return jsonify({"error": "服务人员未找到"}), 404
-        
+
         contract_template = ContractTemplate.query.get(data["template_id"])
         if not contract_template:
             return jsonify({"error": "合同模板未找到"}), 404
 
+        # --- Prepare Customer Info (Handles all 3 cases) ---
+        customer_attributes = { "customer_id": None, "customer_name": "待认领", "customer_name_pinyin": "dairenling drl" }
+        customer_id = data.get("customer_id")
+        customer_name_from_request = data.get("customer_name")
+
+        if customer_id:
+            # Case 1: Existing Customer ID is provided
+            customer = Customer.query.get(customer_id)
+            if not customer:
+                return jsonify({"error": f"客户ID {customer_id} 未找到"}), 404
+            customer_attributes["customer_id"] = customer.id
+            customer_attributes["customer_name"] = customer.name
+            customer_attributes["customer_name_pinyin"] = customer.name_pinyin
+        elif customer_name_from_request:
+            # Case 2: A temporary name for a new customer is provided
+            customer_attributes["customer_name"] = customer_name_from_request
+            from pypinyin import pinyin, Style
+            pinyin_full = "".join(p[0] for p in pinyin(customer_name_from_request, style=Style.NORMAL))
+            pinyin_initials = "".join(p[0] for p in pinyin(customer_name_from_request, style=Style.FIRST_LETTER))
+            customer_attributes["customer_name_pinyin"] = f"{pinyin_full} {pinyin_initials}"
+        # Case 3: No customer info provided, use the default "待认领"
+
+        # --- Prepare Contract Attributes ---
         def to_decimal(value, default=0):
-            if value is None or value == '':
-                return D(str(default))
+            if value is None or value == '': return D(str(default))
             return D(str(value))
 
-        # 1. 准备所有合同共有的基础属性
         common_attributes = {
-            "customer_name": customer.name,
-            "customer_id": customer.id, # 增加 customer_id 关联
+            **customer_attributes,
             "service_personnel_id": service_personnel.id,
             "template_id": data["template_id"],
             "type": data["contract_type"],
             "start_date": datetime.fromisoformat(data["start_date"].split('T')[0]),
             "end_date": datetime.fromisoformat(data["end_date"].split('T')[0]),
-            "status": "active",
+            "status": "pending",
             "signing_status": SigningStatus.UNSIGNED,
             "customer_signing_token": str(uuid.uuid4()),
             "employee_signing_token": str(uuid.uuid4()),
@@ -535,38 +555,53 @@ def create_formal_contract():
             "introduction_fee": to_decimal(data.get("introduction_fee")),
             "management_fee_amount": to_decimal(data.get("management_fee_amount")),
             "management_fee_rate": to_decimal(data.get("management_fee_rate")),
-            "service_content": contract_template.content, 
+            "service_content": contract_template.content,
             "service_type": data.get("service_type"),
             "is_auto_renew": data.get("is_auto_renew", False),
             "attachment_content": data.get("attachment_content"),
             "previous_contract_id": data.get("previous_contract_id"),
         }
 
-        # 2. 根据合同类型，选择模型并添加特定属性
+        # --- Model Selection and Creation ---
+        contract_type = data["contract_type"]
+        ContractModel = None
+
+        # --- Model Selection and Creation ---
         contract_type = data["contract_type"]
         ContractModel = None
 
         if contract_type == "nanny":
             ContractModel = NannyContract
             common_attributes["is_monthly_auto_renew"] = data.get("is_monthly_auto_renew", False)
+            # 育儿嫂合同的保证金等于员工级别
+            common_attributes["security_deposit_paid"] = to_decimal(data.get("employee_level") or 0)
+
         elif contract_type == "maternity_nurse":
             ContractModel = MaternityNurseContract
             common_attributes["deposit_amount"] = to_decimal(data.get("deposit_amount"))
             common_attributes["provisional_start_date"] = datetime.fromisoformat(data[ "provisional_start_date"].split('T')[0]) if data.get("provisional_start_date") else None
-            common_attributes["security_deposit_paid"] = to_decimal(data.get( "security_deposit_paid"))
+            # 月嫂合同的保证金从前端传入
+            common_attributes["security_deposit_paid"] = to_decimal(data.get( "security_deposit_paid") or 0)
+
         elif contract_type == "nanny_trial":
             ContractModel = NannyTrialContract
-            # trial 合同特有字段可以在这里添加
+            # 试工合同没有保证金，显式设为0
+            common_attributes["security_deposit_paid"] = D(0)
+
+        elif contract_type == "external_substitution":
+            ContractModel = ExternalSubstitutionContract
+            common_attributes["management_fee_rate"] = D(data.get("management_fee_rate", 0.20))
+            # 外部替班合同没有保证金，显式设为0
+            common_attributes["security_deposit_paid"] = D(0)
+
         else:
             return jsonify({"error": f"不支持的合同类型: {contract_type}"}), 400
 
-        # 3. 使用正确的模型和所有属性来创建实例
         new_contract = ContractModel(**common_attributes)
-
         db.session.add(new_contract)
         db.session.commit()
 
-        current_app.logger.debug(f"--- [API-CreateFormalContract] END, new contract ID: {new_contract.id} ---")
+
         return jsonify({
             "message": "正式合同创建成功",
             "contract_id": str(new_contract.id),
@@ -574,10 +609,6 @@ def create_formal_contract():
             "employee_signing_token": new_contract.employee_signing_token,
         }), 201
 
-    except (ValueError, decimal.InvalidOperation) as e:
-        db.session.rollback()
-        current_app.logger.error(f"数据格式错误: {e}", exc_info=True)
-        return jsonify({"error": f"数据格式错误: {e}"}), 400
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"创建正式合同失败: {e}", exc_info=True)
@@ -609,6 +640,7 @@ def get_contract_for_signing(token):
     ).filter_by(id=contract.id).first()
 
     customer_info = {
+        "id": contract.customer.id,
         "name": contract.customer.name,
         "id_card_number": contract.customer.id_card_number,
         "phone_number": contract.customer.phone_number,
@@ -616,6 +648,7 @@ def get_contract_for_signing(token):
     } if contract.customer else {}
 
     employee_info = {
+        "id": contract.service_personnel.id,
         "name": contract.service_personnel.name,
         "id_card_number": contract.service_personnel.id_card_number,
         "phone_number": contract.service_personnel.phone_number,
@@ -625,6 +658,7 @@ def get_contract_for_signing(token):
     return jsonify({
         "contract_id": str(contract.id),
         "role": role,  # <-- 告诉前端当前用户的角色
+        "customer_name": contract.customer_name,
         "service_content": contract.service_content,
         "attachment_content": contract.attachment_content,
         "customer_info": customer_info,
@@ -638,13 +672,14 @@ def get_contract_for_signing(token):
 @contract_bp.route("/sign/<string:token>", methods=["POST"])
 def submit_signature(token):
     """
-    一个公开的API，用于接收签名（已更新为使用专属token）。
+    一个公开的API，用于接收签名。
+    (已更新为支持在签名时创建或更新客户/员工信息)
     """
     data = request.get_json()
     if not data or "signature" not in data:
         return jsonify({"error": "缺少 'signature' 参数"}), 400
 
-    # Determine role and find contract by the provided token
+    # 确定角色并查找合同
     role = None
     contract = BaseContract.query.filter_by(customer_signing_token=token).first()
     if contract:
@@ -659,28 +694,131 @@ def submit_signature(token):
 
     signature = data["signature"]
 
-    if role == "customer":
-        contract.customer_signature = signature
-        if contract.signing_status == SigningStatus.EMPLOYEE_SIGNED:
-            contract.signing_status = SigningStatus.SIGNED
-            contract.status = "active"
-            update_salary_history_on_contract_activation(contract)
-        else:
-            contract.signing_status = SigningStatus.CUSTOMER_SIGNED
-
-    elif role == "employee":
-        contract.employee_signature = signature
-        if contract.signing_status == SigningStatus.CUSTOMER_SIGNED:
-            contract.signing_status = SigningStatus.SIGNED
-            contract.status = "active"
-            update_salary_history_on_contract_activation(contract)
-        else:
-            contract.signing_status = SigningStatus.EMPLOYEE_SIGNED
-
     try:
+        if role == "customer":
+            customer_info_data = data.get("customer_info")
+            if not customer_info_data or not all(customer_info_data.get(f) for f in ['name', 'phone_number', 'id_card_number', 'address']):
+                return jsonify({"error": "客户信息不完整，所有字段均为必填项。"}), 400
+
+            # 场景1 & 2: 合同没有customer_id，需要创建或关联客户
+            if not contract.customer_id:
+                existing_customer = Customer.query.filter(
+                    or_(Customer.id_card_number == customer_info_data['id_card_number'], Customer.phone_number == customer_info_data['phone_number'])
+                ).first()
+
+                if existing_customer:
+                    # 如果根据身份证或手机号找到了已存在的客户，则直接关联
+                    customer_to_work_with = existing_customer
+                    # 更新信息以防有变
+                    customer_to_work_with.name = customer_info_data['name']
+                    customer_to_work_with.address = customer_info_data['address']
+                    customer_to_work_with.phone_number = customer_info_data['phone_number']
+                    current_app.logger.info(f"发现已存在的客户 (ID: {existing_customer.id} )，更新其信息并关联到合同。")
+                else:
+                    # 创建新客户
+                    from pypinyin import pinyin, Style
+                    name = customer_info_data['name']
+                    pinyin_full = "".join(p[0] for p in pinyin(name, style=Style.NORMAL))
+                    pinyin_initials = "".join(p[0] for p in pinyin(name, style=Style.FIRST_LETTER))
+
+                    new_customer = Customer(
+                        name=name,
+                        phone_number=customer_info_data['phone_number'],
+                        id_card_number=customer_info_data['id_card_number'],
+                        address=customer_info_data['address'],
+                        name_pinyin=f"{pinyin_full} {pinyin_initials}"
+                    )
+                    db.session.add(new_customer)
+                    db.session.flush()
+                    customer_to_work_with = new_customer
+                    current_app.logger.info(f"创建了新客户 (ID: {new_customer.id})。")
+
+                contract.customer_id = customer_to_work_with.id
+                contract.customer_name = customer_to_work_with.name
+                contract.customer_name_pinyin = customer_to_work_with.name_pinyin
+
+            # 场景3: 合同已有customer_id，表示更新老客户信息
+            else:
+                customer_to_update = Customer.query.get(contract.customer_id)
+                if customer_to_update:
+                    customer_to_update.name = customer_info_data['name']
+                    customer_to_update.phone_number = customer_info_data['phone_number']
+                    customer_to_update.id_card_number = customer_info_data['id_card_number']
+                    customer_to_update.address = customer_info_data['address']
+                    current_app.logger.info(f"更新了客户 (ID: {customer_to_update.id}) 的信息。" )
+
+            # 更新签名
+            contract.customer_signature = signature
+            if contract.signing_status == SigningStatus.EMPLOYEE_SIGNED:
+                contract.signing_status = SigningStatus.SIGNED
+                contract.status = "active"
+                update_salary_history_on_contract_activation(contract)
+                trigger_initial_bill_generation_task.delay(str(contract.id))
+                current_app.logger.info(f"合同 {contract.id} 已激活，已提交后台任务以生成初始账单。")
+            else:
+                contract.signing_status = SigningStatus.CUSTOMER_SIGNED
+
+        elif role == "employee":
+            employee_info_data = data.get("employee_info")
+            if not employee_info_data or not all(employee_info_data.get(f) for f in ['name', 'phone_number', 'id_card_number', 'address']):
+                return jsonify({"error": "员工信息不完整，所有字段均为必填项。"}), 400
+
+            employee_to_update = ServicePersonnel.query.get(contract.service_personnel_id)
+            if employee_to_update:
+                employee_to_update.name = employee_info_data['name']
+                employee_to_update.phone_number = employee_info_data['phone_number']
+                employee_to_update.id_card_number = employee_info_data['id_card_number']
+                employee_to_update.address = employee_info_data['address']
+                current_app.logger.info(f"更新了服务人员 (ID: {employee_to_update.id}) 的信息。" )
+
+            # 更新签名
+            contract.employee_signature = signature
+            if contract.signing_status == SigningStatus.CUSTOMER_SIGNED:
+                contract.signing_status = SigningStatus.SIGNED
+                contract.status = "active"
+                update_salary_history_on_contract_activation(contract)
+                trigger_initial_bill_generation_task.delay(str(contract.id))
+                current_app.logger.info(f"合同 {contract.id} 已激活，已提交后台任务以生成初始账单。")
+            else:
+                contract.signing_status = SigningStatus.EMPLOYEE_SIGNED
+
         db.session.commit()
         return jsonify({"message": "签名成功！", "signing_status": contract.signing_status.value})
+
+    except IntegrityError as e:
+        db.session.rollback()
+        current_app.logger.error(f"保存客户/员工信息或签名时发生数据库完整性错误: {e}", exc_info=True)
+        return jsonify({"error": "提交的信息与现有记录冲突（身份证或手机号可能已存在），请核实。"}), 409
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"保存签名失败: {e}", exc_info=True)
         return jsonify({"error": "内部服务器错误"}), 500
+    
+# 1. 定义一个从“资产ID”到真实文件名的映射
+# 这两个UUID是我们为签章图片指定的唯一ID
+SEAL_ASSETS = {
+    "c7a8f0e2-3b4d-4c6e-8a9b-1c2d3e4f5a6b": "company_sign_myms.webp",
+    "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d": "company_sign_jfa.webp",
+}
+
+@contract_bp.route("/assets/<string:asset_id>", methods=["GET"])
+def get_private_asset(asset_id):
+    """
+    一个安全的接口，用于根据ID提供私有静态资源（如签章图片）。
+    """
+    # 2. 将目录路径的定义移到函数内部
+    # 此时 app context 已经存在，current_app 可用
+    private_asset_dir = os.path.join(current_app.root_path, '..', 'backend', 'static', 'private_assets')
+
+    # 3. 从映射中查找文件名
+    filename = SEAL_ASSETS.get(asset_id)
+
+    if not filename:
+        return "Asset not found", 404
+
+    try:
+        # 4. 使用 Flask 的 send_from_directory 安全地发送文件
+        return send_from_directory(private_asset_dir, filename)
+    except FileNotFoundError:
+        current_app.logger.error(f"Asset file not found on disk: {filename} in dir {private_asset_dir}")
+        return "Asset file not found", 404
