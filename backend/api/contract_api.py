@@ -675,6 +675,7 @@ def create_formal_contract():
 
         # --- 构造完整的签名URL ---
         frontend_base_url = current_app.config.get('FRONTEND_BASE_URL')
+        # current_app.logger.debug(f"[API-CreateFormalContract] FRONTEND_BASE_URL: {frontend_base_url}")
         customer_url = f"{frontend_base_url}/sign/{new_contract.customer_signing_token}"
         employee_url = f"{frontend_base_url}/sign/{new_contract.employee_signing_token}"
 

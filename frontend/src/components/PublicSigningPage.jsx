@@ -7,6 +7,8 @@ import {
 import api from '../api/axios';
 import ReactMarkdown from 'react-markdown';
 import SignatureCanvas from 'react-signature-canvas';
+import logoSvg from '../assets/logo.svg'; // 假设你的Logo文件路径是这个
+import { useTheme } from '@mui/material/styles';
 
 const partyInfoDefault = {
     name: '',
@@ -17,6 +19,7 @@ const partyInfoDefault = {
 
 const PublicSigningPage = () => {
     const { token } = useParams();
+    const theme = useTheme();
     const [contract, setContract] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -165,6 +168,7 @@ const PublicSigningPage = () => {
 
     const renderCoreDetails = () => (
         <Paper sx={{ p: 4, mb: 3 }}>
+            
             <Grid container spacing={2} sx={{ mt: 1 }}>
                 <Grid item xs={12}>
                     <Typography><strong>服务内容:</strong> {contract.service_content || '未指定'}</ Typography>
@@ -196,6 +200,7 @@ const PublicSigningPage = () => {
                     <Typography><strong>合同结束时间:</strong> {new Date(contract.end_date). toLocaleDateString()}</Typography>
                 </Grid>
             </Grid>
+            
         </Paper>
     );
 
@@ -254,10 +259,10 @@ const PublicSigningPage = () => {
 
     const getStatusChip = () => {
         switch (contract.signing_status) {
-            case 'unsigned': return <Chip label="待签署" color="warning" />;
-            case 'customer_signed': return <Chip label="客户已签 / 待员工签署" color="info" />;
-            case 'employee_signed': return <Chip label="员工已签 / 待客户签署" color="info" />;
-            case 'signed': return <Chip label="双方已签署，合同已生效" color="success" />;
+            case 'UNSIGNED': return <Chip label="待签署" color="warning" />;
+            case 'CUSTOMER_SIGNED': return <Chip label="客户已签 / 待员工签署" color="info" />;
+            case 'EMPLOYEE_SIGNED': return <Chip label="员工已签 / 待客户签署" color="info" />;
+            case 'SIGNED': return <Chip label="双方已签署，合同已生效" color="success" />;
             default: return <Chip label={contract.signing_status} />;
         }
     };
@@ -267,23 +272,72 @@ const PublicSigningPage = () => {
 
     return (
         <Container maxWidth="md" sx={{ py: 4 }}>
-            <Paper sx={{ p: 4, mb: 3 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <Typography variant="h3" align="center" gutterBottom>
-                        {pageTitle}
-                    </Typography>
+            {/* --- 1. Logo部分 (模仿 ClientEvaluation) --- */}
+            <Box
+                component="img"
+                src={logoSvg} // 使用导入的 logoSvg
+                alt="Logo"
+                sx={{
+                    width: { xs: 80, sm: 100 }, // 尺寸响应式
+                    height: 'auto',
+                    display: 'block', // 独占一行
+                    margin: '0 auto', // 居中
+                    mb: { xs: 2, sm: 3 } // 底部外边距
+                }}
+            />
+
+            {/* --- 2. 头部渐变Banner (模仿 ClientEvaluation) --- */}
+            <Box
+                sx={{
+                    background: `linear-gradient(87deg, ${theme.palette.primary.main} 0, ${theme.palette.primary.dark} 100%)`, // 渐变背景
+                    borderRadius: '0.375rem', // 圆角
+                    p: { xs: 2, sm: 3 }, // 内边距，响应式
+                    mb: { xs: 2, sm: 3 }, // 底部外边距
+                    color: 'white', // 白色文本
+                    textAlign: 'center', // 文本居中
+                    position: 'relative', // 用于内部绝对定位元素
+                    minHeight: { xs: 100, sm: 120 } // 确保最小高度
+                }}
+            >
+                {/* 状态芯片放在Banner的右上角 */}
+                <Box sx={{ position: 'absolute', top: { xs: 8, sm: 16 }, right: { xs: 8, sm: 16 } }}>
                     {getStatusChip()}
                 </Box>
-                <Divider sx={{ my: 2 }} />
-                {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+                
+                <Typography variant="h2" component="h1" color="white" gutterBottom sx={{ mt: { xs : 2, sm: 0 } }}>
+                    {pageTitle}
+                </Typography>
+                <Typography variant="body1" color="white" sx={{ opacity: 0.8 }}>
+                    请仔细阅读以下合同条款，并完成签署。
+                </Typography>
+            </Box>
+            
+            {/* --- 3. 主要内容区 (甲乙方信息、错误提示等) --- */}
+            {/* Paper 组件现在包含甲乙方信息和错误提示，不再包含 Logo 和 Banner */}
+            <Paper sx={{ p: 4, mb: 3 }}>
+                {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>} {/* 错误提示 */ }
                 <Grid container spacing={3}>
                     <Grid item xs={12} md={6}>{renderEditablePartyInfo('customer')}</Grid>
                     <Grid item xs={12} md={6}>{renderEditablePartyInfo('employee')}</Grid>
                 </Grid>
             </Paper>
+            
              {contract && renderCoreDetails()}
+            
             <Paper sx={{ p: 4, mb: 3 }}>
-                <Box sx={{ mt: 2, p: 2, border: '1px solid #e0e0e0', borderRadius: 1, '& p': { my: 1, lineHeight: 1.7 } }}>
+                <Box sx={{ 
+          
+                    borderRadius: 1, 
+                    '& p': { my: 1, lineHeight: 1.7 },
+                    // --- 在这里添加针对图片的响应式样式 ---
+                    '& img': {
+                        maxWidth: '100%',     // 确保图片宽度不会超出容器
+                        height: 'auto',        // 保持图片宽高比
+                        display: 'block',      // 将图片变为块级元素，便于居中
+                        margin: '0 auto',      // 图片水平居中
+                        objectFit: 'contain'   // 确保图片完整显示，不被裁剪
+                    }
+                }}>
                     <ReactMarkdown>
                         {contract.template_content
                             ? contract.template_content.replace(/(?<=[^\s])\*\*(?=[^\s])/g, '** ')
@@ -292,7 +346,7 @@ const PublicSigningPage = () => {
                 </Box>
                 {contract.attachment_content && (
                     <Box sx={{ mt: 3 }}>
-                        <Typography variant="h6" gutterBottom>补充协议</Typography>
+                        <Typography variant="h3" gutterBottom>补充协议</Typography>
                         <Box sx={{ whiteSpace: 'pre-wrap', p: 2, border: '1px solid #e0e0e0', borderRadius: 1 }}>
                             {contract.attachment_content}
                         </Box>
