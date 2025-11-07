@@ -70,6 +70,7 @@ from backend.api.financial_adjustment_api import financial_adjustment_api
 from backend.api.bank_statement_api import bank_statement_api
 from backend.api.payer_alias_api import payer_alias_api
 from backend.api.bill_merge_api import bill_merge_bp
+from backend.api.contract_template_api import contract_template_bp
 
 
 
@@ -113,6 +114,7 @@ app.config["DEFAULT_GRADIO_PT_FILE_PATH"] = (
     "seed_1397_restored_emb.pt"  # 默认的 Gradio 模型文件路径
 )
 app.config['BACKEND_BASE_URL'] = os.environ.get('BACKEND_BASE_URL', 'http://localhost:5001')
+app.config['FRONTEND_BASE_URL'] = os.environ.get('FRONTEND_BASE_URL', 'http://localhost:5175')
 
 # 默认的 Gradio 参数
 app.config["DEFAULT_GRADIO_PARAMS"] = {
@@ -275,12 +277,14 @@ app.register_blueprint(contract_bp)
 app.register_blueprint(financial_adjustment_api, url_prefix="/api")
 app.register_blueprint(bank_statement_api) 
 app.register_blueprint(payer_alias_api)
-app.register_blueprint(bill_merge_bp) 
+app.register_blueprint(bill_merge_bp)
+app.register_blueprint(contract_template_bp) 
 # app.register_blueprint(statement_bp, url_prefix="/api") 
 
 
 
 flask_log = os.environ["FLASK_LOG_FILE"]  # 设置flask log地址
+print(f"Flask log file: {flask_log}")
 
 # 配置日志记录
 log = logging.getLogger(__name__)
@@ -290,6 +294,21 @@ formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(messag
 handler.setFormatter(formatter)
 log.addHandler(handler)
 
+@app.route("/routes")
+def list_routes():
+    import urllib
+    output = []
+    for rule in app.url_map.iter_rules():
+        options = {}
+        for arg in rule.arguments:
+            options[arg] = "[{0}]".format(arg)
+
+        methods = ','.join(rule.methods)
+        url = urllib.parse.unquote(rule.rule)
+        line = "{:50s} {:20s} {}".format(url, methods, rule.endpoint)
+        output.append(line)
+
+    return "<pre>" + "\\n".join(sorted(output)) + "</pre>"
 
 def insert_exam_knowledge_points(exam_id, total_score, data):
     """
@@ -3491,8 +3510,8 @@ def get_evaluation_detail(evaluation_id):
                 e.id,
                 e.evaluation_time,
                 e.additional_comments,
-                COALESCE(u1.username, c.first_name) AS evaluator_name,
-                COALESCE(u1.role, c.title) AS evaluator_title,
+                COALESCE(u1.username, c.name) AS evaluator_name,
+                COALESCE(u1.role) AS evaluator_title,
                 CASE
                     WHEN e.evaluator_user_id IS NOT NULL THEN 'internal'
                     WHEN e.evaluator_customer_id IS NOT NULL THEN 'client'
@@ -3726,7 +3745,7 @@ def create_evaluation_route():
                     # 创建客户记录 (如果需要创建)
                     cur.execute(
                         """
-                        INSERT INTO customer (first_name, title) VALUES (%s, %s) RETURNING id
+                        INSERT INTO customer (name, title) VALUES (%s, %s) RETURNING id
                     """,
                         (client_name, data.get("client_title", "")),
                     )

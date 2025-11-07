@@ -4,6 +4,7 @@ import uuid
 import enum
 from sqlalchemy import Enum as SAEnum
 import sqlalchemy as sa
+from sqlalchemy.ext import hybrid
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID, JSONB as PG_JSONB, ARRAY
 from sqlalchemy import (
     func,
@@ -16,6 +17,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import backref
 from datetime import datetime
 from .extensions import db
+from sqlalchemy import ext
 
 # --- Association Tables (Defined using db.Table) ---
 exampapercourse_table = db.Table(
@@ -784,6 +786,7 @@ class UserProfile(db.Model):
 class Customer(db.Model):
     __tablename__ = "customer"
     __table_args__ = (
+        # 确保这个唯一约束存在
         UniqueConstraint("phone_number", name="customer_phone_number_key"),
         {"comment": "客户信息表"},
     )
@@ -793,10 +796,13 @@ class Customer(db.Model):
         default=uuid.uuid4,
         comment="客户ID (主键)",
     )
-    first_name = db.Column(db.String(255), nullable=False, comment="客户的姓")
-    last_name = db.Column(db.String(255), nullable=True, comment="客户的名")
-    title = db.Column(db.String(50), nullable=True, comment="称谓 (先生/女士/小姐等)")
-    phone_number = db.Column(db.String(20), nullable=True, comment="联系电话")
+    # --- 以下是修改内容 ---
+    name = db.Column(db.String(255), nullable=False, index=True, comment="客户姓名")
+    name_pinyin = db.Column(db.String(500), nullable=True, index=True, comment="客户姓名拼音")
+    phone_number = db.Column(db.String(20), nullable=True, unique=True, comment="联系电话")
+    id_card_number = db.Column(db.String(100), nullable=True, unique=True, comment="身份证号, 可选但唯一")
+    address = db.Column(db.Text, nullable=True, comment="客户地址")
+    # --- 以上是修改内容 ---
     created_at = db.Column(
         db.DateTime(timezone=True), server_default=func.now(), comment="创建时间"
     )
@@ -815,7 +821,7 @@ class Customer(db.Model):
     )
 
     def __repr__(self):
-        return f'<Customer {self.first_name} {self.last_name or ""}>'
+        return f'<Customer {self.name}>'
 
 
 class EmployeeSelfEvaluation(db.Model):
@@ -1961,8 +1967,31 @@ class ServicePersonnel(db.Model):
     phone_number = db.Column(
         db.String(50), nullable=True, unique=True, comment="手机号, 可选但唯一"
     )
-    id_card_number = db.Column(db.String(100), nullable=True, comment="身份证号, 可选")
+    id_card_number = db.Column(db.String(100), nullable=True, unique=True, comment="身份证号, 可选但唯一") # 修改
+    address = db.Column(db.Text, nullable=True, comment="员工住址") # 新增
     is_active = db.Column(db.Boolean, default=True, nullable=False, comment="是否在职")
+    is_active = db.Column(db.Boolean, default=True, nullable=False, comment="是否在职")
+    created_at = db.Column(
+        db.DateTime(timezone=True), server_default=func.now(), comment="创建时间"
+    )
+    updated_at = db.Column(
+        db.DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        comment="更新时间",
+    )
+
+    @sa.ext.hybrid.hybrid_property
+    def current_salary(self):
+        latest_salary_record = (
+            EmployeeSalaryHistory.query.filter(
+                EmployeeSalaryHistory.employee_id == self.id,
+                EmployeeSalaryHistory.effective_date <= datetime.utcnow().date(),
+            )
+            .order_by(EmployeeSalaryHistory.effective_date.desc())
+            .first()
+        )
+        return latest_salary_record
 
     def __repr__(self):
         return f"<ServicePersonnel {self.name}>"
@@ -1971,6 +2000,17 @@ class TrialOutcome(enum.Enum):
     PENDING = "pending"
     SUCCESS = "success"
     FAILURE = "failure"
+
+
+class SigningStatus(enum.Enum):
+    UNSIGNED = "UNSIGNED"
+    SIGNED = "SIGNED"
+    PENDING = "PENDING"
+    CUSTOMER_SIGNED = "CUSTOMER_SIGNED"
+    EMPLOYEE_SIGNED = "EMPLOYEE_SIGNED"
+    ACTIVE = "ACTIVE"
+    TERMINATED = "TERMINATED"
+    EXPIRED = "EXPIRED"
 
 
 class AdjustmentType(enum.Enum):
@@ -2358,7 +2398,7 @@ class BaseContract(db.Model):
         index=True,
         comment="金数据中的原始数据Entry ID或serial_number",
     )
-
+    customer_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('customer.id', ondelete= "RESTRICT"), nullable=True, index=True, comment="关联的客户ID")
     customer_name = db.Column(db.String(255), nullable=False, index=True)
     customer_name_pinyin = db.Column(
         db.String(500), nullable=True, index=True, comment="客户姓名拼音"
@@ -2388,6 +2428,7 @@ class BaseContract(db.Model):
     service_personnel = db.relationship(
         "ServicePersonnel", backref=db.backref("contracts", lazy="dynamic")
     )
+    customer = db.relationship("Customer", backref=db.backref("contracts", lazy="dynamic"))
     customer_bills = db.relationship(
         "CustomerBill",
         back_populates="contract",
@@ -2433,6 +2474,55 @@ class BaseContract(db.Model):
     management_fee_rate = db.Column(db.Numeric(4, 2), nullable=True, comment="管理费费率, e.g., 0.20 for 20%")
 
     invoice_needed = db.Column(db.Boolean, nullable=False, default=False, server_default='false', comment="本合同是否需要开票")
+
+    template_id = db.Column(
+        PG_UUID(as_uuid=True),
+        db.ForeignKey("contract_templates.id"),
+        nullable=True,
+        comment="关联的合同模板ID",
+    )
+    # 制式合同内容快照
+    template_content = db.Column(db.Text, nullable=True)
+    
+    service_content = db.Column(
+        PG_JSONB, nullable=True, comment="服务内容 (JSON 数组)"
+    )
+    service_type = db.Column(
+        db.String(50), nullable=True, comment="服务方式 (e.g., 全日住家型)"
+    )
+    # 关键修正：确保 nullable=True
+    is_auto_renew = db.Column(
+        db.Boolean, default=False, nullable=True, server_default="false", comment="是否自动续签"
+    )
+    attachment_content = db.Column(db.Text, nullable=True, comment="附件内容 (Markdown 格式)")
+    signing_status = db.Column(
+        SAEnum(SigningStatus, native_enum=False),
+        nullable=True,
+        default=SigningStatus.UNSIGNED,
+        server_default=SigningStatus.UNSIGNED.value,
+        index=True,
+        comment="签署状态",
+    )
+    customer_signature = db.Column(db.Text, nullable=True, comment="客户签名")
+    employee_signature = db.Column(db.Text, nullable=True, comment="服务人员签名")
+    customer_signing_token = db.Column(db.String(36), unique=True, nullable=True, comment= "客户的专属签名令牌")
+    employee_signing_token = db.Column(db.String(36), unique=True, nullable=True, comment= "服务人员的专属签名令牌")
+    previous_contract_id = db.Column(
+        PG_UUID(as_uuid=True),
+        db.ForeignKey("contracts.id"),
+        nullable=True,
+        comment="关联的源合同ID (续约或变更)",
+    )
+
+    template = db.relationship("ContractTemplate", backref="contracts")
+    previous_contract = db.relationship(
+        "BaseContract",
+        foreign_keys=[previous_contract_id],
+        remote_side=[id],
+        # 关键修正：修改 backref
+        backref="next_contracts",
+        uselist=False,
+    )
 
     __mapper_args__ = {"polymorphic_on": type, "polymorphic_identity": "base"}
 
@@ -2491,6 +2581,55 @@ class MaternityNurseContract(BaseContract):  # 月嫂合同
     # security_deposit_paid = db.Column(db.Numeric(10, 2), default=0, comment='客交保证金')
     discount_amount = db.Column(db.Numeric(10, 2), default=0, comment="优惠金额")
 
+
+
+
+class EmployeeSalaryHistory(db.Model):
+    __tablename__ = "employee_salary_history"
+
+    id = db.Column(
+        PG_UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+        comment="主键, UUID",
+    )
+    employee_id = db.Column(
+        PG_UUID(as_uuid=True),
+        db.ForeignKey("service_personnel.id"),
+        nullable=False,
+        comment="关联的服务人员ID",
+    )
+    contract_id = db.Column(
+        PG_UUID(as_uuid=True),
+        db.ForeignKey("contracts.id"),
+        nullable=False,
+        comment="导致此次薪资变更的合同ID"
+    )
+    effective_date = db.Column(db.Date, nullable=False, comment="薪资生效日期")
+    base_salary = db.Column(db.Numeric(10, 2), nullable=False, comment="基本薪资")
+    commission_rate = db.Column(db.Numeric(5, 4), nullable=True, comment="提成比例")
+    bonus = db.Column(db.Numeric(10, 2), nullable=True, comment="奖金")
+    notes = db.Column(db.Text, nullable=True, comment="备注")
+    created_at = db.Column(
+        db.DateTime(timezone=True), server_default=func.now(), comment="创建时间"
+    )
+    updated_at = db.Column(
+        db.DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        comment="更新时间",
+    )
+
+    employee = db.relationship("ServicePersonnel", backref="salary_history")
+
+    __table_args__ = (
+        db.UniqueConstraint(
+            "employee_id", "effective_date", name="uq_employee_effective_date"
+        ),
+    )
+
+    def __repr__(self):
+        return f"<EmployeeSalaryHistory {self.employee_id} - {self.effective_date} - {self.base_salary}>"
 
 class FinancialActivityLog(db.Model):
     __tablename__ = "financial_activity_logs"
@@ -2969,6 +3108,31 @@ class SubstituteRecord(db.Model):
 
     def __repr__(self):
         return f"<SubstituteRecord {self.id} for Contract {self.main_contract_id}>"
+
+
+class ContractTemplate(db.Model):
+    __tablename__ = "contract_templates"
+    __table_args__ = {"comment": "合同模板表，存储制式合同模板"}
+
+    id = db.Column(
+        PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, comment="主键, UUID"
+    )
+    template_name = db.Column(
+        db.String(255), nullable=False, unique=True, index=True, comment="模板名称 (唯一)"
+    )
+    contract_type = db.Column(
+        db.String(50), nullable=False, index=True, comment="关联的合同类型，用于鉴别"
+    )
+    content = db.Column(db.Text, nullable=False, comment="合同模板内容 (Markdown 格式)")
+    version = db.Column(db.Integer, nullable=False, default=1, comment="模板版本号")
+    created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
+    updated_at = db.Column(
+        db.DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    def __repr__(self):
+        return f"<ContractTemplate {self.template_name} ({self.contract_type} v{self.version})>"
+
 
 # --- TTS Provider State Model ---
 class TtsProviderState(db.Model):

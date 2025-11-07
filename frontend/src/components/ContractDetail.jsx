@@ -12,6 +12,9 @@ import {
 import {
     ArrowBack as ArrowBackIcon, Edit as EditIcon, CheckCircle as CheckCircleIcon,Info as InfoIcon,
     Cancel as CancelIcon, Save as SaveIcon, Link as LinkIcon, EventBusy as EventBusyIcon ,ReceiptLong as ReceiptLongIcon,
+    Message as MessageIcon,
+    Download as DownloadIcon,
+    PictureAsPdf as PictureAsPdfIcon,
 } from '@mui/icons-material';
 import { DatePicker, LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -23,6 +26,7 @@ import AlertMessage from './AlertMessage';
 import FinancialManagementModal from './FinancialManagementModal';
 import { useTrialConversion } from '../hooks/useTrialConversion'; // <--- 添加这个
 import TrialConversionDialog from './modals/TrialConversionDialog'; // <--- 添加这个
+import SigningMessageModal from './SigningMessageModal'; // Import the new modal
 
 const formatDate = (isoString) => {
   if (!isoString) return '—';
@@ -169,6 +173,11 @@ const ContractDetail = () => {
     const [depositPaidAmount, setDepositPaidAmount] = useState('');
     const [depositSettlementNotes, setDepositSettlementNotes] = useState('定金收款'); 
 
+    // State for the new signing message modal
+    const [signingModalOpen, setSigningModalOpen] = useState(false);
+    const [signingMessage, setSigningMessage] = useState('');
+    const [signingModalTitle, setSigningModalTitle] = useState('');
+
     const conversionActions = useTrialConversion((formalContractId) => {
     if (formalContractId) {
             navigate(`/contract/detail/${formalContractId}`);
@@ -298,6 +307,70 @@ const ContractDetail = () => {
 
     if (loading) return <CircularProgress />;
     if (!contract) return <Typography>未找到合同信息。</Typography>;
+
+    const handleDownloadPdf = async () => {
+        setAlert({ open: false, message: '', severity: 'info' });
+        try {
+            const response = await api.get(`/contracts/${contractId}/download`, {
+                responseType: 'blob',
+            });
+
+            const contentDisposition = response.headers['content-disposition'];
+            let filename = `contract_${contract.id}.pdf`; // fallback filename
+            if (contentDisposition) {
+                const filenameMatch = contentDisposition.match(/filename="(.+)"/);
+                if (filenameMatch.length > 1) {
+                    filename = decodeURIComponent(filenameMatch[1]);
+                }
+            }
+
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', filename);
+            document.body.appendChild(link);
+            link.click();
+            link.parentNode.removeChild(link);
+            window.URL.revokeObjectURL(url);
+
+        } catch (error) {
+            setAlert({ open: true, message: `下载PDF失败: ${error.message}`, severity: 'error' });
+        }
+    };
+
+    const handlePreviewPdf = async () => {
+        if (!contract?.id) return;
+        try {
+            const response = await api.get(`/contracts/${contract.id}/download`, {
+                responseType: 'blob',
+            });
+            const file = new Blob([response.data], { type: 'application/pdf' });
+            const fileURL = URL.createObjectURL(file);
+            // 在新标签页中打开，而不是下载
+            window.open(fileURL, '_blank');
+        } catch (error) {
+            console.error('预览PDF失败:', error);
+            // 这里可以添加一个给用户的错误提示
+        }
+    };
+
+    const handleOpenSigningModal = async (type) => {
+        setAlert({ open: false, message: '', severity: 'info' });
+        try {
+            const response = await api.get(`/contracts/${contractId}/signing-messages`);
+            if (type === 'customer') {
+                setSigningMessage(response.data.customer_message);
+                setSigningModalTitle('客户签约提醒消息');
+            } else {
+                setSigningMessage(response.data.employee_message);
+                setSigningModalTitle('员工签约提醒消息');
+            }
+            setSigningModalOpen(true);
+        } catch (error) {
+            setAlert({ open: true, message: `获取签约消息失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
+        }
+    };
+
 
     const TRIAL_OUTCOME_INFO = {
         pending: { label: '待处理', color: 'warning' },
@@ -900,19 +973,18 @@ const ContractDetail = () => {
                 <PageHeader
                     title="合同详情"
                     description={`${contract.customer_name} - ${contract.employee_name}`}
-                    actions={
-                        // --- 修改 2: 在 PageHeader 中添加操作按钮 ---
+                                        actions={
                         <Stack direction="row" spacing={2}>
                             <Button variant="contained" color="primary" startIcon={<ArrowBackIcon />} onClick={() =>navigate(state?.from || '/contracts/all')}>
                                 返回列表
                             </Button>
                             {contract.status === 'active' && contract.contract_type_value !== 'nanny_trial' && (
-                                <Button variant="contained" color="error"onClick={handleOpenTerminationDialog}>
+                                <Button variant="contained" color="error" onClick={handleOpenTerminationDialog}>
                                     终止合同
                                 </Button>
                             )}
                             {/* 试工合同的操作按钮 */}
-                            {contract.contract_type_value === 'nanny_trial'&& contract.trial_outcome=== 'pending' && (
+                            {contract.contract_type_value === 'nanny_trial'&& contract. trial_outcome=== 'pending' && (
                                 <>
                                     <Tooltip title={!contract.can_convert_to_formal ? "客户与员工名下无已生效的正式合同，无法关联" : ""}>
                                         <span>
@@ -920,7 +992,7 @@ const ContractDetail = () => {
                                                 variant="contained"
                                                 color="success"
                                                 startIcon={<CheckCircleIcon />}
-                                                onClick={() =>conversionActions.openConversionDialog(contract)}
+                                                onClick={() =>conversionActions. openConversionDialog(contract)}
                                                 disabled={!contract.can_convert_to_formal}
                                             >
                                                 试工成功
@@ -931,14 +1003,13 @@ const ContractDetail = () => {
                                         variant="contained"
                                         color="error"
                                         startIcon={<CancelIcon />}
-                                        onClick={handleOpenTerminationDialog}// <-- 调用恢复的函数
+                                        onClick={handleOpenTerminationDialog}
                                     >
                                         试工失败
                                     </Button>
                                 </>
                             )}
                         </Stack>
-                        // -----------------------------------------
                     }
                 />
 
@@ -963,75 +1034,34 @@ const ContractDetail = () => {
                                 {/* {transferredToBillField} */}
                             </Grid>
                         </Paper>
+                            <Box sx={{ my: 3, display: 'flex', gap: 2, flexWrap: 'wrap', justifyContent: 'center'  }}>
+                                <Button
+                                    variant="contained"
+                                    startIcon={<PictureAsPdfIcon />}
+                                    onClick={handlePreviewPdf}
+                                >
+                                    预览合同
+                                </Button>
+                                <Button
+                                    variant="contained"
+                                    startIcon={<DownloadIcon />}
+                                    onClick={handleDownloadPdf}
+                                >
+                                    下载合同
+                                </Button>
+                                {contract.signing_status !== 'SIGNED' && (
+                                <>
+                                    <Button variant="contained" color="primary" startIcon={<MessageIcon />} onClick={() => handleOpenSigningModal('customer')}>
+                                        客户签约消息
+                                    </Button>
+                                    <Button variant="contained" color="primary" startIcon={<MessageIcon />} onClick={() => handleOpenSigningModal('employee')}>
+                                        员工签约消息
+                                    </Button>
+                                </>
+                            )}
+                            </Box>
                     </Grid>
-                    {/* <Grid item xs={12}>
-                        <Paper sx={{ p: 3 }}>
-                            <Typography variant="h6" gutterBottom>财务调整项</Typography>
-                            <TableContainer>
-                                <Table size="small">
-                                    <TableHead>
-                                        <TableRow>
-                                            <TableCell>类型</TableCell>
-                                            <TableCell>金额</TableCell>
-                                            <TableCell>状态</TableCell>
-                                            <TableCell>说明</TableCell>
-                                            <TableCell align="right">操作</TableCell>
-                                        </TableRow>
-                                    </TableHead>
-                                    <TableBody>
-                                        {adjustments.length > 0 ? adjustments.map((adj) => (
-                                            <TableRow key={adj.id} hover>
-                                                <TableCell>{ADJUSTMENT_TYPE_LABELS[adj.adjustment_type] || adj.adjustment_type}</TableCell>
-
-                                                <TableCell sx={{fontWeight: 'bold'}}>{`¥${formatCurrency(adj.amount)}`}</TableCell>
-                                                <TableCell><Chip label={ADJUSTMENT_STATUS_LABELS[adj.status] || adj.status} size="small" /></TableCell>
-                                                <TableCell>{adj.description}</TableCell>
-                                                <TableCell align="right">
-                                                    {adj.adjustment_type === 'deposit'&& adj.status === 'PENDING' && (
-                                                        <Button variant="contained"size="small" onClick={() => handleOpenDepositDialog(adj)}>
-                                                            记录支付
-                                                        </Button>
-                                                    )}
-                                                </TableCell>
-                                            </TableRow>
-                                        )) : (
-                                            <TableRow>
-                                                <TableCell colSpan={5} align="center">无任何财务调整项</TableCell>
-                                            </TableRow>
-                                        )}
-                                    </TableBody>
-                                </Table>
-                            </TableContainer>
-                        </Paper>
-                    </Grid> */}
-                    {/* 日志列表 */}
-                    {/* <Grid item xs={12}>
-                        <Paper sx={{ p: 3 }}>
-                            <Typography variant="h6" gutterBottom>操作日志</Typography>
-                            <List dense>
-                                {logs.map(log => (
-                                    <React.Fragment key={log.id}>
-                                        <ListItem>
-                                            <ListItemText
-                                                primary={`${log.action} - by ${log.user}`}
-                                                secondary={
-                                                    <>
-                                                        <Typography component="span" variant="body2" color="text.primary">
-                                                            {new Date(log.created_at).toLocaleString('zh-CN')}
-                                                        </Typography>
-                                                        <pre style={{ whiteSpace: 'pre-wrap',wordBreak: 'break-all', margin: 0, fontSize: '0.75rem' }}>
-                                                            {JSON.stringify(log.details, null,2)}
-                                                        </pre>
-                                                    </>
-                                                }
-                                            />
-                                        </ListItem>
-                                        <Divider component="li" />
-                                    </React.Fragment>
-                                ))}
-                            </List>
-                        </Paper>
-                    </Grid> */}
+                    
                     <Grid item xs={12}>
                         <Paper sx={{ p: 3 }}>
                             <Typography variant="h5" gutterBottom>关联账单列表</Typography>
@@ -1334,6 +1364,12 @@ const ContractDetail = () => {
                     </DialogActions>
                 </Dialog>
                 <TrialConversionDialog {...conversionActions} />
+                                <SigningMessageModal
+                    open={signingModalOpen}
+                    onClose={() => setSigningModalOpen(false)}
+                    title={signingModalTitle}
+                    initialMessage={signingMessage}
+                />
             </Box>
         </LocalizationProvider>
     );

@@ -80,8 +80,8 @@ def get_user_evaluations(user_id):
                 e.id,
                 e.evaluation_time,
                 e.additional_comments,
-                COALESCE(u1.username, c.first_name) AS evaluator_name,
-                COALESCE(u1.role, c.title) AS evaluator_title,
+                COALESCE(u1.username, c.name) AS evaluator_name,
+                COALESCE(u1.role) AS evaluator_title,
                 CASE
                     WHEN e.evaluator_user_id IS NOT NULL THEN 'internal'
                     WHEN e.evaluator_customer_id IS NOT NULL THEN 'client'
@@ -94,7 +94,7 @@ def get_user_evaluations(user_id):
             LEFT JOIN "user" u1 ON e.evaluator_user_id = u1.id
             LEFT JOIN customer c ON e.evaluator_customer_id = c.id
             WHERE e.evaluated_user_id = %s
-            GROUP BY e.id, u1.username, c.first_name, u1.role, c.title -- 确保 GROUP BY 包含所有非聚合列
+            GROUP BY e.id, u1.username, c.name, u1.role -- 确保 GROUP BY 包含所有非聚合列
             ORDER BY e.evaluation_time DESC
         """
         # print(f"Executing SQL for evaluations list:\n{sql_evaluations}") # 打印 SQL
@@ -485,7 +485,7 @@ def update_evaluation(evaluation_id, data):
         if evaluation_record["evaluator_customer_id"] and "client_name" in data:
             cur.execute(
                 """
-                UPDATE customer SET first_name = %s, title = %s, updated_at = NOW() WHERE id = %s
+                UPDATE customer SET name = %s, title = %s, updated_at = NOW() WHERE id = %s
             """,
                 (
                     data.get("client_name"),

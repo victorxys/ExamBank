@@ -312,6 +312,8 @@ const BankStatementUploader = lazy(() => import('./components/BankStatementUploa
 const ReconciliationPage = lazy(() => import('./components/ReconciliationPage'));
 const AllBankTransactions = lazy(() => import('./components/AllBankTransactions'));
 const OutboundPayments = lazy(() => import('./components/OutboundPayments')); // 新增
+const ContractTemplateManager = lazy(() => import('./components/ContractTemplateManager' ));
+const PublicSigningPage = lazy(() => import('./components/PublicSigningPage')); // 新增
 // 仪表盘
 const DashboardPage = lazy(() => import('./components/DashboardPage'));
 const SankeyPreview = lazy(() => import('./components/SankeyPreview')); // Sankey Preview
@@ -361,6 +363,7 @@ function App() {
           <Route path="/billing/reconcile/:year?/:month?" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}><ReconciliationPage /></Suspense>} />} />
           <Route path="/finance/all-transactions/:year?/:month?" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}><AllBankTransactions /></Suspense>} />} />
           <Route path="/billing/salary-payment/:year?/:month?" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}><OutboundPayments /></Suspense>} />} />
+          <Route path="/contract-templates" element={<PrivateRoute element={<Suspense fallback={< LoadingFallback />}><ContractTemplateManager /></Suspense>} />} />
           <Route path="/contract/detail/:contractId" element={<ContractDetail />} />
           <Route path="/tools/conflict-checker" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}><ConflictCheckerPage /></Suspense>} />} />
 
@@ -378,6 +381,7 @@ function App() {
           <Route path="/employee-profile/:userId" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <EmployeeProfile /> </Suspense>} />} />
           <Route path="/employee-profile/:userId/exam-records" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <ExamRecords /> </Suspense>} />} /> 
           <Route path="/employee-profile/:userId/exam-records/:examId" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <ExamRecordDetail /> </Suspense>} />} /> 
+          <Route path="/sign/:token" element={<Suspense fallback={<LoadingFallback />}><PublicSigningPage /></Suspense>} />
 
           {/* EmployeeProfile 和其子路由已移到 MainLayout 下，这里不再需要 */}
         </Route>

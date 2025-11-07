@@ -24,16 +24,7 @@ def get_user_profile(user_id):
             return jsonify({"error": "未授权或Token无效"}), 401
 
     try:
-        # --- 计时开始：获取连接 ---
-        start_conn_time = time.time()
         conn = get_db_connection()
-        end_conn_time = time.time()
-        connection_time_ms = (end_conn_time - start_conn_time) * 1000
-        print(f"--- DB Connection time: {connection_time_ms:.2f} ms ---")
-        # --- 计时结束：获取连接 ---
-
-        # --- 计时开始：执行查询 ---
-        start_query_time = time.time()
         cur = conn.cursor(cursor_factory=RealDictCursor)
         # 查询用户详细信息和头像
         cur.execute(
@@ -50,9 +41,7 @@ def get_user_profile(user_id):
         )
         result = cur.fetchone()
 
-        end_query_time = time.time()
-        query_time_ms = (end_query_time - start_query_time) * 1000
-        print(f"--- DB Query execution time: {query_time_ms:.2f} ms ---")
+        print(f"result: {result}")  # 调试输出
         # --- 计时结束：执行查询 ---
 
         if not result:
@@ -71,10 +60,8 @@ def get_user_profile(user_id):
                 f"https://www.mengyimengsao.com/employee_show.php?id={result['myms_user_id']}"
             )
 
-        end_processing_time = time.time()
-        processing_time_ms = (end_processing_time - start_processing_time) * 1000
-        print(f"--- Data processing time: {processing_time_ms:.2f} ms ---")
-        # --- 计时结束：数据处理 ---
+        
+        
         return jsonify(response_data), 200
     except Exception as e:
         print("Error in get_user_profile:", str(e))
@@ -82,6 +69,4 @@ def get_user_profile(user_id):
     finally:
         cur.close()
         conn.close()
-        end_total_time = time.time()  # 记录函数结束时间
-        total_time_ms = (end_total_time - start_total_time) * 1000
-        print(f"--- Total get_user_profile function time: {total_time_ms:.2f} ms ---")
+        

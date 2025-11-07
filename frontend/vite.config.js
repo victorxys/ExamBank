@@ -23,7 +23,7 @@ export default defineConfig({
     port: 5175,
     proxy: {
       '/api': { // 所有以 /api 开头的请求
-        target: 'http://localhost:5000', // 代理到您的后端
+        target: 'http://localhost:5001', // 代理到您的后端
         changeOrigin: true, // 需要改变请求头中的 Origin，使其看起来像是从代理服务器发出的
       }
     },

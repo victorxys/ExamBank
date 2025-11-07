@@ -3,9 +3,15 @@
 import click
 from flask.cli import with_appcontext
 from backend.services.billing_engine import BillingEngine, _update_bill_payment_status
-from backend.models import BaseContract, db, CustomerBill, PaymentRecord,FinancialAdjustment,EmployeePayroll, AdjustmentType
+from backend.models import BaseContract, db, CustomerBill, PaymentRecord,FinancialAdjustment,EmployeePayroll, AdjustmentType, User,Customer, ServicePersonnel,EmployeeSalaryHistory
 from sqlalchemy import func
 from decimal import Decimal
+import logging
+from pypinyin import pinyin, Style
+from backend.services.data_sync_service import DataSyncService
+from backend.services.contract_service import ContractService
+
+logger = logging.getLogger(__name__)
 
 def register_commands(app):
     @app.cli.command("fix-bill-totals")
@@ -302,7 +308,7 @@ def register_commands(app):
     def fix_salary_adj_links_command(dry_run):
         """修复历史数据中错误关联到工资单的“公司代付工资”调整项。"""
         if dry_run:
-            print("---【演习模式】将查找并列出需要修复的调整项，但不会实际操作数据库。---")
+            print("---【演习模式】将查找并列出需要修复的调整项，但不会实际操作数据库。--- ")
         else:
             print("--- 开始修复“公司代付工资”调整项的关联错误 ---")
 
@@ -356,3 +362,255 @@ def register_commands(app):
             if not dry_run:
                 db.session.rollback()
             print(f"执行修复任务时发生严重错误: {e}")
+
+    @app.cli.command("import-users-from-jinshuju")
+    @with_appcontext
+    def import_users_from_jinshuju():
+        """
+        Fetches all contract entries from Jinshuju and populates/updates
+        customer and employee information in the local database.
+        """
+        click.echo("Starting user import process from Jinshuju...")
+
+        try:
+            importer = UserImporter()
+            importer.run()
+            click.echo(click.style("User import process completed successfully!", fg="green"))
+        except Exception as e:
+            logger.error(f"An error occurred during the import process: {e}", exc_info=True)
+            click.echo(click.style(f"Error: {e}", fg="red"))
+
+    app.cli.add_command(import_users_from_jinshuju)
+
+class UserImporter:
+    def __init__(self):
+        self.sync_service = DataSyncService()
+        self.contract_service = ContractService()
+        self.form_configs = self._get_form_configs()
+        self.stats = {'customers': {'created': 0, 'updated': 0, 'skipped': 0},
+                      'employees': {'created': 0, 'updated': 0, 'skipped': 0},
+                      'salary_records': {'skipped': 0}}
+
+    def run(self):
+        click.echo("Fetching entries from all configured forms...")
+        BATCH_SIZE = 50  # Commit every 50 records
+
+        for config in self.form_configs:
+            form_token = config["form_token"]
+            contract_type = config["contract_type"]
+            mapping_rules = config["mapping"]
+
+            click.echo(f"Processing form: {form_token} ({contract_type})")
+
+            try:
+                entries = self.sync_service.get_form_entries(form_token)
+                click.echo(f"Found {len(entries)} entries.")
+
+                with click.progressbar(entries, label="Processing entries") as bar:
+                    for i, entry in enumerate(bar):
+                        try:
+                            self._process_entry(entry, mapping_rules)
+
+                            # Commit in batches
+                            if (i + 1) % BATCH_SIZE == 0:
+                                db.session.commit()
+                        except Exception as e:
+                            db.session.rollback()
+                            logger.error(f"Failed to process entry serial_number={entry.get( 'serial_number')}: {e}", exc_info=True)
+
+                # Commit any remaining entries
+                db.session.commit()
+                click.echo(f"\\nForm {form_token} processing complete.")
+
+            except Exception as e:
+                db.session.rollback()
+                logger.error(f"Fatal error processing form {form_token}: {e}", exc_info=True)
+                click.echo(click.style(f"  -> Error processing form {form_token}: {e}", fg="red" ))
+
+        click.echo("\\n--- Import Statistics ---")
+        self._print_stats()
+
+
+    def _process_entry(self, entry, mapping_rules):
+        contract_data = {}
+        contract_data['jinshuju_entry_id'] = entry.get('serial_number')
+
+        for db_field, jinshuju_config in mapping_rules.items():
+            jinshuju_field_id = jinshuju_config["field_id"]
+            value = None
+            if jinshuju_config.get("is_association"):
+                associated_field_id = jinshuju_config["associated_field_id"]
+                key_to_lookup = f'{jinshuju_field_id}_associated_{associated_field_id}'
+                value = entry.get(key_to_lookup)
+            else:
+                value = entry.get(jinshuju_field_id)
+
+            if isinstance(value, dict):
+                if all(k in value for k in ["province", "city", "district", "street"]):
+                    value = f"{value.get('province','')}{value.get('city','')}{value.get( 'district','')}{value.get('street','')}"
+                else:
+                    value = value.get("value")
+            contract_data[db_field] = str(value) if value is not None else None
+
+        # Process Customer
+        self._get_or_create_person(
+            name=contract_data.get("customer_name"),
+            phone=contract_data.get("customer_phone"),
+            id_card=contract_data.get("customer_id_card"),
+            address=contract_data.get("customer_address"),
+            role='customer'
+        )
+
+        # Process Employee
+        employee = self._get_or_create_person(
+            name=contract_data.get("employee_name"),
+            phone=contract_data.get("employee_phone"),
+            id_card=contract_data.get("employee_id_card"),
+            address=contract_data.get("employee_address"),
+            role='employee'
+        )
+
+        if employee:
+            self._create_employee_salary_if_needed(employee, contract_data)
+
+    def _get_or_create_person(self, name, phone, id_card, address, role):
+        if not name or not name.strip():
+            if role == 'customer': self.stats['customers']['skipped'] += 1
+            else: self.stats['employees']['skipped'] += 1
+            return None
+
+        name = name.strip()
+        phone = phone.strip() if phone else None
+        id_card = id_card.strip() if id_card else None
+        address = address.strip() if address else None
+
+        identifier = phone if phone else id_card
+        if not identifier:
+            if role == 'customer': self.stats['customers']['skipped'] += 1
+            else: self.stats['employees']['skipped'] += 1
+            return None
+
+        Model = Customer if role == 'customer' else ServicePersonnel
+
+        query_filter = []
+        if phone:
+            query_filter.append(Model.phone_number == phone)
+        if id_card:
+            query_filter.append(Model.id_card_number == id_card)
+
+        person = Model.query.filter(db.or_(*query_filter)).first()
+
+        if person:
+            updated = False
+            if not person.id_card_number and id_card:
+                person.id_card_number = id_card
+                updated = True
+            if not person.address and address:
+                person.address = address
+                updated = True
+            if updated:
+                self.stats[role + 's']['updated'] += 1
+                db.session.add(person)
+            return person
+        else:
+            try:
+                pinyin_full = "".join(p[0] for p in pinyin(name, style=Style.NORMAL))
+                pinyin_initials = "".join(p[0] for p in pinyin(name, style=Style.FIRST_LETTER))
+                pinyin_str = f"{pinyin_full} {pinyin_initials}"
+            except Exception:
+                pinyin_str = None
+
+            new_person = Model(
+                name=name,
+                phone_number=phone,
+                id_card_number=id_card,
+                address=address,
+                name_pinyin=pinyin_str
+            )
+            self.stats[role + 's']['created'] += 1
+            db.session.add(new_person)
+            return new_person
+
+
+    def _create_employee_salary_if_needed(self, employee, contract_data):
+        jinshuju_id = contract_data.get('jinshuju_entry_id')
+        salary_str = contract_data.get('employee_level')
+
+        if not jinshuju_id or not salary_str:
+            self.stats['salary_records']['skipped'] += 1
+            return
+
+        contract = BaseContract.query.filter_by(jinshuju_entry_id=str(jinshuju_id)).first()
+
+        if not contract:
+            self.stats['salary_records']['skipped'] += 1
+            return
+
+        try:
+            salary = Decimal(salary_str)
+            salary_data = {"base_salary": salary}
+
+            # 直接调用服务函数，所有业务逻辑（包括跳过试工合同和重复记录）都在服务中处理
+            self.contract_service.update_employee_salary_history(employee.id, contract.id, salary_data)
+
+        except (ValueError, TypeError):
+            logger.warning(f"Could not parse salary '{salary_str}' for contract {contract.id}. Skipping salary record.")
+            self.stats['salary_records']['skipped'] += 1
+        except Exception as e:
+            logger.error(f"Failed to process salary history for contract {contract.id}: {e}", exc_info=True)
+            self.stats['salary_records']['skipped'] += 1
+
+    def _print_stats(self):
+        click.echo(f"Customers: {self.stats['customers']['created']} created, {self.stats[ 'customers']['updated']} updated, {self.stats['customers']['skipped']} skipped.")
+        click.echo(f"Employees: {self.stats['employees']['created']} created, {self.stats[ 'employees']['updated']} updated, {self.stats['employees']['skipped']} skipped.")
+        click.echo(f"Salary Records: Attempts processed. Skipped due to missing data: {self.stats[ 'salary_records']['skipped']}.")
+
+    def _get_form_configs(self):
+        # This mapping should be identical to the one in tasks.py
+        return [
+            {
+                "form_token": "Iqltzj",
+                "contract_type": "nanny",
+                "mapping": {
+                    "customer_name": {"field_id": "field_1", "is_association": True, "associated_field_id": "field_2"},
+                    "customer_phone": {"field_id": "field_1", "is_association": True, "associated_field_id": "field_3"},
+                    "customer_id_card": {"field_id": "field_1", "is_association": True, "associated_field_id": "field_4"},
+                    "customer_address": {"field_id": "field_1", "is_association": True, "associated_field_id": "field_5"},
+                    "employee_name": {"field_id": "field_2"},
+                    "employee_phone": {"field_id": "field_3"},
+                    "employee_id_card": {"field_id": "field_4"},
+                    "employee_address": {"field_id": "field_5"},
+                    "employee_level": {"field_id": "field_9"},
+                },
+            },
+            {
+                "form_token": "QlpHFA",
+                "contract_type": "maternity_nurse",
+                "mapping": {
+                    "customer_name": {"field_id": "field_1", "is_association": True, "associated_field_id": "field_2"},
+                    "customer_phone": {"field_id": "field_1", "is_association": True, "associated_field_id": "field_3"},
+                    "customer_id_card": {"field_id": "field_1", "is_association": True, "associated_field_id": "field_4"},
+                    "customer_address": {"field_id": "field_1", "is_association": True, "associated_field_id": "field_5"},
+                    "employee_name": {"field_id": "field_11"},
+                    "employee_phone": {"field_id": "field_3"},
+                    "employee_id_card": {"field_id": "field_4"},
+                    "employee_address": {"field_id": "field_12"},
+                    "employee_level": {"field_id": "field_7"},
+                },
+            },
+            {
+                "form_token": "o8CFxx",
+                "contract_type": "nanny_trial",
+                "mapping": {
+                    "customer_name": {"field_id": "field_2"},
+                    "customer_phone": {"field_id": "field_3"},
+                    "customer_id_card": {"field_id": "field_4"},
+                    "customer_address": {"field_id": "field_5"},
+                    "employee_name": {"field_id": "field_7"},
+                    "employee_phone": {"field_id": "field_8"},
+                    "employee_id_card": {"field_id": "field_9"},
+                    "employee_address": {"field_id": "field_10"},
+                    "employee_level": {"field_id": "field_12"},
+                },
+            },
+        ]

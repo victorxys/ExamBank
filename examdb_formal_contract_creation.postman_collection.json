@@ -1,0 +1,128 @@
+{
+	"info": {
+		"_postman_id": "a8f5c2c1-e3a2-4f7a-9b0a-5e6f1d2c3b4d",
+		"name": "ExamDB - Formal Contract Creation",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "1. Login",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"// 自动将获取到的 access_token 保存到集合变量中",
+						    "if (pm.response.code === 200) {",
+						    "    pm.collectionVariables.set(\"access_token\", pm.response.json().access_token);",
+						    "    console.log(\"Access token saved successfully!\");",
+						"} else {",
+						    "    console.error(\"Failed to get access token. Status code: \" + pm.response.code);",
+						"}"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"phone_number\": \"13910008888\",\n    \"password\": \"admin\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/login",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"login"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "2. Create Formal Contract",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{access_token}}",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"template_id\": \"d2a7a738-226b-4f4b-8d2d-3e5f6a7b8c9d\", // 必须是数据库中存在的模板ID\n    \"contract_type\": \"nanny\", // 合同类型: nanny, maternity_nurse, nanny_trial, external_substitution\n    \"customer_id\": null, // 如果是新客户，留空或设为null\n    \"customer_name\": \"张三丰（测试）\", // 新客户的临时名字\n    \"service_personnel_id\": \"c061bd90-1d04-4ca0-a2dd-1c3e7dac9ac4\", // 必须是数据库中存在的员工ID\n    \"employee_level\": 8500,\n    \"start_date\": \"2025-11-01\",\n    \"end_date\": \"2025-11-30\",\n    \"notes\": \"这是通过Postman创建的测试合同。\",\n    \"provisional_start_date\": null, // 月嫂合同需要\n    \"is_monthly_auto_renew\": true,\n    \"introduction_fee\": \"\",\n    \"deposit_amount\": \"3000\",\n    \"management_fee_amount\": \"850.00\",\n    \"management_fee_rate\": 0.10,\n    \"service_type\": \"全日住家型\",\n    \"attachment_content\": \"无特殊附件内容。\",\n    \"customer_id_card\": \"\",\n    \"customer_address\": \"\",\n    \"employee_id_card\": \"\",\n    \"employee_address\": \"\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/contracts/formal",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"contracts",
+						"formal"
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:5001",
+			"type": "string"
+		},
+		{
+			"key": "access_token",
+			"value": "",
+			"type": "string"
+		}
+	]
+}
