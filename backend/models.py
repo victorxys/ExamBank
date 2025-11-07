@@ -2481,6 +2481,9 @@ class BaseContract(db.Model):
         nullable=True,
         comment="关联的合同模板ID",
     )
+    # 制式合同内容快照
+    template_content = db.Column(db.Text, nullable=True)
+    
     service_content = db.Column(
         PG_JSONB, nullable=True, comment="服务内容 (JSON 数组)"
     )

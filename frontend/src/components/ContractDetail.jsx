@@ -12,7 +12,8 @@ import {
 import {
     ArrowBack as ArrowBackIcon, Edit as EditIcon, CheckCircle as CheckCircleIcon,Info as InfoIcon,
     Cancel as CancelIcon, Save as SaveIcon, Link as LinkIcon, EventBusy as EventBusyIcon ,ReceiptLong as ReceiptLongIcon,
-    Message as MessageIcon
+    Message as MessageIcon,
+    Download as DownloadIcon
 } from '@mui/icons-material';
 import { DatePicker, LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -305,6 +306,36 @@ const ContractDetail = () => {
 
     if (loading) return <CircularProgress />;
     if (!contract) return <Typography>未找到合同信息。</Typography>;
+
+    const handleDownloadPdf = async () => {
+        setAlert({ open: false, message: '', severity: 'info' });
+        try {
+            const response = await api.get(`/contracts/${contractId}/download`, {
+                responseType: 'blob',
+            });
+
+            const contentDisposition = response.headers['content-disposition'];
+            let filename = `contract_${contract.id}.pdf`; // fallback filename
+            if (contentDisposition) {
+                const filenameMatch = contentDisposition.match(/filename="(.+)"/);
+                if (filenameMatch.length > 1) {
+                    filename = decodeURIComponent(filenameMatch[1]);
+                }
+            }
+
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', filename);
+            document.body.appendChild(link);
+            link.click();
+            link.parentNode.removeChild(link);
+            window.URL.revokeObjectURL(url);
+
+        } catch (error) {
+            setAlert({ open: true, message: `下载PDF失败: ${error.message}`, severity: 'error' });
+        }
+    };
 
     const handleOpenSigningModal = async (type) => {
         setAlert({ open: false, message: '', severity: 'info' });
@@ -929,6 +960,9 @@ const ContractDetail = () => {
                         <Stack direction="row" spacing={2}>
                             <Button variant="contained" color="primary" startIcon={<ArrowBackIcon />} onClick={() =>navigate(state?.from || '/contracts/all')}>
                                 返回列表
+                            </Button>
+                            <Button variant="outlined" startIcon={<DownloadIcon />} onClick={handleDownloadPdf}>
+                                下载合同
                             </Button>
                             {/* 如果合同未签署，则显示签约消息按钮 */}
                             {contract.signing_status !== 'SIGNED' && (

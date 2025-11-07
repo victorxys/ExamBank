@@ -306,19 +306,18 @@ class BillingEngine:
         current_app.logger.info(
             f"开始计算contract:{contract_id}  {year}-{month} 的账单 force_recalculate:{force_recalculate}"
         )
+        
+        contract_poly = db.with_polymorphic(BaseContract, "*")
+
         if contract_id:
-            # --- 核心修复：在处理单个合同时，添加行级锁来防止并发 ---
-            # with_for_update() 会生成 "SELECT ... FOR UPDATE" SQL语句，
-            # 这会锁定该合同记录，直到当前数据库事务结束（commit或rollback）。
-            contract = db.session.query(BaseContract).filter_by(id=contract_id).with_for_update().first()
+            contract = db.session.query(contract_poly).filter_by(id=contract_id).with_for_update(of=BaseContract).first()
             if not contract:
                 current_app.logger.warning(f"Contract {contract_id} not found, skipping calculation.")
                 contracts_to_process = []
             else:
                 contracts_to_process = [contract]
-            # --- 修复结束 ---
         else:
-            contracts_to_process = BaseContract.query.filter(BaseContract.status.in_(["active", "terminated"])).all()
+            contracts_to_process = db.session.query(contract_poly).filter(BaseContract.status.in_(["active", "terminated"])).all()
 
         for contract in contracts_to_process:
             if not contract:
@@ -658,7 +657,7 @@ class BillingEngine:
         cycle_end_date = self._to_date(cycle_end)
         is_auto_renew = getattr(contract, 'is_monthly_auto_renew', False)
 
-        if contract_end_date and cycle_end_date and cycle_end_date >= contract_end_date and not is_auto_renew and contract.status in ['active', 'finished']:
+        if contract_end_date and cycle_end_date and cycle_end_date >= contract_end_date and not is_auto_renew and contract.status in ['active', 'finished','pending']:
             # [Recursion Fix] Check if final adjustments already exist to prevent infinite loop.
             final_adj_exists = db.session.query(FinancialAdjustment.id).filter_by(
                 customer_bill_id=bill.id,
@@ -971,21 +970,31 @@ class BillingEngine:
             if is_first_bill:
                 monthly_management_fee = management_fee_amount if management_fee_amount > 0 else(level * D("0.1"))
                 current_app.logger.info(f"contract_start_date.day:{contract_start_date.day},contract_end_date.day:{contract_end_date.day}")
-                # --- 核心修改：在这里加入新规则判断 ---
-                if contract_start_date.day == contract_end_date.day:
-                    # --- 特殊规则：起止日号数相同，按整月计算 ---
-                    current_app.logger.info(f"合同 {contract.id} 触发了整月管理费计算模式。")
-                    rdelta = relativedelta(contract_end_date, contract_start_date)
-                    # 当天数相同时，月数+1才是我们想要的合同月数，例如3.21到8.21是5个月
-                    total_months = rdelta.years * 12 + rdelta.months
-                    # if contract_end_date.day >= contract_start_date.day:
-                    #     total_months+=1
+                # --- V2 优化：定义更通用的“整月”规则 ---
+                is_full_calendar_months = (
+                    contract_start_date.day == 1 and
+                    (contract_end_date + timedelta(days=1)).day == 1
+                )
 
-                    management_fee = (monthly_management_fee *D(total_months)).quantize(QUANTIZER)
-                    management_fee_reason = f"非月签合同(起止日相同)首月一次性收取: {total_months}个整月 * {monthly_management_fee:.2f}/月 = {management_fee:.2f}元"
+                if is_full_calendar_months or contract_start_date.day == contract_end_date.day:
+                    # --- 规则1：起止于日历月的边界 (如 11.01 ~ 1.31) ---
+                    # --- 规则2：起止日号数相同 (如 11.21 ~ 1.21) ---
+                    if is_full_calendar_months:
+                        current_app.logger.info(f"合同 {contract.id} 触发了【日历整月】管理费计算模式。")
+                        # 对于日历整月，月数就是 end.month - start.month + 1
+                        total_months = (contract_end_date.year - contract_start_date.year) * 12 + (contract_end_date.month - contract_start_date.month) + 1
+                        reason_text = "日历整月"
+                    else: # contract_start_date.day == contract_end_date.day
+                        current_app.logger.info(f"合同 {contract.id} 触发了【起止日相同】管理费计算模式。")
+                        rdelta = relativedelta(contract_end_date, contract_start_date)
+                        total_months = rdelta.years * 12 + rdelta.months
+                        reason_text = "起止日相同"
 
+                    management_fee = (monthly_management_fee * D(total_months)).quantize(QUANTIZER)
+                    management_fee_reason = f"非月签合同({reason_text})首月一次性收取: {total_months}个月 * {monthly_management_fee:.2f}/月 = {management_fee:.2f}元"
+                
                 else:
-                    # --- 默认规则：起止日号数不同，按三段式天数计算 ---
+                    # --- 默认规则：不满足任何整月模式，按三段式天数计算 ---
                     current_app.logger.info(f"合同 {contract.id} 使用按天三段式管理费计算模式。")
                     # 日单价按30天计算，这是固定业务规则
                     daily_management_fee = (monthly_management_fee / D(30)).quantize(D("0.0001"))
@@ -1532,7 +1541,7 @@ class BillingEngine:
         if contract_end_date and bill_cycle_end_date:
              is_last_bill_period = bill_cycle_end_date >= contract_end_date
 
-        if is_last_bill_period and (not is_auto_renew or contract.status !='active'):
+        if is_last_bill_period and (not is_auto_renew or contract.status in ['terminated', 'finished']):
             exists = db.session.query(FinancialAdjustment.id).filter(
                 FinancialAdjustment.customer_bill_id == bill.id,
                 FinancialAdjustment.description.like('%保证金退款%')

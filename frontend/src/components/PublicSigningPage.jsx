@@ -163,6 +163,42 @@ const PublicSigningPage = () => {
         );
     };
 
+    const renderCoreDetails = () => (
+        <Paper sx={{ p: 4, mb: 3 }}>
+            <Typography variant="h5" gutterBottom>核心合同信息</Typography>
+            <Grid container spacing={2} sx={{ mt: 1 }}>
+                <Grid item xs={12} sm={6}>
+                    <Typography><strong>服务方式:</strong> {contract.service_type || '未指定'}</ Typography>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                    <Typography><strong>乙方劳务报酬:</strong> {contract.employee_level?.toFixed( 2)} 元/月</Typography>
+                </Grid>
+                {contract.type === 'maternity_nurse' && (
+                     <Grid item xs={12} sm={6}>
+                        <Typography><strong>保证金:</strong> {contract.deposit_amount?.toFixed(2 )} 元</Typography>
+                    </Grid>
+                )}
+                <Grid item xs={12} sm={6}>
+                    <Typography><strong>丙方管理费:</strong> {contract.management_fee_amount?. toFixed(2)} 元/月</Typography>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                     <Typography sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
+                        <strong>合同开始时间:</strong>&nbsp;{new Date(contract.start_date). toLocaleDateString()}
+                        {/* --- 核心修改：只在月嫂合同显示注解 --- */}
+                        {contract.type === 'maternity_nurse' && (
+                            <Box component="span" sx={{ ml: 1, color: 'text.secondary', fontSize: '0.8rem' }}>
+                                (此处为用人时间，或预产期)
+                            </Box>
+                        )}
+                    </Typography>
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                    <Typography><strong>合同结束时间:</strong> {new Date(contract.end_date). toLocaleDateString()}</Typography>
+                </Grid>
+            </Grid>
+        </Paper>
+    );
+
         const renderSigningArea = () => {
         const role = contract.role;
         const title = role === 'customer' ? '甲方 (客户) 签名区' : '乙方 (服务人员) 签名区';

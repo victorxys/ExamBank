@@ -1,5 +1,5 @@
 # backend/api/contract_api.py
-from flask import Blueprint, jsonify, request, current_app, send_from_directory
+from flask import Blueprint, jsonify, request, current_app, send_file, render_template,send_from_directory
 import os
 from flask_jwt_extended import jwt_required
 from backend.models import (
@@ -324,7 +324,57 @@ def search_unpaid_bills():
         current_app.logger.error(f"Failed to search unpaid bills: {e}", exc_info=True)
         return jsonify({"error": "Internal server error"}), 500
     
+from weasyprint import HTML
+import io
+from flask import render_template, send_file
+import markdown
+
 # 在 backend/api/contract_api.py 文件末尾添加
+
+@contract_bp.route("/<string:contract_id>/download", methods=["GET"])
+@jwt_required()
+def download_contract_pdf(contract_id):
+    """
+    生成并下载合同的PDF版本。
+    """
+    try:
+        contract = BaseContract.query.options(
+            joinedload(BaseContract.customer),
+            joinedload(BaseContract.service_personnel)
+        ).get_or_404(contract_id)
+
+        # 检查签名状态，理论上应该双方都签署了才提供下载
+        if contract.signing_status != SigningStatus.SIGNED:
+            # 暂时允许下载未完全签署的合同，以便预览
+            current_app.logger.warning(f"合同 {contract_id} 正在被下载，但其签署状态为 {contract.signing_status}")
+
+        service_content_html = markdown.markdown(contract.service_content)
+        attachment_content_html = markdown.markdown(contract.attachment_content) if contract.attachment_content else ''
+
+        rendered_html = render_template(
+            "contract_pdf.html",
+            service_content=service_content_html,
+            attachment_content=attachment_content_html,
+            customer_signature=contract.customer_signature,
+            employee_signature=contract.employee_signature,
+            customer=contract.customer,
+            employee=contract.service_personnel,
+            contract=contract
+        )
+
+        pdf_file = HTML(string=rendered_html, base_url=request.url_root).write_pdf()
+
+        return send_file(
+            io.BytesIO(pdf_file),
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=f"contract_{contract.customer_name}_{contract.start_date.strftime('%Y%m%d')}.pdf"
+        )
+
+    except Exception as e:
+        current_app.logger.error(f"为合同 {contract_id} 生成PDF失败: {e}", exc_info=True)
+        return jsonify({"error": "生成PDF失败"}), 500
+
 
 @contract_bp.route("", methods=["GET"])
 @jwt_required()
@@ -401,6 +451,8 @@ def search_contracts():
                 "signing_status": contract.signing_status.value if contract.signing_status else None,
                 "customer_signing_token": contract.customer_signing_token,
                 "employee_signing_token": contract.employee_signing_token,
+                "customer_signature": contract.customer_signature,
+                "employee_signature": contract.employee_signature,
                 "created_at": contract.created_at.isoformat(),
                 # Include fields needed for filtering and display that were in the old API
                 "contract_type_value": contract.type,
@@ -932,7 +984,7 @@ def generate_signing_messages(contract_id):
             for p in payment_records:
                 payment_date_str = p.payment_date.strftime('%Y-%m-%d') if p.payment_date else 'N/A'
                 # 【已修复】移除.2和f之间的空格
-                customer_message_lines.append(f"日期: {payment_date_str}, 金额: {p.amount:.2f}, 方式: {p.method}, 备注: {p.notes}")
+                customer_message_lines.append(f"通过「{p.method}」打款 {p.amount:.2f}元:{p.notes} ")
 
         # 6. 生成员工消息 (保持不变)
         employee_message_lines = []

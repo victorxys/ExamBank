@@ -32,6 +32,30 @@ const formatDate = (isoString) => {
   } catch (e) { return '无效日期'; }
 };
 
+const STATUS_LABELS = {
+    active: '服务中',
+    pending: '待上户',
+    finished: '已完成',
+    terminated: '已终止',
+    trial_active: '试工中',
+    trial_succeeded: '试工成功',
+    unsigned: '待签署'
+};
+
+const SIGNING_STATUS_LABELS = {
+    UNSIGNED: '待签署',
+    CUSTOMER_SIGNED: '客户已签',
+    EMPLOYEE_SIGNED: '员工已签',
+    SIGNED: '已签署',
+};
+
+const SIGNING_STATUS_COLORS = {
+    UNSIGNED: 'warning',
+    CUSTOMER_SIGNED: 'info',
+    EMPLOYEE_SIGNED: 'info',
+    SIGNED: 'success',
+};
+
 const ContractList = () => {
     const theme = useTheme();
     const navigate = useNavigate();
@@ -205,18 +229,13 @@ const ContractList = () => {
     };
 
     const getSigningStatusChip = (status) => {
-        switch (status) {
-            case 'unsigned':
-                return <Chip label="待签署" color="warning" size="small" variant="outlined" />;
-            case 'customer_signed':
-                return <Chip label="客户已签" color="info" size="small" variant="outlined" />;
-            case 'employee_signed':
-                return <Chip label="员工已签" color="info" size="small" variant="outlined" />;
-            case 'signed':
-                return <Chip label="已签署" color="success" size="small" />;
-            default:
-                return <Chip label={status || 'N/A'} size="small" />;
-        }
+        const label = SIGNING_STATUS_LABELS[status] || status || 'N/A';
+        const color = SIGNING_STATUS_COLORS[status] || 'default';
+
+        // “已签署”状态使用实心样式，其他状态使用描边样式
+        const variant = status === 'signed' ? 'filled' : 'outlined';
+
+        return <Chip label={label} color={color} size="small" variant={variant} />;
     };
 
     const correctedPage = Math.max(0, Math.min(page, Math.ceil(totalContracts / rowsPerPage) - 1));
@@ -263,6 +282,8 @@ const ContractList = () => {
                                 <TableCell>合同周期</TableCell>
                                 <TableCell>主状态</TableCell>
                                 <TableCell>签署状态</TableCell>
+                                <TableCell>客户签名</TableCell>
+                                <TableCell>员工签名</TableCell>
                                 <TableCell align="center">操作</TableCell>
                             </TableRow>
                         </TableHead>
@@ -282,36 +303,26 @@ const ContractList = () => {
                                                 {formatDate(contract.start_date)} - {formatDate(contract.end_date)}
                                             </Typography>
                                         </TableCell>
-                                        <TableCell><Chip label={contract.status || 'N/A'} size="small" color={contract.status === 'active' ? 'success' : 'default'} /></TableCell>
-                                        <TableCell>{getSigningStatusChip(contract.signing_status)}</TableCell>
+                                        <TableCell><Chip label={STATUS_LABELS[contract.status] || 'N/A'} size="small" color={contract.status === 'active' ? 'success' : 'default'} /></TableCell>
+                                                                                <TableCell>{getSigningStatusChip(contract.signing_status )}</TableCell>
+                                        <TableCell>
+                                            {contract.customer_signature ? (
+                                                <img src={contract.customer_signature} alt= "客户签名" style={{ display: 'block', maxWidth: '100px', maxHeight: '40px' }} />
+                                            ) : (
+                                                <Typography variant="caption" color= "text.secondary">未签</Typography>
+                                            )}
+                                        </TableCell>
+                                        <TableCell>
+                                            {contract.employee_signature ? (
+                                                <img src={contract.employee_signature} alt= "员工签名" style={{ display: 'block', maxWidth: '100px', maxHeight: '40px' }} />
+                                            ) : (
+                                                <Typography variant="caption" color= "text.secondary">未签</Typography>
+                                            )}
+                                        </TableCell>
                                         <TableCell align="center">
-                                            <Stack direction="row" spacing={1} justifyContent="center">
-                                                <Button variant="outlined" size="small" onClick={() => navigate(`/contract/detail/${contract.id}`, { state: { from: location.pathname + location.search } })}>查看详情</Button>
-                                                                                                {contract.signing_status !== 'signed' && (
-                                                    <>
-                                                        {contract.customer_signing_token && (
-                                                            <Button
-                                                                size="small"
-                                                                variant="outlined"
-                                                                startIcon={<LinkIcon />}
-                                                                onClick={() => handleShowSigningLink(contract.customer_signing_token)}
-                                                            >
-                                                                客户链接
-                                                            </Button>
-                                                        )}
-                                                        {contract.employee_signing_token && (
-                                                            <Button
-                                                                size="small"
-                                                                variant="outlined"
-                                                                startIcon={<LinkIcon />}
-                                                                onClick={() => handleShowSigningLink(contract.employee_signing_token)}
-                                                            >
-                                                                员工链接
-                                                            </Button>
-                                                        )}
-                                                    </>
-                                                )}
-                                            </Stack>
+                                            <Button variant="outlined" size="small" onClick={() => navigate(`/contract/detail/${contract.id}`, { state: { from: location.pathname + location. search } })}>
+                                                查看详情
+                                            </Button>
                                         </TableCell>
                                     </TableRow>
                                 ))
