@@ -343,17 +343,27 @@ def download_contract_pdf(contract_id):
             joinedload(BaseContract.service_personnel)
         ).get_or_404(contract_id)
 
+        if contract.type == 'maternity_nurse':
+            pdf_title = "月嫂服务合同"
+        else:
+            pdf_title = "家政服务合同"
+
         # 检查签名状态，理论上应该双方都签署了才提供下载
         if contract.signing_status != SigningStatus.SIGNED:
             # 暂时允许下载未完全签署的合同，以便预览
             current_app.logger.warning(f"合同 {contract_id} 正在被下载，但其签署状态为 {contract.signing_status}")
 
         service_content_html = markdown.markdown(contract.service_content)
+        # 1. 读取并转换主模板内容
+        main_content_html = markdown.markdown(contract.template_content) if contract.template_content else ''
+        # 2. 读取并转换附件内容
         attachment_content_html = markdown.markdown(contract.attachment_content) if contract.attachment_content else ''
 
         rendered_html = render_template(
             "contract_pdf.html",
+            pdf_title=pdf_title, 
             service_content=service_content_html,
+            main_content=main_content_html,
             attachment_content=attachment_content_html,
             customer_signature=contract.customer_signature,
             employee_signature=contract.employee_signature,
@@ -390,6 +400,7 @@ def search_contracts():
     type_filter = request.args.get("type", "").strip()
     status_filter = request.args.get("status", "all").strip()
     deposit_status_filter = request.args.get("deposit_status", "").strip()
+    signing_status_filter = request.args.get("signing_status", "").strip()
     sort_by = request.args.get("sort_by", "created_at").strip()
     sort_order = request.args.get("sort_order", "desc").strip()
 
@@ -413,7 +424,8 @@ def search_contracts():
 
         if status_filter != 'all':
             query = query.filter(BaseContract.status == status_filter)
-
+        if signing_status_filter:
+            query = query.filter(BaseContract.signing_status == signing_status_filter)
         if deposit_status_filter:
             if deposit_status_filter == 'paid':
                 query = query.filter(BaseContract.deposit_amount > 0, BaseContract.security_deposit_paid >= BaseContract.deposit_amount)
@@ -610,7 +622,8 @@ def create_formal_contract():
             "introduction_fee": to_decimal(data.get("introduction_fee")),
             "management_fee_amount": to_decimal(data.get("management_fee_amount")),
             "management_fee_rate": to_decimal(data.get("management_fee_rate")),
-            "service_content": contract_template.content,
+            "template_content" : contract_template.content,
+            "service_content": data.get("service_content"),
             "service_type": data.get("service_type"),
             "is_auto_renew": data.get("is_auto_renew", False),
             "attachment_content": data.get("attachment_content"),
@@ -720,10 +733,15 @@ def get_contract_for_signing(token):
         "address": contract.service_personnel.address
     } if contract.service_personnel else {}
 
+    # Safely get subclass-specific attributes like deposit_amount
+    deposit_amount = getattr(contract, 'deposit_amount', None)
+    security_deposit_paid = getattr(contract, 'security_deposit_paid', None)
+
     return jsonify({
         "contract_id": str(contract.id),
-        "role": role,  # <-- 告诉前端当前用户的角色
+        "role": role,
         "customer_name": contract.customer_name,
+        "template_content": contract.template_content,
         "service_content": contract.service_content,
         "attachment_content": contract.attachment_content,
         "customer_info": customer_info,
@@ -731,6 +749,16 @@ def get_contract_for_signing(token):
         "signing_status": contract.signing_status.value if contract.signing_status else None,
         "customer_signature": contract.customer_signature,
         "employee_signature": contract.employee_signature,
+
+        # --- 核心修正：添加前端需要的所有核心信息字段 ---
+        "type": contract.type,
+        "service_type": contract.service_type,
+        "start_date": contract.start_date.isoformat(),
+        "end_date": contract.end_date.isoformat(),
+        "employee_level": float(contract.employee_level) if contract.employee_level is not None else None,
+        "management_fee_amount": float(contract.management_fee_amount) if contract.management_fee_amount is not None else None,
+        "deposit_amount": float(deposit_amount) if deposit_amount is not None else None,
+        "security_deposit_paid": float(security_deposit_paid) if security_deposit_paid is not None else None,
     })
 
 
@@ -938,31 +966,56 @@ def generate_signing_messages(contract_id):
             db.session.commit()
             db.session.refresh(first_bill)
 
-            # --- 提取费用详情 ---
+                        # --- 提取费用详情 (V4 - 增加月嫂合同特殊处理) ---
             calculation_details = first_bill.calculation_details or {}
-            log = calculation_details.get('calculation_log', {})
+            
+            if contract.type == 'maternity_nurse':
+                # --- 月嫂合同的特殊消息格式 ---
+                customer_deposit = D(calculation_details.get('customer_deposit', 0))
+                management_fee = D(calculation_details.get('management_fee', 0))
+                
+                # if customer_deposit > 0:
+                    # customer_message_lines.append(f"本次应交保证金：{customer_deposit:.2f}元")
+                if management_fee > 0:
+                    # 从日志中获取更详细的管理费说明，对客户更友好
+                    log = calculation_details.get('calculation_log', {})
+                    mgmt_fee_log = log.get('管理费', f'{management_fee:.2f}元')
+                    if '=' in mgmt_fee_log:
+                        mgmt_fee_log = mgmt_fee_log.split('=')[-1].strip()
+                    customer_message_lines.append(f"管理费：{mgmt_fee_log}")
 
-            if '本次交管理费' in log and log['本次交管理费']:
-                full_desc = log['本次交管理费']
-                if '=' in full_desc:
-                    desc = full_desc.split('=')[-1].strip()
-                else:
-                    desc = full_desc.split(':', 1)[-1].strip() if ':' in full_desc else full_desc
-                customer_message_lines.append(f"本次交管理费：{desc}")
+            else:
+                # --- 其他合同类型的现有逻辑 (保持不变) ---
+                log = calculation_details.get('calculation_log', {})
+                if '本次交管理费' in log and log['本次交管理费']:
+                    full_desc = log['本次交管理费']
+                    if '=' in full_desc:
+                        desc = full_desc.split('=')[-1].strip()
+                    else:
+                        desc = full_desc.split(':', 1)[-1].strip() if ':' in full_desc else full_desc
+                    customer_message_lines.append(f"本次交管理费：{desc}")
 
-            adjustments = FinancialAdjustment.query.filter_by(customer_bill_id=first_bill.id). all()
+                        # --- 通用逻辑：处理其他增减款项 ---
+            adjustments = FinancialAdjustment.query.filter_by(customer_bill_id=first_bill.id).all ()
             for adj in adjustments:
+                # --- 核心修正：为月嫂合同增加更强的过滤，防止重复 ---
+                if contract.type == 'maternity_nurse':
+                    # 如果 adjustment 类型或描述是我们已经明确处理过的，就跳过
+                    if adj.adjustment_type in ['customer_deposit', 'management_fee'] or \
+                       adj.description.strip() in ["保证金", "客交保证金", "管理费"]:
+                        continue
+                
+                # 排除不应由客户看到的员工侧调整
                 if adj.adjustment_type not in ['employee_salary_adjustment', 'employee_bonus', 'employee_deduction']:
                     customer_message_lines.append(f"{adj.description.strip()}：{adj.amount:.2f} 元")
-
             # --- 添加总计和已支付 ---
             amount_to_pay = first_bill.total_due
             customer_message_lines.append(f"费用总计：{amount_to_pay:.2f}元")
             if first_bill.total_paid > 0:
                 customer_message_lines.append(f"已支付：{first_bill.total_paid:.2f}元")
                 customer_message_lines.append(f"还需支付：{(amount_to_pay - first_bill.total_paid):.2f}元，")
-            else:
-                 customer_message_lines.append("，") # 保持格式一致
+            # else:
+            #      customer_message_lines.append("，") # 保持格式一致
 
             # 查询收款记录
             payment_records = PaymentRecord.query.filter_by(customer_bill_id=first_bill.id ).order_by(PaymentRecord.payment_date.asc()).all()
@@ -984,7 +1037,7 @@ def generate_signing_messages(contract_id):
             for p in payment_records:
                 payment_date_str = p.payment_date.strftime('%Y-%m-%d') if p.payment_date else 'N/A'
                 # 【已修复】移除.2和f之间的空格
-                customer_message_lines.append(f"通过「{p.method}」打款 {p.amount:.2f}元:{p.notes} ")
+                customer_message_lines.append(f"通过「{p.method}」打款 {p.amount:.2f}元 {p.notes} ")
 
         # 6. 生成员工消息 (保持不变)
         employee_message_lines = []

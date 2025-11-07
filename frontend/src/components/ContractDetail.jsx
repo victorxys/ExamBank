@@ -13,7 +13,8 @@ import {
     ArrowBack as ArrowBackIcon, Edit as EditIcon, CheckCircle as CheckCircleIcon,Info as InfoIcon,
     Cancel as CancelIcon, Save as SaveIcon, Link as LinkIcon, EventBusy as EventBusyIcon ,ReceiptLong as ReceiptLongIcon,
     Message as MessageIcon,
-    Download as DownloadIcon
+    Download as DownloadIcon,
+    PictureAsPdf as PictureAsPdfIcon,
 } from '@mui/icons-material';
 import { DatePicker, LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -334,6 +335,22 @@ const ContractDetail = () => {
 
         } catch (error) {
             setAlert({ open: true, message: `下载PDF失败: ${error.message}`, severity: 'error' });
+        }
+    };
+
+    const handlePreviewPdf = async () => {
+        if (!contract?.id) return;
+        try {
+            const response = await api.get(`/contracts/${contract.id}/download`, {
+                responseType: 'blob',
+            });
+            const file = new Blob([response.data], { type: 'application/pdf' });
+            const fileURL = URL.createObjectURL(file);
+            // 在新标签页中打开，而不是下载
+            window.open(fileURL, '_blank');
+        } catch (error) {
+            console.error('预览PDF失败:', error);
+            // 这里可以添加一个给用户的错误提示
         }
     };
 
@@ -961,20 +978,6 @@ const ContractDetail = () => {
                             <Button variant="contained" color="primary" startIcon={<ArrowBackIcon />} onClick={() =>navigate(state?.from || '/contracts/all')}>
                                 返回列表
                             </Button>
-                            <Button variant="outlined" startIcon={<DownloadIcon />} onClick={handleDownloadPdf}>
-                                下载合同
-                            </Button>
-                            {/* 如果合同未签署，则显示签约消息按钮 */}
-                            {contract.signing_status !== 'SIGNED' && (
-                                <>
-                                    <Button variant="contained" color="primary" startIcon={<MessageIcon />} onClick={() => handleOpenSigningModal('customer')}>
-                                        客户签约消息
-                                    </Button>
-                                    <Button variant="contained" color="primary" startIcon={<MessageIcon />} onClick={() => handleOpenSigningModal('employee')}>
-                                        员工签约消息
-                                    </Button>
-                                </>
-                            )}
                             {contract.status === 'active' && contract.contract_type_value !== 'nanny_trial' && (
                                 <Button variant="contained" color="error" onClick={handleOpenTerminationDialog}>
                                     终止合同
@@ -1031,75 +1034,34 @@ const ContractDetail = () => {
                                 {/* {transferredToBillField} */}
                             </Grid>
                         </Paper>
+                            <Box sx={{ my: 3, display: 'flex', gap: 2, flexWrap: 'wrap', justifyContent: 'center'  }}>
+                                <Button
+                                    variant="contained"
+                                    startIcon={<PictureAsPdfIcon />}
+                                    onClick={handlePreviewPdf}
+                                >
+                                    预览合同
+                                </Button>
+                                <Button
+                                    variant="contained"
+                                    startIcon={<DownloadIcon />}
+                                    onClick={handleDownloadPdf}
+                                >
+                                    下载合同
+                                </Button>
+                                {contract.signing_status !== 'SIGNED' && (
+                                <>
+                                    <Button variant="contained" color="primary" startIcon={<MessageIcon />} onClick={() => handleOpenSigningModal('customer')}>
+                                        客户签约消息
+                                    </Button>
+                                    <Button variant="contained" color="primary" startIcon={<MessageIcon />} onClick={() => handleOpenSigningModal('employee')}>
+                                        员工签约消息
+                                    </Button>
+                                </>
+                            )}
+                            </Box>
                     </Grid>
-                    {/* <Grid item xs={12}>
-                        <Paper sx={{ p: 3 }}>
-                            <Typography variant="h6" gutterBottom>财务调整项</Typography>
-                            <TableContainer>
-                                <Table size="small">
-                                    <TableHead>
-                                        <TableRow>
-                                            <TableCell>类型</TableCell>
-                                            <TableCell>金额</TableCell>
-                                            <TableCell>状态</TableCell>
-                                            <TableCell>说明</TableCell>
-                                            <TableCell align="right">操作</TableCell>
-                                        </TableRow>
-                                    </TableHead>
-                                    <TableBody>
-                                        {adjustments.length > 0 ? adjustments.map((adj) => (
-                                            <TableRow key={adj.id} hover>
-                                                <TableCell>{ADJUSTMENT_TYPE_LABELS[adj.adjustment_type] || adj.adjustment_type}</TableCell>
-
-                                                <TableCell sx={{fontWeight: 'bold'}}>{`¥${formatCurrency(adj.amount)}`}</TableCell>
-                                                <TableCell><Chip label={ADJUSTMENT_STATUS_LABELS[adj.status] || adj.status} size="small" /></TableCell>
-                                                <TableCell>{adj.description}</TableCell>
-                                                <TableCell align="right">
-                                                    {adj.adjustment_type === 'deposit'&& adj.status === 'PENDING' && (
-                                                        <Button variant="contained"size="small" onClick={() => handleOpenDepositDialog(adj)}>
-                                                            记录支付
-                                                        </Button>
-                                                    )}
-                                                </TableCell>
-                                            </TableRow>
-                                        )) : (
-                                            <TableRow>
-                                                <TableCell colSpan={5} align="center">无任何财务调整项</TableCell>
-                                            </TableRow>
-                                        )}
-                                    </TableBody>
-                                </Table>
-                            </TableContainer>
-                        </Paper>
-                    </Grid> */}
-                    {/* 日志列表 */}
-                    {/* <Grid item xs={12}>
-                        <Paper sx={{ p: 3 }}>
-                            <Typography variant="h6" gutterBottom>操作日志</Typography>
-                            <List dense>
-                                {logs.map(log => (
-                                    <React.Fragment key={log.id}>
-                                        <ListItem>
-                                            <ListItemText
-                                                primary={`${log.action} - by ${log.user}`}
-                                                secondary={
-                                                    <>
-                                                        <Typography component="span" variant="body2" color="text.primary">
-                                                            {new Date(log.created_at).toLocaleString('zh-CN')}
-                                                        </Typography>
-                                                        <pre style={{ whiteSpace: 'pre-wrap',wordBreak: 'break-all', margin: 0, fontSize: '0.75rem' }}>
-                                                            {JSON.stringify(log.details, null,2)}
-                                                        </pre>
-                                                    </>
-                                                }
-                                            />
-                                        </ListItem>
-                                        <Divider component="li" />
-                                    </React.Fragment>
-                                ))}
-                            </List>
-                        </Paper>
-                    </Grid> */}
+                    
                     <Grid item xs={12}>
                         <Paper sx={{ p: 3 }}>
                             <Typography variant="h5" gutterBottom>关联账单列表</Typography>

@@ -52,7 +52,7 @@
     </style>
 </head>
 <body>
-    <h1 style="text-align: center;">服务合同</h1>
+    <h1 style="text-align: center;">{{ pdf_title }}</h1>
 
     <!-- 核心修正：添加甲方和乙方信息展示区 -->
     <div class="party-details">
@@ -80,11 +80,12 @@
     </div>
     <!-- 修正结束 -->
     <div class="party-details">
+        <p><strong>服务内容:</strong> {{ contract.service_content or '未指定' }}</p>
         <p><strong>服务方式:</strong> {{ contract.service_type or '未指定' }}</p>
         <p><strong>乙方劳务报酬:</strong> {{ "%.2f"|format(contract.employee_level|float) }} 元/月</p>
-        {% if contract.type == 'maternity_nurse' %}
-            <p><strong>保证金:</strong> {{ "%.2f"|format(contract.deposit_amount|float) }} 元</p>
-        {% endif %}
+        
+        <p><strong>保证金:</strong> {{ "%.2f"|format(contract.security_deposit_paid|float) }} 元</p>
+        
         <p><strong>丙方管理费:</strong> {{ "%.2f"|format(contract.management_fee_amount|float) }} 元/月</p>
         {% if contract.type == 'maternity_nurse' %}
             <p><strong>合同开始时间:</strong> {{ contract.start_date.strftime('%Y-%m-%d') }} <span style="font-family: 'Microsoft YaHei'; color: #555; font-size: 10px;">(此处为用人时间，或预产期)</ span></p>
@@ -94,7 +95,8 @@
         <p><strong>合同结束时间:</strong> {{ contract.end_date.strftime('%Y-%m-%d') }}</p>
     </div>
 
-    <div class="contract-content">{{ service_content|safe }}</div>
+    <div class="contract-content">
+        {{ main_content |safe }}</div>
 
 
     {% if attachment_content %}

@@ -272,7 +272,7 @@ const CreateFormalContractModal = ({ open, onClose, onSuccess }) => {
 
         try {
             const response = await api.post('/contracts/formal', payload);
-            onSuccess();
+            onSuccess(response.data.contract_id);
         } catch (err) {
             console.error("创建正式合同失败:", err);
             setError(err.response?.data?.error || '创建失败，请检查所有必填项。');

@@ -165,23 +165,23 @@ const PublicSigningPage = () => {
 
     const renderCoreDetails = () => (
         <Paper sx={{ p: 4, mb: 3 }}>
-            <Typography variant="h5" gutterBottom>核心合同信息</Typography>
             <Grid container spacing={2} sx={{ mt: 1 }}>
-                <Grid item xs={12} sm={6}>
+                <Grid item xs={12}>
+                    <Typography><strong>服务内容:</strong> {contract.service_content || '未指定'}</ Typography>
+                </Grid>
+                <Grid item xs={12}>
                     <Typography><strong>服务方式:</strong> {contract.service_type || '未指定'}</ Typography>
                 </Grid>
-                <Grid item xs={12} sm={6}>
+                <Grid item xs={12}>
                     <Typography><strong>乙方劳务报酬:</strong> {contract.employee_level?.toFixed( 2)} 元/月</Typography>
                 </Grid>
-                {contract.type === 'maternity_nurse' && (
-                     <Grid item xs={12} sm={6}>
-                        <Typography><strong>保证金:</strong> {contract.deposit_amount?.toFixed(2 )} 元</Typography>
-                    </Grid>
-                )}
-                <Grid item xs={12} sm={6}>
+                <Grid item xs={12}>
+                    <Typography><strong>保证金:</strong> {contract.security_deposit_paid?.toFixed(2 )} 元</Typography>
+                </Grid>
+                <Grid item xs={12}>
                     <Typography><strong>丙方管理费:</strong> {contract.management_fee_amount?. toFixed(2)} 元/月</Typography>
                 </Grid>
-                <Grid item xs={12} sm={6}>
+                <Grid item xs={12}>
                      <Typography sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
                         <strong>合同开始时间:</strong>&nbsp;{new Date(contract.start_date). toLocaleDateString()}
                         {/* --- 核心修改：只在月嫂合同显示注解 --- */}
@@ -192,7 +192,7 @@ const PublicSigningPage = () => {
                         )}
                     </Typography>
                 </Grid>
-                <Grid item xs={12} sm={6}>
+                <Grid item xs={12}>
                     <Typography><strong>合同结束时间:</strong> {new Date(contract.end_date). toLocaleDateString()}</Typography>
                 </Grid>
             </Grid>
@@ -261,12 +261,17 @@ const PublicSigningPage = () => {
             default: return <Chip label={contract.signing_status} />;
         }
     };
+    const pageTitle = contract?.type === 'maternity_nurse' 
+        ? "月嫂合同签署" 
+        : "家政服务合同签署";
 
     return (
         <Container maxWidth="md" sx={{ py: 4 }}>
             <Paper sx={{ p: 4, mb: 3 }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <Typography variant="h4" gutterBottom>合同签署</Typography>
+                    <Typography variant="h3" align="center" gutterBottom>
+                        {pageTitle}
+                    </Typography>
                     {getStatusChip()}
                 </Box>
                 <Divider sx={{ my: 2 }} />
@@ -276,13 +281,12 @@ const PublicSigningPage = () => {
                     <Grid item xs={12} md={6}>{renderEditablePartyInfo('employee')}</Grid>
                 </Grid>
             </Paper>
-
+             {contract && renderCoreDetails()}
             <Paper sx={{ p: 4, mb: 3 }}>
-                <Typography variant="h5" gutterBottom>合同条款</Typography>
                 <Box sx={{ mt: 2, p: 2, border: '1px solid #e0e0e0', borderRadius: 1, '& p': { my: 1, lineHeight: 1.7 } }}>
                     <ReactMarkdown>
-                        {contract.service_content
-                            ? contract.service_content.replace(/(?<=[^\s])\*\*(?=[^\s])/g, '** ')
+                        {contract.template_content
+                            ? contract.template_content.replace(/(?<=[^\s])\*\*(?=[^\s])/g, '** ')
                             : '合同条款内容加载中...'}
                     </ReactMarkdown>
                 </Box>

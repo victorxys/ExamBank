@@ -3510,8 +3510,8 @@ def get_evaluation_detail(evaluation_id):
                 e.id,
                 e.evaluation_time,
                 e.additional_comments,
-                COALESCE(u1.username, c.first_name) AS evaluator_name,
-                COALESCE(u1.role, c.title) AS evaluator_title,
+                COALESCE(u1.username, c.name) AS evaluator_name,
+                COALESCE(u1.role) AS evaluator_title,
                 CASE
                     WHEN e.evaluator_user_id IS NOT NULL THEN 'internal'
                     WHEN e.evaluator_customer_id IS NOT NULL THEN 'client'
@@ -3745,7 +3745,7 @@ def create_evaluation_route():
                     # 创建客户记录 (如果需要创建)
                     cur.execute(
                         """
-                        INSERT INTO customer (first_name, title) VALUES (%s, %s) RETURNING id
+                        INSERT INTO customer (name, title) VALUES (%s, %s) RETURNING id
                     """,
                         (client_name, data.get("client_title", "")),
                     )
