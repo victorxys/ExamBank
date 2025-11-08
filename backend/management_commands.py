@@ -484,24 +484,15 @@ class UserImporter:
         id_card = id_card.strip() if id_card else None
         address = address.strip() if address else None
 
-        identifier = phone if phone else id_card
-        if not identifier:
-            if role == 'customer': self.stats['customers']['skipped'] += 1
-            else: self.stats['employees']['skipped'] += 1
-            return None
-
         Model = Customer if role == 'customer' else ServicePersonnel
 
-        query_filter = []
-        if phone:
-            query_filter.append(Model.phone_number == phone)
-        if id_card:
-            query_filter.append(Model.id_card_number == id_card)
-
-        person = Model.query.filter(db.or_(*query_filter)).first()
+        person = Model.query.filter(Model.name == name).first()
 
         if person:
             updated = False
+            if not person.phone_number and phone:
+                person.phone_number = phone
+                updated = True
             if not person.id_card_number and id_card:
                 person.id_card_number = id_card
                 updated = True
