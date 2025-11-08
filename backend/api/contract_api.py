@@ -699,68 +699,76 @@ def get_contract_for_signing(token):
     """
     一个公开的API，供客户或员工使用专属令牌查看合同。
     """
-    # Determine role and find contract by the provided token
-    role = None
-    contract = BaseContract.query.filter_by(customer_signing_token=token).first()
-    if contract:
-        role = "customer"
-    else:
-        contract = BaseContract.query.filter_by(employee_signing_token=token).first()
+    try:
+        # Determine role and find contract by the provided token
+        role = None
+        contract = BaseContract.query.filter_by(customer_signing_token=token).first()
         if contract:
-            role = "employee"
+            role = "customer"
+        else:
+            contract = BaseContract.query.filter_by(employee_signing_token=token).first()
+            if contract:
+                role = "employee"
 
-    if not contract:
-        return jsonify({"error": "无效的签名链接或合同不存在"}), 404
+        if not contract:
+            return jsonify({"error": "无效的签名链接或合同不存在"}), 404
 
-    # 关联加载所需信息
-    contract = BaseContract.query.options(
-        joinedload(BaseContract.customer),
-        joinedload(BaseContract.service_personnel)
-    ).filter_by(id=contract.id).first()
+        # 关联加载所需信息
+        contract = BaseContract.query.options(
+            joinedload(BaseContract.customer),
+            joinedload(BaseContract.service_personnel)
+        ).filter_by(id=contract.id).first()
 
-    customer_info = {
-        "id": contract.customer.id,
-        "name": contract.customer.name,
-        "id_card_number": contract.customer.id_card_number,
-        "phone_number": contract.customer.phone_number,
-        "address": contract.customer.address
-    } if contract.customer else {}
+        customer_info = {}
+        if contract.customer:
+            customer_info = {
+                "id": contract.customer.id,
+                "name": contract.customer.name,
+                "id_card_number": contract.customer.id_card_number,
+                "phone_number": contract.customer.phone_number,
+                "address": contract.customer.address
+            }
 
-    employee_info = {
-        "id": contract.service_personnel.id,
-        "name": contract.service_personnel.name,
-        "id_card_number": contract.service_personnel.id_card_number,
-        "phone_number": contract.service_personnel.phone_number,
-        "address": contract.service_personnel.address
-    } if contract.service_personnel else {}
+        employee_info = {}
+        if contract.service_personnel:
+            employee_info = {
+                "id": contract.service_personnel.id,
+                "name": contract.service_personnel.name,
+                "id_card_number": contract.service_personnel.id_card_number,
+                "phone_number": contract.service_personnel.phone_number,
+                "address": contract.service_personnel.address
+            }
 
-    # Safely get subclass-specific attributes like deposit_amount
-    deposit_amount = getattr(contract, 'deposit_amount', None)
-    security_deposit_paid = getattr(contract, 'security_deposit_paid', None)
+        # Safely get subclass-specific attributes like deposit_amount
+        deposit_amount = getattr(contract, 'deposit_amount', None)
+        security_deposit_paid = getattr(contract, 'security_deposit_paid', None)
 
-    return jsonify({
-        "contract_id": str(contract.id),
-        "role": role,
-        "customer_name": contract.customer_name,
-        "template_content": contract.template_content,
-        "service_content": contract.service_content,
-        "attachment_content": contract.attachment_content,
-        "customer_info": customer_info,
-        "employee_info": employee_info,
-        "signing_status": contract.signing_status.value if contract.signing_status else None,
-        "customer_signature": contract.customer_signature,
-        "employee_signature": contract.employee_signature,
+        return jsonify({
+            "contract_id": str(contract.id),
+            "role": role,
+            "customer_name": contract.customer_name,
+            "template_content": contract.template_content,
+            "service_content": contract.service_content,
+            "attachment_content": contract.attachment_content,
+            "customer_info": customer_info,
+            "employee_info": employee_info,
+            "signing_status": contract.signing_status.value if contract.signing_status else None,
+            "customer_signature": contract.customer_signature,
+            "employee_signature": contract.employee_signature,
 
-        # --- 核心修正：添加前端需要的所有核心信息字段 ---
-        "type": contract.type,
-        "service_type": contract.service_type,
-        "start_date": contract.start_date.isoformat(),
-        "end_date": contract.end_date.isoformat(),
-        "employee_level": float(contract.employee_level) if contract.employee_level is not None else None,
-        "management_fee_amount": float(contract.management_fee_amount) if contract.management_fee_amount is not None else None,
-        "deposit_amount": float(deposit_amount) if deposit_amount is not None else None,
-        "security_deposit_paid": float(security_deposit_paid) if security_deposit_paid is not None else None,
-    })
+            # --- 核心修正：添加前端需要的所有核心信息字段 ---
+            "type": contract.type,
+            "service_type": contract.service_type,
+            "start_date": contract.start_date.isoformat(),
+            "end_date": contract.end_date.isoformat(),
+            "employee_level": float(contract.employee_level) if contract.employee_level is not None else None,
+            "management_fee_amount": float(contract.management_fee_amount) if contract.management_fee_amount is not None else None,
+            "deposit_amount": float(deposit_amount) if deposit_amount is not None else None,
+            "security_deposit_paid": float(security_deposit_paid) if security_deposit_paid is not None else None,
+        })
+    except Exception as e:
+        current_app.logger.error(f"获取合同 {token} 失败: {e}", exc_info=True)
+        return jsonify({"error": "加载合同失败，请联系管理员"}), 500
 
 
 @contract_bp.route("/sign/<string:token>", methods=["POST"])
