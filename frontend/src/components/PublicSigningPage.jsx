@@ -40,7 +40,7 @@ const PublicSigningPage = () => {
         const fetchContract = async () => {
             setLoading(true);
             try {
-                const response = await api.get(`contracts/sign/${token}`);
+                const response = await api.get(`/contracts/sign/${token}`);
                 setContract(response.data);
                 setError('');
             } catch (err) {
@@ -108,10 +108,10 @@ const PublicSigningPage = () => {
         }
 
         try {
-            await api.post(`contracts/sign/${token}`, payload);
+            await api.post(`/contracts/sign/${token}`, payload);
             setIsResigning(false);
             // Re-fetch contract data to show the new state
-            const response = await api.get(`contracts/sign/${token}`);
+            const response = await api.get(`/contracts/sign/${token}`);
             setContract(response.data);
         } catch (err) {
             setError(err.response?.data?.error || '签名提交失败，请重试。');

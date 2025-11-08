@@ -29,6 +29,7 @@ api.interceptors.request.use(
                           config.url.includes('/employee-profile/') || 
                           config.url.includes('/evaluation-items') || 
                           config.url.includes('/knowledge-point-summary') || 
+                          config.url.includes('/sign') || 
                           config.url.includes('/employee-self-evaluation');
     const token = getToken();
     
