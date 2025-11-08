@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useLayoutEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import {
     Container, Box, Typography, Paper, Grid, Button, CircularProgress,
@@ -25,6 +25,7 @@ const PublicSigningPage = () => {
     const [error, setError] = useState('');
     const [submitting, setSubmitting] = useState(false);
     const [isResigning, setIsResigning] = useState(false);
+    const [sigCanvasWidth, setSigCanvasWidth] = useState(0);
 
     // Refactored State: One state for form values
     const [formValues, setFormValues] = useState({
@@ -34,6 +35,7 @@ const PublicSigningPage = () => {
 
     const customerSigCanvas = useRef(null);
     const employeeSigCanvas = useRef(null);
+    const sigContainerRef = useRef(null);
 
     // Effect 1: Fetch contract data from server
     useEffect(() => {
@@ -71,6 +73,17 @@ const PublicSigningPage = () => {
             });
         }
     }, [contract]);
+
+    useLayoutEffect(() => {
+        const setWidth = () => {
+            if (sigContainerRef.current) {
+                setSigCanvasWidth(sigContainerRef.current.offsetWidth);
+            }
+        };
+        setWidth();
+        window.addEventListener('resize', setWidth);
+        return () => window.removeEventListener('resize', setWidth);
+    }, [contract, isResigning]);
 
     const isPartyInfoValid = (info) => {
         return info.name && info.phone_number && info.id_card_number && info.address;
@@ -230,8 +243,10 @@ const PublicSigningPage = () => {
                     </Box>
                 ) : (
                     <>
-                        <Box sx={{ border: '1px dashed grey', borderRadius: 1, mb: 2, touchAction : 'none' }}>
-                            <SignatureCanvas ref={sigCanvasRef} penColor='black' canvasProps={{ width: 500, height: 200, className: 'sigCanvas', style: { width: '100%' } }} />
+                        <Box ref={sigContainerRef} sx={{ border: '1px dashed grey', borderRadius: 1, mb: 2, touchAction : 'none' }}>
+                            {sigCanvasWidth > 0 &&
+                                <SignatureCanvas ref={sigCanvasRef} penColor='black' canvasProps={{ width: sigCanvasWidth, height: 200, className: 'sigCanvas', style: { width: '100%' } }} />
+                            }
                         </Box>
                         <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', mt: 2 }}>
                             <Button variant="outlined" onClick={() => sigCanvasRef.current.clear ()} disabled={submitting} sx={{ mr: 2 }}>
