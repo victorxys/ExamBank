@@ -699,7 +699,6 @@ def get_contract_for_signing(token):
     """
     一个公开的API，供客户或员工使用专属令牌查看合同。
     """
-    raise Exception("This is a test error")
     try:
         # Determine role and find contract by the provided token
         role = None
