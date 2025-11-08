@@ -26,22 +26,6 @@ def upgrade():
                existing_comment='是否自动续签',
                existing_server_default=sa.text('false'))
 
-        # --- 手动添加的字段 ---
-        batch_op.add_column(sa.Column('service_content', JSONB(), nullable=True, comment='服务内容 (JSON 数组)')) # 注意这里是 JSONB()
-        batch_op.add_column(sa.Column('service_type', sa.String(length=50), nullable=True, comment='服务方式 (e.g., 全日住家型)'))
-        batch_op.add_column(sa.Column('attachment_content', sa.Text(), nullable=True, comment= '附件内容 (Markdown 格式)'))
-        batch_op.add_column(sa.Column('signing_status', sa.Enum('UNSIGNED', 'SIGNED', 'PENDING', 'CUSTOMER_SIGNED', 'EMPLOYEE_SIGNED', 'ACTIVE', 'TERMINATED', 'EXPIRED', name='signingstatus'), nullable=True, server_default=sa.text("'unsigned'"), comment='签署状态'))
-        batch_op.add_column(sa.Column('customer_signature', sa.String(length=512), nullable=True, comment='甲方签名图片URL或Base64数据'))
-        batch_op.add_column(sa.Column('employee_signature', sa.String(length=512), nullable=True, comment='乙方签名图片URL或Base64数据'))
-        batch_op.add_column(sa.Column('unique_signing_token', sa.String(length=255), nullable= True, comment='唯一签署链接令牌'))
-        batch_op.add_column(sa.Column('previous_contract_id', sa.UUID(), nullable=True, comment= '关联的源合同ID (续约或变更)'))
-
-        # --- 手动添加的索引和约束 ---
-        batch_op.create_index(batch_op.f('ix_contracts_signing_status'), ['signing_status'], unique=False)
-        batch_op.create_index(batch_op.f('ix_contracts_unique_signing_token'), [ 'unique_signing_token'], unique=True)
-        batch_op.create_foreign_key(batch_op.f('fk_contracts_previous_contract_id_contracts'), 'contracts', ['previous_contract_id'], ['id'])
-        # --- 手动添加结束 ---
-
     # ### end Alembic commands ###
 
 
