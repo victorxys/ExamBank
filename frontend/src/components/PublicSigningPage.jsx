@@ -54,9 +54,15 @@ const PublicSigningPage = () => {
         fetchContract();
     }, [token]);
 
-    // Effect 2: Populate form when contract data is available
+    // Effect 2: Populate form and document title when contract data is available
     useEffect(() => {
         if (contract) {
+            if (contract.type === 'maternity_nurse') {
+                document.title = '萌姨萌嫂合同管理系统';
+            } else {
+                document.title = '家福安合同管理系统';
+            }
+
             const initialCustomerInfo = (contract.customer_info && contract.customer_info.id)
                 ? contract.customer_info
                 : { ...partyInfoDefault, name: contract.customer_name === '待认领' ? '' : contract.customer_name };
