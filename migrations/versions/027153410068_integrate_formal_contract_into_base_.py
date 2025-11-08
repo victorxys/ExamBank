@@ -27,7 +27,6 @@ def upgrade():
                existing_server_default=sa.text('false'))
 
         # --- 手动添加的字段 ---
-        batch_op.add_column(sa.Column('template_id', sa.UUID(), nullable=True, comment= '关联的合同模板ID'))
         batch_op.add_column(sa.Column('service_content', JSONB(), nullable=True, comment='服务内容 (JSON 数组)')) # 注意这里是 JSONB()
         batch_op.add_column(sa.Column('service_type', sa.String(length=50), nullable=True, comment='服务方式 (e.g., 全日住家型)'))
         batch_op.add_column(sa.Column('attachment_content', sa.Text(), nullable=True, comment= '附件内容 (Markdown 格式)'))
@@ -40,7 +39,6 @@ def upgrade():
         # --- 手动添加的索引和约束 ---
         batch_op.create_index(batch_op.f('ix_contracts_signing_status'), ['signing_status'], unique=False)
         batch_op.create_index(batch_op.f('ix_contracts_unique_signing_token'), [ 'unique_signing_token'], unique=True)
-        batch_op.create_foreign_key(batch_op.f('fk_contracts_template_id_contract_templates'), 'contract_templates', ['template_id'], ['id'])
         batch_op.create_foreign_key(batch_op.f('fk_contracts_previous_contract_id_contracts'), 'contracts', ['previous_contract_id'], ['id'])
         # --- 手动添加结束 ---
 
