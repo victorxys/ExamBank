@@ -284,6 +284,8 @@ const ExamTake = lazy(() => import('./components/ExamTake'));
 const ExamRecords = lazy(() => import('./components/ExamRecords'));
 const ExamRecordDetail = lazy(() => import('./components/ExamRecordDetail'));
 const UserManagement = lazy(() => import('./components/UserManagement'));
+const StaffManagementPage = lazy(() => import('./components/StaffManagementPage'));
+const StaffDetailPage = lazy(() => import('./components/StaffDetailPage'));
 const UserEvaluation = lazy(() => import('./components/UserEvaluation'));
 const UserEvaluationSummary = lazy(() => import('./components/UserEvaluationSummary'));
 const EmployeeProfile = lazy(() => import('./components/EmployeeProfile'));
@@ -343,6 +345,8 @@ function App() {
           <Route path="/exam-records" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <ExamRecords /> </Suspense>} />} />
           <Route path="/exam-records/:examId/:userId" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <ExamRecordDetail /> </Suspense>} />} /> 
           <Route path="/users" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <UserManagement /> </Suspense>} />} />
+          <Route path="/staff-management" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}><StaffManagementPage /></Suspense>} />} />
+          <Route path="/staff/:employeeId" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}><StaffDetailPage /></Suspense>} />} />
           <Route path="/user-evaluation/:userId" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <UserEvaluation /> </Suspense>} />} />
           <Route path="/user-evaluation-summary/:userId" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <UserEvaluationSummary /> </Suspense>} />} />
           <Route path="/employee-self-evaluations" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <EmployeeSelfEvaluationList /> </Suspense>} />} />

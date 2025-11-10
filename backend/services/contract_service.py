@@ -267,6 +267,10 @@ def update_salary_history_on_contract_activation(contract: BaseContract):
         current_app.logger.info(f"合同 {contract.id} 没有关联服务人员或有效薪资，跳过薪资历史记录更新。")
         return
 
+    if contract.type in ['nanny_trial', 'external_substitution']:
+        current_app.logger.info(f"合同 {contract.id} 是 {contract.type} 类型，跳过薪酬历史记录创建。")
+        return
+
     # 确保我们只使用日期部分进行比较
     effective_date = contract.start_date.date() if isinstance(contract.start_date, datetime) else contract.start_date
 

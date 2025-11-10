@@ -14,6 +14,111 @@ from backend.services.contract_service import ContractService
 logger = logging.getLogger(__name__)
 
 def register_commands(app):
+    @app.cli.command("clean-salary-history")
+    @click.option('--dry-run', is_flag=True, help='只打印将要删除的条目，不实际执行删除操作。')
+    @with_appcontext
+    def clean_salary_history_command(dry_run):
+        """
+        清理薪酬历史中员工与合同不匹配的错误记录。
+        """
+        if dry_run:
+            click.echo("---【演习模式】将查找并列出因员工与合同不匹配而需要删除的薪酬记录。---")
+        else:
+            click.echo("---【警告】即将开始清理错误的薪酬记录，此过程不可逆。---")
+
+        try:
+            all_salary_records = EmployeeSalaryHistory.query.options(
+                db.joinedload(EmployeeSalaryHistory.contract)
+            ).all()
+
+            if not all_salary_records:
+                click.echo("薪酬历史表为空，无需清理。")
+                return
+
+            click.echo(f"开始检查 {len(all_salary_records)} 条薪酬历史记录...")
+            records_to_delete = []
+
+            with click.progressbar(all_salary_records, label="正在检查记录") as bar:
+                for record in bar:
+                    if not record.contract:
+                        click.echo(f"\\n[警告] 记录 {record.id} 关联的合同 {record.contract_id} 不存在，建议手动核查。")
+                        continue
+
+                    # 核心检查：薪酬记录的员工ID是否与关联合同上的员工ID匹配
+                    if record.contract.service_personnel_id and str(record.employee_id) != str(record.contract.service_personnel_id):
+                        records_to_delete.append(record)
+
+            if not records_to_delete:
+                click.echo(click.style("\\n检查完成，未发现员工与合同不匹配的错误记录。", fg="green"))
+                return
+
+            click.echo(f"\\n发现 {len(records_to_delete)} 条错误记录需要删除。")
+            for record in records_to_delete:
+                click.echo(
+                    f"  - [删除] 记录ID: {record.id} | "
+                    f"员工ID: {record.employee_id} | "
+                    f"合同ID: {record.contract_id} (该合同属于员工 {record.contract.service_personnel_id})"
+                )
+                if not dry_run:
+                    db.session.delete(record)
+            
+            if not dry_run and len(records_to_delete) > 0:
+                db.session.commit()
+                click.echo(click.style(f"\\n--- 清理完成 ---", fg="green"))
+                click.echo(click.style(f"成功删除了 {len(records_to_delete)} 条错误记录。", fg="green"))
+            elif dry_run:
+                click.echo(f"\\n--- 演习结束 ---")
+                click.echo(f"如果执行，将会删除 {len(records_to_delete)} 条错误记录。")
+            else:
+                click.echo("\\n没有需要删除的记录。")
+
+        except Exception as e:
+            if not dry_run:
+                db.session.rollback()
+            click.echo(click.style(f"执行清理任务时发生严重错误: {e}", fg="red"))
+    @app.cli.command("populate-pinyin")
+    @with_appcontext
+    def populate_pinyin_command():
+        """
+        Backfills the name_pinyin field for existing Customers and ServicePersonnel.
+        """
+        click.echo("Starting to backfill name_pinyin for existing records...")
+
+        models_to_process = [Customer, ServicePersonnel]
+        total_updated = 0
+
+        for model in models_to_process:
+            model_name = model.__name__
+            click.echo(f"Processing model: {model_name}")
+            
+            records_to_update = model.query.filter(model.name_pinyin.is_(None)).all()
+            
+            if not records_to_update:
+                click.echo(f"  -> No records in {model_name} need updating.")
+                continue
+
+            with click.progressbar(records_to_update, label=f"Updating {model_name} records") as bar:
+                for record in bar:
+                    if record.name:
+                        try:
+                            pinyin_full = "".join(p[0] for p in pinyin(record.name, style=Style.NORMAL))
+                            pinyin_initials = "".join(p[0] for p in pinyin(record.name, style=Style.FIRST_LETTER))
+                            record.name_pinyin = f"{pinyin_full} {pinyin_initials}"
+                            db.session.add(record)
+                            total_updated += 1
+                        except Exception as e:
+                            logger.error(f"Could not generate pinyin for {model_name} ID {record.id} ({record.name}): {e}")
+        
+        if total_updated > 0:
+            try:
+                db.session.commit()
+                click.echo(click.style(f"\\nSuccessfully updated {total_updated} records.", fg="green"))
+            except Exception as e:
+                db.session.rollback()
+                click.echo(click.style(f"\\nError committing changes: {e}", fg="red"))
+        else:
+            click.echo("\\nNo records were updated.")
+
     @app.cli.command("fix-bill-totals")
     @with_appcontext
     def fix_bill_totals_command():
@@ -485,8 +590,20 @@ class UserImporter:
         address = address.strip() if address else None
 
         Model = Customer if role == 'customer' else ServicePersonnel
+        
+        person = None
+        # 1. 优先使用身份证号查找，这是最唯一的标识
+        if id_card:
+            person = Model.query.filter(Model.id_card_number == id_card).first()
+        
+        # 2. 如果找不到，再尝试使用手机号查找
+        if not person and phone:
+            person = Model.query.filter(Model.phone_number == phone).first()
 
-        person = Model.query.filter(Model.name == name).first()
+        # 3. 作为最后的手段，才使用姓名查找（这可能是导致问题的根源）
+        if not person and name:
+            person = Model.query.filter(Model.name == name).first()
+
 
         if person:
             updated = False
@@ -525,23 +642,33 @@ class UserImporter:
 
     def _create_employee_salary_if_needed(self, employee, contract_data):
         jinshuju_id = contract_data.get('jinshuju_entry_id')
-        salary_str = contract_data.get('employee_level')
-
-        if not jinshuju_id or not salary_str:
-            self.stats['salary_records']['skipped'] += 1
-            return
-
+        
         contract = BaseContract.query.filter_by(jinshuju_entry_id=str(jinshuju_id)).first()
 
         if not contract:
             self.stats['salary_records']['skipped'] += 1
+            logger.warning(f"Skipping salary history for Jinshuju entry {jinshuju_id} because contract was not found in DB.")
             return
+
+        # --- THE FIX ---
+        # Always use the salary from the contract object in our database as the source of truth.
+        salary_str = contract.employee_level 
+        if not salary_str:
+            self.stats['salary_records']['skipped'] += 1
+            logger.warning(f"Skipping salary history for contract {contract.id} because employee_level is not set in the database contract.")
+            return
+        # --- END FIX ---
+
+        logger.info(f"--- [SALARY DEBUG] Processing contract_id: {contract.id} for employee_id: {employee.id} ---")
+        logger.info(f"    -> Salary from Jinshuju source ('contract_data'): {contract_data.get('employee_level')}")
+        logger.info(f"    -> Salary from DB contract object ('contract.employee_level'): {contract.employee_level}")
+        logger.info(f"    -> FINAL salary to be used: {salary_str}")
 
         try:
             salary = Decimal(salary_str)
             salary_data = {"base_salary": salary}
 
-            # 直接调用服务函数，所有业务逻辑（包括跳过试工合同和重复记录）都在服务中处理
+            # Directly call the service function. All business logic (like skipping trial contracts) is handled there.
             self.contract_service.update_employee_salary_history(employee.id, contract.id, salary_data)
 
         except (ValueError, TypeError):

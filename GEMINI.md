@@ -265,6 +265,7 @@ claude mcp add spec-workflow-mcp -s user -- npx -y spec-workflow-mcp@latest
     *   使用 Ruff进行代码格式化和 linting。
 *   **前端**:
     *   遵循项目配置的 ESLint 规则。
+    *   为了保证代码风格统一，先检查一下项目里现有的API服务文件是怎么写的，特别是它们如何处理 axios和认证。
 *   **通用**:
     *   Commit messages 请遵循 Conventional Commits 规范。
     *   所有代码和注释都应使用中文。
