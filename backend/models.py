@@ -2621,6 +2621,7 @@ class EmployeeSalaryHistory(db.Model):
     )
 
     employee = db.relationship("ServicePersonnel", backref="salary_history")
+    contract = db.relationship("BaseContract", backref="salary_history_entries")
 
     __table_args__ = (
         db.UniqueConstraint(

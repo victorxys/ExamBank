@@ -71,6 +71,7 @@ from backend.api.bank_statement_api import bank_statement_api
 from backend.api.payer_alias_api import payer_alias_api
 from backend.api.bill_merge_api import bill_merge_bp
 from backend.api.contract_template_api import contract_template_bp
+from backend.api.staff_api import staff_api
 
 
 
@@ -279,6 +280,7 @@ app.register_blueprint(bank_statement_api)
 app.register_blueprint(payer_alias_api)
 app.register_blueprint(bill_merge_bp)
 app.register_blueprint(contract_template_bp) 
+app.register_blueprint(staff_api)
 # app.register_blueprint(statement_bp, url_prefix="/api") 
 
 

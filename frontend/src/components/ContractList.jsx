@@ -303,8 +303,8 @@ const ContractList = () => {
 
                         <Grid item xs={12} sm sx={{ display: 'flex',justifyContent: 'flex-end', gap: 1 }}>
                             {/* <Button variant="contained" color="primary" startIcon={<AddIcon />} onClick={() => setIsCreateFormalModalOpen(true)}>创建正式合同</Button>
-                            <Button variant="contained" startIcon={<AddCircleOutlineIcon />} onClick={() => setIsCreateModalOpen(true)}>新增虚拟合同</Button>
-                            <Button variant="contained"onClick={handleTriggerSync} disabled={syncing} startIcon={syncing ? <CircularProgress size={20} color="inherit" /> : <SyncIcon />}>同步</Button> */}
+                            <Button variant="contained" startIcon={<AddCircleOutlineIcon />} onClick={() => setIsCreateModalOpen(true)}>新增虚拟合同</Button> */}
+                            <Button variant="contained"onClick={handleTriggerSync} disabled={syncing} startIcon={syncing ? <CircularProgress size={20} color="inherit" /> : <SyncIcon />}>同步</Button>
                         </Grid>
                     </Grid>
                 </Paper>

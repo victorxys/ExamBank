@@ -4,6 +4,10 @@
   },
   "useSmartEdit": true,
   "mcpServers": {
+    "context7": {
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp", "--api-key", "ctx7sk-dc44c275-51b3-4ca9-bd3b-1134785fffd8"]
+    },
     "chrome-devtools": {
       "command": "npx",
       "args": [

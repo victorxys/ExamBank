@@ -59,7 +59,8 @@ from backend.tasks import (
 from backend.services.billing_engine import BillingEngine, _update_bill_payment_status, _update_payroll_payout_status, calculate_substitute_management_fee
 from backend.services.contract_service import (
     create_maternity_nurse_contract_adjustments,
-    cancel_substitute_bill_due_to_transfer
+    cancel_substitute_bill_due_to_transfer,
+    update_salary_history_on_contract_activation
 )
 from backend.api.utils import get_billing_details_internal, get_contract_type_details, _log_activity
 from backend.services.contract_service import _find_successor_contract_internal
@@ -1783,6 +1784,11 @@ def create_virtual_contract():
         # --- END: 新增逻辑结束 ---
         db.session.commit()
         current_app.logger.info(f"成功创建虚拟合同，ID: {new_contract.id}, 类型: {contract_type}")
+
+        # --- 新增：为符合条件的虚拟合同创建薪酬历史 ---
+        update_salary_history_on_contract_activation(new_contract)
+        db.session.commit()
+        # --- 新增结束 ---
 
         # 根据合同类型，触发正确的后续处理任务
         if contract_type in ["nanny", "external_substitution"]:

@@ -288,8 +288,8 @@ const PublicSigningPage = () => {
         }
     };
     const pageTitle = contract?.type === 'maternity_nurse' 
-        ? "月嫂合同签署" 
-        : "家政服务合同签署";
+        ? "萌姨萌嫂合同管理系统" 
+        : "家福安合同管理系统";
 
      return (
         <Container maxWidth="md" sx={{ py: 4, position: 'relative' }}> {/* 为绝对定位的Chip设置相对定位 */}
