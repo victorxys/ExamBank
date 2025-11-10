@@ -48,7 +48,8 @@ from backend.models import (
     BankTransaction, 
     BankTransactionStatus,
     PayerAlias,
-    SubstituteRecord
+    SubstituteRecord,
+    Customer
 )
 from backend.tasks import (
     sync_all_contracts_task,
@@ -1685,6 +1686,37 @@ def search_customers():
 
     return jsonify(results)
 
+def _get_or_create_customer(name: str, phone: str = None):
+    """
+    根据姓名和（可选）手机号，查找或创建客户。
+    返回客户ID。
+    """
+    # 1. 按手机号在 Customer 表中精确查找
+    if phone:
+        customer = Customer.query.filter_by(phone_number=phone).first()
+        if customer:
+            return customer.id
+
+    # 2. 按姓名在 Customer 表中查找
+    customer = Customer.query.filter_by(name=name).first()
+    if customer:
+        return customer.id
+
+    # 3. 如果都找不到，则创建新的 Customer
+    name_pinyin_full = "".join(lazy_pinyin(name))
+    name_pinyin_initials = "".join(item[0] for item in pinyin(name, style=Style.FIRST_LETTER))
+    name_pinyin_combined = f"{name_pinyin_full}{name_pinyin_initials}"
+
+    new_customer = Customer(
+        name=name,
+        phone_number=phone,
+        name_pinyin=name_pinyin_combined
+    )
+    db.session.add(new_customer)
+    db.session.flush()
+    current_app.logger.info(f"创建了新的客户: {name} (Pinyin: {name_pinyin_combined})")
+    return new_customer.id
+
 @billing_bp.route("/contracts/virtual", methods=["POST"])
 @admin_required
 def create_virtual_contract():
@@ -1693,12 +1725,13 @@ def create_virtual_contract():
     if not data:
         return jsonify({"error": "请求体不能为空"}), 400
 
-    required_fields = ["contract_type", "customer_name", "employee_name","employee_level", "start_date", "end_date"]
+    required_fields = ["contract_type", "customer_name", "customer_phone", "employee_name","employee_level", "start_date", "end_date"]
     if not all(field in data for field in required_fields):
         return jsonify({"error": f"缺少必要字段: {', '.join(required_fields)}"}),400
 
     try:
         employee_ref = _get_or_create_personnel_ref(data["employee_name"])
+        customer_id = _get_or_create_customer(data["customer_name"], data.get("customer_phone"))
 
         customer_name = data["customer_name"]
         cust_pinyin_full = "".join(item[0] for item in pinyin(customer_name,style=Style.NORMAL))
@@ -1706,6 +1739,7 @@ def create_virtual_contract():
         customer_name_pinyin = f"{cust_pinyin_full}{cust_pinyin_initials}"
 
         common_params = {
+            "customer_id": customer_id,
             "customer_name": data["customer_name"],
             "customer_name_pinyin": customer_name_pinyin,
             "contact_person": data.get("contact_person"),

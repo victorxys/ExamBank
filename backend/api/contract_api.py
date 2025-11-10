@@ -409,10 +409,15 @@ def search_contracts():
 
         if search_term:
             pinyin_search_term = search_term.replace(" ", "")
+            query = query.join(User, BaseContract.user_id == User.id, isouter=True).join(ServicePersonnel, BaseContract.service_personnel_id == ServicePersonnel.id, isouter=True)
             query = query.filter(
                 or_(
                     BaseContract.customer_name.ilike(f"%{search_term}%"),
-                    BaseContract.customer_name_pinyin.ilike(f"%{pinyin_search_term}%")
+                    BaseContract.customer_name_pinyin.ilike(f"%{pinyin_search_term}%"),
+                    User.username.ilike(f"%{search_term}%"),
+                    User.name_pinyin.ilike(f"%{pinyin_search_term}%"),
+                    ServicePersonnel.name.ilike(f"%{search_term}%"),
+                    ServicePersonnel.name_pinyin.ilike(f"%{pinyin_search_term}%"),
                 )
             )
         
@@ -456,7 +461,7 @@ def search_contracts():
             {
                 "id": str(contract.id),
                 "customer_name": contract.customer_name,
-                "service_personnel_name": contract.service_personnel.name if contract.service_personnel else "N/A",
+                "service_personnel_name": contract.user.username if contract.user else (contract.service_personnel.name if contract.service_personnel else "N/A"),
                 "start_date": contract.start_date.isoformat(),
                 "end_date": contract.end_date.isoformat(),
                 "status": contract.status,
@@ -941,7 +946,7 @@ def generate_signing_messages(contract_id):
             return jsonify({"error": "合同未找到"}), 404
 
         customer_name = contract.customer.name if contract.customer else contract.customer_name
-        employee_name = contract.service_personnel.name if contract.service_personnel else "服务人员"
+        employee_name = contract.user.username if contract.user else (contract.service_personnel.name if contract.service_personnel else "服务人员")
 
         # 2. 根据合同类型选择正确的银行账户
         if contract.type == 'maternity_nurse':
