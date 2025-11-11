@@ -11,7 +11,7 @@ from backend.models import (
     EmployeePayroll,
     FinancialActivityLog,
     PaymentStatus,
-    ContractTemplate, 
+    ContractTemplate,
     SigningStatus, # 导入 SigningStatus 枚举
     Customer, # 导入 Customer
     ServicePersonnel, # 导入 ServicePersonnel
@@ -23,6 +23,7 @@ from backend.models import (
 from backend.tasks import calculate_monthly_billing_task
 from backend.services.billing_engine import BillingEngine, calculate_substitute_management_fee, _update_bill_payment_status
 from backend.services.contract_service import (
+    ContractService,
     cancel_substitute_bill_due_to_transfer,
     apply_transfer_credits_to_new_contract,
     _find_successor_contract_internal,
@@ -225,8 +226,7 @@ def delete_substitute_record(record_id):
 
         db.session.commit()
 
-        return jsonify({"message": "Substitute record deleted successfully."}), 200
-
+        return jsonify({"message": "Substitute record deleted successfully."}),
     except IntegrityError as e:
         db.session.rollback()
         if "financial_activity_logs" in str(e.orig):
@@ -257,7 +257,7 @@ def succeed_trial_contract(contract_id):
     contract = BaseContract.query.get_or_404(contract_id)
 
     if contract.type != "nanny_trial":
-        return jsonify({"error": "Only trial contracts can succeed."}), 400
+        return jsonify({"error": "Only trial contracts can succeed."}),
 
     if contract.status != "trial_active":
         return jsonify(
@@ -311,7 +311,7 @@ def search_unpaid_bills():
             {
                 "bill_id": str(bill.id),
                 "customer_name": bill.contract.customer_name,
-                "employee_name": bill.contract.service_personnel.name if bill.contract.service_personnel else (bill.contract.user.username if bill.contract.user else "未知"),
+                "employee_name": bill.contract.service_personnel.name if bill.contract.service_personnel else "未知",
                 "cycle": f"{bill.cycle_start_date.strftime('%Y-%m-%d')} to {bill.cycle_end_date.strftime('%Y-%m-%d')}",
                 "amount_remaining": str(bill.total_due - bill.total_paid)
             }
@@ -409,13 +409,11 @@ def search_contracts():
 
         if search_term:
             pinyin_search_term = search_term.replace(" ", "")
-            query = query.join(User, BaseContract.user_id == User.id, isouter=True).join(ServicePersonnel, BaseContract.service_personnel_id == ServicePersonnel.id, isouter=True)
+            query = query.join(ServicePersonnel, BaseContract.service_personnel_id == ServicePersonnel.id, isouter=True)
             query = query.filter(
                 or_(
                     BaseContract.customer_name.ilike(f"%{search_term}%"),
                     BaseContract.customer_name_pinyin.ilike(f"%{pinyin_search_term}%"),
-                    User.username.ilike(f"%{search_term}%"),
-                    User.name_pinyin.ilike(f"%{pinyin_search_term}%"),
                     ServicePersonnel.name.ilike(f"%{search_term}%"),
                     ServicePersonnel.name_pinyin.ilike(f"%{pinyin_search_term}%"),
                 )
@@ -424,6 +422,8 @@ def search_contracts():
         if type_filter:
             if type_filter == 'nanny':
                 query = query.filter(BaseContract.type.in_(['nanny', 'external_substitution']))
+            elif type_filter == 'formal':
+                query = query.filter(BaseContract.type.in_(['nanny', 'maternity_nurse']))
             else:
                 query = query.filter(BaseContract.type == type_filter)
 
@@ -461,7 +461,7 @@ def search_contracts():
             {
                 "id": str(contract.id),
                 "customer_name": contract.customer_name,
-                "service_personnel_name": contract.user.username if contract.user else (contract.service_personnel.name if contract.service_personnel else "N/A"),
+                "service_personnel_name": contract.service_personnel.name if contract.service_personnel else "N/A",
                 "start_date": contract.start_date.isoformat(),
                 "end_date": contract.end_date.isoformat(),
                 "status": contract.status,
@@ -651,7 +651,7 @@ def create_formal_contract():
 
         elif contract_type == "maternity_nurse":
             ContractModel = MaternityNurseContract
-            common_attributes["deposit_amount"] = to_decimal(data.get("deposit_amount"))
+            common_attributes["deposit_amount"] = to_decimal(data.get("deposit_amount")),
             common_attributes["provisional_start_date"] = datetime.fromisoformat(data[ "provisional_start_date"].split('T')[0]) if data.get("provisional_start_date") else None
             # 月嫂合同的保证金从前端传入
             common_attributes["security_deposit_paid"] = to_decimal(data.get( "security_deposit_paid") or 0)
@@ -676,7 +676,7 @@ def create_formal_contract():
 
         # 触发后台任务以生成初始账单
         trigger_initial_bill_generation_task.delay(str(new_contract.id))
-        current_app.logger.info(f"合同 {new_contract.id} 已创建，已提交后台任务以生成初始账单。")
+        current_app.logger.info(f"合同 {new_contract.id} 已创建，已提交后台任务以生成初始账单。" )
 
         # --- 构造完整的签名URL ---
         frontend_base_url = current_app.config.get('FRONTEND_BASE_URL')
@@ -820,7 +820,7 @@ def submit_signature(token):
                     customer_to_work_with.name = customer_info_data['name']
                     customer_to_work_with.address = customer_info_data['address']
                     customer_to_work_with.phone_number = customer_info_data['phone_number']
-                    current_app.logger.info(f"发现已存在的客户 (ID: {existing_customer.id} )，更新其信息并关联到合同。")
+                    current_app.logger.info(f"发现已存在的客户 (ID: {existing_customer.id} )，更新其信息并关联到合同。" )
                 else:
                     # 创建新客户
                     from pypinyin import pinyin, Style
@@ -838,7 +838,7 @@ def submit_signature(token):
                     db.session.add(new_customer)
                     db.session.flush()
                     customer_to_work_with = new_customer
-                    current_app.logger.info(f"创建了新客户 (ID: {new_customer.id})。")
+                    current_app.logger.info(f"创建了新客户 (ID: {new_customer.id})。" )
 
                 contract.customer_id = customer_to_work_with.id
                 contract.customer_name = customer_to_work_with.name
@@ -860,7 +860,7 @@ def submit_signature(token):
                 contract.signing_status = SigningStatus.SIGNED
                 contract.status = "active"
                 update_salary_history_on_contract_activation(contract)
-                current_app.logger.info(f"合同 {contract.id} 已激活。")
+                current_app.logger.info(f"合同 {contract.id} 已激活。" )
             else:
                 contract.signing_status = SigningStatus.CUSTOMER_SIGNED
 
@@ -883,7 +883,7 @@ def submit_signature(token):
                 contract.signing_status = SigningStatus.SIGNED
                 contract.status = "active"
                 update_salary_history_on_contract_activation(contract)
-                current_app.logger.info(f"合同 {contract.id} 已激活。")
+                current_app.logger.info(f"合同 {contract.id} 已激活。" )
             else:
                 contract.signing_status = SigningStatus.EMPLOYEE_SIGNED
 
@@ -946,7 +946,7 @@ def generate_signing_messages(contract_id):
             return jsonify({"error": "合同未找到"}), 404
 
         customer_name = contract.customer.name if contract.customer else contract.customer_name
-        employee_name = contract.user.username if contract.user else (contract.service_personnel.name if contract.service_personnel else "服务人员")
+        employee_name = contract.service_personnel.name if contract.service_personnel else "服务人员"
 
         # 2. 根据合同类型选择正确的银行账户
         if contract.type == 'maternity_nurse':
@@ -1034,7 +1034,7 @@ def generate_signing_messages(contract_id):
             # 查询收款记录
             payment_records = PaymentRecord.query.filter_by(customer_bill_id=first_bill.id ).order_by(PaymentRecord.payment_date.asc()).all()
         else:
-            current_app.logger.warning(f"合同 {contract_id} 的首期账单尚未生成，消息中将不包含费用信息。")
+            current_app.logger.warning(f"合同 {contract_id} 的首期账单尚未生成，消息中将不包含费用信息。" )
 
         customer_message_lines.append(f"户名：{bank_account.payee_name}")
         customer_message_lines.append(f"帐号：{bank_account.account_number}")
@@ -1073,4 +1073,38 @@ def generate_signing_messages(contract_id):
 
     except Exception as e:
         current_app.logger.error(f"为合同 {contract_id} 生成签署消息失败: {e}", exc_info=True)
+        return jsonify({"error": "内部服务器错误"}), 500
+
+@contract_bp.route("/<uuid:contract_id>/renew", methods=["POST"])
+@jwt_required()
+def renew_contract_api(contract_id):
+    """
+    续约合同。
+    """
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "请求体不能为空"}), 400
+
+    # 对续约数据进行严格校验
+    required_fields = ["start_date", "end_date", "management_fee_amount", "employee_level"]
+    missing_fields = [field for field in required_fields if field not in data or data[field] is None]
+    if missing_fields:
+        return jsonify({"error": f"续约请求缺少必填字段: {', '.join(missing_fields)}"}), 400
+
+    try:
+        contract_service = ContractService()
+        renewed_contract = contract_service.renew_contract(str(contract_id), data)
+        db.session.commit()
+
+        # 为新合同触发初始账单生成
+        trigger_initial_bill_generation_task.delay(str(renewed_contract.id))
+        current_app.logger.info(f"为续约合同 {renewed_contract.id} 触发了初始账单生成任务。")
+
+        return jsonify({"message": "合同续约成功", "new_contract_id": str(renewed_contract.id)}), 201
+    except ValueError as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"续约合同 {contract_id} 失败: {e}", exc_info=True)
         return jsonify({"error": "内部服务器错误"}), 500

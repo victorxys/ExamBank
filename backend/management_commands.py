@@ -12,6 +12,84 @@ from backend.services.data_sync_service import DataSyncService
 from backend.services.contract_service import ContractService
 
 logger = logging.getLogger(__name__)
+# --- START: Sync functions (only sync_user_to_sp remains) ---
+def sync_user_to_sp(session, dry_run=True):
+    """
+    Synchronizes records from User (with role='student') to ServicePersonnel.
+    - If a 'student' user has no linked SP, it tries to find one by id_card_number, then phone_number, then name.
+    - If found, it links them.
+    - If not found, it creates a new ServicePersonnel.
+    - It also syncs id_card_number from User to SP if the SP's is empty.
+    """
+    click.echo("\n--- Syncing from User (role='student') to ServicePersonnel ---")
+    users_to_sync = session.query(User).filter(
+        User.role == 'student',
+        ~User.service_personnel_profile.has()
+    ).all()
+
+    if not users_to_sync:
+        click.echo("  -> OK: All 'student' Users are already linked to a ServicePersonnel profile.")
+        return
+
+    click.echo(f"  Found {len(users_to_sync)} 'student' Users to process.")
+
+    for user in users_to_sync:
+        click.echo(f"\n  Processing User: {user.username} (ID: {user.id})")
+        sp = None
+
+        # 1. Try to find ServicePersonnel by id_card_number
+        if user.id_card_number:
+            sp = session.query(ServicePersonnel).filter(ServicePersonnel.id_card_number == user.id_card_number).first()
+            if sp:
+                click.echo(f"    - Found matching ServicePersonnel by ID card number: {sp.name} (ID: {sp.id})")
+
+        # 2. If not found, try by phone_number
+        if not sp and user.phone_number:
+            sp = session.query(ServicePersonnel).filter(ServicePersonnel.phone_number == user.phone_number).first()
+            if sp:
+                click.echo(f"    - Found matching ServicePersonnel by phone number: {sp.name} (ID: {sp.id})")
+
+        # 3. If not found, try by name (least reliable, but user confirmed names are unique for employees)
+        if not sp and user.username:
+            sp = session.query(ServicePersonnel).filter(ServicePersonnel.name == user.username).first()
+            if sp:
+                click.echo(f"    - Found matching ServicePersonnel by name: {sp.name} (ID: {sp.id })")
+
+        if sp:
+            if sp.user_id is None:
+                click.echo(f"    - ACTION: Will link ServicePersonnel {sp.id} to User {user.id}." )
+                if not dry_run:
+                    sp.user_id = user.id
+            elif sp.user_id != user.id:
+                click.echo(f"    - WARNING: ServicePersonnel {sp.id} is already linked to a DIFFERENT User ({sp.user_id}). Manual check required. Skipping link.")
+            else:
+                click.echo(f"    - INFO: ServicePersonnel {sp.id} is already correctly linked to User {user.id}.")
+
+            # Sync ID card number if SP's is missing
+            if user.id_card_number and not sp.id_card_number:
+                click.echo(f"    - ACTION: Will update ServicePersonnel {sp.id}'s id_card_number to '{user.id_card_number}'.")
+                if not dry_run:
+                    sp.id_card_number = user.id_card_number
+            
+            # Sync phone number if SP's is missing
+            if user.phone_number and not sp.phone_number:
+                click.echo(f"    - ACTION: Will update ServicePersonnel {sp.id}'s phone_number to '{user.phone_number}'.")
+                if not dry_run:
+                    sp.phone_number = user.phone_number
+
+        else:
+            click.echo(f"    - No matching ServicePersonnel found for '{user.username}' by ID card, phone, or name.")
+            click.echo(f"    - ACTION: Will create a new ServicePersonnel record.")
+            if not dry_run:
+                new_sp = ServicePersonnel(
+                    name=user.username,
+                    phone_number=user.phone_number,
+                    id_card_number=user.id_card_number,
+                    user_id=user.id,
+                    is_active=True
+                )
+                session.add(new_sp)
+                click.echo(f"      - Created ServicePersonnel {new_sp.name} (ID: {new_sp.id}) and linked to User {user.id}.")
 
 def register_commands(app):
     @app.cli.command("clean-salary-history")
@@ -484,6 +562,103 @@ def register_commands(app):
         except Exception as e:
             logger.error(f"An error occurred during the import process: {e}", exc_info=True)
             click.echo(click.style(f"Error: {e}", fg="red"))
+    
+     # --- START: sync-users command ---
+    @app.cli.command("sync-users")
+    @click.option('--commit', is_flag=True, help='实际执行数据库修改，而不是只进行演习。')
+    @with_appcontext
+    def sync_users_command(commit):
+        """
+        同步 User 和 ServicePersonnel 表的数据，确保员工信息一致。
+        目前只将 User 表中的员工数据同步到 ServicePersonnel 表中。
+        默认只进行演习，不修改数据库。使用 --commit 实际执行。
+        """
+        session = db.session
+        dry_run = not commit
+        
+        if dry_run:
+            click.echo("--- 运行在【演习模式】。不会对数据库进行任何修改。 ---")
+        else:
+            click.echo("--- 运行在【提交模式】。数据库修改将会被执行。 ---")
+
+        try:
+            # 只从 User 同步到 ServicePersonnel
+            sync_user_to_sp(session, dry_run)
+
+            if not dry_run:
+                click.echo("\n正在提交修改...")
+                session.commit()
+                click.echo(click.style("修改已成功提交。", fg="green"))
+            else:
+                click.echo("\n演习完成。未进行任何数据库修改。")
+                
+        except Exception as e:
+            click.echo(click.style(f"\n发生错误: {e}", fg="red"))
+            if not dry_run:
+                click.echo("正在回滚修改...")
+            logger.exception("Error during user/service personnel sync:")
+        finally:
+            session.close()
+    # --- END: sync-users command ---
+        # --- START: migrate-contract-links command ---
+    @app.cli.command("migrate-contract-links")
+    @click.option('--commit', is_flag=True, help='实际执行数据库修改，而不是只进行演习。')
+    @with_appcontext
+    def migrate_contract_links_command(commit):
+        """
+        将 BaseContract 表中旧的 user_id 关联迁移到新的 service_personnel_id。
+        """
+        session = db.session
+        dry_run = not commit
+
+        if dry_run:
+            click.echo("--- 运行在【演习模式】。不会对数据库进行任何修改。 ---")
+        else:
+            click.echo("--- 运行在【提交模式】。数据库修改将会被执行。 ---")
+
+        try:
+            contracts_to_migrate = session.query(BaseContract).filter(
+                BaseContract.service_personnel_id.is_(None),
+                BaseContract.user_id.isnot(None)).options(db.joinedload(BaseContract.user).joinedload(User.service_personnel_profile)).all()
+
+            if not contracts_to_migrate:
+                click.echo(click.style("所有合同都已正确关联到 service_personnel_id，无需迁移。", fg="green"))
+                return
+
+            click.echo(f"发现 {len(contracts_to_migrate)} 份合同需要迁移关联...")
+            migrated_count = 0
+            failed_count = 0
+
+            with click.progressbar(contracts_to_migrate, label="正在迁移合同") as bar:
+                for contract in bar:
+                    if contract.user and contract.user.service_personnel_profile:
+                        if not dry_run:
+                            contract.service_personnel_id = contract.user.service_personnel_profile.id
+                        migrated_count += 1
+                    else:
+                        click.echo(f"\n  - [失败] 合同ID {contract.id}: 找不到对应的 ServicePersonnel 档案。")
+                        failed_count += 1
+            
+            click.echo(f"\\n--- 迁移摘要 ---")
+            click.echo(f"成功处理: {migrated_count} 份合同。")
+            if failed_count > 0:
+                click.echo(click.style(f"失败: {failed_count} 份合同 (请检查上述日志)。", fg= "red"))
+
+            if not dry_run and migrated_count > 0:
+                click.echo("\\n正在提交修改...")
+                session.commit()
+                click.echo(click.style("修改已成功提交。", fg="green"))
+            elif dry_run:
+                click.echo("\\n演习完成。未进行任何数据库修改。")
+
+        except Exception as e:
+            click.echo(click.style(f"\\n发生错误: {e}", fg="red"))
+            if not dry_run:
+                click.echo("正在回滚修改...")
+            logger.exception("Error during contract link migration:")
+        finally:
+            session.close()
+    # --- END: migrate-contract-links command ---
 
     app.cli.add_command(import_users_from_jinshuju)
 

@@ -727,6 +727,8 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
             );
             setAlert({ open: true, message: '款项转移成功！', severity: 'success'});
             handleCloseTransferDialog();
+            // --- 核心修复：触发刷新 ---
+            setRefreshKey(prevKey => prevKey + 1);
             if (response.data.latest_details) {
                 setBillingDetails(response.data.latest_details);
             }

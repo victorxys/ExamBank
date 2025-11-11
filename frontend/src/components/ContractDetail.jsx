@@ -1,4 +1,3 @@
-
 // frontend/src/components/ContractDetail.jsx
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -15,6 +14,7 @@ import {
     Message as MessageIcon,
     Download as DownloadIcon,
     PictureAsPdf as PictureAsPdfIcon,
+    Autorenew as AutorenewIcon,
 } from '@mui/icons-material';
 import { DatePicker, LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -178,6 +178,14 @@ const ContractDetail = () => {
     const [signingMessage, setSigningMessage] = useState('');
     const [signingModalTitle, setSigningModalTitle] = useState('');
 
+    const [isRenewModalOpen, setIsRenewModalOpen] = useState(false);
+    const [renewalData, setRenewalData] = useState({
+        start_date: null,
+        end_date: null,
+        employee_level: '',
+        management_fee_amount: '',
+    });
+
     const conversionActions = useTrialConversion((formalContractId) => {
     if (formalContractId) {
             navigate(`/contract/detail/${formalContractId}`);
@@ -202,7 +210,7 @@ const ContractDetail = () => {
             setIntroFee(contractRes.data.introduction_fee || '0');
             setLogs(logsRes.data);
             
-            const separator = '\\n\\n--- 运营备注 ---\\n';
+            const separator = '\n\n--- 运营备注 ---\n';
             const notes = contractRes.data.notes || '';
             if (notes.includes(separator)) {
                 const parts = notes.split(separator);
@@ -368,6 +376,35 @@ const ContractDetail = () => {
             setSigningModalOpen(true);
         } catch (error) {
             setAlert({ open: true, message: `获取签约消息失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
+        }
+    };
+
+    const handleOpenRenewModal = () => {
+        const oldEndDate = new Date(contract.end_date);
+        // 续约合同的开始日期默认为前序合同的结束日期
+        const newStartDate = oldEndDate;
+
+        // 默认结束日期为一年后
+        const newEndDate = new Date(newStartDate);
+        newEndDate.setFullYear(newEndDate.getFullYear() + 1);
+
+        setRenewalData({
+            start_date: newStartDate,
+            end_date: newEndDate,
+            employee_level: contract.employee_level,
+            management_fee_amount: contract.management_fee_amount,
+        });
+        setIsRenewModalOpen(true);
+    };
+
+    const handleRenewContract = async () => {
+        try {
+            const response = await api.post(`/contracts/${contractId}/renew`, renewalData);
+            setAlert({ open: true, message: '合同续约成功！', severity: 'success' });
+            setIsRenewModalOpen(false);
+            navigate(`/contract/detail/${response.data.new_contract_id}`);
+        } catch (error) {
+            setAlert({ open: true, message: `续约失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
         }
     };
 
@@ -597,7 +634,7 @@ const ContractDetail = () => {
             setAlert({ open: true, message: '合同数据尚未加载完成，请稍后再试。',severity: 'warning' });
             return;
         }
-        const employeeId = contract.user_id || contract.service_personnel_id;
+        const employeeId = contract.service_personnel_id;
 
         setLoadingEligible(true);
         setConversionDialogOpen(true);
@@ -928,7 +965,7 @@ const ContractDetail = () => {
             onCancel={() => {
                 setIsEditingNotes(false);
                 // 可选：重置未保存的修改
-                const separator = '\\n\\n--- 运营备注 ---\\n';
+                const separator = '\n\n--- 运营备注 ---\n';
                 const notes = contract.notes || '';
                 if (notes.includes(separator)) {
                     setOperationalNotes(notes.split(separator)[1]);
@@ -970,49 +1007,53 @@ const ContractDetail = () => {
         <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={zhCN}>
             <Box>
                 <AlertMessage open={alert.open} message={alert.message} severity={alert.severity} onClose={() => setAlert(prev => ({...prev, open:false}))} />
-                <PageHeader
-                    title="合同详情"
-                    description={`${contract.customer_name} - ${contract.employee_name}`}
-                                        actions={
-                        <Stack direction="row" spacing={2}>
-                            <Button variant="contained" color="primary" startIcon={<ArrowBackIcon />} onClick={() =>navigate(state?.from || '/contracts/all')}>
-                                返回列表
-                            </Button>
-                            {contract.status === 'active' && contract.contract_type_value !== 'nanny_trial' && (
-                                <Button variant="contained" color="error" onClick={handleOpenTerminationDialog}>
-                                    终止合同
-                                </Button>
-                            )}
-                            {/* 试工合同的操作按钮 */}
-                            {contract.contract_type_value === 'nanny_trial'&& contract. trial_outcome=== 'pending' && (
-                                <>
-                                    <Tooltip title={!contract.can_convert_to_formal ? "客户与员工名下无已生效的正式合同，无法关联" : ""}>
-                                        <span>
-                                            <Button
-                                                variant="contained"
-                                                color="success"
-                                                startIcon={<CheckCircleIcon />}
-                                                onClick={() =>conversionActions. openConversionDialog(contract)}
-                                                disabled={!contract.can_convert_to_formal}
-                                            >
-                                                试工成功
+                                <PageHeader
+                                    title="合同详情"
+                                    description={`${contract.customer_name} - ${contract.employee_name}`}
+                                                        actions={
+                                        <Stack direction="row" spacing={2}>
+                                            <Button variant="contained" color="primary" startIcon={<ArrowBackIcon />} onClick={() =>navigate(state?.from || '/contracts/all')}> 
+                                                返回列表
                                             </Button>
-                                        </span>
-                                    </Tooltip>
-                                    <Button
-                                        variant="contained"
-                                        color="error"
-                                        startIcon={<CancelIcon />}
-                                        onClick={handleOpenTerminationDialog}
-                                    >
-                                        试工失败
-                                    </Button>
-                                </>
-                            )}
-                        </Stack>
-                    }
-                />
-
+                                            {contract.contract_type_value !== 'nanny_trial' && (
+                                                <Button variant="contained" color="secondary" startIcon={<AutorenewIcon />} onClick={handleOpenRenewModal}>
+                                                    续约
+                                                </Button>
+                                            )}
+                                            {contract.status === 'active' && contract.contract_type_value !== 'nanny_trial' && (
+                                                <Button variant="contained" color="error" onClick={handleOpenTerminationDialog}>
+                                                    终止合同
+                                                </Button>
+                                            )}
+                                            {/* 试工合同的操作按钮 */}
+                                            {contract.contract_type_value === 'nanny_trial'&& contract. trial_outcome=== 'pending' && (
+                                                <>
+                                                    <Tooltip title={!contract.can_convert_to_formal ? "客户与员工名下无已生效的正式合同，无法关联" : ""}>
+                                                        <span>
+                                                            <Button
+                                                                variant="contained"
+                                                                color="success"
+                                                                startIcon={<CheckCircleIcon />}
+                                                                onClick={() =>conversionActions. openConversionDialog(contract)}
+                                                                disabled={!contract.can_convert_to_formal}
+                                                            >
+                                                                试工成功
+                                                            </Button>
+                                                        </span>
+                                                    </Tooltip>
+                                                    <Button
+                                                        variant="contained"
+                                                        color="error"
+                                                        startIcon={<CancelIcon />}
+                                                        onClick={handleOpenTerminationDialog}
+                                                    >
+                                                        试工失败
+                                                    </Button>
+                                                </>
+                                            )}
+                                        </Stack>
+                                    }
+                                />
                 <Grid container spacing={3}>
                     <Grid item xs={12}>
                         <Paper sx={{ p: 3 }}>
@@ -1051,10 +1092,10 @@ const ContractDetail = () => {
                                 </Button>
                                 {contract.signing_status !== 'SIGNED' && (
                                 <>
-                                    <Button variant="contained" color="primary" startIcon={<MessageIcon />} onClick={() => handleOpenSigningModal('customer')}>
+                                    <Button variant="contained" color="primary" startIcon={<MessageIcon />} onClick={() => handleOpenSigningModal('customer')}> 
                                         客户签约消息
                                     </Button>
-                                    <Button variant="contained" color="primary" startIcon={<MessageIcon />} onClick={() => handleOpenSigningModal('employee')}>
+                                    <Button variant="contained" color="primary" startIcon={<MessageIcon />} onClick={() => handleOpenSigningModal('employee')}> 
                                         员工签约消息
                                     </Button>
                                 </>
@@ -1370,6 +1411,43 @@ const ContractDetail = () => {
                     title={signingModalTitle}
                     initialMessage={signingMessage}
                 />
+                <Dialog open={isRenewModalOpen} onClose={() => setIsRenewModalOpen(false)}>
+                    <DialogTitle>续约合同</DialogTitle>
+                    <DialogContent>
+                        <DatePicker
+                            label="新合同开始日期"
+                            value={renewalData.start_date}
+                            onChange={(date) => setRenewalData({ ...renewalData, start_date: date })}
+                            sx={{ width: '100%', mt: 2 }}
+                        />
+                        <DatePicker
+                            label="新合同结束日期"
+                            value={renewalData.end_date}
+                            onChange={(date) => setRenewalData({ ...renewalData, end_date: date })}
+                            sx={{ width: '100%', mt: 2 }}
+                        />
+                        <TextField
+                            label="员工级别/月薪"
+                            type="number"
+                            fullWidth
+                            margin="normal"
+                            value={renewalData.employee_level}
+                            onChange={(e) => setRenewalData({ ...renewalData, employee_level: e.target.value })}
+                        />
+                        <TextField
+                            label="管理费金额"
+                            type="number"
+                            fullWidth
+                            margin="normal"
+                            value={renewalData.management_fee_amount}
+                            onChange={(e) => setRenewalData({ ...renewalData, management_fee_amount: e.target.value })}
+                        />
+                    </DialogContent>
+                    <DialogActions>
+                        <Button onClick={() => setIsRenewModalOpen(false)}>取消</Button>
+                        <Button onClick={handleRenewContract} variant="contained">确认续约</Button>
+                    </DialogActions>
+                </Dialog>
             </Box>
         </LocalizationProvider>
     );
