@@ -1697,6 +1697,22 @@ def update_user(user_id):
         if updated_user is None:
             return jsonify({"error": "User not found"}), 404
 
+        # --- 新增逻辑：同步更新 ServicePersonnel ---
+        if "status" in data and data["status"]:
+            is_active = (data["status"] == 'active')
+            cur.execute(
+                "SELECT id FROM service_personnel WHERE user_id = %s",
+                (user_id,)
+            )
+            sp = cur.fetchone()
+            if sp:
+                log.debug(f"User status changed, updating linked ServicePersonnel {sp['id']} to is_active={is_active}")
+                cur.execute(
+                    "UPDATE service_personnel SET is_active = %s WHERE id = %s",
+                    (is_active, sp['id'])
+                )
+        # --- 新增逻辑结束 ---
+
         conn.commit()
         return jsonify(updated_user)
     except Exception as e:

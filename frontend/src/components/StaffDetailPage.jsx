@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Box, Card, CardContent, CardHeader, CircularProgress, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Button } from '@mui/material';
+import { Box, Card, CardContent, CardHeader, CircularProgress, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Button, Link } from '@mui/material';
 import api from '../api';
 import PageHeader from './PageHeader';
 
@@ -44,6 +44,16 @@ function StaffDetailPage() {
     return new Date(dateString).toLocaleDateString();
   };
 
+  const getContractTypeLabel = (type) => {
+    switch (type) {
+      case 'nanny': return '育儿嫂合同';
+      case 'maternity_nurse': return '月嫂合同';
+      case 'nanny_trial': return '育儿嫂试工合同';
+      case 'external_substitution': return '外部替班合同';
+      default: return type || '未知类型';
+    }
+  };
+
   const SalaryChangeArrow = ({ previous, current }) => {
     const prev = parseFloat(previous);
     const curr = parseFloat(current);
@@ -52,6 +62,12 @@ function StaffDetailPage() {
     if (curr > prev) return <span style={{ color: 'green' }}>↑</span>;
     if (curr < prev) return <span style={{ color: 'red' }}>↓</span>;
     return null;
+  };
+
+  const handleCustomerClick = (contractId) => {
+    if (contractId) {
+      window.open(`/contract/detail/${contractId}`, '_blank');
+    }
   };
 
   return (
@@ -85,7 +101,7 @@ function StaffDetailPage() {
                   <TableCell>原月薪</TableCell>
                   <TableCell>变更后月薪</TableCell>
                   <TableCell>变化</TableCell>
-                  <TableCell>生效日期</TableCell>
+                  <TableCell>合同类型</TableCell>
                   <TableCell>合同备注</TableCell>
                 </TableRow>
               </TableHead>
@@ -93,13 +109,21 @@ function StaffDetailPage() {
                 {employee.salary_history && employee.salary_history.length > 0 ? (
                   employee.salary_history.map(record => (
                     <TableRow key={record.id}>
-                      <TableCell>{record.customer_name || 'N/A'}</TableCell>
+                      <TableCell>
+                        {record.contract_id ? (
+                          <Link component="button" variant="body2" onClick={() => handleCustomerClick(record.contract_id)}>
+                            {record.customer_name || 'N/A'}
+                          </Link>
+                        ) : (
+                          record.customer_name || 'N/A'
+                        )}
+                      </TableCell>
                       <TableCell>{formatDate(record.contract_start_date)} - {formatDate(record.contract_end_date)}</TableCell>
                       <TableCell>{record.customer_address || 'N/A'}</TableCell>
                       <TableCell>{record.previous_salary || 'N/A'}</TableCell>
                       <TableCell>{record.new_salary}</TableCell>
                       <TableCell><SalaryChangeArrow previous={record.previous_salary} current={record.new_salary} /></TableCell>
-                      <TableCell>{formatDate(record.effective_date)}</TableCell>
+                      <TableCell>{getContractTypeLabel(record.contract_type)}</TableCell>
                       <TableCell>{record.contract_notes || 'N/A'}</TableCell>
                     </TableRow>
                   ))

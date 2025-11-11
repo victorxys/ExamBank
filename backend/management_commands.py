@@ -22,63 +22,76 @@ def sync_user_to_sp(session, dry_run=True):
     - It also syncs id_card_number from User to SP if the SP's is empty.
     """
     click.echo("\n--- Syncing from User (role='student') to ServicePersonnel ---")
-    users_to_sync = session.query(User).filter(
-        User.role == 'student',
-        ~User.service_personnel_profile.has()
-    ).all()
+    # 核心修正：查询所有 'student' 用户，以确保能更新已存在但数据不完整的记录
+    users_to_sync = session.query(User).filter(User.role == 'student').all()
 
     if not users_to_sync:
-        click.echo("  -> OK: All 'student' Users are already linked to a ServicePersonnel profile.")
+        click.echo("  -> OK: No 'student' Users found to process.")
         return
 
     click.echo(f"  Found {len(users_to_sync)} 'student' Users to process.")
 
     for user in users_to_sync:
         click.echo(f"\n  Processing User: {user.username} (ID: {user.id})")
-        sp = None
+        
+        # 优先通过已建立的 backref 关系查找
+        sp = user.service_personnel_profile
+        if sp:
+            click.echo(f"    - Found linked ServicePersonnel via relationship: {sp.name} (ID: {sp.id})")
+        else:
+            # 如果没有直接关联，再通过其他字段查找
+            if user.id_card_number:
+                sp = session.query(ServicePersonnel).filter(ServicePersonnel.id_card_number == user.id_card_number).first()
+                if sp:
+                    click.echo(f"    - Found matching ServicePersonnel by ID card number: {sp.name} (ID: {sp.id})")
+            if not sp and user.phone_number:
+                sp = session.query(ServicePersonnel).filter(ServicePersonnel.phone_number == user.phone_number).first()
+                if sp:
+                    click.echo(f"    - Found matching ServicePersonnel by phone number: {sp.name} (ID: {sp.id})")
+            if not sp and user.username:
+                sp = session.query(ServicePersonnel).filter(ServicePersonnel.name == user.username).first()
+                if sp:
+                    click.echo(f"    - Found matching ServicePersonnel by name: {sp.name} (ID: {sp.id })")
 
-        # 1. Try to find ServicePersonnel by id_card_number
-        if user.id_card_number:
-            sp = session.query(ServicePersonnel).filter(ServicePersonnel.id_card_number == user.id_card_number).first()
-            if sp:
-                click.echo(f"    - Found matching ServicePersonnel by ID card number: {sp.name} (ID: {sp.id})")
-
-        # 2. If not found, try by phone_number
-        if not sp and user.phone_number:
-            sp = session.query(ServicePersonnel).filter(ServicePersonnel.phone_number == user.phone_number).first()
-            if sp:
-                click.echo(f"    - Found matching ServicePersonnel by phone number: {sp.name} (ID: {sp.id})")
-
-        # 3. If not found, try by name (least reliable, but user confirmed names are unique for employees)
-        if not sp and user.username:
-            sp = session.query(ServicePersonnel).filter(ServicePersonnel.name == user.username).first()
-            if sp:
-                click.echo(f"    - Found matching ServicePersonnel by name: {sp.name} (ID: {sp.id })")
+        is_active = (user.status == 'active')
 
         if sp:
+            # --- 更新逻辑 ---
             if sp.user_id is None:
                 click.echo(f"    - ACTION: Will link ServicePersonnel {sp.id} to User {user.id}." )
                 if not dry_run:
                     sp.user_id = user.id
-            elif sp.user_id != user.id:
-                click.echo(f"    - WARNING: ServicePersonnel {sp.id} is already linked to a DIFFERENT User ({sp.user_id}). Manual check required. Skipping link.")
-            else:
-                click.echo(f"    - INFO: ServicePersonnel {sp.id} is already correctly linked to User {user.id}.")
+            # elif str(sp.user_id) != str(user.id):
+            #     # click.echo(f"    - WARNING: ServicePersonnel {sp.id} is already linked to a DIFFERENT User ({sp.user_id}). Manual check required. Skipping link.")
+            # else:
+            #     # click.echo(f"    - INFO: ServicePersonnel {sp.id} is already correctly linked to User {user.id}.")
 
-            # Sync ID card number if SP's is missing
             if user.id_card_number and not sp.id_card_number:
                 click.echo(f"    - ACTION: Will update ServicePersonnel {sp.id}'s id_card_number to '{user.id_card_number}'.")
                 if not dry_run:
                     sp.id_card_number = user.id_card_number
             
-            # Sync phone number if SP's is missing
             if user.phone_number and not sp.phone_number:
                 click.echo(f"    - ACTION: Will update ServicePersonnel {sp.id}'s phone_number to '{user.phone_number}'.")
                 if not dry_run:
                     sp.phone_number = user.phone_number
+            
+            if user.name_pinyin and not sp.name_pinyin:
+                click.echo(f"    - ACTION: Will update ServicePersonnel {sp.id}'s name_pinyin to '{user.name_pinyin}'.")
+                if not dry_run:
+                    sp.name_pinyin = user.name_pinyin
+
+            if sp.is_active != is_active:
+                click.echo(f"    - ACTION: Will update ServicePersonnel {sp.id}'s is_active status to '{is_active}'.")
+                if not dry_run:
+                    sp.is_active = is_active
+            
+            if not dry_run:
+                session.add(sp)
 
         else:
-            click.echo(f"    - No matching ServicePersonnel found for '{user.username}' by ID card, phone, or name.")
+            # --- 创建逻辑 ---
+            click.echo(f"    - No matching ServicePersonnel found for '{user.username}'.")
             click.echo(f"    - ACTION: Will create a new ServicePersonnel record.")
             if not dry_run:
                 new_sp = ServicePersonnel(
@@ -86,10 +99,11 @@ def sync_user_to_sp(session, dry_run=True):
                     phone_number=user.phone_number,
                     id_card_number=user.id_card_number,
                     user_id=user.id,
-                    is_active=True
+                    name_pinyin=user.name_pinyin,
+                    is_active=is_active
                 )
                 session.add(new_sp)
-                click.echo(f"      - Created ServicePersonnel {new_sp.name} (ID: {new_sp.id}) and linked to User {user.id}.")
+                click.echo(f"      - Created ServicePersonnel {new_sp.name} and linked to User {user.id}.")
 
 def register_commands(app):
     @app.cli.command("clean-salary-history")
