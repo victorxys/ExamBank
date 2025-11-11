@@ -2511,7 +2511,7 @@ class BaseContract(db.Model):
     employee_signing_token = db.Column(db.String(36), unique=True, nullable=True, comment= "服务人员的专属签名令牌")
     previous_contract_id = db.Column(
         PG_UUID(as_uuid=True),
-        db.ForeignKey("contracts.id"),
+        db.ForeignKey("contracts.id", ondelete="CASCADE"),
         nullable=True,
         comment="关联的源合同ID (续约或变更)",
     )
@@ -2579,7 +2579,7 @@ class ExternalSubstitutionContract(BaseContract):
 class MaternityNurseContract(BaseContract):  # 月嫂合同
     __mapper_args__ = {"polymorphic_identity": "maternity_nurse"}
     # 月嫂定金统一为3000
-    deposit_amount = db.Column(db.Numeric(10, 2), default=3000, comment="定金")
+    deposit_amount = db.Column(db.Numeric(10, 2), default=0, comment="定金")
     # security_deposit_paid = db.Column(db.Numeric(10, 2), default=0, comment='客交保证金')
     discount_amount = db.Column(db.Numeric(10, 2), default=0, comment="优惠金额")
 
@@ -2603,7 +2603,7 @@ class EmployeeSalaryHistory(db.Model):
     )
     contract_id = db.Column(
         PG_UUID(as_uuid=True),
-        db.ForeignKey("contracts.id"),
+        db.ForeignKey("contracts.id", ondelete="CASCADE"),
         nullable=False,
         comment="导致此次薪资变更的合同ID"
     )

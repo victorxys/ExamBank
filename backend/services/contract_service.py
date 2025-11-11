@@ -366,6 +366,15 @@ class ContractService:
             start_date = datetime.fromisoformat(new_contract_data["start_date"])
             end_date = datetime.fromisoformat(new_contract_data["end_date"])
             new_employee_level = Decimal(new_contract_data.get("employee_level", old_contract.employee_level))
+            
+            # Determine management_fee_rate: prioritize frontend input, then old contract
+            final_management_fee_rate = Decimal(new_contract_data.get("management_fee_rate", old_contract.management_fee_rate or 0))
+            
+            # Determine management_fee_amount: prioritize frontend input, then calculate based on rate, then old contract
+            final_management_fee_amount = Decimal(new_contract_data.get("management_fee_amount", old_contract.management_fee_amount or 0))
+
+            if final_management_fee_rate > 0:
+                final_management_fee_amount = (new_employee_level * final_management_fee_rate).quantize(Decimal('0.01'))
 
             new_contract_fields = {
                 "customer_id": old_contract.customer_id,
@@ -373,7 +382,8 @@ class ContractService:
                 "start_date": start_date,
                 "end_date": end_date,
                 "employee_level": new_employee_level,
-                "management_fee_amount": Decimal(new_contract_data.get("management_fee_amount", old_contract.management_fee_amount)),
+                "management_fee_amount": final_management_fee_amount,
+                "management_fee_rate": final_management_fee_rate,
                 "status": "pending",
                 "customer_name": old_contract.customer_name,
                 "customer_name_pinyin": old_contract.customer_name_pinyin,
@@ -382,6 +392,8 @@ class ContractService:
                 "signing_status": SigningStatus.UNSIGNED,
                 "customer_signing_token": str(uuid.uuid4()),
                 "employee_signing_token": str(uuid.uuid4()),
+                "notes": old_contract.notes,
+                "security_deposit_paid": old_contract.security_deposit_paid,
             }
             
             # Copy subclass-specific attributes
@@ -405,10 +417,11 @@ class ContractService:
                 if last_bill_old_contract:
                     refund_adj = FinancialAdjustment(
                         customer_bill_id=last_bill_old_contract.id,
-                        adjustment_type=AdjustmentType.CUSTOMER_DECREASE,
+                        adjustment_type=AdjustmentType.CUSTOMER_INCREASE,
                         amount=old_contract.security_deposit_paid,
-                        description=f"保证金转移至续约合同 {renewed_contract.id}",
+                        description="保证金转出至续约合同",
                         date=old_contract.end_date.date(),
+                        details={'transferred_to_contract_id': str(renewed_contract.id)}
                     )
                     db.session.add(refund_adj)
 
@@ -418,9 +431,10 @@ class ContractService:
                     contract_id=renewed_contract.id,
                     adjustment_type=AdjustmentType.CUSTOMER_DECREASE, # 应为客户减款，冲抵账单
                     amount=old_contract.security_deposit_paid,
-                    description=f"保证金从原合同 {old_contract.id} 转入 (冲抵账单)",
+                    description="保证金从原合同转入",
                     date=start_date.date(),
-                    status='PENDING' # 必须是 PENDING 才能被账单引擎捕获
+                    status='PENDING', # 必须是 PENDING 才能被账单引擎捕获
+                    details={'transferred_from_contract_id': str(old_contract.id)}
                 )
                 db.session.add(deposit_adj)
 

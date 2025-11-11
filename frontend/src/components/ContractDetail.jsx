@@ -184,6 +184,7 @@ const ContractDetail = () => {
         end_date: null,
         employee_level: '',
         management_fee_amount: '',
+        management_fee_rate: 0,
     });
 
     const conversionActions = useTrialConversion((formalContractId) => {
@@ -313,6 +314,16 @@ const ContractDetail = () => {
         }
     }, [contract]);
 
+    useEffect(() => {
+        if (renewalData.management_fee_rate > 0 && renewalData.employee_level) {
+            const newFee = parseFloat(renewalData.employee_level) * renewalData. management_fee_rate;
+            // 只有在计算值与当前值不同时才更新，避免无限循环
+            if (Math.abs(newFee - parseFloat(renewalData.management_fee_amount)) > 0.01) {
+                 setRenewalData(prev => ({ ...prev, management_fee_amount: newFee.toFixed(2) }));
+            }
+        }
+    }, [renewalData.employee_level, renewalData.management_fee_rate]);
+
     if (loading) return <CircularProgress />;
     if (!contract) return <Typography>未找到合同信息。</Typography>;
 
@@ -393,6 +404,7 @@ const ContractDetail = () => {
             end_date: newEndDate,
             employee_level: contract.employee_level,
             management_fee_amount: contract.management_fee_amount,
+            management_fee_rate: contract.management_fee_rate || 0, // 继承费率
         });
         setIsRenewModalOpen(true);
     };
@@ -993,6 +1005,42 @@ const ContractDetail = () => {
             />
         </Grid>
     ) : null;
+
+    const previousContractField = contract.previous_contract_id ? (
+        <Grid item xs={12} sm={6} md={4}>
+            <Typography variant="body2" color="text.secondary"gutterBottom>源合同</Typography>
+            <Chip
+                icon={<LinkIcon />}
+                label={`查看源合同`}
+                variant="outlined"
+                onClick={() => navigate(`/contract/detail/${contract.previous_contract_id}`)}
+                sx={{
+                    cursor: 'pointer',
+                    '&:hover': {
+                        backgroundColor: 'action.hover'
+                    }
+                }}
+            />
+        </Grid>
+    ) : null;
+
+    const successorContractField = contract.successor_contract_id ? (
+        <Grid item xs={12} sm={6} md={4}>
+            <Typography variant="body2" color="text.secondary"gutterBottom>续约合同</Typography>
+            <Chip
+                icon={<LinkIcon />}
+                label={`查看续约合同`}
+                variant="outlined"
+                onClick={() => navigate(`/contract/detail/${contract.successor_contract_id}`)}
+                sx={{
+                    cursor: 'pointer',
+                    '&:hover': {
+                        backgroundColor: 'action.hover'
+                    }
+                }}
+            />
+        </Grid>
+    ) : null;
     
     const terminationDateField = contract.status === 'terminated' ? (
         <Grid item xs={12} sm={6} md={4}>
@@ -1061,10 +1109,12 @@ const ContractDetail = () => {
                             <Divider sx={{ my: 2 }} />
                             <Grid container spacing={3}>
                                 {Object.entries(baseFields).map(([label, value]) => <DetailItem key={label} label={label} value={value} />)}
-                                {Object.entries(specificFields).map(([label, value]) => <DetailItem key={label} label={label} value={value} />)}
+                                {Object.entries(specificFields).map(([label, value]) => < DetailItem key={label} label={label} value={value} />)}
                                 {trialOutcomeField}
                                 {convertedToField}
                                 {sourceContractField}
+                                {previousContractField}
+                                {successorContractField}
                                 {terminationDateField}
                                 {onboardingDateField}
                                 {depositField}
@@ -1435,12 +1485,31 @@ const ContractDetail = () => {
                             onChange={(e) => setRenewalData({ ...renewalData, employee_level: e.target.value })}
                         />
                         <TextField
+                            label="管理费率"
+                            type="number"
+                            fullWidth
+                            margin="normal"
+                            value={renewalData.management_fee_rate * 100} // Display as percentage
+                            onChange={(e) => {
+                                const rawValue = e.target.value;
+                                // 允许清空输入框，否则转换为小数
+                                const decimalValue = rawValue === '' ? '' : parseFloat(rawValue) / 100;
+                                setRenewalData({ ...renewalData, management_fee_rate: decimalValue });
+                            }}
+                            onWheel={(e) => e.target.blur()} // 禁用鼠标滚动
+                            InputProps={{
+                                endAdornment: <InputAdornment position="end">%</InputAdornment>,
+                            }}
+                            helperText="输入百分比，例如 10 代表 10%"
+                        />
+                        <TextField
                             label="管理费金额"
                             type="number"
                             fullWidth
                             margin="normal"
                             value={renewalData.management_fee_amount}
                             onChange={(e) => setRenewalData({ ...renewalData, management_fee_amount: e.target.value })}
+                            helperText={renewalData.management_fee_rate > 0 ? `根据 ${renewalData.management_fee_rate * 100}% 的费率自动计算` : ''}
                         />
                     </DialogContent>
                     <DialogActions>

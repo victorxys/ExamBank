@@ -1101,7 +1101,7 @@ class BillingEngine:
                 ).first()
 
             if not previous_contract_exists:
-                current_app.logger.info(f"[CommissionCheck] No previous contract found for customer {customer_name} and employee {employee_id}. Proceeding with first month commission deduction check.")
+                current_app.logger.info(f"[CommissionCheck] No previous contract found for customer {customer_name} and employee {employee_sp_id}. Proceeding with first month commission deduction check.")
                 # 只有在不存在更早的合同的情况下，才计算并创建服务费调整项
                 potential_income = (employee_base_payout + employee_overtime_payout + emp_increase - emp_decrease)
                 current_app.logger.info(f"[CommissionCheck] Calculated employee_base_payout: {employee_base_payout}, employee_overtime_payout: {employee_overtime_payout}, emp_increase: {emp_increase}, emp_decrease: {emp_decrease}, potential_income : {potential_income}")
@@ -1141,7 +1141,7 @@ class BillingEngine:
                     # ------------------- 以上是核心修改 (V2) -------------------
             else:
                 previous_contract_id = previous_contract_exists[0]
-                current_app.logger.info(f"[CommissionCheck] Found previous contract for customer {customer_name} and employee {employee_id}. Previouscontract ID: {previous_contract_id}")
+                current_app.logger.info(f"[CommissionCheck] Found previous contract for customer {customer_name} and employee {employee_sp_id}. Previouscontract ID: {previous_contract_id}")
                 log_extras["first_month_deduction_reason"] =f"员工与客户已有过合作历史（合同ID: {previous_contract_id}），不收取首月佣金。"
 
         current_app.logger.debug(f"NannyDETAILS:log_extras:{log_extras}")

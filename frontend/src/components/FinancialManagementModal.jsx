@@ -1233,17 +1233,25 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
                                             }
 
                                             const sourceContractId = details.source_contract_id || adj.source_contract_id;
-                                            const destinationContractId = details.destination_contract_id;
+                                            const destinationContractId = details. destination_contract_id;
+                                            const transferredToContractId = details. transferred_to_contract_id;
+                                            const transferredFromContractId = details. transferred_from_contract_id;
 
                                             let linkContractId = null;
                                             let tooltipTitle = "";
 
                                             if (sourceContractId) {
                                                 linkContractId = sourceContractId;
-                                                tooltipTitle = details.source_contract_id ? "查看费用来源合同" : "查看源试工合同";
+                                                tooltipTitle = "查看源试工合同";
                                             } else if (destinationContractId) {
                                                 linkContractId = destinationContractId;
                                                 tooltipTitle = "查看费用覆盖的新合同";
+                                            } else if (transferredToContractId) {
+                                                linkContractId = transferredToContractId;
+                                                tooltipTitle = "查看续约合同";
+                                            } else if (transferredFromContractId) {
+                                                linkContractId = transferredFromContractId;
+                                                tooltipTitle = "查看原合同";
                                             }
 
                                             return (
@@ -1260,7 +1268,7 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
                                                         <Tooltip title={tooltipTitle}>
                                                             <IconButton
                                                                 size="small"
-                                                                onClick={(e) => { e.stopPropagation(); navigate(`/contract/detail/${linkContractId}`); onClose(); }}
+                                                                onClick={(e) => { e. stopPropagation(); window.open(`/contract/detail/${linkContractId}`, '_blank'); }}
                                                                 sx={{ ml: 0.5, p: 0.2 }}
                                                             >
                                                                 <LinkIcon fontSize="inherit" />

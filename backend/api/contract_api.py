@@ -1085,7 +1085,6 @@ def renew_contract_api(contract_id):
     if not data:
         return jsonify({"error": "请求体不能为空"}), 400
 
-    # 对续约数据进行严格校验
     required_fields = ["start_date", "end_date", "management_fee_amount", "employee_level"]
     missing_fields = [field for field in required_fields if field not in data or data[field] is None]
     if missing_fields:
@@ -1093,14 +1092,26 @@ def renew_contract_api(contract_id):
 
     try:
         contract_service = ContractService()
+        # 1. 创建合同对象（不提交）
         renewed_contract = contract_service.renew_contract(str(contract_id), data)
-        db.session.commit()
 
-        # 为新合同触发初始账单生成
-        trigger_initial_bill_generation_task.delay(str(renewed_contract.id))
-        current_app.logger.info(f"为续约合同 {renewed_contract.id} 触发了初始账单生成任务。")
+        # 2. 在同一事务中，同步生成初始账单并处理自动续约
+        engine = BillingEngine()
+        current_app.logger.info(f"为新激活的合同 {renewed_contract.id} (类型: {renewed_contract.type}) 同步生成初始账单...")
+        engine.generate_all_bills_for_contract(renewed_contract.id, force_recalculate=True)
+        current_app.logger.info(f"合同 {renewed_contract.id} 的初始账单已生成。")
+
+        if isinstance(renewed_contract, NannyContract) and renewed_contract.is_monthly_auto_renew:
+            current_app.logger.info(f"为合同 {renewed_contract.id} 触发首次自动续签检查...")
+            engine.extend_auto_renew_bills(renewed_contract.id)
+            current_app.logger.info(f"合同 {renewed_contract.id} 的首次自动续签检查完成。")
+
+        # 3. 所有操作成功后，执行唯一一次提交
+        db.session.commit()
+        current_app.logger.info(f"已为合同 {renewed_contract.id} 的续约及账单生成操作提交数据库事务。")
 
         return jsonify({"message": "合同续约成功", "new_contract_id": str(renewed_contract.id)}), 201
+
     except ValueError as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 400
