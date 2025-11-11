@@ -3,6 +3,7 @@ from flask import current_app
 from backend.extensions import db
 from backend.models import (
     BaseContract,
+    NannyContract,
     MaternityNurseContract,
     FinancialAdjustment,
     AdjustmentType,
@@ -217,41 +218,43 @@ def _find_predecessor_contract_internal(contract_id: str) -> BaseContract | None
 def _find_successor_contract_internal(contract_id: str) -> BaseContract | None:
     """
     内部函数：查找并返回给定合同的续约合同对象。
-    此函数不处理HTTP响应，只返回 SQLAlchemy 对象或 None。
+    (V2: 优先使用 previous_contract_id 链接进行精确查找)
     """
-    current_app.logger.info(f"[SuccessorCheckInternal] 开始为合同 {contract_id} 查找续约合同...")
+    current_app.logger.info(f"[SuccessorCheckInternal-V2] 开始为合同 {contract_id} 查找续约合同...")
     try:
+        # 优先通过直接链接查找
+        successor = BaseContract.query.filter_by(previous_contract_id=contract_id).first()
+
+        if successor:
+            current_app.logger.info(f"[SuccessorCheckInternal-V2] 通过 previous_contract_id 找到了精确的续约合同 {successor.id}")
+            return successor
+
+        # --- 如果直接链接找不到，回退到旧的、基于属性匹配的模糊查找逻辑 ---
+        current_app.logger.warning(f"[SuccessorCheckInternal-V2] 未找到基于 previous_contract_id 的直接续约合同，将尝试旧的模糊匹配方法。")
         current_contract = BaseContract.query.get(contract_id)
         if not current_contract:
-            current_app.logger.warning(f"[SuccessorCheckInternal] 合同 {contract_id} 未找到")
+            current_app.logger.warning(f"[SuccessorCheckInternal-V2] 合同 {contract_id} 未找到")
             return None
 
-        # 确定合同的实际结束日期，优先使用终止日期
         effective_end_date = current_contract.termination_date or current_contract.end_date
-        current_app.logger.info(f"[SuccessorCheckInternal] 合同 {contract_id} 的类型为 {current_contract.type}, 状态为 {current_contract.status}")
-        current_app.logger.info(f"[SuccessorCheckInternal] 原始 end_date: {current_contract.end_date}, 原始 termination_date: {current_contract.termination_date}")
-        current_app.logger.info(f"[SuccessorCheckInternal] 计算出的实际结束日期 (effective_end_date): {effective_end_date}")
-
         if not effective_end_date:
-            current_app.logger.info(f"[SuccessorCheckInternal] 合同 {contract_id} 没有有效的结束日期，无法查找续约合同。")
+            current_app.logger.info(f"[SuccessorCheckInternal-V2] 合同 {contract_id} 没有有效的结束日期，无法进行模糊查找。")
             return None
 
-        # 查找续约合同
-        successor = BaseContract.query.filter(
+        fallback_successor = BaseContract.query.filter(
             BaseContract.customer_name == current_contract.customer_name,
             BaseContract.type == current_contract.type,
             BaseContract.service_personnel_id == current_contract.service_personnel_id,
-            BaseContract.user_id == current_contract.user_id,
             BaseContract.id != current_contract.id,
-            BaseContract.start_date >= effective_end_date, # 新合同在当前合同实际结束后开始
-            BaseContract.status != 'terminated'  # <-- 新增的过滤条件
+            BaseContract.start_date >= effective_end_date,
+            BaseContract.status != 'terminated'
         ).order_by(BaseContract.start_date.asc()).first()
 
-        if successor:
-            current_app.logger.info(f"[SuccessorCheckInternal] 找到了续约合同 {successor.id} ，开始日期: {successor.start_date}")
-            return successor
+        if fallback_successor:
+            current_app.logger.info(f"[SuccessorCheckInternal-V2] 通过模糊匹配找到了可能的续约合同 {fallback_successor.id}")
+            return fallback_successor
         else:
-            current_app.logger.info(f"[SuccessorCheckInternal] 未找到 {contract_id} 的续约合同。" )
+            current_app.logger.info(f"[SuccessorCheckInternal-V2] 所有方法均未找到 {contract_id} 的续约合同。")
             return None
 
     except Exception as e:
@@ -354,35 +357,76 @@ class ContractService:
         return new_contract
 
     def renew_contract(self, old_contract_id: str, new_contract_data: dict) -> BaseContract:
-        old_contract = BaseContract.query.get(old_contract_id)
-        if not old_contract:
-            raise ValueError(f"原合同 {old_contract_id} 未找到。")
+        with db.session.begin_nested():
+            old_contract = BaseContract.query.get(old_contract_id)
+            if not old_contract:
+                raise ValueError(f"原合同 {old_contract_id} 未找到。")
 
-        # Prepare data for the new contract, inheriting from the old one
-        # and overriding with new_contract_data
-        new_contract_fields = {
-            "customer_id": new_contract_data.get("customer_id", old_contract.customer_id),
-            "service_personnel_id": new_contract_data.get("service_personnel_id", old_contract.service_personnel_id),
-            "user_id": new_contract_data.get("user_id", old_contract.user_id),
-            "contract_type": new_contract_data.get("contract_type", old_contract.contract_type),
-            "start_date": new_contract_data.get("start_date", old_contract.start_date),
-            "end_date": new_contract_data.get("end_date", old_contract.end_date),
-            "total_amount": new_contract_data.get("total_amount", old_contract.total_amount),
-            "status": new_contract_data.get("status", SigningStatus.UNSIGNED), # Renewed contract starts as unsigned
-            "customer_name": new_contract_data.get("customer_name", old_contract.customer_name),
-            "service_personnel_name": new_contract_data.get("service_personnel_name", old_contract.service_personnel_name),
-            "type": "formal",
-            "template_id": new_contract_data.get("template_id", old_contract.template_id),
-            "service_content": new_contract_data.get("service_content", old_contract.service_content),
-            "service_type": new_contract_data.get("service_type", old_contract.service_type),
-            "is_auto_renew": new_contract_data.get("is_auto_renew", old_contract.is_auto_renew),
-            "attachment_content": new_contract_data.get("attachment_content", old_contract.attachment_content),
-            "previous_contract_id": old_contract.id, # Link to the old contract
-        }
+            # 1. 创建新合同
+            start_date = datetime.fromisoformat(new_contract_data["start_date"])
+            end_date = datetime.fromisoformat(new_contract_data["end_date"])
+            new_employee_level = Decimal(new_contract_data.get("employee_level", old_contract.employee_level))
 
-        renewed_contract = BaseContract(**new_contract_fields)
-        db.session.add(renewed_contract)
-        # db.session.flush() # Flush to get ID if needed for immediate use
+            new_contract_fields = {
+                "customer_id": old_contract.customer_id,
+                "service_personnel_id": old_contract.service_personnel_id,
+                "start_date": start_date,
+                "end_date": end_date,
+                "employee_level": new_employee_level,
+                "management_fee_amount": Decimal(new_contract_data.get("management_fee_amount", old_contract.management_fee_amount)),
+                "status": "pending",
+                "customer_name": old_contract.customer_name,
+                "customer_name_pinyin": old_contract.customer_name_pinyin,
+                "previous_contract_id": old_contract.id,
+                "source": "renewal",
+                "signing_status": SigningStatus.UNSIGNED,
+                "customer_signing_token": str(uuid.uuid4()),
+                "employee_signing_token": str(uuid.uuid4()),
+            }
+            
+            # Copy subclass-specific attributes
+            if isinstance(old_contract, NannyContract):
+                new_contract_fields['is_monthly_auto_renew'] = new_contract_data.get('is_monthly_auto_renew', old_contract.is_monthly_auto_renew)
+                # 育儿嫂合同的保证金默认等于员工级别
+                new_contract_fields['security_deposit_paid'] = new_employee_level
+            elif isinstance(old_contract, MaternityNurseContract):
+                new_contract_fields['deposit_amount'] = new_contract_data.get('deposit_amount', old_contract.deposit_amount)
+                new_contract_fields['discount_amount'] = new_contract_data.get('discount_amount', old_contract.discount_amount)
+
+            NewContractModel = type(old_contract)
+            renewed_contract = NewContractModel(**new_contract_fields)
+            db.session.add(renewed_contract)
+            db.session.flush()
+
+            # 2. 转移保证金
+            if old_contract.security_deposit_paid and old_contract.security_deposit_paid > 0:
+                # 在旧合同的最后一个账单上创建退款调整
+                last_bill_old_contract = CustomerBill.query.filter_by(contract_id=old_contract.id).order_by(CustomerBill.cycle_end_date.desc()).first()
+                if last_bill_old_contract:
+                    refund_adj = FinancialAdjustment(
+                        customer_bill_id=last_bill_old_contract.id,
+                        adjustment_type=AdjustmentType.CUSTOMER_DECREASE,
+                        amount=old_contract.security_deposit_paid,
+                        description=f"保证金转移至续约合同 {renewed_contract.id}",
+                        date=old_contract.end_date.date(),
+                    )
+                    db.session.add(refund_adj)
+
+                # 在新合同的第一个账单上创建收款调整
+                # (V2 修正) 创建一个 PENDING 状态的调整，由账单引擎自动应用到第一期账单
+                deposit_adj = FinancialAdjustment(
+                    contract_id=renewed_contract.id,
+                    adjustment_type=AdjustmentType.CUSTOMER_DECREASE, # 应为客户减款，冲抵账单
+                    amount=old_contract.security_deposit_paid,
+                    description=f"保证金从原合同 {old_contract.id} 转入 (冲抵账单)",
+                    date=start_date.date(),
+                    status='PENDING' # 必须是 PENDING 才能被账单引擎捕获
+                )
+                db.session.add(deposit_adj)
+
+            # 3. 更新旧合同状态
+            old_contract.status = 'finished'
+            db.session.add(old_contract)
 
         current_app.logger.info(f"成功续约合同 {old_contract_id}，创建新合同 {renewed_contract.id}。")
         return renewed_contract
@@ -399,6 +443,15 @@ class ContractService:
         contract = BaseContract.query.get(contract_id)
         if not contract:
             raise ValueError(f"合同 {contract_id} 未找到。")
+
+        # --- FIX STARTS HERE ---
+        # 验证合同的服务人员是否与传入的员工ID匹配
+        if not contract.service_personnel_id or str(contract.service_personnel_id) != employee_id:
+            raise ValueError(
+                f"合同 {contract.id} (客户: {contract.customer_name}) 的服务人员 "
+                f"({contract.service_personnel_id}) 与目标员工 ({employee_id}) 不匹配，无法创建薪酬历史。"
+            )
+        # --- FIX ENDS HERE ---
 
         if contract.type == 'nanny_trial':
             current_app.logger.info(f"合同 {contract.id} 是试工合同(nanny_trial)，跳过薪酬历史记录创建。")

@@ -1087,19 +1087,18 @@ class BillingEngine:
         if is_first_bill_of_contract and not (isinstance(contract, NannyTrialContract) and contract.trial_outcome == TrialOutcome.SUCCESS):
             current_app.logger.info(f"合同 {contract.id} 进入首月佣金检查逻辑。")
             customer_name = contract.customer_name
-            employee_id = contract.user_id or contract.service_personnel_id
+            employee_sp_id = contract.service_personnel_id
 
             # 检查是否存在该客户与该员工的更早的合同
-            previous_contract_exists = db.session.query(BaseContract.id).filter(
-                BaseContract.id != contract.id,
-                BaseContract.customer_name == customer_name,
-                BaseContract.type != 'nanny_trial',  # 排除试工合同
-                or_(
-                    BaseContract.user_id == employee_id,
-                    BaseContract.service_personnel_id == employee_id
-                ),
-                BaseContract.start_date < contract_start_date
-            ).first()
+            previous_contract_exists = None
+            if employee_sp_id:
+                previous_contract_exists = db.session.query(BaseContract.id).filter(
+                    BaseContract.id != contract.id,
+                    BaseContract.customer_name == customer_name,
+                    BaseContract.type != 'nanny_trial',  # 排除试工合同
+                    BaseContract.service_personnel_id == employee_sp_id,
+                    BaseContract.start_date < contract_start_date
+                ).first()
 
             if not previous_contract_exists:
                 current_app.logger.info(f"[CommissionCheck] No previous contract found for customer {customer_name} and employee {employee_id}. Proceeding with first month commission deduction check.")
@@ -1960,7 +1959,7 @@ class BillingEngine:
             f"    [BILL CREATE] No existing bill/payroll found for cycle {cycle_start_date}. Attempting to create."
         )
         try:
-            employee_id = contract.user_id or contract.service_personnel_id
+            employee_id = contract.service_personnel_id
             if not employee_id:
                 raise ValueError(f"Contract {contract.id} has no associated employee.")
 
@@ -2038,7 +2037,7 @@ class BillingEngine:
             contract_id=contract.id, cycle_start_date=cycle_start_date
         ).first()
         if not attendance:
-            employee_id = contract.user_id or contract.service_personnel_id
+            employee_id = contract.service_personnel_id
             if not employee_id:
                 raise ValueError(f"Contract {contract.id} has no associated employee.")
 

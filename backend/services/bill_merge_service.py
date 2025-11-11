@@ -317,7 +317,7 @@ class BillMergeService:
         contract = bill.contract
         if not contract: return {"bill_id": str(bill.id)}
 
-        employee = contract.user or contract.service_personnel
+        employee = contract.service_personnel
         employee_name = "未知员工"
         if employee:
             employee_name = getattr(employee, 'username', getattr(employee, 'name', '未知员工'))

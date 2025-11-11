@@ -408,6 +408,7 @@ class User(db.Model):
     name_pinyin = db.Column(
         db.String(255), index=True, comment="姓名拼音，用于模糊搜索"
     )
+    id_card_number = db.Column(db.String(100), nullable=True, unique=True, comment="身份证号, 与ServicePersonnel同步")
 
     profile = db.relationship(
         "UserProfile", backref="user", uselist=False, cascade="all, delete-orphan"
@@ -1970,7 +1971,6 @@ class ServicePersonnel(db.Model):
     id_card_number = db.Column(db.String(100), nullable=True, unique=True, comment="身份证号, 可选但唯一") # 修改
     address = db.Column(db.Text, nullable=True, comment="员工住址") # 新增
     is_active = db.Column(db.Boolean, default=True, nullable=False, comment="是否在职")
-    is_active = db.Column(db.Boolean, default=True, nullable=False, comment="是否在职")
     created_at = db.Column(
         db.DateTime(timezone=True), server_default=func.now(), comment="创建时间"
     )
@@ -1980,6 +1980,8 @@ class ServicePersonnel(db.Model):
         onupdate=func.now(),
         comment="更新时间",
     )
+    user_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True, unique=True, index=True, comment="关联的系统用户ID")
+    user = db.relationship('User', backref=db.backref('service_personnel_profile', uselist=False))
 
     @sa.ext.hybrid.hybrid_property
     def current_salary(self):

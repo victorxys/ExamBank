@@ -237,7 +237,7 @@ def get_all_transactions():
                     if bill:
                         allocations.append({
                             'customer_name': bill.contract.customer_name,
-                            'employee_name': bill.contract.service_personnel.name if bill.contract.service_personnel else (bill.contract.user.username if bill.contract.user else "未知"),
+                            'employee_name': bill.contract.service_personnel.name if bill.contract.service_personnel else "未知",
                             'cycle': f"{bill.cycle_start_date.strftime('%Y-%m-%d')} to {bill.cycle_end_date.strftime('%Y-%m-%d')}",
                             'allocated_amount': str(record.amount)
                         })

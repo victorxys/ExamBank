@@ -243,7 +243,7 @@ class PaymentMessageGenerator:
             sub_record = bill.source_substitute_record
             employee_name = sub_record.substitute_user.username if sub_record.substitute_user else sub_record.substitute_personnel.name
         elif bill.contract:
-            employee_name = bill.contract.user.username if bill.contract.user else bill.contract.service_personnel.name
+            employee_name = bill.contract.service_personnel.name if bill.contract.service_personnel else "未知员工"
 
         return {
             "customer_name": bill.contract.customer_name,

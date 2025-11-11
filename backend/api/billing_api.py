@@ -90,32 +90,50 @@ ADJUSTMENT_TYPE_LABELS = {
 def _get_or_create_personnel_ref(name: str, phone: str = None):
     """
     根据姓名和（可选）手机号，查找或创建服务人员。
-    逻辑与 data_sync_service 一致。
-    返回一个包含人员类型和ID的字典。
+    始终返回一个包含 ServicePersonnel ID 的字典。
     """
-    # 1. 按手机号在 User 表中精确查找
-    if phone:
-        user = User.query.filter_by(phone_number=phone).first()
-        if user:
-            return {"type": "user", "id": user.id}
-
-    # 2. 按姓名在 User 表中查找
-    user = User.query.filter_by(username=name).first()
-    if user:
-        return {"type": "user", "id": user.id}
-
-    # 3. 按手机号在 ServicePersonnel 表中精确查找
+    sp = None
+    # 1. 优先在 ServicePersonnel 表中查找
     if phone:
         sp = ServicePersonnel.query.filter_by(phone_number=phone).first()
-        if sp:
-            return {"type": "service_personnel", "id": sp.id}
+    if not sp and name:
+        sp = ServicePersonnel.query.filter_by(name=name).first()
 
-    # 4. 按姓名在 ServicePersonnel 表中查找
-    sp = ServicePersonnel.query.filter_by(name=name).first()
+    # 2. 如果在 ServicePersonnel 中找到，直接返回
     if sp:
         return {"type": "service_personnel", "id": sp.id}
 
-    # 5. 如果都找不到，则创建新的 ServicePersonnel
+    # 3. 如果在 ServicePersonnel 中未找到，尝试在 User 表中查找
+    user = None
+    if phone:
+        user = User.query.filter_by(phone_number=phone).first()
+    if not user and name:
+        user = User.query.filter_by(username=name).first()
+
+    # 4. 如果在 User 中找到，则创建或关联 ServicePersonnel
+    if user:
+        # 检查 User 是否已经关联了 ServicePersonnel
+        if user.service_personnel_profile:
+            return {"type": "service_personnel", "id": user.service_personnel_profile.id}
+        else:
+            # User 存在但没有关联 ServicePersonnel，创建新的 ServicePersonnel 并关联
+            name_pinyin_full = "".join(lazy_pinyin(name))
+            name_pinyin_initials = "".join(item[0] for item in pinyin(name, style=Style.FIRST_LETTER))
+            name_pinyin_combined = f"{name_pinyin_full}{name_pinyin_initials}"
+
+            new_sp = ServicePersonnel(
+                name=name,
+                phone_number=phone,
+                id_card_number=user.id_card_number, # 尝试同步身份证号
+                user_id=user.id,
+                name_pinyin=name_pinyin_combined
+            )
+            db.session.add(new_sp)
+            db.session.flush()
+            current_app.logger.info(f"为现有用户 {user.username} 创建并关联了新的服务人员: {name} (ID: {new_sp.id})")
+            return {"type": "service_personnel", "id": new_sp.id}
+
+    # 5. 如果 User 和 ServicePersonnel 都没有找到，则创建新的 ServicePersonnel
     name_pinyin_full = "".join(lazy_pinyin(name))
     name_pinyin_initials = "".join(item[0] for item in pinyin(name, style=Style.FIRST_LETTER))
     name_pinyin_combined = f"{name_pinyin_full}{name_pinyin_initials}"
@@ -127,7 +145,7 @@ def _get_or_create_personnel_ref(name: str, phone: str = None):
     )
     db.session.add(new_sp)
     db.session.flush()
-    current_app.logger.info(f"创建了新的服务人员: {name} (Pinyin: {name_pinyin_combined})")
+    current_app.logger.info(f"创建了新的服务人员: {name} (ID: {new_sp.id}, Pinyin: {name_pinyin_combined})")
     return {"type": "service_personnel", "id": new_sp.id}
 
 
@@ -211,7 +229,9 @@ def save_attendance():
         if not contract:
             return jsonify({"error": "关联合同未找到"}), 404
 
-        employee_id = contract.user_id or contract.service_personnel_id
+        # employee_id = contract.user_id or contract.service_personnel_id
+        employee_id = contract.service_personnel_id
+
         if not employee_id:
             return jsonify({"error": "合同未关联任何员工"}), 400
 
@@ -284,7 +304,6 @@ def get_bills():
             db.session.query(CustomerBill, contract_poly)
             .select_from(CustomerBill)
             .join(contract_poly, CustomerBill.contract_id == contract_poly.id)
-            .outerjoin(User, contract_poly.user_id == User.id)
             .outerjoin(
                 ServicePersonnel,
                 contract_poly.service_personnel_id == ServicePersonnel.id,
@@ -304,8 +323,6 @@ def get_bills():
                 db.or_(
                     contract_poly.customer_name.ilike(f"%{search_term}%"),
                     contract_poly.customer_name_pinyin.ilike(f"%{search_term}%"),
-                    User.username.ilike(f"%{search_term}%"),
-                    User.name_pinyin.ilike(f"%{search_term}%"),
                     ServicePersonnel.name.ilike(f"%{search_term}%"),
                     ServicePersonnel.name_pinyin.ilike(f"%{search_term}%"),
                 )
@@ -495,11 +512,9 @@ def get_bills():
             end = contract.end_date.isoformat() if contract.end_date else "—"
             item["contract_period"] = f"{start} ~ {end}"
 
-            original_employee = contract.user or contract.service_personnel
-            item["employee_name"] = getattr(
-                original_employee,
-                "username",
-                getattr(original_employee, "name", "未知员工"),
+            original_employee = contract.service_personnel
+            item["employee_name"] = (
+                original_employee.name if original_employee else "未知员工"
             )
 
             if bill.is_substitute_bill:
@@ -645,23 +660,22 @@ def pre_check_billing():
             MaternityNurseContract.id.in_(contract_ids),  # <--- 只在提供的ID中查找
             MaternityNurseContract.actual_onboarding_date is None,
         )
-        .join(User, BaseContract.user_id == User.id, isouter=True)
         .join(
             ServicePersonnel,
             BaseContract.service_personnel_id == ServicePersonnel.id,
             isouter=True,
         )
-        .add_columns(User.username, ServicePersonnel.name.label("sp_name"))
+        .add_columns(ServicePersonnel.name.label("sp_name"))
         .all()
     )
 
     results = []
-    for contract, user_name, sp_name in missing_date_contracts:
+    for contract, sp_name in missing_date_contracts:
         results.append(
             {
                 "id": str(contract.id),
                 "customer_name": contract.customer_name,
-                "employee_name": user_name or sp_name or "未知员工",
+                "employee_name": sp_name or "未知员工",
                 "provisional_start_date": contract.provisional_start_date.isoformat()
                 if contract.provisional_start_date
                 else None,
@@ -854,8 +868,8 @@ def _apply_all_adjustments_and_settlements(adjustments_data, bill, payroll):
                     new_record = PayoutRecord(employee_payroll_id=payroll.id, amount=abs(adj_amount), payout_date=settlement_date, method=settlement_method, notes=record_notes, payer='公司', created_by_user_id=user_id)
                     record_type = 'payout'
                 elif adj_type in employee_decrease_types:
-                    payer_name = payroll.contract.user.username if payroll.contract.user else payroll.contract.service_personnel.name
-                    new_record = PayoutRecord(employee_payroll_id=payroll.id, amount=abs(adj_amount) * -1, payout_date=settlement_date, method=settlement_method, notes=f"[员工缴款]{adj_description}", payer=payer_name, created_by_user_id=user_id)
+                    payer_name = payroll.contract.service_personnel.name
+                    new_record = PayoutRecord(employee_payroll_id=payroll.id, amount=abs (adj_amount) * -1, payout_date=settlement_date, method=settlement_method, notes=f"[员工缴款] {adj_description}", payer=payer_name, created_by_user_id=user_id)
                     record_type = 'payout'
 
                 if new_record:
@@ -1101,7 +1115,7 @@ def batch_update_billing_details():
             if attendance_record.overtime_days.quantize(D('0.01'))!=new_overtime_decimal.quantize(D('0.01')):
                 attendance_record.overtime_days = new_overtime_decimal
         elif new_overtime_decimal > 0:
-            employee_id = bill.contract.user_id or bill.contract.service_personnel_id
+            employee_id = bill.contract.service_personnel_id
             if employee_id:
                 db.session.add(AttendanceRecord(
                     employee_id=employee_id, contract_id=bill.contract_id,
@@ -1265,16 +1279,17 @@ def get_eligible_contracts_for_transfer():
         return jsonify({"error": "缺少 customer_name 或 exclude_contract_id 参数"}), 400
 
     try:
-        eligible_contracts = BaseContract.query.filter(
+        eligible_contracts = BaseContract.query.join(
+            ServicePersonnel, BaseContract.service_personnel_id == ServicePersonnel.id
+        ).filter(
             BaseContract.customer_name == customer_name,
             BaseContract.id != exclude_contract_id,
-            # BaseContract.status == 'active'
         ).order_by(BaseContract.start_date.desc()).all()
 
         results = [
             {
                 "id": str(contract.id),
-                "label": f"{get_contract_type_details(contract.type)} - {contract.user.username if contract.user else contract.service_personnel.name} ({contract.start_date.strftime('%Y-%m-%d')}生效)"
+                "label": f"{get_contract_type_details(contract.type)} - {contract.service_personnel.name} ({contract.start_date.strftime('%Y-%m-%d')}生效)"
             }
             for contract in eligible_contracts
         ]
@@ -1391,9 +1406,7 @@ def get_all_contracts():
             deposit_adjustment_sq.c.effective_status.label('deposit_status')
         ).outerjoin(
             deposit_adjustment_sq, BaseContract.id ==deposit_adjustment_sq.c.contract_id
-        ).join(
-            User, BaseContract.user_id == User.id, isouter=True
-        ).join(
+        ).join( # 统一只通过 service_personnel_id 关联 ServicePersonnel
             ServicePersonnel,
             BaseContract.service_personnel_id == ServicePersonnel.id,
             isouter=True,
@@ -1411,20 +1424,14 @@ def get_all_contracts():
                 db.or_(
                     BaseContract.customer_name.ilike(f"%{search_term}%"),
                     BaseContract.customer_name_pinyin.ilike(f"%{search_term}%"),
-                    User.username.ilike(f"%{search_term}%"),
-                    User.name_pinyin.ilike(f"%{search_term}%"),
                     ServicePersonnel.name.ilike(f"%{search_term}%"),
                     ServicePersonnel.name_pinyin.ilike(f"%{search_term}%"),
                 )
             )
+
         if employee_id:
-            # 员工ID可能在 user_id 或 service_personnel_id 字段中
-            query = query.filter(
-                db.or_(
-                    BaseContract.user_id == employee_id,
-                    BaseContract.service_personnel_id == employee_id
-                )
-            )
+            # 统一按 service_personnel_id 筛选
+            query = query.filter(BaseContract.service_personnel_id == employee_id)
         if customer_name:
             query = query.filter(
                 db.or_(
@@ -1475,11 +1482,9 @@ def get_all_contracts():
 
         results = []
         for contract, deposit_amount, deposit_status in paginated_contracts.items:
-            # 你的原始员工姓名获取逻辑，完全保留
+            # 统一从 ServicePersonnel 获取员工姓名
             employee_name = (
-                contract.user.username
-                if contract.user
-                else contract.service_personnel.name
+                contract.service_personnel.name
                 if contract.service_personnel
                 else "未知员工"
             )
@@ -1584,9 +1589,9 @@ def _check_can_convert(trial_contract):
     if not trial_contract or trial_contract.type != 'nanny_trial':
         return False
 
-    # 确定员工ID，可能是 user_id 或 service_personnel_id
-    employee_id_to_check = trial_contract.user_id or trial_contract.service_personnel_id
-    if not employee_id_to_check:
+    # 统一使用 service_personnel_id
+    employee_sp_id = trial_contract.service_personnel_id
+    if not employee_sp_id:
         return False
 
     # 构建查询，查找匹配的正式合同
@@ -1594,10 +1599,7 @@ def _check_can_convert(trial_contract):
     has_eligible_formal_contract = db.session.query(
         NannyContract.query.filter(
             NannyContract.customer_name == trial_contract.customer_name,
-            or_(
-                NannyContract.user_id == employee_id_to_check,
-                NannyContract.service_personnel_id == employee_id_to_check
-            ),
+            NannyContract.service_personnel_id == employee_sp_id,
             NannyContract.status == 'active'
         ).exists()
     ).scalar()
@@ -1750,11 +1752,8 @@ def create_virtual_contract():
             "notes": data.get("notes"),
             "source": "virtual",
         }
-        if employee_ref["type"] == "user":
-            common_params["user_id"] = employee_ref["id"]
-        else:
-            common_params["service_personnel_id"] = employee_ref["id"]
-
+        # 统一将员工ID赋值给 service_personnel_id
+        common_params["service_personnel_id"] = employee_ref["id"]
         contract_type = data["contract_type"]
         new_contract = None
 
@@ -2183,9 +2182,7 @@ def get_single_contract_details(contract_id):
         # 【新增逻辑结束】
 
         employee_name = (
-            contract.user.username
-            if contract.user
-            else contract.service_personnel.name
+            contract.service_personnel.name
             if contract.service_personnel
             else "未知员工"
         )
@@ -2248,7 +2245,6 @@ def get_single_contract_details(contract_id):
         result = {
             "id": str(contract.id),
             "source_trial_contract_id": str(contract.source_trial_contract_id) if hasattr(contract, 'source_trial_contract_id') and contract.source_trial_contract_id else None,
-            'user_id': str(contract.user_id) if contract.user_id else None,
             'service_personnel_id': str(contract.service_personnel_id) if contract.service_personnel_id else None,
             "customer_name": contract.customer_name,
             "contact_person": contract.contact_person,
@@ -2646,9 +2642,7 @@ def find_bill_and_its_page():
 
     # --- Modification: Add necessary contract info to the response ---
     employee_name = (
-        contract.user.username
-        if contract.user
-        else contract.service_personnel.name
+        contract.service_personnel.name
         if contract.service_personnel
         else "未知员工"
     )
@@ -2897,9 +2891,9 @@ def get_dashboard_summary():
 
         # === 1. KPIs ===
         active_contracts_count = db.session.query(func.count(BaseContract.id)).filter(BaseContract.status == 'active').scalar() or 0
-        active_employees_count =db.session.query(func.count(distinct(BaseContract.user_id))).filter(
+        active_employees_count =db.session.query(func.count(distinct(BaseContract.service_personnel_id))).filter(
             BaseContract.status == 'active',
-            BaseContract.user_id.isnot(None)
+            BaseContract.service_personnel_id.isnot(None)
         ).scalar() or 0
 
         pending_deposit_query = db.session.query(
@@ -2951,7 +2945,7 @@ def get_dashboard_summary():
         expiring_contracts = [{
             "id": str(c.id),
             "customer_name": c.customer_name,
-            "employee_name": (c.user.username if c.user else c.service_personnel.name if c.service_personnel else '未知'),
+            "employee_name": (c.service_personnel.name if c.service_personnel else '未知'),
             "end_date": (c.end_date.date() if isinstance(c.end_date, datetime)else c.end_date).isoformat(),
             "expires_in_days": ((c.end_date.date() if isinstance(c.end_date,datetime) else c.end_date) - today).days
         } for c in expiring_contracts_query.all()]
@@ -2978,7 +2972,7 @@ func.date(MaternityNurseContract.provisional_start_date).between(today, today+ t
 
         pending_payments = [{
             "bill_id": str(p.id),
-            "customer_name": p.customer_name,
+            "customer_name": p.contract.customer_name,
             "contract_type": get_contract_type_details(p.contract.type),
             "amount": f"{(p.total_due - p.total_paid).quantize(D('0.01'))}"
         } for p in pending_payments_query.all()]
@@ -3193,8 +3187,8 @@ def export_management_fees():
                 else:
                     employee_name = "替班(记录丢失)"
             else:
-                original_employee = contract.user or contract.service_personnel
-                employee_name = getattr(original_employee, "username", getattr(original_employee, "name", "未知员工"))
+                original_employee = contract.service_personnel
+                employee_name = getattr(original_employee, "name", "未知员工")
 
             # 将计算结果存入字典
             data_rows.append({
@@ -3275,8 +3269,8 @@ def get_billing_conflicts():
     employee_bills = defaultdict(list)
     for bill in bills:
         # 确保合同关联了员工
-        if bill.contract and (bill.contract.service_personnel_id or bill.contract.user_id):
-            employee_id = bill.contract.service_personnel_id or bill.contract.user_id
+        if bill.contract and bill.contract.service_personnel_id:
+            employee_id = bill.contract.service_personnel_id
             employee_bills[employee_id].append(bill)
 
     employee_conflicts = []
@@ -3296,11 +3290,11 @@ def get_billing_conflicts():
                         continue
 
                     if bill_a.cycle_start_date <= bill_b.cycle_end_date and bill_a.cycle_end_date >= bill_b.cycle_start_date:
-                        employee = bill_a.contract.user or bill_a.contract.service_personnel
+                        employee = bill_a.contract.service_personnel
                         if not employee: continue # 如果找不到员工信息，则跳过
 
                         # 查找是否已存在该员工的冲突记录
-                        existing_conflict = next((c for c in employee_conflicts if c['identifier_id'] == employee_id), None)
+                        existing_conflict = next((c for c in employee_conflicts if c[ 'identifier_id'] == employee_id), None)
 
                         formatted_bill_a = format_bill_for_conflict_response(bill_a)
                         formatted_bill_b = format_bill_for_conflict_response(bill_b)
@@ -3316,7 +3310,7 @@ def get_billing_conflicts():
                             employee_conflicts.append({
                                 "type": "employee",
                                 "identifier_id": employee_id,
-                                "identifier_name": employee.username if hasattr(employee, 'username') else employee.name,
+                                "identifier_name": employee.name if employee else "N/A",
                                 "conflicts": [formatted_bill_a, formatted_bill_b]
                             })
 
@@ -3378,7 +3372,7 @@ def format_bill_for_conflict_response(bill):
     management_fee = None
 
     if bill.contract:
-        employee = bill.contract.user or bill.contract.service_personnel
+        employee = bill.contract.service_personnel
         # 如果不是替班账单，则获取合同的起止日期
         if not bill.is_substitute_bill:
             contract_start_date = bill.contract.start_date.isoformat() if bill.contract.start_date else None
@@ -3390,9 +3384,9 @@ def format_bill_for_conflict_response(bill):
 
     return {
         "bill_id": str(bill.id),
-        "contract_id": str(bill.contract_id),
-        "customer_name": bill.customer_name,
-        "employee_name": employee.username if employee and hasattr(employee, 'username') else (employee.name if employee else "N/A"),
+        "contract_id": str(bill.contract.id),
+        "customer_name": bill.contract.customer_name,
+        "employee_name": employee.name if employee else "N/A",
         "contract_type": get_contract_type_details(bill.contract.type) if bill.contract else "N/A",
         "cycle_start_date": bill.cycle_start_date.isoformat(),
         "cycle_end_date": bill.cycle_end_date.isoformat(),
@@ -3408,11 +3402,9 @@ def format_bill_for_conflict_response(bill):
 def transfer_financial_adjustment(adjustment_id):
     """
     将一个财务调整项转移到下一个账单周期。
-    优先转移到同一合同的下一期账单。
-    若无下一期账单，则转移到同一客户名下，另一指定合同的账单中。
+    V2: 增加自动寻找续约合同的逻辑。
     """
     data = request.get_json()
-    # destination_contract_id 现在是可选的
     destination_contract_id = data.get("destination_contract_id")
 
     try:
@@ -3421,167 +3413,172 @@ def transfer_financial_adjustment(adjustment_id):
         if not source_adj:
             return jsonify({"error": "需要转移的财务调整项未找到"}), 404
 
-        # 精确检查，只禁止对“已转出”或“冲账”的条目进行操作
         if source_adj.details and source_adj.details.get('status') in ['transferred_out', 'offsetting_transfer']:
             return jsonify({"error": "该款项是转出或冲账条目，无法再次转移"}), 400
 
         source_bill_or_payroll = None
         is_employee_adj = False
         if source_adj.customer_bill_id:
-            source_bill_or_payroll = db.session.get(CustomerBill,source_adj.customer_bill_id)
+            source_bill_or_payroll = db.session.get(CustomerBill, source_adj.customer_bill_id)
             source_contract = source_bill_or_payroll.contract
         elif source_adj.employee_payroll_id:
-            source_bill_or_payroll = db.session.get(EmployeePayroll,source_adj.employee_payroll_id)
+            source_bill_or_payroll = db.session.get(EmployeePayroll, source_adj.employee_payroll_id)
             source_contract = source_bill_or_payroll.contract
             is_employee_adj = True
         else:
-            return jsonify({"error": "源财务调整项未关联到任何账单或薪酬单"}), 500
+            # 如果调整项没有关联账单或薪酬单，但有关联合同，则可能是待处理的调整项
+            if source_adj.contract_id:
+                source_contract = db.session.get(BaseContract, source_adj.contract_id)
+                # 对于待处理项，我们需要一个“虚拟”的账单周期来比较，就用合同开始日期
+                source_bill_or_payroll = source_contract 
+            else:
+                return jsonify({"error": "源财务调整项未关联到任何合同、账单或薪酬单"}), 500
 
         if not source_bill_or_payroll:
-             return jsonify({"error": "找不到源财务调整项所属的账单或薪酬单"}),500
+             return jsonify({"error": "找不到源财务调整项所属的上下文"}), 500
 
         # 2. 智能确定目标账单
-        destination_bill = None
+        dest_bill = None
         dest_contract = None
 
         # 策略一：查找同一合同的下一期账单
+        # 使用 source_contract 的开始日期或账单周期开始日期作为比较基准
+        base_date = getattr(source_bill_or_payroll, 'cycle_start_date', source_contract.start_date)
         next_bill_in_contract = CustomerBill.query.filter(
             CustomerBill.contract_id == source_contract.id,
-            CustomerBill.cycle_start_date >source_bill_or_payroll.cycle_start_date,
+            CustomerBill.cycle_start_date > base_date,
             CustomerBill.is_substitute_bill == False
         ).order_by(CustomerBill.cycle_start_date.asc()).first()
 
         if next_bill_in_contract:
-            destination_bill = next_bill_in_contract
+            dest_bill = next_bill_in_contract
             dest_contract = source_contract
-            current_app.logger.info(f"找到同一合同的下一期账单 {destination_bill.id} 作为转移目标。")
+            current_app.logger.info(f"策略1: 找到同一合同的下一期账单 {dest_bill.id} 作为转移目标。")
+        else:
+            # 策略二：自动寻找续约合同
+            successor_contract = _find_successor_contract_internal(str(source_contract.id))
+            if successor_contract:
+                dest_contract = successor_contract
+                current_app.logger.info(f"策略2: 自动找到续约合同 {dest_contract.id}。")
+            # 策略三：使用前端手动指定的合同
+            elif destination_contract_id:
+                dest_contract = db.session.get(BaseContract, destination_contract_id)
+                if not dest_contract:
+                    return jsonify({"error": "指定的目标合同未找到"}), 404
+                current_app.logger.info(f"策略3: 使用前端指定的目标合同 {dest_contract.id}。")
 
-        # 策略二：如果策略一失败，且提供了目标合同ID，则使用现有逻辑
-        elif destination_contract_id:
-            dest_contract = db.session.get(BaseContract, destination_contract_id)
-            if not dest_contract:
-                return jsonify({"error": "目标合同未找到"}), 404
-            if source_contract.customer_name != dest_contract.customer_name:
-                return jsonify({"error": "只能在同一客户名下的不同合同间转移"}),400
+        # 如果通过策略2或3找到了目标合同，现在查找它的第一个账单
+        if dest_contract and not dest_bill:
+            if dest_contract.customer_name != source_contract.customer_name:
+                 return jsonify({"error": "只能在同一客户名下的不同合同间转移"}), 400
 
-            # 查找目标合同的最早一期账单
-            destination_bill = CustomerBill.query.filter(
+            dest_bill = CustomerBill.query.filter(
                 CustomerBill.contract_id == dest_contract.id,
                 CustomerBill.is_substitute_bill == False
             ).order_by(CustomerBill.cycle_start_date.asc()).first()
 
-            if not destination_bill:
-                return jsonify({"error": "目标合同没有任何账单，无法接收转移款项"}), 400
-            current_app.logger.info(f"使用指定的另一个合同 {dest_contract.id} 的账单 {destination_bill.id} 作为转移目标。")
-
-        else:
-            return jsonify({"error":"当前合同已无后续账单，且未指定可供转移的目标合同。"}), 400
+        # 最终检查：如果所有策略都失败了
+        if not dest_bill:
+            return jsonify({"error": "未指定可供转移的目标合同"}), 400
 
         # 3. 执行转移和冲抵操作
         with db.session.begin_nested():
             original_description = source_adj.description
 
             # 3a. 在目标账单下创建“转入”项
-            original_type_label=ADJUSTMENT_TYPE_LABELS.get(source_adj.adjustment_type,source_adj.adjustment_type.name)
+            original_type_label = ADJUSTMENT_TYPE_LABELS.get(source_adj.adjustment_type, source_adj.adjustment_type.name)
 
-            # --- Linus 修正开始 ---
-            # 无论来源是客户账单还是员工工资单，我们都需要明确找到源头的“客户账单ID”
             source_customer_bill_id = None
             if is_employee_adj:
-                # 如果是员工侧的调整，我们需要根据其薪酬单找到对应的客户账单
-                source_customer_bill =CustomerBill.query.filter_by(
+                source_customer_bill = CustomerBill.query.filter_by(
                     contract_id=source_contract.id,
                     cycle_start_date=source_bill_or_payroll.cycle_start_date,
                     is_substitute_bill=source_bill_or_payroll.is_substitute_payroll
-                ).with_entities(CustomerBill.id).first()# 只查询ID，更高效
+                ).with_entities(CustomerBill.id).first()
                 if source_customer_bill:
                     source_customer_bill_id = str(source_customer_bill.id)
             else:
-                # 如果是客户侧的调整，source_bill_or_payroll.id就是正确的客户账单ID
-                source_customer_bill_id = str(source_bill_or_payroll.id)
-            # --- Linus 修正结束 ---
+                source_customer_bill_id = str(source_bill_or_payroll.id) if hasattr(source_bill_or_payroll, 'id') else None
 
             new_adj_in = FinancialAdjustment(
                 adjustment_type=source_adj.adjustment_type,
                 amount=source_adj.amount,
                 description=f"[转入] {original_type_label}",
-                date=destination_bill.cycle_start_date,
+                date=dest_bill.cycle_start_date,
                 details={
                     "status": "transferred_in",
-                    "transferred_from_adjustment_id":str(source_adj.id),
-                    # 【关键修正】使用我们明确找到的客户账单ID
-                    "transferred_from_bill_id":source_customer_bill_id,
-                    "transferred_from_bill_info": f"{source_bill_or_payroll.year}-{source_bill_or_payroll.month}"
+                    "transferred_from_adjustment_id": str(source_adj.id),
+                    "transferred_from_bill_id": source_customer_bill_id,
+                    "transferred_from_bill_info": f"{getattr(source_bill_or_payroll, 'year', 'N/A')}-{getattr(source_bill_or_payroll, 'month', 'N/A')}"
                 }
             )
 
             dest_payroll = None
             if is_employee_adj:
                 dest_payroll = EmployeePayroll.query.filter_by(
-                    contract_id=destination_bill.contract_id,
-                    cycle_start_date=destination_bill.cycle_start_date
+                    contract_id=dest_bill.contract_id,
+                    cycle_start_date=dest_bill.cycle_start_date
                 ).first()
                 if not dest_payroll:
                     raise Exception("目标账单没有对应的薪酬单，无法转移员工调整项")
                 new_adj_in.employee_payroll_id = dest_payroll.id
             else:
-                new_adj_in.customer_bill_id = destination_bill.id
+                new_adj_in.customer_bill_id = dest_bill.id
 
             db.session.add(new_adj_in)
             db.session.flush()
 
-            # 3b. 在源账单下，创建一笔冲抵项
+            # 3b. 在源位置创建冲抵项
             offsetting_type = None
             source_type = source_adj.adjustment_type
 
-            # --- 这是核心修改 ---
             if source_type == AdjustmentType.EMPLOYEE_COMMISSION:
-                # 对“员工佣金”(减款)，使用我们新的“佣金冲账”(增款)类型来抵消
                 offsetting_type = AdjustmentType.EMPLOYEE_COMMISSION_OFFSET
-            elif source_type in [AdjustmentType.CUSTOMER_INCREASE,AdjustmentType.EMPLOYEE_DECREASE]:
+            elif source_type in [AdjustmentType.CUSTOMER_INCREASE, AdjustmentType.EMPLOYEE_DECREASE]:
                 offsetting_type = AdjustmentType.CUSTOMER_DECREASE if not is_employee_adj else AdjustmentType.EMPLOYEE_INCREASE
-            elif source_type in [AdjustmentType.CUSTOMER_DECREASE,AdjustmentType.EMPLOYEE_INCREASE]:
+            elif source_type in [AdjustmentType.CUSTOMER_DECREASE, AdjustmentType.EMPLOYEE_INCREASE]:
                 offsetting_type = AdjustmentType.CUSTOMER_INCREASE if not is_employee_adj else AdjustmentType.EMPLOYEE_DECREASE
             else:
-                # 对于其他所有类型，默认的冲抵逻辑
                 offsetting_type = AdjustmentType.CUSTOMER_DECREASE if not is_employee_adj else AdjustmentType.EMPLOYEE_INCREASE
-            # --- 修改结束 ---
 
             offsetting_adj = FinancialAdjustment(
                 adjustment_type=offsetting_type,
                 amount=source_adj.amount,
                 description=f"[冲账] {original_description}",
-                date=source_bill_or_payroll.cycle_end_date,
+                date=getattr(source_bill_or_payroll, 'cycle_end_date', source_contract.end_date),
                 details={
                     "status": "offsetting_transfer",
                     "offset_for_adjustment_id": str(source_adj.id),
                     "linked_adjustment_id": str(new_adj_in.id),
-                    "transferred_to_bill_id": str(destination_bill.id),
-                    "transferred_to_bill_info": f"{destination_bill.year}-{destination_bill.month}"
+                    "transferred_to_bill_id": str(dest_bill.id),
+                    "transferred_to_bill_info": f"{dest_bill.year}-{dest_bill.month}"
                 }
             )
             if is_employee_adj:
                 offsetting_adj.employee_payroll_id = source_bill_or_payroll.id
-            else:
+            elif source_adj.customer_bill_id: # 只有当源是账单时才关联
                 offsetting_adj.customer_bill_id = source_bill_or_payroll.id
+            else: # 如果源是合同，冲抵项也关联到合同
+                offsetting_adj.contract_id = source_contract.id
+
 
             db.session.add(offsetting_adj)
 
-            # 3c. 更新源调整项，标记为已转移
+            # 3c. 更新源调整项
             source_adj.details = {
                 "status": "transferred_out",
                 "transferred_to_contract_id": str(dest_contract.id),
-                "transferred_to_bill_id": str(destination_bill.id),
-                "transferred_to_bill_info": f"{destination_bill.year}-{destination_bill.month}",
+                "transferred_to_bill_id": str(dest_bill.id),
+                "transferred_to_bill_info": f"{dest_bill.year}-{dest_bill.month}",
                 "offsetting_adjustment_id": str(offsetting_adj.id)
             }
             source_adj.description = f"{original_description} [已转移]"
             attributes.flag_modified(source_adj, "details")
 
             # 3d. 记录日志
-            log_to_customer = dest_contract.customer_name if dest_contract else source_contract.customer_name
-            _log_activity(source_bill_or_payroll if not is_employee_adj else None,source_bill_or_payroll if is_employee_adj else None, "执行款项转移(转出)",details={"amount": str(source_adj.amount), "description": original_description,"to_customer": log_to_customer})
-            _log_activity(destination_bill if not is_employee_adj else None,dest_payroll, "接收转移款项(转入)", details={"amount": str(new_adj_in.amount),"description": original_description, "from_customer":source_contract.customer_name})
+            log_to_customer = dest_contract.customer_name
+            _log_activity(source_bill_or_payroll if not is_employee_adj else None, source_bill_or_payroll if is_employee_adj else None, "执行款项转移(转出)", details={"amount": str(source_adj.amount), "description": original_description, "to_customer": log_to_customer})
+            _log_activity(dest_bill if not is_employee_adj else None, dest_payroll, "接收转移款项(转入)", details={"amount": str(new_adj_in.amount), "description": original_description, "from_customer": source_contract.customer_name})
 
         db.session.commit()
 
@@ -3594,11 +3591,10 @@ def transfer_financial_adjustment(adjustment_id):
     recalculation_error = None
     try:
         engine = BillingEngine()
-        # 重算源账单
-        engine.calculate_for_month(year=source_bill_or_payroll.year,month=source_bill_or_payroll.month, contract_id=source_contract.id,force_recalculate=True,cycle_start_date_override=source_bill_or_payroll.cycle_start_date)
-        # 重算目标账单
-        if destination_bill:
-             engine.calculate_for_month(year=destination_bill.year,month=destination_bill.month, contract_id=dest_contract.id, force_recalculate=True,cycle_start_date_override=destination_bill.cycle_start_date)
+        if hasattr(source_bill_or_payroll, 'year'):
+            engine.calculate_for_month(year=source_bill_or_payroll.year, month=source_bill_or_payroll.month, contract_id=source_contract.id, force_recalculate=True, cycle_start_date_override=source_bill_or_payroll.cycle_start_date)
+        
+        engine.calculate_for_month(year=dest_bill.year, month=dest_bill.month, contract_id=dest_contract.id, force_recalculate=True, cycle_start_date_override=dest_bill.cycle_start_date)
         db.session.commit()
     except Exception as e:
         db.session.rollback()
@@ -3607,15 +3603,13 @@ def transfer_financial_adjustment(adjustment_id):
     
     # 5. 获取并返回更新后的源账单完整信息
     refresh_bill_id = None
-    if not is_employee_adj:
-        # 如果是客户侧调整，直接用 bill id
+    if not is_employee_adj and hasattr(source_bill_or_payroll, 'id'):
         refresh_bill_id = source_bill_or_payroll.id
     else:
-        # 如果是员工侧调整，需要找到对应的客户账单ID
         source_customer_bill = CustomerBill.query.filter_by(
             contract_id=source_contract.id,
-            cycle_start_date=source_bill_or_payroll.cycle_start_date,
-            is_substitute_bill=source_bill_or_payroll.is_substitute_payroll
+            cycle_start_date=getattr(source_bill_or_payroll, 'cycle_start_date', source_contract.start_date),
+            is_substitute_bill=getattr(source_bill_or_payroll, 'is_substitute_payroll', False)
         ).first()
         if source_customer_bill:
             refresh_bill_id = source_customer_bill.id
@@ -3789,8 +3783,8 @@ def add_payout_record(payroll_id):
 
             if customer_bill:
                 # --- 优化描述文本 ---
-                employee = payroll.contract.user or payroll.contract.service_personnel
-                employee_name = employee.username if hasattr(employee, 'username') and employee.username else (employee.name if hasattr(employee, 'name') else '未知员工')
+                employee = payroll.contract.service_personnel
+                employee_name = employee.name if employee else '未知员工'
                 payroll_month = payroll.month
                 description = f"[系统] 公司代付员工:{employee_name} {payroll_month}月工资"
                 # --- 优化结束 ---
@@ -4194,7 +4188,6 @@ def export_receivables():
             db.session.query(CustomerBill, contract_poly)
             .select_from(CustomerBill)
             .join(contract_poly, CustomerBill.contract_id == contract_poly.id)
-            .outerjoin(User, contract_poly.user_id == User.id)
             .outerjoin(
                 ServicePersonnel,
                 contract_poly.service_personnel_id == ServicePersonnel.id,
@@ -4212,8 +4205,6 @@ def export_receivables():
                 db.or_(
                     contract_poly.customer_name.ilike(f"%{search_term}%"),
                     contract_poly.customer_name_pinyin.ilike(f"%{search_term}%"),
-                    User.username.ilike(f"%{search_term}%"),
-                    User.name_pinyin.ilike(f"%{search_term}%"),
                     ServicePersonnel.name.ilike(f"%{search_term}%"),
                     ServicePersonnel.name_pinyin.ilike(f"%{search_term}%"),
                 )
@@ -4277,9 +4268,8 @@ def export_receivables():
                 else:
                     employee_name = "替班(记录丢失)"
             else:
-                original_employee = contract.user or contract.service_personnel
-                employee_name = getattr(original_employee, "username", getattr(original_employee, "name", "未知员工"))
-
+                original_employee = contract.service_personnel
+                employee_name = getattr(original_employee, "name", "未知员工")
             data_rows.append({
                 "customer_name": contract.customer_name,
                 "employee_name": employee_name,
@@ -4528,7 +4518,7 @@ def get_pending_trial_contracts():
 
         results = []
         for contract in pending_trials:
-            employee_name = (contract.user.username if contract.user else contract.service_personnel.name if contract.service_personnel else '未知')
+            employee_name = (contract.service_personnel.name if contract.service_personnel else '未知')
             results.append({
                 "id": str(contract.id),
                 "customer_name": contract.customer_name,
@@ -4695,28 +4685,30 @@ def search_unpaid_bills():
             })
 
         # 3. Search for Employees (internal Users)
-        current_app.logger.info("Step 3: Searching for Employees (Users)...")
-        user_matches = db.session.query(User.username, BaseContract.customer_name).join(
-            BaseContract, User.id == BaseContract.user_id
-        ).join(
-            CustomerBill, BaseContract.id == CustomerBill.contract_id
-        ).filter(
-            CustomerBill.year == year,
-            CustomerBill.month == month,
-            or_(
-                User.username.ilike(f"%{search_term}%"),
-                User.name_pinyin.ilike(f"%{pinyin_search_term}%")
-            )
-        ).distinct().limit(10).all()
-        current_app.logger.info(f"Found {len(user_matches)} User matches: {user_matches}")
+        # This section is removed as BaseContract.user_id is being deprecated.
+        # All employee searches should now go through ServicePersonnel.
+        # current_app.logger.info("Step 3: Searching for Employees (Users)...")
+        # user_matches = db.session.query(User.username, BaseContract.customer_name).join(
+        #     BaseContract, User.id == BaseContract.user_id
+        # ).join(
+        #     CustomerBill, BaseContract.id == CustomerBill.contract_id
+        # ).filter(
+        #     CustomerBill.year == year,
+        #     CustomerBill.month == month,
+        #     or_(
+        #         User.username.ilike(f"%{search_term}%"),
+        #         User.name_pinyin.ilike(f"%{pinyin_search_term}%")
+        #     )
+        # ).distinct().limit(10).all()
+        # current_app.logger.info(f"Found {len(user_matches)} User matches: {user_matches}")
 
-        for emp_name, cust_name in user_matches:
-            results.append({
-                "type": "employee",
-                "name": emp_name,
-                "customer_name": cust_name,
-                "display": f"{emp_name} (员工, 客户: {cust_name})"
-            })
+        # for emp_name, cust_name in user_matches:
+        #     results.append({
+        #         "type": "employee",
+        #         "name": emp_name,
+        #         "customer_name": cust_name,
+        #         "display": f"{emp_name} (员工, 客户: {cust_name})"
+        #     })
         
         current_app.logger.info(f"Total results before deduplication: {len(results)}")
 
@@ -4760,9 +4752,9 @@ def _format_bill_for_reconciliation(bill, bank_transaction_id=None):
         if sub_record and (sub_record.substitute_user or sub_record.substitute_personnel):
             sub_employee = sub_record.substitute_user or sub_record.substitute_personnel
             employee_name = getattr(sub_employee, 'username', getattr(sub_employee, 'name', '未知替班员工'))
-    elif bill.contract and (bill.contract.user or bill.contract.service_personnel):
-        original_employee = bill.contract.user or bill.contract.service_personnel
-        employee_name = getattr(original_employee, 'username', getattr(original_employee, 'name' , '未知员工'))
+    elif bill.contract and bill.contract.service_personnel:
+        original_employee = bill.contract.service_personnel
+        employee_name = getattr(original_employee, 'name' , '未知员工')
 
     later_bill_exists = db.session.query(CustomerBill.query.filter(
         CustomerBill.contract_id == bill.contract_id,
@@ -4979,8 +4971,8 @@ def transfer_bill_balance(bill_id):
             if final_balance == D(0):
                 return jsonify({"message": "账单余额为零，无需转移。"}), 200
 
-            source_employee = source_bill.contract.user or source_bill.contract.service_personnel
-            source_employee_name = source_employee.username if hasattr(source_employee, 'username') else source_employee.name
+            source_employee = source_bill.contract.service_personnel
+            source_employee_name = source_employee.name
 
             dest_employee_name = "未知员工"
             if dest_bill.is_substitute_bill:
@@ -4991,9 +4983,9 @@ def transfer_bill_balance(bill_id):
                         dest_employee_name = getattr(sub_employee, "username", getattr (sub_employee, "name", "未知替班员工"))
                 dest_employee_name += " (替班)"
             else:
-                dest_employee = dest_contract.user or dest_contract.service_personnel
+                dest_employee = dest_contract.service_personnel
                 if dest_employee:
-                    dest_employee_name = dest_employee.username if hasattr(dest_employee, 'username') else dest_employee.name
+                    dest_employee_name = dest_employee.name
 
             if final_balance > 0:
                 source_adj_type = AdjustmentType.CUSTOMER_DECREASE

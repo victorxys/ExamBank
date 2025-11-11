@@ -121,7 +121,7 @@ class BankStatementService:
                 for record in payout_records:
                     payroll = record.employee_payroll
                     if payroll:
-                        employee = payroll.contract.service_personnel or payroll.contract.user
+                        employee = payroll.contract.service_personnel
                         employee_name = employee.name if hasattr(employee, 'name') else employee.username
                         allocations.append({
                             'type': 'EmployeePayroll',
@@ -328,8 +328,11 @@ class BankStatementService:
         # 根据收款人类型查找关联合同
         contract_ids = []
         if payee_type == 'user':
-            contracts = BaseContract.query.filter_by(user_id=payee_id).all()
-            contract_ids = [c.id for c in contracts]
+            # 查找与该用户关联的服务人员
+            service_personnel = ServicePersonnel.query.filter_by(user_id=payee_id).first()
+            if service_personnel:
+                contracts = BaseContract.query.filter_by(service_personnel_id=service_personnel. id).all()
+                contract_ids = [c.id for c in contracts]
         elif payee_type == 'service_personnel':
             contracts = BaseContract.query.filter_by(service_personnel_id=payee_id).all()
             contract_ids = [c.id for c in contracts]
@@ -371,7 +374,7 @@ class BankStatementService:
 
         # 格式化返回
         if isinstance(oldest_item, EmployeePayroll):
-            employee = oldest_item.contract.service_personnel or oldest_item.contract.user
+            employee = oldest_item.contract.service_personnel
             employee_name = employee.name if hasattr(employee, 'name') else employee.username
             return {
                 'target_id': str(oldest_item.id),
@@ -513,18 +516,12 @@ class BankStatementService:
         matching_contract_ids.update(customer_contract_ids)
 
         # 2. 根据员工姓名或拼音查找关联的合同
-        matching_user_ids = [u.id for u in User.query.filter(or_(User.username.ilike(f"%{search_term}%"),User.name_pinyin.ilike(f"%{pinyin_search_term}%"))).all()]
-        print(f"--- DEBUG: Found {len(matching_user_ids)} matching user IDs: {matching_user_ids} ---")
-
-        matching_sp_ids = [sp.id for sp in ServicePersonnel.query.filter(or_(ServicePersonnel.name.ilike(f"%{search_term}%"), ServicePersonnel.name_pinyin.ilike(f"%{pinyin_search_term}%"))).all()]
+        matching_sp_ids = [sp.id for sp in ServicePersonnel.query.filter (or_(ServicePersonnel.name.ilike(f"%{search_term}%"), ServicePersonnel.name_pinyin.ilike(f"% {pinyin_search_term}%"))).all()]
         print(f"--- DEBUG: Found {len(matching_sp_ids)} matching service personnel IDs: {matching_sp_ids} ---")
 
-        if matching_user_ids or matching_sp_ids:
+        if matching_sp_ids:
             contracts_by_employee = BaseContract.query.filter(
-                or_(
-                    BaseContract.user_id.in_(matching_user_ids),
-                    BaseContract.service_personnel_id.in_(matching_sp_ids)
-                )
+                BaseContract.service_personnel_id.in_(matching_sp_ids)
             ).all()
             employee_contract_ids = {c.id for c in contracts_by_employee}
             print(f"--- DEBUG: Found {len(employee_contract_ids)} contracts via employees: {employee_contract_ids} ---")
@@ -547,13 +544,13 @@ class BankStatementService:
         print(f"--- DEBUG: Found {len(payrolls)} matching unpaid payrolls. ---")
 
         for payroll in payrolls:
-            employee = payroll.contract.service_personnel or payroll.contract.user
+            employee = payroll.contract.service_personnel
             if employee:
-                employee_name = employee.name if hasattr(employee, 'name') else employee.username
+                employee_name = employee.name if employee else "未知员工"
                 results.append({
                     'type': 'EmployeePayroll',
                     'id': str(payroll.id),
-                    'display': f"工资单: {employee_name} (客户: {payroll.contract.customer_name})",
+                    'display': f"工资单: {employee_name} (客户: {payroll.contract.customer_name} )",
                     'name': employee_name,
                     'amount_due': str(payroll.total_due - payroll.total_paid_out)
                 })
@@ -594,8 +591,8 @@ class BankStatementService:
                 pass
 
         if isinstance(item, EmployeePayroll):
-            employee = item.contract.service_personnel or item.contract.user
-            employee_name = employee.name if hasattr(employee, 'name') else employee.username
+            employee = item.contract.service_personnel
+            employee_name = employee.name if employee else "未知员工"
             return {
                 'id': str(item.id),
                 'target_id': str(item.id),
@@ -632,8 +629,11 @@ class BankStatementService:
 
         contract_ids = []
         if payee_type == 'user':
-            contracts = BaseContract.query.filter_by(user_id=payee_id).all()
-            contract_ids = [c.id for c in contracts]
+            # 查找与该用户关联的服务人员
+            service_personnel = ServicePersonnel.query.filter_by(user_id=payee_id).first()
+            if service_personnel:
+                contracts = BaseContract.query.filter_by(service_personnel_id=service_personnel. id).all()
+                contract_ids = [c.id for c in contracts]
         elif payee_type == 'service_personnel':
             contracts = BaseContract.query.filter_by(service_personnel_id=payee_id).all()
             contract_ids = [c.id for c in contracts]
@@ -1035,7 +1035,7 @@ class BankStatementService:
             "id": str(bill.id),
             "contract_id": str(bill.contract_id),
             "customer_name": bill.contract.customer_name,
-            "employee_name": bill.contract.service_personnel.name if bill.contract.service_personnel else (bill.contract.user.username if bill.contract.user else "未知员工"),
+            "employee_name": bill.contract.service_personnel.name if bill.contract.service_personnel else "未知员工",
             "cycle": f"{bill.cycle_start_date.strftime('%Y-%m-%d')} to {bill.cycle_end_date.strftime('%Y-%m-%d')}",
             "total_due": str(bill.total_due),
             "year": bill.year,
@@ -1280,7 +1280,7 @@ class BankStatementService:
             "unpaid_bills": [
                 {
                     "id": str(bill.id),
-                    "employee_name": bill.contract.service_personnel.name if bill.contract and bill.contract.service_personnel else (bill.contract.user.username if bill.contract and bill.contract.user else "未知员工"),
+                    "employee_name": bill.contract.service_personnel.name if bill.contract and bill.contract.service_personnel else "未知员工",
                     "cycle": f"{bill.cycle_start_date.strftime('%Y-%m-%d')} to {bill.cycle_end_date.strftime('%Y-%m-%d')}",
                     "bill_month": bill.month,
                     "total_due": str(bill.total_due),

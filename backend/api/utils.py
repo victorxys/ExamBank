@@ -343,7 +343,7 @@ def get_billing_details_internal(
         sub_record = customer_bill.source_substitute_record
         final_employee = sub_record.substitute_user or sub_record.substitute_personnel
     else:
-        final_employee = contract.user or contract.service_personnel
+        final_employee = contract.service_personnel
 
     if final_employee:
         employee_details['employee_id'] = str(final_employee.id)
