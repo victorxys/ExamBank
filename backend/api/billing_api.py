@@ -1739,6 +1739,7 @@ def create_virtual_contract():
         cust_pinyin_full = "".join(item[0] for item in pinyin(customer_name,style=Style.NORMAL))
         cust_pinyin_initials = "".join(item[0] for item in pinyin(customer_name,style=Style.FIRST_LETTER))
         customer_name_pinyin = f"{cust_pinyin_full}{cust_pinyin_initials}"
+        management_fee_rate=D(data.get("management_fee_rate", 0.10)),
 
         common_params = {
             "customer_id": customer_id,
@@ -1751,6 +1752,7 @@ def create_virtual_contract():
             "end_date": date_parse(data["end_date"]),
             "notes": data.get("notes"),
             "source": "virtual",
+            "management_fee_rate": management_fee_rate,
         }
         # 统一将员工ID赋值给 service_personnel_id
         common_params["service_personnel_id"] = employee_ref["id"]
@@ -2270,12 +2272,14 @@ def get_single_contract_details(contract_id):
             "deposit_paid": is_deposit_paid,
             "can_convert_to_formal": can_convert,
             "termination_date": safe_isoformat(contract.termination_date),
+            "previous_contract_id": str(contract.previous_contract_id) if contract.previous_contract_id else None,
+            "successor_contract_id": str(contract.next_contracts[0].id) if contract.next_contracts else None,
         }
         if contract.type == 'nanny_trial':
             result['trial_outcome'] = contract.trial_outcome.value if contract.trial_outcome else None
             # 同时，把转换后的正式合同ID也加上，供前端使用
             if hasattr(contract, 'converted_to_formal_contract') and contract.converted_to_formal_contract:
-                result['converted_to_formal_contract_id'] = str(contract.converted_to_formal_contract.id)
+                result['converted_to_formal_contract_id'] = str (contract.converted_to_formal_contract.id)
 
         
         return jsonify(result)
