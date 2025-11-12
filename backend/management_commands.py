@@ -753,59 +753,82 @@ def register_commands(app):
             all_entries = sync_service.get_form_entries(correct_form_token)
             
             if not all_entries:
-                click.echo(click.style("从金数据表单 'sqcCWM' 获取记录为0，无法继续执行。", fg= "red"))
+                click.echo(click.style("从金数据表单 'sqcCWM' 获取记录为0，无法继续执行。", fg="red"))
                 return
-
             click.echo(f"成功获取 {len(all_entries)} 条金数据记录。")
 
-            # 2. 创建从 field_1 到 serial_number 的反向映射
+            # 2. 预分析金数据源头的重复 serial_number 值
+            click.echo("正在分析金数据源头以预先查找重复的 serial_number 值...")
+            serial_to_field_1s = {}
+            for entry in all_entries:
+                field_1_val, serial_num = entry.get("field_1"), entry.get("serial_number")
+                if field_1_val and serial_num:
+                    serial_str = str(serial_num)
+                    if serial_str not in serial_to_field_1s:
+                        serial_to_field_1s[serial_str] = []
+                    serial_to_field_1s[serial_str].append(str(field_1_val))
+            
+            source_duplicates = {k for k, v in serial_to_field_1s.items() if len(v) > 1}
+            if source_duplicates:
+                click.echo(click.style(f"\\n--- 警告：发现 {len(source_duplicates)} 个在源头就重复的 serial_number 值 ---", fg="yellow"))
+                click.echo("所有这些 serial_number 都将被跳过，以避免逻辑混淆。请手动处理这些源数据：")
+                for val in source_duplicates:
+                    click.echo(f"  - 重复的 serial_number: '{val}'")
+            else:
+                click.echo("金数据源头未发现重复的 serial_number 值。")
+
+            # 3. 创建从 field_1 到 serial_number 的反向映射
             reverse_id_map = {
                 str(entry.get("field_1")): str(entry.get("serial_number"))
-                for entry in all_entries
-                if entry.get("serial_number") and entry.get("field_1")
+                for entry in all_entries if entry.get("serial_number") and entry.get("field_1" )
             }
-            
-            if not reverse_id_map:
-                click.echo(click.style("未能成功创建 field_1 -> serial_number 的反向映射，请检查金数据记录。", fg="red"))
-                return
 
-            # 3. 查询数据库中所有需要对齐的合同
+            # 4. 查询本地数据库中所有相关的合同
             click.echo("正在查询本地数据库中的育儿嫂试工合同...")
             contracts_to_align = NannyTrialContract.query.filter (NannyTrialContract.jinshuju_entry_id.isnot(None)).all()
-
             if not contracts_to_align:
-                click.echo(click.style("数据库中没有找到需要对齐的育儿嫂试工合同。", fg="green" ))
+                click.echo(click.style("数据库中没有找到需要对齐的育儿嫂试工合同。", fg= "green"))
                 return
-            
             click.echo(f"找到 {len(contracts_to_align)} 条本地合同记录需要检查。")
 
-            updated_count = 0
-            skipped_count = 0
+            # 预先加载数据库中已存在的ID，用于冲突检查
+            existing_ids_in_db = {c.jinshuju_entry_id for c in contracts_to_align}
+
+            updated_count, skipped_count = 0, 0
             
-            # 4. 遍历并对齐
+            # 5. 遍历并对齐
             with click.progressbar(contracts_to_align, label="正在检查并对齐合同") as bar:
                 for contract in bar:
                     current_field_1_val = contract.jinshuju_entry_id
                     
-                    if current_field_1_val in reverse_id_map:
-                        correct_serial_number = reverse_id_map[current_field_1_val]
-                        
-                        if current_field_1_val != correct_serial_number:
-                            click.echo(f"\\n  - [对齐] 合同ID: {contract.id} | "
-                                       f"当前 ID (field_1): {current_field_1_val} -> "
-                                       f"最终 serial_number: {correct_serial_number}")
-                            if not dry_run:
-                                contract.jinshuju_entry_id = correct_serial_number
-                                db.session.add(contract)
-                            updated_count += 1
-                        else:
-                            click.echo(f"\\n  - [跳过] 合同ID: {contract.id} | 原因: 当前 ID (' {current_field_1_val}') 已是正确的 serial_number。")
-                            skipped_count += 1
+                    if current_field_1_val not in reverse_id_map:
+                        skipped_count += 1
+                        continue
+
+                    correct_serial_number = reverse_id_map[current_field_1_val]
+
+                    # 检查1：目标 serial_number 是否在金数据源头就是重复的
+                    if correct_serial_number in source_duplicates:
+                        click.echo(f"\\n  - [跳过] 合同ID: {contract.id} | 原因: 目标 serial_number ('{correct_serial_number}') 在源数据中是重复值。")
+                        skipped_count += 1
+                        continue
+                    
+                    # 检查2：目标 serial_number 是否已经被数据库中其他记录占用了
+                    if correct_serial_number in existing_ids_in_db and current_field_1_val != correct_serial_number:
+                        click.echo(f"\\n  - [跳过] 合同ID: {contract.id} | 原因: 目标 serial_number ('{correct_serial_number}') 已被数据库中另一条记录占用。")
+                        skipped_count += 1
+                        continue
+
+                    if current_field_1_val != correct_serial_number:
+                        click.echo(f"\\n  - [对齐] 合同ID: {contract.id} | 当前(field_1): {current_field_1_val} -> 最终(serial_number): {correct_serial_number}")
+                        if not dry_run:
+                            contract.jinshuju_entry_id = correct_serial_number
+                            db.session.add(contract)
+                        updated_count += 1
                     else:
-                        click.echo(f"\\n  - [跳过] 合同ID: {contract.id} | 原因: 当前 ID (' {current_field_1_val}') 在 'sqcCWM' 表单中未找到对应的 field_1。可能是孤立数据。")
                         skipped_count += 1
 
-            # 5. 提交并报告
+            # 6. 提交并报告
             if not dry_run and updated_count > 0:
                 click.echo("\\n正在提交数据库变更...")
                 db.session.commit()
@@ -814,9 +837,9 @@ def register_commands(app):
             click.echo("\\n--- 对齐任务报告 ---")
             click.echo(f"总共检查合同: {len(contracts_to_align)}")
             click.echo(click.style(f"成功对齐合同: {updated_count}", fg="green"))
-            click.echo(f"无需对齐或跳过: {skipped_count}")
+            click.echo(f"无需对齐或跳过: {skipped_count} (包含因重复或冲突而被跳过的记录)")
             if dry_run and updated_count > 0:
-                click.echo(click.style("\\n【演习模式】未对数据库做任何实际修改。", fg="yellow" ))
+                click.echo(click.style("\\n【演习模式】未对数据库做任何实际修改。", fg= "yellow"))
 
         except Exception as e:
             if not dry_run:
