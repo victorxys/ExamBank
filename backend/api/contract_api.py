@@ -37,6 +37,7 @@ from sqlalchemy import or_, and_, extract, func
 from sqlalchemy.orm import joinedload
 D = decimal.Decimal
 from backend.tasks import calculate_monthly_billing_task, trigger_initial_bill_generation_task
+from dateutil.relativedelta import relativedelta # <--- 请确保文件顶部有此导入
 
 contract_bp = Blueprint("contract_api", __name__, url_prefix="/api/contracts")
 
@@ -417,7 +418,8 @@ def search_contracts():
     sort_order = request.args.get("sort_order", "desc").strip()
 
     try:
-        query = BaseContract.query.options(joinedload(BaseContract.service_personnel))
+        contract_poly = db.with_polymorphic(BaseContract, "*")
+        query = db.session.query(contract_poly).options(joinedload(contract_poly.service_personnel))
 
         if search_term:
             pinyin_search_term = search_term.replace(" ", "")
@@ -438,6 +440,13 @@ def search_contracts():
                 query = query.filter(BaseContract.type.in_(['nanny', 'maternity_nurse']))
             else:
                 query = query.filter(BaseContract.type == type_filter)
+        
+        # --- 新增：处理“是否月签”的筛选逻辑 ---
+        is_monthly_auto_renew_filter = request.args.get("is_monthly_auto_renew")
+        if type_filter == 'nanny' and is_monthly_auto_renew_filter in ['true', 'false']:
+            # 正确做法：直接引用子类模型进行过滤
+            query = query.filter(NannyContract.is_monthly_auto_renew == (is_monthly_auto_renew_filter == 'true'))
+        # --- 新增结束 ---
 
         if status_filter != 'all':
             query = query.filter(BaseContract.status == status_filter)
@@ -468,9 +477,30 @@ def search_contracts():
             "nanny_trial": "育儿嫂试工合同",
             "external_substitution": "外部替班合同",
         }
+        results = []
+        today = datetime.utcnow().date()
+        for contract in contracts:
+            remaining_months = 0
+            highlight_remaining = False
+            
+            # 只对“服务中”的合同计算剩余月数
+            if contract.status == 'active' and contract.end_date:
+                end_date_obj = contract.end_date
+                if isinstance(end_date_obj, datetime):
+                    end_date_obj = end_date_obj.date()
 
-        results = [
-            {
+                if end_date_obj > today:
+                    delta = relativedelta(end_date_obj, today)
+                    remaining_months = delta.years * 12 + delta.months
+                    # 如果有剩余天数，也算一个月
+                    if delta.days > 0:
+                        remaining_months += 1
+                    
+                    # 如果剩余月数小于等于2，则标记为高亮
+                    if remaining_months <= 2:
+                        highlight_remaining = True
+
+            contract_data = {
                 "id": str(contract.id),
                 "customer_name": contract.customer_name,
                 "service_personnel_name": contract.service_personnel.name if contract.service_personnel else "N/A",
@@ -483,14 +513,16 @@ def search_contracts():
                 "customer_signature": contract.customer_signature,
                 "employee_signature": contract.employee_signature,
                 "created_at": contract.created_at.isoformat(),
-                # Include fields needed for filtering and display that were in the old API
                 "contract_type_value": contract.type,
                 "contract_type_label": TYPE_CHOICES.get(contract.type, contract.type),
                 "deposit_amount": str(getattr(contract, 'deposit_amount', 0) or 0),
-                "deposit_paid": bool(getattr(contract, 'security_deposit_paid', 0) and getattr(contract, 'deposit_amount', 0) and getattr(contract, 'security_deposit_paid', 0) >= getattr(contract, 'deposit_amount', 0)),
+                "deposit_paid": bool(getattr(contract, 'security_deposit_paid', 0) and getattr (contract, 'deposit_amount', 0) and getattr(contract, 'security_deposit_paid', 0) >= getattr (contract, 'deposit_amount', 0)),
+                # --- 新增字段 ---
+                "remaining_months": remaining_months,
+                "highlight_remaining": highlight_remaining,
+                "is_monthly_auto_renew": getattr(contract, 'is_monthly_auto_renew', False) # 为筛选功能提供数据
             }
-            for contract in contracts
-        ]
+            results.append(contract_data)
         
         return jsonify({
             "contracts": results,
@@ -1173,7 +1205,7 @@ def change_contract_api(contract_id):
         current_app.logger.error(f"变更合同 {contract_id} 失败: {e}", exc_info=True)
         return jsonify({"error": "内部服务器错误"}), 500
     
-from dateutil.relativedelta import relativedelta # <--- 请确保文件顶部有此导入
+
 
 @contract_bp.route("/customer/<uuid:customer_id>/transferable-contracts", methods=["GET"])
 @jwt_required()

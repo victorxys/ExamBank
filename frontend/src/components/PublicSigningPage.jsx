@@ -71,7 +71,7 @@ const PublicSigningPage = () => {
                 ? contract.employee_info
                 : partyInfoDefault;
 
-            console.log('Populating form with:', { initialCustomerInfo, initialEmployeeInfo });
+            // console.log('Populating form with:', { initialCustomerInfo, initialEmployeeInfo });
 
             setFormValues({
                 customer: initialCustomerInfo,

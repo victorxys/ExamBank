@@ -640,7 +640,7 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
     };
     
     const handleSaveAdjustment = (savedAdj) => {
-        console.log("--- [DEBUG 2] AdjustmentDialog saved. Data from dialog:", savedAdj);
+        // console.log("--- [DEBUG 2] AdjustmentDialog saved. Data from dialog:", savedAdj);
         setAdjustments(prev => {
             const existing = prev.find(a => a.id === savedAdj.id);
             if (existing) return prev.map(a => a.id === savedAdj.id ? savedAdj : a);
@@ -734,24 +734,24 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
             }
         } catch (error) {
             // --- DEBUGGING START ---
-            console.log("进入了 catch 块");
+            // console.log("进入了 catch 块");
             const errorMessage = error.response?.data?.error ||'操作失败，请查看控制台。';
-            console.log("收到的原始错误信息对象:", error.response?.data);
-            console.log("解析后的 errorMessage 字符串:", errorMessage);
+            // console.log("收到的原始错误信息对象:", error.response?.data);
+            // console.log("解析后的 errorMessage 字符串:", errorMessage);
 
             const searchString = "未指定可供转移的目标合同";
-            console.log("将要搜索的子字符串:", searchString);
+            // console.log("将要搜索的子字符串:", searchString);
 
             const isSignal = errorMessage.includes(searchString);
-            console.log("判断条件 (errorMessage.includes(searchString)) 的结果是:",isSignal);
+            // console.log("判断条件 (errorMessage.includes(searchString)) 的结果是:",isSignal);
             // --- DEBUGGING END ---
 
             if (isSignal) {
-                console.log("判断为“信号”，准备打开对话框...");
+                // console.log("判断为“信号”，准备打开对话框...");
                 setTransferringAdjustment(adjToTransfer);
                 setIsTransferDialogOpen(true);
             } else {
-                console.log("判断为“真实错误”，显示错误提示。");
+                // console.log("判断为“真实错误”，显示错误提示。");
                 console.error("转移款项失败:", error);
                 setAlert({ open: true, message: errorMessage, severity: 'error' });
                 handleCloseTransferDialog();
