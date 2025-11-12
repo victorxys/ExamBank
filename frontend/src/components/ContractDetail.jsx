@@ -6,7 +6,7 @@ import {
   Box, Typography, Paper, Grid, CircularProgress, Button,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Chip,Tooltip,
   List, ListItem, ListItemText, Divider, Dialog, DialogTitle, DialogContent,MenuItem,
-  DialogActions, Alert, Stack, IconButton, TextField, InputAdornment, Switch, FormControlLabel, Radio, RadioGroup, FormControl, FormLabel
+  DialogActions, Alert, Stack, IconButton, TextField, InputAdornment, Switch, FormControlLabel, Radio, RadioGroup, FormControl, FormLabel, Autocomplete
 } from '@mui/material';
 import {
     ArrowBack as ArrowBackIcon, Edit as EditIcon, CheckCircle as CheckCircleIcon,Info as InfoIcon,
@@ -185,6 +185,7 @@ const ContractDetail = () => {
         employee_level: '',
         management_fee_amount: '',
         management_fee_rate: 0,
+        transfer_deposit: true,
     });
 
     const conversionActions = useTrialConversion((formalContractId) => {
@@ -194,6 +195,24 @@ const ContractDetail = () => {
             fetchData();
         }
     });
+
+    // --- Start of Change Contract Logic ---
+    const [isChangeModalOpen, setIsChangeModalOpen] = useState(false);
+    const [changeData, setChangeData] = useState({
+        start_date: null,
+        end_date: null,
+        employee_level: '',
+        management_fee_amount: '',
+        management_fee_rate: 0,
+        service_personnel_id: '',
+        service_personnel_name: '',
+        transfer_deposit: true,
+    });
+    const [personnelOptions, setPersonnelOptions] = useState([]);
+    const [personnelSearchTerm, setPersonnelSearchTerm] = useState('');
+    const [isSearchingPersonnel, setIsSearchingPersonnel] = useState(false);
+    const [selectedPersonnel, setSelectedPersonnel] = useState(null);
+    // --- End of Change Contract Logic ---
 
 
     const fetchData = useCallback(async () => {
@@ -323,6 +342,39 @@ const ContractDetail = () => {
             }
         }
     }, [renewalData.employee_level, renewalData.management_fee_rate]);
+    
+    useEffect(() => {
+        if (changeData.management_fee_rate > 0 && changeData.employee_level) {
+            const newFee = parseFloat(changeData.employee_level) * changeData.management_fee_rate ;
+            if (Math.abs(newFee - parseFloat(changeData.management_fee_amount)) > 0.01) {
+                setChangeData(prev => ({ ...prev, management_fee_amount: newFee.toFixed(2) }));
+            }
+        }
+    }, [changeData.employee_level, changeData.management_fee_rate]);
+
+    useEffect(() => {
+        if (personnelSearchTerm.length < 1) {
+            setPersonnelOptions([]);
+            return;
+        }
+
+        const delayDebounceFn = setTimeout(async () => {
+            setIsSearchingPersonnel(true);
+            try {
+                const response = await api.get('/billing/personnel/search', {
+                    params: { q: personnelSearchTerm }
+                });
+                setPersonnelOptions(response.data);
+            } catch (error) {
+                console.error("Failed to search for personnel:", error);
+            } finally {
+                setIsSearchingPersonnel(false);
+            }
+        }, 300);
+
+        return () => clearTimeout(delayDebounceFn);
+    }, [personnelSearchTerm]);
+    // --- End of Change Contract Logic ---
 
     if (loading) return <CircularProgress />;
     if (!contract) return <Typography>未找到合同信息。</Typography>;
@@ -391,20 +443,44 @@ const ContractDetail = () => {
     };
 
     const handleOpenRenewModal = () => {
-        const oldEndDate = new Date(contract.end_date);
-        // 续约合同的开始日期默认为前序合同的结束日期
-        const newStartDate = oldEndDate;
+        if (!contract) return;
 
-        // 默认结束日期为一年后
-        const newEndDate = new Date(newStartDate);
-        newEndDate.setFullYear(newEndDate.getFullYear() + 1);
+        // --- 核心修改：根据原合同周期计算默认续约时长 ---
+        const oldStartDate = new Date(contract.start_date);
+        const oldEndDate = new Date(contract.end_date);
+
+        // 1. 计算原合同的年月日时长
+        const years = oldEndDate.getFullYear() - oldStartDate.getFullYear();
+        const months = oldEndDate.getMonth() - oldStartDate.getMonth();
+        const days = oldEndDate.getDate() - oldStartDate.getDate();
+
+        // 2. 计算新合同的默认开始日期
+        const defaultStartDate = new Date(oldEndDate);
+        defaultStartDate.setDate(defaultStartDate.getDate() + 1);
+
+        // 3. 在新开始日期的基础上，叠加原合同的时长
+        const defaultEndDate = new Date(defaultStartDate);
+        defaultEndDate.setFullYear(defaultEndDate.getFullYear() + years);
+        defaultEndDate.setMonth(defaultEndDate.getMonth() + months);
+        defaultEndDate.setDate(defaultEndDate.getDate() + days);
+
+        // 4. 计算总月数用于在UI上显示 (这是一个近似值，主要用于显示)
+        // 如果周期为1年，则显示12个月
+        let approxDurationInMonths = years * 12 + months;
+        // 如果天数差异较大，可能需要微调月数，这里做一个简单处理
+        if (days > 15) approxDurationInMonths += 1;
+        if (days < -15) approxDurationInMonths -= 1;
+        if (approxDurationInMonths <= 0) approxDurationInMonths = 1;
+
 
         setRenewalData({
-            start_date: newStartDate,
-            end_date: newEndDate,
-            employee_level: contract.employee_level,
-            management_fee_amount: contract.management_fee_amount,
-            management_fee_rate: contract.management_fee_rate || 0, // 继承费率
+            start_date: defaultStartDate,
+            end_date: defaultEndDate,
+            duration_months: approxDurationInMonths, // 使用计算出的近似月数
+            employee_level: contract.employee_level || '',
+            management_fee_rate: contract.management_fee_rate || 0,
+            management_fee_amount: contract.management_fee_amount || '',
+            transfer_deposit: true,
         });
         setIsRenewModalOpen(true);
     };
@@ -419,6 +495,69 @@ const ContractDetail = () => {
             setAlert({ open: true, message: `续约失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
         }
     };
+
+    // --- Start of Change Contract 变更合同 Logic ---
+
+    const handleOpenChangeModal = () => {
+        const today = new Date();
+        const newEndDate = new Date(today);
+        newEndDate.setFullYear(newEndDate.getFullYear() + 1);
+    
+        setChangeData({
+            start_date: today,
+            end_date: newEndDate,
+            employee_level: contract.employee_level,
+            management_fee_amount: contract.management_fee_amount,
+            management_fee_rate: contract.management_fee_rate || 0,
+            service_personnel_id: contract.service_personnel_id,
+            service_personnel_name: contract.employee_name,
+            transfer_deposit: true,
+        });
+        setSelectedPersonnel({ id: contract.service_personnel_id, name: contract.employee_name });
+        
+        // --- 在这里添加下面这行 ---
+        setIsChangeModalOpen(true); 
+    };
+
+    const handleCloseChangeModal = () => {
+        setIsChangeModalOpen(false);
+    };
+
+    const handleConfirmChange = async () => {
+        setLoading(true);
+        // setError(''); // This is not a defined state, maybe it was removed. I'll use setAlert.
+        setAlert({ open: false, message: '', severity: 'info' });
+
+        try {
+            // All data for the change is in changeData state
+            const payload = {
+                ...changeData,
+                start_date: changeData.start_date.toISOString().split('T')[0],
+                end_date: changeData.end_date.toISOString().split('T')[0],
+            };
+
+            // Single atomic API call to the new backend endpoint
+            const response = await api.post(`/contracts/${contractId}/change`, payload);
+            const newContractId = response.data.new_contract_id;
+
+            if (!newContractId) {
+                throw new Error("变更操作未返回新的合同ID。");
+            }
+
+            setAlert({ open: true, message: '合同变更成功！正在跳转到新合同...', severity: 'success' });
+            handleCloseChangeModal();
+            navigate(`/contract/detail/${newContractId}`);
+
+        } catch (err) {
+            console.error("变更合同失败:", err);
+            const errorMessage = err.response?.data?.error || '变更操作失败，请检查所有字段并重试。';
+            setAlert({ open: true, message: `变更失败: ${errorMessage}`, severity: 'error' });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+
 
 
     const TRIAL_OUTCOME_INFO = {
@@ -1068,6 +1207,11 @@ const ContractDetail = () => {
                                                     续约
                                                 </Button>
                                             )}
+                                            {contract.status === 'active' && contract. contract_type_value !== 'nanny_trial' && (
+                                                <Button variant="contained" color="warning" startIcon={<EditIcon />} onClick={handleOpenChangeModal}>
+                                                    变更合同
+                                                </Button>
+                                            )}
                                             {contract.status === 'active' && contract.contract_type_value !== 'nanny_trial' && (
                                                 <Button variant="contained" color="error" onClick={handleOpenTerminationDialog}>
                                                     终止合同
@@ -1511,10 +1655,142 @@ const ContractDetail = () => {
                             onChange={(e) => setRenewalData({ ...renewalData, management_fee_amount: e.target.value })}
                             helperText={renewalData.management_fee_rate > 0 ? `根据 ${renewalData.management_fee_rate * 100}% 的费率自动计算` : ''}
                         />
+                        {/* --- 新增开关 --- */}
+                        <FormControlLabel
+                            control={
+                                <Switch
+                                    checked={renewalData.transfer_deposit}
+                                    onChange={(e) => setRenewalData({ ...renewalData, transfer_deposit: e.target.checked })}
+                                    name="transfer_deposit"
+                                />
+                            }
+                            label="是否转移保证金"
+                            sx={{ mt: 2, display: 'block' }}
+                        />
+                        <Typography variant="caption" color="text.secondary">如果不转移，旧合同的保证金将按终止流程处理（通常为退款），新合同则需支付新的保证金。</Typography>
+                        {/* --- 新增结束 --- */}
                     </DialogContent>
                     <DialogActions>
                         <Button onClick={() => setIsRenewModalOpen(false)}>取消</Button>
                         <Button onClick={handleRenewContract} variant="contained">确认续约</Button>
+                    </DialogActions>
+                </Dialog>
+                {/* --- Change Contract Modal --- */}
+                <Dialog open={isChangeModalOpen} onClose={handleCloseChangeModal} maxWidth="sm" fullWidth>
+                    <DialogTitle>变更合同</DialogTitle>
+                    <DialogContent>
+                        <Autocomplete
+                            options={personnelOptions}
+                            filterOptions={(x) => x} // <-- 新增的行
+                            value={selectedPersonnel}
+                            getOptionLabel={(option) => option.name || ''}
+                            isOptionEqualToValue={(option, value) => option.id === value.id}
+                            onInputChange={(event, newInputValue) => {
+                                setPersonnelSearchTerm(newInputValue);
+                                // 如果用户清空了输入框，也清空选中的人员
+                                if (!newInputValue) {
+                                    setSelectedPersonnel(null);
+                                    setChangeData(prev => ({
+                                        ...prev,
+                                        service_personnel_id: '',
+                                        service_personnel_name: '',
+                                    }));
+                                }
+                            }}
+                            onChange={(event, newValue) => {
+                                setSelectedPersonnel(newValue); // 更新 Autocomplete 内部的选中对象
+                                setChangeData(prev => ({
+                                    ...prev,
+                                    service_personnel_id: newValue ? newValue.id : '',
+                                    service_personnel_name: newValue ? newValue.name : '',
+                                }));
+                            }}
+                            loading={isSearchingPersonnel}
+                            renderInput={(params) => (
+                                <TextField
+                                    {...params}
+                                    label="搜索并选择新服务人员"
+                                    margin="normal"
+                                    required
+                                    InputProps={{
+                                        ...params.InputProps,
+                                        endAdornment: (
+                                            <>
+                                                {isSearchingPersonnel ? <CircularProgress color= "inherit" size={20} /> : null}
+                                                {params.InputProps.endAdornment}
+                                            </>
+                                        ),
+                                    }}
+                                />
+                            )}
+                        />
+                        <DatePicker
+                            label="新合同开始日期 (即原合同终止日)"
+                            value={changeData.start_date}
+                            onChange={(date) => setChangeData({ ...changeData, start_date: date })}
+                            sx={{ width: '100%', mt: 2 }}
+                        />
+                        <DatePicker
+                            label="新合同结束日期"
+                            value={changeData.end_date}
+                            onChange={(date) => setChangeData({ ...changeData, end_date: date })}
+                            sx={{ width: '100%', mt: 2 }}
+                        />
+                        <TextField
+                            label="员工级别/月薪"
+                            type="number"
+                            fullWidth
+                            required
+                            margin="normal"
+                            value={changeData.employee_level}
+                            onChange={(e) => setChangeData({ ...changeData, employee_level: e. target.value })}
+                        />
+                        <TextField
+                            label="管理费率"
+                            type="number"
+                            fullWidth
+                            margin="normal"
+                            value={changeData.management_fee_rate * 100}
+                            onChange={(e) => {
+                                const rawValue = e.target.value;
+                                const decimalValue = rawValue === '' ? '' : parseFloat(rawValue) / 100;
+                                setChangeData({ ...changeData, management_fee_rate: decimalValue });
+                            }}
+                            onWheel={(e) => e.target.blur()}
+                            InputProps={{
+                                endAdornment: <InputAdornment position="end">%</InputAdornment>,
+                            }}
+                            helperText="输入百分比，例如 10 代表 10%"
+                        />
+                        <TextField
+                            label="管理费金额"
+                            type="number"
+                            fullWidth
+                            margin="normal"
+                            value={changeData.management_fee_amount}
+                            onChange={(e) => setChangeData({ ...changeData, management_fee_amount: e.target.value })}
+                            helperText={changeData.management_fee_rate > 0 ? `根据 ${changeData.management_fee_rate * 100}% 的费率自动计算` : ''}
+                        />
+                        {/* --- 新增开关 --- */}
+                        <FormControlLabel
+                            control={
+                                <Switch
+                                    checked={changeData.transfer_deposit}
+                                    onChange={(e) => setChangeData({ ...changeData, transfer_deposit: e.target.checked })}
+                                    name="transfer_deposit"
+                                />
+                            }
+                            label="是否转移保证金"
+                            sx={{ mt: 2, display: 'block' }}
+                        />
+                        <Typography variant="caption" color="text.secondary">如果不转移，旧合同的保证金将按终止流程处理（通常为退款），新合同则需支付新的保证金。</Typography>
+                        {/* --- 新增结束 --- */}
+                    </DialogContent>
+                    <DialogActions>
+                        <Button onClick={handleCloseChangeModal}>取消</Button>
+                        <Button onClick={handleConfirmChange} variant="contained" disabled={loading}>
+                            {loading ? <CircularProgress size={24} /> : '确认变更'}
+                        </Button>
                     </DialogActions>
                 </Dialog>
             </Box>
