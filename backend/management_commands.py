@@ -111,6 +111,95 @@ def sync_user_to_sp(session, dry_run=True):
                 click.echo(f"      - Created ServicePersonnel {new_sp.name} and linked to User {user.id}.")
 
 def register_commands(app):
+
+    @app.cli.command("backfill-salary-history")
+    @click.option('--dry-run', is_flag=True, help='只打印将要执行的操作，不实际修改数据库。')
+    @with_appcontext
+    def backfill_salary_history_command(dry_run):
+        """
+        遍历所有合同，为缺少薪酬历史记录的合同补充记录。
+        此工具会自动跳过试工合同。
+        """
+        if dry_run:
+            click.echo("---【演习模式】将查找并列出需要创建或更新的薪酬记录。---")
+        else:
+            click.echo("--- 开始回填历史合同的薪酬记录 ---")
+
+        try:
+            contract_service = ContractService()
+            
+            from sqlalchemy import cast, Numeric
+            contracts_to_process = BaseContract.query.filter(
+                BaseContract.service_personnel_id.isnot(None),
+                BaseContract.employee_level.isnot(None),
+                cast(BaseContract.employee_level, Numeric) > 0
+            ).order_by(BaseContract.start_date.asc()).all()
+
+            if not contracts_to_process:
+                click.echo("没有找到需要处理的合同。")
+                return
+
+            click.echo(f"找到 {len(contracts_to_process)} 份有员工和薪酬的合同需要检查。")
+            
+            created_count = 0
+            updated_count = 0
+            skipped_count = 0
+
+            with click.progressbar(contracts_to_process, label="正在检查合同") as bar:
+                for contract in bar:
+                    if contract.type == 'nanny_trial':
+                        skipped_count += 1
+                        continue
+
+                    existing_history = EmployeeSalaryHistory.query.filter_by(
+                        employee_id=contract.service_personnel_id,
+                        contract_id=contract.id
+                    ).first()
+
+                    contract_salary = Decimal(contract.employee_level)
+
+                    if existing_history:
+                        if existing_history.base_salary != contract_salary:
+                            click.echo(f"\\n  - [准备更新] 合同ID {contract.id}: 薪酬不匹配。"
+                                       f"历史记录: {existing_history.base_salary}, 合同记录: {contract_salary}")
+                            if not dry_run:
+                                salary_data = {"base_salary": contract_salary}
+                                # --- 核心修复：将ID转换为字符串 ---
+                                contract_service.update_employee_salary_history(
+                                    str(contract.service_personnel_id), str(contract.id), salary_data
+                                )
+                            updated_count += 1
+                        else:
+                            skipped_count += 1
+                    else:
+                        click.echo(f"\\n  - [准备创建] 合同ID {contract.id}: 未找到薪酬历史记录。"
+                                   f"将使用薪酬 {contract_salary} 创建。")
+                        if not dry_run:
+                            salary_data = {"base_salary": contract_salary}
+                            # --- 核心修复：将ID转换为字符串 ---
+                            contract_service.update_employee_salary_history(
+                                str(contract.service_personnel_id), str(contract.id), salary_data
+                            )
+                        created_count += 1
+            
+            if not dry_run and (created_count > 0 or updated_count > 0):
+                db.session.commit()
+                click.echo(click.style("\\n数据库变更已成功提交！", fg="green"))
+
+            click.echo("\\n--- 回填任务报告 ---")
+            click.echo(f"总共检查合同: {len(contracts_to_process)}")
+            click.echo(click.style(f"创建新记录: {created_count}", fg="cyan"))
+            click.echo(click.style(f"更新现有记录: {updated_count}", fg="yellow"))
+            click.echo(f"无需操作或跳过: {skipped_count}")
+            if dry_run:
+                click.echo(click.style("\\n【演习模式】未对数据库做任何实际修改。", fg="yellow" ))
+
+        except Exception as e:
+            if not dry_run:
+                db.session.rollback()
+            click.echo(click.style(f"\\n执行任务时发生严重错误: {e}", fg="red"))
+            logger.exception("Error during backfill-salary-history task:")
+
     @app.cli.command("clean-salary-history")
     @click.option('--dry-run', is_flag=True, help='只打印将要删除的条目，不实际执行删除操作。')
     @with_appcontext

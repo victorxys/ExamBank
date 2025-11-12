@@ -119,7 +119,8 @@ def get_employee_details(employee_id):
             "contract_end_date": contract.end_date.isoformat() if contract and contract.end_date else None,
             "customer_address": customer.address if customer else None,
             "contract_notes": contract.notes if contract else None,
-            "contract_id": str(contract.id) if contract else None
+            "contract_id": str(contract.id) if contract else None,
+            "contract_type": contract.type if contract else None 
         })
 
     # 3. 返回给前端时，按日期降序，方便展示
