@@ -30,7 +30,7 @@ const initialState = {
     deposit_rate: 0.25,
     daily_rate: '',
     management_fee_rate: 0.20,
-    service_content: [],
+    service_content: "",
     service_type: '',
     is_auto_renew: false,
     attachment_content: '',
