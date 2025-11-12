@@ -55,7 +55,7 @@ const serviceTypeOptions = [
 ];
 
 const CreateFormalContractModal = ({ open, onClose, onSuccess }) => {
-    console.log('CreateFormalContractModal rendered with props:', { open });
+    // console.log('CreateFormalContractModal rendered with props:', { open });
     const navigate = useNavigate();
     const [formData, setFormData] = useState(initialState);
     const [loading, setLoading] = useState(false);
@@ -90,7 +90,7 @@ const CreateFormalContractModal = ({ open, onClose, onSuccess }) => {
     const [previewContent, setPreviewContent] = useState('');
 
     useEffect(() => {
-        console.log('Modal open effect triggered. Open:', open);
+        // console.log('Modal open effect triggered. Open:', open);
         if (open) {
             fetchTemplates();
             setFormData(initialState);
@@ -167,7 +167,7 @@ const CreateFormalContractModal = ({ open, onClose, onSuccess }) => {
     };
 
     const searchParties = (query, role) => {
-        console.log(`searchParties called with query: \"${query}\", role: \"${role}\"`);
+        // console.log(`searchParties called with query: \"${query}\", role: \"${role}\"`);
         if (searchTimeout.current) {
             clearTimeout(searchTimeout.current);
         }
@@ -192,9 +192,9 @@ const CreateFormalContractModal = ({ open, onClose, onSuccess }) => {
         searchTimeout.current = setTimeout(async () => {
             let options = [];
             try {
-                console.log(`Fetching data for query: \"${query}\", role: \"${role}\"`);
+                // console.log(`Fetching data for query: \"${query}\", role: \"${role}\"`);
                 const response = await api.get('/contract-parties/search', { params: { search: query, role: role } });
-                console.log('API response received:', response.data);
+                // console.log('API response received:', response.data);
                 options = response.data || [];
                 if (role === 'customer') {
                     setCustomerOptions(options);
@@ -413,7 +413,7 @@ const CreateFormalContractModal = ({ open, onClose, onSuccess }) => {
     const introFeeHelperText = isIntroFeeDisabled ? "不能与管理费率同时存在" : "";
     const mgmtRateHelperText = isMgmtRateDisabled ? "不能与介绍费同时存在": "";
 
-    console.log('State before render:', { customerOptions, employeeOptions });
+    // console.log('State before render:', { customerOptions, employeeOptions });
 
     return (
         <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>

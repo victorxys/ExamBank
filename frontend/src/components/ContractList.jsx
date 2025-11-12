@@ -129,6 +129,13 @@ const ContractList = () => {
                 sort_by: sortBy,
                 sort_order: sortOrder,
             };
+            if (typeFilter === 'nanny') {
+                const monthlyRenewFilter = searchParams.get('is_monthly_auto_renew');
+                if (monthlyRenewFilter) {
+                    params.is_monthly_auto_renew = monthlyRenewFilter;
+                }
+            }
+            console.log('即将发送到后端的API参数:', params); 
             const response = await api.get('/contracts', { params });
             setContracts(response.data.contracts || []);
             setTotalContracts(response.data.total || 0);
@@ -272,6 +279,23 @@ const ContractList = () => {
                         <Grid item xs={12} sm={3}><TextField fullWidth label="搜索客户/员工" name="search" value={inputValue} onChange={handleInputChange} size="small" /></Grid>
                         <Grid item xs={6} sm={2}><FormControl fullWidth size="small"><InputLabel>类型</InputLabel><Select name="type" value={typeFilter}label="类型" onChange={handleFilterChange}><MenuItem value=""><em>全部</em></MenuItem><MenuItem value="nanny">育儿嫂</MenuItem><MenuItem value="maternity_nurse">月嫂</MenuItem> <MenuItem value="nanny_trial">育儿嫂试工</MenuItem><MenuItem value="formal">正式合同</MenuItem></Select></FormControl></Grid>
                         <Grid item xs={6} sm={2}><FormControl fullWidth size="small"><InputLabel>状态</InputLabel><Select name="status" value={statusFilter} label="状态" onChange={handleFilterChange}><MenuItem value="all"><em>全部状态</em></MenuItem><MenuItem value="unsigned">待签署</MenuItem><MenuItem value="active">服务中</MenuItem><MenuItem value="pending">待上户</MenuItem><MenuItem value="finished">已完成</MenuItem><MenuItem value="terminated">已终止</MenuItem><MenuItem value="trial_active">试工中</MenuItem><MenuItem value="trial_succeeded">试工成功</MenuItem></Select></FormControl></Grid>
+                        {typeFilter === 'nanny' && (
+                            <Grid item xs={6} sm={2}>
+                                <FormControl fullWidth size="small">
+                                    <InputLabel>是否月签</InputLabel>
+                                    <Select
+                                        name="is_monthly_auto_renew"
+                                        value={searchParams.get('is_monthly_auto_renew') || ''}
+                                        label="是否月签"
+                                        onChange={handleFilterChange}
+                                    >
+                                        <MenuItem value=""><em>全部</em></MenuItem>
+                                        <MenuItem value="true">是</MenuItem>
+                                        <MenuItem value="false">否</MenuItem>
+                                    </Select>
+                                </FormControl>
+                            </Grid>
+                        )}                        
                         <Grid item xs={6} sm={2}>
                             <FormControl fullWidth size="small">
                                 <InputLabel>签署状态</InputLabel>
@@ -313,12 +337,13 @@ const ContractList = () => {
                     <Table>
                         <TableHead>
                             <TableRow>
-                                <TableCell>客户姓名</TableCell>
-                                <TableCell>服务人员</TableCell>
+                                <TableCell>客户</TableCell>
+                                <TableCell>人员</TableCell>
                                 <TableCell>合同类型</TableCell>
                                 <TableCell>合同周期</TableCell>
-                                <TableCell>主状态</TableCell>
-                                <TableCell>签署状态</TableCell>
+                                <TableCell>剩余月数</TableCell>
+                                <TableCell>合同状态</TableCell>
+                                <TableCell>签署</TableCell>
                                 <TableCell>客户签名</TableCell>
                                 <TableCell>员工签名</TableCell>
                                 <TableCell align="center">操作</TableCell>
@@ -340,6 +365,26 @@ const ContractList = () => {
                                                 {formatDate(contract.start_date)} - {formatDate(contract.end_date)}
                                             </Typography>
                                         </TableCell>
+    <TableCell>
+        {/* --- 新增：根据是否月签显示不同内容 --- */}
+        {contract.contract_type_value === 'nanny' && contract.is_monthly_auto_renew ? (
+            <Chip 
+                label="月签"
+                size="small" 
+                color="info"
+                variant="filled"
+            />
+        ) : contract.remaining_months !== null && contract.remaining_months !== undefined ? (
+            <Chip 
+                label={`${contract.remaining_months}个月`} 
+                size="small" 
+                color={contract.highlight_remaining ? 'warning' : 'default'}
+                variant={contract.highlight_remaining ? 'filled' : 'outlined'}
+            />
+        ) : (
+            'N/A'
+        )}
+    </TableCell>
                                         <TableCell><Chip label={STATUS_LABELS[contract.status] || 'N/A'} size="small" color={contract.status === 'active' ? 'success' : 'default'} /></TableCell>
                                                                                 <TableCell>{getSigningStatusChip(contract.signing_status )}</TableCell>
                                         <TableCell>

@@ -79,7 +79,7 @@ const UserEvaluation = () => {
         // 注意: 假设 /api/evaluation/{id} 返回的结构调整为包含 category_manual_inputs
         const evaluationResponse = await api.get(`/evaluation/${editEvaluationId}`);
         const evaluationData = evaluationResponse.data;
-        console.log(evaluationData)
+        // console.log(evaluationData)
         // 填充已有分数
         evaluationData.item_scores?.forEach(itemScore => { // 假设返回 item_scores 数组
             if (itemScore.score !== null && itemScore.score !== undefined) {
@@ -99,7 +99,7 @@ const UserEvaluation = () => {
         }
          // 兼容另一种可能的返回结构 (手动输入嵌入 category 对象)
         else if (evaluationData.aspects) {
-            console.log('evaluationData.aspects', evaluationData.aspects);
+            // console.log('evaluationData.aspects', evaluationData.aspects);
              evaluationData.aspects.forEach(aspect => {
                  aspect.categories?.forEach(category => {
                       if (category.manual_input && category.manual_input.trim()) { // 检查是否有非空值
@@ -110,7 +110,7 @@ const UserEvaluation = () => {
                       }
                      category.items?.forEach(item => {
                         if(item.average_score){
-                          console.log('item.average_score', item.average_score);
+                          // console.log('item.average_score', item.average_score);
                           initialScores[item.id]=item.average_score.toString();
                         }
                      });
@@ -165,7 +165,7 @@ const UserEvaluation = () => {
         additional_comments: additionalComments.trim()
       };
 
-      console.log("Submitting Payload:", JSON.stringify(payload, null, 2));
+      // console.log("Submitting Payload:", JSON.stringify(payload, null, 2));
 
       const response = await api[method](endpoint, payload);
 

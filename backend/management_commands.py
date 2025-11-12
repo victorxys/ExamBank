@@ -3,13 +3,18 @@
 import click
 from flask.cli import with_appcontext
 from backend.services.billing_engine import BillingEngine, _update_bill_payment_status
-from backend.models import BaseContract, db, CustomerBill, PaymentRecord,FinancialAdjustment,EmployeePayroll, AdjustmentType, User,Customer, ServicePersonnel,EmployeeSalaryHistory
+from backend.models import BaseContract, db, CustomerBill, PaymentRecord,FinancialAdjustment,EmployeePayroll, AdjustmentType, User,Customer, ServicePersonnel,EmployeeSalaryHistory,NannyTrialContract,SigningStatus,NannyContract,MaternityNurseContract
 from sqlalchemy import func
 from decimal import Decimal
 import logging
 from pypinyin import pinyin, Style
 from backend.services.data_sync_service import DataSyncService
 from backend.services.contract_service import ContractService
+import base64
+import os
+import httpx
+from urllib.parse import urlparse
+from flask import current_app
 
 logger = logging.getLogger(__name__)
 # --- START: Sync functions (only sync_user_to_sp remains) ---
@@ -614,7 +619,353 @@ def register_commands(app):
         finally:
             session.close()
     # --- END: sync-users command ---
-        # --- START: migrate-contract-links command ---
+    @app.cli.command("fix-trial-contract-ids")
+    @click.option('--dry-run', is_flag=True, help='只打印将要执行的操作，不实际修改数据库。')
+    @with_appcontext
+    def fix_trial_contract_ids_command(dry_run):
+        """
+        修复历史的“育儿嫂试工合同”中，错误地使用了 serial_number 作为 jinshuju_entry_id 的问题。
+        此脚本会从金数据获取正确的值 (field_1) 并更新数据库。
+        """
+        if dry_run:
+            click.echo( "---【演习模式】将查找并列出需要修正的育儿嫂试工合同ID，但不会实际操作数据库。---")
+        else:
+            click.echo("---【警告】即将开始修正育儿嫂试工合同的 `jinshuju_entry_id`，此过程不可逆。---")
+
+        try:
+            # 1. 初始化服务并获取金数据记录
+            click.echo("正在从金数据获取 '育儿嫂试工' (o8CFxx) 表单的所有记录...")
+            sync_service = DataSyncService()
+            form_token = "o8CFxx"
+            all_entries = sync_service.get_form_entries(form_token)
+            
+            if not all_entries:
+                click.echo(click.style("从金数据获取记录为0，无法继续执行。", fg="yellow"))
+                return
+
+            click.echo(f"成功获取 {len(all_entries)} 条金数据记录。")
+
+            # 2. 创建从 serial_number 到 field_1 的映射
+            id_map = {
+                str(entry.get("serial_number")): str(entry.get("field_1"))
+                for entry in all_entries
+                if entry.get("serial_number") and entry.get("field_1")
+            }
+            
+            if not id_map:
+                click.echo(click.style("未能成功创建 serial_number -> field_1 的映射，请检查金数据记录。", fg="red"))
+                return
+
+            # 3. 查询数据库中所有需要修正的合同
+            click.echo("正在查询本地数据库中的育儿嫂试工合同...")
+            contracts_to_fix = NannyTrialContract.query.filter (NannyTrialContract.jinshuju_entry_id.isnot(None)).all()
+
+            if not contracts_to_fix:
+                click.echo(click.style("数据库中没有找到需要修正的育儿嫂试工合同。", fg="green" ))
+                return
+            
+            click.echo(f"找到 {len(contracts_to_fix)} 条本地合同记录需要检查。")
+
+            updated_count = 0
+            skipped_count = 0
+            
+            # 4. 遍历并修正
+            with click.progressbar(contracts_to_fix, label="正在检查并修正合同") as bar:
+                for contract in bar:
+                    current_id = contract.jinshuju_entry_id
+                    
+                    # 如果当前ID在映射表的 "key" (serial_number) 中，说明它是错误的
+                    if current_id in id_map:
+                        correct_id = id_map[current_id]
+                        
+                        if current_id != correct_id:
+                            click.echo(f"\\n  - [修正] 合同ID: {contract.id} | "
+                                       f"旧 jinshuju_entry_id: {current_id} -> "
+                                       f"新 jinshuju_entry_id: {correct_id}")
+                            if not dry_run:
+                                contract.jinshuju_entry_id = correct_id
+                                db.session.add(contract)
+                            updated_count += 1
+                        else:
+                            # --- 新增日志 ---
+                            click.echo(f"\\n  - [跳过] 合同ID: {contract.id} | 原因: jinshuju_entry_id ('{current_id}') 已是正确的值。")
+                            skipped_count += 1
+                    else:
+                        # --- 新增日志 ---
+                        # 如果当前ID不在映射表的 "key" 中，它可能已经是正确的 field_1，或者是一条孤立的数据
+                        click.echo(f"\\n  - [跳过] 合同ID: {contract.id} | 原因: 当前 jinshuju_entry_id ('{current_id}') 在金数据记录中未找到对应的 serial_number。可能是孤立数据或已是正确ID。")
+                        skipped_count += 1
+
+            # 5. 提交并报告
+            if not dry_run and updated_count > 0:
+                click.echo("\\n正在提交数据库变更...")
+                db.session.commit()
+                click.echo(click.style("数据库变更已成功提交！", fg="green"))
+            
+            click.echo("\\n--- 修正任务报告 ---")
+            click.echo(f"总共检查合同: {len(contracts_to_fix)}")
+            click.echo(click.style(f"成功修正合同: {updated_count}", fg="green"))
+            click.echo(f"无需修正或跳过: {skipped_count}")
+            if dry_run and updated_count > 0:
+                click.echo(click.style("\\n【演习模式】未对数据库做任何实际修改。", fg="yellow" ))
+
+        except Exception as e:
+            if not dry_run:
+                db.session.rollback()
+            click.echo(click.style(f"\\n执行任务时发生严重错误: {e}", fg="red"))
+            logger.exception("Error during fix-trial-contract-ids task:")
+    
+    @app.cli.command("align-trial-contract-serial-numbers")
+    @click.option('--dry-run', is_flag=True, help='只打印将要执行的操作，不实际修改数据库。')
+    @with_appcontext
+    def align_trial_contract_serial_numbers_command(dry_run):
+        """
+        最终对齐“育儿嫂试工合同”的 jinshuju_entry_id。
+        此脚本使用当前库中的 ID (应为 field_1 的值) 去正确的金数据表单 (sqcCWM) 中
+        反向查找出真正的 serial_number，并更新到数据库。
+        """
+        if dry_run:
+            click.echo( "---【演习模式】将查找并列出需要最终对齐的试工合同ID，但不会实际操作数据库。---")
+        else:
+            click.echo("---【警告】即将开始最终对齐试工合同的 `jinshuju_entry_id`，此过程不可逆。---")
+
+        try:
+            # 1. 从正确的表单 (sqcCWM) 获取所有记录
+            click.echo("正在从正确的金数据表单 'sqcCWM' 获取所有记录...")
+            sync_service = DataSyncService()
+            correct_form_token = "sqcCWM"
+            all_entries = sync_service.get_form_entries(correct_form_token)
+            
+            if not all_entries:
+                click.echo(click.style("从金数据表单 'sqcCWM' 获取记录为0，无法继续执行。", fg= "red"))
+                return
+
+            click.echo(f"成功获取 {len(all_entries)} 条金数据记录。")
+
+            # 2. 创建从 field_1 到 serial_number 的反向映射
+            reverse_id_map = {
+                str(entry.get("field_1")): str(entry.get("serial_number"))
+                for entry in all_entries
+                if entry.get("serial_number") and entry.get("field_1")
+            }
+            
+            if not reverse_id_map:
+                click.echo(click.style("未能成功创建 field_1 -> serial_number 的反向映射，请检查金数据记录。", fg="red"))
+                return
+
+            # 3. 查询数据库中所有需要对齐的合同
+            click.echo("正在查询本地数据库中的育儿嫂试工合同...")
+            contracts_to_align = NannyTrialContract.query.filter (NannyTrialContract.jinshuju_entry_id.isnot(None)).all()
+
+            if not contracts_to_align:
+                click.echo(click.style("数据库中没有找到需要对齐的育儿嫂试工合同。", fg="green" ))
+                return
+            
+            click.echo(f"找到 {len(contracts_to_align)} 条本地合同记录需要检查。")
+
+            updated_count = 0
+            skipped_count = 0
+            
+            # 4. 遍历并对齐
+            with click.progressbar(contracts_to_align, label="正在检查并对齐合同") as bar:
+                for contract in bar:
+                    current_field_1_val = contract.jinshuju_entry_id
+                    
+                    if current_field_1_val in reverse_id_map:
+                        correct_serial_number = reverse_id_map[current_field_1_val]
+                        
+                        if current_field_1_val != correct_serial_number:
+                            click.echo(f"\\n  - [对齐] 合同ID: {contract.id} | "
+                                       f"当前 ID (field_1): {current_field_1_val} -> "
+                                       f"最终 serial_number: {correct_serial_number}")
+                            if not dry_run:
+                                contract.jinshuju_entry_id = correct_serial_number
+                                db.session.add(contract)
+                            updated_count += 1
+                        else:
+                            click.echo(f"\\n  - [跳过] 合同ID: {contract.id} | 原因: 当前 ID (' {current_field_1_val}') 已是正确的 serial_number。")
+                            skipped_count += 1
+                    else:
+                        click.echo(f"\\n  - [跳过] 合同ID: {contract.id} | 原因: 当前 ID (' {current_field_1_val}') 在 'sqcCWM' 表单中未找到对应的 field_1。可能是孤立数据。")
+                        skipped_count += 1
+
+            # 5. 提交并报告
+            if not dry_run and updated_count > 0:
+                click.echo("\\n正在提交数据库变更...")
+                db.session.commit()
+                click.echo(click.style("数据库变更已成功提交！", fg="green"))
+            
+            click.echo("\\n--- 对齐任务报告 ---")
+            click.echo(f"总共检查合同: {len(contracts_to_align)}")
+            click.echo(click.style(f"成功对齐合同: {updated_count}", fg="green"))
+            click.echo(f"无需对齐或跳过: {skipped_count}")
+            if dry_run and updated_count > 0:
+                click.echo(click.style("\\n【演习模式】未对数据库做任何实际修改。", fg="yellow" ))
+
+        except Exception as e:
+            if not dry_run:
+                db.session.rollback()
+            click.echo(click.style(f"\\n执行任务时发生严重错误: {e}", fg="red"))
+            logger.exception("Error during align-trial-contract-serial-numbers task:")
+
+    def _update_signing_status(contract):
+        """Helper function to update the signing status based on signature presence."""
+        has_customer_sig = bool(contract.customer_signature and contract.customer_signature.strip())
+        has_employee_sig = bool(contract.employee_signature and contract.employee_signature.strip())
+
+        new_status = SigningStatus.UNSIGNED
+        if has_customer_sig and has_employee_sig:
+            new_status = SigningStatus.SIGNED
+        elif has_customer_sig:
+            new_status = SigningStatus.CUSTOMER_SIGNED
+        elif has_employee_sig:
+            new_status = SigningStatus.EMPLOYEE_SIGNED
+        
+        if contract.signing_status != new_status:
+            contract.signing_status = new_status
+            return True
+        return False
+
+    def _download_and_encode_signature(signature_url):
+        """Downloads a signature image and returns it as a base64 data URI."""
+        if not signature_url:
+            return None
+        
+        try:
+            with httpx.Client(timeout=30.0, follow_redirects=True) as client:
+                response = client.get(signature_url)
+                response.raise_for_status()
+            
+            image_data = response.content
+            content_type = response.headers.get('content-type', 'image/png')
+            
+            base64_encoded_data = base64.b64encode(image_data).decode('utf-8')
+            
+            data_uri = f"data:{content_type};base64,{base64_encoded_data}"
+            
+            return data_uri
+
+        except Exception as e:
+            click.echo(f"\\n  - [错误] 下载或编码签名失败 URL: {signature_url}, 错误: {e}")
+            return None
+
+    @app.cli.command("sync-signatures")
+    @click.option('--dry-run', is_flag=True, help='只打印将要执行的操作，不实际修改数据库。')
+    @with_appcontext
+    def sync_signatures_command(dry_run):
+        """从金数据同步育儿嫂、月嫂、试工合同的客户及员工签名，并更新签名状态。"""
+        if dry_run:
+            click.echo("---【演习模式】将查找并列出需要同步的签名，但不会实际操作数据库。---")
+        else:
+            click.echo("---【警告】即将开始同步签名信息，此过程会覆盖数据库中现有的签名。---")
+
+        form_configs = [
+            {
+                "name": "育儿嫂合同", "form_token": "Iqltzj", "model": NannyContract,
+                "customer_sig_field": "field_1_associated_field_16", "employee_sig_field": "field_13",
+            },
+            {
+                "name": "月嫂合同", "form_token": "QlpHFA", "model": MaternityNurseContract,
+                "customer_sig_field": "field_1_associated_field_15", "employee_sig_field": "field_10",
+            },
+            {
+                "name": "育儿嫂试工合同", "form_token": "sqcCWM", "model": NannyTrialContract,
+                "customer_sig_field": "field_1_associated_field_16", "employee_sig_field": "field_10",
+            },
+        ]
+
+        sync_service = DataSyncService()
+        total_updated_contracts = 0
+
+        try:
+            for config in form_configs:
+                click.echo(f"\\n--- 开始处理: {config['name']} (Form: {config['form_token']}) ---")
+                
+                all_entries = sync_service.get_form_entries(config['form_token'])
+                if not all_entries:
+                    click.echo(click.style(f"  -> 从金数据获取记录为0，跳过此表单。", fg= "yellow"))
+                    continue
+                click.echo(f"  -> 成功获取 {len(all_entries)} 条金数据记录。")
+
+                signature_map = {
+                    str(entry.get("serial_number")): {
+                        "customer_sig": entry.get(config["customer_sig_field"]),
+                        "employee_sig": entry.get(config["employee_sig_field"]),
+                    }
+                    for entry in all_entries if entry.get("serial_number")
+                }
+
+                local_contracts = config['model'].query.filter(config['model' ].jinshuju_entry_id.isnot(None)).all()
+                click.echo(f"  -> 找到 {len(local_contracts)} 条本地合同记录需要检查。")
+
+                form_updated_count = 0
+                with click.progressbar(local_contracts, label=f"检查 {config['name']}") as bar:
+                    for contract in bar:
+                        jinshuju_id = contract.jinshuju_entry_id
+                        
+                        if jinshuju_id in signature_map:
+                            signatures = signature_map[jinshuju_id]
+                            customer_sig_url = signatures.get("customer_sig")
+                            employee_sig_url = signatures.get("employee_sig")
+
+                            # 检查是否需要下载新签名 (如果URL存在，且DB中没有签名)
+                            customer_sig_needs_download = customer_sig_url and not contract.customer_signature
+                            employee_sig_needs_download = employee_sig_url and not contract.employee_signature
+                            
+                            original_status = contract.signing_status
+                            _update_signing_status(contract)
+                            status_needs_update = contract.signing_status != original_status
+                            contract.signing_status = original_status
+
+                            if not (customer_sig_needs_download or employee_sig_needs_download or status_needs_update):
+                                continue
+
+                            click.echo(f"\\n  - [更新] 合同ID: {contract.id} (Jinshuju ID: {jinshuju_id})")
+                            form_updated_count += 1
+
+                            if customer_sig_needs_download:
+                                click.echo(f"    - 客户签名: 准备从金数据下载并编码。")
+                                if not dry_run:
+                                    base64_uri = _download_and_encode_signature(customer_sig_url)
+                                    if base64_uri:
+                                        contract.customer_signature = base64_uri
+                                        click.echo(f"      -> 成功编码客户签名。")
+                            
+                            if employee_sig_needs_download:
+                                click.echo(f"    - 员工签名: 准备从金数据下载并编码。")
+                                if not dry_run:
+                                    base64_uri = _download_and_encode_signature(employee_sig_url)
+                                    if base64_uri:
+                                        contract.employee_signature = base64_uri
+                                        click.echo(f"      -> 成功编码员工签名。")
+
+                            if _update_signing_status(contract):
+                                 click.echo(f"    - 签名状态更新为: {contract.signing_status.value}")
+
+                            if not dry_run:
+                                db.session.add(contract)
+
+                if form_updated_count > 0:
+                    total_updated_contracts += form_updated_count
+                    click.echo(f"\\n  -> {config['name']} 中有 {form_updated_count} 条记录已准备更新。")
+
+            if not dry_run and total_updated_contracts > 0:
+                click.echo("\\n正在提交所有数据库变更...")
+                db.session.commit()
+                click.echo(click.style("数据库变更已成功提交！", fg="green"))
+            
+            click.echo("\\n--- 签名同步任务报告 ---")
+            click.echo(click.style(f"总共准备更新 {total_updated_contracts} 条合同记录的签名或状态。", fg="green"))
+            if dry_run and total_updated_contracts > 0:
+                click.echo(click.style("\\n【演习模式】未对数据库做任何实际修改。", fg= "yellow"))
+
+        except Exception as e:
+            if not dry_run:
+                db.session.rollback()
+            click.echo(click.style(f"\\n执行任务时发生严重错误: {e}", fg="red"))
+            logger.exception("Error during sync-signatures task:")
+    
+    # --- START: migrate-contract-links command ---
     @app.cli.command("migrate-contract-links")
     @click.option('--commit', is_flag=True, help='实际执行数据库修改，而不是只进行演习。')
     @with_appcontext

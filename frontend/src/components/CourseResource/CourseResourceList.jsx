@@ -79,9 +79,9 @@ const CourseResourceList = ({ courseId, onResourceDeleted, onResourceUpdated }) 
   };
 
   const handleSaveEdit = async () => {
-    console.log("Current Resource:", currentResource);
-    console.log("Form Data State:", formData);
-    console.log("New File for Edit:", newFileForEdit);
+    // console.log("Current Resource:", currentResource);
+    // console.log("Form Data State:", formData);
+    // console.log("New File for Edit:", newFileForEdit);
     if (!currentResource || !formData.name.trim()) {
       setAlertState({ open: true, message: '资源名称不能为空', severity: 'warning' });
       return;
