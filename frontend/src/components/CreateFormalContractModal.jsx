@@ -154,6 +154,41 @@ const CreateFormalContractModal = ({ open, onClose, onSuccess }) => {
 
     }, [formData.employee_level, formData.contract_type, formData.deposit_rate, formData. management_fee_rate]); // <-- 依赖项增加了 management_fee_rate
 
+        // --- 新增：自动生成试工合同备注的 useEffect ---
+    // --- 自动生成试工合同备注的 useEffect (V2 - 处理介绍费互斥逻辑) ---
+    // --- 自动生成试工合同附件内容的 useEffect (V3 - 修正为 attachment_content) ---
+    useEffect(() => {
+        if (formData.contract_type === 'nanny_trial') {
+            const dailyRate = parseFloat(formData.daily_rate);
+            
+            if (!isNaN(dailyRate) && dailyRate > 0) {
+                const provisionalMonthlySalary = dailyRate * 26;
+                const roundedMonthlySalary = Math.round(provisionalMonthlySalary / 100) * 100;
+                
+                const employeeName = selectedEmployee ? selectedEmployee.name : '服务人员';
+                const managementFeeRate = parseFloat(formData.management_fee_rate);
+                const introductionFee = parseFloat(formData.introduction_fee);
+
+                let managementFeeNotePart = '';
+                if (!isNaN(introductionFee) && introductionFee > 0) {
+                    managementFeeNotePart = '因已收取介绍费，故不收取管理费。';
+                } else {
+                    managementFeeNotePart = `丙方管理费计算方法为：${roundedMonthlySalary}元✖️ ${(managementFeeRate * 100).toFixed(0)}%➗30天✖️阿姨实际出勤天数。`;
+                }
+
+                const attachmentContentTemplate = 
+`乙方${employeeName}阿姨上户，甲方只需支付阿姨实际出勤天数的劳务费和丙方管理费，
+阿姨劳务费计算方法为：${roundedMonthlySalary}元➗26天✖️阿姨实际出勤天数；
+${managementFeeNotePart}`;
+
+                setFormData(prev => ({ ...prev, attachment_content: attachmentContentTemplate }));
+            } else {
+                setFormData(prev => ({ ...prev, attachment_content: '' }));
+            }
+        }
+    }, [formData.contract_type, formData.daily_rate, formData.management_fee_rate, formData. introduction_fee, selectedEmployee]);
+    // --- 新增结束 ---
+
     const fetchTemplates = async () => {
         setLoadingTemplates(true);
         try {
