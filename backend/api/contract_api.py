@@ -681,6 +681,13 @@ def create_formal_contract():
 
         # --- Model Selection and Creation ---
         contract_type = data["contract_type"]
+        # --- 核心修复：对试工合同，强制使用 daily_rate 作为 employee_level ---
+        if contract_type == "nanny_trial":
+            daily_rate_from_request = data.get("daily_rate")
+            if daily_rate_from_request:
+                common_attributes["employee_level"] = to_decimal(daily_rate_from_request)
+                current_app.logger.info(f"[CreateFormalContract] 试工合同，使用 daily_rate ( {daily_rate_from_request}) 覆盖 employee_level。")
+        # --- 修复结束 ---
         ContractModel = None
 
         # --- Model Selection and Creation ---
