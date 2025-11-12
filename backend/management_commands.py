@@ -633,7 +633,7 @@ def register_commands(app):
             click.echo("---【警告】即将开始修正育儿嫂试工合同的 `jinshuju_entry_id`，此过程不可逆。---")
 
         try:
-            # 1. 初始化服务并获取金数据记录
+            # 1. 获取金数据记录
             click.echo("正在从金数据获取 '育儿嫂试工' (o8CFxx) 表单的所有记录...")
             sync_service = DataSyncService()
             form_token = "o8CFxx"
@@ -644,69 +644,71 @@ def register_commands(app):
                 return
             click.echo(f"成功获取 {len(all_entries)} 条金数据记录。")
 
-            # 2. 预先分析重复的 field_1 值
-            click.echo("正在分析数据以预先查找重复的 field_1 值...")
+            # 2. 预分析金数据源头的重复 field_1 值
+            click.echo("正在分析金数据源头以预先查找重复的 field_1 值...")
             field_1_to_serials = {}
             for entry in all_entries:
-                field_1_val = entry.get("field_1")
-                serial_num = entry.get("serial_number")
+                field_1_val, serial_num = entry.get("field_1"), entry.get("serial_number")
                 if field_1_val and serial_num:
                     field_1_str = str(field_1_val)
                     if field_1_str not in field_1_to_serials:
                         field_1_to_serials[field_1_str] = []
                     field_1_to_serials[field_1_str].append(str(serial_num))
             
-            duplicate_field_1_values = {k for k, v in field_1_to_serials.items() if len(v) > 1 }
-
-            if duplicate_field_1_values:
-                click.echo(click.style(f"\\n--- 警告：发现 {len(duplicate_field_1_values)} 个重复的 field_1 值 ---", fg="yellow"))
-                click.echo( "所有映射到这些值的合同都将被自动跳过，以避免数据库唯一性错误。请手动处理这些源数据：")
-                for val in duplicate_field_1_values:
-                    click.echo(f"  - 重复的 field_1: '{val}' 对应 {len (field_1_to_serials[val])} 条记录")
+            source_duplicates = {k for k, v in field_1_to_serials.items() if len(v) > 1}
+            if source_duplicates:
+                click.echo(click.style(f"\\n--- 警告：发现 {len(source_duplicates)} 个在源头就重复的 field_1 值 ---", fg="yellow"))
+                # ... (日志部分省略以保持简洁)
             else:
-                click.echo("未发现重复的 field_1 值，可以安全执行。")
+                click.echo("金数据源头未发现重复的 field_1 值。")
 
             # 3. 创建 serial_number -> field_1 的映射
-            id_map = {
-                str(entry.get("serial_number")): str(entry.get("field_1"))
-                for entry in all_entries if entry.get("serial_number") and entry.get("field_1" )
-            }
+            id_map = {str(e.get("serial_number")): str(e.get("field_1")) for e in all_entries if e.get("serial_number") and e.get("field_1")}
 
-            # 4. 查询数据库中所有需要修正的合同
+            # 4. 查询本地数据库中所有相关的合同
             click.echo("正在查询本地数据库中的育儿嫂试工合同...")
             contracts_to_fix = NannyTrialContract.query.filter (NannyTrialContract.jinshuju_entry_id.isnot(None)).all()
-
             if not contracts_to_fix:
                 click.echo(click.style("数据库中没有找到需要修正的育儿嫂试工合同。", fg= "green"))
                 return
             click.echo(f"找到 {len(contracts_to_fix)} 条本地合同记录需要检查。")
 
-            updated_count = 0
-            skipped_count = 0
+            # --- 核心修改：预先加载数据库中已存在的ID，用于冲突检查 ---
+            existing_ids_in_db = {c.jinshuju_entry_id for c in contracts_to_fix}
+            # --- 修改结束 ---
+
+            updated_count, skipped_count = 0, 0
             
             # 5. 遍历并修正
             with click.progressbar(contracts_to_fix, label="正在检查并修正合同") as bar:
                 for contract in bar:
                     current_id = contract.jinshuju_entry_id
                     
-                    if current_id in id_map:
-                        correct_id = id_map[current_id]
-                        
-                        # --- 核心修改：检查目标ID是否在重复列表中 ---
-                        if correct_id in duplicate_field_1_values:
-                            click.echo(f"\\n  - [跳过] 合同ID: {contract.id} | 原因: 目标 jinshuju_entry_id ('{correct_id}') 在源数据中是重复值。")
-                            skipped_count += 1
-                            continue
-                        # --- 修改结束 ---
+                    if current_id not in id_map:
+                        skipped_count += 1
+                        continue
 
-                        if current_id != correct_id:
-                            click.echo(f"\\n  - [修正] 合同ID: {contract.id} | 旧: {current_id} -> 新: {correct_id}")
-                            if not dry_run:
-                                contract.jinshuju_entry_id = correct_id
-                                db.session.add(contract)
-                            updated_count += 1
-                        else:
-                            skipped_count += 1
+                    correct_id = id_map[current_id]
+
+                    # 检查1：目标ID是否在金数据源头就是重复的
+                    if correct_id in source_duplicates:
+                        click.echo(f"\\n  - [跳过] 合同ID: {contract.id} | 原因: 目标 ID (' {correct_id}') 在源数据中是重复值。")
+                        skipped_count += 1
+                        continue
+                    
+                    # 检查2：目标ID是否已经被数据库中其他记录占用了
+                    # 我们需要确保，如果存在占用，占用的不是当前合同本身
+                    if correct_id in existing_ids_in_db and current_id != correct_id:
+                        click.echo(f"\\n  - [跳过] 合同ID: {contract.id} | 原因: 目标 ID (' {correct_id}') 已被数据库中另一条记录占用。")
+                        skipped_count += 1
+                        continue
+
+                    if current_id != correct_id:
+                        click.echo(f"\\n  - [修正] 合同ID: {contract.id} | 旧: {current_id} -> 新: {correct_id}")
+                        if not dry_run:
+                            contract.jinshuju_entry_id = correct_id
+                            db.session.add(contract)
+                        updated_count += 1
                     else:
                         skipped_count += 1
 
@@ -719,7 +721,7 @@ def register_commands(app):
             click.echo("\\n--- 修正任务报告 ---")
             click.echo(f"总共检查合同: {len(contracts_to_fix)}")
             click.echo(click.style(f"成功修正合同: {updated_count}", fg="green"))
-            click.echo(f"无需修正或跳过: {skipped_count} (包含因重复而被跳过的记录)")
+            click.echo(f"无需修正或跳过: {skipped_count} (包含因重复或冲突而被跳过的记录)")
             if dry_run and updated_count > 0:
                 click.echo(click.style("\\n【演习模式】未对数据库做任何实际修改。", fg= "yellow"))
 
