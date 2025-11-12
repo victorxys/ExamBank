@@ -965,6 +965,54 @@ def register_commands(app):
             click.echo(click.style(f"\\n执行任务时发生严重错误: {e}", fg="red"))
             logger.exception("Error during sync-signatures task:")
     
+    @app.cli.command("diagnose-duplicate-ids")
+    @with_appcontext
+    def diagnose_duplicate_ids_command():
+        """
+        诊断 'o8CFxx' 表单中是否存在重复的 field_1 值，这会导致 'fix-trial-contract-ids' 失败。
+        """
+        click.echo("--- 开始诊断金数据表单 'o8CFxx' 中的重复 field_1 值 ---")
+        try:
+            click.echo("正在从金数据获取 '育儿嫂试工' (o8CFxx) 表单的所有记录...")
+            sync_service = DataSyncService()
+            form_token = "o8CFxx"
+            all_entries = sync_service.get_form_entries(form_token)
+            
+            if not all_entries:
+                click.echo(click.style("从金数据获取记录为0，无法诊断。", fg="yellow"))
+                return
+            click.echo(f"成功获取 {len(all_entries)} 条金数据记录。")
+
+            click.echo("正在分析数据以查找重复的 field_1 值...")
+            field_1_to_serials = {}
+            for entry in all_entries:
+                field_1_val = entry.get("field_1")
+                serial_num = entry.get("serial_number")
+                if field_1_val and serial_num:
+                    field_1_str = str(field_1_val)
+                    if field_1_str not in field_1_to_serials:
+                        field_1_to_serials[field_1_str] = []
+                    field_1_to_serials[field_1_str].append(str(serial_num))
+            
+            duplicates = {k: v for k, v in field_1_to_serials.items() if len(v) > 1}
+
+            if not duplicates:
+                click.echo(click.style("\\n--- 诊断完成：未发现重复的 field_1 值。问题可能出在其他地方。 ---", fg="green"))
+                return
+
+            click.echo(click.style(f"\\n--- 诊断报告：发现 {len(duplicates)} 个重复的 field_1 值 ---", fg="red"))
+            click.echo("以下是导致唯一性约束失败的重复数据：")
+            
+            for field_1_val, serial_nums in duplicates.items():
+                click.echo(f"  - [重复] field_1 的值 '{field_1_val}' 被以下 {len(serial_nums)} 个不同的 serial_number 共享:")
+                for sn in serial_nums:
+                    click.echo(f"    -> serial_number: {sn}")
+            
+            click.echo("\\n请前往金数据后台，根据以上报告，检查并修正这些重复的记录。")
+
+        except Exception as e:
+            click.echo(click.style(f"\\n执行诊断时发生严重错误: {e}", fg="red"))
+            logger.exception("Error during diagnose-duplicate-ids task:")
     # --- START: migrate-contract-links command ---
     @app.cli.command("migrate-contract-links")
     @click.option('--commit', is_flag=True, help='实际执行数据库修改，而不是只进行演习。')
