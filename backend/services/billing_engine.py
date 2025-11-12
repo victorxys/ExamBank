@@ -301,10 +301,10 @@ class BillingEngine:
     def calculate_for_month(
         self, year: int, month: int, contract_id=None, force_recalculate=False, actual_work_days_override=None, cycle_start_date_override=None , end_date_override = None, _internal_call=False
     ):
-                # <--- 在这里增加下面这行 --->
-        current_app.logger.debug(f"[DEBUG-ENGINE] calculate_for_month called with: year={year}, month={month}, contract_id={contract_id}, force_recalculate={force_recalculate}, actual_work_days_override={actual_work_days_override}, end_date_override={end_date_override}")
+        # <--- 在这里增加下面这行 --->
+        current_app.logger.debug(f"[DEBUG-ENGINE] ==> calculate_for_month called with: contract_id={contract_id}, year={year}, month={month}, force_recalculate={force_recalculate}")
         current_app.logger.info(
-            f"开始计算contract:{contract_id}  {year}-{month} 的账单 force_recalculate:{force_recalculate}"
+            f"开始计算contract:{contract_id}  {year}-{month} 的账单 force_recalculate: {force_recalculate}"
         )
         
         contract_poly = db.with_polymorphic(BaseContract, "*")
@@ -609,8 +609,17 @@ class BillingEngine:
         return refunds
 
     def _calculate_nanny_bill_for_month(
-        self, contract: NannyContract, year: int, month: int, force_recalculate=False,actual_work_days_override=None, end_date_override=None
+        self, contract: NannyContract, year: int, month: int, force_recalculate=False ,actual_work_days_override=None, end_date_override=None
     ):
+        # <--- 在这里增加下面的代码块 --->
+        current_app.logger.debug(f"[DEBUG-ENGINE] -> Entering _calculate_nanny_bill_for_month for contract: {contract.id}, status: {contract.status}")
+        if contract.previous_contract_id:
+            # 使用 with_polymorphic 确保能正确加载所有子类属性
+            contract_poly = db.with_polymorphic(BaseContract, "*")
+            previous_contract = db.session.query(contract_poly).filter_by(id =contract.previous_contract_id).first()
+            if previous_contract:
+                current_app.logger.debug(f"[DEBUG-ENGINE]    This contract has a previous_contract: {previous_contract.id}, status: {previous_contract.status}, termination_date: {previous_contract.termination_date}")
+        # <--- 增加结束 --->
         """育儿嫂计费逻辑的主入口 (V20 - 简化为单次计算)。"""
         current_app.logger.debug(f"[DEBUG-ENGINE] _calculate_nanny_bill_for_month called with: end_date_override={end_date_override}, actual_work_days_override={actual_work_days_override}")
 
@@ -658,6 +667,10 @@ class BillingEngine:
         is_auto_renew = getattr(contract, 'is_monthly_auto_renew', False)
 
         if contract_end_date and cycle_end_date and cycle_end_date >= contract_end_date and not is_auto_renew and contract.status in ['active', 'finished','pending']:
+            # <--- 在这里增加上面的代码块 --->
+            current_app.logger.debug(f"[DEBUG-ENGINE] -> Checking final salary adjustments for contract {contract.id} on bill {bill.id}:")
+            current_app.logger.debug(f"[DEBUG-ENGINE]    Condition check: (cycle_end: {cycle_end_date} >= contract_end: {contract_end_date}) AND (not is_auto_renew: {not is_auto_renew}) AND (status in ['active', 'finished', 'pending']: {contract.status in ['active', 'finished', 'pending']})")
+            # <--- 增加结束 --->
             # [Recursion Fix] Check if final adjustments already exist to prevent infinite loop.
             final_adj_exists = db.session.query(FinancialAdjustment.id).filter_by(
                 customer_bill_id=bill.id,
@@ -1541,6 +1554,12 @@ class BillingEngine:
              is_last_bill_period = bill_cycle_end_date >= contract_end_date
 
         if is_last_bill_period and (not is_auto_renew or contract.status in ['terminated', 'finished']):
+            # <--- 在这里增加上面的代码块 --->
+            current_app.logger.debug(f"[DEBUG-ENGINE] -> Checking deposit refund for contract {contract.id} on bill {bill.id}:")
+            current_app.logger.debug(f"[DEBUG-ENGINE]    is_last_bill_period: {is_last_bill_period} (cycle_end: {bill_cycle_end_date} >= contract_end: {contract_end_date})")
+            current_app.logger.debug(f"[DEBUG-ENGINE]    is_auto_renew: {is_auto_renew}")
+            current_app.logger.debug(f"[DEBUG-ENGINE]    contract.status: {contract.status}")
+            # <--- 增加结束 --->
             exists = db.session.query(FinancialAdjustment.id).filter(
                 FinancialAdjustment.customer_bill_id == bill.id,
                 FinancialAdjustment.description.like('%保证金退款%')
@@ -2688,7 +2707,13 @@ class BillingEngine:
         为给定的最后一个月账单创建“公司代付工资”及其镜像调整项。
         此函数是幂等的：如果调整项已存在，它会检查并更新金额；如果不存在，则创建。
         """
+        from backend.services.contract_service import _find_successor_contract_internal
         bill = db.session.get(CustomerBill, bill_id)
+        if _find_successor_contract_internal(bill.contract_id):
+            current_app.logger.info(
+                f"合同 {bill.contract_id} 存在后续合同，跳过最终薪资结算调整项的创建。"
+            )
+            return
         if not bill:
             current_app.logger.error(f"[FinalAdj] 找不到账单ID: {bill_id}")
             return

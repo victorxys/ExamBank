@@ -1119,3 +1119,44 @@ def renew_contract_api(contract_id):
         db.session.rollback()
         current_app.logger.error(f"续约合同 {contract_id} 失败: {e}", exc_info=True)
         return jsonify({"error": "内部服务器错误"}), 500
+
+@contract_bp.route("/<uuid:contract_id>/change", methods=["POST"])
+@jwt_required()
+def change_contract_api(contract_id):
+    """
+    变更合同：终止旧合同，并创建一个继承部分信息的新合同。
+    这是一个原子操作。
+    """
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "请求体不能为空"}), 400
+
+    # Basic validation
+    required_fields = ["start_date", "end_date", "employee_level", "service_personnel_id"]
+    missing_fields = [field for field in required_fields if field not in data or not data[field]]
+    if missing_fields:
+        return jsonify({"error": f"变更请求缺少必填字段: {', '.join(missing_fields)}"}), 400
+
+    try:
+        contract_service = ContractService()
+        # This service call will be atomic
+        changed_contract = contract_service.change_contract(str(contract_id), data)
+        
+        # Optional: trigger background tasks if needed, like for the new contract's bills
+        trigger_initial_bill_generation_task.delay(str(changed_contract.id))
+        
+        # --- 在这里添加下面这行 ---
+        db.session.commit()
+
+        return jsonify({
+            "message": "合同变更成功！",
+            "new_contract_id": str(changed_contract.id)
+        }), 201
+
+    except ValueError as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"变更合同 {contract_id} 失败: {e}", exc_info=True)
+        return jsonify({"error": "内部服务器错误"}), 500

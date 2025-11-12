@@ -119,7 +119,7 @@ class BillMergeService:
             "preview": preview_data
         }
 
-    def execute_merge(self, source_bill_id, target_contract_id):
+    def execute_merge(self, source_bill_id, target_contract_id, commit=True):
         """执行账单合并操作。"""
         try:
             source_bill, source_payroll, target_bill, target_payroll = self._get_entities(source_bill_id, target_contract_id)
@@ -143,12 +143,14 @@ class BillMergeService:
             # 4. 标记源账单为已合并
             source_bill.is_merged = True
 
-            db.session.commit()
+            if commit:
+                db.session.commit()
 
             current_app.logger.info(f"账单合并成功: 源账单ID {source_bill.id} -> 目标合同ID {target_contract_id}")
             # return {"message": "账单合并成功"}
         except Exception as e:
-            db.session.rollback()
+            if commit:
+                db.session.rollback()
             current_app.logger.error(f"账单合并操作失败: {e}", exc_info=True)
             raise
         
@@ -162,10 +164,12 @@ class BillMergeService:
                 month=target_bill.month,
                 contract_id=target_bill.contract_id,
                 force_recalculate=True,
-                cycle_start_date_override=target_bill.cycle_start_date
+                cycle_start_date_override=target_bill.cycle_start_date,
+                end_date_override=target_bill.cycle_end_date
             )
             # 第二次提交：保存重算结果
-            db.session.commit()
+            if commit:
+                db.session.commit()
             current_app.logger.info(f"目标账单 {target_bill.id} 重算成功。")
         except Exception as recalc_error:
             # 如果重算失败，只记录错误，不影响合并成功的结果
@@ -201,12 +205,13 @@ class BillMergeService:
             description=f"[冲抵]客户待付/待退费用转移至续约合同",
             details={"linked_bill_id": str(target_bill.id)}
         )
+        description_suffix = "客户待付" if balance > 0 else "待退客户"
         self._create_adjustment(
             customer_bill_id=target_bill.id,
             contract_id=target_bill.contract_id,
             adj_type=mirror_adj_type,
             amount=amount,
-            description=f"[转入]前合同合并转入客户待付/待退费用",
+            description=f"[转入]前合同合并转入{description_suffix}费用",
             details={"linked_bill_id": str(source_bill.id)}
         )
 
@@ -215,20 +220,21 @@ class BillMergeService:
     def _balance_payroll(self, source_payroll, target_payroll, source_bill, target_bill):
         """计算员工工资单余额，并创建冲抵/转移调整项。"""
         balance = D(0)
-        for adj in source_payroll.financial_adjustments.all():
-            # 【核心修正】将 DEPOSIT_PAID_SALARY 也视为增加应付的款项
-            if adj.adjustment_type in [
-                AdjustmentType.EMPLOYEE_INCREASE,
-                AdjustmentType.EMPLOYEE_CLIENT_PAYMENT,
-                AdjustmentType.DEPOSIT_PAID_SALARY
-            ]:
-                balance += adj.amount
-            elif adj.adjustment_type in [
-                AdjustmentType.EMPLOYEE_DECREASE,
-                AdjustmentType.EMPLOYEE_COMMISSION
-            ]:
-                balance -= adj.amount
-
+        # for adj in source_payroll.financial_adjustments.all():
+        #     # 【核心修正】将 DEPOSIT_PAID_SALARY 也视为增加应付的款项
+        #     if adj.adjustment_type in [
+        #         AdjustmentType.EMPLOYEE_INCREASE,
+        #         AdjustmentType.EMPLOYEE_CLIENT_PAYMENT,
+        #         AdjustmentType.DEPOSIT_PAID_SALARY
+        #     ]:
+        #         balance += adj.amount
+        #     elif adj.adjustment_type in [
+        #         AdjustmentType.EMPLOYEE_DECREASE,
+        #         AdjustmentType.EMPLOYEE_COMMISSION
+        #     ]:
+        #         balance -= adj.amount
+        # 按照你的要求，直接使用 total_due 字段
+        balance = source_payroll.total_due - source_payroll.total_paid_out 
         if balance.is_zero():
             source_payroll.total_due = D(0)
             return

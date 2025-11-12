@@ -1621,7 +1621,7 @@ def get_contract_type_details(type_string):
 @admin_required
 def search_personnel():
     """
-    用于前端自动补全，搜索员工/服务人员。
+    用于前端自动补全，仅搜索服务人员(ServicePersonnel)。
     """
     query_str = request.args.get("q", "").strip()
     if not query_str:
@@ -1629,37 +1629,18 @@ def search_personnel():
 
     search_term = f"%{query_str}%"
 
-    # 查询 User 表
-    users = User.query.filter(
-        or_(
-            User.username.ilike(search_term),
-            User.name_pinyin.ilike(search_term)
-        )
-    ).limit(10).all()
-
-    # 查询 ServicePersonnel 表
+    # 仅查询 ServicePersonnel 表
     service_personnel = ServicePersonnel.query.filter(
         or_(
             ServicePersonnel.name.ilike(search_term),
             ServicePersonnel.name_pinyin.ilike(search_term)
         )
-    ).limit(10).all()
+    ).limit(15).all()
 
-    results = []
-    seen_names = set()
-
-    for u in users:
-        if u.username not in seen_names:
-            results.append({"id": str(u.id), "name": u.username, "source": "user"})
-            seen_names.add(u.username)
-
-    for sp in service_personnel:
-        if sp.name not in seen_names:
-            results.append({"id": str(sp.id), "name": sp.name, "source": "service_personnel"})
-            seen_names.add(sp.name)
-
-    # 可以根据需要对结果进行排序
-    results.sort(key=lambda x: x['name'])
+    results = [
+        {"id": str(sp.id), "name": sp.name}
+        for sp in service_personnel
+    ]
 
     return jsonify(results)
 
