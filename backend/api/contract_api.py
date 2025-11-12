@@ -33,7 +33,7 @@ from backend.services.contract_service import (
 from datetime import datetime
 import decimal
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy import or_, extract
+from sqlalchemy import or_, and_, extract, func
 from sqlalchemy.orm import joinedload
 D = decimal.Decimal
 from backend.tasks import calculate_monthly_billing_task, trigger_initial_bill_generation_task
@@ -353,7 +353,19 @@ def download_contract_pdf(contract_id):
             # 暂时允许下载未完全签署的合同，以便预览
             current_app.logger.warning(f"合同 {contract_id} 正在被下载，但其签署状态为 {contract.signing_status}")
 
-        service_content_html = markdown.markdown(contract.service_content)
+        service_content = contract.service_content
+        # 如果 service_content 是一个列表，将其转换为 Markdown 列表字符串
+        if isinstance(service_content, list):
+            # 如果列表不为空，则格式化为项目符号列表
+            if service_content:
+                markdown_text = '\n'.join(f'- {item}' for item in service_content)
+            else:
+                markdown_text = '' # 如果是空列表，则为空字符串
+        else:
+            # 如果不是列表，则假定为字符串或 None
+            markdown_text = service_content or ''
+            
+        service_content_html = markdown.markdown(markdown_text)
         # 1. 读取并转换主模板内容
         main_content_html = markdown.markdown(contract.template_content) if contract.template_content else ''
         # 2. 读取并转换附件内容
@@ -1159,4 +1171,83 @@ def change_contract_api(contract_id):
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"变更合同 {contract_id} 失败: {e}", exc_info=True)
+        return jsonify({"error": "内部服务器错误"}), 500
+    
+from dateutil.relativedelta import relativedelta # <--- 请确保文件顶部有此导入
+
+@contract_bp.route("/customer/<uuid:customer_id>/transferable-contracts", methods=["GET"])
+@jwt_required()
+def get_transferable_contracts_for_customer(customer_id):
+    """
+    查找客户名下所有可用于转移保证金的合同。
+    规则：
+    - 状态为 'active' 或 'pending'。
+    - 或状态为 'terminated' 或 'finished' 且结束日期在12个月内。
+    - 且合同的 security_deposit_paid > 0。
+    """
+    try:
+        # --- 调试代码块开始 ---
+        customer = Customer.query.get(customer_id)
+        customer_name = customer.name if customer else "未知客户"
+        current_app.logger.debug(f"--- [DEBUG] 开始检查可转移合同，客户: {customer_name} (ID: {customer_id}) ---")
+
+        # 1. 检查该客户名下所有的合同，看看原始数据是什么
+        all_customer_contracts = BaseContract.query.filter_by(customer_id=customer_id).order_by(BaseContract.end_date.desc()). all()
+        current_app.logger.debug(f"[DEBUG] 步骤1: 找到该客户名下总共有 {len (all_customer_contracts)} 个合同。")
+        if not all_customer_contracts:
+            return jsonify([]) # 如果一个合同都没有，直接返回
+
+        for c in all_customer_contracts:
+            effective_end = c.termination_date or c.end_date
+            current_app.logger.debug(
+                f"[DEBUG]   - 原始合同: ID={c.id}, 状态='{c.status}', "
+                f"已付保证金={c.security_deposit_paid}, 结束/终止于={effective_end.isoformat() if effective_end else 'N/A'}"
+            )
+
+        # 2. 检查日期过滤条件
+        twelve_months_ago = datetime.utcnow().date() - relativedelta(months=12)
+        current_app.logger.debug(f"[DEBUG] 步骤2: 日期过滤条件为，结束/终止日期必须晚于或等于 {twelve_months_ago.isoformat()}")
+
+        # 3. 分步应用过滤条件并打印每一步的结果
+        contract_poly = db.with_polymorphic(BaseContract, "*")
+        
+        # 过滤条件 a: 客户ID
+        query = db.session.query(contract_poly).filter(BaseContract.customer_id == customer_id)
+        
+        # 过滤条件 b: 已付保证金 > 0
+        query = query.filter(BaseContract.security_deposit_paid > 0)
+        current_app.logger.debug(f"[DEBUG] 步骤3.1: 应用“已付保证金 > 0”后，剩下 {query.count()} 个合同。")
+
+        # 过滤条件 c: 状态和日期
+        status_and_date_filter = or_(
+            BaseContract.status.in_(['active', 'pending']),
+            and_(
+                BaseContract.status.in_(['terminated', 'finished']),
+                func.coalesce(BaseContract.termination_date, BaseContract.end_date) >= twelve_months_ago
+            )
+        )
+        query = query.filter(status_and_date_filter)
+        current_app.logger.debug(f"[DEBUG] 步骤3.2: 应用“状态和日期”过滤后，剩下 {query.count()} 个合同。")
+        
+        # --- 调试代码块结束 ---
+
+        # 执行最终查询
+        contracts = query.options(joinedload(contract_poly.service_personnel)).order_by(BaseContract.end_date.desc( )).all()
+        current_app.logger.debug(f"[DEBUG] 最终查询结果数量: {len(contracts)}")
+
+        results = []
+        for contract in contracts:
+            effective_end_date = contract.termination_date or contract.end_date
+            results.append({
+                "contract_id": str(contract.id),
+                "service_personnel_name": contract.service_personnel.name if contract.service_personnel else "N/A",
+                "employee_level": str(contract.employee_level or 0),
+                "effective_end_date": effective_end_date.isoformat(),
+                "transferable_deposit_amount": str(contract.security_deposit_paid or 0)
+            })
+
+        return jsonify(results)
+
+    except Exception as e:
+        current_app.logger.error(f"查找客户 {customer_id} 的可转移合同失败: {e}", exc_info=True )
         return jsonify({"error": "内部服务器错误"}), 500

@@ -4,7 +4,7 @@ import {
     Dialog, DialogTitle, DialogContent, DialogActions, Button, Grid, TextField,
     Select, MenuItem, InputLabel, FormControl, FormControlLabel, Switch, Box,
     CircularProgress, Alert, Autocomplete, Chip, Typography, FormHelperText, Tooltip,
-    InputAdornment, IconButton
+    InputAdornment, IconButton,RadioGroup, Radio
 } from '@mui/material';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import { DatePicker, DateTimePicker } from '@mui/x-date-pickers';
@@ -76,6 +76,13 @@ const CreateFormalContractModal = ({ open, onClose, onSuccess }) => {
 
     const [openCustomer, setOpenCustomer] = useState(false);
     const [openEmployee, setOpenEmployee] = useState(false);
+
+    const [transferDialog, setTransferDialog] = useState({
+        open: false,
+        contracts: [],
+        selectedOption: 'createNew', // 'createNew' or 'renewOrChange'
+        selectedContractId: '',
+    });
 
     const searchTimeout = useRef(null);
 
@@ -481,12 +488,33 @@ const CreateFormalContractModal = ({ open, onClose, onSuccess }) => {
                             inputValue={customerInputValue}
                             onChange={(event, newValue) => {
                                 setSelectedCustomer(newValue);
-                                if (typeof newValue === 'object' && newValue) {
+                                if (typeof newValue === 'object' && newValue && newValue.id) {
                                     setFormData(prev => ({
                                         ...prev,
                                         customer_id_card: newValue.id_card_number || '',
                                         customer_address: newValue.address || '',
                                     }));
+
+                                    // --- 新增逻辑：检查可转移的合同 ---
+                                    const checkForTransferableContracts = async (customerId) => {
+                                        try {
+                                            const response = await api.get( `/contracts/customer/${customerId}/transferable-contracts`);
+                                            if (response.data && response.data.length > 0) {
+                                                setTransferDialog({
+                                                    open: true,
+                                                    contracts: response.data,
+                                                    selectedOption: 'createNew',
+                                                    selectedContractId: '',
+                                                });
+                                            }
+                                        } catch (err) {
+                                            console.error("查找可转移合同失败:", err);
+                                            // 获取失败不应阻塞主流程，仅在控制台打印错误
+                                        }
+                                    };
+                                    checkForTransferableContracts(newValue.id);
+                                    // --- 新增结束 ---
+
                                 }
                             }}
                             onInputChange={(event, newInputValue, reason) => {
@@ -761,8 +789,91 @@ const CreateFormalContractModal = ({ open, onClose, onSuccess }) => {
                     <Button onClick={() => setPreviewOpen(false)}>关闭</Button>
                 </DialogActions>
             </Dialog>
+            {/* --- 新增：渲染并处理选择弹窗 --- */}
+            <TransferOptionDialog
+                open={transferDialog.open}
+                contracts={transferDialog.contracts}
+                value={{ selectedOption: transferDialog.selectedOption, selectedContractId: transferDialog.selectedContractId }}
+                onChange={(newValue) => setTransferDialog(prev => ({ ...prev, ...newValue }))}
+                onClose={() => setTransferDialog(prev => ({ ...prev, open: false }))}
+                onConfirm={(result) => {
+                    setTransferDialog(prev => ({ ...prev, open: false }));
+                    if (result.selectedOption === 'renewOrChange' && result.selectedContractId) {
+                        // 如果用户选择跳转，则关闭创建弹窗并执行跳转
+                        onClose(); 
+                        navigate(`/contract/detail/${result.selectedContractId}`);
+                    }
+                    // 如果用户选择创建新合同，则什么也不做，流程继续
+                }}
+            />
+            {/* --- 新增结束 --- */}
         </Dialog>
     );
 };
+// --- 新增的弹窗组件 ---
 
+const TransferOptionDialog = ({ open, onClose, onConfirm, contracts, value, onChange }) => {
+    const { selectedOption, selectedContractId } = value;
+
+    const handleConfirm = () => {
+        if (selectedOption === 'renewOrChange' && !selectedContractId) {
+            alert('请选择一个要续约或变更的合同。');
+            return;
+        }
+        onConfirm(value);
+    };
+
+    const formatDate = (isoString) => isoString ? new Date(isoString).toLocaleDateString() : 'N/A';
+
+    return (
+        <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+            <DialogTitle>发现可转移保证金的合同</DialogTitle>
+            <DialogContent>
+                <Typography sx={{ mb: 2 }}>
+                    系统发现客户名下有以下合同的保证金可以被续约或变更，请选择您的操作：
+                </Typography>
+                <FormControl component="fieldset">
+                    <RadioGroup
+                        value={selectedOption}
+                        onChange={(e) => onChange({ ...value, selectedOption: e.target.value })}
+                    >
+                        <FormControlLabel value="createNew" control={<Radio />} label= "创建新合同，并重新交纳保证金" />
+                        <FormControlLabel value="renewOrChange" control={<Radio />} label= "从以下现有合同续约或变更，以转移保证金" />
+                    </RadioGroup>
+                </FormControl>
+
+                {/* --- 核心修改：列表默认显示，通过 disabled 属性控制可选状态 --- */}
+                <Box sx={{ mt: 2, pl: 4, border: '1px solid #eee', p: 2, borderRadius: 1 }}>
+                    <Typography variant="subtitle2" gutterBottom>
+                        可转移保证金的合同列表:
+                    </Typography>
+                    <FormControl component="fieldset" fullWidth disabled={selectedOption !== 'renewOrChange'}>
+                        <RadioGroup
+                            value={selectedContractId}
+                            onChange={(e) => onChange({ ...value, selectedContractId: e.target. value })}
+                        >
+                            {contracts.map(c => (
+                                <FormControlLabel 
+                                    key={c.contract_id} 
+                                    value={c.contract_id} 
+                                    control={<Radio />} 
+                                    label={
+                                        `【${c.service_personnel_name}】月薪 ${c.employee_level} 的合同于 ${formatDate(c.effective_end_date)} 结束，有 ${c.transferable_deposit_amount} 元保证金可转移`
+                                    }
+                                />
+                            ))}
+                        </RadioGroup>
+                    </FormControl>
+                </Box>
+                {/* --- 修改结束 --- */}
+
+            </DialogContent>
+            <DialogActions>
+                <Button onClick={onClose}>取消</Button>
+                <Button onClick={handleConfirm} variant="contained">确认</Button>
+            </DialogActions>
+        </Dialog>
+    );
+};
+// --- 新增结束 ---
 export default CreateFormalContractModal;
