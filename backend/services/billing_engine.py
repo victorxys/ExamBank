@@ -374,62 +374,60 @@ class BillingEngine:
     def generate_all_bills_for_contract(self, contract_id, force_recalculate=True):
         """
         Generates or recalculates all bills for the entire lifecycle of a single contract.
+        For auto-renewing contracts, it finds the last existing bill to define the loop's end point.
         """
-        # 【调试代码 2】
-        # current_app.logger.info(f"[ENGINE-DEBUG] Engine received contract ID: {contract_id}, Type: {type(contract_id)}")
-        # 关键修复 1: 使用 query().filter_by() 代替 get()，以在事务中可靠地找到对象
         contract_poly = db.with_polymorphic(BaseContract, "*")
         contract = db.session.query(contract_poly).filter(BaseContract.id == contract_id).first()
         if not contract:
             current_app.logger.error(f"[FullLifecycle] Contract {contract_id} not found.")
             return
 
-        # 强制刷新对象状态，确保关联数据（如子类字段）是最新的
         db.session.refresh(contract)
-
         current_app.logger.info(
             f"[FullLifecycle] Starting bill generation for contract {contract.id} ({contract.type})."
         )
 
-        # --- Gemini-generated code: Start (v4 - Final) ---
-        # 核心修改：简化育儿嫂试工合同的初始账单逻辑
         if isinstance(contract, NannyTrialContract):
-            current_app.logger.info(f"[FullLifecycle] 合同 {contract.id} 是试工合同，跳过初始账单生成。")
+            current_app.logger.info(f"[FullLifecycle] 合同 {contract.id} 是试工合同，跳过全周期账单生成。")
             return
-        # --- Gemini-generated code: End (v4 - Final) ---
 
-        # --- 【关键修复】统一处理日期和时间对象 ---
-        start_date_obj = contract.actual_onboarding_date if contract.type =="maternity_nurse" else contract.start_date
+        start_date_obj = contract.actual_onboarding_date if contract.type == "maternity_nurse" else contract.start_date
         end_date_obj = (contract.expected_offboarding_date or contract.end_date) if contract.type == "maternity_nurse" else contract.end_date
+
+        # --- 核心修复：确保 end_date_obj 在比较前统一为 date 对象 ---
+        if end_date_obj:
+            end_date_obj = self._to_date(end_date_obj)
+        # --- 修复结束 ---
+
+        if getattr(contract, 'is_monthly_auto_renew', False):
+            last_bill = CustomerBill.query.filter_by(
+                contract_id=contract.id,
+                is_substitute_bill=False
+            ).order_by(CustomerBill.year.desc(), CustomerBill.month.desc()).first()
+
+            if last_bill:
+                # --- 核心修复：确保 last_bill_end_date 也是 date 对象 ---
+                last_bill_end_date = self._to_date(last_bill.cycle_end_date)
+                
+                if end_date_obj:
+                    end_date_obj = max(end_date_obj, last_bill_end_date)
+                else:
+                    end_date_obj = last_bill_end_date
+                current_app.logger.info(f"[FullLifecycle] Auto-renew contract. Effective end date for recalculation set to {end_date_obj}.")
+        # --- 修复结束 ---
 
         if not start_date_obj or not end_date_obj:
             current_app.logger.warning(f"[FullLifecycle] Contract {contract.id} is missing start or end dates. Skipping.")
             return
 
-        start_date, end_date = None, None
-
-        if isinstance(start_date_obj, datetime):
-            start_date = start_date_obj.date()
-        elif isinstance(start_date_obj, date):
-            start_date = start_date_obj
-
-        if isinstance(end_date_obj, datetime):
-            end_date = end_date_obj.date()
-        elif isinstance(end_date_obj, date):
-            end_date = end_date_obj
+        start_date = self._to_date(start_date_obj)
+        end_date = self._to_date(end_date_obj)
 
         if not start_date or not end_date:
             raise TypeError(f"无法从 {start_date_obj} 或 {end_date_obj} 中正确解析出日期。")
 
-
-        if not start_date or not end_date:
-            current_app.logger.warning(
-                f"[FullLifecycle] Contract {contract.id} is missing start or end dates. Skipping."
-            )
-            return
-
         current_app.logger.info(
-            f"[FullLifecycle] Contract {contract.id} date range: {start_date} to {end_date}."
+            f"[FullLifecycle] Contract {contract.id} date range for calculation: {start_date} to {end_date}."
         )
 
         # Iterate through each month in the contract's lifecycle
@@ -1514,6 +1512,7 @@ class BillingEngine:
         contract_start_date = self._to_date(contract.actual_onboarding_date or contract.start_date)
         bill_cycle_start_date = self._to_date(bill.cycle_start_date)
         is_first_bill = bill_cycle_start_date == contract_start_date
+        current_app.logger.info(f"[DEPOSIT-HANDLER-V2] is_first_bill: {is_first_bill} (bill_cycle_start: {bill_cycle_start_date}, contract_start: {contract_start_date})")
 
         if is_first_bill:
             # --- 这是首期账单，应该有“保证金”收款项 ---
@@ -1522,9 +1521,12 @@ class BillingEngine:
                 FinancialAdjustment.customer_bill_id == bill.id,
                 FinancialAdjustment.description.like('[系统添加] 保证金%')
             ).first()
+            current_app.logger.info(f"[DEPOSIT-HANDLER-V2] existing_deposit found: {bool(existing_deposit)}")
 
             if existing_deposit:
+                current_app.logger.info(f"[DEPOSIT-HANDLER-V2] Existing deposit amount: {existing_deposit.amount}, Expected amount: {deposit_amount_due}")
                 if existing_deposit.amount != deposit_amount_due:
+                    current_app.logger.info(f"[DEPOSIT-HANDLER-V2] Updating existing deposit amount from {existing_deposit.amount} to {deposit_amount_due}")
                     existing_deposit.amount = deposit_amount_due
             else:
                 db.session.add(
@@ -1536,7 +1538,9 @@ class BillingEngine:
                         date=bill.cycle_start_date,
                     )
                 )
+                current_app.logger.info(f"[DEPOSIT-HANDLER-V2] Created new deposit adjustment for amount: {deposit_amount_due}")
         else:
+            current_app.logger.info("[DEPOSIT-HANDLER-V2] Not first bill, removing any existing deposit adjustments if present.")
             # --- 这不是首期账单，不应该有“保证金”收款项 ---
             FinancialAdjustment.query.filter_by(
                 customer_bill_id=bill.id,

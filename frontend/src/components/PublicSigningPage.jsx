@@ -65,7 +65,7 @@ const PublicSigningPage = () => {
 
             const initialCustomerInfo = (contract.customer_info && contract.customer_info.id)
                 ? contract.customer_info
-                : { ...partyInfoDefault, name: contract.customer_name === '待认领' ? '' : contract.customer_name };
+                : { ...partyInfoDefault, name: contract.customer_name === '新客户' ? '' : contract.customer_name };
 
             const initialEmployeeInfo = (contract.employee_info && contract.employee_info.id)
                 ? contract.employee_info

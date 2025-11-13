@@ -381,7 +381,13 @@ class ContractService:
 
             if final_management_fee_rate > 0:
                 final_management_fee_amount = (new_employee_level * final_management_fee_rate).quantize(Decimal('0.01'))
-
+            # --- 核心修复：获取模板内容 ---
+            template_content = None
+            if old_contract.template_id:
+                template = ContractTemplate.query.get(old_contract.template_id)
+                if template:
+                    template_content = template.content
+            # --- 修复结束 ---
             new_contract_fields = {
                 "customer_id": old_contract.customer_id,
                 "service_personnel_id": old_contract.service_personnel_id,
@@ -400,6 +406,10 @@ class ContractService:
                 "employee_signing_token": str(uuid.uuid4()),
                 "notes": old_contract.notes,
                 "security_deposit_paid": old_contract.security_deposit_paid,
+                "template_id": old_contract.template_id,
+                "service_content": old_contract.service_content,
+                "service_type": old_contract.service_type,
+                "template_content": template_content,
             }
             
             if isinstance(old_contract, NannyContract):
@@ -427,12 +437,10 @@ class ContractService:
                 current_app.logger.info(f"合同 {old_contract.id} 结束日不是月末，执行账单合并逻辑。")
                 last_bill = CustomerBill.query.filter_by(contract_id=old_contract.id ).order_by(CustomerBill.cycle_end_date.desc()).first()
                 if last_bill:
-                    # --- 核心修复：在合并前，立即为新合同生成账单 ---
                     self._delete_non_transferable_adjustments(old_contract, last_bill)
                     engine = BillingEngine()
                     engine.generate_all_bills_for_contract(renewed_contract.id, force_recalculate=True)
                     db.session.flush() # 确保新账单已写入会话
-                    # --- 修复结束 ---
 
                     merge_service = BillMergeService()
                     merge_service.execute_merge(str(last_bill.id), str(renewed_contract.id), commit=False)
@@ -602,6 +610,14 @@ class ContractService:
 
             new_service_personnel_id = change_data.get("service_personnel_id")
 
+            # --- 核心修复：获取模板内容 ---
+            template_content = None
+            if old_contract.template_id:
+                template = ContractTemplate.query.get(old_contract.template_id)
+                if template:
+                    template_content = template.content
+            # --- 修复结束 ---
+
             new_contract_fields = {
                 "customer_id": old_contract.customer_id,
                 "service_personnel_id": new_service_personnel_id,
@@ -620,6 +636,10 @@ class ContractService:
                 "employee_signing_token": str(uuid.uuid4()),
                 "notes": old_contract.notes,
                 "security_deposit_paid": new_employee_level, # 变更合同的保证金默认等于员工级别
+                "template_id": old_contract.template_id,
+                "service_content": old_contract.service_content,
+                "service_type": old_contract.service_type,
+                "template_content": template_content, 
             }
 
             NewContractModel = type(old_contract)

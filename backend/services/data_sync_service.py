@@ -104,24 +104,23 @@ class DataSyncService:
         name = name.strip()
         phone = phone.strip() if phone else None
 
-        if phone:
-            user = User.query.filter_by(phone_number=phone).first()
-            if user:
-                return "user", user.id
-        user = User.query.filter(db.func.lower(User.username) == name.lower()).first()
-        if user:
-            return "user", user.id
+        # --- 核心修复：移除对内部用户(User)表的查找逻辑 ---
+        # 在同步合同场景下，我们只关心外部服务人员(ServicePersonnel)
 
+        # 1. 优先使用手机号在 ServicePersonnel 表中查找
         if phone:
             personnel = ServicePersonnel.query.filter_by(phone_number=phone).first()
             if personnel:
                 return "service_personnel", personnel.id
+        
+        # 2. 如果手机号找不到，再使用姓名在 ServicePersonnel 表中查找
         personnel = ServicePersonnel.query.filter(
             db.func.lower(ServicePersonnel.name) == name.lower()
         ).first()
         if personnel:
             return "service_personnel", personnel.id
 
+        # 3. 如果都找不到，则创建新的 ServicePersonnel
         try:
             pinyin_str = (
                 "".join(p[0] for p in pinyin(name, style=Style.NORMAL))

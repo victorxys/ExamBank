@@ -80,8 +80,12 @@
     </div>
     <!-- 修正结束 -->
     <div class="party-details">
+        {% if contract.service_content %}
         <p><strong>服务内容:</strong> {{ contract.service_content or '未指定' }}</p>
+        {% endif %}
+        {% if contract.service_type %}
         <p><strong>服务方式:</strong> {{ contract.service_type or '未指定' }}</p>
+        {% endif %}
         <p><strong>乙方劳务报酬:</strong> {{ "%.2f"|format(contract.employee_level|float) }} 元/月</p>
         
         <p><strong>保证金:</strong> {{ "%.2f"|format(contract.security_deposit_paid|float) }} 元</p>

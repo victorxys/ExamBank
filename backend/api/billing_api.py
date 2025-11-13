@@ -2122,6 +2122,7 @@ def update_bill_cycle_and_cascade(bill_id):
 @billing_bp.route("/contracts/<string:contract_id>/details", methods=["GET"])
 @admin_required
 def get_single_contract_details(contract_id):
+    current_app.logger.info(f"获取合同详情，ID: {contract_id}")
     try:
         query = db.session.query(with_polymorphic(BaseContract, "*"))
         contract = query.filter(BaseContract.id == contract_id).first()
@@ -2247,6 +2248,7 @@ def get_single_contract_details(contract_id):
             "remaining_months": remaining_months_str,
             "highlight_remaining": highlight_remaining,
             "notes": contract.notes,
+            "attachment_content": contract.attachment_content,
             "is_monthly_auto_renew":is_monthly_auto_renew,
             # "is_monthly_auto_renew": getattr(contract,'is_monthly_auto_renew', None),
             "deposit_amount": str(final_deposit_amount),

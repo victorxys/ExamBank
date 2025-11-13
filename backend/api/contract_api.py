@@ -18,7 +18,9 @@ from backend.models import (
     NannyContract,MaternityNurseContract,NannyTrialContract, ExternalSubstitutionContract,
     CompanyBankAccount,
     FinancialAdjustment,
-    PaymentRecord
+    PaymentRecord,
+    AttendanceRecord, # <-- 确保此行存在
+    EmployeeSalaryHistory
 )
 from backend.tasks import calculate_monthly_billing_task
 from backend.services.billing_engine import BillingEngine, calculate_substitute_management_fee, _update_bill_payment_status
@@ -629,7 +631,7 @@ def create_formal_contract():
             return jsonify({"error": "合同模板未找到"}), 404
 
         # --- Prepare Customer Info (Handles all 3 cases) ---
-        customer_attributes = { "customer_id": None, "customer_name": "待认领", "customer_name_pinyin": "dairenling drl" }
+        customer_attributes = { "customer_id": None, "customer_name": "新客户", "customer_name_pinyin": "xinkehu xkh" }
         customer_id = data.get("customer_id")
         customer_name_from_request = data.get("customer_name")
 
@@ -648,7 +650,7 @@ def create_formal_contract():
             pinyin_full = "".join(p[0] for p in pinyin(customer_name_from_request, style=Style.NORMAL))
             pinyin_initials = "".join(p[0] for p in pinyin(customer_name_from_request, style=Style.FIRST_LETTER))
             customer_attributes["customer_name_pinyin"] = f"{pinyin_full} {pinyin_initials}"
-        # Case 3: No customer info provided, use the default "待认领"
+        # Case 3: No customer info provided, use the default "新客户"
 
         # --- Prepare Contract Attributes ---
         def to_decimal(value, default=0):
@@ -706,6 +708,7 @@ def create_formal_contract():
             common_attributes["provisional_start_date"] = datetime.fromisoformat(data[ "provisional_start_date"].split('T')[0]) if data.get("provisional_start_date") else None
             # 月嫂合同的保证金从前端传入
             common_attributes["security_deposit_paid"] = to_decimal(data.get( "security_deposit_paid") or 0)
+            common_attributes["management_fee_rate"] = D(data.get("deposit_rate", 0.25))
 
         elif contract_type == "nanny_trial":
             ContractModel = NannyTrialContract
@@ -749,8 +752,222 @@ def create_formal_contract():
         current_app.logger.error(f"创建正式合同失败: {e}", exc_info=True)
         return jsonify({"error": "内部服务器错误"}), 500
 
+@contract_bp.route("/<uuid:contract_id>", methods=["DELETE"])
+@jwt_required()
+def delete_contract(contract_id):
+    """
+    删除一个合同及其所有关联记录（账单、工资单、调整项、考勤等）。
+    这是一个级联删除操作，请谨慎使用。
+    """
+    contract_id_str = str(contract_id)
+    contract = BaseContract.query.get_or_404(contract_id_str)
 
-@contract_bp.route("/sign/<string:token>", methods=["GET"])
+    try:
+        current_app.logger.info(f"开始级联删除合同 {contract_id_str} 及其所有关联数据...")
+
+        # 1. 查找所有关联的 Bill 和 Payroll IDs
+        bill_ids = [b.id for b in CustomerBill.query.with_entities(CustomerBill.id).filter_by(contract_id=contract_id_str).all()]
+        payroll_ids = [p.id for p in EmployeePayroll.query.with_entities(EmployeePayroll.id).filter_by(contract_id=contract_id_str).all()]
+        current_app.logger.info(f"找到关联账单: {bill_ids}, 关联工资单: {payroll_ids}")
+
+        # 2. 删除最深层的依赖：FinancialActivityLog
+        if bill_ids:
+            FinancialActivityLog.query.filter(FinancialActivityLog.customer_bill_id.in_(bill_ids)).delete(synchronize_session=False)
+        if payroll_ids:
+            FinancialActivityLog.query.filter(FinancialActivityLog.employee_payroll_id.in_(payroll_ids)).delete(synchronize_session=False)
+        
+        # 3. 删除支付记录
+        if bill_ids:
+            PaymentRecord.query.filter(PaymentRecord.customer_bill_id.in_(bill_ids)).delete(synchronize_session=False)
+
+        # 4. 删除财务调整项 (关联到账单、工资单或合同本身)
+        if bill_ids:
+            FinancialAdjustment.query.filter(FinancialAdjustment.customer_bill_id.in_(bill_ids)).delete(synchronize_session=False)
+        if payroll_ids:
+            FinancialAdjustment.query.filter(FinancialAdjustment.employee_payroll_id.in_(payroll_ids)).delete(synchronize_session=False)
+        FinancialAdjustment.query.filter_by(contract_id=contract_id_str).delete(synchronize_session=False)
+
+        # 5. 删除账单和工资单
+        if bill_ids:
+            CustomerBill.query.filter(CustomerBill.id.in_(bill_ids)).delete(synchronize_session=False)
+        if payroll_ids:
+            EmployeePayroll.query.filter(EmployeePayroll.id.in_(payroll_ids)).delete(synchronize_session=False)
+
+        # 6. 删除考勤记录
+        AttendanceRecord.query.filter_by(contract_id=contract_id_str).delete(synchronize_session=False)
+
+        # 7. 删除薪酬历史
+        EmployeeSalaryHistory.query.filter_by(contract_id=contract_id_str).delete(synchronize_session=False)
+
+        # 8. 最后，删除合同本身
+        db.session.delete(contract)
+        
+        db.session.commit()
+        
+        current_app.logger.info(f"合同 {contract_id_str} 已被成功级联删除。")
+        return jsonify({"message": "合同及所有关联数据已成功删除"}), 200
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"级联删除合同 {contract_id_str} 时发生错误: {e}", exc_info=True)
+        return jsonify({"error": "内部服务器错误"}), 500
+
+@contract_bp.route("/<uuid:contract_id>", methods=["GET"])
+@jwt_required()
+def get_contract_details(contract_id):
+    """
+    获取单个合同的完整详细信息，用于编辑。
+    """
+    try:
+        contract_poly = db.with_polymorphic(BaseContract, "*")
+        contract = db.session.query(contract_poly).options(
+            joinedload(contract_poly.customer),
+            joinedload(contract_poly.service_personnel)
+        ).filter(BaseContract.id == str(contract_id)).first()
+
+        if not contract:
+            return jsonify({"error": "合同未找到"}), 404
+
+        result = {
+            "id": str(contract.id),
+            "contract_type": contract.type,
+            "customer_id": contract.customer_id,
+            "customer_name": contract.customer_name,
+            "customer_id_card": contract.customer.id_card_number if contract.customer else None,
+            "customer_address": contract.customer.address if contract.customer else None,
+            "service_personnel_id": contract.service_personnel_id,
+            "employee_name": contract.service_personnel.name if contract.service_personnel else None,
+            "employee_id_card": contract.service_personnel.id_card_number if contract.service_personnel else None,
+            "employee_address": contract.service_personnel.address if contract.service_personnel else None,
+            "start_date": contract.start_date.isoformat() if contract.start_date else None,
+            "end_date": contract.end_date.isoformat() if contract.end_date else None,
+            "status": contract.status,
+            "notes": contract.notes,
+            "attachment_content": contract.attachment_content,
+            "employee_level": str(contract.employee_level) if contract.employee_level is not None else '',
+            "management_fee_rate": str(contract.management_fee_rate) if contract.management_fee_rate is not None else '',
+            "management_fee_amount": str(contract.management_fee_amount) if contract.management_fee_amount is not None else '',
+            "introduction_fee": str(contract.introduction_fee) if contract.introduction_fee is not None else '',
+            "template_id": contract.template_id,
+            "service_content": contract.service_content,
+            "service_type": contract.service_type,
+            "is_monthly_auto_renew": getattr(contract, 'is_monthly_auto_renew', False),
+            # --- 新增字段 ---
+            "deposit_amount": str(getattr(contract, 'deposit_amount', '')) if contract.type == 'maternity_nurse' else '',
+            "deposit_rate": str(getattr(contract, 'deposit_rate', '')) if contract.type == 'maternity_nurse' else '',
+            "security_deposit_paid": str(getattr(contract, 'security_deposit_paid', '')) if contract.type == 'maternity_nurse' else '',
+            "provisional_start_date": getattr(contract, 'provisional_start_date').isoformat() if getattr(contract, 'provisional_start_date', None) else None,
+        }
+
+        return jsonify(result)
+
+    except Exception as e:
+        current_app.logger.error(f"获取合同 {contract_id} 详情失败: {e}", exc_info=True)
+        return jsonify({"error": "内部服务器错误"}), 500
+    
+@contract_bp.route("/<uuid:contract_id>", methods=["PUT"])
+@jwt_required()
+def update_contract(contract_id):
+    """
+    更新一个合同。
+    - 'pending' 状态的合同允许修改大部分字段。
+    - 其他状态的合同只允许修改 'notes' 和 'attachment_content' 等非核心字段。
+    """
+    contract_id_str = str(contract_id)
+    data = request.get_json()
+    contract = BaseContract.query.get_or_404(contract_id_str)
+
+    try:
+        # 1. 通用安全字段更新 (所有状态下都允许)
+        if 'notes' in data:
+            contract.notes = data.get('notes')
+        if 'attachment_content' in data:
+            contract.attachment_content = data.get('attachment_content')
+
+        # 2. 对于非 'pending' 状态的合同，只更新安全字段后就直接返回
+        if contract.status != 'pending':
+            db.session.commit()
+            current_app.logger.info(f"合同 {contract_id_str} (状态: {contract.status}) 的非核心字段已更新。")
+            return jsonify({"message": "合同更新成功 (仅限备注等安全字段)。"}), 200
+
+        # 3. 对 'pending' 状态的合同，允许更广泛的编辑
+        current_app.logger.info(f"正在为 PENDING 状态的合同 {contract_id_str} 执行更新...")
+        
+        def to_decimal(value, default=None):
+            if value is None or value == '':
+                return default if default is not None else None
+            return D(str(value))
+
+        # 更新核心字段
+        if 'start_date' in data and data['start_date']:
+            contract.start_date = datetime.fromisoformat(data['start_date'].split('T')[0])
+        if 'end_date' in data and data['end_date']:
+            contract.end_date = datetime.fromisoformat(data['end_date'].split('T')[0])
+        
+        if 'introduction_fee' in data:
+            contract.introduction_fee = to_decimal(data['introduction_fee'], 0)
+        
+        if 'management_fee_amount' in data:
+            contract.management_fee_amount = to_decimal(data['management_fee_amount'], 0)
+        if 'management_fee_rate' in data:
+            contract.management_fee_rate = to_decimal(data['management_fee_rate'], 0)
+        if 'contract_type' in data:
+            contract.type = data['contract_type']
+        if 'template_id' in data:
+            contract.template_id = data['template_id']
+            new_template = ContractTemplate.query.get(data['template_id'])
+            if new_template:
+                contract.template_content = new_template.content
+
+        # --- 核心修改：将 security_deposit_paid 的更新逻辑移到外面，使其通用 ---
+        if 'security_deposit_paid' in data:
+            contract.security_deposit_paid = to_decimal(data['security_deposit_paid'], 0)
+
+        # 根据合同类型处理薪酬及特定字段
+        if contract.type == 'nanny_trial':
+            if 'daily_rate' in data:
+                contract.employee_level = to_decimal(data['daily_rate'], 0)
+        else:
+            if 'employee_level' in data:
+                contract.employee_level = to_decimal(data['employee_level'], 0)
+
+        if 'customer_id_card' in data and contract.customer:
+            contract.customer.id_card_number = data['customer_id_card']
+        if 'customer_address' in data and contract.customer:
+            contract.customer.address = data['customer_address']
+        if 'employee_id_card' in data and contract.service_personnel:
+            contract.service_personnel.id_card_number = data['employee_id_card']
+        if 'employee_address' in data and contract.service_personnel:
+            contract.service_personnel.address = data['employee_address']
+
+        if 'is_monthly_auto_renew' in data and contract.type == 'nanny':
+            contract.is_monthly_auto_renew = data['is_monthly_auto_renew']
+        
+        if 'service_content' in data and contract.type in ['nanny', 'nanny_trial']:
+            contract.service_content = data['service_content']
+        if 'service_type' in data and contract.type in ['nanny', 'nanny_trial']:
+            contract.service_type = data['service_type']
+
+        if contract.type == 'maternity_nurse':
+            if 'deposit_amount' in data:
+                contract.deposit_amount = to_decimal(data['deposit_amount'], 0)
+            if 'deposit_rate' in data:
+                contract.deposit_rate = to_decimal(data['deposit_rate'], 0)
+            if 'provisional_start_date' in data and data['provisional_start_date']:
+                contract.provisional_start_date = datetime.fromisoformat(data['provisional_start_date'].split('T')[0])
+        
+        # 4. 重要：触发账单重算
+        trigger_initial_bill_generation_task.delay(str(contract.id))
+        current_app.logger.info(f"已为更新后的合同 {contract.id} 触发账单重算任务。")
+
+        db.session.commit()
+        return jsonify({"message": "合同更新成功"}), 200
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"更新合同 {contract_id_str} 时发生错误: {e}", exc_info=True)
+        return jsonify({"error": "内部服务器错误"}), 500
+    
 def get_contract_for_signing(token):
     """
     一个公开的API，供客户或员工使用专属令牌查看合同。
@@ -998,6 +1215,7 @@ def generate_signing_messages(contract_id):
 
         customer_name = contract.customer.name if contract.customer else contract.customer_name
         employee_name = contract.service_personnel.name if contract.service_personnel else "服务人员"
+        
 
         # 2. 根据合同类型选择正确的银行账户
         if contract.type == 'maternity_nurse':
@@ -1034,33 +1252,25 @@ def generate_signing_messages(contract_id):
                         # --- 提取费用详情 (V4 - 增加月嫂合同特殊处理) ---
             calculation_details = first_bill.calculation_details or {}
             
-            if contract.type == 'maternity_nurse':
-                # --- 月嫂合同的特殊消息格式 ---
-                customer_deposit = D(calculation_details.get('customer_deposit', 0))
-                management_fee = D(calculation_details.get('management_fee', 0))
+            # --- 核心修改：统一处理管理费的显示逻辑 ---
+            management_fee_amount = D(calculation_details.get('management_fee', 0))
+            if management_fee_amount > 0:
+                log_extras = calculation_details.get('log_extras', {})
+                management_fee_reason = log_extras.get('management_fee_reason')
                 
-                # if customer_deposit > 0:
-                    # customer_message_lines.append(f"本次应交保证金：{customer_deposit:.2f}元")
-                if management_fee > 0:
-                    # 从日志中获取更详细的管理费说明，对客户更友好
-                    log = calculation_details.get('calculation_log', {})
-                    mgmt_fee_log = log.get('管理费', f'{management_fee:.2f}元')
-                    if '=' in mgmt_fee_log:
-                        mgmt_fee_log = mgmt_fee_log.split('=')[-1].strip()
-                    customer_message_lines.append(f"管理费：{mgmt_fee_log}")
+                if management_fee_reason and ':' in management_fee_reason:
+                    # 优先使用带有计算过程的详细描述
+                    calculation_process = management_fee_reason.split(':', 1)[-1].strip()
+                    customer_message_lines.append(f"管理费: {calculation_process}")
+                else:
+                    # 如果没有详细描述，则只显示总金额
+                    customer_message_lines.append(f"管理费: {management_fee_amount:.2f}元")
+            # --- 修改结束 ---
 
-            else:
-                # --- 其他合同类型的现有逻辑 (保持不变) ---
-                log = calculation_details.get('calculation_log', {})
-                if '本次交管理费' in log and log['本次交管理费']:
-                    full_desc = log['本次交管理费']
-                    if '=' in full_desc:
-                        desc = full_desc.split('=')[-1].strip()
-                    else:
-                        desc = full_desc.split(':', 1)[-1].strip() if ':' in full_desc else full_desc
-                    customer_message_lines.append(f"本次交管理费：{desc}")
 
-                        # --- 通用逻辑：处理其他增减款项 ---
+
+
+            # --- 通用逻辑：处理其他增减款项 ---
             adjustments = FinancialAdjustment.query.filter_by(customer_bill_id=first_bill.id).all ()
             for adj in adjustments:
                 # --- 核心修正：为月嫂合同增加更强的过滤，防止重复 ---
@@ -1085,7 +1295,17 @@ def generate_signing_messages(contract_id):
             # 查询收款记录
             payment_records = PaymentRecord.query.filter_by(customer_bill_id=first_bill.id ).order_by(PaymentRecord.payment_date.asc()).all()
         else:
-            current_app.logger.warning(f"合同 {contract_id} 的首期账单尚未生成，消息中将不包含费用信息。" )
+            current_app.logger.warning(f"合同 {contract_id} 的首期账单尚未生成，月嫂合同消息中将不包含费用信息。" )
+            # --- 月嫂合同的特殊消息格式,月嫂合同创建时没有首月账单 ---
+            if contract.type == 'maternity_nurse':
+                current_app.logger.info(f"为月嫂合同 {contract_id} 生成费用详情消息。")
+                deposit_amount = contract.deposit_amount or D(0)
+                current_app.logger.debug(f"月嫂合同定金金额: {deposit_amount}")
+                customer_deposit = deposit_amount
+                customer_message_lines.append(f"定金：{customer_deposit:.2f} 元")
+                # 注意：月嫂的管理费已在上面统一处理，这里不再重复添加
+                # 这里可以添加月嫂合同特有的其他费用项，如果未来有的话
+                pass
 
         customer_message_lines.append(f"户名：{bank_account.payee_name}")
         customer_message_lines.append(f"帐号：{bank_account.account_number}")
@@ -1094,7 +1314,7 @@ def generate_signing_messages(contract_id):
         customer_message_lines.append(customer_signing_url)
         customer_message_lines.append("1、 请点开上面链接，将甲方内容填写完整")
         customer_message_lines.append("2、 阅读完内容后，最下面签字、提交")
-        customer_message_lines.append("3、 看见提交成功即可")
+        customer_message_lines.append("3、 签署完毕，最后关闭页面即可")
 
         # --- V3 新增：附上收款记录 ---
         if payment_records:
@@ -1112,7 +1332,7 @@ def generate_signing_messages(contract_id):
         employee_message_lines.append(employee_signing_url)
         employee_message_lines.append("1、 请点开上面链接，将乙方内容填写完整")
         employee_message_lines.append("2、 阅读完内容后，最下面签字、提交")
-        employee_message_lines.append("3. 看见提交成功即可")
+        employee_message_lines.append("3、 签署完毕，最后关闭页面即可")
 
         customer_message = '\n'.join(customer_message_lines).replace("[系统添加] ", "").strip()
         employee_message = '\n'.join(employee_message_lines).replace("[系统添加] ", "").strip()
