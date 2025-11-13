@@ -200,7 +200,11 @@ const PublicSigningPage = () => {
                 </Grid>
                 )}
                 <Grid item xs={12}>
-                    <Typography><strong>乙方劳务报酬:</strong> {contract.employee_level?.toFixed( 2)} 元/月</Typography>
+                    <Typography>
+                        <strong>乙方劳务报酬:</strong> {contract.employee_level?.toFixed(2)}
+                        {/* --- 核心修改：根据合同类型显示不同单位 --- */}
+                        {contract.type === 'nanny_trial' ? ' 元/日' : ' 元/月'}
+                    </Typography>
                 </Grid>
                 {contract.security_deposit_paid >0 && (
                 <Grid item xs={12}>

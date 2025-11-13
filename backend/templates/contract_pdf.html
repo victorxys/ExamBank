@@ -86,11 +86,17 @@
         {% if contract.service_type %}
             <p><strong>服务方式:</strong> {{ contract.service_type or '未指定' }}</p>
         {% endif %}
-            <p><strong>乙方劳务报酬:</strong> {{ "%.2f"|format(contract.employee_level|float) }} 元/月</p>
-        {% if contract.security_deposit_paid > 0 %}
+            <p><strong>乙方劳务报酬:</strong> {{ "%.2f"|format(contract.employee_level|float) }} 
+                {% if contract.type =="nanny_trial" %}
+                元/日
+                {% else %}
+                元/月
+                {% endif %}
+            </p>
+        {% if contract.security_deposit_paid and contract.security_deposit_paid > 0 %}
             <p><strong>保证金:</strong> {{ "%.2f"|format(contract.security_deposit_paid|float) }} 元</p>
         {% endif %}
-        {% if contract.management_fee_amount >0 %}
+        {% if contract.management_fee_amount and contract.management_fee_amount > 0 %}
             <p><strong>丙方管理费:</strong> {{ "%.2f"|format(contract.management_fee_amount|float) }} 元/月</p>
         {% endif %}
         <p><strong>介绍费:</strong> {{ "%.2f"|format(contract.introduction_fee|float) }} 元</p>
