@@ -2525,6 +2525,25 @@ class BaseContract(db.Model):
         backref="next_contracts",
         uselist=False,
     )
+    __table_args__ = (
+        # 您已有的唯一约束 (如果存在)
+        
+        # --- 优化性能所需的核心索引 ---
+        # 1. 为最常见的“状态”和“类型”组合查询，建立复合索引
+        db.Index('ix_contracts_status_type', 'status', 'type'),
+        
+        # 2. 为默认的“创建时间”排序，建立索引
+        db.Index('ix_contracts_created_at', 'created_at'),
+        
+        # --- 保留您已有的其他单字段索引 ---
+        db.Index('ix_contracts_customer_name_pinyin', 'customer_name_pinyin'),
+        db.Index('ix_contracts_signing_status', 'signing_status'),
+        db.Index('ix_contracts_status', 'status'),
+        db.Index('ix_contracts_type', 'type'),
+        # ... 您可以根据需要保留其他已有的索引 ...
+    
+        {'extend_existing': True}
+    )
 
     __mapper_args__ = {"polymorphic_on": type, "polymorphic_identity": "base"}
 
