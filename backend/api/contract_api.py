@@ -1119,6 +1119,7 @@ def handle_signing_page_action(token):
                 "management_fee_amount": float(contract.management_fee_amount) if contract.management_fee_amount is not None else None,
                 "deposit_amount": float(deposit_amount) if deposit_amount is not None else None,
                 "security_deposit_paid": float(security_deposit_paid) if security_deposit_paid is not None else None,
+                "introduction_fee": float(contract.introduction_fee) if contract.introduction_fee is not None else None,
             }
             return jsonify(response_data)
         except Exception as e:
