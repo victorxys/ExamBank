@@ -38,7 +38,6 @@ const initialState = {
     customer_address: '',
     employee_id_card: '',
     employee_address: '',
-    attachment_content: '',
 };
 
 const serviceContentOptions = [

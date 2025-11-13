@@ -366,42 +366,50 @@ const ContractList = () => {
                                                 {formatDate(contract.start_date)} - {formatDate(contract.end_date)}
                                             </Typography>
                                         </TableCell>
-    <TableCell>
-        {/* --- 新增：根据是否月签显示不同内容 --- */}
-        {contract.contract_type_value === 'nanny' && contract.is_monthly_auto_renew ? (
-            <Chip 
-                label="月签"
-                size="small" 
-                color="info"
-                variant="filled"
-            />
-        ) : contract.remaining_months !== null && contract.remaining_months !== undefined ? (
-            <Chip 
-                label={`${contract.remaining_months}个月`} 
-                size="small" 
-                color={contract.highlight_remaining ? 'warning' : 'default'}
-                variant={contract.highlight_remaining ? 'filled' : 'outlined'}
-            />
-        ) : (
-            'N/A'
-        )}
-    </TableCell>
+                                        <TableCell>
+                                            {/* --- 新增：根据是否月签显示不同内容 --- */}
+                                            {contract.contract_type_value === 'nanny' && contract.is_monthly_auto_renew ? (
+                                                <Chip 
+                                                    label="月签"
+                                                    size="small" 
+                                                    color="info"
+                                                    variant="filled"
+                                                />
+                                            ) : contract.remaining_months !== null && contract.remaining_months !== undefined ? (
+                                                <Chip 
+                                                    label={`${contract.remaining_months}个月`} 
+                                                    size="small" 
+                                                    color={contract.highlight_remaining ? 'warning' : 'default'}
+                                                    variant={contract.highlight_remaining ? 'filled' : 'outlined'}
+                                                />
+                                            ) : (
+                                                'N/A'
+                                            )}
+                                        </TableCell>
                                         <TableCell><Chip label={STATUS_LABELS[contract.status] || 'N/A'} size="small" color={contract.status === 'active' ? 'success' : 'default'} /></TableCell>
-                                                                                <TableCell>{getSigningStatusChip(contract.signing_status )}</TableCell>
-                                        <TableCell>
-                                            {contract.customer_signature ? (
-                                                <img src={contract.customer_signature} alt= "客户签名" style={{ display: 'block', maxWidth: '100px', maxHeight: '40px' }} />
-                                            ) : (
-                                                <Typography variant="caption" color= "text.secondary">未签</Typography>
-                                            )}
-                                        </TableCell>
-                                        <TableCell>
-                                            {contract.employee_signature ? (
-                                                <img src={contract.employee_signature} alt= "员工签名" style={{ display: 'block', maxWidth: '100px', maxHeight: '40px' }} />
-                                            ) : (
-                                                <Typography variant="caption" color= "text.secondary">未签</Typography>
-                                            )}
-                                        </TableCell>
+                                        <TableCell>{getSigningStatusChip(contract.signing_status )}</TableCell>
+                                            <TableCell>
+                                                {/* 如果客户未签 (状态为 UNSIGNED 或 EMPLOYEE_SIGNED)，直接显示未签 */}
+                                                {['UNSIGNED', 'EMPLOYEE_SIGNED'].includes(contract.signing_status) ? (
+                                                    <Typography variant="caption" color="text.secondary">未签</Typography>
+                                                ) : (
+                                                    <LazyImage
+                                                        endpoint={`/contracts/${contract.id}/signature/customer`}
+                                                        alt="客户签名"
+                                                    />
+                                                )}
+                                            </TableCell>
+                                            <TableCell>
+                                                {/* 如果员工未签 (状态为 UNSIGNED 或 CUSTOMER_SIGNED)，直接显示未签 */}
+                                                {['UNSIGNED', 'CUSTOMER_SIGNED'].includes(contract.signing_status) ? (
+                                                    <Typography variant="caption" color="text.secondary">未签</Typography>
+                                                ) : (
+                                                    <LazyImage
+                                                        endpoint={`/contracts/${contract.id}/signature/employee`}
+                                                        alt="员工签名"
+                                                    />
+                                                )}
+                                            </TableCell>
                                         <TableCell align="center">
                                             <Button variant="outlined" size="small" onClick={() => navigate(`/contract/detail/${contract.id}`, { state: { from: location.pathname + location. search } })}>
                                                 查看详情
