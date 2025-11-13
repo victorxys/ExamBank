@@ -22,6 +22,7 @@ import AlertMessage from './AlertMessage';
 import CreateVirtualContractModal from './CreateVirtualContractModal'; // 路径可能需要微调
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import CreateFormalContractModal from './CreateFormalContractModal';
+import LazyImage from './LazyImage'; 
 
 const formatDate = (isoString) => {
   if (!isoString) return 'N/A';
