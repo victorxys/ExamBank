@@ -144,7 +144,7 @@ const ContractList = () => {
             // ...
         } finally { setLoading(false); }
         // 确保将 searchParams 添加到依赖项数组中，以便在筛选更改时重新创建此函数
-    }, [page, rowsPerPage, searchParams]); // <-- 简化依赖项数组
+    }, [page, rowsPerPage, searchParams, typeFilter, sortBy, sortOrder]); // <-- 简化依赖项数组
 
     useEffect(() => {
         fetchContracts();
