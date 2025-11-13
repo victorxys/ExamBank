@@ -406,8 +406,7 @@ def download_contract_pdf(contract_id):
 def search_contracts():
     """
     搜索或列出合同。
-    如果提供 'search' 参数，则按客户姓名或拼音进行模糊搜索。
-    如果不提供，则返回所有合同的分页列表。
+    (已优化：不再返回base64签名图片数据)
     """
     search_term = request.args.get("search", "").strip()
     page = request.args.get("page", 1, type=int)
@@ -443,12 +442,9 @@ def search_contracts():
             else:
                 query = query.filter(BaseContract.type == type_filter)
         
-        # --- 新增：处理“是否月签”的筛选逻辑 ---
         is_monthly_auto_renew_filter = request.args.get("is_monthly_auto_renew")
         if type_filter == 'nanny' and is_monthly_auto_renew_filter in ['true', 'false']:
-            # 正确做法：直接引用子类模型进行过滤
             query = query.filter(NannyContract.is_monthly_auto_renew == (is_monthly_auto_renew_filter == 'true'))
-        # --- 新增结束 ---
 
         if status_filter != 'all':
             query = query.filter(BaseContract.status == status_filter)
@@ -460,7 +456,6 @@ def search_contracts():
             elif deposit_status_filter == 'unpaid':
                 query = query.filter(BaseContract.deposit_amount > 0, BaseContract.security_deposit_paid < BaseContract.deposit_amount)
 
-        # Sorting logic
         if hasattr(BaseContract, sort_by):
             column_to_sort = getattr(BaseContract, sort_by)
             if sort_order == 'desc':
@@ -485,7 +480,6 @@ def search_contracts():
             remaining_months = 0
             highlight_remaining = False
             
-            # 只对“服务中”的合同计算剩余月数
             if contract.status == 'active' and contract.end_date:
                 end_date_obj = contract.end_date
                 if isinstance(end_date_obj, datetime):
@@ -494,11 +488,8 @@ def search_contracts():
                 if end_date_obj > today:
                     delta = relativedelta(end_date_obj, today)
                     remaining_months = delta.years * 12 + delta.months
-                    # 如果有剩余天数，也算一个月
                     if delta.days > 0:
                         remaining_months += 1
-                    
-                    # 如果剩余月数小于等于2，则标记为高亮
                     if remaining_months <= 2:
                         highlight_remaining = True
 
@@ -510,19 +501,17 @@ def search_contracts():
                 "end_date": contract.end_date.isoformat(),
                 "status": contract.status,
                 "signing_status": contract.signing_status.value if contract.signing_status else None,
-                "customer_signing_token": contract.customer_signing_token,
-                "employee_signing_token": contract.employee_signing_token,
-                "customer_signature": contract.customer_signature,
-                "employee_signature": contract.employee_signature,
                 "created_at": contract.created_at.isoformat(),
                 "contract_type_value": contract.type,
                 "contract_type_label": TYPE_CHOICES.get(contract.type, contract.type),
                 "deposit_amount": str(getattr(contract, 'deposit_amount', 0) or 0),
-                "deposit_paid": bool(getattr(contract, 'security_deposit_paid', 0) and getattr (contract, 'deposit_amount', 0) and getattr(contract, 'security_deposit_paid', 0) >= getattr (contract, 'deposit_amount', 0)),
-                # --- 新增字段 ---
+                "deposit_paid": bool(getattr(contract, 'security_deposit_paid', 0) and getattr (contract, 'deposit_amount', 0) and getattr (contract, 'security_deposit_paid', 0) >= getattr (contract, 'deposit_amount', 0)),
                 "remaining_months": remaining_months,
                 "highlight_remaining": highlight_remaining,
-                "is_monthly_auto_renew": getattr(contract, 'is_monthly_auto_renew', False) # 为筛选功能提供数据
+                "is_monthly_auto_renew": getattr(contract, 'is_monthly_auto_renew', False),
+                # --- 核心修改：移除了签名数据 ---
+                # "customer_signature": contract.customer_signature,
+                # "employee_signature": contract.employee_signature,
             }
             results.append(contract_data)
         
@@ -1566,4 +1555,30 @@ def get_transferable_contracts_for_customer(customer_id):
 
     except Exception as e:
         current_app.logger.error(f"查找客户 {customer_id} 的可转移合同失败: {e}", exc_info=True )
+        return jsonify({"error": "内部服务器错误"}), 500
+    
+@contract_bp.route("/<uuid:contract_id>/signature/<string:role>", methods=["GET"])
+@jwt_required()
+def get_contract_signature(contract_id, role):
+    """
+    专门用于获取单个签名图片的接口，供前端懒加载使用。
+    """
+    try:
+        contract = BaseContract.query.get_or_404(str(contract_id))
+        
+        signature_data = None
+        if role == "customer":
+            signature_data = contract.customer_signature
+        elif role == "employee":
+            signature_data = contract.employee_signature
+        else:
+            return jsonify({"error": "无效的角色"}), 400
+
+        if not signature_data:
+            return jsonify({"signature": None}), 404
+
+        return jsonify({"signature": signature_data})
+
+    except Exception as e:
+        current_app.logger.error(f"获取合同 {contract_id} 的签名失败: {e}", exc_info=True)
         return jsonify({"error": "内部服务器错误"}), 500
