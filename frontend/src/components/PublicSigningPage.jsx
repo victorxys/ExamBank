@@ -213,6 +213,9 @@ const PublicSigningPage = () => {
                 </Grid>
                 )}
                 <Grid item xs={12}>
+                    <Typography><strong>介绍费:</strong> {contract.introduction_fee?.toFixed(2)} 元</Typography>
+                </Grid>
+                <Grid item xs={12}>
                      <Typography sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
                         <strong>合同开始时间:</strong>&nbsp;{new Date(contract.start_date). toLocaleDateString()}
                         {/* --- 核心修改：只在月嫂合同显示注解 --- */}

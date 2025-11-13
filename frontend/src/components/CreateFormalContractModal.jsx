@@ -176,8 +176,8 @@ const CreateFormalContractModal = ({ open, onClose, onSuccess }) => {
 
                 let managementFeeNotePart = '';
                 let feeIntroducePart = '';
-                if (!isNaN(introductionFee) && introductionFee > 0) {
-                    managementFeeNotePart = '因已收取介绍费，故不收取管理费。';
+                if (!isNaN(introductionFee) && introductionFee > 0 || managementFeeRate==0) {
+                    managementFeeNotePart = '';
                     feeIntroducePart = `甲方只需支付阿姨实际出勤天数的劳务费`;
                 } else {
                     managementFeeNotePart = `丙方管理费计算方法为：${roundedMonthlySalary}元✖️ ${(managementFeeRate * 100).toFixed(0)}%➗30天✖️阿姨实际出勤天数。`;
