@@ -189,12 +189,16 @@ const PublicSigningPage = () => {
         <Paper sx={{ p: 4, mb: 3 }}>
             
             <Grid container spacing={2} sx={{ mt: 1 }}>
+                {contract.service_content && (
                 <Grid item xs={12}>
                     <Typography><strong>服务内容:</strong> {contract.service_content || '未指定'}</ Typography>
                 </Grid>
+                )}
+                {contract.service_type && (
                 <Grid item xs={12}>
                     <Typography><strong>服务方式:</strong> {contract.service_type || '未指定'}</ Typography>
                 </Grid>
+                )}
                 <Grid item xs={12}>
                     <Typography><strong>乙方劳务报酬:</strong> {contract.employee_level?.toFixed( 2)} 元/月</Typography>
                 </Grid>
