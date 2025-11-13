@@ -171,7 +171,8 @@ function Sidebar({ isCollapsed, setIsCollapsed }) {
             finalPath = `${item.path}/${year}/${month}`;
         }
 
-        const isSelected = !item.subItems && location.pathname.startsWith(item.path);
+        // const isSelected = !item.subItems && location.pathname.startsWith(item.path);
+        const isSelected = !item.subItems && location.pathname === finalPath;
         const hasSubItems = item.subItems && item.subItems.length > 0;
         const isOpen = hasSubItems && openMenus[item.path];
 
