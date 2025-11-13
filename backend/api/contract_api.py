@@ -1369,7 +1369,7 @@ def generate_signing_messages(contract_id):
         customer_message_lines.append("\n合同：")
         customer_message_lines.append(customer_signing_url)
         customer_message_lines.append("1、 请点开上面链接，将甲方内容填写完整")
-        customer_message_lines.append("2、 阅读完内容后，最下面签字、提交")
+        customer_message_lines.append("2、 阅读完内容后，最下面签字")
         customer_message_lines.append("3、 签署完毕，最后关闭页面即可")
 
         # --- V3 新增：附上收款记录 ---
@@ -1387,7 +1387,7 @@ def generate_signing_messages(contract_id):
         employee_message_lines.append("\n合同：")
         employee_message_lines.append(employee_signing_url)
         employee_message_lines.append("1、 请点开上面链接，将乙方内容填写完整")
-        employee_message_lines.append("2、 阅读完内容后，最下面签字、提交")
+        employee_message_lines.append("2、 阅读完内容后，最下面签字")
         employee_message_lines.append("3、 签署完毕，最后关闭页面即可")
 
         customer_message = '\n'.join(customer_message_lines).replace("[系统添加] ", "").strip()

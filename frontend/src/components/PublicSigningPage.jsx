@@ -202,12 +202,16 @@ const PublicSigningPage = () => {
                 <Grid item xs={12}>
                     <Typography><strong>乙方劳务报酬:</strong> {contract.employee_level?.toFixed( 2)} 元/月</Typography>
                 </Grid>
+                {contract.security_deposit_paid >0 && (
                 <Grid item xs={12}>
                     <Typography><strong>保证金:</strong> {contract.security_deposit_paid?.toFixed(2 )} 元</Typography>
                 </Grid>
+                )}
+                {contract.management_fee_amount >0 && (
                 <Grid item xs={12}>
                     <Typography><strong>丙方管理费:</strong> {contract.management_fee_amount?. toFixed(2)} 元/月</Typography>
                 </Grid>
+                )}
                 <Grid item xs={12}>
                      <Typography sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
                         <strong>合同开始时间:</strong>&nbsp;{new Date(contract.start_date). toLocaleDateString()}
