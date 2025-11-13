@@ -185,9 +185,9 @@ const CreateFormalContractModal = ({ open, onClose, onSuccess }) => {
                 }
 
                 const attachmentContentTemplate = 
-                `乙方${employeeName}阿姨上户，${feeIntroducePart}:
-                阿姨劳务费计算方法为：${roundedMonthlySalary}元➗26天✖️阿姨实际出勤天数；
-                ${managementFeeNotePart}`;
+`乙方${employeeName}阿姨上户，${feeIntroducePart}:
+阿姨劳务费计算方法为：${roundedMonthlySalary}元➗26天✖️阿姨实际出勤天数；
+${managementFeeNotePart}`;
 
                 setFormData(prev => ({ ...prev, attachment_content: attachmentContentTemplate }));
             } else {

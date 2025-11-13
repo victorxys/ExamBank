@@ -1044,128 +1044,182 @@ def get_contract_for_signing(token):
         return jsonify({"error": "加载合同失败，请联系管理员"}), 500
 
 
-@contract_bp.route("/sign/<string:token>", methods=["POST"])
-def submit_signature(token):
+@contract_bp.route("/sign/<string:token>", methods=["GET", "POST"])
+def handle_signing_page_action(token):
     """
-    一个公开的API，用于接收签名。
-    (已更新为支持在签名时创建或更新客户/员工信息)
+    一个公开的API，用于处理签名页面的所有交互。
+    - GET: 根据token获取合同详情以供预览。
+    - POST: 接收并处理签名及相关信息。
     """
-    data = request.get_json()
-    if not data or "signature" not in data:
-        return jsonify({"error": "缺少 'signature' 参数"}), 400
-
-    # 确定角色并查找合同
+    # 统一的token验证和角色确定逻辑
     role = None
-    contract = BaseContract.query.filter_by(customer_signing_token=token).first()
+    # 优先使用 joinedload 提高效率
+    contract_query = BaseContract.query.options(
+        joinedload(BaseContract.customer),
+        joinedload(BaseContract.service_personnel)
+    )
+    
+    contract = contract_query.filter_by(customer_signing_token=token).first()
     if contract:
         role = "customer"
     else:
-        contract = BaseContract.query.filter_by(employee_signing_token=token).first()
+        contract = contract_query.filter_by(employee_signing_token=token).first()
         if contract:
             role = "employee"
 
     if not contract:
         return jsonify({"error": "无效的签名链接或合同不存在"}), 404
 
-    signature = data["signature"]
+    # --- 处理 GET 请求 ---
+    if request.method == "GET":
+        try:
+            # --- 核心修复：在返回的 info 对象中加入 id ---
+            customer_info = {}
+            if contract.customer:
+                customer_info = {
+                    "id": contract.customer.id, # <-- 补上 ID
+                    "name": contract.customer.name,
+                    "phone_number": contract.customer.phone_number,
+                    "id_card_number": contract.customer.id_card_number,
+                    "address": contract.customer.address,
+                }
 
-    try:
-        if role == "customer":
-            customer_info_data = data.get("customer_info")
-            if not customer_info_data or not all(customer_info_data.get(f) for f in ['name', 'phone_number', 'id_card_number', 'address']):
-                return jsonify({"error": "客户信息不完整，所有字段均为必填项。"}), 400
+            employee_info = {}
+            if contract.service_personnel:
+                employee_info = {
+                    "id": contract.service_personnel.id, # <-- 补上 ID
+                    "name": contract.service_personnel.name,
+                    "phone_number": contract.service_personnel.phone_number,
+                    "id_card_number": contract.service_personnel.id_card_number,
+                    "address": contract.service_personnel.address,
+                }
+            
+            # 安全地获取特定子类的属性
+            deposit_amount = getattr(contract, 'deposit_amount', None)
+            security_deposit_paid = getattr(contract, 'security_deposit_paid', None)
 
-            # 场景1 & 2: 合同没有customer_id，需要创建或关联客户
-            if not contract.customer_id:
-                existing_customer = Customer.query.filter(
-                    or_(Customer.id_card_number == customer_info_data['id_card_number'], Customer.phone_number == customer_info_data['phone_number'])
-                ).first()
+            response_data = {
+                "contract_id": str(contract.id),
+                "role": role,
+                "template_content": contract.template_content,
+                "service_content": contract.service_content,
+                "attachment_content": contract.attachment_content,
+                "customer_name": contract.customer_name,
+                "employee_name": contract.service_personnel.name if contract.service_personnel else "服务人员",
+                "customer_signature": contract.customer_signature,
+                "employee_signature": contract.employee_signature,
+                "signing_status": contract.signing_status.value,
+                "customer_info": customer_info,
+                "employee_info": employee_info,
+                "type": contract.type,
+                "service_type": contract.service_type,
+                "start_date": contract.start_date.isoformat() if contract.start_date else None,
+                "end_date": contract.end_date.isoformat() if contract.end_date else None,
+                "employee_level": float(contract.employee_level) if contract.employee_level is not None else None,
+                "management_fee_amount": float(contract.management_fee_amount) if contract.management_fee_amount is not None else None,
+                "deposit_amount": float(deposit_amount) if deposit_amount is not None else None,
+                "security_deposit_paid": float(security_deposit_paid) if security_deposit_paid is not None else None,
+            }
+            return jsonify(response_data)
+        except Exception as e:
+            current_app.logger.error(f"获取签名页数据时出错: {e}", exc_info=True)
+            return jsonify({"error": "获取合同数据失败"}), 500
 
-                if existing_customer:
-                    # 如果根据身份证或手机号找到了已存在的客户，则直接关联
-                    customer_to_work_with = existing_customer
-                    # 更新信息以防有变
-                    customer_to_work_with.name = customer_info_data['name']
-                    customer_to_work_with.address = customer_info_data['address']
-                    customer_to_work_with.phone_number = customer_info_data['phone_number']
-                    current_app.logger.info(f"发现已存在的客户 (ID: {existing_customer.id} )，更新其信息并关联到合同。" )
+    # --- 处理 POST 请求 ---
+    if request.method == "POST":
+        data = request.get_json()
+        if not data or "signature" not in data:
+            return jsonify({"error": "缺少 'signature' 参数"}), 400
+
+        signature = data["signature"]
+
+        try:
+            if role == "customer":
+                customer_info_data = data.get("customer_info")
+                if not customer_info_data or not all(customer_info_data.get(f) for f in ['name', 'phone_number', 'id_card_number', 'address' ]):
+                    return jsonify({"error": "客户信息不完整，所有字段均为必填项。"}), 400
+
+                if not contract.customer_id:
+                    existing_customer = Customer.query.filter(
+                        or_(Customer.id_card_number == customer_info_data['id_card_number'], Customer.phone_number == customer_info_data[ 'phone_number'])
+                    ).first()
+
+                    if existing_customer:
+                        customer_to_work_with = existing_customer
+                        customer_to_work_with.name = customer_info_data['name']
+                        customer_to_work_with.address = customer_info_data['address']
+                        customer_to_work_with.phone_number = customer_info_data['phone_number']
+                        current_app.logger.info(f"发现已存在的客户 (ID: {existing_customer.id} )，更新其信息并关联到合同。" )
+                    else:
+                        from pypinyin import pinyin, Style
+                        name = customer_info_data['name']
+                        pinyin_full = "".join(p[0] for p in pinyin(name, style=Style.NORMAL))
+                        pinyin_initials = "".join(p[0] for p in pinyin(name, style=Style.FIRST_LETTER))
+
+                        new_customer = Customer(
+                            name=name,
+                            phone_number=customer_info_data['phone_number'],
+                            id_card_number=customer_info_data['id_card_number'],
+                            address=customer_info_data['address'],
+                            name_pinyin=f"{pinyin_full} {pinyin_initials}"
+                        )
+                        db.session.add(new_customer)
+                        db.session.flush()
+                        customer_to_work_with = new_customer
+                        current_app.logger.info(f"创建了新客户 (ID: {new_customer.id})。" )
+
+                    contract.customer_id = customer_to_work_with.id
+                    contract.customer_name = customer_to_work_with.name
+                    contract.customer_name_pinyin = customer_to_work_with.name_pinyin
                 else:
-                    # 创建新客户
-                    from pypinyin import pinyin, Style
-                    name = customer_info_data['name']
-                    pinyin_full = "".join(p[0] for p in pinyin(name, style=Style.NORMAL))
-                    pinyin_initials = "".join(p[0] for p in pinyin(name, style=Style.FIRST_LETTER))
+                    customer_to_update = Customer.query.get(contract.customer_id)
+                    if customer_to_update:
+                        customer_to_update.name = customer_info_data['name']
+                        customer_to_update.phone_number = customer_info_data['phone_number']
+                        customer_to_update.id_card_number = customer_info_data['id_card_number']
+                        customer_to_update.address = customer_info_data['address']
+                        current_app.logger.info(f"更新了客户 (ID: {customer_to_update.id}) 的信息。" )
 
-                    new_customer = Customer(
-                        name=name,
-                        phone_number=customer_info_data['phone_number'],
-                        id_card_number=customer_info_data['id_card_number'],
-                        address=customer_info_data['address'],
-                        name_pinyin=f"{pinyin_full} {pinyin_initials}"
-                    )
-                    db.session.add(new_customer)
-                    db.session.flush()
-                    customer_to_work_with = new_customer
-                    current_app.logger.info(f"创建了新客户 (ID: {new_customer.id})。" )
+                contract.customer_signature = signature
+                if contract.signing_status == SigningStatus.EMPLOYEE_SIGNED:
+                    contract.signing_status = SigningStatus.SIGNED
+                    contract.status = "active"
+                    update_salary_history_on_contract_activation(contract)
+                    current_app.logger.info(f"合同 {contract.id} 已激活。" )
+                else:
+                    contract.signing_status = SigningStatus.CUSTOMER_SIGNED
 
-                contract.customer_id = customer_to_work_with.id
-                contract.customer_name = customer_to_work_with.name
-                contract.customer_name_pinyin = customer_to_work_with.name_pinyin
+            elif role == "employee":
+                employee_info_data = data.get("employee_info")
+                if not employee_info_data or not all(employee_info_data.get(f) for f in ['name', 'phone_number', 'id_card_number', 'address' ]):
+                    return jsonify({"error": "员工信息不完整，所有字段均为必填项。"}), 400
 
-            # 场景3: 合同已有customer_id，表示更新老客户信息
-            else:
-                customer_to_update = Customer.query.get(contract.customer_id)
-                if customer_to_update:
-                    customer_to_update.name = customer_info_data['name']
-                    customer_to_update.phone_number = customer_info_data['phone_number']
-                    customer_to_update.id_card_number = customer_info_data['id_card_number']
-                    customer_to_update.address = customer_info_data['address']
-                    current_app.logger.info(f"更新了客户 (ID: {customer_to_update.id}) 的信息。" )
+                employee_to_update = ServicePersonnel.query.get(contract.service_personnel_id)
+                if employee_to_update:
+                    employee_to_update.name = employee_info_data['name']
+                    employee_to_update.phone_number = employee_info_data['phone_number']
+                    employee_to_update.id_card_number = employee_info_data['id_card_number']
+                    employee_to_update.address = employee_info_data['address']
+                    current_app.logger.info(f"更新了服务人员 (ID: {employee_to_update.id}) 的信息。")
 
-            # 更新签名
-            contract.customer_signature = signature
-            if contract.signing_status == SigningStatus.EMPLOYEE_SIGNED:
-                contract.signing_status = SigningStatus.SIGNED
-                contract.status = "active"
-                update_salary_history_on_contract_activation(contract)
-                current_app.logger.info(f"合同 {contract.id} 已激活。" )
-            else:
-                contract.signing_status = SigningStatus.CUSTOMER_SIGNED
+                contract.employee_signature = signature
+                if contract.signing_status == SigningStatus.CUSTOMER_SIGNED:
+                    contract.signing_status = SigningStatus.SIGNED
+                    contract.status = "active"
+                    update_salary_history_on_contract_activation(contract)
+                    current_app.logger.info(f"合同 {contract.id} 已激活。" )
+                else:
+                    contract.signing_status = SigningStatus.EMPLOYEE_SIGNED
 
-        elif role == "employee":
-            employee_info_data = data.get("employee_info")
-            if not employee_info_data or not all(employee_info_data.get(f) for f in ['name', 'phone_number', 'id_card_number', 'address']):
-                return jsonify({"error": "员工信息不完整，所有字段均为必填项。"}), 400
+            db.session.commit()
+            return jsonify({"message": "签名成功！"}), 200
 
-            employee_to_update = ServicePersonnel.query.get(contract.service_personnel_id)
-            if employee_to_update:
-                employee_to_update.name = employee_info_data['name']
-                employee_to_update.phone_number = employee_info_data['phone_number']
-                employee_to_update.id_card_number = employee_info_data['id_card_number']
-                employee_to_update.address = employee_info_data['address']
-                current_app.logger.info(f"更新了服务人员 (ID: {employee_to_update.id}) 的信息。" )
-
-            # 更新签名
-            contract.employee_signature = signature
-            if contract.signing_status == SigningStatus.CUSTOMER_SIGNED:
-                contract.signing_status = SigningStatus.SIGNED
-                contract.status = "active"
-                update_salary_history_on_contract_activation(contract)
-                current_app.logger.info(f"合同 {contract.id} 已激活。" )
-            else:
-                contract.signing_status = SigningStatus.EMPLOYEE_SIGNED
-
-        db.session.commit()
-        return jsonify({"message": "签名成功！", "signing_status": contract.signing_status.value})
-
-    except IntegrityError as e:
-        db.session.rollback()
-        current_app.logger.error(f"保存客户/员工信息或签名时发生数据库完整性错误: {e}", exc_info=True)
-        return jsonify({"error": "提交的信息与现有记录冲突（身份证或手机号可能已存在），请核实。"}), 409
-    except Exception as e:
-        db.session.rollback()
-        current_app.logger.error(f"保存签名失败: {e}", exc_info=True)
-        return jsonify({"error": "内部服务器错误"}), 500
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f"处理签名时发生错误: {e}", exc_info=True)
+            return jsonify({"error": "处理签名时发生服务器内部错误"}), 500
+    
+    return jsonify({"error": "不支持的请求方法"}), 405
     
 # 1. 定义一个从“资产ID”到真实文件名的映射
 # 这两个UUID是我们为签章图片指定的唯一ID
@@ -1295,17 +1349,19 @@ def generate_signing_messages(contract_id):
             # 查询收款记录
             payment_records = PaymentRecord.query.filter_by(customer_bill_id=first_bill.id ).order_by(PaymentRecord.payment_date.asc()).all()
         else:
-            current_app.logger.warning(f"合同 {contract_id} 的首期账单尚未生成，月嫂合同消息中将不包含费用信息。" )
+            current_app.logger.warning(f"合同 {contract_id} 的首期账单尚未生成，月嫂合同、试工消息中将不包含费用信息。" )
             # --- 月嫂合同的特殊消息格式,月嫂合同创建时没有首月账单 ---
             if contract.type == 'maternity_nurse':
-                current_app.logger.info(f"为月嫂合同 {contract_id} 生成费用详情消息。")
                 deposit_amount = contract.deposit_amount or D(0)
-                current_app.logger.debug(f"月嫂合同定金金额: {deposit_amount}")
                 customer_deposit = deposit_amount
                 customer_message_lines.append(f"定金：{customer_deposit:.2f} 元")
-                # 注意：月嫂的管理费已在上面统一处理，这里不再重复添加
-                # 这里可以添加月嫂合同特有的其他费用项，如果未来有的话
-                pass
+
+            if contract.type == 'nanny_trial':
+                introduction_fee = contract.introduction_fee or D(0)
+                customer_deposit = introduction_fee
+                if introduction_fee > 0:
+                    customer_message_lines.append(f"介绍费：{customer_deposit:.2f} 元")
+                
 
         customer_message_lines.append(f"户名：{bank_account.payee_name}")
         customer_message_lines.append(f"帐号：{bank_account.account_number}")
