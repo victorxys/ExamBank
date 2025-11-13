@@ -27,6 +27,7 @@ import FinancialManagementModal from './FinancialManagementModal';
 import { useTrialConversion } from '../hooks/useTrialConversion'; // <--- 添加这个
 import TrialConversionDialog from './modals/TrialConversionDialog'; // <--- 添加这个
 import SigningMessageModal from './SigningMessageModal'; // Import the new modal
+import EditContractModal from './EditContractModal';
 
 const formatDate = (isoString) => {
   if (!isoString) return '—';
@@ -213,6 +214,7 @@ const ContractDetail = () => {
     const [isSearchingPersonnel, setIsSearchingPersonnel] = useState(false);
     const [selectedPersonnel, setSelectedPersonnel] = useState(null);
     // --- End of Change Contract Logic ---
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
 
     const fetchData = useCallback(async () => {
@@ -378,6 +380,33 @@ const ContractDetail = () => {
 
     if (loading) return <CircularProgress />;
     if (!contract) return <Typography>未找到合同信息。</Typography>;
+    
+    const handleDeleteContract = async () => {
+        if (!contract) return;
+
+        const isConfirmed = window.confirm(
+            `您确定要永久删除这个合同吗？\n\n客户: ${contract.customer_name}\n员工: ${contract.employee_name}\n\n此操作不可撤销，且只应在合同未生效前执行。`
+        );
+
+        if (isConfirmed) {
+            try {
+                await api.delete(`/contracts/${contract.id}`);
+                setAlert({
+                    open: true,
+                    message: '合同已成功删除。',
+                    severity: 'success',
+                });
+                // 删除成功后，跳转回合同列表
+                setTimeout(() => navigate('/contracts/all'), 1500);
+            } catch (error) {
+                setAlert({
+                    open: true,
+                    message: `删除失败: ${error.response?.data?.error || error.message}`,
+                    severity: 'error',
+                });
+            }
+        }
+    };
 
     const handleDownloadPdf = async () => {
         setAlert({ open: false, message: '', severity: 'info' });
@@ -387,10 +416,24 @@ const ContractDetail = () => {
             });
 
             const contentDisposition = response.headers['content-disposition'];
-            let filename = `contract_${contract.id}.pdf`; // fallback filename
+            
+            // --- 核心修改：构建更具描述性的默认文件名 ---
+            const customerName = contract.customer_name || '未知客户';
+            const employeeName = contract.employee_name || '未知员工';
+            const contractTypeLabel = contract.contract_type_label || '合同'; // 假设 contract_type_label 存在
+            const startDate = contract.start_date ? formatDate(contract.start_date) : '未知日期';
+
+            // 清理文件名，替换掉文件系统不允许的字符，并处理多余空格
+            let defaultFilename = `${customerName}-${employeeName}-${contractTypeLabel}合同-${startDate}.pdf`;
+            defaultFilename = defaultFilename.replace(/[\\/:*?"<>|]/g, '_').replace(/\s+/g, ' ').trim();
+
+            let filename = defaultFilename; // 默认使用我们构建的文件名
+            // --- 修改结束 ---
+
             if (contentDisposition) {
                 const filenameMatch = contentDisposition.match(/filename="(.+)"/);
-                if (filenameMatch.length > 1) {
+                if (filenameMatch && filenameMatch.length > 1) {
+                    // 如果后端提供了文件名，则优先使用后端提供的
                     filename = decodeURIComponent(filenameMatch[1]);
                 }
             }
@@ -405,6 +448,7 @@ const ContractDetail = () => {
             window.URL.revokeObjectURL(url);
 
         } catch (error) {
+            console.error("下载PDF时发生错误:", error);
             setAlert({ open: true, message: `下载PDF失败: ${error.message}`, severity: 'error' });
         }
     };
@@ -1104,6 +1148,14 @@ const ContractDetail = () => {
         )
     ) : null;
     // --- 修改结束 ---
+    const attachmentContentField = contract.attachment_content ? (
+        <Grid item xs={12}>
+            <Typography variant="body2" color="text.secondary" gutterBottom>附件信息</Typography>
+            <Paper variant="outlined" sx={{ p: 2, whiteSpace: 'pre-wrap', backgroundColor: '#f9f9f9' }}>
+                <Typography variant="body1">{contract.attachment_content}</Typography>
+            </Paper>
+        </Grid>
+    ) : null;
 
     const notesField = (
         <EditableNotesItem
@@ -1202,6 +1254,9 @@ const ContractDetail = () => {
                                             <Button variant="contained" color="primary" startIcon={<ArrowBackIcon />} onClick={() =>navigate(state?.from || '/contracts/all')}> 
                                                 返回列表
                                             </Button>
+                                            <Button variant="contained" color="primary" startIcon={<EditIcon />} onClick={() => setIsEditModalOpen(true)}>
+                                                编辑
+                                            </Button>
                                             {contract.contract_type_value !== 'nanny_trial' && (
                                                 <Button variant="contained" color="secondary" startIcon={<AutorenewIcon />} onClick={handleOpenRenewModal}>
                                                     续约
@@ -1243,6 +1298,15 @@ const ContractDetail = () => {
                                                     </Button>
                                                 </>
                                             )}
+                                            {contract.status === 'pending' && (
+                                                <Button
+                                                    variant="contained"
+                                                    color="error"
+                                                    onClick={handleDeleteContract}
+                                                >
+                                                    删除合同
+                                                </Button>
+                                            )}
                                         </Stack>
                                     }
                                 />
@@ -1265,6 +1329,7 @@ const ContractDetail = () => {
                                 {autoRenewField}
                                 {managementRateField}
                                 {introFeeField}
+                                {attachmentContentField}
                                 {notesField}
                                 {/* {transferredToBillField} */}
                             </Grid>
@@ -1793,6 +1858,17 @@ const ContractDetail = () => {
                         </Button>
                     </DialogActions>
                 </Dialog>
+                {/* --- 新增：渲染编辑弹窗 --- */}
+                <EditContractModal
+                    open={isEditModalOpen}
+                    onClose={() => setIsEditModalOpen(false)}
+                    contractId={contractId}
+                    onSuccess={() => {
+                        setIsEditModalOpen(false);
+                        setAlert({ open: true, message: '合同已成功更新！', severity: 'success' });
+                        fetchData(); // 重新加载详情页数据
+                    }}
+                />
             </Box>
         </LocalizationProvider>
     );

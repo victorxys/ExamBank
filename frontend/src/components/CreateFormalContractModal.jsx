@@ -29,7 +29,7 @@ const initialState = {
     management_fee_amount: '',
     deposit_rate: 0.25,
     daily_rate: '',
-    management_fee_rate: 0.20,
+    management_fee_rate: 0.10,
     service_content: "",
     service_type: '',
     is_auto_renew: false,
@@ -122,7 +122,11 @@ const CreateFormalContractModal = ({ open, onClose, onSuccess }) => {
         }
 
         if (type === 'nanny') {
-            updates.management_fee_amount = (level * 0.10).toFixed(2);
+            // --- 核心修改：使用 management_fee_rate 来计算 ---
+            const rate = parseFloat(formData.management_fee_rate);
+            if (rate >= 0) { // 允许费率为0
+                updates.management_fee_amount = (level * rate).toFixed(2);
+            }
         }
         else if (type === 'nanny_trial') {
             updates.daily_rate = (level / 26).toFixed(2);
@@ -168,18 +172,22 @@ const CreateFormalContractModal = ({ open, onClose, onSuccess }) => {
                 const employeeName = selectedEmployee ? selectedEmployee.name : '服务人员';
                 const managementFeeRate = parseFloat(formData.management_fee_rate);
                 const introductionFee = parseFloat(formData.introduction_fee);
+                
 
                 let managementFeeNotePart = '';
+                let feeIntroducePart = '';
                 if (!isNaN(introductionFee) && introductionFee > 0) {
                     managementFeeNotePart = '因已收取介绍费，故不收取管理费。';
+                    feeIntroducePart = `甲方只需支付阿姨实际出勤天数的劳务费`;
                 } else {
                     managementFeeNotePart = `丙方管理费计算方法为：${roundedMonthlySalary}元✖️ ${(managementFeeRate * 100).toFixed(0)}%➗30天✖️阿姨实际出勤天数。`;
+                    feeIntroducePart = `甲方需支付阿姨实际出勤天数的劳务费和丙方管理费`;
                 }
 
                 const attachmentContentTemplate = 
-`乙方${employeeName}阿姨上户，甲方只需支付阿姨实际出勤天数的劳务费和丙方管理费，
-阿姨劳务费计算方法为：${roundedMonthlySalary}元➗26天✖️阿姨实际出勤天数；
-${managementFeeNotePart}`;
+                `乙方${employeeName}阿姨上户，${feeIntroducePart}:
+                阿姨劳务费计算方法为：${roundedMonthlySalary}元➗26天✖️阿姨实际出勤天数；
+                ${managementFeeNotePart}`;
 
                 setFormData(prev => ({ ...prev, attachment_content: attachmentContentTemplate }));
             } else {
@@ -187,7 +195,30 @@ ${managementFeeNotePart}`;
             }
         }
     }, [formData.contract_type, formData.daily_rate, formData.management_fee_rate, formData. introduction_fee, selectedEmployee]);
-    // --- 新增结束 ---
+    
+    useEffect(() => {
+    const autoRenewText = "双方没有异议，合同自动延续一个月，延续无次数限制。";
+
+    setFormData(prevFormData => {
+        const newFormData = { ...prevFormData };
+        if (newFormData.contract_type === 'nanny' && newFormData.is_monthly_auto_renew) {
+            // 只有当附件内容为空或与自动填充文本一致时才进行填充，避免覆盖用户输入
+            if (!newFormData.attachment_content || newFormData.attachment_content === autoRenewText) {
+                newFormData.attachment_content = autoRenewText;
+            }
+        } else {
+            // 如果条件不满足，且当前内容是自动填充文本，则清空它
+            if (newFormData.attachment_content === autoRenewText) {
+                newFormData.attachment_content = '';
+            }
+        }
+        // 只有当 attachment_content 实际发生变化时才返回新的状态，避免不必要的 re-render
+        if (newFormData.attachment_content !== prevFormData.attachment_content) {
+            return newFormData;
+        }
+        return prevFormData;
+    });
+}, [formData.contract_type, formData.is_monthly_auto_renew]); // 依赖于合同类型和自动月签状态
 
     const fetchTemplates = async () => {
         setLoadingTemplates(true);
@@ -391,8 +422,13 @@ ${managementFeeNotePart}`;
                     const defaultEndDate = new Date(defaultStartDate.getTime() + 60 * 60 * 1000);
                     newFormData.start_date = defaultStartDate;
                     newFormData.end_date = defaultEndDate;
+                } 
+                // --- 新增：为试工合同设置默认值 ---
+                else if (value === 'nanny_trial') {
+                    newFormData.management_fee_rate = 0;
+                    newFormData.introduction_fee = '2000';
                 }
-                // 如果需要，可以在这里为其他合同类型设置默认值
+                // --- 新增结束 ---
             }
 
             // 当月嫂合同的保证金或比例变化时，反向计算
@@ -413,7 +449,6 @@ ${managementFeeNotePart}`;
             return newFormData;
         });
     };
-
     const handleInputChange = (event) => {
         const { name, value } = event.target;
         setFormData(prev => ({ ...prev, [name]: value }));
@@ -721,12 +756,40 @@ ${managementFeeNotePart}`;
                         )}
 
                         {formData.contract_type === 'nanny' && (
-                            <>  <Grid item xs={12} sm={4}><TextField required fullWidth name="employee_level" label="级别 (月薪/元)" type="number" value={formData.employee_level} onChange={handleChange} onWheel={(e) => e.target.blur()}/></Grid>
-                                <Grid item xs={12} sm={4}>
-                                    <TextField fullWidth name="introduction_fee" label="介绍费 (元)" type="number" value={formData.introduction_fee} onChange={handleInputChange} onWheel={(e) => e.target.blur()}/>
+                            <>
+                                <Grid item xs={12} sm={3}>
+                                    <TextField required fullWidth name="employee_level" label="级别 (月薪/元)" type="number" value={formData. employee_level} onChange={handleChange} onWheel={(e) => e.target.blur()}/>
                                 </Grid>
-                                <Grid item xs={12} sm={4}>
-                                    <TextField fullWidth name="management_fee_amount" label="管理费 (元/月)" type="number" value={formData.management_fee_amount} onChange={handleInputChange} helperText="默认按级别10%计算，可修改" />
+                                <Grid item xs={12} sm={3}>
+                                    <TextField fullWidth name="introduction_fee" label="介绍费 (元)" type="number" value={formData. introduction_fee} onChange={handleInputChange} onWheel={(e) => e.target.blur()}/>
+                                </Grid>
+                                <Grid item xs={12} sm={3}>
+                                    <TextField
+                                        fullWidth
+                                        name="management_fee_rate"
+                                        label="管理费率 (%)"
+                                        type="number"
+                                        value={formData.management_fee_rate * 100}
+                                        onChange={(e) => {
+                                            const rate = parseFloat(e.target.value);
+                                            setFormData(prev => ({ ...prev, management_fee_rate: isNaN(rate) ? 0 : rate / 100 }));
+                                        }}
+                                        onWheel={(e) => e.target.blur()}
+                                        InputProps={{
+                                            endAdornment: <InputAdornment position="end">%</InputAdornment>,
+                                        }}
+                                        // helperText="默认10%"
+                                    />
+                                </Grid>
+                                <Grid item xs={12} sm={3}>
+                                    <TextField
+                                        fullWidth
+                                        disabled
+                                        name="management_fee_amount"
+                                        label="管理费 (自动计算)"
+                                        type="number"
+                                        value={formData.management_fee_amount}
+                                    />
                                 </Grid>
                             </>
                         )}
