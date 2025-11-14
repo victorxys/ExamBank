@@ -413,7 +413,11 @@ class ContractService:
             }
             
             if isinstance(old_contract, NannyContract):
-                new_contract_fields['is_monthly_auto_renew'] = new_contract_data.get('is_monthly_auto_renew', old_contract.is_monthly_auto_renew)
+                # 确保 is_monthly_auto_renew 属性从旧合同继承
+                new_contract_fields['is_monthly_auto_renew'] = old_contract.is_monthly_auto_renew
+                # 如果 new_contract_data 中提供了该字段，则覆盖
+                if 'is_monthly_auto_renew' in new_contract_data:
+                    new_contract_fields['is_monthly_auto_renew'] = new_contract_data['is_monthly_auto_renew']
                 new_contract_fields['security_deposit_paid'] = new_employee_level
             elif isinstance(old_contract, MaternityNurseContract):
                 new_contract_fields['deposit_amount'] = new_contract_data.get('deposit_amount', old_contract.deposit_amount)
