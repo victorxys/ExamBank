@@ -241,6 +241,7 @@ const ContractTemplateManager = () => {
                                 <MenuItem value="nanny">育儿嫂合同</MenuItem>
                                 <MenuItem value="maternity_nurse">月嫂合同</MenuItem>
                                 <MenuItem value="nanny_trial">试工合同</MenuItem>
+                                <MenuItem value="external_substitution">外部替班合同</MenuItem>
                             </Select>
                         </FormControl>
                     </Grid>
@@ -318,6 +319,7 @@ const ContractTemplateManager = () => {
                                     <MenuItem value="nanny">育儿嫂合同</MenuItem>
                                     <MenuItem value="maternity_nurse">月嫂合同</MenuItem>
                                     <MenuItem value="nanny_trial">试工合同</MenuItem>
+                                    <MenuItem value="external_substitution">外部替班合同</MenuItem>
                                 </TextField>
                             </Grid>
                             <Grid item xs={12}><TextField fullWidth label="备注" name="remark" multiline rows={2} value={newTemplate.remark} onChange={handleInputChange} margin="normal" /></Grid>
