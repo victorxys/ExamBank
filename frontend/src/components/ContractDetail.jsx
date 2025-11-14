@@ -187,6 +187,8 @@ const ContractDetail = () => {
         management_fee_amount: '',
         management_fee_rate: 0,
         transfer_deposit: true,
+        template_id: null,
+        content: '',
     });
 
     const conversionActions = useTrialConversion((formalContractId) => {
@@ -208,6 +210,8 @@ const ContractDetail = () => {
         service_personnel_id: '',
         service_personnel_name: '',
         transfer_deposit: true,
+        template_id: null,
+        content: '',
     });
     const [personnelOptions, setPersonnelOptions] = useState([]);
     const [personnelSearchTerm, setPersonnelSearchTerm] = useState('');
@@ -486,7 +490,31 @@ const ContractDetail = () => {
         }
     };
 
-    const handleOpenRenewModal = () => {
+    const fetchLatestTemplateContent = async (contractType) => {
+        try {
+            const response = await api.get('/contract_templates', {
+                params: {
+                    contract_type: contractType,
+                    all: true // Fetch all templates for the given type
+                }
+            });
+            // Templates are already sorted by version descending in the backend
+            // So the first one in the list will be the latest version
+            if (response.data.templates && response.data.templates.length > 0) {
+                const latestTemplate = response.data.templates[0];
+                return {
+                    template_id: latestTemplate.id,
+                    content: latestTemplate.content
+                };
+            }
+        } catch (error) {
+            console.error(`Failed to fetch latest template for type ${contractType}:`, error);
+            setAlert({ open: true, message: `获取最新合同模板失败: ${error.message}`, severity: 'error' });
+        }
+        return { template_id: null, content: '' };
+    };
+
+    const handleOpenRenewModal = async () => { // Make it async
         if (!contract) return;
 
         // --- 核心修改：根据原合同周期计算默认续约时长 ---
@@ -516,6 +544,15 @@ const ContractDetail = () => {
         if (days < -15) approxDurationInMonths -= 1;
         if (approxDurationInMonths <= 0) approxDurationInMonths = 1;
 
+        let templateId = contract.template_id;
+        let templateContent = contract.content;
+
+        // If template_id or content is missing, fetch the latest template
+        if (!templateId || !templateContent) {
+            const latestTemplate = await fetchLatestTemplateContent(contract.contract_type_value);
+            templateId = latestTemplate.template_id;
+            templateContent = latestTemplate.content;
+        }
 
         setRenewalData({
             start_date: defaultStartDate,
@@ -525,6 +562,8 @@ const ContractDetail = () => {
             management_fee_rate: contract.management_fee_rate || 0,
             management_fee_amount: contract.management_fee_amount || '',
             transfer_deposit: true,
+            template_id: templateId,
+            content: templateContent,
         });
         setIsRenewModalOpen(true);
     };
@@ -542,10 +581,20 @@ const ContractDetail = () => {
 
     // --- Start of Change Contract 变更合同 Logic ---
 
-    const handleOpenChangeModal = () => {
+    const handleOpenChangeModal = async () => { // Make it async
         const today = new Date();
         const newEndDate = new Date(today);
         newEndDate.setFullYear(newEndDate.getFullYear() + 1);
+
+        let templateId = contract.template_id;
+        let templateContent = contract.content;
+
+        // If template_id or content is missing, fetch the latest template
+        if (!templateId || !templateContent) {
+            const latestTemplate = await fetchLatestTemplateContent(contract.contract_type_value);
+            templateId = latestTemplate.template_id;
+            templateContent = latestTemplate.content;
+        }
     
         setChangeData({
             start_date: today,
@@ -556,6 +605,8 @@ const ContractDetail = () => {
             service_personnel_id: contract.service_personnel_id,
             service_personnel_name: contract.employee_name,
             transfer_deposit: true,
+            template_id: templateId,
+            content: templateContent,
         });
         setSelectedPersonnel({ id: contract.service_personnel_id, name: contract.employee_name });
         

@@ -396,7 +396,7 @@ class ContractService:
                 "employee_level": new_employee_level,
                 "management_fee_amount": final_management_fee_amount,
                 "management_fee_rate": final_management_fee_rate,
-                "status": "active",
+                "status": "pending",
                 "customer_name": old_contract.customer_name,
                 "customer_name_pinyin": old_contract.customer_name_pinyin,
                 "previous_contract_id": old_contract.id,

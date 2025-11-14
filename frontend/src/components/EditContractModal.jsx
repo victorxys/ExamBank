@@ -78,12 +78,12 @@ const EditContractModal = ({ open, onClose, onSuccess, contractId }) => {
                 try {
                     const [contractRes, templatesRes] = await Promise.all([
                         api.get(`/contracts/${contractId}`),
-                        api.get('/contract_templates')
+                        api.get('/contract_templates?all=true')
                     ]);
                     
                     const data = contractRes.data;
                     setOriginalContract(data);
-                    setTemplates(templatesRes.data);
+                    setTemplates(templatesRes.data.templates || []);
 
                     // Set initial form data
                     setFormData({
