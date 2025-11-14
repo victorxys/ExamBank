@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     Dialog, DialogTitle, DialogContent, DialogActions, Button, Grid, TextField,
@@ -7,10 +7,13 @@ import {
     InputAdornment, IconButton,RadioGroup, Radio
 } from '@mui/material';
 import VisibilityIcon from '@mui/icons-material/Visibility';
+import CompareArrowsIcon from '@mui/icons-material/CompareArrows';
 import { DatePicker, DateTimePicker } from '@mui/x-date-pickers';
 import { debounce } from 'lodash';
 import api from '../api/axios';
 import ReactMarkdown from 'react-markdown'; 
+import DiffTemplateModal from './DiffTemplateModal';
+
 
 const initialState = {
     template_id: '',
@@ -87,6 +90,14 @@ const CreateFormalContractModal = ({ open, onClose, onSuccess }) => {
 
     const [previewOpen, setPreviewOpen] = useState(false);
     const [previewContent, setPreviewContent] = useState('');
+    const [isPreviewLoading, setIsPreviewLoading] = useState(false);
+
+
+    // State for Diff Modal
+    const [comparisonTemplates, setComparisonTemplates] = useState({ t1: null, t2: null });
+    const [isComparing, setIsComparing] = useState(false);
+    const [isDiffModalOpen, setIsDiffModalOpen] = useState(false);
+
 
     useEffect(() => {
         // console.log('Modal open effect triggered. Open:', open);
@@ -104,9 +115,28 @@ const CreateFormalContractModal = ({ open, onClose, onSuccess }) => {
     
     useEffect(() => {
         if (formData.contract_type && templates.length > 0) {
-            const matchedTemplate = templates.find(t => t.contract_type === formData.contract_type );
-            if (matchedTemplate && matchedTemplate.id !== formData.template_id) {
-                setFormData(prev => ({ ...prev, template_id: matchedTemplate.id }));
+            // 1. 筛选出所有匹配的模板
+            const matchingTemplates = templates.filter(t => t.contract_type === formData.contract_type);
+
+            if (matchingTemplates.length > 0) {
+                // 2. 排序：首先按版本号降序，然后按更新时间降序
+                matchingTemplates.sort((a, b) => {
+                    if (b.version !== a.version) {
+                        return b.version - a.version;
+                    }
+                    return new Date(b.updated_at) - new Date(a.updated_at);
+                });
+
+                // 3. 选择最新的一个
+                const latestTemplate = matchingTemplates[0];
+                
+                // 4. 如果选中的不是当前模板，则更新
+                if (latestTemplate && latestTemplate.id !== formData.template_id) {
+                    setFormData(prev => ({ ...prev, template_id: latestTemplate.id }));
+                }
+            } else {
+                // 如果没有匹配的模板，清空选择
+                setFormData(prev => ({ ...prev, template_id: '' }));
             }
         }
     }, [formData.contract_type, templates]);
@@ -222,8 +252,8 @@ ${managementFeeNotePart}`;
     const fetchTemplates = async () => {
         setLoadingTemplates(true);
         try {
-            const response = await api.get('/contract_templates');
-            setTemplates(response.data);
+            const response = await api.get('/contract_templates', { params: { all: true } });
+            setTemplates(response.data.templates || []);
         } catch (err) {
             setError('无法加载合同模板');
         } finally {
@@ -232,7 +262,7 @@ ${managementFeeNotePart}`;
     };
 
     const searchParties = (query, role) => {
-        // console.log(`searchParties called with query: \"${query}\", role: \"${role}\"`);
+        // console.log(`searchParties called with query: "${query}", role: "${role}"`);
         if (searchTimeout.current) {
             clearTimeout(searchTimeout.current);
         }
@@ -257,7 +287,7 @@ ${managementFeeNotePart}`;
         searchTimeout.current = setTimeout(async () => {
             let options = [];
             try {
-                // console.log(`Fetching data for query: \"${query}\", role: \"${role}\"`);
+                // console.log(`Fetching data for query: "${query}", role: "${role}"`);
                 const response = await api.get('/contract-parties/search', { params: { search: query, role: role } });
                 // console.log('API response received:', response.data);
                 options = response.data || [];
@@ -417,7 +447,7 @@ ${managementFeeNotePart}`;
             if (name === 'contract_type') {
                 if (value === 'external_substitution') {
                     const now = new Date();
-                    const defaultStartDate = new Date(now.getFullYear(), now.getMonth(), now. getDate(), 6, 30);
+                    const defaultStartDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 6, 30);
                     const defaultEndDate = new Date(defaultStartDate.getTime() + 60 * 60 * 1000);
                     newFormData.start_date = defaultStartDate;
                     newFormData.end_date = defaultEndDate;
@@ -472,6 +502,49 @@ ${managementFeeNotePart}`;
         setFormData(prev => ({ ...prev, [name]: checked }));
     };
 
+    const handleCompare = async (template) => {
+        setIsComparing(true);
+        try {
+            const diffInfoResponse = await api.get(`/contract_templates/${template.id}/diff`);
+            const previousTemplateId = diffInfoResponse.data.previous_template_id;
+            if (!previousTemplateId) {
+                throw new Error("未找到可供对比的更早的模板");
+            }
+            const [prevTemplateRes, currentTemplateRes] = await Promise.all([
+                api.get(`/contract_templates/${previousTemplateId}`),
+                api.get(`/contract_templates/${template.id}`)
+            ]);
+            setComparisonTemplates({ t1: prevTemplateRes.data, t2: currentTemplateRes.data });
+            setIsDiffModalOpen(true);
+        } catch (err) {
+            setError(err.response?.data?.error || '获取版本差异失败。');
+        } finally {
+            setIsComparing(false);
+        }
+    };
+
+    const handlePreview = async (templateId) => {
+        if (!templateId) return;
+        setIsPreviewLoading(true);
+        setPreviewContent('');
+        setPreviewOpen(true);
+        try {
+            const response = await api.get(`/contract_templates/${templateId}`);
+            setPreviewContent(response.data.content);
+        } catch (err) {
+            setPreviewContent("无法加载模板内容。");
+            console.error("Failed to fetch template content for preview:", err);
+        } finally {
+            setIsPreviewLoading(false);
+        }
+    };
+
+    const filteredTemplates = useMemo(() => {
+        if (!Array.isArray(templates)) return [];
+        return templates.filter(t => t.contract_type === formData.contract_type);
+    }, [templates, formData.contract_type]);
+
+
     const isTrialContract = formData.contract_type === 'nanny_trial';
     const introFeeValue = parseFloat(formData.introduction_fee);
     const mgmtFeeRateValue = parseFloat(formData.management_fee_rate);
@@ -498,48 +571,51 @@ ${managementFeeNotePart}`;
                                     <MenuItem value="nanny">育儿嫂合同</MenuItem>
                                     <MenuItem value="maternity_nurse">月嫂合同</MenuItem>
                                     <MenuItem value="nanny_trial">育儿嫂试工合同</MenuItem>
-                                    <MenuItem value="external_substitution">外部替班合同</ MenuItem>
+                                    <MenuItem value="external_substitution">外部替班合同</MenuItem>
                                 </Select>
                             </FormControl>
                         </Grid>
 
                         <Grid item xs={12} sm={6}>
-                            <FormControl fullWidth required>
-                                <InputLabel>合同模板</InputLabel>
-                                <Select
-                                    name="template_id"
-                                    value={formData.template_id}
-                                    label="合同模板"
-                                    onChange={handleChange}
-                                    disabled={loadingTemplates}
-                                    endAdornment={
-                                        <InputAdornment position="end" sx={{ mr: 2 }}>
+                            <Autocomplete
+                                fullWidth
+                                options={filteredTemplates}
+                                getOptionLabel={(option) => `${option.template_name} (v${option.version})`}
+                                value={templates.find(t => t.id === formData.template_id) || null}
+                                onChange={(event, newValue) => {
+                                    setFormData(prev => ({ ...prev, template_id: newValue ? newValue.id : '' }));
+                                }}
+                                renderInput={(params) => <TextField {...params} label="合同模板" required />}
+                                renderOption={(props, option) => (
+                                    <Box component="li" {...props} key={option.id} sx={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+                                        <Typography variant="body2">{`${option.template_name} (v${option.version})`}</Typography>
+                                        <Box>
                                             <IconButton
-                                                onClick={() => {
-                                                    const selected = templates.find(t => t.id === formData.template_id);
-                                                    if (selected) {
-                                                        setPreviewContent(selected.content);
-                                                        setPreviewOpen(true);
-                                                    }
+                                                size="small"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handlePreview(option.id);
                                                 }}
-                                                disabled={!formData.template_id}
                                             >
-                                                <VisibilityIcon />
+                                                <VisibilityIcon fontSize="small" />
                                             </IconButton>
-                                        </InputAdornment>
-                                    }
-                                >
-                                    {loadingTemplates ? (
-                                        <MenuItem value="" disabled><em>加载中...</em></MenuItem>
-                                    ) : (
-                                        templates.map(template => (
-                                            <MenuItem key={template.id} value={template.id}>
-                                                {template.template_name} (v{template.version})
-                                            </MenuItem>
-                                        ))
-                                    )}
-                                </Select>
-                            </FormControl>
+                                            {option.version > 1 && (
+                                                <IconButton
+                                                    size="small"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleCompare(option);
+                                                    }}
+                                                    disabled={isComparing}
+                                                >
+                                                    <CompareArrowsIcon fontSize="small" />
+                                                </IconButton>
+                                            )}
+                                        </Box>
+                                    </Box>
+                                )}
+                                disabled={loadingTemplates}
+                            />
                         </Grid>
                         
                         
@@ -734,8 +810,9 @@ ${managementFeeNotePart}`;
                         </Grid>
 
                         {formData.contract_type === 'maternity_nurse' && (
-                            <>  <Grid item xs={12} sm={4}><TextField required fullWidth name="employee_level" label="级别 (月薪/元)" type="number" value={formData.employee_level} onChange={handleChange} onWheel={(e) => e.target.blur()}/></Grid>
-                                <Grid item xs={12} sm={4}><TextField fullWidth name="deposit_amount" label="定金 (元)" type="number" value={formData.deposit_amount} onChange={handleInputChange} helperText="默认为3000元" onWheel={(e) => e.target.blur()}/></Grid>
+                            <>
+                                <Grid item xs={12} sm={4}><TextField required fullWidth name="employee_level" label="级别 (月薪/元)" type="number" value={formData.employee_level} onChange={handleChange} onWheel={(e) => e.target.blur()} /></Grid>
+                                <Grid item xs={12} sm={4}><TextField fullWidth name="deposit_amount" label="定金 (元)" type="number" value={formData.deposit_amount} onChange={handleInputChange} helperText="默认为3000元" onWheel={(e) => e.target.blur()} /></Grid>
                                 <Grid item xs={12} sm={4}>
                                     <FormControl fullWidth>
                                         <InputLabel>保证金比例</InputLabel>
@@ -757,10 +834,10 @@ ${managementFeeNotePart}`;
                         {formData.contract_type === 'nanny' && (
                             <>
                                 <Grid item xs={12} sm={3}>
-                                    <TextField required fullWidth name="employee_level" label="级别 (月薪/元)" type="number" value={formData. employee_level} onChange={handleChange} onWheel={(e) => e.target.blur()}/>
+                                    <TextField required fullWidth name="employee_level" label="级别 (月薪/元)" type="number" value={formData. employee_level} onChange={handleChange} onWheel={(e) => e.target.blur()} />
                                 </Grid>
                                 <Grid item xs={12} sm={3}>
-                                    <TextField fullWidth name="introduction_fee" label="介绍费 (元)" type="number" value={formData. introduction_fee} onChange={handleInputChange} onWheel={(e) => e.target.blur()}/>
+                                    <TextField fullWidth name="introduction_fee" label="介绍费 (元)" type="number" value={formData. introduction_fee} onChange={handleInputChange} onWheel={(e) => e.target.blur()} />
                                 </Grid>
                                 <Grid item xs={12} sm={3}>
                                     <TextField
@@ -796,7 +873,7 @@ ${managementFeeNotePart}`;
                         {formData.contract_type === 'nanny_trial' && (
                             <>
                                 <Grid item xs={12} sm={6}>
-                                    <TextField required fullWidth name="daily_rate" label="日薪(元)" type="number" value={formData.daily_rate} onChange={handleInputChange} helperText="级别/26，可手动修改" onWheel={(e) => e.target.blur()}/>
+                                    <TextField required fullWidth name="daily_rate" label="日薪(元)" type="number" value={formData.daily_rate} onChange={handleInputChange} helperText="级别/26，可手动修改" onWheel={(e) => e.target.blur()} />
                                 </Grid>
                                 <Grid item xs={12} sm={6}>
                                     <Tooltip title={isIntroFeeDisabled ?"不能与管理费率同时存在" : ""}>
@@ -876,10 +953,14 @@ ${managementFeeNotePart}`;
             <Dialog open={previewOpen} onClose={() => setPreviewOpen(false)} maxWidth="md" fullWidth>
                 <DialogTitle>预览合同模板</DialogTitle>
                 <DialogContent dividers>
-                    <Box sx={{ '& p': { my: 1, lineHeight: 1.7 } }}>
-                        <ReactMarkdown>
-                            {previewContent}
-                        </ReactMarkdown>
+                    <Box sx={{ p: 2, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 200 }}>
+                        {isPreviewLoading ? (
+                            <CircularProgress />
+                        ) : (
+                            <Box sx={{ '& p': { my: 1, lineHeight: 1.7 }, width: '100%' }}>
+                                <ReactMarkdown>{previewContent}</ReactMarkdown>
+                            </Box>
+                        )}
                     </Box>
                 </DialogContent>
                 <DialogActions>
@@ -903,7 +984,12 @@ ${managementFeeNotePart}`;
                     // 如果用户选择创建新合同，则什么也不做，流程继续
                 }}
             />
-            {/* --- 新增结束 --- */}
+            <DiffTemplateModal
+                open={isDiffModalOpen}
+                onClose={() => setIsDiffModalOpen(false)}
+                template1={comparisonTemplates.t1}
+                template2={comparisonTemplates.t2}
+            />
         </Dialog>
     );
 };

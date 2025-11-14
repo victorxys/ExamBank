@@ -426,11 +426,11 @@ const TransactionDetailsPanel = ({
                                <Button size="small" startIcon={<SwitchAccountIcon />} onClick={ () =>setIsSwitchingCustomer(true)}>切换客户</Button>
                            )}
                        </Box>
-                       <Box>
+                       {/* <Box>
                            <IconButton onClick={handlePrevMonth} size="small">< ArrowBackIosNewIcon fontSize="inherit" /></IconButton>
                            <Typography component="span" variant="subtitle1" sx={{ mx: 1 }}>{accountingPeriod.year}年{accountingPeriod.month}月</Typography>
                            <IconButton onClick={handleNextMonth} size="small">< ArrowForwardIosIcon fontSize="inherit" /></IconButton>
-                       </Box>
+                       </Box> */}
                    </Box>
                    <Box sx={{ p: 3, textAlign: 'center', color: 'text.secondary' }}>
                        <Typography>在 {accountingPeriod.year}年{accountingPeriod.month }月未找到该客户的账单或有效合同。</Typography>
@@ -452,11 +452,11 @@ const TransactionDetailsPanel = ({
                                     <Button size="small" startIcon={<SwitchAccountIcon />} onClick={()=>setIsSwitchingCustomer(true)}>切换客户</Button>
                                 )}
                             </Box>
-                             <Box>
+                             {/* <Box>
                                 <IconButton onClick={handlePrevMonth} size="small">< ArrowBackIosNewIcon fontSize="inherit" /></IconButton>
                                 <Typography component="span" variant="subtitle1" sx={{ mx: 1 }}>{accountingPeriod.year}年{accountingPeriod.month}月</Typography>
                                 <IconButton onClick={handleNextMonth} size="small">< ArrowForwardIosIcon fontSize="inherit" /></IconButton>
-                            </Box>
+                            </Box> */}
                         </Box>
                         <Stack spacing={2} ref={billListRef}>
                             {billsForCustomer.map((bill) => {
@@ -838,18 +838,26 @@ const TransactionDetailsPanel = ({
 
     return (
         <Box sx={{ p: 3 }}>
-            <Box mb={3} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Typography variant="h5" gutterBottom>{transaction.payer_name} : ¥{ formatCurrency(transaction.amount)}</Typography>
-                <Typography variant="body2" color="text.secondary">
-                    {new Date(transaction.transaction_time).toLocaleString('zh-CN')} | {transaction.summary || '无摘要'}
-                </Typography>
-            </Box>
+
             <Grid container spacing={1} alignItems="center" sx={{ mb: 3, p: 2, border: '1px solid', borderColor: 'divider', borderRadius:1, textAlign: 'center' }}>
                 <Grid item xs={6} sm={3}><Typography variant="body2" component="div">回款额:<br /><Typography component="div" variant="h5" fontWeight="bold">¥{formatCurrency(totalTxnAmount)}</ Typography></Typography></Grid>
                 <Grid item xs={6} sm={3}><Typography variant="body2" component="div">已分配:<br /><Typography component="div" variant="h5"fontWeight="bold" color="text.secondary"> ¥{formatCurrency(alreadyAllocated)}</Typography></Typography></Grid>
                 <Grid item xs={6} sm={3}><Typography variant="body2" component="div">本次分配:< br/><Typography component="div" variant="h5" fontWeight="bold" color="primary"> ¥{formatCurrency(totalAllocatedInThisSession)}</Typography></Typography></Grid>
                 <Grid item xs={6} sm={3}><Typography variant="body2" component="div">剩余可分配: <br/><Typography component="div" variant="h5" fontWeight="bold" color={remainingAmount.lt(0) ? ' error' : 'warning.main'}>¥{formatCurrency(remainingAmount)}</Typography></Typography></Grid>
             </Grid>
+            <Box mb={3} sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}> {/* Changed to column for better layout */}
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="h5" gutterBottom>{transaction.payer_name} : ¥{ formatCurrency(transaction.amount)}</Typography>
+                    <Typography variant="body2" color="text.secondary">
+                        {new Date(transaction.transaction_time).toLocaleString('zh-CN')} | {transaction.summary || '无摘要'}
+                    </Typography>
+                </Box>
+                <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' , p: 1, bgcolor: 'action.hover', borderRadius: 1 }}>
+                    <IconButton onClick={handlePrevMonth} size="small">< ArrowBackIosNewIcon fontSize="inherit" /></IconButton>
+                    <Typography component="span" variant="subtitle1" sx={{ mx: 1 }}>{accountingPeriod.year}年{accountingPeriod.month}月</Typography>
+                    <IconButton onClick={handleNextMonth} size="small">< ArrowForwardIosIcon fontSize="inherit" /></IconButton>
+                </Box>
+            </Box>
             {renderContent()}
             <IgnoreRemarkDialog
                 open={isIgnoreDialogOpen}

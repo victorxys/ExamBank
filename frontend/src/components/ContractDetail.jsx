@@ -1664,7 +1664,7 @@ const ContractDetail = () => {
                     </DialogActions>
                 </Dialog>
                 <TrialConversionDialog {...conversionActions} />
-                                <SigningMessageModal
+                <SigningMessageModal
                     open={signingModalOpen}
                     onClose={() => setSigningModalOpen(false)}
                     title={signingModalTitle}

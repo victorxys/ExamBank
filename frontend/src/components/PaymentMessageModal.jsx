@@ -68,7 +68,7 @@ const PaymentMessageModal = ({ open, onClose, initialMessage, onAlert }) => {
       company_summary: companyMessage,
       employee_summary: employeeMessage,
     };
-    console.log("发送给AI美化的内容:", dataToSend);
+    // console.log("发送给AI美化的内容:", dataToSend);
 
     setIsBeautifying(true);
     try {
