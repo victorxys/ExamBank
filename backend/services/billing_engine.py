@@ -339,22 +339,23 @@ class BillingEngine:
                 self._calculate_formal_contract_bill_for_month(
                     contract, year, month, force_recalculate
                 )
-            # 【新增分支】
             elif contract.type == "external_substitution":
-                # --- 核心修复：建立权威结束日期的统一规则 ---
-                # 1. 规则：优先使用 expected_offboarding_date，其次才是 end_date
-                authoritative_end_date = getattr(contract, 'expected_offboarding_date', None) or contract.end_date
+                # For external substitution, the bill cycle is determined by overrides or the contract itself.
+                
+                # Find the existing bill first, as it's a one-off bill per contract.
+                bill = CustomerBill.query.filter_by(contract_id=contract.id, is_substitute_bill=False).first()
 
-                # 2. 本次计算的最终结束日期，应该优先使用API传来的覆盖日期，其次才是我们上面认定的权威日期
-                final_end_date = end_date_override or authoritative_end_date
+                # Determine start and end dates
+                start_date = cycle_start_date_override or (bill.cycle_start_date if bill else contract.start_date)
+                end_date = end_date_override or (bill.cycle_end_date if bill else (getattr (contract, 'expected_offboarding_date', None) or contract.end_date))
 
-                # 3. 使用这个绝对正确的日期去获取或创建账单
+                # Get or create the bill and payroll with the correct dates
                 bill, payroll = self._get_or_create_bill_and_payroll(
-                    contract, contract.start_date.year, contract.start_date.month, contract.start_date, final_end_date
+                    contract, start_date.year, start_date.month, start_date, end_date
                 )
 
-                # 4. 后续计算会从 bill 对象读取正确的周期，一切都会恢复正常
-                details = self._calculate_external_substitution_details(contract, bill, payroll)
+                # The details calculation function reads dates from the bill object, which is now updated.
+                details = self._calculate_external_substitution_details(contract, bill, payroll, actual_work_days_override=actual_work_days_override)
                 bill, payroll = self._calculate_final_amounts(bill, payroll, details)
                 log = self._create_calculation_log(details)
                 self._update_bill_with_log(bill, payroll, details, log)
@@ -843,7 +844,7 @@ class BillingEngine:
                     if record.substitute_user
                     else record.substitute_personnel.name
                 )
-                substitution_details_for_log.append(f"由({sub_employee_name})替班{days_in_cycle}天")
+                substitution_details_for_log.append(f"由({sub_employee_name})替班 {days_in_cycle}天")
                 # --- Gemini-generated code (Optimization): End ---
 
         # --- Gemini-generated code (Optimization): Start ---
@@ -870,17 +871,17 @@ class BillingEngine:
         # 优先使用从API传入的覆盖值
         if actual_work_days_override is not None:
             base_work_days = D(actual_work_days_override)
-            log_extras["base_work_days_reason"] = f"使用用户传入的实际劳务天数 ({actual_work_days_override:.3f})"
+            log_extras["base_work_days_reason"] = f"使用用户传入的实际劳务天数 ( {actual_work_days_override:.3f})"
             # 同步更新数据库中的字段，确保前端刷新后能看到正确的值
             bill.actual_work_days = actual_work_days_override
             payroll.actual_work_days = actual_work_days_override
         elif bill.actual_work_days and bill.actual_work_days > 0:
             base_work_days = D(bill.actual_work_days)
-            log_extras["base_work_days_reason"] = f"使用数据库中已存的实际劳务天数 ({bill.actual_work_days})"
+            log_extras["base_work_days_reason"] = f"使用数据库中已存的实际劳务天数 ( {bill.actual_work_days})"
         else:
             # 回退到旧的计算逻辑
             base_work_days = D(min(cycle_actual_days, 26))
-            log_extras["base_work_days_reason"] = f"默认逻辑: min(周期天数({cycle_actual_days}), 26)"
+            log_extras["base_work_days_reason"] = f"默认逻辑: min(周期天数( {cycle_actual_days}), 26)"
         # --- END NEW LOGIC ---
         
         # total_days_worked = base_work_days + overtime_days - D(total_substitute_days)
@@ -953,7 +954,7 @@ class BillingEngine:
                     QUANTIZER
                 )
                 if management_fee_amount:
-                    management_fee_reason =  f"月签合同首月不足月，按天收取: 管理费{management_fee_amount}/30 * 劳务天数 ({current_month_contract_days} + 1) = {management_fee:.2f}"
+                    management_fee_reason =  f"月签合同首月不足月，按天收取: 管理费 {management_fee_amount}/30 * 劳务天数 ({current_month_contract_days} + 1) = {management_fee:.2f}"
 
                 else:
                     management_fee_reason =  f"月签合同首月不足月，按天收取: 级别{level} * 10%/30 * 劳务天数 ({current_month_contract_days} + 1) = {management_fee:.2f}"
@@ -963,9 +964,9 @@ class BillingEngine:
                 management_days = D(min(cycle_duration_days, 30))
                 management_fee = (management_fee_daily_rate * management_days).quantize(QUANTIZER)
                 if management_fee_amount:
-                    management_fee_reason = f"末期账单不足月，按天收取: 管理费{management_fee_amount}/30 * min(周期天数({cycle_duration_days}), 30) = {management_fee:.2f}"
+                    management_fee_reason = f"末期账单不足月，按天收取: 管理费 {management_fee_amount}/30 * min(周期天数({cycle_duration_days}), 30) = {management_fee: .2f}"
                 else:
-                    management_fee_reason = f"末期账单不足月，按天收取: 级别({level})*10%/30 * min(周期天数({cycle_duration_days}), 30) = {management_fee:.2f}"
+                    management_fee_reason = f"末期账单不足月，按天收取: 级别({level} )*10%/30 * min(周期天数({cycle_duration_days}), 30) = {management_fee:.2f}"
                 log_extras["management_fee_reason"] = management_fee_reason
             else:
                 if management_fee_amount:
@@ -980,7 +981,7 @@ class BillingEngine:
             current_app.logger.info("进入非月签合同逻辑")
             if is_first_bill:
                 monthly_management_fee = management_fee_amount if management_fee_amount > 0 else(level * D("0.1"))
-                current_app.logger.info(f"contract_start_date.day:{contract_start_date.day},contract_end_date.day:{contract_end_date.day}")
+                current_app.logger.info(f"contract_start_date.day: {contract_start_date.day},contract_end_date.day:{contract_end_date.day}")
                 # --- V2 优化：定义更通用的“整月”规则 ---
                 is_full_calendar_months = (
                     contract_start_date.day == 1 and
@@ -1008,7 +1009,7 @@ class BillingEngine:
                     # --- 默认规则：不满足任何整月模式，按三段式天数计算 ---
                     current_app.logger.info(f"合同 {contract.id} 使用按天三段式管理费计算模式。")
                     # 日单价按30天计算，这是固定业务规则
-                    daily_management_fee = (monthly_management_fee / D(30)).quantize(D("0.0001"))
+                    daily_management_fee = (monthly_management_fee / D(30)).quantize(D( "0.0001"))
                     start = contract_start_date
                     end = contract_end_date
 
@@ -1051,11 +1052,11 @@ class BillingEngine:
                         management_fee = first_month_fee + full_months_fee + last_month_fee
                         
                         # 使用日志天数生成日志，但使用计费天数进行计算
-                        reason_parts = [f"首月({first_month_log_days}天):{first_month_fee:.2f}"]
+                        reason_parts = [f"首月({first_month_log_days}天): {first_month_fee:.2f}"]
                         if full_months_fee > 0:
-                            reason_parts.append(f"中间{full_months_count}整月:{full_months_fee:.2f}")
-                        reason_parts.append(f"末月({last_month_log_days}天):{last_month_fee:.2f}")
-                        management_fee_reason = f"非月签合同首月一次性收取 ({' + '.join(reason_parts)}) = {management_fee:.2f}元"
+                            reason_parts.append(f"中间{full_months_count}整月: {full_months_fee:.2f}")
+                        reason_parts.append(f"末月({last_month_log_days}天): {last_month_fee:.2f}")
+                        management_fee_reason = f"非月签合同首月一次性收取 ({' + ' .join(reason_parts)}) = {management_fee:.2f}元"
             else:
                 # 非首月，非月签合同不收管理费
                 management_fee = D(0)
@@ -1063,7 +1064,7 @@ class BillingEngine:
 
             log_extras["management_fee_reason"] = management_fee_reason
 
-            current_app.logger.info(f"检查是否进入“延长服务期逻辑”:is_last_bill_period:{is_last_bill_period},cycle_end:{cycle_end},contract_end_date:{contract_end_date},authoritative_end_date:{authoritative_end_date}")
+            current_app.logger.info(f"检查是否进入“延长服务期逻辑”:is_last_bill_period: {is_last_bill_period},cycle_end:{cycle_end},contract_end_date:{contract_end_date} ,authoritative_end_date:{authoritative_end_date}")
             if not bill.is_substitute_bill:
                 if is_last_bill_period and cycle_end > contract_end_date:
                     current_app.logger.info(f"合同 {contract.id} 进入末期延长计费逻辑。")
@@ -1075,19 +1076,19 @@ class BillingEngine:
                     current_app.logger.info(f"检查是否进入延长服务期逻辑 authoritative_end_date and cycle_end > authoritative_end_date :{authoritative_end_date} -- {cycle_end} --  {authoritative_end_date}")
                     if authoritative_end_date and contract_end_date < authoritative_end_date:
                         extension_days = (authoritative_end_date - contract_end_date).days
-                        current_app.logger.info(f"延长周期的extension_days======:{extension_days}")
+                        current_app.logger.info(f"延长周期的extension_days======: {extension_days}")
                         if extension_days > 0:
                             daily_rate = level / D(26)
                             extension_fee = (daily_rate *D(extension_days)).quantize(QUANTIZER)
-                            log_extras["extension_days_reason"] = f"原合同于 {authoritative_end_date.strftime('%m月%d日')} 结束，延长至 {cycle_end.strftime('%m月%d日')}，共 {extension_days} 天。"
-                            log_extras["extension_fee_reason"] = f"延期劳务费: 日薪({daily_rate:.2f}) * 延长天数({extension_days}) = {extension_fee:.2f}"
+                            log_extras["extension_days_reason"] = f"原合同于 {authoritative_end_date.strftime('%m月%d日')} 结束，延长至 {cycle_end.strftime('%m月%d日' )}，共 {extension_days} 天。"
+                            log_extras["extension_fee_reason"] = f"延期劳务费: 日薪( {daily_rate:.2f}) * 延长天数({extension_days}) = {extension_fee:.2f}"
 
                             management_fee_daily_rate = (management_fee_amount or (level *D("0.1"))) / D(30)
                             extension_management_fee = (management_fee_daily_rate *D(extension_days)).quantize(QUANTIZER)
                             current_app.logger.info(f"--- [DEBUG-EXT] Calculated extension_management_fee: {extension_management_fee} ---")
                             if extension_management_fee > 0:
                                 # 【关键修复】确保日志被正确记录
-                                log_extras["management_fee_reason"] = log_extras.get("management_fee_reason", "") + f" + 延期管理费: 日管理费({management_fee_daily_rate:.2f}) * {extension_days}天 ={extension_management_fee:.2f}"
+                                log_extras["management_fee_reason"] = log_extras.get( "management_fee_reason", "") + f" + 延期管理费: 日管理费({management_fee_daily_rate:.2f}) * {extension_days}天 ={extension_management_fee:.2f}"
                                 management_fee += extension_management_fee
             
         # --- 【新逻辑】员工首月10%服务费 ---
@@ -1142,18 +1143,18 @@ class BillingEngine:
                             )
                         )
                         # log_extras["first_month_deduction_reason"] =f"首次合作，创建员工佣金调整项: min(当期总收入({potential_income:.2f}),级别*10%({service_fee_due:.2f})) = {first_month_deduction:.2f}"
-                        log_extras["first_month_deduction_reason"] =f"首次合作，创建员工佣金调整项: 级别*10%({service_fee_due:.2f})) = {first_month_deduction:.2f}"
+                        log_extras["first_month_deduction_reason"] = f"首次合作，创建员工佣金调整项: 级别*10%({service_fee_due:.2f})) = {first_month_deduction:.2f}"
                     else:
                         
-                        log_extras["first_month_deduction_reason"] ="员工首月佣金调整项已被处理过（可能已创建或转移），不再重复创建。"
+                        log_extras["first_month_deduction_reason"] = "员工首月佣金调整项已被处理过（可能已创建或转移），不再重复创建。"
                 else:
                     current_app.logger.info(f"[CommissionCheck] Calculated first month deduction is {first_month_deduction}, no adjustment needed.")
-                    log_extras["first_month_deduction_reason"] ="首次合作，但计算出的首月佣金为0，无需创建调整项。"
+                    log_extras["first_month_deduction_reason"] = "首次合作，但计算出的首月佣金为0，无需创建调整项。"
                     # ------------------- 以上是核心修改 (V2) -------------------
             else:
                 previous_contract_id = previous_contract_exists[0]
                 current_app.logger.info(f"[CommissionCheck] Found previous contract for customer {customer_name} and employee {employee_sp_id}. Previouscontract ID: {previous_contract_id}")
-                log_extras["first_month_deduction_reason"] =f"员工与客户已有过合作历史（合同ID: {previous_contract_id}），不收取首月佣金。"
+                log_extras["first_month_deduction_reason"] = f"员工与客户已有过合作历史（合同ID: {previous_contract_id}），不收取首月佣金。"
 
         current_app.logger.debug(f"NannyDETAILS:log_extras:{log_extras}")
         # 返回的 details 中不再包含 first_month_deduction，因为它已经变成了调整项
@@ -1164,7 +1165,7 @@ class BillingEngine:
             "cycle_period": f"{cycle_start.isoformat()} to {cycle_end.isoformat()}",
             "cycle_start_datetime": original_cycle_start_datetime.isoformat(), # New field for precise datetime
             "cycle_end_datetime": original_cycle_end_datetime.isoformat(),     # New field for precise datetime
-            "base_work_days": str(base_work_days),
+            "base_work_days": f"{base_work_days:.3f}",
             "overtime_days":  f"{overtime_days:.3f}",
             "total_days_worked": str(total_days_worked),
             # "substitute_days": str(total_substitute_days),
@@ -1485,8 +1486,8 @@ class BillingEngine:
             "level": str(level),
             "customer_deposit": str(customer_deposit),
             "cycle_period": f"{cycle_start.isoformat()} to {cycle_end.isoformat()}",
-            "base_work_days": str(base_work_days),
-            "overtime_days": str(overtime_days),
+            "base_work_days": f"{base_work_days:.3f}",
+            "overtime_days": f"{overtime_days:.3f}",
             "total_days_worked": str(total_days_worked),
             "substitute_days": str(total_substitute_days),
             "substitute_deduction": "0.00",
@@ -1867,7 +1868,7 @@ class BillingEngine:
         return details
     
     
-    def _calculate_external_substitution_details(self, contract, bill, payroll):
+    def _calculate_external_substitution_details(self, contract, bill, payroll, actual_work_days_override=None):
         """计算外部替班合同的所有财务细节(最终修正版)。"""
         current_app.logger.info(f"[DEBUG] Entering _calculate_external_substitution_details for bill {bill.id}")
 
@@ -1876,47 +1877,57 @@ class BillingEngine:
         QUANTIZER = D("0.01")
         level = D(contract.employee_level or 0)
         management_fee_rate = D(contract.management_fee_rate or 0.20)
+        log_extras = {} # 先初始化
 
         # --- 关键修复：在这里定义清晰的日期变量 ---
-        # 1. bill_end_date 是当前账单的结束日期，这应该是最新的、可能已延长过的日期
         bill_end_date = self._to_date(bill.cycle_end_date)
-
-        # 2. original_contract_end_date 是合同上最初的、不变的结束日期。这是我们比较的基准。
         original_contract_end_date = self._to_date(contract.end_date)
-
-        # 3. start_date 保持不变
         start_date = self._to_date(bill.cycle_start_date)
         # --- 修复结束 ---
 
         if not start_date or not bill_end_date or not original_contract_end_date:
             raise ValueError("外部替班合同的起止日期不完整，无法计算。")
 
-        time_difference = bill_end_date - start_date
-        # time_difference = bill.cycle_end_date - bill.cycle_start_date
-        service_days = D(time_difference.total_seconds()) / D(86400)
-        # service_days = self._calculate_service_duration_days(bill.cycle_start_date, bill.cycle_end_date) # 使用我们之前创建的辅助函数
+        if actual_work_days_override is not None:
+            service_days = D(actual_work_days_override)
+            log_extras["base_work_days_reason"] = f"使用用户传入的实际劳务天数 ( {actual_work_days_override:.3f})"
+            bill.actual_work_days = actual_work_days_override
+            if payroll:
+                payroll.actual_work_days = actual_work_days_override
+        else:
+            time_difference = bill.cycle_end_date - bill.cycle_start_date
+            service_days = D(time_difference.total_seconds()) / D(86400)
+            log_extras["service_days_reason"] = f"服务总时长 {time_difference} = {service_days:.3f} 天"
+
 
         daily_rate = (level / D(26)).quantize(QUANTIZER)
-        customer_payable = (daily_rate * service_days).quantize(QUANTIZER)
-        employee_payout = customer_payable
+        
+        # 基础费用
+        customer_base_fee = (daily_rate * service_days).quantize(QUANTIZER)
+        employee_base_payout = customer_base_fee
+
+        # 加班费用
+        attendance = self._get_or_create_attendance(contract, bill.cycle_start_date, bill.cycle_end_date)
+        overtime_days = D(attendance.overtime_days or 0)
+        overtime_fee = (daily_rate * overtime_days).quantize(QUANTIZER)
+        if overtime_fee > 0:
+            log_extras["overtime_reason"] = f"加班费: 日薪({daily_rate:.2f}) * 加班天数( {overtime_days:.2f}) = {overtime_fee:.2f}"
         
         # --- 核心修正：统一按天计算管理费 ---
-        log_extras = {} # 先初始化
         if contract.management_fee_amount is not None and contract.management_fee_amount > 0:
             # 如果合同有固定的月管理费，则按天折算
             monthly_fee = D(contract.management_fee_amount)
             daily_fee = (monthly_fee / D(30)).quantize(D("0.0001")) # 保留多位小数以提高精度
             management_fee = (daily_fee * service_days).quantize(QUANTIZER)
-            log_extras["management_fee_reason"] = f"按天折算: 月管理费({monthly_fee:.2f}) / 30天 *服务天数({service_days:.2f}) = {management_fee:.2f}"
+            log_extras["management_fee_reason"] = f"按天折算: 月管理费({monthly_fee:.2f}) / 30天 *服务天数({service_days:.3f}) = {management_fee:.2f}"
         else:
             # 否则，按费率计算
             management_fee = (daily_rate * service_days * management_fee_rate).quantize(QUANTIZER)
-            log_extras["management_fee_reason"] = f"按费率计算: 日薪({daily_rate:.2f}) * 服务天数({service_days:.2f}) * 费率({management_fee_rate:.2%}) = {management_fee:.2f}"
+            log_extras["management_fee_reason"] = f"按费率计算: 日薪({daily_rate:.2f}) * 服务天数({service_days:.3f}) * 费率({management_fee_rate:.2%}) = {management_fee:.2f}"
 
         # 其他日志信息
-        log_extras["service_days_reason"] = f"服务总时长 {time_difference} = {service_days:.2f} 天"
-        log_extras["customer_payable_reason"] = f"客户应付: 日薪({daily_rate:.2f}) * 服务天数({service_days:.2f}) = {customer_payable:.2f}"
-        log_extras["employee_payout_reason"] = f"员工工资: 等同于客户应付金额 = {employee_payout:.2f}"
+        log_extras["customer_payable_reason"] = f"客户应付: 日薪({daily_rate:.2f}) * 服务天数({service_days:.3f}) = {customer_base_fee:.2f}"
+        log_extras["employee_payout_reason"] = f"员工工资: 等同于客户应付金额 = {employee_base_payout:.2f}"
         # --- 修正结束 ---
 
         cust_increase, cust_decrease, emp_increase, emp_decrease, deferred_fee, emp_commission = (
@@ -1937,7 +1948,7 @@ class BillingEngine:
                 new_log_extras = log_extras.copy()
 
                 # 1. 添加延期劳务费的日志
-                new_log_extras["extension_fee_reason"] = f"延期劳务费: 日薪({daily_rate:.2f}) * 延长天数({extension_days}) = {extension_fee:.2f}"
+                new_log_extras["extension_fee_reason"] = f"延期劳务费: 日薪({daily_rate: .2f}) * 延长天数({extension_days}) = {extension_fee:.2f}"
 
                 # 2. 构建全新的管理费日志
                 base_management_reason = log_extras.get("management_fee_reason", "") # 从旧字典里安全地读出基础日志
@@ -1948,25 +1959,25 @@ class BillingEngine:
                 log_extras = new_log_extras
                 # --- 修改结束 ---
 
-                
-                
-                
-
                 # 更新总的管理费
                 management_fee +=extension_management_fee
                 # employee_payout += extension_fee
-                current_app.logger.info(f"[DEBUG] Calculated extension fee: {extension_fee}, new total payable: {customer_payable}")
+                current_app.logger.info(f"[DEBUG] Calculated extension fee: {extension_fee}, new total payable: {customer_base_fee}")
 
         return {
             "type": "external_substitution", "level": str(level),
             "cycle_period": f"{start_date.isoformat()} to {bill_end_date.isoformat()}",
-            "base_work_days": f"{service_days:.2f}", "management_fee_rate": str(management_fee_rate),
-            "customer_base_fee": str(customer_payable), "management_fee": str(management_fee),
-            "employee_base_payout": str(employee_payout), "overtime_days":"0.00",
-            "total_days_worked": f"{service_days:.2f}", "substitute_days":"0.00",
-            "substitute_deduction": "0.00", "extension_fee": str(extension_fee),"customer_overtime_fee": "0.00",
-            "customer_increase": str(cust_increase), "customer_decrease": str(cust_decrease), "discount": "0.00",
-            "employee_overtime_payout": "0.00", "employee_increase": str(emp_increase),"employee_decrease": str(emp_decrease),
+            "base_work_days": f"{service_days:.3f}", "management_fee_rate": str (management_fee_rate),
+            "customer_base_fee": str(customer_base_fee), "management_fee": str (management_fee),
+            "employee_base_payout": str(employee_base_payout), 
+            "overtime_days": f"{overtime_days:.3f}",
+            "total_days_worked": f"{service_days + overtime_days:.3f}", 
+            "substitute_days":"0.00",
+            "substitute_deduction": "0.00", "extension_fee": str(extension_fee),
+            "customer_overtime_fee": str(overtime_fee),
+            "customer_increase": str(cust_increase), "customer_decrease": str (cust_decrease), "discount": "0.00",
+            "employee_overtime_payout": str(overtime_fee),
+            "employee_increase": str(emp_increase),"employee_decrease": str (emp_decrease),
             "deferred_fee": str(deferred_fee), "log_extras": log_extras,
         }
 
@@ -2239,13 +2250,13 @@ class BillingEngine:
             if calc_type == "nanny":
                 employee_daily_rate_formula = f"级别({level:.2f}) / 26"
                 log["基础劳务费"] = (
-                    f"{employee_daily_rate_formula} * 基本劳务天数({base_work_days:.2f}) = {d.get('employee_base_payout', 0):.2f}"
+                    f"{employee_daily_rate_formula} * 基本劳务天数({base_work_days:.3f}) = {d.get('employee_base_payout', 0):.2f}"
                 )
                 log["加班费"] = (
-                    f"{employee_daily_rate_formula} * 加班天数({overtime_days:.2f}) = {d.get('employee_overtime_payout', 0):.2f}"
+                    f"{employee_daily_rate_formula} * 加班天数({overtime_days:.3f}) = {d.get('employee_overtime_payout', 0):.2f}"
                 )
                 log["客户侧加班费"] = (
-                    f"{customer_daily_rate_formula} * 加班天数({overtime_days:.2f}) = {d.get('customer_overtime_fee', 0):.2f}"
+                    f"{customer_daily_rate_formula} * 加班天数({overtime_days:.3f}) = {d.get('customer_overtime_fee', 0):.2f}"
                 )
                 log["本次交管理费"] = log_extras.get("management_fee_reason", "N/A")
                 if "refund_amount" in log_extras:
@@ -2261,11 +2272,11 @@ class BillingEngine:
             else:  # maternity_nurse & nanny_trial
                 employee_daily_rate_formula = customer_daily_rate_formula
                 log["基础劳务费"] = (
-                    f"{customer_daily_rate_formula} * 基本劳务天数({base_work_days:.2f}) = {d.get('customer_base_fee', 0):.2f}"
+                    f"{customer_daily_rate_formula} * 基本劳务天数({base_work_days:.3f}) = {d.get('customer_base_fee', 0):.2f}"
                 )
                 if overtime_days > 0:
                     log["加班费"] = (
-                        f"({log_extras.get('customer_overtime_daily_rate_reason', '客户加班日薪')}) * 加班天数({overtime_days:.2f}) = {d.get('customer_overtime_fee', 0):.2f}"
+                        f"({log_extras.get('customer_overtime_daily_rate_reason', '客户加班日薪')}) * 加班天数({overtime_days:.3f}) = {d.get('customer_overtime_fee', 0):.2f}"
                     )
                 if calc_type == "maternity_nurse":
                     log["管理费"] = log_extras.get("management_fee_reason", "N/A")
@@ -2273,17 +2284,17 @@ class BillingEngine:
                         "management_fee_rate_reason", "N/A"
                     )
                     log["基础劳务费"] = (
-                        f"({log_extras.get('employee_daily_rate_reason', '员工日薪')}) * 基本劳务天数({base_work_days:.2f}) = {d.get('customer_base_fee', 0):.2f}"
+                        f"({log_extras.get('employee_daily_rate_reason', '员工日薪')}) * 基本劳务天数({base_work_days:.3f}) = {d.get('customer_base_fee', 0):.2f}"
                     )
                     log["加班费"] = (
-                        f"({log_extras.get('customer_overtime_daily_rate_reason', '客户加班日薪')}) * 加班天数({overtime_days:.2f}) = {d.get('customer_overtime_fee', 0):.2f}"
+                        f"({log_extras.get('customer_overtime_daily_rate_reason', '客户加班日薪')}) * 加班天数({overtime_days:.3f}) = {d.get('customer_overtime_fee', 0):.2f}"
                     )
                     log["萌嫂保证金(工资)"] = (
-                        f"({log_extras.get('employee_daily_rate_reason', '员工日薪')}) * 基本劳务天数({base_work_days:.2f}) = {d.get('employee_base_payout', 0):.2f}"
+                        f"({log_extras.get('employee_daily_rate_reason', '员工日薪')}) * 基本劳务天数({base_work_days:.3f}) = {d.get('employee_base_payout', 0):.2f}"
                     )
                 if calc_type == "nanny_trial_termination":
                     log["基础劳务费"] = (
-                        f"员工日薪({level:.2f}) * 基本劳务天数({base_work_days:.2f}) = {d.get('customer_base_fee', 0):.2f}"
+                        f"员工日薪({level:.2f}) * 基本劳务天数({base_work_days:.3f}) = {d.get('customer_base_fee', 0):.2f}"
                     )
                     log["管理费"] = log_extras.get("management_fee_reason", "N/A")
                 if calc_type == "nanny_trial" > 0:
@@ -2424,18 +2435,18 @@ class BillingEngine:
         # 合并日志
         log_extras.update({
             "salary_rounding_reason": f"临时月薪({original_daily_rate:.2f}*26 = {provisional_monthly_salary:.2f}) 取整为 {rounded_monthly_salary:.2f}。所有费用基于此计算。",
-            "management_fee_reason": f"取整后月薪({rounded_monthly_salary:.2f})/30天 * {management_fee_rate:.0%} * 试工天数({days}) = {management_fee:.2f}",
-            "employee_payout_reason": f"取整后日薪({final_daily_rate:.4f}) * 试工天数({days}) = {base_fee:.2f}",
-            "overtime_fee_reason": f"取整后日薪({final_daily_rate:.4f}) * 加班天数({overtime_days}) = {overtime_fee:.2f}"
+            "management_fee_reason": f"取整后月薪({rounded_monthly_salary:.2f})/30天 * {management_fee_rate:.0%} * 试工天数({days:.3f}) = {management_fee:.2f}",
+            "employee_payout_reason": f"取整后日薪({final_daily_rate:.4f}) * 试工天数({days:.3f}) = {base_fee:.2f}",
+            "overtime_fee_reason": f"取整后日薪({final_daily_rate:.4f}) * 加班天数({overtime_days:.3f}) = {overtime_fee:.2f}"
         })
-
+        total_days_worked = days + overtime_days
         details = {
             "type": "nanny_trial_termination",
             "level": str(level),
             "cycle_period": f"{contract.start_date.isoformat()} to {contract.end_date.isoformat()}",
-            "base_work_days": str(days),
-            "overtime_days": str(overtime_days),
-            "total_days_worked": str(days + overtime_days),
+            "base_work_days": f"{days:.3f}",
+            "overtime_days": f"{overtime_days:.3f}",
+            "total_days_worked": f"{total_days_worked:.3f}",
             "daily_rate": str(final_daily_rate.quantize(QUANTIZER)),
             "customer_base_fee": str(base_fee),
             "employee_base_payout": str(base_fee),
