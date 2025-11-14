@@ -694,12 +694,32 @@ class BillingEngine:
 
         start_year, start_month = contract.start_date.year, contract.start_date.month
         end_year, end_month = contract_end_date.year, contract_end_date.month
-        
+
+        # --- NEW LOGIC START ---
+        # 默认的账单开始日期是合同的开始日期
+        calculated_cycle_start = self._to_date(contract.start_date)
+
+        # 只有在处理合同的第一个月时才需要检查重叠
+        if year == start_year and month == start_month:
+            if contract.previous_contract_id:
+                # 尝试从数据库获取前任合同。使用 BaseContract 以确保兼容所有合同类型。
+                previous_contract = db.session.get(BaseContract, contract.previous_contract_id)
+                # 检查前任合同是否存在，并且其结束日期与当前合同的开始日期重叠
+                if previous_contract and self._to_date(previous_contract.end_date) == self._to_date(contract.start_date):
+                    # 发现重叠场景，将第一个账单的开始日期调整为合同开始日期的后一天
+                    calculated_cycle_start = self._to_date(contract.start_date) + timedelta(days=1)
+                    current_app.logger.info(f"[BILLING_OVERLAP_FIX] 合同 {contract.id} (开始: {contract.start_date}) 是前任合同 {previous_contract.id} (结束: {previous_contract.end_date}) 的后继。已将第一个账单周期开始日期调整为 {calculated_cycle_start}。")
+            
+            # 如果调整后的开始日期超出了目标月份的最后一天，则本月不生成账单
+            if calculated_cycle_start > last_day_of_target_month:
+                current_app.logger.info(f"[BILLING_OVERLAP_FIX] 调整后的账单开始日期 {calculated_cycle_start} 超出目标月份 {year}-{month}，跳过本月账单生成。")
+                return None, None
+        # --- NEW LOGIC END ---
 
         if year == start_year and month == start_month:
             if start_year == end_year and start_month == end_month:
-                # current_app.logger.info(f"====111====contract.start_date.{contract.start_date},contract_end_date{contract_end_date}")
-                return contract.start_date, contract_end_date
+                # 使用可能已调整的 calculated_cycle_start
+                return calculated_cycle_start, contract_end_date
             else:
                 _, num_days_in_start_month = calendar.monthrange(
                     start_year, start_month
@@ -707,8 +727,8 @@ class BillingEngine:
                 last_day_of_start_month = date(
                     start_year, start_month, num_days_in_start_month
                 )
-                # current_app.logger.info(f"====222====contract.start_date.{contract.start_date},last_day_of_start_month{last_day_of_start_month}")
-                return contract.start_date, last_day_of_start_month
+                # 使用可能已调整的 calculated_cycle_start
+                return calculated_cycle_start, last_day_of_start_month
 
         if year == end_year and month == end_month:
             if not (start_year == end_year and start_month == end_month):
@@ -863,8 +883,13 @@ class BillingEngine:
         cycle_actual_days = (cycle_end - cycle_start).days
         if is_last_bill:  # 育儿嫂最后一个月账单天数 +1
             cycle_actual_days += 1
-        is_first_bill = cycle_start == contract_start_date
-        if is_first_bill:  # 育儿嫂最后一个月账单天数 +1
+        # 【核心修复】更健壮地判断是否为合同的首月账单
+        is_first_bill_of_contract = not db.session.query(CustomerBill.id).filter(
+            CustomerBill.contract_id == contract.id,
+            CustomerBill.cycle_start_date < bill.cycle_start_date,
+            CustomerBill.is_substitute_bill == False
+        ).first()
+        if is_first_bill_of_contract:  # 育儿嫂第一个月账单天数 +1
             cycle_actual_days = (cycle_end - cycle_start).days
         
         # --- NEW LOGIC for actual_work_days ---
@@ -947,7 +972,7 @@ class BillingEngine:
         
         if contract.is_monthly_auto_renew:
             # 月签合同逻辑 (保持不变)
-            if is_first_bill and cycle_start.day != 1:
+            if is_first_bill_of_contract and cycle_start.day != 1:
                 current_month_contract_days = (cycle_end - cycle_start).days
                 management_days = D(min(current_month_contract_days + 1, 30))
                 management_fee = (management_fee_daily_rate * management_days).quantize(
@@ -979,7 +1004,7 @@ class BillingEngine:
         else:
             # --- 非月签合同逻辑 ---
             current_app.logger.info("进入非月签合同逻辑")
-            if is_first_bill:
+            if is_first_bill_of_contract:
                 monthly_management_fee = management_fee_amount if management_fee_amount > 0 else(level * D("0.1"))
                 current_app.logger.info(f"contract_start_date.day: {contract_start_date.day},contract_end_date.day:{contract_end_date.day}")
                 # --- V2 优化：定义更通用的“整月”规则 ---
@@ -1093,7 +1118,12 @@ class BillingEngine:
             
         # --- 【新逻辑】员工首月10%服务费 ---
         first_month_deduction = D(0)
-        is_first_bill_of_contract = cycle_start == contract_start_date
+        # is_first_bill_of_contract = cycle_start == contract_start_date
+        is_first_bill_of_contract = not db.session.query(CustomerBill.id).filter(
+            CustomerBill.contract_id == contract.id,
+            CustomerBill.cycle_start_date < bill.cycle_start_date,
+            CustomerBill.is_substitute_bill == False
+        ).first()
         current_app.logger.info("开始检查首月10%返佣逻辑")
 
         if is_first_bill_of_contract and not (isinstance(contract, NannyTrialContract) and contract.trial_outcome == TrialOutcome.SUCCESS):
@@ -1530,10 +1560,15 @@ class BillingEngine:
         # 【关键修复】统一使用纯 date 对象进行比较
         contract_start_date = self._to_date(contract.actual_onboarding_date or contract.start_date)
         bill_cycle_start_date = self._to_date(bill.cycle_start_date)
-        is_first_bill = bill_cycle_start_date == contract_start_date
-        current_app.logger.info(f"[DEPOSIT-HANDLER-V2] is_first_bill: {is_first_bill} (bill_cycle_start: {bill_cycle_start_date}, contract_start: {contract_start_date})")
+        is_first_bill_of_contract = not db.session.query(CustomerBill.id).filter(
+            CustomerBill.contract_id == contract.id,
+            CustomerBill.cycle_start_date < bill.cycle_start_date,
+            CustomerBill.is_substitute_bill == False
+        ).first()
+        # is_first_bill = bill_cycle_start_date == contract_start_date
+        current_app.logger.info(f"[DEPOSIT-HANDLER-V2] is_first_bill_of_contract: {is_first_bill_of_contract} (bill_cycle_start: {bill_cycle_start_date}, contract_start: {contract_start_date})")
 
-        if is_first_bill:
+        if is_first_bill_of_contract:
             # --- 这是首期账单，应该有“保证金”收款项 ---
             deposit_amount_due = contract.security_deposit_paid
             existing_deposit = FinancialAdjustment.query.filter(
@@ -1606,9 +1641,14 @@ class BillingEngine:
         # 介绍费只在第一个账单周期收取
         contract_start_date = self._to_date(contract.actual_onboarding_date or contract.start_date)
         bill_cycle_start_date = self._to_date(bill.cycle_start_date)
-        is_first_bill = bill_cycle_start_date == contract_start_date
+        # is_first_bill = bill_cycle_start_date == contract_start_date
+        is_first_bill_of_contract = not db.session.query(CustomerBill.id).filter(
+            CustomerBill.contract_id == contract.id,
+            CustomerBill.cycle_start_date < bill.cycle_start_date,
+            CustomerBill.is_substitute_bill == False
+        ).first()
 
-        if is_first_bill:
+        if is_first_bill_of_contract:
             # --- 核心修复：使用 like 查询，避免在转移后重复创建 ---
             # 检查是否存在任何以“[系统添加] 介绍费”开头的调整项
             existing_adj = FinancialAdjustment.query.filter(
