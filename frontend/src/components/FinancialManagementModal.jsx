@@ -1009,7 +1009,7 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
                                     );
                                 }
 
-                                if (isEditMode && isNannyContract && isBaseWorkDaysField) {
+                                if (isEditMode && isBaseWorkDaysField) {
                                     return (
                                         <React.Fragment key="base_work_days_edit">
                                             <Grid item xs={5} sx={{ display: 'flex', alignItems: 'center' }}>

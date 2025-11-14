@@ -136,7 +136,7 @@ const ContractList = () => {
                     params.is_monthly_auto_renew = monthlyRenewFilter;
                 }
             }
-            console.log('即将发送到后端的API参数:', params); 
+            // console.log('即将发送到后端的API参数:', params); 
             const response = await api.get('/contracts', { params });
             setContracts(response.data.contracts || []);
             setTotalContracts(response.data.total || 0);

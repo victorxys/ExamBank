@@ -3134,19 +3134,23 @@ class SubstituteRecord(db.Model):
 
 class ContractTemplate(db.Model):
     __tablename__ = "contract_templates"
-    __table_args__ = {"comment": "合同模板表，存储制式合同模板"}
+    __table_args__ = (
+        db.UniqueConstraint('template_name', 'version', name='uq_contract_template_name_version'),
+        {"comment": "合同模板表，存储制式合同模板"}
+    )
 
     id = db.Column(
         PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, comment="主键, UUID"
     )
     template_name = db.Column(
-        db.String(255), nullable=False, unique=True, index=True, comment="模板名称 (唯一)"
+        db.String(255), nullable=False, index=True, comment="模板名称"
     )
     contract_type = db.Column(
         db.String(50), nullable=False, index=True, comment="关联的合同类型，用于鉴别"
     )
     content = db.Column(db.Text, nullable=False, comment="合同模板内容 (Markdown 格式)")
     version = db.Column(db.Integer, nullable=False, default=1, comment="模板版本号")
+    remark = db.Column(db.Text, nullable=True, comment="模板备注")
     created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
     updated_at = db.Column(
         db.DateTime(timezone=True), server_default=func.now(), onupdate=func.now()

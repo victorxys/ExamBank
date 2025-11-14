@@ -325,7 +325,7 @@ class BillingEngine:
 
             if contract.type == "maternity_nurse":
                 self._calculate_maternity_nurse_bill_for_month(
-                    contract, year, month, force_recalculate, cycle_start_date_override
+                    contract, year, month, force_recalculate, cycle_start_date_override, actual_work_days_override=actual_work_days_override
                 )
             elif contract.type == "nanny":
                 self._calculate_nanny_bill_for_month(
@@ -333,7 +333,7 @@ class BillingEngine:
                 )
             elif contract.type == "nanny_trial":
                 self._calculate_nanny_trial_bill(
-                    contract, year, month, force_recalculate
+                    contract, year, month, force_recalculate, actual_work_days_override=actual_work_days_override
                 )
             elif contract.type == "formal":
                 self._calculate_formal_contract_bill_for_month(
@@ -450,7 +450,7 @@ class BillingEngine:
 
 
 
-    def _calculate_nanny_trial_bill(self, contract, year, month, force_recalculate=False):
+    def _calculate_nanny_trial_bill(self, contract, year, month, force_recalculate=False, actual_work_days_override=None):
         """为育儿嫂试工合同计算账单和薪酬 (V2 - 纯计算)"""
         current_app.logger.info(f"  [TrialCALC_V2] 开始处理试工合同 {contract.id} for {year}-{month}")
 
@@ -469,7 +469,7 @@ class BillingEngine:
 
         # 2. 核心计算逻辑
         trial_days = (self._to_date(cycle_end) - self._to_date(cycle_start)).days
-        details = self._calculate_nanny_trial_termination_details(contract, trial_days, bill,payroll)
+        details = self._calculate_nanny_trial_termination_details(contract, trial_days, bill,payroll, actual_work_days_override=actual_work_days_override)
 
         # 3. 更新最终金额
         bill, payroll = self._calculate_final_amounts(bill, payroll, details)
@@ -1199,7 +1199,8 @@ class BillingEngine:
         year: int,
         month: int,
         force_recalculate=False,
-        cycle_start_date_override=None
+        cycle_start_date_override=None,
+        actual_work_days_override=None
     ):
         current_app.logger.info(
             f"=====[MN CALC] 开始处理月嫂合同 {contract.id} for {year}-{month}"
@@ -1228,7 +1229,7 @@ class BillingEngine:
                     is_substitute_bill=False,
                 ).first()
                 if bill_to_recalculate:
-                     current_app.logger.info(f"[MN CALC] 强制重算，通过cycle_start_date_override找到了精确账单 {bill_to_recalculate.id}。")
+                    current_app.logger.info(f"[MN CALC] 强制重算，通过cycle_start_date_override找到了精确账单 {bill_to_recalculate.id}。")
 
             # 如果没有精确日期，则回退到旧的、可能不准确的按月查找
             if not bill_to_recalculate:
@@ -1252,6 +1253,7 @@ class BillingEngine:
                     year,
                     month,
                     force_recalculate=True,
+                    actual_work_days_override=actual_work_days_override
                 )
                 return
             else:
@@ -1274,7 +1276,7 @@ class BillingEngine:
                     f"    [MN CALC] 找到一个归属于 {year}-{month} 的结算周期: {cycle_start} to {cycle_end}"
                 )
                 self._process_one_billing_cycle(
-                    contract, cycle_start, cycle_end, year, month, force_recalculate
+                    contract, cycle_start, cycle_end, year, month, force_recalculate, actual_work_days_override=actual_work_days_override
                 )
 
             if cycle_end >= contract_end:
@@ -1292,6 +1294,7 @@ class BillingEngine:
         year: int,
         month: int,
         force_recalculate=False,
+        actual_work_days_override=None
     ):
         current_app.logger.info(
             f"      [CYCLE PROC] 开始处理周期 {cycle_start_date} to {cycle_end_date} for settlement month {year}-{month}"
@@ -1335,13 +1338,13 @@ class BillingEngine:
             current_app.logger.info(
                 f"      [CYCLE PROC] No existing bill found or not forcing recalculation. Using derived dates: {actual_cycle_start_date} to {actual_cycle_end_date}"
             )
-        details = self._calculate_maternity_nurse_details(contract, bill, payroll)
+        details = self._calculate_maternity_nurse_details(contract, bill, payroll, actual_work_days_override=actual_work_days_override)
         
         bill, payroll = self._calculate_final_amounts(bill, payroll, details)
         current_app.logger.info(
             f"      [CYCLE PROC] 计算月嫂合同bill.total_due  {bill.total_due } 的财务细节完成。"
         )
-    
+
         log = self._create_calculation_log(details)
         self._update_bill_with_log(bill, payroll, details, log)
         _update_bill_payment_status(bill)
@@ -1354,9 +1357,10 @@ class BillingEngine:
         contract: MaternityNurseContract,
         bill: CustomerBill,
         payroll: EmployeePayroll,
+        actual_work_days_override=None
     ):
 
-       
+    
         self._attach_pending_adjustments(contract, bill)
         """计算月嫂合同的所有财务细节（已二次修正）。"""
         QUANTIZER = D("0.01")
@@ -1367,7 +1371,7 @@ class BillingEngine:
         security_deposit = D(contract.security_deposit_paid or 0)
         log_extras = {}
 
-         # 【关键修复】统一使用纯 date 对象
+        # 【关键修复】统一使用纯 date 对象
         cycle_start = self._to_date(bill.cycle_start_date)
         cycle_end = self._to_date(bill.cycle_end_date)
         authoritative_end_date = self._to_date(contract.expected_offboarding_date or contract.end_date)
@@ -1376,7 +1380,21 @@ class BillingEngine:
         # 打印从考勤记录中获取的原始数据
         overtime_days = D(attendance.overtime_days)
         actual_cycle_days = (cycle_end - cycle_start).days
-        base_work_days = D(min(actual_cycle_days, 26))
+        
+        # --- NEW LOGIC for actual_work_days ---
+        if actual_work_days_override is not None:
+            base_work_days = D(actual_work_days_override)
+            log_extras["base_work_days_reason"] = f"使用用户传入的实际劳务天数 ( {actual_work_days_override:.3f})"
+            bill.actual_work_days = actual_work_days_override
+            payroll.actual_work_days = actual_work_days_override
+        elif bill.actual_work_days and bill.actual_work_days > 0:
+            base_work_days = D(bill.actual_work_days)
+            log_extras["base_work_days_reason"] = f"使用数据库中已存的实际劳务天数 ( {bill.actual_work_days})"
+        else:
+            base_work_days = D(min(actual_cycle_days, 26))
+            log_extras["base_work_days_reason"] = f"默认逻辑: min(周期天数( {actual_cycle_days}), 26)"
+        # --- END NEW LOGIC ---
+
         total_days_worked = base_work_days + overtime_days
         
 
@@ -1390,7 +1408,7 @@ class BillingEngine:
         else:
             management_fee_rate = D(0)
         log_extras["management_fee_reason"] = (
-            f"客交保证金({customer_deposit:.2f}) - 级别({level:.2f}) / 26 * 劳务天数({base_work_days}) = {management_fee:.2f}"
+            f"客交保证金({customer_deposit:.2f}) - 级别({level:.2f}) / 26 * 劳务天数( {base_work_days}) = {management_fee:.2f}"
         )
         log_extras["management_fee_rate_reason"] = (
             f"管理费({management_fee:.2f}) / 客交保证金({customer_deposit:.2f}) = {management_fee_rate * 100:.2f}%"
@@ -1458,7 +1476,7 @@ class BillingEngine:
             if extension_days > 0:
                 daily_rate = level / D(26)
                 extension_fee = (daily_rate *D(extension_days)).quantize(QUANTIZER)
-                log_extras["extension_days_reason"] = f"原合同于 {authoritative_end_date.strftime('%m月%d日')} 结束，手动延长至{bill.cycle_end_date.strftime('%m月%d日')}，共 {extension_days} 天。"
+                log_extras["extension_days_reason"] = f"原合同于 {authoritative_end_date.strftime('%m月%d日')} 结束，手动延长至 {bill.cycle_end_date.strftime('%m月%d日')}，共 {extension_days} 天。"
                 log_extras["extension_fee_reason"] = f"延期劳务费: 级别({level:.2f})/26 * 延长天数({extension_days}) = {extension_fee:.2f}"
         # --- 新增结束 ---
 
@@ -2361,11 +2379,21 @@ class BillingEngine:
 
         return bill, payroll
 
-    def _calculate_nanny_trial_termination_details(self, contract,actual_trial_days, bill, payroll):
+    def _calculate_nanny_trial_termination_details(self, contract,actual_trial_days, bill, payroll, actual_work_days_override=None):
         """为试工失败结算生成详细的计算字典 (v17 - 月薪取整逻辑)。"""
         QUANTIZER = D("0.01")
         level = D(contract.employee_level or 0) # level 在试工合同中代表日薪
-        days = D(actual_trial_days)
+        
+        log_extras = {}
+        if actual_work_days_override is not None:
+            days = D(actual_work_days_override)
+            log_extras["base_work_days_reason"] = f"使用用户传入的实际劳务天数 ({actual_work_days_override:.3f})"
+            bill.actual_work_days = actual_work_days_override
+            payroll.actual_work_days = actual_work_days_override
+        else:
+            days = D(actual_trial_days)
+            log_extras["base_work_days_reason"] = f"默认逻辑: 合同周期天数({actual_trial_days})"
+
 
         # 核心修正：应用新的月薪取整规则
         original_daily_rate = level.quantize(QUANTIZER)
@@ -2393,6 +2421,14 @@ class BillingEngine:
             self._get_adjustments(bill.id, payroll.id)
         )
         
+        # 合并日志
+        log_extras.update({
+            "salary_rounding_reason": f"临时月薪({original_daily_rate:.2f}*26 = {provisional_monthly_salary:.2f}) 取整为 {rounded_monthly_salary:.2f}。所有费用基于此计算。",
+            "management_fee_reason": f"取整后月薪({rounded_monthly_salary:.2f})/30天 * {management_fee_rate:.0%} * 试工天数({days}) = {management_fee:.2f}",
+            "employee_payout_reason": f"取整后日薪({final_daily_rate:.4f}) * 试工天数({days}) = {base_fee:.2f}",
+            "overtime_fee_reason": f"取整后日薪({final_daily_rate:.4f}) * 加班天数({overtime_days}) = {overtime_fee:.2f}"
+        })
+
         details = {
             "type": "nanny_trial_termination",
             "level": str(level),
@@ -2416,12 +2452,7 @@ class BillingEngine:
             "first_month_deduction": "0.00",
             "discount": "0.00",
             "substitute_deduction": "0.00",
-            "log_extras": {
-                "salary_rounding_reason": f"临时月薪({original_daily_rate:.2f}*26 = {provisional_monthly_salary:.2f}) 取整为 {rounded_monthly_salary:.2f}。所有费用基于此计算。",
-                "management_fee_reason": f"取整后月薪({rounded_monthly_salary:.2f})/30天 * {management_fee_rate:.0%} * 试工天数({days}) = {management_fee:.2f}",
-                "employee_payout_reason": f"取整后日薪({final_daily_rate:.4f}) * 试工天数({days}) = {base_fee:.2f}",
-                "overtime_fee_reason": f"取整后日薪({final_daily_rate:.4f}) * 加班天数({overtime_days}) = {overtime_fee:.2f}"
-            },
+            "log_extras": log_extras,
         }
         return details
     
@@ -2779,15 +2810,25 @@ class BillingEngine:
                 adjustment_was_changed = True
 
         if adjustment_was_changed:
-            current_app.logger.info(f"[FinalAdj] 公司代付工资调整项已变更，为账单 {bill.id} 触发重算。")
+            current_app.logger.info(f"[FinalAdj] 公司代付工资调整项已变更，为账单 {bill.id } 触发重算。")
             db.session.flush()
-            details = self._calculate_nanny_details(contract, bill, payroll, bill.actual_work_days)
-            final_bill, final_payroll = self._calculate_final_amounts(bill, payroll, details)
-            log = self._create_calculation_log(details)
-            self._update_bill_with_log(final_bill, final_payroll, details, log)
-            current_app.logger.info(f"[FinalAdj] 账单 {bill.id} 重算完成。")
-        else:
-            current_app.logger.info(f"[FinalAdj] 调整项无需变更 for bill {bill.id} 。函数执行完毕。")
+
+            details = {}
+            if contract.type == 'nanny_trial':
+                trial_days = (self._to_date(contract.end_date) - self ._to_date(contract.start_date)).days
+                details = self._calculate_nanny_trial_termination_details(contract, trial_days, bill, payroll, bill.actual_work_days)
+            elif contract.type == 'nanny':
+                details = self._calculate_nanny_details(contract, bill, payroll, bill.actual_work_days)
+            else:
+                current_app.logger.error(f"[FinalAdj] Recalculation for contract type ' {contract.type}' is not implemented.")
+
+            if details:
+                final_bill, final_payroll = self._calculate_final_amounts(bill, payroll, details)
+                log = self._create_calculation_log(details)
+                self._update_bill_with_log(final_bill, final_payroll, details, log)
+                current_app.logger.info(f"[FinalAdj] 账单 {bill.id} 重算完成。")
+            else:
+                 current_app.logger.warning(f"[FinalAdj] Details for bill {bill.id} could not be calculated, skipping finalization.")
 
     def _mirror_company_paid_salary_adjustment(self, company_adj: FinancialAdjustment, payroll:EmployeePayroll):
         """

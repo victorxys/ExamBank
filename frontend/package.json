@@ -34,6 +34,7 @@
     "pinyin-pro": "^3.26.0",
     "react": "^18.2.0",
     "react-apexcharts": "^1.7.0",
+    "react-diff-viewer-continued": "^3.4.0",
     "react-dom": "^18.2.0",
     "react-dropzone": "^14.3.8",
     "react-intersection-observer": "^10.0.0",
