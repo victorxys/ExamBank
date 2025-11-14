@@ -216,9 +216,17 @@ const PublicSigningPage = () => {
                     <Typography><strong>丙方管理费:</strong> {contract.management_fee_amount?. toFixed(2)} 元/月</Typography>
                 </Grid>
                 )}
-                <Grid item xs={12}>
-                    <Typography><strong>介绍费:</strong> {contract.introduction_fee?.toFixed(2)} 元</Typography>
-                </Grid>
+                {contract.contract_type_value === 'nanny_trial' ? (
+                    <Grid item xs={12}>
+                        <Typography><strong>介绍费:</strong> {(contract.introduction_fee || 0)?.toFixed(2)} 元</Typography>
+                    </Grid>
+                ) : (
+                    contract.introduction_fee > 0 && (
+                        <Grid item xs={12}>
+                            <Typography><strong>介绍费:</strong> {contract.introduction_fee?.toFixed(2)} 元</Typography>
+                        </Grid>
+                    )
+                )}
                 <Grid item xs={12}>
                      <Typography sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
                         <strong>合同开始时间:</strong>&nbsp;{new Date(contract.start_date). toLocaleDateString()}
