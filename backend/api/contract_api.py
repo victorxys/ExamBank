@@ -1559,7 +1559,6 @@ def renew_contract_api(contract_id):
             current_app.logger.info(f"为合同 {renewed_contract.id} 触发首次自动续签检查...")
             engine.extend_auto_renew_bills(renewed_contract.id)
             current_app.logger.info(f"合同 {renewed_contract.id} 的首次自动续签检查完成。")
-
         # 3. 所有操作成功后，执行唯一一次提交
         db.session.commit()
         current_app.logger.info(f"已为合同 {renewed_contract.id} 的续约及账单生成操作提交数据库事务。")
@@ -1572,6 +1571,45 @@ def renew_contract_api(contract_id):
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"续约合同 {contract_id} 失败: {e}", exc_info=True)
+        return jsonify({"error": "内部服务器错误"}), 500
+
+@contract_bp.route("/<uuid:contract_id>/extend", methods=["PATCH"])
+@jwt_required()
+def extend_contract_api(contract_id):
+    """
+    延长合同的结束日期
+    """
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "请求体不能为空"}), 400
+
+    if "new_end_date" not in data:
+        return jsonify({"error": "缺少必填字段: new_end_date"}), 400
+
+    try:
+        from datetime import datetime
+        new_end_date = datetime.fromisoformat(data["new_end_date"]).date()
+        
+        contract_service = ContractService()
+        contract, bills_count, new_bills = contract_service.extend_contract(str(contract_id), new_end_date)
+        
+        # 提交事务
+        db.session.commit()
+        current_app.logger.info(f"已为合同 {contract_id} 的延长操作提交数据库事务。")
+        
+        return jsonify({
+            "message": "合同延长成功",
+            "contract_id": str(contract.id),
+            "new_end_date": contract.end_date.isoformat(),
+            "bills_count": bills_count
+        }), 200
+
+    except ValueError as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"延长合同 {contract_id} 失败: {e}", exc_info=True)
         return jsonify({"error": "内部服务器错误"}), 500
 
 @contract_bp.route("/<uuid:contract_id>/change", methods=["POST"])
