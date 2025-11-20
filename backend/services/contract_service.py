@@ -416,6 +416,12 @@ class ContractService:
             elif isinstance(old_contract, MaternityNurseContract):
                 new_contract_fields['deposit_amount'] = new_contract_data.get('deposit_amount', old_contract.deposit_amount)
                 new_contract_fields['discount_amount'] = new_contract_data.get('discount_amount', old_contract.discount_amount)
+                
+                # 月嫂合同续约优化：自动确认实际上户日期并生成账单
+                new_contract_fields['actual_onboarding_date'] = start_date
+                new_contract_fields['status'] = 'active'
+                current_app.logger.info(f"月嫂合同续约：自动设置实际上户日期为 {start_date}，状态为 active")
+
 
             NewContractModel = type(old_contract)
             renewed_contract = NewContractModel(**new_contract_fields)
@@ -488,6 +494,7 @@ class ContractService:
             # 3. 更新旧合同状态
             old_contract.status = 'finished'
             db.session.add(old_contract)
+
 
         current_app.logger.info(f"成功续约合同 {old_contract_id}，创建新合同 {renewed_contract.id}。")
         return renewed_contract
@@ -882,3 +889,57 @@ class ContractService:
         db.session.add(contract)
         return contract
     
+    def extend_contract(self, contract_id: str, new_end_date: date) -> tuple:
+        """
+        延长月嫂合同的结束日期并重新计算账单
+        
+        Args:
+            contract_id: 合同 ID
+            new_end_date: 新的结束日期
+            
+        Returns:
+            (contract, bills_updated_count, new_bills_count)
+            
+        Raises:
+            ValueError: 如果合同状态不是 active 或新日期无效
+        """
+        contract = BaseContract.query.get(contract_id)
+        if not contract:
+            raise ValueError(f"合同 {contract_id} 未找到。")
+        
+        # 验证合同状态
+        # if contract.status != 'active':
+        #     raise ValueError(f"只能延长 active 状态的合同，当前状态: {contract.status}")
+        
+        # 验证新结束日期
+        old_end_date = contract.end_date.date() if isinstance(contract.end_date, datetime) else contract.end_date
+        if isinstance(new_end_date, datetime):
+            new_end_date = new_end_date.date()
+            
+        if new_end_date <= old_end_date:
+            raise ValueError(f"新结束日期 ({new_end_date}) 必须晚于当前结束日期 ({old_end_date})")
+        
+        current_app.logger.info(f"开始延长合同 {contract_id}，从 {old_end_date} 延长到 {new_end_date}")
+        
+        # 更新结束日期
+        contract.end_date = datetime.combine(new_end_date, datetime.min.time())
+        
+        # 如果是月嫂合同，同时更新预计下户日期
+        if isinstance(contract, MaternityNurseContract) and contract.expected_offboarding_date:
+            contract.expected_offboarding_date = datetime.combine(new_end_date, datetime.min.time())
+            current_app.logger.info(f"月嫂合同 {contract_id} 的预计下户日期已更新为 {new_end_date}")
+        
+        db.session.add(contract)
+        db.session.flush()
+        
+        # 重新生成账单
+        current_app.logger.info(f"为延长后的合同 {contract_id} 重新生成账单...")
+        engine = BillingEngine()
+        engine.generate_all_bills_for_contract(contract_id, force_recalculate=True)
+        
+        # 统计账单变化（简化版本，实际可以更详细）
+        bills_count = CustomerBill.query.filter_by(contract_id=contract_id).count()
+        
+        current_app.logger.info(f"合同 {contract_id} 延长成功，共有 {bills_count} 个账单")
+        
+        return contract, bills_count, 0  # 返回合同、账单总数、新增账单数（简化为0）

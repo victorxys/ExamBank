@@ -1448,6 +1448,7 @@ class BillingEngine:
 
         # 在这里处理保证金，然后再获取调整项
         self._handle_security_deposit(contract, bill)
+        db.session.flush()  # 【关键修复】确保保证金等调整项对后续查询可见,与育儿嫂合同保持一致
         cust_increase, cust_decrease, emp_increase, emp_decrease, deferred_fee, emp_commission = (
             self._get_adjustments(bill.id, payroll.id)
         )
