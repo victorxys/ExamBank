@@ -179,6 +179,10 @@ const ContractDetail = () => {
     const [signingMessage, setSigningMessage] = useState('');
     const [signingModalTitle, setSigningModalTitle] = useState('');
 
+    // State for editing signature requirement
+    const [isEditingSignature, setIsEditingSignature] = useState(false);
+    const [requiresSignature, setRequiresSignature] = useState(null);
+
     const [isRenewModalOpen, setIsRenewModalOpen] = useState(false);
     const [renewalData, setRenewalData] = useState({
         start_date: null,
@@ -246,6 +250,9 @@ const ContractDetail = () => {
                 setOriginalNotes(notes);
                 setOperationalNotes('');
             }
+
+            // Initialize signature requirement state
+            setRequiresSignature(contractRes.data.requires_signature);
         } catch (error) {
             setAlert({ open: true, message: `获取数据失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
         } finally {
@@ -989,6 +996,29 @@ const ContractDetail = () => {
         }
     };
 
+    const handleSaveSignatureRequirement = async () => {
+        try {
+            console.log('DEBUG - Saving signature requirement:', {
+                contract_id: contract.id,
+                requires_signature: requiresSignature,
+                url: `/billing/contracts/${contract.id}`
+            });
+
+            const response = await api.put(`/billing/contracts/${contract.id}`, {
+                requires_signature: requiresSignature,
+            });
+
+            console.log('DEBUG - Save response:', response.data);
+
+            setAlert({ open: true, message: '签署需求更新成功！', severity: 'success' });
+            setIsEditingSignature(false);
+            fetchData();
+        } catch (error) {
+            console.error('DEBUG - Save error:', error);
+            setAlert({ open: true, message: `操作失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
+        }
+    };
+
     const handleAutoRenewChange = async (event) => {
         const isEnabling = event.target.checked;
 
@@ -1261,6 +1291,47 @@ const ContractDetail = () => {
             onChange={(e) => setOperationalNotes(e.target.value)}
         />
     );
+
+    // 是否需要签署字段
+    const signatureRequirementField = (
+        <Grid item xs={12} sm={6} md={4}>
+            <Typography variant="body2" color="text.secondary" gutterBottom>是否需要签署</Typography>
+            {isEditingSignature ? (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <FormControlLabel
+                        control={
+                            <Switch
+                                checked={requiresSignature === true}
+                                onChange={(e) => setRequiresSignature(e.target.checked)}
+                            />
+                        }
+                        label={requiresSignature ? "需要签署" : "无需签署"}
+                    />
+                    <IconButton size="small" color="primary" onClick={handleSaveSignatureRequirement}>
+                        <CheckCircleIcon />
+                    </IconButton>
+                    <IconButton size="small" color="error" onClick={() => {
+                        setIsEditingSignature(false);
+                        setRequiresSignature(contract.requires_signature);
+                    }}>
+                        <CancelIcon />
+                    </IconButton>
+                </Box>
+            ) : (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Chip
+                        label={requiresSignature === true ? "需要签署" : requiresSignature === false ? "无需签署" : "未设置"}
+                        color={requiresSignature === true ? "primary" : requiresSignature === false ? "default" : "warning"}
+                        size="small"
+                    />
+                    <IconButton size="small" onClick={() => setIsEditingSignature(true)}>
+                        <EditIcon fontSize="small" />
+                    </IconButton>
+                </Box>
+            )}
+        </Grid>
+    );
+
     const sourceContractField = contract.source_trial_contract_id ? (
         <Grid item xs={12} sm={6} md={4}>
             <Typography variant="body2" color="text.secondary" gutterBottom>合同来源</Typography>
@@ -1412,6 +1483,7 @@ const ContractDetail = () => {
                                 {managementRateField}
                                 {introFeeField}
                                 {attachmentContentField}
+                                {signatureRequirementField}
                                 {notesField}
                                 {/* {transferredToBillField} */}
                             </Grid>
