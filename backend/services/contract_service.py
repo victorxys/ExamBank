@@ -416,6 +416,12 @@ class ContractService:
             elif isinstance(old_contract, MaternityNurseContract):
                 new_contract_fields['deposit_amount'] = new_contract_data.get('deposit_amount', old_contract.deposit_amount)
                 new_contract_fields['discount_amount'] = new_contract_data.get('discount_amount', old_contract.discount_amount)
+                
+                # 月嫂合同续约优化：自动确认实际上户日期并生成账单
+                new_contract_fields['actual_onboarding_date'] = start_date
+                new_contract_fields['status'] = 'active'
+                current_app.logger.info(f"月嫂合同续约：自动设置实际上户日期为 {start_date}，状态为 active")
+
 
             NewContractModel = type(old_contract)
             renewed_contract = NewContractModel(**new_contract_fields)
@@ -488,6 +494,7 @@ class ContractService:
             # 3. 更新旧合同状态
             old_contract.status = 'finished'
             db.session.add(old_contract)
+
 
         current_app.logger.info(f"成功续约合同 {old_contract_id}，创建新合同 {renewed_contract.id}。")
         return renewed_contract

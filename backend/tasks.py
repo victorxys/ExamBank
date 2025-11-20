@@ -2850,6 +2850,14 @@ def trigger_initial_bill_generation_task(contract_id):
                     logger.info(f"为合同 {contract.id} 触发首次自动续签检查...")
                     engine.extend_auto_renew_bills(contract.id)
                     logger.info(f"合同 {contract.id} 的首次自动续签检查完成。")
+            elif isinstance(contract, MaternityNurseContract) and contract.actual_onboarding_date:
+                # 月嫂合同：只有在确认了实际上户日期后才生成账单
+                from backend.services.billing_engine import BillingEngine
+                engine = BillingEngine()
+
+                logger.info(f"为月嫂合同 {contract.id} (已确认上户日期: {contract.actual_onboarding_date}) 生成初始账单...")
+                engine.generate_all_bills_for_contract(contract.id, force_recalculate=True)
+                logger.info(f"月嫂合同 {contract.id} 的初始账单已生成。")
             else:
                 logger.info(f"合同 {contract.id} 类型为 {contract.type} ，无需在此处自动生成账单。")
 

@@ -1540,9 +1540,20 @@ def renew_contract_api(contract_id):
 
         # 2. 在同一事务中，同步生成初始账单并处理自动续约
         engine = BillingEngine()
-        current_app.logger.info(f"为新激活的合同 {renewed_contract.id} (类型: {renewed_contract.type}) 同步生成初始账单...")
-        engine.generate_all_bills_for_contract(renewed_contract.id, force_recalculate=True)
-        current_app.logger.info(f"合同 {renewed_contract.id} 的初始账单已生成。")
+        
+        # 月嫂合同续约优化：自动确认上户日期后生成账单
+        if isinstance(renewed_contract, MaternityNurseContract):
+            if renewed_contract.actual_onboarding_date:
+                current_app.logger.info(f"为月嫂续约合同 {renewed_contract.id} (已确认上户日期: {renewed_contract.actual_onboarding_date}) 同步生成初始账单...")
+                engine.generate_all_bills_for_contract(renewed_contract.id, force_recalculate=True)
+                current_app.logger.info(f"月嫂合同 {renewed_contract.id} 的初始账单已生成。")
+            else:
+                current_app.logger.info(f"月嫂合同 {renewed_contract.id} 尚未确认上户日期,跳过账单生成。")
+        else:
+            # 育儿嫂、试用期等其他合同类型
+            current_app.logger.info(f"为新激活的合同 {renewed_contract.id} (类型: {renewed_contract.type}) 同步生成初始账单...")
+            engine.generate_all_bills_for_contract(renewed_contract.id, force_recalculate=True)
+            current_app.logger.info(f"合同 {renewed_contract.id} 的初始账单已生成。")
 
         if isinstance(renewed_contract, NannyContract) and renewed_contract.is_monthly_auto_renew:
             current_app.logger.info(f"为合同 {renewed_contract.id} 触发首次自动续签检查...")
