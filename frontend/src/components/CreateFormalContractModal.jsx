@@ -4,14 +4,14 @@ import {
     Dialog, DialogTitle, DialogContent, DialogActions, Button, Grid, TextField,
     Select, MenuItem, InputLabel, FormControl, FormControlLabel, Switch, Box,
     CircularProgress, Alert, Autocomplete, Chip, Typography, FormHelperText, Tooltip,
-    InputAdornment, IconButton,RadioGroup, Radio
+    InputAdornment, IconButton, RadioGroup, Radio
 } from '@mui/material';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import CompareArrowsIcon from '@mui/icons-material/CompareArrows';
 import { DatePicker, DateTimePicker } from '@mui/x-date-pickers';
 import { debounce } from 'lodash';
 import api from '../api/axios';
-import ReactMarkdown from 'react-markdown'; 
+import ReactMarkdown from 'react-markdown';
 import DiffTemplateModal from './DiffTemplateModal';
 
 
@@ -41,6 +41,7 @@ const initialState = {
     customer_address: '',
     employee_id_card: '',
     employee_address: '',
+    requires_signature: null,  // 是否需要客户签署，默认为 null 强制用户选择
 };
 
 const serviceContentOptions = [
@@ -65,7 +66,7 @@ const CreateFormalContractModal = ({ open, onClose, onSuccess }) => {
 
     const [templates, setTemplates] = useState([]);
     const [loadingTemplates, setLoadingTemplates] = useState(false);
-    
+
     const [customerOptions, setCustomerOptions] = useState([]);
     const [employeeOptions, setEmployeeOptions] = useState([]);
     const [loadingCustomers, setLoadingCustomers] = useState(false);
@@ -112,7 +113,7 @@ const CreateFormalContractModal = ({ open, onClose, onSuccess }) => {
             setEmployeeOptions([]);
         }
     }, [open]);
-    
+
     useEffect(() => {
         if (formData.contract_type && templates.length > 0) {
             // 1. 筛选出所有匹配的模板
@@ -129,7 +130,7 @@ const CreateFormalContractModal = ({ open, onClose, onSuccess }) => {
 
                 // 3. 选择最新的一个
                 const latestTemplate = matchingTemplates[0];
-                
+
                 // 4. 如果选中的不是当前模板，则更新
                 if (latestTemplate && latestTemplate.id !== formData.template_id) {
                     setFormData(prev => ({ ...prev, template_id: latestTemplate.id }));
@@ -185,27 +186,27 @@ const CreateFormalContractModal = ({ open, onClose, onSuccess }) => {
             setFormData(prev => ({ ...prev, ...updates }));
         }
 
-    }, [formData.employee_level, formData.contract_type, formData.deposit_rate, formData. management_fee_rate]); // <-- 依赖项增加了 management_fee_rate
+    }, [formData.employee_level, formData.contract_type, formData.deposit_rate, formData.management_fee_rate]); // <-- 依赖项增加了 management_fee_rate
 
-        // --- 新增：自动生成试工合同备注的 useEffect ---
+    // --- 新增：自动生成试工合同备注的 useEffect ---
     // --- 自动生成试工合同备注的 useEffect (V2 - 处理介绍费互斥逻辑) ---
     // --- 自动生成试工合同附件内容的 useEffect (V3 - 修正为 attachment_content) ---
     useEffect(() => {
         if (formData.contract_type === 'nanny_trial') {
             const dailyRate = parseFloat(formData.daily_rate);
-            
+
             if (!isNaN(dailyRate) && dailyRate > 0) {
                 const provisionalMonthlySalary = dailyRate * 26;
                 const roundedMonthlySalary = Math.round(provisionalMonthlySalary / 100) * 100;
-                
+
                 const employeeName = selectedEmployee ? selectedEmployee.name : '服务人员';
                 const managementFeeRate = parseFloat(formData.management_fee_rate);
                 const introductionFee = parseFloat(formData.introduction_fee);
-                
+
 
                 let managementFeeNotePart = '';
                 let feeIntroducePart = '';
-                if (!isNaN(introductionFee) && introductionFee > 0 || managementFeeRate==0) {
+                if (!isNaN(introductionFee) && introductionFee > 0 || managementFeeRate == 0) {
                     managementFeeNotePart = '';
                     feeIntroducePart = `甲方只需支付阿姨实际出勤天数的劳务费`;
                 } else {
@@ -213,8 +214,8 @@ const CreateFormalContractModal = ({ open, onClose, onSuccess }) => {
                     feeIntroducePart = `甲方需支付阿姨实际出勤天数的劳务费和丙方管理费`;
                 }
 
-                const attachmentContentTemplate = 
-`乙方${employeeName}阿姨上户，${feeIntroducePart}:
+                const attachmentContentTemplate =
+                    `乙方${employeeName}阿姨上户，${feeIntroducePart}:
 阿姨劳务费计算方法为：${roundedMonthlySalary}元➗26天✖️阿姨实际出勤天数；
 ${managementFeeNotePart}`;
 
@@ -223,31 +224,31 @@ ${managementFeeNotePart}`;
                 setFormData(prev => ({ ...prev, attachment_content: '' }));
             }
         }
-    }, [formData.contract_type, formData.daily_rate, formData.management_fee_rate, formData. introduction_fee, selectedEmployee]);
-    
-    useEffect(() => {
-    const autoRenewText = "双方没有异议，合同自动延续一个月，延续无次数限制。";
+    }, [formData.contract_type, formData.daily_rate, formData.management_fee_rate, formData.introduction_fee, selectedEmployee]);
 
-    setFormData(prevFormData => {
-        const newFormData = { ...prevFormData };
-        if (newFormData.contract_type === 'nanny' && newFormData.is_monthly_auto_renew) {
-            // 只有当附件内容为空或与自动填充文本一致时才进行填充，避免覆盖用户输入
-            if (!newFormData.attachment_content || newFormData.attachment_content === autoRenewText) {
-                newFormData.attachment_content = autoRenewText;
+    useEffect(() => {
+        const autoRenewText = "双方没有异议，合同自动延续一个月，延续无次数限制。";
+
+        setFormData(prevFormData => {
+            const newFormData = { ...prevFormData };
+            if (newFormData.contract_type === 'nanny' && newFormData.is_monthly_auto_renew) {
+                // 只有当附件内容为空或与自动填充文本一致时才进行填充，避免覆盖用户输入
+                if (!newFormData.attachment_content || newFormData.attachment_content === autoRenewText) {
+                    newFormData.attachment_content = autoRenewText;
+                }
+            } else {
+                // 如果条件不满足，且当前内容是自动填充文本，则清空它
+                if (newFormData.attachment_content === autoRenewText) {
+                    newFormData.attachment_content = '';
+                }
             }
-        } else {
-            // 如果条件不满足，且当前内容是自动填充文本，则清空它
-            if (newFormData.attachment_content === autoRenewText) {
-                newFormData.attachment_content = '';
+            // 只有当 attachment_content 实际发生变化时才返回新的状态，避免不必要的 re-render
+            if (newFormData.attachment_content !== prevFormData.attachment_content) {
+                return newFormData;
             }
-        }
-        // 只有当 attachment_content 实际发生变化时才返回新的状态，避免不必要的 re-render
-        if (newFormData.attachment_content !== prevFormData.attachment_content) {
-            return newFormData;
-        }
-        return prevFormData;
-    });
-}, [formData.contract_type, formData.is_monthly_auto_renew]); // 依赖于合同类型和自动月签状态
+            return prevFormData;
+        });
+    }, [formData.contract_type, formData.is_monthly_auto_renew]); // 依赖于合同类型和自动月签状态
 
     const fetchTemplates = async () => {
         setLoadingTemplates(true);
@@ -391,10 +392,10 @@ ${managementFeeNotePart}`;
                 const newStartDate = provisionalDate;
                 const newEndDate = new Date(provisionalDate);
                 newEndDate.setDate(newEndDate.getDate() + 26);
-                const startTimeChanged = formData.start_date?.getTime() !==newStartDate.getTime();
-                const endTimeChanged = formData.end_date?.getTime() !==newEndDate.getTime();
+                const startTimeChanged = formData.start_date?.getTime() !== newStartDate.getTime();
+                const endTimeChanged = formData.end_date?.getTime() !== newEndDate.getTime();
                 if (startTimeChanged || endTimeChanged) {
-                    setFormData(prev => ({ ...prev, start_date: newStartDate,end_date: newEndDate }));
+                    setFormData(prev => ({ ...prev, start_date: newStartDate, end_date: newEndDate }));
                 }
             }
         } else if (formData.contract_type === 'nanny_trial' && formData.start_date) {
@@ -402,7 +403,7 @@ ${managementFeeNotePart}`;
             if (!isNaN(startDate.getTime())) {
                 const newEndDate = new Date(startDate);
                 newEndDate.setDate(newEndDate.getDate() + 7);
-                const endTimeChanged = formData.end_date?.getTime() !==newEndDate.getTime();
+                const endTimeChanged = formData.end_date?.getTime() !== newEndDate.getTime();
                 if (endTimeChanged) {
                     setFormData(prev => ({ ...prev, end_date: newEndDate }));
                 }
@@ -416,23 +417,23 @@ ${managementFeeNotePart}`;
             const rate = parseFloat(formData.management_fee_rate);
             if (level > 0 && rate > 0) {
                 const management_fee = level * rate;
-                setFormData(prev => ({ ...prev, management_fee_amount:management_fee.toFixed(2) }));
+                setFormData(prev => ({ ...prev, management_fee_amount: management_fee.toFixed(2) }));
             } else {
                 setFormData(prev => ({ ...prev, management_fee_amount: '' }));
             }
         }
     }, [formData.contract_type, formData.employee_level, formData.management_fee_rate]);
-    
+
     useEffect(() => {
         if (formData.contract_type === 'nanny' && formData.is_monthly_auto_renew && formData.start_date) {
             const startDate = new Date(formData.start_date);
             if (!isNaN(startDate.getTime())) {
                 const year = startDate.getFullYear();
                 const month = startDate.getMonth();
-                const lastDayOfMonth = new Date(year, month+ 1, 0);
-                const currentEndDate = formData.end_date ?new Date(formData.end_date) : null;
+                const lastDayOfMonth = new Date(year, month + 1, 0);
+                const currentEndDate = formData.end_date ? new Date(formData.end_date) : null;
                 if (!currentEndDate || currentEndDate.getTime() !== lastDayOfMonth.getTime()) {
-                    setFormData(prev => ({ ...prev,end_date: lastDayOfMonth }));
+                    setFormData(prev => ({ ...prev, end_date: lastDayOfMonth }));
                 }
             }
         }
@@ -451,7 +452,7 @@ ${managementFeeNotePart}`;
                     const defaultEndDate = new Date(defaultStartDate.getTime() + 60 * 60 * 1000);
                     newFormData.start_date = defaultStartDate;
                     newFormData.end_date = defaultEndDate;
-                } 
+                }
                 // --- 新增：为试工合同设置默认值 ---
                 else if (value === 'nanny_trial') {
                     newFormData.management_fee_rate = 0;
@@ -488,7 +489,7 @@ ${managementFeeNotePart}`;
             const newFormData = { ...prev, [name]: newValue };
             if (name === 'start_date' && newValue) {
                 const newStartDate = new Date(newValue);
-                const currentEndDate = prev.end_date ? new Date(prev.end_date): null;
+                const currentEndDate = prev.end_date ? new Date(prev.end_date) : null;
                 if (!currentEndDate || currentEndDate < newStartDate) {
                     newFormData.end_date = newStartDate;
                 }
@@ -553,7 +554,7 @@ ${managementFeeNotePart}`;
     const isMgmtRateDisabled = isTrialContract && introFeeValue > 0;
 
     const introFeeHelperText = isIntroFeeDisabled ? "不能与管理费率同时存在" : "";
-    const mgmtRateHelperText = isMgmtRateDisabled ? "不能与介绍费同时存在": "";
+    const mgmtRateHelperText = isMgmtRateDisabled ? "不能与介绍费同时存在" : "";
 
     // console.log('State before render:', { customerOptions, employeeOptions });
 
@@ -564,7 +565,7 @@ ${managementFeeNotePart}`;
                 <DialogContent dividers>
                     {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
                     <Grid container spacing={3}>
-                                                <Grid item xs={12} sm={6}>
+                        <Grid item xs={12} sm={6}>
                             <FormControl fullWidth required>
                                 <InputLabel>合同类型</InputLabel>
                                 <Select name="contract_type" value={formData.contract_type} label="合同类型" onChange={handleChange}>
@@ -617,76 +618,76 @@ ${managementFeeNotePart}`;
                                 disabled={loadingTemplates}
                             />
                         </Grid>
-                        
-                        
-                    <Grid item xs={12} sm={6}>
-                        <Autocomplete
-                            fullWidth
-                            freeSolo
-                            open={openCustomer}
-                            onOpen={() => setOpenCustomer(true)}
-                            onClose={() => setOpenCustomer(false)}
-                            filterOptions={(x) => x} // 禁用前端筛选，直接显示后端返回的结果
-                            options={customerOptions}
-                            getOptionLabel={(option) => (typeof option === 'string' ? option : option.name) || ""}
-                            value={selectedCustomer}
-                            inputValue={customerInputValue}
-                            onChange={(event, newValue) => {
-                                setSelectedCustomer(newValue);
-                                if (typeof newValue === 'object' && newValue && newValue.id) {
-                                    setFormData(prev => ({
-                                        ...prev,
-                                        customer_id_card: newValue.id_card_number || '',
-                                        customer_address: newValue.address || '',
-                                    }));
 
-                                    // --- 新增逻辑：检查可转移的合同 ---
-                                    const checkForTransferableContracts = async (customerId) => {
-                                        try {
-                                            const response = await api.get( `/contracts/customer/${customerId}/transferable-contracts`);
-                                            if (response.data && response.data.length > 0) {
-                                                setTransferDialog({
-                                                    open: true,
-                                                    contracts: response.data,
-                                                    selectedOption: 'createNew',
-                                                    selectedContractId: '',
-                                                });
+
+                        <Grid item xs={12} sm={6}>
+                            <Autocomplete
+                                fullWidth
+                                freeSolo
+                                open={openCustomer}
+                                onOpen={() => setOpenCustomer(true)}
+                                onClose={() => setOpenCustomer(false)}
+                                filterOptions={(x) => x} // 禁用前端筛选，直接显示后端返回的结果
+                                options={customerOptions}
+                                getOptionLabel={(option) => (typeof option === 'string' ? option : option.name) || ""}
+                                value={selectedCustomer}
+                                inputValue={customerInputValue}
+                                onChange={(event, newValue) => {
+                                    setSelectedCustomer(newValue);
+                                    if (typeof newValue === 'object' && newValue && newValue.id) {
+                                        setFormData(prev => ({
+                                            ...prev,
+                                            customer_id_card: newValue.id_card_number || '',
+                                            customer_address: newValue.address || '',
+                                        }));
+
+                                        // --- 新增逻辑：检查可转移的合同 ---
+                                        const checkForTransferableContracts = async (customerId) => {
+                                            try {
+                                                const response = await api.get(`/contracts/customer/${customerId}/transferable-contracts`);
+                                                if (response.data && response.data.length > 0) {
+                                                    setTransferDialog({
+                                                        open: true,
+                                                        contracts: response.data,
+                                                        selectedOption: 'createNew',
+                                                        selectedContractId: '',
+                                                    });
+                                                }
+                                            } catch (err) {
+                                                console.error("查找可转移合同失败:", err);
+                                                // 获取失败不应阻塞主流程，仅在控制台打印错误
                                             }
-                                        } catch (err) {
-                                            console.error("查找可转移合同失败:", err);
-                                            // 获取失败不应阻塞主流程，仅在控制台打印错误
-                                        }
-                                    };
-                                    checkForTransferableContracts(newValue.id);
-                                    // --- 新增结束 ---
+                                        };
+                                        checkForTransferableContracts(newValue.id);
+                                        // --- 新增结束 ---
 
-                                }
-                            }}
-                            onInputChange={(event, newInputValue, reason) => {
-                                setCustomerInputValue(newInputValue);
-                                if (reason === 'input') {
-                                    searchParties(newInputValue, 'customer');
-                                }
-                            }}
-                            loading={loadingCustomers}
-                            renderInput={(params) => (
-                                <TextField
-                                    {...params}
-                                    label="选择或输入客户姓名 (可留空)"
-                                    placeholder="输入汉字或拼音搜索"
-                                    InputProps={{
-                                        ...params.InputProps,
-                                        endAdornment: (
-                                            <>
-                                                {loadingCustomers ? <CircularProgress color= "inherit" size={20} /> : null}
-                                                {params.InputProps.endAdornment}
-                                            </>
-                                        ),
-                                    }}
-                                />
-                            )}
-                        />
-                    </Grid>
+                                    }
+                                }}
+                                onInputChange={(event, newInputValue, reason) => {
+                                    setCustomerInputValue(newInputValue);
+                                    if (reason === 'input') {
+                                        searchParties(newInputValue, 'customer');
+                                    }
+                                }}
+                                loading={loadingCustomers}
+                                renderInput={(params) => (
+                                    <TextField
+                                        {...params}
+                                        label="选择或输入客户姓名 (可留空)"
+                                        placeholder="输入汉字或拼音搜索"
+                                        InputProps={{
+                                            ...params.InputProps,
+                                            endAdornment: (
+                                                <>
+                                                    {loadingCustomers ? <CircularProgress color="inherit" size={20} /> : null}
+                                                    {params.InputProps.endAdornment}
+                                                </>
+                                            ),
+                                        }}
+                                    />
+                                )}
+                            />
+                        </Grid>
 
                         <Grid item xs={12} sm={6}>
                             <Autocomplete
@@ -718,7 +719,7 @@ ${managementFeeNotePart}`;
                                 }}
                                 loading={loadingEmployees}
                                 renderInput={(params) => (
-                                    <TextField {...params} required label="员工名称" placeholder= "搜索员工"
+                                    <TextField {...params} required label="员工名称" placeholder="搜索员工"
                                         InputProps={{ ...params.InputProps, endAdornment: (<> {loadingEmployees ? <CircularProgress color="inherit" size={20} /> : null}{params.InputProps.endAdornment}</>), }}
                                     />
                                 )}
@@ -728,34 +729,34 @@ ${managementFeeNotePart}`;
                             <TextField fullWidth name="customer_id_card" label="客户身份证号" value={formData.customer_id_card} onChange={handleInputChange} InputLabelProps={{ shrink: true }} />
                         </Grid>
                         <Grid item xs={12} sm={6}>
-                            <TextField fullWidth name="employee_id_card" label="员工身份证号" value={formData. employee_id_card} onChange={handleInputChange} InputLabelProps={{ shrink: true }} />
+                            <TextField fullWidth name="employee_id_card" label="员工身份证号" value={formData.employee_id_card} onChange={handleInputChange} InputLabelProps={{ shrink: true }} />
                         </Grid>
                         <Grid item xs={12} sm={6}>
-                            <TextField fullWidth name="customer_address" label="客户地址" value={formData. customer_address} onChange={handleInputChange} InputLabelProps={{ shrink: true }} />
+                            <TextField fullWidth name="customer_address" label="客户地址" value={formData.customer_address} onChange={handleInputChange} InputLabelProps={{ shrink: true }} />
                         </Grid>
                         <Grid item xs={12} sm={6}>
-                            <TextField fullWidth name="employee_address" label="员工地址" value={formData. employee_address} onChange={handleInputChange} InputLabelProps={{ shrink: true }} />
+                            <TextField fullWidth name="employee_address" label="员工地址" value={formData.employee_address} onChange={handleInputChange} InputLabelProps={{ shrink: true }} />
                         </Grid>
                         {/* ... other form fields remain unchanged ... */}
                         {formData.contract_type === 'nanny' && (
                             <Grid item xs={12}>
-                                <FormControlLabel control={<Switch checked={formData.is_monthly_auto_renew} onChange={handleSwitchChange} name="is_monthly_auto_renew" />}label="是否自动续签(月)" />
+                                <FormControlLabel control={<Switch checked={formData.is_monthly_auto_renew} onChange={handleSwitchChange} name="is_monthly_auto_renew" />} label="是否自动续签(月)" />
                             </Grid>
                         )}
-                        {formData.contract_type === 'external_substitution' ?(
+                        {formData.contract_type === 'external_substitution' ? (
                             <>
-                                <Grid item xs={12} sm={6}><DateTimePicker label="服务开始时间 *" value={formData.start_date} onChange={(v) =>handleDateChange('start_date', v)} sx={{ width: '100%' }} /></Grid>
-                                <Grid item xs={12} sm={6}><DateTimePicker label="服务结束时间 *" value={formData.end_date} onChange={(v) =>handleDateChange('end_date', v)} sx={{ width: '100%' }} /></Grid>
+                                <Grid item xs={12} sm={6}><DateTimePicker label="服务开始时间 *" value={formData.start_date} onChange={(v) => handleDateChange('start_date', v)} sx={{ width: '100%' }} /></Grid>
+                                <Grid item xs={12} sm={6}><DateTimePicker label="服务结束时间 *" value={formData.end_date} onChange={(v) => handleDateChange('end_date', v)} sx={{ width: '100%' }} /></Grid>
                             </>
                         ) : formData.contract_type === 'maternity_nurse' ? (
                             <>
-                                <Grid item xs={12} sm={6}><DatePicker label="预产期 *" value={formData.provisional_start_date} onChange={(v) =>handleDateChange('provisional_start_date', v)} sx={{ width: '100%' }} /></Grid>
-                                <Grid item xs={12} sm={6}><DatePicker label="合同结束日期 *" value={formData.end_date} onChange={(v) =>handleDateChange('end_date', v)} sx={{ width: '100%' }}helperText="选择预产期后自动计算，可手动修改" /></Grid>
+                                <Grid item xs={12} sm={6}><DatePicker label="预产期 *" value={formData.provisional_start_date} onChange={(v) => handleDateChange('provisional_start_date', v)} sx={{ width: '100%' }} /></Grid>
+                                <Grid item xs={12} sm={6}><DatePicker label="合同结束日期 *" value={formData.end_date} onChange={(v) => handleDateChange('end_date', v)} sx={{ width: '100%' }} helperText="选择预产期后自动计算，可手动修改" /></Grid>
                             </>
                         ) : (
                             <>
-                                <Grid item xs={12} sm={6}><DatePicker label="合同开始日期 *" value={formData.start_date} onChange={(v) =>handleDateChange('start_date', v)} sx={{ width: '100%' }} /></Grid>
-                                <Grid item xs={12} sm={6}><DatePicker label="合同结束日期 *" value={formData.end_date} onChange={(v) =>handleDateChange('end_date', v)} sx={{ width: '100%' }} /></Grid>
+                                <Grid item xs={12} sm={6}><DatePicker label="合同开始日期 *" value={formData.start_date} onChange={(v) => handleDateChange('start_date', v)} sx={{ width: '100%' }} /></Grid>
+                                <Grid item xs={12} sm={6}><DatePicker label="合同结束日期 *" value={formData.end_date} onChange={(v) => handleDateChange('end_date', v)} sx={{ width: '100%' }} /></Grid>
                             </>
                         )}
 
@@ -827,17 +828,17 @@ ${managementFeeNotePart}`;
                                 </Grid>
                                 <Grid item xs={12} sm={6}><TextField fullWidth name="security_deposit_paid" label="客交保证金 (元)" type="number" value={formData.security_deposit_paid} onChange={handleChange} onWheel={(e) => e.target.blur()} /></Grid>
                                 <Grid item xs={12} sm={6}><TextField fullWidth disabled name="management_fee_amount" label="管理费 (自动计算)" type="number" value={formData.management_fee_amount} /></Grid>
-                                
+
                             </>
                         )}
 
                         {formData.contract_type === 'nanny' && (
                             <>
                                 <Grid item xs={12} sm={3}>
-                                    <TextField required fullWidth name="employee_level" label="级别 (月薪/元)" type="number" value={formData. employee_level} onChange={handleChange} onWheel={(e) => e.target.blur()} />
+                                    <TextField required fullWidth name="employee_level" label="级别 (月薪/元)" type="number" value={formData.employee_level} onChange={handleChange} onWheel={(e) => e.target.blur()} />
                                 </Grid>
                                 <Grid item xs={12} sm={3}>
-                                    <TextField fullWidth name="introduction_fee" label="介绍费 (元)" type="number" value={formData. introduction_fee} onChange={handleInputChange} onWheel={(e) => e.target.blur()} />
+                                    <TextField fullWidth name="introduction_fee" label="介绍费 (元)" type="number" value={formData.introduction_fee} onChange={handleInputChange} onWheel={(e) => e.target.blur()} />
                                 </Grid>
                                 <Grid item xs={12} sm={3}>
                                     <TextField
@@ -854,7 +855,7 @@ ${managementFeeNotePart}`;
                                         InputProps={{
                                             endAdornment: <InputAdornment position="end">%</InputAdornment>,
                                         }}
-                                        // helperText="默认10%"
+                                    // helperText="默认10%"
                                     />
                                 </Grid>
                                 <Grid item xs={12} sm={3}>
@@ -876,7 +877,7 @@ ${managementFeeNotePart}`;
                                     <TextField required fullWidth name="daily_rate" label="日薪(元)" type="number" value={formData.daily_rate} onChange={handleInputChange} helperText="级别/26，可手动修改" onWheel={(e) => e.target.blur()} />
                                 </Grid>
                                 <Grid item xs={12} sm={6}>
-                                    <Tooltip title={isIntroFeeDisabled ?"不能与管理费率同时存在" : ""}>
+                                    <Tooltip title={isIntroFeeDisabled ? "不能与管理费率同时存在" : ""}>
                                         <TextField
                                             fullWidth name="introduction_fee" label="介绍费 (元)" type="number"
                                             value={formData.introduction_fee}
@@ -889,7 +890,7 @@ ${managementFeeNotePart}`;
                                     </Tooltip>
                                 </Grid>
                                 <Grid item xs={12} sm={6}>
-                                    <Tooltip title={isMgmtRateDisabled ? "不能与介绍费同时存在": ""}>
+                                    <Tooltip title={isMgmtRateDisabled ? "不能与介绍费同时存在" : ""}>
                                         <TextField
                                             fullWidth
                                             name="management_fee_rate"
@@ -898,7 +899,7 @@ ${managementFeeNotePart}`;
                                             value={formData.management_fee_rate * 100}
                                             onChange={(e) => {
                                                 const rate = parseFloat(e.target.value);
-                                                setFormData(prev => ({ ...prev,management_fee_rate: isNaN(rate) ? 0 : rate / 100 }));
+                                                setFormData(prev => ({ ...prev, management_fee_rate: isNaN(rate) ? 0 : rate / 100 }));
                                             }}
                                             disabled={isMgmtRateDisabled}
                                             error={isMgmtRateDisabled}
@@ -909,7 +910,7 @@ ${managementFeeNotePart}`;
                                 </Grid>
                             </>
                         )}
-                                                {/* --- 新增：外部替班合同的专属字段 --- */}
+                        {/* --- 新增：外部替班合同的专属字段 --- */}
                         {formData.contract_type === 'external_substitution' && (
                             <>
                                 <Grid item xs={12} sm={6}>
@@ -940,12 +941,32 @@ ${managementFeeNotePart}`;
                             </>
                         )}
 
+                        {/* --- 新增：是否需要客户签署 --- */}
+                        <Grid item xs={12} sm={6}>
+                            <FormControl fullWidth required>
+                                <InputLabel>是否需要客户签署</InputLabel>
+                                <Select
+                                    name="requires_signature"
+                                    value={formData.requires_signature ?? ''}
+                                    label="是否需要客户签署"
+                                    onChange={(e) => setFormData(prev => ({ ...prev, requires_signature: e.target.value === 'true' }))}
+                                >
+                                    <MenuItem value="">
+                                        <em>请选择</em>
+                                    </MenuItem>
+                                    <MenuItem value="true">是</MenuItem>
+                                    <MenuItem value="false">否</MenuItem>
+                                </Select>
+                            </FormControl>
+                        </Grid>
+                        {/* --- 新增结束 --- */}
+
                         <Grid item xs={12}><TextField fullWidth name="notes" label="备注" multiline rows={3} value={formData.notes} onChange={handleInputChange} /></Grid>
                     </Grid>
                 </DialogContent>
                 <DialogActions sx={{ p: 3 }}>
                     <Button onClick={onClose}>取消</Button>
-                    <Button type="submit" variant="contained"disabled={loading}>
+                    <Button type="submit" variant="contained" disabled={loading}>
                         {loading ? <CircularProgress size={24} /> : '创建合同'}
                     </Button>
                 </DialogActions>
@@ -978,7 +999,7 @@ ${managementFeeNotePart}`;
                     setTransferDialog(prev => ({ ...prev, open: false }));
                     if (result.selectedOption === 'renewOrChange' && result.selectedContractId) {
                         // 如果用户选择跳转，则关闭创建弹窗并执行跳转
-                        onClose(); 
+                        onClose();
                         navigate(`/contract/detail/${result.selectedContractId}`);
                     }
                     // 如果用户选择创建新合同，则什么也不做，流程继续
@@ -1020,8 +1041,8 @@ const TransferOptionDialog = ({ open, onClose, onConfirm, contracts, value, onCh
                         value={selectedOption}
                         onChange={(e) => onChange({ ...value, selectedOption: e.target.value })}
                     >
-                        <FormControlLabel value="createNew" control={<Radio />} label= "创建新合同，并重新交纳保证金" />
-                        <FormControlLabel value="renewOrChange" control={<Radio />} label= "从以下现有合同续约或变更，以转移保证金" />
+                        <FormControlLabel value="createNew" control={<Radio />} label="创建新合同，并重新交纳保证金" />
+                        <FormControlLabel value="renewOrChange" control={<Radio />} label="从以下现有合同续约或变更，以转移保证金" />
                     </RadioGroup>
                 </FormControl>
 
@@ -1033,13 +1054,13 @@ const TransferOptionDialog = ({ open, onClose, onConfirm, contracts, value, onCh
                     <FormControl component="fieldset" fullWidth disabled={selectedOption !== 'renewOrChange'}>
                         <RadioGroup
                             value={selectedContractId}
-                            onChange={(e) => onChange({ ...value, selectedContractId: e.target. value })}
+                            onChange={(e) => onChange({ ...value, selectedContractId: e.target.value })}
                         >
                             {contracts.map(c => (
-                                <FormControlLabel 
-                                    key={c.contract_id} 
-                                    value={c.contract_id} 
-                                    control={<Radio />} 
+                                <FormControlLabel
+                                    key={c.contract_id}
+                                    value={c.contract_id}
+                                    control={<Radio />}
                                     label={
                                         `【${c.service_personnel_name}】月薪 ${c.employee_level} 的合同于 ${formatDate(c.effective_end_date)} 结束，有 ${c.transferable_deposit_amount} 元保证金可转移`
                                     }

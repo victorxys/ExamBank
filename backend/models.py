@@ -2035,6 +2035,7 @@ class SigningStatus(enum.Enum):
     ACTIVE = "ACTIVE"
     TERMINATED = "TERMINATED"
     EXPIRED = "EXPIRED"
+    NOT_REQUIRED = "NOT_REQUIRED"  # 无需签署
 
 
 class AdjustmentType(enum.Enum):
@@ -2521,6 +2522,11 @@ class BaseContract(db.Model):
         db.Boolean, default=False, nullable=True, server_default="false", comment="是否自动续签"
     )
     attachment_content = db.Column(db.Text, nullable=True, comment="附件内容 (Markdown 格式)")
+    requires_signature = db.Column(
+        db.Boolean,
+        nullable=True,
+        comment="是否需要客户签署（NULL=未指定，True=需要，False=不需要）"
+    )
     signing_status = db.Column(
         SAEnum(SigningStatus, native_enum=False),
         nullable=True,

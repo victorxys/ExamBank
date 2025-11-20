@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
-    Box, Typography, Paper, Grid, CircularProgress, Button,
+    Box, Typography, Paper, Grid, CircularProgress, Button, InputLabel, Select,
     Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Chip, Tooltip,
     List, ListItem, ListItemText, Divider, Dialog, DialogTitle, DialogContent, MenuItem,
     DialogActions, Alert, Stack, IconButton, TextField, InputAdornment, Switch, FormControlLabel, Radio, RadioGroup, FormControl, FormLabel, Autocomplete
@@ -1417,28 +1417,39 @@ const ContractDetail = () => {
                             </Grid>
                         </Paper>
                         <Box sx={{ my: 3, display: 'flex', gap: 2, flexWrap: 'wrap', justifyContent: 'center' }}>
-                            <Button
-                                variant="contained"
-                                startIcon={<PictureAsPdfIcon />}
-                                onClick={handlePreviewPdf}
-                            >
-                                预览合同
-                            </Button>
-                            <Button
-                                variant="contained"
-                                startIcon={<DownloadIcon />}
-                                onClick={handleDownloadPdf}
-                            >
-                                下载合同
-                            </Button>
-                            {contract.signing_status !== 'SIGNED' && (
+                            {/* DEBUG: 调试签署状态 */}
+                            {console.log('DEBUG - Contract Signing Info:', {
+                                signing_status: contract.signing_status,
+                                requires_signature: contract.requires_signature,
+                                shouldShowButtons: contract.signing_status !== 'NOT_REQUIRED'
+                            })}
+                            {/* 只在 signing_status !== 'NOT_REQUIRED' 时显示签署相关按钮 */}
+                            {contract.signing_status !== 'NOT_REQUIRED' && (
                                 <>
-                                    <Button variant="contained" color="primary" startIcon={<MessageIcon />} onClick={() => handleOpenSigningModal('customer')}>
-                                        客户签约消息
+                                    <Button
+                                        variant="contained"
+                                        startIcon={<PictureAsPdfIcon />}
+                                        onClick={handlePreviewPdf}
+                                    >
+                                        预览合同
                                     </Button>
-                                    <Button variant="contained" color="primary" startIcon={<MessageIcon />} onClick={() => handleOpenSigningModal('employee')}>
-                                        员工签约消息
+                                    <Button
+                                        variant="contained"
+                                        startIcon={<DownloadIcon />}
+                                        onClick={handleDownloadPdf}
+                                    >
+                                        下载合同
                                     </Button>
+                                    {contract.signing_status !== 'SIGNED' && (
+                                        <>
+                                            <Button variant="contained" color="primary" startIcon={<MessageIcon />} onClick={() => handleOpenSigningModal('customer')}>
+                                                客户签约消息
+                                            </Button>
+                                            <Button variant="contained" color="primary" startIcon={<MessageIcon />} onClick={() => handleOpenSigningModal('employee')}>
+                                                员工签约消息
+                                            </Button>
+                                        </>
+                                    )}
                                 </>
                             )}
                         </Box>
@@ -1835,6 +1846,22 @@ const ContractDetail = () => {
                             sx={{ mt: 2, display: 'block' }}
                         />
                         <Typography variant="caption" color="text.secondary">如果不转移，旧合同的保证金将按终止流程处理（通常为退款），新合同则需支付新的保证金。</Typography>
+
+                        {/* --- 新增：是否需要客户签署 --- */}
+                        <FormControl fullWidth required sx={{ mt: 2 }}>
+                            <InputLabel>是否需要客户签署</InputLabel>
+                            <Select
+                                value={renewalData.requires_signature ?? ''}
+                                onChange={(e) => setRenewalData({ ...renewalData, requires_signature: e.target.value === 'true' })}
+                                label="是否需要客户签署"
+                            >
+                                <MenuItem value="">
+                                    <em>请选择</em>
+                                </MenuItem>
+                                <MenuItem value="true">是</MenuItem>
+                                <MenuItem value="false">否</MenuItem>
+                            </Select>
+                        </FormControl>
                         {/* --- 新增结束 --- */}
                     </DialogContent>
                     <DialogActions>
@@ -1924,6 +1951,22 @@ const ContractDetail = () => {
                             sx={{ mt: 2, display: 'block' }}
                         />
                         <Typography variant="caption" color="text.secondary">如果不转移，旧合同的保证金将按终止流程处理（通常为退款），新合同则需支付新的保证金。</Typography>
+
+                        {/* --- 新增：是否需要客户签署 --- */}
+                        <FormControl fullWidth required sx={{ mt: 2 }}>
+                            <InputLabel>是否需要客户签署</InputLabel>
+                            <Select
+                                value={changeData.requires_signature ?? ''}
+                                onChange={(e) => setChangeData({ ...changeData, requires_signature: e.target.value === 'true' })}
+                                label="是否需要客户签署"
+                            >
+                                <MenuItem value="">
+                                    <em>请选择</em>
+                                </MenuItem>
+                                <MenuItem value="true">是</MenuItem>
+                                <MenuItem value="false">否</MenuItem>
+                            </Select>
+                        </FormControl>
                         {/* --- 新增结束 --- */}
                     </DialogContent>
                     <DialogActions>

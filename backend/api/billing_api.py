@@ -2257,6 +2257,9 @@ def get_single_contract_details(contract_id):
             "termination_date": safe_isoformat(contract.termination_date),
             "previous_contract_id": str(contract.previous_contract_id) if contract.previous_contract_id else None,
             "successor_contract_id": str(contract.next_contracts[0].id) if contract.next_contracts else None,
+            # --- 签署相关字段 ---
+            "signing_status": contract.signing_status.value if contract.signing_status else 'UNSIGNED',
+            "requires_signature": contract.requires_signature,
         }
         if contract.type == 'nanny_trial':
             result['trial_outcome'] = contract.trial_outcome.value if contract.trial_outcome else None
