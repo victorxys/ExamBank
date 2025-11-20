@@ -3,10 +3,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams, useLocation, useSearchParams } from 'react-router-dom';
 import {
-  Box, Button, Typography, Paper, Table, TableBody, TableCell, TableContainer,
-  TableHead, TableRow, TablePagination, CircularProgress, Tooltip, Dialog, DialogTitle,
-  DialogContent, DialogActions, Alert, TextField, Select, MenuItem, FormControl,
-  InputLabel, Chip, Grid, TableSortLabel, Stack, IconButton
+    Box, Button, Typography, Paper, Table, TableBody, TableCell, TableContainer,
+    TableHead, TableRow, TablePagination, CircularProgress, Tooltip, Dialog, DialogTitle,
+    DialogContent, DialogActions, Alert, TextField, Select, MenuItem, FormControl,
+    InputLabel, Chip, Grid, TableSortLabel, Stack, IconButton
 } from '@mui/material';
 import {
     Sync as SyncIcon, Edit as EditIcon, Add as AddIcon, EventBusy as EventBusyIcon, CheckCircle as CheckCircleIcon, Cancel as CancelIcon, Link as LinkIcon
@@ -22,15 +22,15 @@ import AlertMessage from './AlertMessage';
 import CreateVirtualContractModal from './CreateVirtualContractModal'; // 路径可能需要微调
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import CreateFormalContractModal from './CreateFormalContractModal';
-import LazyImage from './LazyImage'; 
+import LazyImage from './LazyImage';
 
 const formatDate = (isoString) => {
-  if (!isoString) return 'N/A';
-  try {
-    const date = new Date(isoString);
-    if (isNaN(date.getTime())) return '无效日期';
-    return date.toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '-');
-  } catch (e) { return '无效日期'; }
+    if (!isoString) return 'N/A';
+    try {
+        const date = new Date(isoString);
+        if (isNaN(date.getTime())) return '无效日期';
+        return date.toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '-');
+    } catch (e) { return '无效日期'; }
 };
 
 const STATUS_LABELS = {
@@ -48,6 +48,7 @@ const SIGNING_STATUS_LABELS = {
     CUSTOMER_SIGNED: '客户已签',
     EMPLOYEE_SIGNED: '员工已签',
     SIGNED: '已签署',
+    NOT_REQUIRED: '无需签署',
 };
 
 const SIGNING_STATUS_COLORS = {
@@ -55,6 +56,7 @@ const SIGNING_STATUS_COLORS = {
     CUSTOMER_SIGNED: 'info',
     EMPLOYEE_SIGNED: 'info',
     SIGNED: 'success',
+    NOT_REQUIRED: 'default',
 };
 
 const ContractList = () => {
@@ -188,11 +190,11 @@ const ContractList = () => {
 
     const handleTriggerSync = async () => {
         setSyncing(true);
-        setAlert({open: true, message: "合同同步任务已提交...", severity: 'info'});
+        setAlert({ open: true, message: "合同同步任务已提交...", severity: 'info' });
         try {
             await api.post('/billing/sync-contracts');
             setTimeout(() => {
-                setAlert({open: true, message: "同步任务正在后台处理，列表即将刷新。", severity: 'success'});
+                setAlert({ open: true, message: "同步任务正在后台处理，列表即将刷新。", severity: 'success' });
                 setTimeout(() => fetchContracts(), 5000);
             }, 3000);
         } catch (error) {
@@ -261,24 +263,24 @@ const ContractList = () => {
             >
                 创建正式合同
             </Button>
-            <Button
+            {/* <Button
                 variant="contained"
                 startIcon={<AddCircleOutlineIcon />}
                 onClick={() => setIsCreateModalOpen(true)}
             >
                 新增虚拟合同
-            </Button>
+            </Button> */}
         </Box>
     );
     return (
         <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={zhCN}>
             <Box>
-                <AlertMessage open={alert.open} message={alert.message} severity={alert.severity} onClose={() => setAlert(prev => ({...prev, open:false}))} />
+                <AlertMessage open={alert.open} message={alert.message} severity={alert.severity} onClose={() => setAlert(prev => ({ ...prev, open: false }))} />
                 <PageHeader title="合同管理" description="查看、筛选和管理所有服务合同。" actions={headerActions} />
                 <Paper sx={{ p: 2, mb: 3 }}>
                     <Grid container spacing={2} alignItems="center">
                         <Grid item xs={12} sm={3}><TextField fullWidth label="搜索客户/员工" name="search" value={inputValue} onChange={handleInputChange} size="small" /></Grid>
-                        <Grid item xs={6} sm={2}><FormControl fullWidth size="small"><InputLabel>类型</InputLabel><Select name="type" value={typeFilter}label="类型" onChange={handleFilterChange}><MenuItem value=""><em>全部</em></MenuItem><MenuItem value="nanny">育儿嫂</MenuItem><MenuItem value="maternity_nurse">月嫂</MenuItem> <MenuItem value="nanny_trial">育儿嫂试工</MenuItem><MenuItem value="formal">正式合同</MenuItem></Select></FormControl></Grid>
+                        <Grid item xs={6} sm={2}><FormControl fullWidth size="small"><InputLabel>类型</InputLabel><Select name="type" value={typeFilter} label="类型" onChange={handleFilterChange}><MenuItem value=""><em>全部</em></MenuItem><MenuItem value="nanny">育儿嫂</MenuItem><MenuItem value="maternity_nurse">月嫂</MenuItem> <MenuItem value="nanny_trial">育儿嫂试工</MenuItem><MenuItem value="formal">正式合同</MenuItem></Select></FormControl></Grid>
                         <Grid item xs={6} sm={2}><FormControl fullWidth size="small"><InputLabel>状态</InputLabel><Select name="status" value={statusFilter} label="状态" onChange={handleFilterChange}><MenuItem value="all"><em>全部状态</em></MenuItem><MenuItem value="unsigned">待签署</MenuItem><MenuItem value="active">服务中</MenuItem><MenuItem value="pending">待上户</MenuItem><MenuItem value="finished">已完成</MenuItem><MenuItem value="terminated">已终止</MenuItem><MenuItem value="trial_active">试工中</MenuItem><MenuItem value="trial_succeeded">试工成功</MenuItem></Select></FormControl></Grid>
                         {typeFilter === 'nanny' && (
                             <Grid item xs={6} sm={2}>
@@ -296,7 +298,7 @@ const ContractList = () => {
                                     </Select>
                                 </FormControl>
                             </Grid>
-                        )}                        
+                        )}
                         <Grid item xs={6} sm={2}>
                             <FormControl fullWidth size="small">
                                 <InputLabel>签署状态</InputLabel>
@@ -326,10 +328,10 @@ const ContractList = () => {
                             </Grid>
                         )}
 
-                        <Grid item xs={12} sm sx={{ display: 'flex',justifyContent: 'flex-end', gap: 1 }}>
+                        <Grid item xs={12} sm sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
                             {/* <Button variant="contained" color="primary" startIcon={<AddIcon />} onClick={() => setIsCreateFormalModalOpen(true)}>创建正式合同</Button>
                             <Button variant="contained" startIcon={<AddCircleOutlineIcon />} onClick={() => setIsCreateModalOpen(true)}>新增虚拟合同</Button> */}
-                            <Button variant="contained"onClick={handleTriggerSync} disabled={syncing} startIcon={syncing ? <CircularProgress size={20} color="inherit" /> : <SyncIcon />}>同步</Button>
+                            <Button variant="contained" onClick={handleTriggerSync} disabled={syncing} startIcon={syncing ? <CircularProgress size={20} color="inherit" /> : <SyncIcon />}>同步</Button>
                         </Grid>
                     </Grid>
                 </Paper>
@@ -350,47 +352,49 @@ const ContractList = () => {
                                 <TableCell align="center">操作</TableCell>
                             </TableRow>
                         </TableHead>
-                        
+
                         <TableBody>
-                            {loading ? ( <TableRow><TableCell colSpan={7} align="center" sx={{py: 5}}><CircularProgress /></TableCell></TableRow> )
-                            : (
-                                contracts.map((contract) => (
-                                    <TableRow hover key={contract.id}>
-                                        <TableCell sx={{fontWeight: 'bold'}}>{contract.customer_name}</TableCell>
-                                        <TableCell>{contract.service_personnel_name}</TableCell>
-                                        <TableCell>
-                                            <Chip label={contract.contract_type_label} size="small" />
-                                        </TableCell>
-                                        <TableCell>
-                                            <Typography variant="body2" sx={{ fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
-                                                {formatDate(contract.start_date)} - {formatDate(contract.end_date)}
-                                            </Typography>
-                                        </TableCell>
-                                        <TableCell>
-                                            {/* --- 新增：根据是否月签显示不同内容 --- */}
-                                            {contract.contract_type_value === 'nanny' && contract.is_monthly_auto_renew ? (
-                                                <Chip 
-                                                    label="月签"
-                                                    size="small" 
-                                                    color="info"
-                                                    variant="filled"
-                                                />
-                                            ) : contract.remaining_months !== null && contract.remaining_months !== undefined ? (
-                                                <Chip 
-                                                    label={`${contract.remaining_months}个月`} 
-                                                    size="small" 
-                                                    color={contract.highlight_remaining ? 'warning' : 'default'}
-                                                    variant={contract.highlight_remaining ? 'filled' : 'outlined'}
-                                                />
-                                            ) : (
-                                                'N/A'
-                                            )}
-                                        </TableCell>
-                                        <TableCell><Chip label={STATUS_LABELS[contract.status] || 'N/A'} size="small" color={contract.status === 'active' ? 'success' : 'default'} /></TableCell>
-                                        <TableCell>{getSigningStatusChip(contract.signing_status )}</TableCell>
+                            {loading ? (<TableRow><TableCell colSpan={7} align="center" sx={{ py: 5 }}><CircularProgress /></TableCell></TableRow>)
+                                : (
+                                    contracts.map((contract) => (
+                                        <TableRow hover key={contract.id}>
+                                            <TableCell sx={{ fontWeight: 'bold' }}>{contract.customer_name}</TableCell>
+                                            <TableCell>{contract.service_personnel_name}</TableCell>
                                             <TableCell>
-                                                {/* 如果客户未签 (状态为 UNSIGNED 或 EMPLOYEE_SIGNED)，直接显示未签 */}
-                                                {['UNSIGNED', 'EMPLOYEE_SIGNED'].includes(contract.signing_status) ? (
+                                                <Chip label={contract.contract_type_label} size="small" />
+                                            </TableCell>
+                                            <TableCell>
+                                                <Typography variant="body2" sx={{ fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
+                                                    {formatDate(contract.start_date)} - {formatDate(contract.end_date)}
+                                                </Typography>
+                                            </TableCell>
+                                            <TableCell>
+                                                {/* --- 新增：根据是否月签显示不同内容 --- */}
+                                                {contract.contract_type_value === 'nanny' && contract.is_monthly_auto_renew ? (
+                                                    <Chip
+                                                        label="月签"
+                                                        size="small"
+                                                        color="info"
+                                                        variant="filled"
+                                                    />
+                                                ) : contract.remaining_months !== null && contract.remaining_months !== undefined ? (
+                                                    <Chip
+                                                        label={`${contract.remaining_months}个月`}
+                                                        size="small"
+                                                        color={contract.highlight_remaining ? 'warning' : 'default'}
+                                                        variant={contract.highlight_remaining ? 'filled' : 'outlined'}
+                                                    />
+                                                ) : (
+                                                    'N/A'
+                                                )}
+                                            </TableCell>
+                                            <TableCell><Chip label={STATUS_LABELS[contract.status] || 'N/A'} size="small" color={contract.status === 'active' ? 'success' : 'default'} /></TableCell>
+                                            <TableCell>{getSigningStatusChip(contract.signing_status)}</TableCell>
+                                            <TableCell>
+                                                {/* 如果无需签署或客户未签，显示相应文本 */}
+                                                {contract.signing_status === 'NOT_REQUIRED' ? (
+                                                    <Typography variant="caption" color="text.secondary">N/A</Typography>
+                                                ) : ['UNSIGNED', 'EMPLOYEE_SIGNED'].includes(contract.signing_status) ? (
                                                     <Typography variant="caption" color="text.secondary">未签</Typography>
                                                 ) : (
                                                     <LazyImage
@@ -400,8 +404,10 @@ const ContractList = () => {
                                                 )}
                                             </TableCell>
                                             <TableCell>
-                                                {/* 如果员工未签 (状态为 UNSIGNED 或 CUSTOMER_SIGNED)，直接显示未签 */}
-                                                {['UNSIGNED', 'CUSTOMER_SIGNED'].includes(contract.signing_status) ? (
+                                                {/* 如果无需签署或员工未签，显示相应文本 */}
+                                                {contract.signing_status === 'NOT_REQUIRED' ? (
+                                                    <Typography variant="caption" color="text.secondary">N/A</Typography>
+                                                ) : ['UNSIGNED', 'CUSTOMER_SIGNED'].includes(contract.signing_status) ? (
                                                     <Typography variant="caption" color="text.secondary">未签</Typography>
                                                 ) : (
                                                     <LazyImage
@@ -410,14 +416,14 @@ const ContractList = () => {
                                                     />
                                                 )}
                                             </TableCell>
-                                        <TableCell align="center">
-                                            <Button variant="outlined" size="small" onClick={() => navigate(`/contract/detail/${contract.id}`, { state: { from: location.pathname + location. search } })}>
-                                                查看详情
-                                            </Button>
-                                        </TableCell>
-                                    </TableRow>
-                                ))
-                            )}
+                                            <TableCell align="center">
+                                                <Button variant="outlined" size="small" onClick={() => navigate(`/contract/detail/${contract.id}`, { state: { from: location.pathname + location.search } })}>
+                                                    查看详情
+                                                </Button>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))
+                                )}
                         </TableBody>
                     </Table>
                     <TablePagination
@@ -444,7 +450,7 @@ const ContractList = () => {
                     <DialogContent>
                         <Alert severity="warning" sx={{ mt: 1, mb: 2 }}>
                             您正在为 <b>{contractToTerminate?.customer_name} ({contractToTerminate?.employee_name})</b> 的合同进行操作。
-                            <br/>
+                            <br />
                             此操作将把合同的最终状态设置为“已终止”并重算最后一期账单。
                         </Alert>
                         <DatePicker
@@ -464,7 +470,7 @@ const ContractList = () => {
                     <DialogContent>
                         <Alert severity="info" sx={{ mt: 1, mb: 2 }}>
                             为月嫂合同 <b>{contractToSetDate?.customer_name} ({contractToSetDate?.employee_name})</b> 设置实际上户日期。
-                            <br/>
+                            <br />
                             预产期参考: {formatDate(contractToSetDate?.provisional_start_date)}
                         </Alert>
                         <DatePicker

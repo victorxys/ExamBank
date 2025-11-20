@@ -890,6 +890,9 @@ def get_contract_details(contract_id):
             "deposit_rate": str(getattr(contract, 'deposit_rate', '')) if contract.type == 'maternity_nurse' else '',
             "security_deposit_paid": str(getattr(contract, 'security_deposit_paid', '')) if contract.type == 'maternity_nurse' else '',
             "provisional_start_date": getattr(contract, 'provisional_start_date').isoformat() if getattr(contract, 'provisional_start_date', None) else None,
+            # --- 签署相关字段 ---
+            "signing_status": contract.signing_status.value if contract.signing_status else 'UNSIGNED',
+            "requires_signature": contract.requires_signature,
         }
 
         return jsonify(result)
@@ -988,6 +991,17 @@ def update_contract(contract_id):
                 contract.deposit_rate = to_decimal(data['deposit_rate'], 0)
             if 'provisional_start_date' in data and data['provisional_start_date']:
                 contract.provisional_start_date = datetime.fromisoformat(data['provisional_start_date'].split('T')[0])
+        
+        # Handle requires_signature and signing_status editing
+        if 'requires_signature' in data:
+            requires_signature = data['requires_signature']
+            contract.requires_signature = requires_signature
+            if requires_signature is False:
+                contract.signing_status = SigningStatus.NOT_REQUIRED
+                current_app.logger.info(f"编辑合同：无需签署，signing_status 设置为 NOT_REQUIRED")
+            elif requires_signature is True:
+                contract.signing_status = SigningStatus.UNSIGNED
+                current_app.logger.info(f"编辑合同：需要签署，signing_status 设置为 UNSIGNED")
         
         # 4. 重要：触发账单重算
         trigger_initial_bill_generation_task.delay(str(contract.id))

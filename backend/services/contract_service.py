@@ -350,8 +350,18 @@ class ContractService:
             "service_type": contract_data.get("service_type"),
             "is_auto_renew": contract_data.get("is_auto_renew", False),
             "attachment_content": contract_data.get("attachment_content"),
-             # signing_status, customer_signature, employee_signature are handled by defaults or later
         }
+        
+        # Handle requires_signature and signing_status
+        requires_signature = contract_data.get("requires_signature")
+        if requires_signature is False:
+            formal_contract_fields["requires_signature"] = False
+            formal_contract_fields["signing_status"] = SigningStatus.NOT_REQUIRED
+            current_app.logger.info(f"合同创建：无需签署，signing_status 设置为 NOT_REQUIRED")
+        else:
+            # True or None (未指定) 都默认为需要签署
+            formal_contract_fields["requires_signature"] = requires_signature
+            formal_contract_fields["signing_status"] = SigningStatus.UNSIGNED
 
         # Merge all fields, prioritizing contract_data for general fields
         all_fields = {**common_contract_fields, **formal_contract_fields}
@@ -393,6 +403,15 @@ class ContractService:
                     # 育儿嫂逻辑：管理费 = 级别 * 费率
                     final_management_fee_amount = (new_employee_level * final_management_fee_rate).quantize(Decimal('0.01'))
                     current_app.logger.info(f"普通续约计算: 级别={new_employee_level}, 费率={final_management_fee_rate}, 计算出管理费={final_management_fee_amount}")
+            
+            # Handle requires_signature and signing_status
+            requires_signature = new_contract_data.get("requires_signature")
+            if requires_signature is False:
+                signing_status = SigningStatus.NOT_REQUIRED
+                current_app.logger.info(f"续约合同：无需签署，signing_status 设置为 NOT_REQUIRED")
+            else:
+                signing_status = SigningStatus.UNSIGNED
+                
             new_contract_fields = {
                 "customer_id": old_contract.customer_id,
                 "service_personnel_id": old_contract.service_personnel_id,
@@ -406,7 +425,8 @@ class ContractService:
                 "customer_name_pinyin": old_contract.customer_name_pinyin,
                 "previous_contract_id": old_contract.id,
                 "source": "renewal",
-                "signing_status": SigningStatus.UNSIGNED,
+                "requires_signature": requires_signature,
+                "signing_status": signing_status,
                 "customer_signing_token": str(uuid.uuid4()),
                 "employee_signing_token": str(uuid.uuid4()),
                 "notes": old_contract.notes,
@@ -662,6 +682,14 @@ class ContractService:
                  security_deposit_paid = new_employee_level + final_management_fee_amount
                  current_app.logger.info(f"月嫂合同变更：设置客交保证金为 {security_deposit_paid} (级别 {new_employee_level} + 管理费 {final_management_fee_amount})")
 
+            # Handle requires_signature and signing_status
+            requires_signature = change_data.get("requires_signature")
+            if requires_signature is False:
+                signing_status = SigningStatus.NOT_REQUIRED
+                current_app.logger.info(f"变更合同：无需签署，signing_status 设置为 NOT_REQUIRED")
+            else:
+                signing_status = SigningStatus.UNSIGNED
+
             new_contract_fields = {
                 "customer_id": old_contract.customer_id,
                 "service_personnel_id": new_service_personnel_id,
@@ -675,7 +703,8 @@ class ContractService:
                 "customer_name_pinyin": old_contract.customer_name_pinyin,
                 "previous_contract_id": old_contract.id,
                 "source": "change", # 来源标记为“变更”
-                "signing_status": SigningStatus.UNSIGNED,
+                "requires_signature": requires_signature,
+                "signing_status": signing_status,
                 "customer_signing_token": str(uuid.uuid4()),
                 "employee_signing_token": str(uuid.uuid4()),
                 "notes": old_contract.notes,
