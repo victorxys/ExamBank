@@ -3,14 +3,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
-  Box, Typography, Paper, Grid, CircularProgress, Button,
-  Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Chip,Tooltip,
-  List, ListItem, ListItemText, Divider, Dialog, DialogTitle, DialogContent,MenuItem,
-  DialogActions, Alert, Stack, IconButton, TextField, InputAdornment, Switch, FormControlLabel, Radio, RadioGroup, FormControl, FormLabel, Autocomplete
+    Box, Typography, Paper, Grid, CircularProgress, Button,
+    Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Chip, Tooltip,
+    List, ListItem, ListItemText, Divider, Dialog, DialogTitle, DialogContent, MenuItem,
+    DialogActions, Alert, Stack, IconButton, TextField, InputAdornment, Switch, FormControlLabel, Radio, RadioGroup, FormControl, FormLabel, Autocomplete
 } from '@mui/material';
 import {
-    ArrowBack as ArrowBackIcon, Edit as EditIcon, CheckCircle as CheckCircleIcon,Info as InfoIcon,
-    Cancel as CancelIcon, Save as SaveIcon, Link as LinkIcon, EventBusy as EventBusyIcon ,ReceiptLong as ReceiptLongIcon,
+    ArrowBack as ArrowBackIcon, Edit as EditIcon, CheckCircle as CheckCircleIcon, Info as InfoIcon,
+    Cancel as CancelIcon, Save as SaveIcon, Link as LinkIcon, EventBusy as EventBusyIcon, ReceiptLong as ReceiptLongIcon,
     Message as MessageIcon,
     Download as DownloadIcon,
     PictureAsPdf as PictureAsPdfIcon,
@@ -30,21 +30,21 @@ import SigningMessageModal from './SigningMessageModal'; // Import the new modal
 import EditContractModal from './EditContractModal';
 
 const formatDate = (isoString) => {
-  if (!isoString) return '—';
-  try {
-    const date = new Date(isoString);
-    if (isNaN(date.getTime())) return '无效日期';
-    return date.toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' });
-  } catch (e) { return '无效日期'; }
+    if (!isoString) return '—';
+    try {
+        const date = new Date(isoString);
+        if (isNaN(date.getTime())) return '无效日期';
+        return date.toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' });
+    } catch (e) { return '无效日期'; }
 };
 
 const formatCurrency = (amount) => {
-  const num = parseFloat(amount);
-  if (isNaN(num)) {
-    return '0';
-  }
-  // 四舍五入到最近的整数，然后添加千位分隔符
-  return Math.round(num).toLocaleString('en-US');
+    const num = parseFloat(amount);
+    if (isNaN(num)) {
+        return '0';
+    }
+    // 四舍五入到最近的整数，然后添加千位分隔符
+    return Math.round(num).toLocaleString('en-US');
 };
 
 const DetailItem = ({ label, value }) => (
@@ -112,7 +112,7 @@ const EditableNotesItem = ({ label, originalValue, operationalValue, isEditing, 
         ) : (
             operationalValue && (
                 <Paper variant="outlined" sx={{ p: 2, mt: 1, whiteSpace: 'pre-wrap' }}>
-                        <Typography variant="body2" color="text.secondary" gutterBottom>运营备注</Typography>
+                    <Typography variant="body2" color="text.secondary" gutterBottom>运营备注</Typography>
                     <Typography variant="body1">{operationalValue}</Typography>
                 </Paper>
             )
@@ -128,10 +128,10 @@ const ContractDetail = () => {
     const [bills, setBills] = useState([]);
     const [adjustments, setAdjustments] = useState([]);
     const [logs, setLogs] = useState([]);
-    const depositAdjustment = adjustments.find(adj => adj && adj.adjustment_type=== 'deposit');
+    const depositAdjustment = adjustments.find(adj => adj && adj.adjustment_type === 'deposit');
     const [loading, setLoading] = useState(true);
     const [alert, setAlert] = useState({ open: false, message: '', severity: 'info' });
-    
+
 
     // --- 修改 1: 迁移状态和逻辑 ---
     const [terminationDialogOpen, setTerminationDialogOpen] = useState(false);
@@ -160,7 +160,7 @@ const ContractDetail = () => {
     const [contractToSetDate, setContractToSetDate] = useState(null);
     const [newOnboardingDate, setNewOnboardingDate] = useState(null);
     const [infoDialogOpen, setInfoDialogOpen] = useState(false);
-    const [infoDialogData, setInfoDialogData] = useState({ message: '', billId: null});
+    const [infoDialogData, setInfoDialogData] = useState({ message: '', billId: null });
 
     const [conversionDialogOpen, setConversionDialogOpen] = useState(false);
     const [eligibleContracts, setEligibleContracts] = useState([]);
@@ -172,7 +172,7 @@ const ContractDetail = () => {
     const [selectedAdjustment, setSelectedAdjustment] = useState(null);
     const [depositPaidDate, setDepositPaidDate] = useState(new Date());
     const [depositPaidAmount, setDepositPaidAmount] = useState('');
-    const [depositSettlementNotes, setDepositSettlementNotes] = useState('定金收款'); 
+    const [depositSettlementNotes, setDepositSettlementNotes] = useState('定金收款');
 
     // State for the new signing message modal
     const [signingModalOpen, setSigningModalOpen] = useState(false);
@@ -192,7 +192,7 @@ const ContractDetail = () => {
     });
 
     const conversionActions = useTrialConversion((formalContractId) => {
-    if (formalContractId) {
+        if (formalContractId) {
             navigate(`/contract/detail/${formalContractId}`);
         } else {
             fetchData();
@@ -235,7 +235,7 @@ const ContractDetail = () => {
             setAdjustments(adjustmentsRes.data);
             setIntroFee(contractRes.data.introduction_fee || '0');
             setLogs(logsRes.data);
-            
+
             const separator = '\n\n--- 运营备注 ---\n';
             const notes = contractRes.data.notes || '';
             if (notes.includes(separator)) {
@@ -253,7 +253,7 @@ const ContractDetail = () => {
         }
     }, [contractId]);
 
-     useEffect(() => {
+    useEffect(() => {
         if (contractId) {
             fetchData();
         }
@@ -285,7 +285,7 @@ const ContractDetail = () => {
                             id: c.id,
                             employee_name: match ? match[1] : '未知员工',
                             start_date: match ? match[2] : null,
-                            end_date: null 
+                            end_date: null
                         };
                     });
                 } else if (filterMethod === 'employee' && selectedSubstituteUserId) {
@@ -313,7 +313,7 @@ const ContractDetail = () => {
     }, [isTransfer, filterMethod, selectedSubstituteUserId, contractId, contract?.customer_name]);
 
     useEffect(() => {
-        if (contract?.trial_outcome === 'success' && contract.converted_to_formal_contract_id){
+        if (contract?.trial_outcome === 'success' && contract.converted_to_formal_contract_id) {
             api.get(`/billing/contracts/${contract.converted_to_formal_contract_id}/bills`)
                 .then(response => {
                     const formalBills = response.data;
@@ -341,22 +341,53 @@ const ContractDetail = () => {
 
     useEffect(() => {
         if (renewalData.management_fee_rate > 0 && renewalData.employee_level) {
-            const newFee = parseFloat(renewalData.employee_level) * renewalData. management_fee_rate;
+            let newFee = 0;
+            const level = parseFloat(renewalData.employee_level);
+            const rate = parseFloat(renewalData.management_fee_rate);
+
+            // --- 核心修改：区分月嫂合同和育儿嫂合同的计算逻辑 ---
+            if (contract?.contract_type_value === 'maternity_nurse') {
+                // 月嫂逻辑：管理费 = (级别 / (1 - 费率)) * 费率
+                // 注意：这里的费率是指管理费占总金额(级别+管理费)的比例
+                if (rate < 1) {
+                    const totalAmount = level / (1 - rate);
+                    newFee = totalAmount * rate;
+                }
+            } else {
+                // 育儿嫂逻辑：管理费 = 级别 * 费率
+                newFee = level * rate;
+            }
+
             // 只有在计算值与当前值不同时才更新，避免无限循环
-            if (Math.abs(newFee - parseFloat(renewalData.management_fee_amount)) > 0.01) {
-                 setRenewalData(prev => ({ ...prev, management_fee_amount: newFee.toFixed(2) }));
+            if (Math.abs(newFee - parseFloat(renewalData.management_fee_amount || 0)) > 0.01) {
+                setRenewalData(prev => ({ ...prev, management_fee_amount: newFee.toFixed(2) }));
             }
         }
-    }, [renewalData.employee_level, renewalData.management_fee_rate]);
-    
+    }, [renewalData.employee_level, renewalData.management_fee_rate, contract?.contract_type_value]);
+
     useEffect(() => {
         if (changeData.management_fee_rate > 0 && changeData.employee_level) {
-            const newFee = parseFloat(changeData.employee_level) * changeData.management_fee_rate ;
-            if (Math.abs(newFee - parseFloat(changeData.management_fee_amount)) > 0.01) {
+            let newFee = 0;
+            const level = parseFloat(changeData.employee_level);
+            const rate = parseFloat(changeData.management_fee_rate);
+
+            // --- 核心修改：区分月嫂合同和育儿嫂合同的计算逻辑 ---
+            if (contract?.contract_type_value === 'maternity_nurse') {
+                // 月嫂逻辑：管理费 = (级别 / (1 - 费率)) * 费率
+                if (rate < 1) {
+                    const totalAmount = level / (1 - rate);
+                    newFee = totalAmount * rate;
+                }
+            } else {
+                // 育儿嫂逻辑：管理费 = 级别 * 费率
+                newFee = level * rate;
+            }
+
+            if (Math.abs(newFee - parseFloat(changeData.management_fee_amount || 0)) > 0.01) {
                 setChangeData(prev => ({ ...prev, management_fee_amount: newFee.toFixed(2) }));
             }
         }
-    }, [changeData.employee_level, changeData.management_fee_rate]);
+    }, [changeData.employee_level, changeData.management_fee_rate, contract?.contract_type_value]);
 
     useEffect(() => {
         if (personnelSearchTerm.length < 1) {
@@ -384,7 +415,7 @@ const ContractDetail = () => {
 
     if (loading) return <CircularProgress />;
     if (!contract) return <Typography>未找到合同信息。</Typography>;
-    
+
     const handleDeleteContract = async () => {
         if (!contract) return;
 
@@ -420,7 +451,7 @@ const ContractDetail = () => {
             });
 
             const contentDisposition = response.headers['content-disposition'];
-            
+
             // --- 核心修改：构建更具描述性的默认文件名 ---
             const customerName = contract.customer_name || '未知客户';
             const employeeName = contract.employee_name || '未知员工';
@@ -595,7 +626,7 @@ const ContractDetail = () => {
             templateId = latestTemplate.template_id;
             templateContent = latestTemplate.content;
         }
-    
+
         setChangeData({
             start_date: today,
             end_date: newEndDate,
@@ -609,9 +640,9 @@ const ContractDetail = () => {
             content: templateContent,
         });
         setSelectedPersonnel({ id: contract.service_personnel_id, name: contract.employee_name });
-        
+
         // --- 在这里添加下面这行 ---
-        setIsChangeModalOpen(true); 
+        setIsChangeModalOpen(true);
     };
 
     const handleCloseChangeModal = () => {
@@ -673,20 +704,20 @@ const ContractDetail = () => {
         customer_increase: '客户增款',
         customer_decrease: '客户减款',
         // ...可以根据需要添加更多
-        };
+    };
 
     const ADJUSTMENT_STATUS_LABELS = {
         PENDING: '待处理',
         PAID: '已支付',
         BILLED: '已入账',
-        };
+    };
 
     const trialOutcomeField = contract.contract_type_value === 'nanny_trial' ? (
         <Grid item xs={12} sm={6} md={4}>
-            <Typography variant="body2" color="text.secondary"gutterBottom>试工结果</Typography>
+            <Typography variant="body2" color="text.secondary" gutterBottom>试工结果</Typography>
             <Chip
-                label={TRIAL_OUTCOME_INFO[contract.trial_outcome]?.label ||contract.trial_outcome}
-                color={TRIAL_OUTCOME_INFO[contract.trial_outcome]?.color ||'default'}
+                label={TRIAL_OUTCOME_INFO[contract.trial_outcome]?.label || contract.trial_outcome}
+                color={TRIAL_OUTCOME_INFO[contract.trial_outcome]?.color || 'default'}
                 size="small"
             />
         </Grid>
@@ -694,13 +725,13 @@ const ContractDetail = () => {
 
     const convertedToField = contract.converted_to_formal_contract_id ? (
         <Grid item xs={12} sm={6} md={4}>
-            <Typography variant="body2" color="text.secondary"gutterBottom>后续合同</Typography>
+            <Typography variant="body2" color="text.secondary" gutterBottom>后续合同</Typography>
             <Chip
                 icon={<LinkIcon />}
                 label={`已转为正式合同`}
                 variant="outlined"
                 onClick={() => navigate(`/contract/detail/${contract.converted_to_formal_contract_id}`)}
-                sx={{ cursor: 'pointer', '&:hover': { backgroundColor:'action.hover' } }}
+                sx={{ cursor: 'pointer', '&:hover': { backgroundColor: 'action.hover' } }}
             />
         </Grid>
     ) : null;
@@ -735,7 +766,7 @@ const ContractDetail = () => {
 
     const handleSaveOnboardingDate = async () => {
         if (!contractToSetDate || !newOnboardingDate) {
-            setAlert({ open: true, message: '请选择一个有效的日期', severity:'warning' });
+            setAlert({ open: true, message: '请选择一个有效的日期', severity: 'warning' });
             return;
         }
         try {
@@ -743,12 +774,12 @@ const ContractDetail = () => {
             await api.put(`/billing/contracts/${contractToSetDate.id}`, {
                 actual_onboarding_date: newOnboardingDate.toISOString().split('T')[0]
             });
-            setAlert({ open: true, message:'上户日期已更新，正在为您预生成所有账单...', severity: 'info' });
+            setAlert({ open: true, message: '上户日期已更新，正在为您预生成所有账单...', severity: 'info' });
 
             // 第二步：触发后台任务，生成所有账单
             await api.post(`/billing/contracts/${contractToSetDate.id}/generate-all-bills`);
 
-            setAlert({ open: true, message: '所有账单已成功预生成！', severity:'success' });
+            setAlert({ open: true, message: '所有账单已成功预生成！', severity: 'success' });
             handleCloseOnboardingDialog();
             fetchData(); // 重新加载详情页数据
 
@@ -795,7 +826,7 @@ const ContractDetail = () => {
                 paid_at: depositPaidDate.toISOString(),
                 settlement_notes: depositSettlementNotes,
             });
-            setAlert({ open: true, message: '定金支付记录成功！', severity: 'success'});
+            setAlert({ open: true, message: '定金支付记录成功！', severity: 'success' });
             handleCloseDepositDialog();
             fetchData(); // 重新获取所有数据
         } catch (error) {
@@ -877,7 +908,7 @@ const ContractDetail = () => {
 
     const handleTrialSucceeded = async () => {
         if (!contract) {
-            setAlert({ open: true, message: '合同数据尚未加载完成，请稍后再试。',severity: 'warning' });
+            setAlert({ open: true, message: '合同数据尚未加载完成，请稍后再试。', severity: 'warning' });
             return;
         }
         const employeeId = contract.service_personnel_id;
@@ -910,18 +941,18 @@ const ContractDetail = () => {
 
     const handleConfirmConversion = async () => {
         if (!selectedFormalContractId) {
-            setAlert({ open: true, message: '请选择一个要关联的正式合同。',severity: 'warning' });
+            setAlert({ open: true, message: '请选择一个要关联的正式合同。', severity: 'warning' });
             return;
         }
 
         // ... in handleConfirmConversion
         try {
-            await api.post(`/billing/nanny-trial-contracts/${contractId}/convert`,{
+            await api.post(`/billing/nanny-trial-contracts/${contractId}/convert`, {
                 formal_contract_id: selectedFormalContractId
             });
 
             // 优化提示信息，告诉用户即将发生跳转
-            setAlert({ open: true, message:'试工合同转换成功！正在跳转到正式合同页面...', severity: 'success' });
+            setAlert({ open: true, message: '试工合同转换成功！正在跳转到正式合同页面...', severity: 'success' });
             setConversionDialogOpen(false);
 
             // --- ↓↓↓ 用 navigate 跳转替换掉 fetchData ↓↓↓ ---
@@ -931,7 +962,7 @@ const ContractDetail = () => {
             setAlert({ open: true, message: `操作失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
         }
     };
-    
+
     const handleUpdateIntroFee = async () => {
         try {
             await api.put(`/billing/contracts/${contract.id}`, {
@@ -970,7 +1001,7 @@ const ContractDetail = () => {
                     setAlert({ open: true, message: '自动续签已成功开启！', severity: 'success' });
                     await fetchData(); // 重新获取所有数据以刷新页面
                 } catch (error) {
-                    setAlert({ open: true, message: `操作失败: ${error.response?.data?.error || error.message}`,severity: 'error' });
+                    setAlert({ open: true, message: `操作失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
                 } finally {
                     setLoading(false); // 结束加载
                 }
@@ -997,7 +1028,7 @@ const ContractDetail = () => {
             const response = await api.get('/billing/details', { params: { bill_id: bill.id } });
             setSelectedBillDetails(response.data);
         } catch (error) {
-            setAlert({ open: true, message: `获取账单详情失败: ${error.response?.data?.error || error.message}`, severity: 'error'});
+            setAlert({ open: true, message: `获取账单详情失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
             setSelectedBillDetails(null);
         } finally {
             setLoadingModal(false);
@@ -1043,8 +1074,8 @@ const ContractDetail = () => {
         '合同剩余月数': <Chip label={contract.remaining_months} size="small" color={contract.highlight_remaining ? 'warning' : 'default'} variant={contract.highlight_remaining ? 'filled' : 'outlined'} />,
         // '创建时间': new Date(contract.created_at).toLocaleDateString('zh-CN'),
         // '备注': contract.notes,                   
-    };                                            
-                                                  
+    };
+
     const specificFields = contract.contract_type_value === 'maternity_nurse' ? {
         '合同类型': '月嫂合同',
         '级别/月薪': `¥${formatCurrency(contract.employee_level)}`,
@@ -1081,9 +1112,9 @@ const ContractDetail = () => {
         </Grid>
     ) : null;
 
-    const onboardingDateField = (contract.contract_type_value ==='maternity_nurse') ? (
+    const onboardingDateField = (contract.contract_type_value === 'maternity_nurse') ? (
         <Grid item xs={12} sm={6} md={4}>
-            <Typography variant="body2" color="text.secondary"gutterBottom>实际上户日期</Typography>
+            <Typography variant="body2" color="text.secondary" gutterBottom>实际上户日期</Typography>
             {contract.actual_onboarding_date ? (
                 <Typography variant="body1" component="div" sx={{ fontWeight: 500 }}>
                     {formatDate(contract.actual_onboarding_date)}
@@ -1111,9 +1142,9 @@ const ContractDetail = () => {
 
     const depositLogs = logs.filter(log => log.action === '记录定金支付');
 
-    const depositField = (contract.contract_type_value === 'maternity_nurse') ?(
+    const depositField = (contract.contract_type_value === 'maternity_nurse') ? (
         <Grid item xs={12} sm={6} md={4}>
-            <Typography variant="body2" color="text.secondary"gutterBottom>定金</Typography>
+            <Typography variant="body2" color="text.secondary" gutterBottom>定金</Typography>
             <Box sx={{ display: 'flex', alignItems: 'center' }}>
                 <Typography variant="body1" component="div" sx={{ fontWeight: 500 }}>
                     {`¥${formatCurrency(contract.deposit_amount)}`}
@@ -1178,7 +1209,7 @@ const ContractDetail = () => {
             // 如果按费率收费，则显示提示文字
             <Grid item xs={12} sm={6} md={4}>
                 <Typography variant="body2" color="text.secondary" gutterBottom>介绍费</Typography>
-                <Typography variant="body1" component="div" sx={{ fontStyle: 'italic', color:'text.secondary' }}>
+                <Typography variant="body1" component="div" sx={{ fontStyle: 'italic', color: 'text.secondary' }}>
                     {`按${contract.management_fee_rate * 100}%收取管理费, 免收介绍费`}
                 </Typography>
             </Grid>
@@ -1232,7 +1263,7 @@ const ContractDetail = () => {
     );
     const sourceContractField = contract.source_trial_contract_id ? (
         <Grid item xs={12} sm={6} md={4}>
-            <Typography variant="body2" color="text.secondary"gutterBottom>合同来源</Typography>
+            <Typography variant="body2" color="text.secondary" gutterBottom>合同来源</Typography>
             <Chip
                 icon={<LinkIcon />}
                 label={`源自试工合同`}
@@ -1250,7 +1281,7 @@ const ContractDetail = () => {
 
     const previousContractField = contract.previous_contract_id ? (
         <Grid item xs={12} sm={6} md={4}>
-            <Typography variant="body2" color="text.secondary"gutterBottom>源合同</Typography>
+            <Typography variant="body2" color="text.secondary" gutterBottom>源合同</Typography>
             <Chip
                 icon={<LinkIcon />}
                 label={`查看源合同`}
@@ -1268,7 +1299,7 @@ const ContractDetail = () => {
 
     const successorContractField = contract.successor_contract_id ? (
         <Grid item xs={12} sm={6} md={4}>
-            <Typography variant="body2" color="text.secondary"gutterBottom>续约合同</Typography>
+            <Typography variant="body2" color="text.secondary" gutterBottom>续约合同</Typography>
             <Chip
                 icon={<LinkIcon />}
                 label={`查看续约合同`}
@@ -1283,7 +1314,7 @@ const ContractDetail = () => {
             />
         </Grid>
     ) : null;
-    
+
     const terminationDateField = contract.status === 'terminated' ? (
         <Grid item xs={12} sm={6} md={4}>
             <Typography variant="body2" color="text.secondary" gutterBottom>终止时间</Typography>
@@ -1296,71 +1327,71 @@ const ContractDetail = () => {
     return (
         <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={zhCN}>
             <Box>
-                <AlertMessage open={alert.open} message={alert.message} severity={alert.severity} onClose={() => setAlert(prev => ({...prev, open:false}))} />
-                                <PageHeader
-                                    title="合同详情"
-                                    description={`${contract.customer_name} - ${contract.employee_name}`}
-                                                        actions={
-                                        <Stack direction="row" spacing={2}>
-                                            <Button variant="contained" color="primary" startIcon={<ArrowBackIcon />} onClick={() =>navigate(state?.from || '/contracts/all')}> 
-                                                返回列表
+                <AlertMessage open={alert.open} message={alert.message} severity={alert.severity} onClose={() => setAlert(prev => ({ ...prev, open: false }))} />
+                <PageHeader
+                    title="合同详情"
+                    description={`${contract.customer_name} - ${contract.employee_name}`}
+                    actions={
+                        <Stack direction="row" spacing={2}>
+                            <Button variant="contained" color="primary" startIcon={<ArrowBackIcon />} onClick={() => navigate(state?.from || '/contracts/all')}>
+                                返回列表
+                            </Button>
+                            <Button variant="contained" color="primary" startIcon={<EditIcon />} onClick={() => setIsEditModalOpen(true)}>
+                                编辑
+                            </Button>
+                            {contract.contract_type_value !== 'nanny_trial' && (
+                                <Button variant="contained" color="secondary" startIcon={<AutorenewIcon />} onClick={handleOpenRenewModal}>
+                                    续约
+                                </Button>
+                            )}
+                            {contract.contract_type_value !== 'nanny_trial' && (
+                                <Button variant="contained" color="warning" startIcon={<EditIcon />} onClick={handleOpenChangeModal}>
+                                    变更合同
+                                </Button>
+                            )}
+                            {contract.status === 'active' && contract.contract_type_value !== 'nanny_trial' && (
+                                <Button variant="contained" color="error" onClick={handleOpenTerminationDialog}>
+                                    终止合同
+                                </Button>
+                            )}
+                            {/* 试工合同的操作按钮 */}
+                            {contract.contract_type_value === 'nanny_trial' && contract.trial_outcome === 'pending' && (
+                                <>
+                                    <Tooltip title={!contract.can_convert_to_formal ? "客户与员工名下无已生效的正式合同，无法关联" : ""}>
+                                        <span>
+                                            <Button
+                                                variant="contained"
+                                                color="success"
+                                                startIcon={<CheckCircleIcon />}
+                                                onClick={() => conversionActions.openConversionDialog(contract)}
+                                                disabled={!contract.can_convert_to_formal}
+                                            >
+                                                试工成功
                                             </Button>
-                                            <Button variant="contained" color="primary" startIcon={<EditIcon />} onClick={() => setIsEditModalOpen(true)}>
-                                                编辑
-                                            </Button>
-                                            {contract.contract_type_value !== 'nanny_trial' && (
-                                                <Button variant="contained" color="secondary" startIcon={<AutorenewIcon />} onClick={handleOpenRenewModal}>
-                                                    续约
-                                                </Button>
-                                            )}
-                                            {contract.status === 'active' && contract. contract_type_value !== 'nanny_trial' && (
-                                                <Button variant="contained" color="warning" startIcon={<EditIcon />} onClick={handleOpenChangeModal}>
-                                                    变更合同
-                                                </Button>
-                                            )}
-                                            {contract.status === 'active' && contract.contract_type_value !== 'nanny_trial' && (
-                                                <Button variant="contained" color="error" onClick={handleOpenTerminationDialog}>
-                                                    终止合同
-                                                </Button>
-                                            )}
-                                            {/* 试工合同的操作按钮 */}
-                                            {contract.contract_type_value === 'nanny_trial'&& contract. trial_outcome=== 'pending' && (
-                                                <>
-                                                    <Tooltip title={!contract.can_convert_to_formal ? "客户与员工名下无已生效的正式合同，无法关联" : ""}>
-                                                        <span>
-                                                            <Button
-                                                                variant="contained"
-                                                                color="success"
-                                                                startIcon={<CheckCircleIcon />}
-                                                                onClick={() =>conversionActions. openConversionDialog(contract)}
-                                                                disabled={!contract.can_convert_to_formal}
-                                                            >
-                                                                试工成功
-                                                            </Button>
-                                                        </span>
-                                                    </Tooltip>
-                                                    <Button
-                                                        variant="contained"
-                                                        color="error"
-                                                        startIcon={<CancelIcon />}
-                                                        onClick={handleOpenTerminationDialog}
-                                                    >
-                                                        试工失败
-                                                    </Button>
-                                                </>
-                                            )}
-                                            {contract.status === 'pending' && (
-                                                <Button
-                                                    variant="contained"
-                                                    color="error"
-                                                    onClick={handleDeleteContract}
-                                                >
-                                                    删除合同
-                                                </Button>
-                                            )}
-                                        </Stack>
-                                    }
-                                />
+                                        </span>
+                                    </Tooltip>
+                                    <Button
+                                        variant="contained"
+                                        color="error"
+                                        startIcon={<CancelIcon />}
+                                        onClick={handleOpenTerminationDialog}
+                                    >
+                                        试工失败
+                                    </Button>
+                                </>
+                            )}
+                            {contract.status === 'pending' && (
+                                <Button
+                                    variant="contained"
+                                    color="error"
+                                    onClick={handleDeleteContract}
+                                >
+                                    删除合同
+                                </Button>
+                            )}
+                        </Stack>
+                    }
+                />
                 <Grid container spacing={3}>
                     <Grid item xs={12}>
                         <Paper sx={{ p: 3 }}>
@@ -1385,104 +1416,104 @@ const ContractDetail = () => {
                                 {/* {transferredToBillField} */}
                             </Grid>
                         </Paper>
-                            <Box sx={{ my: 3, display: 'flex', gap: 2, flexWrap: 'wrap', justifyContent: 'center'  }}>
-                                <Button
-                                    variant="contained"
-                                    startIcon={<PictureAsPdfIcon />}
-                                    onClick={handlePreviewPdf}
-                                >
-                                    预览合同
-                                </Button>
-                                <Button
-                                    variant="contained"
-                                    startIcon={<DownloadIcon />}
-                                    onClick={handleDownloadPdf}
-                                >
-                                    下载合同
-                                </Button>
-                                {contract.signing_status !== 'SIGNED' && (
+                        <Box sx={{ my: 3, display: 'flex', gap: 2, flexWrap: 'wrap', justifyContent: 'center' }}>
+                            <Button
+                                variant="contained"
+                                startIcon={<PictureAsPdfIcon />}
+                                onClick={handlePreviewPdf}
+                            >
+                                预览合同
+                            </Button>
+                            <Button
+                                variant="contained"
+                                startIcon={<DownloadIcon />}
+                                onClick={handleDownloadPdf}
+                            >
+                                下载合同
+                            </Button>
+                            {contract.signing_status !== 'SIGNED' && (
                                 <>
-                                    <Button variant="contained" color="primary" startIcon={<MessageIcon />} onClick={() => handleOpenSigningModal('customer')}> 
+                                    <Button variant="contained" color="primary" startIcon={<MessageIcon />} onClick={() => handleOpenSigningModal('customer')}>
                                         客户签约消息
                                     </Button>
-                                    <Button variant="contained" color="primary" startIcon={<MessageIcon />} onClick={() => handleOpenSigningModal('employee')}> 
+                                    <Button variant="contained" color="primary" startIcon={<MessageIcon />} onClick={() => handleOpenSigningModal('employee')}>
                                         员工签约消息
                                     </Button>
                                 </>
                             )}
-                            </Box>
+                        </Box>
                     </Grid>
-                    
+
                     <Grid item xs={12}>
                         <Paper sx={{ p: 3 }}>
                             <Typography variant="h5" gutterBottom>关联账单列表</Typography>
                             {bills.length > 0 ? (
-                            <TableContainer>
-                                <Table size="small">
-                                    <TableHead>
-                                        <TableRow>
-                                            <TableCell>账单周期 (所属月份)</TableCell>
-                                            <TableCell>服务周期</TableCell>
-                                            <TableCell>劳务天数</TableCell>
-                                            <TableCell>加班天数</TableCell>
-                                            <TableCell>应付/已付金额</TableCell>
-                                            <TableCell>支付状态</TableCell>
-                                            <TableCell align="right">操作</TableCell>
-                                        </TableRow>
-                                    </TableHead>
-                                                                        <TableBody>
-                                        {bills.map((bill) => (
-                                            <TableRow
-                                                key={bill.id}
-                                                hover
-                                                
-                                            >
-                                                <TableCell>
-                                                    {bill.billing_period}
-                                                    {bill.isTransferredBill && (
-                                                        <Tooltip title="试工费用已结算至此账单">
-                                                            <Chip label="费用转移至此账单" size="small" sx={{ ml: 1 }} />
-                                                        </Tooltip>
-                                                    )}
-                                                </TableCell>
-                                                <TableCell>{formatDate(bill.cycle_start_date)}~ {formatDate(bill.cycle_end_date)}</TableCell>
-                                                <TableCell>
-                                                    {bill.base_work_days} 天
-                                                    {bill.is_substitute_bill && (
-                                                        <Chip label="替" size="small" color="info" sx={{ ml: 1 }} />
-                                                    )}
-                                                </TableCell>
-                                                <TableCell>{bill.overtime_days} 天</TableCell>
-                                                <TableCell sx={{fontWeight: 'bold', fontFamily:'monospace'}}>
-                                                    <Typography variant="body2" component="div">
-                                                        应付: ¥{formatCurrency(bill.total_due)}
-                                                    </Typography>
-                                                    <Typography variant="caption" component="div" color="success.dark">
-                                                        已付: ¥{formatCurrency(bill.total_paid)}
-                                                    </Typography>
-                                                </TableCell>
-                                                <TableCell><Chip label={bill.status} color={bill.status=== '已支付' ? 'success' : 'warning'} size="small" /></TableCell>
-                                                <TableCell align="right">
-                                                <Button variant="contained" size="small"onClick={() =>handleOpenBillModal(bill)}>
-                                                    去管理
-                                                </Button>
-                                                </TableCell>
+                                <TableContainer>
+                                    <Table size="small">
+                                        <TableHead>
+                                            <TableRow>
+                                                <TableCell>账单周期 (所属月份)</TableCell>
+                                                <TableCell>服务周期</TableCell>
+                                                <TableCell>劳务天数</TableCell>
+                                                <TableCell>加班天数</TableCell>
+                                                <TableCell>应付/已付金额</TableCell>
+                                                <TableCell>支付状态</TableCell>
+                                                <TableCell align="right">操作</TableCell>
                                             </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                            </TableContainer>
-                        ) : (
-                            <Typography variant="body1" sx={{ py: 3, textAlign: 'center', color:'text.secondary' }}>
-                                暂无关联账单
-                            </Typography>
-                        )}
+                                        </TableHead>
+                                        <TableBody>
+                                            {bills.map((bill) => (
+                                                <TableRow
+                                                    key={bill.id}
+                                                    hover
+
+                                                >
+                                                    <TableCell>
+                                                        {bill.billing_period}
+                                                        {bill.isTransferredBill && (
+                                                            <Tooltip title="试工费用已结算至此账单">
+                                                                <Chip label="费用转移至此账单" size="small" sx={{ ml: 1 }} />
+                                                            </Tooltip>
+                                                        )}
+                                                    </TableCell>
+                                                    <TableCell>{formatDate(bill.cycle_start_date)}~ {formatDate(bill.cycle_end_date)}</TableCell>
+                                                    <TableCell>
+                                                        {bill.base_work_days} 天
+                                                        {bill.is_substitute_bill && (
+                                                            <Chip label="替" size="small" color="info" sx={{ ml: 1 }} />
+                                                        )}
+                                                    </TableCell>
+                                                    <TableCell>{bill.overtime_days} 天</TableCell>
+                                                    <TableCell sx={{ fontWeight: 'bold', fontFamily: 'monospace' }}>
+                                                        <Typography variant="body2" component="div">
+                                                            应付: ¥{formatCurrency(bill.total_due)}
+                                                        </Typography>
+                                                        <Typography variant="caption" component="div" color="success.dark">
+                                                            已付: ¥{formatCurrency(bill.total_paid)}
+                                                        </Typography>
+                                                    </TableCell>
+                                                    <TableCell><Chip label={bill.status} color={bill.status === '已支付' ? 'success' : 'warning'} size="small" /></TableCell>
+                                                    <TableCell align="right">
+                                                        <Button variant="contained" size="small" onClick={() => handleOpenBillModal(bill)}>
+                                                            去管理
+                                                        </Button>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </TableContainer>
+                            ) : (
+                                <Typography variant="body1" sx={{ py: 3, textAlign: 'center', color: 'text.secondary' }}>
+                                    暂无关联账单
+                                </Typography>
+                            )}
                         </Paper>
                     </Grid>
                 </Grid>
 
                 {/* --- 修改 3: 添加确认弹窗 --- */}
-                <Dialog open={terminationDialogOpen}onClose={handleCloseTerminationDialog} fullWidth maxWidth="sm">
+                <Dialog open={terminationDialogOpen} onClose={handleCloseTerminationDialog} fullWidth maxWidth="sm">
                     <DialogTitle>确认合同终止操作</DialogTitle>
                     <DialogContent>
                         <Alert severity="warning" sx={{ mt: 1, mb: 2 }}>
@@ -1618,12 +1649,12 @@ const ContractDetail = () => {
                         <Button onClick={handleConfirmDepositPayment} variant="contained" color="primary">确认支付</Button>
                     </DialogActions>
                 </Dialog>
-                <Dialog open={onboardingDialogOpen}onClose={handleCloseOnboardingDialog}>
+                <Dialog open={onboardingDialogOpen} onClose={handleCloseOnboardingDialog}>
                     <DialogTitle>设置实际上户日期</DialogTitle>
                     <DialogContent>
                         <Alert severity="info" sx={{ mt: 1, mb: 2 }}>
                             为月嫂合同 <b>{contractToSetDate?.customer_name}({contractToSetDate?.employee_name})</b> 设置实际上户日期。
-                            <br/>
+                            <br />
                             预产期参考: {formatDate(contractToSetDate?.provisional_start_date)}
                         </Alert>
                         <DatePicker
@@ -1658,7 +1689,7 @@ const ContractDetail = () => {
                                     // 打开你已有的账单管理弹窗
                                     handleOpenBillModal(targetBill);
                                 } else {
-                                    setAlert({ open: true, message:'错误：未能在当前合同下找到对应的账单。', severity: 'error' });
+                                    setAlert({ open: true, message: '错误：未能在当前合同下找到对应的账单。', severity: 'error' });
                                 }
                             }}
                         >
@@ -1668,40 +1699,40 @@ const ContractDetail = () => {
                 </Dialog>
                 <Dialog open={conversionDialogOpen} onClose={() => setConversionDialogOpen(false)} fullWidth maxWidth="sm">
                     <DialogTitle>关联到正式合同</DialogTitle>
-                        <DialogContent>
-                            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                                请为这个成功的试工合同选择一个要转入的正式育儿嫂合同。试工期间的费用将会附加到所选正式合同的第一个账单上。
-                            </Typography>
+                    <DialogContent>
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                            请为这个成功的试工合同选择一个要转入的正式育儿嫂合同。试工期间的费用将会附加到所选正式合同的第一个账单上。
+                        </Typography>
 
-                            {loadingEligible ? (
-                                <Box sx={{ display: 'flex', justifyContent: 'center', my: 3 }}>
-                                    <CircularProgress />
-                                </Box>
-                            ) : eligibleContracts.length > 0 ? (
-                                // 如果找到了合同，就显示下拉列表
-                                <TextField
-                                    select
-                                    fullWidth
-                                    variant="outlined"
-                                    label="选择一个正式合同"
-                                    value={selectedFormalContractId}
-                                    onChange={(e) => setSelectedFormalContractId(e.target.value)}
-                                >
-                                    {eligibleContracts.map((c) => (
-                                        <MenuItem key={c.id} value={c.id}>
-                                            {`合同 (员工: ${c.employee_name}, 开始日期: ${formatDate(c.start_date)})`}
-                                        </MenuItem>
-                                    ))}
-                                </TextField>
-                            ) : (
-                                // 如果没找到合同，就显示警告信息
-                                <Alert severity="warning">
-                                    客户({contract.customer_name})-员工({contract.employee_name}):尚未签订正式育儿嫂合同, 无法关联。
-                                    <br/>
-                                    请先签署正式合同后再执行此操作。
-                                </Alert>
-                            )}
-                        </DialogContent>
+                        {loadingEligible ? (
+                            <Box sx={{ display: 'flex', justifyContent: 'center', my: 3 }}>
+                                <CircularProgress />
+                            </Box>
+                        ) : eligibleContracts.length > 0 ? (
+                            // 如果找到了合同，就显示下拉列表
+                            <TextField
+                                select
+                                fullWidth
+                                variant="outlined"
+                                label="选择一个正式合同"
+                                value={selectedFormalContractId}
+                                onChange={(e) => setSelectedFormalContractId(e.target.value)}
+                            >
+                                {eligibleContracts.map((c) => (
+                                    <MenuItem key={c.id} value={c.id}>
+                                        {`合同 (员工: ${c.employee_name}, 开始日期: ${formatDate(c.start_date)})`}
+                                    </MenuItem>
+                                ))}
+                            </TextField>
+                        ) : (
+                            // 如果没找到合同，就显示警告信息
+                            <Alert severity="warning">
+                                客户({contract.customer_name})-员工({contract.employee_name}):尚未签订正式育儿嫂合同, 无法关联。
+                                <br />
+                                请先签署正式合同后再执行此操作。
+                            </Alert>
+                        )}
+                    </DialogContent>
                     <DialogActions>
                         <Button onClick={() => setConversionDialogOpen(false)}>取消</Button>
                         <Button
@@ -1771,6 +1802,26 @@ const ContractDetail = () => {
                             onChange={(e) => setRenewalData({ ...renewalData, management_fee_amount: e.target.value })}
                             helperText={renewalData.management_fee_rate > 0 ? `根据 ${renewalData.management_fee_rate * 100}% 的费率自动计算` : ''}
                         />
+
+                        {/* --- 新增：月嫂续约显示预计客交保证金 --- */}
+                        {contract?.contract_type_value === 'maternity_nurse' && (
+                            <TextField
+                                label="预计客交保证金 (自动计算)"
+                                value={
+                                    (parseFloat(renewalData.employee_level || 0) + parseFloat(renewalData.management_fee_amount || 0)).toFixed(2)
+                                }
+                                fullWidth
+                                margin="normal"
+                                InputProps={{
+                                    readOnly: true,
+                                    startAdornment: <InputAdornment position="start">¥</InputAdornment>,
+                                }}
+                                helperText="月嫂合同：保证金 = 员工级别 + 管理费"
+                                variant="filled"
+                            />
+                        )}
+                        {/* --- 新增结束 --- */}
+
                         {/* --- 新增开关 --- */}
                         <FormControlLabel
                             control={
@@ -1798,50 +1849,24 @@ const ContractDetail = () => {
                         <Autocomplete
                             options={personnelOptions}
                             filterOptions={(x) => x} // <-- 新增的行
-                            value={selectedPersonnel}
-                            getOptionLabel={(option) => option.name || ''}
-                            isOptionEqualToValue={(option, value) => option.id === value.id}
-                            onInputChange={(event, newInputValue) => {
-                                setPersonnelSearchTerm(newInputValue);
-                                // 如果用户清空了输入框，也清空选中的人员
-                                if (!newInputValue) {
-                                    setSelectedPersonnel(null);
-                                    setChangeData(prev => ({
-                                        ...prev,
-                                        service_personnel_id: '',
-                                        service_personnel_name: '',
-                                    }));
-                                }
-                            }}
-                            onChange={(event, newValue) => {
-                                setSelectedPersonnel(newValue); // 更新 Autocomplete 内部的选中对象
-                                setChangeData(prev => ({
-                                    ...prev,
-                                    service_personnel_id: newValue ? newValue.id : '',
-                                    service_personnel_name: newValue ? newValue.name : '',
-                                }));
-                            }}
-                            loading={isSearchingPersonnel}
+                            getOptionLabel={(option) => `${option.name} (${option.phone})`}
                             renderInput={(params) => (
                                 <TextField
                                     {...params}
-                                    label="搜索并选择新服务人员"
-                                    margin="normal"
-                                    required
-                                    InputProps={{
-                                        ...params.InputProps,
-                                        endAdornment: (
-                                            <>
-                                                {isSearchingPersonnel ? <CircularProgress color= "inherit" size={20} /> : null}
-                                                {params.InputProps.endAdornment}
-                                            </>
-                                        ),
-                                    }}
+                                    label="选择新服务人员"
+                                    variant="outlined"
+                                    onChange={(e) => setPersonnelSearchTerm(e.target.value)}
+                                    helperText="输入姓名或手机号搜索"
                                 />
                             )}
+                            value={personnelOptions.find(p => p.id === changeData.service_personnel_id) || null}
+                            onChange={(event, newValue) => {
+                                setChangeData({ ...changeData, service_personnel_id: newValue ? newValue.id : '' });
+                            }}
+                            sx={{ mt: 2 }}
                         />
                         <DatePicker
-                            label="新合同开始日期 (即原合同终止日)"
+                            label="新合同开始日期"
                             value={changeData.start_date}
                             onChange={(date) => setChangeData({ ...changeData, start_date: date })}
                             sx={{ width: '100%', mt: 2 }}
@@ -1853,16 +1878,15 @@ const ContractDetail = () => {
                             sx={{ width: '100%', mt: 2 }}
                         />
                         <TextField
-                            label="员工级别/月薪"
+                            label="新员工级别/月薪"
                             type="number"
                             fullWidth
-                            required
                             margin="normal"
                             value={changeData.employee_level}
-                            onChange={(e) => setChangeData({ ...changeData, employee_level: e. target.value })}
+                            onChange={(e) => setChangeData({ ...changeData, employee_level: e.target.value })}
                         />
                         <TextField
-                            label="管理费率"
+                            label="新管理费率"
                             type="number"
                             fullWidth
                             margin="normal"

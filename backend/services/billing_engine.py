@@ -1242,7 +1242,8 @@ class BillingEngine:
             )
             return
 
-        contract_end = contract.expected_offboarding_date or contract.end_date
+        # 确保 contract_end 是 date 类型，避免与 cycle_start (date) 比较时报错
+        contract_end = self._to_date(contract.expected_offboarding_date or contract.end_date)
         if not contract_end:
             current_app.logger.warning(
                 f"    [MN CALC] 合同 {contract.id} 缺少结束日期，无法计算。"
@@ -1294,7 +1295,8 @@ class BillingEngine:
         # --- 结束新增逻辑 ---
 
         # 原有逻辑：如果不是强制重算，或者强制重算但未找到现有账单，则按常规方式推导周期
-        cycle_start = contract.actual_onboarding_date
+        # 确保 cycle_start 是 date 类型
+        cycle_start = self._to_date(contract.actual_onboarding_date)
         while cycle_start < contract_end:
             cycle_end = cycle_start + timedelta(days=26)
             if cycle_end >= contract_end:
