@@ -1577,7 +1577,7 @@ def renew_contract_api(contract_id):
 @jwt_required()
 def extend_contract_api(contract_id):
     """
-    延长合同的结束日期
+    延长月嫂合同的结束日期
     """
     data = request.get_json()
     if not data:

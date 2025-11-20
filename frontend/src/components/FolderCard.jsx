@@ -73,7 +73,7 @@ const FolderCard = ({ folder, onClick, onEdit, onDelete }) => {
                         </MenuItem>
                     </Menu>
                 </Box>
-                <Typography variant="h6" gutterBottom>
+                <Typography variant="h4" gutterBottom>
                     {folder.name}
                 </Typography>
                 <Typography variant="caption" color="text.secondary">

@@ -891,7 +891,7 @@ class ContractService:
     
     def extend_contract(self, contract_id: str, new_end_date: date) -> tuple:
         """
-        延长合同的结束日期并重新计算账单
+        延长月嫂合同的结束日期并重新计算账单
         
         Args:
             contract_id: 合同 ID
@@ -908,8 +908,8 @@ class ContractService:
             raise ValueError(f"合同 {contract_id} 未找到。")
         
         # 验证合同状态
-        if contract.status != 'active':
-            raise ValueError(f"只能延长 active 状态的合同，当前状态: {contract.status}")
+        # if contract.status != 'active':
+        #     raise ValueError(f"只能延长 active 状态的合同，当前状态: {contract.status}")
         
         # 验证新结束日期
         old_end_date = contract.end_date.date() if isinstance(contract.end_date, datetime) else contract.end_date
