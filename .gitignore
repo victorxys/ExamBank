@@ -228,3 +228,9 @@ celerybeat-schedule.db
 
 start_dev.sh
 *.sh
+
+# 金数据导出数据
+jinshujuexport/
+
+# 合同签名数据
+backend/static/signatures/
