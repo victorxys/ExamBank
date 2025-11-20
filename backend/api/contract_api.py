@@ -404,12 +404,20 @@ def download_contract_pdf(contract_id):
         # 2. 读取并转换附件内容
         attachment_content_html = markdown.markdown(contract.attachment_content) if contract.attachment_content else ''
 
-        # 获取签名 (用于PDF生成，直接使用本地路径)
+        # 获取签名 (用于PDF生成，需要使用绝对路径)
         customer_sig = ContractSignature.query.filter_by(contract_id=contract.id, signature_type='customer').first()
         employee_sig = ContractSignature.query.filter_by(contract_id=contract.id, signature_type='employee').first()
+
+        # 构造签名文件的绝对路径
+        signatures_dir = os.path.join(current_app.root_path, 'static', 'signatures')
         
-        customer_signature_path = f"file://{customer_sig.file_path}" if customer_sig and os.path.exists(customer_sig.file_path) else None
-        employee_signature_path = f"file://{employee_sig.file_path}" if employee_sig and os.path.exists(employee_sig.file_path) else None
+        customer_sig_abs_path = os.path.join(signatures_dir, os.path.basename(customer_sig.file_path)) if customer_sig and customer_sig.file_path else None
+        employee_sig_abs_path = os.path.join(signatures_dir, os.path.basename(employee_sig.file_path)) if employee_sig and employee_sig.file_path else None
+
+        # 使用绝对路径检查文件是否存在，并创建 file:// URI
+        customer_signature_path = f"file://{customer_sig_abs_path}" if customer_sig_abs_path and os.path.exists(customer_sig_abs_path) else None
+        employee_signature_path = f"file://{employee_sig_abs_path}" if employee_sig_abs_path and os.path.exists(employee_sig_abs_path) else None
+
 
         rendered_html = render_template(
             "contract_pdf.html",
