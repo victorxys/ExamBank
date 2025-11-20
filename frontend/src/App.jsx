@@ -1,11 +1,11 @@
-import { useState, lazy, Suspense } from 'react'; // 添加 lazy 和 Suspense
+import { useState, lazy, Suspense, useRef, useEffect } from 'react'; // 添加 lazy 和 Suspense
 
 // --- React Router ---
-import { Routes, Route, Navigate, Outlet } from 'react-router-dom'; // 确保导入 Outlet
+import { Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom'; // 确保导入 Outlet
 // import DashboardPage from './components/DashboardPage'; // <-- 导入新页面
 // --- Material UI ---
 import { ThemeProvider, createTheme } from '@mui/material/styles';
-import { Box, CssBaseline, CircularProgress} from '@mui/material';
+import { Box, CssBaseline, CircularProgress } from '@mui/material';
 // --- Custom Components (假设这些都已正确导入) ---
 import Sidebar from './components/Sidebar';
 import Navbar from './components/Navbar';
@@ -14,7 +14,7 @@ import PrivateRoute from './components/PrivateRoute';
 import RouteWatcher from './components/RouteWatcher';
 
 import "./styles/argon-theme.css";
- 
+
 const theme = createTheme({
   palette: {
     mode: 'light',
@@ -46,7 +46,7 @@ const theme = createTheme({
       main: '#11cdef',
       light: '#41d7f2',
       dark: '#0da5c2',
-       contrastText: '#ffffff',
+      contrastText: '#ffffff',
     },
     success: {
       main: '#2dce89',
@@ -75,7 +75,7 @@ const theme = createTheme({
       secondary: '#8898aa',
     },
   },
-  
+
   typography: {
     fontFamily: '"Open Sans", "Helvetica", "Arial", sans-serif',
     h1: {
@@ -192,6 +192,16 @@ const theme = createTheme({
 // 主布局 (带侧边栏和导航栏)
 const MainLayoutInternal = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const location = useLocation();
+  const mainContentRef = useRef(null);
+
+  // 监听路由变化，滚动到顶部
+  useEffect(() => {
+    if (mainContentRef.current) {
+      mainContentRef.current.scrollTo(0, 0);
+    }
+  }, [location.pathname]);
+
   // 注意：如果 Navbar 也需要 isCollapsed，需要调整状态管理或 props 传递
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh', width: '100%' }}>
@@ -211,22 +221,23 @@ const MainLayoutInternal = () => {
       >
         <Navbar /> {/* Navbar (您的 AppBar) 在这里 */}
         <Box // <<<--- 这个 Box 包裹 <Outlet />
-            sx={{
-              flex: 1,
-              // --- 在这里修改 padding 设置 ---
-              // 旧: p: { xs: 2, sm: 3 }, 
-              // 新示例 (移除顶部内边距):
-              px: { xs: 2, sm: 1 }, // 左右内边距
-              pb: { xs: 2, sm: 1 }, // 底部内边距
-              pt: { xs: 2, sm: 1 }, // 顶部内边距 (sm 设为 0) <<<<----- 这里可能是 pt: 7 的来源
-              // --- -------------------------- ---
-              // mt: { xs: 2, sm: 0 }, // <<<<----- 这里也可能是 mt: 7 的来源
-              width: '100%',
-              height: '100vh', // 这一行可能有问题，见下方说明
-              overflow: 'auto',
-              maxWidth: '100%'
-            }}
-          >
+          ref={mainContentRef}
+          sx={{
+            flex: 1,
+            // --- 在这里修改 padding 设置 ---
+            // 旧: p: { xs: 2, sm: 3 }, 
+            // 新示例 (移除顶部内边距):
+            px: { xs: 2, sm: 1 }, // 左右内边距
+            pb: { xs: 2, sm: 1 }, // 底部内边距
+            pt: { xs: 2, sm: 1 }, // 顶部内边距 (sm 设为 0) <<<<----- 这里可能是 pt: 7 的来源
+            // --- -------------------------- ---
+            // mt: { xs: 2, sm: 0 }, // <<<<----- 这里也可能是 mt: 7 的来源
+            width: '100%',
+            height: '100vh', // 这一行可能有问题，见下方说明
+            overflow: 'auto',
+            maxWidth: '100%'
+          }}
+        >
           <ErrorBoundary>
             <Outlet /> {/* 子路由会渲染在这里 */}
           </ErrorBoundary>
@@ -266,7 +277,7 @@ const SimpleLayoutInternal = () => (
 
 // --- 3. 定义加载状态组件 ---
 const LoadingFallback = () => (
-  <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 'calc(100vh - 128px)' }}> 
+  <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 'calc(100vh - 128px)' }}>
     <CircularProgress />
   </Box>
 );
@@ -306,20 +317,26 @@ const TrainingContentList = lazy(() => import('./components/TrainingContentList'
 const TrainingContentDetail = lazy(() => import('./components/TrainingContentDetail'));
 
 // 合同与账单相关内容
-const BillingDashboard = lazy(() => import('./components/BillingDashboard')); 
-const ContractList = lazy(() => import('./components/ContractList')); 
+const BillingDashboard = lazy(() => import('./components/BillingDashboard'));
+const ContractList = lazy(() => import('./components/ContractList'));
 const ContractDetail = lazy(() => import('./components/ContractDetail')); // 新建合同详情页
 const ConflictCheckerPage = lazy(() => import('./components/ConflictCheckerPage'));
 const BankStatementUploader = lazy(() => import('./components/BankStatementUploader'));
 const ReconciliationPage = lazy(() => import('./components/ReconciliationPage'));
 const AllBankTransactions = lazy(() => import('./components/AllBankTransactions'));
 const OutboundPayments = lazy(() => import('./components/OutboundPayments')); // 新增
-const ContractTemplateManager = lazy(() => import('./components/ContractTemplateManager' ));
+const ContractTemplateManager = lazy(() => import('./components/ContractTemplateManager'));
 const PublicSigningPage = lazy(() => import('./components/PublicSigningPage')); // 新增
 const ContractTemplateEditor = lazy(() => import('./components/ContractTemplateEditor')); // 新增合同模板编辑器
 // 仪表盘
 const DashboardPage = lazy(() => import('./components/DashboardPage'));
 const SankeyPreview = lazy(() => import('./components/SankeyPreview')); // Sankey Preview
+const DynamicFormPage = lazy(() => import('./components/DynamicFormPage'));
+const FormListPage = lazy(() => import('./components/FormListPage'));
+const FormDataListPage = lazy(() => import('./components/FormDataListPage'));
+const FormBuilderPage = lazy(() => import('./components/FormBuilderPage'));
+const ExamResultsPage = lazy(() => import('./components/ExamResultsPage'));
+const ExamResultDetailPage = lazy(() => import('./components/ExamResultDetailPage'));
 
 
 // --- 5. App 组件主体 ---
@@ -334,7 +351,7 @@ function App() {
         <Route element={<MainLayoutInternal />}>
           {/* --- 5. 使用 Suspense 包裹懒加载组件 --- */}
           <Route path="/" element={<PrivateRoute element={<Navigate to="/dashboard" />} />} /> {/* <-- 可以将默认页指向仪表盘 */}
-          <Route path="/dashboard" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}><DashboardPage /></Suspense>} />}/> {/* <-- 添加这行新路由 */}
+          <Route path="/dashboard" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}><DashboardPage /></Suspense>} />} /> {/* <-- 添加这行新路由 */}
           {/* <Route path="/" element={<PrivateRoute element={<Navigate to="/my-courses" />} />} /> */}
           <Route path="/exams" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <ExamList /> </Suspense>} />} />
           <Route path="/exams/:examId" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <ExamDetail /> </Suspense>} />} />
@@ -344,7 +361,7 @@ function App() {
           <Route path="/courses/:courseId/knowledge_points/:knowledgePointId/questions" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <Questions /> </Suspense>} />} />
           <Route path="/questions" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <Questions /> </Suspense>} />} />
           <Route path="/exam-records" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <ExamRecords /> </Suspense>} />} />
-          <Route path="/exam-records/:examId/:userId" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <ExamRecordDetail /> </Suspense>} />} /> 
+          <Route path="/exam-records/:examId/:userId" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <ExamRecordDetail /> </Suspense>} />} />
           <Route path="/users" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <UserManagement /> </Suspense>} />} />
           <Route path="/staff-management" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}><StaffManagementPage /></Suspense>} />} />
           <Route path="/staff/:employeeId" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}><StaffDetailPage /></Suspense>} />} />
@@ -369,9 +386,15 @@ function App() {
           <Route path="/finance/all-transactions/:year?/:month?" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}><AllBankTransactions /></Suspense>} />} />
           <Route path="/billing/salary-payment/:year?/:month?" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}><OutboundPayments /></Suspense>} />} />
           <Route path="/contract-templates" element={<PrivateRoute element={<Suspense fallback={< LoadingFallback />}><ContractTemplateManager /></Suspense>} />} />
-          <Route path="/contract-templates/edit/:templateId" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}><ContractTemplateEditor /></Suspense>} />} /> {/* 新增合同模板编辑路由 */} 
+          <Route path="/contract-templates/edit/:templateId" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}><ContractTemplateEditor /></Suspense>} />} /> {/* 新增合同模板编辑路由 */}
           <Route path="/contract/detail/:contractId" element={<ContractDetail />} />
           <Route path="/tools/conflict-checker" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}><ConflictCheckerPage /></Suspense>} />} />
+          <Route path="/forms" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}><FormListPage /></Suspense>} />} />
+          <Route path="/forms/:formToken" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}><DynamicFormPage /></Suspense>} />} />
+          <Route path="/forms/:formToken/data" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}><FormDataListPage /></Suspense>} />} />
+          <Route path="/forms/:formToken/:dataId" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}><DynamicFormPage /></Suspense>} />} />
+          <Route path="/exams/:form_token/results" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}><ExamResultsPage /></Suspense>} />} />
+          <Route path="/results/:submissionId" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}><ExamResultDetailPage /></Suspense>} />} />
 
         </Route>
 
@@ -380,19 +403,21 @@ function App() {
           {/* --- 5. 使用 Suspense 包裹懒加载组件 --- */}
           <Route path="/sankey-preview" element={<Suspense fallback={<LoadingFallback />}><SankeyPreview /></Suspense>} />
           <Route path="/login" element={<Suspense fallback={<LoadingFallback />}> <LoginPage /> </Suspense>} />
+          <Route path="/forms/new" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}><FormBuilderPage /></Suspense>} />} />
+          <Route path="/forms/edit/:formToken" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}><FormBuilderPage /></Suspense>} />} />
           <Route path="/client-evaluation/:userId" element={<Suspense fallback={<LoadingFallback />}> <ClientEvaluation /> </Suspense>} />
           <Route path="/public-employee-self-evaluation" element={<Suspense fallback={<LoadingFallback />}> <PublicEmployeeSelfEvaluation /> </Suspense>} />
           <Route path="/thank-you" element={<Suspense fallback={<LoadingFallback />}> <ThankYouPage /> </Suspense>} />
-          <Route path="/exams/:examId/take" element={<Suspense fallback={<LoadingFallback />}> <ExamTake /> </Suspense>} /> 
+          <Route path="/exams/:examId/take" element={<Suspense fallback={<LoadingFallback />}> <ExamTake /> </Suspense>} />
           <Route path="/employee-profile/:userId" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <EmployeeProfile /> </Suspense>} />} />
-          <Route path="/employee-profile/:userId/exam-records" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <ExamRecords /> </Suspense>} />} /> 
-          <Route path="/employee-profile/:userId/exam-records/:examId" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <ExamRecordDetail /> </Suspense>} />} /> 
+          <Route path="/employee-profile/:userId/exam-records" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <ExamRecords /> </Suspense>} />} />
+          <Route path="/employee-profile/:userId/exam-records/:examId" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <ExamRecordDetail /> </Suspense>} />} />
           <Route path="/sign/:token" element={<Suspense fallback={<LoadingFallback />}><PublicSigningPage /></Suspense>} />
 
           {/* EmployeeProfile 和其子路由已移到 MainLayout 下，这里不再需要 */}
         </Route>
 
-         {/* ... 404 路由 ... */}
+        {/* ... 404 路由 ... */}
       </Routes>
     </ThemeProvider>
   );

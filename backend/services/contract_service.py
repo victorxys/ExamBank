@@ -381,13 +381,6 @@ class ContractService:
 
             if final_management_fee_rate > 0:
                 final_management_fee_amount = (new_employee_level * final_management_fee_rate).quantize(Decimal('0.01'))
-            # --- 核心修复：获取模板内容 ---
-            template_content = None
-            if old_contract.template_id:
-                template = ContractTemplate.query.get(old_contract.template_id)
-                if template:
-                    template_content = template.content
-            # --- 修复结束 ---
             new_contract_fields = {
                 "customer_id": old_contract.customer_id,
                 "service_personnel_id": old_contract.service_personnel_id,
@@ -409,7 +402,8 @@ class ContractService:
                 "template_id": old_contract.template_id,
                 "service_content": old_contract.service_content,
                 "service_type": old_contract.service_type,
-                "template_content": template_content,
+                "service_type": old_contract.service_type,
+                # "template_content": template_content,  <-- REMOVED
             }
             
             if isinstance(old_contract, NannyContract):
@@ -614,14 +608,6 @@ class ContractService:
 
             new_service_personnel_id = change_data.get("service_personnel_id")
 
-            # --- 核心修复：获取模板内容 ---
-            template_content = None
-            if old_contract.template_id:
-                template = ContractTemplate.query.get(old_contract.template_id)
-                if template:
-                    template_content = template.content
-            # --- 修复结束 ---
-
             new_contract_fields = {
                 "customer_id": old_contract.customer_id,
                 "service_personnel_id": new_service_personnel_id,
@@ -643,7 +629,8 @@ class ContractService:
                 "template_id": old_contract.template_id,
                 "service_content": old_contract.service_content,
                 "service_type": old_contract.service_type,
-                "template_content": template_content, 
+                "service_type": old_contract.service_type,
+                # "template_content": template_content, <-- REMOVED 
             }
 
             NewContractModel = type(old_contract)

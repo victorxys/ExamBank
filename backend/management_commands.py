@@ -3,7 +3,8 @@
 import click
 from flask.cli import with_appcontext
 from backend.services.billing_engine import BillingEngine, _update_bill_payment_status
-from backend.models import BaseContract, db, CustomerBill, PaymentRecord,FinancialAdjustment,EmployeePayroll, AdjustmentType, User,Customer, ServicePersonnel,EmployeeSalaryHistory,NannyTrialContract,SigningStatus,NannyContract,MaternityNurseContract
+from backend.models import BaseContract, db, CustomerBill, PaymentRecord,FinancialAdjustment,EmployeePayroll, AdjustmentType, User,Customer, ServicePersonnel,EmployeeSalaryHistory,NannyTrialContract,SigningStatus,NannyContract,MaternityNurseContract, ContractTemplate, ContractSignature
+from backend.services.signature_service import SignatureService
 from sqlalchemy import func
 from decimal import Decimal
 import logging
@@ -15,6 +16,7 @@ import os
 import httpx
 from urllib.parse import urlparse
 from flask import current_app
+import uuid
 
 logger = logging.getLogger(__name__)
 # --- START: Sync functions (only sync_user_to_sp remains) ---
@@ -899,8 +901,12 @@ def register_commands(app):
 
     def _update_signing_status(contract):
         """Helper function to update the signing status based on signature presence."""
-        has_customer_sig = bool(contract.customer_signature and contract.customer_signature.strip())
-        has_employee_sig = bool(contract.employee_signature and contract.employee_signature.strip())
+        has_customer_sig = ContractSignature.query.filter_by(
+            contract_id=contract.id, signature_type='customer'
+        ).first() is not None
+        has_employee_sig = ContractSignature.query.filter_by(
+            contract_id=contract.id, signature_type='employee'
+        ).first() is not None
 
         new_status = SigningStatus.UNSIGNED
         if has_customer_sig and has_employee_sig:
@@ -915,8 +921,8 @@ def register_commands(app):
             return True
         return False
 
-    def _download_and_encode_signature(signature_url):
-        """Downloads a signature image and returns it as a base64 data URI."""
+    def _download_signature_content(signature_url):
+        """Downloads a signature image and returns it as bytes."""
         if not signature_url:
             return None
         
@@ -925,17 +931,10 @@ def register_commands(app):
                 response = client.get(signature_url)
                 response.raise_for_status()
             
-            image_data = response.content
-            content_type = response.headers.get('content-type', 'image/png')
-            
-            base64_encoded_data = base64.b64encode(image_data).decode('utf-8')
-            
-            data_uri = f"data:{content_type};base64,{base64_encoded_data}"
-            
-            return data_uri
+            return response.content
 
         except Exception as e:
-            click.echo(f"\\n  - [错误] 下载或编码签名失败 URL: {signature_url}, 错误: {e}")
+            click.echo(f"\\n  - [错误] 下载签名失败 URL: {signature_url}, 错误: {e}")
             return None
 
     @app.cli.command("sync-signatures")
@@ -997,9 +996,12 @@ def register_commands(app):
                             customer_sig_url = signatures.get("customer_sig")
                             employee_sig_url = signatures.get("employee_sig")
 
-                            # 检查是否需要下载新签名 (如果URL存在，且DB中没有签名)
-                            customer_sig_needs_download = customer_sig_url and not contract.customer_signature
-                            employee_sig_needs_download = employee_sig_url and not contract.employee_signature
+                            # 检查是否需要下载新签名 (如果URL存在，且DB中没有签名记录)
+                            customer_sig_record = ContractSignature.query.filter_by(contract_id=contract.id, signature_type='customer').first()
+                            employee_sig_record = ContractSignature.query.filter_by(contract_id=contract.id, signature_type='employee').first()
+
+                            customer_sig_needs_download = customer_sig_url and not customer_sig_record
+                            employee_sig_needs_download = employee_sig_url and not employee_sig_record
                             
                             original_status = contract.signing_status
                             _update_signing_status(contract)
@@ -1013,20 +1015,46 @@ def register_commands(app):
                             form_updated_count += 1
 
                             if customer_sig_needs_download:
-                                click.echo(f"    - 客户签名: 准备从金数据下载并编码。")
+                                click.echo(f"    - 客户签名: 准备从金数据下载。")
                                 if not dry_run:
-                                    base64_uri = _download_and_encode_signature(customer_sig_url)
-                                    if base64_uri:
-                                        contract.customer_signature = base64_uri
-                                        click.echo(f"      -> 成功编码客户签名。")
+                                    sig_content = _download_signature_content(customer_sig_url)
+                                    if sig_content:
+                                        sig_dir = os.path.join(current_app.root_path, 'static', 'signatures')
+                                        os.makedirs(sig_dir, exist_ok=True)
+                                        filename = f"contract_{contract.id}_customer_{uuid.uuid4()}.png"
+                                        file_path = os.path.join(sig_dir, filename)
+                                        with open(file_path, "wb") as f:
+                                            f.write(sig_content)
+                                        
+                                        new_sig = ContractSignature(
+                                            contract_id=contract.id,
+                                            signature_type='customer',
+                                            file_path=file_path,
+                                            mime_type="image/png"
+                                        )
+                                        db.session.add(new_sig)
+                                        click.echo(f"      -> 成功保存客户签名。")
                             
                             if employee_sig_needs_download:
-                                click.echo(f"    - 员工签名: 准备从金数据下载并编码。")
+                                click.echo(f"    - 员工签名: 准备从金数据下载。")
                                 if not dry_run:
-                                    base64_uri = _download_and_encode_signature(employee_sig_url)
-                                    if base64_uri:
-                                        contract.employee_signature = base64_uri
-                                        click.echo(f"      -> 成功编码员工签名。")
+                                    sig_content = _download_signature_content(employee_sig_url)
+                                    if sig_content:
+                                        sig_dir = os.path.join(current_app.root_path, 'static', 'signatures')
+                                        os.makedirs(sig_dir, exist_ok=True)
+                                        filename = f"contract_{contract.id}_employee_{uuid.uuid4()}.png"
+                                        file_path = os.path.join(sig_dir, filename)
+                                        with open(file_path, "wb") as f:
+                                            f.write(sig_content)
+                                        
+                                        new_sig = ContractSignature(
+                                            contract_id=contract.id,
+                                            signature_type='employee',
+                                            file_path=file_path,
+                                            mime_type="image/png"
+                                        )
+                                        db.session.add(new_sig)
+                                        click.echo(f"      -> 成功保存员工签名。")
 
                             if _update_signing_status(contract):
                                  click.echo(f"    - 签名状态更新为: {contract.signing_status.value}")
@@ -1161,6 +1189,83 @@ def register_commands(app):
         finally:
             session.close()
     # --- END: migrate-contract-links command ---
+
+    @app.cli.command("associate-latest-contract-template")
+    @click.option('--dry-run', is_flag=True, help='只打印将要执行的操作，不实际修改数据库。')
+    @with_appcontext
+    def associate_latest_contract_template_command(dry_run):
+        """
+        为缺少合同模板ID或内容的合同，根据合同类型关联最新的合同模板。
+        """
+        session = db.session
+        
+        if dry_run:
+            click.echo("---【演习模式】将查找并列出需要关联最新合同模板的合同，但不会实际操作数据库。---")
+        else:
+            click.echo("---【警告】即将开始关联合同模板，此过程不可逆。---")
+
+        try:
+            # 1. 获取所有需要处理的合同
+            contracts_to_process = session.query(BaseContract).filter(
+                (BaseContract.template_id.is_(None))
+            ).all()
+
+            if not contracts_to_process:
+                click.echo(click.style("没有找到需要关联合同模板的合同。", fg="green"))
+                return
+
+            click.echo(f"发现 {len(contracts_to_process)} 份合同需要处理...")
+
+            # 2. 获取所有最新的合同模板
+            all_templates = session.query(ContractTemplate).all()
+            
+            latest_templates = {}
+            for template in all_templates:
+                # Assuming 'version' is a numeric field for comparison
+                if template.contract_type not in latest_templates or \
+                   template.version > latest_templates[template.contract_type].version:
+                    latest_templates[template.contract_type] = template
+            
+            updated_count = 0
+            skipped_count = 0
+
+            with click.progressbar(contracts_to_process, label="正在处理合同") as bar:
+                for contract in bar:
+                    contract_type = contract.type
+                    
+                    if contract_type in latest_templates:
+                        latest_template = latest_templates[contract_type]
+                        
+                        click.echo(f"\n  - [处理] 合同ID: {contract.id} (类型: {contract_type})")
+                        click.echo(f"    -> 找到最新模板: {latest_template.template_name} (ID: {latest_template.id}, 版本: {latest_template.version})")
+
+                        if not dry_run:
+                            contract.template_id = latest_template.id
+                            session.add(contract)
+                        updated_count += 1
+                    else:
+                        click.echo(f"\n  - [跳过] 合同ID: {contract.id} (类型: {contract_type}): 未找到对应的最新合同模板。")
+                        skipped_count += 1
+            
+            click.echo(f"\\n--- 模板关联任务报告 ---")
+            click.echo(f"总共检查合同: {len(contracts_to_process)}")
+            click.echo(click.style(f"成功关联: {updated_count} 份合同。", fg="green"))
+            click.echo(f"跳过: {skipped_count} 份合同。")
+
+            if not dry_run and updated_count > 0:
+                click.echo("\\n正在提交修改...")
+                session.commit()
+                click.echo(click.style("修改已成功提交。", fg="green"))
+            elif dry_run:
+                click.echo("\\n演习完成。未进行任何数据库修改。")
+
+        except Exception as e:
+            click.echo(click.style(f"\\n发生错误: {e}", fg="red"))
+            if not dry_run:
+                session.rollback()
+            logger.exception("Error during associate-latest-contract-template task:")
+        finally:
+            session.close()
 
     app.cli.add_command(import_users_from_jinshuju)
 

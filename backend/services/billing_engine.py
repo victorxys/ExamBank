@@ -2466,7 +2466,7 @@ class BillingEngine:
         management_fee_rate = D(contract.management_fee_rate if contract.management_fee_rate is not None else '0.1')
         management_fee = (rounded_monthly_salary * management_fee_rate / 30 * days).quantize(QUANTIZER)
 
-        current_app.logger.info(f"[TrialTerm-v17] 计算试工合同 {contract.id} 结算细节: 级别 {level}, 取整后日薪 {final_daily_rate}, 试工天数 {days}, 加班天数 {overtime_days}, 基础费 {base_fee}, 加班费 {overtime_fee}, 管理费 {management_fee}")
+        current_app.logger.info(f"[TrialTerm-v17] 计算试工合同 {contract.id} 结算细节: 级别 {level}, 取整后日薪 {final_daily_rate}, 试工天数 {days}, 加班天数 {overtime_days}, 基础费 {base_fee}, 加班费 {overtime_fee},管理费率{management_fee_rate}, 管理费 {management_fee}")
         
         cust_increase, cust_decrease, emp_increase, emp_decrease, deferred_fee, emp_commission = (
             self._get_adjustments(bill.id, payroll.id)

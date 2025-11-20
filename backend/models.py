@@ -1983,6 +1983,28 @@ class ServicePersonnel(db.Model):
     user_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True, unique=True, index=True, comment="关联的系统用户ID")
     user = db.relationship('User', backref=db.backref('service_personnel_profile', uselist=False))
 
+    current_contract_id = db.Column(
+        PG_UUID(as_uuid=True),
+        db.ForeignKey("contracts.id", ondelete="SET NULL"),
+        nullable=True,
+        comment="当前关联的员工入职合同ID",
+    )
+    current_contract = db.relationship(
+        "BaseContract",
+        foreign_keys=[current_contract_id],
+        backref=db.backref("associated_service_personnel", uselist=False),
+    )
+
+    def to_dict(self):
+        return {
+            "id": str(self.id),
+            "name": self.name,
+            "phone_number": self.phone_number,
+            "id_card_number": self.id_card_number,
+            "address": self.address,
+            "is_active": self.is_active,
+        }
+
     @sa.ext.hybrid.hybrid_property
     def current_salary(self):
         latest_salary_record = (
@@ -2428,7 +2450,9 @@ class BaseContract(db.Model):
     )
     user = db.relationship("User", backref=db.backref("contracts", lazy="dynamic"))
     service_personnel = db.relationship(
-        "ServicePersonnel", backref=db.backref("contracts", lazy="dynamic")
+        "ServicePersonnel",
+        foreign_keys=[service_personnel_id], # Explicitly specify the foreign key
+        backref=db.backref("contracts", lazy="dynamic")
     )
     customer = db.relationship("Customer", backref=db.backref("contracts", lazy="dynamic"))
     customer_bills = db.relationship(
@@ -2484,7 +2508,7 @@ class BaseContract(db.Model):
         comment="关联的合同模板ID",
     )
     # 制式合同内容快照
-    template_content = db.Column(db.Text, nullable=True)
+
     
     service_content = db.Column(
         PG_JSONB, nullable=True, comment="服务内容 (JSON 数组)"
@@ -2505,8 +2529,6 @@ class BaseContract(db.Model):
         index=True,
         comment="签署状态",
     )
-    customer_signature = db.Column(db.Text, nullable=True, comment="客户签名")
-    employee_signature = db.Column(db.Text, nullable=True, comment="服务人员签名")
     customer_signing_token = db.Column(db.String(36), unique=True, nullable=True, comment= "客户的专属签名令牌")
     employee_signing_token = db.Column(db.String(36), unique=True, nullable=True, comment= "服务人员的专属签名令牌")
     previous_contract_id = db.Column(
@@ -3160,7 +3182,203 @@ class ContractTemplate(db.Model):
         return f"<ContractTemplate {self.template_name} ({self.contract_type} v{self.version})>"
 
 
+class ContractSignature(db.Model):
+    __tablename__ = "contract_signatures"
+    __table_args__ = (
+        db.UniqueConstraint('contract_id', 'signature_type', name='uq_contract_signature_type'),
+        {"comment": "合同签名文件表"}
+    )
+
+    id = db.Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    contract_id = db.Column(
+        PG_UUID(as_uuid=True),
+        db.ForeignKey("contracts.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+        comment="关联的合同ID"
+    )
+    signature_type = db.Column(
+        db.String(50),
+        nullable=False,
+        comment="签名类型 (customer, employee)"
+    )
+    file_path = db.Column(db.String(512), nullable=False, comment="签名文件存储路径")
+    mime_type = db.Column(db.String(100), nullable=True, comment="MIME类型 (e.g., image/png)")
+    uploaded_at = db.Column(db.DateTime(timezone=True), server_default=func.now(), comment="上传时间")
+    
+    contract = db.relationship("BaseContract", backref=db.backref("signatures", lazy="dynamic", cascade="all, delete-orphan"))
+
+    def __repr__(self):
+        return f"<ContractSignature {self.signature_type} for Contract {self.contract_id}>"
+
+
 # --- TTS Provider State Model ---
+
+# New models for Dynamic Forms
+class DynamicForm(db.Model):
+    __tablename__ = "dynamic_form"
+    __table_args__ = (
+        UniqueConstraint("form_token", name="uq_dynamic_form_token"),
+        {"comment": "动态表单定义表，存储SurveyJS表单结构和元数据"},
+    )
+
+    id = db.Column(
+        PG_UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+        comment="主键，使用 UUID",
+    )
+    name = db.Column(db.String(255), nullable=False, comment="表单名称")
+    form_token = db.Column(
+        db.String(100), nullable=False, unique=True, index=True, comment="表单唯一标识符，用于URL或API调用"
+    )
+    description = db.Column(db.Text, nullable=True, comment="表单描述")
+    form_type = db.Column(
+        db.String(50),
+        nullable=False,
+        default="ACTIVE_RECORD",
+        server_default="ACTIVE_RECORD",
+        comment="表单类型 (ACTIVE_RECORD, HISTORICAL_READONLY, EXAM, QUESTIONNAIRE)",
+    )
+    surveyjs_schema = db.Column(
+        PG_JSONB, nullable=False, comment="SurveyJS 兼容的表单结构 JSON"
+    )
+    jinshuju_schema = db.Column(
+        PG_JSONB, nullable=True, comment="金数据原始表单结构 JSON (用于归档和调试)"
+    )
+    sync_mapping = db.Column(
+        PG_JSONB, nullable=True, comment="数据同步映射配置 JSON"
+    )
+    passing_score = db.Column(db.Integer, nullable=True, comment="考试及格分数 (百分比)")
+    exam_duration = db.Column(db.Integer, nullable=True, comment="考试时长 (分钟)")
+    created_at = db.Column(
+        db.DateTime(timezone=True), server_default=func.now(), comment="创建时间"
+    )
+    updated_at = db.Column(
+        db.DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        comment="更新时间",
+    )
+
+    form_data_records = db.relationship(
+        "DynamicFormData", backref="dynamic_form", lazy="dynamic", cascade="all, delete-orphan"
+    )
+    
+    folder_id = db.Column(
+        PG_UUID(as_uuid=True),
+        db.ForeignKey("form_folder.id", ondelete="SET NULL"),
+        nullable=True,
+        comment="所属文件夹ID",
+    )
+
+    def __repr__(self):
+        return f"<DynamicForm {self.name} ({self.form_token})>"
+
+
+class FormFolder(db.Model):
+    __tablename__ = "form_folder"
+    __table_args__ = {"comment": "表单文件夹表"}
+
+    id = db.Column(
+        PG_UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+        comment="文件夹ID",
+    )
+    name = db.Column(db.String(255), nullable=False, comment="文件夹名称")
+    description = db.Column(db.Text, nullable=True, comment="文件夹描述")
+    created_at = db.Column(
+        db.DateTime(timezone=True), server_default=func.now(), comment="创建时间"
+    )
+    updated_at = db.Column(
+        db.DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        comment="更新时间",
+    )
+
+    parent_id = db.Column(
+        PG_UUID(as_uuid=True),
+        db.ForeignKey("form_folder.id", ondelete="CASCADE"),
+        nullable=True,
+        comment="父文件夹ID",
+    )
+
+    subfolders = db.relationship(
+        "FormFolder",
+        backref=db.backref("parent", remote_side=[id]),
+        lazy="dynamic",
+        cascade="all, delete-orphan",
+    )
+
+    forms = db.relationship(
+        "DynamicForm",
+        backref="folder",
+        lazy="dynamic",
+        foreign_keys="DynamicForm.folder_id",
+    )
+
+    def __repr__(self):
+        return f"<FormFolder {self.name}>"
+
+
+class DynamicFormData(db.Model):
+    __tablename__ = "dynamic_form_data"
+    __table_args__ = (
+        Index("idx_dynamic_form_data_form_id", "form_id"),
+        Index("idx_dynamic_form_data_user_id", "user_id"),
+        Index("idx_dynamic_form_data_service_personnel_id", "service_personnel_id"),
+        {"comment": "动态表单数据表，存储用户提交的表单数据"},
+    )
+
+    id = db.Column(
+        PG_UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+        comment="主键，使用 UUID",
+    )
+    form_id = db.Column(
+        PG_UUID(as_uuid=True),
+        db.ForeignKey("dynamic_form.id", ondelete="CASCADE"),
+        nullable=False,
+        comment="关联的表单定义ID",
+    )
+    user_id = db.Column(
+        PG_UUID(as_uuid=True),
+        db.ForeignKey("user.id", ondelete="SET NULL"),
+        nullable=True,
+        comment="提交此表单的用户ID (如果适用)",
+    )
+    service_personnel_id = db.Column(
+        PG_UUID(as_uuid=True),
+        db.ForeignKey("service_personnel.id", ondelete="SET NULL"),
+        nullable=True,
+        comment="关联的服务人员ID (如果适用，例如员工登记表)",
+    )
+    data = db.Column(
+        PG_JSONB, nullable=False, comment="用户提交的表单数据 JSON"
+    )
+    score = db.Column(db.Integer, nullable=True, comment="考试得分")
+    result_details = db.Column(
+        PG_JSONB, nullable=True, comment="考试结果详情 (例如每题的对错)"
+    )
+    created_at = db.Column(
+        db.DateTime(timezone=True), server_default=func.now(), comment="创建时间"
+    )
+    updated_at = db.Column(
+        db.DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        comment="更新时间",
+    )
+
+    # Relationships are defined via backref in DynamicForm and ServicePersonnel/User models
+
+    def __repr__(self):
+        return f"<DynamicFormData {self.id} for Form {self.form_id}>"
+
+
 class TtsProviderState(db.Model):
     __tablename__ = 'tts_provider_state'
     __table_args__ = (
@@ -3181,3 +3399,4 @@ class TtsProviderState(db.Model):
 
     def __repr__(self):
         return f'<TtsProviderState {self.group_id}: Index {self.current_provider_index}, Count {self.usage_count}>'
+

@@ -20,9 +20,11 @@ def auth_headers(client):
     return {"Authorization": "Bearer test_token"} # Replace with actual token if needed
 
 @pytest.fixture
-def create_test_templates(app):
-    with app.app_context():
+def create_test_templates(_app):
+    with _app.app_context():
         # Clear existing templates to ensure a clean state for tests
+        # First delete contracts that reference templates to avoid foreign key violations
+        db.session.query(BaseContract).filter(BaseContract.template_id.isnot(None)).delete(synchronize_session=False)
         db.session.query(ContractTemplate).delete()
         db.session.commit()
 
@@ -65,7 +67,8 @@ def create_test_templates(app):
 
         db.session.add_all([template1, template2, template3, template4])
         db.session.commit()
-        return [template1, template2, template3, template4]
+        # Return IDs instead of objects to avoid DetachedInstanceError
+        return [template1.id, template2.id, template3.id, template4.id]
 
 def test_get_all_contract_templates_includes_expected_fields_and_sorted(client, auth_headers, create_test_templates):
     """
@@ -99,11 +102,11 @@ def test_get_all_contract_templates_includes_expected_fields_and_sorted(client, 
     assert data[3]["template_name"] == "Template C"
     assert data[3]["version"] == 1
 
-def test_get_all_contract_templates_no_templates(client, auth_headers, app):
+def test_get_all_contract_templates_no_templates(client, auth_headers, _app):
     """
     测试数据库中没有模板时，返回空列表。
     """
-    with app.app_context():
+    with _app.app_context():
         db.session.query(ContractTemplate).delete()
         db.session.commit()
 
@@ -113,7 +116,7 @@ def test_get_all_contract_templates_no_templates(client, auth_headers, app):
     assert isinstance(data, list)
     assert len(data) == 0
 
-def test_get_all_contract_templates_unauthorized(client, app):
+def test_get_all_contract_templates_unauthorized(client, _app):
     """
     测试未授权访问时，返回401。
     """
@@ -125,9 +128,9 @@ def test_get_all_contract_templates_unauthorized(client, app):
 from backend.models import BaseContract # Import BaseContract for testing usage
 
 @pytest.fixture
-def create_contract_referencing_template(app, create_test_templates):
-    with app.app_context():
-        template_in_use = create_test_templates[0] # Use an existing template
+def create_contract_referencing_template(_app, create_test_templates):
+    with _app.app_context():
+        template_id = create_test_templates[0] # Use an existing template ID
         contract = BaseContract(
             id=uuid.uuid4(),
             customer_name="Test Customer",
@@ -135,19 +138,18 @@ def create_contract_referencing_template(app, create_test_templates):
             start_date=datetime.utcnow(),
             end_date=datetime.utcnow() + timedelta(days=30),
             type="nanny",
-            template_id=template_in_use.id, # Reference the template
-            template_content="Contract content referencing template"
+            template_id=template_id, # Reference the template
         )
         db.session.add(contract)
         db.session.commit()
-        return contract, template_in_use
+        return contract.id, template_id
 
 def test_is_template_in_use_true(client, auth_headers, create_contract_referencing_template):
     """
     测试当模板被合同时，is_in_use 接口返回 True。
     """
-    contract, template_in_use = create_contract_referencing_template
-    response = client.get(url_for('contract_template_api.is_template_in_use', template_id=template_in_use.id), headers=auth_headers)
+    contract_id, template_id = create_contract_referencing_template
+    response = client.get(url_for('contract_template_api.is_template_in_use', template_id=template_id), headers=auth_headers)
     assert response.status_code == 200
     data = response.get_json()
     assert data["is_in_use"] is True
@@ -191,11 +193,11 @@ def test_is_template_in_use_unauthorized(client):
     assert response.status_code == 401
     assert "Missing Authorization Header" in response.get_json()["msg"]
 
-def test_save_new_version_contract_template_success(client, auth_headers, app):
+def test_save_new_version_contract_template_success(client, auth_headers, _app):
     """
     测试成功将合同模板另存为新版本。
     """
-    with app.app_context():
+    with _app.app_context():
         # Create an initial template
         original_template = ContractTemplate(
             id=uuid.uuid4(),
@@ -229,7 +231,7 @@ def test_save_new_version_contract_template_success(client, auth_headers, app):
     assert data["content"] == "Original content v1" # Content should be copied from original_template
     assert data["version"] == 3 # Should be max_version (2) + 1
 
-    with app.app_context():
+    with _app.app_context():
         # Verify new template exists in DB
         new_template_db = db.session.query(ContractTemplate).filter_by(id=uuid.UUID(data["id"])).first()
         assert new_template_db is not None
@@ -259,11 +261,11 @@ def test_save_new_version_contract_template_unauthorized(client):
     assert response.status_code == 401
     assert "Missing Authorization Header" in response.get_json()["msg"]
 
-def test_get_template_diff_success(client, auth_headers, app):
+def test_get_template_diff_success(client, auth_headers, _app):
     """
     测试成功获取合同模板与上一版本的内容差异。
     """
-    with app.app_context():
+    with _app.app_context():
         template_v1 = ContractTemplate(
             id=uuid.uuid4(),
             template_name="Diff Test Template",
@@ -290,11 +292,11 @@ def test_get_template_diff_success(client, auth_headers, app):
     assert data["previous_version"] == 1
     assert data["previous_content"] == "Content for v1"
 
-def test_get_template_diff_version_one(client, auth_headers, app):
+def test_get_template_diff_version_one(client, auth_headers, _app):
     """
     测试获取版本1模板的差异时，返回400。
     """
-    with app.app_context():
+    with _app.app_context():
         template_v1 = ContractTemplate(
             id=uuid.uuid4(),
             template_name="Diff Test Template V1",
@@ -318,11 +320,11 @@ def test_get_template_diff_template_not_found(client, auth_headers):
     assert response.status_code == 404
     assert "合同模板未找到" in response.get_json()["error"]
 
-def test_get_template_diff_previous_version_not_found(client, auth_headers, app):
+def test_get_template_diff_previous_version_not_found(client, auth_headers, _app):
     """
     测试获取差异时，上一版本不存在，返回404。
     """
-    with app.app_context():
+    with _app.app_context():
         template_v2_only = ContractTemplate(
             id=uuid.uuid4(),
             template_name="Diff Test Template V2 Only",
@@ -346,11 +348,11 @@ def test_get_template_diff_unauthorized(client):
     assert response.status_code == 401
     assert "Missing Authorization Header" in response.get_json()["msg"]
 
-def test_update_contract_template_updates_updated_at(client, auth_headers, app):
+def test_update_contract_template_updates_updated_at(client, auth_headers, _app):
     """
     测试更新合同模板时，updated_at 字段会自动更新。
     """
-    with app.app_context():
+    with _app.app_context():
         template = ContractTemplate(
             id=uuid.uuid4(),
             template_name="Update Test Template",
@@ -360,6 +362,7 @@ def test_update_contract_template_updates_updated_at(client, auth_headers, app):
         )
         db.session.add(template)
         db.session.commit()
+        template_id = template.id
         initial_updated_at = template.updated_at
 
     # Wait a bit to ensure updated_at will be different
@@ -368,7 +371,7 @@ def test_update_contract_template_updates_updated_at(client, auth_headers, app):
     update_data = {
         "content": "Updated content"
     }
-    response = client.put(url_for('contract_template_api.update_contract_template', template_id=template.id), json=update_data, headers=auth_headers)
+    response = client.put(url_for('contract_template_api.update_contract_template', template_id=template_id), json=update_data, headers=auth_headers)
     assert response.status_code == 200
     data = response.get_json()
 
@@ -376,8 +379,8 @@ def test_update_contract_template_updates_updated_at(client, auth_headers, app):
     response_updated_at = datetime.fromisoformat(data["updated_at"])
     assert response_updated_at > initial_updated_at
 
-    with app.app_context():
+    with _app.app_context():
         # Retrieve from DB to confirm
-        updated_template = db.session.query(ContractTemplate).filter_by(id=template.id).first()
+        updated_template = db.session.query(ContractTemplate).filter_by(id=template_id).first()
         assert updated_template.updated_at > initial_updated_at
         assert updated_template.content == "Updated content"

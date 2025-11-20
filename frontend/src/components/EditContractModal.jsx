@@ -81,12 +81,14 @@ const EditContractModal = ({ open, onClose, onSuccess, contractId }) => {
                         api.get('/contract_templates?all=true')
                     ]);
                     
+                    console.log('Fetched contract data:', contractRes.data);
+                    console.log('Fetched templates data:', templatesRes.data);
+
                     const data = contractRes.data;
                     setOriginalContract(data);
                     setTemplates(templatesRes.data.templates || []);
 
-                    // Set initial form data
-                    setFormData({
+                    const newFormData = {
                         ...initialState, // Start with a clean slate
                         ...data, // Populate with fetched data
                         start_date: data.start_date ? new Date(data.start_date) : null,
@@ -100,7 +102,9 @@ const EditContractModal = ({ open, onClose, onSuccess, contractId }) => {
                         management_fee_amount: data.management_fee_amount || '',
                         deposit_rate: parseFloat(data.deposit_rate) || 0.25,
                         management_fee_rate: parseFloat(data.management_fee_rate) || 0.20,
-                    });
+                    };
+                    setFormData(newFormData);
+                    console.log('Initial formData after setting:', newFormData);
 
                     // Set selected customer/employee for display (they are read-only)
                     if (data.customer_id && data.customer_name) {
@@ -125,10 +129,14 @@ const EditContractModal = ({ open, onClose, onSuccess, contractId }) => {
 
     // 联动逻辑1: 合同类型变化时，自动选择模板
     useEffect(() => {
+        console.log('Contract type changed or templates updated. formData.contract_type:', formData.contract_type, 'templates:', templates);
         if (formData.contract_type && templates.length > 0) {
             const matchedTemplate = templates.find(t => t.contract_type === formData.contract_type);
+            console.log('Matched template:', matchedTemplate);
             if (matchedTemplate && matchedTemplate.id !== formData.template_id) {
-                setFormData(prev => ({ ...prev, template_id: matchedTemplate.id }));
+                const newFormData = { ...formData, template_id: matchedTemplate.id };
+                setFormData(newFormData);
+                console.log('Updated formData with new template_id:', newFormData);
             }
         }
     }, [formData.contract_type, templates]);
