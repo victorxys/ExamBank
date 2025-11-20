@@ -73,3 +73,19 @@ button:focus-visible {
     background-color: #f9f9f9;
   }
 }
+
+/* 隐藏 SurveyJS Creator 的版权提示 */
+.svc-creator__non-commercial-text {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    height: 0 !important;
+    width: 0 !important;
+    position: absolute !important;
+    pointer-events: none !important;
+}
+
+/* 某些版本可能包含在 banner 容器中，也可以尝试隐藏容器 */
+.svc-creator__banner {
+    display: none !important;
+}

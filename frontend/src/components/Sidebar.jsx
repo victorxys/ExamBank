@@ -66,6 +66,7 @@ export const allMenuItems = [
   { text: '用户管理', icon: <PeopleIcon />, path: '/users', adminOnly: true },
   { text: '员工管理', icon: <PeopleIcon />, path: '/staff-management', adminOnly: true },
   { text: '员工自评列表', icon: <AssignmentTurnedInIcon />, path: '/employee-self-evaluations', adminOnly: true },
+  { text: '动态表单', icon: <DescriptionIcon />, path: '/forms', adminOnly: true },
   { text: '评价体系管理', icon: <AssignmentIcon />, path: '/evaluation-management', adminOnly: true },
   {
     text: 'LLM 管理',

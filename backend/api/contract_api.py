@@ -20,8 +20,10 @@ from backend.models import (
     FinancialAdjustment,
     PaymentRecord,
     AttendanceRecord, # <-- 确保此行存在
-    EmployeeSalaryHistory
+    EmployeeSalaryHistory,
+    ContractSignature
 )
+import base64
 from backend.tasks import calculate_monthly_billing_task
 from backend.services.billing_engine import BillingEngine, calculate_substitute_management_fee, _update_bill_payment_status
 from backend.services.contract_service import (
@@ -334,6 +336,19 @@ import markdown
 
 # 在 backend/api/contract_api.py 文件末尾添加
 
+@contract_bp.route("/signatures/<uuid:signature_id>/image", methods=["GET"])
+def get_signature_image(signature_id):
+    """
+    Serve the signature image file.
+    """
+    signature = ContractSignature.query.get_or_404(signature_id)
+    if not signature.file_path or not os.path.exists(signature.file_path):
+        return "Signature file not found", 404
+        
+    directory = os.path.dirname(signature.file_path)
+    filename = os.path.basename(signature.file_path)
+    return send_from_directory(directory, filename)
+
 @contract_bp.route("/<string:contract_id>/download", methods=["GET"])
 @jwt_required()
 def download_contract_pdf(contract_id):
@@ -370,9 +385,17 @@ def download_contract_pdf(contract_id):
             
         service_content_html = markdown.markdown(markdown_text)
         # 1. 读取并转换主模板内容
-        main_content_html = markdown.markdown(contract.template_content) if contract.template_content else ''
+        template_content = contract.template.content if contract.template else ''
+        main_content_html = markdown.markdown(template_content)
         # 2. 读取并转换附件内容
         attachment_content_html = markdown.markdown(contract.attachment_content) if contract.attachment_content else ''
+
+        # 获取签名 (用于PDF生成，直接使用本地路径)
+        customer_sig = ContractSignature.query.filter_by(contract_id=contract.id, signature_type='customer').first()
+        employee_sig = ContractSignature.query.filter_by(contract_id=contract.id, signature_type='employee').first()
+        
+        customer_signature_path = f"file://{customer_sig.file_path}" if customer_sig and os.path.exists(customer_sig.file_path) else None
+        employee_signature_path = f"file://{employee_sig.file_path}" if employee_sig and os.path.exists(employee_sig.file_path) else None
 
         rendered_html = render_template(
             "contract_pdf.html",
@@ -380,8 +403,8 @@ def download_contract_pdf(contract_id):
             service_content=service_content_html,
             main_content=main_content_html,
             attachment_content=attachment_content_html,
-            customer_signature=contract.customer_signature,
-            employee_signature=contract.employee_signature,
+            customer_signature=customer_signature_path,
+            employee_signature=employee_signature_path,
             customer=contract.customer,
             employee=contract.service_personnel,
             contract=contract
@@ -662,7 +685,6 @@ def create_formal_contract():
             "introduction_fee": to_decimal(data.get("introduction_fee")),
             "management_fee_amount": to_decimal(data.get("management_fee_amount")),
             "management_fee_rate": to_decimal(data.get("management_fee_rate")),
-            "template_content" : contract_template.content,
             "service_content": data.get("service_content"),
             "service_type": data.get("service_type"),
             "is_auto_renew": data.get("is_auto_renew", False),
@@ -906,7 +928,7 @@ def update_contract(contract_id):
             contract.template_id = data['template_id']
             new_template = ContractTemplate.query.get(data['template_id'])
             if new_template:
-                contract.template_content = new_template.content
+                pass # Template content is now accessed via relation
 
         # --- 核心修改：将 security_deposit_paid 的更新逻辑移到外面，使其通用 ---
         if 'security_deposit_paid' in data:
@@ -1005,18 +1027,22 @@ def get_contract_for_signing(token):
         deposit_amount = getattr(contract, 'deposit_amount', None)
         security_deposit_paid = getattr(contract, 'security_deposit_paid', None)
 
+        # 获取签名
+        customer_sig = ContractSignature.query.filter_by(contract_id=contract.id, signature_type='customer').first()
+        employee_sig = ContractSignature.query.filter_by(contract_id=contract.id, signature_type='employee').first()
+
         return jsonify({
             "contract_id": str(contract.id),
             "role": role,
             "customer_name": contract.customer_name,
-            "template_content": contract.template_content,
+            "template_content": contract.template.content if contract.template else '',
             "service_content": contract.service_content,
             "attachment_content": contract.attachment_content,
             "customer_info": customer_info,
             "employee_info": employee_info,
             "signing_status": contract.signing_status.value if contract.signing_status else None,
-            "customer_signature": contract.customer_signature,
-            "employee_signature": contract.employee_signature,
+            "customer_signature": f"/api/contracts/signatures/{customer_sig.id}/image" if customer_sig else None,
+            "employee_signature": f"/api/contracts/signatures/{employee_sig.id}/image" if employee_sig else None,
 
             # --- 核心修正：添加前端需要的所有核心信息字段 ---
             "type": contract.type,
@@ -1087,16 +1113,20 @@ def handle_signing_page_action(token):
             deposit_amount = getattr(contract, 'deposit_amount', None)
             security_deposit_paid = getattr(contract, 'security_deposit_paid', None)
 
+            # 获取签名
+            customer_sig = ContractSignature.query.filter_by(contract_id=contract.id, signature_type='customer').first()
+            employee_sig = ContractSignature.query.filter_by(contract_id=contract.id, signature_type='employee').first()
+
             response_data = {
                 "contract_id": str(contract.id),
                 "role": role,
-                "template_content": contract.template_content,
+                "template_content": contract.template.content if contract.template else '',
                 "service_content": contract.service_content,
                 "attachment_content": contract.attachment_content,
                 "customer_name": contract.customer_name,
                 "employee_name": contract.service_personnel.name if contract.service_personnel else "服务人员",
-                "customer_signature": contract.customer_signature,
-                "employee_signature": contract.employee_signature,
+                "customer_signature": f"/api/contracts/signatures/{customer_sig.id}/image" if customer_sig else None,
+                "employee_signature": f"/api/contracts/signatures/{employee_sig.id}/image" if employee_sig else None,
                 "signing_status": contract.signing_status.value,
                 "customer_info": customer_info,
                 "employee_info": employee_info,
@@ -1170,7 +1200,44 @@ def handle_signing_page_action(token):
                         customer_to_update.address = customer_info_data['address']
                         current_app.logger.info(f"更新了客户 (ID: {customer_to_update.id}) 的信息。" )
 
-                contract.customer_signature = signature
+                # 保存签名到文件和 ContractSignature 表
+                signature_data = data["signature"]
+                if "," in signature_data:
+                    header, encoded = signature_data.split(",", 1)
+                else:
+                    encoded = signature_data
+                
+                img_data = base64.b64decode(encoded)
+                
+                sig_dir = os.path.join(current_app.root_path, 'static', 'signatures')
+                os.makedirs(sig_dir, exist_ok=True)
+                
+                filename = f"contract_{contract.id}_{role}_{uuid.uuid4()}.png"
+                file_path = os.path.join(sig_dir, filename)
+                
+                with open(file_path, "wb") as f:
+                    f.write(img_data)
+                
+                sig_record = ContractSignature.query.filter_by(contract_id=contract.id, signature_type=role).first()
+                if not sig_record:
+                    sig_record = ContractSignature(
+                        contract_id=contract.id,
+                        signature_type=role,
+                        file_path=file_path,
+                        mime_type="image/png"
+                    )
+                    db.session.add(sig_record)
+                else:
+                    # 删除旧文件
+                    if os.path.exists(sig_record.file_path):
+                        try:
+                            os.remove(sig_record.file_path)
+                        except:
+                            pass
+                    sig_record.file_path = file_path
+                    sig_record.uploaded_at = func.now()
+
+                # contract.customer_signature = signature <-- REMOVED
                 if contract.signing_status == SigningStatus.EMPLOYEE_SIGNED:
                     contract.signing_status = SigningStatus.SIGNED
                     contract.status = "active"
@@ -1192,7 +1259,44 @@ def handle_signing_page_action(token):
                     employee_to_update.address = employee_info_data['address']
                     current_app.logger.info(f"更新了服务人员 (ID: {employee_to_update.id}) 的信息。")
 
-                contract.employee_signature = signature
+                # 保存签名到文件和 ContractSignature 表
+                signature_data = data["signature"]
+                if "," in signature_data:
+                    header, encoded = signature_data.split(",", 1)
+                else:
+                    encoded = signature_data
+                
+                img_data = base64.b64decode(encoded)
+                
+                sig_dir = os.path.join(current_app.root_path, 'static', 'signatures')
+                os.makedirs(sig_dir, exist_ok=True)
+                
+                filename = f"contract_{contract.id}_{role}_{uuid.uuid4()}.png"
+                file_path = os.path.join(sig_dir, filename)
+                
+                with open(file_path, "wb") as f:
+                    f.write(img_data)
+                
+                sig_record = ContractSignature.query.filter_by(contract_id=contract.id, signature_type=role).first()
+                if not sig_record:
+                    sig_record = ContractSignature(
+                        contract_id=contract.id,
+                        signature_type=role,
+                        file_path=file_path,
+                        mime_type="image/png"
+                    )
+                    db.session.add(sig_record)
+                else:
+                    # 删除旧文件
+                    if os.path.exists(sig_record.file_path):
+                        try:
+                            os.remove(sig_record.file_path)
+                        except:
+                            pass
+                    sig_record.file_path = file_path
+                    sig_record.uploaded_at = func.now()
+
+                # contract.employee_signature = signature <-- REMOVED
                 if contract.signing_status == SigningStatus.CUSTOMER_SIGNED:
                     contract.signing_status = SigningStatus.SIGNED
                     contract.status = "active"
@@ -1566,18 +1670,18 @@ def get_contract_signature(contract_id, role):
     try:
         contract = BaseContract.query.get_or_404(str(contract_id))
         
-        signature_data = None
+        sig_record = None
         if role == "customer":
-            signature_data = contract.customer_signature
+            sig_record = ContractSignature.query.filter_by(contract_id=contract.id, signature_type='customer').first()
         elif role == "employee":
-            signature_data = contract.employee_signature
+            sig_record = ContractSignature.query.filter_by(contract_id=contract.id, signature_type='employee').first()
         else:
             return jsonify({"error": "无效的角色"}), 400
 
-        if not signature_data:
+        if not sig_record:
             return jsonify({"signature": None}), 404
 
-        return jsonify({"signature": signature_data})
+        return jsonify({"signature": f"/api/contracts/signatures/{sig_record.id}/image"})
 
     except Exception as e:
         current_app.logger.error(f"获取合同 {contract_id} 的签名失败: {e}", exc_info=True)

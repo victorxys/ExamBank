@@ -42,7 +42,7 @@ from backend.api.evaluation import (
 )
 from backend.api.user_profile import get_user_profile
 from backend.db import get_db_connection
-from backend.models import db, UserCourseAccess  #
+from backend.models import db, UserCourseAccess, User  #
 # from backend.tasks import run_llm_function_async  # <<<--- 确保导入通用任务
 
 # from backend.api.evaluation_visibility import bp as evaluation_visibility_bp
@@ -72,6 +72,13 @@ from backend.api.payer_alias_api import payer_alias_api
 from backend.api.bill_merge_api import bill_merge_bp
 from backend.api.contract_template_api import contract_template_bp
 from backend.api.staff_api import staff_api
+from backend.api.dynamic_form_api import dynamic_form_bp
+from backend.api.dynamic_form_data_api import dynamic_form_data_bp
+from backend.api.form_folder_api import form_folder_bp
+
+# ... (existing code)
+
+
 
 
 
@@ -151,7 +158,19 @@ os.makedirs(app.config["TTS_AUDIO_STORAGE_PATH"], exist_ok=True)
 
 
 jwt = JWTManager(app)  # 初始化JWT管理器
-
+@jwt.user_lookup_loader                                                                 
+def user_lookup_callback(_jwt_header, jwt_data):                                        
+    """                                                                                 
+    This function is called whenever a protected endpoint is accessed,                  
+    and must return an object that represents the identity of the                       
+    JWT.                                                                                
+    """                                                                                 
+    identity = jwt_data["sub"]                                                          
+    # Assuming 'User' model has a method to get a user by ID, e.g., User.query.get()    
+    # This will query the database for the user with the given ID                       
+    with app.app_context():                                                             
+        user = User.query.get(identity)                                                 
+    return user  
 
 # --- JWT 错误处理器 ---
 def add_cors_headers_to_response(response):
@@ -281,6 +300,9 @@ app.register_blueprint(payer_alias_api)
 app.register_blueprint(bill_merge_bp)
 app.register_blueprint(contract_template_bp) 
 app.register_blueprint(staff_api)
+app.register_blueprint(dynamic_form_bp)
+app.register_blueprint(dynamic_form_data_bp)
+app.register_blueprint(form_folder_bp)
 # app.register_blueprint(statement_bp, url_prefix="/api") 
 
 
