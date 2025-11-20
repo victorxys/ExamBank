@@ -277,6 +277,7 @@ claude mcp add spec-workflow-mcp -s user -- npx -y spec-workflow-mcp@latest
 *   **后端**:
     *   激活虚拟环境: `source venv/bin/activate`
     *   安装依赖: `pip install -r backend/requirements.txt`
+    *   数据库迁移: `source venv/bin/activate && flask db migrate`
     *   启动开发服务器: `flask run`
     *   运行测试: `pytest backend/tests`
     *   运行 linter: `ruff check backend`

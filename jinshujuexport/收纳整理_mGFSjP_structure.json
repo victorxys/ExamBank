@@ -1,0 +1,214 @@
+{
+    "name": "收纳整理",
+    "token": "mGFSjP",
+    "description": "<p>规划整理服务事前问卷！</p>",
+    "fields": [
+        {
+            "field_1": {
+                "label": "请选择符合现在生活状态的选项（可多选）",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "床上堆着不知道什么时候穿过的衣服",
+                        "value": "qGtv",
+                        "hidden": false
+                    },
+                    {
+                        "name": "有时会把用过的东西就那么放着",
+                        "value": "Tx3i",
+                        "hidden": false
+                    },
+                    {
+                        "name": "就算确定了收纳的地方，也做不到物归原位",
+                        "value": "J1UE",
+                        "hidden": false
+                    },
+                    {
+                        "name": "东西塞到里边就忘了",
+                        "value": "zINq",
+                        "hidden": false
+                    },
+                    {
+                        "name": "总有房间不知不觉就变成了储藏室",
+                        "value": "qONM",
+                        "hidden": false
+                    },
+                    {
+                        "name": "有很多没用却不知道怎么处理的东西",
+                        "value": "S6dZ",
+                        "hidden": false
+                    },
+                    {
+                        "name": "床上乱七八糟",
+                        "value": "guT6",
+                        "hidden": false
+                    },
+                    {
+                        "name": "经常找不到东西",
+                        "value": "Io6Z",
+                        "hidden": false
+                    },
+                    {
+                        "name": "不知道什么东西该放在什么地方",
+                        "value": "kA01",
+                        "hidden": false
+                    },
+                    {
+                        "name": "收拾好的地方很快又乱",
+                        "value": "mmv6",
+                        "hidden": false
+                    },
+                    {
+                        "name": "常常冲动购物，家里有很多带着标签的衣服",
+                        "value": "ssmA",
+                        "hidden": false
+                    },
+                    {
+                        "name": "家里人不帮忙整理房间",
+                        "value": "z6HE",
+                        "hidden": false
+                    },
+                    {
+                        "name": "起居室里胡乱摆放着家人物品",
+                        "value": "tNZM",
+                        "hidden": false
+                    },
+                    {
+                        "name": "其他",
+                        "value": "vs4r",
+                        "hidden": false,
+                        "is_other": true
+                    }
+                ],
+                "allow_other": true
+            }
+        },
+        {
+            "field_2": {
+                "label": "请选出符合现在困扰自己的事情（可多选）",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "收纳空间不够",
+                        "value": "e4wB",
+                        "hidden": false
+                    },
+                    {
+                        "name": "东西多",
+                        "value": "YQW8",
+                        "hidden": false
+                    },
+                    {
+                        "name": "东西在增多",
+                        "value": "RSu0",
+                        "hidden": false
+                    },
+                    {
+                        "name": "东西扔不掉",
+                        "value": "gchH",
+                        "hidden": false
+                    },
+                    {
+                        "name": "闲置物品太多",
+                        "value": "TrFR",
+                        "hidden": false
+                    },
+                    {
+                        "name": "整理好的屋子很快乱掉",
+                        "value": "lcD8",
+                        "hidden": false
+                    },
+                    {
+                        "name": "做不到物归原位",
+                        "value": "YwGQ",
+                        "hidden": false
+                    },
+                    {
+                        "name": "不清楚收纳整理的流程",
+                        "value": "Yx5u",
+                        "hidden": false
+                    },
+                    {
+                        "name": "没时间做整理收纳",
+                        "value": "w27U",
+                        "hidden": false
+                    },
+                    {
+                        "name": "家里人不帮忙整理房间",
+                        "value": "PRWt",
+                        "hidden": false
+                    },
+                    {
+                        "name": "其他",
+                        "value": "yZ7F",
+                        "hidden": false,
+                        "is_other": true
+                    }
+                ],
+                "allow_other": true
+            }
+        },
+        {
+            "field_3": {
+                "label": "想拥有怎样的生活",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "想尽量减少物品",
+                        "value": "br5d",
+                        "hidden": false
+                    },
+                    {
+                        "name": "不想减少物品",
+                        "value": "pWiK",
+                        "hidden": false
+                    },
+                    {
+                        "name": "想要把屋子整理的很漂亮",
+                        "value": "g2rI",
+                        "hidden": false
+                    },
+                    {
+                        "name": "不想再满屋子找东西",
+                        "value": "nA2K",
+                        "hidden": false
+                    },
+                    {
+                        "name": "不想整天为收纳整理烦心",
+                        "value": "wHF1",
+                        "hidden": false
+                    },
+                    {
+                        "name": "喜欢东西摆放着一目了然",
+                        "value": "ZsoG",
+                        "hidden": false
+                    },
+                    {
+                        "name": "喜欢东西都整齐的在柜子里面",
+                        "value": "TZLt",
+                        "hidden": false
+                    },
+                    {
+                        "name": "其他",
+                        "value": "6V4f",
+                        "hidden": false,
+                        "is_other": true
+                    }
+                ],
+                "allow_other": true
+            }
+        }
+    ]
+}

@@ -1,0 +1,162 @@
+[
+    {
+        "token": "QOWPNKEx",
+        "serial_number": 1,
+        "x_field_1": "",
+        "color_mark": "",
+        "creator_name": "",
+        "created_at": "2021-02-08T11:45:48.310Z",
+        "updated_at": "2021-02-08T11:45:48.310Z",
+        "info_filling_duration": 27,
+        "info_platform": "iPhone",
+        "info_os": "iOS 14.3",
+        "info_browser": "Wechat Browser 8.0.1(0x1800012a)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "114.255.249.178"
+    },
+    {
+        "token": "nECgTm2N",
+        "serial_number": 2,
+        "x_field_1": "",
+        "color_mark": "",
+        "creator_name": "",
+        "created_at": "2021-03-17T12:42:13.800Z",
+        "updated_at": "2021-03-17T12:42:13.800Z",
+        "info_filling_duration": 45,
+        "info_platform": "Android",
+        "info_os": "Android 10",
+        "info_browser": "Wechat Browser 8.0.1.1841(0x2800015D)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "120.244.188.194"
+    },
+    {
+        "token": "XIzVV4zO",
+        "serial_number": 3,
+        "x_field_1": "",
+        "color_mark": "",
+        "creator_name": "",
+        "created_at": "2021-06-16T00:13:57.834Z",
+        "updated_at": "2021-06-16T00:13:57.834Z",
+        "info_filling_duration": 11,
+        "info_platform": "Android",
+        "info_os": "Android 10",
+        "info_browser": "Wechat Browser 8.0.6.1900(0x2800063B)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "223.72.75.113"
+    },
+    {
+        "token": "n66SPLUg",
+        "serial_number": 4,
+        "x_field_1": "",
+        "color_mark": "",
+        "creator_name": "",
+        "created_at": "2021-07-05T07:38:45.763Z",
+        "updated_at": "2021-07-05T07:38:45.763Z",
+        "info_filling_duration": 6,
+        "info_platform": "Android",
+        "info_os": "Android 10",
+        "info_browser": "Wechat Browser 8.0.6.1900(0x28000653)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "1.203.85.62"
+    },
+    {
+        "token": "rnQ9OzlY",
+        "serial_number": 5,
+        "x_field_1": "",
+        "color_mark": "",
+        "creator_name": "",
+        "created_at": "2022-03-11T13:20:31.400Z",
+        "updated_at": "2022-03-11T13:20:31.400Z",
+        "info_filling_duration": 3.611,
+        "info_platform": "iPhone",
+        "info_os": "iOS 14.8.1",
+        "info_browser": "Wechat Browser 8.0.18(0x18001235)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "114.242.250.160"
+    },
+    {
+        "token": "SuOP7Vwm",
+        "serial_number": 6,
+        "x_field_1": "",
+        "color_mark": "",
+        "creator_name": "",
+        "created_at": "2024-04-07T10:21:10.772Z",
+        "updated_at": "2024-04-07T10:21:10.772Z",
+        "info_filling_duration": 181,
+        "info_platform": "iPhone",
+        "info_os": "iOS 17.3.1",
+        "info_browser": "Wechat Browser 8.0.48(0x1800302c)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "111.201.253.129"
+    },
+    {
+        "token": "kIUzBYFP",
+        "serial_number": 7,
+        "x_field_1": "",
+        "color_mark": "",
+        "creator_name": "",
+        "created_at": "2024-04-21T02:58:50.747Z",
+        "updated_at": "2024-04-21T02:58:50.747Z",
+        "info_filling_duration": 44,
+        "info_platform": "Android",
+        "info_os": "Android 12",
+        "info_browser": "Wechat Browser 8.0.48.2580(0x28003052)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "221.219.187.160"
+    },
+    {
+        "token": "JEIpDpWc",
+        "serial_number": 8,
+        "x_field_1": "",
+        "color_mark": "",
+        "creator_name": "",
+        "created_at": "2025-06-05T08:12:28.007Z",
+        "updated_at": "2025-06-05T08:12:28.007Z",
+        "info_filling_duration": 164,
+        "info_platform": "Android",
+        "info_os": "Android 12",
+        "info_browser": "Wechat Browser 8.0.58.2841(0x28003A51)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "223.104.40.211"
+    }
+]

@@ -1,0 +1,127 @@
+{
+    "name": "春节替班21年1月",
+    "token": "N6IfdR",
+    "description": "",
+    "fields": [
+        {
+            "field_1": {
+                "label": "姓名",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_6": {
+                "label": "必须告知客户事件：",
+                "api_code_alias": null,
+                "type": "section_break",
+                "notes": "<p>由于本次疫情严重，若客户春节期间不需要阿姨，那么阿姨就会去替班。</p>\n\n<p>公司宿舍到时候各地人员多，小区租户多，外地走动人口非常多，为了更安全，所以我们春节不在原客户家上班，我就要去替班。</p>\n\n<p>关于替班事件，所有替班阿姨不要隐瞒自己客户，直接告知，尤其是疫情期间，大家都不隐瞒任何事件。</p>\n\n<p> </p>\n\n<p>必须必要回老家的人员，请将您老家对于返乡人员的政策写在最下面的备注处</p>",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_2": {
+                "label": "可以开始替班时间？写阳历、阳历时间",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_3": {
+                "label": "结束替班的时间？写阳历、阳历时间",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_4": {
+                "label": "替班时间安排情况",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、我只能按照上面写的时间段替班",
+                        "value": "af8J",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、我可以跟现在客户协商早点离开，可以比上面写的时间早去替班",
+                        "value": "jU6y",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、我可以跟现在客户协商晚点回他家，可以比上面写的时间晚结束替班",
+                        "value": "Nktj",
+                        "hidden": false
+                    },
+                    {
+                        "name": "我可以替班，但是还需要跟客户再次协商",
+                        "value": "su7l",
+                        "hidden": false
+                    },
+                    {
+                        "name": "我春节就在客户家休息",
+                        "value": "MN6e",
+                        "hidden": false
+                    },
+                    {
+                        "name": "我春节就在客户家继续工作",
+                        "value": "D6G4",
+                        "hidden": false
+                    },
+                    {
+                        "name": "我坚决要回老家",
+                        "value": "y13S",
+                        "hidden": false
+                    },
+                    {
+                        "name": "我是月嫂，春节前下户要回家",
+                        "value": "FSR2",
+                        "hidden": false
+                    },
+                    {
+                        "name": "我是月嫂，春节前下户可以继续接单",
+                        "value": "Vr8w",
+                        "hidden": false
+                    },
+                    {
+                        "name": "我可以替班，但是是春节前替班",
+                        "value": "Gt4t",
+                        "hidden": false
+                    },
+                    {
+                        "name": "我春节前下户，我要重新换一个客户，春节不回去",
+                        "value": "D5jk",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_5": {
+                "label": "备注：",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "<p>任何事情可写在此处</p>",
+                "private": false,
+                "validation": {}
+            }
+        }
+    ]
+}

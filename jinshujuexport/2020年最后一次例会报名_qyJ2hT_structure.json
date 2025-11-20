@@ -1,0 +1,117 @@
+{
+    "name": "2020年最后一次例会报名",
+    "token": "qyJ2hT",
+    "description": "感谢参加本场活动！",
+    "fields": [
+        {
+            "field_1": {
+                "label": "姓名",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_2": {
+                "label": "描述",
+                "api_code_alias": null,
+                "type": "section_break",
+                "notes": "<p class=\"p\" style=\"margin: 0pt 0pt 0.0001pt; font-family: 等线; font-size: 12pt; line-height: 22pt;\"><span style=\"font-family: &quot;Helvetica Neue&quot;; font-size: 8pt;\">本次公司例会时间定在：</span></p>\n\n<p class=\"p\" style=\"margin: 0pt 0pt 0.0001pt; font-family: 等线; font-size: 12pt; line-height: 22pt;\"><span style=\"color:#ff0000;\"><span style=\"font-family: &quot;Helvetica Neue&quot;; font-size: 8pt;\">12月6日（9:30～13:00）</span></span></p>\n\n<p class=\"p\" style=\"margin: 0pt 0pt 0.0001pt; font-family: 等线; font-size: 12pt; line-height: 22pt;\"><span style=\"color:#ff0000;\"><span style=\"font-family: &quot;Helvetica Neue&quot;; font-size: 8pt;\">12月9日（9:30～13:00）</span></span></p>\n\n<p class=\"p\" style=\"margin: 0pt 0pt 0.0001pt; font-family: 等线; font-size: 12pt; line-height: 22pt;\"><span style=\"color:#ff0000;\"><span style=\"font-family: &quot;Helvetica Neue&quot;; font-size: 8pt;\">12月12日（9:30～13:00）</span></span></p>\n\n<p class=\"p\" style=\"margin: 0pt 0pt 0.0001pt; font-family: 等线; font-size: 12pt; line-height: 22pt;\"><span style=\"color:#ff0000;\"><span style=\"font-family: &quot;Helvetica Neue&quot;; font-size: 8pt;\">9:00准时到场</span></span></p>\n\n<p class=\"p\" style=\"margin: 0pt 0pt 0.0001pt; font-family: 等线; font-size: 12pt; line-height: 22pt;\"><span style=\"font-family: &quot;Helvetica Neue&quot;; font-size: 8pt;\">由于疫情，我们年底例会分为三次，大家可以任选其中一次报名参加，当然您若愿意，每次参加最棒了</span></p>\n\n<p class=\"p\" style=\"margin: 0pt 0pt 0.0001pt; font-family: 等线; font-size: 12pt; line-height: 22pt;\"><span style=\"font-family: &quot;Helvetica Neue&quot;; font-size: 8pt;\">本次例会内容是大家带着自己在客户家的问题回来一起探讨，问题包括专业、技能、自己心情、工作计划等等；</span></p>\n\n<p class=\"p\" style=\"margin: 0pt 0pt 0.0001pt; font-family: 等线; font-size: 12pt; line-height: 22pt;\"><span style=\"font-family: &quot;Helvetica Neue&quot;; font-size: 8pt;\">不能参加本次例会的萌嫂，请您的客户为您请假，</span></p>\n\n<p class=\"p\" style=\"margin: 0pt 0pt 0.0001pt; font-family: 等线; font-size: 12pt; line-height: 22pt;\"><span style=\"font-family: &quot;Helvetica Neue&quot;; font-size: 8pt;\">一直在外地服务的萌嫂可不用请假，但请说明您现在在外地</span></p>\n\n<p class=\"p\" style=\"margin: 0pt 0pt 0.0001pt; font-family: 等线; font-size: 12pt; line-height: 22pt;\"><span style=\"color:#ff0000;\"><span style=\"font-family: &quot;Helvetica Neue&quot;; font-size: 8pt;\">报名时间截止到12月3日晚上00:00，时间紧张，辛苦萌嫂们哟</span></span></p>\n\n<p class=\"p\" style=\"margin: 0pt 0pt 0.0001pt; font-family: 等线; font-size: 12pt; line-height: 22pt;\"><span style=\"color:#ff0000;\"><span style=\"font-family: &quot;Helvetica Neue&quot;; font-size: 8pt;\">注意：若您本人例会当天感冒发烧，身体不适，请请假不参与本次例会。</span></span></p>",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_3": {
+                "label": "萌嫂，请在此处选择自己能参加例会的时间",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "12.6（9:30～13:00）",
+                        "value": "zlGs",
+                        "hidden": false
+                    },
+                    {
+                        "name": "12.9（9:30～13:00）",
+                        "value": "OxvW",
+                        "hidden": false
+                    },
+                    {
+                        "name": "12.12（9:30～13:00）",
+                        "value": "FLXs",
+                        "hidden": false
+                    },
+                    {
+                        "name": "我现在跟着客户在外地",
+                        "value": "bqAW",
+                        "hidden": false
+                    },
+                    {
+                        "name": "我现在在户下，但是不在北京",
+                        "value": "rjUc",
+                        "hidden": false
+                    },
+                    {
+                        "name": "我是正在户上的月嫂",
+                        "value": "Y5OH",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_4": {
+                "label": "您现在在京外哪个城市？",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "<p>在京外和户下萌嫂填写此处！</p>",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_5": {
+                "label": "您是否需要住宿舍？",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": null,
+                "validation": {
+                    "required": true
+                },
+                "choices": [
+                    {
+                        "name": "需要",
+                        "value": "XzK0",
+                        "hidden": false
+                    },
+                    {
+                        "name": "不需要",
+                        "value": "MgnH",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_6": {
+                "label": "几号晚上住宿舍？",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        }
+    ]
+}

@@ -1,0 +1,105 @@
+{
+    "name": "资料收集",
+    "token": "MuRkCl",
+    "description": "感谢您能抽出几分钟时间填写以下内容，现在我们马上开始吧！",
+    "fields": [
+        {
+            "field_1": {
+                "label": "姓名",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_2": {
+                "label": "手机号码",
+                "api_code_alias": null,
+                "type": "mobile",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_3": {
+                "label": "身份证号码",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_4": {
+                "label": "您现在是否是退休人员，已经在领取退休金？",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                },
+                "choices": [
+                    {
+                        "name": "是",
+                        "value": "qx66",
+                        "hidden": false
+                    },
+                    {
+                        "name": "否",
+                        "value": "TKcf",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_5": {
+                "label": "您是城镇职工保险，还是城乡居民养老（也就是新农合）保险",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "<p>城乡保险就是自己在农村上的新农合保险</p>\n\n<p> </p>",
+                "private": false,
+                "validation": {
+                    "required": true
+                },
+                "choices": [
+                    {
+                        "name": "城镇",
+                        "value": "0Bky",
+                        "hidden": false
+                    },
+                    {
+                        "name": "城乡",
+                        "value": "bhZJ",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_6": {
+                "label": "自己保险开始时间是哪年哪月？",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "<p>此处一定写上年份和月份</p>",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        }
+    ]
+}

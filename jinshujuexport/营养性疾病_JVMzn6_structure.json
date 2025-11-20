@@ -1,0 +1,17 @@
+{
+    "name": "营养性疾病",
+    "token": "JVMzn6",
+    "description": null,
+    "fields": [
+        {
+            "field_7": {
+                "label": "复习题",
+                "api_code_alias": null,
+                "type": "section_break",
+                "notes": "<p><span style=\"font-size:1.286em;\">1、宝宝缺乏钙、铁、锌有哪些症状？补充时要注意什么？</span></p>\n\n<p><span style=\"font-size:1.286em;\">2、宝宝发热由哪些原因引起？用药的原则是什么？</span></p>\n\n<p><span style=\"font-size:1.286em;\">3、宝宝腹泻的原因有哪些？如何护理？</span></p>\n\n<p><span style=\"font-size:1.286em;\">4、如何区分病毒性腹泻和细菌性腹泻？</span></p>\n\n<p><span style=\"font-size:1.286em;\">5、便秘的原因和治疗方法？</span></p>\n\n<p><span style=\"font-size:1.286em;\">6、尿布疹的原因、预防及护理？</span></p>",
+                "private": false,
+                "validation": {}
+            }
+        }
+    ]
+}

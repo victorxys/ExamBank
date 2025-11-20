@@ -1,0 +1,291 @@
+{
+    "name": "月嫂问答题",
+    "token": "T87ewM",
+    "description": "",
+    "fields": [
+        {
+            "field_1": {
+                "label": "姓名",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_28": {
+                "label": "手机",
+                "api_code_alias": null,
+                "type": "mobile",
+                "notes": null,
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_2": {
+                "label": "您做月嫂多长时间了？一年能做几单？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_3": {
+                "label": "自我介绍一下自己？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_4": {
+                "label": "以前都做了些什么工作？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_5": {
+                "label": "带孩子期间，遇到过什么挑战问题？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "<p>或工作中有遇到比较难解决的问题？</p>",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_6": {
+                "label": "您的工作内容都有哪些？一天的工作您都是怎么安排的？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_7": {
+                "label": "月嫂工作很辛苦，您的身体能吃得消吗？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_8": {
+                "label": "月嫂工作挺辛苦的，您又做了这么久，是什么让您能坚持着的呢？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_9": {
+                "label": "产妇的饮食您都是怎么安排的？您一般都是做些什么吃的？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_10": {
+                "label": "会通乳吗？处理过涨奶的情况吗？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_11": {
+                "label": "客户吃的挑剔，您一般怎么做？或者客户只吃素，不吃内脏怎么办？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_12": {
+                "label": "对于新生儿护理，您有什么心得？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_13": {
+                "label": "遇到过黄疸最高的是多少？您是怎么护理的？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_14": {
+                "label": "宝妈不想母乳喂养，回奶怎么做？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "<p>生完就吃B12，生完开始一周内少喝汤，不要排奶，不让按摩，回奶药（溴隐停还可喝大麦茶）</p>",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_15": {
+                "label": "服务过乳腺炎的吗？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_16": {
+                "label": "您一般都会管产妇些什么？给宝宝做哪些护理？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_17": {
+                "label": "怎样使产妇休息好？不亲喂是不是能休息好？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_18": {
+                "label": "阿姨您中午需要休息吗？夜里大家都睡觉，孩子醒来怎么办？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_19": {
+                "label": "新生儿早教有哪些？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_20": {
+                "label": "如何判断宝宝哭的意思？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_21": {
+                "label": "宝宝可以用开塞露吗？什么情况下可以用？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "<p>一般不用，去医院化验</p>",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_22": {
+                "label": "孩子前三天没奶吃怎么处理？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_23": {
+                "label": "自己在户上遇到最辛苦的阶段是什么时候？您是怎么度过去的？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_24": {
+                "label": "在客户家通常是以什么身份带宝宝",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_25": {
+                "label": "您对公司有什么要求？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_26": {
+                "label": "自己有哪些优势？性格如何？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_27": {
+                "label": "下面事情，您会如何安排？",
+                "api_code_alias": null,
+                "type": "section_break",
+                "notes": "<p>1、下午茶</p>\n\n<p>2、买菜</p>\n\n<p>3、去医院取药</p>\n\n<p>4、打电话给5个朋友</p>\n\n<p>5、物业保修热水器</p>\n\n<p>6、买书</p>\n\n<p>7、买打印纸</p>\n\n<p>8、洗床单被罩</p>\n\n<p>9、修鞋</p>",
+                "private": false,
+                "validation": {}
+            }
+        }
+    ]
+}

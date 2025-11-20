@@ -1,0 +1,17 @@
+{
+    "name": "睡眠 三浴 免疫 智力开发",
+    "token": "qHgIpV",
+    "description": null,
+    "fields": [
+        {
+            "field_7": {
+                "label": "复习题",
+                "api_code_alias": null,
+                "type": "section_break",
+                "notes": "<p><span style=\"font-size:1.286em;\">1、各月龄宝宝的睡眠时间是多少？</span></p>\n\n<p><span style=\"font-size:1.286em;\">2、小月龄宝宝的睡眠姿势是什么？</span></p>\n\n<p><span style=\"font-size:1.286em;\">3、宝宝睡眠的忌讳是什么？</span></p>\n\n<p><span style=\"font-size:1.286em;\">4、接种疫苗的注意事项是什么？接种疫苗后有哪些反应？如何护理？</span></p>\n\n<p><span style=\"font-size:1.286em;\">5、脑部发育的规律是什么？</span></p>\n\n<p><span style=\"font-size:1.286em;\">6、怎样给各月龄宝宝进行早期智力开发？</span></p>",
+                "private": false,
+                "validation": {}
+            }
+        }
+    ]
+}

@@ -1,0 +1,514 @@
+{
+    "name": "意外伤害测试题（新）",
+    "token": "jYFQFH",
+    "description": "非常感谢您能够参加本次调查，本次考试采用限时考试的方式，准备好了吗？我们现在开始吧！",
+    "fields": [
+        {
+            "field_1": {
+                "label": "姓名",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_2": {
+                "label": "手机",
+                "api_code_alias": null,
+                "type": "mobile",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_11": {
+                "label": "有过惊厥史的宝宝，体温达到多少度，可服用退烧药？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、37.5",
+                        "value": "-bks",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、38",
+                        "value": "BoMu",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、38.5",
+                        "value": "hA2C",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4、39",
+                        "value": "3OzW",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_12": {
+                "label": "无惊厥史发热的宝宝多少度，可服用退烧药？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、37.5",
+                        "value": "LyEk",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、38",
+                        "value": "i3t5",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、38.5",
+                        "value": "osD8",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4、39",
+                        "value": "tJ4G",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_13": {
+                "label": "惊厥史宝宝发热过程中应该避免什么？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、过度包裹",
+                        "value": "8cxS",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、头部降温",
+                        "value": "EDZn",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、冲冷水澡",
+                        "value": "xb3t",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_14": {
+                "label": "宝宝的物理降温有哪些？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、温水擦澡",
+                        "value": "Vmtx",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、降温贴",
+                        "value": "9tqR",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、肛门塞安定凝胶栓剂",
+                        "value": "cOEz",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4、稀释的酒精擦浴",
+                        "value": "AhsW",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_4": {
+                "label": "预防头部摔伤有哪些措施？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、宝宝睡觉注意遮挡，防止坠床",
+                        "value": "zJJg",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、家中注意安装防撞垫和防撞条儿",
+                        "value": "zv_k",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、运动时注意防护",
+                        "value": "uyIR",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4、避免危险动作，如抛接孩子",
+                        "value": "ajDN",
+                        "hidden": false
+                    },
+                    {
+                        "name": "5、让孩子不要过多的自由活动",
+                        "value": "ogZI",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_5": {
+                "label": "热性惊厥的正确做法？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、解开衣领",
+                        "value": "UL9Z",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、顺势将孩子侧卧",
+                        "value": "g_c8",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、按压人中，掐虎口",
+                        "value": "PWVa",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4、掰直孩子的手脚",
+                        "value": "_ioW",
+                        "hidden": false
+                    },
+                    {
+                        "name": "5、注意周围环境安全，避免坠床及磕伤",
+                        "value": "kI_6",
+                        "hidden": false
+                    },
+                    {
+                        "name": "6、可通过肛门塞入安定凝胶栓剂",
+                        "value": "A6Ed",
+                        "hidden": false
+                    },
+                    {
+                        "name": "7、发作就联系救护车（发作时间超过5分钟）",
+                        "value": "rMAQ",
+                        "hidden": false
+                    },
+                    {
+                        "name": "8、给孩子灌退烧药",
+                        "value": "C-Nn",
+                        "hidden": false
+                    },
+                    {
+                        "name": "9、往孩子口腔塞入东西",
+                        "value": "VuMb",
+                        "hidden": false
+                    },
+                    {
+                        "name": "10、可以让孩子自己躺在床上安静休息",
+                        "value": "fK8R",
+                        "hidden": false
+                    },
+                    {
+                        "name": "11、让孩子自己在浴缸中泡澡",
+                        "value": "M4w3",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_6": {
+                "label": "头部摔伤的正确处理方法？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、观察孩子的意识和运动障碍，不要急于抱起来",
+                        "value": "O6zf",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、应抱起或搬动孩子",
+                        "value": "HvI2",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、血肿和淤青在伤后24小时内予以冷敷，每次冷敷大约15分钟，可多次冷敷",
+                        "value": "Xhwj",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4、冰袋，外面应该裹上干毛巾或手绢在接触皮肤",
+                        "value": "q8YD",
+                        "hidden": false
+                    },
+                    {
+                        "name": "5、受伤后需局部按摩血肿或用活血化淤的药",
+                        "value": "JBct",
+                        "hidden": false
+                    },
+                    {
+                        "name": "6、冰块可直接敷与皮肤上",
+                        "value": "RIzy",
+                        "hidden": false
+                    },
+                    {
+                        "name": "7、不需任何处理直接送医院",
+                        "value": "9FfO",
+                        "hidden": false
+                    },
+                    {
+                        "name": "8、伤口用纱布或干毛巾压迫止血后用络合碘或酒精消毒",
+                        "value": "E6ar",
+                        "hidden": false
+                    },
+                    {
+                        "name": "9、注意休息观察24-72小时",
+                        "value": "bKQL",
+                        "hidden": false
+                    },
+                    {
+                        "name": "10、伤后即可开始剧烈运动",
+                        "value": "rTxF",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_7": {
+                "label": "烫伤后正确的处理方法？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、将烫伤处持续用凉水冲10～15分钟，或用冰块隔着湿毛巾冷敷",
+                        "value": "cYga",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、不要将贴身的衣物鞋袜脱下，可穿着一起冲水",
+                        "value": "JFS4",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、冲水后，保持清洁迅速送医不轻易涂抹药物",
+                        "value": "poNu",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4、不用做处理，直接送往医院",
+                        "value": "-oEV",
+                        "hidden": false
+                    },
+                    {
+                        "name": "5、直接用冰块贴着皮肤冷敷",
+                        "value": "fRDC",
+                        "hidden": false
+                    },
+                    {
+                        "name": "6、涂抹药膏，酱油牙膏香油",
+                        "value": "CFLp",
+                        "hidden": false
+                    },
+                    {
+                        "name": "7、赶紧脱下贴身衣物鞋袜",
+                        "value": "sok6",
+                        "hidden": false
+                    },
+                    {
+                        "name": "8、不轻易弄破水疱，以免感染",
+                        "value": "zLZB",
+                        "hidden": false
+                    },
+                    {
+                        "name": "9、直接将水泡刺破",
+                        "value": "42Qe",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_8": {
+                "label": "鼻出血的正确处理方法？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、让孩子坐起或站立，头部略微前倾",
+                        "value": "3f9g",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、鼓励孩子将血吐出",
+                        "value": "iVK3",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、用挤捏鼻翼的方法止血",
+                        "value": "FFN0",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4、让孩子躺下头后仰",
+                        "value": "ACjC",
+                        "hidden": false
+                    },
+                    {
+                        "name": "5、鼓励孩子将血咽下",
+                        "value": "USLK",
+                        "hidden": false
+                    },
+                    {
+                        "name": "6、用填塞的方式止血",
+                        "value": "8PvT",
+                        "hidden": false
+                    },
+                    {
+                        "name": "7、数日内不要用力擤鼻或挖鼻，以免再次出血",
+                        "value": "3sIO",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_9": {
+                "label": "断牙保存的正确方法有哪些？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、用干净的水冲一下就可以",
+                        "value": "hBqh",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、将断下来的牙齿，要用力擦洗干净保留",
+                        "value": "0X1j",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、可以放在生理盐水中，没有的话，就泡在牛奶里或含在嘴里，也可以放在清水里",
+                        "value": "kM-c",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4、不管漏没漏神经的牙齿，都可以粘回去，可以保留原有牙齿的形态",
+                        "value": "d2ZS",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_10": {
+                "label": "骨折后关节脱位，正确做法有哪些？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、用干净衣物、布条、纱布、绷带，压迫包扎止血部位",
+                        "value": "VdxV",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、就地取材，固定受伤的肢体，可用多节筷子，木板，硬纸板",
+                        "value": "IrT9",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、注意颈部和脊髓的损伤",
+                        "value": "1-xk",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4、不用止血，直接送医院",
+                        "value": "JrEI",
+                        "hidden": false
+                    },
+                    {
+                        "name": "5、弄直或过度搬动变形肢体",
+                        "value": "m9_g",
+                        "hidden": false
+                    },
+                    {
+                        "name": "6、家长在跟孩子游戏或牵拉时，应避免直接拽手或手腕部位，尽可能牵住衣领",
+                        "value": "3scl",
+                        "hidden": false
+                    },
+                    {
+                        "name": "7、脱位后，建议适当制动减少肢体的负重和牵拉，1到2周以避免反复多次复发",
+                        "value": "WUfj",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        }
+    ]
+}

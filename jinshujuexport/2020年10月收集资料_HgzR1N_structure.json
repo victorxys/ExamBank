@@ -1,0 +1,104 @@
+{
+    "name": "2020年10月收集资料",
+    "token": "HgzR1N",
+    "description": "<p>本次没有分数</p>\n\n<p>公司督促大家进步学习</p>\n\n<p>学习第一</p>\n\n<p>&nbsp;</p>",
+    "fields": [
+        {
+            "field_1": {
+                "label": "姓名",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_2": {
+                "label": "去到一位新客户家，您会做些什么？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_3": {
+                "label": "您在客户家是如何让自己学习的？您自主学习的都有哪些？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_4": {
+                "label": "您现在是一个什么样的心态在为这家客户服务？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_5": {
+                "label": "在这个客户家庭中，您学到了什么？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_6": {
+                "label": "已经开始在母婴行业工作的自己，您现在对这个行业是一个什么样的认知？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_8": {
+                "label": "公司学到的知识，在工作中有用到哪些？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_7": {
+                "label": "上传客户最喜欢吃您做的一样菜品照片？",
+                "api_code_alias": null,
+                "type": "attachment",
+                "notes": "<p>若是有多样菜品，也可多张上传</p>",
+                "private": false,
+                "validation": {},
+                "max_file_quantity": 15,
+                "media_type": {
+                    "type": "unlimited",
+                    "value": null
+                }
+            }
+        },
+        {
+            "field_10": {
+                "label": "备注：",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "<p>此处可写任意事件</p>",
+                "private": false,
+                "validation": {}
+            }
+        }
+    ]
+}

@@ -1,0 +1,47 @@
+{
+    "name": "19.6.15例会内容",
+    "token": "fqq2o1",
+    "description": "<p>亲爱的萌姨萌嫂客户您好！为了给您提供更好更专业的服务，我们定于6月15日（9:00-12:00）为员工例会时间。例会内容是：对阿姨专业知识考核（从喂养&nbsp; 早教&nbsp; 习惯等），也可根据您家阿姨现有的一些问题或您觉得阿姨需要加强的方面给予考核，请将您的问题填于下面。感谢您的支持！</p>",
+    "fields": [
+        {
+            "field_1": {
+                "label": "客户姓名",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_2": {
+                "label": "阿姨姓名",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_3": {
+                "label": "阿姨负责的宝宝现在多大？",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_4": {
+                "label": "阿姨需要加强的方面？",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        }
+    ]
+}

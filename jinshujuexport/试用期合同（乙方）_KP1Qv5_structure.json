@@ -1,0 +1,202 @@
+{
+    "name": "试用期合同（乙方）",
+    "token": "KP1Qv5",
+    "description": "<p>&nbsp;</p>\n\n<p>&nbsp;</p>\n\n<p>&nbsp;</p>",
+    "fields": [
+        {
+            "field_18": {
+                "label": "甲方合同编号",
+                "api_code_alias": null,
+                "type": "form_association",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                },
+                "associated_form_token": "dtCjCO",
+                "associated_field_api_code": "field_20",
+                "associated_field_api_codes": [
+                    "field_20"
+                ],
+                "display_field_settings": [
+                    {
+                        "api_code": "field_13",
+                        "privacy_safe": true,
+                        "public_display": true
+                    },
+                    {
+                        "api_code": "field_14",
+                        "privacy_safe": true,
+                        "public_display": true
+                    },
+                    {
+                        "api_code": "field_12",
+                        "privacy_safe": true,
+                        "public_display": true
+                    },
+                    {
+                        "api_code": "field_10",
+                        "privacy_safe": true,
+                        "public_display": true
+                    },
+                    {
+                        "api_code": "field_16",
+                        "privacy_safe": true,
+                        "public_display": true
+                    }
+                ]
+            }
+        },
+        {
+            "field_9": {
+                "label": "乙方（服务人员）姓名",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_10": {
+                "label": "乙方电话",
+                "api_code_alias": null,
+                "type": "phone",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_11": {
+                "label": "乙方身份证号码",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_12": {
+                "label": "乙方服务人员级别",
+                "api_code_alias": null,
+                "type": "drop_down",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                },
+                "choices": [
+                    {
+                        "name": "初级",
+                        "value": "0MHi",
+                        "hidden": false
+                    },
+                    {
+                        "name": "中级",
+                        "value": "DVS3",
+                        "hidden": false
+                    },
+                    {
+                        "name": "高级",
+                        "value": "cqZY",
+                        "hidden": false
+                    },
+                    {
+                        "name": "特级",
+                        "value": "dy2W",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_13": {
+                "label": "合同内容",
+                "api_code_alias": null,
+                "type": "section_break",
+                "notes": "<p><span style=\"font-size:1.286em;\"><strong>家政服务试用期协议</strong></span></p>\n\n<p>&nbsp;</p>\n\n<p><span style=\"font-size:1.286em;\"><strong>甲方</strong><strong>：</strong><strong>即雇主您，</strong>您的个人信息、联系方式、地址等信息，将由您在系统中填选或以系统呈现为准。</span></p>\n\n<p><span style=\"font-size:1.286em;\"><strong>乙方：</strong><strong>即您选择的</strong><strong>家政服务员</strong><strong>。</strong>乙方的个人信息、联系方式、户口地址等信息，将由您在系统中填选或以系统呈现为准。</span></p>\n\n<p><span style=\"font-size:1.286em;\"><strong>丙方</strong><strong>：</strong><strong>北京家福安</strong><strong>家政服务有限公司</strong></span></p>\n\n<p><span style=\"font-size:1.286em;\">法定代表人：金莉红</span></p>\n\n<p><span style=\"font-size:1.286em;\">经营地址：北京市海淀区永定路88号长银大厦10B20&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp;</span></p>\n\n<p><span style=\"font-size:1.286em;\">联系电话：010-56278291；010-56278263&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></p>\n\n<p>&nbsp;</p>\n\n<p><span style=\"font-size:1.286em;\">为满足您对家政服务的需求，丙方为您推荐乙方（家政服务人员），各方签订本试用期协议，以共同遵守。</span></p>\n\n<ul style=\"list-style-type:square;\">\n\t<li><span style=\"font-size:1.286em;\"><strong>试用期</strong></span></li>\n</ul>\n\n<p><span style=\"font-size:1.286em;\">试用期为<strong><u>七</u></strong>天，您与乙方商定的服务期限由您填选在系统中，或由乙方、丙方预先填写后呈现给您。</span></p>\n\n<ul style=\"list-style-type:square;\">\n\t<li><span style=\"font-size:1.286em;\"><strong>试用期费用</strong></span></li>\n</ul>\n\n<ul style=\"list-style-type:square;\">\n\t<li><span style=\"font-size:1.286em;\">试用期乙方报酬以您在系统中填选，或以丙方预设并在系统中呈现的金额为准，由您于试用期届满之日或终止本协议之日支付给丙方。</span></li>\n</ul>\n\n<p><span style=\"font-size:1.286em;\">如在试用期间终止合同的，您应当按乙方实际提供劳务的天数支付乙方报酬。</span></p>\n\n<p>&nbsp;</p>\n\n<p><span style=\"font-size:1.286em;\">介绍费：您应当自本协议签订之日按丙方的要求向丙方支付介绍费。<strong><u>介绍费为一次性收取，收取后无论是否终止本协议或是否签订正式合同均不退还。</u></strong></span></p>\n\n<ul style=\"list-style-type:square;\">\n\t<li><span style=\"font-size:1.286em;\"><strong>试用期更换人员</strong></span></li>\n</ul>\n\n<ul style=\"list-style-type:square;\">\n\t<li><span style=\"font-size:1.286em;\">试用期间，如您需要更换乙方的，应当通知丙方，经沟通确需更换的，丙方应当另行推荐其他人员。</span></li>\n\t<li><span style=\"font-size:1.286em;\">更换人员后，各方重新签订《试用期合同》，重新计算试用期。丙方不再另行收取介绍费。<strong><u>本协议生效之日起一年内，</u></strong><strong><u>您</u></strong><strong><u>要求更换</u></strong><strong><u>乙方</u></strong><strong><u>的，丙方应当重新推荐其他人员；超过一年的，</u></strong><strong><u>您</u></strong><strong><u>应当另行支付介绍费。</u></strong></span></li>\n\t<li><span style=\"font-size:1.286em;\">如乙方提出终止提供劳务，您应当按照乙方实际为您提供劳务的天数向其支付报酬。</span></li>\n</ul>\n\n<ul style=\"list-style-type:square;\">\n\t<li><span style=\"font-size:1.286em;\"><strong>试用期满后续约问题</strong></span></li>\n</ul>\n\n<p><span style=\"font-size:1.286em;\">试用期满后，如您认可乙方的服务且愿意继续接受服务的，您、乙、丙三方将另行签署家政服务合同，以明确三方的权利义务。</span></p>\n\n<ul style=\"list-style-type:square;\">\n\t<li><span style=\"font-size:1.286em;\"><strong>其他</strong></span></li>\n</ul>\n\n<ul style=\"list-style-type:square;\">\n\t<li><span style=\"font-size:1.286em;\">因本合同发生争议，各方应当向丙方所在地人民法院起诉。</span></li>\n\t<li><span style=\"font-size:1.286em;\"><strong><u>本合同由本部分通用条款以及您在软件系统中填选或系统呈现的预设信息组成，自您通过系统签字确认后生效。</u></strong></span></li>\n</ul>\n\n<p>&nbsp;</p>",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_14": {
+                "label": "日薪（人民币元/天）",
+                "api_code_alias": null,
+                "type": "number",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_3": {
+                "label": "是否确定您已经阅读并理解以上内容",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                },
+                "choices": [
+                    {
+                        "name": "确定",
+                        "value": "BkPo",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_15": {
+                "label": "合同开始日期",
+                "api_code_alias": null,
+                "type": "date_time",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                },
+                "precision": "day"
+            }
+        },
+        {
+            "field_16": {
+                "label": "合同结束日期",
+                "api_code_alias": null,
+                "type": "date_time",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                },
+                "precision": "day"
+            }
+        },
+        {
+            "field_2": {
+                "label": "乙方签字",
+                "api_code_alias": null,
+                "type": "e_signature",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        }
+    ]
+}

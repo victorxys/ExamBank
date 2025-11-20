@@ -1,0 +1,311 @@
+{
+    "name": "晋级申请表",
+    "token": "VP9g0K",
+    "description": null,
+    "fields": [
+        {
+            "field_11": {
+                "label": "今日日期",
+                "api_code_alias": null,
+                "type": "date_time",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                },
+                "precision": "day"
+            }
+        },
+        {
+            "field_1": {
+                "label": "姓名",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_2": {
+                "label": "手机",
+                "api_code_alias": null,
+                "type": "mobile",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_10": {
+                "label": "籍贯",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_12": {
+                "label": "今年多少周岁？",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_3": {
+                "label": "自己现在的级别",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                },
+                "choices": [
+                    {
+                        "name": "初级育儿嫂",
+                        "value": "WPed",
+                        "hidden": false
+                    },
+                    {
+                        "name": "中级育儿嫂",
+                        "value": "QgrE",
+                        "hidden": false
+                    },
+                    {
+                        "name": "高级育儿嫂",
+                        "value": "k38T",
+                        "hidden": false
+                    },
+                    {
+                        "name": "特级育儿嫂",
+                        "value": "Je6h",
+                        "hidden": false
+                    },
+                    {
+                        "name": "初级月嫂",
+                        "value": "jiUg",
+                        "hidden": false
+                    },
+                    {
+                        "name": "中级月嫂",
+                        "value": "IkSB",
+                        "hidden": false
+                    },
+                    {
+                        "name": "高级月嫂",
+                        "value": "wOyb",
+                        "hidden": false
+                    },
+                    {
+                        "name": "特级月嫂",
+                        "value": "XBsI",
+                        "hidden": false
+                    },
+                    {
+                        "name": "教练",
+                        "value": "L2oD",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_4": {
+                "label": "目前晋级目标",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                },
+                "choices": [
+                    {
+                        "name": "涨工资",
+                        "value": "HkMp",
+                        "hidden": false
+                    },
+                    {
+                        "name": "中级育儿嫂",
+                        "value": "u9ly",
+                        "hidden": false
+                    },
+                    {
+                        "name": "高级育儿嫂",
+                        "value": "m5JF",
+                        "hidden": false
+                    },
+                    {
+                        "name": "特级育儿嫂",
+                        "value": "k2iT",
+                        "hidden": false
+                    },
+                    {
+                        "name": "初级月嫂",
+                        "value": "1NxS",
+                        "hidden": false
+                    },
+                    {
+                        "name": "中级月嫂",
+                        "value": "o6bJ",
+                        "hidden": false
+                    },
+                    {
+                        "name": "高级月嫂",
+                        "value": "qolx",
+                        "hidden": false
+                    },
+                    {
+                        "name": "特级月嫂",
+                        "value": "711G",
+                        "hidden": false
+                    },
+                    {
+                        "name": "教练",
+                        "value": "sPbJ",
+                        "hidden": false
+                    },
+                    {
+                        "name": "成为加盟商",
+                        "value": "fhwk",
+                        "hidden": false
+                    },
+                    {
+                        "name": "做公司培训老师",
+                        "value": "u3WJ",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_17": {
+                "label": "自我评价",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": null,
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_13": {
+                "label": "晋升的理由有哪些？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_14": {
+                "label": "晋升的优势有哪些？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_15": {
+                "label": "自己有哪些资料？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "<p>工作照、客户好评（大众平台、公司反馈表）、公司考试成绩等等</p>",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_16": {
+                "label": "阿姨现在有哪些资料照片可上传到此处，上传照片最好是公司平台上面没有的照片",
+                "api_code_alias": null,
+                "type": "attachment",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "max_file_quantity": 15,
+                "media_type": {
+                    "type": "unlimited",
+                    "value": []
+                }
+            }
+        },
+        {
+            "field_5": {
+                "label": "为晋升成功，你自己要怎么做？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_7": {
+                "label": "申请结果",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "<p>此处由公司填写</p>",
+                "private": true,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "待审核",
+                        "value": "9fXG",
+                        "hidden": false
+                    },
+                    {
+                        "name": "通过",
+                        "value": "yXfv",
+                        "hidden": false
+                    },
+                    {
+                        "name": "失败",
+                        "value": "Difd",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_8": {
+                "label": "申请结果备注：",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "<p>此处由公司填写</p>",
+                "private": true,
+                "validation": {}
+            }
+        },
+        {
+            "field_9": {
+                "label": "阿姨晋级需求",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "<p>此处由公司填写</p>",
+                "private": true,
+                "validation": {}
+            }
+        }
+    ]
+}

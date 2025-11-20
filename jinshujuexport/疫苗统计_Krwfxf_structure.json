@@ -1,0 +1,157 @@
+{
+    "name": "疫苗统计",
+    "token": "Krwfxf",
+    "description": "",
+    "fields": [
+        {
+            "field_9": {
+                "label": "每位萌嫂请仔细看：",
+                "api_code_alias": null,
+                "type": "section_break",
+                "notes": "<p>现中国很多地域遇到大暴雨，暴雨后垃圾成灾，<span style=\"font-size:1.429em;\"><span style=\"color:#ff0000;\">大灾之后防大疫</span></span><br />\n去年我们一起经历了新冠病毒，今年它依然在，最近有新冠病例出现（到目前为止，新闻报道的有云南、广东、上海、江苏、四川、辽宁）</p>\n\n<p><span style=\"color:#ff0000;\"><span style=\"font-size:1.429em;\">新冠病例有变异</span></span>，不是有打疫苗针就完全安全，加上<span style=\"color:#ff0000;\"><span style=\"font-size:1.429em;\">天灾大暴雨</span></span>来临，<span style=\"color:#ff0000;\"><span style=\"font-size:1.429em;\">细菌随处流动</span></span></p>\n\n<p>&nbsp;</p>\n\n<p><span style=\"font-size:1.571em;\"><span style=\"color:#000000;\">大家防护不要松懈：</span></span></p>\n\n<p>&nbsp;</p>\n\n<p><span style=\"font-size:1.143em;\"><span style=\"color:#000000;\">1、注意卫生，防各种蚊虫</span></span></p>\n\n<p><span style=\"font-size:1.143em;\"><span style=\"color:#000000;\">2、注意接触的水源</span></span></p>\n\n<p><span style=\"font-size:1.143em;\"><span style=\"color:#000000;\">3、少与外界人员接触，尤其带着孩子不与过多人接触</span></span></p>\n\n<p><span style=\"font-size:1.143em;\"><span style=\"color:#000000;\">4、若休假回家，一定与客户协商好，</span><span style=\"color:#ff0000;\">若路上有天灾或新冠病例出现，请暂缓回家时间</span></span></p>\n\n<p><span style=\"font-size:1.000em;\"><span style=\"color:#000000;\">5、</span></span><span style=\"color:#ff0000;\"><span style=\"font-size:1.286em;\">最近要下户人员，请提前告知公司，尽量不离京，</span></span><span style=\"font-size:1.143em;\"><span style=\"color:#000000;\">现在上户，客户非常在意阿姨是外地到京人员</span></span></p>\n\n<p><span style=\"font-size:1.143em;\"><span style=\"color:#000000;\">6、萌嫂们在户上消息闭塞，任何事情一定</span></span><span style=\"color:#ff0000;\"><span style=\"font-size:1.429em;\">提前告知公司</span></span></p>\n\n<p>&nbsp;</p>\n\n<p><span style=\"color:#800080;\"><span style=\"font-size:1.429em;\">2020年，我们一起挺过来了，2021年我们萌嫂团结一起，继续加油，相信去年我们可以，今年一定也可以</span></span></p>\n\n<p>&nbsp;</p>\n\n<p><span style=\"color:#000000;\"><span style=\"font-size: 20.006px;\">下面信息是统计萌嫂疫苗打针情况，请认真填写</span></span></p>",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_1": {
+                "label": "姓名",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_2": {
+                "label": "是否已经打完疫苗",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                },
+                "choices": [
+                    {
+                        "name": "打完了",
+                        "value": "TG74",
+                        "hidden": false
+                    },
+                    {
+                        "name": "还没打",
+                        "value": "eteQ",
+                        "hidden": false
+                    },
+                    {
+                        "name": "已经打了，但是还没有打完",
+                        "value": "w9ec",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_3": {
+                "label": "疫苗还有几针没打？",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "一针",
+                        "value": "9o4L",
+                        "hidden": false
+                    },
+                    {
+                        "name": "两针",
+                        "value": "6hju",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_4": {
+                "label": "没打完的疫苗，大概什么时候打？",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_5": {
+                "label": "若没有打疫苗，为什么没打疫苗？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_6": {
+                "label": "最近是否有离京？",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                },
+                "choices": [
+                    {
+                        "name": "没有",
+                        "value": "UcYy",
+                        "hidden": false
+                    },
+                    {
+                        "name": "有",
+                        "value": "sWe1",
+                        "hidden": false
+                    },
+                    {
+                        "name": "有计划要离京",
+                        "value": "wn8J",
+                        "hidden": false
+                    },
+                    {
+                        "name": "我是在外地上户服务",
+                        "value": "oK7Q",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_7": {
+                "label": "若有离京，请在补充信息处说明去了哪个城市？什么时候去的？什么时候回京的？跟谁一起出京的？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_8": {
+                "label": "若最近计划要离京，什么时候离京？去哪里？去多久？跟谁一起离京？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        }
+    ]
+}

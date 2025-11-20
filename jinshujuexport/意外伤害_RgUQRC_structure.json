@@ -1,0 +1,17 @@
+{
+    "name": "意外伤害",
+    "token": "RgUQRC",
+    "description": null,
+    "fields": [
+        {
+            "field_9": {
+                "label": "复习题",
+                "api_code_alias": null,
+                "type": "section_break",
+                "notes": "<p><span style=\"font-size:1.286em;\">1、发热的宝宝如何护理？热性惊厥的护理要点有哪些？</span></p>\n\n<p><span style=\"font-size:1.286em;\">2、如何预防头部摔伤？及怎样处理？</span></p>\n\n<p><span style=\"font-size:1.286em;\">3、烧伤和烫伤如何预防和处理？</span></p>\n\n<p><span style=\"font-size:1.286em;\">4、鼻出血的预防和处理？</span></p>\n\n<p><span style=\"font-size:1.286em;\">5、断牙的保存？</span></p>\n\n<p><span style=\"font-size:1.286em;\">6、被动物抓伤和咬伤的预防和处理？</span></p>\n\n<p><span style=\"font-size:1.286em;\">7、骨折和关节脱位后的正确做法是什么？</span></p>\n\n<p><span style=\"font-size:1.286em;\">8、哈姆立克急救法？</span></p>",
+                "private": false,
+                "validation": {}
+            }
+        }
+    ]
+}

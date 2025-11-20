@@ -1,0 +1,394 @@
+{
+    "name": "客 服 回 访",
+    "token": "J9ykbD",
+    "description": "",
+    "fields": [
+        {
+            "field_1": {
+                "label": "",
+                "api_code_alias": null,
+                "type": "page_break",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_2": {
+                "label": "客户姓名",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_3": {
+                "label": "阿姨姓名",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_4": {
+                "label": "阿姨工作中的用心程度",
+                "api_code_alias": null,
+                "type": "nps",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "minimum_ratings_display_text": "差",
+                "maximum_ratings_display_text": "很棒",
+                "highlight_color": "rgb(40,117,232)"
+            }
+        },
+        {
+            "field_5": {
+                "label": "阿姨表达能力",
+                "api_code_alias": null,
+                "type": "nps",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "minimum_ratings_display_text": "差",
+                "maximum_ratings_display_text": "很棒",
+                "highlight_color": "rgb(40,117,232)"
+            }
+        },
+        {
+            "field_6": {
+                "label": "阿姨的理解能力",
+                "api_code_alias": null,
+                "type": "nps",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "minimum_ratings_display_text": "差",
+                "maximum_ratings_display_text": "很棒",
+                "highlight_color": "rgb(40,117,232)"
+            }
+        },
+        {
+            "field_7": {
+                "label": "阿姨的主动性",
+                "api_code_alias": null,
+                "type": "nps",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "minimum_ratings_display_text": "差",
+                "maximum_ratings_display_text": "很棒",
+                "highlight_color": "rgb(40,117,232)"
+            }
+        },
+        {
+            "field_8": {
+                "label": "阿姨的悟性",
+                "api_code_alias": null,
+                "type": "nps",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "minimum_ratings_display_text": "差",
+                "maximum_ratings_display_text": "很棒",
+                "highlight_color": "rgb(40,117,232)"
+            }
+        },
+        {
+            "field_9": {
+                "label": "阿姨做事情的周全度",
+                "api_code_alias": null,
+                "type": "nps",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "minimum_ratings_display_text": "差",
+                "maximum_ratings_display_text": "很棒",
+                "highlight_color": "rgb(40,117,232)"
+            }
+        },
+        {
+            "field_10": {
+                "label": "阿姨做事情的精细程度",
+                "api_code_alias": null,
+                "type": "nps",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "minimum_ratings_display_text": "差",
+                "maximum_ratings_display_text": "很棒",
+                "highlight_color": "rgb(40,117,232)"
+            }
+        },
+        {
+            "field_11": {
+                "label": "阿姨做事情的干净程度",
+                "api_code_alias": null,
+                "type": "nps",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "minimum_ratings_display_text": "差",
+                "maximum_ratings_display_text": "很棒",
+                "highlight_color": "rgb(40,117,232)"
+            }
+        },
+        {
+            "field_12": {
+                "label": "阿姨的生活习惯及行为习惯",
+                "api_code_alias": null,
+                "type": "nps",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "minimum_ratings_display_text": "差",
+                "maximum_ratings_display_text": "很棒",
+                "highlight_color": "rgb(40,117,232)"
+            }
+        },
+        {
+            "field_13": {
+                "label": "阿姨服务中带给您的舒适度",
+                "api_code_alias": null,
+                "type": "nps",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "minimum_ratings_display_text": "差",
+                "maximum_ratings_display_text": "很棒",
+                "highlight_color": "rgb(40,117,232)"
+            }
+        },
+        {
+            "field_14": {
+                "label": "阿姨在工作中与TA人的配合度",
+                "api_code_alias": null,
+                "type": "nps",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "minimum_ratings_display_text": " 差",
+                "maximum_ratings_display_text": "很棒",
+                "highlight_color": "rgb(40,117,232)"
+            }
+        },
+        {
+            "field_15": {
+                "label": "阿姨的条理性",
+                "api_code_alias": null,
+                "type": "nps",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "minimum_ratings_display_text": "差",
+                "maximum_ratings_display_text": "很棒",
+                "highlight_color": "rgb(40,117,232)"
+            }
+        },
+        {
+            "field_16": {
+                "label": "阿姨的麻利程度",
+                "api_code_alias": null,
+                "type": "nps",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "minimum_ratings_display_text": "差",
+                "maximum_ratings_display_text": "很棒",
+                "highlight_color": "rgb(40,117,232)"
+            }
+        },
+        {
+            "field_17": {
+                "label": "阿姨是否能及时汇报工作中的差错",
+                "api_code_alias": null,
+                "type": "nps",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "minimum_ratings_display_text": "不能",
+                "maximum_ratings_display_text": "全能",
+                "highlight_color": "rgb(40,117,232)"
+            }
+        },
+        {
+            "field_18": {
+                "label": "您对阿姨的信任程度",
+                "api_code_alias": null,
+                "type": "nps",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "minimum_ratings_display_text": "差",
+                "maximum_ratings_display_text": "很棒",
+                "highlight_color": "rgb(40,117,232)"
+            }
+        },
+        {
+            "field_19": {
+                "label": "阿姨对情绪的调节能力",
+                "api_code_alias": null,
+                "type": "nps",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "minimum_ratings_display_text": "差",
+                "maximum_ratings_display_text": "很棒",
+                "highlight_color": "rgb(40,117,232)"
+            }
+        },
+        {
+            "field_30": {
+                "label": "阿姨是否有主动让客户检查行李箱？",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": null,
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "没有",
+                        "value": "gUoI",
+                        "hidden": false
+                    },
+                    {
+                        "name": "有",
+                        "value": "nNPA",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_20": {
+                "label": "阿姨工作中是否出现过情绪过激的情况，请您简单描述",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_21": {
+                "label": "专业知识评分",
+                "api_code_alias": null,
+                "type": "page_break",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_22": {
+                "label": "喂养知识",
+                "api_code_alias": null,
+                "type": "nps",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "minimum_ratings_display_text": "差",
+                "maximum_ratings_display_text": "优",
+                "highlight_color": "rgb(40,117,232)"
+            }
+        },
+        {
+            "field_23": {
+                "label": "早教知识",
+                "api_code_alias": null,
+                "type": "nps",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "minimum_ratings_display_text": "差",
+                "maximum_ratings_display_text": "优",
+                "highlight_color": "rgb(40,117,232)"
+            }
+        },
+        {
+            "field_24": {
+                "label": "培养孩子良好的习惯",
+                "api_code_alias": null,
+                "type": "nps",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "minimum_ratings_display_text": "差",
+                "maximum_ratings_display_text": "优",
+                "highlight_color": "rgb(40,117,232)"
+            }
+        },
+        {
+            "field_25": {
+                "label": "带孩子的安全防护意识",
+                "api_code_alias": null,
+                "type": "nps",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "minimum_ratings_display_text": "差",
+                "maximum_ratings_display_text": "优",
+                "highlight_color": "rgb(40,117,232)"
+            }
+        },
+        {
+            "field_26": {
+                "label": "阿姨的自学能力",
+                "api_code_alias": null,
+                "type": "nps",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "minimum_ratings_display_text": "差",
+                "maximum_ratings_display_text": "优",
+                "highlight_color": "rgb(40,117,232)"
+            }
+        },
+        {
+            "field_27": {
+                "label": "做饭口味",
+                "api_code_alias": null,
+                "type": "nps",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "minimum_ratings_display_text": "差",
+                "maximum_ratings_display_text": "优",
+                "highlight_color": "rgb(40,117,232)"
+            }
+        },
+        {
+            "field_28": {
+                "label": "家务能力",
+                "api_code_alias": null,
+                "type": "nps",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "minimum_ratings_display_text": "差",
+                "maximum_ratings_display_text": "优",
+                "highlight_color": "rgb(40,117,232)"
+            }
+        },
+        {
+            "field_29": {
+                "label": "收纳整理",
+                "api_code_alias": null,
+                "type": "nps",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "minimum_ratings_display_text": "差",
+                "maximum_ratings_display_text": "优",
+                "highlight_color": "rgb(40,117,232)"
+            }
+        }
+    ]
+}

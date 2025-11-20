@@ -1,0 +1,94 @@
+{
+    "name": "3岁以上宝宝",
+    "token": "Ew8c7U",
+    "description": "<p>将为大家讲大宝宝课堂，为了学到更多的知识，先提前向大家收集资料，请认真填写，谢谢！</p>",
+    "fields": [
+        {
+            "field_1": {
+                "label": "姓名",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_2": {
+                "label": "您现在带的孩子性别是？",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                },
+                "choices": [
+                    {
+                        "name": "男",
+                        "value": "QMUk",
+                        "hidden": false
+                    },
+                    {
+                        "name": "女",
+                        "value": "WEEO",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_3": {
+                "label": "您现在带的孩子多大？",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_4": {
+                "label": "带大宝宝时，您曾经遇到过什么问题？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": null,
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_5": {
+                "label": "带大宝宝时，您现在遇到了什么问题？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": null,
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_7": {
+                "label": "带3岁以上的孩子，您想学哪些专业知识？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": null,
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_6": {
+                "label": "若线上听课2小时，您每天中的哪个时间段有空？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": null,
+                "private": false,
+                "validation": {}
+            }
+        }
+    ]
+}

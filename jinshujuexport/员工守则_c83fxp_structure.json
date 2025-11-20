@@ -1,0 +1,184 @@
+{
+    "name": "员工守则",
+    "token": "c83fxp",
+    "description": "<span style=\"color:#f0f8ff\"><span style=\"font-size:1.429em\"><span style=\"background-color:#ffa500\">公司文化：</span></span></span><p></p>\n\n<p><span style=\"font-size:1.143em\">客户至上，了解并满足客户需求；</span></p>\n\n<p><span style=\"font-size:1.143em\">给服务人员家的温暖及专业的指导；</span></p>\n\n<p><span style=\"font-size:1.143em\">团结、合作、诚信、负责、有爱。</span></p>\n\n<p><span style=\"color:#f0f8ff\"><span style=\"font-size:1.429em\"><span style=\"background-color:#ffa500\">公司口号：</span></span></span></p>\n\n<p><span style=\"font-size:1.143em\">一丝不苟、为爱永葆初心；</span></p>\n\n<p><span style=\"font-size:1.143em\">萌姨萌嫂、有爱才有家。</span></p>\n\n<p><span style=\"color:#f0f8ff\"><span style=\"font-size:1.429em\"><span style=\"background-color:#ffa500\">公司司训：</span></span></span></p>\n\n<p><span style=\"font-size:1.143em\">思想品行、光明磊落；</span></p>\n\n<p><span style=\"font-size:1.143em\">工作态度、认真负责；</span></p>\n\n<p><span style=\"font-size:1.143em\">业务技能、精益求精；</span></p>\n\n<p><span style=\"font-size:1.143em\">为人处事、诚实守信。</span></p>",
+    "fields": [
+        {
+            "field_1": {
+                "label": "制度",
+                "api_code_alias": null,
+                "type": "section_break",
+                "notes": "<p><span style=\"font-size:1.143em;\">一：公司平台有内部萌嫂群、微信公众号（萌姨萌嫂）、抖音（家福安～萌姨萌嫂）</span></p><p>&nbsp;</p><p><span style=\"font-size:1.143em;\">二：公司例会</span></p><p><span style=\"font-size:1.143em;\">a、每月中旬公司举办例会，具体时间公司会提前在内部群中通知，</span></p><p><span style=\"font-size:1.143em;\">b、在北京服务的萌嫂必须参加例会，不参加者，须由客户替萌嫂请假，不请假不参加例会人员自动上交100元/次。</span></p><p><span style=\"font-size:1.143em;\">月嫂请注意：对于上户的月嫂带的新生儿，可以不参加公司例会，但是月嫂服务的孩子是3个月及以上的孩子，同样需要参加公司例会，不参加者同理上面b条的要求</span></p><p><span style=\"font-size:1.143em;\">c、频繁参加公司例会、活动会对晋级有帮助。</span></p><p>&nbsp;</p><p><span style=\"font-size:1.143em;\">三：公司通知</span></p><p><span style=\"font-size:1.143em;\">a、公司群中的通知须详细认真阅读，并且给予回复。</span></p><p>&nbsp;</p><p><span style=\"font-size:1.143em;\">四：萌嫂在公司晋级</span></p><p><span style=\"font-size:1.143em;\">提前向公司要晋升链接</span></p><p><span style=\"font-size:1.143em;\">经公司全面考核</span></p><p><span style=\"font-size:1.143em;\">育儿嫂到达9000元/月，月嫂到达18000元/月，后续晋级公司高级和特级，必须参加完公司专业知识理论的进阶培训，具备更多的专业知识。</span></p><p>&nbsp;</p><p><span style=\"font-size:1.143em;\">五：萌嫂涨工资流程：</span></p><p><span style=\"font-size:1.143em;\">公司向客户提出涨工资事情，涨工资幅度是300元～500元，具体涨多少工资，由客户决定。</span></p><p><span style=\"font-size:1.143em;\">涨工资根据萌嫂在公司的表现，客户对萌嫂服务的满意度。</span></p><p>&nbsp;</p><p><span style=\"font-size:1.143em;\">六：公司宣传公众号发文</span></p><p><span style=\"font-size:1.143em;\">a、萌嫂有义务经常通过自己的渠道为公司宣传，比如自己的朋友圈、微博、阿姨姐妹群、自己的抖音等</span></p><p><span style=\"font-size:1.143em;\">b、萌嫂宣传公司时，配上文字，可以是公司提供的文案，或者自己的感想或文章中印象最深的语句。</span></p><p>&nbsp;</p><p><span style=\"font-size:1.143em;\">七：公司有为萌嫂购买保险，萌嫂人身意外险、宝宝人身意外险、客户家财产险。</span></p><p><span style=\"font-size:1.143em;\">保险报销必须是二级及二级以上公立医院，其它医院不可报。</span></p><p>&nbsp;</p><p><span style=\"font-size:1.143em;\">八：下户自主休假时间超过3个月回公司时，晋级将会受影响。</span></p><p>&nbsp;</p><p><span style=\"font-size:1.143em;\">十：月嫂和育儿嫂技能巩固</span></p><p><span style=\"font-size:1.143em;\"><strong>1、月嫂：</strong></span></p><p><span style=\"font-size:1.143em;\">户上不能按时参加公司每月例会，规定下户后或上户前在公司报到3～5天（公司超过连续工作5年的阿姨可以只报到3天）；</span></p><p><span style=\"font-size:1.143em;\">报到需完成内容：专业知识和实操的巩固学习、考试，素质培训</span></p><p><span style=\"font-size:1.143em;\">月嫂不参加例会、不参加报到，那么专业和素质培训跟不上公司步骤，及不能晋级。</span></p><p><span style=\"font-size:1.143em;\">高级月嫂必须要有带好新人的能力。</span></p><p>&nbsp;</p><p><span style=\"font-size:1.143em;\"><strong>2、育儿嫂：</strong></span></p><p><span style=\"font-size:1.143em;\">连续三次不参加例会人员，将被公司筛选出，公司会问萌嫂原由，</span></p><p><span style=\"font-size:1.143em;\">公司将与客户电话联系，与客户沟通萌嫂三月服务情况，从萌嫂服务技能、专业、心态等三方面咨询，或者根据三次例会主题询问客户萌嫂的服务方面，可展现公司做的事情，并且凸显每次跟客户联系聊的内容也有不同。</span></p><p><span style=\"font-size:1.143em;\">一年参加例会低于三次人员：去下一个客户家之前，到公司报到3～5天（公司超过连续工作5年的阿姨可以只报到3天）；</span></p><p><span style=\"font-size:1.143em;\">报到需完成内容：专业知识和实操的巩固学习、考试，素质培训</span></p><p><span style=\"font-size:1.143em;\">萌嫂不参加例会，个人专业和素质培训跟不上公司步骤，及不能晋级。</span></p>",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_2": {
+                "label": "上户流程",
+                "api_code_alias": null,
+                "type": "section_break",
+                "notes": "<p><span style=\"font-size:1.143em;\">一：萌嫂在上户前一天，主动向公司领取客户地址、电话以及上户时间点；</span></p><p><span style=\"font-size:1.143em;\">注意：去客户家身上现金不能超过300元，不带贵重金银首饰等贵重物品，若有损坏或者遗失，后果自负。</span></p><p><span style=\"font-size:1.143em;\">上户自带物品（家居服、洗漱牙膏牙刷、洗发用品、洗澡用品、洗衣用品、毛巾、碗筷、水杯、拖鞋、纯棉袜子、湿纸巾或消毒纸巾或消毒液进门擦箱子、透气的口罩</span><span style=\"background-color:rgb(255,255,255);color:rgb(51,51,51);\">（比如：防晒口罩）</span><span style=\"font-size:1.143em;\">）</span></p><p>&nbsp;</p><p><span style=\"font-size:1.143em;\">二：提前到客户家楼下，联系客户（您好！我是萌姨萌嫂的*阿姨，现在已经到您家楼下，现在是否方便上去？）</span></p><p><span style=\"font-size:1.143em;\">若被公司派到外地服务，每段行程都需要像公司汇报安全行程。</span></p><p>&nbsp;</p><p><span style=\"font-size:1.143em;\">三：上户到客户家，进客户家门是几点几分需微信文字告知公司</span></p><p>&nbsp;</p><p><span style=\"font-size:1.143em;\">四：进入客户家后，快速洗手、洗澡、换干净衣服开始工作，将自己脱掉的衣服折叠整齐放着，洗澡后场所清理干净，尤其是地面头发。</span></p><p>&nbsp;</p><p><span style=\"font-size:1.143em;\">五：上户试用期为7天，试用期第二天或者第三天，自己主动找客户回访，</span></p><p><span style=\"font-size:1.143em;\">试用期间自身感受需如实告知公司，公司也会把客户对您的感受告知您，若有不足之处及时做出调整。</span></p><p><span style=\"font-size:1.143em;\">备注：若试用期7天不成功，试用期间遇到国家法定节假日，此期间以实际天数结算劳务费，若试用期7天成功，享受法定节假日。</span></p><p>&nbsp;</p><p><span style=\"font-size:1.143em;\">六：7天后签正式合同，您和客户协商好签约多长时间，告知公司准备合同。</span></p><p><span style=\"font-size:1.143em;\">正式合同开始时间以萌嫂上户当天时间为准。签正式合同，公司会向客户收取萌嫂当月劳务费作为保证金，以及收取客户在公司的管理费。</span></p><p><span style=\"font-size:1.143em;\">若不签正式合同，等客户家安排上阿姨后，我们萌嫂交接完毕后方可下户。</span></p><p>&nbsp;</p><p><span style=\"font-size:1.143em;\">七：正式合同期间，萌嫂没完成合同，萌嫂需交违约金为月薪10%～30%，</span></p><p><span style=\"font-size:1.143em;\">若萌嫂个人有突发事件，需第一时间告知公司和客户，通过协商配合，需等替班人员交接后，方可去处理自己事情，处理完事情尽快回岗继续履行自己的合同。</span></p><p>&nbsp;</p><p><span style=\"font-size:1.143em;\">八：合同到期，萌嫂不愿再续约，请提前一个月向公司说明，下户时需等客户家安排好人员，萌嫂做完交接工作再下户。</span><br><span style=\"font-size:1.143em;\">合同到期，萌嫂续约有涨工资想法，请提前一个月向公司说明合理的理由。</span></p><p>&nbsp;</p><p><span style=\"font-size:1.143em;\">九：下户当天与客户核对好考勤，</span></p><p><span style=\"font-size:1.143em;\">下户离开客户家时，一定让客户本人检查自己的行李箱，若客户不检查，萌嫂必须在客户面前主动打开箱子和包包给客户检查。</span></p><p>&nbsp;</p><p><span style=\"font-size:1.143em;\">十：下户离开客户家的第一时间，必须微信或电话告知公司，以及向公司汇报自己下户具体时间点和自己的去向。</span></p><p><span style=\"font-size:1.143em;\">下户当天或第二天须到公司汇报工作。</span></p><p>&nbsp;</p><p><span style=\"font-size:1.143em;\">十一：服务期间，萌嫂在客户家犯错（比如孩子磕碰、受伤、和客户发生小纠纷、东西损坏等等），必须第一时间告知公司和客户，与公司配合解决，当时事当时毕。隐瞒事情和实情者，后果自负。</span></p>",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_3": {
+                "label": "费用",
+                "api_code_alias": null,
+                "type": "section_break",
+                "notes": "<p><span style=\"font-size:1.143em;\">一：加入公司报名费200元（不退）</span></p><p><span style=\"font-size:1.143em;\">自费办理</span><span style=\"color:hsl(0,75%,60%);font-size:1.143em;\">北京正规医院健康证（医院必须是有等级），</span></p><p><span style=\"color:hsl(0,75%,60%);font-size:1.143em;\">正规医院的幽门螺旋杆菌、妇科传染性疾病检查报告，健康证过期必须重新检查。</span></p><p><span style=\"color:hsl(0,75%,60%);font-size:1.143em;\">客户非常在意的传染项目有：幽门螺旋杆菌、妇科清洁度/滴虫/霉菌，甲丙戊肝和乙肝五项。</span></p><p><span style=\"font-size:1.143em;\">我们健康证未过期，客户要求我们重做，或者体检其它健康项目，萌嫂配合，体检费由客户出，但是查出不合格的项目费用，由萌嫂自行承担。</span></p><p>&nbsp;</p><p><span style=\"font-size:1.143em;\">宿舍20元/天（住宿舍期间离开公司者，宿舍费50元/天），吃饭自费。宿舍做饭自行AA制，每天所有人总共做饭次数不超过3次，厨房内所有物品用完主动补上，以便后续人员方便。</span></p><p>&nbsp;</p><p>&nbsp;</p><p><span style=\"font-size:1.143em;\">二：月嫂</span></p><p><span style=\"font-size:1.143em;\">1、月嫂在公司签第一单成功需交1000元押金，公司签约的所有单子做完后，后续不再公司安排单，服务完最后一单，1000元押金可退还。若甩单、不准时上户，押金不退还，签私单押金不退。甩单或不准时上户，后续还有单要服务，需另交1000押金。</span></p><p>&nbsp;</p><p><span style=\"font-size:1.143em;\">2、月嫂一个月以26天为标准，若签约多月，中途可与客户协商休息，休息当天必须告知核算劳务费负责人。</span></p><p>&nbsp;</p><p><span style=\"font-size:1.143em;\">3、月嫂法定日加班算法：级别➗26天✖️加班天数</span></p><p>&nbsp;</p><p><span style=\"font-size:1.143em;\">4、月嫂出京服务级别有加收10%，出境是20%，双胞胎是30%。</span></p><p>&nbsp;</p><p><span style=\"font-size:1.143em;\">三 ：育儿嫂、家务服务、护工</span></p><p><span style=\"font-size:1.143em;\">1、萌嫂上户一家客户，第一次在公司上户的萌嫂可以在领取第一笔劳务费时向公司交定级月薪的10%。</span></p><p><span style=\"font-size:1.143em;\">&nbsp; &nbsp;在公司非第一次上户的萌嫂，上户后定了签正式合同，萌嫂就可向公司交定级月薪的10%</span></p><p><span style=\"font-size:1.143em;\">（如：萌嫂月薪定为5000元/月，无论服务多长时间，需交公司10%是500元。</span></p><p><span style=\"font-size:1.143em;\">若很快下户，费用不足扣500元，萌嫂不需要向公司补另外的差价，比如：萌嫂上户1天就下户，费用是192元，需交公司500元减去192元等于308元，此处的308元不需要萌嫂交公司。）</span></p><p><span style=\"font-size:1.143em;\">&nbsp; 在同一家客户服务时，涨薪或续合同，无需再向公司交费用，出现换客户服务，需再次向公司交10%。</span></p><p>&nbsp;</p><p><span style=\"font-size:1.143em;\">2、萌嫂被派出替班，无需向公司交10%，领取的劳务费将以实际出勤天数为准。</span></p><p><span style=\"font-size:1.143em;\">若替班时与客户达成协议签正式合同，将替班变为正式单，此时萌嫂需交公司10%服务费。</span></p><p>&nbsp;</p><p><span style=\"font-size:1.143em;\">3、劳务费算法</span></p><p><span style=\"font-size:1.143em;\">月劳务费➗26天✖️出勤天数</span></p><p><span style=\"font-size:1.143em;\">自然月总天数减去26天，剩下的天数就是萌嫂正常休息天数，另外法定日有几天就加上正常休息天数，就是自然月总共休息天数。总共休息天数没有休息完，则为加班天数。</span></p><p><span style=\"font-size:1.143em;\">萌嫂在户上具体休息时间，根据客户家实际情况而定，自己可提前与客户协商。</span></p><p>&nbsp;</p><p><span style=\"font-size:1.143em;\">四：萌嫂与客户同意签正式合同，公司出合同，并且向客户收取保证金</span></p><p><span style=\"font-size:1.143em;\">保证金是阿姨们的一份保障。</span></p><p>&nbsp;</p><p><span style=\"font-size:1.143em;\">五：萌嫂每月劳务费由客户直接打款给萌嫂，打款时间最晚截止到每月10日晚上。（比如：1月劳务费，最晚2月的10日客户打款给萌嫂）。</span></p><p><span style=\"font-size:1.143em;\">若客户超时，萌嫂告知公司，公司将代替萌嫂催款。</span></p><p>&nbsp;</p><p><span style=\"background-color:hsl(0,75%,60%);color:hsl(0,0%,100%);font-size:1.143em;\">注意⚠️：客户用公司账户以工资名义发萌嫂劳务费，若是公司账户以工资名义转的账户，每年自己是需要交税的，遇到此情况，萌嫂务必与客户先前协商好，最好写上协议签字，说明此税由谁交付。</span></p><p><span style=\"background-color:hsl(0,75%,60%);color:hsl(0,0%,100%);font-size:1.143em;\">举例说明：萌嫂劳务费8000元/月，客户用公司账户以《工资形式》给萌嫂发费用8000元/月，此时是客户公司给萌嫂交了一笔税，另外个人需要每年给国家缴税，萌嫂一年就是8000元/月✖️12个月=96000元，96000元超过国家规定免税的基数，所以萌嫂自己还要给国家缴税，此费用由客户承担还是由萌嫂自行承担，萌嫂与客户一定协商好。</span></p><p>&nbsp;</p><p><span style=\"font-size:1.143em;\">六：萌嫂在</span><span style=\"background-color:hsl(0,75%,60%);color:hsl(0,0%,100%);font-size:1.143em;\">试用期间下户，或者为了等交接的人，超过试用期但是没有签正式合同，萌嫂劳务费由客户转公司，公司再发萌嫂</span><span style=\"font-size:1.143em;\">。</span></p><p>&nbsp;</p><p><span style=\"font-size:1.143em;\">七：被派出为</span><span style=\"background-color:hsl(0,75%,60%);color:hsl(0,0%,100%);font-size:1.143em;\">替班的人员，劳务费由客户发公司</span><span style=\"font-size:1.143em;\">，公司再发萌嫂</span></p><p>&nbsp;</p><p><span style=\"font-size:1.143em;\">八：萌嫂在客户家服务的最后一个月费用，公司将保证金直接发给萌嫂，需萌嫂在下户前与客户核对好考勤即可，若当月有产生加班费，加班费由客户直接给萌嫂</span></p><p>&nbsp;</p><p><span style=\"font-size:1.143em;\">九：萌嫂出京劳务费会加收10%，出境20%。公司以整月计算。</span></p><p><span style=\"font-size:1.143em;\">（比如1月10日～2月10日算一整月，萌嫂与客户核对2月考勤时，向客户标明自己有出京服务一整月，有10%的服务费款，）不足整月不收。</span></p><p>&nbsp;</p><p><span style=\"font-size:1.143em;\">十：公司发萌嫂费用定在每月10日，每月10日发上月所有费用。</span></p><p><span style=\"color:hsl(0,75%,60%);font-size:1.143em;\">萌嫂与客户签订正式合同，公司向客户收取一个月保证金（即萌嫂一个月劳务费）。</span></p><p><span style=\"color:hsl(0,75%,60%);font-size:1.143em;\">萌嫂在客户家服务的最后一个月劳务费由公司发，萌嫂与客户核对好考勤，公司根据考勤将保证金作为劳务费发给萌嫂，所以萌嫂在客户家下户的最后一个月不由客户发劳务费给萌嫂。</span></p><p>&nbsp;</p><p>&nbsp;</p><p><span style=\"font-size:1.143em;\"><strong>十一：考勤表</strong></span></p><p><span style=\"font-size:1.143em;\">1、每月1、2、3日，萌嫂将上一个月考勤与客户核对好之后报给公司，公司4、5、6日将明细发送给客户，客户在7日～10日将费用打款给萌嫂，</span></p><p><span style=\"color:hsl(0,75%,60%);font-size:1.143em;\">萌嫂收到客户发的劳务费，立马告知公司（小庆）收款的时间、数额、收款途径。</span></p><p><span style=\"color:hsl(0,75%,60%);font-size:1.143em;\">中途有跟着客户出京出境服务，一定要汇报公司，并且报考勤时写清楚时间段与客户核对，汇报于公司（小庆）算劳务费。</span></p><p>&nbsp;</p><p>&nbsp;</p><p><span style=\"font-size:1.143em;\">2、纸质版考勤上出勤画C，休息画X，在合同服务期间内，不可留空白。报考勤时拍出清晰的整张纸发给小庆微信。</span></p><p>&nbsp;</p><p><span style=\"font-size:1.143em;\">3、注意上户当月，公司以24小时计算，上户当天跟下户当天算一起，所上户当月的第一天画了C，但是出勤天数中不算入上户的第一天，等下户当天再算入。</span></p><p><span style=\"font-size:1.143em;\">上户当天是几点，下户当天就几点，根据客户要求，下户时间跟上户时间有变动，将以实际小时算为准。</span></p><p>&nbsp;</p><p><span style=\"font-size:1.143em;\">4、休息期间，几点离开客户家，以及几点回到客户家，不允许在考勤表上写上，以免显得脏乱。</span></p><p><span style=\"font-size:1.143em;\">若休息出现小时差距：（比如：今天早上9点离开客户家开始休息一天，正常明天早上9点要回到客户家，若跟客户提前协商好11点回，那么萌嫂就出现多休息2个小时，萌嫂下次休息就早2个小时回客户家，多退少补的原则。</span></p><p>&nbsp;</p><p><span style=\"font-size:1.143em;\">5、对于考勤不明白者，请提前咨询公司填写完整后，再与客户核对。</span></p>",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_4": {
+                "label": "员工守则",
+                "api_code_alias": null,
+                "type": "section_break",
+                "notes": "<p><span style=\"font-size:1.143em;\">一、上班不迟到，不早退，上户下户都要与公司联系。休息按时回到客户家。做到有事提前请假如需离开协助公司安排交接妥,后续工作</span></p><p>&nbsp;</p><p><span style=\"font-size:1.143em;\">二、离开客户家主动让客户检查箱包</span></p><p>&nbsp;</p><p><span style=\"font-size:1.143em;\">三、保证对服务对象，家庭成员及物品等受伤或受损时能第一时间告知公司及客户以积极主动的方式配合解决</span></p><p>&nbsp;</p><p><span style=\"font-size:1.143em;\">四、对客户家的财产消耗品。（食物、水、电、煤气及一次性消耗品等），要本着尽量节约减少浪费的精神</span></p><p>&nbsp;</p><p><span style=\"font-size:1.143em;\">五、不得不经客户允许吃拿孩子、客户家的食物、物品及财务等。</span></p><p>&nbsp;</p><p><span style=\"font-size:1.143em;\">六、要本着独立完成工作的原则，提前把工作安排好做到尽量不麻烦别人</span></p><p>&nbsp;</p><p><span style=\"font-size:1.143em;\">七、从各个方面保证孩子的安全（吃、喝、睡、玩、外出等）。</span></p><p>&nbsp;</p><p><span style=\"font-size:1.143em;\">八、工作时间内不可以随时接打电话。尊重客户的隐私，不可将客户的信息放到自己的朋友圈。</span></p><p>&nbsp;</p><p><span style=\"font-size:1.143em;\">九、一切从客户利益出发，要主动积极地适应且融入客户家庭不做对客户家不利的事，不说对客户不利的话，不唆使他人与客户对立，与其他人员和平相处，不参加客户家的内部矛盾不插话不参与聊天，谨言慎行。</span></p><p>&nbsp;</p><p><span style=\"font-size:1.143em;\">十、工作积极主动，时刻铭记自己的身份做到六勤：脑&nbsp;嘴&nbsp;耳&nbsp;眼&nbsp;手&nbsp;腿六勤</span></p><p>&nbsp;</p><p><span style=\"font-size:1.143em;\">十一、保证自己有一个健康的身体为客户提供服务和良好的心理抗压能力</span></p><p>&nbsp;</p><p><span style=\"font-size:1.143em;\">十二、注意自己的仪容仪表（服装大方得体，不化妆，不带饰品，不穿高跟鞋）上户要穿家居服洗漱用品自备，注意生活小节（吃&nbsp;喝&nbsp;洗&nbsp;睡）</span></p><p>&nbsp;</p><p><span style=\"font-size:1.143em;\">十三、规范用语；要用通俗易懂的语言，说普通话，不说脏话，不用反问语气，懂得倾听，不知而不应，对长辈要有礼貌，多用您&nbsp;请&nbsp;谢谢&nbsp;再见等</span></p><p>&nbsp;</p><p><span style=\"font-size:1.143em;\">十四、正确对待想家的问题</span></p><p>&nbsp;</p><p><span style=\"font-size:1.143em;\">十五、公司员工守则，在换户时必须到公司朗读，在客户家稳定的人员，公司随机抽取阿姨朗读员工守则。</span></p><p>&nbsp;</p><p><span style=\"font-size:1.143em;\">十六、与人相处的黄金法则：别人希望你怎么对待她，你就怎么对待她。</span></p><p>&nbsp;</p><p><span style=\"font-size:1.143em;\">十七、同理心原则：要他人理解我、就要先去理解他人；别人眼中的我，才是真正的自己；只能修正自己、不能依赖改变别人；真诚坦白的人、才是值得信任的人；真情流露的人、才能得到真情的回报。</span><br><span style=\"font-size:1.143em;\">&nbsp;</span></p><p><span style=\"color:#ff0000;font-size:1.143em;\"><span>十八、萌嫂与客户私下达成交易和协议，即使萌嫂告知公司，未提前经过公司同意，后期双方发生任何纠纷或者发生任何事，后果由萌嫂自行承担！</span></span><br><span style=\"font-size:1.143em;\">&nbsp;</span></p><p><span style=\"color:#ff0000;font-size:1.143em;\"><span>十九、萌嫂户上遇到问题需请教，请在公司群里问问题，不提倡私下请教各位萌嫂问题。</span></span></p><p>&nbsp;</p><p><span style=\"color:#ff0000;font-size:1.143em;\"><span>二十、萌嫂随意解除合同，将承担一切造成的损失</span></span></p><p>&nbsp;</p><p><span style=\"color:#ff0000;font-size:1.143em;\"><span>二十一、户上禁忌事情：1、萌嫂与客户私签；2、萌嫂向客户借钱；3、工作期间与客户或同事发生争吵和打架；4、工作期间不自驾车（汽车、客车、电动车等一切）</span></span></p>",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_5": {
+                "label": "罚款数额",
+                "api_code_alias": null,
+                "type": "section_break",
+                "notes": "<p><span style=\"font-size:1.143em;\">1、300元</span></p><p><span style=\"font-size:1.143em;\">2、1000元</span></p><p><span style=\"font-size:1.143em;\">3、2000元</span></p><p><span style=\"font-size:1.143em;\">4、4000元</span></p><p><span style=\"font-size:1.143em;\">5、工资的一半</span></p><p><span style=\"font-size:1.143em;\">6、阿姨级别（或劳务费）的10%～30%</span></p>",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_6": {
+                "label": "姓名",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_7": {
+                "label": "是否确定已经阅读并理解以上内容",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                },
+                "choices": [
+                    {
+                        "name": "是",
+                        "value": "s11m",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_8": {
+                "label": "对于您即将上户的客户，您是否做好了准备？您都做了哪些准备？",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_10": {
+                "label": "萌嫂上户必备物品，您已经准备好了的有哪些？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "碗、筷",
+                        "value": "sGej",
+                        "hidden": false
+                    },
+                    {
+                        "name": "牙膏、牙刷、杯子",
+                        "value": "5nj0",
+                        "hidden": false
+                    },
+                    {
+                        "name": "洗澡/洗头的毛巾",
+                        "value": "BlZ4",
+                        "hidden": false
+                    },
+                    {
+                        "name": "洗头用品（洗发液、护发素），建议小瓶",
+                        "value": "I4Yf",
+                        "hidden": false
+                    },
+                    {
+                        "name": "洗澡用品（沐浴露或香皂），建议小瓶",
+                        "value": "ZXiz",
+                        "hidden": false
+                    },
+                    {
+                        "name": "洗衣用品（洗衣粉或洗衣液或洗衣皂），建议旅行装",
+                        "value": "fUQB",
+                        "hidden": false
+                    },
+                    {
+                        "name": "水杯",
+                        "value": "2NmN",
+                        "hidden": false
+                    },
+                    {
+                        "name": "拖鞋",
+                        "value": "VcJf",
+                        "hidden": false
+                    },
+                    {
+                        "name": "家居服",
+                        "value": "unDK",
+                        "hidden": false
+                    },
+                    {
+                        "name": "消毒纸巾或消毒液",
+                        "value": "X6Ro",
+                        "hidden": false
+                    },
+                    {
+                        "name": "袜子（客户家不允许光脚）",
+                        "value": "Monl",
+                        "hidden": false
+                    },
+                    {
+                        "name": "口罩（透气的，比如：防晒口罩）",
+                        "value": "ABUH",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_9": {
+                "label": "签名",
+                "api_code_alias": null,
+                "type": "e_signature",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        }
+    ]
+}

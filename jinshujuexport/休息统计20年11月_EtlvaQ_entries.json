@@ -1,0 +1,1167 @@
+[
+    {
+        "token": "6kTPsXxM",
+        "serial_number": 1,
+        "field_1": "石群利",
+        "field_3": [
+            "星期六"
+        ],
+        "field_4": "",
+        "x_field_1": "",
+        "color_mark": "",
+        "creator_name": "",
+        "created_at": "2020-11-20T10:49:52.722Z",
+        "updated_at": "2020-11-20T10:49:52.722Z",
+        "info_filling_duration": 100,
+        "info_platform": "Android",
+        "info_os": "Android 8.1.0",
+        "info_browser": "Wechat Browser 7.0.16.1700(0x2700103F)",
+        "info_region": {
+            "country": "中国",
+            "province": null,
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "223.104.38.33"
+    },
+    {
+        "token": "UaF06Bv6",
+        "serial_number": 2,
+        "field_1": "代秋英",
+        "field_3": [
+            "星期日"
+        ],
+        "field_4": "",
+        "x_field_1": "",
+        "color_mark": "",
+        "creator_name": "",
+        "created_at": "2020-11-20T10:51:57.823Z",
+        "updated_at": "2020-11-20T10:51:57.823Z",
+        "info_filling_duration": 90,
+        "info_platform": "Android",
+        "info_os": "Android 10",
+        "info_browser": "Wechat Browser 7.0.20.1781(0x2700143D)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "111.193.238.42"
+    },
+    {
+        "token": "9wnJwX8X",
+        "serial_number": 3,
+        "field_1": "代秋英",
+        "field_3": [
+            "星期日"
+        ],
+        "field_4": "礼拜六下午",
+        "x_field_1": "",
+        "color_mark": "",
+        "creator_name": "",
+        "created_at": "2020-11-20T10:53:22.279Z",
+        "updated_at": "2020-11-20T10:53:22.279Z",
+        "info_filling_duration": 63,
+        "info_platform": "Android",
+        "info_os": "Android 10",
+        "info_browser": "Wechat Browser 7.0.20.1781(0x2700143D)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "111.193.238.42"
+    },
+    {
+        "token": "kMZjQ1db",
+        "serial_number": 4,
+        "field_1": "柳霞",
+        "field_3": [
+            "星期六",
+            "星期日"
+        ],
+        "field_4": "周六或者周日都可以",
+        "x_field_1": "",
+        "color_mark": "",
+        "creator_name": "",
+        "created_at": "2020-11-20T10:55:35.808Z",
+        "updated_at": "2020-11-20T10:55:35.808Z",
+        "info_filling_duration": 123,
+        "info_platform": "Android",
+        "info_os": "Android 10",
+        "info_browser": "Wechat Browser 7.0.20.1781(0x2700143D)",
+        "info_region": {
+            "country": "中国",
+            "province": null,
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "223.104.38.150"
+    },
+    {
+        "token": "6HZZtA7G",
+        "serial_number": 5,
+        "field_1": "张素艳",
+        "field_3": [
+            "星期六"
+        ],
+        "field_4": "",
+        "x_field_1": "",
+        "color_mark": "",
+        "creator_name": "",
+        "created_at": "2020-11-20T10:55:39.063Z",
+        "updated_at": "2020-11-20T10:55:39.063Z",
+        "info_filling_duration": 82,
+        "info_platform": "Android",
+        "info_os": "Android 10",
+        "info_browser": "Wechat Browser 7.0.20.1781(0x2700143A)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "222.129.49.40"
+    },
+    {
+        "token": "TvGQX37o",
+        "serial_number": 6,
+        "field_1": "叶慧",
+        "field_3": [
+            "星期二"
+        ],
+        "field_4": "",
+        "x_field_1": "",
+        "color_mark": "",
+        "creator_name": "",
+        "created_at": "2020-11-20T10:58:51.352Z",
+        "updated_at": "2020-11-20T10:58:51.352Z",
+        "info_filling_duration": 33,
+        "info_platform": "Android",
+        "info_os": "Android 10",
+        "info_browser": "Wechat Browser 7.0.20.1781(0x2700143D)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "111.197.141.53"
+    },
+    {
+        "token": "4CoEYoLB",
+        "serial_number": 7,
+        "field_1": "王慧琼",
+        "field_3": [
+            "星期日"
+        ],
+        "field_4": "",
+        "x_field_1": "",
+        "color_mark": "",
+        "creator_name": "",
+        "created_at": "2020-11-20T11:02:25.921Z",
+        "updated_at": "2020-11-20T11:02:25.921Z",
+        "info_filling_duration": 1540,
+        "info_platform": "Android",
+        "info_os": "Android 10",
+        "info_browser": "Wechat Browser 7.0.20.1781(0x2700143D)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "222.131.117.18"
+    },
+    {
+        "token": "RLsiLgjN",
+        "serial_number": 8,
+        "field_1": "陈晓芳",
+        "field_3": [
+            "星期二",
+            "星期三"
+        ],
+        "field_4": "",
+        "x_field_1": "",
+        "color_mark": "",
+        "creator_name": "",
+        "created_at": "2020-11-20T11:28:43.323Z",
+        "updated_at": "2020-11-20T11:28:43.323Z",
+        "info_filling_duration": 51,
+        "info_platform": "iPhone",
+        "info_os": "iOS 13.7",
+        "info_browser": "Wechat Browser 7.0.18(0x1700122a)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "124.64.17.245"
+    },
+    {
+        "token": "N2bnK941",
+        "serial_number": 9,
+        "field_1": "李亚莉",
+        "field_3": [
+            "星期六",
+            "星期日"
+        ],
+        "field_4": "",
+        "x_field_1": "",
+        "color_mark": "",
+        "creator_name": "",
+        "created_at": "2020-11-20T11:39:09.963Z",
+        "updated_at": "2020-11-20T11:39:09.963Z",
+        "info_filling_duration": 11,
+        "info_platform": "Android",
+        "info_os": "Android 10",
+        "info_browser": "Wechat Browser 7.0.20.1781(0x2700143D)",
+        "info_region": {
+            "country": "中国",
+            "province": "山西省",
+            "city": "晋中市",
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "1.68.56.190"
+    },
+    {
+        "token": "fHaJuCLR",
+        "serial_number": 10,
+        "field_1": "王娟",
+        "field_3": [
+            "星期六"
+        ],
+        "field_4": "",
+        "x_field_1": "",
+        "color_mark": "",
+        "creator_name": "",
+        "created_at": "2020-11-20T11:50:19.925Z",
+        "updated_at": "2020-11-20T11:50:19.925Z",
+        "info_filling_duration": 158,
+        "info_platform": "Android",
+        "info_os": "Android 8.1.0",
+        "info_browser": "Wechat Browser 7.0.20.1781(0x2700143A)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "106.121.8.214"
+    },
+    {
+        "token": "qeFzJZ3A",
+        "serial_number": 11,
+        "field_1": "韩红娟",
+        "field_3": [
+            "星期日"
+        ],
+        "field_4": "",
+        "x_field_1": "",
+        "color_mark": "",
+        "creator_name": "",
+        "created_at": "2020-11-20T11:50:30.824Z",
+        "updated_at": "2020-11-20T11:50:30.824Z",
+        "info_filling_duration": 40,
+        "info_platform": "Android",
+        "info_os": "Android 6.0.1",
+        "info_browser": "Wechat Browser 7.0.20.1781(0x2700143A)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "125.34.1.86"
+    },
+    {
+        "token": "rh3yBwLV",
+        "serial_number": 12,
+        "field_1": "李海珍",
+        "field_3": [
+            "星期六",
+            "星期日"
+        ],
+        "field_4": "其他时间段不休",
+        "x_field_1": "",
+        "color_mark": "",
+        "creator_name": "",
+        "created_at": "2020-11-20T11:51:52.407Z",
+        "updated_at": "2020-11-20T11:51:52.407Z",
+        "info_filling_duration": 103,
+        "info_platform": "Android",
+        "info_os": "Android 10",
+        "info_browser": "Wechat Browser 7.0.20.1781(0x2700143D)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "111.196.16.148"
+    },
+    {
+        "token": "zp9uUOqX",
+        "serial_number": 13,
+        "field_1": "李玉琼",
+        "field_3": [
+            "星期一",
+            "星期三"
+        ],
+        "field_4": "周末俩个孩子在家就没时间",
+        "x_field_1": "",
+        "color_mark": "",
+        "creator_name": "",
+        "created_at": "2020-11-20T12:06:26.475Z",
+        "updated_at": "2020-11-20T12:06:26.475Z",
+        "info_filling_duration": 86,
+        "info_platform": "Android",
+        "info_os": "Android 10",
+        "info_browser": "Wechat Browser 7.0.20.1781(0x2700143D)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "106.37.202.31"
+    },
+    {
+        "token": "TnVIWZJ0",
+        "serial_number": 14,
+        "field_1": "王候爱",
+        "field_3": [
+            "星期日"
+        ],
+        "field_4": "",
+        "x_field_1": "",
+        "color_mark": "",
+        "creator_name": "",
+        "created_at": "2020-11-20T12:09:17.925Z",
+        "updated_at": "2020-11-20T12:09:17.925Z",
+        "info_filling_duration": 43,
+        "info_platform": "Android",
+        "info_os": "Android 7.1.2",
+        "info_browser": "Wechat Browser 7.0.16.1700(0x2700103C)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "106.38.134.121"
+    },
+    {
+        "token": "G4fIdXCE",
+        "serial_number": 15,
+        "field_1": "陈丽",
+        "field_3": [
+            "星期六"
+        ],
+        "field_4": "",
+        "x_field_1": "",
+        "color_mark": "",
+        "creator_name": "",
+        "created_at": "2020-11-20T12:17:06.120Z",
+        "updated_at": "2020-11-20T12:17:06.120Z",
+        "info_filling_duration": 55,
+        "info_platform": "Android",
+        "info_os": "Android 8.0.0",
+        "info_browser": "Wechat Browser 7.0.20.1781(0x2700143D)",
+        "info_region": {
+            "country": "中国",
+            "province": "内蒙古自治区",
+            "city": "乌兰察布市",
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "223.104.39.182"
+    },
+    {
+        "token": "lf9OxzKX",
+        "serial_number": 16,
+        "field_1": "齐华",
+        "field_3": [],
+        "field_4": "无休",
+        "x_field_1": "",
+        "color_mark": "",
+        "creator_name": "",
+        "created_at": "2020-11-20T13:22:06.601Z",
+        "updated_at": "2020-11-20T13:22:06.601Z",
+        "info_filling_duration": 48,
+        "info_platform": "Android",
+        "info_os": "Android 8.1.0",
+        "info_browser": "Wechat Browser 7.0.20.1781(0x2700143D)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "222.131.31.13"
+    },
+    {
+        "token": "SKXFPHnA",
+        "serial_number": 17,
+        "field_1": "陈芳芳",
+        "field_3": [
+            "星期六",
+            "星期日"
+        ],
+        "field_4": "无",
+        "x_field_1": "",
+        "color_mark": "",
+        "creator_name": "",
+        "created_at": "2020-11-20T13:23:48.986Z",
+        "updated_at": "2020-11-20T13:23:48.986Z",
+        "info_filling_duration": 130,
+        "info_platform": "iPhone",
+        "info_os": "iOS 11.3",
+        "info_browser": "Wechat Browser 7.0.18(0x1700122a)",
+        "info_region": {
+            "country": "中国",
+            "province": "河北省",
+            "city": "秦皇岛市",
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "223.104.102.110"
+    },
+    {
+        "token": "NGlIUXOE",
+        "serial_number": 18,
+        "field_1": "宋倩倩",
+        "field_3": [
+            "星期五",
+            "星期六",
+            "星期日"
+        ],
+        "field_4": "",
+        "x_field_1": "",
+        "color_mark": "",
+        "creator_name": "",
+        "created_at": "2020-11-20T13:34:52.908Z",
+        "updated_at": "2020-11-20T13:34:52.908Z",
+        "info_filling_duration": 322,
+        "info_platform": "Android",
+        "info_os": "Android 10",
+        "info_browser": "Wechat Browser 7.0.20.1781(0x2700143D)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "221.216.208.216"
+    },
+    {
+        "token": "FgeafcRP",
+        "serial_number": 19,
+        "field_1": "明道菊",
+        "field_3": [
+            "星期六",
+            "星期日"
+        ],
+        "field_4": "",
+        "x_field_1": "",
+        "color_mark": "",
+        "creator_name": "",
+        "created_at": "2020-11-20T14:25:12.028Z",
+        "updated_at": "2020-11-20T14:25:12.028Z",
+        "info_filling_duration": 69,
+        "info_platform": "Android",
+        "info_os": "Android 9",
+        "info_browser": "Wechat Browser 7.0.20.1781(0x2700143D)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "221.220.193.187"
+    },
+    {
+        "token": "6IK6dBMU",
+        "serial_number": 20,
+        "field_1": "邓大峰",
+        "field_3": [],
+        "field_4": "没有休息时间，加班，在外地不能到场。",
+        "x_field_1": "",
+        "color_mark": "",
+        "creator_name": "",
+        "created_at": "2020-11-20T14:31:47.474Z",
+        "updated_at": "2020-11-20T14:31:47.474Z",
+        "info_filling_duration": 210,
+        "info_platform": "Android",
+        "info_os": "Android 6.0.1",
+        "info_browser": "Wechat Browser 7.0.20.1781(0x2700143A)",
+        "info_region": {
+            "country": "中国",
+            "province": "山东省",
+            "city": "东营市",
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "123.134.15.122"
+    },
+    {
+        "token": "ATC1ej2T",
+        "serial_number": 21,
+        "field_1": "赵月坤",
+        "field_3": [
+            "星期六"
+        ],
+        "field_4": "或者星期日",
+        "x_field_1": "",
+        "color_mark": "",
+        "creator_name": "",
+        "created_at": "2020-11-20T14:37:12.504Z",
+        "updated_at": "2020-11-20T14:37:12.504Z",
+        "info_filling_duration": 25,
+        "info_platform": "Android",
+        "info_os": "Android 10",
+        "info_browser": "Wechat Browser 7.0.16.1700(0x2700103F)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "123.120.166.226"
+    },
+    {
+        "token": "G5dlISBw",
+        "serial_number": 22,
+        "field_1": "张凤英",
+        "field_3": [
+            "星期三",
+            "星期六",
+            "星期日"
+        ],
+        "field_4": "",
+        "x_field_1": "",
+        "color_mark": "",
+        "creator_name": "",
+        "created_at": "2020-11-20T14:47:23.854Z",
+        "updated_at": "2020-11-20T14:47:23.854Z",
+        "info_filling_duration": 7827,
+        "info_platform": "Android",
+        "info_os": "Android 10",
+        "info_browser": "Wechat Browser 7.0.20.1781(0x2700143D)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "117.136.38.68"
+    },
+    {
+        "token": "jae8E2Uk",
+        "serial_number": 23,
+        "field_1": "田付霞",
+        "field_3": [],
+        "field_4": "什么时间都可以",
+        "x_field_1": "",
+        "color_mark": "",
+        "creator_name": "",
+        "created_at": "2020-11-20T15:11:10.276Z",
+        "updated_at": "2020-11-20T15:11:10.276Z",
+        "info_filling_duration": 48,
+        "info_platform": "Android",
+        "info_os": "Android 9",
+        "info_browser": "Wechat Browser 7.0.20.1781(0x2700143D)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "222.128.187.29"
+    },
+    {
+        "token": "bNxm1Hp1",
+        "serial_number": 24,
+        "field_1": "郑微丽",
+        "field_3": [],
+        "field_4": "在家休假",
+        "x_field_1": "",
+        "color_mark": "",
+        "creator_name": "",
+        "created_at": "2020-11-20T15:35:16.823Z",
+        "updated_at": "2020-11-20T15:35:16.823Z",
+        "info_filling_duration": 140,
+        "info_platform": "Android",
+        "info_os": "Android 10",
+        "info_browser": "Wechat Browser 7.0.20.1781(0x2700143D)",
+        "info_region": {
+            "country": "中国",
+            "province": "山西省",
+            "city": "晋城市",
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "183.200.69.114"
+    },
+    {
+        "token": "OkMG3QRW",
+        "serial_number": 25,
+        "field_1": "王燕",
+        "field_3": [],
+        "field_4": "今年疫情，没有休息。客户也见意避免大聚会，因为他们的身体抵抗力差，所以公共场合基本都没有去过。",
+        "x_field_1": "",
+        "color_mark": "",
+        "creator_name": "",
+        "created_at": "2020-11-20T21:54:16.521Z",
+        "updated_at": "2020-11-20T21:54:16.521Z",
+        "info_filling_duration": 595,
+        "info_platform": "Android",
+        "info_os": "Android 10",
+        "info_browser": "Wechat Browser 7.0.20.1781(0x2700143D)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "106.121.128.154"
+    },
+    {
+        "token": "qVIpOUZv",
+        "serial_number": 26,
+        "field_1": "姜冰",
+        "field_3": [],
+        "field_4": "以上都不能选，下户那天",
+        "x_field_1": "",
+        "color_mark": "",
+        "creator_name": "",
+        "created_at": "2020-11-21T00:23:33.312Z",
+        "updated_at": "2020-11-21T00:23:33.312Z",
+        "info_filling_duration": 92,
+        "info_platform": "Android",
+        "info_os": "Android 10",
+        "info_browser": "Wechat Browser 7.0.20.1781(0x2700143D)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "1.203.85.112"
+    },
+    {
+        "token": "xX0rXz0C",
+        "serial_number": 27,
+        "field_1": "杨洁",
+        "field_3": [],
+        "field_4": "疫情的原因宝妈不让外出",
+        "x_field_1": "",
+        "color_mark": "",
+        "creator_name": "",
+        "created_at": "2020-11-21T00:26:41.942Z",
+        "updated_at": "2020-11-21T00:26:41.942Z",
+        "info_filling_duration": 156,
+        "info_platform": "Android",
+        "info_os": "Android 8.1.0",
+        "info_browser": "Wechat Browser 7.0.16.1700(0x270010B9)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "123.113.135.97"
+    },
+    {
+        "token": "2CfCJ7ur",
+        "serial_number": 28,
+        "field_1": "聂晓梅",
+        "field_3": [
+            "星期六"
+        ],
+        "field_4": "我这个礼拜休息不了，下个礼拜是周六，周日都休息。",
+        "x_field_1": "",
+        "color_mark": "",
+        "creator_name": "",
+        "created_at": "2020-11-21T01:17:56.852Z",
+        "updated_at": "2020-11-21T01:17:56.852Z",
+        "info_filling_duration": 142,
+        "info_platform": "Android",
+        "info_os": "Android 7.1.1",
+        "info_browser": "Wechat Browser 7.0.20.1781(0x27001438)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "111.202.190.7"
+    },
+    {
+        "token": "hzBaCnIY",
+        "serial_number": 29,
+        "field_1": "张余凤",
+        "field_3": [
+            "星期六",
+            "星期日"
+        ],
+        "field_4": "周一到周五没有休息时间",
+        "x_field_1": "",
+        "color_mark": "",
+        "creator_name": "",
+        "created_at": "2020-11-21T01:31:05.472Z",
+        "updated_at": "2020-11-21T01:31:05.472Z",
+        "info_filling_duration": 116,
+        "info_platform": "Android",
+        "info_os": "Android 10",
+        "info_browser": "Wechat Browser 7.0.20.1781(0x2700143D)",
+        "info_region": {
+            "country": "中国",
+            "province": null,
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "223.104.38.179"
+    },
+    {
+        "token": "DYrBPVNH",
+        "serial_number": 30,
+        "field_1": "王会会",
+        "field_3": [
+            "星期六"
+        ],
+        "field_4": "还有两天休息",
+        "x_field_1": "",
+        "color_mark": "",
+        "creator_name": "",
+        "created_at": "2020-11-21T01:40:18.625Z",
+        "updated_at": "2020-11-21T01:40:18.625Z",
+        "info_filling_duration": 69,
+        "info_platform": "Android",
+        "info_os": "Android 8.1.0",
+        "info_browser": "Wechat Browser 7.0.15.1680(0x27000F51)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "120.244.140.183"
+    },
+    {
+        "token": "nFC2Th2D",
+        "serial_number": 31,
+        "field_1": "张念玲",
+        "field_3": [
+            "星期六"
+        ],
+        "field_4": "",
+        "x_field_1": "",
+        "color_mark": "",
+        "creator_name": "",
+        "created_at": "2020-11-21T04:22:48.892Z",
+        "updated_at": "2020-11-21T04:22:48.892Z",
+        "info_filling_duration": 213,
+        "info_platform": "Android",
+        "info_os": "Android 10",
+        "info_browser": "Wechat Browser 7.0.20.1781(0x2700143D)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "223.72.58.185"
+    },
+    {
+        "token": "I976FT8n",
+        "serial_number": 32,
+        "field_1": "任碧芳",
+        "field_3": [
+            "星期一",
+            "星期二",
+            "星期三",
+            "星期四"
+        ],
+        "field_4": "",
+        "x_field_1": "",
+        "color_mark": "",
+        "creator_name": "",
+        "created_at": "2020-11-21T04:33:05.007Z",
+        "updated_at": "2020-11-21T04:33:05.007Z",
+        "info_filling_duration": 55,
+        "info_platform": "Android",
+        "info_os": "Android 8.1.0",
+        "info_browser": "Wechat Browser 7.0.6.1460(0x27000634)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "114.254.149.181"
+    },
+    {
+        "token": "IfW0laaf",
+        "serial_number": 33,
+        "field_1": "金田芳",
+        "field_3": [
+            "星期五",
+            "星期六"
+        ],
+        "field_4": "不是每个星期都歇，有时宝爸出差，宝妈一个人看不了俩，得有人分别看大宝和二宝，所以也不确定，我根据公司安排再安排自己的参会时间吧。",
+        "x_field_1": "",
+        "color_mark": "",
+        "creator_name": "",
+        "created_at": "2020-11-21T06:52:58.317Z",
+        "updated_at": "2020-11-21T06:52:58.317Z",
+        "info_filling_duration": 136,
+        "info_platform": "Android",
+        "info_os": "Android 10",
+        "info_browser": "Wechat Browser 7.0.20.1781(0x2700143C)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "114.243.60.214"
+    },
+    {
+        "token": "0gXB5UlV",
+        "serial_number": 34,
+        "field_1": "金田芳",
+        "field_3": [
+            "星期六",
+            "星期日"
+        ],
+        "field_4": "不是每个星期六星期天都歇，有时宝爸出差，根据公司安排我再安排自己的参会时间吧。",
+        "x_field_1": "",
+        "color_mark": "",
+        "creator_name": "",
+        "created_at": "2020-11-21T06:54:15.894Z",
+        "updated_at": "2020-11-21T06:54:15.894Z",
+        "info_filling_duration": 70,
+        "info_platform": "Android",
+        "info_os": "Android 10",
+        "info_browser": "Wechat Browser 7.0.20.1781(0x2700143C)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "114.243.60.214"
+    },
+    {
+        "token": "HfTJCkgO",
+        "serial_number": 35,
+        "field_1": "胡国珍",
+        "field_3": [],
+        "field_4": "我今年才入公司没参加过例会，自上户有两个多月了一直都没休息，内心很想回家，有关例会3次我都想参加，可是昨天跟宝妈沟通参加例会的事，她说宝宝现在还小她跟宝爸俩都不会带，让我不休，到时候她向公司跟我请假，我跟宝妈说了3次至少要参加1次，那我就等宝宝大点，参加年底最后一次的好吧",
+        "x_field_1": "",
+        "color_mark": "",
+        "creator_name": "",
+        "created_at": "2020-11-21T08:25:19.615Z",
+        "updated_at": "2020-11-21T08:25:19.615Z",
+        "info_filling_duration": 953,
+        "info_platform": "Android",
+        "info_os": "Android 10",
+        "info_browser": "Wechat Browser 7.0.20.1781(0x2700143D)",
+        "info_region": {
+            "country": "中国",
+            "province": "河北省",
+            "city": "廊坊市",
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "101.20.45.72"
+    },
+    {
+        "token": "nafNpCZ7",
+        "serial_number": 36,
+        "field_1": "周冬英",
+        "field_3": [
+            "星期六"
+        ],
+        "field_4": "",
+        "x_field_1": "",
+        "color_mark": "",
+        "creator_name": "",
+        "created_at": "2020-11-21T12:25:38.849Z",
+        "updated_at": "2020-11-21T12:25:38.849Z",
+        "info_filling_duration": 31,
+        "info_platform": "Android",
+        "info_os": "Android 8.1.0",
+        "info_browser": "Wechat Browser 7.0.19.1760(0x27001354)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "124.64.19.129"
+    },
+    {
+        "token": "IXviQuqa",
+        "serial_number": 37,
+        "field_1": "李均琳",
+        "field_3": [
+            "星期六"
+        ],
+        "field_4": "",
+        "x_field_1": "",
+        "color_mark": "",
+        "creator_name": "",
+        "created_at": "2020-11-21T13:13:34.775Z",
+        "updated_at": "2020-11-21T13:13:34.775Z",
+        "info_filling_duration": 69,
+        "info_platform": "Android",
+        "info_os": "Android 8.1.0",
+        "info_browser": "Wechat Browser 7.0.16.1700(0x2700103F)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "223.72.65.92"
+    },
+    {
+        "token": "bt9Y5pIs",
+        "serial_number": 38,
+        "field_1": "陈新华",
+        "field_3": [
+            "星期六"
+        ],
+        "field_4": "",
+        "x_field_1": "",
+        "color_mark": "",
+        "creator_name": "",
+        "created_at": "2020-11-21T13:34:19.937Z",
+        "updated_at": "2020-11-21T13:34:19.937Z",
+        "info_filling_duration": 75,
+        "info_platform": "Android",
+        "info_os": "Android 10",
+        "info_browser": "Wechat Browser 7.0.20.1781(0x2700143D)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "223.72.66.189"
+    },
+    {
+        "token": "mF4lqOCi",
+        "serial_number": 39,
+        "field_1": "廖万琼",
+        "field_3": [
+            "星期一",
+            "星期二",
+            "星期三",
+            "星期四"
+        ],
+        "field_4": "周一到周四都可以",
+        "x_field_1": "",
+        "color_mark": "",
+        "creator_name": "",
+        "created_at": "2020-11-21T13:49:01.712Z",
+        "updated_at": "2020-11-21T13:49:01.712Z",
+        "info_filling_duration": 312,
+        "info_platform": "Android",
+        "info_os": "Android 10",
+        "info_browser": "Wechat Browser 7.0.20.1781(0x2700143D)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "61.148.245.174"
+    },
+    {
+        "token": "2LPk7uH7",
+        "serial_number": 40,
+        "field_1": "王东辉",
+        "field_3": [
+            "星期一",
+            "星期二",
+            "星期三",
+            "星期四"
+        ],
+        "field_4": "周一到周四都可以",
+        "x_field_1": "",
+        "color_mark": "",
+        "creator_name": "",
+        "created_at": "2020-11-21T13:49:11.825Z",
+        "updated_at": "2020-11-21T13:49:11.825Z",
+        "info_filling_duration": 483,
+        "info_platform": "Android",
+        "info_os": "Android 10",
+        "info_browser": "Wechat Browser 7.0.20.1781(0x2700143D)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "61.48.209.10"
+    },
+    {
+        "token": "okbqm9nH",
+        "serial_number": 41,
+        "field_1": "姜冬梅",
+        "field_3": [
+            "星期六"
+        ],
+        "field_4": "",
+        "x_field_1": "",
+        "color_mark": "",
+        "creator_name": "",
+        "created_at": "2020-11-21T14:22:13.544Z",
+        "updated_at": "2020-11-21T14:22:13.544Z",
+        "info_filling_duration": 82,
+        "info_platform": "Android",
+        "info_os": "Android 9",
+        "info_browser": "Wechat Browser 7.0.20.1781(0x2700143D)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "123.117.89.160"
+    },
+    {
+        "token": "ioWdJcqx",
+        "serial_number": 42,
+        "field_1": "刘凤娟",
+        "field_3": [
+            "星期六"
+        ],
+        "field_4": "我和宝宝现在总是去奶奶家住。不知道开列会时能不能回客户家啊。宝宝奶奶家在顺义区。",
+        "x_field_1": "",
+        "color_mark": "",
+        "creator_name": "",
+        "created_at": "2020-11-21T14:35:48.744Z",
+        "updated_at": "2020-11-21T14:35:48.744Z",
+        "info_filling_duration": 277,
+        "info_platform": "Android",
+        "info_os": "Android 7.1.2",
+        "info_browser": "Wechat Browser 7.0.16.1700(0x27001035)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "115.171.245.151"
+    },
+    {
+        "token": "eMg3BWjd",
+        "serial_number": 43,
+        "field_1": "王桂兰",
+        "field_3": [
+            "星期六"
+        ],
+        "field_4": "我跟宝妈商量了 说周六 万一没时间的话 就等下次例会 期待和姐妹们团聚",
+        "x_field_1": "",
+        "color_mark": "",
+        "creator_name": "",
+        "created_at": "2020-11-22T05:07:52.537Z",
+        "updated_at": "2020-11-22T05:07:52.537Z",
+        "info_filling_duration": 295,
+        "info_platform": "Android",
+        "info_os": "Android 9",
+        "info_browser": "Wechat Browser 7.0.20.1781(0x2700143D)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "221.222.134.3"
+    },
+    {
+        "token": "yS4NsFTE",
+        "serial_number": 44,
+        "field_1": "田鲜花",
+        "field_3": [
+            "星期五",
+            "星期六",
+            "星期日"
+        ],
+        "field_4": "",
+        "x_field_1": "",
+        "color_mark": "",
+        "creator_name": "",
+        "created_at": "2020-11-22T05:57:41.322Z",
+        "updated_at": "2020-11-22T05:57:41.322Z",
+        "info_filling_duration": 51,
+        "info_platform": "Android",
+        "info_os": "Android 10",
+        "info_browser": "Wechat Browser 7.0.16.1700(0x27001035)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "122.115.229.122"
+    },
+    {
+        "token": "chldpbWy",
+        "serial_number": 45,
+        "field_1": "彭红欣",
+        "field_3": [
+            "星期一",
+            "星期二",
+            "星期三",
+            "星期四"
+        ],
+        "field_4": "如果休息时间不对还可以改吗？",
+        "x_field_1": "",
+        "color_mark": "",
+        "creator_name": "",
+        "created_at": "2020-11-23T01:43:57.886Z",
+        "updated_at": "2020-11-23T01:43:57.886Z",
+        "info_filling_duration": 111,
+        "info_platform": "Android",
+        "info_os": "Android 9",
+        "info_browser": "Wechat Browser 7.0.20.1781(0x2700143D)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "61.149.73.31"
+    },
+    {
+        "token": "wJOqNVZq",
+        "serial_number": 46,
+        "field_1": "姜恩程",
+        "field_3": [
+            "星期一",
+            "星期三",
+            "星期四",
+            "星期五"
+        ],
+        "field_4": "下午3:20接孩子，3:10必须到史家胡同",
+        "x_field_1": "",
+        "color_mark": "",
+        "creator_name": "",
+        "created_at": "2020-11-23T03:57:49.939Z",
+        "updated_at": "2020-11-23T03:57:49.939Z",
+        "info_filling_duration": 125,
+        "info_platform": "iPhone",
+        "info_os": "iOS 14.1",
+        "info_browser": "Wechat Browser 7.0.18(0x1700122c)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "117.136.38.75"
+    }
+]

@@ -1,0 +1,2088 @@
+[
+    {
+        "token": "tb3nsNVy",
+        "serial_number": 1,
+        "field_2": "",
+        "field_3": "孔晓丽",
+        "field_4": 8,
+        "field_4_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 8.0
+        },
+        "field_5": 9,
+        "field_5_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 9.0
+        },
+        "field_6": 9,
+        "field_6_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 9.0
+        },
+        "field_7": 7,
+        "field_7_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 7.0
+        },
+        "field_8": 8,
+        "field_8_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 8.0
+        },
+        "field_9": 8,
+        "field_9_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 8.0
+        },
+        "field_10": 6,
+        "field_10_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 6.0
+        },
+        "field_11": 7,
+        "field_11_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 7.0
+        },
+        "field_12": 8,
+        "field_12_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 8.0
+        },
+        "field_13": 8,
+        "field_13_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 8.0
+        },
+        "field_14": 8,
+        "field_14_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 8.0
+        },
+        "field_15": 8,
+        "field_15_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 8.0
+        },
+        "field_16": 8,
+        "field_16_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 8.0
+        },
+        "field_17": 8,
+        "field_17_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 8.0
+        },
+        "field_18": 8,
+        "field_18_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 8.0
+        },
+        "field_19": 8,
+        "field_19_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 8.0
+        },
+        "field_30": "",
+        "field_30_extra_value": {
+            "correct_answer": "没有，有",
+            "score": null
+        },
+        "field_20": "",
+        "field_22": 8,
+        "field_22_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 8.0
+        },
+        "field_23": 7,
+        "field_23_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 7.0
+        },
+        "field_24": 7,
+        "field_24_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 7.0
+        },
+        "field_25": 9,
+        "field_25_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 9.0
+        },
+        "field_26": 8,
+        "field_26_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 8.0
+        },
+        "field_27": 7,
+        "field_27_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 7.0
+        },
+        "field_28": 7,
+        "field_28_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 7.0
+        },
+        "field_29": 6,
+        "field_29_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 6.0
+        },
+        "x_field_1": "",
+        "color_mark": "",
+        "exam_score": 185,
+        "creator_name": "",
+        "created_at": "2023-01-05T06:59:20.351Z",
+        "updated_at": "2023-01-05T06:59:20.351Z",
+        "info_filling_duration": 100.013,
+        "info_platform": "Macintosh",
+        "info_os": "OS X 10.15.7",
+        "info_browser": "Safari 15.1",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "125.35.60.241"
+    },
+    {
+        "token": "W0cO0GiM",
+        "serial_number": 2,
+        "field_2": "",
+        "field_3": "李丽",
+        "field_4": 9,
+        "field_4_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 9.0
+        },
+        "field_5": 8,
+        "field_5_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 8.0
+        },
+        "field_6": 9,
+        "field_6_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 9.0
+        },
+        "field_7": 10,
+        "field_7_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_8": 9,
+        "field_8_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 9.0
+        },
+        "field_9": 9,
+        "field_9_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 9.0
+        },
+        "field_10": 9,
+        "field_10_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 9.0
+        },
+        "field_11": 9,
+        "field_11_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 9.0
+        },
+        "field_12": 9,
+        "field_12_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 9.0
+        },
+        "field_13": 9,
+        "field_13_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 9.0
+        },
+        "field_14": 10,
+        "field_14_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_15": 9,
+        "field_15_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 9.0
+        },
+        "field_16": 10,
+        "field_16_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_17": 8,
+        "field_17_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 8.0
+        },
+        "field_18": 9,
+        "field_18_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 9.0
+        },
+        "field_19": 9,
+        "field_19_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 9.0
+        },
+        "field_30": "",
+        "field_30_extra_value": {
+            "correct_answer": "没有，有",
+            "score": null
+        },
+        "field_20": "无",
+        "field_22": 9,
+        "field_22_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 9.0
+        },
+        "field_23": 9,
+        "field_23_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 9.0
+        },
+        "field_24": 9,
+        "field_24_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 9.0
+        },
+        "field_25": 10,
+        "field_25_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_26": 9,
+        "field_26_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 9.0
+        },
+        "field_27": 10,
+        "field_27_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_28": 9,
+        "field_28_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 9.0
+        },
+        "field_29": 9,
+        "field_29_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 9.0
+        },
+        "x_field_1": "",
+        "color_mark": "",
+        "exam_score": 219,
+        "creator_name": "",
+        "created_at": "2023-01-05T07:13:16.027Z",
+        "updated_at": "2023-01-05T07:13:16.027Z",
+        "info_filling_duration": 179.623,
+        "info_platform": "iPhone",
+        "info_os": "iOS 16.2",
+        "info_browser": "Wechat Browser 8.0.31(0x18001f32)",
+        "info_region": {
+            "country": "中国",
+            "province": "上海市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "101.87.185.4"
+    },
+    {
+        "token": "mYr7tTNA",
+        "serial_number": 3,
+        "field_2": "张瀚文",
+        "field_3": "孔宪云",
+        "field_4": 8,
+        "field_4_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 8.0
+        },
+        "field_5": 8,
+        "field_5_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 8.0
+        },
+        "field_6": 7,
+        "field_6_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 7.0
+        },
+        "field_7": 10,
+        "field_7_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_8": 7,
+        "field_8_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 7.0
+        },
+        "field_9": 8,
+        "field_9_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 8.0
+        },
+        "field_10": 7,
+        "field_10_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 7.0
+        },
+        "field_11": 9,
+        "field_11_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 9.0
+        },
+        "field_12": 8,
+        "field_12_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 8.0
+        },
+        "field_13": 8,
+        "field_13_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 8.0
+        },
+        "field_14": 8,
+        "field_14_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 8.0
+        },
+        "field_15": 8,
+        "field_15_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 8.0
+        },
+        "field_16": 10,
+        "field_16_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_17": 6,
+        "field_17_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 6.0
+        },
+        "field_18": 8,
+        "field_18_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 8.0
+        },
+        "field_19": 7,
+        "field_19_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 7.0
+        },
+        "field_30": "",
+        "field_30_extra_value": {
+            "correct_answer": "没有，有",
+            "score": null
+        },
+        "field_20": "没有情绪过激行为",
+        "field_22": 10,
+        "field_22_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_23": 8,
+        "field_23_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 8.0
+        },
+        "field_24": 8,
+        "field_24_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 8.0
+        },
+        "field_25": 10,
+        "field_25_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_26": 8,
+        "field_26_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 8.0
+        },
+        "field_27": 7,
+        "field_27_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 7.0
+        },
+        "field_28": 10,
+        "field_28_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_29": 9,
+        "field_29_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 9.0
+        },
+        "x_field_1": "",
+        "color_mark": "",
+        "exam_score": 197,
+        "creator_name": "",
+        "created_at": "2023-01-05T07:26:18.016Z",
+        "updated_at": "2023-01-05T07:26:18.016Z",
+        "info_filling_duration": 225.898,
+        "info_platform": "Android",
+        "info_os": "Android 10",
+        "info_browser": "Wechat Browser 8.0.31.2281(0x28001F59)",
+        "info_region": {
+            "country": "中国",
+            "province": "河北省",
+            "city": "廊坊市",
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "110.251.46.245"
+    },
+    {
+        "token": "E7Q79FfR",
+        "serial_number": 4,
+        "field_2": "张程程",
+        "field_3": "王桂兰",
+        "field_4": 6,
+        "field_4_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 6.0
+        },
+        "field_5": 8,
+        "field_5_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 8.0
+        },
+        "field_6": 8,
+        "field_6_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 8.0
+        },
+        "field_7": 6,
+        "field_7_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 6.0
+        },
+        "field_8": 6,
+        "field_8_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 6.0
+        },
+        "field_9": 9,
+        "field_9_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 9.0
+        },
+        "field_10": 9,
+        "field_10_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 9.0
+        },
+        "field_11": 9,
+        "field_11_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 9.0
+        },
+        "field_12": 8,
+        "field_12_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 8.0
+        },
+        "field_13": 7,
+        "field_13_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 7.0
+        },
+        "field_14": 7,
+        "field_14_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 7.0
+        },
+        "field_15": 10,
+        "field_15_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_16": 6,
+        "field_16_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 6.0
+        },
+        "field_17": 6,
+        "field_17_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 6.0
+        },
+        "field_18": 6,
+        "field_18_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 6.0
+        },
+        "field_19": 6,
+        "field_19_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 6.0
+        },
+        "field_30": "",
+        "field_30_extra_value": {
+            "correct_answer": "没有，有",
+            "score": null
+        },
+        "field_20": "对孩子说话不耐烦， 半夜孩子醒了凶孩子。  提醒过她几次，稍微好点",
+        "field_22": 7,
+        "field_22_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 7.0
+        },
+        "field_23": 5,
+        "field_23_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 5.0
+        },
+        "field_24": 6,
+        "field_24_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 6.0
+        },
+        "field_25": 6,
+        "field_25_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 6.0
+        },
+        "field_26": 5,
+        "field_26_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 5.0
+        },
+        "field_27": 8,
+        "field_27_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 8.0
+        },
+        "field_28": 8,
+        "field_28_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 8.0
+        },
+        "field_29": 10,
+        "field_29_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "x_field_1": "",
+        "color_mark": "",
+        "exam_score": 172,
+        "creator_name": "",
+        "created_at": "2023-01-05T07:28:05.009Z",
+        "updated_at": "2023-01-05T07:28:05.009Z",
+        "info_filling_duration": 228.927,
+        "info_platform": "iPhone",
+        "info_os": "iOS 15.6.1",
+        "info_browser": "Wechat Browser 8.0.31(0x18001f33)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "115.171.60.160"
+    },
+    {
+        "token": "baqZ9wu1",
+        "serial_number": 5,
+        "field_2": "李健慧",
+        "field_3": "江祥枝",
+        "field_4": 10,
+        "field_4_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_5": 9,
+        "field_5_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 9.0
+        },
+        "field_6": 10,
+        "field_6_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_7": 9,
+        "field_7_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 9.0
+        },
+        "field_8": 10,
+        "field_8_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_9": 10,
+        "field_9_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_10": 10,
+        "field_10_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_11": 10,
+        "field_11_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_12": 10,
+        "field_12_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_13": 10,
+        "field_13_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_14": 10,
+        "field_14_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_15": 10,
+        "field_15_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_16": 9,
+        "field_16_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 9.0
+        },
+        "field_17": 10,
+        "field_17_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_18": 10,
+        "field_18_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_19": 10,
+        "field_19_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_30": "",
+        "field_30_extra_value": {
+            "correct_answer": "没有，有",
+            "score": null
+        },
+        "field_20": "无",
+        "field_22": null,
+        "field_22_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": null
+        },
+        "field_23": null,
+        "field_23_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": null
+        },
+        "field_24": null,
+        "field_24_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": null
+        },
+        "field_25": null,
+        "field_25_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": null
+        },
+        "field_26": null,
+        "field_26_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": null
+        },
+        "field_27": 8,
+        "field_27_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 8.0
+        },
+        "field_28": 10,
+        "field_28_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_29": 10,
+        "field_29_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "x_field_1": "",
+        "color_mark": "",
+        "exam_score": 185,
+        "creator_name": "",
+        "created_at": "2023-01-05T07:53:45.056Z",
+        "updated_at": "2023-01-05T07:53:45.056Z",
+        "info_filling_duration": 258.126,
+        "info_platform": "Android",
+        "info_os": "Android 10",
+        "info_browser": "Wechat Browser 8.0.31.2281(0x28001F59)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "218.249.94.209"
+    },
+    {
+        "token": "ux2EJj9d",
+        "serial_number": 6,
+        "field_2": "侯丹",
+        "field_3": "金田芳",
+        "field_4": 10,
+        "field_4_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_5": 10,
+        "field_5_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_6": 10,
+        "field_6_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_7": 10,
+        "field_7_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_8": 10,
+        "field_8_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_9": 10,
+        "field_9_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_10": 10,
+        "field_10_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_11": 10,
+        "field_11_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_12": 10,
+        "field_12_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_13": 10,
+        "field_13_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_14": 10,
+        "field_14_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_15": 10,
+        "field_15_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_16": 10,
+        "field_16_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_17": 10,
+        "field_17_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_18": 10,
+        "field_18_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_19": 10,
+        "field_19_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_30": "",
+        "field_30_extra_value": {
+            "correct_answer": "没有，有",
+            "score": null
+        },
+        "field_20": "无",
+        "field_22": 10,
+        "field_22_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_23": 10,
+        "field_23_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_24": 10,
+        "field_24_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_25": 10,
+        "field_25_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_26": 10,
+        "field_26_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_27": 10,
+        "field_27_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_28": 10,
+        "field_28_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_29": 10,
+        "field_29_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "x_field_1": "",
+        "color_mark": "",
+        "exam_score": 240,
+        "creator_name": "",
+        "created_at": "2023-01-05T10:11:44.730Z",
+        "updated_at": "2023-01-05T10:11:44.730Z",
+        "info_filling_duration": 96.409,
+        "info_platform": "iPhone",
+        "info_os": "iOS 14.6",
+        "info_browser": "Wechat Browser 8.0.31(0x18001f33)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "111.192.217.213"
+    },
+    {
+        "token": "oLu5xzu5",
+        "serial_number": 7,
+        "field_2": "王芸",
+        "field_3": "刘红芳",
+        "field_4": 8,
+        "field_4_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 8.0
+        },
+        "field_5": 7,
+        "field_5_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 7.0
+        },
+        "field_6": 7,
+        "field_6_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 7.0
+        },
+        "field_7": 7,
+        "field_7_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 7.0
+        },
+        "field_8": 7,
+        "field_8_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 7.0
+        },
+        "field_9": 7,
+        "field_9_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 7.0
+        },
+        "field_10": 7,
+        "field_10_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 7.0
+        },
+        "field_11": 8,
+        "field_11_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 8.0
+        },
+        "field_12": 7,
+        "field_12_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 7.0
+        },
+        "field_13": 7,
+        "field_13_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 7.0
+        },
+        "field_14": 7,
+        "field_14_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 7.0
+        },
+        "field_15": 6,
+        "field_15_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 6.0
+        },
+        "field_16": 6,
+        "field_16_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 6.0
+        },
+        "field_17": 7,
+        "field_17_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 7.0
+        },
+        "field_18": 7,
+        "field_18_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 7.0
+        },
+        "field_19": 7,
+        "field_19_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 7.0
+        },
+        "field_30": "",
+        "field_30_extra_value": {
+            "correct_answer": "没有，有",
+            "score": null
+        },
+        "field_20": "无",
+        "field_22": 7,
+        "field_22_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 7.0
+        },
+        "field_23": 7,
+        "field_23_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 7.0
+        },
+        "field_24": 7,
+        "field_24_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 7.0
+        },
+        "field_25": 8,
+        "field_25_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 8.0
+        },
+        "field_26": 7,
+        "field_26_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 7.0
+        },
+        "field_27": 7,
+        "field_27_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 7.0
+        },
+        "field_28": 7,
+        "field_28_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 7.0
+        },
+        "field_29": 7,
+        "field_29_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 7.0
+        },
+        "x_field_1": "",
+        "color_mark": "",
+        "exam_score": 169,
+        "creator_name": "",
+        "created_at": "2023-01-05T14:46:04.332Z",
+        "updated_at": "2023-01-05T14:46:04.332Z",
+        "info_filling_duration": 149.781,
+        "info_platform": "iPhone",
+        "info_os": "iOS 16.1.1",
+        "info_browser": "Wechat Browser 8.0.31(0x18001f33)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "111.194.74.30"
+    },
+    {
+        "token": "Yru8tOkh",
+        "serial_number": 8,
+        "field_2": "王妍人",
+        "field_3": "李均琳",
+        "field_4": 9,
+        "field_4_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 9.0
+        },
+        "field_5": 10,
+        "field_5_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_6": 10,
+        "field_6_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_7": 10,
+        "field_7_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_8": 10,
+        "field_8_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_9": 9,
+        "field_9_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 9.0
+        },
+        "field_10": 9,
+        "field_10_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 9.0
+        },
+        "field_11": 9,
+        "field_11_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 9.0
+        },
+        "field_12": 10,
+        "field_12_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_13": 10,
+        "field_13_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_14": 10,
+        "field_14_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_15": 9,
+        "field_15_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 9.0
+        },
+        "field_16": 10,
+        "field_16_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_17": 10,
+        "field_17_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_18": 10,
+        "field_18_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_19": 10,
+        "field_19_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_30": "",
+        "field_30_extra_value": {
+            "correct_answer": "没有，有",
+            "score": null
+        },
+        "field_20": "基本情绪稳定",
+        "field_22": 10,
+        "field_22_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_23": 10,
+        "field_23_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_24": 10,
+        "field_24_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_25": 10,
+        "field_25_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_26": 10,
+        "field_26_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_27": 9,
+        "field_27_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 9.0
+        },
+        "field_28": 9,
+        "field_28_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 9.0
+        },
+        "field_29": 9,
+        "field_29_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 9.0
+        },
+        "x_field_1": "",
+        "color_mark": "",
+        "exam_score": 232,
+        "creator_name": "",
+        "created_at": "2023-01-06T03:14:53.068Z",
+        "updated_at": "2023-01-06T03:14:53.068Z",
+        "info_filling_duration": 79.83,
+        "info_platform": "iPhone",
+        "info_os": "iOS 16.1.2",
+        "info_browser": "Wechat Browser 8.0.31(0x18001f33)",
+        "info_region": {
+            "country": "中国",
+            "province": "上海市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "39.144.44.251"
+    },
+    {
+        "token": "BlAumo20",
+        "serial_number": 9,
+        "field_2": "王妍人",
+        "field_3": "廖万琼",
+        "field_4": 10,
+        "field_4_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_5": 8,
+        "field_5_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 8.0
+        },
+        "field_6": 8,
+        "field_6_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 8.0
+        },
+        "field_7": 9,
+        "field_7_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 9.0
+        },
+        "field_8": 9,
+        "field_8_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 9.0
+        },
+        "field_9": 9,
+        "field_9_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 9.0
+        },
+        "field_10": 10,
+        "field_10_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_11": 10,
+        "field_11_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_12": 10,
+        "field_12_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_13": 9,
+        "field_13_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 9.0
+        },
+        "field_14": 9,
+        "field_14_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 9.0
+        },
+        "field_15": 9,
+        "field_15_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 9.0
+        },
+        "field_16": 10,
+        "field_16_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_17": 10,
+        "field_17_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_18": 10,
+        "field_18_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_19": 10,
+        "field_19_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_30": "",
+        "field_30_extra_value": {
+            "correct_answer": "没有，有",
+            "score": null
+        },
+        "field_20": "否",
+        "field_22": 8,
+        "field_22_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 8.0
+        },
+        "field_23": 8,
+        "field_23_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 8.0
+        },
+        "field_24": 8,
+        "field_24_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 8.0
+        },
+        "field_25": 9,
+        "field_25_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 9.0
+        },
+        "field_26": 9,
+        "field_26_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 9.0
+        },
+        "field_27": 10,
+        "field_27_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_28": 10,
+        "field_28_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_29": 9,
+        "field_29_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 9.0
+        },
+        "x_field_1": "",
+        "color_mark": "",
+        "exam_score": 221,
+        "creator_name": "",
+        "created_at": "2023-01-06T03:16:31.431Z",
+        "updated_at": "2023-01-06T03:16:31.431Z",
+        "info_filling_duration": 92.056,
+        "info_platform": "iPhone",
+        "info_os": "iOS 16.1.2",
+        "info_browser": "Wechat Browser 8.0.31(0x18001f33)",
+        "info_region": {
+            "country": "中国",
+            "province": "上海市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "39.144.44.251"
+    },
+    {
+        "token": "WHVerVd3",
+        "serial_number": 10,
+        "field_2": "董芳梅",
+        "field_3": "尚志英",
+        "field_4": 10,
+        "field_4_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_5": 8,
+        "field_5_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 8.0
+        },
+        "field_6": 8,
+        "field_6_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 8.0
+        },
+        "field_7": 10,
+        "field_7_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_8": 6,
+        "field_8_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 6.0
+        },
+        "field_9": 6,
+        "field_9_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 6.0
+        },
+        "field_10": 8,
+        "field_10_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 8.0
+        },
+        "field_11": 8,
+        "field_11_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 8.0
+        },
+        "field_12": 8,
+        "field_12_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 8.0
+        },
+        "field_13": 6,
+        "field_13_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 6.0
+        },
+        "field_14": 8,
+        "field_14_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 8.0
+        },
+        "field_15": 6,
+        "field_15_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 6.0
+        },
+        "field_16": 6,
+        "field_16_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 6.0
+        },
+        "field_17": 8,
+        "field_17_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 8.0
+        },
+        "field_18": 8,
+        "field_18_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 8.0
+        },
+        "field_19": 9,
+        "field_19_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 9.0
+        },
+        "field_30": "",
+        "field_30_extra_value": {
+            "correct_answer": "没有，有",
+            "score": null
+        },
+        "field_20": "没有",
+        "field_22": 8,
+        "field_22_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 8.0
+        },
+        "field_23": 10,
+        "field_23_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_24": 8,
+        "field_24_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 8.0
+        },
+        "field_25": 8,
+        "field_25_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 8.0
+        },
+        "field_26": 8,
+        "field_26_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 8.0
+        },
+        "field_27": 8,
+        "field_27_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 8.0
+        },
+        "field_28": 6,
+        "field_28_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 6.0
+        },
+        "field_29": 6,
+        "field_29_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 6.0
+        },
+        "x_field_1": "",
+        "color_mark": "",
+        "exam_score": 185,
+        "creator_name": "",
+        "created_at": "2023-01-06T06:16:18.648Z",
+        "updated_at": "2023-01-06T06:16:18.648Z",
+        "info_filling_duration": 2546.83,
+        "info_platform": "Android",
+        "info_os": "Android 12",
+        "info_browser": "Wechat Browser 8.0.30.2260(0x28001E55)",
+        "info_region": {
+            "country": "中国",
+            "province": "山东省",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "112.224.191.122"
+    },
+    {
+        "token": "dXDdMolX",
+        "serial_number": 11,
+        "field_2": "李",
+        "field_3": "王阿姨",
+        "field_4": 10,
+        "field_4_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_5": 9,
+        "field_5_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 9.0
+        },
+        "field_6": 9,
+        "field_6_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 9.0
+        },
+        "field_7": 9,
+        "field_7_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 9.0
+        },
+        "field_8": 9,
+        "field_8_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 9.0
+        },
+        "field_9": 9,
+        "field_9_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 9.0
+        },
+        "field_10": 10,
+        "field_10_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_11": 10,
+        "field_11_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_12": 10,
+        "field_12_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_13": 9,
+        "field_13_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 9.0
+        },
+        "field_14": 10,
+        "field_14_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_15": 10,
+        "field_15_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_16": 9,
+        "field_16_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 9.0
+        },
+        "field_17": 8,
+        "field_17_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 8.0
+        },
+        "field_18": 9,
+        "field_18_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 9.0
+        },
+        "field_19": 8,
+        "field_19_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 8.0
+        },
+        "field_30": "",
+        "field_30_extra_value": {
+            "correct_answer": "没有，有",
+            "score": null
+        },
+        "field_20": "",
+        "field_22": 10,
+        "field_22_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_23": 9,
+        "field_23_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 9.0
+        },
+        "field_24": 9,
+        "field_24_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 9.0
+        },
+        "field_25": 10,
+        "field_25_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_26": 10,
+        "field_26_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_27": 9,
+        "field_27_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 9.0
+        },
+        "field_28": 9,
+        "field_28_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 9.0
+        },
+        "field_29": 9,
+        "field_29_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 9.0
+        },
+        "x_field_1": "",
+        "color_mark": "",
+        "exam_score": 223,
+        "creator_name": "",
+        "created_at": "2023-01-06T14:24:45.602Z",
+        "updated_at": "2023-01-06T14:24:45.602Z",
+        "info_filling_duration": 173.265,
+        "info_platform": "iPhone",
+        "info_os": "iOS 14.3",
+        "info_browser": "Wechat Browser 8.0.16(0x18001042)",
+        "info_region": {
+            "country": "中国",
+            "province": "江苏省",
+            "city": "常州市",
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "36.153.95.34"
+    },
+    {
+        "token": "bJhwM3GE",
+        "serial_number": 12,
+        "field_2": "刘成涛",
+        "field_3": "谢瑞",
+        "field_4": 8,
+        "field_4_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 8.0
+        },
+        "field_5": 7,
+        "field_5_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 7.0
+        },
+        "field_6": 6,
+        "field_6_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 6.0
+        },
+        "field_7": 7,
+        "field_7_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 7.0
+        },
+        "field_8": 6,
+        "field_8_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 6.0
+        },
+        "field_9": 6,
+        "field_9_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 6.0
+        },
+        "field_10": 7,
+        "field_10_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 7.0
+        },
+        "field_11": 8,
+        "field_11_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 8.0
+        },
+        "field_12": 9,
+        "field_12_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 9.0
+        },
+        "field_13": 7,
+        "field_13_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 7.0
+        },
+        "field_14": 7,
+        "field_14_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 7.0
+        },
+        "field_15": 6,
+        "field_15_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 6.0
+        },
+        "field_16": 8,
+        "field_16_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 8.0
+        },
+        "field_17": 7,
+        "field_17_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 7.0
+        },
+        "field_18": 7,
+        "field_18_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 7.0
+        },
+        "field_19": 8,
+        "field_19_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 8.0
+        },
+        "field_30": "",
+        "field_30_extra_value": {
+            "correct_answer": "没有，有",
+            "score": null
+        },
+        "field_20": "无",
+        "field_22": 6,
+        "field_22_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 6.0
+        },
+        "field_23": 6,
+        "field_23_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 6.0
+        },
+        "field_24": 6,
+        "field_24_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 6.0
+        },
+        "field_25": 6,
+        "field_25_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 6.0
+        },
+        "field_26": 7,
+        "field_26_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 7.0
+        },
+        "field_27": 7,
+        "field_27_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 7.0
+        },
+        "field_28": 7,
+        "field_28_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 7.0
+        },
+        "field_29": 5,
+        "field_29_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 5.0
+        },
+        "x_field_1": "",
+        "color_mark": "",
+        "exam_score": 164,
+        "creator_name": "",
+        "created_at": "2023-01-07T12:59:41.611Z",
+        "updated_at": "2023-01-07T12:59:41.611Z",
+        "info_filling_duration": 170.121,
+        "info_platform": "iPhone",
+        "info_os": "iOS 16.1.1",
+        "info_browser": "Wechat Browser 8.0.31(0x18001f34)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "114.250.139.161"
+    },
+    {
+        "token": "k99Fl2La",
+        "serial_number": 13,
+        "field_2": "刘迎亚",
+        "field_3": "李海珍",
+        "field_4": 10,
+        "field_4_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_5": 10,
+        "field_5_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_6": 10,
+        "field_6_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_7": 10,
+        "field_7_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_8": 10,
+        "field_8_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_9": 10,
+        "field_9_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_10": 10,
+        "field_10_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_11": 10,
+        "field_11_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_12": 10,
+        "field_12_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_13": 10,
+        "field_13_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_14": 10,
+        "field_14_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_15": 10,
+        "field_15_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_16": 10,
+        "field_16_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_17": 10,
+        "field_17_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_18": 10,
+        "field_18_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_19": 10,
+        "field_19_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_30": "",
+        "field_30_extra_value": {
+            "correct_answer": "没有，有",
+            "score": null
+        },
+        "field_20": "无",
+        "field_22": 10,
+        "field_22_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_23": 10,
+        "field_23_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_24": 10,
+        "field_24_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_25": 10,
+        "field_25_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_26": 10,
+        "field_26_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_27": 10,
+        "field_27_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_28": 10,
+        "field_28_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_29": 10,
+        "field_29_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "x_field_1": "",
+        "color_mark": "",
+        "exam_score": 240,
+        "creator_name": "",
+        "created_at": "2023-01-09T00:12:51.510Z",
+        "updated_at": "2023-01-09T00:12:51.510Z",
+        "info_filling_duration": 38.14,
+        "info_platform": "iPhone",
+        "info_os": "iOS 15.7",
+        "info_browser": "Wechat Browser 8.0.31(0x18001f34)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "114.254.1.136"
+    },
+    {
+        "token": "fAEqrxHJ",
+        "serial_number": 14,
+        "field_2": "肖托",
+        "field_3": "王桂华",
+        "field_4": 10,
+        "field_4_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_5": 10,
+        "field_5_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_6": 10,
+        "field_6_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_7": 10,
+        "field_7_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_8": 10,
+        "field_8_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_9": 10,
+        "field_9_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_10": 10,
+        "field_10_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_11": 10,
+        "field_11_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_12": 10,
+        "field_12_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_13": 10,
+        "field_13_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_14": 10,
+        "field_14_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_15": 10,
+        "field_15_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_16": 10,
+        "field_16_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_17": 10,
+        "field_17_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_18": 10,
+        "field_18_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_19": 10,
+        "field_19_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_30": "",
+        "field_30_extra_value": {
+            "correct_answer": "没有，有",
+            "score": null
+        },
+        "field_20": "",
+        "field_22": 10,
+        "field_22_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_23": 10,
+        "field_23_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_24": 10,
+        "field_24_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_25": 10,
+        "field_25_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_26": 10,
+        "field_26_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_27": 10,
+        "field_27_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_28": 10,
+        "field_28_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "field_29": 10,
+        "field_29_extra_value": {
+            "correct_answer": "0.0，1.0，2.0，3.0，4.0，5.0，6.0，7.0，8.0，9.0，10.0",
+            "score": 10.0
+        },
+        "x_field_1": "",
+        "color_mark": "",
+        "exam_score": 240,
+        "creator_name": "",
+        "created_at": "2023-01-15T00:34:57.667Z",
+        "updated_at": "2023-01-15T00:34:57.667Z",
+        "info_filling_duration": 100.778,
+        "info_platform": "iPhone",
+        "info_os": "iOS 16.1.1",
+        "info_browser": "Wechat Browser 8.0.32(0x18002026)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "125.33.200.35"
+    }
+]

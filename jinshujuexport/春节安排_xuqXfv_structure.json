@@ -1,0 +1,107 @@
+{
+    "name": "春节安排",
+    "token": "xuqXfv",
+    "description": "",
+    "fields": [
+        {
+            "field_1": {
+                "label": "姓名",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_2": {
+                "label": "春节期间安排",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "春节期间在原客户家继续工作",
+                        "value": "uRX2",
+                        "hidden": false
+                    },
+                    {
+                        "name": "合同期间内回老家休假，客户家不需要安排替班",
+                        "value": "af28",
+                        "hidden": false
+                    },
+                    {
+                        "name": "合同期间内回老家休假，客户家需要安排替班",
+                        "value": "kSpe",
+                        "hidden": false
+                    },
+                    {
+                        "name": "春节期间休假，自己不回老家，公司可安排替班",
+                        "value": "oGO5",
+                        "hidden": false
+                    },
+                    {
+                        "name": "年前下户，春节休假，节后再回来找活",
+                        "value": "NzQ1",
+                        "hidden": false
+                    },
+                    {
+                        "name": "年前下户，春节休假，明年不再来工作",
+                        "value": "xcEm",
+                        "hidden": false
+                    },
+                    {
+                        "name": "年前下户，春节不回家，可安排上户",
+                        "value": "Mf7n",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_3": {
+                "label": "春节休假者，节后什么时候返京？此处写阳历时间！",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "<p>1月21日是大年三十</p>",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_4": {
+                "label": "客户家需要安排替班人员，从几月几号到几月几号？此处写阳历时间！",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "<p>公司尽量安排替班，若无法安排上替班者，再沟通协商</p>",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_6": {
+                "label": "若您已经买好回老家的票，票是什么时候的？若买好了返京票，返京时间是什么时候？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": null,
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_5": {
+                "label": "其它事件说明：",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        }
+    ]
+}

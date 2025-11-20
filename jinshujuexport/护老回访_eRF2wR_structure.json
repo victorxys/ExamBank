@@ -1,0 +1,122 @@
+{
+    "name": "护老回访",
+    "token": "eRF2wR",
+    "description": "",
+    "fields": [
+        {
+            "field_1": {
+                "label": "姓名",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_2": {
+                "label": "上户时间",
+                "api_code_alias": null,
+                "type": "date_time",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                },
+                "precision": "day"
+            }
+        },
+        {
+            "field_3": {
+                "label": "这两天您辛苦了！您跟客户的家庭成员相处如何？",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_8": {
+                "label": "您服务的老人身体的状况",
+                "api_code_alias": null,
+                "type": "drop_down",
+                "notes": null,
+                "private": false,
+                "validation": {
+                    "required": true
+                },
+                "choices": [
+                    {
+                        "name": "自理",
+                        "value": "taUE",
+                        "hidden": false
+                    },
+                    {
+                        "name": "半自理",
+                        "value": "yCEt",
+                        "hidden": false
+                    },
+                    {
+                        "name": "不能自理",
+                        "value": "3g3w",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_4": {
+                "label": "请简单描述一下您在客户家的服务内容有哪些？",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_5": {
+                "label": "通过您的观察，目前老人在饮食、身体、习惯等方面存在哪些问题？",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_6": {
+                "label": "针对以上的问题，您计划如何调整？",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_7": {
+                "label": "目前您有什么困难需要公司协助处理？",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        }
+    ]
+}

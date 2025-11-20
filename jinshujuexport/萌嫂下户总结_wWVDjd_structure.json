@@ -1,0 +1,189 @@
+{
+    "name": "萌嫂下户总结",
+    "token": "wWVDjd",
+    "description": "建议先把所有问题完整看一遍，再开始作答",
+    "fields": [
+        {
+            "field_1": {
+                "label": "姓名",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_2": {
+                "label": "服务的客户姓名",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_3": {
+                "label": "写清楚上户和下户的时间？（上户年月日～下户年月日）",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_24": {
+                "label": "下户时，客户检查行李箱了吗？",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": null,
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_14": {
+                "label": "在户上的职位是什么？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "教练",
+                        "value": "FcBC",
+                        "hidden": false
+                    },
+                    {
+                        "name": "月嫂",
+                        "value": "cbLM",
+                        "hidden": false
+                    },
+                    {
+                        "name": "育儿嫂",
+                        "value": "mAwH",
+                        "hidden": false
+                    },
+                    {
+                        "name": "家务人员",
+                        "value": "tjPE",
+                        "hidden": false
+                    },
+                    {
+                        "name": "护工",
+                        "value": "V7XB",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_15": {
+                "label": "（育儿嫂）自己带的孩子或（护工）老人年龄段是多大？（从几月/岁带到几月/岁）",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "<p><span style=\"color:hsl(354,73%,46%);font-size:1.286em;\">育儿嫂或护工</span>在此处写的是：萌嫂上户时孩子或老人多大？下户时孩子或老人多大？</p><p><span style=\"color:hsl(263,62%,60%);font-size:1.286em;\">月嫂</span>在此处写的是：上户时孩子出生日期、体重、长度、年龄，下户时孩子体重、长度、年龄</p><p><span style=\"color:hsl(93,55%,57%);font-size:1.286em;\">教练</span>在此处写的是：综上所有有的部分</p><p><span style=\"color:hsl(226,82%,65%);font-size:1.286em;\">家务人员</span>在此处写的是：客户家里面积、做饭人口数量</p>",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_16": {
+                "label": "本次服务，客户对自己认可的地方有哪些？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "<p><span style=\"color:hsl(354, 83%, 68%);font-size:1.143em;\">请仔细描写，客服将您推荐给下一位客户时，会将此处内容描述于客户，增加愿意面试成功率的机会。</span></p>",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_17": {
+                "label": "本次服务，哪些地方觉得客户对自己是不满意的或者有疑问的？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_18": {
+                "label": "本次服务，户上有哪些经验或事情是自己第一次遇到？自己是如何处理的？最终学到了什么？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "<p><span style=\"color:hsl(354, 83%, 68%);font-size:1.143em;\">请仔细描写，经验将被填写到自己平台上，以便公司推荐客户更细致的了解您。</span></p>",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_19": {
+                "label": "本次服务，户上哪些经验或事情是跟以前遇到的经验或事情一样或类似？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_20": {
+                "label": "本次服务中有搭档（客户家其她同行服务人员），与搭档相处如何？从她身上学到了什么？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_21": {
+                "label": "上户或下户时，与同行人员有交接工作，请对交接人员做出评价！",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "<p><span style=\"color:hsl(354, 83%, 68%);\">本公司萌嫂交接，请写出人员名字</span></p><p><span style=\"color:hsl(354, 83%, 68%);\">非本公司人员交接，写明非公司的某人员</span></p>",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_22": {
+                "label": "通过本次服务，自己需要改进的有哪些？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "<p>专业、服务意识、为人处事、沟通、理解能力、强势、配合、灵活度、心态、观念</p>",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_23": {
+                "label": "总结：本次服务，自己学到了哪些新东西？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "<p>专业、服务意识、为人处事、沟通、理解能力、强势、配合、灵活度、心态、观念</p>",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_10": {
+                "label": " 其 它 ",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        }
+    ]
+}

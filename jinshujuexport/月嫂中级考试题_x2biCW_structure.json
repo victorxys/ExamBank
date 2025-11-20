@@ -1,0 +1,141 @@
+{
+    "name": "月嫂中级考试题",
+    "token": "x2biCW",
+    "description": "非常感谢您能够参加本次调查，本次考试采用限时考试的方式，准备好了吗？我们现在开始吧！",
+    "fields": [
+        {
+            "field_1": {
+                "label": "姓名",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_2": {
+                "label": "手机",
+                "api_code_alias": null,
+                "type": "mobile",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_3": {
+                "label": "考初级月嫂试卷",
+                "api_code_alias": null,
+                "type": "section_break",
+                "notes": "请在右侧面板添加段落说明信息",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_4": {
+                "label": "新生儿痤疮与湿疹的区别？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_5": {
+                "label": "肠胀气与肠绞痛的护理？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_6": {
+                "label": "新生儿发热的原因及护理？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_7": {
+                "label": "坐月子因为乳腺炎发烧的护理？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_8": {
+                "label": "坐月子因为中暑发烧的护理？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_9": {
+                "label": "坐月子因为宫内感染和泌尿系统感染发烧的护理？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_10": {
+                "label": "产后生理性涨奶期，乳汁儿不足和乳汁瘀堵，如何护理？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_11": {
+                "label": "如何给产妇安排月子餐食谱",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_12": {
+                "label": "什么是早产儿？什么是低体重儿？及护理注意事项有哪些？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_13": {
+                "label": "如何对1～3个月宝宝进行早教？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        }
+    ]
+}

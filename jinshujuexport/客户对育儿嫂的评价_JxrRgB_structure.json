@@ -1,0 +1,629 @@
+{
+    "name": "客户对育儿嫂的评价",
+    "token": "JxrRgB",
+    "description": "",
+    "fields": [
+        {
+            "field_32": {
+                "label": "客户姓名",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_33": {
+                "label": "服务人员",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_35": {
+                "label": "阿姨在户上工作是否主动",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "主动",
+                        "value": "ORLl",
+                        "hidden": false
+                    },
+                    {
+                        "name": "不主动",
+                        "value": "MdF9",
+                        "hidden": false
+                    },
+                    {
+                        "name": "一般",
+                        "value": "hq4q",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_36": {
+                "label": "阿姨是否能独立完成工作",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "能",
+                        "value": "Wgyg",
+                        "hidden": false
+                    },
+                    {
+                        "name": "不能",
+                        "value": "8juW",
+                        "hidden": false
+                    },
+                    {
+                        "name": "一般",
+                        "value": "vvmh",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_37": {
+                "label": "阿姨是否能主动承担工作范围以外的工作",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "能",
+                        "value": "RojM",
+                        "hidden": false
+                    },
+                    {
+                        "name": "不能",
+                        "value": "2iYl",
+                        "hidden": false
+                    },
+                    {
+                        "name": "有时候能，有时候不能",
+                        "value": "33di",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_38": {
+                "label": "阿姨与您的沟通是否顺利",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "沟通顺利",
+                        "value": "Kt26",
+                        "hidden": false
+                    },
+                    {
+                        "name": "沟通一般",
+                        "value": "HRyj",
+                        "hidden": false
+                    },
+                    {
+                        "name": "沟通理解能力差",
+                        "value": "9qkp",
+                        "hidden": false
+                    },
+                    {
+                        "name": "沟通时阿姨强势",
+                        "value": "zk6e",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_39": {
+                "label": "您的意见和建议给阿姨时，她接受的能力和态度如何",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "<p>可多选</p>",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "接受能力好",
+                        "value": "N5tt",
+                        "hidden": false
+                    },
+                    {
+                        "name": "接受能力差",
+                        "value": "a9pi",
+                        "hidden": false
+                    },
+                    {
+                        "name": "接受能力一般",
+                        "value": "yd3r",
+                        "hidden": false
+                    },
+                    {
+                        "name": "态度好",
+                        "value": "kRuC",
+                        "hidden": false
+                    },
+                    {
+                        "name": "态度差",
+                        "value": "hWyt",
+                        "hidden": false
+                    },
+                    {
+                        "name": "态度一般",
+                        "value": "14H1",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_40": {
+                "label": "阿姨对宝宝各项操作的干净程度",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "非常好",
+                        "value": "HrHg",
+                        "hidden": false
+                    },
+                    {
+                        "name": "好",
+                        "value": "IzfN",
+                        "hidden": false
+                    },
+                    {
+                        "name": "一般",
+                        "value": "aNfR",
+                        "hidden": false
+                    },
+                    {
+                        "name": "差",
+                        "value": "KX2H",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_56": {
+                "label": "阿姨辅食添加的技能如何",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "好",
+                        "value": "QT9f",
+                        "hidden": false
+                    },
+                    {
+                        "name": "差",
+                        "value": "L1Q1",
+                        "hidden": false
+                    },
+                    {
+                        "name": "一般",
+                        "value": "oS4S",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_42": {
+                "label": "阿姨是否能给宝宝培养好的生活习惯",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "会",
+                        "value": "cTMZ",
+                        "hidden": false
+                    },
+                    {
+                        "name": "不会",
+                        "value": "vg2P",
+                        "hidden": false
+                    },
+                    {
+                        "name": "一般",
+                        "value": "5qj8",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_43": {
+                "label": "阿姨是否会给宝宝进行早期教育",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "会",
+                        "value": "ld3g",
+                        "hidden": false
+                    },
+                    {
+                        "name": "不会",
+                        "value": "PRJR",
+                        "hidden": false
+                    },
+                    {
+                        "name": "一般",
+                        "value": "2pvg",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_44": {
+                "label": "阿姨与您家成员相处好不好",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "很好",
+                        "value": "JfnN",
+                        "hidden": false
+                    },
+                    {
+                        "name": "一般",
+                        "value": "zhl9",
+                        "hidden": false
+                    },
+                    {
+                        "name": "不好",
+                        "value": "L9O6",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_45": {
+                "label": "阿姨是否擅长家务",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "擅长",
+                        "value": "n17E",
+                        "hidden": false
+                    },
+                    {
+                        "name": "不擅长",
+                        "value": "B2et",
+                        "hidden": false
+                    },
+                    {
+                        "name": "一般",
+                        "value": "bw5k",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_46": {
+                "label": "阿姨做饭水平",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "非常好",
+                        "value": "ZInM",
+                        "hidden": false
+                    },
+                    {
+                        "name": "好",
+                        "value": "sTid",
+                        "hidden": false
+                    },
+                    {
+                        "name": "一般",
+                        "value": "34CP",
+                        "hidden": false
+                    },
+                    {
+                        "name": "差",
+                        "value": "sE9S",
+                        "hidden": false
+                    },
+                    {
+                        "name": "不需要做饭",
+                        "value": "e2ps",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_47": {
+                "label": "阿姨做事的计划和条理性如何",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "非常好",
+                        "value": "Z1x9",
+                        "hidden": false
+                    },
+                    {
+                        "name": "好",
+                        "value": "yGXC",
+                        "hidden": false
+                    },
+                    {
+                        "name": "一般",
+                        "value": "5z5y",
+                        "hidden": false
+                    },
+                    {
+                        "name": "差",
+                        "value": "hUey",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_48": {
+                "label": "阿姨是否有勤俭节约的好习惯",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "有",
+                        "value": "jkaU",
+                        "hidden": false
+                    },
+                    {
+                        "name": "没有",
+                        "value": "kxp0",
+                        "hidden": false
+                    },
+                    {
+                        "name": "一般",
+                        "value": "gs16",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_49": {
+                "label": "阿姨给您服务的舒服程度",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "非常好",
+                        "value": "8UB5",
+                        "hidden": false
+                    },
+                    {
+                        "name": "好",
+                        "value": "h0CG",
+                        "hidden": false
+                    },
+                    {
+                        "name": "一般",
+                        "value": "qasT",
+                        "hidden": false
+                    },
+                    {
+                        "name": "差",
+                        "value": "yBpf",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_50": {
+                "label": "对阿姨礼节的满意程度",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "满意",
+                        "value": "aNAU",
+                        "hidden": false
+                    },
+                    {
+                        "name": "不满意",
+                        "value": "PpUg",
+                        "hidden": false
+                    },
+                    {
+                        "name": "一般",
+                        "value": "8kev",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_51": {
+                "label": "您对阿姨工作完成的满意度",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "满意",
+                        "value": "ew29",
+                        "hidden": false
+                    },
+                    {
+                        "name": "不满意",
+                        "value": "fGgX",
+                        "hidden": false
+                    },
+                    {
+                        "name": "一般",
+                        "value": "x5nm",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_52": {
+                "label": "对阿姨当月服务的整体满意度",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "非常好",
+                        "value": "mAhg",
+                        "hidden": false
+                    },
+                    {
+                        "name": "好",
+                        "value": "HbSs",
+                        "hidden": false
+                    },
+                    {
+                        "name": "一般",
+                        "value": "hzGT",
+                        "hidden": false
+                    },
+                    {
+                        "name": "差",
+                        "value": "vfVT",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_53": {
+                "label": "您对后勤老师的服务评价和建议",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "满意",
+                        "value": "5LDd",
+                        "hidden": false
+                    },
+                    {
+                        "name": "不满意",
+                        "value": "l48n",
+                        "hidden": false
+                    },
+                    {
+                        "name": "一般",
+                        "value": "966n",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_54": {
+                "label": "对阿姨综合评价",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_55": {
+                "label": "对公司综合评价",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        }
+    ]
+}

@@ -1,0 +1,152 @@
+{
+    "name": "阿姨调查表（20年4月）",
+    "token": "8TutGo",
+    "description": "<p>&nbsp; &nbsp; &nbsp;4月公司将通过腾讯会议，为大家线上开例会✌️，我们将根据您们反馈的问题和宝宝大小进行分组开会，分组是为了线上人员少，大家方便进行沟通。我们会对大家提出的问题针对性的解决，问题可以是育儿专业、现在带宝宝遇到的问题、现在自己的心情😁。</p>\n\n<p>&nbsp; &nbsp; &nbsp;一次例会是1小时，具体开会时间会提前通知大家，阿姨再去与客户协商时间安排。</p>\n\n<p>&nbsp; &nbsp; 为了在例会上能给大家更好的解决问题，请大家如实填写下面内容，告诉您😁😁，您说的内容，我们会保密的哟😊！</p>",
+    "fields": [
+        {
+            "field_1": {
+                "label": "姓名",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_2": {
+                "label": "您现在状态",
+                "api_code_alias": null,
+                "type": "drop_down",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "户上",
+                        "value": "rY_q",
+                        "hidden": false
+                    },
+                    {
+                        "name": "休息",
+                        "value": "O4I0",
+                        "hidden": false
+                    },
+                    {
+                        "name": "在北京隔离",
+                        "value": "m-c5",
+                        "hidden": false
+                    },
+                    {
+                        "name": "在老家",
+                        "value": "11T6",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_3": {
+                "label": "您带的宝宝现在多大？",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "<p>家务人员可不填此处</p>",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_4": {
+                "label": "您是否已经下载好软件“腾讯会议”？",
+                "api_code_alias": null,
+                "type": "drop_down",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                },
+                "choices": [
+                    {
+                        "name": "是",
+                        "value": "E8O5",
+                        "hidden": false
+                    },
+                    {
+                        "name": "否",
+                        "value": "pNbl",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_5": {
+                "label": "腾讯会议是否已经学会使用？",
+                "api_code_alias": null,
+                "type": "drop_down",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                },
+                "choices": [
+                    {
+                        "name": "是",
+                        "value": "bQ8H",
+                        "hidden": false
+                    },
+                    {
+                        "name": "否",
+                        "value": "rHH3",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_6": {
+                "label": "最近您在工作中有遇到什么困难？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_7": {
+                "label": "您最近的心情怎么样？身体怎样？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_9": {
+                "label": "您觉得公司抖音风格怎么样？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "<p>您喜欢看什么风格的抖音？</p>\n\n<p>您觉得抖音光线、场景、内容如何，有想法有建议，请在此留下您宝贵的意见</p>",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_8": {
+                "label": "留言：",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "<p>有任何要说的话，可在此留言</p>",
+                "private": false,
+                "validation": {}
+            }
+        }
+    ]
+}

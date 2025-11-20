@@ -1,0 +1,974 @@
+{
+    "name": "员工守则",
+    "token": "jQCcgq",
+    "description": "",
+    "fields": [
+        {
+            "field_1": {
+                "label": "姓名",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_2": {
+                "label": "手机",
+                "api_code_alias": null,
+                "type": "mobile",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_3": {
+                "label": "你在客户家的身份是什么？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "对于八零后九零后，我是长辈",
+                        "value": "qqXW",
+                        "hidden": false
+                    },
+                    {
+                        "name": "朋友",
+                        "value": "JCRf",
+                        "hidden": false
+                    },
+                    {
+                        "name": "服务时间久了，能相处的像家人一样",
+                        "value": "77r0",
+                        "hidden": false
+                    },
+                    {
+                        "name": "工作服务人员",
+                        "value": "dSsv",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_4": {
+                "label": "关于上户下户时行李箱处理方法，以下正确的有哪些？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、上户时，让客户亲自检查行李包和箱",
+                        "value": "4Pq5",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、下户时，让客户亲自检查行李包和箱",
+                        "value": "uayz",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、客户说：“阿姨我们相信你，不用检查”，你的处理方式：”好的，谢谢您们的信任”",
+                        "value": "vU50",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4、客户不检查行李箱，你的处理方式是：“根据公司规定，必须检查，这是公司规定的下户流程之一，您们检查后，我回公司也好交代”",
+                        "value": "Vumx",
+                        "hidden": false
+                    },
+                    {
+                        "name": "5、客户不在家，阿姨提前一天让客户检查行李包和箱",
+                        "value": "3AjE",
+                        "hidden": false
+                    },
+                    {
+                        "name": "6、客户不在家，让其它家里服务人员帮忙代劳客户检查行李包和箱",
+                        "value": "urDg",
+                        "hidden": false
+                    },
+                    {
+                        "name": "7、客户不在家，阿姨打开箱子拍照片和视频给客户",
+                        "value": "uscO",
+                        "hidden": false
+                    },
+                    {
+                        "name": "8、客户不在家，阿姨对着摄像头收拾自己行李，收拾完行李直接拎到门口",
+                        "value": "lCFG",
+                        "hidden": false
+                    },
+                    {
+                        "name": "9、孩子父母不在家，让家里老人检查行李",
+                        "value": "tIxd",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_5": {
+                "label": "客户家庭成员吵架，服务人员阿姨正确处理方法有哪些？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、带着孩子远离吵架的环境；",
+                        "value": "cJIY",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、作为过来人，作为长辈，好心劝说一下吵架的人；",
+                        "value": "9pni",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、客户之间争论，要阿姨做证人，阿姨实话实说；",
+                        "value": "1Zhi",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4、客户之间争论，要阿姨做证人，阿姨说：我是干活的，不参与您们的争论；",
+                        "value": "DjfX",
+                        "hidden": false
+                    },
+                    {
+                        "name": "5、客户之间争论，要阿姨做证人，阿姨说：我在干活，没听清楚您们说什么；",
+                        "value": "Fhjm",
+                        "hidden": false
+                    },
+                    {
+                        "name": "6、客户之间争论，要阿姨做证人，阿姨说：我忘了；",
+                        "value": "Mhu6",
+                        "hidden": false
+                    },
+                    {
+                        "name": "7、客户之间争论，要阿姨做证人，阿姨说：公司规定，我们不能参与，不然会受处罚！",
+                        "value": "WxaR",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_8": {
+                "label": "从客户家下户当天，需要做哪些事情？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、与客户核对好考勤表；",
+                        "value": "dnLL",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、告知公司自己下户具体时间；",
+                        "value": "8lO7",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、告知公司自己下户后的去向，并约好到公司汇报工作的时间；",
+                        "value": "estb",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4、让客户亲自检查行李箱；",
+                        "value": "s3f5",
+                        "hidden": false
+                    },
+                    {
+                        "name": "5、向公司汇报考勤表；",
+                        "value": "lTpq",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_7": {
+                "label": "报考勤是什么时候？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "等客户签完字以后报考勤",
+                        "value": "yFUg",
+                        "hidden": false
+                    },
+                    {
+                        "name": "每月1号、2号、3号",
+                        "value": "yGF1",
+                        "hidden": false
+                    },
+                    {
+                        "name": "下户当天报考勤",
+                        "value": "q41M",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_14": {
+                "label": "阿姨涨工资，由谁主动向客户提出？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "阿姨",
+                        "value": "FJI8",
+                        "hidden": false
+                    },
+                    {
+                        "name": "公司",
+                        "value": "rYy6",
+                        "hidden": false
+                    },
+                    {
+                        "name": "客户",
+                        "value": "6R9H",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_21": {
+                "label": "合同期间内，自己和公司能给客户提议涨工资吗？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "能",
+                        "value": "IQnG",
+                        "hidden": false
+                    },
+                    {
+                        "name": "不能",
+                        "value": "e348",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_25": {
+                "label": "萌嫂的劳务费，哪些情况下由公司发？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "替班的",
+                        "value": "lPx8",
+                        "hidden": false
+                    },
+                    {
+                        "name": "试用期间下户的",
+                        "value": "mWjH",
+                        "hidden": false
+                    },
+                    {
+                        "name": "签单不成功的",
+                        "value": "pfpx",
+                        "hidden": false
+                    },
+                    {
+                        "name": "签单成功的",
+                        "value": "KJal",
+                        "hidden": false
+                    },
+                    {
+                        "name": "公司通知的",
+                        "value": "Ld6b",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_26": {
+                "label": "萌嫂的劳务费，哪些情况下由客户给？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "替班的",
+                        "value": "eskN",
+                        "hidden": false
+                    },
+                    {
+                        "name": "试用期间下户的",
+                        "value": "UaUP",
+                        "hidden": false
+                    },
+                    {
+                        "name": "签单不成功的",
+                        "value": "O03E",
+                        "hidden": false
+                    },
+                    {
+                        "name": "签单成功的",
+                        "value": "qP55",
+                        "hidden": false
+                    },
+                    {
+                        "name": "公司通知的",
+                        "value": "xVhm",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_29": {
+                "label": "八四消毒液可以和酒精一起使用吗？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "可以",
+                        "value": "O2nr",
+                        "hidden": false
+                    },
+                    {
+                        "name": "不可以",
+                        "value": "herP",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_30": {
+                "label": "八四消毒液如何使用？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "可以倒到物品上用",
+                        "value": "ddr5",
+                        "hidden": false
+                    },
+                    {
+                        "name": "稀释用",
+                        "value": "7Tzv",
+                        "hidden": false
+                    },
+                    {
+                        "name": "客户没有要求的情况下，我不会去使用",
+                        "value": "04w8",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_31": {
+                "label": "使用高压锅有哪些安全注意事项？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "气阀必须保持通畅",
+                        "value": "YOVy",
+                        "hidden": false
+                    },
+                    {
+                        "name": "食物总量不可以超过最高的安全线",
+                        "value": "34Fd",
+                        "hidden": false
+                    },
+                    {
+                        "name": "膨胀食物（如海带、绿豆、玉米等）不应该超过锅身的一半",
+                        "value": "ARzm",
+                        "hidden": false
+                    },
+                    {
+                        "name": "开盖的时候必须是等压力完全降低后才可以，即阀芯下降复位后",
+                        "value": "odU2",
+                        "hidden": false
+                    },
+                    {
+                        "name": "使用快速放气孔时以防气体伤到人员",
+                        "value": "9Kl9",
+                        "hidden": false
+                    },
+                    {
+                        "name": "合盖时对好锅盖和锅身的合盖标记，完全扣合",
+                        "value": "goVc",
+                        "hidden": false
+                    },
+                    {
+                        "name": "不煮稀烂食物，比如稀饭",
+                        "value": "Qc8t",
+                        "hidden": false
+                    },
+                    {
+                        "name": "清洗时，排气孔必须清洗是否有堵住，锅盖上的胶圈必须卸下清洗干净，胶圈寿命大约2年",
+                        "value": "vIdO",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_32": {
+                "label": "下面哪些物品不可以放到微波炉中加热？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "炒熟的鸡蛋",
+                        "value": "LH9K",
+                        "hidden": false
+                    },
+                    {
+                        "name": "带壳的鸡蛋",
+                        "value": "hjqP",
+                        "hidden": false
+                    },
+                    {
+                        "name": "生红薯",
+                        "value": "aCzB",
+                        "hidden": false
+                    },
+                    {
+                        "name": "水果",
+                        "value": "Z1Jq",
+                        "hidden": false
+                    },
+                    {
+                        "name": "没盖盖子的番茄酱",
+                        "value": "jT0o",
+                        "hidden": false
+                    },
+                    {
+                        "name": "带金属的餐具",
+                        "value": "fKPi",
+                        "hidden": false
+                    },
+                    {
+                        "name": "有标注5号的塑料容器",
+                        "value": "ED75",
+                        "hidden": false
+                    },
+                    {
+                        "name": "PP的塑料容器",
+                        "value": "4fSr",
+                        "hidden": false
+                    },
+                    {
+                        "name": "鸡腿",
+                        "value": "HXX1",
+                        "hidden": false
+                    },
+                    {
+                        "name": "保鲜膜包着的米饭",
+                        "value": "cK6D",
+                        "hidden": false
+                    },
+                    {
+                        "name": "容器有盖子的木耳",
+                        "value": "YTnV",
+                        "hidden": false
+                    },
+                    {
+                        "name": "容器没盖子的五花肉",
+                        "value": "sk1t",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_33": {
+                "label": "厨房做饭时有哪些注意事项？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "炒完菜要刷过后再炒下一个菜",
+                        "value": "vF8n",
+                        "hidden": false
+                    },
+                    {
+                        "name": "不可以在火旁边倒面粉",
+                        "value": "VkVb",
+                        "hidden": false
+                    },
+                    {
+                        "name": "喷雾类和酒精遇火会爆炸",
+                        "value": "LvZW",
+                        "hidden": false
+                    },
+                    {
+                        "name": "冷冻食物直接放到锅中炸",
+                        "value": "202U",
+                        "hidden": false
+                    },
+                    {
+                        "name": "着火后不可以用水灭火",
+                        "value": "gpl5",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_35": {
+                "label": "怎样洗涤纯棉衣服才不会变旧？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、与别的衣服分开洗；",
+                        "value": "DO6V",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、浸泡时间不宜过长；",
+                        "value": "K3NG",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、用30～35度水轻揉，领口不可横向搓洗；",
+                        "value": "3zZL",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4、洗完后不宜拧干,在通风阴凉处凉晒,不要在日光下暴晒,以免褪色；",
+                        "value": "Quoa",
+                        "hidden": false
+                    },
+                    {
+                        "name": "5、建议使用中性的洗涤用品；",
+                        "value": "Teg1",
+                        "hidden": false
+                    },
+                    {
+                        "name": "6、夏装必须勤洗勤换(一至两天一次)，使汗液在服装上不会停留太久",
+                        "value": "Pom3",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_36": {
+                "label": "哪些衣服比较合适干洗？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、羽绒服",
+                        "value": "McuB",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、纯棉T桖",
+                        "value": "swnO",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、羊绒衣",
+                        "value": "ikNe",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4、西服",
+                        "value": "LL3c",
+                        "hidden": false
+                    },
+                    {
+                        "name": "5、绒面皮衣、裘皮大衣、毛领",
+                        "value": "h9NR",
+                        "hidden": false
+                    },
+                    {
+                        "name": "6、皮衣",
+                        "value": "Xqd8",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_38": {
+                "label": "不能用洗衣机洗的衣服有哪些？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "真丝",
+                        "value": "RnTn",
+                        "hidden": false
+                    },
+                    {
+                        "name": "羊毛",
+                        "value": "SJ89",
+                        "hidden": false
+                    },
+                    {
+                        "name": "毛呢大衣",
+                        "value": "etiT",
+                        "hidden": false
+                    },
+                    {
+                        "name": "内衣",
+                        "value": "XMgz",
+                        "hidden": false
+                    },
+                    {
+                        "name": "皮衣",
+                        "value": "nBmL",
+                        "hidden": false
+                    },
+                    {
+                        "name": "羽绒服",
+                        "value": "Cqku",
+                        "hidden": false
+                    },
+                    {
+                        "name": "丝绸衣物",
+                        "value": "5akx",
+                        "hidden": false
+                    },
+                    {
+                        "name": "西服",
+                        "value": "7Qgx",
+                        "hidden": false
+                    },
+                    {
+                        "name": "领带",
+                        "value": "5njh",
+                        "hidden": false
+                    },
+                    {
+                        "name": "羊绒衫",
+                        "value": "QEAG",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_37": {
+                "label": "特殊皮鞋的保养有哪些注意事项？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、不要将鞋与酸、碱等接触；",
+                        "value": "gOqL",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、不可雨浸、水刷、曝晒、火烤；",
+                        "value": "SCLI",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、经常擦皮鞋油，一般至少三四天擦一次；",
+                        "value": "1GMy",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4、保持皮面柔和、光亮，存放于干燥处；",
+                        "value": "BSF5",
+                        "hidden": false
+                    },
+                    {
+                        "name": "5、穿一段时间要放置一两天再穿，以避免皮鞋变形。",
+                        "value": "yLIR",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_34": {
+                "label": "客户私下给阿姨涨薪资，您会怎么做？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "接受，谁也不告诉",
+                        "value": "48xV",
+                        "hidden": false
+                    },
+                    {
+                        "name": "接受，并且告知公司",
+                        "value": "xAg0",
+                        "hidden": false
+                    },
+                    {
+                        "name": "要求客户将涨薪加入到自己在公司级别中",
+                        "value": "y6hR",
+                        "hidden": false
+                    },
+                    {
+                        "name": "先告诉公司，自己再决定",
+                        "value": "13aI",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_42": {
+                "label": "签正式合同时，是谁与谁协商签约多长时间？",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "客户和萌嫂",
+                        "value": "b6iB",
+                        "hidden": false
+                    },
+                    {
+                        "name": "客户和公司",
+                        "value": "i8Ca",
+                        "hidden": false
+                    },
+                    {
+                        "name": "公司和萌嫂",
+                        "value": "co6L",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_22": {
+                "label": "此时到客户家楼下，要打电话给客户，通话后，阿姨应该如何说？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_39": {
+                "label": "车上儿童锁在哪里？儿童椅在哪里？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_23": {
+                "label": "上户前，自己需要准备哪些物品？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_24": {
+                "label": "上户时，不能带哪些物件？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_12": {
+                "label": "阿姨劳务费7000元/月，阿姨去王小姐家替班15天，阿姨能有多少劳务费？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_40": {
+                "label": "阿姨劳务费是6500元/月，阿姨上客户家试工5天就下户了，阿姨最终到手劳务费是多少？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_41": {
+                "label": "公司让您明天9:00去客户家上户，您上户后一直工作未休息，本月您出勤是多少天？加班多少天？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_27": {
+                "label": "育儿嫂/家务服务者报考勤是什么时候？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_28": {
+                "label": "育儿嫂/家务服务者什么时候领自己劳务费？领取劳务费什么时候向公司汇报？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_17": {
+                "label": "公司规定，每次公司向客户提议涨工资是多少元？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_18": {
+                "label": "提议涨工资的流程是什么？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_20": {
+                "label": "下户时，客户要把劳务费直接给到阿姨手上，阿姨应该怎么做？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_9": {
+                "label": "去到客户家，阿姨需要了解客户哪些方面？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_10": {
+                "label": "阿姨与阿姨之间如何交接工作？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_11": {
+                "label": "自己家里有突发事情发生，您会怎么处理？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        }
+    ]
+}

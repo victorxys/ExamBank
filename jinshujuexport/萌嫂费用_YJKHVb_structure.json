@@ -1,0 +1,601 @@
+{
+    "name": "萌嫂费用",
+    "token": "YJKHVb",
+    "description": null,
+    "fields": [
+        {
+            "field_1": {
+                "label": "萌嫂姓名",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_2": {
+                "label": "费用时间段介绍",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_3": {
+                "label": "多家客户服务费用记录",
+                "api_code_alias": null,
+                "type": "table",
+                "notes": "<p>同月多家客户服务，可将下面出勤天数总天数记算在一起</p>",
+                "private": false,
+                "validation": {},
+                "dimensions": [
+                    {
+                        "field_1": {
+                            "label": "客户姓名",
+                            "api_code_alias": null,
+                            "type": "single_line_text",
+                            "notes": null,
+                            "private": false,
+                            "validation": {}
+                        }
+                    },
+                    {
+                        "field_2": {
+                            "label": "服务类别和时间段",
+                            "api_code_alias": null,
+                            "type": "paragraph_text",
+                            "notes": null,
+                            "private": false,
+                            "validation": {}
+                        }
+                    },
+                    {
+                        "field_3": {
+                            "label": "费用总额",
+                            "api_code_alias": null,
+                            "type": "single_line_text",
+                            "notes": null,
+                            "private": false,
+                            "validation": {}
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "field_48": {
+                "label": "职位",
+                "api_code_alias": null,
+                "type": "drop_down",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "阿姨",
+                        "value": "sFE8",
+                        "hidden": false
+                    },
+                    {
+                        "name": "后勤",
+                        "value": "HUHZ",
+                        "hidden": false
+                    },
+                    {
+                        "name": "其它支出",
+                        "value": "a8aG",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_4": {
+                "label": "报名费",
+                "api_code_alias": null,
+                "type": "number",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_5": {
+                "label": "培训费",
+                "api_code_alias": null,
+                "type": "number",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_6": {
+                "label": "押金",
+                "api_code_alias": null,
+                "type": "number",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_7": {
+                "label": "育儿月薪",
+                "api_code_alias": null,
+                "type": "number",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_8": {
+                "label": "育儿出勤天数",
+                "api_code_alias": null,
+                "type": "number",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_9": {
+                "label": "育儿加班天数",
+                "api_code_alias": null,
+                "type": "number",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_10": {
+                "label": "育儿嫂上户公司扣月薪10%",
+                "api_code_alias": null,
+                "type": "number",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_11": {
+                "label": "月嫂级别",
+                "api_code_alias": null,
+                "type": "number",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_12": {
+                "label": "月嫂出勤天数",
+                "api_code_alias": null,
+                "type": "number",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_13": {
+                "label": "月嫂加班天数",
+                "api_code_alias": null,
+                "type": "number",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_45": {
+                "label": "月嫂交公司25%",
+                "api_code_alias": null,
+                "type": "number",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_14": {
+                "label": "月嫂奖励10%",
+                "api_code_alias": null,
+                "type": "number",
+                "notes": "<p>自己单子（级别/26天*出勤天数*10%）</p>",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_15": {
+                "label": "月嫂奖励5%",
+                "api_code_alias": null,
+                "type": "number",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_32": {
+                "label": "月嫂双胞胎30%",
+                "api_code_alias": null,
+                "type": "number",
+                "notes": "<p>备注：此处需要根据出勤天数需计算</p>",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_33": {
+                "label": "出境20%",
+                "api_code_alias": null,
+                "type": "number",
+                "notes": "<p>备注：此处需要根据出勤加班天数需计算</p>",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_34": {
+                "label": "出京10%",
+                "api_code_alias": null,
+                "type": "number",
+                "notes": "<p>备注：此处需要根据出勤加班天数需计算</p>",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_16": {
+                "label": "补助费",
+                "api_code_alias": null,
+                "type": "number",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_17": {
+                "label": "补助费备注：",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "<p>客户给阿姨的补助费</p>",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_36": {
+                "label": "优惠",
+                "api_code_alias": null,
+                "type": "number",
+                "notes": "<p>公司给阿姨的费用</p>",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_37": {
+                "label": "优惠事件备注：",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_18": {
+                "label": "奖励",
+                "api_code_alias": null,
+                "type": "number",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_19": {
+                "label": "罚款",
+                "api_code_alias": null,
+                "type": "number",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_20": {
+                "label": "罚款事件说明：",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_21": {
+                "label": "赔偿",
+                "api_code_alias": null,
+                "type": "number",
+                "notes": "<p>阿姨给客户的赔偿费用</p>",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_22": {
+                "label": "赔偿事件说明：",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_23": {
+                "label": "宿舍费",
+                "api_code_alias": null,
+                "type": "number",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_24": {
+                "label": "预支工资",
+                "api_code_alias": null,
+                "type": "number",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_25": {
+                "label": "预支工资时间记录：",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_26": {
+                "label": "退报名费",
+                "api_code_alias": null,
+                "type": "number",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_27": {
+                "label": "退培训费",
+                "api_code_alias": null,
+                "type": "number",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_28": {
+                "label": "退押金",
+                "api_code_alias": null,
+                "type": "number",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_29": {
+                "label": "退押金备注：",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_30": {
+                "label": "退款",
+                "api_code_alias": null,
+                "type": "number",
+                "notes": "<p>公司退阿姨费用</p>",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_31": {
+                "label": "退款事件说明：",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_42": {
+                "label": "教练日薪",
+                "api_code_alias": null,
+                "type": "number",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_43": {
+                "label": "教练出勤天数",
+                "api_code_alias": null,
+                "type": "number",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_44": {
+                "label": "催乳费用",
+                "api_code_alias": null,
+                "type": "number",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_46": {
+                "label": "阿姨给公司费用",
+                "api_code_alias": null,
+                "type": "number",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_47": {
+                "label": "阿姨给公司费用细节备注：",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_49": {
+                "label": "后勤工资总数",
+                "api_code_alias": null,
+                "type": "number",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_50": {
+                "label": "后勤出勤天数",
+                "api_code_alias": null,
+                "type": "number",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_51": {
+                "label": "后勤备注",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_53": {
+                "label": "其它支出",
+                "api_code_alias": null,
+                "type": "number",
+                "notes": "<p>此处公司与外界支出</p>",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_54": {
+                "label": "其它支出备注",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_38": {
+                "label": "育儿工资总计：",
+                "api_code_alias": null,
+                "type": "formula",
+                "notes": "",
+                "private": true,
+                "validation": {},
+                "formula": "field_7 / 26* (field_8 + field_9 )- field_10 + field_33 + field_34",
+                "formula_display": "$(育儿月薪) ÷ 26× ($(育儿出勤天数) + $(育儿加班天数) )- $(育儿嫂上户公司扣月薪10%)  + $(出境20%) + $(出京10%)",
+                "precision": 0
+            }
+        },
+        {
+            "field_39": {
+                "label": "月嫂工资总计：",
+                "api_code_alias": null,
+                "type": "formula",
+                "notes": "",
+                "private": true,
+                "validation": {},
+                "formula": "field_11 / 26* (field_12 + field_13 )+ field_14 + field_15 + field_32 + field_33 + field_34- field_45",
+                "formula_display": "$(月嫂级别) ÷ 26× ($(月嫂出勤天数) + $(月嫂加班天数) )+ $(月嫂奖励10%) + $(月嫂奖励5%) + $(月嫂双胞胎30%) + $(出境20%) + $(出京10%)- $(月嫂交公司25%)",
+                "precision": 0
+            }
+        },
+        {
+            "field_40": {
+                "label": "所有费用总计：",
+                "api_code_alias": null,
+                "type": "formula",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "formula": "field_4 + field_5 + field_6 + field_7 / 26* (field_8 + field_9 )- field_10 + field_11 / 26* (field_12 + field_13 )+ field_14 + field_15 + field_32 + field_33 + field_34 + field_16 + field_36 + field_18 - field_19 - field_21 - field_23 - field_24 - field_26 - field_27 + field_28 + field_30+ field_42 * field_43+ field_44- field_45- field_46",
+                "formula_display": "$(报名费) + $(培训费) + $(押金) + $(育儿月薪) ÷ 26× ($(育儿出勤天数) + $(育儿加班天数) )- $(育儿嫂上户公司扣月薪10%)  + $(月嫂级别) ÷ 26× ($(月嫂出勤天数) + $(月嫂加班天数) )+ $(月嫂奖励10%) + $(月嫂奖励5%) + $(月嫂双胞胎30%) + $(出境20%) + $(出京10%) + $(补助费) + $(优惠) + $(奖励) - $(罚款) - $(赔偿) - $(宿舍费) - $(预支工资) - $(退报名费) - $(退培训费) +  $(退押金) + $(退款)+ $(教练日薪) × $(教练出勤天数)+ $(催乳费用)- $(月嫂交公司25%)- $(阿姨给公司费用)",
+                "precision": 0
+            }
+        },
+        {
+            "field_41": {
+                "label": "转账记录证明：",
+                "api_code_alias": null,
+                "type": "attachment",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "max_file_quantity": 1,
+                "media_type": {
+                    "type": "unlimited",
+                    "value": null
+                }
+            }
+        },
+        {
+            "field_35": {
+                "label": "遗漏事件说明：",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        }
+    ]
+}

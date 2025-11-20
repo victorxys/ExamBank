@@ -1,0 +1,177 @@
+{
+    "name": "萌姨萌嫂2020.7.12例会（客户）",
+    "token": "tAkmPU",
+    "description": "<p>非常感谢您能够参加调查，提供您的看法与意见，希望能够得到您的大力支持与合作，便于我们为您更好的服务。</p>\n\n<p>由于疫情，我们本次例会在腾讯会议线上举行。</p>\n\n<p>本次例会主要内容是：阿姨素质、诚实度、对问题的纠正能力和认知程度</p>\n\n<p>为了针对性的给阿姨们培训，对于下面提问内容，请给予填写</p>\n\n<p>若阿姨不能准时参加本次例会，请客户为阿姨请假！谢谢您的配合！</p>",
+    "fields": [
+        {
+            "field_1": {
+                "label": "阿姨姓名",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_11": {
+                "label": "阿姨带孩子时，玩手机的频率是？",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "经常",
+                        "value": "00zv",
+                        "hidden": false
+                    },
+                    {
+                        "name": "偶尔",
+                        "value": "n4Kh",
+                        "hidden": false
+                    },
+                    {
+                        "name": "没有",
+                        "value": "6HDl",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_3": {
+                "label": "最近期间，阿姨看护孩子时，有没有出现孩子意外受伤的情况？",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "有",
+                        "value": "aCXj",
+                        "hidden": false
+                    },
+                    {
+                        "name": "没有",
+                        "value": "vSmZ",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_4": {
+                "label": "若有上述情况，请描述事件：",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_5": {
+                "label": "阿姨带孩子过程中，有无不按常规操作？",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "有",
+                        "value": "GJlD",
+                        "hidden": false
+                    },
+                    {
+                        "name": "没有",
+                        "value": "URIv",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_6": {
+                "label": "在您看来，我们阿姨带孩子过程中，做哪些事情不细致？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_7": {
+                "label": "阿姨工作中，有没有损坏物品的现象？",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "有",
+                        "value": "2ich",
+                        "hidden": false
+                    },
+                    {
+                        "name": "没有",
+                        "value": "P6I9",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_8": {
+                "label": "阿姨若有损坏物品，都有哪些？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_9": {
+                "label": "工作失误，有没有主动去跟您沟通？",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "有",
+                        "value": "yX6e",
+                        "hidden": false
+                    },
+                    {
+                        "name": "没有",
+                        "value": "X0zC",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_10": {
+                "label": "若有其它事情，请您在此留言：",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        }
+    ]
+}

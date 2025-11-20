@@ -1,0 +1,167 @@
+{
+    "name": "（一）教练合同",
+    "token": "gCpQvu",
+    "description": "",
+    "fields": [
+        {
+            "field_14": {
+                "label": "合同编号",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_1": {
+                "label": "甲方姓名",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_2": {
+                "label": "甲方联系方式",
+                "api_code_alias": null,
+                "type": "phone",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_3": {
+                "label": "甲方身份证号码",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_11": {
+                "label": "乙方姓名",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_12": {
+                "label": "乙方联系电话",
+                "api_code_alias": null,
+                "type": "phone",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_13": {
+                "label": "乙方身份证号码",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_5": {
+                "label": "合同内容",
+                "api_code_alias": null,
+                "type": "section_break",
+                "notes": "<p><strong>家政教练服务合同</strong>&nbsp;&nbsp;</p><p>&nbsp;</p><p><strong>甲方：即雇主您，</strong>您的个人信息、联系方式、地址等信息，将由您在系统中填选或以系统呈现为准。</p><p><strong>乙方：即您选择的家政服务员。</strong>乙方的个人信息、联系方式、户口地址等信息，将由您在系统中填选或以系统呈现为准。</p><p><strong>丙方：北京萌姨萌嫂科技有限公司</strong></p><p>法定代表人：金莉红</p><p>经营地址：北京市海淀区永定路88号长银大厦10B20&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp;</p><p>联系电话：17718457689&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</p><figure class=\"image image_resized\" style=\"width:71.34%;\"><img src=\"https://gd-pub.jinshujufiles.com/di/GuMxQxGo9f/20240410171709_d9c177\"></figure><p>&nbsp;</p><p style=\"margin-left:62.25pt;\">第一条&nbsp;<strong>服务内容</strong></p><p>根据甲、乙双方的相关情况，丙方介绍乙方为甲方提供家政教练培训，具体以您在系统中填选，或乙方、丙方预设在系统中的信息为准。</p><p style=\"margin-left:62.35pt;\">&nbsp;</p><p style=\"margin-left:62.35pt;\">第二条&nbsp;<strong>服务期限及报酬</strong></p><p>1.&nbsp;服务期限以您在系统中填选，或乙方、丙方预设在系统中的信息为准。</p><p>2.&nbsp;乙方的日报酬由乙方或丙方预先在系统中填选，并呈现给您。您应当在本协议生效日将服务期限的全部报酬支付给丙方，由丙方按约定支付给乙方。</p><p>3.&nbsp;考虑到教练服务的特殊性，除特殊情况外，您应当在服务期限内持续接受乙方的培训和指导，乙方应当持续提供培训和指导，双方均不得随意暂停或终止本合同。确有暂停、终止或延长必要的，您、乙、丙三方可以协商安排相关事宜，并进行报酬结算，结算最小单位为1小时。</p><p style=\"margin-left:62.35pt;\">&nbsp;</p><p style=\"margin-left:62.35pt;\">第三条&nbsp;<strong>注意事项</strong></p><p><strong><u>乙方仅能就本协议约定的内容以其个人经验对您进行培训，但培训内容不得涉及专业医学、医药类事项；乙方的言行及意见不能被视为医学建议。</u></strong></p><p style=\"margin-left:62.35pt;\">&nbsp;</p><p style=\"margin-left:62.35pt;\">第四条&nbsp;<strong>合同争议解决办法</strong></p><p>本合同如果发生争议，应由三方协商解决，协商不成也可向消费者协会或行业组织申请调解；任何一方亦有权向丙方所在地人民法院起诉。</p><p style=\"margin-left:62.35pt;\">&nbsp;</p><p style=\"margin-left:62.35pt;\">第五条&nbsp;<strong>其他约定条款</strong></p><p><strong><u>本合同由本部分通用条款以及您在软件系统中填选或系统呈现的预设信息组成，自您通过系统签字确认后生效。</u></strong></p><p>&nbsp;</p><p>&nbsp;</p>",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_6": {
+                "label": "日薪（人民币元/日）",
+                "api_code_alias": null,
+                "type": "number",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_7": {
+                "label": "确定您是否阅读完及理解以上内容",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                },
+                "choices": [
+                    {
+                        "name": "确定",
+                        "value": "RqRj",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_9": {
+                "label": "合同开始日期",
+                "api_code_alias": null,
+                "type": "date_time",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                },
+                "precision": "day"
+            }
+        },
+        {
+            "field_10": {
+                "label": "合同结束日期",
+                "api_code_alias": null,
+                "type": "date_time",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                },
+                "precision": "day"
+            }
+        },
+        {
+            "field_8": {
+                "label": "甲方签字",
+                "api_code_alias": null,
+                "type": "e_signature",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        }
+    ]
+}

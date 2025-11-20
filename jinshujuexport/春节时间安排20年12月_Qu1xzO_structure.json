@@ -1,0 +1,170 @@
+{
+    "name": "春节时间安排20年12月",
+    "token": "Qu1xzO",
+    "description": "<p>疫情在寒冷的冬天又来了，国家已经有经验，返京人员检查越来越严格，宿舍小区出入证已经不管用，直接是人脸识别。</p>\n\n<p>想有工作的人员，我们最好早回老家早回北京，最完美的安排是1月份回老家，2月份初回北京，错开春节高峰期。</p>\n\n<p>春节必须回家的，年后最好能回原客户家，北京小区管理已经是人脸识别，可能春节后返京，我们宿舍小区可能进不去，能回原客户家是最完美的</p>\n\n<p>年后需要重新安排的萌嫂，年前能确定好自己的客户</p>\n\n<p>所有萌嫂要有一个概念，自己的客户都最好在年前确定下来</p>\n\n<p>我们需要比其它人提前预防，来年才能一切顺利</p>",
+    "fields": [
+        {
+            "field_1": {
+                "label": "姓名",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_8": {
+                "label": "手机",
+                "api_code_alias": null,
+                "type": "mobile",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_2": {
+                "label": "事件",
+                "api_code_alias": null,
+                "type": "section_break",
+                "notes": "<p>2021年已经开始</p>\n\n<p>春节期间，关于萌嫂如何安排自己的休假时间，我们做统计</p>\n\n<p>安排好自己时间后，将以下内容填写完整</p>\n\n<p>若您计划有变，可再填写一遍内容</p>\n\n<p><span style=\"color:#ff0000;\">里面所有时间，请以阳历、阳历、阳历为准，</span>不要、不要、不要写农历时间</p>",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_9": {
+                "label": "填写表格日期",
+                "api_code_alias": null,
+                "type": "date_time",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "precision": "day"
+            }
+        },
+        {
+            "field_4": {
+                "label": "春节休假安排",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、春节期间不回家，继续在客户家；",
+                        "value": "mZ8O",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、春节要回家，与客户协商休息时间；",
+                        "value": "KDmt",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、春节客户给放假，但是我不回家；",
+                        "value": "8cqb",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4、春节前下户，年后再回客户家续约合同（若您想选此条，请先与公司联系，了解详细情况）",
+                        "value": "MfW9",
+                        "hidden": false
+                    },
+                    {
+                        "name": "5、春节前下户，年后公司再重新安排客户",
+                        "value": "sSR8",
+                        "hidden": false
+                    },
+                    {
+                        "name": "6、春节前下户，春节不回家，公司直接安排新客户",
+                        "value": "piOG",
+                        "hidden": false
+                    },
+                    {
+                        "name": "7、春节前下户，年后不再返京工作；",
+                        "value": "BQsm",
+                        "hidden": false
+                    },
+                    {
+                        "name": "8、春节回家，客户家需要替班阿姨",
+                        "value": "3mSm",
+                        "hidden": false
+                    },
+                    {
+                        "name": "我是月嫂，春节期间必须回家",
+                        "value": "sLU4",
+                        "hidden": false
+                    },
+                    {
+                        "name": "我是月嫂，春节照常接单",
+                        "value": "MSQ2",
+                        "hidden": false
+                    },
+                    {
+                        "name": "其他",
+                        "value": "GLV0",
+                        "hidden": false,
+                        "is_other": true
+                    }
+                ],
+                "allow_other": true
+            }
+        },
+        {
+            "field_5": {
+                "label": "现在计划休息时间是从阳历几号～阳历几号？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_6": {
+                "label": "此处可写任何事件：",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_7": {
+                "label": "年后是否有姐妹一起加入公司？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "<p>若有姐妹来公司，选有的同时，可在其他处备注以下情况</p>",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "有",
+                        "value": "FXX4",
+                        "hidden": false
+                    },
+                    {
+                        "name": "没有",
+                        "value": "UnXn",
+                        "hidden": false
+                    },
+                    {
+                        "name": "其他",
+                        "value": "v574",
+                        "hidden": false,
+                        "is_other": true
+                    }
+                ],
+                "allow_other": true
+            }
+        }
+    ]
+}

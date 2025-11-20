@@ -1,0 +1,4214 @@
+[
+    {
+        "token": "AEhlY0Pq",
+        "serial_number": 1,
+        "field_1": "",
+        "field_2": "杜军红",
+        "field_10": "很好",
+        "field_10_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.0
+        },
+        "field_11": "很好",
+        "field_11_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.0
+        },
+        "field_12": "很好",
+        "field_12_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.0
+        },
+        "field_3": "很好",
+        "field_3_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.0
+        },
+        "field_13": "很好",
+        "field_13_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.0
+        },
+        "field_5": "很好",
+        "field_5_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.0
+        },
+        "field_14": "没有",
+        "field_14_extra_value": {
+            "correct_answer": "有，偶尔，没有",
+            "score": 3.0
+        },
+        "field_15": "没有",
+        "field_15_extra_value": {
+            "correct_answer": "没有，偶尔，有",
+            "score": 3.0
+        },
+        "field_16": "很好",
+        "field_16_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.0
+        },
+        "field_17": "很好",
+        "field_17_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.0
+        },
+        "field_18": "很好",
+        "field_18_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.0
+        },
+        "field_19": "很好",
+        "field_19_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.0
+        },
+        "field_20": "很好",
+        "field_20_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.0
+        },
+        "field_21": "很好",
+        "field_21_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.0
+        },
+        "field_22": "3顿",
+        "field_22_extra_value": {
+            "correct_answer": "6顿或6顿以上，5顿，4顿，3顿，不用做饭",
+            "score": 0.0
+        },
+        "field_8": "很好",
+        "field_8_extra_value": {
+            "correct_answer": "不好，一般，很好，不用做饭",
+            "score": 3.0
+        },
+        "field_9": "很好",
+        "field_9_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.0
+        },
+        "x_field_1": "",
+        "color_mark": "",
+        "exam_score": 48,
+        "creator_name": "",
+        "created_at": "2020-10-19T02:19:23.323Z",
+        "updated_at": "2020-10-19T02:19:23.323Z",
+        "info_filling_duration": 56,
+        "info_platform": "iPhone",
+        "info_os": "iOS 13.7",
+        "info_browser": "Wechat Browser 7.0.17(0x17001126)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "114.246.215.98"
+    },
+    {
+        "token": "scdi1xCA",
+        "serial_number": 2,
+        "field_1": "杨婷",
+        "field_2": "胡云素",
+        "field_10": "很好",
+        "field_10_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.0
+        },
+        "field_11": "很好",
+        "field_11_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.0
+        },
+        "field_12": "很好",
+        "field_12_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.0
+        },
+        "field_3": "很好",
+        "field_3_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.0
+        },
+        "field_13": "很好",
+        "field_13_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.0
+        },
+        "field_5": "很好",
+        "field_5_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.0
+        },
+        "field_14": "没有",
+        "field_14_extra_value": {
+            "correct_answer": "有，偶尔，没有",
+            "score": 3.0
+        },
+        "field_15": "没有",
+        "field_15_extra_value": {
+            "correct_answer": "没有，偶尔，有",
+            "score": 3.0
+        },
+        "field_16": "很好",
+        "field_16_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.0
+        },
+        "field_17": "很好",
+        "field_17_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.0
+        },
+        "field_18": "很好",
+        "field_18_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.0
+        },
+        "field_19": "很好",
+        "field_19_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.0
+        },
+        "field_20": "很好",
+        "field_20_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.0
+        },
+        "field_21": "很好",
+        "field_21_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.0
+        },
+        "field_22": "5顿",
+        "field_22_extra_value": {
+            "correct_answer": "6顿或6顿以上，5顿，4顿，3顿，不用做饭",
+            "score": 2.0
+        },
+        "field_8": "很好",
+        "field_8_extra_value": {
+            "correct_answer": "不好，一般，很好，不用做饭",
+            "score": 3.0
+        },
+        "field_9": "很好",
+        "field_9_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.0
+        },
+        "x_field_1": "",
+        "color_mark": "",
+        "exam_score": 50,
+        "creator_name": "",
+        "created_at": "2020-11-27T08:02:43.784Z",
+        "updated_at": "2020-11-27T08:02:43.784Z",
+        "info_filling_duration": 87,
+        "info_platform": "iPhone",
+        "info_os": "iOS 13.6.1",
+        "info_browser": "Wechat Browser 7.0.18(0x1700122d)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "124.64.16.225"
+    },
+    {
+        "token": "KIICD8qI",
+        "serial_number": 3,
+        "field_1": "潘怡",
+        "field_2": "宋霞",
+        "field_10": "很好",
+        "field_10_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.0
+        },
+        "field_11": "很好",
+        "field_11_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.0
+        },
+        "field_12": "很好",
+        "field_12_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.0
+        },
+        "field_3": "很好",
+        "field_3_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.0
+        },
+        "field_13": "很好",
+        "field_13_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.0
+        },
+        "field_5": "很好",
+        "field_5_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.0
+        },
+        "field_14": "没有",
+        "field_14_extra_value": {
+            "correct_answer": "有，偶尔，没有",
+            "score": 3.0
+        },
+        "field_15": "没有",
+        "field_15_extra_value": {
+            "correct_answer": "没有，偶尔，有",
+            "score": 3.0
+        },
+        "field_16": "很好",
+        "field_16_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.0
+        },
+        "field_17": "很好",
+        "field_17_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.0
+        },
+        "field_18": "很好",
+        "field_18_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.0
+        },
+        "field_19": "很好",
+        "field_19_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.0
+        },
+        "field_20": "很好",
+        "field_20_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.0
+        },
+        "field_21": "很好",
+        "field_21_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.0
+        },
+        "field_22": "5顿",
+        "field_22_extra_value": {
+            "correct_answer": "6顿或6顿以上，5顿，4顿，3顿，不用做饭",
+            "score": 2.0
+        },
+        "field_8": "很好",
+        "field_8_extra_value": {
+            "correct_answer": "不好，一般，很好，不用做饭",
+            "score": 3.0
+        },
+        "field_9": "很好",
+        "field_9_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.0
+        },
+        "x_field_1": "",
+        "color_mark": "",
+        "exam_score": 50,
+        "creator_name": "",
+        "created_at": "2021-01-07T03:10:59.192Z",
+        "updated_at": "2021-01-07T03:10:59.192Z",
+        "info_filling_duration": 73,
+        "info_platform": "Android",
+        "info_os": "Android 10",
+        "info_browser": "Wechat Browser 7.0.22.1820(0x27001639)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "114.246.35.20"
+    },
+    {
+        "token": "JUpReLAK",
+        "serial_number": 4,
+        "field_1": "杨静",
+        "field_2": "张春花",
+        "field_10": "很好",
+        "field_10_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.0
+        },
+        "field_11": "很好",
+        "field_11_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.0
+        },
+        "field_12": "很好",
+        "field_12_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.0
+        },
+        "field_3": "很好",
+        "field_3_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.0
+        },
+        "field_13": "很好",
+        "field_13_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.0
+        },
+        "field_5": "很好",
+        "field_5_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.0
+        },
+        "field_14": "没有",
+        "field_14_extra_value": {
+            "correct_answer": "有，偶尔，没有",
+            "score": 3.0
+        },
+        "field_15": "没有",
+        "field_15_extra_value": {
+            "correct_answer": "没有，偶尔，有",
+            "score": 3.0
+        },
+        "field_16": "很好",
+        "field_16_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.0
+        },
+        "field_17": "很好",
+        "field_17_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.0
+        },
+        "field_18": "很好",
+        "field_18_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.0
+        },
+        "field_19": "很好",
+        "field_19_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.0
+        },
+        "field_20": "很好",
+        "field_20_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.0
+        },
+        "field_21": "很好",
+        "field_21_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.0
+        },
+        "field_22": "3顿",
+        "field_22_extra_value": {
+            "correct_answer": "6顿或6顿以上，5顿，4顿，3顿，不用做饭",
+            "score": 0.0
+        },
+        "field_8": "很好",
+        "field_8_extra_value": {
+            "correct_answer": "不好，一般，很好，不用做饭",
+            "score": 3.0
+        },
+        "field_9": "很好",
+        "field_9_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.0
+        },
+        "x_field_1": "",
+        "color_mark": "",
+        "exam_score": 48,
+        "creator_name": "",
+        "created_at": "2021-01-07T03:30:49.745Z",
+        "updated_at": "2021-01-07T03:30:49.745Z",
+        "info_filling_duration": 109,
+        "info_platform": "iPhone",
+        "info_os": "iOS 13.6",
+        "info_browser": "Wechat Browser 7.0.20(0x17001429)",
+        "info_region": {
+            "country": "中国",
+            "province": null,
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "223.104.38.130"
+    },
+    {
+        "token": "GGhUMUFs",
+        "serial_number": 6,
+        "field_1": "李斌",
+        "field_2": "郑薇丽",
+        "field_10": "很好",
+        "field_10_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_11": "很好",
+        "field_11_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.6
+        },
+        "field_12": "很好",
+        "field_12_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_3": "很好",
+        "field_3_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_13": "很好",
+        "field_13_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_5": "很好",
+        "field_5_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_14": "没有",
+        "field_14_extra_value": {
+            "correct_answer": "有，偶尔，没有",
+            "score": 5.9
+        },
+        "field_15": "没有",
+        "field_15_extra_value": {
+            "correct_answer": "没有，偶尔，有",
+            "score": 5.9
+        },
+        "field_16": "很好",
+        "field_16_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_17": "很好",
+        "field_17_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_18": "很好",
+        "field_18_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_19": "很好",
+        "field_19_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_20": "很好",
+        "field_20_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_21": "很好",
+        "field_21_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_22": "5顿",
+        "field_22_extra_value": {
+            "correct_answer": "6顿或6顿以上，5顿，4顿，3顿，不用做饭",
+            "score": 5.9
+        },
+        "field_8": "很好",
+        "field_8_extra_value": {
+            "correct_answer": "不好，一般，很好，不用做饭",
+            "score": 5.9
+        },
+        "field_9": "很好",
+        "field_9_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "x_field_1": "",
+        "color_mark": "",
+        "exam_score": 100,
+        "creator_name": "",
+        "created_at": "2021-01-30T03:23:42.325Z",
+        "updated_at": "2021-01-30T03:23:42.325Z",
+        "info_filling_duration": 109,
+        "info_platform": "iPhone",
+        "info_os": "iOS 13.6",
+        "info_browser": "Wechat Browser 8.0.1(0x18000125)",
+        "info_region": {
+            "country": "中国",
+            "province": "内蒙古自治区",
+            "city": "乌兰察布市",
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "223.104.42.115"
+    },
+    {
+        "token": "jIzN5JMa",
+        "serial_number": 7,
+        "field_1": "马凌雨",
+        "field_2": "张春花",
+        "field_10": "很好",
+        "field_10_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_11": "很好",
+        "field_11_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.6
+        },
+        "field_12": "很好",
+        "field_12_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_3": "很好",
+        "field_3_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_13": "很好",
+        "field_13_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_5": "很好",
+        "field_5_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_14": "没有",
+        "field_14_extra_value": {
+            "correct_answer": "有，偶尔，没有",
+            "score": 5.9
+        },
+        "field_15": "没有",
+        "field_15_extra_value": {
+            "correct_answer": "没有，偶尔，有",
+            "score": 5.9
+        },
+        "field_16": "很好",
+        "field_16_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_17": "很好",
+        "field_17_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_18": "很好",
+        "field_18_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_19": "很好",
+        "field_19_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_20": "很好",
+        "field_20_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_21": "很好",
+        "field_21_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_22": "6顿或6顿以上",
+        "field_22_extra_value": {
+            "correct_answer": "6顿或6顿以上，5顿，4顿，3顿，不用做饭",
+            "score": 5.9
+        },
+        "field_8": "很好",
+        "field_8_extra_value": {
+            "correct_answer": "不好，一般，很好，不用做饭",
+            "score": 5.9
+        },
+        "field_9": "很好",
+        "field_9_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "x_field_1": "",
+        "color_mark": "",
+        "exam_score": 100,
+        "creator_name": "",
+        "created_at": "2021-04-12T03:20:21.752Z",
+        "updated_at": "2021-04-12T03:20:21.752Z",
+        "info_filling_duration": 66,
+        "info_platform": "Android",
+        "info_os": "Android 10",
+        "info_browser": "Wechat Browser 8.0.2.1860(0x280002AC)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "114.243.217.2"
+    },
+    {
+        "token": "KvRAm5Vq",
+        "serial_number": 10,
+        "field_1": "翟睿",
+        "field_2": "李和平",
+        "field_10": "很好",
+        "field_10_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_11": "很好",
+        "field_11_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.6
+        },
+        "field_12": "很好",
+        "field_12_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_3": "很好",
+        "field_3_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_13": "很好",
+        "field_13_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_5": "很好",
+        "field_5_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_14": "没有",
+        "field_14_extra_value": {
+            "correct_answer": "有，偶尔，没有",
+            "score": 5.9
+        },
+        "field_15": "没有",
+        "field_15_extra_value": {
+            "correct_answer": "没有，偶尔，有",
+            "score": 5.9
+        },
+        "field_16": "很好",
+        "field_16_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_17": "很好",
+        "field_17_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_18": "很好",
+        "field_18_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_19": "很好",
+        "field_19_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_20": "很好",
+        "field_20_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_21": "很好",
+        "field_21_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_22": "4顿",
+        "field_22_extra_value": {
+            "correct_answer": "6顿或6顿以上，5顿，4顿，3顿，不用做饭",
+            "score": 3.5
+        },
+        "field_8": "很好",
+        "field_8_extra_value": {
+            "correct_answer": "不好，一般，很好，不用做饭",
+            "score": 5.9
+        },
+        "field_9": "很好",
+        "field_9_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "x_field_1": "",
+        "color_mark": "",
+        "exam_score": 97.6,
+        "creator_name": "",
+        "created_at": "2021-09-09T09:32:24.053Z",
+        "updated_at": "2021-09-09T09:32:24.053Z",
+        "info_filling_duration": 85,
+        "info_platform": "iPhone",
+        "info_os": "iOS 14.4",
+        "info_browser": "Wechat Browser 8.0.12(0x18000c29)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "1.202.55.250"
+    },
+    {
+        "token": "3rWf0JB5",
+        "serial_number": 11,
+        "field_1": "孙璐璐",
+        "field_2": "姜冰",
+        "field_10": "很好",
+        "field_10_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_11": "很好",
+        "field_11_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.6
+        },
+        "field_12": "很好",
+        "field_12_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_3": "很好",
+        "field_3_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_13": "很好",
+        "field_13_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_5": "很好",
+        "field_5_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_14": "没有",
+        "field_14_extra_value": {
+            "correct_answer": "有，偶尔，没有",
+            "score": 5.9
+        },
+        "field_15": "没有",
+        "field_15_extra_value": {
+            "correct_answer": "没有，偶尔，有",
+            "score": 5.9
+        },
+        "field_16": "很好",
+        "field_16_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_17": "很好",
+        "field_17_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_18": "很好",
+        "field_18_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_19": "很好",
+        "field_19_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_20": "很好",
+        "field_20_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_21": "很好",
+        "field_21_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_22": "5顿",
+        "field_22_extra_value": {
+            "correct_answer": "6顿或6顿以上，5顿，4顿，3顿，不用做饭",
+            "score": 5.9
+        },
+        "field_8": "很好",
+        "field_8_extra_value": {
+            "correct_answer": "不好，一般，很好，不用做饭",
+            "score": 5.9
+        },
+        "field_9": "很好",
+        "field_9_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "x_field_1": "",
+        "color_mark": "",
+        "exam_score": 100,
+        "creator_name": "",
+        "created_at": "2021-10-14T03:59:24.174Z",
+        "updated_at": "2021-10-14T03:59:24.174Z",
+        "info_filling_duration": 51,
+        "info_platform": "iPhone",
+        "info_os": "iOS 15.0.1",
+        "info_browser": "Wechat Browser 8.0.14(0x18000e2d)",
+        "info_region": {
+            "country": "中国",
+            "province": "安徽省",
+            "city": "合肥市",
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "39.144.45.139"
+    },
+    {
+        "token": "aSslKLJl",
+        "serial_number": 12,
+        "field_1": "刘健夫",
+        "field_2": "陈丽",
+        "field_10": "很好",
+        "field_10_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_11": "很好",
+        "field_11_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.6
+        },
+        "field_12": "很好",
+        "field_12_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_3": "很好",
+        "field_3_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_13": "很好",
+        "field_13_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_5": "很好",
+        "field_5_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_14": "没有",
+        "field_14_extra_value": {
+            "correct_answer": "有，偶尔，没有",
+            "score": 5.9
+        },
+        "field_15": "没有",
+        "field_15_extra_value": {
+            "correct_answer": "没有，偶尔，有",
+            "score": 5.9
+        },
+        "field_16": "很好",
+        "field_16_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_17": "很好",
+        "field_17_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_18": "很好",
+        "field_18_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_19": "很好",
+        "field_19_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_20": "很好",
+        "field_20_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_21": "很好",
+        "field_21_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_22": "3顿",
+        "field_22_extra_value": {
+            "correct_answer": "6顿或6顿以上，5顿，4顿，3顿，不用做饭",
+            "score": 2.0
+        },
+        "field_8": "很好",
+        "field_8_extra_value": {
+            "correct_answer": "不好，一般，很好，不用做饭",
+            "score": 5.9
+        },
+        "field_9": "很好",
+        "field_9_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "x_field_1": "",
+        "color_mark": "",
+        "exam_score": 96.1,
+        "creator_name": "",
+        "created_at": "2022-09-16T10:14:00.498Z",
+        "updated_at": "2022-09-25T03:05:05.504Z",
+        "info_filling_duration": 59.762,
+        "info_platform": "iPhone",
+        "info_os": "iOS 15.6.1",
+        "info_browser": "Wechat Browser 8.0.27(0x18001b36)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "124.64.22.34"
+    },
+    {
+        "token": "oAniVgPJ",
+        "serial_number": 13,
+        "field_1": "刘玉龙",
+        "field_2": "郑丽薇",
+        "field_10": "很好",
+        "field_10_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_11": "很好",
+        "field_11_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.6
+        },
+        "field_12": "很好",
+        "field_12_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_3": "很好",
+        "field_3_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_13": "很好",
+        "field_13_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_5": "很好",
+        "field_5_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_14": "没有",
+        "field_14_extra_value": {
+            "correct_answer": "有，偶尔，没有",
+            "score": 5.9
+        },
+        "field_15": "没有",
+        "field_15_extra_value": {
+            "correct_answer": "没有，偶尔，有",
+            "score": 5.9
+        },
+        "field_16": "很好",
+        "field_16_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_17": "很好",
+        "field_17_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_18": "很好",
+        "field_18_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_19": "很好",
+        "field_19_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_20": "很好",
+        "field_20_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_21": "很好",
+        "field_21_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_22": "3顿",
+        "field_22_extra_value": {
+            "correct_answer": "6顿或6顿以上，5顿，4顿，3顿，不用做饭",
+            "score": 2.0
+        },
+        "field_8": "很好",
+        "field_8_extra_value": {
+            "correct_answer": "不好，一般，很好，不用做饭",
+            "score": 5.9
+        },
+        "field_9": "很好",
+        "field_9_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "x_field_1": "",
+        "color_mark": "",
+        "exam_score": 96.1,
+        "creator_name": "",
+        "created_at": "2022-10-08T03:09:53.820Z",
+        "updated_at": "2022-10-08T03:09:53.820Z",
+        "info_filling_duration": 61.126,
+        "info_platform": "Android",
+        "info_os": "Android 11",
+        "info_browser": "Wechat Browser 8.0.28.2240(0x28001C53)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "223.104.39.123"
+    },
+    {
+        "token": "P99nVe7k",
+        "serial_number": 14,
+        "field_1": "李欣颖",
+        "field_2": "张春丽",
+        "field_10": "很好",
+        "field_10_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_11": "很好",
+        "field_11_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.6
+        },
+        "field_12": "很好",
+        "field_12_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_3": "很好",
+        "field_3_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_13": "一般",
+        "field_13_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.5
+        },
+        "field_5": "很好",
+        "field_5_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_14": "没有",
+        "field_14_extra_value": {
+            "correct_answer": "有，偶尔，没有",
+            "score": 5.9
+        },
+        "field_15": "没有",
+        "field_15_extra_value": {
+            "correct_answer": "没有，偶尔，有",
+            "score": 5.9
+        },
+        "field_16": "一般",
+        "field_16_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.5
+        },
+        "field_17": "很好",
+        "field_17_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_18": "很好",
+        "field_18_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_19": "一般",
+        "field_19_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.5
+        },
+        "field_20": "一般",
+        "field_20_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.5
+        },
+        "field_21": "一般",
+        "field_21_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.5
+        },
+        "field_22": "3顿",
+        "field_22_extra_value": {
+            "correct_answer": "6顿或6顿以上，5顿，4顿，3顿，不用做饭",
+            "score": 2.0
+        },
+        "field_8": "一般",
+        "field_8_extra_value": {
+            "correct_answer": "不好，一般，很好，不用做饭",
+            "score": 3.5
+        },
+        "field_9": "很好",
+        "field_9_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "x_field_1": "",
+        "color_mark": "",
+        "exam_score": 81.7,
+        "creator_name": "",
+        "created_at": "2022-10-21T05:18:18.088Z",
+        "updated_at": "2022-10-21T05:18:18.088Z",
+        "info_filling_duration": 135.232,
+        "info_platform": "iPhone",
+        "info_os": "iOS 15.0.2",
+        "info_browser": "Wechat Browser 8.0.18(0x1800123f)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "114.250.179.40"
+    },
+    {
+        "token": "qzINAGQO",
+        "serial_number": 15,
+        "field_1": "张剑鹏",
+        "field_2": "庹萍",
+        "field_10": "很好",
+        "field_10_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_11": "很好",
+        "field_11_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.6
+        },
+        "field_12": "很好",
+        "field_12_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_3": "很好",
+        "field_3_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_13": "很好",
+        "field_13_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_5": "很好",
+        "field_5_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_14": "没有",
+        "field_14_extra_value": {
+            "correct_answer": "有，偶尔，没有",
+            "score": 5.9
+        },
+        "field_15": "没有",
+        "field_15_extra_value": {
+            "correct_answer": "没有，偶尔，有",
+            "score": 5.9
+        },
+        "field_16": "很好",
+        "field_16_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_17": "很好",
+        "field_17_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_18": "很好",
+        "field_18_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_19": "很好",
+        "field_19_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_20": "很好",
+        "field_20_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_21": "很好",
+        "field_21_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_22": "6顿或6顿以上",
+        "field_22_extra_value": {
+            "correct_answer": "6顿或6顿以上，5顿，4顿，3顿，不用做饭",
+            "score": 5.9
+        },
+        "field_8": "很好",
+        "field_8_extra_value": {
+            "correct_answer": "不好，一般，很好，不用做饭",
+            "score": 5.9
+        },
+        "field_9": "很好",
+        "field_9_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "x_field_1": "",
+        "color_mark": "",
+        "exam_score": 100,
+        "creator_name": "",
+        "created_at": "2022-11-03T05:47:00.093Z",
+        "updated_at": "2022-11-03T05:47:00.093Z",
+        "info_filling_duration": 48.34,
+        "info_platform": "iPhone",
+        "info_os": "iOS 15.6.1",
+        "info_browser": "Wechat Browser 8.0.29(0x18001d34)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "124.64.22.169"
+    },
+    {
+        "token": "NVDHxpHk",
+        "serial_number": 16,
+        "field_1": "孙乙杨",
+        "field_2": "姜冰",
+        "field_10": "很好",
+        "field_10_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_11": "很好",
+        "field_11_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.6
+        },
+        "field_12": "很好",
+        "field_12_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_3": "很好",
+        "field_3_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_13": "很好",
+        "field_13_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_5": "很好",
+        "field_5_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_14": "没有",
+        "field_14_extra_value": {
+            "correct_answer": "有，偶尔，没有",
+            "score": 5.9
+        },
+        "field_15": "没有",
+        "field_15_extra_value": {
+            "correct_answer": "没有，偶尔，有",
+            "score": 5.9
+        },
+        "field_16": "很好",
+        "field_16_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_17": "很好",
+        "field_17_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_18": "很好",
+        "field_18_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_19": "很好",
+        "field_19_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_20": "很好",
+        "field_20_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_21": "很好",
+        "field_21_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_22": "6顿或6顿以上",
+        "field_22_extra_value": {
+            "correct_answer": "6顿或6顿以上，5顿，4顿，3顿，不用做饭",
+            "score": 5.9
+        },
+        "field_8": "很好",
+        "field_8_extra_value": {
+            "correct_answer": "不好，一般，很好，不用做饭",
+            "score": 5.9
+        },
+        "field_9": "很好",
+        "field_9_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "x_field_1": "",
+        "color_mark": "",
+        "exam_score": 100,
+        "creator_name": "",
+        "created_at": "2022-11-03T08:23:15.643Z",
+        "updated_at": "2022-11-03T08:23:15.643Z",
+        "info_filling_duration": 146.796,
+        "info_platform": "iPhone",
+        "info_os": "iOS 15.6.1",
+        "info_browser": "Wechat Browser 8.0.29(0x18001d34)",
+        "info_region": {
+            "country": "中国",
+            "province": "江苏省",
+            "city": "镇江市",
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "117.90.106.186"
+    },
+    {
+        "token": "yn4dLqP3",
+        "serial_number": 17,
+        "field_1": "储蒙蒙",
+        "field_2": "陈丽",
+        "field_10": "很好",
+        "field_10_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_11": "很好",
+        "field_11_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.6
+        },
+        "field_12": "很好",
+        "field_12_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_3": "很好",
+        "field_3_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_13": "很好",
+        "field_13_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_5": "很好",
+        "field_5_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_14": "没有",
+        "field_14_extra_value": {
+            "correct_answer": "有，偶尔，没有",
+            "score": 5.9
+        },
+        "field_15": "没有",
+        "field_15_extra_value": {
+            "correct_answer": "没有，偶尔，有",
+            "score": 5.9
+        },
+        "field_16": "很好",
+        "field_16_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_17": "很好",
+        "field_17_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_18": "很好",
+        "field_18_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_19": "很好",
+        "field_19_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_20": "很好",
+        "field_20_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_21": "很好",
+        "field_21_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_22": "6顿或6顿以上",
+        "field_22_extra_value": {
+            "correct_answer": "6顿或6顿以上，5顿，4顿，3顿，不用做饭",
+            "score": 5.9
+        },
+        "field_8": "很好",
+        "field_8_extra_value": {
+            "correct_answer": "不好，一般，很好，不用做饭",
+            "score": 5.9
+        },
+        "field_9": "很好",
+        "field_9_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "x_field_1": "",
+        "color_mark": "",
+        "exam_score": 100,
+        "creator_name": "",
+        "created_at": "2022-11-03T14:52:16.776Z",
+        "updated_at": "2022-11-03T14:52:16.776Z",
+        "info_filling_duration": 43.386,
+        "info_platform": "iPhone",
+        "info_os": "iOS 16.0.3",
+        "info_browser": "Wechat Browser 8.0.29(0x18001d34)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "124.64.121.63"
+    },
+    {
+        "token": "gTkNX1bc",
+        "serial_number": 18,
+        "field_1": "Jes",
+        "field_2": "胡云素",
+        "field_10": "很好",
+        "field_10_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_11": "很好",
+        "field_11_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.6
+        },
+        "field_12": "很好",
+        "field_12_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_3": "很好",
+        "field_3_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_13": "很好",
+        "field_13_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_5": "很好",
+        "field_5_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_14": "没有",
+        "field_14_extra_value": {
+            "correct_answer": "有，偶尔，没有",
+            "score": 5.9
+        },
+        "field_15": "没有",
+        "field_15_extra_value": {
+            "correct_answer": "没有，偶尔，有",
+            "score": 5.9
+        },
+        "field_16": "很好",
+        "field_16_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_17": "很好",
+        "field_17_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_18": "很好",
+        "field_18_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_19": "很好",
+        "field_19_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_20": "很好",
+        "field_20_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_21": "很好",
+        "field_21_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_22": "5顿",
+        "field_22_extra_value": {
+            "correct_answer": "6顿或6顿以上，5顿，4顿，3顿，不用做饭",
+            "score": 5.9
+        },
+        "field_8": "很好",
+        "field_8_extra_value": {
+            "correct_answer": "不好，一般，很好，不用做饭",
+            "score": 5.9
+        },
+        "field_9": "很好",
+        "field_9_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "x_field_1": "",
+        "color_mark": "",
+        "exam_score": 100,
+        "creator_name": "",
+        "created_at": "2022-11-14T06:56:07.989Z",
+        "updated_at": "2022-11-14T06:56:07.989Z",
+        "info_filling_duration": 94.172,
+        "info_platform": "iPhone",
+        "info_os": "iOS 16.0",
+        "info_browser": "Wechat Browser 8.0.29(0x18001d37)",
+        "info_region": {
+            "country": "中国",
+            "province": "上海市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "101.87.195.207"
+    },
+    {
+        "token": "9p0tfkZ0",
+        "serial_number": 19,
+        "field_1": "刘晓晶",
+        "field_2": "孟彦丛",
+        "field_10": "很好",
+        "field_10_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_11": "很好",
+        "field_11_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.6
+        },
+        "field_12": "很好",
+        "field_12_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_3": "很好",
+        "field_3_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_13": "很好",
+        "field_13_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_5": "很好",
+        "field_5_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_14": "没有",
+        "field_14_extra_value": {
+            "correct_answer": "有，偶尔，没有",
+            "score": 5.9
+        },
+        "field_15": "没有",
+        "field_15_extra_value": {
+            "correct_answer": "没有，偶尔，有",
+            "score": 5.9
+        },
+        "field_16": "很好",
+        "field_16_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_17": "很好",
+        "field_17_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_18": "很好",
+        "field_18_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_19": "很好",
+        "field_19_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_20": "很好",
+        "field_20_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_21": "很好",
+        "field_21_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_22": "6顿或6顿以上",
+        "field_22_extra_value": {
+            "correct_answer": "6顿或6顿以上，5顿，4顿，3顿，不用做饭",
+            "score": 5.9
+        },
+        "field_8": "很好",
+        "field_8_extra_value": {
+            "correct_answer": "不好，一般，很好，不用做饭",
+            "score": 5.9
+        },
+        "field_9": "很好",
+        "field_9_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "x_field_1": "",
+        "color_mark": "",
+        "exam_score": 100,
+        "creator_name": "",
+        "created_at": "2022-12-04T10:13:15.367Z",
+        "updated_at": "2022-12-04T10:13:15.367Z",
+        "info_filling_duration": 67.975,
+        "info_platform": "iPhone",
+        "info_os": "iOS 16.1.1",
+        "info_browser": "Wechat Browser 8.0.30(0x18001e31)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "111.194.72.223"
+    },
+    {
+        "token": "Aph03Tjx",
+        "serial_number": 20,
+        "field_1": "卓小姐",
+        "field_2": "张春丽",
+        "field_10": "很好",
+        "field_10_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_11": "很好",
+        "field_11_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.6
+        },
+        "field_12": "很好",
+        "field_12_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_3": "很好",
+        "field_3_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_13": "很好",
+        "field_13_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_5": "很好",
+        "field_5_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_14": "没有",
+        "field_14_extra_value": {
+            "correct_answer": "有，偶尔，没有",
+            "score": 5.9
+        },
+        "field_15": "没有",
+        "field_15_extra_value": {
+            "correct_answer": "没有，偶尔，有",
+            "score": 5.9
+        },
+        "field_16": "很好",
+        "field_16_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_17": "很好",
+        "field_17_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_18": "很好",
+        "field_18_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_19": "很好",
+        "field_19_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_20": "很好",
+        "field_20_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_21": "很好",
+        "field_21_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_22": "3顿",
+        "field_22_extra_value": {
+            "correct_answer": "6顿或6顿以上，5顿，4顿，3顿，不用做饭",
+            "score": 2.0
+        },
+        "field_8": "很好",
+        "field_8_extra_value": {
+            "correct_answer": "不好，一般，很好，不用做饭",
+            "score": 5.9
+        },
+        "field_9": "很好",
+        "field_9_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "x_field_1": "",
+        "color_mark": "",
+        "exam_score": 96.1,
+        "creator_name": "",
+        "created_at": "2023-01-29T07:54:37.131Z",
+        "updated_at": "2023-01-29T07:54:37.131Z",
+        "info_filling_duration": 50.957,
+        "info_platform": "iPhone",
+        "info_os": "iOS 16.2",
+        "info_browser": "Wechat Browser 8.0.32(0x1800202c)",
+        "info_region": {
+            "country": "中国",
+            "province": "上海市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "101.87.199.47"
+    },
+    {
+        "token": "TKQ0ciMm",
+        "serial_number": 21,
+        "field_1": "刘畅",
+        "field_2": "素素",
+        "field_10": "很好",
+        "field_10_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_11": "很好",
+        "field_11_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.6
+        },
+        "field_12": "很好",
+        "field_12_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_3": "很好",
+        "field_3_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_13": "很好",
+        "field_13_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_5": "很好",
+        "field_5_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_14": "没有",
+        "field_14_extra_value": {
+            "correct_answer": "有，偶尔，没有",
+            "score": 5.9
+        },
+        "field_15": "没有",
+        "field_15_extra_value": {
+            "correct_answer": "没有，偶尔，有",
+            "score": 5.9
+        },
+        "field_16": "很好",
+        "field_16_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_17": "很好",
+        "field_17_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_18": "很好",
+        "field_18_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_19": "很好",
+        "field_19_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_20": "很好",
+        "field_20_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_21": "很好",
+        "field_21_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_22": "3顿",
+        "field_22_extra_value": {
+            "correct_answer": "6顿或6顿以上，5顿，4顿，3顿，不用做饭",
+            "score": 2.0
+        },
+        "field_8": "很好",
+        "field_8_extra_value": {
+            "correct_answer": "不好，一般，很好，不用做饭",
+            "score": 5.9
+        },
+        "field_9": "很好",
+        "field_9_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "x_field_1": "",
+        "color_mark": "",
+        "exam_score": 96.1,
+        "creator_name": "",
+        "created_at": "2023-01-30T06:37:42.102Z",
+        "updated_at": "2023-01-30T06:37:42.102Z",
+        "info_filling_duration": 48.641,
+        "info_platform": "iPhone",
+        "info_os": "iOS 16.2",
+        "info_browser": "Wechat Browser 8.0.32(0x1800202c)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "120.244.236.182"
+    },
+    {
+        "token": "BRDSWbzf",
+        "serial_number": 22,
+        "field_1": "徐静思",
+        "field_2": "庹萍",
+        "field_10": "很好",
+        "field_10_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_11": "很好",
+        "field_11_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.6
+        },
+        "field_12": "很好",
+        "field_12_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_3": "很好",
+        "field_3_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_13": "很好",
+        "field_13_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_5": "很好",
+        "field_5_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_14": "没有",
+        "field_14_extra_value": {
+            "correct_answer": "有，偶尔，没有",
+            "score": 5.9
+        },
+        "field_15": "没有",
+        "field_15_extra_value": {
+            "correct_answer": "没有，偶尔，有",
+            "score": 5.9
+        },
+        "field_16": "很好",
+        "field_16_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_17": "很好",
+        "field_17_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_18": "很好",
+        "field_18_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_19": "很好",
+        "field_19_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_20": "很好",
+        "field_20_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_21": "很好",
+        "field_21_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_22": "3顿",
+        "field_22_extra_value": {
+            "correct_answer": "6顿或6顿以上，5顿，4顿，3顿，不用做饭",
+            "score": 2.0
+        },
+        "field_8": "很好",
+        "field_8_extra_value": {
+            "correct_answer": "不好，一般，很好，不用做饭",
+            "score": 5.9
+        },
+        "field_9": "很好",
+        "field_9_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "x_field_1": "",
+        "color_mark": "",
+        "exam_score": 96.1,
+        "creator_name": "",
+        "created_at": "2023-03-01T05:30:01.800Z",
+        "updated_at": "2023-03-01T05:55:39.469Z",
+        "info_filling_duration": 59,
+        "info_platform": "iPhone",
+        "info_os": "iOS 16.2",
+        "info_browser": "Wechat Browser 8.0.31(0x18001f37)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "221.218.140.77"
+    },
+    {
+        "token": "MxlA9KZO",
+        "serial_number": 23,
+        "field_1": "徐展",
+        "field_2": "李芷萱",
+        "field_10": "很好",
+        "field_10_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_11": "一般",
+        "field_11_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.5
+        },
+        "field_12": "一般",
+        "field_12_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.5
+        },
+        "field_3": "很好",
+        "field_3_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_13": "一般",
+        "field_13_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.5
+        },
+        "field_5": "一般",
+        "field_5_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 4.0
+        },
+        "field_14": "没有",
+        "field_14_extra_value": {
+            "correct_answer": "有，偶尔，没有",
+            "score": 5.9
+        },
+        "field_15": "没有",
+        "field_15_extra_value": {
+            "correct_answer": "没有，偶尔，有",
+            "score": 5.9
+        },
+        "field_16": "一般",
+        "field_16_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.5
+        },
+        "field_17": "一般",
+        "field_17_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.5
+        },
+        "field_18": "一般",
+        "field_18_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.5
+        },
+        "field_19": "一般",
+        "field_19_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.5
+        },
+        "field_20": "一般",
+        "field_20_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.5
+        },
+        "field_21": "很好",
+        "field_21_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_22": "不用做饭",
+        "field_22_extra_value": {
+            "correct_answer": "6顿或6顿以上，5顿，4顿，3顿，不用做饭",
+            "score": 3.5
+        },
+        "field_8": "不用做饭",
+        "field_8_extra_value": {
+            "correct_answer": "不好，一般，很好，不用做饭",
+            "score": 3.5
+        },
+        "field_9": "一般",
+        "field_9_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.5
+        },
+        "x_field_1": "",
+        "color_mark": "",
+        "exam_score": 72,
+        "creator_name": "",
+        "created_at": "2023-03-01T06:28:33.453Z",
+        "updated_at": "2023-03-03T05:02:37.810Z",
+        "info_filling_duration": 80,
+        "info_platform": "Android",
+        "info_os": "Android 12",
+        "info_browser": "Wechat Browser 8.0.32.2300(0x2800205D)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "61.149.75.188"
+    },
+    {
+        "token": "Tj7ifmca",
+        "serial_number": 24,
+        "field_1": "孙媛媛",
+        "field_2": "张春丽",
+        "field_10": "很好",
+        "field_10_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_11": "很好",
+        "field_11_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.6
+        },
+        "field_12": "很好",
+        "field_12_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_3": "很好",
+        "field_3_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_13": "很好",
+        "field_13_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_5": "很好",
+        "field_5_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_14": "没有",
+        "field_14_extra_value": {
+            "correct_answer": "有，偶尔，没有",
+            "score": 5.9
+        },
+        "field_15": "没有",
+        "field_15_extra_value": {
+            "correct_answer": "没有，偶尔，有",
+            "score": 5.9
+        },
+        "field_16": "很好",
+        "field_16_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_17": "很好",
+        "field_17_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_18": "很好",
+        "field_18_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_19": "很好",
+        "field_19_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_20": "很好",
+        "field_20_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_21": "很好",
+        "field_21_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_22": "6顿或6顿以上",
+        "field_22_extra_value": {
+            "correct_answer": "6顿或6顿以上，5顿，4顿，3顿，不用做饭",
+            "score": 5.9
+        },
+        "field_8": "很好",
+        "field_8_extra_value": {
+            "correct_answer": "不好，一般，很好，不用做饭",
+            "score": 5.9
+        },
+        "field_9": "很好",
+        "field_9_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "x_field_1": "",
+        "color_mark": "",
+        "exam_score": 100,
+        "creator_name": "",
+        "created_at": "2023-03-09T02:26:38.340Z",
+        "updated_at": "2023-03-09T02:26:38.340Z",
+        "info_filling_duration": 57,
+        "info_platform": "iPhone",
+        "info_os": "iOS 16.3.1",
+        "info_browser": "Wechat Browser 8.0.33(0x18002124)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "111.199.63.171"
+    },
+    {
+        "token": "xg2mPM8m",
+        "serial_number": 25,
+        "field_1": "张铭媛",
+        "field_2": "孟阿姨",
+        "field_10": "很好",
+        "field_10_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_11": "很好",
+        "field_11_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.6
+        },
+        "field_12": "很好",
+        "field_12_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_3": "很好",
+        "field_3_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_13": "很好",
+        "field_13_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_5": "很好",
+        "field_5_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_14": "没有",
+        "field_14_extra_value": {
+            "correct_answer": "有，偶尔，没有",
+            "score": 5.9
+        },
+        "field_15": "没有",
+        "field_15_extra_value": {
+            "correct_answer": "没有，偶尔，有",
+            "score": 5.9
+        },
+        "field_16": "很好",
+        "field_16_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_17": "很好",
+        "field_17_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_18": "很好",
+        "field_18_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_19": "很好",
+        "field_19_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_20": "很好",
+        "field_20_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_21": "很好",
+        "field_21_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_22": "3顿",
+        "field_22_extra_value": {
+            "correct_answer": "6顿或6顿以上，5顿，4顿，3顿，不用做饭",
+            "score": 2.0
+        },
+        "field_8": "很好",
+        "field_8_extra_value": {
+            "correct_answer": "不好，一般，很好，不用做饭",
+            "score": 5.9
+        },
+        "field_9": "很好",
+        "field_9_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "x_field_1": "",
+        "color_mark": "",
+        "exam_score": 96.1,
+        "creator_name": "",
+        "created_at": "2023-03-13T03:39:59.587Z",
+        "updated_at": "2023-03-13T03:39:59.587Z",
+        "info_filling_duration": 413,
+        "info_platform": "iPhone",
+        "info_os": "iOS 16.1.1",
+        "info_browser": "Wechat Browser 8.0.33(0x18002124)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "123.121.78.62"
+    },
+    {
+        "token": "kVHdRv0Y",
+        "serial_number": 26,
+        "field_1": "王婷",
+        "field_2": "李芷萱",
+        "field_10": "很好",
+        "field_10_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_11": "很好",
+        "field_11_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.6
+        },
+        "field_12": "一般",
+        "field_12_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.5
+        },
+        "field_3": "很好",
+        "field_3_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_13": "很好",
+        "field_13_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_5": "一般",
+        "field_5_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 4.0
+        },
+        "field_14": "没有",
+        "field_14_extra_value": {
+            "correct_answer": "有，偶尔，没有",
+            "score": 5.9
+        },
+        "field_15": "偶尔",
+        "field_15_extra_value": {
+            "correct_answer": "没有，偶尔，有",
+            "score": 3.5
+        },
+        "field_16": "一般",
+        "field_16_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.5
+        },
+        "field_17": "一般",
+        "field_17_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.5
+        },
+        "field_18": "一般",
+        "field_18_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.5
+        },
+        "field_19": "很好",
+        "field_19_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_20": "很好",
+        "field_20_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_21": "很好",
+        "field_21_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_22": "3顿",
+        "field_22_extra_value": {
+            "correct_answer": "6顿或6顿以上，5顿，4顿，3顿，不用做饭",
+            "score": 2.0
+        },
+        "field_8": "很好",
+        "field_8_extra_value": {
+            "correct_answer": "不好，一般，很好，不用做饭",
+            "score": 5.9
+        },
+        "field_9": "很好",
+        "field_9_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "x_field_1": "",
+        "color_mark": "",
+        "exam_score": 82.2,
+        "creator_name": "",
+        "created_at": "2023-04-27T11:02:53.724Z",
+        "updated_at": "2023-04-27T11:02:53.724Z",
+        "info_filling_duration": 156,
+        "info_platform": "iPhone",
+        "info_os": "iOS 16.3.1",
+        "info_browser": "Wechat Browser 8.0.34(0x18002234)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "223.72.18.105"
+    },
+    {
+        "token": "FQbnBSoj",
+        "serial_number": 27,
+        "field_1": "段泠羽",
+        "field_2": "王小红",
+        "field_10": "很好",
+        "field_10_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_11": "一般",
+        "field_11_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.5
+        },
+        "field_12": "一般",
+        "field_12_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.5
+        },
+        "field_3": "很好",
+        "field_3_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_13": "很好",
+        "field_13_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_5": "很好",
+        "field_5_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_14": "没有",
+        "field_14_extra_value": {
+            "correct_answer": "有，偶尔，没有",
+            "score": 5.9
+        },
+        "field_15": "没有",
+        "field_15_extra_value": {
+            "correct_answer": "没有，偶尔，有",
+            "score": 5.9
+        },
+        "field_16": "很好",
+        "field_16_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_17": "很好",
+        "field_17_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_18": "很好",
+        "field_18_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_19": "很好",
+        "field_19_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_20": "很好",
+        "field_20_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_21": "很好",
+        "field_21_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_22": "6顿或6顿以上",
+        "field_22_extra_value": {
+            "correct_answer": "6顿或6顿以上，5顿，4顿，3顿，不用做饭",
+            "score": 5.9
+        },
+        "field_8": "很好",
+        "field_8_extra_value": {
+            "correct_answer": "不好，一般，很好，不用做饭",
+            "score": 5.9
+        },
+        "field_9": "很好",
+        "field_9_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "x_field_1": "",
+        "color_mark": "",
+        "exam_score": 95.5,
+        "creator_name": "",
+        "created_at": "2023-05-08T05:42:59.819Z",
+        "updated_at": "2023-05-08T05:42:59.819Z",
+        "info_filling_duration": 54,
+        "info_platform": "Android",
+        "info_os": "Android 12",
+        "info_browser": "Wechat Browser 8.0.35.2360(0x28002353)",
+        "info_region": {
+            "country": "中国",
+            "province": "海南省",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "220.200.111.210"
+    },
+    {
+        "token": "EzGXRQAR",
+        "serial_number": 28,
+        "field_1": "高琳",
+        "field_2": "郑微丽",
+        "field_10": "很好",
+        "field_10_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_11": "一般",
+        "field_11_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.5
+        },
+        "field_12": "很好",
+        "field_12_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_3": "很好",
+        "field_3_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_13": "很好",
+        "field_13_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_5": "很好",
+        "field_5_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_14": "没有",
+        "field_14_extra_value": {
+            "correct_answer": "有，偶尔，没有",
+            "score": 5.9
+        },
+        "field_15": "没有",
+        "field_15_extra_value": {
+            "correct_answer": "没有，偶尔，有",
+            "score": 5.9
+        },
+        "field_16": "很好",
+        "field_16_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_17": "很好",
+        "field_17_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_18": "很好",
+        "field_18_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_19": "很好",
+        "field_19_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_20": "很好",
+        "field_20_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_21": "很好",
+        "field_21_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_22": "6顿或6顿以上",
+        "field_22_extra_value": {
+            "correct_answer": "6顿或6顿以上，5顿，4顿，3顿，不用做饭",
+            "score": 5.9
+        },
+        "field_8": "很好",
+        "field_8_extra_value": {
+            "correct_answer": "不好，一般，很好，不用做饭",
+            "score": 5.9
+        },
+        "field_9": "很好",
+        "field_9_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "x_field_1": "",
+        "color_mark": "",
+        "exam_score": 97.9,
+        "creator_name": "",
+        "created_at": "2023-05-09T04:04:55.796Z",
+        "updated_at": "2023-05-09T04:04:55.796Z",
+        "info_filling_duration": 158,
+        "info_platform": "Android",
+        "info_os": "Android 11",
+        "info_browser": "Wechat Browser 8.0.35.2360(0x28002353)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "106.37.112.23"
+    },
+    {
+        "token": "Buup4Igb",
+        "serial_number": 29,
+        "field_1": "刘霄",
+        "field_2": "高倩",
+        "field_10": "很好",
+        "field_10_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_11": "很好",
+        "field_11_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.6
+        },
+        "field_12": "很好",
+        "field_12_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_3": "很好",
+        "field_3_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_13": "很好",
+        "field_13_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_5": "很好",
+        "field_5_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_14": "没有",
+        "field_14_extra_value": {
+            "correct_answer": "有，偶尔，没有",
+            "score": 5.9
+        },
+        "field_15": "没有",
+        "field_15_extra_value": {
+            "correct_answer": "没有，偶尔，有",
+            "score": 5.9
+        },
+        "field_16": "很好",
+        "field_16_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_17": "很好",
+        "field_17_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_18": "很好",
+        "field_18_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_19": "很好",
+        "field_19_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_20": "很好",
+        "field_20_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_21": "很好",
+        "field_21_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_22": "3顿",
+        "field_22_extra_value": {
+            "correct_answer": "6顿或6顿以上，5顿，4顿，3顿，不用做饭",
+            "score": 2.0
+        },
+        "field_8": "很好",
+        "field_8_extra_value": {
+            "correct_answer": "不好，一般，很好，不用做饭",
+            "score": 5.9
+        },
+        "field_9": "很好",
+        "field_9_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "x_field_1": "",
+        "color_mark": "",
+        "exam_score": 96.1,
+        "creator_name": "",
+        "created_at": "2023-05-18T06:00:00.388Z",
+        "updated_at": "2023-05-18T06:00:00.388Z",
+        "info_filling_duration": 73,
+        "info_platform": "iPhone",
+        "info_os": "iOS 16.4.1",
+        "info_browser": "Wechat Browser 8.0.37(0x18002528)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "125.33.202.144"
+    },
+    {
+        "token": "cs33LWhU",
+        "serial_number": 30,
+        "field_1": "张京京",
+        "field_2": "姜冰",
+        "field_10": "很好",
+        "field_10_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_11": "一般",
+        "field_11_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.5
+        },
+        "field_12": "很好",
+        "field_12_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_3": "很好",
+        "field_3_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_13": "很好",
+        "field_13_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_5": "很好",
+        "field_5_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_14": "没有",
+        "field_14_extra_value": {
+            "correct_answer": "有，偶尔，没有",
+            "score": 5.9
+        },
+        "field_15": "偶尔",
+        "field_15_extra_value": {
+            "correct_answer": "没有，偶尔，有",
+            "score": 3.5
+        },
+        "field_16": "很好",
+        "field_16_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_17": "很好",
+        "field_17_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_18": "很好",
+        "field_18_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_19": "很好",
+        "field_19_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_20": "一般",
+        "field_20_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.5
+        },
+        "field_21": "很好",
+        "field_21_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_22": "4顿",
+        "field_22_extra_value": {
+            "correct_answer": "6顿或6顿以上，5顿，4顿，3顿，不用做饭",
+            "score": 3.5
+        },
+        "field_8": "一般",
+        "field_8_extra_value": {
+            "correct_answer": "不好，一般，很好，不用做饭",
+            "score": 3.5
+        },
+        "field_9": "很好",
+        "field_9_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "x_field_1": "",
+        "color_mark": "",
+        "exam_score": 88.3,
+        "creator_name": "",
+        "created_at": "2023-05-19T02:37:05.411Z",
+        "updated_at": "2023-05-19T02:37:05.411Z",
+        "info_filling_duration": 112,
+        "info_platform": "iPhone",
+        "info_os": "iOS 16.4.1",
+        "info_browser": "Wechat Browser 8.0.34(0x18002234)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "111.197.248.172"
+    },
+    {
+        "token": "jv8f6nbg",
+        "serial_number": 31,
+        "field_1": "马畅",
+        "field_2": "宋霞",
+        "field_10": "很好",
+        "field_10_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_11": "很好",
+        "field_11_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.6
+        },
+        "field_12": "很好",
+        "field_12_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_3": "很好",
+        "field_3_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_13": "很好",
+        "field_13_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_5": "很好",
+        "field_5_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_14": "没有",
+        "field_14_extra_value": {
+            "correct_answer": "有，偶尔，没有",
+            "score": 5.9
+        },
+        "field_15": "没有",
+        "field_15_extra_value": {
+            "correct_answer": "没有，偶尔，有",
+            "score": 5.9
+        },
+        "field_16": "很好",
+        "field_16_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_17": "很好",
+        "field_17_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_18": "很好",
+        "field_18_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_19": "很好",
+        "field_19_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_20": "很好",
+        "field_20_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_21": "很好",
+        "field_21_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_22": "不用做饭",
+        "field_22_extra_value": {
+            "correct_answer": "6顿或6顿以上，5顿，4顿，3顿，不用做饭",
+            "score": 3.5
+        },
+        "field_8": "不用做饭",
+        "field_8_extra_value": {
+            "correct_answer": "不好，一般，很好，不用做饭",
+            "score": 3.5
+        },
+        "field_9": "很好",
+        "field_9_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "x_field_1": "",
+        "color_mark": "",
+        "exam_score": 95.2,
+        "creator_name": "",
+        "created_at": "2023-06-25T13:27:47.667Z",
+        "updated_at": "2023-06-25T13:27:47.667Z",
+        "info_filling_duration": 67,
+        "info_platform": "iPhone",
+        "info_os": "iOS 16.5.1",
+        "info_browser": "Wechat Browser 8.0.38(0x1800262a)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "61.149.241.78"
+    },
+    {
+        "token": "7PksPudM",
+        "serial_number": 32,
+        "field_1": "马畅",
+        "field_2": "孟彦丛",
+        "field_10": "很好",
+        "field_10_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_11": "很好",
+        "field_11_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.6
+        },
+        "field_12": "很好",
+        "field_12_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_3": "很好",
+        "field_3_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_13": "很好",
+        "field_13_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_5": "很好",
+        "field_5_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_14": "没有",
+        "field_14_extra_value": {
+            "correct_answer": "有，偶尔，没有",
+            "score": 5.9
+        },
+        "field_15": "没有",
+        "field_15_extra_value": {
+            "correct_answer": "没有，偶尔，有",
+            "score": 5.9
+        },
+        "field_16": "很好",
+        "field_16_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_17": "很好",
+        "field_17_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_18": "很好",
+        "field_18_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_19": "很好",
+        "field_19_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_20": "很好",
+        "field_20_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_21": "很好",
+        "field_21_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_22": "不用做饭",
+        "field_22_extra_value": {
+            "correct_answer": "6顿或6顿以上，5顿，4顿，3顿，不用做饭",
+            "score": 3.5
+        },
+        "field_8": "不用做饭",
+        "field_8_extra_value": {
+            "correct_answer": "不好，一般，很好，不用做饭",
+            "score": 3.5
+        },
+        "field_9": "很好",
+        "field_9_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "x_field_1": "",
+        "color_mark": "",
+        "exam_score": 95.2,
+        "creator_name": "",
+        "created_at": "2023-06-25T13:28:58.481Z",
+        "updated_at": "2023-06-25T13:28:58.481Z",
+        "info_filling_duration": 59,
+        "info_platform": "iPhone",
+        "info_os": "iOS 16.5.1",
+        "info_browser": "Wechat Browser 8.0.38(0x1800262a)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "61.149.241.78"
+    },
+    {
+        "token": "AR4MT38E",
+        "serial_number": 33,
+        "field_1": "余付金",
+        "field_2": "郑微丽",
+        "field_10": "很好",
+        "field_10_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_11": "很好",
+        "field_11_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.6
+        },
+        "field_12": "很好",
+        "field_12_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_3": "很好",
+        "field_3_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_13": "很好",
+        "field_13_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_5": "很好",
+        "field_5_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_14": "没有",
+        "field_14_extra_value": {
+            "correct_answer": "有，偶尔，没有",
+            "score": 5.9
+        },
+        "field_15": "没有",
+        "field_15_extra_value": {
+            "correct_answer": "没有，偶尔，有",
+            "score": 5.9
+        },
+        "field_16": "很好",
+        "field_16_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_17": "很好",
+        "field_17_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_18": "很好",
+        "field_18_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_19": "很好",
+        "field_19_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_20": "很好",
+        "field_20_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_21": "很好",
+        "field_21_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_22": "不用做饭",
+        "field_22_extra_value": {
+            "correct_answer": "6顿或6顿以上，5顿，4顿，3顿，不用做饭",
+            "score": 3.5
+        },
+        "field_8": "不用做饭",
+        "field_8_extra_value": {
+            "correct_answer": "不好，一般，很好，不用做饭",
+            "score": 3.5
+        },
+        "field_9": "很好",
+        "field_9_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "x_field_1": "",
+        "color_mark": "",
+        "exam_score": 95.2,
+        "creator_name": "",
+        "created_at": "2023-06-30T02:45:38.968Z",
+        "updated_at": "2023-08-12T07:36:55.830Z",
+        "info_filling_duration": 97,
+        "info_platform": "iPhone",
+        "info_os": "iOS 14.6",
+        "info_browser": "Wechat Browser 8.0.32(0x18002038)",
+        "info_region": {
+            "country": "中国",
+            "province": "福建省",
+            "city": "厦门市",
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "112.48.52.111"
+    },
+    {
+        "token": "yNEBv78x",
+        "serial_number": 34,
+        "field_1": "余付金",
+        "field_2": "高倩",
+        "field_10": "很好",
+        "field_10_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_11": "很好",
+        "field_11_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.6
+        },
+        "field_12": "很好",
+        "field_12_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_3": "很好",
+        "field_3_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_13": "很好",
+        "field_13_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_5": "很好",
+        "field_5_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_14": "没有",
+        "field_14_extra_value": {
+            "correct_answer": "有，偶尔，没有",
+            "score": 5.9
+        },
+        "field_15": "没有",
+        "field_15_extra_value": {
+            "correct_answer": "没有，偶尔，有",
+            "score": 5.9
+        },
+        "field_16": "很好",
+        "field_16_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_17": "很好",
+        "field_17_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_18": "很好",
+        "field_18_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_19": "很好",
+        "field_19_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_20": "很好",
+        "field_20_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_21": "很好",
+        "field_21_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_22": "不用做饭",
+        "field_22_extra_value": {
+            "correct_answer": "6顿或6顿以上，5顿，4顿，3顿，不用做饭",
+            "score": 3.5
+        },
+        "field_8": "不用做饭",
+        "field_8_extra_value": {
+            "correct_answer": "不好，一般，很好，不用做饭",
+            "score": 3.5
+        },
+        "field_9": "很好",
+        "field_9_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "x_field_1": "",
+        "color_mark": "",
+        "exam_score": 95.2,
+        "creator_name": "",
+        "created_at": "2023-06-30T02:46:45.472Z",
+        "updated_at": "2023-08-12T07:36:30.612Z",
+        "info_filling_duration": 50,
+        "info_platform": "iPhone",
+        "info_os": "iOS 14.6",
+        "info_browser": "Wechat Browser 8.0.32(0x18002038)",
+        "info_region": {
+            "country": "中国",
+            "province": "福建省",
+            "city": "厦门市",
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "112.48.52.111"
+    },
+    {
+        "token": "IzVyRRe3",
+        "serial_number": 35,
+        "field_1": "许景媛",
+        "field_2": "胡云素",
+        "field_10": "很好",
+        "field_10_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_11": "很好",
+        "field_11_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.6
+        },
+        "field_12": "很好",
+        "field_12_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_3": "很好",
+        "field_3_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_13": "很好",
+        "field_13_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_5": "很好",
+        "field_5_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_14": "没有",
+        "field_14_extra_value": {
+            "correct_answer": "有，偶尔，没有",
+            "score": 5.9
+        },
+        "field_15": "没有",
+        "field_15_extra_value": {
+            "correct_answer": "没有，偶尔，有",
+            "score": 5.9
+        },
+        "field_16": "很好",
+        "field_16_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_17": "很好",
+        "field_17_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_18": "很好",
+        "field_18_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_19": "很好",
+        "field_19_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_20": "很好",
+        "field_20_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_21": "很好",
+        "field_21_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_22": "不用做饭",
+        "field_22_extra_value": {
+            "correct_answer": "6顿或6顿以上，5顿，4顿，3顿，不用做饭",
+            "score": 3.5
+        },
+        "field_8": "不用做饭",
+        "field_8_extra_value": {
+            "correct_answer": "不好，一般，很好，不用做饭",
+            "score": 3.5
+        },
+        "field_9": "很好",
+        "field_9_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "x_field_1": "",
+        "color_mark": "",
+        "exam_score": 95.2,
+        "creator_name": "",
+        "created_at": "2023-07-03T11:18:17.283Z",
+        "updated_at": "2023-07-03T11:18:17.283Z",
+        "info_filling_duration": 33,
+        "info_platform": "iPhone",
+        "info_os": "iOS 16.5.1",
+        "info_browser": "Wechat Browser 8.0.38(0x1800262c)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "223.104.40.210"
+    },
+    {
+        "token": "lEiUVzEc",
+        "serial_number": 36,
+        "field_1": "匡薇",
+        "field_2": "马中侠",
+        "field_10": "很好",
+        "field_10_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_11": "很好",
+        "field_11_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.6
+        },
+        "field_12": "很好",
+        "field_12_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_3": "很好",
+        "field_3_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_13": "很好",
+        "field_13_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_5": "很好",
+        "field_5_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_14": "偶尔",
+        "field_14_extra_value": {
+            "correct_answer": "有，偶尔，没有",
+            "score": 3.5
+        },
+        "field_15": "没有",
+        "field_15_extra_value": {
+            "correct_answer": "没有，偶尔，有",
+            "score": 5.9
+        },
+        "field_16": "很好",
+        "field_16_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_17": "很好",
+        "field_17_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_18": "很好",
+        "field_18_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_19": "很好",
+        "field_19_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_20": "很好",
+        "field_20_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_21": "很好",
+        "field_21_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_22": "3顿",
+        "field_22_extra_value": {
+            "correct_answer": "6顿或6顿以上，5顿，4顿，3顿，不用做饭",
+            "score": 2.0
+        },
+        "field_8": "很好",
+        "field_8_extra_value": {
+            "correct_answer": "不好，一般，很好，不用做饭",
+            "score": 5.9
+        },
+        "field_9": "很好",
+        "field_9_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "x_field_1": "",
+        "color_mark": "",
+        "exam_score": 93.7,
+        "creator_name": "",
+        "created_at": "2023-08-08T12:53:27.493Z",
+        "updated_at": "2023-08-12T07:34:49.298Z",
+        "info_filling_duration": 62,
+        "info_platform": "iPhone",
+        "info_os": "iOS 16.1.2",
+        "info_browser": "Wechat Browser 8.0.40(0x1800282a)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "125.35.60.241"
+    },
+    {
+        "token": "8Vr9NNyg",
+        "serial_number": 37,
+        "field_1": "",
+        "field_2": "庹萍",
+        "field_10": "很好",
+        "field_10_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_11": "很好",
+        "field_11_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.6
+        },
+        "field_12": "很好",
+        "field_12_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_3": "很好",
+        "field_3_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_13": "很好",
+        "field_13_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_5": "很好",
+        "field_5_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_14": "没有",
+        "field_14_extra_value": {
+            "correct_answer": "有，偶尔，没有",
+            "score": 5.9
+        },
+        "field_15": "没有",
+        "field_15_extra_value": {
+            "correct_answer": "没有，偶尔，有",
+            "score": 5.9
+        },
+        "field_16": "很好",
+        "field_16_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_17": "很好",
+        "field_17_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_18": "很好",
+        "field_18_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_19": "很好",
+        "field_19_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_20": "很好",
+        "field_20_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_21": "很好",
+        "field_21_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_22": "3顿",
+        "field_22_extra_value": {
+            "correct_answer": "6顿或6顿以上，5顿，4顿，3顿，不用做饭",
+            "score": 2.0
+        },
+        "field_8": "很好",
+        "field_8_extra_value": {
+            "correct_answer": "不好，一般，很好，不用做饭",
+            "score": 5.9
+        },
+        "field_9": "很好",
+        "field_9_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "x_field_1": "",
+        "color_mark": "",
+        "exam_score": 96.1,
+        "creator_name": "",
+        "created_at": "2023-08-12T11:58:04.795Z",
+        "updated_at": "2023-08-12T11:58:04.795Z",
+        "info_filling_duration": 55,
+        "info_platform": "iPhone",
+        "info_os": "iOS 16.1.1",
+        "info_browser": "Wechat Browser 8.0.27(0x18001b37)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "111.196.237.240"
+    },
+    {
+        "token": "XZmYAsWx",
+        "serial_number": 38,
+        "field_1": "张晓贤",
+        "field_2": "孟彦丛",
+        "field_10": "很好",
+        "field_10_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_11": "很好",
+        "field_11_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.6
+        },
+        "field_12": "很好",
+        "field_12_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_3": "很好",
+        "field_3_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_13": "很好",
+        "field_13_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_5": "很好",
+        "field_5_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_14": "没有",
+        "field_14_extra_value": {
+            "correct_answer": "有，偶尔，没有",
+            "score": 5.9
+        },
+        "field_15": "没有",
+        "field_15_extra_value": {
+            "correct_answer": "没有，偶尔，有",
+            "score": 5.9
+        },
+        "field_16": "很好",
+        "field_16_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_17": "很好",
+        "field_17_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_18": "很好",
+        "field_18_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_19": "很好",
+        "field_19_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_20": "很好",
+        "field_20_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_21": "很好",
+        "field_21_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_22": "5顿",
+        "field_22_extra_value": {
+            "correct_answer": "6顿或6顿以上，5顿，4顿，3顿，不用做饭",
+            "score": 5.9
+        },
+        "field_8": "很好",
+        "field_8_extra_value": {
+            "correct_answer": "不好，一般，很好，不用做饭",
+            "score": 5.9
+        },
+        "field_9": "很好",
+        "field_9_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "x_field_1": "",
+        "color_mark": "",
+        "exam_score": 100,
+        "creator_name": "",
+        "created_at": "2023-08-24T05:17:39.554Z",
+        "updated_at": "2023-08-24T05:17:39.554Z",
+        "info_filling_duration": 164,
+        "info_platform": "Android",
+        "info_os": "Android 12",
+        "info_browser": "Wechat Browser 8.0.40.2420(0x28002871)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "111.201.52.193"
+    },
+    {
+        "token": "rjtHCp6t",
+        "serial_number": 39,
+        "field_1": "许景媛",
+        "field_2": "高倩",
+        "field_10": "很好",
+        "field_10_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_11": "很好",
+        "field_11_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.6
+        },
+        "field_12": "很好",
+        "field_12_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_3": "很好",
+        "field_3_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_13": "很好",
+        "field_13_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_5": "很好",
+        "field_5_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_14": "没有",
+        "field_14_extra_value": {
+            "correct_answer": "有，偶尔，没有",
+            "score": 5.9
+        },
+        "field_15": "没有",
+        "field_15_extra_value": {
+            "correct_answer": "没有，偶尔，有",
+            "score": 5.9
+        },
+        "field_16": "很好",
+        "field_16_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_17": "很好",
+        "field_17_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_18": "很好",
+        "field_18_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_19": "很好",
+        "field_19_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_20": "很好",
+        "field_20_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_21": "很好",
+        "field_21_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_22": "不用做饭",
+        "field_22_extra_value": {
+            "correct_answer": "6顿或6顿以上，5顿，4顿，3顿，不用做饭",
+            "score": 3.5
+        },
+        "field_8": "不用做饭",
+        "field_8_extra_value": {
+            "correct_answer": "不好，一般，很好，不用做饭",
+            "score": 3.5
+        },
+        "field_9": "很好",
+        "field_9_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "x_field_1": "",
+        "color_mark": "",
+        "exam_score": 95.2,
+        "creator_name": "",
+        "created_at": "2023-09-09T10:10:05.722Z",
+        "updated_at": "2023-09-09T10:10:05.722Z",
+        "info_filling_duration": 31,
+        "info_platform": "iPhone",
+        "info_os": "iOS 16.6",
+        "info_browser": "Wechat Browser 8.0.41(0x1800292d)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "223.104.41.92"
+    },
+    {
+        "token": "skfEZoE3",
+        "serial_number": 40,
+        "field_1": "裴思宇",
+        "field_2": "张春丽",
+        "field_10": "很好",
+        "field_10_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_11": "很好",
+        "field_11_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.6
+        },
+        "field_12": "很好",
+        "field_12_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_3": "很好",
+        "field_3_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_13": "很好",
+        "field_13_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_5": "很好",
+        "field_5_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_14": "没有",
+        "field_14_extra_value": {
+            "correct_answer": "有，偶尔，没有",
+            "score": 5.9
+        },
+        "field_15": "没有",
+        "field_15_extra_value": {
+            "correct_answer": "没有，偶尔，有",
+            "score": 5.9
+        },
+        "field_16": "很好",
+        "field_16_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_17": "很好",
+        "field_17_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_18": "很好",
+        "field_18_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_19": "很好",
+        "field_19_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_20": "很好",
+        "field_20_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_21": "很好",
+        "field_21_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_22": "3顿",
+        "field_22_extra_value": {
+            "correct_answer": "6顿或6顿以上，5顿，4顿，3顿，不用做饭",
+            "score": 2.0
+        },
+        "field_8": "很好",
+        "field_8_extra_value": {
+            "correct_answer": "不好，一般，很好，不用做饭",
+            "score": 5.9
+        },
+        "field_9": "很好",
+        "field_9_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "x_field_1": "",
+        "color_mark": "",
+        "exam_score": 96.1,
+        "creator_name": "",
+        "created_at": "2023-10-19T02:34:25.320Z",
+        "updated_at": "2023-10-19T02:34:25.320Z",
+        "info_filling_duration": 75,
+        "info_platform": "Android",
+        "info_os": "Android 12",
+        "info_browser": "Wechat Browser 8.0.42.2460(0x28002A51)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "120.244.33.63"
+    },
+    {
+        "token": "khoHJeHV",
+        "serial_number": 41,
+        "field_1": "王晓虹",
+        "field_2": "杜军红",
+        "field_10": "一般",
+        "field_10_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.5
+        },
+        "field_11": "一般",
+        "field_11_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.5
+        },
+        "field_12": "一般",
+        "field_12_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.5
+        },
+        "field_3": "一般",
+        "field_3_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.5
+        },
+        "field_13": "一般",
+        "field_13_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.5
+        },
+        "field_5": "一般",
+        "field_5_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 4.0
+        },
+        "field_14": "没有",
+        "field_14_extra_value": {
+            "correct_answer": "有，偶尔，没有",
+            "score": 5.9
+        },
+        "field_15": "偶尔",
+        "field_15_extra_value": {
+            "correct_answer": "没有，偶尔，有",
+            "score": 3.5
+        },
+        "field_16": "一般",
+        "field_16_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.5
+        },
+        "field_17": "一般",
+        "field_17_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.5
+        },
+        "field_18": "一般",
+        "field_18_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.5
+        },
+        "field_19": "一般",
+        "field_19_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.5
+        },
+        "field_20": "一般",
+        "field_20_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.5
+        },
+        "field_21": "一般",
+        "field_21_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.5
+        },
+        "field_22": "3顿",
+        "field_22_extra_value": {
+            "correct_answer": "6顿或6顿以上，5顿，4顿，3顿，不用做饭",
+            "score": 2.0
+        },
+        "field_8": "一般",
+        "field_8_extra_value": {
+            "correct_answer": "不好，一般，很好，不用做饭",
+            "score": 3.5
+        },
+        "field_9": "一般",
+        "field_9_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 3.5
+        },
+        "x_field_1": "",
+        "color_mark": "",
+        "exam_score": 60.9,
+        "creator_name": "",
+        "created_at": "2023-10-19T03:49:05.197Z",
+        "updated_at": "2023-10-19T03:49:05.197Z",
+        "info_filling_duration": 173,
+        "info_platform": "iPhone",
+        "info_os": "iOS 15.6.1",
+        "info_browser": "Wechat Browser 8.0.42(0x18002a2d)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "123.120.38.15"
+    },
+    {
+        "token": "wJBDZObO",
+        "serial_number": 42,
+        "field_1": "郑晓淳",
+        "field_2": "孟姐",
+        "field_10": "很好",
+        "field_10_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_11": "很好",
+        "field_11_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.6
+        },
+        "field_12": "很好",
+        "field_12_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_3": "很好",
+        "field_3_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_13": "很好",
+        "field_13_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_5": "很好",
+        "field_5_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_14": "没有",
+        "field_14_extra_value": {
+            "correct_answer": "有，偶尔，没有",
+            "score": 5.9
+        },
+        "field_15": "没有",
+        "field_15_extra_value": {
+            "correct_answer": "没有，偶尔，有",
+            "score": 5.9
+        },
+        "field_16": "很好",
+        "field_16_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_17": "很好",
+        "field_17_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_18": "很好",
+        "field_18_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_19": "很好",
+        "field_19_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_20": "很好",
+        "field_20_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_21": "很好",
+        "field_21_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "field_22": "5顿",
+        "field_22_extra_value": {
+            "correct_answer": "6顿或6顿以上，5顿，4顿，3顿，不用做饭",
+            "score": 5.9
+        },
+        "field_8": "很好",
+        "field_8_extra_value": {
+            "correct_answer": "不好，一般，很好，不用做饭",
+            "score": 5.9
+        },
+        "field_9": "很好",
+        "field_9_extra_value": {
+            "correct_answer": "不好，一般，很好",
+            "score": 5.9
+        },
+        "x_field_1": "",
+        "color_mark": "",
+        "exam_score": 100,
+        "creator_name": "",
+        "created_at": "2023-12-26T08:05:16.919Z",
+        "updated_at": "2023-12-26T08:05:16.919Z",
+        "info_filling_duration": 163,
+        "info_platform": "iPhone",
+        "info_os": "iOS 15.2",
+        "info_browser": "Wechat Browser 8.0.44(0x18002c2e)",
+        "info_region": {
+            "country": "中国",
+            "province": "河北省",
+            "city": "廊坊市",
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "39.144.87.220"
+    }
+]

@@ -1,0 +1,87 @@
+{
+    "name": "休息统计20年11月",
+    "token": "EtlvaQ",
+    "description": "<p>&nbsp;</p>\n\n<p>&nbsp;</p>",
+    "fields": [
+        {
+            "field_1": {
+                "label": "姓名",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_2": {
+                "label": "描述",
+                "api_code_alias": null,
+                "type": "section_break",
+                "notes": "<p>本次例会时间即将确定</p>\n\n<p>因为疫情，我们今年年底例会现场开例会，年底例会举行三次</p>\n\n<p>每位人员不用三次都参加，至少参加一次即可</p>\n\n<p> </p>\n\n<p>为了让更多的人能参加本次例会</p>\n\n<p>公司将根据大体人员休息时间，定具体开会时间</p>\n\n<p>请在下面选择您平常休息的时间，若有其它情况，请在备注中说明</p>",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_3": {
+                "label": "自己平常的休息时间",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "<p>此处可多选</p>",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "星期一",
+                        "value": "3c53",
+                        "hidden": false
+                    },
+                    {
+                        "name": "星期二",
+                        "value": "pllo",
+                        "hidden": false
+                    },
+                    {
+                        "name": "星期三",
+                        "value": "er1D",
+                        "hidden": false
+                    },
+                    {
+                        "name": "星期四",
+                        "value": "BVlE",
+                        "hidden": false
+                    },
+                    {
+                        "name": "星期五",
+                        "value": "z7TT",
+                        "hidden": false
+                    },
+                    {
+                        "name": "星期六",
+                        "value": "IsrJ",
+                        "hidden": false
+                    },
+                    {
+                        "name": "星期日",
+                        "value": "k65e",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_4": {
+                "label": "备注：",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "<p>其它休息情况描述</p>",
+                "private": false,
+                "validation": {}
+            }
+        }
+    ]
+}

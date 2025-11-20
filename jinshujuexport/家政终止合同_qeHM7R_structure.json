@@ -1,0 +1,60 @@
+{
+    "name": "家政终止合同",
+    "token": "qeHM7R",
+    "description": "",
+    "fields": [
+        {
+            "field_1": {
+                "label": "家政服务合同终止确认书",
+                "api_code_alias": null,
+                "type": "section_break",
+                "notes": "<p>针对宋蕊女士与家政服务员王娟、我司（北京家福安家政服务有限公司）签署的《家政服务合同》，经各方协商一致，就终止合同等事宜，签署本确认书。</p>\n\n<p>一、宋蕊女士与家政服务员王娟、我司共同确认：</p>\n\n<p>1、三方签署的《家政服务合同》于2021年4月26日终止。</p>\n\n<p>2、对家政服务合同履行过程中存在的问题，三方已经妥善解决，不存在未决、待决事项或潜在纠纷。各方均不向其他方再主张权益。</p>\n\n<p>二、宋蕊女士确认：我司已经将收取的介绍费2000元、中介服务费1760.00元，全部返还给宋蕊女士。</p>\n\n<p>三、家政服务员的报酬，已经与家政服务员、我司结算完毕，不存在欠费等争议事项。</p>",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_2": {
+                "label": "未命名",
+                "api_code_alias": null,
+                "type": "form_association",
+                "notes": null,
+                "private": false,
+                "validation": {},
+                "associated_form_token": "J0o48U",
+                "associated_field_api_code": "serial_number",
+                "associated_field_api_codes": [
+                    "serial_number"
+                ],
+                "display_field_settings": [
+                    {
+                        "api_code": "field_3",
+                        "privacy_safe": true,
+                        "public_display": true
+                    }
+                ]
+            }
+        },
+        {
+            "field_3": {
+                "label": "日期",
+                "api_code_alias": null,
+                "type": "date_time",
+                "notes": null,
+                "private": false,
+                "validation": {},
+                "precision": "day"
+            }
+        },
+        {
+            "field_4": {
+                "label": "王娟阿姨签字",
+                "api_code_alias": null,
+                "type": "e_signature",
+                "notes": null,
+                "private": false,
+                "validation": {}
+            }
+        }
+    ]
+}

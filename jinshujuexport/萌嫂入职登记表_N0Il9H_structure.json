@@ -1,0 +1,1873 @@
+{
+    "name": "萌嫂入职登记表",
+    "token": "N0Il9H",
+    "description": "",
+    "fields": [
+        {
+            "field_1": {
+                "label": "姓名",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_2": {
+                "label": "手机",
+                "api_code_alias": null,
+                "type": "mobile",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_93": {
+                "label": "身份证号码：",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_3": {
+                "label": "身份证上地址",
+                "api_code_alias": null,
+                "type": "address",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_4": {
+                "label": "身份证照片",
+                "api_code_alias": null,
+                "type": "attachment",
+                "notes": "<p>上传身份证正反面照片</p>",
+                "private": false,
+                "validation": {},
+                "max_file_quantity": 2,
+                "media_type": {
+                    "type": "unlimited",
+                    "value": []
+                }
+            }
+        },
+        {
+            "field_92": {
+                "label": "健康证（北京食品健康证、幽门螺旋杆菌、妇科传染性疾病）",
+                "api_code_alias": null,
+                "type": "attachment",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "max_file_quantity": 15,
+                "media_type": {
+                    "type": "unlimited",
+                    "value": []
+                }
+            }
+        },
+        {
+            "field_5": {
+                "label": "入职时照片或生活照一张",
+                "api_code_alias": null,
+                "type": "attachment",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "max_file_quantity": 15,
+                "media_type": {
+                    "type": "unlimited",
+                    "value": []
+                }
+            }
+        },
+        {
+            "field_6": {
+                "label": "现在状态",
+                "api_code_alias": null,
+                "type": "drop_down",
+                "notes": "",
+                "private": true,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "在岗",
+                        "value": "oQ7-",
+                        "hidden": false
+                    },
+                    {
+                        "name": "待岗",
+                        "value": "0Aiz",
+                        "hidden": false
+                    },
+                    {
+                        "name": "休假",
+                        "value": "ch43",
+                        "hidden": false
+                    },
+                    {
+                        "name": "离职",
+                        "value": "70dl",
+                        "hidden": false
+                    },
+                    {
+                        "name": "解散（永不再合作）",
+                        "value": "gXeW",
+                        "hidden": false
+                    },
+                    {
+                        "name": "私签",
+                        "value": "PGt8",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_20": {
+                "label": "服务类别",
+                "api_code_alias": null,
+                "type": "drop_down",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "月嫂",
+                        "value": "o7Mb",
+                        "hidden": false
+                    },
+                    {
+                        "name": "育儿嫂",
+                        "value": "89Ae",
+                        "hidden": false
+                    },
+                    {
+                        "name": "教练",
+                        "value": "RzDx",
+                        "hidden": false
+                    },
+                    {
+                        "name": "月嫂、育儿嫂",
+                        "value": "EYhF",
+                        "hidden": false
+                    },
+                    {
+                        "name": "家务服务",
+                        "value": "i684",
+                        "hidden": false
+                    },
+                    {
+                        "name": "护工",
+                        "value": "eCQ8",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_22": {
+                "label": "实际出生日期",
+                "api_code_alias": null,
+                "type": "date_time",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "precision": "day"
+            }
+        },
+        {
+            "field_33": {
+                "label": "生肖",
+                "api_code_alias": null,
+                "type": "drop_down",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "鼠",
+                        "value": "259r",
+                        "hidden": false
+                    },
+                    {
+                        "name": "牛",
+                        "value": "eOMz",
+                        "hidden": false
+                    },
+                    {
+                        "name": "虎",
+                        "value": "Nmuq",
+                        "hidden": false
+                    },
+                    {
+                        "name": "兔",
+                        "value": "GXlE",
+                        "hidden": false
+                    },
+                    {
+                        "name": "龙",
+                        "value": "PHzt",
+                        "hidden": false
+                    },
+                    {
+                        "name": "蛇",
+                        "value": "dC3k",
+                        "hidden": false
+                    },
+                    {
+                        "name": "马",
+                        "value": "B9d0",
+                        "hidden": false
+                    },
+                    {
+                        "name": "羊",
+                        "value": "IpWO",
+                        "hidden": false
+                    },
+                    {
+                        "name": "猴",
+                        "value": "80hP",
+                        "hidden": false
+                    },
+                    {
+                        "name": "鸡",
+                        "value": "Jo0v",
+                        "hidden": false
+                    },
+                    {
+                        "name": "狗",
+                        "value": "fx5h",
+                        "hidden": false
+                    },
+                    {
+                        "name": "猪",
+                        "value": "Y7cn",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_23": {
+                "label": "学历",
+                "api_code_alias": null,
+                "type": "drop_down",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "本科",
+                        "value": "fJk1",
+                        "hidden": false
+                    },
+                    {
+                        "name": "大学",
+                        "value": "z29G",
+                        "hidden": false
+                    },
+                    {
+                        "name": "大专",
+                        "value": "a6w7",
+                        "hidden": false
+                    },
+                    {
+                        "name": "中专",
+                        "value": "Q25L",
+                        "hidden": false
+                    },
+                    {
+                        "name": "技校",
+                        "value": "Hlxf",
+                        "hidden": false
+                    },
+                    {
+                        "name": "高中",
+                        "value": "45pK",
+                        "hidden": false
+                    },
+                    {
+                        "name": "初中",
+                        "value": "B71u",
+                        "hidden": false
+                    },
+                    {
+                        "name": "小学",
+                        "value": "PtoZ",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_24": {
+                "label": "加入公司时间",
+                "api_code_alias": null,
+                "type": "date_time",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "precision": "day"
+            }
+        },
+        {
+            "field_25": {
+                "label": "婚姻状况",
+                "api_code_alias": null,
+                "type": "drop_down",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "已婚",
+                        "value": "sJKZ",
+                        "hidden": false
+                    },
+                    {
+                        "name": "未婚",
+                        "value": "Xo7W",
+                        "hidden": false
+                    },
+                    {
+                        "name": "离异",
+                        "value": "WvFf",
+                        "hidden": false
+                    },
+                    {
+                        "name": "丧偶",
+                        "value": "7B6X",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_27": {
+                "label": "身高（厘米）",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_30": {
+                "label": "证书",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "护照",
+                        "value": "Quql",
+                        "hidden": false
+                    },
+                    {
+                        "name": "港澳通行证",
+                        "value": "EJfo",
+                        "hidden": false
+                    },
+                    {
+                        "name": "台胞证",
+                        "value": "XtWv",
+                        "hidden": false
+                    },
+                    {
+                        "name": "母婴护理师证",
+                        "value": "w8Ds",
+                        "hidden": false
+                    },
+                    {
+                        "name": "营养师证",
+                        "value": "1JB7",
+                        "hidden": false
+                    },
+                    {
+                        "name": "育婴师证",
+                        "value": "3p5p",
+                        "hidden": false
+                    },
+                    {
+                        "name": "家政证书",
+                        "value": "4eA2",
+                        "hidden": false
+                    },
+                    {
+                        "name": "厨师证",
+                        "value": "6Mka",
+                        "hidden": false
+                    },
+                    {
+                        "name": "养老护理证书",
+                        "value": "H6Ux",
+                        "hidden": false
+                    },
+                    {
+                        "name": "幼师证",
+                        "value": "0HH7",
+                        "hidden": false
+                    },
+                    {
+                        "name": "护士证",
+                        "value": "ygES",
+                        "hidden": false
+                    },
+                    {
+                        "name": "驾照证",
+                        "value": "vZOp",
+                        "hidden": false
+                    },
+                    {
+                        "name": "会计证",
+                        "value": "6QtI",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_28": {
+                "label": "体重（公斤）",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_32": {
+                "label": "优势",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "护理产妇",
+                        "value": "AXbI",
+                        "hidden": false
+                    },
+                    {
+                        "name": "护理宝宝",
+                        "value": "mmkX",
+                        "hidden": false
+                    },
+                    {
+                        "name": "做饭",
+                        "value": "Ksp6",
+                        "hidden": false
+                    },
+                    {
+                        "name": "收纳整理",
+                        "value": "oj5e",
+                        "hidden": false
+                    },
+                    {
+                        "name": "打扫卫生",
+                        "value": "3Y9F",
+                        "hidden": false
+                    },
+                    {
+                        "name": "会针线",
+                        "value": "6fm3",
+                        "hidden": false
+                    },
+                    {
+                        "name": "织毛衣",
+                        "value": "YxYR",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_58": {
+                "label": "其它优势和证书描述",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_63": {
+                "label": "过去三年内是否接受过医学检查（含健康体检）且结果异常？如血检、肿瘤标志物、X光、超声波、心电图、CT、核磁共振、核素扫描、内窥镜、病理检查、脑电图、心血管造影等？",
+                "api_code_alias": null,
+                "type": "drop_down",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "是",
+                        "value": "CiwH",
+                        "hidden": false
+                    },
+                    {
+                        "name": "否",
+                        "value": "njio",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_64": {
+                "label": "过去是否接受手术、住院治疗？接受诊疗超过7天以上？",
+                "api_code_alias": null,
+                "type": "drop_down",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "是",
+                        "value": "EYKE",
+                        "hidden": false
+                    },
+                    {
+                        "name": "否",
+                        "value": "2SGf",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_65": {
+                "label": "是否正在接受药物治疗、心理治疗？",
+                "api_code_alias": null,
+                "type": "drop_down",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "是",
+                        "value": "tYRW",
+                        "hidden": false
+                    },
+                    {
+                        "name": "否",
+                        "value": "IKOt",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_66": {
+                "label": "是否身体残障状况：四肢、五官、手指、足趾缺损或畸形？",
+                "api_code_alias": null,
+                "type": "drop_down",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "是",
+                        "value": "TKnW",
+                        "hidden": false
+                    },
+                    {
+                        "name": "否",
+                        "value": "LYzT",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_67": {
+                "label": "是否有身体残障状况：视力、听力、语言能力或智力障碍？",
+                "api_code_alias": null,
+                "type": "drop_down",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "是",
+                        "value": "CQEN",
+                        "hidden": false
+                    },
+                    {
+                        "name": "否",
+                        "value": "uDTt",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_68": {
+                "label": "是否身体有疼痛和残障状况：脊柱、胸廓、四肢或关节功能障碍？",
+                "api_code_alias": null,
+                "type": "drop_down",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "是",
+                        "value": "yCFp",
+                        "hidden": false
+                    },
+                    {
+                        "name": "否",
+                        "value": "u3YX",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_69": {
+                "label": "目前或过去是否有下列症状或异常情况？或曾因此而就诊？反复头晕、反复头痛、晕厥、胸闷、胸痛、气急、不明原因发热或持续反复发热、抽搐、呕血、浮肿、黄疸、便血、血尿、蛋白尿、肿块、视力或听力明显下降、血糖异常、血压异常、过去三个月内体重有5公斤及以上的减少？",
+                "api_code_alias": null,
+                "type": "drop_down",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "是",
+                        "value": "YPe2",
+                        "hidden": false
+                    },
+                    {
+                        "name": "否",
+                        "value": "w7cW",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_70": {
+                "label": "是否患有下列疾病：神经精神疾病，如癫痫、重症肌无力、肌营养不良症、多发性硬化症、铂金森氏综合症、肌肉萎缩、脊髓疾病、精神分裂症、焦虑症、情感障碍、抑郁症、痴呆症？",
+                "api_code_alias": null,
+                "type": "drop_down",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "是",
+                        "value": "Tlkh",
+                        "hidden": false
+                    },
+                    {
+                        "name": "否",
+                        "value": "Uz3i",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_71": {
+                "label": "目前或过去患有下列疾病：五官科疾病，如视网膜出血或剥离、视神经病变、虹膜睫状体炎、青光眼、白内障、失明、高度近视800度以上、眼底病变、中耳炎、耳聋、鼻窦炎、美尼尔病？",
+                "api_code_alias": null,
+                "type": "drop_down",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "是",
+                        "value": "qXpu",
+                        "hidden": false
+                    },
+                    {
+                        "name": "否",
+                        "value": "eKnv",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_72": {
+                "label": "是否目前或过去患有下列疾病：呼吸系统疾病，如慢性支气管炎、哮喘、睡眠呼吸暂停综合症、肺脓肿、肺栓塞、胸膜炎、肺气肿、支气管扩张、肺纤维化、肺结核、尘肺、肺结节？",
+                "api_code_alias": null,
+                "type": "drop_down",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "是",
+                        "value": "ysNL",
+                        "hidden": false
+                    },
+                    {
+                        "name": "否",
+                        "value": "Ve2d",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_73": {
+                "label": "是否目前或过去患有下列疾病：心脑及血管性疾病，如高血压病、缩窄性心包炎、心内膜炎、风湿性心脏病、缺血性心脏病、心肌梗塞、心肌肥厚、主动脉血管瘤、心律失常、心肌病、脑血管瘤、脑血管意外、脑炎、脑膜炎、血管畸形、血管瘤、下肢静脉曲张？",
+                "api_code_alias": null,
+                "type": "drop_down",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "是",
+                        "value": "v5xz",
+                        "hidden": false
+                    },
+                    {
+                        "name": "否",
+                        "value": "yrXp",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_74": {
+                "label": "是否目前或过去患有下列疾病：消化系统疾病，如肝炎病毒携带者、肝硬化、肝脓肿、肝炎、肝脾肿大、脂肪肝、肝吸虫感染、胆囊炎、胆结石、化脓性胆管炎、消化道溃疡、出血及穿孔、溃疡性结肠炎、胰腺炎、肛管疾病、疝气？",
+                "api_code_alias": null,
+                "type": "drop_down",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "是",
+                        "value": "mQjM",
+                        "hidden": false
+                    },
+                    {
+                        "name": "否",
+                        "value": "E1Y3",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_75": {
+                "label": "是否目前或过去患有下列疾病：泌尿系统疾病，如肾炎、肾病综合征、肾功能异常、尿毒症、肾囊肿、肾积水、尿路结石、尿路畸形？",
+                "api_code_alias": null,
+                "type": "drop_down",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "是",
+                        "value": "h3qz",
+                        "hidden": false
+                    },
+                    {
+                        "name": "否",
+                        "value": "gwFg",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_76": {
+                "label": "是否目前或过去患有下列疾病：内分泌系统疾病，如糖尿病、通风、肢端肥大症、垂体机能亢进或减退、甲状腺或甲状旁腺机能亢进或减退、甲状腺结节、肾上腺机能亢进或减退？",
+                "api_code_alias": null,
+                "type": "drop_down",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "是",
+                        "value": "crMf",
+                        "hidden": false
+                    },
+                    {
+                        "name": "否",
+                        "value": "vX9s",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_77": {
+                "label": "是否目前或过去患有下列疾病：血液系统疾病，如血友病、白血病、各类贫血、血小板减少？息肉、囊肿、赘生物、结节、恶性的肿瘤？",
+                "api_code_alias": null,
+                "type": "drop_down",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "是",
+                        "value": "hkKN",
+                        "hidden": false
+                    },
+                    {
+                        "name": "否",
+                        "value": "UzsQ",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_78": {
+                "label": "是否患有下列疾病：风湿免疫性疾病，如关节炎、类风湿关节炎、强直性脊柱炎、系统性红斑狼疮、胶原症、硬皮病？",
+                "api_code_alias": null,
+                "type": "drop_down",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "是",
+                        "value": "9kCM",
+                        "hidden": false
+                    },
+                    {
+                        "name": "否",
+                        "value": "kc9P",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_79": {
+                "label": "是否目前或过去有下列疾病：骨骼系统疾病，如关节畸形、关节功能异常、双侧肢体不对称、股骨头坏死、颈椎病、腰椎病、脊柱疾病？",
+                "api_code_alias": null,
+                "type": "drop_down",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "是",
+                        "value": "5kf0",
+                        "hidden": false
+                    },
+                    {
+                        "name": "否",
+                        "value": "8QLl",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_80": {
+                "label": "是否目前或过去患有下列疾病：性病、酒精或药物依赖？",
+                "api_code_alias": null,
+                "type": "drop_down",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "是",
+                        "value": "E2gL",
+                        "hidden": false
+                    },
+                    {
+                        "name": "否",
+                        "value": "XEqE",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_81": {
+                "label": "您或您配偶/父母是否曾接受或试图接受与艾滋病有关的医疗咨询、检验或治疗或是否曾过去6个月内持续一周以上有下列症状：体重下降、食欲不振、盗汗、腹泻、淋巴结节肿大及皮肤溃疡？",
+                "api_code_alias": null,
+                "type": "drop_down",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "是",
+                        "value": "c8dZ",
+                        "hidden": false
+                    },
+                    {
+                        "name": "否",
+                        "value": "jOEm",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_82": {
+                "label": "您的家属（父母、兄弟姐妹）是否曾患有或正患有心脏病、多囊肾、肠息肉、糖尿病、癌症？",
+                "api_code_alias": null,
+                "type": "drop_down",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "是",
+                        "value": "aMa8",
+                        "hidden": false
+                    },
+                    {
+                        "name": "否",
+                        "value": "kuWt",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_95": {
+                "label": "家族中是否有人得过高血压、高血脂、高血糖？",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": null,
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_96": {
+                "label": "您是否有高血压、高血脂、高血糖？",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": null,
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_83": {
+                "label": "您是否吸烟或曾吸烟？",
+                "api_code_alias": null,
+                "type": "drop_down",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "是",
+                        "value": "wIsC",
+                        "hidden": false
+                    },
+                    {
+                        "name": "否",
+                        "value": "OBz4",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_84": {
+                "label": "您是否或曾有饮酒的习惯？",
+                "api_code_alias": null,
+                "type": "drop_down",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "是",
+                        "value": "VKkj",
+                        "hidden": false
+                    },
+                    {
+                        "name": "否",
+                        "value": "953r",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_85": {
+                "label": "您是否曾接到医生对您饮酒、吸烟的建议和警告？",
+                "api_code_alias": null,
+                "type": "drop_down",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "是",
+                        "value": "BmYx",
+                        "hidden": false
+                    },
+                    {
+                        "name": "否",
+                        "value": "Sdif",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_86": {
+                "label": "以上健康问卷，回答“是”的地方，请对身体健康进行详细描述",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_8": {
+                "label": "亲属信息",
+                "api_code_alias": null,
+                "type": "table",
+                "notes": "<p>填写此处，必须向左滑动，后面还有需填写的内容</p>",
+                "private": false,
+                "validation": {
+                    "required": true
+                },
+                "dimensions": [
+                    {
+                        "field_1": {
+                            "label": "家中有哪几口人员",
+                            "api_code_alias": null,
+                            "type": "paragraph_text",
+                            "notes": null,
+                            "private": false,
+                            "validation": {}
+                        }
+                    },
+                    {
+                        "field_2": {
+                            "label": "紧急联系人姓名",
+                            "api_code_alias": null,
+                            "type": "single_line_text",
+                            "notes": null,
+                            "private": false,
+                            "validation": {}
+                        }
+                    },
+                    {
+                        "field_3": {
+                            "label": "紧急联系人电话",
+                            "api_code_alias": null,
+                            "type": "number",
+                            "notes": null,
+                            "private": false,
+                            "validation": {}
+                        }
+                    },
+                    {
+                        "field_4": {
+                            "label": "与紧急联系人的关系",
+                            "api_code_alias": null,
+                            "type": "single_line_text",
+                            "notes": null,
+                            "private": false,
+                            "validation": {}
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "field_34": {
+                "label": "回答以下问题",
+                "api_code_alias": null,
+                "type": "section_break",
+                "notes": "<p>回答下面问题必须是自己本人真实情况和想法，不可以参照她人的想法</p>\n\n<p>每题必须回答，没有的就写没有，也不能空着</p>",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_35": {
+                "label": "来公司打算做多久？",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_36": {
+                "label": "今年工作计划什么时候必须回家？为什么？",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_37": {
+                "label": "曾经都做过哪些工作？做了多长时间？",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_38": {
+                "label": "护理过哪些特殊人群，比如什么样的产妇？什么样的宝宝？什么样的老人？",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_39": {
+                "label": "护理过多少位产妇？多少位宝宝？多少位老人？",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_40": {
+                "label": "最短一家客户服务了多长时间？最长一家客户服务了多长时间？",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_41": {
+                "label": "上一份工作的基本工资是多少钱一个月？",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_42": {
+                "label": "加入萌姨萌嫂公司，刚开始的期望工资是多少？（以自己能力为基础考虑）",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_43": {
+                "label": "在哪些家政中介公司上过户？",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_44": {
+                "label": "离开上一家公司的原因是什么？",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_45": {
+                "label": "是否有接过私单？若有，为什么要再回到公司找工作？",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_46": {
+                "label": "不喜欢跟自己身边的哪种人相处？",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_47": {
+                "label": "自己是什么样的性格？",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_48": {
+                "label": "自己有哪些优点和缺点？",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_49": {
+                "label": "觉得自己是一个讲诚信的人吗？",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_50": {
+                "label": "在公司发展，您想得公司哪些帮助？",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_59": {
+                "label": "未到公司来之前，你工作中是否遇到过什么困难",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_51": {
+                "label": "为什么会选择萌姨萌嫂公司？",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_52": {
+                "label": "怎么看待自己跟公司的关系？",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_19": {
+                "label": "如何知道萌姨萌嫂公司？",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_53": {
+                "label": "在客户家吃不饱饭，自己会怎么处理？",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_54": {
+                "label": "在客户家吃剩饭和冷饭，自己怎么处理？",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_55": {
+                "label": "在客户家吃饭和作息时间不规律，自己是否能接受？",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_56": {
+                "label": "遇到客户家有隐瞒事情，自己会怎么办？",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_57": {
+                "label": "在客户家睡不好，自己会怎么处理？",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_61": {
+                "label": "在客户家受了各种委屈，你会怎么办？",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_10": {
+                "label": "与公司合同",
+                "api_code_alias": null,
+                "type": "matrix",
+                "notes": "",
+                "private": true,
+                "validation": {},
+                "statements": [
+                    {
+                        "name": "",
+                        "value": "dQIl"
+                    }
+                ],
+                "dimensions": [
+                    {
+                        "field_1": {
+                            "label": "合同编号",
+                            "api_code_alias": null,
+                            "type": "single_line_text",
+                            "notes": null,
+                            "private": false,
+                            "validation": {}
+                        }
+                    },
+                    {
+                        "field_2": {
+                            "label": "员工守则签字日期",
+                            "api_code_alias": null,
+                            "type": "date_time",
+                            "notes": null,
+                            "private": false,
+                            "validation": {},
+                            "precision": "day"
+                        }
+                    },
+                    {
+                        "field_3": {
+                            "label": "合同留公司几份",
+                            "api_code_alias": null,
+                            "type": "single_line_text",
+                            "notes": null,
+                            "private": false,
+                            "validation": {}
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "field_14": {
+                "label": "费用明细",
+                "api_code_alias": null,
+                "type": "table",
+                "notes": "",
+                "private": true,
+                "validation": {},
+                "dimensions": [
+                    {
+                        "field_1": {
+                            "label": "选项",
+                            "api_code_alias": null,
+                            "type": "drop_down",
+                            "notes": null,
+                            "private": false,
+                            "validation": {},
+                            "choices": [
+                                {
+                                    "name": "收入",
+                                    "value": "RrqE",
+                                    "hidden": false
+                                },
+                                {
+                                    "name": "支出",
+                                    "value": "g6q4",
+                                    "hidden": false
+                                },
+                                {
+                                    "name": "退款",
+                                    "value": "c8hS",
+                                    "hidden": false
+                                },
+                                {
+                                    "name": "欠公司费用",
+                                    "value": "NU22",
+                                    "hidden": false
+                                },
+                                {
+                                    "name": "还公司费用",
+                                    "value": "vsWl",
+                                    "hidden": false
+                                }
+                            ],
+                            "allow_other": false
+                        }
+                    },
+                    {
+                        "field_2": {
+                            "label": "交款日期",
+                            "api_code_alias": null,
+                            "type": "date_time",
+                            "notes": null,
+                            "private": false,
+                            "validation": {},
+                            "precision": "day"
+                        }
+                    },
+                    {
+                        "field_3": {
+                            "label": "费用类别",
+                            "api_code_alias": null,
+                            "type": "single_line_text",
+                            "notes": null,
+                            "private": false,
+                            "validation": {}
+                        }
+                    },
+                    {
+                        "field_4": {
+                            "label": "费用额度",
+                            "api_code_alias": null,
+                            "type": "number",
+                            "notes": null,
+                            "private": false,
+                            "validation": {}
+                        }
+                    },
+                    {
+                        "field_5": {
+                            "label": "备注",
+                            "api_code_alias": null,
+                            "type": "single_line_text",
+                            "notes": null,
+                            "private": false,
+                            "validation": {}
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "field_11": {
+                "label": "上户下户记录",
+                "api_code_alias": null,
+                "type": "table",
+                "notes": "",
+                "private": true,
+                "validation": {},
+                "dimensions": [
+                    {
+                        "field_1": {
+                            "label": "客户姓名",
+                            "api_code_alias": null,
+                            "type": "single_line_text",
+                            "notes": null,
+                            "private": false,
+                            "validation": {}
+                        }
+                    },
+                    {
+                        "field_11": {
+                            "label": "带的孩子年龄段",
+                            "api_code_alias": null,
+                            "type": "single_line_text",
+                            "notes": null,
+                            "private": false,
+                            "validation": {}
+                        }
+                    },
+                    {
+                        "field_2": {
+                            "label": "上户时工资（元/月）",
+                            "api_code_alias": null,
+                            "type": "number",
+                            "notes": null,
+                            "private": false,
+                            "validation": {}
+                        }
+                    },
+                    {
+                        "field_3": {
+                            "label": "上户时间",
+                            "api_code_alias": null,
+                            "type": "single_line_text",
+                            "notes": null,
+                            "private": false,
+                            "validation": {}
+                        }
+                    },
+                    {
+                        "field_4": {
+                            "label": "下户时间",
+                            "api_code_alias": null,
+                            "type": "single_line_text",
+                            "notes": null,
+                            "private": false,
+                            "validation": {}
+                        }
+                    },
+                    {
+                        "field_5": {
+                            "label": "下户时工资（元/月）",
+                            "api_code_alias": null,
+                            "type": "number",
+                            "notes": null,
+                            "private": false,
+                            "validation": {}
+                        }
+                    },
+                    {
+                        "field_6": {
+                            "label": "下户原因",
+                            "api_code_alias": null,
+                            "type": "paragraph_text",
+                            "notes": null,
+                            "private": false,
+                            "validation": {}
+                        }
+                    },
+                    {
+                        "field_9": {
+                            "label": "没履行完合同的原因",
+                            "api_code_alias": null,
+                            "type": "single_line_text",
+                            "notes": null,
+                            "private": false,
+                            "validation": {}
+                        }
+                    },
+                    {
+                        "field_7": {
+                            "label": "客户反馈图片",
+                            "api_code_alias": null,
+                            "type": "attachment",
+                            "notes": null,
+                            "private": false,
+                            "validation": {},
+                            "max_file_quantity": 1,
+                            "media_type": {
+                                "type": "unlimited",
+                                "value": []
+                            }
+                        }
+                    },
+                    {
+                        "field_8": {
+                            "label": "客户平常反馈时间和内容",
+                            "api_code_alias": null,
+                            "type": "paragraph_text",
+                            "notes": null,
+                            "private": false,
+                            "validation": {}
+                        }
+                    },
+                    {
+                        "field_10": {
+                            "label": "涨工资",
+                            "api_code_alias": null,
+                            "type": "paragraph_text",
+                            "notes": null,
+                            "private": false,
+                            "validation": {}
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "field_18": {
+                "label": "户上事故记录及户上严重投诉",
+                "api_code_alias": null,
+                "type": "table",
+                "notes": "",
+                "private": true,
+                "validation": {},
+                "dimensions": [
+                    {
+                        "field_1": {
+                            "label": "日期",
+                            "api_code_alias": null,
+                            "type": "date_time",
+                            "notes": null,
+                            "private": false,
+                            "validation": {},
+                            "precision": "day"
+                        }
+                    },
+                    {
+                        "field_2": {
+                            "label": "事件内容",
+                            "api_code_alias": null,
+                            "type": "paragraph_text",
+                            "notes": null,
+                            "private": false,
+                            "validation": {}
+                        }
+                    },
+                    {
+                        "field_3": {
+                            "label": "图片",
+                            "api_code_alias": null,
+                            "type": "attachment",
+                            "notes": null,
+                            "private": false,
+                            "validation": {},
+                            "max_file_quantity": 1,
+                            "media_type": {
+                                "type": "unlimited",
+                                "value": []
+                            }
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "field_87": {
+                "label": "萌嫂在公司的表现记录",
+                "api_code_alias": null,
+                "type": "table",
+                "notes": "",
+                "private": true,
+                "validation": {},
+                "dimensions": [
+                    {
+                        "field_1": {
+                            "label": "日期",
+                            "api_code_alias": null,
+                            "type": "date_time",
+                            "notes": null,
+                            "private": false,
+                            "validation": {},
+                            "precision": "day"
+                        }
+                    },
+                    {
+                        "field_2": {
+                            "label": "事件内容",
+                            "api_code_alias": null,
+                            "type": "single_line_text",
+                            "notes": null,
+                            "private": false,
+                            "validation": {}
+                        }
+                    },
+                    {
+                        "field_3": {
+                            "label": "图片",
+                            "api_code_alias": null,
+                            "type": "attachment",
+                            "notes": null,
+                            "private": false,
+                            "validation": {},
+                            "max_file_quantity": 1,
+                            "media_type": {
+                                "type": "unlimited",
+                                "value": []
+                            }
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "field_88": {
+                "label": "学习记录",
+                "api_code_alias": null,
+                "type": "table",
+                "notes": "",
+                "private": true,
+                "validation": {},
+                "dimensions": [
+                    {
+                        "field_1": {
+                            "label": "日期",
+                            "api_code_alias": null,
+                            "type": "date_time",
+                            "notes": null,
+                            "private": false,
+                            "validation": {},
+                            "precision": "day"
+                        }
+                    },
+                    {
+                        "field_2": {
+                            "label": "学习内容",
+                            "api_code_alias": null,
+                            "type": "paragraph_text",
+                            "notes": null,
+                            "private": false,
+                            "validation": {}
+                        }
+                    },
+                    {
+                        "field_3": {
+                            "label": "学习费用",
+                            "api_code_alias": null,
+                            "type": "single_line_text",
+                            "notes": null,
+                            "private": false,
+                            "validation": {}
+                        }
+                    },
+                    {
+                        "field_4": {
+                            "label": "讲课老师",
+                            "api_code_alias": null,
+                            "type": "paragraph_text",
+                            "notes": null,
+                            "private": false,
+                            "validation": {}
+                        }
+                    },
+                    {
+                        "field_6": {
+                            "label": "备注",
+                            "api_code_alias": null,
+                            "type": "single_line_text",
+                            "notes": null,
+                            "private": false,
+                            "validation": {}
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "field_91": {
+                "label": "公司推荐阿姨给客户的记录：",
+                "api_code_alias": null,
+                "type": "table",
+                "notes": "",
+                "private": true,
+                "validation": {},
+                "dimensions": [
+                    {
+                        "field_1": {
+                            "label": "时间",
+                            "api_code_alias": null,
+                            "type": "date_time",
+                            "notes": null,
+                            "private": false,
+                            "validation": {},
+                            "precision": "day"
+                        }
+                    },
+                    {
+                        "field_2": {
+                            "label": "介绍内容",
+                            "api_code_alias": null,
+                            "type": "paragraph_text",
+                            "notes": null,
+                            "private": false,
+                            "validation": {}
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "field_89": {
+                "label": "在公司最后记录",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": true,
+                "validation": {}
+            }
+        }
+    ]
+}

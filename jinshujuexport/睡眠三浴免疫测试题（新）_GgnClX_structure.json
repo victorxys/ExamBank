@@ -1,0 +1,581 @@
+{
+    "name": "睡眠三浴免疫测试题（新）",
+    "token": "GgnClX",
+    "description": "非常感谢您能够参加本次调查，本次考试采用限时考试的方式，准备好了吗？我们现在开始吧！",
+    "fields": [
+        {
+            "field_1": {
+                "label": "姓名",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_2": {
+                "label": "手机",
+                "api_code_alias": null,
+                "type": "mobile",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_11": {
+                "label": "3～6个月宝宝每天的睡眠时间是在几个小时左右，白天3-4觉，晚上10个小时？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、12～13个小时",
+                        "value": "V7qh",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、12～14个小时",
+                        "value": "mEUw",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、16～18个小时",
+                        "value": "11uM",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4、18～20个小时",
+                        "value": "MqiT",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_12": {
+                "label": "7～9个月宝宝每天的睡眠是几个小时？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、12～13个小时",
+                        "value": "2bu1",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、12～14个小时",
+                        "value": "w3o-",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、16～18个小时",
+                        "value": "v5mI",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4、18～20个小时",
+                        "value": "YtiV",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_13": {
+                "label": "10～12个月宝宝每天睡眠时间睡几个小时，白天一觉，晚上10个小时？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、12～13个小时",
+                        "value": "Lovf",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、12～14个小时",
+                        "value": "mwQW",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、16～18个小时",
+                        "value": "ZTNE",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4、18～20个小时",
+                        "value": "e2ns",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_4": {
+                "label": "小宝宝睡眠的姿势",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、宝宝主张右侧卧位",
+                        "value": "b_39",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、宝宝主张左侧卧位",
+                        "value": "4GCd",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、一个半小时放平",
+                        "value": "E4Rv",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4、宝宝最好睡硬板床",
+                        "value": "_a06",
+                        "hidden": false
+                    },
+                    {
+                        "name": "5、六个月前不枕枕头，培养宝宝独立睡眠",
+                        "value": "1iTb",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_14": {
+                "label": "宝宝每天晒太阳，冬天晒太阳是在几点？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、11：30～13:00",
+                        "value": "bE6L",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、10:00～14:00",
+                        "value": "RXeW",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、下午17:00以后",
+                        "value": "d602",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4、10：00以前",
+                        "value": "Sha9",
+                        "hidden": false
+                    },
+                    {
+                        "name": "5、9:00～11：00",
+                        "value": "hGTT",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_15": {
+                "label": "宝宝每天晒太阳，夏天晒太阳是在几点？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、11：30～13:00",
+                        "value": "pT8k",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、12:00～14:00",
+                        "value": "z1s6",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、下午17:00以后",
+                        "value": "RP8s",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4、9：00以前",
+                        "value": "RavW",
+                        "hidden": false
+                    },
+                    {
+                        "name": "5、9:00～11：00",
+                        "value": "v7Fn",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_16": {
+                "label": "宝宝晒太阳要注意什么？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、冬季尽量让孩子手脚漏出来",
+                        "value": "2y7X",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、遮挡阳光",
+                        "value": "74Nl",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、夏天在树荫下",
+                        "value": "RsWr",
+                        "hidden": false
+                    },
+                    {
+                        "name": "5、遮挡眼睛",
+                        "value": "eiA4",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_17": {
+                "label": "宝宝在什么情况下，是不能接种疫苗？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、发热",
+                        "value": "GhpB",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、腹泻",
+                        "value": "P_bS",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、生病拉肚子",
+                        "value": "fqNR",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4、湿疹",
+                        "value": "bFsE",
+                        "hidden": false
+                    },
+                    {
+                        "name": "5、咳嗽",
+                        "value": "iuZ8",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_18": {
+                "label": "宝宝疫苗接种后有什么反应？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、体温升高2～3天",
+                        "value": "uJvI",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、起疹子",
+                        "value": "eh0i",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、轮状病毒拉肚子",
+                        "value": "s8Iz",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4、饮食清淡、喝奶为主",
+                        "value": "P-oB",
+                        "hidden": false
+                    },
+                    {
+                        "name": "5、发烧38度左右",
+                        "value": "ifYA",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_19": {
+                "label": "接种疫苗后，应该怎么护理宝宝？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、多睡",
+                        "value": "xd_e",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、多喝水",
+                        "value": "zWkK",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、以奶为主",
+                        "value": "de_p",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4、饮食清淡",
+                        "value": "AgX2",
+                        "hidden": false
+                    },
+                    {
+                        "name": "5、增加蛋白质",
+                        "value": "0Bex",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_8": {
+                "label": "睡眠的注意事项",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、晚上不宜吃的过多过饱",
+                        "value": "ZwAG",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、忌过于轻声和安静",
+                        "value": "CrBc",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、忌宝宝一哭就抱",
+                        "value": "Olxb",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4、忌白天睡的过多",
+                        "value": "WROr",
+                        "hidden": false
+                    },
+                    {
+                        "name": "5、忌困极了再睡",
+                        "value": "pmSL",
+                        "hidden": false
+                    },
+                    {
+                        "name": "6、忌打乱节奏",
+                        "value": "l3zk",
+                        "hidden": false
+                    },
+                    {
+                        "name": "7、忌睡前过于兴奋",
+                        "value": "DR75",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_20": {
+                "label": "宝宝6个月前脑部发育可以占到一生的百分多少？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、65%",
+                        "value": "2gEl",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、65%～70%",
+                        "value": "XPX6",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、85%",
+                        "value": "AL6f",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4、90%～95%",
+                        "value": "T24X",
+                        "hidden": false
+                    },
+                    {
+                        "name": "5、5%",
+                        "value": "fmS8",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_21": {
+                "label": "三岁前，宝宝智力发育可占到一生的百分多少？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、65%",
+                        "value": "tAWk",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、65%～70%",
+                        "value": "WcLC",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、85%",
+                        "value": "cJc4",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4、90%～95%",
+                        "value": "c1hs",
+                        "hidden": false
+                    },
+                    {
+                        "name": "5、5%",
+                        "value": "fwcb",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_22": {
+                "label": "三岁前对宝宝生长发育，有哪些关键期？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、性格",
+                        "value": "sxL7",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、智力",
+                        "value": "0HmE",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、情感",
+                        "value": "YoKO",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4、自律性",
+                        "value": "rNlk",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_10": {
+                "label": "如何有效的给宝宝智力开发？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、多听、多看、多说",
+                        "value": "xegj",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、好的生活环境",
+                        "value": "fzUi",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、好的感情环境",
+                        "value": "qM1T",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4、多鼓励，多给予创造环境",
+                        "value": "jYW4",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        }
+    ]
+}

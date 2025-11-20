@@ -1,0 +1,407 @@
+{
+    "name": "生长发育测试题（新）",
+    "token": "dIvgdf",
+    "description": "非常感谢您能够参加本次调查，本次考试采用限时考试的方式，准备好了吗？我们现在开始吧！",
+    "fields": [
+        {
+            "field_1": {
+                "label": "姓名",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_2": {
+                "label": "手机",
+                "api_code_alias": null,
+                "type": "mobile",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_3": {
+                "label": "婴幼儿分几个阶段？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、0～28天 新生儿期",
+                        "value": "6eTV",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、28天～1岁 小婴儿期，也叫乳儿期",
+                        "value": "QvVl",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、1岁～3岁 幼儿期",
+                        "value": "Mh-1",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4、3岁～6岁 学龄前期",
+                        "value": "n7h5",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_4": {
+                "label": "孩子哪个阶段生长发育最快？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、2岁～3岁",
+                        "value": "6anU",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、0岁～1岁",
+                        "value": "zjg7",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、1岁～2岁",
+                        "value": "OLzd",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_5": {
+                "label": "从几个方面看孩子的生长发育？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、身高",
+                        "value": "li63",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、体重",
+                        "value": "qfcp",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、头围",
+                        "value": "EEvq",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4、囟门",
+                        "value": "Jmor",
+                        "hidden": false
+                    },
+                    {
+                        "name": "5、牙齿",
+                        "value": "84NM",
+                        "hidden": false
+                    },
+                    {
+                        "name": "6、大动作",
+                        "value": "7cSg",
+                        "hidden": false
+                    },
+                    {
+                        "name": "7、精细动作",
+                        "value": "uTnq",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_6": {
+                "label": "宝宝生长发育哪两个方面最明显，最直观？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、体重  牙齿",
+                        "value": "xtAO",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、身高  体重",
+                        "value": "8Soa",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、囟门  牙齿",
+                        "value": "g7hb",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_7": {
+                "label": "宝宝出牙的时间是怎样的？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、4～6个月开始萌出，早出牙的在4个月",
+                        "value": "-ee8",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、在大概1岁半到2岁时，乳牙全部萌出",
+                        "value": "rvvX",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、在大概2岁半到3岁时乳牙全部萌出",
+                        "value": "LLTL",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4、出牙时间由遗传决定，18个月前出第一颗乳牙即可",
+                        "value": "ttob",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_8": {
+                "label": "宝宝出牙都有什么表现？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、流口水、咬人、拉耳朵",
+                        "value": "Kpqc",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、喜欢吃手、腹泻、食欲下降",
+                        "value": "EmAs",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、烦躁、摩擦脸颊、轻度发热",
+                        "value": "oggd",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_9": {
+                "label": "出牙后，如何护理牙齿？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、小宝宝尽量不含奶头睡，吃完奶以后喝一口水",
+                        "value": "9UXL",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、到1岁半可以手缠纱布为宝宝早晚清洁牙齿，1岁半以后可使用牙刷刷牙",
+                        "value": "DFZh",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、1岁半到2岁看宝宝的理解能力决定是否用牙膏，看宝宝能否将牙膏吐出来",
+                        "value": "wfix",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_10": {
+                "label": "影响宝宝生长发育有哪些因素？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、遗传基因",
+                        "value": "gx97",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、孕期健康",
+                        "value": "nGc3",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、习惯  喂养",
+                        "value": "vQ3r",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4、疾病  环境",
+                        "value": "dVSv",
+                        "hidden": false
+                    },
+                    {
+                        "name": "5、地域",
+                        "value": "jMjy",
+                        "hidden": false
+                    },
+                    {
+                        "name": "6、母乳或配方奶喂养",
+                        "value": "c4kH",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_11": {
+                "label": "0～1岁宝宝有什么特点？从习惯、喂养、早教三方面看",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、早教、习惯、喂养",
+                        "value": "cBOB",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、习惯、喂养、早教",
+                        "value": "7CNI",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、喂养、早教、习惯",
+                        "value": "AXV_",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_12": {
+                "label": "1岁～2岁宝宝有什么特点？从习惯、喂养、早教三方面看",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、喂养、习惯、早教",
+                        "value": "j3pQ",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、早教、习惯、喂养",
+                        "value": "RcyE",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、习惯、早教、喂养",
+                        "value": "N-ho",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_13": {
+                "label": "2岁～3岁宝宝有什么特点？从习惯、喂养、早教三方面看",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、喂养、习惯、早教",
+                        "value": "UOM5",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、早教、习惯、喂养",
+                        "value": "jnMD",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、习惯、早教、喂养",
+                        "value": "SrYP",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_14": {
+                "label": "一般出生3个月时体重约为出生体重的几倍？1岁时体重约为出生体重的几倍？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、1倍、2倍",
+                        "value": "yibW",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、2倍、3倍",
+                        "value": "5spG",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        }
+    ]
+}

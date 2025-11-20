@@ -1,0 +1,116 @@
+{
+    "name": "萌姨萌嫂～请假",
+    "token": "QtiTWR",
+    "description": "",
+    "fields": [
+        {
+            "field_33": {
+                "label": "姓名",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_34": {
+                "label": "填表日期",
+                "api_code_alias": null,
+                "type": "date_time",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "precision": "day"
+            }
+        },
+        {
+            "field_35": {
+                "label": "请假原因",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_36": {
+                "label": "请假开始日期",
+                "api_code_alias": null,
+                "type": "date_time",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "precision": "day"
+            }
+        },
+        {
+            "field_37": {
+                "label": "请假结束日期",
+                "api_code_alias": null,
+                "type": "date_time",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "precision": "day"
+            }
+        },
+        {
+            "field_38": {
+                "label": "是否已经跟客户协商好本次请假事件？",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "是",
+                        "value": "cdaE",
+                        "hidden": false
+                    },
+                    {
+                        "name": "否",
+                        "value": "Hn6X",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_39": {
+                "label": "是否需要公司跟客户沟通？",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "是",
+                        "value": "m9XQ",
+                        "hidden": false
+                    },
+                    {
+                        "name": "否",
+                        "value": "kSug",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_40": {
+                "label": "备注",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        }
+    ]
+}

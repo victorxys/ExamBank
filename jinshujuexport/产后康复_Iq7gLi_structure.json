@@ -1,0 +1,593 @@
+{
+    "name": "产后康复",
+    "token": "Iq7gLi",
+    "description": null,
+    "fields": [
+        {
+            "field_1": {
+                "label": "姓名",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_28": {
+                "label": "手机",
+                "api_code_alias": null,
+                "type": "mobile",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_3": {
+                "label": "生日",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_4": {
+                "label": "分娩前体重：",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_5": {
+                "label": "分娩后体重：",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_6": {
+                "label": "分娩时间：",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_7": {
+                "label": "生育情况",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "顺产",
+                        "value": "m6di",
+                        "hidden": false
+                    },
+                    {
+                        "name": "剖宫产",
+                        "value": "SV3u",
+                        "hidden": false
+                    },
+                    {
+                        "name": "初产",
+                        "value": "28Pu",
+                        "hidden": false
+                    },
+                    {
+                        "name": "二胎",
+                        "value": "YneA",
+                        "hidden": false
+                    },
+                    {
+                        "name": "侧切",
+                        "value": "ZAQf",
+                        "hidden": false
+                    },
+                    {
+                        "name": "撕裂",
+                        "value": "V0uH",
+                        "hidden": false
+                    },
+                    {
+                        "name": "难产",
+                        "value": "5LxV",
+                        "hidden": false
+                    },
+                    {
+                        "name": "浦乳期",
+                        "value": "cE6V",
+                        "hidden": false
+                    },
+                    {
+                        "name": "其他",
+                        "value": "ZOzh",
+                        "hidden": false,
+                        "is_other": true
+                    }
+                ],
+                "allow_other": true
+            }
+        },
+        {
+            "field_9": {
+                "label": "生活习惯：",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "有规律运动",
+                        "value": "8ovb",
+                        "hidden": false
+                    },
+                    {
+                        "name": "每周运动不超过2次",
+                        "value": "q5AB",
+                        "hidden": false
+                    },
+                    {
+                        "name": "长期久坐",
+                        "value": "EI0t",
+                        "hidden": false
+                    },
+                    {
+                        "name": "睡眠问题",
+                        "value": "4XNU",
+                        "hidden": false
+                    },
+                    {
+                        "name": "其他",
+                        "value": "K01j",
+                        "hidden": false,
+                        "is_other": true
+                    }
+                ],
+                "allow_other": true
+            }
+        },
+        {
+            "field_10": {
+                "label": "您的瑜伽经历或其他运动经历：",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_11": {
+                "label": "是否经确诊疾病或需说明的健康情况：",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_12": {
+                "label": "您希望通过练习获得怎样的改善？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "塑形减肥",
+                        "value": "vcTq",
+                        "hidden": false
+                    },
+                    {
+                        "name": "预防乳房下垂",
+                        "value": "dnrR",
+                        "hidden": false
+                    },
+                    {
+                        "name": "修复腹直肌、盆底肌",
+                        "value": "hkaA",
+                        "hidden": false
+                    },
+                    {
+                        "name": "缓解压力",
+                        "value": "odvN",
+                        "hidden": false
+                    },
+                    {
+                        "name": "理疗",
+                        "value": "wE0q",
+                        "hidden": false
+                    },
+                    {
+                        "name": "其他",
+                        "value": "PndK",
+                        "hidden": false,
+                        "is_other": true
+                    }
+                ],
+                "allow_other": true
+            }
+        },
+        {
+            "field_17": {
+                "label": "",
+                "api_code_alias": null,
+                "type": "section_break",
+                "notes": "<p>身体状况评估physical condition assessment</p>",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_29": {
+                "label": "腰围（厘米）：",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_30": {
+                "label": "臀围（厘米）：",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_31": {
+                "label": "腿围（厘米）：",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_32": {
+                "label": "肩部：",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "正常",
+                        "value": "oB5X",
+                        "hidden": false
+                    },
+                    {
+                        "name": "高低肩",
+                        "value": "8bB1",
+                        "hidden": false
+                    },
+                    {
+                        "name": "肌肉劳损",
+                        "value": "0OrO",
+                        "hidden": false
+                    },
+                    {
+                        "name": "翼状肩胛",
+                        "value": "0eyf",
+                        "hidden": false
+                    },
+                    {
+                        "name": "其他",
+                        "value": "gMWb",
+                        "hidden": false,
+                        "is_other": true
+                    }
+                ],
+                "allow_other": true
+            }
+        },
+        {
+            "field_33": {
+                "label": "脊柱：",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "正常",
+                        "value": "lYsK",
+                        "hidden": false
+                    },
+                    {
+                        "name": "脊柱侧弯",
+                        "value": "vj4y",
+                        "hidden": false
+                    },
+                    {
+                        "name": "其他",
+                        "value": "pzam",
+                        "hidden": false,
+                        "is_other": true
+                    }
+                ],
+                "allow_other": true
+            }
+        },
+        {
+            "field_34": {
+                "label": "骨盆：",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "正常",
+                        "value": "0zpD",
+                        "hidden": false
+                    },
+                    {
+                        "name": "骨盆前倾",
+                        "value": "q1dR",
+                        "hidden": false
+                    },
+                    {
+                        "name": "骨盆后仰",
+                        "value": "UMVU",
+                        "hidden": false
+                    },
+                    {
+                        "name": "高低骨盆",
+                        "value": "83v8",
+                        "hidden": false
+                    },
+                    {
+                        "name": "其他",
+                        "value": "potd",
+                        "hidden": false,
+                        "is_other": true
+                    }
+                ],
+                "allow_other": true
+            }
+        },
+        {
+            "field_35": {
+                "label": "躯干：",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "肋骨/单侧外翻",
+                        "value": "JraD",
+                        "hidden": false
+                    },
+                    {
+                        "name": "腰肌劳损（疼痛）",
+                        "value": "LC5P",
+                        "hidden": false
+                    },
+                    {
+                        "name": "核心肌肉力量不足",
+                        "value": "srv4",
+                        "hidden": false
+                    },
+                    {
+                        "name": "其他",
+                        "value": "aWzR",
+                        "hidden": false,
+                        "is_other": true
+                    }
+                ],
+                "allow_other": true
+            }
+        },
+        {
+            "field_36": {
+                "label": "四肢：",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "正常",
+                        "value": "dJSg",
+                        "hidden": false
+                    },
+                    {
+                        "name": "膝关节超伸",
+                        "value": "VVEm",
+                        "hidden": false
+                    },
+                    {
+                        "name": "关节内扣",
+                        "value": "Pmqp",
+                        "hidden": false
+                    },
+                    {
+                        "name": "小腿外翻",
+                        "value": "yYJx",
+                        "hidden": false
+                    },
+                    {
+                        "name": "X腿型",
+                        "value": "Pd8v",
+                        "hidden": false
+                    },
+                    {
+                        "name": "O腿型",
+                        "value": "qd43",
+                        "hidden": false
+                    },
+                    {
+                        "name": "高足弓",
+                        "value": "WWBS",
+                        "hidden": false
+                    },
+                    {
+                        "name": "扁平足",
+                        "value": "XGhU",
+                        "hidden": false
+                    },
+                    {
+                        "name": "其他",
+                        "value": "abxS",
+                        "hidden": false,
+                        "is_other": true
+                    }
+                ],
+                "allow_other": true
+            }
+        },
+        {
+            "field_37": {
+                "label": "腹直肌",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "不超过2指",
+                        "value": "RmNN",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2～3指",
+                        "value": "Bi7q",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3指及以上",
+                        "value": "3KCV",
+                        "hidden": false
+                    },
+                    {
+                        "name": "其他",
+                        "value": "PkXK",
+                        "hidden": false,
+                        "is_other": true
+                    }
+                ],
+                "allow_other": true
+            }
+        },
+        {
+            "field_38": {
+                "label": "其他状况：",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "便秘",
+                        "value": "j6og",
+                        "hidden": false
+                    },
+                    {
+                        "name": "抽筋",
+                        "value": "9g00",
+                        "hidden": false
+                    },
+                    {
+                        "name": "痛经",
+                        "value": "eBqW",
+                        "hidden": false
+                    },
+                    {
+                        "name": "漏尿",
+                        "value": "CDYY",
+                        "hidden": false
+                    },
+                    {
+                        "name": "趾骨/坐骨神经疼痛",
+                        "value": "pkZX",
+                        "hidden": false
+                    },
+                    {
+                        "name": "假胯宽",
+                        "value": "nNB0",
+                        "hidden": false
+                    },
+                    {
+                        "name": "其他",
+                        "value": "xOpk",
+                        "hidden": false,
+                        "is_other": true
+                    }
+                ],
+                "allow_other": true
+            }
+        },
+        {
+            "field_22": {
+                "label": "综合评价及练习的建议：",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_23": {
+                "label": "会员签字：",
+                "api_code_alias": null,
+                "type": "e_signature",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_24": {
+                "label": "老师签字：",
+                "api_code_alias": null,
+                "type": "e_signature",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_25": {
+                "label": "签字日期：",
+                "api_code_alias": null,
+                "type": "date_time",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "precision": "day"
+            }
+        }
+    ]
+}

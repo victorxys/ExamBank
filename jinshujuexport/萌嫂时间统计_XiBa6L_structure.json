@@ -1,0 +1,71 @@
+{
+    "name": "萌嫂时间统计",
+    "token": "XiBa6L",
+    "description": "<p>&nbsp; &nbsp;疫情再次席卷，现阶段很多人员不能休息放松自己，各位萌嫂户上可好？我们约个时间见见对方！让我们见熟人放松心情😁😁😁</p><p>&nbsp; &nbsp;后续我们将根据大家的时间进行线上例会，各位如实填写自己时间安排，公司可多次分批举行。</p>",
+    "fields": [
+        {
+            "field_1": {
+                "label": "姓名",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": null,
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_2": {
+                "label": "每天大概几点到几点有空？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": null,
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_3": {
+                "label": "若萌嫂晚上是独立房间休息，自己是几点开始进入自己房间休息？",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": null,
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_4": {
+                "label": "上面描述的时间段中，萌嫂是否方便说话？",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": null,
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_5": {
+                "label": "若有其它情况，请写于此处",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": null,
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_6": {
+                "label": "我们将在线上腾讯会议app见面，自己可抽空下载在手机上。下面👇👇图片就是腾讯会议app，自己手机可下载。",
+                "api_code_alias": null,
+                "type": "section_break",
+                "notes": "<p>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;&nbsp;<img src=\"https://gd-pub.jinshujufiles.com/di/GuMxQxGo9f/20220509131358_e7acb4\"></p>",
+                "private": false,
+                "validation": {}
+            }
+        }
+    ]
+}

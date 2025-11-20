@@ -1,0 +1,194 @@
+{
+    "name": "数据收集",
+    "token": "ycCuI6",
+    "description": "",
+    "fields": [
+        {
+            "field_1": {
+                "label": "姓名",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_2": {
+                "label": "您在哪个年代出生？",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                },
+                "choices": [
+                    {
+                        "name": "60后",
+                        "value": "KuIS",
+                        "hidden": false
+                    },
+                    {
+                        "name": "70后",
+                        "value": "lzXt",
+                        "hidden": false
+                    },
+                    {
+                        "name": "80后",
+                        "value": "0z2s",
+                        "hidden": false
+                    },
+                    {
+                        "name": "90后",
+                        "value": "kRhH",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_3": {
+                "label": "您在工作中、生活中用的浏览器有哪些？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                },
+                "choices": [
+                    {
+                        "name": "1、搜狗浏览器",
+                        "value": "m8X1",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、百度",
+                        "value": "g5F1",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、360度搜索",
+                        "value": "XesF",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4、新浪网",
+                        "value": "ZNfc",
+                        "hidden": false
+                    },
+                    {
+                        "name": "5、QQ浏览器",
+                        "value": "fdyr",
+                        "hidden": false
+                    },
+                    {
+                        "name": "6、谷歌浏览器",
+                        "value": "CsPf",
+                        "hidden": false
+                    },
+                    {
+                        "name": "7、火狐浏览器",
+                        "value": "15mV",
+                        "hidden": false
+                    },
+                    {
+                        "name": "8、safari浏览器",
+                        "value": "GxKn",
+                        "hidden": false
+                    },
+                    {
+                        "name": "9、Opera浏览器",
+                        "value": "Lqz5",
+                        "hidden": false
+                    },
+                    {
+                        "name": "10、IE浏览器",
+                        "value": "yP4l",
+                        "hidden": false
+                    },
+                    {
+                        "name": "11、UC浏览器",
+                        "value": "kLYm",
+                        "hidden": false
+                    },
+                    {
+                        "name": "其他",
+                        "value": "16pp",
+                        "hidden": false,
+                        "is_other": true
+                    }
+                ],
+                "allow_other": true
+            }
+        },
+        {
+            "field_4": {
+                "label": "如果您是多个浏览器在使用，1、哪个浏览器是您的首选？2、其次是哪个浏览器？",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_5": {
+                "label": "您在生活中地图导航用的哪个软件？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                },
+                "choices": [
+                    {
+                        "name": "1、高德地图",
+                        "value": "KjFs",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、北斗导航",
+                        "value": "eAWJ",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、百度地图",
+                        "value": "3oBR",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4、腾讯地图",
+                        "value": "Bdnv",
+                        "hidden": false
+                    },
+                    {
+                        "name": "5、GPS导航地图",
+                        "value": "WvCm",
+                        "hidden": false
+                    },
+                    {
+                        "name": "其他",
+                        "value": "MxSM",
+                        "hidden": false,
+                        "is_other": true
+                    }
+                ],
+                "allow_other": true
+            }
+        },
+        {
+            "field_6": {
+                "label": "若您在使用多个地图导航，哪个是您的首选？",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        }
+    ]
+}

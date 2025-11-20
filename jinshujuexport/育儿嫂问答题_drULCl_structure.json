@@ -1,0 +1,421 @@
+{
+    "name": "育儿嫂问答题",
+    "token": "drULCl",
+    "description": "<p>客户常问问题</p>",
+    "fields": [
+        {
+            "field_1": {
+                "label": "姓名",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_40": {
+                "label": "手机",
+                "api_code_alias": null,
+                "type": "mobile",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_2": {
+                "label": "自我介绍！",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_3": {
+                "label": "您自己打算做多久？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_4": {
+                "label": "以前都做过哪些工作？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_5": {
+                "label": "刚出来想孩子怎么办？孩子现在谁在带？家里有些什么人？都支持您出来做这行吗？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_6": {
+                "label": "在客户家有遇到过哪些具有挑战的问题？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "<p>或自己在户上有遇到过哪些难题？</p>",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_7": {
+                "label": "客户家有宠物是否可以接受？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_8": {
+                "label": "您之前带的宝宝都有遇到过什么问题？您是怎么解决的？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_9": {
+                "label": "如何培养宝宝自主入睡？孩子有抱睡情况和要接觉如何改善？睡觉轻的孩子该怎么办？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "<p>或入睡困难的宝宝如何改善？</p>",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_10": {
+                "label": "如何添加辅食？辅食做的怎么样？擅长面食吗？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_11": {
+                "label": "如孩子该添加辅食如何判断？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_12": {
+                "label": "不同月龄宝宝一天该怎么安排？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_13": {
+                "label": "不同月龄宝宝活动、习惯、喂养怎么安排？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_14": {
+                "label": "会唱儿歌吗？会哪些？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_15": {
+                "label": "是否可以协助做些家务？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_16": {
+                "label": "如何培养孩子专注力？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_17": {
+                "label": "您带孩子的理念是什么？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_18": {
+                "label": "（）个月孩子的注意事项是什么？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_19": {
+                "label": "平常自己是通过什么方式学习专业知识？在户上的时候是怎样学习新的育儿知识？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_20": {
+                "label": "自己单独带孩子，在没有任何人的帮助下，自己是否能完成工作？比如做饭、收拾孩子玩具、衣物等",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_21": {
+                "label": "一个人带孩子的时候，阿姨您是怎么吃饭和上厕所的？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_22": {
+                "label": "上一个客户家庭是什么情况？阿姨您为什么要离开？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_23": {
+                "label": "自己有哪些优势？有哪些劣势？自己是什么样的性格？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_24": {
+                "label": "如何让宝宝尽快接受自己？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_25": {
+                "label": "对于宝宝扔东西，脾气大，任性，咬人，您怎么办？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_26": {
+                "label": "在客户家通常是以什么身份带宝宝？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_27": {
+                "label": "您怎样看这个职业？如何定位自己在客户家位置？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_28": {
+                "label": "您是如何权衡家庭和工作的？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_29": {
+                "label": "与客户育儿理念不同时，您是如何处理？若与老人相处理念不同怎么办？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_30": {
+                "label": "不同月龄孩子，孩子总是后半夜夜醒是为什么？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_31": {
+                "label": "不同月龄孩子，生病、发烧、腹泻、便秘各自该怎么处理？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_32": {
+                "label": "不同月龄孩子最容易发生什么疾病？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_38": {
+                "label": "不同月龄孩子，阿姨该如何独立带着？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_33": {
+                "label": "怎么判断宝宝一天喝多少水合适？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_34": {
+                "label": "您一直在同一家公司做吗？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_35": {
+                "label": "调整孩子作息你有什么方法？（4个月孩子白天睡眠不规律，夜奶2-3次，有什么办法？）",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_36": {
+                "label": "您自己觉得自己做事情算快的吗？个人卫生如何？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_37": {
+                "label": "您的爱好是什么？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_39": {
+                "label": "40、下面事情，您会如何安排？",
+                "api_code_alias": null,
+                "type": "section_break",
+                "notes": "<p>1、下午茶</p>\n\n<p>2、买菜</p>\n\n<p>3、去医院取药</p>\n\n<p>4、打电话给5个朋友</p>\n\n<p>5、物业保修热水器</p>\n\n<p>6、买书</p>\n\n<p>7、买打印纸</p>\n\n<p>8、洗床单被罩</p>\n\n<p>9、修鞋</p>",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_41": {
+                "label": "对于上面事情，您会如何安排，将您认为的顺序写于此处！",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "<p>填写数字即可</p>",
+                "private": false,
+                "validation": {}
+            }
+        }
+    ]
+}

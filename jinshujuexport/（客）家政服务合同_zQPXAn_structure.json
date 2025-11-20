@@ -1,0 +1,250 @@
+{
+    "name": "（客）家政服务合同",
+    "token": "zQPXAn",
+    "description": "",
+    "fields": [
+        {
+            "field_1": {
+                "label": "合同编号",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": true,
+                "validation": {}
+            }
+        },
+        {
+            "field_2": {
+                "label": "甲方（客户）姓名",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_3": {
+                "label": "甲方电话",
+                "api_code_alias": null,
+                "type": "mobile",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_4": {
+                "label": "甲方身份证号码",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_5": {
+                "label": "甲方地址",
+                "api_code_alias": null,
+                "type": "address",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_6": {
+                "label": "乙方服务员姓名",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_7": {
+                "label": "乙方服务员电话",
+                "api_code_alias": null,
+                "type": "mobile",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_8": {
+                "label": "乙方身份证号码",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_9": {
+                "label": "乙方身份证上地址",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_10": {
+                "label": "家政服务合同",
+                "api_code_alias": null,
+                "type": "section_break",
+                "notes": "<p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\"><strong>聘请家政服务员须知</strong></span></p><p style=\"text-align:left;\">&nbsp;</p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">客户聘用家政服务员，应当到经政府主管部门登记注册、以家政服务为经营范围、具有法人资格的家政服务机构招雇，不要在非法劳务市场中招雇。请客户结合自己的情况选择家政服务项目，并按此规定办理：</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">1、个人客户提供个人信息、联系方式、地址等信息。&nbsp;</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">2、客户应当有稳定的经济收入来源并有能力支付相关费用。</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">3、要正确看待家政服务行业，<strong>允许家政服务员有一周的适应过程，尊重家政服务员的人格</strong>，禁止打骂、歧视或侮辱家政服务员。</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">4、愿意遵守国家和地方家政服务业的行业规则，配合家政服务机构的工作。</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">5、能如实填写客户信息登记表。</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\"><strong>6、签订合同时知晓并认可双方协商的价格（包括带薪休假等约定），选定服务项目、签订合同并交纳相关费用后，家政服务机构将为客户提供相应期限的选项服务。</strong></span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">7、家政服务员在客户家工作时，若出现身体不适或其他疾病，发生意外事件，请客户务必发扬人道主义精神，及时灵活做出处理，并通报家政服务机构。</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">以上规定及相关要求敬请客户仔细阅读，以求双方合作愉快。</span></p><p style=\"text-align:left;\">&nbsp;</p><p style=\"text-align:left;\">&nbsp;</p><p style=\"text-align:left;\">&nbsp;</p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:24.0pt;\"><strong>家政服务合同</strong></span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\"><strong>甲方：即雇主，</strong>甲方的个人信息（身份证号码、联系方式、地址等信息）将由甲方在系统中填选或以系统呈现为准。</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\"><strong>乙方：即甲方选择的家政服务员。</strong>乙方的个人信息（联系方式、身份证地址等信息）将由乙方或丙方预先填选在系统中，以呈现给甲方的信息为准。</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\"><strong>丙方：北京家福安家政服务有限公司</strong></span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">法定代表人：金莉红</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">经营地址：北京市海淀区永定路88号长银大厦10B20</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">联系电话：17718457689</span></p><p style=\"text-align:left;\">&nbsp;</p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\"><img src=\"https://gd-pub.jinshujufiles.com/di/GuMxQxGo9f/20240410173859_772616\">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\"><strong>鉴于：</strong></span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">1.甲方拟雇佣乙方（家政服务员）提供家政服务。</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">2.乙方是具有完全民事行为能力且能够提供家政服务的劳动者。</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">3.丙方（家政服务机构）是依法成立的具有相应资质的家政服务公司，以居间人身份为甲方和乙方提供家政服务供求信息，撮合甲方与乙方达成家政服务合同。</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">根据《中华人民共和国民法典》及其他有关法律、法规的规定，甲方、乙方、丙方遵循平等、自愿、诚实信用原则，就家政服务相关事宜签订本合同。</span></p><p style=\"margin-left:62.25pt;text-align:left;\">&nbsp;</p><p style=\"margin-left:62.25pt;text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">第一条&nbsp;<strong>服务内容</strong></span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">根据甲方与乙方的需求、服务能力等相关情况，丙方介绍乙方为甲方或甲方指定的服务对象提供甲方指定的服务。</span></p><p style=\"margin-left:62.25pt;text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">第二条&nbsp;<strong>乙方的具体情况</strong></span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">乙方的具体情况三方协商确定后由乙方或</span><span>&nbsp;</span><span style=\"font-family:宋体;font-size:12.0pt;\">丙方预先填选在系统中，以呈现给甲方的信息为准。</span></p><p style=\"margin-left:62.25pt;text-align:left;\">&nbsp;</p><p style=\"margin-left:62.25pt;text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">第三条&nbsp;<strong>服务方式</strong></span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">乙方的具体服务方式三方协商确定后由乙方或丙方预先填选在系统中，以呈现给甲方的信息为准。</span></p><p style=\"margin-left:62.25pt;text-align:left;\">&nbsp;</p><p style=\"margin-left:62.25pt;text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">第四条&nbsp;<strong>服务期限</strong></span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">甲方与乙方商定的服务期限由丙方预先填写后呈现给甲方。</span></p><p style=\"margin-left:62.25pt;text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">第五条&nbsp;<strong>服务地址</strong></span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">甲方接受服务的地址与甲方住宅地址相同，如甲方在系统中填选了其他地点，以甲方填选的地点为准。</span></p><p style=\"text-align:left;\">&nbsp;</p><p style=\"margin-left:62.25pt;text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">第六条&nbsp;<strong>管理费</strong></span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">1．管理费的支付。 甲方应当在本合同签订之日向丙方一次性支付管理费。</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">2．管理费的计算。 管理费按照本合同第七条约定的乙方月劳务报酬、本合同第四条约定服务期限向甲方收取。</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">（1）整月管理费。以乙方月劳务报酬的10%为基数，乘以服务期限内所包含的自然月月数。例如服务期限为2019年1月1日至2019年3月10日，则甲方应当支付的整月管理费为：乙方月劳务报酬×10%×2。</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">（2）非整月管理费，每个自然月都以30天计算，以乙方月劳务报酬的10%为基数，按日计算管理费。例如服务期限为2019年1月1日至2019年3月10日，则甲方应当支付的非整月管理费为：乙方月劳务报酬×10%/30×10。</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">（3）在服务期限内，如甲方要求乙方离开北京市辖区（简称“离京”）或大陆地区（不含港澳台地区，简称“离境”）提供服务的，且服务天数在30天以上（含30天）的，管理费按照本合同第七条第4款约定的月劳务报酬计算。</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">3.&nbsp;管理费的调整。 如果各方因签订补充协议，调整了乙方的月劳务报酬或服务期限，甲方应当以补充协议约定的报酬金额、服务期限计算此后的中介服务费，由丙方按多退少补的原则结算。&nbsp;&nbsp;</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">4.&nbsp;管理费的退还。 管理费不因暂停服务（包括暂停期间的替班）、加班等原因调整数额或返还，但本合同被提前解除或终止的，丙方应当将乙方未提供服务期间所对应的管理费退还给甲方。</span></p><p style=\"margin-left:62.25pt;text-align:left;\">&nbsp;</p><p style=\"margin-left:62.25pt;text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">第七条&nbsp;<strong>劳务报酬、保证金</strong></span></p><p><span style=\"font-family:宋体;font-size:12.0pt;\">1、月劳务报酬。 <strong><u>在服务期限内，甲方以自然月为一个周期（为简便起见，该支付周期以下统称为“月”）支付乙方的劳务报酬。在服务期内，每个自然月乙方提供26天的劳务，剩余天数为乙方的休息日。</u></strong></span></p><p><span style=\"font-family:宋体;font-size:12.0pt;\">（1）月劳务报酬的计算。 乙方的月劳务报酬以丙方预设并在系统中呈现的金额为准。如乙方在自然月当中开始提供劳务的，则当月的劳务报酬计算公式为：（月劳务报酬/26）×实际提供劳务的天数。</span></p><p><span style=\"font-family:宋体;font-size:12.0pt;\">（2）月劳务报酬的支付。 每个自然月的第3日之前甲方将与乙方核对上一个自然月的考勤，丙方核算后将在第6日之前将上一个自然月的月劳务报酬明细发送给甲方，甲方应当于每个自然月的第10日之前直接向乙方支付上一个自然月的月劳务报酬。</span></p><p><span style=\"font-family:宋体;font-size:12.0pt;font-weight:bold !msorm;\">2、保证金。&nbsp;</span><span style=\"font-family:宋体;font-size:12.0pt;\">保证金金额为乙方的月劳务报酬。保证金由丙方收取，当本合同终止或解除时，经丙方结算确认，将向乙方支付最后一个月的月劳务报酬，向甲方退还应当退还的费用。</span></p><p style=\"margin-top:12.0pt;text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">3.&nbsp;加班劳务报酬。 <strong><u>如在服务期限内遇国家法定节假日（国家法定节假日指元旦1天、春节3天、清明节1天、劳动节1天、端午节1天、中秋节1天、国庆节3天，以及国家临时规定的法定节假日），乙方享有带薪休假的权利</u></strong>。甲方可以与乙方协商在法定节假日持续工作，如甲方与乙方就持续工作协商一致，甲方应当按加班天数向乙方支付加班劳务报酬，或者安排不少于加班同等天数的补休。</span></p><p><span style=\"font-family:宋体;font-size:12.0pt;\">（1）加班劳务报酬的计算。 加班劳务报酬计算公式为：（月劳务报酬/26）×加班天数。</span></p><p><span style=\"font-family:宋体;font-size:12.0pt;\">（2）加班劳务报酬的支付。甲方应当直接向乙方支付加班劳务报酬。</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">4．离京离境的费用和劳务报酬。&nbsp;在服务期限间，如甲方要求乙方离京或离境提供服务的，</span><span style=\"font-family:宋体;font-size:11.5pt;\">因离京和离境所发生的旅费、食宿费、保险等费用均由甲方承担。如</span><span style=\"font-family:宋体;font-size:12.0pt;\">离京离境服务天数在30天以上（含30天）的，</span><span style=\"font-family:宋体;font-size:11.5pt;\">应当按实际发生的全部离京离境服务天数向乙方支付离京离境的劳务报酬：</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">（1）离京期间，在本合同第七条第1款约定的月劳务报酬的基础上加收10%，即离京劳务报酬的计算公式为：（月劳务报酬/26）×离京天数×110%。</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">（2）离境期间，在本合同第七条第1款约定的月劳务报酬的基础上加收20%，即离境劳务报酬的计算公式为：（月劳务报酬/26）×离京天数×120%。</span></p><p style=\"margin-left:62.25pt;text-align:left;\">&nbsp;</p><p style=\"margin-left:62.25pt;text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">第八条&nbsp;<strong>甲方的权利与义务</strong></span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">1.甲方的权利</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">（1）甲方有权要求乙方提供一年内正规医疗机构出具的体检合格证明（健康证、幽门螺旋杆菌、妇科清洁度霉菌滴虫），如甲方对证明有异议，可要求乙方重新体检，但检查费用由甲方先行垫付，体检合格的部分体检费用由甲方承担，体检不合格的部分则由乙方承担。如甲方要求乙方进行非常规体检项目，乙方应当配合，体检合格的项目费用均由甲方承担，体检不合格的项目费用由乙方承担。</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">（2）甲方有权追究因乙方过错造成损失的法律责任，有权向责任方要求经济赔偿，但不得采取扣押财产和证件或采取搜身、恐吓、殴打等侵犯乙方人身财产权利等处理方式。</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">（3）甲方可以根据自己的要求，对乙方进行工作指导，有权禁止乙方在服务场所内从事与本合同约定的服务内容无关的活动。</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">2.甲方的义务</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">（1）按照本合同约定，按时足额支付管理费、月劳务报酬、保证金、加班劳务报酬等费用。</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">（2）<u>甲方在签订本合同时应出示本人有效身份证件，办理用户登记手续，如实告知或填写家庭地址、联系电话、接受服务的家庭成员人数、服务内容、工作强度、时间要求、特殊服务要求，以及与乙方健康安全相关的情况，包括家中是否有传染病及精神病人。上述内容如发生变化应当及时通知乙方和丙方</u>。未经乙方和丙方同意，不得要求乙方为其他第三方提供服务，不得将乙方带往非约定场所工作，不得要求乙方从事本合同约定以外的工作。甲方不得擅自增加本合同约定外的服务内容及工作量，确需增加的，应当与乙方和丙方及时协商后，确定具体费用。</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">（3）在服务期限内，根据丙方的询问，如实反馈乙方的工作情况及其他与劳务相关的情况，便于丙方监督管理工作。应当尊重乙方的人格和劳动，保障乙方的身心健康。若乙方突发疾病或遇其它伤害，甲方应当采取必要的救治措施；若乙方外出未归或发生疾病、意外，应当在24小时内通知丙方。</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">（4）若提供全日住家型家政服务的，甲方应当保证乙方每天基本的睡眠时间，向乙方提供与家庭成员基本相同的伙食（病人、孕产妇、婴幼儿餐除外）。甲方应当为乙方提供安全的居住场所，并保证不与成年异性同居一室（失能者除外）；当乙方需接触病人的血液、呕吐物及排泄物时，应为乙方提供相应的卫生和劳保用品。</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">（5）甲方应当支持乙方利用自己休息时间参加丙方安排的培训，以便乙方提升自身服务技能和服务水平。</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">（6）甲方应当妥善保管家中贵重物品、钱款。</span></p><p style=\"margin-left:62.25pt;text-align:left;\">&nbsp;</p><p style=\"margin-left:62.25pt;text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">第九条&nbsp;<strong>乙方权利与义务</strong></span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">1.乙方权利</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">（1）享有获得劳务报酬、正常休息的权利，以及在国家法定节假日享有带薪休假的权利。</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">（2）有权保护自己人身和名誉不受侵犯，有权追究因甲方过错造成的人身财产损失。</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">（3）有权拒绝从事与本合同内容不符的工作，有权拒绝为第三方服务，有权拒绝在非约定地址服务。</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">2.乙方义务</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">（1）遵守国家的法律法规，按照合同约定服务。不得有损害甲方合法权益的行为，如因乙方过错而造成甲方人身或其他权益受侵害的，则要承担相应的法律责任。</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">（2）服从甲方的管理和指导，遵照甲方的生活习俗，尊重甲方的宗教信仰，善待服务对象。</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">（3）乙方不得擅自离岗，外出应当告知去向和返回时间，如遇特殊情况不能按时返回的，应当提前通知甲方和丙方。</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">（4）不得擅自将他人带入或留宿甲方家中；不得擅自翻动、拿用甲方物品；不得参与甲方家庭内部事务和邻里纠纷；不得泄露和传播甲方家庭及其成员隐私和个人信息；不得擅自给甲方及其服务对象提供药品和医疗建议。</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">（5）<strong><u>根据丙方的安排，利用自己休息时间参加丙方组织的培训课程。</u></strong></span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">（6）乙方不得携带贵重物品进入甲方家中，如乙方擅自携带的贵重物品发生遗失或损坏，由乙方自行承担责任。</span></p><p style=\"margin-left:62.25pt;text-align:left;\">&nbsp;</p><p style=\"margin-left:62.25pt;text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">第十条&nbsp;<strong>丙方权利与义务</strong></span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">1．丙方权利</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">（1）收取管理费、保证金等费用。</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">（2）在服务期限内，有权询问并核实甲方、乙方反馈的有关家政服务的相关情况。</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">2.&nbsp;丙方义务</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">（1）积极主动了解甲方需求，并匹配安排合适的乙方提供服务，接受甲方的投诉和反馈并本着公平公正的原则妥善处理解决，从而保证甲乙双方的合法权益。</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">（2）核实甲方身份以及所提供信息的真实性，明确甲方需要提供的服务内容，确定甲方是否有具备雇请家政服务员的条件。</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">（3）核实乙方身份、健康状况、服务技能以及所提供信息的真实性，考察家政服务员是否具备家政服务能力，并对乙方进行相应的培训、过程管理、服务指导和监督。</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">（4）丙方为乙方购买人身保险，丙方为甲方家庭购买家政服务相关保险。人身意外险就诊医院需是二级及二级以上国家公立医院。</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">（5）如甲方提出暂停服务、变更乙方、临时替换人员时，丙方应当按照本合同第十一条的约定及时选派其他人员。</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">（6）乙方服务期限内，丙方应当对乙方进行管理指导，进行相关技能的提升和培训。</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">（7）丙方应当在服务期限内对甲方、乙方进行回访，跟踪记录情况，并及时做出调整。</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">（8）丙方应当按照本合同的约定核对考勤、核算费用。</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">（9）丙方应当解答甲方关于服务期的相关问题。</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">（10）丙方应当协助、监督甲乙双方违约相关事宜。</span></p><p style=\"margin-left:62.25pt;text-align:left;\">&nbsp;</p><p style=\"margin-left:62.25pt;text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">第十一条&nbsp;<strong>暂停、变更和终止劳务</strong></span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">1.&nbsp;暂停劳务。&nbsp;甲方、乙方均可以提出暂停提供劳务，</span><span>&nbsp;</span><span style=\"font-family:宋体;font-size:12.0pt;\">但暂停期间原则上不得超过15日，否则视为提出解除本合同。</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">甲方提出暂停要求的，除紧急情况外，应当提前10日与乙方、丙方协商，以便于乙方、丙方安排后续工作。</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">乙方提出暂停要求的，除紧急情况外，应当提前10日与甲方、丙方协商，如甲方要求丙方选派其他人员的，丙方应当及时为甲方选派适当人员。除特殊情况或甲方同意外，乙方在丙方选派人员实际提供劳务后方可暂停服务，否则乙方应当承担因此给甲方或丙方造成的损失</span><span>&nbsp;</span><span style=\"font-family:宋体;font-size:12.0pt;\">。甲方应当按照新选派人员的报酬标准支付劳务报酬。甲方未要求选派其他人员服务的，乙方应当按本合同第七条的约定结算</span><span style=\"font-size:1.143em;\"><span style=\"font-family:DengXian !msorm;font-size:10.5pt !msorm;\">月劳务报酬</span></span><span style=\"font-family:宋体;font-size:12.0pt;\">。</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">2.&nbsp;更换乙方。&nbsp;甲方有权决定更换乙方，丙方应当及时选派其他人员为甲方继续提供劳务，<strong><u>但甲方应当按照新选派人员的报酬标准支付此后的月劳务报酬。丙方应当按调整后的管理费与甲方结算</u></strong><u>。</u></span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">发生更换乙方的介绍费按照《家政服务试用期协议》的约定执行。</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">3.&nbsp;甲方的解除权。&nbsp;除本合同另有约定外，甲方拟解除本合同的，应当提前10天通知乙方与丙方，与丙方办理解除合同手续。</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">4.&nbsp;有下列情形之一的，甲方有权随时解除本合同：</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">（1）乙方有严重违法行为的。</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">（2）乙方患有传染病的。</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">（3）乙方未经甲方同意，让第三人代为提供服务的。</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">（4）乙方存在刁难、虐待甲方家庭成员行为的。</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">（5）乙方因过错给甲方造成较大财产损失的。</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">（6）乙方工作消极懈怠或服务质量不合格，经提醒仍不能满足要求的。</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">发生上述情形时，如甲方未主张解除本合同但要求更换乙方的，应当按照本合同第十一条第2款</span><span style=\"font-size:1.143em;\"><span style=\"font-family:DengXian !msorm;font-size:10.5pt !msorm;\">约定的</span></span><span style=\"font-family:宋体;font-size:12.0pt;\">更换乙方执行。</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">5.&nbsp;除紧急情况外，乙方提出终止服务的，应当提前10天与丙方和甲方协商，以便丙方与甲方协调后续事宜。如甲方要求丙方按照本合同第十一条第2款约定选派其他人员继续提供服务，除特殊情况或甲方允许外，乙方应当等待丙方选派的其他人员上户服务后方可终止服务，否则应当承担因此给甲方或丙方造成的损失。</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">6.&nbsp;有下列情形之一的，乙方有权随时终止服务，本合同随即解除：</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">（1）甲方隐瞒甲方及甲方家人患有传染病、精神疾病等情况的，或未及时将该等情况告知乙方的。</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">（2）甲方或甲方家人严重侵害乙方身体健康，或给乙方造成精神损害的。</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">（3）其他甲方存在其他严重违反本合同约定的义务的。</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">7.&nbsp;有下列情形之一的，丙方有权召回乙方并有权单方解除本合同，并要求甲方承担违约责任，如给乙方或丙方造成损失的，还应当赔偿损失：</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">（1）甲方教唆乙方脱离丙方管理的。</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">（2）甲方家庭成员中有传染病人、精神病人等情况，未及时、如实告知乙方和丙方的。</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">（3）甲方无正当理由未按时、足额支付各项费用的。</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">（4）约定的服务场所或服务内容发生变更而未取得乙方和丙方同意的。</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">（5）甲方对乙方的工作要求违反国家法律、法规，有刁难、虐待等损害乙方身心健康情形的。</span></p><p style=\"margin-left:62.25pt;text-align:left;\">&nbsp;</p><p style=\"margin-left:62.25pt;text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">第十二条&nbsp;<strong>违约责任</strong></span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">1．经丙方两次提醒甲方交费后，甲方仍不交费的，甲方应当向丙方支付违约金。自丙方最后一次提醒交费之日起至实际交费之日，以应付月劳务报酬的1%为基数，按每逾期3天计算违约金。</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">2．甲乙方双方未及时、如实告知对方自身有恶性传染病或精神疾病的，由违约方承担由此产生的一切费用。</span></p><p style=\"margin-left:62.25pt;text-align:left;\">&nbsp;</p><p style=\"margin-left:62.25pt;text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">第十三条&nbsp;<strong>免责条款</strong></span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">1.&nbsp;除乙方故意外，甲方未尽审慎的注意义务，违反以下约定而导致的损失，乙方及丙方不予赔偿：</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">（1）甲方应当妥善保管古董、文房、字画、珠宝、玉器、首饰等贵重、易碎以及具有特殊纪念意义的物品，乙方对此类物品不负责清洁养护；</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">（2）对于各类家用电器，乙方不负责拆装和清洗，只负责外部清洁；</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">（3）对于高档衣物、皮具、饰品、鞋帽等，乙方不负责清洗、熨烫、保养；</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">（4）乙方不负责洗涤内裤，产妇、新生儿、婴幼儿、失去自理能力的服务对象或另有书面约定的除外；</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">（5）二层以上（含二层）住所的玻璃外侧，乙方不负责擦洗。</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">2.&nbsp;如甲方要求乙方对价格昂贵的花卉果木或宠物进行照料，甲方须自行追加投保相关险种；甲方未按上述要求投保的，除乙方故意外，乙方对上述花卉果木或宠物的丢失、伤害、死亡等免责。</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">3.&nbsp;乙方离岗时，甲方、乙方均应当认真检查各自财物有无损坏和丢失，确认是否对服务对象造成伤害，乙方离岗后，合同各方不再为他方承担任何责任。&nbsp;</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">4.&nbsp;<strong><u>特别声明：丙方在本合同签署前虽已尽力核实甲方、乙方相关信息、资料，但仍无法保证相关信息和资料的绝对真实、准确及全面，无法对可能产生的不利后果作出全面的预估并承担责任；甲方、乙方应当在乙方服务期限内审慎观察、权衡、判断，采取适当的措施保护自身利益。</u></strong></span></p><p style=\"margin-left:62.25pt;text-align:left;\">&nbsp;</p><p style=\"margin-left:62.25pt;text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">第十四条&nbsp;<strong>其他</strong></span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">1．本合同如果发生争议，应当由三方协商解决；也可向消费者协会或行业组织申请调解；协商或调解不成的，任何一方应当向丙方所在地人民法院起诉。</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">2．合同期满，各方拟续约合同的，应当在合同届满前10天向其他方提出续约，经各方同意后，本合同可自动延长，延长期限及相关费用等内容可另行协商一致，延长次数不受限制。甲方、乙方及丙方无一致的续约意向的，合同自动终止。</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">3．本合同未尽事宜由三方另行协商补充，补充协议与本合同具有同等法律效力。</span></p><p style=\"text-align:left;\"><span style=\"font-family:宋体;font-size:12.0pt;\">4．<strong><u>本合同由本部分通用条款、聘请家政服务员须知以及甲方在软件系统中填选或系统呈现的预设信息组成，自甲方通过系统签字确认后生效。</u></strong></span></p><p>&nbsp;</p>",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_21": {
+                "label": "附件内容",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_20": {
+                "label": "甲方对于上面附件内容认可签字",
+                "api_code_alias": null,
+                "type": "e_signature",
+                "notes": "<p>备注：若上面无”附件内容“此处不用签字，最后面签字就行</p>",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_12": {
+                "label": "服务内容",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、婴幼儿养护",
+                        "value": "6voZ",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、家务服务",
+                        "value": "WyHA",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、居家养老服务",
+                        "value": "aS2z",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_13": {
+                "label": "服务方式",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "全日住家型",
+                        "value": "n9B9",
+                        "hidden": false
+                    },
+                    {
+                        "name": "日间照料型",
+                        "value": "Lhdk",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_11": {
+                "label": "乙方劳务报酬（元/月）",
+                "api_code_alias": null,
+                "type": "number",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_18": {
+                "label": "保证金（元/月）",
+                "api_code_alias": null,
+                "type": "number",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_17": {
+                "label": "丙方管理费（元/月）",
+                "api_code_alias": null,
+                "type": "number",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_14": {
+                "label": "合同开始时间",
+                "api_code_alias": null,
+                "type": "date_time",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "precision": "day"
+            }
+        },
+        {
+            "field_15": {
+                "label": "合同结束时间",
+                "api_code_alias": null,
+                "type": "date_time",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "precision": "day"
+            }
+        },
+        {
+            "field_16": {
+                "label": "甲方确认上方所有内容后签字",
+                "api_code_alias": null,
+                "type": "e_signature",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        }
+    ]
+}

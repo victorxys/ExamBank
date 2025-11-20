@@ -1,0 +1,137 @@
+{
+    "name": "2020年9月例会",
+    "token": "omJLsg",
+    "description": null,
+    "fields": [
+        {
+            "field_1": {
+                "label": "姓名",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_2": {
+                "label": "在客户家是否需要做收纳？",
+                "api_code_alias": null,
+                "type": "drop_down",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "做",
+                        "value": "4kw1",
+                        "hidden": false
+                    },
+                    {
+                        "name": "不做",
+                        "value": "6md6",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_3": {
+                "label": "作业：提交收纳整理照片",
+                "api_code_alias": null,
+                "type": "section_break",
+                "notes": "<p>在客户允许的情况下，将自己工作中收纳整理照片上传到此处，每一项可上传多张照片</p>\n\n<p>厨房、衣物、书籍、玩具等等</p>\n\n<p>备注：</p>\n\n<p>1、公司不会外泄或宣传客户家照片</p>\n\n<p>2、若工作太忙，不能提交，请在最下面备注中说明</p>\n\n<p>3、提交时间截止到9月13号晚上十二点</p>",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_4": {
+                "label": "厨房",
+                "api_code_alias": null,
+                "type": "attachment",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "max_file_quantity": 15,
+                "media_type": {
+                    "type": "unlimited",
+                    "value": null
+                }
+            }
+        },
+        {
+            "field_5": {
+                "label": "衣物",
+                "api_code_alias": null,
+                "type": "attachment",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "max_file_quantity": 15,
+                "media_type": {
+                    "type": "unlimited",
+                    "value": null
+                }
+            }
+        },
+        {
+            "field_6": {
+                "label": "书籍",
+                "api_code_alias": null,
+                "type": "attachment",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "max_file_quantity": 15,
+                "media_type": {
+                    "type": "unlimited",
+                    "value": null
+                }
+            }
+        },
+        {
+            "field_7": {
+                "label": "玩具",
+                "api_code_alias": null,
+                "type": "attachment",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "max_file_quantity": 15,
+                "media_type": {
+                    "type": "unlimited",
+                    "value": null
+                }
+            }
+        },
+        {
+            "field_9": {
+                "label": "其它照片",
+                "api_code_alias": null,
+                "type": "attachment",
+                "notes": null,
+                "private": false,
+                "validation": {},
+                "max_file_quantity": 15,
+                "media_type": {
+                    "type": "unlimited",
+                    "value": null
+                }
+            }
+        },
+        {
+            "field_8": {
+                "label": "备注：",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        }
+    ]
+}

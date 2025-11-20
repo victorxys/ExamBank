@@ -1,0 +1,253 @@
+{
+    "name": "产后康复调查表",
+    "token": "MtjRXE",
+    "description": null,
+    "fields": [
+        {
+            "field_1": {
+                "label": "姓名",
+                "api_code_alias": null,
+                "type": "form_association",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "associated_form_token": "Iq7gLi",
+                "associated_field_api_code": "field_1",
+                "associated_field_api_codes": [
+                    "field_1"
+                ],
+                "display_field_settings": [
+                    {
+                        "api_code": "field_28",
+                        "privacy_safe": true,
+                        "public_display": false
+                    }
+                ]
+            }
+        },
+        {
+            "field_2": {
+                "label": "您的练习频率？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "每周3次以上",
+                        "value": "00Xb",
+                        "hidden": false
+                    },
+                    {
+                        "name": "每周2～3次",
+                        "value": "UhOE",
+                        "hidden": false
+                    },
+                    {
+                        "name": "每周少于或等于1次",
+                        "value": "jC1l",
+                        "hidden": false
+                    },
+                    {
+                        "name": "其他",
+                        "value": "93J0",
+                        "hidden": false,
+                        "is_other": true
+                    }
+                ],
+                "allow_other": true
+            }
+        },
+        {
+            "field_3": {
+                "label": "您对自身提升感觉如何：",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "未达到预期的目标",
+                        "value": "XorK",
+                        "hidden": false
+                    },
+                    {
+                        "name": "有提高，对练习内容、强度感受较好",
+                        "value": "pdS1",
+                        "hidden": false
+                    },
+                    {
+                        "name": "对练习内容、强度接受程度高，提升速度快",
+                        "value": "eHT8",
+                        "hidden": false
+                    },
+                    {
+                        "name": "其他",
+                        "value": "7LPC",
+                        "hidden": false,
+                        "is_other": true
+                    }
+                ],
+                "allow_other": true
+            }
+        },
+        {
+            "field_4": {
+                "label": "您认为老师的态度是否满意：",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "一般",
+                        "value": "3OkC",
+                        "hidden": false
+                    },
+                    {
+                        "name": "较满意",
+                        "value": "duEd",
+                        "hidden": false
+                    },
+                    {
+                        "name": "很满意",
+                        "value": "UE35",
+                        "hidden": false
+                    },
+                    {
+                        "name": "其他",
+                        "value": "tp26",
+                        "hidden": false,
+                        "is_other": true
+                    }
+                ],
+                "allow_other": true
+            }
+        },
+        {
+            "field_5": {
+                "label": "您认为练习内容是否有针对性：",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "不清楚",
+                        "value": "R0NO",
+                        "hidden": false
+                    },
+                    {
+                        "name": "一般",
+                        "value": "I0vr",
+                        "hidden": false
+                    },
+                    {
+                        "name": "针对性较强",
+                        "value": "aZX2",
+                        "hidden": false
+                    },
+                    {
+                        "name": "其他",
+                        "value": "a2Nf",
+                        "hidden": false,
+                        "is_other": true
+                    }
+                ],
+                "allow_other": true
+            }
+        },
+        {
+            "field_6": {
+                "label": "您对为您定制的课程强度如何：",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "弱",
+                        "value": "Ox7K",
+                        "hidden": false
+                    },
+                    {
+                        "name": "可以接受",
+                        "value": "oEjI",
+                        "hidden": false
+                    },
+                    {
+                        "name": "可继续提高",
+                        "value": "8t0K",
+                        "hidden": false
+                    },
+                    {
+                        "name": "其他",
+                        "value": "ZBQv",
+                        "hidden": false,
+                        "is_other": true
+                    }
+                ],
+                "allow_other": true
+            }
+        },
+        {
+            "field_7": {
+                "label": "您是否愿意继续和老师练习：",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "暂时不考虑",
+                        "value": "c62R",
+                        "hidden": false
+                    },
+                    {
+                        "name": "再考虑下",
+                        "value": "a653",
+                        "hidden": false
+                    },
+                    {
+                        "name": "继续练习",
+                        "value": "nSan",
+                        "hidden": false
+                    },
+                    {
+                        "name": "其他",
+                        "value": "B9XV",
+                        "hidden": false,
+                        "is_other": true
+                    }
+                ],
+                "allow_other": true
+            }
+        },
+        {
+            "field_8": {
+                "label": "欢迎您提出宝贵的建议和意见：",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_9": {
+                "label": "",
+                "api_code_alias": null,
+                "type": "section_break",
+                "notes": "<p>感谢您对我们工作的支持，我们会认真查看您的反馈和意见，并结合这些情况进行调整，祝您身体健康，生活愉快！</p>",
+                "private": false,
+                "validation": {}
+            }
+        }
+    ]
+}

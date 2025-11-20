@@ -1,0 +1,57 @@
+{
+    "name": "萌嫂问题收集",
+    "token": "bDO47D",
+    "description": "",
+    "fields": [
+        {
+            "field_1": {
+                "label": "姓名",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_2": {
+                "label": "现在服务的客户，您有哪些问题？请以1、2、3、4、、、、的形式描写清楚，注意：把情况整体描述清楚，比如孩子现在总是便秘，请先将孩子现在多大，每日饮食情况，运动情况，家里人态度和观念等描述清楚。",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_3": {
+                "label": "不是现在服务的客户家的问题，想请教的问题有哪些？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_4": {
+                "label": "现在在客户家有哪些情感想抒发分享一下的？或者有什么情绪让自己很不舒服的？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_5": {
+                "label": "其它（想说什么都行）",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": null,
+                "private": false,
+                "validation": {}
+            }
+        }
+    ]
+}

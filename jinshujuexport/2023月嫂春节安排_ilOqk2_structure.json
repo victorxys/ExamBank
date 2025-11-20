@@ -1,0 +1,104 @@
+{
+    "name": "2023月嫂春节安排",
+    "token": "ilOqk2",
+    "description": "<p>2023.1.21是大年三十</p>",
+    "fields": [
+        {
+            "field_1": {
+                "label": "萌嫂姓名",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_2": {
+                "label": "春节期间安排：",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "<p>注意：户下代表下户状态，户上代表在合同期间内服务</p><p>提醒2023年1月21日是大年三十</p>",
+                "private": false,
+                "validation": {
+                    "required": true
+                },
+                "choices": [
+                    {
+                        "name": "在户下休假",
+                        "value": "5oQX",
+                        "hidden": false
+                    },
+                    {
+                        "name": "在户下找替班的活",
+                        "value": "U5Rg",
+                        "hidden": false
+                    },
+                    {
+                        "name": "在户上上班",
+                        "value": "vQIq",
+                        "hidden": false
+                    },
+                    {
+                        "name": "在户上需要休假、不需要替班",
+                        "value": "gd1Y",
+                        "hidden": false
+                    },
+                    {
+                        "name": "在户上需要休假、需要替班",
+                        "value": "WoGY",
+                        "hidden": false
+                    },
+                    {
+                        "name": "现在在户上，下户后回家过春节",
+                        "value": "E8WL",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_3": {
+                "label": "休假期间需要替班人员！请写清楚休假时间从几月几日～几月几日，此处只写阳历时间",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "<p>春节+疫情，是否有替班人员安排，只能以实际情况而定</p>",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_4": {
+                "label": "在合同期间内需要休假的人员，休假在哪里？请将地址精确写到省市镇区村",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_5": {
+                "label": "户下人员，春节后几月几日可开始工作？此处时间请写阳历",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_6": {
+                "label": "若有其它事情，可在此备注说明",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        }
+    ]
+}

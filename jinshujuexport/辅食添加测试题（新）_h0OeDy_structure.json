@@ -1,0 +1,676 @@
+{
+    "name": "辅食添加测试题（新）",
+    "token": "h0OeDy",
+    "description": "非常感谢您能够参加本次调查，本次考试采用限时考试的方式，准备好了吗？我们现在开始吧！",
+    "fields": [
+        {
+            "field_1": {
+                "label": "姓名",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_2": {
+                "label": "手机",
+                "api_code_alias": null,
+                "type": "mobile",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_13": {
+                "label": "对宝宝来说什么叫辅食？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、蔬菜、水果、米面",
+                        "value": "2P2P",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、除奶以外的食物",
+                        "value": "BStv",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、除正餐以外的食物",
+                        "value": "5Aon",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4、除母乳和配方奶以外的其它各种性状食物",
+                        "value": "G1Fj",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_14": {
+                "label": "辅食添加的原则是什么？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、少～多",
+                        "value": "971C",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、一种～多种",
+                        "value": "SsHV",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、稀～稠",
+                        "value": "P9jz",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4、细～粗",
+                        "value": "c2O7",
+                        "hidden": false
+                    },
+                    {
+                        "name": "5、软～硬",
+                        "value": "lfjy",
+                        "hidden": false
+                    },
+                    {
+                        "name": "6、淡～浓",
+                        "value": "IHoR",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_5": {
+                "label": "1岁以内的宝宝新添加的辅食会选择一天当中的什么时间？",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、8～9点",
+                        "value": "6fOW",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、8～10点",
+                        "value": "Di4B",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、11～12点",
+                        "value": "aMWl",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4、17～18点",
+                        "value": "15T5",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_6": {
+                "label": "所有新加的食物应该放在一天中的几点？",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、8～9点",
+                        "value": "Brkg",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、9～10点",
+                        "value": "4_zC",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、11～12点",
+                        "value": "kSVJ",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4、17～18点",
+                        "value": "oAel",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_7": {
+                "label": "宝宝什么时候添加辅食？",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、4个月",
+                        "value": "SEP-",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、6个月",
+                        "value": "8FFJ",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、10个月",
+                        "value": "rvTA",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4、1岁",
+                        "value": "wRLv",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_15": {
+                "label": "几个月到几个月宝宝对应的辅食添加进度是过渡到一顿？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、5个月～6个月",
+                        "value": "VwhD",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、6个月～7个月",
+                        "value": "NW_V",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、7个月～9个月",
+                        "value": "qX7q",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4、10个月～11个月",
+                        "value": "MDB0",
+                        "hidden": false
+                    },
+                    {
+                        "name": "5、10个月～12个月",
+                        "value": "GHC9",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_16": {
+                "label": "几个月到几个月宝宝对应的辅食添加进度是过渡到两顿？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、5个月～6个月",
+                        "value": "_hdn",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、6个月～7个月",
+                        "value": "iHaT",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、7个月～9个月",
+                        "value": "NtRl",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4、10个月～11个月",
+                        "value": "DYZH",
+                        "hidden": false
+                    },
+                    {
+                        "name": "5、10个月～12个月",
+                        "value": "xy7Y",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_17": {
+                "label": "几个月到几个月宝宝对应的辅食添加进度是过渡到三顿？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、5个月～6个月",
+                        "value": "uyNo",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、6个月～7个月",
+                        "value": "pnrG",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、7个月～9个月",
+                        "value": "KmCL",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4、10个月～11个月",
+                        "value": "06_5",
+                        "hidden": false
+                    },
+                    {
+                        "name": "5、10个月～12个月",
+                        "value": "W_Ys",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_18": {
+                "label": "几个月到几个月宝宝，添加辅食是糊状？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、5个月～6个月",
+                        "value": "yowa",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、6个月～7个月",
+                        "value": "8MVX",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、7个月～9个月",
+                        "value": "iyoq",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4、10个月～11个月",
+                        "value": "0XWv",
+                        "hidden": false
+                    },
+                    {
+                        "name": "5、10个月～12个月",
+                        "value": "MSuq",
+                        "hidden": false
+                    },
+                    {
+                        "name": "6、1岁以后",
+                        "value": "pXU2",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_19": {
+                "label": "几个月到几个月宝宝，添加辅食是沫状？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、5个月～6个月",
+                        "value": "1ZF8",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、6个月～7个月",
+                        "value": "FeOX",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、7个月～9个月",
+                        "value": "O8iu",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4、10个月～11个月",
+                        "value": "Hx-5",
+                        "hidden": false
+                    },
+                    {
+                        "name": "5、10个月～12个月",
+                        "value": "0pKb",
+                        "hidden": false
+                    },
+                    {
+                        "name": "6、1岁以后",
+                        "value": "m4Ze",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_20": {
+                "label": "几个月到几个月宝宝，添加辅食是碎状？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、5个月～6个月",
+                        "value": "0Rdt",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、6个月～7个月",
+                        "value": "DAUN",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、7个月～9个月",
+                        "value": "Q8E0",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4、10个月～11个月",
+                        "value": "3c6o",
+                        "hidden": false
+                    },
+                    {
+                        "name": "5、10个月～12个月",
+                        "value": "rkYj",
+                        "hidden": false
+                    },
+                    {
+                        "name": "6、1岁以后",
+                        "value": "l6BC",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_21": {
+                "label": "几个月宝宝到几个月宝宝，添加辅食是块状？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、5个月～6个月",
+                        "value": "MGEq",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、6个月～7个月",
+                        "value": "33S2",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、7个月～9个月",
+                        "value": "7f_W",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4、10个月～11个月",
+                        "value": "VrbK",
+                        "hidden": false
+                    },
+                    {
+                        "name": "5、10个月～12个月",
+                        "value": "ap5w",
+                        "hidden": false
+                    },
+                    {
+                        "name": "6、1岁以后",
+                        "value": "pL3L",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_22": {
+                "label": "辅食添加的正确排序是什么？1、菜泥；2、果泥；3、蛋黄；4、鸡肉、虾肉、鱼肉；5、牛肉、猪肉、羊肉；6、米糊；7、全蛋。",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "6、2、1、3、4、5、7",
+                        "value": "NM0z",
+                        "hidden": false
+                    },
+                    {
+                        "name": "6、1、2、4、5、3、7",
+                        "value": "HO5w",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、6、1、2、7、4、5",
+                        "value": "r3bg",
+                        "hidden": false
+                    },
+                    {
+                        "name": "6、1、2、3、7、5、4",
+                        "value": "58Vd",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_10": {
+                "label": "宝宝可以添加辅食的条件是什么？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、能独立坐稳",
+                        "value": "Tem3",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、奶量达到600毫升",
+                        "value": "5EpK",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、奶量达到800毫升",
+                        "value": "M4lO",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4、见大人吃东西有想吃的欲望",
+                        "value": "SHBN",
+                        "hidden": false
+                    },
+                    {
+                        "name": "5、挺舌反射消失",
+                        "value": "C2zW",
+                        "hidden": false
+                    },
+                    {
+                        "name": "6、习惯用杯和勺",
+                        "value": "SK-n",
+                        "hidden": false
+                    },
+                    {
+                        "name": "7、只要满六个月就行",
+                        "value": "weJv",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_11": {
+                "label": "辅食添加注意事项有什么？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、不强迫喂养",
+                        "value": "O0Qw",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、培养兴趣，自己进食",
+                        "value": "KRB-",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、不看手机，不玩玩具",
+                        "value": "j0R1",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4、喂食时间在十五到二十分钟",
+                        "value": "a1ob",
+                        "hidden": false
+                    },
+                    {
+                        "name": "5、进食与宝宝交流，不以食物做奖罚",
+                        "value": "aWml",
+                        "hidden": false
+                    },
+                    {
+                        "name": "6、允许孩子自己挑选自己喜欢的食物吃",
+                        "value": "jriQ",
+                        "hidden": false
+                    },
+                    {
+                        "name": "7、鼓励孩子自己尝试各种口味的食物",
+                        "value": "3u2Q",
+                        "hidden": false
+                    },
+                    {
+                        "name": "8、进食前一个半小时不吃水果和零食，进食前半小时不再喝水",
+                        "value": "mPdR",
+                        "hidden": false
+                    },
+                    {
+                        "name": "9、进餐时有人看护",
+                        "value": "BiL9",
+                        "hidden": false
+                    },
+                    {
+                        "name": "10、进食前洗手",
+                        "value": "7wW4",
+                        "hidden": false
+                    },
+                    {
+                        "name": "11、3岁以内的宝宝不给坚果、果冻、糖果等食物",
+                        "value": "STXG",
+                        "hidden": false
+                    },
+                    {
+                        "name": "12、注意鱼刺及骨头卡住喉咙",
+                        "value": "5yTa",
+                        "hidden": false
+                    },
+                    {
+                        "name": "13、进食时不逗引和呵斥宝宝",
+                        "value": "W1hj",
+                        "hidden": false
+                    },
+                    {
+                        "name": "14、要在固定的地方进食，不要追着喂",
+                        "value": "2vF5",
+                        "hidden": false
+                    },
+                    {
+                        "name": "15、注意辅食制作过程的卫生",
+                        "value": "DVRz",
+                        "hidden": false
+                    },
+                    {
+                        "name": "16、不给宝宝吃剩下的食物",
+                        "value": "Sqkq",
+                        "hidden": false
+                    },
+                    {
+                        "name": "17、烹调方法尽量简单",
+                        "value": "HMqb",
+                        "hidden": false
+                    },
+                    {
+                        "name": "18、一岁以内不吃盐和糖，食物都以原汁原味为原则",
+                        "value": "r1p3",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        }
+    ]
+}

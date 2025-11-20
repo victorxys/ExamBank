@@ -1,0 +1,87 @@
+{
+    "name": "20年5收纳整理问卷（阿姨）",
+    "token": "lNQoNx",
+    "description": "<p>非常感谢萌嫂们能够参加调查，提供您的看法与意见。</p>",
+    "fields": [
+        {
+            "field_1": {
+                "label": "姓名",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_2": {
+                "label": "事件",
+                "api_code_alias": null,
+                "type": "section_break",
+                "notes": "<p>    经理最近正在学习收纳整理课程，老师讲的很细，对我们阿姨户上工作会有很大帮助，我们努力邀请老师为大家来讲一堂课。</p>\n\n<p>    为了让大家能学到更多实用收纳知识，大家认真填写下面内容，并且可以留言给些建议。</p>\n\n<p>   讲课时间有限，我们将根据您们的提交内容，请老师着重讲哪方面收纳整理课程。</p>",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_3": {
+                "label": "孩子首饰方面，是否有哪些东西不好整理？",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_4": {
+                "label": "孩子的玩具，哪些东西不好收纳？",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_5": {
+                "label": "孩子书本，是否有哪些不好整理？",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_6": {
+                "label": "孩子哪些衣物不好收纳整理？",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_7": {
+                "label": "客户房子里，哪些屋子里不好收纳整理？",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_8": {
+                "label": "可补充的，请在此处留言",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        }
+    ]
+}

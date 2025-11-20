@@ -1,0 +1,41 @@
+{
+    "name": "户口所在地收集",
+    "token": "hWo3kA",
+    "description": "<p>如果自己没有换过身份证，户口所在地就是身份证上地址</p>\n\n<p>若果自己换过身份证，户口所在地就是户口本上登记的地址</p>",
+    "fields": [
+        {
+            "field_1": {
+                "label": "辛苦您尽快协助办理，谢谢",
+                "api_code_alias": null,
+                "type": "section_break",
+                "notes": "<p>请尽快协助办理，谢谢🙏</p>",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_2": {
+                "label": "姓名",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": null,
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_3": {
+                "label": "户口所在地（请注意看下面提示）",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "<p>如果自己没有换过身份证，户口所在地就是身份证上地址</p>\n\n<p>若果自己换过身份证，户口所在地就是户口本上登记的地址</p>",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        }
+    ]
+}

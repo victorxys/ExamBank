@@ -1,0 +1,92 @@
+{
+    "name": "2024年2月春节安排",
+    "token": "yKDgOk",
+    "description": "",
+    "fields": [
+        {
+            "field_1": {
+                "label": "姓名",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_2": {
+                "label": "春节期间是否休假？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "休假",
+                        "value": "kA93",
+                        "hidden": false
+                    },
+                    {
+                        "name": "不休假",
+                        "value": "tATk",
+                        "hidden": false
+                    },
+                    {
+                        "name": "可以休假，也可以不休假",
+                        "value": "CprI",
+                        "hidden": false
+                    },
+                    {
+                        "name": "我春节期间可以留在公司去替班",
+                        "value": "JYQj",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_3": {
+                "label": "春节期间休假，休假时间是从什么时候到什么时候？ 提醒：此处把时间段写出来，不要只写走的时间，不写回的时间",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_4": {
+                "label": " 春节后需要重新找工作的萌嫂，您什么时候可以返京？ 若平台上没有您的自我介绍，请写全发小庆，完善您的平台，提前为年后做准备。",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_5": {
+                "label": " 春节期间不回家，可以安排去其他客户家替班的人员，您从什么时候到什么时候可以去替班！ 替班是锻炼的好时机，鼓励新加入公司的萌嫂们积极参加，为自己履历增加丰富的资料，现在客户非常挑阿姨们的实践经验。",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_6": {
+                "label": "其它情况说明",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": null,
+                "private": false,
+                "validation": {}
+            }
+        }
+    ]
+}

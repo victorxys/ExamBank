@@ -1,0 +1,17 @@
+{
+    "name": "辅食添加",
+    "token": "tOPZHB",
+    "description": null,
+    "fields": [
+        {
+            "field_10": {
+                "label": "复习题",
+                "api_code_alias": null,
+                "type": "section_break",
+                "notes": "<p><span style=\"font-size:1.286em;\">1、什么叫辅食？一般由几个月添加辅食？</span></p>\n\n<p><span style=\"font-size:1.286em;\">2、添加辅食的目的是什么？</span></p>\n\n<p><span style=\"font-size:1.286em;\">3、辅食添加的原则是什么？</span></p>\n\n<p><span style=\"font-size:1.286em;\">4、辅食添加的条件是什么？</span></p>\n\n<p><span style=\"font-size:1.286em;\">5、如何正确的添加辅食？添加辅食的顺序是怎样的？</span></p>\n\n<p><span style=\"font-size:1.286em;\">6、新添加的辅食应放在一天中的什么时间合适？</span></p>\n\n<p><span style=\"font-size:1.286em;\">7、一岁以内宝宝辅食添加如何安排？</span></p>\n\n<p><span style=\"font-size:1.286em;\">8、辅食添加的注意事项是什么？</span></p>\n\n<p><span style=\"font-size:1.286em;\">9、如何区分口水疹和过敏导致的湿疹？</span></p>\n\n<p>&nbsp;</p>",
+                "private": false,
+                "validation": {}
+            }
+        }
+    ]
+}

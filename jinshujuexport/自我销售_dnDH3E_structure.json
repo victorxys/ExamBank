@@ -1,0 +1,139 @@
+{
+    "name": "自我销售",
+    "token": "dnDH3E",
+    "description": "<p>以下介绍，是萌嫂将自己推荐给客户的内容</p>",
+    "fields": [
+        {
+            "field_2": {
+                "label": "姓名",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_3": {
+                "label": "手机",
+                "api_code_alias": null,
+                "type": "mobile",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_4": {
+                "label": "籍贯",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_5": {
+                "label": "文化程度",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_6": {
+                "label": "家庭情况",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "<p>家庭人员关系介绍及年纪，家庭孩子状况</p>",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_7": {
+                "label": "工作经历",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "<p>从业时间、每个客户家庭服务时间开始和结束日期（孩子从多大带到多大）</p>",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_8": {
+                "label": "工作经验",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "<p>服务 过的特殊孩子、特殊产妇、特殊客户家庭、独立工作</p>",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_9": {
+                "label": "自我优势",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "<p>性格、配合度、变通、灵活、沟通、抗压能力等</p>",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_10": {
+                "label": "自我劣势",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "<p>性格、配合度、变通、灵活、沟通、抗压能力等</p>",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_11": {
+                "label": "业余爱好",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_12": {
+                "label": "工作中的自我认知：",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "<p>付出、收获</p>",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        }
+    ]
+}

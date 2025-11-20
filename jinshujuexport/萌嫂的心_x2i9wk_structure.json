@@ -1,0 +1,67 @@
+{
+    "name": "萌嫂的心",
+    "token": "x2i9wk",
+    "description": "<p>非常感谢萌嫂的填写，你的感受很重要，按照自己真实感受和想法填写就行。</p><p>感谢！！！</p><p>&nbsp;</p><p>&nbsp;</p>",
+    "fields": [
+        {
+            "field_1": {
+                "label": "姓名",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_2": {
+                "label": "自己现在服务的客户，你觉得她们家里怎么样？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "<p>若自己现在在户下，此处填写“还没上户”</p><p>觉得客户家(人和活）挺好，好在哪儿？<br>觉得客户家（人和活）一般，有哪些方面？</p><p>觉得客户家（人和活）不好，不好在哪些方面？</p>",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_4": {
+                "label": "自己觉得现在客户对阿姨的要求都注重哪些？此处把自己觉得的，由重到轻的顺序写上",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_6": {
+                "label": "对现在市场上的客户，自己有什么看法？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": null,
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_5": {
+                "label": "自己做着服务行业，自己的服务心态是什么样的？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_7": {
+                "label": "有任何想说的话，可在此留言。",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": null,
+                "private": false,
+                "validation": {}
+            }
+        }
+    ]
+}

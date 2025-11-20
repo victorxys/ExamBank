@@ -1,0 +1,163 @@
+{
+    "name": "月嫂问答卷",
+    "token": "kon5Ah",
+    "description": "",
+    "fields": [
+        {
+            "field_1": {
+                "label": "姓名",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_2": {
+                "label": "手机",
+                "api_code_alias": null,
+                "type": "mobile",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_3": {
+                "label": "今年多少岁？（用2022减去实际出生年份）",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_4": {
+                "label": "实际学历？",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_5": {
+                "label": "在家政行业实际工作有多少年？",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "<p>提醒：自己从事母婴行业以后，中途有休长假（比如结婚生孩子，陪孩子学习等等）的时间不算入</p>",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_6": {
+                "label": "在萌姨萌嫂公司实际工作多长时间？",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "<p>提醒：自己从事母婴行业以后，中途有休长假（比如结婚生孩子，陪孩子学习等等）的时间不算入</p>",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_7": {
+                "label": "带过多少个孩子？服务过多少个产妇？",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "<p>提醒：服务时间超过一个月的都算</p><p>带的孩子数量包括做育儿嫂带过的孩子</p>",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_8": {
+                "label": "护理过什么样的特殊孩子？",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_9": {
+                "label": "服务过什么样的特殊产妇？",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_10": {
+                "label": "2021年工作了几个月？",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_11": {
+                "label": "是否参加过公司进阶培训？",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                },
+                "choices": [
+                    {
+                        "name": "是",
+                        "value": "ojdY",
+                        "hidden": false
+                    },
+                    {
+                        "name": "否",
+                        "value": "z2Nm",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_12": {
+                "label": "公司学习证书的照片，上一个问题回答“是”的一定在此处上传照片，否则视同为“否”",
+                "api_code_alias": null,
+                "type": "attachment",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "max_file_quantity": 15,
+                "media_type": {
+                    "type": "unlimited",
+                    "value": []
+                }
+            }
+        }
+    ]
+}

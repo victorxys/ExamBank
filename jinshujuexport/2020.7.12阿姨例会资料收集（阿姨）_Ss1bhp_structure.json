@@ -1,0 +1,202 @@
+{
+    "name": "2020.7.12阿姨例会资料收集（阿姨）",
+    "token": "Ss1bhp",
+    "description": "<p>非常感谢您能够参加调查，提供您的看法与意见，希望能够得到您的大力支持与合作。</p>\n\n<p>本次问卷是为提供本月12号晚上21:00～22:00例会所做的准备</p>\n\n<p>希望大家如实填写内容</p>\n\n<p>&nbsp;</p>",
+    "fields": [
+        {
+            "field_1": {
+                "label": "姓名",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": null,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_2": {
+                "label": "带孩子时，自己玩手机的频率是？",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "经常",
+                        "value": "Hl8Q",
+                        "hidden": false
+                    },
+                    {
+                        "name": "偶尔",
+                        "value": "AGON",
+                        "hidden": false
+                    },
+                    {
+                        "name": "没有",
+                        "value": "AHRK",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_3": {
+                "label": "自己现在看护的孩子，在看护时，有没有出现孩子意外受伤的情况？",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "有",
+                        "value": "3scM",
+                        "hidden": false
+                    },
+                    {
+                        "name": "没有",
+                        "value": "EDez",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_4": {
+                "label": "若有上述情况，请描述事件：",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_5": {
+                "label": "自己带孩子的过程中，有无不按常规操作？",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "有",
+                        "value": "BS41",
+                        "hidden": false
+                    },
+                    {
+                        "name": "没有",
+                        "value": "6iKr",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_6": {
+                "label": "带孩子过程中，自己觉得自己哪些方面不细致？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_7": {
+                "label": "自己在工作中，有没有损坏物品的现象？",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "有",
+                        "value": "ocgm",
+                        "hidden": false
+                    },
+                    {
+                        "name": "没有",
+                        "value": "o8TF",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_8": {
+                "label": "损坏过物品，都有哪些？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_9": {
+                "label": "因为自己工作的失误，有没有主动去跟客户沟通？",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "有",
+                        "value": "rpuT",
+                        "hidden": false
+                    },
+                    {
+                        "name": "没有",
+                        "value": "4kp3",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_10": {
+                "label": "因为自己工作的失误，有没有主动跟公司沟通？",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "有",
+                        "value": "bR9B",
+                        "hidden": false
+                    },
+                    {
+                        "name": "没有",
+                        "value": "dxAr",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_11": {
+                "label": "若有其它事情，请在此留言：",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        }
+    ]
+}

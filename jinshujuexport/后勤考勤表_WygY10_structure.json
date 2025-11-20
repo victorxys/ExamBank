@@ -1,0 +1,259 @@
+{
+    "name": "后勤考勤表",
+    "token": "WygY10",
+    "description": "",
+    "fields": [
+        {
+            "field_1": {
+                "label": "姓名",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_6": {
+                "label": "本月工作始时间",
+                "api_code_alias": null,
+                "type": "date_time",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "precision": "day"
+            }
+        },
+        {
+            "field_7": {
+                "label": "本月工作止时间",
+                "api_code_alias": null,
+                "type": "date_time",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "precision": "day"
+            }
+        },
+        {
+            "field_12": {
+                "label": "本月应出勤天数",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_13": {
+                "label": "实际出勤天数",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_8": {
+                "label": "出勤天数",
+                "api_code_alias": null,
+                "type": "number",
+                "notes": "",
+                "private": true,
+                "validation": {}
+            }
+        },
+        {
+            "field_9": {
+                "label": "休息天数",
+                "api_code_alias": null,
+                "type": "number",
+                "notes": "",
+                "private": true,
+                "validation": {}
+            }
+        },
+        {
+            "field_10": {
+                "label": "请假天数",
+                "api_code_alias": null,
+                "type": "number",
+                "notes": "",
+                "private": true,
+                "validation": {}
+            }
+        },
+        {
+            "field_11": {
+                "label": "备注：",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": true,
+                "validation": {}
+            }
+        },
+        {
+            "field_3": {
+                "label": "考勤明细",
+                "api_code_alias": null,
+                "type": "likert",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "出勤",
+                        "value": "77Iy",
+                        "hidden": false
+                    },
+                    {
+                        "name": "休息",
+                        "value": "X34X",
+                        "hidden": false
+                    },
+                    {
+                        "name": "请假",
+                        "value": "BR0O",
+                        "hidden": false
+                    },
+                    {
+                        "name": "休假/请假半天",
+                        "value": "iVj0",
+                        "hidden": false
+                    }
+                ],
+                "statements": [
+                    {
+                        "name": "1日",
+                        "value": "uuL2"
+                    },
+                    {
+                        "name": "2日",
+                        "value": "CTtM"
+                    },
+                    {
+                        "name": "3日",
+                        "value": "caHG"
+                    },
+                    {
+                        "name": "4日",
+                        "value": "GR2c"
+                    },
+                    {
+                        "name": "5日",
+                        "value": "u0qM"
+                    },
+                    {
+                        "name": "6日",
+                        "value": "tav_"
+                    },
+                    {
+                        "name": "7日",
+                        "value": "_r88"
+                    },
+                    {
+                        "name": "8日",
+                        "value": "qmj9"
+                    },
+                    {
+                        "name": "9日",
+                        "value": "9QlW"
+                    },
+                    {
+                        "name": "10日",
+                        "value": "34j_"
+                    },
+                    {
+                        "name": "11日",
+                        "value": "r8_m"
+                    },
+                    {
+                        "name": "12日",
+                        "value": "P8HW"
+                    },
+                    {
+                        "name": "13日",
+                        "value": "DkFI"
+                    },
+                    {
+                        "name": "14日 ",
+                        "value": "gAnp"
+                    },
+                    {
+                        "name": "15日",
+                        "value": "q2S6"
+                    },
+                    {
+                        "name": "16日",
+                        "value": "es7s"
+                    },
+                    {
+                        "name": "17日",
+                        "value": "0SzK"
+                    },
+                    {
+                        "name": "18日",
+                        "value": "niRj"
+                    },
+                    {
+                        "name": "19日",
+                        "value": "XBUX"
+                    },
+                    {
+                        "name": "20日",
+                        "value": "2dYm"
+                    },
+                    {
+                        "name": "21日",
+                        "value": "nmoa"
+                    },
+                    {
+                        "name": "22日",
+                        "value": "bjlp"
+                    },
+                    {
+                        "name": "23日",
+                        "value": "deV4"
+                    },
+                    {
+                        "name": "24日",
+                        "value": "eNKg"
+                    },
+                    {
+                        "name": "25日",
+                        "value": "Hurn"
+                    },
+                    {
+                        "name": "26日",
+                        "value": "GCY3"
+                    },
+                    {
+                        "name": "27日",
+                        "value": "xx9v"
+                    },
+                    {
+                        "name": "28日",
+                        "value": "SJdf"
+                    },
+                    {
+                        "name": "29日",
+                        "value": "__M9"
+                    },
+                    {
+                        "name": "30日",
+                        "value": "clzy"
+                    },
+                    {
+                        "name": "31日",
+                        "value": "tUhN"
+                    }
+                ]
+            }
+        }
+    ]
+}

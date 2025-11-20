@@ -1,0 +1,264 @@
+{
+    "name": "培训评分～零基础",
+    "token": "jEPmJv",
+    "description": "<p>共19题，总分95分</p>",
+    "fields": [
+        {
+            "field_18": {
+                "label": "姓名",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": null,
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_1": {
+                "label": "年龄",
+                "api_code_alias": null,
+                "type": "rating",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "rating_type": "rose",
+                "rating_max": 5,
+                "range_max": 5
+            }
+        },
+        {
+            "field_14": {
+                "label": "形象",
+                "api_code_alias": null,
+                "type": "rating",
+                "notes": null,
+                "private": false,
+                "validation": {},
+                "rating_type": "star",
+                "rating_max": 5,
+                "range_max": 5
+            }
+        },
+        {
+            "field_2": {
+                "label": "普通话",
+                "api_code_alias": null,
+                "type": "rating",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "rating_type": "star",
+                "rating_max": 5,
+                "range_max": 5
+            }
+        },
+        {
+            "field_3": {
+                "label": "学历",
+                "api_code_alias": null,
+                "type": "rating",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "rating_type": "star",
+                "rating_max": 5,
+                "range_max": 5
+            }
+        },
+        {
+            "field_17": {
+                "label": "诚实度",
+                "api_code_alias": null,
+                "type": "rating",
+                "notes": null,
+                "private": false,
+                "validation": {},
+                "rating_type": "star",
+                "rating_max": 5,
+                "range_max": 5
+            }
+        },
+        {
+            "field_4": {
+                "label": "作为服务人员的性格",
+                "api_code_alias": null,
+                "type": "rating",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "rating_type": "star",
+                "rating_max": 5,
+                "range_max": 5
+            }
+        },
+        {
+            "field_5": {
+                "label": "学习能力",
+                "api_code_alias": null,
+                "type": "rating",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "rating_type": "star",
+                "rating_max": 5,
+                "range_max": 5
+            }
+        },
+        {
+            "field_19": {
+                "label": "理解能力",
+                "api_code_alias": null,
+                "type": "rating",
+                "notes": null,
+                "private": false,
+                "validation": {},
+                "rating_type": "star",
+                "rating_max": 5,
+                "range_max": 5
+            }
+        },
+        {
+            "field_20": {
+                "label": "表达能力",
+                "api_code_alias": null,
+                "type": "rating",
+                "notes": null,
+                "private": false,
+                "validation": {},
+                "rating_type": "star",
+                "rating_max": 5,
+                "range_max": 5
+            }
+        },
+        {
+            "field_6": {
+                "label": "应变能力",
+                "api_code_alias": null,
+                "type": "rating",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "rating_type": "star",
+                "rating_max": 5,
+                "range_max": 5
+            }
+        },
+        {
+            "field_7": {
+                "label": "做事条理性",
+                "api_code_alias": null,
+                "type": "rating",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "rating_type": "star",
+                "rating_max": 5,
+                "range_max": 5
+            }
+        },
+        {
+            "field_8": {
+                "label": "做饭水平",
+                "api_code_alias": null,
+                "type": "rating",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "rating_type": "star",
+                "rating_max": 5,
+                "range_max": 5
+            }
+        },
+        {
+            "field_9": {
+                "label": "收纳整理",
+                "api_code_alias": null,
+                "type": "rating",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "rating_type": "star",
+                "rating_max": 5,
+                "range_max": 5
+            }
+        },
+        {
+            "field_10": {
+                "label": "讲究度",
+                "api_code_alias": null,
+                "type": "rating",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "rating_type": "star",
+                "rating_max": 5,
+                "range_max": 5
+            }
+        },
+        {
+            "field_15": {
+                "label": "精细程度",
+                "api_code_alias": null,
+                "type": "rating",
+                "notes": null,
+                "private": false,
+                "validation": {},
+                "rating_type": "star",
+                "rating_max": 5,
+                "range_max": 5
+            }
+        },
+        {
+            "field_16": {
+                "label": "麻利度",
+                "api_code_alias": null,
+                "type": "rating",
+                "notes": null,
+                "private": false,
+                "validation": {},
+                "rating_type": "star",
+                "rating_max": 5,
+                "range_max": 5
+            }
+        },
+        {
+            "field_11": {
+                "label": "主动性",
+                "api_code_alias": null,
+                "type": "rating",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "rating_type": "star",
+                "rating_max": 5,
+                "range_max": 5
+            }
+        },
+        {
+            "field_12": {
+                "label": "舒适度",
+                "api_code_alias": null,
+                "type": "rating",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "rating_type": "star",
+                "rating_max": 5,
+                "range_max": 5
+            }
+        },
+        {
+            "field_13": {
+                "label": "认知水平",
+                "api_code_alias": null,
+                "type": "rating",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "rating_type": "star",
+                "rating_max": 5,
+                "range_max": 5
+            }
+        }
+    ]
+}

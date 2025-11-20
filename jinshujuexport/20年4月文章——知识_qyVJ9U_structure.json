@@ -1,0 +1,229 @@
+{
+    "name": "20年4月文章——知识",
+    "token": "qyVJ9U",
+    "description": "<p>亲们！早上好！<br />\n今日发此链接，想统计大家的学习状况。</p>\n\n<p>请如实填写，做一个诚实的人员，对自己负责，撒谎只会对自己不利😁损失的都是自己。</p>\n\n<p>&nbsp;</p>",
+    "fields": [
+        {
+            "field_1": {
+                "label": "姓名",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_6": {
+                "label": "电话",
+                "api_code_alias": null,
+                "type": "phone",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_8": {
+                "label": "公司公众号上面2017年的知识文章，是否认真学习过？",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "是",
+                        "value": "iNgF",
+                        "hidden": false
+                    },
+                    {
+                        "name": "否",
+                        "value": "Hh8k",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_9": {
+                "label": "公司公众号上面2018年的知识文章，是否认真学习过？",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "是",
+                        "value": "5o9C",
+                        "hidden": false
+                    },
+                    {
+                        "name": "否",
+                        "value": "RMDk",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_10": {
+                "label": "公司公众号上面2019年的知识文章，是否认真学习过？",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "是",
+                        "value": "pyj6",
+                        "hidden": false
+                    },
+                    {
+                        "name": "否",
+                        "value": "86kT",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_11": {
+                "label": "公司抖音上面的知识，您是否有认真学习？",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "有",
+                        "value": "y3fH",
+                        "hidden": false
+                    },
+                    {
+                        "name": "没有",
+                        "value": "S-2k",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_12": {
+                "label": "公司宣传公众号文章和抖音，您是否有主动宣传？",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "经常宣传",
+                        "value": "LOvB",
+                        "hidden": false
+                    },
+                    {
+                        "name": "偶尔宣传",
+                        "value": "bigI",
+                        "hidden": false
+                    },
+                    {
+                        "name": "公司要求的时候宣传",
+                        "value": "H4Bk",
+                        "hidden": false
+                    },
+                    {
+                        "name": "看到了就宣传",
+                        "value": "aQb5",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_5": {
+                "label": "阿姨可在此留言",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_3": {
+                "label": "阿姨哪里人？今年多大年纪？",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": true,
+                "validation": {}
+            }
+        },
+        {
+            "field_4": {
+                "label": "现在工作状态",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": true,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "在北京户上工作",
+                        "value": "ET-u",
+                        "hidden": false
+                    },
+                    {
+                        "name": "在户上工作，但不在北京",
+                        "value": "-aW4",
+                        "hidden": false
+                    },
+                    {
+                        "name": "在老家休息",
+                        "value": "JJNB",
+                        "hidden": false
+                    },
+                    {
+                        "name": "正在北京隔离",
+                        "value": "xuCe",
+                        "hidden": false
+                    },
+                    {
+                        "name": "正在隔离，但不在北京",
+                        "value": "Dpy4",
+                        "hidden": false
+                    },
+                    {
+                        "name": "今年不打算出去",
+                        "value": "A6GV",
+                        "hidden": false
+                    },
+                    {
+                        "name": "今年就在老家工作",
+                        "value": "6h48",
+                        "hidden": false
+                    },
+                    {
+                        "name": "在北京已经隔离完，但还没找到活",
+                        "value": "kauq",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        }
+    ]
+}

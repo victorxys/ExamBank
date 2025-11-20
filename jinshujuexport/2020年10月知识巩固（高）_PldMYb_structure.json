@@ -1,0 +1,77 @@
+{
+    "name": "2020年10月知识巩固（高）",
+    "token": "PldMYb",
+    "description": "<p>本次没有分数</p>\n\n<p>知识掌握最重要</p>\n\n<p>&nbsp;</p>",
+    "fields": [
+        {
+            "field_1": {
+                "label": "姓名",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_15": {
+                "label": "通过您的努力，您现在宝宝有哪些变化？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": null,
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_16": {
+                "label": "您是如何取得客户对您的认可？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": null,
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_17": {
+                "label": "您觉得自己，在哪些方面还需要加强学习？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": null,
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_14": {
+                "label": "公司每次抖音和公众号有更新，您是否有做宣传转发？",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "没有",
+                        "value": "ASJc",
+                        "hidden": false
+                    },
+                    {
+                        "name": "偶尔",
+                        "value": "B12w",
+                        "hidden": false
+                    },
+                    {
+                        "name": "每次都发",
+                        "value": "PKJc",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        }
+    ]
+}

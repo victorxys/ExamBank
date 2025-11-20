@@ -1,0 +1,725 @@
+{
+    "name": "客户找萌嫂",
+    "token": "4txCXu",
+    "description": null,
+    "fields": [
+        {
+            "field_1": {
+                "label": "姓名",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_2": {
+                "label": "手机",
+                "api_code_alias": null,
+                "type": "mobile",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_14": {
+                "label": "微信号或名称",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_3": {
+                "label": "地址",
+                "api_code_alias": null,
+                "type": "address",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_13": {
+                "label": "什么时候需要用阿姨？",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_4": {
+                "label": "与客户服务状态",
+                "api_code_alias": null,
+                "type": "drop_down",
+                "notes": "",
+                "private": true,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "服务中",
+                        "value": "yprv",
+                        "hidden": false
+                    },
+                    {
+                        "name": "失败",
+                        "value": "Wt_Q",
+                        "hidden": false
+                    },
+                    {
+                        "name": "需安排",
+                        "value": "Uxzl",
+                        "hidden": false
+                    },
+                    {
+                        "name": "可跟踪",
+                        "value": "KNvb",
+                        "hidden": false
+                    },
+                    {
+                        "name": "不安排",
+                        "value": "SoCA",
+                        "hidden": false
+                    },
+                    {
+                        "name": "推荐中",
+                        "value": "NIfc",
+                        "hidden": false
+                    },
+                    {
+                        "name": "暂不需要",
+                        "value": "sXUF",
+                        "hidden": false
+                    },
+                    {
+                        "name": "黑户",
+                        "value": "mQrX",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_5": {
+                "label": "需要阿姨类别",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "初级育儿嫂5000～7000元/月",
+                        "value": "bZdA",
+                        "hidden": false
+                    },
+                    {
+                        "name": "中级育儿嫂7000～8000元/月",
+                        "value": "l16x",
+                        "hidden": false
+                    },
+                    {
+                        "name": "高级育儿嫂8000～10000元/月",
+                        "value": "k3Cc",
+                        "hidden": false
+                    },
+                    {
+                        "name": "特级育儿嫂10000+元/月",
+                        "value": "wdAr",
+                        "hidden": false
+                    },
+                    {
+                        "name": "育儿嫂教练800元/天",
+                        "value": "1Z-_",
+                        "hidden": false
+                    },
+                    {
+                        "name": "初级月嫂10500、12800元/月",
+                        "value": "F9Xl",
+                        "hidden": false
+                    },
+                    {
+                        "name": "中级月嫂15000、18000元/月",
+                        "value": "0lZF",
+                        "hidden": false
+                    },
+                    {
+                        "name": "高级月嫂20000、22000元/月",
+                        "value": "JkRD",
+                        "hidden": false
+                    },
+                    {
+                        "name": "特级月嫂26000元/月",
+                        "value": "jSLZ",
+                        "hidden": false
+                    },
+                    {
+                        "name": "月嫂教练1000元/天",
+                        "value": "skpi",
+                        "hidden": false
+                    },
+                    {
+                        "name": "初级家政5000～7000元/月",
+                        "value": "seAm",
+                        "hidden": false
+                    },
+                    {
+                        "name": "中级家政7000～8000元/月",
+                        "value": "u3yN",
+                        "hidden": false
+                    },
+                    {
+                        "name": "高级家政8000～10000元/月",
+                        "value": "TQRh",
+                        "hidden": false
+                    },
+                    {
+                        "name": "白班/小时工服务",
+                        "value": "yaoT",
+                        "hidden": false,
+                        "is_other": true
+                    }
+                ],
+                "allow_other": true
+            }
+        },
+        {
+            "field_6": {
+                "label": "客户家中情况介绍",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "<p>譬如：家中几口人，几个孩子，孩子多大，孩子有哪些疾病，家中现有几位服务人员，房子面积，是否会带阿姨出京或出镜服务，若需要阿姨做饭，请介绍一下家庭成员饮食的主要习惯</p>",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_20": {
+                "label": "目前宝宝存在下列哪方面问题？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "喂养",
+                        "value": "gfCt",
+                        "hidden": false
+                    },
+                    {
+                        "name": "早教",
+                        "value": "dxgw",
+                        "hidden": false
+                    },
+                    {
+                        "name": "习惯",
+                        "value": "2IaZ",
+                        "hidden": false
+                    },
+                    {
+                        "name": "睡眠",
+                        "value": "ytXa",
+                        "hidden": false
+                    },
+                    {
+                        "name": "任性",
+                        "value": "3hkb",
+                        "hidden": false
+                    },
+                    {
+                        "name": "疾病",
+                        "value": "tZWp",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_7": {
+                "label": "想找一个什么样的阿姨？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "<p>对阿姨的要求及阿姨主要负责的工作内容</p>",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_12": {
+                "label": "其他信息",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "<p>亲爱的客户！如果您能与我们分享一下您之前用人的情况，和您家宝宝的一些情况，我们将非常感谢，也便于我们为您安排更匹配的人员</p>\n\n<p>比如：之前阿姨不足和让您满意的地方</p>",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_8": {
+                "label": "通过什么渠道知道我们公司",
+                "api_code_alias": null,
+                "type": "drop_down",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "老客户",
+                        "value": "_c97",
+                        "hidden": false
+                    },
+                    {
+                        "name": "朋友",
+                        "value": "DXk7",
+                        "hidden": false
+                    },
+                    {
+                        "name": "公众号",
+                        "value": "CbOH",
+                        "hidden": false
+                    },
+                    {
+                        "name": "大众点评",
+                        "value": "z9Z1",
+                        "hidden": false
+                    },
+                    {
+                        "name": "百度",
+                        "value": "na6F",
+                        "hidden": false
+                    },
+                    {
+                        "name": "抖音",
+                        "value": "h4i8",
+                        "hidden": false
+                    },
+                    {
+                        "name": "微信群",
+                        "value": "w7S1",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_18": {
+                "label": "客户来源备注",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": true,
+                "validation": {}
+            }
+        },
+        {
+            "field_17": {
+                "label": "宝宝信息",
+                "api_code_alias": null,
+                "type": "table",
+                "notes": "",
+                "private": true,
+                "validation": {},
+                "dimensions": [
+                    {
+                        "field_1": {
+                            "label": "宝宝姓名",
+                            "api_code_alias": null,
+                            "type": "single_line_text",
+                            "notes": null,
+                            "private": false,
+                            "validation": {}
+                        }
+                    },
+                    {
+                        "field_2": {
+                            "label": "宝宝出生日期",
+                            "api_code_alias": null,
+                            "type": "date_time",
+                            "notes": null,
+                            "private": false,
+                            "validation": {},
+                            "precision": "day"
+                        }
+                    },
+                    {
+                        "field_3": {
+                            "label": "宝宝性别",
+                            "api_code_alias": null,
+                            "type": "drop_down",
+                            "notes": null,
+                            "private": false,
+                            "validation": {},
+                            "choices": [
+                                {
+                                    "name": "男",
+                                    "value": "a_50",
+                                    "hidden": false
+                                },
+                                {
+                                    "name": "女",
+                                    "value": "SS3o",
+                                    "hidden": false
+                                }
+                            ],
+                            "allow_other": false
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "field_22": {
+                "label": "孩子大小",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "<p>不清楚孩子具体出生日期，可在此处填写大概</p>",
+                "private": true,
+                "validation": {}
+            }
+        },
+        {
+            "field_9": {
+                "label": "推荐阿姨信息记录",
+                "api_code_alias": null,
+                "type": "table",
+                "notes": "",
+                "private": true,
+                "validation": {},
+                "dimensions": [
+                    {
+                        "field_1": {
+                            "label": "推荐日期",
+                            "api_code_alias": null,
+                            "type": "date_time",
+                            "notes": null,
+                            "private": false,
+                            "validation": {},
+                            "precision": "day"
+                        }
+                    },
+                    {
+                        "field_2": {
+                            "label": "推荐的阿姨",
+                            "api_code_alias": null,
+                            "type": "single_line_text",
+                            "notes": null,
+                            "private": false,
+                            "validation": {}
+                        }
+                    },
+                    {
+                        "field_3": {
+                            "label": "推荐的简历及简要过程",
+                            "api_code_alias": null,
+                            "type": "paragraph_text",
+                            "notes": null,
+                            "private": false,
+                            "validation": {}
+                        }
+                    },
+                    {
+                        "field_4": {
+                            "label": "推荐成功、失败？",
+                            "api_code_alias": null,
+                            "type": "drop_down",
+                            "notes": null,
+                            "private": false,
+                            "validation": {},
+                            "choices": [
+                                {
+                                    "name": "成功",
+                                    "value": "h9r5",
+                                    "hidden": false
+                                },
+                                {
+                                    "name": "失败",
+                                    "value": "pjRZ",
+                                    "hidden": false
+                                }
+                            ],
+                            "allow_other": false
+                        }
+                    },
+                    {
+                        "field_5": {
+                            "label": "推荐成功失败的原因",
+                            "api_code_alias": null,
+                            "type": "paragraph_text",
+                            "notes": null,
+                            "private": false,
+                            "validation": {}
+                        }
+                    },
+                    {
+                        "field_6": {
+                            "label": "推荐内容及失败的图片",
+                            "api_code_alias": null,
+                            "type": "attachment",
+                            "notes": null,
+                            "private": false,
+                            "validation": {},
+                            "max_file_quantity": 1,
+                            "media_type": {
+                                "type": "unlimited",
+                                "value": []
+                            }
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "field_11": {
+                "label": "客户回访记录",
+                "api_code_alias": null,
+                "type": "table",
+                "notes": "",
+                "private": true,
+                "validation": {},
+                "dimensions": [
+                    {
+                        "field_1": {
+                            "label": "日期",
+                            "api_code_alias": null,
+                            "type": "date_time",
+                            "notes": null,
+                            "private": false,
+                            "validation": {},
+                            "precision": "day"
+                        }
+                    },
+                    {
+                        "field_2": {
+                            "label": "阿姨姓名",
+                            "api_code_alias": null,
+                            "type": "single_line_text",
+                            "notes": null,
+                            "private": false,
+                            "validation": {}
+                        }
+                    },
+                    {
+                        "field_3": {
+                            "label": "客户反馈内容",
+                            "api_code_alias": null,
+                            "type": "paragraph_text",
+                            "notes": null,
+                            "private": false,
+                            "validation": {}
+                        }
+                    },
+                    {
+                        "field_4": {
+                            "label": "反馈截图",
+                            "api_code_alias": null,
+                            "type": "attachment",
+                            "notes": null,
+                            "private": false,
+                            "validation": {},
+                            "max_file_quantity": 1,
+                            "media_type": {
+                                "type": "unlimited",
+                                "value": []
+                            }
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "field_19": {
+                "label": "客户与公司不配合记录",
+                "api_code_alias": null,
+                "type": "table",
+                "notes": "",
+                "private": true,
+                "validation": {},
+                "dimensions": [
+                    {
+                        "field_1": {
+                            "label": "时间",
+                            "api_code_alias": null,
+                            "type": "date_time",
+                            "notes": null,
+                            "private": false,
+                            "validation": {},
+                            "precision": "day"
+                        }
+                    },
+                    {
+                        "field_2": {
+                            "label": "事件",
+                            "api_code_alias": null,
+                            "type": "paragraph_text",
+                            "notes": null,
+                            "private": false,
+                            "validation": {}
+                        }
+                    },
+                    {
+                        "field_3": {
+                            "label": "图片",
+                            "api_code_alias": null,
+                            "type": "attachment",
+                            "notes": null,
+                            "private": false,
+                            "validation": {},
+                            "max_file_quantity": 1,
+                            "media_type": {
+                                "type": "unlimited",
+                                "value": []
+                            }
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "field_16": {
+                "label": "费用明细",
+                "api_code_alias": null,
+                "type": "table",
+                "notes": "",
+                "private": true,
+                "validation": {},
+                "dimensions": [
+                    {
+                        "field_1": {
+                            "label": "时间",
+                            "api_code_alias": null,
+                            "type": "date_time",
+                            "notes": null,
+                            "private": false,
+                            "validation": {},
+                            "precision": "day"
+                        }
+                    },
+                    {
+                        "field_2": {
+                            "label": "费用类别",
+                            "api_code_alias": null,
+                            "type": "single_line_text",
+                            "notes": null,
+                            "private": false,
+                            "validation": {}
+                        }
+                    },
+                    {
+                        "field_3": {
+                            "label": "费用",
+                            "api_code_alias": null,
+                            "type": "number",
+                            "notes": null,
+                            "private": false,
+                            "validation": {}
+                        }
+                    },
+                    {
+                        "field_4": {
+                            "label": "备注",
+                            "api_code_alias": null,
+                            "type": "single_line_text",
+                            "notes": null,
+                            "private": false,
+                            "validation": {}
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "field_15": {
+                "label": "阿姨上户记录",
+                "api_code_alias": null,
+                "type": "table",
+                "notes": "",
+                "private": true,
+                "validation": {},
+                "dimensions": [
+                    {
+                        "field_1": {
+                            "label": "阿姨姓名",
+                            "api_code_alias": null,
+                            "type": "single_line_text",
+                            "notes": null,
+                            "private": false,
+                            "validation": {}
+                        }
+                    },
+                    {
+                        "field_7": {
+                            "label": "上户工资",
+                            "api_code_alias": null,
+                            "type": "number",
+                            "notes": null,
+                            "private": false,
+                            "validation": {}
+                        }
+                    },
+                    {
+                        "field_3": {
+                            "label": "上户时间",
+                            "api_code_alias": null,
+                            "type": "single_line_text",
+                            "notes": null,
+                            "private": false,
+                            "validation": {}
+                        }
+                    },
+                    {
+                        "field_4": {
+                            "label": "下户时间",
+                            "api_code_alias": null,
+                            "type": "single_line_text",
+                            "notes": null,
+                            "private": false,
+                            "validation": {}
+                        }
+                    },
+                    {
+                        "field_8": {
+                            "label": "下户工资",
+                            "api_code_alias": null,
+                            "type": "number",
+                            "notes": null,
+                            "private": false,
+                            "validation": {}
+                        }
+                    },
+                    {
+                        "field_6": {
+                            "label": "下户原因",
+                            "api_code_alias": null,
+                            "type": "single_line_text",
+                            "notes": null,
+                            "private": false,
+                            "validation": {}
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "field_21": {
+                "label": "备注：",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": true,
+                "validation": {}
+            }
+        }
+    ]
+}

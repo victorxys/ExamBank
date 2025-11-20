@@ -1,0 +1,59 @@
+{
+    "name": "2020年8.22例会（喂养）",
+    "token": "RyxPMM",
+    "description": "<p>请认真填写</p>\n\n<p>不带孩子的萌嫂，可在备注处写：不带孩子</p>",
+    "fields": [
+        {
+            "field_1": {
+                "label": "姓名",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_2": {
+                "label": "宝宝现在多大？",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_3": {
+                "label": "宝宝现在辅食、喂养的具体情况",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "<p>比如孩子吃几顿？奶量多少？？加的辅食情况？</p>",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_4": {
+                "label": "宝宝现在辅食、喂养方面，你有遇到哪些问题？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_5": {
+                "label": "可以在此处留言：",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        }
+    ]
+}

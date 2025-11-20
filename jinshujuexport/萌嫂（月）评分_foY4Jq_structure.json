@@ -1,0 +1,1546 @@
+{
+    "name": "萌嫂（月）评分",
+    "token": "foY4Jq",
+    "description": "",
+    "fields": [
+        {
+            "field_1": {
+                "label": "姓名",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_2": {
+                "label": "手机",
+                "api_code_alias": null,
+                "type": "mobile",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_3": {
+                "label": "基础信息：",
+                "api_code_alias": null,
+                "type": "section_break",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_4": {
+                "label": "年龄",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "24～34岁",
+                        "value": "MQlz",
+                        "hidden": false
+                    },
+                    {
+                        "name": "35～45岁",
+                        "value": "VzaA",
+                        "hidden": false
+                    },
+                    {
+                        "name": "46～50岁",
+                        "value": "qFqY",
+                        "hidden": false
+                    },
+                    {
+                        "name": "51～55岁",
+                        "value": "1UGG",
+                        "hidden": false
+                    },
+                    {
+                        "name": "56～60岁",
+                        "value": "sXiA",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_5": {
+                "label": "学历",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "本科及以上",
+                        "value": "kvtg",
+                        "hidden": false
+                    },
+                    {
+                        "name": "大专",
+                        "value": "6wzp",
+                        "hidden": false
+                    },
+                    {
+                        "name": "高中/高职",
+                        "value": "ApoX",
+                        "hidden": false
+                    },
+                    {
+                        "name": "初中",
+                        "value": "71pJ",
+                        "hidden": false
+                    },
+                    {
+                        "name": "小学",
+                        "value": "La6x",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_6": {
+                "label": "行业经验",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "0年",
+                        "value": "dAKP",
+                        "hidden": false
+                    },
+                    {
+                        "name": "0～1年",
+                        "value": "nu0C",
+                        "hidden": false
+                    },
+                    {
+                        "name": "1～2年",
+                        "value": "dDNJ",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2～5年",
+                        "value": "WlgW",
+                        "hidden": false
+                    },
+                    {
+                        "name": "5～7年",
+                        "value": "v0Ls",
+                        "hidden": false
+                    },
+                    {
+                        "name": "7～10年",
+                        "value": "UM5D",
+                        "hidden": false
+                    },
+                    {
+                        "name": "10～15年",
+                        "value": "Jw09",
+                        "hidden": false
+                    },
+                    {
+                        "name": "15～20年",
+                        "value": "ryKz",
+                        "hidden": false
+                    },
+                    {
+                        "name": "20+年",
+                        "value": "wKKv",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_7": {
+                "label": "公司年限",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "0",
+                        "value": "RBCF",
+                        "hidden": false
+                    },
+                    {
+                        "name": "0～1年",
+                        "value": "n8hi",
+                        "hidden": false
+                    },
+                    {
+                        "name": "1～2年",
+                        "value": "tjrQ",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2～4年",
+                        "value": "SpQ5",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4～6年",
+                        "value": "AJEb",
+                        "hidden": false
+                    },
+                    {
+                        "name": "6～8年",
+                        "value": "LXHZ",
+                        "hidden": false
+                    },
+                    {
+                        "name": "8～10年",
+                        "value": "K06j",
+                        "hidden": false
+                    },
+                    {
+                        "name": "10～13年",
+                        "value": "TwAG",
+                        "hidden": false
+                    },
+                    {
+                        "name": "13～16年",
+                        "value": "w51u",
+                        "hidden": false
+                    },
+                    {
+                        "name": "16～18年",
+                        "value": "UHvl",
+                        "hidden": false
+                    },
+                    {
+                        "name": "18+年",
+                        "value": "et9f",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_8": {
+                "label": "带过孩子的数量",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "3～5位",
+                        "value": "zrQr",
+                        "hidden": false
+                    },
+                    {
+                        "name": "6～10位",
+                        "value": "HdwZ",
+                        "hidden": false
+                    },
+                    {
+                        "name": "11～15位",
+                        "value": "Egzb",
+                        "hidden": false
+                    },
+                    {
+                        "name": "16～20位",
+                        "value": "bmfy",
+                        "hidden": false
+                    },
+                    {
+                        "name": "21～30位",
+                        "value": "6mMK",
+                        "hidden": false
+                    },
+                    {
+                        "name": "30+位",
+                        "value": "KKD1",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_9": {
+                "label": "特殊护理",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "早产儿",
+                        "value": "k27W",
+                        "hidden": false
+                    },
+                    {
+                        "name": "小样儿",
+                        "value": "QC7s",
+                        "hidden": false
+                    },
+                    {
+                        "name": "双胎",
+                        "value": "G4s0",
+                        "hidden": false
+                    },
+                    {
+                        "name": "先天心脏病",
+                        "value": "Heyz",
+                        "hidden": false
+                    },
+                    {
+                        "name": "喂养困难",
+                        "value": "Bau9",
+                        "hidden": false
+                    },
+                    {
+                        "name": "脐疝",
+                        "value": "pkdm",
+                        "hidden": false
+                    },
+                    {
+                        "name": "妊娠糖尿病",
+                        "value": "VTfF",
+                        "hidden": false
+                    },
+                    {
+                        "name": "产后抑郁",
+                        "value": "8qcz",
+                        "hidden": false
+                    },
+                    {
+                        "name": "产妇贫血",
+                        "value": "t5xj",
+                        "hidden": false
+                    },
+                    {
+                        "name": "胃食管反流",
+                        "value": "rgSS",
+                        "hidden": false
+                    },
+                    {
+                        "name": "产妇不能自理",
+                        "value": "h4FF",
+                        "hidden": false
+                    },
+                    {
+                        "name": "咽下综合症",
+                        "value": "3YDc",
+                        "hidden": false
+                    },
+                    {
+                        "name": "产妇痛风",
+                        "value": "qsbs",
+                        "hidden": false
+                    },
+                    {
+                        "name": "低血糖宝宝",
+                        "value": "eNFk",
+                        "hidden": false
+                    },
+                    {
+                        "name": "病理性黄疸",
+                        "value": "zWsE",
+                        "hidden": false
+                    },
+                    {
+                        "name": "巨大儿",
+                        "value": "9g4x",
+                        "hidden": false
+                    },
+                    {
+                        "name": "恶露淋漓不尽",
+                        "value": "YakS",
+                        "hidden": false
+                    },
+                    {
+                        "name": "产后大出血",
+                        "value": "MPFe",
+                        "hidden": false
+                    },
+                    {
+                        "name": "新生儿肺炎",
+                        "value": "aHlZ",
+                        "hidden": false
+                    },
+                    {
+                        "name": "新生儿败血症",
+                        "value": "X4kO",
+                        "hidden": false
+                    },
+                    {
+                        "name": "先天性肛门闭锁",
+                        "value": "9biq",
+                        "hidden": false
+                    },
+                    {
+                        "name": "妊娠高血压",
+                        "value": "gKGL",
+                        "hidden": false
+                    },
+                    {
+                        "name": "胆囊管狭窄儿",
+                        "value": "LTXj",
+                        "hidden": false
+                    },
+                    {
+                        "name": "AB0溶血症",
+                        "value": "u4vN",
+                        "hidden": false
+                    },
+                    {
+                        "name": "新生儿颅内出血",
+                        "value": "np4A",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_10": {
+                "label": "评价考核",
+                "api_code_alias": null,
+                "type": "section_break",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_11": {
+                "label": "客户评价（平均分）",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "20分以下",
+                        "value": "96go",
+                        "hidden": false
+                    },
+                    {
+                        "name": "21～30分",
+                        "value": "5DXn",
+                        "hidden": false
+                    },
+                    {
+                        "name": "31～40分",
+                        "value": "D4Sb",
+                        "hidden": false
+                    },
+                    {
+                        "name": "41～60分",
+                        "value": "Zc7X",
+                        "hidden": false
+                    },
+                    {
+                        "name": "61～70分",
+                        "value": "XUFF",
+                        "hidden": false
+                    },
+                    {
+                        "name": "71～75分",
+                        "value": "CdJO",
+                        "hidden": false
+                    },
+                    {
+                        "name": "76～80分",
+                        "value": "FkwR",
+                        "hidden": false
+                    },
+                    {
+                        "name": "81～85分",
+                        "value": "jzJT",
+                        "hidden": false
+                    },
+                    {
+                        "name": "86～90分",
+                        "value": "FQ5E",
+                        "hidden": false
+                    },
+                    {
+                        "name": "91～95分",
+                        "value": "VoJ7",
+                        "hidden": false
+                    },
+                    {
+                        "name": "96～100分",
+                        "value": "miki",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_12": {
+                "label": "客户投诉（可累计）",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "自身原因客户投诉下户",
+                        "value": "SH8M",
+                        "hidden": false
+                    },
+                    {
+                        "name": "客户投诉给公司造成损失",
+                        "value": "7L04",
+                        "hidden": false
+                    },
+                    {
+                        "name": "同一原因客户两次投诉",
+                        "value": "C8rE",
+                        "hidden": false
+                    },
+                    {
+                        "name": "自身原因客户投诉1次",
+                        "value": "oXP2",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_13": {
+                "label": "与公司配合度",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "0",
+                        "value": "Xa7t",
+                        "hidden": false
+                    },
+                    {
+                        "name": "1",
+                        "value": "1zCU",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2",
+                        "value": "5ht6",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3",
+                        "value": "c9mW",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4",
+                        "value": "iCuB",
+                        "hidden": false
+                    },
+                    {
+                        "name": "5",
+                        "value": "eJRW",
+                        "hidden": false
+                    },
+                    {
+                        "name": "6",
+                        "value": "ve10",
+                        "hidden": false
+                    },
+                    {
+                        "name": "7",
+                        "value": "0c9L",
+                        "hidden": false
+                    },
+                    {
+                        "name": "8",
+                        "value": "2pWA",
+                        "hidden": false
+                    },
+                    {
+                        "name": "9",
+                        "value": "55mW",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_14": {
+                "label": "后勤评价",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "0",
+                        "value": "oHgo",
+                        "hidden": false
+                    },
+                    {
+                        "name": "1",
+                        "value": "45Wh",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2",
+                        "value": "Rw9w",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3",
+                        "value": "jpZA",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4",
+                        "value": "ikCw",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_15": {
+                "label": "同事评价",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "0",
+                        "value": "8Lkc",
+                        "hidden": false
+                    },
+                    {
+                        "name": "1",
+                        "value": "YCl1",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2",
+                        "value": "Cq9E",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3",
+                        "value": "VcfN",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4",
+                        "value": "6PsX",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_16": {
+                "label": "中级培训",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "<p>中级必须完成</p>",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "0",
+                        "value": "OzSK",
+                        "hidden": false
+                    },
+                    {
+                        "name": "1",
+                        "value": "jJR5",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2",
+                        "value": "XFCI",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3",
+                        "value": "Yxwl",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4",
+                        "value": "uhGj",
+                        "hidden": false
+                    },
+                    {
+                        "name": "5",
+                        "value": "fHzT",
+                        "hidden": false
+                    },
+                    {
+                        "name": "6",
+                        "value": "AKba",
+                        "hidden": false
+                    },
+                    {
+                        "name": "7",
+                        "value": "AOA0",
+                        "hidden": false
+                    },
+                    {
+                        "name": "8",
+                        "value": "jFIv",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_17": {
+                "label": "高级培训",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "<p>高级必须完成</p>",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "0",
+                        "value": "stZm",
+                        "hidden": false
+                    },
+                    {
+                        "name": "1",
+                        "value": "OO5R",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2",
+                        "value": "k1td",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3",
+                        "value": "VpGt",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4",
+                        "value": "QrIX",
+                        "hidden": false
+                    },
+                    {
+                        "name": "5",
+                        "value": "YjGN",
+                        "hidden": false
+                    },
+                    {
+                        "name": "6",
+                        "value": "DvHT",
+                        "hidden": false
+                    },
+                    {
+                        "name": "7",
+                        "value": "DnKS",
+                        "hidden": false
+                    },
+                    {
+                        "name": "8",
+                        "value": "BFqp",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_18": {
+                "label": "规章制度",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "0",
+                        "value": "vHu5",
+                        "hidden": false
+                    },
+                    {
+                        "name": "1",
+                        "value": "RCEH",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2",
+                        "value": "O6wn",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3",
+                        "value": "DylB",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4",
+                        "value": "yacf",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_19": {
+                "label": "上户考核",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "0",
+                        "value": "tWxf",
+                        "hidden": false
+                    },
+                    {
+                        "name": "1",
+                        "value": "KZYy",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2",
+                        "value": "Ki51",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3",
+                        "value": "ank8",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4",
+                        "value": "FHJn",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_20": {
+                "label": "年度工作时长",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1个月",
+                        "value": "glun",
+                        "hidden": false
+                    },
+                    {
+                        "name": "1～2个月",
+                        "value": "9PVY",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2～4个月",
+                        "value": "Z8fs",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4～6个月",
+                        "value": "M4D8",
+                        "hidden": false
+                    },
+                    {
+                        "name": "6～8个月",
+                        "value": "8a3B",
+                        "hidden": false
+                    },
+                    {
+                        "name": "8～9个月",
+                        "value": "r8hf",
+                        "hidden": false
+                    },
+                    {
+                        "name": "9～10个月",
+                        "value": "Mz4F",
+                        "hidden": false
+                    },
+                    {
+                        "name": "10+个月",
+                        "value": "XXOL",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_21": {
+                "label": "平台内容",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "客户评价照片",
+                        "value": "e0N0",
+                        "hidden": false
+                    },
+                    {
+                        "name": "证书照片",
+                        "value": "pupF",
+                        "hidden": false
+                    },
+                    {
+                        "name": "自我介绍",
+                        "value": "Xbdf",
+                        "hidden": false
+                    },
+                    {
+                        "name": "早教照片",
+                        "value": "g5AH",
+                        "hidden": false
+                    },
+                    {
+                        "name": "收纳整理照片",
+                        "value": "3spM",
+                        "hidden": false
+                    },
+                    {
+                        "name": "餐食照片8+张/年",
+                        "value": "860e",
+                        "hidden": false
+                    },
+                    {
+                        "name": "育儿照片3+张/年",
+                        "value": "25kY",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_22": {
+                "label": "工作汇报",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "0",
+                        "value": "MpT9",
+                        "hidden": false
+                    },
+                    {
+                        "name": "1",
+                        "value": "n2SH",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2",
+                        "value": "CUp8",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_37": {
+                "label": "案例分析",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "初级1篇/年",
+                        "value": "sEBU",
+                        "hidden": false
+                    },
+                    {
+                        "name": "中级2篇/年",
+                        "value": "AIRh",
+                        "hidden": false
+                    },
+                    {
+                        "name": "高级3篇/年",
+                        "value": "b5V9",
+                        "hidden": false
+                    },
+                    {
+                        "name": "特级4篇",
+                        "value": "2BMO",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_24": {
+                "label": "个人能力",
+                "api_code_alias": null,
+                "type": "section_break",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_25": {
+                "label": "育儿技能",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "0",
+                        "value": "0rV7",
+                        "hidden": false
+                    },
+                    {
+                        "name": "1",
+                        "value": "bbBi",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2",
+                        "value": "pNmz",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3",
+                        "value": "87A7",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4",
+                        "value": "sLau",
+                        "hidden": false
+                    },
+                    {
+                        "name": "5",
+                        "value": "M9ny",
+                        "hidden": false
+                    },
+                    {
+                        "name": "6",
+                        "value": "F7WZ",
+                        "hidden": false
+                    },
+                    {
+                        "name": "7",
+                        "value": "yEhM",
+                        "hidden": false
+                    },
+                    {
+                        "name": "8",
+                        "value": "VijU",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_26": {
+                "label": "收纳整理",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "0",
+                        "value": "XE3e",
+                        "hidden": false
+                    },
+                    {
+                        "name": "1",
+                        "value": "CbRB",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2",
+                        "value": "cOws",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3",
+                        "value": "WiZd",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4",
+                        "value": "ExCt",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_27": {
+                "label": "月子餐",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "0",
+                        "value": "yYoG",
+                        "hidden": false
+                    },
+                    {
+                        "name": "1",
+                        "value": "ITP0",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2",
+                        "value": "pD5q",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3",
+                        "value": "ldHq",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4",
+                        "value": "C4EF",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_28": {
+                "label": "沟通",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "0",
+                        "value": "8x2D",
+                        "hidden": false
+                    },
+                    {
+                        "name": "1",
+                        "value": "KCz9",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2",
+                        "value": "EVyA",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3",
+                        "value": "zMmx",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4",
+                        "value": "vcfh",
+                        "hidden": false
+                    },
+                    {
+                        "name": "5",
+                        "value": "orDc",
+                        "hidden": false
+                    },
+                    {
+                        "name": "6",
+                        "value": "2RZn",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_29": {
+                "label": "理解能力",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "0",
+                        "value": "5wyB",
+                        "hidden": false
+                    },
+                    {
+                        "name": "1",
+                        "value": "491H",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2",
+                        "value": "ZDDi",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3",
+                        "value": "m4yB",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4",
+                        "value": "YZ9x",
+                        "hidden": false
+                    },
+                    {
+                        "name": "5",
+                        "value": "ko9e",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_30": {
+                "label": "抗压能力",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "0",
+                        "value": "KGW9",
+                        "hidden": false
+                    },
+                    {
+                        "name": "1",
+                        "value": "sIlx",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2",
+                        "value": "ebDy",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3",
+                        "value": "XB85",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4",
+                        "value": "PRPo",
+                        "hidden": false
+                    },
+                    {
+                        "name": "5",
+                        "value": "lRAs",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_31": {
+                "label": "解决问题的能力",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "0",
+                        "value": "xVaI",
+                        "hidden": false
+                    },
+                    {
+                        "name": "1",
+                        "value": "Rklq",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2",
+                        "value": "luTx",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3",
+                        "value": "XxbH",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4",
+                        "value": "hVYF",
+                        "hidden": false
+                    },
+                    {
+                        "name": "5",
+                        "value": "t1fh",
+                        "hidden": false
+                    },
+                    {
+                        "name": "6",
+                        "value": "H6Pv",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_32": {
+                "label": "条理性",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "0",
+                        "value": "8D5b",
+                        "hidden": false
+                    },
+                    {
+                        "name": "1",
+                        "value": "a3ru",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2",
+                        "value": "ce6h",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3",
+                        "value": "pgoT",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4",
+                        "value": "s3LR",
+                        "hidden": false
+                    },
+                    {
+                        "name": "5",
+                        "value": "LhoX",
+                        "hidden": false
+                    },
+                    {
+                        "name": "6",
+                        "value": "yWyD",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_33": {
+                "label": "细致度",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "0",
+                        "value": "fF5o",
+                        "hidden": false
+                    },
+                    {
+                        "name": "1",
+                        "value": "bhSP",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2",
+                        "value": "QZUz",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3",
+                        "value": "tqab",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4",
+                        "value": "H74Z",
+                        "hidden": false
+                    },
+                    {
+                        "name": "5",
+                        "value": "KdY5",
+                        "hidden": false
+                    },
+                    {
+                        "name": "6",
+                        "value": "WSi0",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_34": {
+                "label": "加分项",
+                "api_code_alias": null,
+                "type": "section_break",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_35": {
+                "label": "交接～同事评价",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "0",
+                        "value": "91QB",
+                        "hidden": false
+                    },
+                    {
+                        "name": "1",
+                        "value": "Mmx0",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2",
+                        "value": "zW5x",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3",
+                        "value": "erg9",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4",
+                        "value": "3lAd",
+                        "hidden": false
+                    },
+                    {
+                        "name": "5",
+                        "value": "Cjkj",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_36": {
+                "label": "交接～客户评价",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "0",
+                        "value": "Aat8",
+                        "hidden": false
+                    },
+                    {
+                        "name": "1",
+                        "value": "bpm1",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2",
+                        "value": "p0fS",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3",
+                        "value": "hmrh",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4",
+                        "value": "LnXK",
+                        "hidden": false
+                    },
+                    {
+                        "name": "5",
+                        "value": "QMHC",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        }
+    ]
+}

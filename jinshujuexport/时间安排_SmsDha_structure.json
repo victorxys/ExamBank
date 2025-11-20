@@ -1,0 +1,79 @@
+{
+    "name": "时间安排",
+    "token": "SmsDha",
+    "description": "",
+    "fields": [
+        {
+            "field_1": {
+                "label": "姓名",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_5": {
+                "label": "工作期间，自己有困难吗？若有，有哪方面的困难？可具体举例说明。",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_7": {
+                "label": "最近工作，自己有精神压力吗？若有，哪方面导致自己有精神压力？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": null,
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_6": {
+                "label": "工作期间，觉得自己哪些方面做的好？哪些方面做的不好？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_2": {
+                "label": "在工作期间，哪些时间段有空开会，或者哪个时间段比较好请假（请假最多需要1小时）",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "<p>时间尽可能描述具体</p>",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_3": {
+                "label": "若您现在在户下还没上户，哪些时间段方便开会？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_4": {
+                "label": "其它",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        }
+    ]
+}

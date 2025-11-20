@@ -1,0 +1,75 @@
+{
+    "name": "工资新政策建议20年4月",
+    "token": "0KAuFa",
+    "description": null,
+    "fields": [
+        {
+            "field_1": {
+                "label": "姓名",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_2": {
+                "label": "对于本次例会有什么建议？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "<p>更多的建议，有助于我们以后的例会办的更好！</p>",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_3": {
+                "label": "育儿嫂、家务人员、护工的工资算法变化",
+                "api_code_alias": null,
+                "type": "section_break",
+                "notes": "<p style='margin: 0px; font-stretch: normal; font-size: 15px; line-height: normal; font-family: \"Helvetica Neue\";'>     经过两年时间的体验，到目前为止，还有大部分客户和极少部分阿姨，依然在为算每月加班工资烦恼，所以公司想做出调整，可方便客户和阿姨更方便计算。</p>\n\n<p style='margin: 0px; font-stretch: normal; font-size: 15px; line-height: normal; font-family: \"Helvetica Neue\";'>      现在工资算法：</p>\n\n<p style='margin: 0px; font-stretch: normal; font-size: 15px; line-height: normal; font-family: \"Helvetica Neue\";'>当月的自然天数➖当月几个周六=当月的工作天数（有24天、25天、26天、27天的）</p>\n\n<p style='margin: 0px; font-stretch: normal; font-size: 15px; line-height: normal; font-family: \"Helvetica Neue\";'>每月工作天数不固定，加班费算法也会不同。</p>\n\n<p style='margin: 0px; font-stretch: normal; font-size: 15px; line-height: normal; font-family: \"Helvetica Neue\";'>      新方法：每月固定工作天数为26天计算，当月总天数➖26天，剩下就是阿姨当月休息的天数。</p>\n\n<p style='margin: 0px; font-stretch: normal; font-size: 15px; line-height: normal; font-family: \"Helvetica Neue\";'>      现在算法跟新方法，对大家拿到手的工资总数是没有变化的，新方法更有助于大家日常的结算方便。</p>\n\n<p style='margin: 0px; font-stretch: normal; font-size: 15px; line-height: normal; font-family: \"Helvetica Neue\";'>       备注：要细算的人员，一定要算一整年的，而不是只去看一个月的总数。</p>",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_5": {
+                "label": "育儿嫂、家务人员及护工工资的新算法，您是否同意？",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": null,
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "同意",
+                        "value": "mSoU",
+                        "hidden": false
+                    },
+                    {
+                        "name": "不同意",
+                        "value": "Zxim",
+                        "hidden": false
+                    },
+                    {
+                        "name": "随大家的决定",
+                        "value": "AYuv",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_6": {
+                "label": "留言：",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "<p>对于工资算法，可随意发表自己的想法</p>",
+                "private": false,
+                "validation": {}
+            }
+        }
+    ]
+}

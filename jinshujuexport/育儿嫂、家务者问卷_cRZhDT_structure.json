@@ -1,0 +1,179 @@
+{
+    "name": "育儿嫂、家务者问卷",
+    "token": "cRZhDT",
+    "description": "",
+    "fields": [
+        {
+            "field_1": {
+                "label": "姓名",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_12": {
+                "label": "手机",
+                "api_code_alias": null,
+                "type": "mobile",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_2": {
+                "label": "家政行业中的职位",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "育儿嫂",
+                        "value": "tYwf",
+                        "hidden": false
+                    },
+                    {
+                        "name": "家务服务者",
+                        "value": "eOZd",
+                        "hidden": false
+                    },
+                    {
+                        "name": "照顾老人",
+                        "value": "4kLO",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_3": {
+                "label": "今年多少岁？（用2022减去出生年份就是今年的岁数），注意：身份证上的年份跟实际出生年份不符合，以实际出生年份计算",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_4": {
+                "label": "实际学历？",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_5": {
+                "label": "在家政行业实际工作了多久？",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_6": {
+                "label": "在萌姨萌嫂公司实际工作了多久？",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_7": {
+                "label": "主带孩子总共带过多少个？（服务时间满一个月的都算上）",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_8": {
+                "label": "最长一户做了多久？时间准确到多少个月",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_9": {
+                "label": "2021年工作了几个月？",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "<p>提醒：合同期间内休假也算成是在工作，合同结束处于下户状态中的休息属于非工作</p>",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_10": {
+                "label": "是否参加过公司自费的进阶培训课程？",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                },
+                "choices": [
+                    {
+                        "name": "是",
+                        "value": "o6BK",
+                        "hidden": false
+                    },
+                    {
+                        "name": "否",
+                        "value": "IBbj",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_11": {
+                "label": "若有参加公司进阶培训学习，请提供证书手册照片。上一个问题回答“是”的一定在此处上传照片，否则视同为“否”",
+                "api_code_alias": null,
+                "type": "attachment",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "max_file_quantity": 15,
+                "media_type": {
+                    "type": "unlimited",
+                    "value": []
+                }
+            }
+        }
+    ]
+}

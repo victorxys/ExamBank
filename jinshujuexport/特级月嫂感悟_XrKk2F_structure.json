@@ -1,0 +1,50 @@
+{
+    "name": "特级月嫂感悟",
+    "token": "XrKk2F",
+    "description": "<p>特级月嫂论文</p>",
+    "fields": [
+        {
+            "field_1": {
+                "label": "姓名",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_2": {
+                "label": "日期",
+                "api_code_alias": null,
+                "type": "date_time",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "precision": "day"
+            }
+        },
+        {
+            "field_4": {
+                "label": "论文标题",
+                "api_code_alias": null,
+                "type": "section_break",
+                "notes": "<p>你是如何理解月嫂工作的？从中得到和收获了什么？你是克服了怎样的困难做到今天的？</p>",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_3": {
+                "label": "论文",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        }
+    ]
+}

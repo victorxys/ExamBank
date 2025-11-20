@@ -1,0 +1,50 @@
+[
+    {
+        "token": "UDBoLgq8",
+        "serial_number": 1,
+        "field_1": "001",
+        "field_1_associated_field_1": "001",
+        "field_1_associated_field_2": "李谦琪",
+        "field_1_associated_field_3": "13716921062",
+        "field_1_associated_field_4": "420606198902021085",
+        "field_1_associated_field_5": {
+            "province": "北京市",
+            "city": "北京市",
+            "district": "丰台区",
+            "street": "马家堡东路金胜嘉谊"
+        },
+        "field_1_associated_field_17": "https://gd-pri.jinshujufiles.com/k4Kj75_field_17_1659770111.7415605_signature.png?token=7NK_Z1IEoKaIY6I9RXzO4b9uQPwuwdvnlGbzHZmF:RMlQ6mwRBdDGyw109T3gjbt4-qI=:eyJTIjoiZ2QtcHJpLmppbnNodWp1ZmlsZXMuY29tL2s0S2o3NV9maWVsZF8xN18xNjU5NzcwMTExLjc0MTU2MDVfc2lnbmF0dXJlLnBuZyoiLCJFIjoyMDc4OTM2OTk0fQ==&download&attname=k4Kj75_field_17_1659770111.7415605_signature.png",
+        "field_2": "李杰",
+        "field_3": "13220062923",
+        "field_4": "610622198203221729",
+        "field_5": {
+            "province": "陕西省",
+            "city": "延安市",
+            "district": "延川县",
+            "street": "延水关镇东村行政村东村231号"
+        },
+        "field_7": "",
+        "field_8": 10500,
+        "field_9": 13800,
+        "field_10": 3300,
+        "field_11": "2022-08-12",
+        "field_12": "2022-09-07",
+        "field_13": "https://gd-pri.jinshujufiles.com/VzIsgE_field_13_1659775494.1785114_signature.png?token=7NK_Z1IEoKaIY6I9RXzO4b9uQPwuwdvnlGbzHZmF:i73WUPXTGKXqS070NYrPQSwkr34=:eyJTIjoiZ2QtcHJpLmppbnNodWp1ZmlsZXMuY29tL1Z6SXNnRV9maWVsZF8xM18xNjU5Nzc1NDk0LjE3ODUxMTRfc2lnbmF0dXJlLnBuZyoiLCJFIjoyMDc4OTM2OTk0fQ==&download&attname=VzIsgE_field_13_1659775494.1785114_signature.png",
+        "x_field_1": "",
+        "color_mark": "",
+        "creator_name": "",
+        "created_at": "2022-08-06T08:45:13.064Z",
+        "updated_at": "2022-08-06T08:45:13.064Z",
+        "info_filling_duration": 188.899,
+        "info_platform": "Android",
+        "info_os": "Android 12",
+        "info_browser": "Wechat Browser 8.0.24.2180(0x28001851)",
+        "info_region": {
+            "country": "中国",
+            "province": "北京市",
+            "city": null,
+            "country_iso_code": "CN"
+        },
+        "info_remote_ip": "36.112.195.3"
+    }
+]

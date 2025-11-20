@@ -1,0 +1,49 @@
+{
+    "name": "2020年6月（阿姨）",
+    "token": "QXYCNa",
+    "description": "",
+    "fields": [
+        {
+            "field_1": {
+                "label": "姓名",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_3": {
+                "label": "自己现在的心理状态如何？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_2": {
+                "label": "自己现在有什么难题或困惑？",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "<p>比如：客户家问题、自己老家问题、自己身体情况、自己心理情况等等</p>",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_4": {
+                "label": "我想说",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "<p>自己想说任何事情，可在此写上</p>",
+                "private": false,
+                "validation": {}
+            }
+        }
+    ]
+}

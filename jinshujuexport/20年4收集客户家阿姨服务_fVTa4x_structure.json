@@ -1,0 +1,138 @@
+{
+    "name": "20年4收集客户家阿姨服务",
+    "token": "fVTa4x",
+    "description": "<p>&nbsp; &nbsp; &nbsp;亲，您好！疫情期间为了我们阿姨更好的为您提供服务，我们需要对阿姨的服务情况做如下了解，感谢您的配合🙏。</p>\n\n<p>&nbsp; &nbsp; &nbsp;接下来我们会利用腾讯会议的形式将根据您提供的问题，对阿姨们进行针对性的培训和管理，我们会议时间大约是1小时，我们会提前通知阿姨具体例会时间，阿姨提前与您协商时间，感谢您百忙之中配合我们的工作，若有其它问题，可在最下方留言😊。&nbsp; &nbsp;&nbsp;</p>",
+    "fields": [
+        {
+            "field_1": {
+                "label": "客户姓名",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_2": {
+                "label": "阿姨姓名",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_4": {
+                "label": "宝宝现阶段哪些需要加强？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "早教",
+                        "value": "P94B",
+                        "hidden": false
+                    },
+                    {
+                        "name": "喂养",
+                        "value": "xCXp",
+                        "hidden": false
+                    },
+                    {
+                        "name": "培养好习惯",
+                        "value": "ccR7",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_5": {
+                "label": "阿姨现阶段的服务哪些方面需要加强管理？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "专业理论知识",
+                        "value": "__Jm",
+                        "hidden": false
+                    },
+                    {
+                        "name": "做事情条理性",
+                        "value": "MEl4",
+                        "hidden": false
+                    },
+                    {
+                        "name": "做事情细节",
+                        "value": "AAzO",
+                        "hidden": false
+                    },
+                    {
+                        "name": "做事情麻利度",
+                        "value": "DOcE",
+                        "hidden": false
+                    },
+                    {
+                        "name": "做饭口味",
+                        "value": "HweZ",
+                        "hidden": false
+                    },
+                    {
+                        "name": "工作主动性",
+                        "value": "JXHG",
+                        "hidden": false
+                    },
+                    {
+                        "name": "阿姨情绪消极",
+                        "value": "FeXH",
+                        "hidden": false
+                    },
+                    {
+                        "name": "安全防护意识",
+                        "value": "58GM",
+                        "hidden": false
+                    },
+                    {
+                        "name": "沟通能力",
+                        "value": "8dNy",
+                        "hidden": false
+                    },
+                    {
+                        "name": "阿姨做事情的用心程度",
+                        "value": "axGd",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_7": {
+                "label": "对以上选项的问题，可在此详细举例说明",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_6": {
+                "label": "留言：",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": "<p>对公司后勤服务</p>",
+                "private": false,
+                "validation": {}
+            }
+        }
+    ]
+}

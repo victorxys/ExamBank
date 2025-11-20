@@ -1,0 +1,17 @@
+{
+    "name": "生长发育",
+    "token": "aPRhqM",
+    "description": "",
+    "fields": [
+        {
+            "field_9": {
+                "label": "复习题",
+                "api_code_alias": null,
+                "type": "section_break",
+                "notes": "<p><span style=\"font-size:1.286em;\">1、婴幼儿分哪几个阶段？哪个阶段生长发育最快？</span></p>\n\n<p><span style=\"font-size:1.286em;\">2、从哪几个方面观察孩子生长发育？其中最明显最直观的是哪几个方面？</span></p>\n\n<p><span style=\"font-size:1.286em;\">3、婴幼儿的生长发育规律是什么？</span></p>\n\n<p><span style=\"font-size:1.286em;\">4、宝宝的囟门有几个？都什么时间闭合？</span></p>\n\n<p><span style=\"font-size:1.286em;\">5、宝宝的出牙时间是怎样的？一般出牙时都有哪些表现？</span></p>\n\n<p><span style=\"font-size:1.286em;\">6、出牙后，牙齿如何护理？</span></p>\n\n<p><span style=\"font-size:1.286em;\">7、影响宝宝的生长发育有哪些因素？</span></p>\n\n<p><span style=\"font-size:1.286em;\">8、从习惯、喂养、早教三方面看宝宝各阶段的护理侧重点是什么？</span></p>",
+                "private": false,
+                "validation": {}
+            }
+        }
+    ]
+}

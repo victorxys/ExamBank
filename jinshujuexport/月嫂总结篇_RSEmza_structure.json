@@ -1,0 +1,100 @@
+{
+    "name": "月嫂总结篇",
+    "token": "RSEmza",
+    "description": "",
+    "fields": [
+        {
+            "field_1": {
+                "label": "姓名",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": null,
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_2": {
+                "label": "手机",
+                "api_code_alias": null,
+                "type": "mobile",
+                "notes": null,
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_3": {
+                "label": "现在级别",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": null,
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "初级",
+                        "value": "2wrQ",
+                        "hidden": false
+                    },
+                    {
+                        "name": "中级",
+                        "value": "tYnF",
+                        "hidden": false
+                    },
+                    {
+                        "name": "高级",
+                        "value": "4zz2",
+                        "hidden": false
+                    },
+                    {
+                        "name": "特级",
+                        "value": "R7pn",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_4": {
+                "label": "现在级别价位（元/月）",
+                "api_code_alias": null,
+                "type": "number",
+                "notes": null,
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_5": {
+                "label": "此案例的宝宝名字以及客户名字",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": null,
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_6": {
+                "label": "案例主要事件是什么？",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "<p>比如：病毒性黄疸、喂养困难、早产儿等</p>",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_7": {
+                "label": "案例内容：",
+                "api_code_alias": null,
+                "type": "paragraph_text",
+                "notes": null,
+                "private": false,
+                "validation": {}
+            }
+        }
+    ]
+}

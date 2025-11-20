@@ -1,0 +1,571 @@
+{
+    "name": "营养性疾病与常见疾病（新）",
+    "token": "1NJPeo",
+    "description": "非常感谢您能够参加本次调查，本次考试采用限时考试的方式，准备好了吗？我们现在开始吧！",
+    "fields": [
+        {
+            "field_1": {
+                "label": "姓名",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_2": {
+                "label": "手机",
+                "api_code_alias": null,
+                "type": "mobile",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_3": {
+                "label": "宝宝发热的原因有哪些？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、宝宝有没有出牙或打疫苗",
+                        "value": "pK1M",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、积食",
+                        "value": "N8jX",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、病毒感染",
+                        "value": "s8eB",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4、细菌感染",
+                        "value": "qjk0",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_13": {
+                "label": "宝宝发热多少度，可以吃退烧药？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、38度",
+                        "value": "dxp_",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、38.5度",
+                        "value": "AnvX",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、39度",
+                        "value": "dzaa",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4、39.5度",
+                        "value": "qWLG",
+                        "hidden": false
+                    },
+                    {
+                        "name": "5、40度",
+                        "value": "40pV",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_14": {
+                "label": "6个月以内的宝宝，退烧药可以用哪些？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、泰诺",
+                        "value": "1a0f",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、美林",
+                        "value": "DaSA",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_15": {
+                "label": "多大的宝宝可以服用泰诺或美林？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、6～12个月",
+                        "value": "6y2k",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、8～12个月",
+                        "value": "R8q7",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、6个月",
+                        "value": "dmUd",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4、1岁以上",
+                        "value": "NTN3",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_16": {
+                "label": "多大宝宝可以服用美林？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、6个月以内",
+                        "value": "Pkyd",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、1岁以内",
+                        "value": "svKo",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、1岁以上",
+                        "value": "0AFF",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_17": {
+                "label": "不退烧时，泰诺间隔多久，可以再次使用？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、2小时",
+                        "value": "Uei6",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、4小时",
+                        "value": "q7qq",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、6小时",
+                        "value": "MQLm",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4、8小时",
+                        "value": "B34j",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_18": {
+                "label": "不退烧时，美林间隔多久，可以再次使用？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、2小时",
+                        "value": "eo8J",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、4小时",
+                        "value": "9ORS",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、6小时",
+                        "value": "Wa4d",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4、8小时",
+                        "value": "d5ms",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_5": {
+                "label": "宝宝身体发热护理的正确方法有哪些？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、温水擦澡",
+                        "value": "mDjp",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、多饮水",
+                        "value": "-BQU",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、饮食要清淡",
+                        "value": "0iCL",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4、让宝宝多休息",
+                        "value": "mCpP",
+                        "hidden": false
+                    },
+                    {
+                        "name": "5、酒精擦浴",
+                        "value": "byas",
+                        "hidden": false
+                    },
+                    {
+                        "name": "6、解开衣服散热",
+                        "value": "eL-U",
+                        "hidden": false
+                    },
+                    {
+                        "name": "7、赶紧服用退烧药",
+                        "value": "8g23",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_6": {
+                "label": "腹泻的原因有哪些？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、辅食添加不当",
+                        "value": "eF1J",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、细菌感染，如肠炎痢疾",
+                        "value": "TSno",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、病毒感染，如秋季腹泻",
+                        "value": "taca",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_7": {
+                "label": "病毒性腹泻有哪些？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、水样便一次便很多",
+                        "value": "C1VX",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、便后腹痛消失或减轻",
+                        "value": "t8T1",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、便后精神状态良好",
+                        "value": "JUzk",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4、黏性便一次便一点",
+                        "value": "E-fy",
+                        "hidden": false
+                    },
+                    {
+                        "name": "5、伴有腹痛",
+                        "value": "nHqw",
+                        "hidden": false
+                    },
+                    {
+                        "name": "6、便后不消失，没有食欲",
+                        "value": "ArDa",
+                        "hidden": false
+                    },
+                    {
+                        "name": "7、疲倦",
+                        "value": "0Hh3",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_8": {
+                "label": "细菌性腹泻有哪些？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、水样便一次便很多",
+                        "value": "Tgn3",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、便后腹痛消失或减轻",
+                        "value": "Wi6S",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、便后精神状态良好",
+                        "value": "6koS",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4、黏性便一次便一点",
+                        "value": "5Qm0",
+                        "hidden": false
+                    },
+                    {
+                        "name": "5、伴有腹痛",
+                        "value": "O7Lm",
+                        "hidden": false
+                    },
+                    {
+                        "name": "6、便后不消失，没有食欲",
+                        "value": "PDc8",
+                        "hidden": false
+                    },
+                    {
+                        "name": "7、疲倦",
+                        "value": "k_7r",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_9": {
+                "label": "便秘的治疗方法有哪些？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、多喝水",
+                        "value": "O2u_",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、少吃蛋白高的食物",
+                        "value": "fnKC",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、多吃蔬菜水果",
+                        "value": "KvBu",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4、多运动",
+                        "value": "Llk6",
+                        "hidden": false
+                    },
+                    {
+                        "name": "5、养成良好的排便习惯",
+                        "value": "SwA6",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_19": {
+                "label": "长尿布疹的原因？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、局部处理不干净，",
+                        "value": "Z0OL",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、长时间没有换尿不湿，",
+                        "value": "25Oi",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、尿不湿太紧不透气，",
+                        "value": "-D09",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4、鹅口疮引起",
+                        "value": "IKPQ",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_20": {
+                "label": "尿布疹如何预防？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、保持屁屁干爽，及时更换纸尿裤",
+                        "value": "8NyI",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、热水清洗屁屁，涂抹厚厚护臀霜",
+                        "value": "hiYE",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、尿不湿的松紧适宜",
+                        "value": "f7TX",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4、不要用过热的水清洗小屁屁",
+                        "value": "Awis",
+                        "hidden": false
+                    },
+                    {
+                        "name": "5、使用爽身粉",
+                        "value": "Axdp",
+                        "hidden": false
+                    },
+                    {
+                        "name": "6、屁屁清洗完要蘸干后再带尿不湿",
+                        "value": "-yqw",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_21": {
+                "label": "尿布疹如何护理？",
+                "api_code_alias": null,
+                "type": "multiple_choice",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "choices": [
+                    {
+                        "name": "1、保持屁屁干爽，",
+                        "value": "nFTN",
+                        "hidden": false
+                    },
+                    {
+                        "name": "2、清洗完屁屁晾干，然后涂护臀霜，",
+                        "value": "riKc",
+                        "hidden": false
+                    },
+                    {
+                        "name": "3、使用爽身粉",
+                        "value": "RT8g",
+                        "hidden": false
+                    },
+                    {
+                        "name": "4、若是鹅口疮感染应涂抗真菌药膏",
+                        "value": "tr70",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        }
+    ]
+}

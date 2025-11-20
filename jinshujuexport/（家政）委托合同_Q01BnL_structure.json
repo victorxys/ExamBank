@@ -1,0 +1,139 @@
+{
+    "name": "（家政）委托合同",
+    "token": "Q01BnL",
+    "description": "<h1 style=\"margin-right: 0cm; margin-left: 0cm; font-size: 24pt; font-family: 宋体; text-align: center;\" align=\"center\"><span style=\"font-family:黑体\">北京家福安家政服务有限公司</span></h1>\n\n<h1 style=\"margin-right: 0cm; margin-left: 0cm; font-size: 24pt; font-family: 宋体; text-align: center;\" align=\"center\"><span style=\"font-family:黑体\">与</span></h1>\n\n<h1 style=\"margin-right: 0cm; margin-left: 0cm; font-size: 24pt; font-family: 宋体; text-align: center;\" align=\"center\"><span style=\"font-family:黑体\">家政服务人员</span></h1>\n\n<h1 style=\"margin-right: 0cm; margin-left: 0cm; font-size: 24pt; font-family: 宋体; text-align: center;\" align=\"center\"><span style=\"font-family:黑体\">委托管理合同</span></h1><p></p>",
+    "fields": [
+        {
+            "field_2": {
+                "label": "乙方“家政服务人员”姓名",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_3": {
+                "label": "乙方电话",
+                "api_code_alias": null,
+                "type": "mobile",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_12": {
+                "label": "乙方身份证号码",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_5": {
+                "label": "乙方户籍地址",
+                "api_code_alias": null,
+                "type": "address",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        },
+        {
+            "field_13": {
+                "label": "委托合同",
+                "api_code_alias": null,
+                "type": "section_break",
+                "notes": "<p><span style=\"font-size:1.143em;\">北京家福安</span><span style=\"color:black;font-size:1.143em;\">家政服务有限公司</span><span style=\"font-size:1.143em;\">与家政服务人员委托管理合同</span></p><p>&nbsp;</p><p style=\"line-height:28.0pt;\"><span style=\"font-size:1.143em;\"><strong>甲方（以下称“家福安”）&nbsp; ：北</strong></span><span style=\"color:black;font-size:1.143em;\"><strong>京家福安家政服务有限公司</strong></span><span style=\"font-size:1.143em;\"><strong>&nbsp;&nbsp; </strong>法定代表人：金莉红</span></p><p style=\"line-height:28.0pt;\"><span style=\"font-size:1.143em;\">经营地址：北京市海淀区永定路88号长银大厦10B2</span><span style=\"color:black;font-size:1.143em;\">0</span><span style=\"font-size:1.143em;\">&nbsp; &nbsp; &nbsp; &nbsp;&nbsp;</span></p><p style=\"line-height:150%;text-align:left;\"><span style=\"font-size:1.143em;\">联系电话：010-56278291；010-56278263&nbsp; &nbsp; &nbsp;</span></p><figure class=\"image\"><img src=\"https://gd-pub.jinshujufiles.com/di/GuMxQxGo9f/20250708113950_6478f1\"></figure><p>&nbsp;</p><p><span style=\"font-size:1.143em;\"><strong>乙方（以下称“家政服务员”）：</strong>乙方个人信息，联系方式，户籍地址等信息，将由乙方填写在系统中的呈现为准。</span></p><p>&nbsp;</p><p style=\"line-height:150%;text-align:left;text-indent:22.1pt;\"><span style=\"font-size:1.143em;\"><strong>鉴于：</strong></span></p><ol><li><span style=\"font-size:1.143em;\">家福安是依法成立的具有相关资质的以居间人身份为雇主与家政服务员提供家政服务信息的家政服务</span><span style=\"color:black;font-size:1.143em;\">机构</span><span style=\"font-size:1.143em;\">；</span></li><li><span style=\"font-size:1.143em;\">家政服务员是具有完全民事行为能力且具有相关职业能力的人员，愿意委托家福安推荐劳务机会并服从家福安的相关管理规定。</span></li></ol><p style=\"line-height:150%;text-align:left;text-indent:22.0pt;\"><span style=\"font-size:1.143em;\">根据《中华人民共和国合同法》等有关法律、法规的规定，家福安与家政服务员经平等协商，达成本合同，以共同遵守。</span></p><ol><li><span style=\"font-size:1.143em;\"><strong>&nbsp;委托事项</strong></span></li><li><span style=\"font-size:1.143em;\">家政服务员委托家福安推荐家政服务机会，并向家福安支付中介费。</span></li><li><span style=\"font-size:1.143em;\">家政服务员与家福安之间为委托关系，不属于劳动关系。</span></li><li><span style=\"font-size:1.143em;\">&nbsp;<strong>&nbsp;委托期限</strong></span></li><li><span style=\"font-size:1.143em;\">委托期限为<u>&nbsp; &nbsp; &nbsp;</u>年，自<u>&nbsp; &nbsp; 年&nbsp;&nbsp; 月&nbsp; &nbsp;</u>日起至<u>&nbsp; &nbsp; 年&nbsp; &nbsp;月 &nbsp; 日</u>止（以下方系统中呈现为准）。</span></li><li><span style=\"font-size:1.143em;\">如在委托期限届满前，双方均未以书面形式提出终止或解除本合同的，本合同自动续展一年，续展次数不受限制。</span></li><li><span style=\"font-size:1.143em;\"><strong>&nbsp;中介费</strong></span></li><li><span style=\"font-size:1.143em;\">家政服务员应当向家福安支付的中介费包括报名费、委托管理费以及根据家福安的书面通知的其他费用。</span></li><li><span style=\"font-size:1.143em;\">报名费。 家政服务员首次与家福安建立委托关系时，应当根据家福安的规定交纳报名费；家政服务员应当一次性交纳报名费，交纳后不予退还。</span></li><li><span style=\"font-size:1.143em;\">委托管理费。 家政服务员在上户提供服务前，应当根据家福安的规定支付委托管理费。</span></li><li><span style=\"font-size:1.143em;\">委托管理费为家政服务员与雇主签订的《家政服务合同》中约定的月劳务报酬的10%，该月劳务报酬以自然月为基数并不考虑休假等因素。</span></li><li><span style=\"font-size:1.143em;\">家政服务员下户后再与其他雇主签订《家政服务合同》的，应当按本合同的约定再次缴纳委托管理费。</span></li><li><span style=\"font-size:1.143em;\">家政服务员同意：家福安有权根据具体经营情况、家政服务员提供的服务种类变化等原因，调整委托管理费的数额或缴纳方式。</span></li><li><span style=\"font-size:1.143em;\"><strong>保证金的结算</strong></span></li><li><span style=\"font-size:1.143em;\">雇主按照《家政服务合同》中的约定向家福安支付的保证金，是家政服务员的履约保证金。当家政服务与雇主签订的《家政服务合同》终止或解除后，家福安将对保证金予以结算，在扣除委托管理费等后，余下金额作为家政服务员的劳务报酬支付给家政服务员。家福安不代扣代缴家政服务员的个人所得税等费用，个人所得税等应当由家政服务员自行缴纳。</span></li><li><span style=\"font-size:1.143em;\"><strong>权利义务</strong></span></li><li><span style=\"font-size:1.143em;\">家政服务员应当按本合同的约定支付中介费，家福安应当积极、及时地为家政服务员推荐服务机会。</span></li><li><span style=\"color:black;font-size:1.143em;\">家政服务员应当遵守家福安的管理制度，服从家福安的指导。</span><span style=\"font-size:1.143em;\">家政服务员应当向家福安如实告知个人基本情况、身体健康状况、职业经历及相关家政服务的经验，因家政服务员未向雇主或家福安如实告知而造成的损失，由家政服务员承担，家福安不承担任何责任并有权立即解除本合同。</span></li><li><span style=\"font-size:1.143em;\">家政服务员应当严格遵守与雇主之间的《家政服务合同》及《家政服务试用期协议》等约定，勤勉、尽职的为雇主服务，除疾病、意外等特殊情况外，不得终止服务，否则造成的损失，由家政服务员承担。家政服务员在非紧急情况下请假，应当提前30天通知雇主和家福安。</span></li><li><span style=\"font-size:1.143em;\">家政服务员应当按家福安的规定及时、准确、全面的通知家福安服务期间的相关情况，包括上户、下户、请假等。</span></li><li><span style=\"font-size:1.143em;\">有以下情形之一的，家福安有权立即解除本合同，或拒绝推荐服务机会且中介费不予返还，家政服务员造成损失的，家福安可以要求赔偿：</span></li><li><span style=\"font-size:1.143em;\">家政服务员发生盗窃、故意毁坏财物等行为的；</span></li><li><span style=\"font-size:1.143em;\">家政服务员与雇主发生争吵、打架，或者呵斥或虐待雇主或雇主家人等行为的；</span></li><li><span style=\"font-size:1.143em;\">家政服务员在服务期间着装、佩戴物不整洁或不适当，个人卫生情况较差，经家福安两次警告仍不改正的；</span></li><li><span style=\"font-size:1.143em;\">家政服务员未如实告知而造成损失的，或者隐瞒身体状况提供劳务服务，在服务期间发生疾病、意外，或给雇主造成损失的；</span></li><li><span style=\"font-size:1.143em;\">家政服务员因服务质量差等原因被同一雇主投诉两次以上的；</span></li><li><span style=\"font-size:1.143em;\">家政服务员泄露雇主隐私的，如地址、电话等；</span></li><li><span style=\"font-size:1.143em;\">家政服务员隐瞒雇主或雇主孩子病情、伤情的；</span></li><li><span style=\"font-size:1.143em;\">家政服务员向雇主索取财物的；</span></li><li><span style=\"font-size:1.143em;\">家政服务员与雇主私下签订协议的；</span></li><li><span style=\"font-size:1.143em;\">家政服务员未提前告知家福安即在服务期间私自请假或终止服务的；</span></li><li><span style=\"font-size:1.143em;\">家政服务员让第三人为雇主提供服务的。</span></li><li><span style=\"font-size:1.143em;\">家福安有权对家政服务员进行背景调查和职业技能测试，并与家政服务员协商确定家政服务员的家政服务种类、薪酬待遇档次等，家政服务员不同意的，家福安有权拒绝推荐服务机会。</span></li><li><span style=\"font-size:1.143em;\">家福安应当积极协调家政服务员与雇主的关系，听取家政服务员的意见并向雇主予以反馈，维护家政服务员合理合法的权益。</span></li><li><span style=\"font-size:1.143em;\">家福安有权要求相应工作经验不足的家政服务员参与基础技能培训，家政服务员不同意的，家福安有权拒绝推荐服务机会。</span></li><li><span style=\"font-size:1.143em;\">家福安有权针对家政服务员进行不定期的家政服务技能培训，家政服务员应当按要求参加，否则家福安有权暂扣其全部或部分保证金，直到家政服务员完成培训课程。</span></li><li><span style=\"font-size:1.143em;\">家福安可以不定期检查、测试家政服务员的职业技能水平、身体健康状况等，以便于推荐服务机会，家政服务员应当予以配合。</span></li><li><span style=\"font-size:1.143em;\">家福安为家政服务员投保保险，或支付相关保险的保费。</span></li><li><span style=\"font-size:1.143em;\"><strong>免责条款</strong></span></li><li><span style=\"font-size:1.143em;\">家福安仅能对雇主资料、信息进行表面、初步的核实，无法保证真实、准确、全面，在事先无法预见的前提下，对因此产生的不利后果不承担责任，家政服务员应当在上户服务期间审慎观察、权衡，以保证自身安全和健康。</span></li><li><span style=\"font-size:1.143em;\">由于疫情、政府行为等不可抗力原因致使任何一方不能按本合同的约定履行，因不可抗力造成的损失双方互不承担责任。受不可抗力影响的一方应当在不可抗力发生后尽快通知其他方，因故意不履行通知义务而造成的损失应当承担责任。</span></li><li><span style=\"color:black;font-size:1.143em;\"><strong>其他</strong></span></li><li><span style=\"color:black;font-size:1.143em;\">合同履行期间，除本合同另有规定外，一方提出解除合同的，应当提前30天通知对方。</span></li><li><span style=\"font-size:1.143em;\">本合同如果发生争议，应由双方协商解决；协商不成的，任何一方可向家福安所在地人民法院起诉。</span></li></ol>",
+                "private": false,
+                "validation": {}
+            }
+        },
+        {
+            "field_6": {
+                "label": "确定以上内容已经阅读完整并理解",
+                "api_code_alias": null,
+                "type": "single_choice",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                },
+                "choices": [
+                    {
+                        "name": "是",
+                        "value": "KUz3",
+                        "hidden": false
+                    }
+                ],
+                "allow_other": false
+            }
+        },
+        {
+            "field_7": {
+                "label": "委托期限开始时间",
+                "api_code_alias": null,
+                "type": "date_time",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "precision": "day"
+            }
+        },
+        {
+            "field_8": {
+                "label": "委托期限截止时间",
+                "api_code_alias": null,
+                "type": "date_time",
+                "notes": "",
+                "private": false,
+                "validation": {},
+                "precision": "day"
+            }
+        },
+        {
+            "field_10": {
+                "label": "什么时候开始交的社保（农保）？",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "<p>不是、不是商业保险</p>\n\n<p>若没有此处写没有</p>",
+                "private": true,
+                "validation": {}
+            }
+        },
+        {
+            "field_11": {
+                "label": "若自己已经退休，是什么时候退休的？",
+                "api_code_alias": null,
+                "type": "single_line_text",
+                "notes": "",
+                "private": true,
+                "validation": {}
+            }
+        },
+        {
+            "field_9": {
+                "label": "乙方签字",
+                "api_code_alias": null,
+                "type": "e_signature",
+                "notes": "",
+                "private": false,
+                "validation": {
+                    "required": true
+                }
+            }
+        }
+    ]
+}
