@@ -228,3 +228,7 @@ celerybeat-schedule.db
 
 start_dev.sh
 *.sh
+
+# Ignored by user request
+jinshujuexport/
+backend/static/signatures/

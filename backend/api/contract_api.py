@@ -339,15 +339,29 @@ import markdown
 @contract_bp.route("/signatures/<uuid:signature_id>/image", methods=["GET"])
 def get_signature_image(signature_id):
     """
-    Serve the signature image file.
+    Serve the signature image file robustly using absolute paths.
     """
     signature = ContractSignature.query.get_or_404(signature_id)
-    if not signature.file_path or not os.path.exists(signature.file_path):
-        return "Signature file not found", 404
-        
-    directory = os.path.dirname(signature.file_path)
+
+    if not signature.file_path:
+        current_app.logger.error(f"Signature record {signature_id} found, but its file_path is empty.")
+        return "Signature file path not recorded in database", 404
+
+    # The file_path in DB is relative, e.g., "static/signatures/file.png".
+    # `send_from_directory` needs the directory path and the filename separately.
+    
+    # Let's construct the absolute path to the directory containing the signatures.
+    # current_app.root_path is the 'backend' folder.
+    signatures_dir = os.path.join(current_app.root_path, 'static', 'signatures')
     filename = os.path.basename(signature.file_path)
-    return send_from_directory(directory, filename)
+
+    # Use send_from_directory with an absolute directory path.
+    # It will handle the file existence check and return a 404 if not found.
+    try:
+        return send_from_directory(signatures_dir, filename)
+    except FileNotFoundError:
+        current_app.logger.error(f"Signature file not found on disk. Looked for '{filename}' in '{signatures_dir}'.")
+        return "Signature file not found on disk", 404
 
 @contract_bp.route("/<string:contract_id>/download", methods=["GET"])
 @jwt_required()
