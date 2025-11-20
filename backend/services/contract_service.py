@@ -376,11 +376,23 @@ class ContractService:
             end_date = datetime.fromisoformat(new_contract_data["end_date"])
             new_employee_level = Decimal(new_contract_data.get("employee_level", old_contract.employee_level))
             
+            current_app.logger.info(f"Renew contract data received: {new_contract_data}")
+            
             final_management_fee_rate = Decimal(new_contract_data.get("management_fee_rate", old_contract.management_fee_rate or 0))
             final_management_fee_amount = Decimal(new_contract_data.get("management_fee_amount", old_contract.management_fee_amount or 0))
 
             if final_management_fee_rate > 0:
-                final_management_fee_amount = (new_employee_level * final_management_fee_rate).quantize(Decimal('0.01'))
+                # 区分月嫂合同和育儿嫂合同的计算逻辑
+                if isinstance(old_contract, MaternityNurseContract) and final_management_fee_rate < 1:
+                    # 月嫂逻辑：管理费 = (级别 / (1 - 费率)) * 费率
+                    # 24310 / (1 - 0.15) * 0.15 = 28600 * 0.15 = 4290
+                    total_amount = new_employee_level / (1 - final_management_fee_rate)
+                    final_management_fee_amount = (total_amount * final_management_fee_rate).quantize(Decimal('0.01'))
+                    current_app.logger.info(f"月嫂续约计算: 级别={new_employee_level}, 费率={final_management_fee_rate}, 计算出管理费={final_management_fee_amount}")
+                else:
+                    # 育儿嫂逻辑：管理费 = 级别 * 费率
+                    final_management_fee_amount = (new_employee_level * final_management_fee_rate).quantize(Decimal('0.01'))
+                    current_app.logger.info(f"普通续约计算: 级别={new_employee_level}, 费率={final_management_fee_rate}, 计算出管理费={final_management_fee_amount}")
             new_contract_fields = {
                 "customer_id": old_contract.customer_id,
                 "service_personnel_id": old_contract.service_personnel_id,
@@ -417,6 +429,16 @@ class ContractService:
                 new_contract_fields['deposit_amount'] = new_contract_data.get('deposit_amount', old_contract.deposit_amount)
                 new_contract_fields['discount_amount'] = new_contract_data.get('discount_amount', old_contract.discount_amount)
                 
+                # 【关键修复】确保管理费金额被正确设置
+                # 月嫂合同每月都需要收取管理费,必须确保这个值被正确传递
+                new_contract_fields['management_fee_amount'] = final_management_fee_amount
+                current_app.logger.info(f"月嫂合同续约：设置管理费金额为 {final_management_fee_amount}")
+
+                # 【关键修复】正确计算月嫂合同的客交保证金 (security_deposit_paid)
+                # 逻辑：客交保证金 = 员工级别 + 管理费
+                new_contract_fields['security_deposit_paid'] = new_employee_level + final_management_fee_amount
+                current_app.logger.info(f"月嫂合同续约：设置客交保证金为 {new_contract_fields['security_deposit_paid']} (级别 {new_employee_level} + 管理费 {final_management_fee_amount})")
+                
                 # 月嫂合同续约优化：自动确认实际上户日期并生成账单
                 new_contract_fields['actual_onboarding_date'] = start_date
                 new_contract_fields['status'] = 'active'
@@ -436,8 +458,9 @@ class ContractService:
             _, last_day_of_month = calendar.monthrange(old_end_date.year, old_end_date.month)
             is_end_of_month = old_end_date.day == last_day_of_month
 
-            if not is_end_of_month:
-                # 场景1: 合同结束日不是月末，合并整个账单
+            if not is_end_of_month and not isinstance(old_contract, MaternityNurseContract):
+                # 场景1: 合同结束日不是月末，且不是月嫂合同（月嫂合同只转移保证金，不合并账单）
+                # 合并整个账单逻辑
                 current_app.logger.info(f"合同 {old_contract.id} 结束日不是月末，执行账单合并逻辑。")
                 last_bill = CustomerBill.query.filter_by(contract_id=old_contract.id ).order_by(CustomerBill.cycle_end_date.desc()).first()
                 if last_bill:
@@ -498,6 +521,14 @@ class ContractService:
 
         current_app.logger.info(f"成功续约合同 {old_contract_id}，创建新合同 {renewed_contract.id}。")
         return renewed_contract
+    def _to_date(self, dt_obj):
+        """辅助函数：将 datetime 或 date 转换为 date"""
+        if isinstance(dt_obj, datetime):
+            return dt_obj.date()
+        if isinstance(dt_obj, date):
+            return dt_obj
+        return None
+
     def _terminate_and_settle_contract(self, contract_id: str, termination_date: date, charge_on_termination_date: bool):
         """
         一个私有辅助方法，封装了终止合同和最终结算的核心逻辑。
@@ -611,9 +642,25 @@ class ContractService:
             final_management_fee_amount = Decimal(change_data.get("management_fee_amount", old_contract.management_fee_amount or 0))
 
             if final_management_fee_rate > 0:
-                final_management_fee_amount = (new_employee_level * final_management_fee_rate).quantize(Decimal('0.01'))
+                # 区分月嫂合同和育儿嫂合同的计算逻辑
+                if isinstance(old_contract, MaternityNurseContract) and final_management_fee_rate < 1:
+                    # 月嫂逻辑：管理费 = (级别 / (1 - 费率)) * 费率
+                    total_amount = new_employee_level / (1 - final_management_fee_rate)
+                    final_management_fee_amount = (total_amount * final_management_fee_rate).quantize(Decimal('0.01'))
+                else:
+                    # 育儿嫂逻辑：管理费 = 级别 * 费率
+                    final_management_fee_amount = (new_employee_level * final_management_fee_rate).quantize(Decimal('0.01'))
 
             new_service_personnel_id = change_data.get("service_personnel_id")
+
+            # 【关键修复】正确计算变更合同的客交保证金
+            # 默认情况下(育儿嫂)，保证金 = 员工级别
+            security_deposit_paid = new_employee_level
+            
+            # 如果是月嫂合同，保证金 = 员工级别 + 管理费
+            if isinstance(old_contract, MaternityNurseContract):
+                 security_deposit_paid = new_employee_level + final_management_fee_amount
+                 current_app.logger.info(f"月嫂合同变更：设置客交保证金为 {security_deposit_paid} (级别 {new_employee_level} + 管理费 {final_management_fee_amount})")
 
             new_contract_fields = {
                 "customer_id": old_contract.customer_id,
@@ -632,10 +679,9 @@ class ContractService:
                 "customer_signing_token": str(uuid.uuid4()),
                 "employee_signing_token": str(uuid.uuid4()),
                 "notes": old_contract.notes,
-                "security_deposit_paid": new_employee_level, # 变更合同的保证金默认等于员工级别
+                "security_deposit_paid": security_deposit_paid, # 使用修正后的保证金逻辑
                 "template_id": old_contract.template_id,
                 "service_content": old_contract.service_content,
-                "service_type": old_contract.service_type,
                 "service_type": old_contract.service_type,
                 # "template_content": template_content, <-- REMOVED 
             }
