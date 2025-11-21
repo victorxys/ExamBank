@@ -2287,65 +2287,6 @@ def get_single_contract_details(contract_id):
         return jsonify({"error": str(e)}), 500
 
 
-# @billing_bp.route("/contracts/<string:contract_id>", methods=["PUT"])
-# @admin_required
-# def update_contract(contract_id):
-#     current_app.logger.info(f"--- 开始更新合同 update_contract {contract_id} ---")
-#     data = request.get_json()
-#     if not data:
-#         return jsonify({"error": "请求体不能为空"}), 400
-
-#     contract = db.session.get(BaseContract, contract_id)
-#     if not contract:
-#         return jsonify({"error": "合同未找到"}), 404
-
-#     try:
-#         # **核心修正**: 增加自动调整结束日的逻辑
-#         if "actual_onboarding_date" in data and data["actual_onboarding_date"]:
-#             new_onboarding_date_str = data["actual_onboarding_date"]
-#             new_onboarding_date = datetime.strptime(
-#                 new_onboarding_date_str, "%Y-%m-%d"
-#             ).date()
-
-#             # 更新实际上户日期
-#             contract.actual_onboarding_date = new_onboarding_date
-
-#             # 如果是月嫂合同，自动计算并更新合同结束日
-#             if contract.type == "maternity_nurse":
-#                 # 假设所有月嫂合同都是一个标准的26天周期
-#                 # 结束日 = 实际上户日期 + 26天
-#                 new_end_date = new_onboarding_date + timedelta(days=26)
-#                 contract.end_date = new_end_date
-#                 current_app.logger.info(
-#                     f"合同====== {contract_id} 的实际上户日更新为 {new_onboarding_date}，合同结束日自动调整为 {new_end_date}。"
-#                 )
-
-#         # Handle requires_signature and signing_status editing
-#         if 'requires_signature' in data:
-#             requires_signature = data['requires_signature']
-#             contract.requires_signature = requires_signature
-#             if requires_signature is False:
-#                 contract.signing_status = SigningStatus.NOT_REQUIRED
-#             elif requires_signature is True:
-#                 contract.signing_status = SigningStatus.UNSIGNED
-#             current_app.logger.info(
-#                 f"合同 {contract_id} 的签署需求更新为: {requires_signature}, 签署状态: {contract.signing_status}"
-#             )
-
-#         # 未来可以增加更新其他字段的逻辑
-#         # ...
-
-#         db.session.commit()
-#         return jsonify({"message": "合同信息更新成功"})
-
-#     except Exception as e:
-#         db.session.rollback()
-#         current_app.logger.error(f"更新合同 {contract_id} 失败: {e}", exc_info=True)
-#         return jsonify({"error": "更新失败"}), 500
-
-
-
-
 @billing_bp.route("/contracts/<uuid:contract_id>/terminate", methods=["POST"])
 @jwt_required()
 def terminate_contract(contract_id):

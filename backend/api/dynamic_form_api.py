@@ -59,7 +59,6 @@ def manage_dynamic_forms():
     ]), 200
 
 @dynamic_form_bp.route('/<string:form_token>', methods=['GET'])
-@jwt_required()
 def get_dynamic_form_by_token(form_token):
     """
     根据 form_token 获取单个表单的定义（包含 SurveyJS schema）。
