@@ -38,53 +38,84 @@ def jinshuju_to_surveyjs_converter(jinshuju_schema: dict, correct_answer_map: di
     description = jinshuju_schema.get("description", "")
     surveyjs_elements = []
 
+    def convert_jinshuju_field(field_props, correct_answer_map, is_in_table=False):
+        field_type = field_props.get("type")
+        field_label = field_props.get("label")
+        
+        survey_question = {
+            "name": field_label,
+            "title": field_label,
+            "isRequired": field_props.get("validation", {}).get("required", False),
+            "visible": not field_props.get("private", False)
+        }
+
+        choices = field_props.get("choices")
+        if choices:
+            # If inside a table, use the name as the value to match the raw data format
+            if is_in_table:
+                survey_question["choices"] = [{"value": opt["name"], "text": opt["name"]} for opt in choices]
+            else:
+                survey_question["choices"] = [{"value": opt["value"], "text": opt["name"]} for opt in choices]
+
+        # --- Type Conversion Logic ---
+        if field_type == "single_line_text":
+            survey_question["type"] = "text"
+        elif field_type == "multi_line_text" or field_type == "textarea" or field_type == "paragraph_text":
+            survey_question["type"] = "comment"
+        elif field_type == "attachment":
+            survey_question["type"] = "file"
+        elif field_type == "number":
+            survey_question["type"] = "text"
+            survey_question["inputType"] = "number"
+        elif field_type == "multiple_choice" or field_type == "multiple_select" or field_type == "checkbox":
+            survey_question["type"] = "checkbox"
+        elif field_type == "radio" or field_type == "single_choice":
+            survey_question["type"] = "radiogroup"
+        elif field_type == "drop_down_list" or field_type == "dropdown" or field_type == "drop_down":
+            survey_question["type"] = "dropdown"
+        elif field_type == "date_time":
+            survey_question["type"] = "text"
+            survey_question["inputType"] = "date" # or datetime-local depending on precision
+        elif field_type == "table":
+            survey_question["type"] = "paneldynamic"
+            survey_question["templateElements"] = []
+            # Process dimensions (nested fields)
+            dimensions = field_props.get("dimensions", [])
+            for dim in dimensions:
+                # dimensions is a list of single-key dicts: [{"field_1": {...}}, {"field_2": {...}}]
+                for sub_key, sub_props in dim.items():
+                    sub_question = convert_jinshuju_field(sub_props, correct_answer_map, is_in_table=True)
+                    if sub_question:
+                        survey_question["templateElements"].append(sub_question)
+        else:
+            survey_question["type"] = "text"
+
+        # --- Embed Correct Answer and Points (Only for top-level fields usually, but logic can stay) ---
+        # Note: Correct answer mapping might need adjustment for tables if needed, but for now keeping it simple
+        # The key for correct_answer_map is the field ID (e.g. field_1), which we don't have easily here 
+        # if we only pass props. But the caller loop has it. 
+        # For now, we'll skip correct answer embedding inside this helper for simplicity 
+        # unless we pass the field key.
+        
+        return survey_question
+
     for field_obj in jinshuju_schema.get("fields", []):
         if not isinstance(field_obj, dict):
             print(f"    - Skipping invalid field object (not a dict): {field_obj}")
             continue
 
         for field_key, field_props in field_obj.items():
-            field_type = field_props.get("type")
-            field_label = field_props.get("label")
+            survey_question = convert_jinshuju_field(field_props, correct_answer_map)
             
-            survey_question = {
-                "name": field_label,
-                "title": field_label,
-                "isRequired": field_props.get("validation", {}).get("required", False),
-                "visible": not field_props.get("private", False)
-            }
-
-            choices = field_props.get("choices")
-            if choices:
-                survey_question["choices"] = [{"value": opt["value"], "text": opt["name"]} for opt in choices]
-
-            # --- Type Conversion Logic ---
-            if field_type == "single_line_text":
-                survey_question["type"] = "text"
-            elif field_type == "multi_line_text" or field_type == "textarea":
-                survey_question["type"] = "comment"
-            elif field_type == "attachment":
-                survey_question["type"] = "file"
-            elif field_type == "number":
-                survey_question["type"] = "text"
-                survey_question["inputType"] = "number"
-            elif field_type == "multiple_choice" or field_type == "multiple_select" or field_type == "checkbox":
-                survey_question["type"] = "checkbox"
-            elif field_type == "radio" or field_type == "single_choice":
-                survey_question["type"] = "radiogroup"
-            elif field_type == "drop_down_list" or field_type == "dropdown":
-                survey_question["type"] = "dropdown"
-            else:
-                survey_question["type"] = "text"
-
-            # --- Embed Correct Answer and Points ---
+            # --- Embed Correct Answer and Points (Top Level Only) ---
             if field_key in correct_answer_map:
                 answer_details = correct_answer_map[field_key]
                 survey_question["points"] = answer_details.get("score", 0)
                 
                 correct_answer_text = answer_details.get("correct_answer")
-                if correct_answer_text and choices:
-                    choice_map = {choice["name"]: choice["value"] for choice in choices}
+                if correct_answer_text and survey_question.get("choices"):
+                    # Re-build choice map based on the question's choices
+                    choice_map = {c["text"]: c["value"] for c in survey_question["choices"]}
                     
                     if survey_question["type"] == "checkbox":
                         # Handle multi-select answers (comma-separated string)

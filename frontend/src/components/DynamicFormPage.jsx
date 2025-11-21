@@ -211,6 +211,36 @@ const DynamicFormPage = () => {
                                                 } else if (mappedValues.length > 0) {
                                                     displayData[questionName] = mappedValues[0]; // Radiogroup/dropdown expects a single value
                                                 }
+                                            } else if (question.type === 'file') {
+                                                // Handle file uploads (convert URL strings to SurveyJS file objects)
+                                                if (Array.isArray(userAnswer)) {
+                                                    displayData[questionName] = userAnswer.map(url => {
+                                                        // Extract filename from URL or use a default
+                                                        let name = "image.jpg";
+                                                        try {
+                                                            const urlObj = new URL(url);
+                                                            const params = new URLSearchParams(urlObj.search);
+                                                            if (params.has('attname')) {
+                                                                name = params.get('attname');
+                                                            } else {
+                                                                name = urlObj.pathname.split('/').pop();
+                                                            }
+                                                        } catch (e) {
+                                                            // ignore invalid URLs
+                                                        }
+                                                        return {
+                                                            name: name,
+                                                            type: "image/jpeg", // Defaulting to image/jpeg, could be improved
+                                                            content: url
+                                                        };
+                                                    });
+                                                } else if (typeof userAnswer === 'string') {
+                                                    displayData[questionName] = [{
+                                                        name: "image.jpg",
+                                                        type: "image/jpeg",
+                                                        content: userAnswer
+                                                    }];
+                                                }
                                             } else { // Simple text question
                                                 console.log(`[DEBUG] Setting displayData[${questionName}] = `, userAnswer);
                                                 displayData[questionName] = userAnswer;
@@ -317,17 +347,51 @@ const DynamicFormPage = () => {
 
                     survey.data = displayData;
 
-                    // 检查 URL 查询参数，例如 /forms/:formToken/:dataId?mode=edit
-                    const queryParams = new URLSearchParams(location.search);
-                    if (queryParams.get('mode') === 'edit') {
-                        initialMode = 'edit';
-                    } else {
-                        initialMode = 'display'; // 默认查看模式
-                    }
+                    // --- NEW: Admin View Logic ---
+                    // If we are viewing existing data (dataId present), we are likely in Admin View.
+                    // We want to show hidden fields but make public fields read-only by default.
+
+                    const allQuestions = survey.getAllQuestions();
+                    const originalHiddenQuestions = [];
+
+                    allQuestions.forEach(q => {
+                        if (q.visible === false) {
+                            originalHiddenQuestions.push(q.name);
+                            q.visible = true; // Force visible
+                        }
+                    });
+
+                    // Define a function to apply Admin View state
+                    survey.applyAdminViewState = () => {
+                        allQuestions.forEach(q => {
+                            if (originalHiddenQuestions.includes(q.name)) {
+                                q.readOnly = false; // Admin fields are editable
+                            } else {
+                                q.readOnly = true; // Public fields are read-only
+                            }
+                        });
+                    };
+
+                    // Define a function to apply Full Edit state
+                    survey.applyFullEditState = () => {
+                        allQuestions.forEach(q => {
+                            q.readOnly = false; // All fields editable
+                        });
+                    };
+
+                    // Initial State: Admin View
+                    survey.applyAdminViewState();
+                    survey.isAdminView = true; // Track state
+                    initialMode = 'edit'; // We use 'edit' mode but control readOnly per question
                 }
 
-                setCurrentMode(initialMode); // 设置初始模式
-                survey.mode = initialMode; // 应用到 SurveyJS 模型
+                // 检查 URL 查询参数
+                const queryParams = new URLSearchParams(location.search);
+                // If user explicitly asks for edit mode via URL, we might want to override? 
+                // For now, we stick to the Admin View logic if dataId is present.
+
+                setCurrentMode(initialMode === 'edit' && dataId ? 'admin_view' : initialMode);
+                survey.mode = initialMode;
 
                 // 3. 设置 onComplete 回调
                 survey.onComplete.add(async (sender) => {
@@ -337,13 +401,11 @@ const DynamicFormPage = () => {
                             // 更新数据
                             await api.patch(`/form-data/${dataId}`, { data: formData });
                             alert('表单更新成功！');
-                            setCurrentMode('display'); // 更新后切换到查看模式
+                            // Stay in current mode or switch?
                         } else {
                             // 提交新数据
                             const newRecord = await api.post(`/form-data/submit/${formResponse.data.id}`, { data: formData });
                             alert('表单提交成功！');
-                            // 可选：提交后跳转到新纪录的详情页
-                            // history.push(`/forms/${formToken}/${newRecord.data.id}`);
                         }
                     }
                     catch (err) {
@@ -362,16 +424,27 @@ const DynamicFormPage = () => {
                 setLoading(false);
             }
         };
-
         fetchForm();
-    }, [formToken, dataId, location.search]); // 依赖项中添加 location.search
+    }, [formToken, dataId, location.search]);
 
     // 切换模式的函数
     const toggleMode = () => {
-        const newMode = currentMode === 'display' ? 'edit' : 'display';
-        setCurrentMode(newMode);
-        if (surveyModel) {
-            surveyModel.mode = newMode;
+        if (!surveyModel) return;
+
+        // If we are in "Admin View" (some readOnly, some not), switch to "Full Edit" (all not readOnly).
+        // If we are in "Full Edit", switch back to "Admin View".
+
+        // How to detect current state? We can check a flag or just toggle.
+        // Let's add a custom property to surveyModel to track state.
+
+        if (surveyModel.isAdminView) {
+            surveyModel.applyFullEditState();
+            surveyModel.isAdminView = false;
+            setCurrentMode('full_edit'); // Custom mode name for UI
+        } else {
+            surveyModel.applyAdminViewState();
+            surveyModel.isAdminView = true;
+            setCurrentMode('admin_view'); // Custom mode name for UI
         }
     };
 
@@ -394,9 +467,30 @@ const DynamicFormPage = () => {
                     {dataId ? (currentMode === 'display' ? '查看表单数据' : '编辑表单数据') : '填写新表单'}
                 </Typography>
                 {dataId && ( // 只有在查看/编辑现有数据时才显示切换按钮
-                    <Button variant="outlined" onClick={toggleMode}>
-                        切换到 {currentMode === 'display' ? '编辑模式' : '查看模式'}
-                    </Button>
+                    <Box>
+                        {formToken === 'N0Il9H' && (
+                            <Button
+                                variant="contained"
+                                color="secondary"
+                                sx={{ mr: 2 }}
+                                onClick={async () => {
+                                    if (!window.confirm('确定要根据当前表单数据创建/更新员工信息吗？')) return;
+                                    try {
+                                        const res = await api.post(`/staff/create-from-form/${dataId}`);
+                                        alert(res.data.message);
+                                    } catch (err) {
+                                        console.error(err);
+                                        alert('操作失败: ' + (err.response?.data?.message || err.message));
+                                    }
+                                }}
+                            >
+                                创建员工信息
+                            </Button>
+                        )}
+                        <Button variant="outlined" onClick={toggleMode}>
+                            切换到 {currentMode === 'display' ? '编辑模式' : '查看模式'}
+                        </Button>
+                    </Box>
                 )}
             </Box>
             <Survey model={surveyModel} />

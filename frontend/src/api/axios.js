@@ -25,20 +25,22 @@ const api = axios.create({
 api.interceptors.request.use(
   async (config) => {
     // --- Token 处理逻辑 (保持不变) ---
-    const isPublicRoute = config.url.includes('/profile') || 
-                          config.url.includes('/employee-profile/') || 
-                          config.url.includes('/evaluation-items') || 
-                          config.url.includes('/knowledge-point-summary') || 
-                          config.url.includes('/sign') || 
-                          config.url.includes('/employee-self-evaluation');
+    const isPublicRoute = config.url.includes('/profile') ||
+      config.url.includes('/employee-profile/') ||
+      config.url.includes('/evaluation-items') ||
+      config.url.includes('/knowledge-point-summary') ||
+      config.url.includes('/sign') ||
+      config.url.includes('/employee-self-evaluation') ||
+      config.url.includes('/dynamic_forms') ||
+      config.url.includes('/form-data/submit');
     const token = getToken();
-    
+
     if (!isPublicRoute && !token) {
       // 对于非公共路由且无token的情况，可以选择不修改Content-Type，让错误处理流程继续
       // 或者直接拒绝，如您之前的逻辑
       return Promise.reject(new Error('未登录'));
     }
-    
+
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
       if (shouldRefreshToken()) { // 确保 shouldRefreshToken 和 getRefreshToken 正确工作
@@ -75,7 +77,7 @@ api.interceptors.request.use(
       // 对于 POST, PUT, PATCH 请求，如果数据不是 FormData，
       // 我们期望 Content-Type 是 application/json (或相关的，如 application/merge-patch+json)
       // 除非它已经被显式设置为了其他非 application/json 的有效类型（例如，如果某个API需要 text/xml）
-      
+
       const currentContentType = config.headers['Content-Type'] ? String(config.headers['Content-Type']).toLowerCase() : null;
 
       if (!currentContentType || !currentContentType.includes('application/json')) {
@@ -85,7 +87,7 @@ api.interceptors.request.use(
         // 或 application/x-www-form-urlencoded (如果数据是 URLSearchParams)。
         // 确保您的 data 确实是要作为 JSON 发送的对象。
         if (typeof config.data === 'object' && config.data !== null && !(config.data instanceof URLSearchParams)) {
-            config.headers['Content-Type'] = 'application/json';
+          config.headers['Content-Type'] = 'application/json';
         }
       }
     }

@@ -15,7 +15,8 @@ def _calculate_exam_score(form_definition, user_answers):
     for question in all_elements:
         question_name = question.get('name')
         correct_answer = question.get('correctAnswer')
-        question_points = question.get('points', 1) # 获取问题分数，默认为 1
+        points_val = question.get('points', 1)
+        question_points = points_val if points_val is not None else 0 # 确保分数不为 None
 
         # 只对有正确答案的题目进行计分
         if question_name and correct_answer is not None:

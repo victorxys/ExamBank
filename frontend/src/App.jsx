@@ -390,7 +390,6 @@ function App() {
           <Route path="/contract/detail/:contractId" element={<ContractDetail />} />
           <Route path="/tools/conflict-checker" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}><ConflictCheckerPage /></Suspense>} />} />
           <Route path="/forms" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}><FormListPage /></Suspense>} />} />
-          <Route path="/forms/:formToken" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}><DynamicFormPage /></Suspense>} />} />
           <Route path="/forms/:formToken/data" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}><FormDataListPage /></Suspense>} />} />
           <Route path="/forms/:formToken/:dataId" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}><DynamicFormPage /></Suspense>} />} />
           <Route path="/exams/:form_token/results" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}><ExamResultsPage /></Suspense>} />} />
@@ -413,6 +412,7 @@ function App() {
           <Route path="/employee-profile/:userId/exam-records" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <ExamRecords /> </Suspense>} />} />
           <Route path="/employee-profile/:userId/exam-records/:examId" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <ExamRecordDetail /> </Suspense>} />} />
           <Route path="/sign/:token" element={<Suspense fallback={<LoadingFallback />}><PublicSigningPage /></Suspense>} />
+          <Route path="/forms/:formToken" element={<Suspense fallback={<LoadingFallback />}><DynamicFormPage /></Suspense>} />
 
           {/* EmployeeProfile 和其子路由已移到 MainLayout 下，这里不再需要 */}
         </Route>
