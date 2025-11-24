@@ -305,6 +305,9 @@ app.register_blueprint(dynamic_form_data_bp)
 app.register_blueprint(form_folder_bp)
 # app.register_blueprint(statement_bp, url_prefix="/api") 
 
+from backend.api.upload_api import upload_bp
+app.register_blueprint(upload_bp) 
+
 
 
 flask_log = os.environ["FLASK_LOG_FILE"]  # 设置flask log地址

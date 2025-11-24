@@ -3362,6 +3362,12 @@ class DynamicFormData(db.Model):
         nullable=True,
         comment="关联的服务人员ID (如果适用，例如员工登记表)",
     )
+    contract_id = db.Column(
+        PG_UUID(as_uuid=True),
+        db.ForeignKey("contracts.id", ondelete="SET NULL"),
+        nullable=True,
+        comment="关联的合同ID (如果适用，例如下户总结)",
+    )
     data = db.Column(
         PG_JSONB, nullable=False, comment="用户提交的表单数据 JSON"
     )
@@ -3380,6 +3386,7 @@ class DynamicFormData(db.Model):
     )
 
     # Relationships are defined via backref in DynamicForm and ServicePersonnel/User models
+    contract = db.relationship("BaseContract", backref=db.backref("form_data_records", lazy="dynamic"))
 
     def __repr__(self):
         return f"<DynamicFormData {self.id} for Form {self.form_id}>"

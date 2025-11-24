@@ -20,17 +20,32 @@ from backend.app import app
 def inspect_data():
     with app.app_context():
         form_token = 'N0Il9H'
-        entry_id = '0042f64a-131b-4474-a974-4c01b52305ec'
+        # entry_id = '0042f64a-131b-4474-a974-4c01b52305ec'
+        entry_id = "858879e9-de60-485e-8281-f77a33fc3687"
         
         form = DynamicForm.query.filter_by(form_token=form_token).first()
         if not form:
             print("Form not found")
             return
 
-        entry = DynamicFormData.query.filter_by(id=entry_id).first()
+        # entry = DynamicFormData.query.filter_by(id=entry_id).first()
+        entry = db.session.get(DynamicFormData, entry_id)
         if not entry:
-            print("Entry not found")
+            print(f"Entry {entry_id} not found.")
             return
+
+        print(f"Entry ID: {entry.id}")
+        print(f"Form ID: {entry.form_id}")
+        
+        # Check for potential file fields (usually contain 'image' or 'file' or are long strings)
+        for key, value in entry.data.items():
+            str_val = str(value)
+            if len(str_val) > 100:
+                print(f"Key: {key}, Value Length: {len(str_val)}")
+                if "base64" in str_val:
+                    print(f"  -> CONTAINS BASE64!")
+                elif "http" in str_val:
+                    print(f"  -> Contains URL: {str_val[:100]}...")
             
         # Check Jinshuju Schema for specific fields
         # We need to find fields for: Name, Phone, ID Card
