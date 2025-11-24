@@ -1,0 +1,327 @@
+# backend/api/staff_api.py
+from flask import Blueprint, jsonify, request
+from backend.models import ServicePersonnel, EmployeeSalaryHistory, BaseContract, DynamicFormData, DynamicForm
+from backend.extensions import db
+from sqlalchemy.orm import joinedload
+from sqlalchemy import or_
+import logging
+
+staff_api = Blueprint('staff_api', __name__, url_prefix='/api/staff')
+
+@staff_api.route('/employees', methods=['GET'])
+def get_employees():
+    """
+    获取所有服务人员的列表，支持分页、搜索、筛选和排序。
+    """
+    # 1. 获取查询参数
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 10, type=int)
+    search = request.args.get('search', '')
+    status = request.args.get('status', 'all') # 'all', 'active', 'inactive'
+    sort_by = request.args.get('sort_by', 'created_at')
+    sort_order = request.args.get('sort_order', 'desc')
+
+    # 2. 构建基础查询
+    query = ServicePersonnel.query
+
+    # 3. 应用筛选
+    if status != 'all':
+        is_active_status = status == 'active'
+        query = query.filter(ServicePersonnel.is_active == is_active_status)
+
+
+    # 4. 应用搜索
+    if search:
+        search_term = f"%{search}%"
+        pinyin_search_term = f"%{search.replace(' ', '')}%"
+        query = query.filter(
+            or_(
+                ServicePersonnel.name.ilike(search_term),
+                ServicePersonnel.phone_number.ilike(search_term),
+                ServicePersonnel.name_pinyin.ilike(pinyin_search_term)
+            )
+        )
+
+    # 5. 应用排序
+    if hasattr(ServicePersonnel, sort_by):
+        column = getattr(ServicePersonnel, sort_by)
+        if sort_order == 'desc':
+            query = query.order_by(column.desc())
+        else:
+            query = query.order_by(column.asc())
+    else:
+        # 默认排序
+        query = query.order_by(ServicePersonnel.created_at.desc())
+
+    # Add logging right before pagination
+    logging.basicConfig(level=logging.DEBUG)
+    logging.debug(f"SQLAlchemy Query: {str(query.statement.compile(compile_kwargs={'literal_binds': True}))}")
+
+
+    # 6. 执行分页查询
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+    employees = pagination.items
+    total = pagination.total
+
+    # 7. 序列化结果
+    result = {
+        "items": [
+            {
+                "id": str(emp.id),
+                "name": emp.name,
+                "phone_number": emp.phone_number,
+                "is_active": emp.is_active,
+                "created_at": emp.created_at.isoformat() if emp.created_at else None,
+            } for emp in employees
+        ],
+        "total": total,
+        "page": page,
+        "per_page": per_page,
+        "total_pages": pagination.pages
+    }
+    
+    return jsonify(result)
+
+@staff_api.route('/employees/<uuid:employee_id>', methods=['GET'])
+def get_employee_details(employee_id):
+    """
+    获取单个服务人员的详细信息，包括其完整的薪资历史和关联合同背景。
+    """
+    employee = ServicePersonnel.query.get_or_404(str(employee_id))
+
+    # 1. 高效查询：预加载所有需要的关联数据，避免N+1查询
+    # 按生效日期升序排序，为下一步计算"原月薪"做准备
+    history_records = (
+        EmployeeSalaryHistory.query
+        .options(
+            joinedload(EmployeeSalaryHistory.contract)
+            .joinedload(BaseContract.customer)
+        )
+        .filter_by(employee_id=employee.id)
+        .order_by(EmployeeSalaryHistory.effective_date.asc())
+        .all()
+    )
+
+    # 2. 在业务逻辑中处理和计算
+    processed_history = []
+    for i, record in enumerate(history_records):
+        previous_salary = history_records[i-1].base_salary if i > 0 else None
+        
+        contract = record.contract
+        customer = contract.customer if contract else None
+
+        processed_history.append({
+            "id": str(record.id),
+            "previous_salary": str(previous_salary) if previous_salary is not None else None,
+            "new_salary": str(record.base_salary),
+            "effective_date": record.effective_date.isoformat(),
+            "customer_name": (customer.name if customer else contract.customer_name) if contract else None,
+            "contract_start_date": contract.start_date.date().isoformat() if contract and contract.start_date else None,
+            "contract_end_date": contract.end_date.date().isoformat() if contract and contract.end_date else None,
+            "customer_address": customer.address if customer else None,
+            "contract_notes": contract.notes if contract else None,
+            "contract_id": str(contract.id) if contract else None,
+            "contract_type": contract.type if contract else None 
+        })
+
+    # 3. 返回给前端时，按日期降序，方便展示
+    processed_history.reverse()
+
+    # 4. Fetch additional data from Dynamic Forms (Entry Form & Exit Summary)
+    # Form Tokens:
+    ENTRY_FORM_TOKEN = "N0Il9H"
+    EXIT_SUMMARY_FORM_TOKEN = "wWVDjd"
+
+    entry_form_data = {}
+    exit_summary_data = {}
+    
+    try:
+        # Helper to find form data by token and phone number
+        def get_form_data_by_token(token, phone):
+            form_def = DynamicForm.query.filter_by(form_token=token).first()
+            if not form_def:
+                return None, None
+            
+            # Search in DynamicFormData where data->>'field_2' (Phone) matches
+            # Note: field_2 is phone in Entry Form (N0Il9H). 
+            # We need to be sure it's the same for Exit Summary or use another method.
+            # For Exit Summary (wWVDjd), let's assume field_2 is also phone or we search by user_id if linked.
+            # However, ServicePersonnel might not be directly linked to User in all cases.
+            # Let's try searching by phone in field_2 first as it's a common pattern.
+            
+            # Using JSONB containment or text search
+            # SQLAlchemy 1.4+ syntax for JSONB
+            record = DynamicFormData.query.filter(
+                DynamicFormData.form_id == form_def.id,
+                DynamicFormData.data['field_2'].astext == phone
+            ).order_by(DynamicFormData.created_at.desc()).first()
+            
+            return record, form_def
+
+        # Fetch Entry Form Data
+        entry_record, entry_def = get_form_data_by_token(ENTRY_FORM_TOKEN, employee.phone_number)
+        if entry_record:
+            data = entry_record.data
+            entry_form_data = {
+                "id": str(entry_record.id),
+                "form_id": str(entry_def.id),
+                "form_token": ENTRY_FORM_TOKEN, # Add token
+                "zodiac": data.get("field_33", ""),      # 生肖
+                "education": data.get("field_23", ""),   # 学历 (Corrected from field_16)
+                "height": data.get("field_27", ""),      # 身高 (Corrected from field_31)
+                "weight": data.get("field_28", ""),      # 体重 (Corrected from field_32)
+                "join_date": data.get("field_24", ""),   # 加入公司时间 (Corrected from field_5)
+                "photo": data.get("field_5", ""),        # 照片 (New)
+                "native_place": data.get("field_4", ""), # 籍贯/身份证照片? field_4 is ID photo, maybe not native place.
+                "age": data.get("field_22", "")          # 实际出生日期 -> Age calculation needed or just show DOB
+            }
+
+        # Fetch Exit Summary Data
+        # Note: Exit Summary form (wWVDjd) uses field_1 for employee name, not phone
+        def get_exit_summary_by_name(token, employee_name):
+            form_def = DynamicForm.query.filter_by(form_token=token).first()
+            if not form_def:
+                return None, None
+            
+            # Search by employee name in field_1
+            record = DynamicFormData.query.filter(
+                DynamicFormData.form_id == form_def.id,
+                DynamicFormData.data['field_1'].astext == employee_name
+            ).order_by(DynamicFormData.created_at.desc()).first()
+            
+            return record, form_def
+        
+        exit_record, exit_def = get_exit_summary_by_name(EXIT_SUMMARY_FORM_TOKEN, employee.name)
+        if exit_record:
+            exit_summary_data = {
+                "id": str(exit_record.id),
+                "form_id": str(exit_def.id),
+                "form_token": EXIT_SUMMARY_FORM_TOKEN,
+                "summary": exit_record.data.get("field_23", ""),  # 总结内容
+                "customer_name": exit_record.data.get("field_2", ""),  # 客户姓名
+                "exit_date": exit_record.data.get("field_3", "")  # 下户日期
+            }
+
+    except Exception as e:
+        logging.error(f"Error fetching dynamic form data for employee {employee.id}: {e}")
+        # Don't fail the whole request, just return empty extra data
+
+    result = {
+        "id": str(employee.id),
+        "name": employee.name,
+        "phone_number": employee.phone_number,
+        "id_card_number": employee.id_card_number,
+        "address": employee.address,
+        "is_active": employee.is_active,
+        "salary_history": processed_history,
+        "entry_form_data": entry_form_data,
+        "exit_summary_data": exit_summary_data
+    }
+
+    return jsonify(result)
+
+@staff_api.route('/create-from-form/<uuid:data_id>', methods=['POST'])
+def create_staff_from_form(data_id):
+    """
+    从动态表单数据创建或更新员工信息。
+    
+    Args:
+        data_id: DynamicFormData 的 UUID
+        
+    Returns:
+        JSON response with success message and employee ID
+    """
+    try:
+        # 1. 查询表单数据
+        form_data = DynamicFormData.query.get(str(data_id))
+        if not form_data:
+            return jsonify({"error": "表单数据不存在"}), 404
+        
+        # 2. 提取表单字段
+        data = form_data.data
+        if not data:
+            return jsonify({"error": "表单数据为空"}), 400
+        
+        # 3. 映射字段（支持多种格式）
+        # 格式1: Jinshuju field_X 格式（萌嫂入职登记表使用此格式）
+        # 格式2: 中文字段名
+        # 格式3: 英文字段名
+        
+        # 姓名: field_1 或 "姓名" 或 "name"
+        name = data.get("field_1") or data.get("姓名") or data.get("name")
+        
+        # 手机号: field_2 或 "手机号" 或 "phone_number" 或 "联系电话"
+        phone_number = (
+            data.get("field_2") or 
+            data.get("手机号") or 
+            data.get("phone_number") or 
+            data.get("联系电话")
+        )
+        
+        # 身份证号: field_93 或 "身份证号" 或 "id_card_number" 或 "身份证号码"
+        id_card_number = (
+            data.get("field_93") or 
+            data.get("身份证号") or 
+            data.get("id_card_number") or 
+            data.get("身份证号码")
+        )
+        
+        # 地址: field_3 或 "现居住地址" 或 "address" 或 "住址"
+        address = (
+            data.get("field_3") or 
+            data.get("现居住地址") or 
+            data.get("address") or 
+            data.get("住址")
+        )
+        
+        # 确保手机号是字符串格式（可能是数字）
+        if phone_number and not isinstance(phone_number, str):
+            phone_number = str(phone_number)
+        
+        # 4. 验证必填字段
+        if not name:
+            return jsonify({"error": "缺少必填字段：姓名"}), 400
+        if not phone_number:
+            return jsonify({"error": "缺少必填字段：手机号"}), 400
+        
+        # 5. 检查是否已存在（根据手机号）
+        existing_employee = ServicePersonnel.query.filter_by(phone_number=phone_number).first()
+        
+        if existing_employee:
+            # 更新现有员工信息
+            existing_employee.name = name
+            if id_card_number:
+                existing_employee.id_card_number = id_card_number
+            if address:
+                existing_employee.address = address
+            
+            db.session.commit()
+            
+            return jsonify({
+                "message": "员工信息已更新",
+                "id": str(existing_employee.id),
+                "name": existing_employee.name
+            }), 200
+        else:
+            # 创建新员工
+            new_employee = ServicePersonnel(
+                name=name,
+                phone_number=phone_number,
+                id_card_number=id_card_number,
+                address=address,
+                is_active=True
+            )
+            
+            db.session.add(new_employee)
+            db.session.commit()
+            
+            return jsonify({
+                "message": "员工信息创建成功",
+                "id": str(new_employee.id),
+                "name": new_employee.name
+            }), 201
+            
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"创建员工失败: {str(e)}", exc_info=True)
+        return jsonify({"error": f"创建员工失败: {str(e)}"}), 500

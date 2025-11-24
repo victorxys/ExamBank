@@ -232,3 +232,5 @@ start_dev.sh
 # Ignored by user request
 jinshujuexport/
 backend/static/signatures/
+scripts/
+commit_message.txt

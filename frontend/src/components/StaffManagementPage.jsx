@@ -35,7 +35,7 @@ const StaffManagementPage = () => {
   const [loading, setLoading] = useState(false);
   const [alertMessage, setAlertMessage] = useState(null);
   const [alertOpen, setAlertOpen] = useState(false);
-  
+
   // State for searching, filtering, and pagination
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('active');
@@ -70,7 +70,7 @@ const StaffManagementPage = () => {
 
   useEffect(() => {
     const handler = setTimeout(() => {
-        fetchEmployees();
+      fetchEmployees();
     }, 500); // Debounce search term
     return () => clearTimeout(handler);
   }, [fetchEmployees, searchTerm]);
