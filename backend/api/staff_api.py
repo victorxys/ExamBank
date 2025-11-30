@@ -385,3 +385,110 @@ def get_latest_contract_by_name(name):
     }
     
     return jsonify(response)
+
+
+@staff_api.route('/create-from-form/<uuid:data_id>', methods=['POST'])
+def create_staff_from_form(data_id):
+    """
+    从动态表单数据创建或更新员工信息。
+    
+    Args:
+        data_id: DynamicFormData 的 UUID
+        
+    Returns:
+        JSON response with success message and employee ID
+    """
+    try:
+        # 1. 查询表单数据
+        form_data = DynamicFormData.query.get(str(data_id))
+        if not form_data:
+            return jsonify({"error": "表单数据不存在"}), 404
+        
+        # 2. 提取表单字段
+        data = form_data.data
+        if not data:
+            return jsonify({"error": "表单数据为空"}), 400
+        
+        # 3. 映射字段（支持多种格式）
+        # 格式1: Jinshuju field_X 格式（萌嫂入职登记表使用此格式）
+        # 格式2: 中文字段名
+        # 格式3: 英文字段名
+        
+        # 姓名: field_1 或 "姓名" 或 "name"
+        name = data.get("field_1") or data.get("姓名") or data.get("name")
+        
+        # 手机号: field_2 或 "手机号" 或 "phone_number" 或 "联系电话"
+        phone_number = (
+            data.get("field_2") or 
+            data.get("手机号") or 
+            data.get("phone_number") or 
+            data.get("联系电话")
+        )
+        
+        # 身份证号: field_93 或 "身份证号" 或 "id_card_number" 或 "身份证号码"
+        id_card_number = (
+            data.get("field_93") or 
+            data.get("身份证号") or 
+            data.get("id_card_number") or 
+            data.get("身份证号码")
+        )
+        
+        # 地址: field_3 或 "现居住地址" 或 "address" 或 "住址"
+        address = (
+            data.get("field_3") or 
+            data.get("现居住地址") or 
+            data.get("address") or 
+            data.get("住址")
+        )
+        
+        # 确保手机号是字符串格式（可能是数字）
+        if phone_number and not isinstance(phone_number, str):
+            phone_number = str(phone_number)
+        
+        # 4. 验证必填字段
+        if not name:
+            return jsonify({"error": "缺少必填字段：姓名"}), 400
+        if not phone_number:
+            return jsonify({"error": "缺少必填字段：手机号"}), 400
+        
+        # 5. 检查是否已存在（根据手机号）
+        existing_employee = ServicePersonnel.query.filter_by(phone_number=phone_number).first()
+        
+        if existing_employee:
+            # 更新现有员工信息
+            existing_employee.name = name
+            if id_card_number:
+                existing_employee.id_card_number = id_card_number
+            if address:
+                existing_employee.address = address
+            
+            db.session.commit()
+            
+            return jsonify({
+                "message": "员工信息已更新",
+                "id": str(existing_employee.id),
+                "name": existing_employee.name
+            }), 200
+        else:
+            # 创建新员工
+            new_employee = ServicePersonnel(
+                name=name,
+                phone_number=phone_number,
+                id_card_number=id_card_number,
+                address=address,
+                is_active=True
+            )
+            
+            db.session.add(new_employee)
+            db.session.commit()
+            
+            return jsonify({
+                "message": "员工信息创建成功",
+                "id": str(new_employee.id),
+                "name": new_employee.name
+            }), 201
+            
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"创建员工失败: {str(e)}", exc_info=True)
+        return jsonify({"error": f"创建员工失败: {str(e)}"}), 500

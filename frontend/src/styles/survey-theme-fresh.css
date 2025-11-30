@@ -1,0 +1,778 @@
+/* Fresh Vitality Theme for SurveyJS - Pixel Perfect Match */
+
+:root {
+    --primary-color: #059669;
+    --primary-light: #34D399;
+    --bg-color: #ECFDF5;
+    --surface-color: #FFFFFF;
+    --text-main: #064E3B;
+    --text-secondary: #047857;
+    --border-color: #A7F3D0;
+    --radius: 8px;
+    --shadow: 0 10px 15px -3px rgba(5, 150, 105, 0.1), 0 4px 6px -2px rgba(5, 150, 105, 0.05);
+}
+
+/* ===== GLOBAL OVERRIDES ===== */
+
+/* Root container - add gradient background */
+body {
+    background: linear-gradient(180deg, #D1FAE5 0%, #ECFDF5 100%) !important;
+    min-height: 100vh;
+}
+
+.sd-root-modern {
+    background-color: transparent !important;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+}
+
+/* Override MUI container max-width to allow wider forms */
+.MuiContainer-root.MuiContainer-maxWidthMd {
+    max-width: 100% !important;
+}
+
+/* ===== CONTAINER STRUCTURE ===== */
+
+/* Main container - white card with shadow - larger width */
+.sd-container-modern {
+    max-width: 1200px !important;
+    width: 95% !important;
+    margin: 2rem auto !important;
+    background-color: var(--surface-color) !important;
+    border-radius: 12px !important;
+    box-shadow: var(--shadow) !important;
+    overflow: hidden !important;
+}
+
+/* ===== HEADER SECTION ===== */
+
+/* Header wrapper - green background with decorative circle */
+.sd-container-modern__title {
+    background-color: var(--primary-color) !important;
+    padding: 3rem 2rem !important;
+    margin: 0 !important;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Decorative circle in header */
+.sd-container-modern__title::after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -10%;
+    width: 300px;
+    height: 300px;
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* Form title */
+.sd-title {
+    color: white !important;
+    font-size: 2rem !important;
+    font-weight: 700 !important;
+    margin: 0 0 0.5rem 0 !important;
+    position: relative;
+    z-index: 1;
+}
+
+/* Form description */
+.sd-description {
+    color: #D1FAE5 !important;
+    font-size: 1rem !important;
+    margin: 0 !important;
+    position: relative;
+    z-index: 1;
+}
+
+/* ===== BODY SECTION ===== */
+
+/* Form body */
+.sd-body {
+    background-color: var(--surface-color) !important;
+    padding: 2.5rem !important;
+    margin: 0 !important;
+}
+
+/* Pages container */
+.sd-page {
+    padding: 0 !important;
+}
+
+/* ===== QUESTIONS ===== */
+
+/* Question container */
+.sd-question {
+    padding: 0 !important;
+    margin-bottom: 1.5rem !important;
+    background: transparent !important;
+}
+
+/* Question title/label */
+.sd-question__title {
+    color: var(--text-secondary) !important;
+    font-size: 0.9rem !important;
+    font-weight: 600 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
+    margin-bottom: 0.5rem !important;
+}
+
+/* Hide question numbers */
+.sd-question__number {
+    display: none !important;
+}
+
+/* ===== INPUT FIELDS ===== */
+
+/* Text inputs - underline style */
+.sd-input,
+.sd-text {
+    width: 100% !important;
+    border: none !important;
+    border-bottom: 2px solid #E5E7EB !important;
+    border-radius: 0 !important;
+    background-color: transparent !important;
+    padding: 0.875rem 0 !important;
+    font-size: 1.1rem !important;
+    color: var(--text-main) !important;
+    box-shadow: none !important;
+    transition: all 0.2s !important;
+}
+
+.sd-input:focus,
+.sd-text:focus {
+    border-bottom-color: var(--primary-color) !important;
+    outline: none !important;
+    box-shadow: none !important;
+    background-color: transparent !important;
+}
+
+/* Textarea */
+.sd-comment {
+    border: none !important;
+    border-bottom: 2px solid #E5E7EB !important;
+    border-radius: 0 !important;
+    background-color: transparent !important;
+    padding: 0.875rem 0 !important;
+    font-size: 1.1rem !important;
+    color: var(--text-main) !important;
+}
+
+.sd-comment:focus {
+    border-bottom-color: var(--primary-color) !important;
+    outline: none !important;
+}
+
+/* Dropdown */
+.sd-dropdown {
+    border: none !important;
+    border-bottom: 2px solid #E5E7EB !important;
+    border-radius: 0 !important;
+    background-color: transparent !important;
+    padding: 0.875rem 0 !important;
+    font-size: 1.1rem !important;
+}
+
+.sd-dropdown:focus {
+    border-bottom-color: var(--primary-color) !important;
+}
+
+/* ===== CHECKBOXES & RADIOS ===== */
+
+.sd-item__decorator {
+    border-color: var(--border-color) !important;
+}
+
+.sd-item__control:checked+.sd-item__decorator {
+    background-color: var(--primary-color) !important;
+    border-color: var(--primary-color) !important;
+}
+
+/* ===== NAVIGATION BUTTONS ===== */
+
+/* Complete/Next buttons */
+.sd-btn--action,
+.sd-navigation__complete-btn,
+.sd-navigation__next-btn {
+    background-color: #EF4444 !important;
+    color: white !important;
+    border: none !important;
+    padding: 0.8rem 2rem !important;
+    font-weight: 600 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
+    border-radius: var(--radius) !important;
+    box-shadow: 0 2px 4px rgba(239, 68, 68, 0.2) !important;
+    transition: all 0.2s !important;
+}
+
+.sd-btn--action:hover,
+.sd-navigation__complete-btn:hover,
+.sd-navigation__next-btn:hover {
+    background-color: #DC2626 !important;
+}
+
+/* Previous button */
+.sd-navigation__prev-btn {
+    background-color: transparent !important;
+    color: var(--primary-color) !important;
+    border: 1px solid var(--primary-color) !important;
+    padding: 0.8rem 2rem !important;
+    font-weight: 600 !important;
+    border-radius: var(--radius) !important;
+}
+
+.sd-navigation__prev-btn:hover {
+    background-color: var(--bg-color) !important;
+}
+
+/* ===== FOOTER ===== */
+
+.sd-footer {
+    padding: 1.5rem !important;
+    text-align: center !important;
+    background-color: #F9FAFB !important;
+    border-top: 1px solid #E5E7EB !important;
+    color: #9CA3AF !important;
+    font-size: 0.875rem !important;
+}
+
+/* ===== CUSTOM ELEMENTS ===== */
+
+/* Custom signature wrapper */
+.custom-signature-wrapper {
+    border-color: var(--border-color) !important;
+    background-color: #F9FAFB !important;
+}
+
+.custom-signature-wrapper div:first-child {
+    color: var(--text-secondary) !important;
+}
+
+/* Custom HTML wrapper */
+.custom-html-wrapper {
+    border-color: var(--border-color) !important;
+}
+
+/* ===== MATRIX/TABLE QUESTIONS ===== */
+
+/* Table container - full width within form */
+.sd-table,
+.sd-matrixdynamic,
+.sd-matrixdropdown,
+.sd-matrix {
+    width: 100% !important;
+    margin: 1rem 0 !important;
+    font-size: 0.875rem !important;
+    border-collapse: collapse !important;
+    background-color: white !important;
+}
+
+/* Table header */
+.sd-table__header-row {
+    background: linear-gradient(180deg, #F9FAFB 0%, #F3F4F6 100%) !important;
+    border-bottom: 2px solid var(--primary-color) !important;
+}
+
+.sd-table__cell--header {
+    padding: 0.75rem 0.5rem !important;
+    font-size: 0.8rem !important;
+    font-weight: 700 !important;
+    color: var(--text-secondary) !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
+    text-align: left !important;
+    border-right: 1px solid #E5E7EB !important;
+}
+
+.sd-table__cell--header:last-child {
+    border-right: none !important;
+}
+
+/* Table rows */
+.sd-table__row {
+    border-bottom: 1px solid #E5E7EB !important;
+    transition: background-color 0.2s !important;
+}
+
+.sd-table__row:hover {
+    background-color: #F9FAFB !important;
+}
+
+/* Table cells */
+.sd-table__cell {
+    padding: 0.75rem 0.5rem !important;
+    vertical-align: middle !important;
+    border-right: 1px solid #F3F4F6 !important;
+}
+
+.sd-table__cell:last-child {
+    border-right: none !important;
+}
+
+/* Specific column widths for better layout */
+.sd-matrixdynamic__cell:nth-child(1) {
+    width: 12% !important;
+}
+
+.sd-matrixdynamic__cell:nth-child(2) {
+    width: 50% !important;
+}
+
+.sd-matrixdynamic__cell:nth-child(3) {
+    width: 30% !important;
+}
+
+.sd-matrixdynamic__cell:nth-child(4) {
+    width: 8% !important;
+}
+
+/* Text inputs in table - clean and minimal */
+.sd-table__cell input[type="text"],
+.sd-table__cell input[type="date"] {
+    width: 100% !important;
+    padding: 0.4rem !important;
+    font-size: 0.85rem !important;
+    border: 1px solid #E5E7EB !important;
+    border-radius: 4px !important;
+    transition: border-color 0.2s !important;
+}
+
+.sd-table__cell input[type="text"]:focus,
+.sd-table__cell input[type="date"]:focus {
+    outline: none !important;
+    border-color: var(--primary-color) !important;
+    box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1) !important;
+}
+
+/* Textarea in table - auto height to match content, no scrollbar */
+.sd-table__cell textarea,
+.sd-matrix__cell textarea {
+    width: 100% !important;
+    min-height: 3rem !important;
+    height: auto !important;
+    padding: 0.5rem !important;
+    font-size: 0.875rem !important;
+    line-height: 1.5 !important;
+    border: 1px solid #E5E7EB !important;
+    border-radius: 4px !important;
+    resize: none !important;
+    overflow: hidden !important;
+    font-family: inherit !important;
+    transition: border-color 0.2s !important;
+    box-sizing: border-box !important;
+}
+
+/* Disabled state for display mode - look like plain text */
+.sd-table__cell textarea:disabled,
+.sd-matrix__cell textarea:disabled,
+.sd-text:disabled,
+.sd-comment:disabled {
+    background-color: transparent !important;
+    border: none !important;
+    color: #374151 !important;
+    /* Gray-700 */
+    resize: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    opacity: 1 !important;
+    -webkit-text-fill-color: #374151 !important;
+    cursor: default !important;
+}
+
+.sd-table__cell textarea:focus,
+.sd-matrix__cell textarea:focus {
+    outline: none !important;
+    border-color: var(--primary-color) !important;
+    box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1) !important;
+}
+
+/* File upload in table - match row height */
+.sd-table__cell .sd-file,
+.sd-matrix__cell .sd-file {
+    margin: 0 !important;
+    height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+}
+
+/* Ensure table cells stretch to fill height */
+.sd-table__cell,
+.sd-matrix__cell {
+    height: 100% !important;
+    vertical-align: top !important;
+    /* Align top for better multi-line text look */
+}
+
+.sd-file__decorator {
+    padding: 0.5rem !important;
+    min-height: 3rem !important;
+    height: 100% !important;
+    border: 1px dashed #D1D5DB !important;
+    border-radius: 4px !important;
+    background-color: #F9FAFB !important;
+    text-align: center !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    align-items: center !important;
+    box-sizing: border-box !important;
+}
+
+.sd-file__choose-btn {
+    display: inline-block !important;
+    padding: 0.35rem 0.75rem !important;
+    font-size: 0.75rem !important;
+    font-weight: 600 !important;
+    line-height: 1.2 !important;
+    color: white !important;
+    background-color: var(--primary-color) !important;
+    border: none !important;
+    border-radius: 4px !important;
+    cursor: pointer !important;
+    transition: background-color 0.2s !important;
+}
+
+.sd-file__choose-btn:hover {
+    background-color: var(--text-secondary) !important;
+}
+
+/* Hide drag area text */
+.sd-file__drag-area-placeholder {
+    display: none !important;
+}
+
+.sd-file__no-file-chosen {
+    display: block !important;
+    margin-top: 0.3rem !important;
+    font-size: 0.7rem !important;
+    color: #9CA3AF !important;
+}
+
+/* File preview - show uploaded images */
+.sd-file__preview {
+    margin: 0.5rem 0 0 0 !important;
+    text-align: center !important;
+}
+
+.sd-file__preview-image,
+.sd-file__preview img {
+    max-width: 120px !important;
+    max-height: 120px !important;
+    border-radius: 4px !important;
+    border: 1px solid #E5E7EB !important;
+    object-fit: cover !important;
+}
+
+/* File list items */
+.sd-file__list {
+    margin-top: 0.3rem !important;
+    padding: 0 !important;
+}
+
+.sd-file__list-item {
+    display: flex !important;
+    align-items: center !important;
+    padding: 0.25rem !important;
+    font-size: 0.75rem !important;
+}
+
+.sd-file__sign {
+    margin-right: 0.3rem !important;
+}
+
+.sd-file__name {
+    flex: 1 !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+}
+
+/* Action buttons in table */
+.sd-table__cell .sd-action-bar {
+    display: flex !important;
+    gap: 0.25rem !important;
+    justify-content: center !important;
+}
+
+.sd-table__cell .sd-action-bar-item {
+    padding: 0.25rem 0.5rem !important;
+    font-size: 0.7rem !important;
+    border-radius: 4px !important;
+}
+
+/* Add/Remove row buttons */
+.sd-matrixdynamic__add-btn,
+.sd-matrixdynamic__remove-btn {
+    padding: 0.5rem 1rem !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    border-radius: 4px !important;
+    transition: all 0.2s !important;
+    white-space: nowrap !important;
+    min-width: auto !important;
+    width: auto !important;
+    margin-left: 0.75rem !important;
+}
+
+.sd-matrixdynamic__add-btn {
+    background-color: var(--primary-color) !important;
+    color: white !important;
+    border: none !important;
+}
+
+.sd-matrixdynamic__add-btn:hover {
+    background-color: var(--text-secondary) !important;
+}
+
+/* 确保按钮容器不限制宽度 */
+.sd-matrixdynamic__footer,
+.sd-matrixdynamic__footer .sd-action-bar {
+    width: 100% !important;
+    overflow: visible !important;
+    display: flex !important;
+}
+
+.sd-matrixdynamic__footer .sd-action-bar-item {
+    overflow: visible !important;
+    text-overflow: clip !important;
+    flex-shrink: 0 !important;
+}
+
+/* ===== REMOVE UNWANTED BORDERS ===== */
+
+.sd-question__content {
+    border: none !important;
+    padding: 0 !important;
+}
+
+.sd-element {
+    background: transparent !important;
+}
+
+/* ===== Table (Matrix) Beautification ===== */
+
+/* Uniform table cell heights and padding */
+.sd-table__cell {
+    vertical-align: top !important;
+    padding: 0.75rem !important;
+    min-height: 3rem !important;
+}
+
+/* 文件上传单元格 - 移除padding让拖拽区域填充整个单元格 */
+.sd-table__cell:has(.sd-file) {
+    padding: 0 !important;
+}
+
+/* Auto-expanding textareas in edit mode */
+.sd-table__cell textarea:not([disabled]) {
+    min-height: 2.5rem !important;
+    resize: vertical !important;
+    overflow: hidden !important;
+    padding: 0.5rem !important;
+    line-height: 1.5 !important;
+    font-family: inherit !important;
+}
+
+/* Textareas in display mode (disabled) */
+.sd-table__cell textarea[disabled] {
+    background-color: transparent !important;
+    border: none !important;
+    padding: 0.5rem 0 !important;
+    color: var(--text-color) !important;
+    resize: none !important;
+    cursor: default !important;
+}
+
+/* File upload areas in tables - fill cell */
+.sd-table__cell .sd-file {
+    width: 100% !important;
+    min-height: 100% !important;
+}
+
+.sd-table__cell .sd-file__decorator {
+    min-height: 2.5rem !important;
+}
+
+/* Table borders */
+.sd-table {
+    border-collapse: collapse !important;
+}
+
+.sd-table__cell {
+    border: 1px solid var(--border-color) !important;
+}
+
+/* Table header styling */
+.sd-table__cell--header {
+    background-color: var(--primary-color) !important;
+    color: white !important;
+    font-weight: 600 !important;
+    text-align: center !important;
+}
+
+/* Hover effect for table rows in edit mode */
+.sd-table tbody tr:hover {
+    background-color: rgba(16, 185, 129, 0.05) !important;
+}
+
+/* Remove default SurveyJS table spacing */
+.sd-table__cell .sd-question {
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+.sd-table__cell .sd-question__content {
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+/* 文件上传问题的特殊处理 - 移除所有内边距 */
+.sd-table__cell .sd-question--file {
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+.sd-table__cell .sd-question--file .sd-question__content {
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+/* 问题1: 查看模式 - 完全移除textarea的视觉边框,使其看起来像纯文本,但保留滚动功能 */
+.sd-table__cell textarea[disabled],
+.sd-table__cell textarea[readonly] {
+    background-color: transparent !important;
+    border: none !important;
+    padding: 0.5rem !important;
+    color: var(--text-color) !important;
+    resize: vertical !important;
+    cursor: text !important;
+    box-shadow: none !important;
+    outline: none !important;
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    appearance: none !important;
+    overflow-y: auto !important;
+    max-height: 200px !important;
+}
+
+/* 问题2: 统一字号和垂直对齐 */
+.sd-table__cell input[type="text"],
+.sd-table__cell input[type="number"],
+.sd-table__cell input[type="date"],
+.sd-table__cell textarea,
+.sd-table__cell select,
+.sd-table__cell .sd-dropdown,
+.sd-table__cell .sd-input {
+    font-size: 14px !important;
+    line-height: 1.5 !important;
+    vertical-align: middle !important;
+    font-family: inherit !important;
+}
+
+/* 编辑模式的textarea - 允许滚动 */
+.sd-table__cell textarea:not([disabled]):not([readonly]) {
+    overflow-y: auto !important;
+    resize: vertical !important;
+    max-height: 300px !important;
+}
+
+/* 数字输入框对齐 */
+.sd-table__cell input[type="number"] {
+    text-align: left !important;
+    padding: 0.5rem !important;
+}
+
+/* 所有单元格内容垂直居中 */
+.sd-table__cell {
+    vertical-align: middle !important;
+}
+
+/* 问题3: "添加行"按钮完整显示 */
+.sd-matrixdynamic__add-btn,
+.sd-matrixdynamic__footer .sd-action-bar-item,
+.sd-action-bar-item {
+    min-width: 120px !important;
+    width: auto !important;
+    white-space: nowrap !important;
+    padding: 0.6rem 1.2rem !important;
+    font-size: 14px !important;
+    overflow: visible !important;
+    display: inline-block !important;
+}
+
+.sd-matrixdynamic__footer,
+.sd-action-bar {
+    overflow: visible !important;
+    width: 100% !important;
+}
+
+/* 问题4: 文件上传样式 - 白色背景,绿色按钮 */
+.sd-table__cell .sd-file {
+    width: 100% !important;
+    height: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+.sd-table__cell .sd-file__decorator {
+    background-color: white !important;
+    border: 2px dashed var(--border-color) !important;
+    color: var(--text-color) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-height: 100px !important;
+    height: 100% !important;
+    width: 100% !important;
+    padding: 1rem !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+    position: relative !important;
+    top: 0 !important;
+    left: 0 !important;
+}
+
+/* 文件上传图标 - 绿色 */
+.sd-table__cell .sd-file__decorator svg {
+    color: var(--primary-color) !important;
+    fill: var(--primary-color) !important;
+}
+
+/* 选择文件按钮 - 绿色背景,白色文字 */
+.sd-table__cell .sd-file__choose-btn,
+.sd-table__cell .sd-file__decorator .sd-action-bar-item {
+    background-color: var(--primary-color) !important;
+    color: white !important;
+    border: none !important;
+    padding: 0.5rem 1rem !important;
+    border-radius: 4px !important;
+    font-weight: 600 !important;
+    font-size: 14px !important;
+}
+
+/* 添加"或拖拽文件至此"提示 - 灰色文字 */
+.sd-table__cell .sd-file__decorator::after {
+    content: "或拖拽文件至此";
+    display: block;
+    margin-top: 0.5rem;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+/* 强制移除文件上传单元格的padding - 使用更高优先级 */
+.sd-table .sd-table__cell:has(.sd-file),
+.sd-table__cell:has(.sd-question--file) {
+    padding: 0 !important;
+}
+
+/* 如果:has不支持,使用这个备用方案 */
+.sd-table__cell>.sd-question--file {
+    margin: -0.75rem !important;
+    width: calc(100% + 1.5rem) !important;
+    height: calc(100% + 1.5rem) !important;
+}

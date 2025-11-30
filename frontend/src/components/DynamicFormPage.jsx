@@ -3,6 +3,7 @@ import { useParams, useLocation } from 'react-router-dom'; // 导入 useLocation
 import { Model } from 'survey-core';
 import { Survey } from 'survey-react-ui';
 import 'survey-core/survey-core.min.css';
+import '../styles/survey-theme-fresh.css'; // Import Fresh Vitality Theme
 // Import Chinese language pack
 import 'survey-core/i18n/simplified-chinese';
 
@@ -49,11 +50,77 @@ const DynamicFormPage = () => {
                 // Force storeDataAsText to false for all file questions to ensure we store the URL, not Base64
                 // Also force showTitle to true for html questions
                 survey.getAllQuestions().forEach(question => {
-                    if (question.getType() === "file") {
+                    if (question.getType() === 'file') {
                         question.storeDataAsText = false;
                     }
-                    if (question.getType() === "html") {
+                    if (question.getType() === 'html') {
                         question.showTitle = true;
+                    }
+                });
+
+                // Beautify table (matrixdynamic) display
+                survey.onAfterRenderQuestion.add((sender, options) => {
+                    const question = options.question;
+                    if (question.getType() === 'matrixdynamic' || question.getType() === 'matrixdropdown') {
+                        setTimeout(() => {
+                            // Handle textareas
+                            const textareas = options.htmlElement.querySelectorAll('textarea');
+                            textareas.forEach(textarea => {
+                                // In display mode, replace textarea with plain text div
+                                if (sender.mode === 'display' && textarea.disabled) {
+                                    const textContent = textarea.value || '';
+                                    const textDiv = document.createElement('div');
+                                    textDiv.textContent = textContent;
+                                    textDiv.style.cssText = 'padding: 0.5rem 0; line-height: 1.5; color: #374151; white-space: pre-wrap; word-break: break-word;';
+                                    textarea.parentNode.replaceChild(textDiv, textarea);
+                                } else if (!textarea.disabled) {
+                                    // In edit mode, enable auto-resize
+                                    const autoResize = () => {
+                                        textarea.style.height = 'auto';
+                                        textarea.style.height = textarea.scrollHeight + 'px';
+                                    };
+                                    autoResize();
+                                    textarea.addEventListener('input', autoResize);
+                                    const observer = new MutationObserver(autoResize);
+                                    observer.observe(textarea, { attributes: true, attributeFilter: ['value'] });
+                                }
+                            });
+
+                            // Remove padding from cells containing file upload - more aggressive approach
+                            const removeFileCellPadding = () => {
+                                const allCells = options.htmlElement.querySelectorAll('.sd-table__cell, td');
+
+                                let fileCount = 0;
+                                allCells.forEach(cell => {
+                                    const hasFile = cell.querySelector('.sd-file, .sd-file__decorator, .sd-question--file');
+                                    if (hasFile) {
+                                        fileCount++;
+
+                                        cell.style.setProperty('padding', '0', 'important');
+                                        cell.style.setProperty('margin', '0', 'important');
+
+
+                                        // Also remove padding from any wrapper elements
+                                        const wrappers = cell.querySelectorAll('.sd-question, .sd-question__content');
+                                        wrappers.forEach(wrapper => {
+                                            wrapper.style.setProperty('padding', '0', 'important');
+                                            wrapper.style.setProperty('margin', '0', 'important');
+                                        });
+                                    }
+                                });
+
+                            };
+
+                            // Initial removal
+                            removeFileCellPadding();
+
+                            // Watch for dynamic changes
+                            const observer = new MutationObserver(removeFileCellPadding);
+                            observer.observe(options.htmlElement, {
+                                childList: true,
+                                subtree: true
+                            });
+                        }, 100); // Increased timeout
                     }
                 });
 
@@ -153,6 +220,32 @@ const DynamicFormPage = () => {
 
                                         if (fieldId && rawData[fieldId] !== undefined) {
                                             let userAnswer = rawData[fieldId];
+
+                                            // Normalize file objects if this is a file field with nested content structure
+                                            // Check if userAnswer is an array of file objects with nested content
+                                            if (Array.isArray(userAnswer) && userAnswer.length > 0) {
+                                                const firstItem = userAnswer[0];
+                                                // Check if it looks like a file object with nested content
+                                                if (firstItem && typeof firstItem === 'object' &&
+                                                    firstItem.content && typeof firstItem.content === 'object' &&
+                                                    firstItem.content.content) {
+                                                    console.log(`[File normalization] Detected nested content structure in ${fieldId}, normalizing...`);
+                                                    userAnswer = userAnswer.map(fileObj => {
+                                                        if (fileObj && typeof fileObj === 'object' &&
+                                                            fileObj.content && typeof fileObj.content === 'object' &&
+                                                            fileObj.content.content) {
+                                                            console.log(`[File normalization] Flattening:`, fileObj);
+                                                            return {
+                                                                content: fileObj.content.content,
+                                                                name: fileObj.content.name || fileObj.name || "image.jpg",
+                                                                type: fileObj.content.type || fileObj.type || "image/jpeg"
+                                                            };
+                                                        }
+                                                        return fileObj;
+                                                    });
+                                                    console.log(`[File normalization] Normalized ${fieldId}:`, userAnswer);
+                                                }
+                                            }
 
                                             // Handle Address Object
                                             if ((fieldDef && fieldDef.type === 'address') ||
@@ -261,8 +354,18 @@ const DynamicFormPage = () => {
                                             if (choiceMap[questionName]) { // It's a choice-based question
                                                 const answerAsArray = Array.isArray(userAnswer) ? userAnswer : [userAnswer];
 
+                                                // Build reverse map (value -> value) for checking if data is already a value
+                                                const choiceValues = Object.values(choiceMap[questionName]);
+
                                                 const mappedValues = answerAsArray
-                                                    .map(text => choiceMap[questionName][text])
+                                                    .map(item => {
+                                                        // If item is already a valid choice value, use it directly
+                                                        if (choiceValues.includes(item)) {
+                                                            return item;
+                                                        }
+                                                        // Otherwise, try to map from text to value
+                                                        return choiceMap[questionName][item];
+                                                    })
                                                     .filter(Boolean); // Filter out any failed lookups
 
                                                 if (question.type === 'checkbox') {
@@ -272,12 +375,15 @@ const DynamicFormPage = () => {
                                                 }
                                             } else if (question.type === 'file') {
                                                 // Handle file uploads (convert URL strings to SurveyJS file objects)
-                                                if (Array.isArray(userAnswer)) {
-                                                    displayData[questionName] = userAnswer.map(url => {
-                                                        // Extract filename from URL or use a default
+                                                // Also handle nested content objects from backend
+
+                                                // Helper function to normalize a single file object
+                                                const normalizeFileObject = (fileObj) => {
+                                                    // If it's already a string URL, convert to file object
+                                                    if (typeof fileObj === 'string') {
                                                         let name = "image.jpg";
                                                         try {
-                                                            const urlObj = new URL(url);
+                                                            const urlObj = new URL(fileObj);
                                                             const params = new URLSearchParams(urlObj.search);
                                                             if (params.has('attname')) {
                                                                 name = params.get('attname');
@@ -289,16 +395,33 @@ const DynamicFormPage = () => {
                                                         }
                                                         return {
                                                             name: name,
-                                                            type: "image/jpeg", // Defaulting to image/jpeg, could be improved
-                                                            content: url
+                                                            type: "image/jpeg",
+                                                            content: fileObj
                                                         };
-                                                    });
-                                                } else if (typeof userAnswer === 'string') {
-                                                    displayData[questionName] = [{
-                                                        name: "image.jpg",
-                                                        type: "image/jpeg",
-                                                        content: userAnswer
-                                                    }];
+                                                    }
+
+                                                    // If it's an object, check for nested content structure
+                                                    if (typeof fileObj === 'object' && fileObj !== null) {
+                                                        // Check if content is nested: { content: { content: "url", name: "...", type: "..." } }
+                                                        if (fileObj.content && typeof fileObj.content === 'object' && fileObj.content.content) {
+                                                            console.log('[File normalization] Flattening nested content for file field:', fileObj);
+                                                            return {
+                                                                content: fileObj.content.content,
+                                                                name: fileObj.content.name || fileObj.name || "image.jpg",
+                                                                type: fileObj.content.type || fileObj.type || "image/jpeg"
+                                                            };
+                                                        }
+                                                        // Already in correct format
+                                                        return fileObj;
+                                                    }
+
+                                                    return fileObj;
+                                                };
+
+                                                if (Array.isArray(userAnswer)) {
+                                                    displayData[questionName] = userAnswer.map(normalizeFileObject);
+                                                } else if (userAnswer) {
+                                                    displayData[questionName] = [normalizeFileObject(userAnswer)];
                                                 }
                                             } else if (question.type === 'matrixdynamic') {
                                                 // Handle matrixdynamic (table) data
