@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { createPortal } from 'react-dom'; // Import createPortal directly
+// import { createPortal } from 'react-dom'; // Removed to avoid production build issues
 import { useParams, useLocation } from 'react-router-dom'; // 导入 useLocation
 import { Model } from 'survey-core';
 import { Survey } from 'survey-react-ui';
@@ -17,7 +17,8 @@ import {
     Box,
     Button,
     Typography,
-    IconButton
+    IconButton,
+    Portal // Import Portal from MUI
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { formatAddress } from '../utils/formatUtils';
@@ -57,8 +58,8 @@ const HeaderButtonsPortal = ({ currentMode, toggleMode, formToken, dataId, api }
 
     if (!container) return null;
 
-    return createPortal(
-        <>
+    return (
+        <Portal container={container}>
             {formToken === 'N0Il9H' && (
                 <Button
                     variant="contained"
@@ -98,8 +99,7 @@ const HeaderButtonsPortal = ({ currentMode, toggleMode, formToken, dataId, api }
             >
                 切换到 {currentMode === 'admin_view' ? '编辑模式' : '查看模式'}
             </Button>
-        </>,
-        container
+        </Portal>
     );
 };
 
