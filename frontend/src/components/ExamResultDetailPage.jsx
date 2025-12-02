@@ -4,6 +4,7 @@ import api from '../api/axios';
 import { Survey } from 'survey-react-ui';
 import { Model } from 'survey-core';
 import 'survey-core/survey-core.min.css';
+import '../styles/survey-theme-fresh.css';
 import {
     Container,
     Card,
@@ -49,13 +50,14 @@ const ExamResultDetailPage = () => {
                     const model = new Model(surveyJsSchema);
                     model.mode = 'display';
 
-                    // Check if this is a legacy jinshuju-synced form AND the data actually looks like legacy data (field_x keys)
+                    // Check if this is a legacy jinshuju-synced form AND the data actually looks like legacy data
+                    // Legacy data has field_x_extra_value keys with scoring information
                     const hasLegacySchema = !!data.dynamic_form.jinshuju_schema;
-                    const hasLegacyDataKeys = rawAnswers && Object.keys(rawAnswers).some(key => key.startsWith('field_'));
+                    const hasLegacyExtraValues = rawAnswers && Object.keys(rawAnswers).some(key => key.endsWith('_extra_value'));
 
-                    console.log("[DEBUG] Legacy Check:", { hasLegacySchema, hasLegacyDataKeys });
+                    console.log("[DEBUG] Legacy Check:", { hasLegacySchema, hasLegacyExtraValues, hasResultDetails: !!data.result_details });
 
-                    if (hasLegacySchema && hasLegacyDataKeys) {
+                    if (hasLegacySchema && hasLegacyExtraValues) {
                         // --- EXISTING LOGIC FOR JINSHUJU DATA ---
                         const jinshujuSchema = data.dynamic_form.jinshuju_schema;
 
@@ -97,8 +99,11 @@ const ExamResultDetailPage = () => {
 
                         surveyJsSchema.pages.forEach(page => {
                             page.elements.forEach(question => {
-                                const questionName = question.name; // This is the label
-                                const fieldId = reverseFieldMap[questionName];
+                                const questionName = question.name; // This is the label OR the field_id
+                                let fieldId = reverseFieldMap[questionName];
+                                if (!fieldId && questionName.startsWith('field_')) {
+                                    fieldId = questionName;
+                                }
 
                                 // Look up field definition in Jinshuju schema if available
                                 let fieldDef = null;
@@ -203,9 +208,26 @@ const ExamResultDetailPage = () => {
                                     if (choiceMap[questionName]) { // It's a choice-based question
                                         const answerAsArray = Array.isArray(userAnswer) ? userAnswer : [userAnswer];
 
-                                        const mappedValues = answerAsArray
-                                            .map(text => choiceMap[questionName][text])
-                                            .filter(Boolean); // Filter out any failed lookups
+                                        // Check if the data contains choice values (new format) or choice texts (legacy format)
+                                        // Build reverse map: value -> text for checking
+                                        const valueToTextMap = {};
+                                        question.choices.forEach(choice => {
+                                            valueToTextMap[choice.value] = choice.text;
+                                        });
+
+                                        // Detect format: if first answer is a choice value, use values directly
+                                        const isValueFormat = answerAsArray.length > 0 && valueToTextMap[answerAsArray[0]] !== undefined;
+
+                                        let mappedValues;
+                                        if (isValueFormat) {
+                                            // New format: data already contains choice values
+                                            mappedValues = answerAsArray;
+                                        } else {
+                                            // Legacy format: data contains choice texts, need to map to values
+                                            mappedValues = answerAsArray
+                                                .map(text => choiceMap[questionName][text])
+                                                .filter(Boolean);
+                                        }
 
                                         if (question.type === 'checkbox') {
                                             displayData[questionName] = mappedValues; // Checkbox expects an array
@@ -224,7 +246,10 @@ const ExamResultDetailPage = () => {
                         model.onAfterRenderQuestion.add((survey, options) => {
                             const questionName = options.question.name;
                             const questionValue = options.question.value;
-                            const fieldId = reverseFieldMap[questionName];
+                            let fieldId = reverseFieldMap[questionName];
+                            if (!fieldId && questionName.startsWith('field_')) {
+                                fieldId = questionName;
+                            }
 
                             // Look up field definition again
                             let fieldDef = null;
@@ -303,14 +328,14 @@ const ExamResultDetailPage = () => {
 
                                 const scoreDiv = document.createElement('div');
                                 scoreDiv.className = 'score-display';
-                                scoreDiv.style.cssText = 'margin-top: 5px; font-weight: bold; color: ' + (isCorrect ? '#2dce89' : '#f5365c');
+                                scoreDiv.style.cssText = 'margin-top: 10px; margin-bottom: 10px; font-weight: bold; color: ' + (isCorrect ? '#2dce89' : '#f5365c');
                                 scoreDiv.innerHTML = `得分: ${resultDetails.score}`;
                                 options.htmlElement.appendChild(scoreDiv);
 
                                 if (!isCorrect) {
                                     const correctAnswerDiv = document.createElement('div');
                                     correctAnswerDiv.className = 'correct-answer-display';
-                                    correctAnswerDiv.style.cssText = 'margin-top: 10px; padding: 10px; background-color: #f6f9fc; border: 1px solid #dee2e6; white-space: pre-wrap; word-break: break-word;';
+                                    correctAnswerDiv.style.cssText = 'margin-top: 35px; margin-bottom: 10px; margin-left: -3.5rem; margin-right: -1.5rem; padding: 10px 10px 10px 0.5rem; background-color: #f6f9fc; border: 1px solid #dee2e6; white-space: pre-wrap; word-break: break-word;';
 
                                     let correctAnswerText = resultDetails.correct_answer;
                                     if (Array.isArray(correctAnswerText)) {
@@ -422,17 +447,47 @@ const ExamResultDetailPage = () => {
                                 const existingFeedback = options.htmlElement.querySelector('.question-feedback');
                                 if (existingFeedback) existingFeedback.remove();
 
-                                const feedbackDiv = document.createElement('div');
-                                feedbackDiv.className = 'question-feedback';
-                                // The native surveyjs result will be inside the question. Let's add our score below it.
-                                feedbackDiv.style.cssText = 'margin-top: 15px; padding-top: 10px; border-top: 1px solid #eee;';
-
+                                const isCorrect = resultDetail.correct;
                                 const earnedPoints = resultDetail.earned_points;
                                 const totalPoints = resultDetail.points;
 
+                                // Add visual indicator (border color)
+                                options.htmlElement.style.borderLeft = isCorrect ? '5px solid #2dce89' : '5px solid #f5365c';
+                                options.htmlElement.style.paddingLeft = '15px';
+
+                                const feedbackDiv = document.createElement('div');
+                                feedbackDiv.className = 'question-feedback';
+                                feedbackDiv.style.cssText = 'margin-top: 15px; padding-top: 10px; border-top: 1px solid #eee;';
+
+                                // Score display
                                 const scoreSpan = document.createElement('div');
-                                scoreSpan.innerHTML = `<strong>得分:</strong> <span style="font-weight: bold; color: ${earnedPoints > 0 ? '#2dce89' : '#f5365c'};">${earnedPoints}</span> / ${totalPoints}`;
+                                scoreSpan.innerHTML = `<strong>得分:</strong> <span style="font-weight: bold; color: ${isCorrect ? '#2dce89' : '#f5365c'};">${earnedPoints}</span> / ${totalPoints}`;
                                 feedbackDiv.appendChild(scoreSpan);
+
+                                // Show correct answer if user was wrong
+                                if (!isCorrect && resultDetail.correct_answer) {
+                                    const correctAnswerDiv = document.createElement('div');
+                                    correctAnswerDiv.style.cssText = 'margin-top: 10px; padding: 10px; background-color: #f6f9fc; border: 1px solid #dee2e6; border-radius: 4px;';
+
+                                    // Format correct answer for display
+                                    let correctAnswerText = resultDetail.correct_answer;
+                                    if (Array.isArray(correctAnswerText)) {
+                                        // Map values back to texts for display
+                                        const question = options.question;
+                                        if (question.choices) {
+                                            const valueToTextMap = {};
+                                            question.choices.forEach(choice => {
+                                                valueToTextMap[choice.value] = choice.text;
+                                            });
+                                            correctAnswerText = correctAnswerText.map(val => valueToTextMap[val] || val).join(', ');
+                                        } else {
+                                            correctAnswerText = correctAnswerText.join(', ');
+                                        }
+                                    }
+
+                                    correctAnswerDiv.innerHTML = `<strong style="color: #2dce89;">✓ 正确答案:</strong> ${correctAnswerText}`;
+                                    feedbackDiv.appendChild(correctAnswerDiv);
+                                }
 
                                 options.htmlElement.appendChild(feedbackDiv);
                             }

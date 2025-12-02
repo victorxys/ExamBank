@@ -793,19 +793,16 @@ def register_commands(app):
                 db.session.commit()
                 click.echo(click.style("数据库变更已成功提交！", fg="green"))
             
-            click.echo("\\n--- 修正任务报告 ---")
-            click.echo(f"总共检查合同: {len(contracts_to_fix)}")
-            click.echo(click.style(f"成功修正合同: {updated_count}", fg="green"))
-            click.echo(f"无需修正或跳过: {skipped_count}")
-            if dry_run and updated_count > 0:
-                click.echo(click.style("\\n【演习模式】未对数据库做任何实际修改。", fg="yellow" ))
 
+            
+            click.echo("\n--- 修正任务报告 ---")
+            click.echo(f"总共检查合同: {len(contracts_to_fix)}")
         except Exception as e:
             if not dry_run:
                 db.session.rollback()
-            click.echo(click.style(f"\\n执行任务时发生严重错误: {e}", fg="red"))
+            click.echo(click.style(f"\n执行任务时发生严重错误: {e}", fg="red"))
             logger.exception("Error during fix-trial-contract-ids task:")
-    
+     
     @app.cli.command("align-trial-contract-serial-numbers")
     @click.option('--dry-run', is_flag=True, help='只打印将要执行的操作，不实际修改数据库。')
     @with_appcontext
@@ -846,6 +843,7 @@ def register_commands(app):
 
             # 3. 查询数据库中所有需要对齐的合同
             click.echo("正在查询本地数据库中的育儿嫂试工合同...")
+
             contracts_to_align = NannyTrialContract.query.filter (NannyTrialContract.jinshuju_entry_id.isnot(None)).all()
 
             if not contracts_to_align:
@@ -1266,6 +1264,53 @@ def register_commands(app):
             logger.exception("Error during associate-latest-contract-template task:")
         finally:
             session.close()
+
+    @app.cli.command("migrate-employee-balance-transfer")
+    @click.option('--dry-run', is_flag=True, help='只打印将要执行的操作,不实际修改数据库。')
+    @with_appcontext
+    def migrate_employee_balance_transfer_command(dry_run):
+        """
+        将历史数据中的"[冲抵]员工待付工资转移至续约合同"调整项类型
+        从 EMPLOYEE_DECREASE 迁移到 EMPLOYEE_BALANCE_TRANSFER。
+        """
+        if dry_run:
+            click.echo("---【演习模式】将查找并列出需要迁移的调整项,但不会实际操作数据库。---")
+        else:
+            click.echo("--- 开始迁移员工余额转移调整项 ---")
+
+        try:
+            # 查找所有描述匹配且类型为 EMPLOYEE_DECREASE 的调整项
+            adjustments_to_migrate = FinancialAdjustment.query.filter(
+                FinancialAdjustment.description == "[冲抵]员工待付工资转移至续约合同",
+                FinancialAdjustment.adjustment_type == AdjustmentType.EMPLOYEE_DECREASE
+            ).all()
+
+            if not adjustments_to_migrate:
+                click.echo("没有找到需要迁移的调整项。")
+                return
+
+            click.echo(f"找到 {len(adjustments_to_migrate)} 个需要迁移的调整项。")
+            
+            migrated_count = 0
+            
+            for adj in adjustments_to_migrate:
+                click.echo(f"  - [准备迁移] 调整项 ID {adj.id} (账单/工资单日期: {adj.date})")
+                if not dry_run:
+                    adj.adjustment_type = AdjustmentType.EMPLOYEE_BALANCE_TRANSFER
+                    db.session.add(adj)
+                migrated_count += 1
+
+            if not dry_run:
+                if migrated_count > 0:
+                    db.session.commit()
+                    click.echo(click.style(f"\n成功迁移了 {migrated_count} 个调整项。", fg="green"))
+            else:
+                click.echo(f"\n--- 演习结束。如果执行,将会迁移 {migrated_count} 个调整项。---")
+
+        except Exception as e:
+            if not dry_run:
+                db.session.rollback()
+            click.echo(click.style(f"执行迁移任务时发生严重错误: {e}", fg="red"))
 
     app.cli.add_command(import_users_from_jinshuju)
 

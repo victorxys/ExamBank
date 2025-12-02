@@ -153,3 +153,38 @@ def update_dynamic_form(form_id):
 
 # TODO: Add POST, PUT, DELETE routes for managing dynamic forms if needed.
 # For now, we assume forms are migrated and read-only.
+
+@dynamic_form_bp.route('/<string:form_token>/data/<uuid:data_id>', methods=['GET'])
+@jwt_required()
+def get_form_data_by_token_and_id(form_token, data_id):
+    """
+    根据 form_token 和 data_id 获取单条表单提交的数据。
+    """
+    from backend.models import DynamicFormData
+    from sqlalchemy.orm import joinedload
+
+    # Verify form exists
+    form = DynamicForm.query.filter_by(form_token=form_token).first()
+    if not form:
+        return jsonify({'message': 'DynamicForm not found'}), 404
+
+    form_data = DynamicFormData.query.options(
+        joinedload(DynamicFormData.dynamic_form)
+    ).filter_by(id=data_id, form_id=form.id).first()
+    
+    if not form_data:
+        return jsonify({'message': 'Form data not found'}), 404
+
+    # --- 基础数据序列化 ---
+    response_data = {
+        'id': str(form_data.id),
+        'form_id': str(form_data.form_id),
+        'form_data': form_data.data, # Note: Frontend expects 'form_data' key based on previous code
+        'user_id': str(form_data.user_id) if form_data.user_id else None,
+        'score': form_data.score,
+        'result_details': form_data.result_details,
+        'created_at': form_data.created_at.isoformat(),
+        'updated_at': form_data.updated_at.isoformat(),
+    }
+
+    return jsonify(response_data), 200

@@ -239,7 +239,7 @@ class BillMergeService:
             source_payroll.total_due = D(0)
             return
 
-        op_adj_type = AdjustmentType.EMPLOYEE_DECREASE if balance > 0 else AdjustmentType.EMPLOYEE_INCREASE
+        op_adj_type = AdjustmentType.EMPLOYEE_BALANCE_TRANSFER if balance > 0 else AdjustmentType.EMPLOYEE_INCREASE
         mirror_adj_type = AdjustmentType.EMPLOYEE_INCREASE if balance > 0 else AdjustmentType.EMPLOYEE_DECREASE
         amount = abs(balance)
 

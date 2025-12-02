@@ -2,9 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import {
-  Button, Dialog, DialogActions, DialogContent, DialogTitle,
-  TextField, FormControl, InputLabel, Select, MenuItem, Grid,
-  Divider, FormControlLabel, Switch
+    Button, Dialog, DialogActions, DialogContent, DialogTitle,
+    TextField, FormControl, InputLabel, Select, MenuItem, Grid,
+    Divider, FormControlLabel, Switch
 } from '@mui/material';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -23,6 +23,7 @@ export const AdjustmentTypes = {
     substitute_management_fee: { label: '替班管理费', type: 'customer', effect: 1 },
     employee_increase: { label: '萌嫂增款', type: 'employee', effect: 1 },
     employee_decrease: { label: '减萌嫂款', type: 'employee', effect: -1 },
+    employee_balance_transfer: { label: '员工余额转移', type: 'employee', effect: -1 },
     deposit_paid_salary: { label: '保证金支付工资', type: 'employee', effect: 1 },
     employee_commission: { label: '员工首月返佣', type: 'employee', effect: -1 },
     employee_commission_offset: { label: '佣金冲账', type: 'employee', effect: 1 },
@@ -127,7 +128,7 @@ const AdjustmentDialog = ({ open, onClose, onSave, adjustment = null, typeFilter
                         <Divider sx={{ my: 1 }} />
                     </Grid>
                     <Grid item xs={12}>
-                         <FormControlLabel
+                        <FormControlLabel
                             control={
                                 <Switch
                                     checked={isSettled}

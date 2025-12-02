@@ -331,7 +331,7 @@ const ContractList = () => {
                         <Grid item xs={12} sm sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
                             {/* <Button variant="contained" color="primary" startIcon={<AddIcon />} onClick={() => setIsCreateFormalModalOpen(true)}>创建正式合同</Button>
                             <Button variant="contained" startIcon={<AddCircleOutlineIcon />} onClick={() => setIsCreateModalOpen(true)}>新增虚拟合同</Button> */}
-                            <Button variant="contained" onClick={handleTriggerSync} disabled={syncing} startIcon={syncing ? <CircularProgress size={20} color="inherit" /> : <SyncIcon />}>同步</Button>
+                            {/* <Button variant="contained" onClick={handleTriggerSync} disabled={syncing} startIcon={syncing ? <CircularProgress size={20} color="inherit" /> : <SyncIcon />}>同步</Button> */}
                         </Grid>
                     </Grid>
                 </Paper>
@@ -349,7 +349,6 @@ const ContractList = () => {
                                 <TableCell>签署</TableCell>
                                 <TableCell>客户签名</TableCell>
                                 <TableCell>员工签名</TableCell>
-                                <TableCell align="center">操作</TableCell>
                             </TableRow>
                         </TableHead>
 
@@ -357,7 +356,12 @@ const ContractList = () => {
                             {loading ? (<TableRow><TableCell colSpan={7} align="center" sx={{ py: 5 }}><CircularProgress /></TableCell></TableRow>)
                                 : (
                                     contracts.map((contract) => (
-                                        <TableRow hover key={contract.id}>
+                                        <TableRow
+                                            hover
+                                            key={contract.id}
+                                            onClick={() => navigate(`/contract/detail/${contract.id}`, { state: { from: location.pathname + location.search } })}
+                                            sx={{ cursor: 'pointer' }}
+                                        >
                                             <TableCell sx={{ fontWeight: 'bold' }}>{contract.customer_name}</TableCell>
                                             <TableCell>{contract.service_personnel_name}</TableCell>
                                             <TableCell>
@@ -415,11 +419,6 @@ const ContractList = () => {
                                                         alt="员工签名"
                                                     />
                                                 )}
-                                            </TableCell>
-                                            <TableCell align="center">
-                                                <Button variant="outlined" size="small" onClick={() => navigate(`/contract/detail/${contract.id}`, { state: { from: location.pathname + location.search } })}>
-                                                    查看详情
-                                                </Button>
                                             </TableCell>
                                         </TableRow>
                                     ))
