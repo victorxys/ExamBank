@@ -686,6 +686,13 @@ def create_formal_contract():
             customer_attributes["customer_name_pinyin"] = f"{pinyin_full} {pinyin_initials}"
         # Case 3: No customer info provided, use the default "新客户"
 
+        # --- Update Service Personnel Address if provided ---
+        employee_address = data.get("employee_address")
+        if employee_address and service_personnel.address != employee_address:
+            service_personnel.address = employee_address
+            db.session.add(service_personnel) # Mark for update
+            current_app.logger.info(f"Updated address for ServicePersonnel {service_personnel.id} to {employee_address}")
+
         # --- Prepare Contract Attributes ---
         def to_decimal(value, default=0):
             if value is None or value == '': return D(str(default))
@@ -713,6 +720,15 @@ def create_formal_contract():
             "attachment_content": data.get("attachment_content"),
             "previous_contract_id": data.get("previous_contract_id"),
         }
+
+        # --- Update Customer Address if provided (only for existing customers) ---
+        customer_address = data.get("customer_address")
+        if customer_id and customer_address:
+             customer = Customer.query.get(customer_id)
+             if customer and customer.address != customer_address:
+                 customer.address = customer_address
+                 db.session.add(customer)
+                 current_app.logger.info(f"Updated address for Customer {customer.id} to {customer_address}")
 
         # --- Model Selection and Creation ---
         contract_type = data["contract_type"]
@@ -1274,13 +1290,29 @@ def handle_signing_page_action(token):
                     sig_record.uploaded_at = func.now()
 
                 # contract.customer_signature = signature <-- REMOVED
-                if contract.signing_status == SigningStatus.EMPLOYEE_SIGNED:
-                    contract.signing_status = SigningStatus.SIGNED
-                    contract.status = "active"
-                    update_salary_history_on_contract_activation(contract)
-                    current_app.logger.info(f"合同 {contract.id} 已激活。" )
-                else:
-                    contract.signing_status = SigningStatus.CUSTOMER_SIGNED
+                # --- 核心修复：使用行锁和真实签名记录来更新状态，防止并发覆盖 ---
+                # 1. 重新获取并锁定合同行
+                contract_locked = BaseContract.query.with_for_update().get(contract.id)
+                
+                # 2. 检查双方签名是否存在
+                has_customer_sig = ContractSignature.query.filter_by(contract_id=contract.id, signature_type='customer').count() > 0
+                has_employee_sig = ContractSignature.query.filter_by(contract_id=contract.id, signature_type='employee').count() > 0
+
+                current_app.logger.info(f"签名状态检查 (Contract: {contract.id}): Customer={has_customer_sig}, Employee={has_employee_sig}")
+
+                if has_customer_sig and has_employee_sig:
+                    if contract_locked.signing_status != SigningStatus.SIGNED:
+                        contract_locked.signing_status = SigningStatus.SIGNED
+                        contract_locked.status = "active"
+                        update_salary_history_on_contract_activation(contract_locked)
+                        current_app.logger.info(f"合同 {contract.id} 已激活 (双发签署完成)。")
+                elif has_customer_sig:
+                    # 只有在非 SIGNED 状态下才更新，防止回退
+                    if contract_locked.signing_status != SigningStatus.SIGNED:
+                        contract_locked.signing_status = SigningStatus.CUSTOMER_SIGNED
+                elif has_employee_sig:
+                    if contract_locked.signing_status != SigningStatus.SIGNED:
+                        contract_locked.signing_status = SigningStatus.EMPLOYEE_SIGNED
 
             elif role == "employee":
                 employee_info_data = data.get("employee_info")
@@ -1332,14 +1364,29 @@ def handle_signing_page_action(token):
                     sig_record.file_path = file_path
                     sig_record.uploaded_at = func.now()
 
-                # contract.employee_signature = signature <-- REMOVED
-                if contract.signing_status == SigningStatus.CUSTOMER_SIGNED:
-                    contract.signing_status = SigningStatus.SIGNED
-                    contract.status = "active"
-                    update_salary_history_on_contract_activation(contract)
-                    current_app.logger.info(f"合同 {contract.id} 已激活。" )
-                else:
-                    contract.signing_status = SigningStatus.EMPLOYEE_SIGNED
+                # --- 核心修复：使用行锁和真实签名记录来更新状态，防止并发覆盖 ---
+                # 1. 重新获取并锁定合同行
+                contract_locked = BaseContract.query.with_for_update().get(contract.id)
+                
+                # 2. 检查双方签名是否存在
+                has_customer_sig = ContractSignature.query.filter_by(contract_id=contract.id, signature_type='customer').count() > 0
+                has_employee_sig = ContractSignature.query.filter_by(contract_id=contract.id, signature_type='employee').count() > 0
+
+                current_app.logger.info(f"签名状态检查 (Contract: {contract.id}): Customer={has_customer_sig}, Employee={has_employee_sig}")
+
+                if has_customer_sig and has_employee_sig:
+                    if contract_locked.signing_status != SigningStatus.SIGNED:
+                        contract_locked.signing_status = SigningStatus.SIGNED
+                        contract_locked.status = "active"
+                        update_salary_history_on_contract_activation(contract_locked)
+                        current_app.logger.info(f"合同 {contract.id} 已激活 (双发签署完成)。")
+                elif has_customer_sig:
+                    # 只有在非 SIGNED 状态下才更新，防止回退
+                    if contract_locked.signing_status != SigningStatus.SIGNED:
+                        contract_locked.signing_status = SigningStatus.CUSTOMER_SIGNED
+                elif has_employee_sig:
+                    if contract_locked.signing_status != SigningStatus.SIGNED:
+                        contract_locked.signing_status = SigningStatus.EMPLOYEE_SIGNED
 
             db.session.commit()
             return jsonify({"message": "签名成功！"}), 200
@@ -1437,8 +1484,10 @@ def generate_signing_messages(contract_id):
             calculation_details = first_bill.calculation_details or {}
             
             # --- 核心修改：统一处理管理费的显示逻辑 ---
+            calc_values = [] # 用于收集计算项
             management_fee_amount = D(calculation_details.get('management_fee', 0))
             if management_fee_amount > 0:
+                calc_values.append(management_fee_amount)
                 log_extras = calculation_details.get('log_extras', {})
                 management_fee_reason = log_extras.get('management_fee_reason')
                 
@@ -1460,16 +1509,41 @@ def generate_signing_messages(contract_id):
                 # --- 核心修正：为月嫂合同增加更强的过滤，防止重复 ---
                 if contract.type == 'maternity_nurse':
                     # 如果 adjustment 类型或描述是我们已经明确处理过的，就跳过
-                    if adj.adjustment_type in ['customer_deposit', 'management_fee'] or \
+                    # 注意：这里使用 str() 转换以兼容 Enum 和 字符串
+                    adj_type_str = str(adj.adjustment_type.value) if hasattr(adj.adjustment_type, 'value') else str(adj.adjustment_type)
+                    
+                    if adj_type_str in ['customer_deposit', 'management_fee'] or \
                        adj.description.strip() in ["保证金", "客交保证金", "管理费"]:
                         continue
                 
                 # 排除不应由客户看到的员工侧调整
-                if adj.adjustment_type not in ['employee_salary_adjustment', 'employee_bonus', 'employee_deduction']:
+                # 同样使用字符串比较以确保安全
+                adj_type_str = str(adj.adjustment_type.value) if hasattr(adj.adjustment_type, 'value') else str(adj.adjustment_type)
+                
+                if adj_type_str not in ['employee_salary_adjustment', 'employee_bonus', 'employee_deduction']:
                     customer_message_lines.append(f"{adj.description.strip()}：{adj.amount:.2f} 元")
-            # --- 添加总计和已支付 ---
+                    
+                    # --- 核心修复：根据类型判断正负号 ---
+                    val = adj.amount
+                    if adj_type_str in ['customer_decrease', 'customer_discount']:
+                        val = -val
+                    calc_values.append(val)
+
+            # --- 添加总计 (带计算过程) ---
             amount_to_pay = first_bill.total_due
-            customer_message_lines.append(f"费用总计：{amount_to_pay:.2f}元")
+            if len(calc_values) > 1:
+                calc_str = ""
+                for i, val in enumerate(calc_values):
+                    if i == 0:
+                        calc_str += f"{val:.2f}"
+                    else:
+                        if val >= 0:
+                            calc_str += f" + {val:.2f}"
+                        else:
+                            calc_str += f" - {abs(val):.2f}"
+                customer_message_lines.append(f"费用总计：{calc_str} = {amount_to_pay:.2f}元")
+            else:
+                customer_message_lines.append(f"费用总计：{amount_to_pay:.2f}元")
             if first_bill.total_paid > 0:
                 customer_message_lines.append(f"已支付：{first_bill.total_paid:.2f}元")
                 customer_message_lines.append(f"还需支付：{(amount_to_pay - first_bill.total_paid):.2f}元，")
@@ -1493,7 +1567,7 @@ def generate_signing_messages(contract_id):
                     customer_message_lines.append(f"介绍费：{customer_deposit:.2f} 元")
                 
 
-        customer_message_lines.append(f"户名：{bank_account.payee_name}")
+        customer_message_lines.append(f"\n户名：{bank_account.payee_name}")
         customer_message_lines.append(f"帐号：{bank_account.account_number}")
         customer_message_lines.append(f"银行：{bank_account.bank_name}")
         customer_message_lines.append("\n合同：")
@@ -1512,8 +1586,8 @@ def generate_signing_messages(contract_id):
 
         # 6. 生成员工消息 (保持不变)
         employee_message_lines = []
-        employee_message_lines.append(f"{customer_name}——{employee_name}：签约 {contract.start_date.strftime('%Y.%m.%d')}~{contract.end_date.strftime('%Y.%m.%d')}，")
-        employee_message_lines.append(f"月薪：{contract.employee_level or '待定'}，")
+        # employee_message_lines.append(f"{customer_name}——{employee_name}：签约 {contract.start_date.strftime('%Y.%m.%d')}~{contract.end_date.strftime('%Y.%m.%d')}，")
+        # employee_message_lines.append(f"月薪：{contract.employee_level or '待定'}，")
         employee_message_lines.append("\n合同：")
         employee_message_lines.append(employee_signing_url)
         employee_message_lines.append("1、 请点开上面链接，将乙方内容填写完整")
