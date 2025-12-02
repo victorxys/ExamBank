@@ -92,22 +92,38 @@ body {
 /* Form body */
 .sd-body {
     background-color: var(--surface-color) !important;
-    padding: 2.5rem !important;
+    padding: 2.5rem 3rem !important;
     margin: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
 }
 
 /* Pages container */
 .sd-page {
     padding: 0 !important;
+    max-width: none !important;
+    width: 100% !important;
 }
 
 /* ===== QUESTIONS ===== */
 
-/* Question container */
+/* Question container - use flexbox for proper stacking */
 .sd-question {
-    padding: 0 !important;
-    margin-bottom: 1.5rem !important;
+    padding: 0 1.5rem !important;
+    margin-bottom: 2rem !important;
     background: transparent !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    display: flex !important;
+    flex-wrap: wrap !important;
+}
+
+/* Question header (contains title and description) */
+.sd-question__header {
+    width: 100% !important;
+    max-width: 100% !important;
+    flex-basis: 100% !important;
+    flex-shrink: 0 !important;
 }
 
 /* Question title/label */
@@ -118,10 +134,59 @@ body {
     text-transform: uppercase !important;
     letter-spacing: 0.05em !important;
     margin-bottom: 0.5rem !important;
+    white-space: nowrap !important;
+    display: inline-block !important;
+    width: auto !important;
+    max-width: 100% !important;
+    flex-shrink: 0 !important;
+    word-break: keep-all !important;
+    overflow-wrap: normal !important;
+}
+
+/* Override SurveyJS multiline string viewer in titles */
+.sd-question__title .sv-string-viewer,
+.sd-question__title .sv-string-viewer--multiline {
+    white-space: nowrap !important;
+    word-break: keep-all !important;
+    overflow-wrap: normal !important;
+    display: inline !important;
+}
+
+/* Question content area */
+.sd-question__content {
+    border: none !important;
+    padding: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    flex-basis: 100% !important;
+}
+
+/* Radio/Checkbox groups - prevent wrapping */
+.sd-selectbase {
+    max-width: 100% !important;
+    width: 100% !important;
+}
+
+/* Radio/Checkbox item wrapper */
+.sd-item {
+    /* margin-bottom: 0.75rem !important; */
+    width: 100% !important;
+}
+
+/* Radio/Checkbox label */
+.sd-item__control-label {
+    width: auto !important;
+    max-width: 100% !important;
 }
 
 /* Hide question numbers */
 .sd-question__number {
+    display: none !important;
+}
+
+/* Hide title for HTML type questions (section breaks, dividers) */
+.sd-question--html .sd-question__title,
+.sd-element--html .sd-question__title {
     display: none !important;
 }
 
@@ -181,7 +246,7 @@ body {
 }
 
 /* ===== CHECKBOXES & RADIOS ===== */
-
+/* 
 .sd-item__decorator {
     border-color: var(--border-color) !important;
 }
@@ -189,7 +254,8 @@ body {
 .sd-item__control:checked+.sd-item__decorator {
     background-color: var(--primary-color) !important;
     border-color: var(--primary-color) !important;
-}
+} 
+*/
 
 /* ===== NAVIGATION BUTTONS ===== */
 

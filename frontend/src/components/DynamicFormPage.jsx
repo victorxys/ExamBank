@@ -25,7 +25,7 @@ const DynamicFormPage = () => {
     const [surveyModel, setSurveyModel] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [currentMode, setCurrentMode] = useState('edit'); // 默认为编辑模式
+    const [currentMode, setCurrentMode] = useState('admin_view'); // 默认为编辑模式
 
     useEffect(() => {
         const fetchForm = async () => {
@@ -48,13 +48,33 @@ const DynamicFormPage = () => {
                 survey.locale = "zh-cn";
 
                 // Force storeDataAsText to false for all file questions to ensure we store the URL, not Base64
-                // Also force showTitle to true for html questions
                 survey.getAllQuestions().forEach(question => {
                     if (question.getType() === 'file') {
                         question.storeDataAsText = false;
                     }
-                    if (question.getType() === 'html') {
-                        question.showTitle = true;
+                });
+
+                // Add eye icon for private fields (visible: false in schema)
+                survey.onAfterRenderQuestion.add((sender, options) => {
+                    const question = options.question;
+                    // Check if field was originally marked as not visible in schema
+                    // (In detail view, all fields are shown, so we need to check the original schema)
+                    const originalQuestion = formSchema.pages?.[0]?.elements?.find(el => el.name === question.name);
+                    if (originalQuestion && originalQuestion.visible === false) {
+                        const titleElement = options.htmlElement.querySelector('.sd-question__title');
+                        if (titleElement && !titleElement.querySelector('.private-field-icon')) {
+                            const icon = document.createElement('span');
+                            icon.className = 'private-field-icon';
+                            icon.innerHTML = `
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-left: 8px; color: #6b7280;">
+                                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                                    <line x1="1" y1="1" x2="23" y2="23"></line>
+                                </svg>
+                            `;
+                            icon.title = '此字段仅管理员可见';
+                            icon.style.cssText = 'cursor: help; display: inline-flex; align-items: center;';
+                            titleElement.appendChild(icon);
+                        }
                     }
                 });
 
@@ -464,6 +484,14 @@ const DynamicFormPage = () => {
                                                         // Use statement value as row key
                                                         let rowKey = item.statement;
 
+                                                        // Try to map statement text to row value if possible
+                                                        if (rowKey && question.rows) {
+                                                            const rowDef = question.rows.find(r => r.text === rowKey || r.value === rowKey);
+                                                            if (rowDef) {
+                                                                rowKey = rowDef.value;
+                                                            }
+                                                        }
+
                                                         // If rowKey is empty, try to find a default row from question definition
                                                         if (!rowKey && question.rows && question.rows.length > 0) {
                                                             // If there's only one row, use it
@@ -497,7 +525,23 @@ const DynamicFormPage = () => {
                                                             // dimKey is likely the Chinese label (e.g., "合同编号")
                                                             // We need to map it to the column name (e.g., "field_1")
                                                             const colName = colMap[dimKey] || dimKey;
-                                                            rowData[colName] = dimensions[dimKey];
+                                                            let cellValue = dimensions[dimKey];
+
+                                                            // Check if this column is a dropdown and needs value mapping
+                                                            if (question.columns) {
+                                                                const colDef = question.columns.find(c => c.name === colName);
+                                                                if (colDef && (colDef.cellType === 'dropdown' || colDef.choices)) {
+                                                                    // Try to find the value corresponding to the text
+                                                                    if (colDef.choices && cellValue) {
+                                                                        const choice = colDef.choices.find(c => c.text === cellValue || c.value === cellValue);
+                                                                        if (choice) {
+                                                                            cellValue = choice.value;
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+
+                                                            rowData[colName] = cellValue;
                                                         });
 
                                                         if (rowKey) {
@@ -509,6 +553,41 @@ const DynamicFormPage = () => {
                                                 } else {
                                                     displayData[questionName] = userAnswer;
                                                 }
+                                            } else if (question.type === 'matrix') {
+                                                // Transform Jinshuju likert data to SurveyJS matrix format
+                                                // Jinshuju: [{ choice: 'col_text', statement: 'row_text' }]
+                                                // SurveyJS: { 'row_val': 'col_val' }
+                                                if (Array.isArray(userAnswer)) {
+                                                    const transformedData = {};
+                                                    userAnswer.forEach(item => {
+                                                        let rowKey = item.statement;
+                                                        let colVal = item.choice;
+
+                                                        // Map row text to row value
+                                                        if (question.rows) {
+                                                            const rowDef = question.rows.find(r => r.text === rowKey || r.value === rowKey);
+                                                            if (rowDef) rowKey = rowDef.value;
+                                                        }
+
+                                                        // Map column text to column value
+                                                        if (question.columns) {
+                                                            const colDef = question.columns.find(c => c.text === colVal || c.value === colVal);
+                                                            if (colDef) colVal = colDef.value;
+                                                        }
+
+                                                        if (rowKey) {
+                                                            transformedData[rowKey] = colVal;
+                                                        }
+                                                    });
+                                                    displayData[questionName] = transformedData;
+                                                    console.log(`[DEBUG] Transformed matrix (likert) data for ${questionName}:`, transformedData);
+                                                } else {
+                                                    displayData[questionName] = userAnswer;
+                                                }
+                                            } else if (question.type === 'rating') {
+                                                // Handle rating type (simple value)
+                                                displayData[questionName] = userAnswer;
+                                                console.log(`[DEBUG] Setting rating data for ${questionName}:`, userAnswer);
                                             } else { // Simple text question
                                                 console.log(`[DEBUG] Setting displayData[${questionName}] = `, userAnswer);
                                                 // Handle empty values - show placeholder
@@ -759,6 +838,8 @@ const DynamicFormPage = () => {
                             }
 
                             // Apply styling for html type questions (contract content) in Legacy mode
+                            // DISABLED: This adds an unwanted border around HTML elements like section breaks
+                            /*
                             if (options.question.getType() === "html") {
                                 const container = options.htmlElement;
 
@@ -778,6 +859,7 @@ const DynamicFormPage = () => {
                                 }
                                 container.appendChild(wrapper);
                             }
+                            */
                         });
                     } else {
                         // --- NEW LOGIC FOR NATIVE SURVEYJS DATA (OR HYBRID) ---
@@ -940,18 +1022,24 @@ const DynamicFormPage = () => {
                     };
 
                     // Initial State: Full Edit (all fields editable)
-                    // survey.applyAdminViewState(); // Commented out - default to full edit mode
-                    survey.applyFullEditState(); // Apply full edit state by default
-                    survey.isAdminView = false; // Track state
-                    initialMode = 'edit'; // We use 'edit' mode with all fields editable
+                    // Initial State: Admin View (default for existing data)
+                    survey.applyAdminViewState();
+                    // survey.applyFullEditState(); // Commented out - default to admin view
+                    survey.isAdminView = true; // Track state
+                    initialMode = 'admin_view'; // We use 'admin_view' mode by default
                 }
 
                 // 检查 URL 查询参数
                 const queryParams = new URLSearchParams(location.search);
-                // Default to edit mode for existing forms
 
-                setCurrentMode('edit'); // Always start in edit mode
-                survey.mode = 'edit';
+                // Set mode based on whether we have existing data or not
+                if (dataId) {
+                    setCurrentMode('admin_view');
+                } else {
+                    setCurrentMode('edit');
+                }
+
+                survey.mode = 'edit'; // SurveyJS mode is always 'edit' to allow admin edits
 
                 // 3. 设置 onComplete 回调
                 survey.onComplete.add(async (sender) => {
@@ -1163,7 +1251,7 @@ const DynamicFormPage = () => {
                             </Button>
                         )}
                         <Button variant="outlined" onClick={toggleMode}>
-                            切换到 {currentMode === 'display' ? '编辑模式' : '查看模式'}
+                            切换到 {currentMode === 'admin_view' ? '编辑模式' : '查看模式'}
                         </Button>
                     </Box>
                 )}

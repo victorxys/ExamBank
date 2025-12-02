@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Card, CardContent, Typography, Box, IconButton, Chip, Dialog, DialogTitle, DialogContent, DialogActions, Button } from '@mui/material';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import DescriptionIcon from '@mui/icons-material/Description';
 import QuizIcon from '@mui/icons-material/Quiz';
 import VisibilityIcon from '@mui/icons-material/Visibility';
@@ -11,6 +11,7 @@ import { QRCodeSVG } from 'qrcode.react';
 const FormCard = ({ form, isDragging }) => {
     const isExam = form.form_type === 'EXAM';
     const [qrDialogOpen, setQrDialogOpen] = useState(false);
+    const navigate = useNavigate();
 
     // Generate full URL for QR code
     const formUrl = `${window.location.origin}/forms/${form.form_token}`;
@@ -18,10 +19,16 @@ const FormCard = ({ form, isDragging }) => {
     // Get data count (you'll need to pass this from parent or fetch it)
     const dataCount = form.submission_count || 0;
 
+    const handleCardClick = () => {
+        const targetPath = isExam ? `/exams/${form.form_token}/results` : `/forms/${form.form_token}/data`;
+        navigate(targetPath);
+    };
+
     return (
         <Card
+            onClick={handleCardClick}
             sx={{
-                cursor: 'grab',
+                cursor: 'pointer',
                 '&:hover': {
                     boxShadow: 6,
                     transform: 'translateY(-2px)',
@@ -93,6 +100,7 @@ const FormCard = ({ form, isDragging }) => {
                         size="small"
                         component={Link}
                         to={isExam ? `/exams/${form.form_token}/results` : `/forms/${form.form_token}/data`}
+                        onClick={(e) => e.stopPropagation()}
                         title="查看数据"
                         sx={{
                             backgroundColor: '#f6f9fc',
@@ -107,6 +115,7 @@ const FormCard = ({ form, isDragging }) => {
                         href={`/forms/edit/${form.form_token}`}
                         target="_blank"
                         rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
                         title="编辑表单"
                         sx={{
                             backgroundColor: '#f6f9fc',

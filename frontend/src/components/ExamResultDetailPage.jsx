@@ -4,6 +4,7 @@ import api from '../api/axios';
 import { Survey } from 'survey-react-ui';
 import { Model } from 'survey-core';
 import 'survey-core/survey-core.min.css';
+import '../styles/survey-theme-fresh.css';
 import {
     Container,
     Card,
@@ -97,8 +98,11 @@ const ExamResultDetailPage = () => {
 
                         surveyJsSchema.pages.forEach(page => {
                             page.elements.forEach(question => {
-                                const questionName = question.name; // This is the label
-                                const fieldId = reverseFieldMap[questionName];
+                                const questionName = question.name; // This is the label OR the field_id
+                                let fieldId = reverseFieldMap[questionName];
+                                if (!fieldId && questionName.startsWith('field_')) {
+                                    fieldId = questionName;
+                                }
 
                                 // Look up field definition in Jinshuju schema if available
                                 let fieldDef = null;
@@ -224,7 +228,10 @@ const ExamResultDetailPage = () => {
                         model.onAfterRenderQuestion.add((survey, options) => {
                             const questionName = options.question.name;
                             const questionValue = options.question.value;
-                            const fieldId = reverseFieldMap[questionName];
+                            let fieldId = reverseFieldMap[questionName];
+                            if (!fieldId && questionName.startsWith('field_')) {
+                                fieldId = questionName;
+                            }
 
                             // Look up field definition again
                             let fieldDef = null;
@@ -303,14 +310,14 @@ const ExamResultDetailPage = () => {
 
                                 const scoreDiv = document.createElement('div');
                                 scoreDiv.className = 'score-display';
-                                scoreDiv.style.cssText = 'margin-top: 5px; font-weight: bold; color: ' + (isCorrect ? '#2dce89' : '#f5365c');
+                                scoreDiv.style.cssText = 'margin-top: 10px; margin-bottom: 10px; font-weight: bold; color: ' + (isCorrect ? '#2dce89' : '#f5365c');
                                 scoreDiv.innerHTML = `得分: ${resultDetails.score}`;
                                 options.htmlElement.appendChild(scoreDiv);
 
                                 if (!isCorrect) {
                                     const correctAnswerDiv = document.createElement('div');
                                     correctAnswerDiv.className = 'correct-answer-display';
-                                    correctAnswerDiv.style.cssText = 'margin-top: 10px; padding: 10px; background-color: #f6f9fc; border: 1px solid #dee2e6; white-space: pre-wrap; word-break: break-word;';
+                                    correctAnswerDiv.style.cssText = 'margin-top: 35px; margin-bottom: 10px; margin-left: -3.5rem; margin-right: -1.5rem; padding: 10px 10px 10px 0.5rem; background-color: #f6f9fc; border: 1px solid #dee2e6; white-space: pre-wrap; word-break: break-word;';
 
                                     let correctAnswerText = resultDetails.correct_answer;
                                     if (Array.isArray(correctAnswerText)) {
