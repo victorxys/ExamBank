@@ -2053,6 +2053,7 @@ class AdjustmentType(enum.Enum):
     COMPANY_PAID_SALARY = "company_paid_salary"  # 公司代付工资
     SUBSTITUTE_MANAGEMENT_FEE = "substitute_management_fee"  # 替班管理费
     DEPOSIT_PAID_SALARY = "deposit_paid_salary"  # 保证金支付工资
+    EMPLOYEE_BALANCE_TRANSFER = "employee_balance_transfer"  # 员工余额转移 (不计入应缴/应付统计)
 
 
 class CompanyBankAccount(db.Model):

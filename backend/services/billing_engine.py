@@ -491,7 +491,7 @@ class BillingEngine:
 
         attendance = self._get_or_create_attendance(contract, cycle_start, cycle_end)
         overtime_days = D(attendance.overtime_days)
-        cust_increase, cust_decrease, emp_increase, emp_decrease, deferred_fee,emp_commission = (
+        cust_increase, cust_decrease, emp_increase, emp_decrease, deferred_fee,emp_commission, emp_balance_transfer = (
             self._get_adjustments(bill.id, payroll.id)
         )
 
@@ -523,7 +523,9 @@ class BillingEngine:
             "employee_overtime_payout": str(overtime_fee),
             "first_month_deduction": str(first_month_deduction),
             "employee_increase": str(emp_increase),
+            "employee_increase": str(emp_increase),
             "employee_decrease": str(emp_decrease),
+            "employee_balance_transfer": str(emp_balance_transfer), # 新增字段
             "log_extras": {
                 "first_month_deduction_reason": f"min(当期总收入({potential_income:.2f}), 级别*10%({service_fee_due:.2f}))"
             },
@@ -821,7 +823,7 @@ class BillingEngine:
         self._handle_security_deposit(contract, bill)
         self._handle_introduction_fee(contract, bill)
         db.session.flush()
-        cust_increase, cust_decrease, emp_increase, emp_decrease, deferred_fee,emp_commission = (
+        cust_increase, cust_decrease, emp_increase, emp_decrease, deferred_fee,emp_commission, emp_balance_transfer = (
             self._get_adjustments(bill.id, payroll.id)
         )
         cust_discount = D(
@@ -1213,7 +1215,9 @@ class BillingEngine:
             "employee_base_payout": str(employee_base_payout),
             "employee_overtime_payout": str(employee_overtime_payout),
             "employee_increase": str(emp_increase),
+            "employee_increase": str(emp_increase),
             "employee_decrease": str(emp_decrease),
+            "employee_balance_transfer": str(emp_balance_transfer), # 新增字段
             "employee_commission": str(emp_commission),
             "customer_daily_rate": str(customer_daily_rate.quantize(QUANTIZER)),
             "employee_daily_rate": str(employee_daily_rate.quantize(QUANTIZER)),
@@ -1451,7 +1455,7 @@ class BillingEngine:
         # 在这里处理保证金，然后再获取调整项
         self._handle_security_deposit(contract, bill)
         db.session.flush()  # 【关键修复】确保保证金等调整项对后续查询可见,与育儿嫂合同保持一致
-        cust_increase, cust_decrease, emp_increase, emp_decrease, deferred_fee, emp_commission = (
+        cust_increase, cust_decrease, emp_increase, emp_decrease, deferred_fee, emp_commission, emp_balance_transfer = (
             self._get_adjustments(bill.id, payroll.id)
         )
 
@@ -1540,7 +1544,9 @@ class BillingEngine:
             "employee_overtime_payout": str(employee_overtime_payout),
             # 'bonus_5_percent': str(bonus_5_percent),
             "employee_increase": str(emp_increase),
+            "employee_increase": str(emp_increase),
             "employee_decrease": str(emp_decrease),
+            "employee_balance_transfer": str(emp_balance_transfer), # 新增字段
             "extension_fee": str(extension_fee),
             "deferred_fee": str(deferred_fee),
             "log_extras": {
@@ -2202,8 +2208,13 @@ class BillingEngine:
             for adj in employee_adjustments
             if adj.adjustment_type == AdjustmentType.EMPLOYEE_COMMISSION
         )
+        emp_balance_transfer = sum(
+            adj.amount
+            for adj in employee_adjustments
+            if adj.adjustment_type == AdjustmentType.EMPLOYEE_BALANCE_TRANSFER
+        )
 
-        return cust_increase, cust_decrease, emp_increase, emp_decrease, deferred_fee,emp_commission
+        return cust_increase, cust_decrease, emp_increase, emp_decrease, deferred_fee,emp_commission, emp_balance_transfer
 
     def _calculate_final_amounts(self, bill, payroll, details):
         current_app.logger.info("开始进行final calculation of amounts.")
@@ -2239,6 +2250,7 @@ class BillingEngine:
             + D(details.get("employee_increase", 0))
             # - D(details.get("substitute_deduction", 0))
             - D(details.get("employee_decrease", 0))
+            - D(details.get("employee_balance_transfer", 0)) # 减去余额转移
         )
 
         # Net Pay = Gross Pay - Deductions
@@ -2501,7 +2513,9 @@ class BillingEngine:
             "customer_increase": str(cust_increase),
             "customer_decrease": str(cust_decrease),
             "employee_increase": str(emp_increase),
+            "employee_increase": str(emp_increase),
             "employee_decrease": str(emp_decrease),
+            "employee_balance_transfer": str(emp_balance_transfer), # 新增字段
             "employee_commission": str(emp_commission),
             "first_month_deduction": "0.00",
             "discount": "0.00",
