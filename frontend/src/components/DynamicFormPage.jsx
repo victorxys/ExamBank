@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import ReactDOM from 'react-dom'; // Import ReactDOM for Portals
+import { createPortal } from 'react-dom'; // Import createPortal directly
 import { useParams, useLocation } from 'react-router-dom'; // 导入 useLocation
 import { Model } from 'survey-core';
 import { Survey } from 'survey-react-ui';
@@ -57,7 +57,7 @@ const HeaderButtonsPortal = ({ currentMode, toggleMode, formToken, dataId, api }
 
     if (!container) return null;
 
-    return ReactDOM.createPortal(
+    return createPortal(
         <>
             {formToken === 'N0Il9H' && (
                 <Button
