@@ -234,3 +234,8 @@ jinshujuexport/
 backend/static/signatures/
 scripts/
 commit_message.txt
+
+design_proposals/
+
+verify_mapping.py
+analyze_jinshuju_types_v2.py

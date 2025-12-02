@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import ReactDOM from 'react-dom'; // Import ReactDOM for Portals
 import { useParams, useLocation } from 'react-router-dom'; // 导入 useLocation
 import { Model } from 'survey-core';
 import { Survey } from 'survey-react-ui';
@@ -15,14 +16,99 @@ import {
     Alert,
     Box,
     Button,
-    Typography
+    Typography,
+    IconButton
 } from '@mui/material';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { formatAddress } from '../utils/formatUtils';
+
+// Portal Component to render buttons in the SurveyJS header
+const HeaderButtonsPortal = ({ currentMode, toggleMode, formToken, dataId, api }) => {
+    const [container, setContainer] = useState(null);
+
+    useEffect(() => {
+        // Find the target container (SurveyJS header)
+        // We use a timer to ensure the element exists after SurveyJS renders
+        const findContainer = () => {
+            const el = document.querySelector('.sd-container-modern__title');
+            if (el) {
+                // Check if we already added a button container
+                let btnContainer = el.querySelector('.custom-header-buttons');
+                if (!btnContainer) {
+                    btnContainer = document.createElement('div');
+                    btnContainer.className = 'custom-header-buttons';
+                    // Style it to float right or absolute position
+                    btnContainer.style.cssText = 'position: absolute; right: 20px; top: 50%; transform: translateY(-50%); z-index: 10; display: flex; gap: 10px;';
+                    el.appendChild(btnContainer);
+                }
+                setContainer(btnContainer);
+            } else {
+                // Retry if not found yet
+                requestAnimationFrame(findContainer);
+            }
+        };
+
+        findContainer();
+
+        return () => {
+            // Cleanup if needed (though SurveyJS re-renders might handle it)
+        };
+    }, []);
+
+    if (!container) return null;
+
+    return ReactDOM.createPortal(
+        <>
+            {formToken === 'N0Il9H' && (
+                <Button
+                    variant="contained"
+                    color="secondary"
+                    size="small"
+                    onClick={async () => {
+                        if (!window.confirm('确定要根据当前表单数据创建/更新员工信息吗？')) return;
+                        try {
+                            const res = await api.post(`/staff/create-from-form/${dataId}`);
+                            alert(res.data.message);
+                        } catch (err) {
+                            console.error(err);
+                            alert('操作失败: ' + (err.response?.data?.message || err.message));
+                        }
+                    }}
+                    sx={{
+                        backgroundColor: 'white',
+                        color: 'secondary.main',
+                        '&:hover': { backgroundColor: '#f3f4f6' }
+                    }}
+                >
+                    创建员工信息
+                </Button>
+            )}
+            <Button
+                variant="outlined"
+                size="small"
+                onClick={toggleMode}
+                sx={{
+                    color: 'white',
+                    borderColor: 'white',
+                    '&:hover': {
+                        borderColor: 'white',
+                        backgroundColor: 'rgba(255,255,255,0.1)'
+                    }
+                }}
+            >
+                切换到 {currentMode === 'admin_view' ? '编辑模式' : '查看模式'}
+            </Button>
+        </>,
+        container
+    );
+};
 
 const DynamicFormPage = () => {
     const { formToken, dataId } = useParams();
     const location = useLocation(); // 获取 location 对象
     const [surveyModel, setSurveyModel] = useState(null);
+    const [submissionState, setSubmissionState] = useState('idle'); // 'idle', 'submitting', 'completed'
+    const [scoreResult, setScoreResult] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [currentMode, setCurrentMode] = useState('admin_view'); // 默认为编辑模式
@@ -1044,27 +1130,66 @@ const DynamicFormPage = () => {
                 // 3. 设置 onComplete 回调
                 survey.onComplete.add(async (sender) => {
                     const formData = sender.data;
+                    setSubmissionState('submitting');
+
                     try {
+                        let response;
                         if (dataId) {
                             // 更新数据
-                            await api.patch(`/form-data/${dataId}`, { data: formData });
-                            alert('表单更新成功！');
-                            // Stay in current mode or switch?
+                            response = await api.patch(`/form-data/${dataId}`, { data: formData });
                         } else {
                             // 提交新数据
-                            const newRecord = await api.post(`/form-data/submit/${formResponse.data.id}`, { data: formData });
-                            alert('表单提交成功！');
+                            response = await api.post(`/form-data/submit/${formResponse.data.id}`, { data: formData });
                         }
-                    }
-                    catch (err) {
+
+                        // 准备结果数据
+                        const backendScore = response.data?.score;
+                        const questions = sender.getAllQuestions();
+                        const isQuizLocal = questions.some(q => q.correctAnswer !== undefined);
+                        const totalQuestions = sender.getQuizQuestionCount();
+
+                        // 即使后端没有返回分数（例如 schema 缺少 correctAnswer），我们也尝试显示一个结果页
+                        // 如果是 EXAM 类型，后端应该返回 score (可能是 0)
+
+                        let finalScore = 0;
+                        let correctAnswers = 0;
+
+                        if (backendScore !== undefined) {
+                            finalScore = backendScore;
+                            correctAnswers = Math.round((finalScore / 100) * totalQuestions);
+                        } else if (isQuizLocal) {
+                            correctAnswers = sender.getCorrectedAnswerCount();
+                            finalScore = totalQuestions > 0 ? Math.round((correctAnswers / totalQuestions) * 100) : 0;
+                        }
+
+                        // 只要是 EXAM 类型或者有分数，就显示结果页
+                        const isExamType = formResponse.data.form_type === 'EXAM';
+
+                        if (isExamType || backendScore !== undefined || isQuizLocal) {
+                            setScoreResult({
+                                score: finalScore,
+                                correctAnswers: correctAnswers,
+                                totalQuestions: totalQuestions,
+                                incorrectAnswers: totalQuestions - correctAnswers
+                            });
+                        } else {
+                            if (!dataId) alert('提交成功！');
+                            else alert('更新成功！');
+                            navigate(-1);
+                        }
+
+                        setSubmissionState('completed');
+
+                    } catch (err) {
                         console.error('提交表单失败:', err);
                         alert(`提交失败: ${err.response?.data?.message || err.message}`);
+                        setSubmissionState('idle'); // 允许重试
                     }
                 });
 
                 // Universal HTML title rendering (for both new and existing forms)
                 survey.onAfterRenderQuestion.add((sender, options) => {
-                    // Force title rendering for HTML questions if not present
+                    // 1. Force title rendering for HTML questions if not present
                     if (options.question.getType() === 'html') {
                         // Check if title exists
                         const titleEl = options.htmlElement.querySelector('.sd-question__title') || options.htmlElement.querySelector('.sv-question__title');
@@ -1078,6 +1203,51 @@ const DynamicFormPage = () => {
                             options.htmlElement.insertBefore(customTitle, options.htmlElement.firstChild);
                         }
                     }
+
+                    // 2. 强制题目标题换行 - 使用 MutationObserver 持续监控
+                    const forceWrapTitles = (container) => {
+                        if (!container) return;
+
+                        // 查找所有可能的标题元素
+                        const selectors = [
+                            '.sd-question__title',
+                            '.sv-question__title',
+                            '.sd-element__title',
+                            '.sv-element__title',
+                            '.sd-question__header',
+                            '.sv-question__header',
+                            'h5',
+                            '.sd-question__title span', // 针对内部 span
+                            '.sv-question__title span'
+                        ];
+
+                        selectors.forEach(selector => {
+                            const elements = container.querySelectorAll(selector);
+                            elements.forEach(el => {
+                                el.style.setProperty('white-space', 'normal', 'important');
+                                el.style.setProperty('word-wrap', 'break-word', 'important');
+                                el.style.setProperty('word-break', 'break-word', 'important');
+                                el.style.setProperty('overflow-wrap', 'break-word', 'important');
+                                el.style.setProperty('max-width', '100%', 'important');
+                                el.style.setProperty('display', 'block', 'important'); // 强制块级显示
+                                el.style.setProperty('height', 'auto', 'important');
+                            });
+                        });
+                    };
+
+                    // 立即执行一次
+                    forceWrapTitles(options.htmlElement);
+
+                    // 设置 MutationObserver 持续监控
+                    const observer = new MutationObserver(() => {
+                        forceWrapTitles(options.htmlElement);
+                    });
+
+                    observer.observe(options.htmlElement, {
+                        attributes: true,
+                        attributeFilter: ['style', 'class'],
+                        subtree: true
+                    });
                 });
 
                 // 4. Handle File Uploads to R2
@@ -1211,6 +1381,85 @@ const DynamicFormPage = () => {
         }
     };
 
+    // Score Display Component
+    const ScoreDisplay = ({ result }) => {
+        if (!result) return null;
+
+        const { score, correctAnswers, totalQuestions, incorrectAnswers } = result;
+
+        let scoreColor = "#f59e0b"; // 默认橙色
+        let message = "继续加油，下次一定能通过！";
+
+        if (score >= 90) {
+            scoreColor = "#10b981"; // 绿色
+            message = "太棒了！成绩优秀！";
+        } else if (score >= 60) {
+            scoreColor = "#3b82f6"; // 蓝色
+            message = "恭喜通过考试！";
+        }
+
+        return (
+            <Box sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                p: 4,
+                bgcolor: 'white',
+                borderRadius: 2,
+                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                maxWidth: 500,
+                mx: 'auto',
+                mt: 4,
+                textAlign: 'center'
+            }}>
+                <Box sx={{ mb: 2 }}>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 24 24" fill="none" stroke={scoreColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                    </svg>
+                </Box>
+
+                <Typography variant="h5" sx={{ fontWeight: 700, color: '#111827', mb: 1 }}>
+                    {message}
+                </Typography>
+
+                <Box sx={{ my: 3 }}>
+                    <Typography variant="h1" sx={{ fontWeight: 800, color: scoreColor, fontSize: '4rem', display: 'flex', alignItems: 'baseline', justifyContent: 'center' }}>
+                        {score}<Typography component="span" sx={{ fontSize: '1.5rem', color: '#6b7280', ml: 1 }}>分</Typography>
+                    </Typography>
+                </Box>
+
+                <Box sx={{ display: 'flex', gap: 3, mb: 4, color: '#6b7280' }}>
+                    <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                        <span style={{ color: '#10b981', marginRight: 4 }}>✓</span>
+                        正确: {correctAnswers}
+                    </Typography>
+                    <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                        <span style={{ color: '#ef4444', marginRight: 4 }}>✗</span>
+                        错误: {incorrectAnswers}
+                    </Typography>
+                </Box>
+
+                <Button
+                    variant="contained"
+                    onClick={() => window.location.reload()}
+                    sx={{
+                        bgcolor: scoreColor,
+                        '&:hover': { bgcolor: scoreColor },
+                        px: 4,
+                        py: 1.5,
+                        borderRadius: 2,
+                        fontSize: '1rem',
+                        fontWeight: 600
+                    }}
+                >
+                    再次挑战
+                </Button>
+            </Box>
+        );
+    };
+
     if (loading) {
         return <Container sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}><CircularProgress /></Container>;
     }
@@ -1223,133 +1472,123 @@ const DynamicFormPage = () => {
         return <Container sx={{ mt: 4 }}><Alert severity="warning">无法加载表单模型。</Alert></Container>;
     }
 
-    return (
-        <Container maxWidth="md" sx={{ mt: 4 }}>
-            <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Typography variant="h5" component="h1">
-                    {dataId ? (currentMode === 'display' ? '查看表单数据' : '编辑表单数据') : '填写新表单'}
-                </Typography>
-                {dataId && ( // 只有在查看/编辑现有数据时才显示切换按钮
-                    <Box>
-                        {formToken === 'N0Il9H' && (
-                            <Button
-                                variant="contained"
-                                color="secondary"
-                                sx={{ mr: 2 }}
-                                onClick={async () => {
-                                    if (!window.confirm('确定要根据当前表单数据创建/更新员工信息吗？')) return;
-                                    try {
-                                        const res = await api.post(`/staff/create-from-form/${dataId}`);
-                                        alert(res.data.message);
-                                    } catch (err) {
-                                        console.error(err);
-                                        alert('操作失败: ' + (err.response?.data?.message || err.message));
-                                    }
-                                }}
-                            >
-                                创建员工信息
-                            </Button>
-                        )}
-                        <Button variant="outlined" onClick={toggleMode}>
-                            切换到 {currentMode === 'admin_view' ? '编辑模式' : '查看模式'}
-                        </Button>
-                    </Box>
-                )}
+    // Render Score Result if completed
+    if (submissionState === 'completed' && scoreResult) {
+        return (
+            <Box sx={{ bgcolor: '#f3f4f6', minHeight: '100vh', py: 4 }}>
+                <Container maxWidth="md">
+                    <ScoreDisplay result={scoreResult} />
+                </Container>
             </Box>
+        );
+    }
+
+    // Render Loading during submission
+    if (submissionState === 'submitting') {
+        return (
+            <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', bgcolor: '#f3f4f6' }}>
+                <CircularProgress size={60} thickness={4} sx={{ mb: 2 }} />
+                <Typography variant="h6" color="text.secondary">正在提交并计算分数...</Typography>
+            </Box>
+        );
+    }
+
+    return (
+        <Container maxWidth="md" sx={{ mt: 4, px: { xs: 1, sm: 2, md: 3 } }}>
+            {/* 使用 React Portal 将按钮渲染到 SurveyJS 的标题区域 */}
+            {dataId && surveyModel && (
+                <HeaderButtonsPortal
+                    currentMode={currentMode}
+                    toggleMode={toggleMode}
+                    formToken={formToken}
+                    dataId={dataId}
+                    api={api}
+                />
+            )}
+
             <style>{`
-                /* Force text wrapping for specific text elements only */
-                .sd-question__content,
-                .sd-text,
-                .sd-comment,
-                .sd-input,
-                .sd-question__title,
-                .sd-element__title,
-                .sd-item__control-label,
-                .sv-string-viewer,
-                textarea,
-                input[type="text"] {
-                    white-space: pre-wrap !important; /* Keep newlines and wrap text */
-                    word-wrap: break-word !important;
-                    word-break: break-word !important;
-                    overflow-wrap: break-word !important;
-                    line-height: 1.5 !important;
-                }
-                
-                /* Reset for containers to avoid extra spacing */
-                .sd-page, .sd-row, .sd-question {
-                    white-space: normal !important;
-                }
-                
-                /* Hide file names in file upload fields (ONLY in display mode) */
-                .sv_completed_page .sd-file__decorator,
-                .sv_completed_page .sv-file__decorator,
-                .sv_completed_page .sd-file__preview-item > a,
-                .sv_completed_page .sv-file__preview-item > a,
-                .sv_completed_page .sd-file__preview-item > span:not(.sd-file__preview-item-image),
-                .sv_completed_page .sv-file__preview-item > span:not(.sv-file__preview-item-image),
-                .sv_completed_page a[download],
-                .sv_completed_page .sd-file__preview-item-text,
-                .sv_completed_page .sv-file__preview-item-text,
-                /* Also hide in read-only mode */
-                .sd-question--readonly .sd-file__decorator,
-                .sd-question--readonly .sv-file__decorator {
+                /* 隐藏表单描述,减少顶部空白 */
+                .sd-description,
+                .sv-description {
                     display: none !important;
                 }
                 
-                /* Ensure file preview container takes full width */
-                .sd-file__preview,
-                .sv-file__preview {
-                    display: flex !important;
-                    flex-wrap: wrap !important;
-                    width: 100% !important;
-                    gap: 10px !important;
-                    padding: 0 !important;
-                }
-                
-                /* Force items to take full width and center content */
-                .sd-file__preview-item,
-                .sv-file__preview-item {
-                    width: 100% !important;
-                    min-width: 100% !important;
-                    flex-grow: 1 !important;
-                    max-width: 100% !important;
-                    border: none !important;
-                    margin: 0 !important;
-                    padding: 0 !important;
-                    display: flex !important;
-                    justify-content: center !important; /* Center the image */
-                }
-                
-                /* Ensure images are visible and larger */
-                .sd-file__preview-item img,
-                .sv-file__preview-item img,
-                .sd-file__preview-item-image img,
-                .sv-file__preview-item-image img {
-                    display: block !important;
-                    width: auto !important; /* Auto width to respect aspect ratio */
-                    max-width: 100% !important; /* Max width is container width */
-                    height: auto !important;
-                    max-height: 800px !important; /* Reasonable max height */
-                    object-fit: contain !important;
-                    margin: 0 !important;
-                }
-                
-                
-                /* Hide pagination/actions container if it exists (only in display mode) */
-                .sv_completed_page .sd-file__actions-container,
-                .sv_completed_page .sv-file__actions-container,
-                .sd-question--readonly .sd-file__actions-container,
-                .sd-question--readonly .sv-file__actions-container {
-                    display: none !important;
-                }
-                
-                /* Specific fix for single image to be huge */
-                .sd-file__preview-item:only-child,
-                .sv-file__preview-item:only-child {
-                    width: 100% !important;
-                    max-width: 100% !important;
+                /* ===== 移动端强制优化 (最高优先级) ===== */
+                @media (max-width: 768px) {
+                    /* 强制减少顶部空白 */
+                    body .sd-root-modern .sd-container-modern {
+                        margin: 0.25rem auto !important;
+                    }
+                    
+                    /* 强制减少标题区域 padding */
+                    body .sd-root-modern .sd-container-modern__title {
+                        padding: 1rem 0.75rem !important;
+                    }
+                    
+                    /* 强制减少表单主体 padding */
+                    body .sd-root-modern .sd-body {
+                        padding: 0.75rem 0.5rem !important;
+                    }
+                    
+                    /* 强制减少页面 padding */
+                    body .sd-root-modern .sd-page {
+                        padding: 0.25rem !important;
+                    }
+                    
+                    /* 强制题目标题换行 - 核武器级 CSS */
+                    body .sd-root-modern .sd-question__title,
+                    body .sd-root-modern .sd-question__title *,
+                    body .sd-root-modern .sv-question__title,
+                    body .sd-root-modern .sv-question__title *,
+                    body .sd-root-modern .sd-question__header,
+                    body .sd-root-modern .sd-question__header *,
+                    body .sd-root-modern h5,
+                    body .sd-root-modern h5 * {
+                        white-space: normal !important;
+                        word-wrap: break-word !important;
+                        word-break: break-word !important;
+                        overflow-wrap: break-word !important;
+                        overflow: visible !important;
+                        text-overflow: clip !important;
+                        height: auto !important;
+                        width: auto !important;
+                        max-width: 100% !important;
+                        display: block !important;
+                    }
+                    
+                    /* 强制题目容器边距 */
+                    body .sd-root-modern .sd-question,
+                    body .sd-root-modern .sv-question {
+                        padding-left: 10px !important;
+                        padding-right: 10px !important;
+                        padding-top: 10px !important;
+                    }
+                    
+                    /* 强制选项文字换行 */
+                    body .sd-root-modern .sd-item__control-label,
+                    body .sd-root-modern .sv-item__control-label,
+                    body .sd-root-modern .sd-selectbase__label,
+                    body .sd-root-modern .sv-selectbase__label {
+                        white-space: normal !important;
+                        word-wrap: break-word !important;
+                        overflow-wrap: break-word !important;
+                    }
+                    
+                    /* Container 优化 */
+                    .MuiContainer-root {
+                        padding-left: 8px !important;
+                        padding-right: 8px !important;
+                    }
+
+                    /* 移动端头部按钮调整 */
+                    .custom-header-buttons {
+                        top: 1rem !important;
+                        right: 0.5rem !important;
+                        transform: none !important;
+                    }
                 }
             `}</style>
+
             <Survey model={surveyModel} />
         </Container>
     );

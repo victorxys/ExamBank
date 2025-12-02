@@ -97,11 +97,11 @@ const ExamResultsPage = () => {
     return (
         <Box sx={{ width: '100%', height: '100%' }}>
             <PageHeader
-                title={form ? `考试结果: ${form.name}` : '考试结果'}
+                title={form ? `${form.name}考试结果` : '考试结果'}
                 description="查看所有考生的考试成绩、用时和提交时间。"
                 actions={
                     <Button
-                        variant="contained"
+                        variant="outlined"
                         component={Link}
                         to={`/forms/${form_token}`}
                         sx={{

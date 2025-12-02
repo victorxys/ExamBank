@@ -842,3 +842,66 @@ body {
     width: calc(100% + 1.5rem) !important;
     height: calc(100% + 1.5rem) !important;
 }
+
+/* ===== 移动端优化 (强制覆盖) ===== */
+@media (max-width: 768px) {
+
+    /* 减少顶部空白 - 强制覆盖 */
+    .sd-container-modern {
+        margin: 0.5rem auto !important;
+    }
+
+    /* 减少标题区域的 padding */
+    .sd-container-modern__title {
+        padding: 1.5rem 1rem !important;
+    }
+
+    /* 减少表单主体的 padding */
+    .sd-body {
+        padding: 1rem 0.75rem !important;
+    }
+
+    /* 减少页面的 padding */
+    .sd-page {
+        padding: 0.5rem !important;
+    }
+
+    /* 题目标题强制换行 */
+    .sd-question__title,
+    .sv-question__title,
+    .sd-element__title,
+    .sv-element__title,
+    .sd-question__header,
+    .sv-question__header {
+        white-space: normal !important;
+        word-wrap: break-word !important;
+        word-break: break-word !important;
+        overflow-wrap: break-word !important;
+        line-height: 1.5 !important;
+        max-width: 100% !important;
+    }
+
+    /* 题目容器 - 保持适当的左右边距 */
+    .sd-question,
+    .sv-question {
+        padding-left: 10px !important;
+        padding-right: 10px !important;
+        padding-top: 10px !important;
+    }
+
+    /* 选项文字也要换行 */
+    .sd-item__control-label,
+    .sv-item__control-label,
+    .sd-selectbase__label,
+    .sv-selectbase__label {
+        white-space: normal !important;
+        word-wrap: break-word !important;
+        overflow-wrap: break-word !important;
+    }
+
+    /* Container 优化 */
+    .MuiContainer-root {
+        padding-left: 8px !important;
+        padding-right: 8px !important;
+    }
+}
