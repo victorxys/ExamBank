@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 // import { createPortal } from 'react-dom'; // Removed to avoid production build issues
-import { useParams, useLocation } from 'react-router-dom'; // 导入 useLocation
+import { useParams, useLocation, useNavigate } from 'react-router-dom'; // 导入 useLocation 和 useNavigate
 import { Model } from 'survey-core';
 import { Survey } from 'survey-react-ui';
 import 'survey-core/survey-core.min.css';
@@ -22,6 +22,7 @@ import {
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { formatAddress } from '../utils/formatUtils';
+import AlertMessage from './AlertMessage';
 
 // Portal Component to render buttons in the SurveyJS header
 const HeaderButtonsPortal = ({ currentMode, toggleMode, formToken, dataId, api }) => {
@@ -58,60 +59,62 @@ const HeaderButtonsPortal = ({ currentMode, toggleMode, formToken, dataId, api }
 
     if (!container) return null;
 
-    return (
-        <Portal container={container}>
-            {formToken === 'N0Il9H' && (
-                <Button
-                    variant="contained"
-                    color="secondary"
-                    size="small"
-                    onClick={async () => {
-                        if (!window.confirm('确定要根据当前表单数据创建/更新员工信息吗？')) return;
-                        try {
-                            const res = await api.post(`/staff/create-from-form/${dataId}`);
-                            alert(res.data.message);
-                        } catch (err) {
-                            console.error(err);
-                            alert('操作失败: ' + (err.response?.data?.message || err.message));
-                        }
-                    }}
-                    sx={{
-                        backgroundColor: 'white',
-                        color: 'secondary.main',
-                        '&:hover': { backgroundColor: '#f3f4f6' }
-                    }}
-                >
-                    创建员工信息
-                </Button>
-            )}
-            <Button
-                variant="outlined"
-                size="small"
-                onClick={toggleMode}
-                sx={{
-                    color: 'white',
-                    borderColor: 'white',
-                    '&:hover': {
-                        borderColor: 'white',
-                        backgroundColor: 'rgba(255,255,255,0.1)'
-                    }
-                }}
-            >
-                切换到 {currentMode === 'admin_view' ? '编辑模式' : '查看模式'}
-            </Button>
-        </Portal>
-    );
+    // return (
+    //     <Portal container={container}>
+    //         {formToken === 'N0Il9H' && (
+    //             <Button
+    //                 variant="contained"
+    //                 color="secondary"
+    //                 size="small"
+    //                 onClick={async () => {
+    //                     if (!window.confirm('确定要根据当前表单数据创建/更新员工信息吗？')) return;
+    //                     try {
+    //                         const res = await api.post(`/staff/create-from-form/${dataId}`);
+    //                         alert(res.data.message);
+    //                     } catch (err) {
+    //                         console.error(err);
+    //                         alert('操作失败: ' + (err.response?.data?.message || err.message));
+    //                     }
+    //                 }}
+    //                 sx={{
+    //                     backgroundColor: 'white',
+    //                     color: 'secondary.main',
+    //                     '&:hover': { backgroundColor: '#f3f4f6' }
+    //                 }}
+    //             >
+    //                 创建员工信息
+    //             </Button>
+    //         )}
+    //         <Button
+    //             variant="outlined"
+    //             size="small"
+    //             onClick={toggleMode}
+    //             sx={{
+    //                 color: 'white',
+    //                 borderColor: 'white',
+    //                 '&:hover': {
+    //                     borderColor: 'white',
+    //                     backgroundColor: 'rgba(255,255,255,0.1)'
+    //                 }
+    //             }}
+    //         >
+    //             切换到 {currentMode === 'admin_view' ? '编辑模式' : '查看模式'}
+    //         </Button>
+    //     </Portal>
+    // );
 };
 
 const DynamicFormPage = () => {
     const { formToken, dataId } = useParams();
     const location = useLocation(); // 获取 location 对象
+    const navigate = useNavigate(); // 获取 navigate 函数
     const [surveyModel, setSurveyModel] = useState(null);
     const [submissionState, setSubmissionState] = useState('idle'); // 'idle', 'submitting', 'completed'
     const [scoreResult, setScoreResult] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [currentMode, setCurrentMode] = useState('admin_view'); // 默认为编辑模式
+    const [alert, setAlert] = useState({ open: false, message: '', severity: 'info' });
 
     useEffect(() => {
         const fetchForm = async () => {
@@ -132,6 +135,11 @@ const DynamicFormPage = () => {
 
                 // Set Chinese locale for the survey
                 survey.locale = "zh-cn";
+
+                // 管理员编辑模式下不显示完成页面
+                if (dataId) {
+                    survey.showCompletedPage = false;
+                }
 
                 // Force storeDataAsText to false for all file questions to ensure we store the URL, not Base64
                 survey.getAllQuestions().forEach(question => {
@@ -1166,23 +1174,37 @@ const DynamicFormPage = () => {
                         const isExamType = formResponse.data.form_type === 'EXAM';
 
                         if (isExamType || backendScore !== undefined || isQuizLocal) {
+                            // 考试类型：显示分数结果页面
                             setScoreResult({
                                 score: finalScore,
                                 correctAnswers: correctAnswers,
                                 totalQuestions: totalQuestions,
                                 incorrectAnswers: totalQuestions - correctAnswers
                             });
+                            setSubmissionState('completed');
                         } else {
-                            if (!dataId) alert('提交成功！');
-                            else alert('更新成功！');
-                            navigate(-1);
+                            // 非考试类型：区分管理员编辑和访客提交
+                            if (dataId) {
+                                // 管理员编辑：显示提示并刷新页面，不设置 completed 状态
+                                setAlert({
+                                    open: true,
+                                    message: '保存成功！',
+                                    severity: 'success'
+                                });
+                                setTimeout(() => window.location.reload(), 100);
+                            } else {
+                                // 访客提交：设置 completed 状态，SurveyJS 会自动显示 completedHtml
+                                setSubmissionState('completed');
+                            }
                         }
-
-                        setSubmissionState('completed');
 
                     } catch (err) {
                         console.error('提交表单失败:', err);
-                        alert(`提交失败: ${err.response?.data?.message || err.message}`);
+                        setAlert({
+                            open: true,
+                            message: `提交失败: ${err.response?.data?.message || err.message}`,
+                            severity: 'error'
+                        });
                         setSubmissionState('idle'); // 允许重试
                     }
                 });
@@ -1483,8 +1505,8 @@ const DynamicFormPage = () => {
         );
     }
 
-    // Render Loading during submission
-    if (submissionState === 'submitting') {
+    // Render Loading during submission (only for visitor submissions, not admin edits)
+    if (submissionState === 'submitting' && !dataId) {
         return (
             <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', bgcolor: '#f3f4f6' }}>
                 <CircularProgress size={60} thickness={4} sx={{ mb: 2 }} />
@@ -1494,16 +1516,34 @@ const DynamicFormPage = () => {
     }
 
     return (
-        <Container maxWidth="md" sx={{ mt: 4, px: { xs: 1, sm: 2, md: 3 } }}>
-            {/* 使用 React Portal 将按钮渲染到 SurveyJS 的标题区域 */}
-            {dataId && surveyModel && (
-                <HeaderButtonsPortal
-                    currentMode={currentMode}
-                    toggleMode={toggleMode}
-                    formToken={formToken}
-                    dataId={dataId}
-                    api={api}
-                />
+        <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+            <AlertMessage
+                open={alert.open}
+                message={alert.message}
+                severity={alert.severity}
+                onClose={() => setAlert({ ...alert, open: false })}
+            />
+            {loading && <CircularProgress />}
+            {error && <Alert severity="error">{error}</Alert>}
+            {!loading && !error && surveyModel && (
+                <>
+                    {/* 使用 React Portal 将按钮渲染到 SurveyJS 的标题区域 */}
+                    {dataId && surveyModel && (
+                        <HeaderButtonsPortal
+                            currentMode={currentMode}
+                            toggleMode={toggleMode}
+                            formToken={formToken}
+                            dataId={dataId}
+                            api={api}
+                        />
+                    )}
+
+                    {submissionState === 'completed' && scoreResult ? (
+                        <ScoreDisplay result={scoreResult} />
+                    ) : (
+                        <Survey model={surveyModel} />
+                    )}
+                </>
             )}
 
             <style>{`
@@ -1512,7 +1552,12 @@ const DynamicFormPage = () => {
                 .sv-description {
                     display: none !important;
                 }
-                
+
+                /* 为固定底部操作栏预留空间 */
+                body .sd-root-modern {
+                    padding-bottom: 80px !important;
+                }
+
                 /* ===== 移动端强制优化 (最高优先级) ===== */
                 @media (max-width: 768px) {
                     /* 强制减少顶部空白 */
@@ -1589,7 +1634,108 @@ const DynamicFormPage = () => {
                 }
             `}</style>
 
-            <Survey model={surveyModel} />
+            {/* 固定底部操作栏 */}
+            {dataId && surveyModel && submissionState !== 'completed' && (
+                <Box
+                    sx={{
+                        position: 'fixed',
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        backgroundColor: 'white',
+                        borderTop: '2px solid #e5e7eb',
+                        boxShadow: '0 -4px 6px -1px rgba(0, 0, 0, 0.1), 0 -2px 4px -1px rgba(0, 0, 0, 0.06)',
+                        zIndex: 1000,
+                        padding: '12px 16px',
+                        display: 'flex',
+                        justifyContent: 'flex-end',
+                        alignItems: 'center',
+                        gap: 2
+                    }}
+                >
+                    {/* 创建员工信息按钮（仅 N0Il9H 表单显示） */}
+                    {formToken === 'N0Il9H' && (
+                        <Button
+                            variant="contained"
+                            color="secondary"
+                            size="medium"
+                            onClick={async () => {
+                                if (!window.confirm('确定要根据当前表单数据创建/更新员工信息吗？')) return;
+                                try {
+                                    const res = await api.post(`/staff/create-from-form/${dataId}`);
+                                    setAlert({
+                                        open: true,
+                                        message: res.data.message,
+                                        severity: 'success'
+                                    });
+                                } catch (err) {
+                                    console.error(err);
+                                    setAlert({
+                                        open: true,
+                                        message: '操作失败: ' + (err.response?.data?.message || err.message),
+                                        severity: 'error'
+                                    });
+                                }
+                            }}
+                            sx={{
+                                backgroundColor: 'secondary.main',
+                                color: 'white',
+                                '&:hover': {
+                                    backgroundColor: 'secondary.dark'
+                                }
+                            }}
+                        >
+                            创建员工信息
+                        </Button>
+                    )}
+
+                    {/* 模式切换按钮 */}
+                    <Button
+                        variant="contained"
+                        size="medium"
+                        onClick={toggleMode}
+                        sx={{
+                            backgroundColor: 'primary.main',
+                            color: 'white',
+                            px: 4,
+                            '&:hover': {
+                                backgroundColor: 'primary.dark'
+                            },
+                            '&:disabled': {
+                                backgroundColor: '#9ca3af'
+                            }
+                        }}
+                    >
+                        切换到 {currentMode === 'admin_view' ? '编辑模式' : '查看模式'}
+                    </Button>
+
+                    {/* 提交按钮 */}
+                    <Button
+                        variant="contained"
+                        size="medium"
+                        onClick={() => {
+                            // 触发 SurveyJS 的提交
+                            if (surveyModel) {
+                                surveyModel.completeLastPage();
+                            }
+                        }}
+                        disabled={submissionState === 'submitting'}
+                        sx={{
+                            backgroundColor: 'primary.main',
+                            color: 'white',
+                            px: 4,
+                            '&:hover': {
+                                backgroundColor: 'primary.dark'
+                            },
+                            '&:disabled': {
+                                backgroundColor: '#9ca3af'
+                            }
+                        }}
+                    >
+                        {submissionState === 'submitting' ? '提交中...' : '保存提交'}
+                    </Button>
+                </Box>
+            )}
         </Container>
     );
 };
