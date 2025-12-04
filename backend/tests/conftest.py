@@ -10,6 +10,7 @@ from backend.models import User
 # Import the blueprint that the test file needs
 from backend.api.dynamic_form_data_api import dynamic_form_data_bp
 from backend.api.contract_template_api import contract_template_bp
+from backend.api.attendance_form_api import attendance_form_bp
 
 @pytest.fixture(scope='session')
 def _app():
@@ -41,6 +42,7 @@ def _app():
     # Register the blueprint required for the tests
     app.register_blueprint(dynamic_form_data_bp)
     app.register_blueprint(contract_template_bp)
+    app.register_blueprint(attendance_form_bp)
 
     with app.app_context():
         yield app

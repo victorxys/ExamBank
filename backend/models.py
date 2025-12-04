@@ -3007,6 +3007,114 @@ class EmployeePayroll(db.Model):
     payout_records = db.relationship('PayoutRecord', back_populates='employee_payroll', cascade='all, delete-orphan', lazy='dynamic')
 
 
+class AttendanceForm(db.Model):
+    __tablename__ = "attendance_forms"
+    __table_args__ = (
+        db.UniqueConstraint('contract_id', 'cycle_start_date', name='uq_contract_cycle'),
+        {"comment": "电子考勤表"}
+    )
+    
+    id = db.Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    
+    contract_id = db.Column(
+        PG_UUID(as_uuid=True), 
+        db.ForeignKey("contracts.id", ondelete="CASCADE"), 
+        nullable=False, 
+        index=True,
+        comment="关联合同ID"
+    )
+    employee_id = db.Column(
+        PG_UUID(as_uuid=True), 
+        nullable=False, 
+        index=True,
+        comment="员工ID"
+    )
+    
+    cycle_start_date = db.Column(
+        db.DateTime(timezone=True), 
+        nullable=False,
+        comment="考勤周期开始日期"
+    )
+    cycle_end_date = db.Column(
+        db.DateTime(timezone=True), 
+        nullable=False,
+        comment="考勤周期结束日期"
+    )
+    
+    form_data = db.Column(
+        PG_JSONB, 
+        nullable=False, 
+        server_default='{}',
+        comment="考勤表单数据,包含休息、请假、加班、出京、出境、带薪休假等所有明细"
+    )
+    
+    employee_access_token = db.Column(
+        db.String(255), 
+        nullable=True,
+        unique=True, 
+        index=True,
+        comment="员工访问令牌,用于生成固定链接"
+    )
+    
+    customer_signature_token = db.Column(
+        db.String(255), 
+        nullable=True,
+        unique=True, 
+        index=True,
+        comment="客户签署令牌,用于生成签署链接"
+    )
+    
+    status = db.Column(
+        db.String(50), 
+        nullable=False,
+        default='draft', 
+        server_default='draft',
+        index=True,
+        comment="状态: draft, employee_confirmed, customer_signed, synced"
+    )
+    
+    customer_signed_at = db.Column(
+        db.DateTime(timezone=True), 
+        nullable=True,
+        comment="客户签署时间"
+    )
+    signature_data = db.Column(
+        PG_JSONB, 
+        nullable=True,
+        comment="签署记录,包含签署人、时间、IP等信息"
+    )
+    
+    synced_to_attendance = db.Column(
+        db.Boolean, 
+        nullable=False,
+        default=False, 
+        server_default='false',
+        comment="是否已同步到AttendanceRecord"
+    )
+    attendance_record_id = db.Column(
+        PG_UUID(as_uuid=True), 
+        db.ForeignKey("attendance_records.id", ondelete="SET NULL"),
+        nullable=True,
+        comment="关联的AttendanceRecord ID"
+    )
+    
+    created_at = db.Column(
+        db.DateTime(timezone=True), 
+        nullable=False,
+        server_default=db.func.now()
+    )
+    updated_at = db.Column(
+        db.DateTime(timezone=True), 
+        nullable=False,
+        server_default=db.func.now(), 
+        onupdate=db.func.now()
+    )
+    
+    contract = db.relationship("BaseContract", backref=db.backref("attendance_forms", lazy="dynamic"))
+    attendance_record = db.relationship("AttendanceRecord", backref=db.backref("attendance_form", uselist=False), foreign_keys=[attendance_record_id])
+
+
+
 class AttendanceRecord(db.Model):
     __tablename__ = "attendance_records"
     __table_args__ = {"comment": "考勤记录表 (可跨月)"}
@@ -3044,6 +3152,30 @@ class AttendanceRecord(db.Model):
         db.String(255),
         nullable=True,
         comment="(如果考勤来自金数据)考勤表在金数据中的Entry ID",
+    )
+
+    out_of_beijing_days = db.Column(
+        db.Numeric(10, 3),
+        nullable=True,
+        default=0,
+        comment="出京天数(精确到0.001天)"
+    )
+    out_of_country_days = db.Column(
+        db.Numeric(10, 3),
+        nullable=True,
+        default=0,
+        comment="出境天数(精确到0.001天)"
+    )
+    attendance_form_id = db.Column(
+        PG_UUID(as_uuid=True),
+        db.ForeignKey("attendance_forms.id", ondelete="SET NULL"),
+        nullable=True,
+        comment="关联的电子考勤表ID"
+    )
+    attendance_details = db.Column(
+        PG_JSONB,
+        nullable=True,
+        comment="详细考勤数据,包含带薪休假等明细(仅用于显示)"
     )
 
     created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
