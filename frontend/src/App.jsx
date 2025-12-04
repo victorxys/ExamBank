@@ -12,6 +12,7 @@ import Navbar from './components/Navbar';
 import ErrorBoundary from './components/ErrorBoundary';
 import PrivateRoute from './components/PrivateRoute';
 import RouteWatcher from './components/RouteWatcher';
+import { Toaster } from './components/ui/toaster';
 
 import "./styles/argon-theme.css";
 
@@ -296,6 +297,8 @@ const ExamRecords = lazy(() => import('./components/ExamRecords'));
 const ExamRecordDetail = lazy(() => import('./components/ExamRecordDetail'));
 const UserManagement = lazy(() => import('./components/UserManagement'));
 const StaffManagementPage = lazy(() => import('./components/StaffManagementPage'));
+const AttendanceManagementPage = lazy(() => import('./components/attendance/AttendanceManagementPage'));
+const AttendanceFillPage = lazy(() => import('./components/attendance/AttendanceFillPage'));
 const StaffDetailPage = lazy(() => import('./components/StaffDetailPage'));
 const UserEvaluation = lazy(() => import('./components/UserEvaluation'));
 const UserEvaluationSummary = lazy(() => import('./components/UserEvaluationSummary'));
@@ -364,6 +367,7 @@ function App() {
           <Route path="/exam-records/:examId/:userId" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <ExamRecordDetail /> </Suspense>} />} />
           <Route path="/users" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <UserManagement /> </Suspense>} />} />
           <Route path="/staff-management" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}><StaffManagementPage /></Suspense>} />} />
+          <Route path="/attendance-management" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}><AttendanceManagementPage /></Suspense>} />} />
           <Route path="/staff/:employeeId" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}><StaffDetailPage /></Suspense>} />} />
           <Route path="/user-evaluation/:userId" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <UserEvaluation /> </Suspense>} />} />
           <Route path="/user-evaluation-summary/:userId" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <UserEvaluationSummary /> </Suspense>} />} />
@@ -412,6 +416,8 @@ function App() {
           <Route path="/employee-profile/:userId/exam-records" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <ExamRecords /> </Suspense>} />} />
           <Route path="/employee-profile/:userId/exam-records/:examId" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <ExamRecordDetail /> </Suspense>} />} />
           <Route path="/sign/:token" element={<Suspense fallback={<LoadingFallback />}><PublicSigningPage /></Suspense>} />
+          <Route path="/attendance-form/:token" element={<Suspense fallback={<LoadingFallback />}><AttendanceFillPage mode="employee" /></Suspense>} />
+          <Route path="/attendance-sign/:token" element={<Suspense fallback={<LoadingFallback />}><AttendanceFillPage mode="customer" /></Suspense>} />
           <Route path="/forms/:formToken" element={<Suspense fallback={<LoadingFallback />}><DynamicFormPage /></Suspense>} />
 
           {/* EmployeeProfile 和其子路由已移到 MainLayout 下，这里不再需要 */}
@@ -419,6 +425,7 @@ function App() {
 
         {/* ... 404 路由 ... */}
       </Routes>
+      <Toaster />
     </ThemeProvider>
   );
 }
