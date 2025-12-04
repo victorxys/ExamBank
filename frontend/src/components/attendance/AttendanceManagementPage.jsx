@@ -61,8 +61,8 @@ const AttendanceManagementPage = () => {
     };
 
     const handleViewForm = (employee) => {
-        setSelectedEmployee(employee);
-        setIsModalOpen(true);
+        // Navigate to admin view route
+        window.location.href = `/attendance-admin/${employee.employee_access_token}`;
     };
 
     const handleDownload = async (employee) => {
@@ -241,14 +241,13 @@ const AttendanceManagementPage = () => {
                                     <th className="px-6 py-4 text-left font-semibold text-gray-800">客户名称</th>
                                     <th className="px-6 py-4 text-left font-semibold text-gray-800">合同期限</th>
                                     <th className="px-6 py-4 text-left font-semibold text-gray-800">状态</th>
-                                    <th className="px-6 py-4 text-left font-semibold text-gray-800">考勤表链接</th>
                                     <th className="px-6 py-4 text-right font-semibold text-gray-800">操作</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100">
                                 {loading ? (
                                     <tr>
-                                        <td colSpan={6} className="px-6 py-16 text-center">
+                                        <td colSpan={5} className="px-6 py-16 text-center">
                                             <div className="flex flex-col items-center gap-4">
                                                 <div className="relative">
                                                     <div className="animate-spin rounded-full h-12 w-12 border-4 border-indigo-200"></div>
@@ -260,7 +259,7 @@ const AttendanceManagementPage = () => {
                                     </tr>
                                 ) : employees.length === 0 ? (
                                     <tr>
-                                        <td colSpan={6} className="px-6 py-16 text-center">
+                                        <td colSpan={5} className="px-6 py-16 text-center">
                                             <div className="flex flex-col items-center gap-4 text-gray-400">
                                                 <svg className="h-16 w-16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
@@ -290,39 +289,34 @@ const AttendanceManagementPage = () => {
                                             <td className="px-6 py-4">
                                                 {getStatusBadge(employee.form_status)}
                                             </td>
-                                            <td className="px-6 py-4">
-                                                <div className="flex items-center gap-2 max-w-xs">
-                                                    <code className="text-xs bg-gray-50 px-3 py-1.5 rounded-md border border-gray-200 flex-1 truncate">
-                                                        {employee.access_link}
-                                                    </code>
+                                            <td className="px-6 py-4 text-right">
+                                                <div className="flex items-center justify-end gap-2">
                                                     <button
                                                         onClick={() => handleCopyLink(employee.access_link)}
-                                                        className="text-gray-400 hover:text-indigo-600 transition-colors"
+                                                        className="text-gray-500 hover:text-indigo-600 p-2 rounded-lg hover:bg-indigo-50 transition-colors"
+                                                        title="复制考勤链接"
                                                     >
-                                                        {/* Copy Icon */}
-                                                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
                                                         </svg>
                                                     </button>
+                                                    <button
+                                                        onClick={() => handleViewForm(employee)}
+                                                        className="bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white px-4 py-2 rounded-lg shadow-md transition-all"
+                                                    >
+                                                        查看
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDownload(employee)}
+                                                        disabled={employee.form_status === 'not_created'}
+                                                        className={`border border-green-300 text-green-700 px-4 py-2 rounded-lg transition-colors ${employee.form_status === 'not_created'
+                                                            ? 'opacity-50 cursor-not-allowed bg-gray-50'
+                                                            : 'hover:bg-green-50'
+                                                            }`}
+                                                    >
+                                                        下载
+                                                    </button>
                                                 </div>
-                                            </td>
-                                            <td className="px-6 py-4 text-right">
-                                                <button
-                                                    onClick={() => handleViewForm(employee)}
-                                                    className="bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white px-4 py-2 rounded-lg shadow-md mr-2 transition-all"
-                                                >
-                                                    查看
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDownload(employee)}
-                                                    disabled={employee.form_status === 'not_created'}
-                                                    className={`border border-green-300 text-green-700 px-4 py-2 rounded-lg transition-colors ${employee.form_status === 'not_created'
-                                                        ? 'opacity-50 cursor-not-allowed bg-gray-50'
-                                                        : 'hover:bg-green-50'
-                                                        }`}
-                                                >
-                                                    下载
-                                                </button>
                                             </td>
                                         </tr>
                                     ))

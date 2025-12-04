@@ -418,6 +418,7 @@ function App() {
           <Route path="/sign/:token" element={<Suspense fallback={<LoadingFallback />}><PublicSigningPage /></Suspense>} />
           <Route path="/attendance-form/:token" element={<Suspense fallback={<LoadingFallback />}><AttendanceFillPage mode="employee" /></Suspense>} />
           <Route path="/attendance-sign/:token" element={<Suspense fallback={<LoadingFallback />}><AttendanceFillPage mode="customer" /></Suspense>} />
+          <Route path="/attendance-admin/:token" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}><AttendanceFillPage mode="admin_view" /></Suspense>} />} />
           <Route path="/forms/:formToken" element={<Suspense fallback={<LoadingFallback />}><DynamicFormPage /></Suspense>} />
 
           {/* EmployeeProfile 和其子路由已移到 MainLayout 下，这里不再需要 */}

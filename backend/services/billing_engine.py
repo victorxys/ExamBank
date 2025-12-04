@@ -828,18 +828,7 @@ class BillingEngine:
         self._handle_security_deposit(contract, bill)
         self._handle_introduction_fee(contract, bill)
         db.session.flush()
-        cust_increase, cust_decrease, emp_increase, emp_decrease, deferred_fee,emp_commission, emp_balance_transfer = (
-            self._get_adjustments(bill.id, payroll.id)
-        )
-        cust_discount = D(
-            db.session.query(func.sum(FinancialAdjustment.amount))
-            .filter(
-                FinancialAdjustment.customer_bill_id == bill.id,
-                FinancialAdjustment.adjustment_type == AdjustmentType.CUSTOMER_DISCOUNT,
-            )
-            .scalar()
-            or 0
-        )
+        # 注意：调整项的获取移到了创建出京/出境费用调整项之后
 
         total_substitute_days = 0
         substitute_deduction_from_sub_records = D(0)
@@ -1043,6 +1032,21 @@ class BillingEngine:
         
         # 提交调整项
         db.session.flush()
+        
+        # 重新获取调整项，确保包含刚创建的出京/出境费用调整项
+        current_app.logger.info(f"[LOCATION_FEE] 重新获取调整项以包含出京/出境费用")
+        cust_increase, cust_decrease, emp_increase, emp_decrease, deferred_fee, emp_commission, emp_balance_transfer = (
+            self._get_adjustments(bill.id, payroll.id)
+        )
+        cust_discount = D(
+            db.session.query(func.sum(FinancialAdjustment.amount))
+            .filter(
+                FinancialAdjustment.customer_bill_id == bill.id,
+                FinancialAdjustment.adjustment_type == AdjustmentType.CUSTOMER_DISCOUNT,
+            )
+            .scalar()
+            or 0
+        )
 
         # 管理费计算
         if management_fee_amount:

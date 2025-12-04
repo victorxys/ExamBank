@@ -126,6 +126,8 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
 
     // 判断是否为客户签署模式
     const isCustomerMode = mode === 'customer' || location.pathname.includes('/attendance-sign/');
+    // 判断是否为管理员查看模式
+    const isAdminView = mode === 'admin_view';
 
     // Loading & Form State
     const [loading, setLoading] = useState(true);
@@ -221,7 +223,7 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
             // 根据模式选择不同的 API 端点
             const endpoint = isCustomerMode
                 ? `/attendance-forms/sign/${token}`  // 客户签署模式
-                : `/attendance-forms/by-token/${token}`;  // 员工填写模式
+                : `/attendance-forms/by-token/${token}`;  // 员工填写模式或管理员查看模式
 
             const response = await api.get(endpoint);
             const data = response.data;
@@ -280,6 +282,8 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
     const openEditModal = (date) => {
         // 客户模式下禁止编辑
         if (isCustomerMode) return;
+        // 管理员查看模式下禁止编辑
+        if (isAdminView) return;
         // 客户已签署后禁止编辑
         if (formData.status === 'customer_signed' || formData.status === 'synced') return;
 
@@ -616,6 +620,7 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                 }}
                             >
                                 {formData ? format(parseISO(formData.cycle_start_date), 'M月') : ''}考勤填报
+                                {isAdminView && <span className="ml-2 text-sm bg-gray-200 text-gray-600 px-2 py-1 rounded">查看模式</span>}
                             </h1>
 
                             {/* User 图标 */}
@@ -876,105 +881,114 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                 })()}
             </div>
 
-            {/* Bottom Fixed Action Bar */}
-            <div className="fixed bottom-0 left-0 right-0 bg-white border-t p-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-20">
-                <div className="max-w-3xl mx-auto">
-                    {isCustomerMode ? (
-                        /* 客户签署模式 */
-                        <div className="w-full space-y-3">
-                            {formData.status === 'customer_signed' ? (
-                                <div className="w-full bg-green-50 text-green-700 py-3 rounded-xl text-center font-medium flex items-center justify-center gap-2">
-                                    <CheckCircle2 className="w-5 h-5" />
-                                    已签署
-                                </div>
-                            ) : (
-                                <>
-                                    <div className="text-center text-sm text-gray-600 mb-2">
-                                        请确认考勤信息无误后签署
-                                    </div>
-                                    <button
-                                        onClick={() => setIsSignatureModalOpen(true)}
-                                        className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 transition-colors shadow-lg"
-                                    >
-                                        <Send className="w-5 h-5" />
-                                        确认并签署
-                                    </button>
-                                </>
-                            )}
+            {/* 客户签名展示 (仅在 Admin View 或已签署状态下显示) */}
+            {(isAdminView || formData.status === 'customer_signed' || formData.status === 'synced') && formData.signature_data && (
+                <div className="max-w-3xl mx-auto p-4 pt-0">
+                    <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+                        <h3 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
+                            <CheckCircle2 className="w-4 h-4 text-green-600" />
+                            客户签名
+                        </h3>
+                        <div className="border border-gray-200 rounded-xl overflow-hidden bg-gray-50 p-4 flex justify-center">
+                            <img
+                                src={formData.signature_data.image}
+                                alt="Customer Signature"
+                                className="max-h-32 object-contain"
+                            />
                         </div>
-                    ) : (
-                        /* 员工填写模式 */
-                        <div className="space-y-3">
-                            {formData.status === 'employee_confirmed' && (
-                                <div className="w-full bg-yellow-50 text-yellow-700 py-2.5 px-3 rounded-xl text-center text-sm font-medium">
-                                    已提交，等待客户签署（仍可修改）
-                                </div>
-                            )}
+                        <div className="mt-2 text-xs text-center text-gray-500">
+                            签署时间: {formData.customer_signed_at ? format(parseISO(formData.customer_signed_at), 'yyyy-MM-dd HH:mm:ss') : '未知'}
+                        </div>
+                    </div>
+                </div>
+            )}
 
-                            {(formData.status === 'draft' || formData.status === 'employee_confirmed') ? (
-                                <>
-                                    <div className="flex gap-3">
+            {/* Bottom Fixed Action Bar */}
+            {!isAdminView && (
+                <div className="fixed bottom-0 left-0 right-0 bg-white border-t p-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-20">
+                    <div className="max-w-3xl mx-auto">
+                        {isCustomerMode ? (
+                            /* 客户签署模式 */
+                            <div className="w-full space-y-3">
+                                {formData.status === 'customer_signed' ? (
+                                    <div className="w-full bg-green-50 text-green-700 py-3 rounded-xl text-center font-medium flex items-center justify-center gap-2">
+                                        <CheckCircle2 className="w-5 h-5" />
+                                        已签署
+                                    </div>
+                                ) : (
+                                    <>
+                                        <div className="text-center text-sm text-gray-600 mb-2">
+                                            请确认考勤信息无误后签署
+                                        </div>
                                         <button
-                                            onClick={handleSaveDraft}
-                                            disabled={submitting}
-                                            className="flex-1 bg-black text-white font-bold py-4 rounded-xl border border-black hover:bg-gray-900 active:bg-gray-800 flex items-center justify-center gap-2 transition-colors"
-                                        >
-                                            <Save className="w-5 h-5" />
-                                            保存
-                                        </button>
-                                        <button
-                                            onClick={handleSubmit}
-                                            disabled={submitting}
-                                            className="flex-[2] bg-teal-600 text-white font-bold py-4 rounded-xl shadow-lg active:bg-teal-700 flex items-center justify-center gap-2 transition-colors"
+                                            onClick={() => setIsSignatureModalOpen(true)}
+                                            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 transition-colors shadow-lg"
                                         >
                                             <Send className="w-5 h-5" />
-                                            {formData.status === 'employee_confirmed' ? '重新提交' : '提交考勤'}
+                                            确认并签署
                                         </button>
+                                    </>
+                                )}
+                            </div>
+                        ) : (
+                            /* 员工填写模式 */
+                            <div className="space-y-3">
+                                {formData.status === 'employee_confirmed' && (
+                                    <div className="w-full bg-yellow-50 text-yellow-700 py-2.5 px-3 rounded-xl text-center text-sm font-medium">
+                                        已提交，等待客户签署（仍可修改）
                                     </div>
+                                )}
 
-                                    {formData.client_sign_url && formData.status === 'employee_confirmed' && (
+                                {(formData.status === 'draft' || formData.status === 'employee_confirmed') ? (
+                                    <>
                                         <div className="flex gap-3">
                                             <button
-                                                onClick={() => {
-                                                    // 跳转到签署页面，并带上分享提示参数
-                                                    const signUrl = new URL(formData.client_sign_url);
-                                                    signUrl.searchParams.set('showShareHint', 'true');
-                                                    window.location.href = signUrl.toString();
-                                                }}
-                                                className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 transition-colors shadow-md"
+                                                onClick={handleSaveDraft}
+                                                disabled={submitting}
+                                                className="flex-1 bg-black text-white font-bold py-4 rounded-xl border border-black hover:bg-gray-900 active:bg-gray-800 flex items-center justify-center gap-2 transition-colors"
                                             >
-                                                <Share2 className="w-5 h-5" />
-                                                前往签署页分享
+                                                <Save className="w-5 h-5" />
+                                                保存
                                             </button>
                                             <button
-                                                onClick={copySignLink}
-                                                className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 transition-colors shadow-md"
+                                                onClick={handleSubmit}
+                                                disabled={submitting}
+                                                className="flex-[2] bg-teal-600 text-white font-bold py-4 rounded-xl shadow-lg active:bg-teal-700 flex items-center justify-center gap-2 transition-colors"
                                             >
-                                                {copiedLink ? (
-                                                    <>
-                                                        <Check className="w-5 h-5" />
-                                                        已复制
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <Copy className="w-5 h-5" />
-                                                        复制链接
-                                                    </>
-                                                )}
+                                                <Send className="w-5 h-5" />
+                                                {formData.status === 'employee_confirmed' ? '重新提交' : '提交考勤'}
                                             </button>
                                         </div>
-                                    )}
-                                </>
-                            ) : (
-                                <div className="w-full bg-green-50 text-green-700 py-3 rounded-xl text-center font-medium flex items-center justify-center gap-2">
-                                    <CheckCircle2 className="w-5 h-5" />
-                                    {formData.status === 'customer_signed' ? '客户已签署' : '已完成'}
-                                </div>
-                            )}
-                        </div>
-                    )}
+
+                                        {formData.client_sign_url && formData.status === 'employee_confirmed' && (
+                                            <div className="flex gap-3">
+                                                <button
+                                                    onClick={() => {
+                                                        // 跳转到签署页面，并带上分享提示参数
+                                                        const signUrl = new URL(formData.client_sign_url);
+                                                        signUrl.searchParams.set('showShareHint', 'true');
+                                                        window.location.href = signUrl.toString();
+                                                    }}
+                                                    className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 transition-colors shadow-md"
+                                                >
+                                                    <Share2 className="w-5 h-5" />
+                                                    前往签署页分享
+                                                </button>
+
+                                            </div>
+                                        )}
+                                    </>
+                                ) : (
+                                    <div className="w-full bg-green-50 text-green-700 py-3 rounded-xl text-center font-medium flex items-center justify-center gap-2">
+                                        <CheckCircle2 className="w-5 h-5" />
+                                        {formData.status === 'customer_signed' ? '客户已签署' : '已完成'}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
                 </div>
-            </div>
+            )}
 
             {/* Edit Modal (Bottom Sheet style on mobile, Center on desktop) */}
             {isModalOpen && (
