@@ -155,8 +155,9 @@ class BillMergeService:
             raise
         
         # --- 【核心新增】在合并成功后，触发对目标账单的重算 ---
+        target_bill_id = target_bill.id
         try:
-            current_app.logger.info(f"合并完成，开始触发目标账单 {target_bill.id} 的重算...")
+            current_app.logger.info(f"合并完成，开始触发目标账单 {target_bill_id} 的重算...")
             from backend.services.billing_engine import BillingEngine
             engine = BillingEngine()
             engine.calculate_for_month(
@@ -170,10 +171,10 @@ class BillMergeService:
             # 第二次提交：保存重算结果
             if commit:
                 db.session.commit()
-            current_app.logger.info(f"目标账单 {target_bill.id} 重算成功。")
+            current_app.logger.info(f"目标账单 {target_bill_id} 重算成功。")
         except Exception as recalc_error:
             # 如果重算失败，只记录错误，不影响合并成功的结果
-            current_app.logger.error(f"合并后自动重算目标账单 {target_bill.id} 失败: {recalc_error}", exc_info=True)
+            current_app.logger.error(f"合并后自动重算目标账单 {target_bill_id} 失败: {recalc_error}", exc_info=True)
 
         return {"message": "账单合并成功，目标账单已自动更新。"}
 
