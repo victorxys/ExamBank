@@ -460,7 +460,7 @@ def search_contracts():
     status_filter = request.args.get("status", "all").strip()
     deposit_status_filter = request.args.get("deposit_status", "").strip()
     signing_status_filter = request.args.get("signing_status", "").strip()
-    sort_by = request.args.get("sort_by", "created_at").strip()
+    sort_by = request.args.get("sort_by", "updated_at").strip()  # 默认按更新时间排序
     sort_order = request.args.get("sort_order", "desc").strip()
 
     try:
@@ -508,7 +508,7 @@ def search_contracts():
             else:
                 query = query.order_by(column_to_sort.asc())
         else:
-            query = query.order_by(BaseContract.created_at.desc())
+            query = query.order_by(BaseContract.updated_at.desc())
 
         paginated_contracts = query.paginate(page=page, per_page=per_page, error_out=False)
         contracts = paginated_contracts.items
@@ -546,7 +546,8 @@ def search_contracts():
                 "end_date": contract.end_date.isoformat(),
                 "status": contract.status,
                 "signing_status": contract.signing_status.value if contract.signing_status else None,
-                "created_at": contract.created_at.isoformat(),
+                "created_at": contract.created_at.isoformat() if contract.created_at else None,
+                "updated_at": contract.updated_at.isoformat() if contract.updated_at else None,
                 "contract_type_value": contract.type,
                 "contract_type_label": TYPE_CHOICES.get(contract.type, contract.type),
                 "deposit_amount": str(getattr(contract, 'deposit_amount', 0) or 0),

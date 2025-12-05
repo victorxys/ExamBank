@@ -1,13 +1,14 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { format, parseISO, addDays, setHours, setMinutes } from 'date-fns';
+import { format, parseISO, addDays, setHours, setMinutes, isSameDay, startOfDay } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import api from '../../api/axios';
 import { useToast } from '../ui/use-toast';
-import { Loader2, CheckCircle2, AlertCircle, Save, Send, X, Clock, ChevronRight, ArrowRight, Copy, Check, Share2, Eraser } from 'lucide-react';
+import { Loader2, CheckCircle2, AlertCircle, Save, Send, X, Clock, ChevronRight, ChevronLeft, ArrowRight, Copy, Check, Share2, Eraser } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "../../utils";
 import SignatureCanvas from 'react-signature-canvas';
+import MobileTimePicker from './MobileTimePicker';
 
 // Helper function to format duration
 const formatDuration = (hours, minutes = 0) => {
@@ -30,6 +31,8 @@ const ATTENDANCE_TYPES = {
     OUT_OF_BEIJING: { label: '出京', color: 'bg-purple-100 text-purple-800', value: 'out_of_beijing', border: 'border-l-purple-400' },
     OUT_OF_COUNTRY: { label: '出境', color: 'bg-pink-100 text-pink-800', value: 'out_of_country', border: 'border-l-pink-400' },
     PAID_LEAVE: { label: '带薪休假', color: 'bg-indigo-100 text-indigo-800', value: 'paid_leave', border: 'border-l-indigo-400' },
+    ONBOARDING: { label: '上户', color: 'bg-cyan-100 text-cyan-800', value: 'onboarding', border: 'border-l-cyan-400' },
+    OFFBOARDING: { label: '下户', color: 'bg-rose-100 text-rose-800', value: 'offboarding', border: 'border-l-rose-400' },
 };
 
 // Custom TimePicker Component
@@ -132,17 +135,143 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
     // Loading & Form State
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
+
+    // Month selection state (default to last month)
+    const getLastMonth = () => {
+        const now = new Date();
+        const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        return { year: lastMonth.getFullYear(), month: lastMonth.getMonth() + 1 };
+    };
+    const [selectedYear, setSelectedYear] = useState(() => getLastMonth().year);
+    const [selectedMonth, setSelectedMonth] = useState(() => getLastMonth().month);
+
     const [formData, setFormData] = useState(null);
     const [attendanceData, setAttendanceData] = useState({
         rest_records: [],
         leave_records: [],
         overtime_records: [],
-        beijing_records: [],
-        country_records: [],
-        paid_leave_records: []
+        out_of_beijing_records: [],
+        out_of_country_records: [],
+        paid_leave_records: [],
+        onboarding_records: [],
+        offboarding_records: []
     });
     const [monthDays, setMonthDays] = useState([]);
     const [contractInfo, setContractInfo] = useState(null);
+
+    // First/Last Month Logic
+    const isFirstMonth = useMemo(() => {
+        if (!contractInfo?.start_date || !formData?.cycle_start_date) return false;
+        // If contract starts AFTER the cycle start date, it's the first month (or partial month)
+        return parseISO(contractInfo.start_date) > parseISO(formData.cycle_start_date);
+    }, [contractInfo, formData]);
+
+    const isLastMonth = useMemo(() => {
+        if (!contractInfo || !formData?.cycle_end_date) return false;
+
+        // 对于自动月签合同，只有在合同终止时才有"最后一个月"
+        if (contractInfo.is_monthly_auto_renew) {
+            // 合同未终止，永远不是最后一个月
+            if (contractInfo.status !== 'terminated' || !contractInfo.termination_date) {
+                return false;
+            }
+            // 合同已终止，使用终止日期判断
+            const terminationDate = parseISO(contractInfo.termination_date);
+            const cycleEndDate = parseISO(formData.cycle_end_date);
+            // 如果终止日期在考勤周期内，则是最后一个月
+            return terminationDate < cycleEndDate;
+        }
+
+        // 非自动月签合同，使用原来的逻辑
+        if (!contractInfo.end_date) return false;
+        // If contract ends BEFORE the cycle end date, it's the last month
+        return parseISO(contractInfo.end_date) < parseISO(formData.cycle_end_date);
+    }, [contractInfo, formData]);
+
+    // 计算可编辑的月份：默认上个月，末月时为当月
+    const editableMonth = useMemo(() => {
+        const now = new Date();
+        const lastMonth = { year: now.getFullYear(), month: now.getMonth() }; // 上个月 (0-indexed -> month值)
+        if (lastMonth.month === 0) {
+            lastMonth.year -= 1;
+            lastMonth.month = 12;
+        }
+
+        // 如果是末月，检查合同结束日期是否在当月
+        if (contractInfo && !contractInfo.is_monthly_auto_renew) {
+            const endDateStr = contractInfo.end_date;
+            if (endDateStr) {
+                const endDate = parseISO(endDateStr);
+                const currentYear = now.getFullYear();
+                const currentMonth = now.getMonth() + 1;
+                // 如果合同结束月就是当月，允许编辑当月
+                if (endDate.getFullYear() === currentYear && (endDate.getMonth() + 1) === currentMonth) {
+                    return { year: currentYear, month: currentMonth };
+                }
+            }
+        }
+
+        // 如果是已终止的自动月签合同，检查终止日期
+        if (contractInfo?.is_monthly_auto_renew && contractInfo.status === 'terminated' && contractInfo.termination_date) {
+            const terminationDate = parseISO(contractInfo.termination_date);
+            const currentYear = now.getFullYear();
+            const currentMonth = now.getMonth() + 1;
+            if (terminationDate.getFullYear() === currentYear && (terminationDate.getMonth() + 1) === currentMonth) {
+                return { year: currentYear, month: currentMonth };
+            }
+        }
+
+        return lastMonth;
+    }, [contractInfo]);
+
+    // 判断当前是否为历史查看模式（只读）
+    const isHistoricalView = useMemo(() => {
+        if (!editableMonth) return false;
+        // 如果当前选择的月份不是可编辑月份，则为历史查看模式
+        return selectedYear !== editableMonth.year || selectedMonth !== editableMonth.month;
+    }, [selectedYear, selectedMonth, editableMonth]);
+
+    // 计算合同开始月份（用于限制向前切换）
+    const contractStartMonth = useMemo(() => {
+        if (!contractInfo?.start_date) return null;
+        const startDate = parseISO(contractInfo.start_date);
+        return { year: startDate.getFullYear(), month: startDate.getMonth() + 1 };
+    }, [contractInfo]);
+
+    // 能否切换到上个月（不能早于合同开始月）
+    const canGoPrev = useMemo(() => {
+        if (!contractStartMonth) return true;
+        const prevMonth = selectedMonth === 1
+            ? { year: selectedYear - 1, month: 12 }
+            : { year: selectedYear, month: selectedMonth - 1 };
+
+        if (prevMonth.year < contractStartMonth.year) return false;
+        if (prevMonth.year === contractStartMonth.year && prevMonth.month < contractStartMonth.month) return false;
+        return true;
+    }, [selectedYear, selectedMonth, contractStartMonth]);
+
+    const isDateDisabled = useCallback((date) => {
+        if (!contractInfo) return false;
+        const targetDate = startOfDay(date);
+
+        if (isFirstMonth && contractInfo.start_date) {
+            const startDate = startOfDay(parseISO(contractInfo.start_date));
+            if (targetDate < startDate) return true;
+        }
+
+        if (isLastMonth) {
+            // 对于自动月签合同，使用终止日期；否则使用结束日期
+            const endDateStr = contractInfo.is_monthly_auto_renew
+                ? contractInfo.termination_date
+                : contractInfo.end_date;
+            if (endDateStr) {
+                const endDate = startOfDay(parseISO(endDateStr));
+                if (targetDate > endDate) return true;
+            }
+        }
+
+        return false;
+    }, [contractInfo, isFirstMonth, isLastMonth]);
 
     // Modal State
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -162,6 +291,27 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
     const [isReadOnly, setIsReadOnly] = useState(false);
     const [coveringRecord, setCoveringRecord] = useState(null);
 
+    // Auto-save state
+    const [autoSaveStatus, setAutoSaveStatus] = useState('saved'); // 'saved' | 'saving' | 'error'
+    const autoSaveTimeoutRef = useRef(null);
+
+    // Ref for time settings section (for auto-scroll)
+    const timeSettingsRef = useRef(null);
+
+    // Auto-scroll effect when type changes to non-normal
+    useEffect(() => {
+        if (tempRecord.type !== 'normal' && timeSettingsRef.current) {
+            // Small delay to ensure DOM is fully rendered and layout is stable
+            const timer = setTimeout(() => {
+                timeSettingsRef.current?.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start'
+                });
+            }, 100);
+            return () => clearTimeout(timer);
+        }
+    }, [tempRecord.type]);
+
     // Signature state (for customer mode)
     const [isSignatureModalOpen, setIsSignatureModalOpen] = useState(false);
     const [isSigning, setIsSigning] = useState(false);
@@ -172,8 +322,50 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
     // Share hint state
     const [showShareHint, setShowShareHint] = useState(false);
 
+    // Mobile time picker drawer state
+    const [timePickerDrawer, setTimePickerDrawer] = useState({
+        isOpen: false,
+        field: null, // 'startTime' or 'endTime'
+        value: '09:00'
+    });
+
+    // Auto-save effect (only for employee mode, draft/confirmed status, and NOT historical view)
     useEffect(() => {
-        fetchData();
+        if (mode !== 'employee' || !['draft', 'employee_confirmed'].includes(formData?.status)) return;
+        // 历史查看模式不自动保存
+        if (isHistoricalView) return;
+
+        // Clear existing timeout
+        if (autoSaveTimeoutRef.current) {
+            clearTimeout(autoSaveTimeoutRef.current);
+        }
+
+        // Set saving status immediately
+        setAutoSaveStatus('saving');
+
+        // Debounce auto-save by 500ms
+        autoSaveTimeoutRef.current = setTimeout(async () => {
+            try {
+                await api.put(`/attendance-forms/by-token/${token}`, {
+                    form_id: formData?.id,  // 传递 form_id 确保更新正确的月份
+                    form_data: attendanceData
+                });
+                setAutoSaveStatus('saved');
+            } catch (error) {
+                console.error('Auto-save failed:', error);
+                setAutoSaveStatus('error');
+            }
+        }, 500);
+
+        return () => {
+            if (autoSaveTimeoutRef.current) {
+                clearTimeout(autoSaveTimeoutRef.current);
+            }
+        };
+    }, [attendanceData, mode, formData?.status, token, isHistoricalView]);
+
+    useEffect(() => {
+        fetchData(selectedYear, selectedMonth);
 
         // Check for showShareHint param
         const searchParams = new URLSearchParams(location.search);
@@ -183,7 +375,7 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
             const newUrl = window.location.pathname;
             window.history.replaceState({}, '', newUrl);
         }
-    }, [token, location.search]);
+    }, [token, location.search, selectedYear, selectedMonth]);
 
     // Resize observer for signature canvas
     useEffect(() => {
@@ -217,29 +409,45 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
         return () => window.removeEventListener('scroll', handleScroll);
     }, [isScrolled]);
 
-    const fetchData = async () => {
+    const fetchData = async (year = selectedYear, month = selectedMonth) => {
         try {
             setLoading(true);
             // 根据模式选择不同的 API 端点
-            const endpoint = isCustomerMode
+            let endpoint = isCustomerMode
                 ? `/attendance-forms/sign/${token}`  // 客户签署模式
                 : `/attendance-forms/by-token/${token}`;  // 员工填写模式或管理员查看模式
 
+            // 添加月份参数 (仅员工模式)
+            if (!isCustomerMode && year && month) {
+                endpoint += `?year=${year}&month=${month}`;
+            }
+
             const response = await api.get(endpoint);
             const data = response.data;
+
             setFormData(data);
             setContractInfo(data.contract_info);
 
-            if (data.form_data) {
+            // 重置考勤数据 - 先清空，再填充新数据
+            const emptyData = {
+                rest_records: [],
+                leave_records: [],
+                overtime_records: [],
+                out_of_beijing_records: [],
+                out_of_country_records: [],
+                paid_leave_records: [],
+                onboarding_records: [],
+                offboarding_records: []
+            };
+
+            if (data.form_data && Object.keys(data.form_data).length > 0) {
                 setAttendanceData({
-                    rest_records: [],
-                    leave_records: [],
-                    overtime_records: [],
-                    beijing_records: [],
-                    country_records: [],
-                    paid_leave_records: [],
+                    ...emptyData,
                     ...data.form_data
                 });
+            } else {
+                // 新表单：使用空数据
+                setAttendanceData(emptyData);
             }
 
             const startDate = parseISO(data.cycle_start_date);
@@ -284,6 +492,8 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
         if (isCustomerMode) return;
         // 管理员查看模式下禁止编辑
         if (isAdminView) return;
+        // 历史查看模式下禁止编辑
+        if (isHistoricalView) return;
         // 客户已签署后禁止编辑
         if (formData.status === 'customer_signed' || formData.status === 'synced') return;
 
@@ -441,6 +651,7 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
         try {
             setSubmitting(true);
             await api.put(`/attendance-forms/by-token/${token}`, {
+                form_id: formData?.id,
                 form_data: attendanceData
             });
             toast({ title: "保存成功", description: "考勤草稿已保存。" });
@@ -452,10 +663,11 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
     };
 
     const handleSubmit = async () => {
-        if (!window.confirm("确认提交考勤表吗？提交后将生成客户签署链接，且无法再次修改。")) return;
+        if (!window.confirm("确认提交考勤表吗？\n\n提交后将生成客户签署链接。\n在客户签署前，您仍可以修改考勤数据，修改将自动同步。")) return;
         try {
             setSubmitting(true);
             const response = await api.put(`/attendance-forms/by-token/${token}`, {
+                form_id: formData?.id,
                 form_data: attendanceData,
                 action: 'confirm'
             });
@@ -562,7 +774,7 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
     if (!formData) return <div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="text-center"><AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" /><h2 className="text-xl font-bold">无法加载考勤表</h2></div></div>;
 
     // Stats - Calculate total days for each category (with 3 decimal places)
-    let totalWorkDays = 0; // 出勤天数（包括正常、出京、出境、加班）
+    let totalWorkDays = 0; // 出勤天数（包括正常、出京、出境，不包括加班）
     let totalLeaveDays = 0; // 请假或休假天数（休息、请假、带薪休假）
     let totalOvertimeDays = 0; // 加班天数（单独统计）
 
@@ -584,11 +796,12 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
         });
     }
 
-    // Work days = total days - leave days
-    totalWorkDays = monthDays.length - totalLeaveDays;
+    // Work days = valid days - leave days - overtime days (加班不计入出勤)
+    const validDaysCount = monthDays.filter(day => !isDateDisabled(day)).length;
+    totalWorkDays = validDaysCount - totalLeaveDays - totalOvertimeDays;
 
     return (
-        <div className="min-h-screen bg-slate-50 pb-24 font-sans">
+        <div className="min-h-screen bg-slate-50 pb-48 font-sans">
             {/* 
                1. 头部区域 - CSS Sticky Offset 方案
                - 高度固定为 140px，文档流永远不变
@@ -612,21 +825,72 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
 
                         {/* 下半部分：主标题区域（60px，会保留在顶部） */}
                         <div className="h-[60px] flex items-center justify-between">
-                            <h1
-                                className="font-bold text-gray-900 transition-all duration-300"
-                                style={{
-                                    fontSize: isScrolled ? '18px' : '28px',
-                                    lineHeight: '1.2'
-                                }}
-                            >
-                                {formData ? format(parseISO(formData.cycle_start_date), 'M月') : ''}考勤填报
-                                {isAdminView && <span className="ml-2 text-sm bg-gray-200 text-gray-600 px-2 py-1 rounded">查看模式</span>}
-                            </h1>
+                            <div className="flex items-center gap-2">
+                                {/* 月份切换 - 仅员工模式显示 */}
+                                {!isCustomerMode && !isAdminView && (
+                                    <button
+                                        onClick={() => {
+                                            if (!canGoPrev) return;
+                                            const newDate = new Date(selectedYear, selectedMonth - 2, 1);
+                                            setSelectedYear(newDate.getFullYear());
+                                            setSelectedMonth(newDate.getMonth() + 1);
+                                        }}
+                                        disabled={!canGoPrev}
+                                        className={`p-1.5 rounded-lg transition-colors ${canGoPrev
+                                            ? 'bg-gray-100 hover:bg-gray-200 active:bg-gray-300'
+                                            : 'bg-gray-50 cursor-not-allowed'
+                                            }`}
+                                        title={canGoPrev ? "上个月" : "不能查看合同开始前的考勤"}
+                                    >
+                                        <ChevronLeft className={`w-5 h-5 ${canGoPrev ? 'text-gray-600' : 'text-gray-300'}`} />
+                                    </button>
+                                )}
+
+                                <h1
+                                    className="font-bold text-gray-900 transition-all duration-300"
+                                    style={{
+                                        fontSize: isScrolled ? '18px' : '28px',
+                                        lineHeight: '1.2'
+                                    }}
+                                >
+                                    {selectedMonth}月考勤{isHistoricalView ? '记录' : '填报'}
+                                    {isAdminView && <span className="ml-2 text-sm bg-gray-200 text-gray-600 px-2 py-1 rounded">查看模式</span>}
+                                    {isHistoricalView && !isAdminView && <span className="ml-2 text-sm bg-amber-100 text-amber-700 px-2 py-1 rounded">只读</span>}
+                                </h1>
+
+                                {/* 月份切换 - 仅员工模式显示 */}
+                                {!isCustomerMode && !isAdminView && (() => {
+                                    // 判断是否可以切换到下个月（不能超过可编辑月份）
+                                    const canGoNext = editableMonth && (
+                                        selectedYear < editableMonth.year ||
+                                        (selectedYear === editableMonth.year && selectedMonth < editableMonth.month)
+                                    );
+
+                                    return (
+                                        <button
+                                            onClick={() => {
+                                                if (!canGoNext) return;
+                                                const newDate = new Date(selectedYear, selectedMonth, 1);
+                                                setSelectedYear(newDate.getFullYear());
+                                                setSelectedMonth(newDate.getMonth() + 1);
+                                            }}
+                                            disabled={!canGoNext}
+                                            className={`p-1.5 rounded-lg transition-colors ${canGoNext
+                                                ? 'bg-gray-100 hover:bg-gray-200 active:bg-gray-300'
+                                                : 'bg-gray-50 cursor-not-allowed'
+                                                }`}
+                                            title={canGoNext ? "下个月" : "不能填写未来月份"}
+                                        >
+                                            <ChevronRight className={`w-5 h-5 ${canGoNext ? 'text-gray-600' : 'text-gray-300'}`} />
+                                        </button>
+                                    );
+                                })()}
+                            </div>
 
                             {/* User 图标 */}
                             <div className={`rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold transition-all duration-300
                                 ${isScrolled ? 'h-8 w-8 text-xs' : 'h-10 w-10 text-sm'}`}>
-                                {contractInfo?.employee_name?.substring(0, 2) || 'User'}
+                                {contractInfo?.employee_name?.slice(-2) || 'User'}
                             </div>
                         </div>
                     </div>
@@ -724,6 +988,8 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                             const isWeekend = date.getDay() === 0 || date.getDay() === 6;
                             const isToday = format(date, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
 
+                            const isDisabled = isDateDisabled(date);
+
                             // Status color mapping
                             const statusColors = {
                                 'normal': 'bg-gray-50 border-gray-200',
@@ -733,6 +999,8 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                 'out_of_beijing': 'bg-purple-50 border-purple-200',
                                 'out_of_country': 'bg-pink-50 border-pink-200',
                                 'paid_leave': 'bg-indigo-50 border-indigo-200',
+                                'onboarding': 'bg-cyan-50 border-cyan-200',
+                                'offboarding': 'bg-rose-50 border-rose-200',
                             };
 
                             const statusTextColors = {
@@ -743,37 +1011,51 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                 'out_of_beijing': 'text-purple-600',
                                 'out_of_country': 'text-pink-600',
                                 'paid_leave': 'text-indigo-600',
+                                'onboarding': 'text-cyan-600',
+                                'offboarding': 'text-rose-600',
                             };
 
                             return (
                                 <div
                                     key={index}
-                                    onClick={() => openEditModal(date)}
+                                    onClick={() => !isDisabled && openEditModal(date)}
                                     className={`
-                                        relative aspect-square rounded-lg border-2 p-1 cursor-pointer
-                                        transition-all duration-200 active:scale-95 flex flex-col items-center justify-center
-                                        ${statusColors[record.type] || 'bg-gray-50 border-gray-200'}
+                                        relative aspect-square rounded-lg border-2 p-1 
+                                        transition-all duration-200 flex flex-col items-center justify-center
+                                        ${isDisabled
+                                            ? 'bg-gray-100 border-gray-200 cursor-not-allowed opacity-60'
+                                            : `${statusColors[record.type] || 'bg-gray-50 border-gray-200'} cursor-pointer active:scale-95 hover:shadow-md`
+                                        }
                                         ${isToday ? 'ring-2 ring-indigo-400 ring-offset-1' : ''}
-                                        ${isWeekend && record.type === 'normal' ? 'bg-red-50/30' : ''}
-                                        hover:shadow-md hover:border-indigo-300
+                                        ${!isDisabled && isWeekend && record.type === 'normal' ? 'bg-red-50/30' : ''}
                                     `}
                                 >
-                                    {/* 日期数字 */}
-                                    <div className={`text-center font-bold ${isWeekend ? 'text-red-500' : 'text-gray-900'
-                                        } ${isToday ? 'text-indigo-600' : ''}`}
-                                        style={{ fontSize: 'clamp(14px, 3vw, 18px)' }}>
+                                    {/* Date Number */}
+                                    <span className={`text-lg font-bold mb-1 ${isDisabled ? 'text-gray-400' :
+                                        (isToday ? 'text-indigo-600' : 'text-gray-700')
+                                        }`}>
                                         {format(date, 'd')}
-                                    </div>
+                                    </span>
 
-                                    {/* 状态标识 - 只显示类型名称 */}
-                                    {record.type !== 'normal' && (
-                                        <div className={`text-[8px] sm:text-[9px] font-medium text-center truncate mt-0.5 ${statusTextColors[record.type]
-                                            }`}>
-                                            {record.typeLabel}
-                                        </div>
+                                    {/* Status Label */}
+                                    {isDisabled ? (
+                                        <X className="w-4 h-4 text-gray-400" />
+                                    ) : (
+                                        <span className={`text-xs font-medium truncate w-full text-center ${statusTextColors[record.type] || 'text-gray-600'}`}>
+                                            {record.typeLabel || '正常'}
+                                        </span>
                                     )}
 
-                                    {/* 今天标记 */}
+                                    {/* Duration (if not normal) */}
+                                    {!isDisabled && record.type !== 'normal' && (
+                                        <span className="text-[10px] text-gray-500 scale-90">
+                                            {['onboarding', 'offboarding'].includes(record.type)
+                                                ? record.startTime
+                                                : `${record.hours}h`}
+                                        </span>
+                                    )}
+
+                                    {/* Today Marker */}
                                     {isToday && (
                                         <div className="absolute top-0 right-0 w-1.5 h-1.5 bg-indigo-500 rounded-full"></div>
                                     )}
@@ -847,6 +1129,8 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                                         'out_of_beijing': 'bg-purple-100 text-purple-700 border-purple-300',
                                                         'out_of_country': 'bg-pink-100 text-pink-700 border-pink-300',
                                                         'paid_leave': 'bg-indigo-100 text-indigo-700 border-indigo-300',
+                                                        'onboarding': 'bg-cyan-100 text-cyan-700 border-cyan-300',
+                                                        'offboarding': 'bg-orange-100 text-orange-700 border-orange-300',
                                                     };
                                                     const colorClass = typeColors[record.type] || (isWeekend ? 'bg-red-50 text-red-600 border-red-200' : 'bg-white text-gray-700 border-gray-200');
 
@@ -933,49 +1217,91 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                         ) : (
                             /* 员工填写模式 */
                             <div className="space-y-3">
-                                {formData.status === 'employee_confirmed' && (
+                                {/* 历史查看模式提示 */}
+                                {isHistoricalView && (
+                                    <div className="w-full bg-gray-100 text-gray-600 py-3 px-4 rounded-xl text-center text-sm">
+                                        <div className="font-medium mb-1">📋 历史考勤记录</div>
+                                        <div>仅供查看，不可修改</div>
+                                    </div>
+                                )}
+
+                                {!isHistoricalView && formData.status === 'employee_confirmed' && (
                                     <div className="w-full bg-yellow-50 text-yellow-700 py-2.5 px-3 rounded-xl text-center text-sm font-medium">
                                         已提交，等待客户签署（仍可修改）
                                     </div>
                                 )}
 
-                                {(formData.status === 'draft' || formData.status === 'employee_confirmed') ? (
+                                {!isHistoricalView && (formData.status === 'draft' || formData.status === 'employee_confirmed') ? (
                                     <>
-                                        <div className="flex gap-3">
-                                            <button
-                                                onClick={handleSaveDraft}
-                                                disabled={submitting}
-                                                className="flex-1 bg-black text-white font-bold py-4 rounded-xl border border-black hover:bg-gray-900 active:bg-gray-800 flex items-center justify-center gap-2 transition-colors"
-                                            >
-                                                <Save className="w-5 h-5" />
-                                                保存
-                                            </button>
-                                            <button
-                                                onClick={handleSubmit}
-                                                disabled={submitting}
-                                                className="flex-[2] bg-teal-600 text-white font-bold py-4 rounded-xl shadow-lg active:bg-teal-700 flex items-center justify-center gap-2 transition-colors"
-                                            >
-                                                <Send className="w-5 h-5" />
-                                                {formData.status === 'employee_confirmed' ? '重新提交' : '提交考勤'}
-                                            </button>
+                                        {/* Auto-save status indicator */}
+                                        <div className="flex items-center justify-center gap-2 text-sm mb-2">
+                                            {autoSaveStatus === 'saving' && (
+                                                <>
+                                                    <Loader2 className="w-4 h-4 animate-spin text-gray-500" />
+                                                    <span className="text-gray-500">保存中...</span>
+                                                </>
+                                            )}
+                                            {autoSaveStatus === 'saved' && (
+                                                <>
+                                                    <CheckCircle2 className="w-4 h-4 text-green-600" />
+                                                    <span className="text-green-600">已自动保存</span>
+                                                </>
+                                            )}
+                                            {autoSaveStatus === 'error' && (
+                                                <>
+                                                    <AlertCircle className="w-4 h-4 text-red-600" />
+                                                    <span className="text-red-600">保存失败</span>
+                                                </>
+                                            )}
                                         </div>
 
-                                        {formData.client_sign_url && formData.status === 'employee_confirmed' && (
-                                            <div className="flex gap-3">
-                                                <button
-                                                    onClick={() => {
-                                                        // 跳转到签署页面，并带上分享提示参数
-                                                        const signUrl = new URL(formData.client_sign_url);
-                                                        signUrl.searchParams.set('showShareHint', 'true');
-                                                        window.location.href = signUrl.toString();
-                                                    }}
-                                                    className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 transition-colors shadow-md"
-                                                >
-                                                    <Share2 className="w-5 h-5" />
-                                                    前往签署页分享
-                                                </button>
+                                        {/* Submit and Share button for draft status */}
+                                        {formData.status === 'draft' && (
+                                            <button
+                                                onClick={async () => {
+                                                    if (!window.confirm("确认提交考勤表并分享给客户？\n\n提交后将跳转到签署页面，请在微信中分享给客户签署。")) return;
+                                                    try {
+                                                        setSubmitting(true);
+                                                        const response = await api.put(`/attendance-forms/by-token/${token}`, {
+                                                            form_id: formData?.id,
+                                                            form_data: attendanceData,
+                                                            action: 'confirm'
+                                                        });
+                                                        // 更新状态
+                                                        setFormData(prev => ({ ...prev, status: response.data.status, client_sign_url: response.data.client_sign_url }));
+                                                        // 直接跳转到签署页面
+                                                        if (response.data.client_sign_url) {
+                                                            const signUrl = new URL(response.data.client_sign_url);
+                                                            signUrl.searchParams.set('showShareHint', 'true');
+                                                            window.location.href = signUrl.toString();
+                                                        }
+                                                    } catch (error) {
+                                                        toast({ title: "提交失败", description: "请稍后重试。", variant: "destructive" });
+                                                        setSubmitting(false);
+                                                    }
+                                                }}
+                                                disabled={submitting}
+                                                className="w-full bg-teal-600 text-white font-bold py-4 rounded-xl shadow-lg active:bg-teal-700 flex items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                            >
+                                                <Share2 className="w-5 h-5" />
+                                                {submitting ? '提交中...' : '提交考勤并分享给客户'}
+                                            </button>
+                                        )}
 
-                                            </div>
+                                        {/* Share button for already confirmed status */}
+                                        {formData.client_sign_url && formData.status === 'employee_confirmed' && (
+                                            <button
+                                                onClick={() => {
+                                                    // 跳转到签署页面，并带上分享提示参数
+                                                    const signUrl = new URL(formData.client_sign_url);
+                                                    signUrl.searchParams.set('showShareHint', 'true');
+                                                    window.location.href = signUrl.toString();
+                                                }}
+                                                className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 transition-colors shadow-md"
+                                            >
+                                                <Share2 className="w-5 h-5" />
+                                                前往签署页分享给客户
+                                            </button>
                                         )}
                                     </>
                                 ) : (
@@ -994,10 +1320,11 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
             {isModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
                     <div
-                        className="bg-white w-full max-w-md sm:rounded-2xl rounded-t-2xl shadow-2xl p-6 animate-in slide-in-from-bottom duration-300"
+                        className="bg-white w-full max-w-md sm:rounded-2xl rounded-t-2xl shadow-2xl animate-in slide-in-from-bottom duration-300 max-h-[85vh] flex flex-col"
                         onClick={(e) => e.stopPropagation()}
                     >
-                        <div className="flex items-center justify-between mb-6">
+                        {/* Fixed Header */}
+                        <div className="flex items-center justify-between p-6 pb-4 border-b border-gray-200 shrink-0">
                             <div>
                                 <h3 className="text-lg font-bold text-gray-900">
                                     {format(editingDate, 'M月d日')} {format(editingDate, 'EEEE', { locale: zhCN })}
@@ -1006,137 +1333,220 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                             </div>
                             <button
                                 onClick={() => setIsModalOpen(false)}
-                                className="p-2 hover:bg-gray-800 rounded-full bg-black"
+                                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
                             >
-                                <X className="w-5 h-5 text-white" />
+                                <X className="w-5 h-5 text-gray-600" />
                             </button>
                         </div>
 
-                        {isReadOnly && coveringRecord && (
-                            <div className="mb-6 p-4 bg-yellow-50 text-yellow-800 rounded-xl text-sm border border-yellow-200 flex items-start gap-3">
-                                <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
-                                <div>
-                                    <div className="font-bold mb-1">该日期包含在多天考勤记录中</div>
+                        {/* Scrollable Content */}
+                        <div className="flex-1 overflow-y-auto p-6 pt-4">
+                            {isReadOnly && coveringRecord && (
+                                <div className="mb-6 p-4 bg-yellow-50 text-yellow-800 rounded-xl text-sm border border-yellow-200 flex items-start gap-3">
+                                    <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
                                     <div>
-                                        属于 {format(new Date(coveringRecord.date), 'M月d日')} 开始的
-                                        <span className="font-bold mx-1">
-                                            {ATTENDANCE_TYPES[Object.keys(ATTENDANCE_TYPES).find(k => ATTENDANCE_TYPES[k].value === coveringRecord.type)]?.label}
-                                        </span>
-                                        记录。
+                                        <div className="font-bold mb-1">该日期包含在多天考勤记录中</div>
+                                        <div>
+                                            属于 {format(new Date(coveringRecord.date), 'M月d日')} 开始的
+                                            <span className="font-bold mx-1">
+                                                {ATTENDANCE_TYPES[Object.keys(ATTENDANCE_TYPES).find(k => ATTENDANCE_TYPES[k].value === coveringRecord.type)]?.label}
+                                            </span>
+                                            记录。
+                                        </div>
+                                        <div className="mt-1 text-yellow-700/80">如需修改，请前往开始日期进行操作。</div>
                                     </div>
-                                    <div className="mt-1 text-yellow-700/80">如需修改，请前往开始日期进行操作。</div>
                                 </div>
-                            </div>
-                        )}
+                            )}
 
-                        {/* Type Grid */}
-                        <div className={`grid grid-cols-3 gap-3 mb-6 ${isReadOnly ? 'opacity-50 pointer-events-none' : ''}`}>
-                            {Object.keys(ATTENDANCE_TYPES).map(key => {
-                                const type = ATTENDANCE_TYPES[key];
-                                const isSelected = tempRecord.type === type.value;
-                                return (
-                                    <button
-                                        key={key}
-                                        onClick={() => setTempRecord(prev => ({ ...prev, type: type.value }))}
-                                        className={`py-3 px-2 rounded-xl text-sm font-medium transition-all border ${isSelected
-                                            ? 'bg-black text-white border-black shadow-md'
-                                            : 'bg-white text-gray-900 border-gray-300 hover:border-indigo-400 hover:bg-indigo-50'
-                                            }`}
-                                    >
-                                        {type.label}
-                                    </button>
-                                );
-                            })}
+                            {/* Type Grid */}
+                            <div className={`grid grid-cols-3 gap-3 mb-6 ${isReadOnly ? 'opacity-50 pointer-events-none' : ''}`}>
+                                {Object.keys(ATTENDANCE_TYPES).map(key => {
+                                    const type = ATTENDANCE_TYPES[key];
+
+                                    // Filter Logic for Onboarding/Offboarding
+                                    if (type.value === 'onboarding') {
+                                        if (!isFirstMonth || !contractInfo?.start_date) return null;
+                                        if (!isSameDay(editingDate, parseISO(contractInfo.start_date))) return null;
+                                    }
+                                    if (type.value === 'offboarding') {
+                                        if (!isLastMonth) return null;
+                                        // 对于自动月签合同，使用终止日期；否则使用结束日期
+                                        const endDateStr = contractInfo?.is_monthly_auto_renew
+                                            ? contractInfo?.termination_date
+                                            : contractInfo?.end_date;
+                                        if (!endDateStr) return null;
+                                        if (!isSameDay(editingDate, parseISO(endDateStr))) return null;
+                                    }
+
+                                    const isSelected = tempRecord.type === type.value;
+                                    return (
+                                        <button
+                                            key={key}
+                                            onClick={() => setTempRecord(prev => ({ ...prev, type: type.value }))}
+                                            className={`py-3 px-2 rounded-xl text-sm font-medium transition-all border ${isSelected
+                                                ? 'bg-black text-white border-black shadow-md'
+                                                : 'bg-white text-gray-900 border-gray-300 hover:border-indigo-400 hover:bg-indigo-50'
+                                                }`}
+                                        >
+                                            {type.label}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+
+                            {/* Time Input (Only for non-normal) */}
+                            {tempRecord.type !== 'normal' && (
+                                <div
+                                    ref={timeSettingsRef}
+                                    className={`bg-gray-50 rounded-xl p-4 mb-4 animate-in fade-in slide-in-from-top-2 ${isReadOnly ? 'opacity-50 pointer-events-none' : ''}`}
+                                >
+                                    <div className="flex items-center gap-2 mb-4 text-sm font-medium text-gray-700">
+                                        <Clock className="w-4 h-4" />
+                                        <span>
+                                            {tempRecord.type === 'onboarding' ? '上户时间' :
+                                                tempRecord.type === 'offboarding' ? '下户时间' :
+                                                    `${ATTENDANCE_TYPES[Object.keys(ATTENDANCE_TYPES).find(k => ATTENDANCE_TYPES[k].value === tempRecord.type)]?.label}时长设置`}
+                                        </span>
+                                    </div>
+
+                                    {['onboarding', 'offboarding'].includes(tempRecord.type) ? (
+                                        // Onboarding/Offboarding: Single Time Picker
+                                        <div className="bg-white rounded-lg border border-gray-200 p-3"
+                                            onClick={() => !isReadOnly && setTimePickerDrawer({
+                                                isOpen: true,
+                                                field: 'startTime',
+                                                value: tempRecord.startTime || '09:00'
+                                            })}
+                                        >
+                                            <div className="text-xs text-gray-500 mb-1">
+                                                {tempRecord.type === 'onboarding' ? '到达时间' : '离开时间'}
+                                            </div>
+                                            <div className="text-lg font-medium text-gray-900 flex items-center justify-between">
+                                                {tempRecord.startTime || '09:00'}
+                                                <ChevronRight className="w-4 h-4 text-gray-400" />
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        // Standard Duration Picker
+                                        <>
+                                            {/* Start Date (Fixed, Display Only) */}
+                                            <div className="mb-4">
+                                                <label className="text-xs text-gray-500 mb-2 block">开始日期</label>
+                                                <div className="bg-gray-100 text-gray-700 text-center p-3 rounded-lg border border-gray-200 font-bold">
+                                                    {editingDate && format(editingDate, 'yyyy年M月d日 EEEE', { locale: zhCN })}
+                                                </div>
+                                            </div>
+
+                                            {/* Start Time */}
+                                            <div className="mb-4">
+                                                <label className="text-xs text-gray-500 mb-2 block">开始时间</label>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        if (!isReadOnly) {
+                                                            setTimePickerDrawer({
+                                                                isOpen: true,
+                                                                field: 'startTime',
+                                                                value: tempRecord.startTime || '09:00'
+                                                            });
+                                                        }
+                                                    }}
+                                                    disabled={isReadOnly}
+                                                    className={`w-full p-3 rounded-lg border text-center font-mono text-lg transition-colors ${isReadOnly
+                                                        ? 'bg-gray-100 text-gray-500 border-gray-200 cursor-not-allowed'
+                                                        : 'bg-white text-gray-900 border-gray-300 hover:border-teal-400 hover:bg-teal-50 active:bg-teal-100'
+                                                        }`}
+                                                >
+                                                    {tempRecord.startTime || '09:00'}
+                                                </button>
+                                            </div>
+
+                                            {/* Days Offset Selector */}
+                                            <div className="mb-4">
+                                                <label className="text-xs text-gray-500 mb-2 block">持续天数</label>
+                                                <div className="flex items-center gap-3">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setTempRecord(prev => ({ ...prev, daysOffset: Math.max(0, (prev.daysOffset || 0) - 1) }))}
+                                                        className="w-12 h-12 rounded-lg bg-black hover:bg-gray-800 active:bg-gray-700 flex items-center justify-center text-2xl font-bold text-white"
+                                                    >
+                                                        −
+                                                    </button>
+                                                    <div className="flex-1 text-center">
+                                                        <div className="text-3xl font-bold text-gray-900">{(tempRecord.daysOffset || 0) === 0 ? '当天' : tempRecord.daysOffset}</div>
+                                                        <div className="text-xs text-gray-500 mt-1">{(tempRecord.daysOffset || 0) === 0 ? '' : '天后'}</div>
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setTempRecord(prev => ({ ...prev, daysOffset: (prev.daysOffset || 0) + 1 }))}
+                                                        className="w-12 h-12 rounded-lg bg-black hover:bg-gray-800 active:bg-gray-700 flex items-center justify-center text-2xl font-bold text-white"
+                                                    >
+                                                        +
+                                                    </button>
+                                                </div>
+                                                {tempRecord.daysOffset > 0 && (
+                                                    <div className="mt-2 text-center text-sm text-gray-600">
+                                                        结束日期: {editingDate && format(addDays(editingDate, tempRecord.daysOffset), 'M月d日 EEEE', { locale: zhCN })}
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* End Time */}
+                                            <div className="mb-4">
+                                                <label className="text-xs text-gray-500 mb-2 block">结束时间</label>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        if (!isReadOnly) {
+                                                            setTimePickerDrawer({
+                                                                isOpen: true,
+                                                                field: 'endTime',
+                                                                value: tempRecord.endTime || '18:00'
+                                                            });
+                                                        }
+                                                    }}
+                                                    disabled={isReadOnly}
+                                                    className={`w-full p-3 rounded-lg border text-center font-mono text-lg transition-colors ${isReadOnly
+                                                        ? 'bg-gray-100 text-gray-500 border-gray-200 cursor-not-allowed'
+                                                        : 'bg-white text-gray-900 border-gray-300 hover:border-teal-400 hover:bg-teal-50 active:bg-teal-100'
+                                                        }`}
+                                                >
+                                                    {tempRecord.endTime || '18:00'}
+                                                </button>
+                                            </div>
+                                        </>
+                                    )}
+                                    <div className="mt-3 text-center">
+                                        <span className="text-sm text-gray-500">共计: </span>
+                                        <span className="text-lg font-bold text-gray-900">
+                                            {isReadOnly && tempRecord.endTime === '24:00'
+                                                ? '24小时'
+                                                : formatDuration(calculatedDuration.totalHours, calculatedDuration.minutes)
+                                            }
+                                        </span>
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
-                        {/* Time Input (Only for non-normal) */}
-                        {tempRecord.type !== 'normal' && (
-                            <div className={`bg-gray-50 rounded-xl p-4 mb-6 animate-in fade-in slide-in-from-top-2 ${isReadOnly ? 'opacity-50 pointer-events-none' : ''}`}>
-                                <div className="flex items-center gap-2 mb-4 text-sm font-medium text-gray-700">
-                                    <Clock className="w-4 h-4" />
-                                    <span>时长设置</span>
-                                </div>
-
-                                {/* Start Date (Fixed, Display Only) */}
-                                <div className="mb-4">
-                                    <label className="text-xs text-gray-500 mb-2 block">开始日期</label>
-                                    <div className="bg-gray-100 text-gray-700 text-center p-3 rounded-lg border border-gray-200 font-bold">
-                                        {editingDate && format(editingDate, 'yyyy年M月d日 EEEE', { locale: zhCN })}
-                                    </div>
-                                </div>
-
-                                {/* Start Time */}
-                                <div className="mb-4">
-                                    <label className="text-xs text-gray-500 mb-2 block">开始时间</label>
-                                    <div className="relative">
-                                        <TimePicker
-                                            value={isReadOnly ? '00:00' : tempRecord.startTime}
-                                            onChange={(val) => setTempRecord({ ...tempRecord, startTime: val })}
-                                            disabled={isReadOnly}
-                                        />
-                                    </div>
-                                </div>
-
-                                {/* Days Offset Selector */}
-                                <div className="mb-4">
-                                    <label className="text-xs text-gray-500 mb-2 block">持续天数</label>
-                                    <div className="flex items-center gap-3">
-                                        <button
-                                            type="button"
-                                            onClick={() => setTempRecord(prev => ({ ...prev, daysOffset: Math.max(0, (prev.daysOffset || 0) - 1) }))}
-                                            className="w-12 h-12 rounded-lg bg-black hover:bg-gray-800 active:bg-gray-700 flex items-center justify-center text-2xl font-bold text-white"
-                                        >
-                                            −
-                                        </button>
-                                        <div className="flex-1 text-center">
-                                            <div className="text-3xl font-bold text-gray-900">{(tempRecord.daysOffset || 0) === 0 ? '当天' : tempRecord.daysOffset}</div>
-                                            <div className="text-xs text-gray-500 mt-1">{(tempRecord.daysOffset || 0) === 0 ? '' : '天后'}</div>
-                                        </div>
-                                        <button
-                                            type="button"
-                                            onClick={() => setTempRecord(prev => ({ ...prev, daysOffset: (prev.daysOffset || 0) + 1 }))}
-                                            className="w-12 h-12 rounded-lg bg-black hover:bg-gray-800 active:bg-gray-700 flex items-center justify-center text-2xl font-bold text-white"
-                                        >
-                                            +
-                                        </button>
-                                    </div>
-                                    {tempRecord.daysOffset > 0 && (
-                                        <div className="mt-2 text-center text-sm text-gray-600">
-                                            结束日期: {editingDate && format(addDays(editingDate, tempRecord.daysOffset), 'M月d日 EEEE', { locale: zhCN })}
-                                        </div>
-                                    )}
-                                </div>
-
-                                {/* End Time */}
-                                <div className="mb-4">
-                                    <label className="text-xs text-gray-500 mb-2 block">结束时间</label>
-                                    <div className="relative">
-                                        <TimePicker
-                                            value={isReadOnly ? (tempRecord.endTime === '24:00' ? '24:00' : tempRecord.endTime) : tempRecord.endTime}
-                                            onChange={(val) => setTempRecord({ ...tempRecord, endTime: val })}
-                                            disabled={isReadOnly}
-                                        />
-                                    </div>
-                                </div>
-                                <div className="mt-3 text-center">
-                                    <span className="text-sm text-gray-500">共计: </span>
-                                    <span className="text-lg font-bold text-gray-900">
-                                        {isReadOnly && tempRecord.endTime === '24:00'
-                                            ? '24小时'
-                                            : formatDuration(calculatedDuration.totalHours, calculatedDuration.minutes)
-                                        }
-                                    </span>
+                        {/* Sticky Bottom Buttons */}
+                        {!isReadOnly && (
+                            <div className="p-6 pt-4 border-t border-gray-200 bg-white shrink-0">
+                                <div className="flex gap-3">
+                                    <button
+                                        onClick={() => setIsModalOpen(false)}
+                                        className="flex-1 bg-gray-100 text-gray-700 font-bold py-3.5 rounded-xl shadow active:scale-[0.98] transition-transform hover:bg-gray-200"
+                                    >
+                                        关闭
+                                    </button>
+                                    <button
+                                        onClick={handleSaveRecord}
+                                        className="flex-1 bg-black text-white font-bold py-3.5 rounded-xl shadow-lg active:scale-[0.98] transition-transform hover:bg-gray-900"
+                                    >
+                                        确认修改
+                                    </button>
                                 </div>
                             </div>
-                        )}
-
-                        {!isReadOnly && (
-                            <button
-                                onClick={handleSaveRecord}
-                                className="w-full bg-black text-white font-bold py-3.5 rounded-xl shadow-lg active:scale-[0.98] transition-transform hover:bg-gray-900"
-                            >
-                                确认修改
-                            </button>
                         )}
                     </div>
                 </div>
@@ -1211,6 +1621,7 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                     </div>
                 </div>
             )}
+
             {/* Share Hint Overlay */}
             {showShareHint && (
                 <div
@@ -1224,6 +1635,22 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                         <div className="text-lg">分享给客户签署</div>
                     </div>
                 </div>
+            )}
+
+            {/* Mobile Time Picker Drawer */}
+            {timePickerDrawer.isOpen && (
+                <MobileTimePicker
+                    value={timePickerDrawer.value}
+                    onChange={(newValue) => {
+                        // Update the temp record with the new time
+                        if (timePickerDrawer.field === 'startTime') {
+                            setTempRecord(prev => ({ ...prev, startTime: newValue }));
+                        } else if (timePickerDrawer.field === 'endTime') {
+                            setTempRecord(prev => ({ ...prev, endTime: newValue }));
+                        }
+                    }}
+                    onClose={() => setTimePickerDrawer({ isOpen: false, field: null, value: '09:00' })}
+                />
             )}
         </div>
     );

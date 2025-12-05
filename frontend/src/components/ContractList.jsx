@@ -83,7 +83,7 @@ const ContractList = () => {
     const rowsPerPage = parseInt(searchParams.get('rowsPerPage') || '10', 10);
     const statusFilter = searchParams.get('status') || 'all';
     const depositStatusFilter = searchParams.get('deposit_status') || '';
-    const sortBy = searchParams.get('sort_by') || 'created_at';
+    const sortBy = searchParams.get('sort_by') || 'updated_at'; // 默认按更新时间排序
     const sortOrder = searchParams.get('sort_order') || 'desc';
     const typeFilter = searchParams.get('type') || (typeFromUrl === 'all' ? '' : typeFromUrl);
     const [terminationDialogOpen, setTerminationDialogOpen] = useState(false);

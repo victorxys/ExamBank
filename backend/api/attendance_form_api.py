@@ -23,64 +23,74 @@ def get_attendance_form_by_token(employee_token):
     """
     根据员工访问令牌获取考勤表
     如果当月考勤表不存在，则自动创建
+    支持 year/month 参数指定月份
     """
     try:
-        # 1. 尝试查找已存在的考勤表
-        form = AttendanceForm.query.filter_by(employee_access_token=employee_token).first()
+        # 1. 先读取 year/month 参数，确定要查询的月份
+        year = request.args.get('year', type=int)
+        month = request.args.get('month', type=int)
         
-        if form:
-            return jsonify(form_to_dict(form))
-            
-        # 2. 如果不存在，尝试根据token查找员工
-        # 假设 token 是 employee_id (在实际生产中应该是加密的或者专门的token字段)
-        # 这里为了简化，我们先假设 token 就是 employee_id 或者我们需要在 ServicePersonnel 中添加 token 字段
-        # 根据之前的分析，我们先尝试用 token 作为 id 查找
+        print(f"[DEBUG] Received year={year}, month={month}")
+        
+        if year and month:
+            # 使用指定的年月
+            from calendar import monthrange
+            last_day = monthrange(year, month)[1]
+            cycle_start = date(year, month, 1)
+            cycle_end = date(year, month, last_day)
+        else:
+            # 默认上个月
+            cycle_start, cycle_end = calculate_last_month_cycle()
+        
+        # 2. 查找员工
         employee = None
         try:
             employee_id = uuid.UUID(employee_token)
             employee = ServicePersonnel.query.get(employee_id)
         except ValueError:
-            # 如果不是UUID，可能是其他格式的token，这里暂时不支持，或者需要查询 ServicePersonnel 的 token 字段
             pass
             
         if not employee:
-             # 尝试在 ServicePersonnel 中查找 (如果添加了 access_token 字段)
-             # employee = ServicePersonnel.query.filter_by(access_token=employee_token).first()
-             return jsonify({"error": "无效的访问令牌"}), 404
+            return jsonify({"error": "无效的访问令牌"}), 404
 
-        # 3. 查找活跃合同 (如果有多个，取开始日期最新的一个)
-        active_contract = BaseContract.query.filter(
+        # 3. 查找合同（优先活跃合同，其次是终止/结束的合同）
+        # 允许终止/结束的合同也能填写考勤（用于下户等场景）
+        contract = BaseContract.query.filter(
             BaseContract.service_personnel_id == employee.id,
             BaseContract.status == 'active'
         ).order_by(BaseContract.start_date.desc()).first()
         
-        if not active_contract:
-            return jsonify({"error": "未找到该员工的活跃合同"}), 404
-            
-        # 4. 确定考勤周期 (默认上个月)
-        cycle_start, cycle_end = calculate_last_month_cycle()
+        # 如果没有活跃合同，尝试查找终止/结束的合同
+        if not contract:
+            contract = BaseContract.query.filter(
+                BaseContract.service_personnel_id == employee.id,
+                BaseContract.status.in_(['terminated', 'completed'])
+            ).order_by(BaseContract.start_date.desc()).first()
         
-        # 检查是否已经存在该周期的表单 (防止重复创建)
+        if not contract:
+            return jsonify({"error": "未找到该员工的合同"}), 404
+        
+        # 4. 检查是否已经存在该员工该周期的表单 (按 employee_id 查询，更可靠)
         existing_form = AttendanceForm.query.filter_by(
-            contract_id=active_contract.id,
+            employee_id=employee.id,
             cycle_start_date=cycle_start
         ).first()
         
         if existing_form:
-            # 如果存在但 token 不匹配(可能是旧 token)，更新 token? 
-            # 或者直接返回现有表单 (需要更新 employee_access_token 吗? 假设 token 是员工维度的，应该是一样的)
-            if existing_form.employee_access_token != employee_token:
-                existing_form.employee_access_token = employee_token
+            # 更新合同 ID（可能合同续签了）
+            if existing_form.contract_id != contract.id:
+                existing_form.contract_id = contract.id
                 db.session.commit()
             return jsonify(form_to_dict(existing_form))
 
-        # 5. 创建新表单
+        # 5. 创建新表单 - 使用唯一的 access_token（加上月份信息）
+        unique_token = f"{employee_token}_{cycle_start.year}_{cycle_start.month:02d}"
         new_form = AttendanceForm(
-            contract_id=active_contract.id,
+            contract_id=contract.id,
             employee_id=employee.id,
             cycle_start_date=cycle_start,
             cycle_end_date=cycle_end,
-            employee_access_token=employee_token,
+            employee_access_token=unique_token,
             form_data={},
             status='draft'
         )
@@ -97,7 +107,16 @@ def get_attendance_form_by_token(employee_token):
 def update_attendance_form(employee_token):
     """更新考勤表数据"""
     try:
-        form = AttendanceForm.query.filter_by(employee_access_token=employee_token).first()
+        data = request.get_json()
+        
+        # 优先使用 form_id 查找（支持多月份场景）
+        form_id = data.get('form_id')
+        if form_id:
+            form = AttendanceForm.query.get(form_id)
+        else:
+            # 兼容旧逻辑：按 token 查找
+            form = AttendanceForm.query.filter_by(employee_access_token=employee_token).first()
+            
         if not form:
             return jsonify({"error": "考勤表不存在"}), 404
             
@@ -105,7 +124,6 @@ def update_attendance_form(employee_token):
         if form.status in ['customer_signed', 'synced']:
             return jsonify({"error": "考勤表已签署，无法修改"}), 400
             
-        data = request.get_json()
         form_data = data.get('form_data')
         
         if form_data:
@@ -200,7 +218,14 @@ def form_to_dict(form):
         "contract_info": {
             "customer_name": form.contract.customer_name if form.contract else "",
             "employee_name": form.contract.service_personnel.name if form.contract and form.contract.service_personnel else "",
-            # 可以添加更多合同信息
+            "start_date": form.contract.start_date.isoformat() if form.contract and form.contract.start_date else None,
+            "end_date": form.contract.end_date.isoformat() if form.contract and form.contract.end_date else None,
+            # 合同状态和类型信息（用于判断最后一个月）
+            "status": form.contract.status if form.contract else None,
+            "type": form.contract.type if form.contract else None,
+            "termination_date": form.contract.termination_date.isoformat() if form.contract and form.contract.termination_date else None,
+            # 是否为自动月签合同（NannyContract 特有字段）
+            "is_monthly_auto_renew": getattr(form.contract, 'is_monthly_auto_renew', False) if form.contract else False,
         }
     }
 

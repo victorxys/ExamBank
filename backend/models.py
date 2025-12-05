@@ -2483,7 +2483,7 @@ class BaseContract(db.Model):
     notes = db.Column(db.Text, comment="通用备注")
     introduction_fee = db.Column(db.Numeric(10, 2), nullable=True, comment="介绍费")
     created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
-    updated_at = db.Column(db.DateTime(timezone=True), onupdate=func.now())
+    updated_at = db.Column(db.DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     start_date = db.Column(db.DateTime(timezone=True), nullable=False, comment="合同开始日期与时间")
     end_date = db.Column(db.DateTime(timezone=True), nullable=False, comment="合同结束日期与时间")

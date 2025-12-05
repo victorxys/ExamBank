@@ -6,8 +6,16 @@ import AttendanceFormModal from './AttendanceFormModal';
 import api from '../../api/axios';
 
 const AttendanceManagementPage = () => {
-    const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-    const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
+    const [selectedYear, setSelectedYear] = useState(() => {
+        const lastMonth = new Date();
+        lastMonth.setMonth(lastMonth.getMonth() - 1);
+        return lastMonth.getFullYear();
+    });
+    const [selectedMonth, setSelectedMonth] = useState(() => {
+        const lastMonth = new Date();
+        lastMonth.setMonth(lastMonth.getMonth() - 1);
+        return lastMonth.getMonth() + 1;
+    });
     const [employees, setEmployees] = useState([]);
     const [loading, setLoading] = useState(false);
     const [selectedEmployee, setSelectedEmployee] = useState(null);
