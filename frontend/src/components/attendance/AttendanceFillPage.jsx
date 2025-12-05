@@ -136,14 +136,40 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
 
-    // Month selection state (default to last month)
+    // Parse token to handle optional year/month suffix (e.g., UUID_2025_11)
+    const { realToken, initialYear, initialMonth } = useMemo(() => {
+        if (!token) return { realToken: '', initialYear: null, initialMonth: null };
+
+        // Check if token matches UUID_YYYY_MM format
+        const parts = token.split('_');
+        if (parts.length === 3 && parts[0].length === 36) {
+            // Assume format is UUID_YYYY_MM
+            return {
+                realToken: parts[0],
+                initialYear: parseInt(parts[1], 10),
+                initialMonth: parseInt(parts[2], 10)
+            };
+        }
+        return { realToken: token, initialYear: null, initialMonth: null };
+    }, [token]);
+
+    // Month selection state (default to token suffix or last month)
     const getLastMonth = () => {
         const now = new Date();
         const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
         return { year: lastMonth.getFullYear(), month: lastMonth.getMonth() + 1 };
     };
-    const [selectedYear, setSelectedYear] = useState(() => getLastMonth().year);
-    const [selectedMonth, setSelectedMonth] = useState(() => getLastMonth().month);
+
+    const [selectedYear, setSelectedYear] = useState(() => initialYear || getLastMonth().year);
+    const [selectedMonth, setSelectedMonth] = useState(() => initialMonth || getLastMonth().month);
+
+    // Update selected year/month if token changes and has suffix
+    useEffect(() => {
+        if (initialYear && initialMonth) {
+            setSelectedYear(initialYear);
+            setSelectedMonth(initialMonth);
+        }
+    }, [initialYear, initialMonth]);
 
     const [formData, setFormData] = useState(null);
     const [attendanceData, setAttendanceData] = useState({
@@ -346,7 +372,7 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
         // Debounce auto-save by 500ms
         autoSaveTimeoutRef.current = setTimeout(async () => {
             try {
-                await api.put(`/attendance-forms/by-token/${token}`, {
+                await api.put(`/attendance-forms/by-token/${realToken}`, {
                     form_id: formData?.id,  // 传递 form_id 确保更新正确的月份
                     form_data: attendanceData
                 });
@@ -414,8 +440,8 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
             setLoading(true);
             // 根据模式选择不同的 API 端点
             let endpoint = isCustomerMode
-                ? `/attendance-forms/sign/${token}`  // 客户签署模式
-                : `/attendance-forms/by-token/${token}`;  // 员工填写模式或管理员查看模式
+                ? `/attendance-forms/sign/${realToken}`  // 客户签署模式
+                : `/attendance-forms/by-token/${realToken}`;  // 员工填写模式或管理员查看模式
 
             // 添加月份参数 (仅员工模式)
             if (!isCustomerMode && year && month) {
@@ -471,6 +497,8 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
             setLoading(false);
         }
     };
+
+    // Debug logs removed
 
     const getDayRecord = (date) => {
         const dateStr = format(date, 'yyyy-MM-dd');
@@ -964,9 +992,15 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                             Object.keys(attendanceData).forEach(key => {
                                 if (key.endsWith('_records') && Array.isArray(attendanceData[key])) {
                                     attendanceData[key].forEach(record => {
+                                        // Fallback for daysOffset
+                                        let daysOffset = record.daysOffset || 0;
+                                        if (daysOffset === 0 && (record.hours || 0) >= 24) {
+                                            daysOffset = Math.floor(record.hours / 24);
+                                        }
+
                                         const startDate = new Date(record.date);
                                         const endDate = new Date(startDate);
-                                        endDate.setDate(startDate.getDate() + (record.daysOffset || 0));
+                                        endDate.setDate(startDate.getDate() + daysOffset);
 
                                         // 检查当前日期是否在记录范围内（包括开始和结束日期）
                                         // 注意：比较日期时要忽略时间
@@ -977,6 +1011,7 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                         if (current >= start && current <= end) {
                                             effectiveRecord = {
                                                 ...record,
+                                                daysOffset: daysOffset, // Ensure effective record has the calculated offset
                                                 typeLabel: ATTENDANCE_TYPES[Object.keys(ATTENDANCE_TYPES).find(k => ATTENDANCE_TYPES[k].value === record.type)]?.label
                                             };
                                         }
@@ -1049,9 +1084,43 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                     {/* Duration (if not normal) */}
                                     {!isDisabled && record.type !== 'normal' && (
                                         <span className="text-[10px] text-gray-500 scale-90">
-                                            {['onboarding', 'offboarding'].includes(record.type)
-                                                ? record.startTime
-                                                : `${record.hours}h`}
+                                            {(() => {
+                                                if (['onboarding', 'offboarding'].includes(record.type)) {
+                                                    return record.startTime;
+                                                }
+
+                                                // Calculate daily hours for multi-day records
+                                                let displayHours = parseFloat(record.hours || 0);
+                                                const startDate = new Date(record.date);
+
+                                                // Check if it's a multi-day record
+                                                if ((record.daysOffset || 0) > 0) {
+                                                    const endDate = new Date(startDate);
+                                                    endDate.setDate(startDate.getDate() + record.daysOffset);
+
+                                                    const currentStr = format(date, 'yyyy-MM-dd');
+                                                    const startStr = format(startDate, 'yyyy-MM-dd');
+                                                    const endStr = format(endDate, 'yyyy-MM-dd');
+
+                                                    if (currentStr === startStr) {
+                                                        // Start day: 24 - start time
+                                                        const [hours, minutes] = (record.startTime || '09:00').split(':').map(Number);
+                                                        const startH = hours + minutes / 60;
+                                                        displayHours = 24 - startH;
+                                                    } else if (currentStr === endStr) {
+                                                        // End day: end time
+                                                        const [hours, minutes] = (record.endTime || '18:00').split(':').map(Number);
+                                                        displayHours = hours + minutes / 60;
+                                                    } else {
+                                                        // Middle days
+                                                        displayHours = 24;
+                                                    }
+                                                }
+
+                                                // Format output
+                                                if (displayHours >= 24) return '24h';
+                                                return Number.isInteger(displayHours) ? `${displayHours}h` : `${displayHours.toFixed(1)}h`;
+                                            })()}
                                         </span>
                                     )}
 
@@ -1098,14 +1167,21 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
 
                                     // 计算结束日期和时间显示字符串
                                     const startDate = new Date(record.date);
+
+                                    // Fallback for daysOffset
+                                    let daysOffset = record.daysOffset || 0;
+                                    if (daysOffset === 0 && (record.hours || 0) >= 24) {
+                                        daysOffset = Math.floor(record.hours / 24);
+                                    }
+
                                     const endDate = new Date(startDate);
-                                    endDate.setDate(startDate.getDate() + (record.daysOffset || 0));
+                                    endDate.setDate(startDate.getDate() + daysOffset);
 
                                     let timeRangeStr = '';
                                     const startTime = record.startTime || '09:00';
                                     const endTime = record.endTime || '18:00';
 
-                                    if ((record.daysOffset || 0) > 0) {
+                                    if (daysOffset > 0) {
                                         // 跨天：显示完整起止时间
                                         timeRangeStr = `${format(startDate, 'M月d日')} ${startTime} ~ ${format(endDate, 'M月d日')} ${endTime}`;
                                     } else {
@@ -1181,7 +1257,7 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                             />
                         </div>
                         <div className="mt-2 text-xs text-center text-gray-500">
-                            签署时间: {formData.customer_signed_at ? format(parseISO(formData.customer_signed_at), 'yyyy-MM-dd HH:mm:ss') : '未知'}
+                            签署时间: {formData.signature_data.signed_at ? format(parseISO(formData.signature_data.signed_at), 'yyyy-MM-dd HH:mm:ss') : '未知'}
                         </div>
                     </div>
                 </div>
@@ -1262,7 +1338,7 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                                     if (!window.confirm("确认提交考勤表并分享给客户？\n\n提交后将跳转到签署页面，请在微信中分享给客户签署。")) return;
                                                     try {
                                                         setSubmitting(true);
-                                                        const response = await api.put(`/attendance-forms/by-token/${token}`, {
+                                                        const response = await api.put(`/attendance-forms/by-token/${realToken}`, {
                                                             form_id: formData?.id,
                                                             form_data: attendanceData,
                                                             action: 'confirm'
@@ -1305,9 +1381,13 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                         )}
                                     </>
                                 ) : (
-                                    <div className="w-full bg-green-50 text-green-700 py-3 rounded-xl text-center font-medium flex items-center justify-center gap-2">
-                                        <CheckCircle2 className="w-5 h-5" />
-                                        {formData.status === 'customer_signed' ? '客户已签署' : '已完成'}
+                                    <div className="flex flex-col gap-4 w-full">
+                                        <div className="w-full bg-green-50 text-green-700 py-3 rounded-xl text-center font-medium flex items-center justify-center gap-2">
+                                            <CheckCircle2 className="w-5 h-5" />
+                                            {formData.status === 'customer_signed' ? '客户已签署' : '已完成'}
+                                        </div>
+
+
                                     </div>
                                 )}
                             </div>
