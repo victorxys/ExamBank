@@ -357,7 +357,8 @@ class ContractService:
         if requires_signature is False:
             formal_contract_fields["requires_signature"] = False
             formal_contract_fields["signing_status"] = SigningStatus.NOT_REQUIRED
-            current_app.logger.info(f"合同创建：无需签署，signing_status 设置为 NOT_REQUIRED")
+            formal_contract_fields["status"] = "active"  # 无需签署则直接激活
+            current_app.logger.info(f"合同创建：无需签署，signing_status 设置为 NOT_REQUIRED，状态设置为 active")
         else:
             # True or None (未指定) 都默认为需要签署
             formal_contract_fields["requires_signature"] = requires_signature
@@ -408,9 +409,11 @@ class ContractService:
             requires_signature = new_contract_data.get("requires_signature")
             if requires_signature is False:
                 signing_status = SigningStatus.NOT_REQUIRED
-                current_app.logger.info(f"续约合同：无需签署，signing_status 设置为 NOT_REQUIRED")
+                contract_status = "active"  # 无需签署则直接激活
+                current_app.logger.info(f"续约合同：无需签署，signing_status 设置为 NOT_REQUIRED，状态设置为 active")
             else:
                 signing_status = SigningStatus.UNSIGNED
+                contract_status = "pending"
                 
             new_contract_fields = {
                 "customer_id": old_contract.customer_id,
@@ -420,7 +423,9 @@ class ContractService:
                 "employee_level": new_employee_level,
                 "management_fee_amount": final_management_fee_amount,
                 "management_fee_rate": final_management_fee_rate,
-                "status": "pending",
+                "management_fee_amount": final_management_fee_amount,
+                "management_fee_rate": final_management_fee_rate,
+                "status": contract_status,
                 "customer_name": old_contract.customer_name,
                 "customer_name_pinyin": old_contract.customer_name_pinyin,
                 "previous_contract_id": old_contract.id,
@@ -485,9 +490,22 @@ class ContractService:
                 last_bill = CustomerBill.query.filter_by(contract_id=old_contract.id ).order_by(CustomerBill.cycle_end_date.desc()).first()
                 if last_bill:
                     self._delete_non_transferable_adjustments(old_contract, last_bill)
+                    
+                    # 步骤2: 为新合同生成第一个账单（确保目标账单存在）
+                    # 计算第一个账单周期的正确结束日期（当月最后一天）
+                    start_date = renewed_contract.start_date
+                    _, last_day_of_month = calendar.monthrange(start_date.year, start_date.month)
+                    first_cycle_end_date = date(start_date.year, start_date.month, last_day_of_month)
+
                     engine = BillingEngine()
-                    engine.generate_all_bills_for_contract(renewed_contract.id, force_recalculate=True)
-                    db.session.flush() # 确保新账单已写入会话
+                    engine._get_or_create_bill_and_payroll(
+                        renewed_contract,
+                        start_date.year,
+                        start_date.month,
+                        start_date,
+                        first_cycle_end_date # 使用正确的周期结束日期
+                    )
+                    db.session.flush()
 
                     merge_service = BillMergeService()
                     merge_service.execute_merge(str(last_bill.id), str(renewed_contract.id), commit=False)

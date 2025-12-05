@@ -18,6 +18,53 @@ def calculate_last_month_cycle():
     last_month_end = today.replace(day=1) - relativedelta(days=1)
     return last_month_start, last_month_end
 
+def find_consecutive_contracts(employee_id, cycle_start, cycle_end):
+    """
+    查找指定周期内，同一员工同一客户的连续合同链
+    返回: (primary_contract, effective_start_date, effective_end_date)
+    primary_contract: 用于关联考勤表的合同（通常是最新的那个）
+    """
+    # 1. 查找该员工在周期内所有活跃或已终止/完成的合同
+    # 只要合同时间段与考勤周期有交集即可
+    contracts = BaseContract.query.filter(
+        BaseContract.service_personnel_id == employee_id,
+        BaseContract.status.in_(['active', 'terminated', 'completed']),
+        BaseContract.start_date <= cycle_end,
+        BaseContract.end_date >= cycle_start
+    ).order_by(BaseContract.start_date.desc()).all()
+
+    if not contracts:
+        return None, None, None
+
+    # 2. 找到最新的合同作为"主合同" (primary_contract)
+    # 优先选 active 的，如果没有 active 则选最近的一个
+    primary_contract = next((c for c in contracts if c.status == 'active'), contracts[0])
+    
+    # 3. 找到与主合同属于同一客户的所有合同
+    if primary_contract.customer_id:
+        customer_contracts = [
+            c for c in contracts 
+            if c.customer_id == primary_contract.customer_id
+        ]
+    else:
+        customer_contracts = [
+            c for c in contracts 
+            if c.customer_name == primary_contract.customer_name 
+        ]
+
+    # 4. 计算有效日期范围 (合并这些合同的时间段)
+    # 取最早的开始时间和最晚的结束时间
+    # 注意：这里我们假设同一客户的合同是连续的，或者即使有间断也允许在同一个表里填
+    effective_start = min(c.start_date for c in customer_contracts)
+    effective_end = max(c.end_date for c in customer_contracts)
+
+    # 如果是自动月签合同，且有终止日期，使用终止日期作为结束边界
+    # (针对 primary_contract 判断，或者检查链中是否有 terminated 的)
+    # 逻辑：如果链中包含已终止的合同，且该合同是自动月签，我们需要确保 effective_end 不会误导前端
+    # 但通常 max(end_date) 已经足够，因为 terminated 合同的 end_date 应该是终止日期
+    
+    return primary_contract, effective_start, effective_end
+
 @attendance_form_bp.route('/by-token/<employee_token>', methods=['GET'])
 def get_attendance_form_by_token(employee_token):
     """
@@ -53,19 +100,8 @@ def get_attendance_form_by_token(employee_token):
         if not employee:
             return jsonify({"error": "无效的访问令牌"}), 404
 
-        # 3. 查找合同（优先活跃合同，其次是终止/结束的合同）
-        # 允许终止/结束的合同也能填写考勤（用于下户等场景）
-        contract = BaseContract.query.filter(
-            BaseContract.service_personnel_id == employee.id,
-            BaseContract.status == 'active'
-        ).order_by(BaseContract.start_date.desc()).first()
-        
-        # 如果没有活跃合同，尝试查找终止/结束的合同
-        if not contract:
-            contract = BaseContract.query.filter(
-                BaseContract.service_personnel_id == employee.id,
-                BaseContract.status.in_(['terminated', 'completed'])
-            ).order_by(BaseContract.start_date.desc()).first()
+        # 3. 查找合同 (支持连续合同合并)
+        contract, effective_start, effective_end = find_consecutive_contracts(employee.id, cycle_start, cycle_end)
         
         if not contract:
             return jsonify({"error": "未找到该员工的合同"}), 404
@@ -77,11 +113,11 @@ def get_attendance_form_by_token(employee_token):
         ).first()
         
         if existing_form:
-            # 更新合同 ID（可能合同续签了）
+            # 更新合同 ID（可能合同续签了，或者变成了新合同）
             if existing_form.contract_id != contract.id:
                 existing_form.contract_id = contract.id
                 db.session.commit()
-            return jsonify(form_to_dict(existing_form))
+            return jsonify(form_to_dict(existing_form, effective_start, effective_end))
 
         # 5. 创建新表单 - 使用唯一的 access_token（加上月份信息）
         unique_token = f"{employee_token}_{cycle_start.year}_{cycle_start.month:02d}"
@@ -97,7 +133,7 @@ def get_attendance_form_by_token(employee_token):
         db.session.add(new_form)
         db.session.commit()
         
-        return jsonify(form_to_dict(new_form))
+        return jsonify(form_to_dict(new_form, effective_start, effective_end))
 
     except Exception as e:
         current_app.logger.error(f"获取考勤表失败: {e}", exc_info=True)
@@ -140,7 +176,15 @@ def update_attendance_form(employee_token):
         # 这样员工可以在客户签署前继续修改
                 
         db.session.commit()
-        return jsonify(form_to_dict(form))
+        
+        # 重新计算有效日期范围，以保持前端 contractInfo 正确
+        # 注意：这里 cycle_start_date 是 datetime，需要转 date
+        cycle_start = form.cycle_start_date.date() if isinstance(form.cycle_start_date, datetime) else form.cycle_start_date
+        cycle_end = form.cycle_end_date.date() if isinstance(form.cycle_end_date, datetime) else form.cycle_end_date
+        
+        _, effective_start, effective_end = find_consecutive_contracts(form.employee_id, cycle_start, cycle_end)
+        
+        return jsonify(form_to_dict(form, effective_start, effective_end))
         
     except Exception as e:
         current_app.logger.error(f"更新考勤表失败: {e}", exc_info=True)
@@ -154,7 +198,12 @@ def get_sign_page_data(signature_token):
         if not form:
             return jsonify({"error": "无效的签署链接"}), 404
             
-        return jsonify(form_to_dict(form))
+        # 同样需要计算有效日期范围
+        cycle_start = form.cycle_start_date.date() if isinstance(form.cycle_start_date, datetime) else form.cycle_start_date
+        cycle_end = form.cycle_end_date.date() if isinstance(form.cycle_end_date, datetime) else form.cycle_end_date
+        _, effective_start, effective_end = find_consecutive_contracts(form.employee_id, cycle_start, cycle_end)
+
+        return jsonify(form_to_dict(form, effective_start, effective_end))
     except Exception as e:
         current_app.logger.error(f"获取签署页面失败: {e}", exc_info=True)
         return jsonify({"error": "服务器内部错误"}), 500
@@ -194,7 +243,7 @@ def submit_customer_signature(signature_token):
         current_app.logger.error(f"提交签名失败: {e}", exc_info=True)
         return jsonify({"error": "服务器内部错误"}), 500
 
-def form_to_dict(form):
+def form_to_dict(form, effective_start_date=None, effective_end_date=None):
     # 生成客户签署链接
     client_sign_url = None
     if form.customer_signature_token:
@@ -202,6 +251,12 @@ def form_to_dict(form):
         frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:5175')
         client_sign_url = f"{frontend_url}/attendance-sign/{form.customer_signature_token}"
     
+    # 确定合同显示的起止日期
+    # 如果传入了 effective_start_date (合并后的开始日期)，则使用它
+    # 否则回退到合同本身的 start_date
+    display_start_date = effective_start_date if effective_start_date else (form.contract.start_date if form.contract else None)
+    display_end_date = effective_end_date if effective_end_date else (form.contract.end_date if form.contract else None)
+
     return {
         "id": str(form.id),
         "contract_id": str(form.contract_id),
@@ -218,8 +273,8 @@ def form_to_dict(form):
         "contract_info": {
             "customer_name": form.contract.customer_name if form.contract else "",
             "employee_name": form.contract.service_personnel.name if form.contract and form.contract.service_personnel else "",
-            "start_date": form.contract.start_date.isoformat() if form.contract and form.contract.start_date else None,
-            "end_date": form.contract.end_date.isoformat() if form.contract and form.contract.end_date else None,
+            "start_date": display_start_date.isoformat() if display_start_date else None,
+            "end_date": display_end_date.isoformat() if display_end_date else None,
             # 合同状态和类型信息（用于判断最后一个月）
             "status": form.contract.status if form.contract else None,
             "type": form.contract.type if form.contract else None,

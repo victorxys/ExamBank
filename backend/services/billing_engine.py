@@ -684,8 +684,8 @@ class BillingEngine:
                 self.create_final_salary_adjustments(bill.id)
         
         # 提交所有更改到数据库
-        db.session.commit()
-        current_app.logger.info(f"[NannyCALC] 账单数据已提交到数据库")
+        # db.session.commit()  <-- REMOVED: Let caller handle commit
+        current_app.logger.info(f"[NannyCALC] 账单数据已计算完成 (等待提交)")
 
     def _get_nanny_cycle_for_month(self, contract, year, month, end_date_override=None):
         """计算指定育儿嫂合同在目标年月的服务周期。"""
