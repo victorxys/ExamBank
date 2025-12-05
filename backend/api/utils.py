@@ -394,7 +394,12 @@ def get_billing_details_internal(
         "payment_records": [p.to_dict() for p in customer_bill.payment_records],
         "payout_records": [p.to_dict() for p in employee_payroll.payout_records] if employee_payroll else [],
         "attendance": {
-            "overtime_days": float(overtime_days) if overtime_days is not None else 0
+            "overtime_days": float(overtime_days) if overtime_days is not None else 0,
+            "out_of_beijing_days": float(attendance_record.out_of_beijing_days or 0) if attendance_record else 0,
+            "out_of_country_days": float(attendance_record.out_of_country_days or 0) if attendance_record else 0,
+            "leave_days": float((attendance_record.attendance_details or {}).get("leave_days", 0)) if attendance_record else 0,
+            "paid_leave_days": float((attendance_record.attendance_details or {}).get("paid_leave_days", 0)) if attendance_record else 0,
+            "rest_days": float((attendance_record.attendance_details or {}).get("rest_days", 0)) if attendance_record else 0,
         },
         "invoice_details": {
             "number": (customer_bill.payment_details or {}).get("invoice_number", ""),

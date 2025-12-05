@@ -12,7 +12,7 @@ import {
   People as PeopleIcon, Menu as MenuIcon, ChevronLeft as ChevronLeftIcon,
   ChevronRight as ChevronRightIcon, Settings as SettingsIcon, Api as ApiIcon, AccountBalanceWallet as AccountBalanceWalletIcon,
   Description as DescriptionIcon, History as HistoryIcon, ExpandLess, ExpandMore, Warning as WarningIcon,
-  Payment as PaymentIcon, Payments as PaymentsIcon
+  Payment as PaymentIcon, Payments as PaymentsIcon, CalendarMonth as CalendarIcon
 } from '@mui/icons-material';
 import logo from '../assets/logo.svg';
 import UserInfo from './UserInfo';
@@ -28,7 +28,7 @@ export const allMenuItems = [
   {
     text: '合同与账单',
     icon: <DashboardIcon />,
-    path: '/billing-management', 
+    path: '/billing-management',
     adminOnly: true,
     subItems: [
       {
@@ -65,6 +65,7 @@ export const allMenuItems = [
   { text: '考试记录', icon: <AssignmentTurnedInIcon />, path: '/exam-records', adminOnly: false },
   { text: '用户管理', icon: <PeopleIcon />, path: '/users', adminOnly: true },
   { text: '员工管理', icon: <PeopleIcon />, path: '/staff-management', adminOnly: true },
+  { text: '考勤管理', icon: <CalendarIcon />, path: '/attendance-management', adminOnly: true },
   { text: '员工自评列表', icon: <AssignmentTurnedInIcon />, path: '/employee-self-evaluations', adminOnly: true },
   { text: '动态表单', icon: <DescriptionIcon />, path: '/forms', adminOnly: true },
   { text: '评价体系管理', icon: <AssignmentIcon />, path: '/evaluation-management', adminOnly: true },
@@ -146,19 +147,19 @@ function Sidebar({ isCollapsed, setIsCollapsed }) {
     // 【新增逻辑开始】
     // 如果我们正在展开“合同与账单”...
     if (path === '/billing-management' && isOpening) {
-        // ...那么就一次性地把它自己和它的子菜单“合同管理”都设置为展开
-        setOpenMenus(prev => ({
-            ...prev,
-            '/billing-management': true, // 展开“合同与账单”
-            '/contracts': true,          // 同时展开“合同管理”
-        }));
+      // ...那么就一次性地把它自己和它的子菜单“合同管理”都设置为展开
+      setOpenMenus(prev => ({
+        ...prev,
+        '/billing-management': true, // 展开“合同与账单”
+        '/contracts': true,          // 同时展开“合同管理”
+      }));
     }
     // 【新增逻辑结束】
     else {
-        // 对于所有其他菜单项，保持原来的逻辑不变
-        setOpenMenus(prev => ({ ...prev, [path]: !prev[path] }));
+      // 对于所有其他菜单项，保持原来的逻辑不变
+      setOpenMenus(prev => ({ ...prev, [path]: !prev[path] }));
     }
-};
+  };
 
   const renderMenuItemsRecursive = (items, level = 0) => {
     const year = yearParam || new Date().getFullYear();
@@ -169,7 +170,7 @@ function Sidebar({ isCollapsed, setIsCollapsed }) {
       .map((item) => {
         let finalPath = item.path;
         if (item.isFinancial) {
-            finalPath = `${item.path}/${year}/${month}`;
+          finalPath = `${item.path}/${year}/${month}`;
         }
 
         // const isSelected = !item.subItems && location.pathname.startsWith(item.path);
@@ -233,9 +234,9 @@ function Sidebar({ isCollapsed, setIsCollapsed }) {
 
   const drawerContent = (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-       <Box sx={{ p: 2, display: 'flex', justifyContent: 'center' }}>
-         <img src={logo} alt="Logo" style={{ width: isCollapsed ? '40px' : '120px', transition: 'width 0.3s ease' }} />
-       </Box>
+      <Box sx={{ p: 2, display: 'flex', justifyContent: 'center' }}>
+        <img src={logo} alt="Logo" style={{ width: isCollapsed ? '40px' : '120px', transition: 'width 0.3s ease' }} />
+      </Box>
       {!isCollapsed && <UserInfo sx={{ mt: 0, mb: 1 }} />}
       <List sx={{ flexGrow: 1, overflowY: 'auto', p: isCollapsed && !isMobile ? 0.5 : 1 }}>
         {renderMenuItemsRecursive(menuItemsToRender)}
@@ -253,13 +254,13 @@ function Sidebar({ isCollapsed, setIsCollapsed }) {
   return (
     <>
       {isMobile && (
-         <AppBar position="fixed" sx={{ top: 'auto', bottom: 0, backgroundColor: 'white' }}>
-           <Toolbar sx={{ justifyContent: 'center' }}>
-             <IconButton color="primary" aria-label="open drawer" onClick={handleDrawerToggle}>
-               <MenuIcon />
-             </IconButton>
-           </Toolbar>
-         </AppBar>
+        <AppBar position="fixed" sx={{ top: 'auto', bottom: 0, backgroundColor: 'white' }}>
+          <Toolbar sx={{ justifyContent: 'center' }}>
+            <IconButton color="primary" aria-label="open drawer" onClick={handleDrawerToggle}>
+              <MenuIcon />
+            </IconButton>
+          </Toolbar>
+        </AppBar>
       )}
       <Drawer
         variant={isMobile ? "temporary" : "permanent"}

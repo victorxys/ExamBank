@@ -25,6 +25,9 @@ import api from '../api';
 import PageHeader from './PageHeader';
 import AlertMessage from './AlertMessage';
 import { formatRelativeTime } from '../api/dateUtils';
+import AttendanceFormModal from './attendance/AttendanceFormModal';
+import { CalendarMonth as CalendarIcon } from '@mui/icons-material';
+import { Button } from '@mui/material';
 
 const StaffManagementPage = () => {
   const theme = useTheme();
@@ -44,6 +47,10 @@ const StaffManagementPage = () => {
   const [total, setTotal] = useState(0);
   const [sortBy, setSortBy] = useState('created_at');
   const [sortOrder, setSortOrder] = useState('desc');
+
+  // Attendance Modal State
+  const [isAttendanceModalOpen, setIsAttendanceModalOpen] = useState(false);
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState(null);
 
   const fetchEmployees = useCallback(async () => {
     setLoading(true);
@@ -146,6 +153,7 @@ const StaffManagementPage = () => {
                       <TableCell>手机号</TableCell>
                       <TableCell onClick={() => handleSort('is_active')} sx={{ cursor: 'pointer' }}>状态</TableCell>
                       <TableCell onClick={() => handleSort('created_at')} sx={{ cursor: 'pointer' }}>创建时间</TableCell>
+                      <TableCell>操作</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -174,6 +182,19 @@ const StaffManagementPage = () => {
                             </Typography>
                           </TableCell>
                           <TableCell>{formatRelativeTime(employee.created_at)}</TableCell>
+                          <TableCell onClick={(e) => e.stopPropagation()}>
+                            <Button
+                              size="small"
+                              startIcon={<CalendarIcon />}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedEmployeeId(employee.id);
+                                setIsAttendanceModalOpen(true);
+                              }}
+                            >
+                              考勤
+                            </Button>
+                          </TableCell>
                         </TableRow>
                       ))
                     ) : (
@@ -199,6 +220,13 @@ const StaffManagementPage = () => {
           </TableContainer>
         </CardContent>
       </Card>
+
+      <AttendanceFormModal
+        isOpen={isAttendanceModalOpen}
+        onClose={() => setIsAttendanceModalOpen(false)}
+        employeeId={selectedEmployeeId}
+        initialToken={selectedEmployeeId}
+      />
     </Box>
   );
 };

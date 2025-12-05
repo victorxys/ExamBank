@@ -308,16 +308,16 @@ function StaffDetailPage() {
                     <InfoItem label="加入公司时间" value={entryData.join_date} icon={<EventIcon fontSize="small" />} />
                   </Grid>
                   <Grid item xs={6} sm={3}>
-                    <InfoItem label="生肖" value={entryData.zodiac} icon={<Box component="span" sx={{ fontSize: '1.2rem' }}>🐰</Box>} />
+                    <InfoItem label="生肖" value={entryData.zodiac} />
                   </Grid>
                   <Grid item xs={6} sm={3}>
-                    <InfoItem label="学历" value={entryData.education} icon={<SchoolIcon fontSize="small" />} />
+                    <InfoItem label="学历" value={entryData.education} />
                   </Grid>
                   <Grid item xs={6} sm={3}>
-                    <InfoItem label="身高" value={entryData.height ? `${entryData.height}cm` : null} icon={<HeightIcon fontSize="small" />} />
+                    <InfoItem label="身高" value={entryData.height ? `${entryData.height}cm` : null} />
                   </Grid>
                   <Grid item xs={6} sm={3}>
-                    <InfoItem label="体重" value={entryData.weight ? `${entryData.weight}kg` : null} icon={<WeightIcon fontSize="small" />} />
+                    <InfoItem label="体重" value={entryData.weight ? `${entryData.weight}kg` : null} />
                   </Grid>
                 </Grid>
 

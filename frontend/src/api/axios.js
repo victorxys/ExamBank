@@ -3,9 +3,11 @@ import axios from 'axios';
 import { API_BASE_URL } from '../config';
 import { getToken, getRefreshToken, saveToken, clearTokens, shouldRefreshToken } from './auth-utils';
 
-// const baseURL = API_BASE_URL || 'http://localhost:5000/api';
-const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-
+// 在开发环境中使用相对路径，让请求通过 Vite proxy
+// 在生产环境中使用完整的 API URL
+const baseURL = import.meta.env.PROD
+  ? (import.meta.env.VITE_API_URL || 'http://localhost:5000/api')
+  : '/api';  // 开发环境使用相对路径，通过 Vite proxy 转发
 
 const api = axios.create({
   baseURL: baseURL,
@@ -32,7 +34,9 @@ api.interceptors.request.use(
       config.url.includes('/sign') ||
       config.url.includes('/employee-self-evaluation') ||
       config.url.includes('/dynamic_forms') ||
-      config.url.includes('/form-data/submit');
+      config.url.includes('/form-data/submit') ||
+      config.url.includes('/attendance-forms/by-token/') ||  // 考勤表填写页面免登录
+      config.url.includes('/attendance-forms/sign/');  // 考勤表签署页面免登录
     const token = getToken();
 
     if (!isPublicRoute && !token) {

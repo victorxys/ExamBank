@@ -188,14 +188,15 @@ def get_form_data_by_id(data_id):
     return jsonify(response_data), 200
 
 @dynamic_form_data_bp.route('/submit/<uuid:form_id>', methods=['POST'])
-@jwt_required()
+@jwt_required(optional=True)
 def submit_form_data(form_id):
     """
     提交新的表单数据。如果表单是考试类型，则自动评分。
+    支持匿名提交。
     """
     current_user = get_current_user()
-    if not current_user:
-        return jsonify({'message': 'Unauthorized'}), 401
+    # if not current_user:
+    #     return jsonify({'message': 'Unauthorized'}), 401
 
     form_data_json = request.get_json()
     if not form_data_json or 'data' not in form_data_json:
@@ -220,7 +221,7 @@ def submit_form_data(form_id):
     try:
         new_form_data = DynamicFormData(
             form_id=form_id,
-            user_id=current_user.id,
+            user_id=current_user.id if current_user else None,
             data=form_data_content,
             score=score,
             result_details=result_details

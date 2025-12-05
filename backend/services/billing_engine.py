@@ -682,6 +682,10 @@ class BillingEngine:
             if not final_adj_exists:
                 current_app.logger.info(f"[NannyCALC] 合同 {contract.id} 为自然到期，触发最终结算调整。")
                 self.create_final_salary_adjustments(bill.id)
+        
+        # 提交所有更改到数据库
+        db.session.commit()
+        current_app.logger.info(f"[NannyCALC] 账单数据已提交到数据库")
 
     def _get_nanny_cycle_for_month(self, contract, year, month, end_date_override=None):
         """计算指定育儿嫂合同在目标年月的服务周期。"""
@@ -818,23 +822,13 @@ class BillingEngine:
 
         attendance = self._get_or_create_attendance(contract, cycle_start, cycle_end)
         overtime_days = D(attendance.overtime_days)
+        current_app.logger.info(f"[OVERTIME_DEBUG] AttendanceRecord ID: {attendance.id}, overtime_days from DB: {attendance.overtime_days}, converted to Decimal: {overtime_days}")
 
         # 在这里处理保证金，然后再获取调整项
         self._handle_security_deposit(contract, bill)
         self._handle_introduction_fee(contract, bill)
         db.session.flush()
-        cust_increase, cust_decrease, emp_increase, emp_decrease, deferred_fee,emp_commission, emp_balance_transfer = (
-            self._get_adjustments(bill.id, payroll.id)
-        )
-        cust_discount = D(
-            db.session.query(func.sum(FinancialAdjustment.amount))
-            .filter(
-                FinancialAdjustment.customer_bill_id == bill.id,
-                FinancialAdjustment.adjustment_type == AdjustmentType.CUSTOMER_DISCOUNT,
-            )
-            .scalar()
-            or 0
-        )
+        # 注意：调整项的获取移到了创建出京/出境费用调整项之后
 
         total_substitute_days = 0
         substitute_deduction_from_sub_records = D(0)
@@ -914,6 +908,7 @@ class BillingEngine:
         # total_days_worked = base_work_days + overtime_days - D(total_substitute_days)
         # 移除替班天数
         total_days_worked = base_work_days + overtime_days
+        current_app.logger.info(f"[OVERTIME_DEBUG] base_work_days: {base_work_days}, overtime_days: {overtime_days}, total_days_worked: {total_days_worked}")
 
         # 育儿嫂普通合同日薪定义
         customer_daily_rate = level / D(26)
@@ -931,6 +926,126 @@ class BillingEngine:
         )
         employee_overtime_payout = (employee_daily_rate * overtime_days).quantize(
             QUANTIZER
+        )
+        current_app.logger.info(f"[OVERTIME_DEBUG] customer_daily_rate: {customer_daily_rate}, employee_daily_rate: {employee_daily_rate}")
+        current_app.logger.info(f"[OVERTIME_DEBUG] customer_overtime_fee: {customer_overtime_fee}, employee_overtime_payout: {employee_overtime_payout}")
+        
+        # 出京/出境费用 - 通过财务调整项方式体现
+        # 业务规则:
+        # - 出京: 客户额外支付10%, 公司收取10%管理费
+        # - 出境: 客户额外支付20%, 公司收取20%管理费
+        out_of_beijing_days = D(attendance.out_of_beijing_days or 0)
+        out_of_country_days = D(attendance.out_of_country_days or 0)
+        
+        # 计算日费率
+        daily_rate = level / D(26)
+        beijing_daily_customer_fee = (level * D("0.1") / D(26)).quantize(QUANTIZER)
+        beijing_daily_management_fee = (level * D("0.1") / D(26)).quantize(QUANTIZER)
+        country_daily_customer_fee = (level * D("0.2") / D(26)).quantize(QUANTIZER)
+        country_daily_management_fee = (level * D("0.2") / D(26)).quantize(QUANTIZER)
+        
+        current_app.logger.info(f"[LOCATION_FEE_DEBUG] out_of_beijing_days: {out_of_beijing_days}, out_of_country_days: {out_of_country_days}")
+        
+        # 创建出京费用调整项
+        if out_of_beijing_days > 0:
+            # 计算总费用
+            beijing_customer_total = (beijing_daily_customer_fee * out_of_beijing_days).quantize(QUANTIZER)
+            beijing_management_total = (beijing_daily_management_fee * out_of_beijing_days).quantize(QUANTIZER)
+            
+            # 员工额外工资调整项
+            beijing_employee_adj_desc = f"[系统] 出京额外工资: 日工资({beijing_daily_customer_fee:.2f}元/天) × 出京天数({out_of_beijing_days:.3f}天) = {beijing_customer_total:.2f}元"
+            existing_beijing_employee = db.session.query(FinancialAdjustment).filter_by(
+                employee_payroll_id=payroll.id,
+                description=beijing_employee_adj_desc
+            ).first()
+            
+            if not existing_beijing_employee:
+                db.session.add(FinancialAdjustment(
+                    employee_payroll_id=payroll.id,
+                    adjustment_type=AdjustmentType.EMPLOYEE_INCREASE,
+                    amount=beijing_customer_total,
+                    description=beijing_employee_adj_desc,
+                    date=bill.cycle_start_date
+                ))
+                current_app.logger.info(f"[LOCATION_FEE] 创建出京员工工资调整项: {beijing_customer_total:.2f}元")
+            
+            # 客户管理费调整项
+            beijing_customer_adj_desc = f"[系统] 出京管理费: 日管理费({beijing_daily_management_fee:.2f}元/天) × 出京天数({out_of_beijing_days:.3f}天) = {beijing_management_total:.2f}元"
+            existing_beijing_customer = db.session.query(FinancialAdjustment).filter_by(
+                customer_bill_id=bill.id,
+                description=beijing_customer_adj_desc
+            ).first()
+            
+            if not existing_beijing_customer:
+                db.session.add(FinancialAdjustment(
+                    customer_bill_id=bill.id,
+                    adjustment_type=AdjustmentType.CUSTOMER_INCREASE,
+                    amount=beijing_management_total,
+                    description=beijing_customer_adj_desc,
+                    date=bill.cycle_start_date
+                ))
+                current_app.logger.info(f"[LOCATION_FEE] 创建出京管理费调整项: {beijing_management_total:.2f}元")
+            
+            log_extras["out_of_beijing_fee_info"] = f"出京{out_of_beijing_days:.3f}天: 员工+{beijing_customer_total:.2f}元, 管理费+{beijing_management_total:.2f}元"
+        
+        # 创建出境费用调整项
+        if out_of_country_days > 0:
+            # 计算总费用
+            country_customer_total = (country_daily_customer_fee * out_of_country_days).quantize(QUANTIZER)
+            country_management_total = (country_daily_management_fee * out_of_country_days).quantize(QUANTIZER)
+            
+            # 员工额外工资调整项
+            country_employee_adj_desc = f"[系统] 出境额外工资: 日工资({country_daily_customer_fee:.2f}元/天) × 出境天数({out_of_country_days:.3f}天) = {country_customer_total:.2f}元"
+            existing_country_employee = db.session.query(FinancialAdjustment).filter_by(
+                employee_payroll_id=payroll.id,
+                description=country_employee_adj_desc
+            ).first()
+            
+            if not existing_country_employee:
+                db.session.add(FinancialAdjustment(
+                    employee_payroll_id=payroll.id,
+                    adjustment_type=AdjustmentType.EMPLOYEE_INCREASE,
+                    amount=country_customer_total,
+                    description=country_employee_adj_desc,
+                    date=bill.cycle_start_date
+                ))
+                current_app.logger.info(f"[LOCATION_FEE] 创建出境员工工资调整项: {country_customer_total:.2f}元")
+            
+            # 客户管理费调整项
+            country_customer_adj_desc = f"[系统] 出境管理费: 日管理费({country_daily_management_fee:.2f}元/天) × 出境天数({out_of_country_days:.3f}天) = {country_management_total:.2f}元"
+            existing_country_customer = db.session.query(FinancialAdjustment).filter_by(
+                customer_bill_id=bill.id,
+                description=country_customer_adj_desc
+            ).first()
+            
+            if not existing_country_customer:
+                db.session.add(FinancialAdjustment(
+                    customer_bill_id=bill.id,
+                    adjustment_type=AdjustmentType.CUSTOMER_INCREASE,
+                    amount=country_management_total,
+                    description=country_customer_adj_desc,
+                    date=bill.cycle_start_date
+                ))
+                current_app.logger.info(f"[LOCATION_FEE] 创建出境管理费调整项: {country_management_total:.2f}元")
+            
+            log_extras["out_of_country_fee_info"] = f"出境{out_of_country_days:.3f}天: 员工+{country_customer_total:.2f}元, 管理费+{country_management_total:.2f}元"
+        
+        # 提交调整项
+        db.session.flush()
+        
+        # 重新获取调整项，确保包含刚创建的出京/出境费用调整项
+        current_app.logger.info(f"[LOCATION_FEE] 重新获取调整项以包含出京/出境费用")
+        cust_increase, cust_decrease, emp_increase, emp_decrease, deferred_fee, emp_commission, emp_balance_transfer = (
+            self._get_adjustments(bill.id, payroll.id)
+        )
+        cust_discount = D(
+            db.session.query(func.sum(FinancialAdjustment.amount))
+            .filter(
+                FinancialAdjustment.customer_bill_id == bill.id,
+                FinancialAdjustment.adjustment_type == AdjustmentType.CUSTOMER_DISCOUNT,
+            )
+            .scalar()
+            or 0
         )
 
         # 管理费计算
@@ -1199,6 +1314,8 @@ class BillingEngine:
             "cycle_end_datetime": original_cycle_end_datetime.isoformat(),     # New field for precise datetime
             "base_work_days": f"{base_work_days:.3f}",
             "overtime_days":  f"{overtime_days:.3f}",
+            "out_of_beijing_days": f"{out_of_beijing_days:.3f}",  # 新增
+            "out_of_country_days": f"{out_of_country_days:.3f}",  # 新增
             "total_days_worked": str(total_days_worked),
             # "substitute_days": str(total_substitute_days),
             "substitute_days": "0",
@@ -1226,6 +1343,9 @@ class BillingEngine:
             # "substitute_deduction_logs": substitute_deduction_logs,
         }
         current_app.logger.info(f"--- [DEBUG-EXT] Keys in details dict before returning: {list(details_to_return.keys())} ---")
+        current_app.logger.info(f"[DETAILS_DEBUG] customer_overtime_fee in details_to_return: {details_to_return.get('customer_overtime_fee')}")
+        current_app.logger.info(f"[DETAILS_DEBUG] employee_overtime_payout in details_to_return: {details_to_return.get('employee_overtime_payout')}")
+        current_app.logger.info(f"[DETAILS_DEBUG] overtime_days in details_to_return: {details_to_return.get('overtime_days')}")
         return details_to_return
 
     def _calculate_maternity_nurse_bill_for_month(
@@ -2234,7 +2354,7 @@ class BillingEngine:
         total_due = (
             D(details.get("management_fee", 0))
             + D(details.get("introduction_fee", 0))
-            + D(details.get("customer_increase", 0))
+            + D(details.get("customer_increase", 0))  # 出京/出境管理费通过调整项自动包含在这里
             + D(details.get("deferred_fee", "0.00"))
             + D(details.get("extension_fee_reason", "0.00"))
             + total_paid_salary_adjustments  # 减去所有代付的工资
@@ -2247,7 +2367,7 @@ class BillingEngine:
             D(details.get("employee_base_payout", 0))
             + D(details.get("employee_overtime_payout", 0))
             + D(details.get("extension_fee", 0))
-            + D(details.get("employee_increase", 0))
+            + D(details.get("employee_increase", 0))  # 出京/出境额外工资通过调整项自动包含在这里
             # - D(details.get("substitute_deduction", 0))
             - D(details.get("employee_decrease", 0))
             - D(details.get("employee_balance_transfer", 0)) # 减去余额转移
@@ -2428,6 +2548,10 @@ class BillingEngine:
         current_app.logger.info(f"--- [DEBUG] Entered _update_bill_with_log for bill ID: {bill.id} ---")
         if details:
             current_app.logger.info(f"--- [DEBUG] Keys in details dict: {list(details.keys())} ---")
+            # 添加详细日志显示加班费数据
+            current_app.logger.info(f"[SAVE_DEBUG] customer_overtime_fee: {details.get('customer_overtime_fee')}")
+            current_app.logger.info(f"[SAVE_DEBUG] employee_overtime_payout: {details.get('employee_overtime_payout')}")
+            current_app.logger.info(f"[SAVE_DEBUG] overtime_days: {details.get('overtime_days')}")
             if details.get("log_extras"):
                 current_app.logger.info(f"--- [DEBUG] Keys in log_extras: {list(details['log_extras'].keys())} ---")
         else:
@@ -2436,6 +2560,10 @@ class BillingEngine:
         current_app.logger.info(f"[SAVE-CHECK] Bill ID {bill.id}: log_extras to be saved: {details.get('log_extras')}")
         bill.calculation_details = details
         payroll.calculation_details = details.copy()
+        
+        # 添加保存后验证
+        current_app.logger.info(f"[SAVE_DEBUG] After assignment - bill.calculation_details keys: {list(bill.calculation_details.keys()) if bill.calculation_details else 'None'}")
+        current_app.logger.info(f"[SAVE_DEBUG] After assignment - payroll.calculation_details keys: {list(payroll.calculation_details.keys()) if payroll.calculation_details else 'None'}")
 
         attributes.flag_modified(bill, "calculation_details")
         attributes.flag_modified(payroll, "calculation_details")

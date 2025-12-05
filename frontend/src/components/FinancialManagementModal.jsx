@@ -3,13 +3,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Box, Button, Typography, Paper, Grid, Dialog, DialogTitle, DialogContent, 
-  DialogActions, Divider, CircularProgress, Tooltip, IconButton, List, ListItem, 
-  ListItemIcon, ListItemText, ListItemSecondaryAction, Alert, Switch, TextField, 
-  FormControlLabel, Chip, TableContainer, Table, TableHead, TableRow, TableCell, TableBody, TableFooter
+    Box, Button, Typography, Paper, Grid, Dialog, DialogTitle, DialogContent,
+    DialogActions, Divider, CircularProgress, Tooltip, IconButton, List, ListItem,
+    ListItemIcon, ListItemText, ListItemSecondaryAction, Alert, Switch, TextField,
+    FormControlLabel, Chip, TableContainer, Table, TableHead, TableRow, TableCell, TableBody, TableFooter
 } from '@mui/material';
 import {
-    Edit as EditIcon, Save as SaveIcon, Close as CloseIcon, Cancel as CancelIcon, 
+    Edit as EditIcon, Save as SaveIcon, Close as CloseIcon, Cancel as CancelIcon,
     Add as AddIcon, Remove as RemoveIcon, Info as InfoIcon, Delete as DeleteIcon,
     ArrowUpward as ArrowUpwardIcon, ArrowDownward as ArrowDownwardIcon,
     ReceiptLong as ReceiptLongIcon, History as HistoryIcon,
@@ -20,12 +20,12 @@ import {
     Lock as LockIcon, // <-- 添加图标
     ArrowBackIosNew as ArrowBackIosNewIcon,
     ArrowForwardIos as ArrowForwardIosNewIcon
-    
+
 } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { Timeline } from '@mui/lab';
 
-import api from '../api/axios'; 
+import api from '../api/axios';
 import { mergeBills } from '../api/bill_merge';
 import AdjustmentDialog, { AdjustmentTypes } from './AdjustmentDialog';
 import InvoiceDetailsDialog from './InvoiceDetailsDialog';
@@ -37,7 +37,7 @@ import PaymentDialog from './PaymentDialog';
 import AlertMessage from './AlertMessage';
 import PayoutDialog from './PayoutDialog';
 import PaymentMessageModal from './PaymentMessageModal';
-import MergePreviewModal from './MergePreviewModal'; // 新增导入
+import MergePreviewModal from './MergePreviewModal';
 
 
 // --- 辅助函数 ---
@@ -85,8 +85,8 @@ const formatDateTimeRange = (startStr, endStr) => {
 
         // console.log("DEBUG: isOldData:", isOldData);
 
-        const formatDateOnly = (date) => date.toLocaleDateString('zh-CN', { year: 'numeric', month:'2-digit', day: '2-digit' }).replace(/\//g, '-');
-        const formatDateTime = (date) => date.toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute:'2-digit', hour12: false }).replace(/\//g, '-');
+        const formatDateOnly = (date) => date.toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '-');
+        const formatDateTime = (date) => date.toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }).replace(/\//g, '-');
         if (isOldData) {
             // 如果是旧数据，只显示日期
             return `${formatDateOnly(startDate)} ~ ${formatDateOnly(endDate)}`;
@@ -98,14 +98,14 @@ const formatDateTimeRange = (startStr, endStr) => {
         console.error("Error in formatDateTimeRange:", e);
         return '无效日期范围';
     }
-};            
+};
 
 const formatDate = (dateString) => {
     if (!dateString || dateString.includes('N/A')) return '—';
     try {
         const date = new Date(dateString);
         if (isNaN(date.getTime())) return '无效日期';
-        return date.toLocaleDateString('zh-CN', {  month: '2-digit', day: '2-digit' }).replace(/\//g, '-');
+        return date.toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' }).replace(/\//g, '-');
     } catch (e) {
         return '无效日期';
     }
@@ -120,7 +120,7 @@ const formatValue = (key, value, calculationDetails) => { // 添加 calculationD
     if (key === '劳务时间段') {
         // 使用 calculationDetails 中新的精确日期时间字段（如果可用）
         if (calculationDetails?.cycle_start_datetime && calculationDetails?.cycle_end_datetime) {
-            return formatDateTimeRange(calculationDetails.cycle_start_datetime,calculationDetails.cycle_end_datetime);
+            return formatDateTimeRange(calculationDetails.cycle_start_datetime, calculationDetails.cycle_end_datetime);
         }
         // 如果新字段不可用，则回退到原始值
         if (!value || !value.includes(' to ')) return String(value);
@@ -128,7 +128,7 @@ const formatValue = (key, value, calculationDetails) => { // 添加 calculationD
         return formatDateTimeRange(startStr, endStr);
     }
 
-    if (key === '加班天数' || key === '替班天数' || key === '基本劳务天数' || key ==='实际劳务天数' || key === '总劳务天数') {
+    if (key === '加班天数' || key === '替班天数' || key === '基本劳务天数' || key === '实际劳务天数' || key === '总劳务天数' || key === '出京天数' || key === '出境天数') {
         const num = parseFloat(value);
         return isNaN(num) ? `${value} 天` : `${num.toFixed(3)} 天`;
     }
@@ -153,10 +153,10 @@ const getTooltipContent = (fieldName, billingDetails, isCustomer, adjustment = n
             const calculationText = calculationMatch[1];
             return (
                 <Box sx={{ p: 1, maxWidth: 350 }}>
-                    <Typography variant="caption" sx={{ fontWeight: 'bold', color:'common.white', display: 'block', mb: 1 }}>
+                    <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'common.white', display: 'block', mb: 1 }}>
                         计算过程
                     </Typography>
-                    <Typography variant="body2" sx={{ fontFamily: 'monospace', color:'grey.200', whiteSpace: 'pre-wrap', wordBreak:'break-all' }}>
+                    <Typography variant="body2" sx={{ fontFamily: 'monospace', color: 'grey.200', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
                         {adjustment.description}
                     </Typography>
                 </Box>
@@ -203,10 +203,10 @@ const getTooltipContent = (fieldName, billingDetails, isCustomer, adjustment = n
 
     return (
         <Box sx={{ p: 1, maxWidth: 350 }}>
-            <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'common.white',display: 'block', mb: 1 }}>
+            <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'common.white', display: 'block', mb: 1 }}>
                 计算过程
             </Typography>
-            <Typography variant="body2" sx={{ fontFamily: 'monospace', color: 'grey.200',whiteSpace: 'pre-wrap', wordBreak:'break-all' }}>
+            <Typography variant="body2" sx={{ fontFamily: 'monospace', color: 'grey.200', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
                 {logMessage}
             </Typography>
         </Box>
@@ -251,7 +251,7 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
     const [editableCycle, setEditableCycle] = useState({ start: null, end: null }); // Added for cycle edit dialog
     const [adjustmentFilter, setAdjustmentFilter] = useState('all');
     const [isTransferBalanceDialogOpen, setIsTransferBalanceDialogOpen] = useState(false);
-    
+
     // Other UI-related states
     const [alert, setAlert] = useState({ open: false, message: '', severity: 'info' });
     const [generatedMessage, setGeneratedMessage] = useState('');
@@ -263,7 +263,7 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
 
     const handleOpenMergePreview = async () => {
         if (!billingDetails?.customer_bill_details?.id || !successorContract?.id) {
-            setAlert({ open: true, message: '缺少源账单ID或续约合同ID，无法获取预览。', severity:'error' });
+            setAlert({ open: true, message: '缺少源账单ID或续约合同ID，无法获取预览。', severity: 'error' });
             return;
         }
 
@@ -271,7 +271,7 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
         setMergePreviewData(null); // 清空旧数据
         try {
             // 调用新的 bill_merge API
-            const response = await mergeBills(billingDetails.customer_bill_details.id,successorContract.id, true);
+            const response = await mergeBills(billingDetails.customer_bill_details.id, successorContract.id, true);
             setMergePreviewData(response.data);
             setIsMergePreviewOpen(true);
         } catch (error) {
@@ -442,7 +442,7 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
                 ...substituteData,
                 original_bill_id: billingDetails?.customer_bill_details?.id,
             };
-            const response = await api.post(`/contracts/${contract.contract_id}/substitutes`,payload);
+            const response = await api.post(`/contracts/${contract.contract_id}/substitutes`, payload);
 
             // 不要用 alert()，要用 setAlert() 来触发你自己的提示组件
             setAlert({ open: true, message: '替班记录添加成功！', severity: 'success' });
@@ -463,7 +463,7 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
         } catch (error) {
             console.error("保存替班记录失败:", error);
             // 错误提示同样要用 setAlert
-            setAlert({ open: true, message:'添加替班记录失败，同一时间段可能已有替班记录，不能重复添加。', severity: 'error'});
+            setAlert({ open: true, message: '添加替班记录失败，同一时间段可能已有替班记录，不能重复添加。', severity: 'error' });
         }
     };
     const handleDeleteSubstitute = async (recordId) => {
@@ -471,12 +471,12 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
             try {
                 // 正常尝试删除
                 await api.delete(`/contracts/substitutes/${recordId}`);
-                
+
                 // 如果上面没有抛出错误（即 status 2xx），则代表成功
                 setAlert({ open: true, message: '替班记录删除成功！', severity: 'success' });
                 setSubstituteRecords(prev => prev.filter(r => r.id !== recordId));
                 // 可以在这里触发账单刷新逻辑
-                
+
             } catch (error) {
                 // 专门处理 409 Conflict 错误
                 if (error.response && error.response.status === 409) {
@@ -514,7 +514,7 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
             handleClosePaymentDialog();
             handleClosePayoutDialog();
 
-            const response = await api.get('/billing/details', { params: { bill_id:billId } });
+            const response = await api.get('/billing/details', { params: { bill_id: billId } });
             setBillingDetails(response.data);
             setAlert({ open: true, message: '记录已成功保存！', severity: 'success' });
 
@@ -638,7 +638,7 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
         setIsEditMode(false);
         setDeletionHappened(false);
     };
-    
+
     const handleSaveAdjustment = (savedAdj) => {
         // console.log("--- [DEBUG 2] AdjustmentDialog saved. Data from dialog:", savedAdj);
         setAdjustments(prev => {
@@ -711,8 +711,8 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
         setTransferringAdjustment(null);
         setIsTransferDialogOpen(false);
     };
-    
-    const handleInitiateTransfer = async (adjustment, destinationContractId = null)=> {
+
+    const handleInitiateTransfer = async (adjustment, destinationContractId = null) => {
         const adjToTransfer = adjustment || transferringAdjustment;
         if (!adjToTransfer) {
             console.error("无法转移，目标调整项丢失。");
@@ -720,12 +720,12 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
         }
 
         try {
-            const payload = destinationContractId ? { destination_contract_id:destinationContractId } : {};
+            const payload = destinationContractId ? { destination_contract_id: destinationContractId } : {};
             const response = await api.post(
                 `/billing/financial-adjustments/${adjToTransfer.id}/transfer`,
                 payload
             );
-            setAlert({ open: true, message: '款项转移成功！', severity: 'success'});
+            setAlert({ open: true, message: '款项转移成功！', severity: 'success' });
             handleCloseTransferDialog();
             // --- 核心修复：触发刷新 ---
             setRefreshKey(prevKey => prevKey + 1);
@@ -735,7 +735,7 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
         } catch (error) {
             // --- DEBUGGING START ---
             // console.log("进入了 catch 块");
-            const errorMessage = error.response?.data?.error ||'操作失败，请查看控制台。';
+            const errorMessage = error.response?.data?.error || '操作失败，请查看控制台。';
             // console.log("收到的原始错误信息对象:", error.response?.data);
             // console.log("解析后的 errorMessage 字符串:", errorMessage);
 
@@ -777,7 +777,7 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
                 new_start_date: editableCycle.start.toISOString().split('T')[0],
                 new_end_date: editableCycle.end.toISOString().split('T')[0],
             });
-            onClose(); 
+            onClose();
             alert("周期已更新，后续账单已顺延！请在新的月份查看后续账单。");
         } catch (error) {
             console.error("更新周期失败:", error);
@@ -796,7 +796,7 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
 
     const handleConfirmExtension = async () => {
         if (!extensionDate) {
-            setAlert({ open: true, message: '请选择延长至的日期！', severity:'warning' });
+            setAlert({ open: true, message: '请选择延长至的日期！', severity: 'warning' });
             return;
         }
         try {
@@ -804,7 +804,7 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
                 new_end_date: formatDateForAPI(extensionDate), // <-- 使用我们新的、安全的格式化函数
             });
 
-            setAlert({ open: true, message: '服务已成功延长！正在刷新账单详情...',severity: 'success' });
+            setAlert({ open: true, message: '服务已成功延长！正在刷新账单详情...', severity: 'success' });
 
             const freshDetailsResponse = await api.get(`/billing/details?bill_id=${billingDetails.customer_bill_details.id}`);
 
@@ -816,7 +816,7 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
 
         } catch (error) {
             console.error("延长服务失败:", error);
-            const errorMessage = error.response?.data?.message ||'延长服务失败，请查看控制台。';
+            const errorMessage = error.response?.data?.message || '延长服务失败，请查看控制台。';
             setAlert({ open: true, message: errorMessage, severity: 'error' });
         }
     };
@@ -868,11 +868,11 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
             //     'Does it match?': actualType === expectedType
             // });
 
-        // 3. 返回最终的判断结果
-        return actualType === expectedType;
-    });
-        
-        
+            // 3. 返回最终的判断结果
+            return actualType === expectedType;
+        });
+
+
         // 【V2.6 核心逻辑】开始：后端已统一处理，前端只做展示
         const statusObject = isCustomer ? data.payment_status : data.payout_status;
 
@@ -880,7 +880,7 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
         const displayTotalDue = parseFloat(statusObject?.total_due || 0);
 
         // 实付总额也直接从后端获取。该值已包含所有收付款记录和结算项。
-        const totalPaidOrSettled = parseFloat(isCustomer ? statusObject?.total_paid: statusObject?.total_paid_out) || 0;
+        const totalPaidOrSettled = parseFloat(isCustomer ? statusObject?.total_paid : statusObject?.total_paid_out) || 0;
 
         // 待付总额
         const pendingAmount = displayTotalDue - totalPaidOrSettled;
@@ -898,7 +898,7 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
             displayStatus = 'unpaid';
         }
         const statusLabelMap = isCustomer ? {
-            'unpaid': '未支付', 'partially_paid': '部分支付', 'paid': '已结清','overpaid': '超额支付'
+            'unpaid': '未支付', 'partially_paid': '部分支付', 'paid': '已结清', 'overpaid': '超额支付'
         } : {
             'unpaid': '未发放', 'partially_paid': '部分发放', 'paid': '已结清'
         };
@@ -907,7 +907,7 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
 
         const fieldOrder = {
             "级别与保证金": ["级别", "客交保证金", "定金", "介绍费", "管理费", "合同备注"],
-            "劳务周期": ["劳务时间段", "基本劳务天数","延长服务天数", "加班天数", "被替班天数", "总劳务天数"],
+            "劳务周期": ["劳务时间段", "基本劳务天数", "延长服务天数", "加班天数", "被替班天数", "出京天数", "出境天数", "总劳务天数"],
             "费用明细": ["管理费率", "延长期管理费", "本次交管理费", "基础劳务费", "试工费", "加班费", "被替班费用", "优惠"],
             "薪酬明细": ["级别", "萌嫂保证金(工资)", "试工费", "基础劳务费", "加班费", "被替班天数", "延长期服务费", "被替班费用", "5%奖励", "首月员工10%费用"],
         };
@@ -919,7 +919,7 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
                         <Divider textAlign="left" sx={{ mb: 1.5 }}><Typography variant="overline" color="text.secondary">{group.name}</Typography></Divider>
                         <Grid container rowSpacing={1.5} columnSpacing={2}>
                             {(fieldOrder[group.name] || Object.keys(group.fields)).map(key => {
-                                const isBaseWorkDaysField = key === '基本劳务天数';  
+                                const isBaseWorkDaysField = key === '基本劳务天数';
                                 // =================== 核心显示逻辑 ===================
                                 // 根据账单类型，条件渲染字段
                                 if (isTrialTerminationBill) {
@@ -934,29 +934,28 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
                                 if (isSubstituteBill && (key === '客交保证金' || key === '首月员工10%费用' || key === '定金' || key === '优惠')) {
                                     return null;
                                 }
-                                
+
                                 // 如果字段不存在，则不渲染
                                 if (!group.fields.hasOwnProperty(key)) return null;
                                 const value = group.fields[key];
                                 const tooltipContent = getTooltipContent(key, billingDetails, isCustomer);
                                 if ((key === '被替班费用' || key === '被替班天数') && Number(value) != 0) {
-                                    
+
                                     return (
                                         <React.Fragment key={key}>
                                             <Grid item xs={5}>
                                                 <Typography variant="body2" color="text.secondary">{key}:</Typography>
                                             </Grid>
-                                            <Grid item xs={7} sx={{ display: 'flex', justifyContent: 'flex-end', alignItems:'center' }}>
+                                            <Grid item xs={7} sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
                                                 {/* 添加红色的向下箭头 */}
                                                 <ArrowDownwardIcon color="error" sx={{ fontSize: '1rem', mr: 0.5 }} />
                                                 {/* 添加负号，并将文本颜色设为红色 */}
-                                                <Typography variant="body1" sx={{ textAlign: 'right', fontWeight: 500, fontFamily:'monospace', color: 'error.main' }}>
+                                                <Typography variant="body1" sx={{ textAlign: 'right', fontWeight: 500, fontFamily: 'monospace', color: 'error.main' }}>
                                                     - {formatValue(key, value)}
                                                 </Typography>
-                                                {/* 保留原有的计算过程提示 */}
                                                 {tooltipContent && !isEditMode && (
                                                     <Tooltip title={tooltipContent} arrow>
-                                                        <InfoIcon sx={{ fontSize: '1rem', color: 'action.active', ml: 0.5, cursor:'help' }} />
+                                                        <InfoIcon sx={{ fontSize: '1rem', color: 'action.active', ml: 0.5, cursor: 'help' }} />
                                                     </Tooltip>
                                                 )}
                                             </Grid>
@@ -1039,7 +1038,7 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
                                 }
 
                                 const isOvertimeFeeField = key === '加班费';
-                                
+
                                 if ((key === '替班天数' || key === '被替班费用') && Number(value) === 0) {
                                     return null;
                                 }
@@ -1067,33 +1066,33 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
 
                                 return (
                                     <React.Fragment key={key}>
-                                        <Grid item xs={5}><Typography variant="body2" color="text.secondary">{(isNannyContract &&isBaseWorkDaysField) ? '实际劳务天数' : key}:</Typography></Grid>
-                                        <Grid item xs={7} sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center'}}>
-                                            <Typography variant="body1" sx={{ textAlign: 'right',fontWeight: 500, fontFamily:'monospace' }}>
-                                                {formatValue((isNannyContract &&isBaseWorkDaysField) ? '实际劳务天数' : key, value, data.calculation_details)}
+                                        <Grid item xs={5}><Typography variant="body2" color="text.secondary">{(isNannyContract && isBaseWorkDaysField) ? '实际劳务天数' : key}:</Typography></Grid>
+                                        <Grid item xs={7} sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
+                                            <Typography variant="body1" sx={{ textAlign: 'right', fontWeight: 500, fontFamily: 'monospace' }}>
+                                                {formatValue((isNannyContract && isBaseWorkDaysField) ? '实际劳务天数' : key, value, data.calculation_details)}
                                             </Typography>
                                             {tooltipContent && !isEditMode && (
                                                 <Tooltip title={tooltipContent} arrow>
-                                                    <InfoIcon sx={{ fontSize: '1rem', color: 'action.active', ml: 0.5, cursor:'help' }} />
+                                                    <InfoIcon sx={{ fontSize: '1rem', color: 'action.active', ml: 0.5, cursor: 'help' }} />
                                                 </Tooltip>
                                             )}
-                                            
+
                                             {key === '劳务时间段' &&
                                                 (
                                                     (
-                                                        contract?.contract_type_value=== 'nanny' && !contract?.is_monthly_auto_renew
+                                                        contract?.contract_type_value === 'nanny' && !contract?.is_monthly_auto_renew
                                                     ) ||
-                                                    contract?.contract_type_value=== 'maternity_nurse' ||
-                                                    contract?.contract_type_value=== 'external_substitution'
+                                                    contract?.contract_type_value === 'maternity_nurse' ||
+                                                    contract?.contract_type_value === 'external_substitution'
                                                 ) &&
                                                 billingDetails?.is_last_bill &&
                                                 !isEditMode && (
                                                     <Tooltip title="为本期账单延长服务天数">
-                                                        <IconButton size="small" sx={{ ml: 1 }}onClick={handleOpenExtensionDialog}>
+                                                        <IconButton size="small" sx={{ ml: 1 }} onClick={handleOpenExtensionDialog}>
                                                             <EditCalendarIcon fontSize="small" />
                                                         </IconButton>
                                                     </Tooltip>
-                                            )}
+                                                )}
                                         </Grid>
                                     </React.Fragment>
                                 );
@@ -1101,9 +1100,9 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
                         </Grid>
                     </Box>
                 ))}
-                
-                
-                {(currentAdjustments.length > 0  || isEditMode) && (
+
+
+                {(currentAdjustments.length > 0 || isEditMode) && (
                     <Box>
                         <Divider textAlign="left" sx={{ mb: 1.5 }}><Typography variant="overline" color="text.secondary">财务调整</Typography></Divider>
                         <List dense disablePadding>
@@ -1124,8 +1123,8 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
                                 const tooltipForLock = isMirrored
                                     ? "此为'公司代付工资'的系统镜像项，金额自动同步，不可直接编辑。"
                                     : isOriginalWithMirror
-                                    ? "此调整项已生成镜像项，修改或删除将同步进行。"
-                                    : "";
+                                        ? "此调整项已生成镜像项，修改或删除将同步进行。"
+                                        : "";
 
                                 const isTransferable = !isEditMode &&
                                     !adj.is_settled &&
@@ -1202,7 +1201,7 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
                                                             <Chip label="已结算" color="success" size="small" variant="outlined" />
                                                         )}
                                                         {adj.is_settled && (
-                                                            <Tooltip title={`结算日期: ${adj.settlement_date || '无'} | 备注: ${(adj.settlement_details && adj.settlement_details.notes) || '无'}`}> 
+                                                            <Tooltip title={`结算日期: ${adj.settlement_date || '无'} | 备注: ${(adj.settlement_details && adj.settlement_details.notes) || '无'}`}>
                                                                 <InfoIcon sx={{ fontSize: '1rem', color: 'action.active', ml: 0.5, cursor: 'help' }} />
                                                             </Tooltip>
                                                         )}
@@ -1212,108 +1211,111 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
                                                     </Typography>
                                                 </Box>
                                             }
-    
-                                        secondary={(() => {
-                                            const adjTooltipContent = getTooltipContent(null, billingDetails, !isCustomer, adj);
-                                            const mainDescription = adj.description;
 
-                                            const details = adj.details || {};
+                                            secondary={(() => {
+                                                const adjTooltipContent = getTooltipContent(null, billingDetails, !isCustomer, adj);
+                                                const mainDescription = adj.description;
 
-                                            // --- 核心修正：优先使用新的、简单的 linked_bill_id ---
-                                            let linkBillId = details.linked_bill_id || details.linked_payroll_id;
+                                                const details = adj.details || {};
 
-                                            // 如果新的字段不存在，则回退到旧的逻辑以保持兼容
-                                            if (!linkBillId) {
-                                                const status = details.status || '';
-                                                if (status === 'transferred_out' || status === 'transferred' || status ==='offsetting_transfer') {
-                                                    linkBillId = details.transferred_to_bill_id;
-                                                } else if (status === 'transferred_in') {
-                                                    linkBillId = details.transferred_from_bill_id;
+                                                // --- 核心修正：优先使用新的、简单的 linked_bill_id ---
+                                                let linkBillId = details.linked_bill_id || details.linked_payroll_id;
+
+                                                // 如果新的字段不存在，则回退到旧的逻辑以保持兼容
+                                                if (!linkBillId) {
+                                                    const status = details.status || '';
+                                                    if (status === 'transferred_out' || status === 'transferred' || status === 'offsetting_transfer') {
+                                                        linkBillId = details.transferred_to_bill_id;
+                                                    } else if (status === 'transferred_in') {
+                                                        linkBillId = details.transferred_from_bill_id;
+                                                    }
                                                 }
-                                            }
 
-                                            const sourceContractId = details.source_contract_id || adj.source_contract_id;
-                                            const destinationContractId = details. destination_contract_id;
-                                            const transferredToContractId = details. transferred_to_contract_id;
-                                            const transferredFromContractId = details. transferred_from_contract_id;
+                                                const sourceContractId = details.source_contract_id || adj.source_contract_id;
+                                                const destinationContractId = details.destination_contract_id;
+                                                const transferredToContractId = details.transferred_to_contract_id;
+                                                const transferredFromContractId = details.transferred_from_contract_id;
 
-                                            let linkContractId = null;
-                                            let tooltipTitle = "";
+                                                let linkContractId = null;
+                                                let tooltipTitle = "";
 
-                                            if (sourceContractId) {
-                                                linkContractId = sourceContractId;
-                                                tooltipTitle = "查看源试工合同";
-                                            } else if (destinationContractId) {
-                                                linkContractId = destinationContractId;
-                                                tooltipTitle = "查看费用覆盖的新合同";
-                                            } else if (transferredToContractId) {
-                                                linkContractId = transferredToContractId;
-                                                tooltipTitle = "查看续约合同";
-                                            } else if (transferredFromContractId) {
-                                                linkContractId = transferredFromContractId;
-                                                tooltipTitle = "查看原合同";
-                                            }
+                                                if (sourceContractId) {
+                                                    linkContractId = sourceContractId;
+                                                    tooltipTitle = "查看源试工合同";
+                                                } else if (destinationContractId) {
+                                                    linkContractId = destinationContractId;
+                                                    tooltipTitle = "查看费用覆盖的新合同";
+                                                } else if (transferredToContractId) {
+                                                    linkContractId = transferredToContractId;
+                                                    tooltipTitle = "查看续约合同";
+                                                } else if (transferredFromContractId) {
+                                                    linkContractId = transferredFromContractId;
+                                                    tooltipTitle = "查看原合同";
+                                                }
 
-                                            return (
-                                                <Typography variant="body2" component="span" sx={{ display: 'inline-flex', alignItems:'center', flexWrap: 'wrap', whiteSpace: 'pre-wrap', wordBreak: 'break-word'}}>
-                                                    {mainDescription}
+                                                return (
+                                                    <Typography variant="body2" component="span" sx={{ display: 'inline-flex', alignItems: 'center', flexWrap: 'wrap', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                                                        {mainDescription}
 
-                                                    {adjTooltipContent && (
-                                                        <Tooltip title={adjTooltipContent} arrow>
-                                                            <InfoIcon sx={{ fontSize: '1rem', color: 'action.active', ml: 0.5, cursor:'help' }} />
-                                                        </Tooltip>
-                                                    )}
+                                                        {adjTooltipContent && (
+                                                            <Tooltip title={adjTooltipContent} arrow>
+                                                                <InfoIcon sx={{ fontSize: '1rem', color: 'action.active', ml: 0.5, cursor: 'help' }} />
+                                                            </Tooltip>
+                                                        )}
 
-                                                    {linkContractId && !linkBillId && (
-                                                        <Tooltip title={tooltipTitle}>
-                                                            <IconButton
-                                                                size="small"
-                                                                onClick={(e) => { e. stopPropagation(); window.open(`/contract/detail/${linkContractId}`, '_blank'); }}
-                                                                sx={{ ml: 0.5, p: 0.2 }}
+                                                        {linkContractId && !linkBillId && (
+                                                            <Tooltip title={tooltipTitle}>
+                                                                <IconButton
+                                                                    size="small"
+                                                                    onClick={(e) => { e.stopPropagation(); window.open(`/contract/detail/${linkContractId}`, '_blank'); }}
+                                                                    sx={{ ml: 0.5, p: 0.2 }}
+                                                                >
+                                                                    <LinkIcon fontSize="inherit" />
+                                                                </IconButton>
+                                                            </Tooltip>
+                                                        )}
+
+                                                        {linkBillId && (
+                                                            <Button
+                                                                size="small" variant="text"
+                                                                sx={{ p: 0, m: 0, height: 'auto', verticalAlign: 'baseline', lineHeight: 'inherit', mx: 0.5, minWidth: 'auto' }}
+                                                                onClick={(e) => { e.stopPropagation(); if (onNavigateToBill) onNavigateToBill(linkBillId); }}
                                                             >
-                                                                <LinkIcon fontSize="inherit" />
-                                                            </IconButton>
-                                                        </Tooltip>
-                                                    )}
-
-                                                    {linkBillId && (
-                                                        <Button
-                                                            size="small" variant="text"
-                                                            sx={{ p: 0, m: 0, height: 'auto', verticalAlign: 'baseline', lineHeight:'inherit', mx: 0.5, minWidth: 'auto' }}
-                                                            onClick={(e) => { e.stopPropagation(); if (onNavigateToBill) onNavigateToBill(linkBillId); }}
-                                                        >
-                                                            (查看详情)
-                                                        </Button>
-                                                    )}
-                                                </Typography>
-                                            );
-                                        })()}
+                                                                (查看详情)
+                                                            </Button>
+                                                        )}
+                                                    </Typography>
+                                                );
+                                            })()}
                                         />
                                     </ListItem>
                                 );
                             })}
                         </List>
-                        {isEditMode && (<Box sx={{ mt: 1, display: 'flex', justifyContent: 'center' }}><Button size="small" variant="text" startIcon={<AddIcon />} onClick={() => { setEditingAdjustment(null); setAdjustmentFilter(isCustomer ? 'customer' :'employee'); setIsAdjustmentDialogOpen(true); }}>添加调整</Button></Box>)}
+                        {isEditMode && (<Box sx={{ mt: 1, display: 'flex', justifyContent: 'center' }}><Button size="small" variant="text" startIcon={<AddIcon />} onClick={() => { setEditingAdjustment(null); setAdjustmentFilter(isCustomer ? 'customer' : 'employee'); setIsAdjustmentDialogOpen(true); }}>添加调整</Button></Box>)}
                     </Box>
                 )}
+
+
+
 
                 <Box>
                     <Divider textAlign="left" sx={{ mb: 1.5 }}><Typography variant="overline" color="text.secondary">最终结算</Typography></Divider>
                     <Grid container spacing={1.5}>
                         {/* 应收/应发总额 */}
                         <Grid item xs={12}>
-                            <Box sx={{ display: 'flex', justifyContent:'space-between', alignItems: 'center' }}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <Typography variant="body2" color="text.secondary">{isCustomer ? '应收总额:' : '应发总额:'}</Typography>
-                                <Box sx={{ display: 'flex', alignItems: 'center',gap: 0.5 }}>
-                                    <Typography variant="body1" sx={{ fontWeight:500, fontFamily: 'monospace' }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                    <Typography variant="body1" sx={{ fontWeight: 500, fontFamily: 'monospace' }}>
                                         {formatValue('', displayTotalDue)}
                                     </Typography>
                                     {(() => {
                                         const tooltipContent = getTooltipContent(isCustomer ? '客应付款' : '萌嫂应领款', billingDetails, isCustomer);
                                         if (tooltipContent && !isEditMode) {
                                             return (
-                                                <Tooltip title={tooltipContent}arrow>
-                                                    <InfoIcon sx={{ fontSize:'1rem', color: 'action.active', cursor: 'help' }} />
+                                                <Tooltip title={tooltipContent} arrow>
+                                                    <InfoIcon sx={{ fontSize: '1rem', color: 'action.active', cursor: 'help' }} />
                                                 </Tooltip>
                                             );
                                         }
@@ -1324,23 +1326,23 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
                         </Grid>
                         {/* 实收/实发总额 */}
                         <Grid item xs={12}>
-                            <Box sx={{ display: 'flex', justifyContent:'space-between', alignItems: 'center' }}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <Typography variant="body2" color="text.secondary">{isCustomer ? '实收总额:' : '实发总额:'}</Typography>
-                                <Typography variant="body1" sx={{ fontWeight: 500,fontFamily: 'monospace', color: 'success.main' }}>
+                                <Typography variant="body1" sx={{ fontWeight: 500, fontFamily: 'monospace', color: 'success.main' }}>
                                     {formatValue('', totalPaidOrSettled)}
                                 </Typography>
                             </Box>
                         </Grid>
-                                                {/* 待收/待付总额 */}
+                        {/* 待收/待付总额 */}
                         <Grid item xs={12}>
-                            <Box sx={{ display: 'flex', justifyContent:'space-between', alignItems: 'center' }}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <Typography variant="body2" color="text.secondary">{isCustomer ? '待收总额:' : '待付总额:'}</Typography>
-                                <Box sx={{ display: 'flex', alignItems: 'center',gap: 0.5 }}>
-                                    <Typography variant="body1" sx={{ fontWeight:'bold', fontFamily: 'monospace', color: pendingAmount > 0 ? 'error.main' :'text.primary' }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                    <Typography variant="body1" sx={{ fontWeight: 'bold', fontFamily: 'monospace', color: pendingAmount > 0 ? 'error.main' : 'text.primary' }}>
                                         {formatValue('', pendingAmount)}
                                     </Typography>
-                                    <Tooltip title={`应收/付总额 (${displayTotalDue.toFixed(2)}) - 实收/付总额 (${totalPaidOrSettled.toFixed(2)})`}arrow>
-                                        <InfoIcon sx={{ fontSize: '1rem', color:'action.active', cursor: 'help' }} />
+                                    <Tooltip title={`应收/付总额 (${displayTotalDue.toFixed(2)}) - 实收/付总额 (${totalPaidOrSettled.toFixed(2)})`} arrow>
+                                        <InfoIcon sx={{ fontSize: '1rem', color: 'action.active', cursor: 'help' }} />
                                     </Tooltip>
                                 </Box>
                             </Box>
@@ -1349,7 +1351,7 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
                         {/* Transfer Balance Button 取消当前合同状态的条件 && ['terminated', 'finished'].includes(contract?.status)  */}
                         {isCustomer && billingDetails.is_last_bill && Math.abs(pendingAmount) >= 0.01 && (
                             <Grid item xs={12} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mt: 1 }}>
-                                {billingDetails.successor_contract_id && !billingDetails. is_balance_transferred_out && (
+                                {billingDetails.successor_contract_id && !billingDetails.is_balance_transferred_out && (
                                     <Alert severity="info" sx={{ mb: 1, width: '100%' }}>
                                         有后续合同，是否转移保证金及其他客户账单费用？
                                     </Alert>
@@ -1372,7 +1374,7 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
                                         <Button
                                             variant="text"
                                             size="small"
-                                            onClick={() => onNavigateToBill(billingDetails. predecessor_info.last_bill_id)}
+                                            onClick={() => onNavigateToBill(billingDetails.predecessor_info.last_bill_id)}
                                             sx={{ p: 0, minWidth: 'auto', verticalAlign: 'baseline' }}
                                         >
                                             前往查看并转移？
@@ -1387,14 +1389,14 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
                         </Grid>
                         {/* 最终状态 */}
                         <Grid item xs={12}>
-                            <Box sx={{ display: 'flex', justifyContent:'space-between', alignItems: 'center' }}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <Typography variant="h6">当前状态:</Typography>
                                 <Chip
                                     label={displayStatusLabel}
                                     color={
                                         displayStatus === 'paid' ? 'success' :
-                                        displayStatus === 'unpaid' ? 'default' :
-                                        displayStatus === 'overpaid' ? 'info' :'warning'
+                                            displayStatus === 'unpaid' ? 'default' :
+                                                displayStatus === 'overpaid' ? 'info' : 'warning'
                                     }
                                 />
                             </Box>
@@ -1571,12 +1573,12 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
                 scroll="paper"
             >
                 <DialogTitle variant="h5" sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                             <IconButton onClick={() => handleNavigation('prev')} size="small" disabled={!billingDetails?.prev_bill_id || isLoading}>
                                 <ArrowBackIosNewIcon fontSize="inherit" />
                             </IconButton>
-                                                        <Typography variant="h5" component="span" sx={{ minWidth: '180px', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <Typography variant="h5" component="span" sx={{ minWidth: '180px', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                 财务管理 - {billingDetails?.display_month}
                                 {billingDetails?.customer_bill_details?.is_merged && (
                                     <Chip label="已合并" color="success" size="small" sx={{ ml: 1 }} />
@@ -1589,8 +1591,8 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
                         <Box sx={{ display: 'flex', alignItems: 'center', borderLeft: 1, borderColor: 'divider', pl: 2 }}>
                             <Typography variant="subtitle1" color="text.secondary">合同简介</Typography>
                             <Tooltip title={infoTooltip}>
-                                <IconButton size="small" sx={{ml: 0.5 }}>
-                                    <InfoIcon fontSize="small"/>
+                                <IconButton size="small" sx={{ ml: 0.5 }}>
+                                    <InfoIcon fontSize="small" />
                                 </IconButton>
                             </Tooltip>
                         </Box>
@@ -1641,7 +1643,7 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
                     )}
 
                     {isEditMode && (<Alert severity="info" sx={{ mb: 2, position: 'relative', zIndex: 1 }}>您正处于编辑模式。所有更改将在点击“保存”后生效。</Alert>)}
-                    
+
                     {billingDetails ? (
                         <Grid container spacing={3} sx={{ position: 'relative', zIndex: 1 }}>
                             <Grid item xs={12} md={6}>
@@ -1650,9 +1652,9 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
                                         {billingDetails?.display_month ? `${parseInt(billingDetails.display_month.split('-')[1], 10)}月` : ''}
                                     </Box>
                                     <Typography variant="h3" gutterBottom component="div" sx={{ display: 'flex', alignItems: 'center' }}>
-                                        客户账单 ~ 
-                                         <Typography variant="h5" component="span" color="text.secondary">
-                                               {customerData?.customer_name || contract?.customer_name}
+                                        客户账单 ~
+                                        <Typography variant="h5" component="span" color="text.secondary">
+                                            {customerData?.customer_name || contract?.customer_name}
                                         </Typography>
                                         {customerData.calculation_details?.type === 'substitute' && <Chip label="替班" color="warning" size="small" sx={{ ml: 1 }} />}
                                     </Typography>
@@ -1661,13 +1663,13 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
                             </Grid>
                             <Grid item xs={12} md={6}>
                                 <Paper sx={{ p: 3, borderRadius: 2, boxShadow: 1, position: 'relative', overflow: 'hidden' }}>
-                                     <Box sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', fontSize: '8rem', fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.05)', zIndex: 0, pointerEvents: 'none', userSelect: 'none' }}>
+                                    <Box sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', fontSize: '8rem', fontWeight: 'bold', color: 'rgba(0, 0, 0, 0.05)', zIndex: 0, pointerEvents: 'none', userSelect: 'none' }}>
                                         {billingDetails?.display_month ? `${parseInt(billingDetails.display_month.split('-')[1], 10)}月` : ''}
                                     </Box>
                                     <Typography variant="h3" gutterBottom component="div" sx={{ display: 'flex', alignItems: 'center' }}>
-                                        员工薪酬 ~ 
-                                         <Typography variant="h5" component="span" color="text.secondary">
-                                               {employeeData?.employee_name || contract?.employee_name}
+                                        员工薪酬 ~
+                                        <Typography variant="h5" component="span" color="text.secondary">
+                                            {employeeData?.employee_name || contract?.employee_name}
                                         </Typography>
                                         {employeeData.calculation_details?.type === 'substitute' && <Chip label="替班" color="warning" size="small" sx={{ ml: 1 }} />}
                                     </Typography>
@@ -1685,7 +1687,7 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
                                             p: 1.5,
                                             mt: 2
                                         }}>
-                                            <Grid container spacing={2} alignItems="center"justifyContent="space-between">
+                                            <Grid container spacing={2} alignItems="center" justifyContent="space-between">
                                                 <Grid item>
                                                     <FormControlLabel
                                                         control={
@@ -1711,41 +1713,41 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
                                             </Grid>
 
                                             {billingDetails?.invoice_needed && billingDetails?.invoice_balance && (
-                                                <Box sx={{ mt: 2, pt: 2, borderTop: 1,borderColor: 'divider' }}>
+                                                <Box sx={{ mt: 2, pt: 2, borderTop: 1, borderColor: 'divider' }}>
                                                     <Grid container spacing={1.5} alignItems="center">
                                                         <Grid item xs={12} md={7}>
                                                             <Typography variant="body2" color="text.secondary">
-                                                                本期应开: <Typography component="span" sx={{ fontFamily: 'monospace', fontWeight: 500 }}>{formatValue('',billingDetails.invoice_balance.total_invoiceable_amount)}</Typography>
+                                                                本期应开: <Typography component="span" sx={{ fontFamily: 'monospace', fontWeight: 500 }}>{formatValue('', billingDetails.invoice_balance.total_invoiceable_amount)}</Typography>
                                                                 {' / '}
-                                                                本期已开: <Typography component="span" sx={{ fontFamily: 'monospace', fontWeight: 500 }}>{formatValue('',billingDetails.invoice_balance.invoiced_this_period)}</Typography>
+                                                                本期已开: <Typography component="span" sx={{ fontFamily: 'monospace', fontWeight: 500 }}>{formatValue('', billingDetails.invoice_balance.invoiced_this_period)}</Typography>
                                                             </Typography>
                                                         </Grid>
-                                                        <Grid item xs={12} md={5} sx={{ display:'flex', justifyContent: { md: 'flex-end' }, alignItems: 'center' }}>
+                                                        <Grid item xs={12} md={5} sx={{ display: 'flex', justifyContent: { md: 'flex-end' }, alignItems: 'center' }}>
                                                             <Typography variant="body2" color="text.secondary">
                                                                 历史欠票:
-                                                                <Typography component="span"sx={{ fontFamily: 'monospace', fontWeight: 500, ml: 0.5 }}>
-                                                                    {formatValue('',billingDetails.invoice_balance.total_carried_forward)}
+                                                                <Typography component="span" sx={{ fontFamily: 'monospace', fontWeight: 500, ml: 0.5 }}>
+                                                                    {formatValue('', billingDetails.invoice_balance.total_carried_forward)}
                                                                 </Typography>
-                                                                {billingDetails.invoice_balance.carried_forward_breakdown && billingDetails.invoice_balance.carried_forward_breakdown.length > 0&& (
+                                                                {billingDetails.invoice_balance.carried_forward_breakdown && billingDetails.invoice_balance.carried_forward_breakdown.length > 0 && (
                                                                     <Tooltip
                                                                         arrow
                                                                         title={
                                                                             <React.Fragment>
-                                                                                <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'common.white', display: 'block', mb: 1}}>历史欠票明细</Typography>
+                                                                                <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'common.white', display: 'block', mb: 1 }}>历史欠票明细</Typography>
                                                                                 {billingDetails.invoice_balance.carried_forward_breakdown.map((item, index) => (
                                                                                     <Typography key={index} variant="body2" sx={{ fontFamily: 'monospace', color: 'grey.200' }}>{item.month}月:¥{item.unpaid_amount}</Typography>
                                                                                 ))}
                                                                             </React.Fragment>
                                                                         }
                                                                     >
-                                                                        <InfoIcon sx={{ fontSize:'1rem', color: 'action.active', ml: 0.5, cursor: 'help', verticalAlign: 'middle' }} />
+                                                                        <InfoIcon sx={{ fontSize: '1rem', color: 'action.active', ml: 0.5, cursor: 'help', verticalAlign: 'middle' }} />
                                                                     </Tooltip>
                                                                 )}
                                                                 {' / '}
-                                                                <Typography component="span"color="error.dark" sx={{ fontWeight: 'bold' }}>
+                                                                <Typography component="span" color="error.dark" sx={{ fontWeight: 'bold' }}>
                                                                     总计待开:
-                                                                    <Typography component="span"sx={{ fontFamily: 'monospace', ml: 0.5 }}>
-                                                                        {formatValue('',billingDetails.invoice_balance.remaining_un_invoiced)}
+                                                                    <Typography component="span" sx={{ fontFamily: 'monospace', ml: 0.5 }}>
+                                                                        {formatValue('', billingDetails.invoice_balance.remaining_un_invoiced)}
                                                                     </Typography>
                                                                 </Typography>
                                                             </Typography>
@@ -1790,7 +1792,7 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
                                                                     aria-label="delete"
                                                                     disabled={isEditMode}
                                                                     onClick={(e) => {
-                                                                        e.stopPropagation(); 
+                                                                        e.stopPropagation();
                                                                         handleDeleteSubstitute(record.id);
                                                                     }}
                                                                 >
@@ -1811,9 +1813,9 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
                                 <Paper sx={{ p: 3, borderRadius: 2, boxShadow: 1 }}>
                                     <Typography variant="h3" gutterBottom>操作日志</Typography>
                                     {loadingLogs ? <CircularProgress size={24} /> : (<Timeline sx={{ p: 0, m: 0 }}>{activityLogs.length > 0 ? activityLogs.map((log, index) => (
-                                        <LogItem 
-                                            key={log.id} 
-                                            log={log} 
+                                        <LogItem
+                                            key={log.id}
+                                            log={log}
                                             isLast={index === activityLogs.length - 1}
                                             navigate={navigate}
                                             onClose={onClose}
@@ -1826,32 +1828,32 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
                 </DialogContent>
                 <DialogActions sx={{ p: 2 }}>
                     {isEditMode ? (<>
-                    <Button onClick={handleCancelEdit} variant="text" startIcon={<CancelIcon />}>取消</Button><Button onClick={handleSave} variant="contained" color="primary" startIcon={<SaveIcon />}>保存并重新计算</Button></>) 
-                    : (<>
-                    <Button 
-                        onClick={handleGenerateSingleMessage} 
-                        variant="outlined"
-                        disabled={isGeneratingMessage || isLoading}
-                        startIcon={isGeneratingMessage ? <CircularProgress size={20} /> : null}
-                    >
-                        生成催款信息
-                    </Button>
-                        {successorContract && !isEditMode && (
-                            <Tooltip title={billingDetails?.customer_bill_details?.is_merged ? "此账单已被合并转移,无法再次操作" : ""}>
-                                <span> {/* Tooltip 需要一个子元素来绑定 */}
-                                    <Button
-                                        variant="contained"
-                                        color="secondary"
-                                        startIcon={isProcessingSuccessorAction ? < CircularProgress size={20} /> : <CallMergeIcon />}
-                                        onClick={handleOpenMergePreview}
-                                        disabled={isLoading || isProcessingSuccessorAction || billingDetails?.customer_bill_details?.is_merged}
-                                    >
-                                        {isProcessingSuccessorAction ? '获取预览中...' : '合并客户&员工费用到续约账单'}
-                                    </Button>
-                                </span>
-                            </Tooltip>
-                        )}
-                    <Button onClick={() => onClose(billingDetails)}>关闭</Button><Button onClick={handleEnterEditMode} variant="contained" startIcon={<EditIcon />} disabled={isLoading}>进入编辑模式</Button></>)}
+                        <Button onClick={handleCancelEdit} variant="text" startIcon={<CancelIcon />}>取消</Button><Button onClick={handleSave} variant="contained" color="primary" startIcon={<SaveIcon />}>保存并重新计算</Button></>)
+                        : (<>
+                            <Button
+                                onClick={handleGenerateSingleMessage}
+                                variant="outlined"
+                                disabled={isGeneratingMessage || isLoading}
+                                startIcon={isGeneratingMessage ? <CircularProgress size={20} /> : null}
+                            >
+                                生成催款信息
+                            </Button>
+                            {successorContract && !isEditMode && (
+                                <Tooltip title={billingDetails?.customer_bill_details?.is_merged ? "此账单已被合并转移,无法再次操作" : ""}>
+                                    <span> {/* Tooltip 需要一个子元素来绑定 */}
+                                        <Button
+                                            variant="contained"
+                                            color="secondary"
+                                            startIcon={isProcessingSuccessorAction ? < CircularProgress size={20} /> : <CallMergeIcon />}
+                                            onClick={handleOpenMergePreview}
+                                            disabled={isLoading || isProcessingSuccessorAction || billingDetails?.customer_bill_details?.is_merged}
+                                        >
+                                            {isProcessingSuccessorAction ? '获取预览中...' : '合并客户&员工费用到续约账单'}
+                                        </Button>
+                                    </span>
+                                </Tooltip>
+                            )}
+                            <Button onClick={() => onClose(billingDetails)}>关闭</Button><Button onClick={handleEnterEditMode} variant="contained" startIcon={<EditIcon />} disabled={isLoading}>进入编辑模式</Button></>)}
                 </DialogActions>
             </Dialog>
             <InvoiceDetailsDialog
@@ -1863,7 +1865,7 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
                         overtime_days: editableOvertime,
                         actual_work_days: editableActualWorkDays,
                         adjustments: adjustments,
-                        invoices: newInvoices, 
+                        invoices: newInvoices,
                         invoice_needed: billingDetails.invoice_needed,
                     });
                 }}
@@ -1873,10 +1875,10 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
             <Dialog open={isCycleEditDialogOpen} onClose={handleCloseCycleEditDialog} maxWidth="xs" fullWidth>
                 <DialogTitle>修改并顺延服务周期</DialogTitle>
                 <DialogContent>
-                    <Alert severity="warning" sx={{mb: 2}}>注意：修改本期结束日期将会自动顺延所有后续的账单周期和月份。</Alert>
-                    <Grid container spacing={2} sx={{pt: 1}}>
-                        <Grid item xs={12}><DatePicker label="本期开始日期" value={editableCycle.start} onChange={(d) => handleCycleDateChange('start', d)} sx={{width: '100%'}} /></Grid>
-                        <Grid item xs={12}><DatePicker label="本期结束日期" value={editableCycle.end} onChange={(d) => handleCycleDateChange('end', d)} sx={{width: '100%'}} /></Grid>
+                    <Alert severity="warning" sx={{ mb: 2 }}>注意：修改本期结束日期将会自动顺延所有后续的账单周期和月份。</Alert>
+                    <Grid container spacing={2} sx={{ pt: 1 }}>
+                        <Grid item xs={12}><DatePicker label="本期开始日期" value={editableCycle.start} onChange={(d) => handleCycleDateChange('start', d)} sx={{ width: '100%' }} /></Grid>
+                        <Grid item xs={12}><DatePicker label="本期结束日期" value={editableCycle.end} onChange={(d) => handleCycleDateChange('end', d)} sx={{ width: '100%' }} /></Grid>
                     </Grid>
                 </DialogContent>
                 <DialogActions>
@@ -1884,7 +1886,7 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
                     <Button onClick={handleSaveCycle} variant="contained">确认修改</Button>
                 </DialogActions>
             </Dialog>
-            <AdjustmentDialog open={isAdjustmentDialogOpen} onClose={handleCloseAdjustmentDialog} onSave={handleSaveAdjustment} adjustment={editingAdjustment} typeFilter={adjustmentFilter}/>
+            <AdjustmentDialog open={isAdjustmentDialogOpen} onClose={handleCloseAdjustmentDialog} onSave={handleSaveAdjustment} adjustment={editingAdjustment} typeFilter={adjustmentFilter} />
             <SubstituteDialog
                 open={isSubstituteDialogOpen}
                 onClose={handleCloseSubstituteDialog}
@@ -1951,8 +1953,10 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
                 sourceBillId={billingDetails?.customer_bill_details?.id}
                 targetContractId={successorContract?.id}
             />
+
         </>
     );
 };
 
 export default FinancialManagementModal;
+
