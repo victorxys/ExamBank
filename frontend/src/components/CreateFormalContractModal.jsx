@@ -455,7 +455,7 @@ ${managementFeeNotePart}`;
                 }
                 // --- 新增：为试工合同设置默认值 ---
                 else if (value === 'nanny_trial') {
-                    newFormData.management_fee_rate = 0;
+                    newFormData.management_fee_rate = 0.1;  // 默认10%
                     newFormData.introduction_fee = '2000';
                 }
                 // --- 新增结束 ---
@@ -546,15 +546,30 @@ ${managementFeeNotePart}`;
     }, [templates, formData.contract_type]);
 
 
+    // --- 自动调整试工合同的管理费率 ---
+    useEffect(() => {
+        if (formData.contract_type === 'nanny_trial') {
+            const introFeeValue = parseFloat(formData.introduction_fee);
+            if (introFeeValue > 0) {
+                // 有介绍费时，管理费率设为10%
+                if (formData.management_fee_rate !== 0.1) {
+                    setFormData(prev => ({ ...prev, management_fee_rate: 0.1 }));
+                }
+            } else {
+                // 无介绍费时，管理费率设为20%
+                if (formData.management_fee_rate !== 0.2) {
+                    setFormData(prev => ({ ...prev, management_fee_rate: 0.2 }));
+                }
+            }
+        }
+    }, [formData.contract_type, formData.introduction_fee]);
+
     const isTrialContract = formData.contract_type === 'nanny_trial';
     const introFeeValue = parseFloat(formData.introduction_fee);
-    const mgmtFeeRateValue = parseFloat(formData.management_fee_rate);
-
-    const isIntroFeeDisabled = isTrialContract && mgmtFeeRateValue > 0;
-    const isMgmtRateDisabled = isTrialContract && introFeeValue > 0;
-
-    const introFeeHelperText = isIntroFeeDisabled ? "不能与管理费率同时存在" : "";
-    const mgmtRateHelperText = isMgmtRateDisabled ? "不能与介绍费同时存在" : "";
+    
+    // 试工合同的提示文本
+    const introFeeHelperText = isTrialContract ? (introFeeValue > 0 ? "已填写介绍费，管理费率为10%" : "未填写介绍费，管理费率为20%") : "";
+    const mgmtRateHelperText = isTrialContract ? (introFeeValue > 0 ? "有介绍费时按10%收取" : "无介绍费时按20%收取") : "";
 
     // console.log('State before render:', { customerOptions, employeeOptions });
 
@@ -877,36 +892,31 @@ ${managementFeeNotePart}`;
                                     <TextField required fullWidth name="daily_rate" label="日薪(元)" type="number" value={formData.daily_rate} onChange={handleInputChange} helperText="级别/26，可手动修改" onWheel={(e) => e.target.blur()} />
                                 </Grid>
                                 <Grid item xs={12} sm={6}>
-                                    <Tooltip title={isIntroFeeDisabled ? "不能与管理费率同时存在" : ""}>
-                                        <TextField
-                                            fullWidth name="introduction_fee" label="介绍费 (元)" type="number"
-                                            value={formData.introduction_fee}
-                                            onChange={handleInputChange}
-                                            disabled={isIntroFeeDisabled}
-                                            error={isIntroFeeDisabled}
-                                            helperText={introFeeHelperText}
-                                            onWheel={(e) => e.target.blur()}
-                                        />
-                                    </Tooltip>
+                                    <TextField
+                                        fullWidth 
+                                        name="introduction_fee" 
+                                        label="介绍费 (元)" 
+                                        type="number"
+                                        value={formData.introduction_fee}
+                                        onChange={handleInputChange}
+                                        helperText={introFeeHelperText}
+                                        onWheel={(e) => e.target.blur()}
+                                    />
                                 </Grid>
                                 <Grid item xs={12} sm={6}>
-                                    <Tooltip title={isMgmtRateDisabled ? "不能与介绍费同时存在" : ""}>
-                                        <TextField
-                                            fullWidth
-                                            name="management_fee_rate"
-                                            label="管理费率 (%)"
-                                            type="number"
-                                            value={formData.management_fee_rate * 100}
-                                            onChange={(e) => {
-                                                const rate = parseFloat(e.target.value);
-                                                setFormData(prev => ({ ...prev, management_fee_rate: isNaN(rate) ? 0 : rate / 100 }));
-                                            }}
-                                            disabled={isMgmtRateDisabled}
-                                            error={isMgmtRateDisabled}
-                                            helperText={mgmtRateHelperText}
-                                            onWheel={(e) => e.target.blur()}
-                                        />
-                                    </Tooltip>
+                                    <TextField
+                                        fullWidth
+                                        name="management_fee_rate"
+                                        label="管理费率 (%)"
+                                        type="number"
+                                        value={formData.management_fee_rate * 100}
+                                        onChange={(e) => {
+                                            const rate = parseFloat(e.target.value);
+                                            setFormData(prev => ({ ...prev, management_fee_rate: isNaN(rate) ? 0 : rate / 100 }));
+                                        }}
+                                        helperText={mgmtRateHelperText}
+                                        onWheel={(e) => e.target.blur()}
+                                    />
                                 </Grid>
                             </>
                         )}
