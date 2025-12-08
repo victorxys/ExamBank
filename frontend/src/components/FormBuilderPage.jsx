@@ -35,12 +35,13 @@ Survey.Serializer.addProperty("itemvalue", {
     displayName: "正确答案",
     category: "general",
     default: false,
-    visible: false, // <--- 修正：这里将其设为不可见
+    visible: false, // <--- 修正:这里将其设为不可见
     onGetValue: function (obj) {
         if (!obj || !obj.owner) return false;
         const question = obj.owner;
         const correctAnswer = question.correctAnswer;
-        if (Survey.Helpers.isNoValue(correctAnswer)) return false;
+        // 修复: 使用简单的 null/undefined 检查替代 Survey.Helpers.isNoValue
+        if (correctAnswer === null || correctAnswer === undefined) return false;
         if (Array.isArray(correctAnswer)) {
             return correctAnswer.indexOf(obj.value) !== -1;
         }
@@ -53,7 +54,8 @@ Survey.Serializer.addProperty("itemvalue", {
             question.correctAnswer = value ? obj.value : undefined;
         } else if (question.getType() === "checkbox") {
             let correctAnswer = question.correctAnswer;
-            if (Survey.Helpers.isNoValue(correctAnswer)) correctAnswer = [];
+            // 修复: 使用简单的 null/undefined 检查替代 Survey.Helpers.isNoValue
+            if (correctAnswer === null || correctAnswer === undefined) correctAnswer = [];
             else if (!Array.isArray(correctAnswer)) correctAnswer = [correctAnswer];
             const index = correctAnswer.indexOf(obj.value);
             if (value) {
@@ -88,18 +90,22 @@ const FormBuilderPage = () => {
     useEffect(() => {
         isExamRef.current = isExam;
     }, [isExam]);
-        useEffect(() => {
+    useEffect(() => {
         const creator = new SurveyCreator(creatorOptions);
         creatorRef.current = creator;
-        
+
         creator.onShowingProperty.add((sender, options) => {
             if (options.property.name === "points" || options.property.name === "correctAnswer") {
                 options.canShow = isExamRef.current;
             }
         });
-        
+
         creator.saveSurveyFunc = async (saveNo, callback) => {
+            console.log('[FormBuilder] saveSurveyFunc 被调用, saveNo:', saveNo);
             const schema = creator.JSON;
+            console.log('[FormBuilder] 准备保存的 schema:', schema);
+            console.log('[FormBuilder] schema.pages 数量:', schema.pages?.length);
+
             try {
                 const payload = {
                     surveyjs_schema: schema,
@@ -107,9 +113,14 @@ const FormBuilderPage = () => {
                     passing_score: isExamRef.current ? examProperties.passing_score : null,
                     exam_duration: isExamRef.current ? examProperties.exam_duration : null,
                 };
+                console.log('[FormBuilder] 发送 payload:', payload);
+
                 if (formToken) {
+                    console.log('[FormBuilder] 获取表单信息, formToken:', formToken);
                     const formResponse = await api.get(`/dynamic_forms/${formToken}`);
+                    console.log('[FormBuilder] 表单 ID:', formResponse.data.id);
                     await api.patch(`/dynamic_forms/${formResponse.data.id}`, payload);
+                    console.log('[FormBuilder] PATCH 请求完成');
                     alert('表单更新成功！');
                 } else {
                     const name = prompt("请输入表单名称:", "新表单");
@@ -138,7 +149,7 @@ const FormBuilderPage = () => {
                         setExamProperties({ passing_score, exam_duration });
                     }
                     creator.JSON = surveyjs_schema || {};
-                    if(creator.survey) creator.survey.showCorrectAnswer = isExamMode;
+                    if (creator.survey) creator.survey.showCorrectAnswer = isExamMode;
                 }
                 setLoading(false);
             } catch (err) {
@@ -159,11 +170,11 @@ const FormBuilderPage = () => {
         }
 
         const pointsProp = Survey.Serializer.findProperty("question", "points");
-        if(pointsProp) pointsProp.visible = isExam;
+        if (pointsProp) pointsProp.visible = isExam;
 
         const itemScoreProp = Survey.Serializer.findProperty("itemvalue", "score");
         if (itemScoreProp) itemScoreProp.visible = isExam;
-        
+
         // itemCorrectProp 的动态可见性控制已移除，因为现在将其永久隐藏。
 
     }, [isExam]);
@@ -172,7 +183,7 @@ const FormBuilderPage = () => {
     if (error) return <Container sx={{ mt: 4 }}><Alert severity="error">{error}</Alert></Container>;
 
     return (
-        <Box sx={{ height: 'calc(120vh - 70.4px)', width: 'calc(100%+18px)',margin: '-20px' }}>
+        <Box sx={{ height: 'calc(120vh - 70.4px)', width: 'calc(100%+18px)', margin: '-20px' }}>
             <Box sx={{ p: 2, display: 'flex', gap: 2, alignItems: 'center', backgroundColor: '#f7f7f7', borderBottom: '1px solid #e0e0e0' }}>
                 <FormControlLabel
                     control={

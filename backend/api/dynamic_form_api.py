@@ -123,6 +123,11 @@ def update_dynamic_form(form_id):
     """
     更新一个动态表单。
     """
+    import logging
+    import json
+    from sqlalchemy.orm.attributes import flag_modified
+    logger = logging.getLogger(__name__)
+    
     form = db.session.get(DynamicForm, form_id)
     if not form:
         return jsonify({'message': 'DynamicForm not found'}), 404
@@ -131,7 +136,45 @@ def update_dynamic_form(form_id):
     if not data:
         return jsonify({'message': 'No input data provided'}), 400
 
-    form.surveyjs_schema = data.get('surveyjs_schema', form.surveyjs_schema)
+    # 详细调试日志
+    logger.info(f"[PATCH form] ========== 开始更新表单 ==========")
+    logger.info(f"[PATCH form] form_id={form_id}")
+    logger.info(f"[PATCH form] Received keys: {list(data.keys())}")
+    
+    if 'surveyjs_schema' in data:
+        new_schema = data['surveyjs_schema']
+        old_schema = form.surveyjs_schema or {}
+        
+        logger.info(f"[PATCH form] === 新 Schema ===")
+        logger.info(f"[PATCH form] 新 title: {new_schema.get('title')}")
+        logger.info(f"[PATCH form] 新 description: {new_schema.get('description')}")
+        
+        new_pages = new_schema.get('pages', [])
+        logger.info(f"[PATCH form] 新 pages 数量: {len(new_pages)}")
+        for i, page in enumerate(new_pages):
+            elements = page.get('elements', [])
+            logger.info(f"[PATCH form] 新 Page {i}: elements 数量={len(elements)}")
+            for j, el in enumerate(elements[:3]):  # 只显示前3个
+                logger.info(f"[PATCH form]   Element {j}: name={el.get('name')}, type={el.get('type')}")
+        
+        logger.info(f"[PATCH form] === 旧 Schema ===")
+        logger.info(f"[PATCH form] 旧 title: {old_schema.get('title')}")
+        logger.info(f"[PATCH form] 旧 description: {old_schema.get('description')}")
+        
+        old_pages = old_schema.get('pages', [])
+        logger.info(f"[PATCH form] 旧 pages 数量: {len(old_pages)}")
+        for i, page in enumerate(old_pages):
+            elements = page.get('elements', [])
+            logger.info(f"[PATCH form] 旧 Page {i}: elements 数量={len(elements)}")
+    else:
+        logger.warning(f"[PATCH form] surveyjs_schema NOT in request data!")
+
+    # 更新 JSONB 字段并标记为已修改
+    if 'surveyjs_schema' in data:
+        form.surveyjs_schema = data['surveyjs_schema']
+        flag_modified(form, 'surveyjs_schema')  # 关键：通知 SQLAlchemy JSONB 字段已变化
+        logger.info(f"[PATCH form] surveyjs_schema 已赋值并标记为 modified")
+    
     form.form_type = data.get('form_type', form.form_type)
     form.passing_score = data.get('passing_score', form.passing_score)
     form.exam_duration = data.get('exam_duration', form.exam_duration)
@@ -145,9 +188,19 @@ def update_dynamic_form(form_id):
 
     try:
         db.session.commit()
+        logger.info(f"[PATCH form] ========== 保存成功 ==========")
+        
+        # 验证保存后的数据
+        db.session.refresh(form)
+        saved_schema = form.surveyjs_schema or {}
+        logger.info(f"[PATCH form] === 验证保存后的 Schema ===")
+        logger.info(f"[PATCH form] 保存后 title: {saved_schema.get('title')}")
+        logger.info(f"[PATCH form] 保存后 pages 数量: {len(saved_schema.get('pages', []))}")
+        
         return jsonify({'message': 'DynamicForm updated successfully'}), 200
     except Exception as e:
         db.session.rollback()
+        logger.error(f"[PATCH form] Error saving form: {e}")
         return jsonify({'message': 'An error occurred while updating the form', 'error': str(e)}), 500
 
 
