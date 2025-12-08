@@ -2102,6 +2102,7 @@ class BillingEngine:
         cust_increase, cust_decrease, emp_increase, emp_decrease, deferred_fee, emp_commission, emp_balance_transfer = (
             self._get_adjustments(bill.id, payroll.id)
         )
+        # 测试提交
         
         extension_fee = D(0)
         # --- 关键修复：使用正确的日期进行比较 ---
