@@ -1918,7 +1918,7 @@ class BillingEngine:
             overrides = {}
 
         QUANTIZER = D("0.01")
-        cust_increase, cust_decrease, emp_increase, emp_decrease, deferred_fee, emp_commission, emp_balance_transfer = (
+        cust_increase, cust_decrease, emp_increase, emp_decrease, deferred_fee, emp_commission, emp_balance_transfer , emp_balance_transfer = (
             self._get_adjustments(bill.id, payroll.id)
         )
 
@@ -2099,6 +2099,7 @@ class BillingEngine:
         log_extras["employee_payout_reason"] = f"员工工资: 等同于客户应付金额 = {employee_base_payout:.2f}"
         # --- 修正结束 ---
 
+        
         cust_increase, cust_decrease, emp_increase, emp_decrease, deferred_fee, emp_commission, emp_balance_transfer = (
             self._get_adjustments(bill.id, payroll.id)
         )
