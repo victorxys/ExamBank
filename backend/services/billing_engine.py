@@ -2099,7 +2099,6 @@ class BillingEngine:
         log_extras["employee_payout_reason"] = f"员工工资: 等同于客户应付金额 = {employee_base_payout:.2f}"
         # --- 修正结束 ---
 
-        
         cust_increase, cust_decrease, emp_increase, emp_decrease, deferred_fee, emp_commission, emp_balance_transfer = (
             self._get_adjustments(bill.id, payroll.id)
         )
@@ -3216,8 +3215,7 @@ class BillingEngine:
             ))
 
         # 步骤 8: 处理【介绍费】
-        # 新业务逻辑：介绍费不转移到正式合同，保留在试工账单中
-        # 在步骤7中已经从 trial_bill.total_due 中排除了介绍费，所以介绍费会自动留在试工账单
+        # introduction_fee 已在步骤7定义
         if introduction_fee > 0:
             current_app.logger.info(f"[TRIAL_CONVERT_LOG] 8. 介绍费 {introduction_fee} 元保留在试工合同账单中，不转移到正式合同")
         # --- 旧逻辑（已废弃）：转移介绍费到正式合同 ---
