@@ -1,0 +1,552 @@
+/* SurveyJS Shadcn Theme - Modern, Minimal, Mobile-First */
+
+/* ===== Design Tokens (following shadcn conventions) ===== */
+:root {
+    /* Colors - using teal/emerald color palette */
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    /* Teal-600: #0d9488 = hsl(173, 80%, 29%) */
+    --primary: 173 80% 29%;
+    --primary-foreground: 0 0% 100%;
+    /* Teal-500 for hover: #14b8a6 = hsl(168, 78%, 40%) */
+    --primary-hover: 168 78% 40%;
+    --accent: 166 76% 94%;
+    --accent-foreground: 173 80% 29%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --ring: 173 80% 29%;
+
+    /* Spacing & Sizing */
+    --radius: 0.5rem;
+    --header-height: auto;
+
+    /* Typography */
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans SC", sans-serif;
+}
+
+/* ===== Reset & Base ===== */
+.sd-root-modern {
+    font-family: var(--font-sans) !important;
+    background-color: hsl(var(--muted)) !important;
+    -webkit-font-smoothing: antialiased !important;
+    -moz-osx-font-smoothing: grayscale !important;
+}
+
+/* Main Card Container */
+.sd-container-modern {
+    max-width: 720px !important;
+    width: calc(100% - 2rem) !important;
+    margin: 1.5rem auto !important;
+    background-color: hsl(var(--card)) !important;
+    border-radius: var(--radius) !important;
+    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1) !important;
+    border: none !important;
+    overflow: hidden !important;
+}
+
+/* ===== Header Section ===== */
+.sd-container-modern__title {
+    /* Teal gradient: teal-600 to teal-500 */
+    background: linear-gradient(135deg, hsl(173 80% 29%) 0%, hsl(168 78% 38%) 100%) !important;
+    padding: 1.5rem !important;
+    margin: 0 !important;
+    position: relative !important;
+}
+
+.sd-title {
+    color: hsl(var(--primary-foreground)) !important;
+    font-size: 1.5rem !important;
+    font-weight: 600 !important;
+    line-height: 1.4 !important;
+    margin: 0 0 0.5rem 0 !important;
+}
+
+.sd-description {
+    color: hsl(var(--primary-foreground) / 0.85) !important;
+    font-size: 0.875rem !important;
+    line-height: 1.5 !important;
+    margin: 0 !important;
+}
+
+/* ===== Body Section ===== */
+.sd-body {
+    background-color: hsl(var(--card)) !important;
+    padding: 1.5rem !important;
+}
+
+.sd-page {
+    padding: 0 !important;
+}
+
+/* ===== Questions ===== */
+.sd-question {
+    padding: 0 !important;
+    margin-bottom: 2rem !important;
+    background: transparent !important;
+}
+
+.sd-question:last-child {
+    margin-bottom: 0 !important;
+}
+
+.sd-question__header {
+    margin-bottom: 0.5rem !important;
+    display: flex !important;
+    align-items: baseline !important;
+    flex-wrap: wrap !important;
+}
+
+.sd-question__title {
+    color: hsl(var(--foreground)) !important;
+    font-size: 0.875rem !important;
+    font-weight: 500 !important;
+    line-height: 1.5 !important;
+    margin: 0 !important;
+    white-space: normal !important;
+    word-wrap: break-word !important;
+    display: inline !important;
+}
+
+/* Required indicator */
+.sd-question__required-text {
+    color: hsl(var(--destructive)) !important;
+    margin-left: 0.25rem !important;
+    display: inline !important;
+    line-height: 1.5 !important;
+}
+
+/* Hide question numbers */
+.sd-question__number {
+    display: none !important;
+}
+
+.sd-question__content {
+    border: none !important;
+    padding: 0 !important;
+}
+
+/* Remove all wrapper borders from SurveyJS */
+.sd-element,
+.sd-element__content,
+.sd-text__content,
+.sd-input__wrapper,
+.sd-question--text .sd-question__content,
+.sd-question--comment .sd-question__content {
+    border: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+}
+
+/* ===== Input Fields ===== */
+.sd-input,
+.sd-text,
+.sd-comment {
+    width: 100% !important;
+    min-height: 2.5rem !important;
+    padding: 0.5rem 0.75rem !important;
+    font-size: 0.875rem !important;
+    line-height: 1.5 !important;
+    color: hsl(var(--foreground)) !important;
+    background-color: hsl(var(--background)) !important;
+    border: 1px solid hsl(var(--border)) !important;
+    border-radius: var(--radius) !important;
+    box-shadow: none !important;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease !important;
+}
+
+.sd-input:focus,
+.sd-text:focus,
+.sd-comment:focus {
+    outline: none !important;
+    border-color: hsl(var(--primary)) !important;
+    box-shadow: 0 0 0 2px hsl(var(--primary) / 0.15) !important;
+}
+
+.sd-input::placeholder,
+.sd-text::placeholder,
+.sd-comment::placeholder {
+    color: hsl(var(--muted-foreground)) !important;
+}
+
+/* Disabled state */
+.sd-input:disabled,
+.sd-text:disabled,
+.sd-comment:disabled {
+    background-color: hsl(var(--muted)) !important;
+    opacity: 0.7 !important;
+    cursor: not-allowed !important;
+}
+
+/* Dropdown */
+.sd-dropdown {
+    width: 100% !important;
+    min-height: 2.5rem !important;
+    padding: 0.5rem 0.75rem !important;
+    font-size: 0.875rem !important;
+    background-color: hsl(var(--background)) !important;
+    border: 1px solid hsl(var(--input)) !important;
+    border-radius: var(--radius) !important;
+}
+
+.sd-dropdown:focus {
+    outline: none !important;
+    border-color: hsl(var(--ring)) !important;
+    box-shadow: 0 0 0 2px hsl(var(--ring) / 0.2) !important;
+}
+
+/* ===== Radio & Checkbox ===== */
+.sd-item {
+    padding: 0.5rem 0 !important;
+    margin: 0 !important;
+}
+
+.sd-item__control-label {
+    font-size: 0.875rem !important;
+    color: hsl(var(--foreground)) !important;
+    cursor: pointer !important;
+}
+
+.sd-item__decorator {
+    width: 1rem !important;
+    height: 1rem !important;
+    border: 1px solid hsl(var(--border)) !important;
+    background-color: hsl(var(--background)) !important;
+}
+
+.sd-item--checked .sd-item__decorator {
+    background-color: hsl(var(--primary)) !important;
+    border-color: hsl(var(--primary)) !important;
+}
+
+/* Radio - circle shape */
+.sd-radio .sd-item__decorator {
+    border-radius: 50% !important;
+}
+
+/* Checkbox - rounded square */
+.sd-checkbox .sd-item__decorator {
+    border-radius: 0.25rem !important;
+}
+
+/* ===== Buttons ===== */
+.sd-btn,
+.sd-navigation__complete-btn,
+.sd-navigation__next-btn,
+.sd-navigation__prev-btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    height: 2.5rem !important;
+    padding: 0 1rem !important;
+    font-size: 0.875rem !important;
+    font-weight: 500 !important;
+    border-radius: var(--radius) !important;
+    cursor: pointer !important;
+    transition: all 0.15s ease !important;
+}
+
+/* Primary button (Complete, Next) */
+.sd-btn--action,
+.sd-navigation__complete-btn,
+.sd-navigation__next-btn {
+    background-color: hsl(var(--primary)) !important;
+    color: hsl(var(--primary-foreground)) !important;
+    border: none !important;
+}
+
+.sd-btn--action:hover,
+.sd-navigation__complete-btn:hover,
+.sd-navigation__next-btn:hover {
+    background-color: hsl(var(--primary-hover)) !important;
+}
+
+/* Secondary button (Previous) */
+.sd-navigation__prev-btn {
+    background-color: hsl(var(--background)) !important;
+    color: hsl(var(--foreground)) !important;
+    border: 1px solid hsl(var(--border)) !important;
+}
+
+.sd-navigation__prev-btn:hover {
+    background-color: hsl(var(--muted)) !important;
+}
+
+/* ===== File Upload ===== */
+.sd-file__decorator {
+    border: 2px dashed hsl(var(--border)) !important;
+    border-radius: var(--radius) !important;
+    background-color: hsl(var(--muted) / 0.5) !important;
+    padding: 1.5rem !important;
+    text-align: center !important;
+    transition: border-color 0.15s ease, background-color 0.15s ease !important;
+}
+
+.sd-file__decorator:hover {
+    border-color: hsl(var(--primary) / 0.5) !important;
+    background-color: hsl(var(--primary) / 0.05) !important;
+}
+
+.sd-file__choose-btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    height: 2rem !important;
+    padding: 0 0.75rem !important;
+    font-size: 0.75rem !important;
+    font-weight: 500 !important;
+    background-color: hsl(var(--primary)) !important;
+    color: hsl(var(--primary-foreground)) !important;
+    border: none !important;
+    border-radius: var(--radius) !important;
+    cursor: pointer !important;
+}
+
+.sd-file__choose-btn:hover {
+    background-color: hsl(var(--primary-hover)) !important;
+}
+
+.sd-file__no-file-chosen {
+    font-size: 0.75rem !important;
+    color: hsl(var(--muted-foreground)) !important;
+    margin-top: 0.5rem !important;
+}
+
+.sd-file__drag-area-placeholder {
+    display: none !important;
+}
+
+/* ===== Table / Matrix ===== */
+.sd-table,
+.sd-matrixdynamic,
+.sd-matrixdropdown {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    font-size: 0.875rem !important;
+    border: none !important;
+}
+
+.sd-table__cell--header {
+    background-color: hsl(var(--muted)) !important;
+    color: hsl(var(--foreground)) !important;
+    font-weight: 500 !important;
+    padding: 0.875rem 0.75rem !important;
+    text-align: left !important;
+    border-bottom: 2px solid hsl(var(--border)) !important;
+    border-top: none !important;
+    border-left: none !important;
+    border-right: none !important;
+}
+
+.sd-table__cell {
+    /* padding: 1rem 0.75rem !important; */
+    border: none !important;
+    vertical-align: top !important;
+}
+
+.sd-table__row:hover {
+    background-color: hsl(var(--muted) / 0.3) !important;
+}
+
+/* Table inputs */
+.sd-table__cell .sd-input,
+.sd-table__cell .sd-text,
+.sd-table__cell textarea {
+    font-size: 0.8125rem !important;
+    padding: 0.375rem 0.5rem !important;
+    min-height: 2rem !important;
+}
+
+/* Add row button container */
+.sd-matrixdynamic__footer,
+.sd-action-bar--footer {
+    display: flex !important;
+    justify-content: flex-end !important;
+    width: 100% !important;
+    margin-top: 0.5rem !important;
+}
+
+/* Add row button */
+.sd-matrixdynamic__add-btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    height: 2rem !important;
+    padding: 0 0.75rem !important;
+    font-size: 0.75rem !important;
+    font-weight: 500 !important;
+    background-color: hsl(var(--primary)) !important;
+    color: hsl(var(--primary-foreground)) !important;
+    border: none !important;
+    border-radius: var(--radius) !important;
+    margin-top: 0 !important;
+}
+
+/* Remove row button */
+.sd-matrixdynamic__remove-btn {
+    width: 1.5rem !important;
+    height: 1.5rem !important;
+    padding: 0 !important;
+    font-size: 0.75rem !important;
+    background-color: transparent !important;
+    color: hsl(var(--muted-foreground)) !important;
+    border: none !important;
+    border-radius: var(--radius) !important;
+}
+
+.sd-matrixdynamic__remove-btn:hover {
+    background-color: hsl(var(--destructive) / 0.1) !important;
+    color: hsl(var(--destructive)) !important;
+}
+
+/* ===== Footer ===== */
+.sd-footer {
+    padding: 1rem 1.5rem !important;
+    background-color: hsl(var(--muted) / 0.5) !important;
+    border-top: 1px solid hsl(var(--border)) !important;
+}
+
+/* ===== Progress Bar ===== */
+.sd-progress {
+    height: 0.25rem !important;
+    background-color: hsl(var(--muted)) !important;
+    border-radius: 9999px !important;
+    overflow: hidden !important;
+}
+
+.sd-progress__bar {
+    background-color: hsl(var(--primary)) !important;
+    transition: width 0.3s ease !important;
+}
+
+/* ===== Completed Page ===== */
+.sd-completedpage {
+    text-align: center !important;
+    padding: 3rem 1.5rem !important;
+}
+
+.sd-completedpage h3 {
+    font-size: 1.5rem !important;
+    font-weight: 600 !important;
+    color: hsl(var(--foreground)) !important;
+    margin-bottom: 0.5rem !important;
+}
+
+/* ===== Navigation ===== */
+.sd-action-bar {
+    display: flex !important;
+    justify-content: flex-end !important;
+    gap: 0.5rem !important;
+    flex-wrap: wrap !important;
+}
+
+/* ===== Mobile Responsive ===== */
+@media (max-width: 640px) {
+
+    /* Container */
+    .sd-container-modern {
+        width: 100% !important;
+        margin: 0 !important;
+        border-radius: 0 !important;
+        border-left: none !important;
+        border-right: none !important;
+    }
+
+    /* Header */
+    .sd-container-modern__title {
+        padding: 1.5rem 1rem !important;
+    }
+
+    .sd-title {
+        font-size: 1.25rem !important;
+    }
+
+    /* Body */
+    .sd-body {
+        padding: 1rem !important;
+    }
+
+    /* Questions */
+    .sd-question {
+        margin-bottom: 1.25rem !important;
+    }
+
+    .sd-question__title {
+        font-size: 0.875rem !important;
+    }
+
+    /* Inputs - larger touch targets */
+    .sd-input,
+    .sd-text,
+    .sd-comment,
+    .sd-dropdown {
+        min-height: 2.75rem !important;
+        font-size: 1rem !important;
+    }
+
+    /* Radio/Checkbox - larger touch targets */
+    .sd-item {
+        padding: 0.625rem 0 !important;
+    }
+
+    .sd-item__decorator {
+        width: 1.25rem !important;
+        height: 1.25rem !important;
+    }
+
+    .sd-item__control-label {
+        font-size: 0.9375rem !important;
+    }
+
+    /* Buttons - full width on mobile */
+    .sd-action-bar {
+        flex-direction: column-reverse !important;
+    }
+
+    .sd-btn,
+    .sd-navigation__complete-btn,
+    .sd-navigation__next-btn,
+    .sd-navigation__prev-btn {
+        width: 100% !important;
+        height: 2.75rem !important;
+    }
+
+    /* Tables - horizontal scroll */
+    .sd-table {
+        display: block !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+    }
+}
+
+/* ===== Hide Unwanted Elements ===== */
+.sd-html-question .sd-question__title:empty,
+.sd-element--html .sd-question__title:empty {
+    display: none !important;
+}
+
+/* Override MUI Container if present */
+.MuiContainer-root.MuiContainer-maxWidthMd {
+    max-width: 100% !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+}
+
+/* ===== Dark Mode Support (optional) ===== */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --background: 222.2 84% 4.9%;
+        --foreground: 210 40% 98%;
+        --card: 222.2 84% 4.9%;
+        --card-foreground: 210 40% 98%;
+        --muted: 217.2 32.6% 17.5%;
+        --muted-foreground: 215 20.2% 65.1%;
+        --border: 217.2 32.6% 17.5%;
+        --input: 217.2 32.6% 17.5%;
+    }
+}

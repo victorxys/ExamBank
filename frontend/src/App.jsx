@@ -340,6 +340,7 @@ const FormDataListPage = lazy(() => import('./components/FormDataListPage'));
 const FormBuilderPage = lazy(() => import('./components/FormBuilderPage'));
 const ExamResultsPage = lazy(() => import('./components/ExamResultsPage'));
 const ExamResultDetailPage = lazy(() => import('./components/ExamResultDetailPage'));
+const PickerTestPage = lazy(() => import('./components/PickerTestPage'));
 
 
 // --- 5. App 组件主体 ---
@@ -420,6 +421,7 @@ function App() {
           <Route path="/attendance-sign/:token" element={<Suspense fallback={<LoadingFallback />}><AttendanceFillPage mode="customer" /></Suspense>} />
           <Route path="/attendance-admin/:token" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}><AttendanceFillPage mode="admin_view" /></Suspense>} />} />
           <Route path="/forms/:formToken" element={<Suspense fallback={<LoadingFallback />}><DynamicFormPage /></Suspense>} />
+          <Route path="/picker-test" element={<Suspense fallback={<LoadingFallback />}><PickerTestPage /></Suspense>} />
 
           {/* EmployeeProfile 和其子路由已移到 MainLayout 下，这里不再需要 */}
         </Route>

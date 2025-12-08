@@ -1,62 +1,93 @@
+"use client"
+
 import * as React from "react"
-import { ChevronLeft, ChevronRight } from "lucide-react"
-import { DayPicker } from "react-day-picker"
+import {
+    ChevronDownIcon,
+    ChevronLeftIcon,
+    ChevronRightIcon,
+} from "lucide-react"
+import { DayButton, DayPicker } from "react-day-picker"
 
 import { cn } from "../../utils"
-import { buttonVariants } from "./button"
+import { Button, buttonVariants } from "./button"
 
 function Calendar({
     className,
     classNames,
     showOutsideDays = true,
+    captionLayout = "label",
+    buttonVariant = "ghost",
+    formatters,
+    components,
     ...props
 }) {
     return (
         <DayPicker
             showOutsideDays={showOutsideDays}
-            className={cn("p-3", className)}
+            className={cn("bg-background p-3", className)}
+            captionLayout={captionLayout}
+            formatters={{
+                formatMonthDropdown: (date) =>
+                    date.toLocaleString("zh-CN", { month: "short" }),
+                formatYearDropdown: (date) => `${date.getFullYear()}`,
+                ...formatters,
+            }}
             classNames={{
-                months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
-                month: "space-y-4",
-                caption: "flex justify-center pt-1 relative items-center",
-                caption_label: "text-sm font-medium",
-                nav: "space-x-1 flex items-center",
-                nav_button: cn(
-                    buttonVariants({ variant: "outline" }),
-                    "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100"
+                months: "relative flex flex-col gap-4 md:flex-row",
+                month: "flex w-full flex-col gap-4",
+                nav: "absolute inset-x-0 top-0 flex w-full items-center justify-between gap-1",
+                button_previous: cn(
+                    buttonVariants({ variant: buttonVariant }),
+                    "h-8 w-8 p-0"
                 ),
-                nav_button_previous: "absolute left-1",
-                nav_button_next: "absolute right-1",
-                table: "w-full border-collapse space-y-1",
-                head_row: "flex",
-                head_cell:
-                    "text-muted-foreground rounded-md w-9 font-normal text-[0.8rem]",
-                row: "flex w-full mt-2",
-                cell: "h-9 w-9 text-center text-sm p-0 relative [&:has([aria-selected].day-range-end)]:rounded-r-md [&:has([aria-selected].day-outside)]:bg-accent/50 [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20",
-                day: cn(
+                button_next: cn(
+                    buttonVariants({ variant: buttonVariant }),
+                    "h-8 w-8 p-0"
+                ),
+                month_caption: "flex h-8 w-full items-center justify-center px-8",
+                dropdowns: "flex w-full items-center justify-center gap-2 text-sm font-medium",
+                dropdown_root: "relative rounded-md border border-input",
+                dropdown: "absolute inset-0 opacity-0 cursor-pointer",
+                caption_label: cn(
+                    "select-none font-medium text-sm",
+                    captionLayout !== "label" && "flex items-center gap-1 rounded-md px-2 py-1"
+                ),
+                table: "w-full border-collapse",
+                weekdays: "flex",
+                weekday: "text-muted-foreground w-9 h-9 flex items-center justify-center text-xs font-normal",
+                week: "flex w-full mt-2",
+                day: "relative w-9 h-9 p-0 text-center text-sm",
+                day_button: cn(
                     buttonVariants({ variant: "ghost" }),
-                    "h-9 w-9 p-0 font-normal aria-selected:opacity-100"
+                    "h-9 w-9 p-0 font-normal rounded-md"
                 ),
-                day_range_end: "day-range-end",
-                day_selected:
-                    "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
-                day_today: "bg-accent text-accent-foreground",
-                day_outside:
-                    "day-outside text-muted-foreground opacity-50 aria-selected:bg-accent/50 aria-selected:text-muted-foreground aria-selected:opacity-30",
-                day_disabled: "text-muted-foreground opacity-50",
-                day_range_middle:
-                    "aria-selected:bg-accent aria-selected:text-accent-foreground",
-                day_hidden: "invisible",
+                range_start: "bg-accent rounded-l-md",
+                range_middle: "rounded-none",
+                range_end: "bg-accent rounded-r-md",
+                today: "bg-accent text-accent-foreground rounded-md",
+                outside: "text-muted-foreground opacity-50",
+                disabled: "text-muted-foreground opacity-50",
+                hidden: "invisible",
+                selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground",
                 ...classNames,
             }}
             components={{
-                IconLeft: ({ ...props }) => <ChevronLeft className="h-4 w-4" />,
-                IconRight: ({ ...props }) => <ChevronRight className="h-4 w-4" />,
+                Chevron: ({ className, orientation, ...props }) => {
+                    if (orientation === "left") {
+                        return <ChevronLeftIcon className={cn("size-4", className)} {...props} />
+                    }
+                    if (orientation === "right") {
+                        return <ChevronRightIcon className={cn("size-4", className)} {...props} />
+                    }
+                    return <ChevronDownIcon className={cn("size-4", className)} {...props} />
+                },
+                ...components,
             }}
             {...props}
         />
     )
 }
+
 Calendar.displayName = "Calendar"
 
 export { Calendar }
