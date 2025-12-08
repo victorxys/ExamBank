@@ -753,10 +753,15 @@ def update_single_contract(contract_id):
             contract.requires_signature = requires_signature
             if requires_signature is False:
                 contract.signing_status = SigningStatus.NOT_REQUIRED
+                # 无需签署时，自动激活合同
+                if contract.status not in ['active', 'finished', 'terminated']:
+                    contract.status = 'active'
+                    update_salary_history_on_contract_activation(contract)
+                    current_app.logger.info(f"合同 {contract_id} 已激活（无需签署），已更新薪资历史")
             elif requires_signature is True:
                 contract.signing_status = SigningStatus.UNSIGNED
             current_app.logger.info(
-                f"合同 {contract_id} 的签署需求更新为: {requires_signature}, 签署状态: {contract.signing_status}"
+                f"合同 {contract_id} 的签署需求更新为: {requires_signature}, 签署状态: {contract.signing_status}, 合同状态: {contract.status}"
             )
                 
 
