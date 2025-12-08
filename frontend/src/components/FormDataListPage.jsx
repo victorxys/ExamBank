@@ -580,11 +580,14 @@ const FormDataListPage = () => {
                         alt={`Image ${currentImageIndex + 1}`}
                         style={{
                             maxWidth: '90vw',
+                            maxHeight: '90vh',
+                            width: 'auto',
                             height: 'auto',
                             display: 'block',
                             borderRadius: '8px',
                             backgroundColor: 'white',
                             boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
+                            objectFit: 'contain',
                         }}
                     />
 
