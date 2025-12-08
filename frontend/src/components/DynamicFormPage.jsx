@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { createRoot } from 'react-dom/client';
 // import { createPortal } from 'react-dom'; // Removed to avoid production build issues
 import { useParams, useLocation, useNavigate } from 'react-router-dom'; // 导入 useLocation 和 useNavigate
 import { Model } from 'survey-core';
@@ -7,6 +8,8 @@ import 'survey-core/survey-core.min.css';
 import '../styles/survey-theme-shadcn.css'; // Import Shadcn-style Theme
 // Import Chinese language pack
 import 'survey-core/i18n/simplified-chinese';
+import { LazyLoadImage } from 'react-lazy-load-image-component';
+import 'react-lazy-load-image-component/src/effects/blur.css';
 
 // Note: Language will be set on each survey instance
 import api from '../api/axios';
@@ -18,12 +21,147 @@ import {
     Button,
     Typography,
     IconButton,
-    Portal // Import Portal from MUI
+    Portal, // Import Portal from MUI
+    Modal,
+    Skeleton,
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import { 
+    ImageNotSupported as ImageNotSupportedIcon,
+    ChevronLeft as ChevronLeftIcon,
+    ChevronRight as ChevronRightIcon,
+    Close as CloseIcon,
+} from '@mui/icons-material';
 import { formatAddress } from '../utils/formatUtils';
 import { createDateTimeRenderer } from '../utils/surveyjs-custom-widgets.jsx';
 import AlertMessage from './AlertMessage';
+
+// Optimized Image Components with Lightbox
+const OptimizedFileCarousel = ({ questionValue, onImageClick }) => {
+    const [currentIndex, setCurrentIndex] = useState(0);
+    const [imageErrors, setImageErrors] = useState({});
+
+    const updateDisplay = (index) => {
+        setCurrentIndex(index);
+    };
+
+    if (!Array.isArray(questionValue) || questionValue.length === 0) {
+        return null;
+    }
+
+    const file = questionValue[currentIndex];
+
+    return (
+        <Box sx={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, mt: 1 }}>
+            {/* Image Display */}
+            <Box
+                sx={{
+                    position: 'relative',
+                    maxWidth: '100%',
+                    maxHeight: '800px',
+                    cursor: 'pointer',
+                }}
+                onClick={() => onImageClick && onImageClick(currentIndex)}
+            >
+                {imageErrors[currentIndex] ? (
+                    <Box
+                        sx={{
+                            width: '400px',
+                            height: '300px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            backgroundColor: '#f8f9fa',
+                            borderRadius: '4px',
+                            border: '1px solid #dee2e6',
+                        }}
+                    >
+                        <ImageNotSupportedIcon sx={{ fontSize: 60, color: '#6c757d' }} />
+                    </Box>
+                ) : (
+                    <LazyLoadImage
+                        src={file?.content}
+                        alt={`Image ${currentIndex + 1}`}
+                        effect="blur"
+                        placeholderSrc="/data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgdmlld0JveD0iMCAwIDQwMCAzMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI0MDAiIGhlaWdodD0iMzAwIiBmaWxsPSIjRjhGOUZBIi8+CjxwYXRoIGQ9Ik0xNTAgMTUwIEgyNTAgTDIwMCAxMjVWMjI1WiIgc3Ryb2tlPSIjRERFRTJGIiBzdHJva2Utd2lkdGg9IjMiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgo8Y2lyY2xlIGN4PSIyMjUiIGN5PSIxMjUiIHI9IjYiIGZpbGw9IiNEREVFMkYiLz4KPC9zdmc+Cg=="
+                        onError={() => setImageErrors(prev => ({ ...prev, [currentIndex]: true }))}
+                        style={{
+                            maxWidth: '100%',
+                            maxHeight: '800px',
+                            objectFit: 'contain',
+                            display: 'block',
+                        }}
+                    />
+                )}
+            </Box>
+
+            {/* Controls */}
+            {questionValue.length > 1 && (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                    <IconButton
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            if (currentIndex > 0) updateDisplay(currentIndex - 1);
+                        }}
+                        disabled={currentIndex === 0}
+                        size="small"
+                    >
+                        <ChevronLeftIcon />
+                    </IconButton>
+                    <Typography variant="body2" color="text.secondary">
+                        {currentIndex + 1} / {questionValue.length}
+                    </Typography>
+                    <IconButton
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            if (currentIndex < questionValue.length - 1) updateDisplay(currentIndex + 1);
+                        }}
+                        disabled={currentIndex === questionValue.length - 1}
+                        size="small"
+                    >
+                        <ChevronRightIcon />
+                    </IconButton>
+                </Box>
+            )}
+        </Box>
+    );
+};
+
+const OptimizedSignatureImage = ({ src, style }) => {
+    const [imageError, setImageError] = useState(false);
+
+    if (imageError) {
+        return (
+            <Box
+                sx={{
+                    ...style,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: '#f8f9fa',
+                    border: '1px solid #dee2e6',
+                    borderRadius: '4px',
+                }}
+            >
+                <ImageNotSupportedIcon sx={{ fontSize: 40, color: '#6c757d' }} />
+                <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+                    签名加载失败
+                </Typography>
+            </Box>
+        );
+    }
+
+    return (
+        <LazyLoadImage
+            src={src}
+            alt="签名图片"
+            effect="blur"
+            placeholderSrc="/data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDIwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iMTAwIiBmaWxsPSIjRjhGOUZBIi8+CjxwYXRoIGQ9Ik03NSA1MCBIMTI1IEwxMDAgNDJWNzVaIiBzdHJva2U9IiNEREVFMkYiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+CjxjaXJjbGUgY3g9IjExMiIgY3k9IjQyIiByPSIzIiBmaWxsPSIjRERFRTJGIi8+Cjwvc3ZnPgo="
+            onError={() => setImageError(true)}
+            style={style}
+        />
+    );
+};
 
 // Portal Component to render buttons in the SurveyJS header
 const HeaderButtonsPortal = ({ currentMode, toggleMode, formToken, dataId, api }) => {
@@ -116,6 +254,11 @@ const DynamicFormPage = () => {
     const [error, setError] = useState(null);
     const [currentMode, setCurrentMode] = useState('admin_view'); // 默认为编辑模式
     const [alert, setAlert] = useState({ open: false, message: '', severity: 'info' });
+    
+    // Lightbox state for image viewing
+    const [lightboxOpen, setLightboxOpen] = useState(false);
+    const [lightboxImages, setLightboxImages] = useState([]);
+    const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
     useEffect(() => {
         const fetchForm = async () => {
@@ -798,7 +941,7 @@ const DynamicFormPage = () => {
                                 const contentDiv = options.htmlElement.querySelector('.sd-question__content') || options.htmlElement;
 
                                 // Prevent duplicate rendering
-                                if (contentDiv.querySelector('.custom-file-carousel')) {
+                                if (contentDiv.querySelector('.custom-file-carousel-root')) {
                                     return;
                                 }
 
@@ -809,107 +952,28 @@ const DynamicFormPage = () => {
                                         defaultPreview.style.display = 'none';
                                     }
 
-                                    // Create Carousel Container
+                                    // Create container for React component
                                     const carouselContainer = document.createElement('div');
-                                    carouselContainer.className = 'custom-file-carousel';
+                                    carouselContainer.className = 'custom-file-carousel-root';
                                     carouselContainer.style.width = '100%';
-                                    carouselContainer.style.display = 'flex';
-                                    carouselContainer.style.flexDirection = 'column';
-                                    carouselContainer.style.alignItems = 'center';
-                                    carouselContainer.style.marginTop = '10px';
-                                    carouselContainer.style.gap = '10px';
-
-                                    // Image Display Area
-                                    const imgDisplay = document.createElement('img');
-                                    imgDisplay.style.maxWidth = '100%';
-                                    imgDisplay.style.maxHeight = '800px';
-                                    imgDisplay.style.objectFit = 'contain';
-                                    imgDisplay.style.display = 'block';
-                                    imgDisplay.style.cursor = 'pointer'; // Hint that it might be clickable (optional)
-
-                                    // Open image in new tab on click
-                                    imgDisplay.onclick = () => {
-                                        window.open(imgDisplay.src, '_blank');
-                                    };
-
-                                    // Controls Container
-                                    const controls = document.createElement('div');
-                                    controls.style.display = 'flex';
-                                    controls.style.alignItems = 'center';
-                                    controls.style.gap = '20px';
-
-                                    // Prev Button
-                                    const prevBtn = document.createElement('button');
-                                    prevBtn.innerText = '←';
-                                    prevBtn.style.padding = '5px 15px';
-                                    prevBtn.style.cursor = 'pointer';
-                                    prevBtn.style.fontSize = '18px';
-
-                                    // Next Button
-                                    const nextBtn = document.createElement('button');
-                                    nextBtn.innerText = '→';
-                                    nextBtn.style.padding = '5px 15px';
-                                    nextBtn.style.cursor = 'pointer';
-                                    nextBtn.style.fontSize = '18px';
-
-                                    // Counter
-                                    const counter = document.createElement('span');
-                                    counter.style.fontSize = '14px';
-                                    counter.style.color = '#666';
-
-                                    // State
-                                    let currentIndex = 0;
-
-                                    // Update Function
-                                    const updateDisplay = () => {
-                                        const file = questionValue[currentIndex];
-                                        if (file && file.content) {
-                                            imgDisplay.src = file.content;
-                                            counter.innerText = `${currentIndex + 1} / ${questionValue.length}`;
-
-                                            // Button states
-                                            prevBtn.disabled = currentIndex === 0;
-                                            nextBtn.disabled = currentIndex === questionValue.length - 1;
-                                            prevBtn.style.opacity = currentIndex === 0 ? '0.5' : '1';
-                                            nextBtn.style.opacity = currentIndex === questionValue.length - 1 ? '0.5' : '1';
-                                        }
-                                    };
-
-                                    // Event Listeners
-                                    prevBtn.onclick = (e) => {
-                                        e.preventDefault(); // Prevent form submission or other side effects
-                                        if (currentIndex > 0) {
-                                            currentIndex--;
-                                            updateDisplay();
-                                        }
-                                    };
-
-                                    nextBtn.onclick = (e) => {
-                                        e.preventDefault();
-                                        if (currentIndex < questionValue.length - 1) {
-                                            currentIndex++;
-                                            updateDisplay();
-                                        }
-                                    };
-
-                                    // Assemble Controls
-                                    if (questionValue.length > 1) {
-                                        controls.appendChild(prevBtn);
-                                        controls.appendChild(counter);
-                                        controls.appendChild(nextBtn);
-                                    }
-
-                                    // Initial Render
-                                    updateDisplay();
-
-                                    // Assemble Carousel
-                                    carouselContainer.appendChild(imgDisplay);
-                                    if (questionValue.length > 1) {
-                                        carouselContainer.appendChild(controls);
-                                    }
-
-                                    // Append to DOM
                                     contentDiv.appendChild(carouselContainer);
+                                    
+                                    // Render React component using createRoot
+                                    const root = createRoot(carouselContainer);
+                                    
+                                    // Extract image URLs from questionValue
+                                    const imageUrls = questionValue.map(file => file.content).filter(Boolean);
+                                    
+                                    root.render(
+                                        <OptimizedFileCarousel 
+                                            questionValue={questionValue}
+                                            onImageClick={(index) => {
+                                                setLightboxImages(imageUrls);
+                                                setCurrentImageIndex(index);
+                                                setLightboxOpen(true);
+                                            }}
+                                        />
+                                    );
                                 }
                             }
 
@@ -967,13 +1031,16 @@ const DynamicFormPage = () => {
                                     contentDiv.innerHTML = htmlContent;
                                     wrapper.appendChild(contentDiv);
                                 } else {
-                                    // Simple signature image
-                                    const img = document.createElement('img');
-                                    img.src = questionValue;
-                                    img.className = 'signature-display';
-                                    img.style.cssText = 'display: block; max-width: 200px; max-height: 100px;';
-                                    img.alt = '签名图片';
-                                    wrapper.appendChild(img);
+                                    // Optimized signature image with React component
+                                    const signatureContainer = document.createElement('div');
+                                    wrapper.appendChild(signatureContainer);
+                                    const root = createRoot(signatureContainer);
+                                    root.render(
+                                        <OptimizedSignatureImage 
+                                            src={questionValue} 
+                                            style={{ display: 'block', maxWidth: '200px', maxHeight: '100px' }} 
+                                        />
+                                    );
                                 }
 
                                 // Clear and append wrapper
@@ -1879,6 +1946,137 @@ const DynamicFormPage = () => {
                     </Button>
                 </Box>
             )}
+
+            {/* Lightbox Modal for Image Viewing */}
+            <Modal
+                open={lightboxOpen}
+                onClose={() => setLightboxOpen(false)}
+                sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                }}
+                onKeyDown={(e) => {
+                    if (e.key === 'ArrowLeft') {
+                        setCurrentImageIndex((prev) => (prev > 0 ? prev - 1 : lightboxImages.length - 1));
+                    } else if (e.key === 'ArrowRight') {
+                        setCurrentImageIndex((prev) => (prev < lightboxImages.length - 1 ? prev + 1 : 0));
+                    } else if (e.key === 'Escape') {
+                        setLightboxOpen(false);
+                    }
+                }}
+            >
+                <Box
+                    sx={{
+                        position: 'relative',
+                        outline: 'none',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    {/* Close Button */}
+                    <IconButton
+                        onClick={() => setLightboxOpen(false)}
+                        sx={{
+                            position: 'absolute',
+                            top: -50,
+                            right: 0,
+                            color: 'white',
+                            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                            '&:hover': {
+                                backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                            },
+                        }}
+                    >
+                        <CloseIcon />
+                    </IconButton>
+
+                    {/* Previous Button */}
+                    {lightboxImages.length > 1 && (
+                        <IconButton
+                            onClick={() => setCurrentImageIndex((prev) => (prev > 0 ? prev - 1 : lightboxImages.length - 1))}
+                            sx={{
+                                position: 'absolute',
+                                left: -60,
+                                top: '50%',
+                                transform: 'translateY(-50%)',
+                                color: 'white',
+                                backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                                '&:hover': {
+                                    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                                },
+                            }}
+                        >
+                            <ChevronLeftIcon fontSize="large" />
+                        </IconButton>
+                    )}
+
+                    {/* Image */}
+                    <LazyLoadImage
+                        src={lightboxImages[currentImageIndex]}
+                        alt={`Image ${currentImageIndex + 1}`}
+                        placeholderSrc="/data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAwIiBoZWlnaHQ9IjYwMCIgdmlld0JveD0iMCAwIDgwMCA2MDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI4MDAiIGhlaWdodD0iNjAwIiBmaWxsPSIjRjhGOUZBIi8+CjxwYXRoIGQ9Ik0zMDAgMzAwIEg1MDAgTDQwMCAyNTBWNTAwWiIgc3Ryb2tlPSIjRERFRTJGIiBzdHJva2Utd2lkdGg9IjQiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgo8Y2lyY2xlIGN4PSI0NTAiIGN5PSIyNTAiIHI9IjgiIGZpbGw9IiNEREVFMkYiLz4KPC9zdmc+Cg=="
+                        effect="blur"
+                        style={{
+                            maxWidth: '90vw',
+                            maxHeight: '90vh',
+                            width: 'auto',
+                            height: 'auto',
+                            display: 'block',
+                            borderRadius: '8px',
+                            backgroundColor: 'white',
+                            boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
+                            objectFit: 'contain',
+                        }}
+                        onError={(e) => {
+                            e.target.src = "/data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgdmlld0JveD0iMCAwIDQwMCAzMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI0MDAiIGhlaWdodD0iMzAwIiBmaWxsPSIjRjhGOUZBIi8+CjxwYXRoIGQ9Ik0xNTAgMTUwIEgyNTBMMjAwIDEyMlYyNTBaIiBzdHJva2U9IiNEREVFMkYiIHN0cm9rZS13aWR0aD0iMyIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+CjxjaXJjbGUgY3g9IjIyNSIgY3k9IjEyNSIgcj0iNSIgZmlsbD0iI0RERUUyRiIvPgo8L3N2Zz4K";
+                            e.target.style.width = '200px';
+                            e.target.style.height = '150px';
+                        }}
+                    />
+
+                    {/* Next Button */}
+                    {lightboxImages.length > 1 && (
+                        <IconButton
+                            onClick={() => setCurrentImageIndex((prev) => (prev < lightboxImages.length - 1 ? prev + 1 : 0))}
+                            sx={{
+                                position: 'absolute',
+                                right: -60,
+                                top: '50%',
+                                transform: 'translateY(-50%)',
+                                color: 'white',
+                                backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                                '&:hover': {
+                                    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                                },
+                            }}
+                        >
+                            <ChevronRightIcon fontSize="large" />
+                        </IconButton>
+                    )}
+
+                    {/* Image Counter */}
+                    {lightboxImages.length > 1 && (
+                        <Box
+                            sx={{
+                                position: 'absolute',
+                                bottom: -40,
+                                left: '50%',
+                                transform: 'translateX(-50%)',
+                                color: 'white',
+                                backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                                padding: '8px 16px',
+                                borderRadius: '20px',
+                                fontSize: '0.875rem',
+                            }}
+                        >
+                            {currentImageIndex + 1} / {lightboxImages.length}
+                        </Box>
+                    )}
+                </Box>
+            </Modal>
         </Container>
     );
 };
