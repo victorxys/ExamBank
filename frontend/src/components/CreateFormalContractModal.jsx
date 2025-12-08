@@ -957,9 +957,15 @@ ${managementFeeNotePart}`;
                                 <InputLabel>是否需要客户签署</InputLabel>
                                 <Select
                                     name="requires_signature"
-                                    value={formData.requires_signature ?? ''}
+                                    value={formData.requires_signature === null ? '' : String(formData.requires_signature)}
                                     label="是否需要客户签署"
-                                    onChange={(e) => setFormData(prev => ({ ...prev, requires_signature: e.target.value === 'true' }))}
+                                    onChange={(e) => {
+                                        const value = e.target.value;
+                                        setFormData(prev => ({ 
+                                            ...prev, 
+                                            requires_signature: value === '' ? null : value === 'true' 
+                                        }));
+                                    }}
                                 >
                                     <MenuItem value="">
                                         <em>请选择</em>
