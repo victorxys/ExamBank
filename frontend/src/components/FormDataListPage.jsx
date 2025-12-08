@@ -14,16 +14,93 @@ import {
     IconButton,
     Tooltip,
     Modal,
+    Skeleton,
 } from '@mui/material';
 import {
     Visibility as VisibilityIcon,
     Close as CloseIcon,
     ChevronLeft as ChevronLeftIcon,
     ChevronRight as ChevronRightIcon,
+    ImageNotSupported as ImageNotSupportedIcon,
 } from '@mui/icons-material';
+import { LazyLoadImage } from 'react-lazy-load-image-component';
+import 'react-lazy-load-image-component/src/effects/blur.css';
 import { MaterialReactTable } from 'material-react-table';
 import PageHeader from './PageHeader';
 import { format } from 'date-fns';
+
+// 优化的图片组件，支持多种格式和错误处理
+const OptimizedThumbnail = ({ src, alt, onClick, index, totalImages }) => {
+    const [imageError, setImageError] = useState(false);
+    
+    // 生成 srcset 支持响应式图片
+    const generateSrcSet = (url) => {
+        const baseUrl = url.split('?')[0];
+        return `${baseUrl} 1x, ${baseUrl}?w=80 2x`;
+    };
+
+    // 生成 WebP 版本的 src
+    const generateWebPSrc = (url) => {
+        // 检查是否是外部 URL
+        if (url.startsWith('http')) {
+            // 对于外部 URL，假设服务器支持 WebP
+            return url.replace(/\.(jpg|jpeg|png)$/i, '.webp');
+        }
+        // 对于本地 URL，添加格式参数
+        return `${url}?format=webp&w=40`;
+    };
+
+    if (imageError) {
+        return (
+            <Box
+                sx={{
+                    width: '40px',
+                    height: '40px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: '#f8f9fa',
+                    borderRadius: '4px',
+                    border: '1px solid #dee2e6',
+                }}
+                onClick={onClick}
+            >
+                <ImageNotSupportedIcon sx={{ fontSize: 20, color: '#6c757d' }} />
+            </Box>
+        );
+    }
+
+    return (
+        <LazyLoadImage
+            src={src}
+            srcSet={generateSrcSet(src)}
+            placeholderSrc="/data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjQwIiBoZWlnaHQ9IjQwIiBmaWxsPSIjRjhGOUZBIi8+CjxwYXRoIGQ9Ik0xNSAyMkgyMkwxNy4zIDE2LjhWMjVaIiBzdHJva2U9IiNEREVFMkYiIHN0cm9rZS13aWR0aD0iMS41IiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz4KPGNpcmNsZSBjeD0iMjUiIGN5PSIxNSIgcj0iMiIgZmlsbD0iI0RERUUyRiIvPgo8L3N2Zz4K"
+            alt={alt}
+            effect="blur"
+            width={40}
+            height={40}
+            onClick={onClick}
+            onError={() => setImageError(true)}
+            style={{
+                width: '40px',
+                height: '40px',
+                objectFit: 'cover',
+                borderRadius: '4px',
+                border: '1px solid #dee2e6',
+                cursor: 'pointer',
+                transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+            }}
+            onMouseEnter={(e) => {
+                e.target.style.transform = 'scale(1.1)';
+                e.target.style.boxShadow = '0 2px 8px rgba(0,0,0,0.15)';
+            }}
+            onMouseLeave={(e) => {
+                e.target.style.transform = 'scale(1)';
+                e.target.style.boxShadow = 'none';
+            }}
+        />
+    );
+};
 
 const FormDataListPage = () => {
     const { formToken } = useParams();
@@ -125,37 +202,18 @@ const FormDataListPage = () => {
                             return (
                                 <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
                                     {imageUrls.slice(0, 3).map((url, idx) => (
-                                        <img
+                                        <OptimizedThumbnail
                                             key={idx}
                                             src={url}
                                             alt={`${element.name}-${idx}`}
-                                            loading="lazy"
                                             onClick={(e) => {
                                                 e.stopPropagation();
                                                 setLightboxImages(imageUrls);
                                                 setCurrentImageIndex(idx);
                                                 setLightboxOpen(true);
                                             }}
-                                            style={{
-                                                width: '40px',
-                                                height: '40px',
-                                                objectFit: 'cover',
-                                                borderRadius: '4px',
-                                                border: '1px solid #dee2e6',
-                                                cursor: 'pointer',
-                                                transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-                                            }}
-                                            onMouseEnter={(e) => {
-                                                e.target.style.transform = 'scale(1.1)';
-                                                e.target.style.boxShadow = '0 2px 8px rgba(0,0,0,0.15)';
-                                            }}
-                                            onMouseLeave={(e) => {
-                                                e.target.style.transform = 'scale(1)';
-                                                e.target.style.boxShadow = 'none';
-                                            }}
-                                            onError={(e) => {
-                                                e.target.style.display = 'none';
-                                            }}
+                                            index={idx}
+                                            totalImages={imageUrls.length}
                                         />
                                     ))}
                                     {imageUrls.length > 3 && (
@@ -574,10 +632,12 @@ const FormDataListPage = () => {
                         </IconButton>
                     )}
 
-                    {/* Image */}
-                    <img
+                    {/* Image - Optimized Lightbox */}
+                    <LazyLoadImage
                         src={lightboxImages[currentImageIndex]}
                         alt={`Image ${currentImageIndex + 1}`}
+                        placeholderSrc="/data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAwIiBoZWlnaHQ9IjYwMCIgdmlld0JveD0iMCAwIDgwMCA2MDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI4MDAiIGhlaWdodD0iNjAwIiBmaWxsPSIjRjhGOUZBIi8+CjxwYXRoIGQ9Ik0zMDAgMzAwIEg1MDAgTDQwMCAyNTBWNTAwWiIgc3Ryb2tlPSIjRERFRTJGIiBzdHJva2Utd2lkdGg9IjQiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgo8Y2lyY2xlIGN4PSI0NTAiIGN5PSIyNTAiIHI9IjgiIGZpbGw9IiNEREVFMkYiLz4KPC9zdmc+Cg=="
+                        effect="blur"
                         style={{
                             maxWidth: '90vw',
                             maxHeight: '90vh',
@@ -588,6 +648,11 @@ const FormDataListPage = () => {
                             backgroundColor: 'white',
                             boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
                             objectFit: 'contain',
+                        }}
+                        onError={(e) => {
+                            e.target.src = "/data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgdmlld0JveD0iMCAwIDQwMCAzMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI0MDAiIGhlaWdodD0iMzAwIiBmaWxsPSIjRjhGOUZBIi8+CjxwYXRoIGQ9Ik0xNTAgMTUwIEgyNTBMMjAwIDEyMlYyNTBaIiBzdHJva2U9IiNEREVFMkYiIHN0cm9rZS13aWR0aD0iMyIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+CjxjaXJjbGUgY3g9IjIyNSIgY3k9IjEyNSIgcj0iNSIgZmlsbD0iI0RERUUyRiIvPgo8L3N2Zz4K";
+                            e.target.style.width = '200px';
+                            e.target.style.height = '150px';
                         }}
                     />
 
