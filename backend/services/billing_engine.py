@@ -2102,6 +2102,7 @@ class BillingEngine:
         cust_increase, cust_decrease, emp_increase, emp_decrease, deferred_fee, emp_commission, emp_balance_transfer = (
             self._get_adjustments(bill.id, payroll.id)
         )
+        # 测试提交
         
         extension_fee = D(0)
         # --- 关键修复：使用正确的日期进行比较 ---
@@ -2128,7 +2129,7 @@ class BillingEngine:
                 log_extras = new_log_extras
                 # --- 修改结束 ---
 
-                # 更新总的管理费
+                # 更新总的管理费 
                 management_fee +=extension_management_fee
                 # employee_payout += extension_fee
                 current_app.logger.info(f"[DEBUG] Calculated extension fee: {extension_fee}, new total payable: {customer_base_fee}")
