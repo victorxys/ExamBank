@@ -52,6 +52,16 @@ export function createDateTimeRenderer() {
         const questionName = question.name;
         reactRoots.set(questionName, root);
 
+        // 检查是否在表格(matrix)中
+        const isInMatrix = question.parent && (
+            question.parent.getType() === 'matrixdynamic' ||
+            question.parent.getType() === 'matrixdropdown' ||
+            question.parent.getType() === 'matrix'
+        );
+
+        // 表格中日期控件高度与输入框一致 (2.5rem = 40px)
+        const heightClass = isInMatrix ? "h-10 min-h-0 px-2 py-[0.375rem] text-[0.8125rem]" : "";
+
         // 根据类型渲染对应的选择器
         if (inputType === 'date' || inputType === 'datetime' || inputType === 'datetime-local') {
             // 日期选择器
@@ -90,6 +100,7 @@ export function createDateTimeRenderer() {
                         onChange={handleChange}
                         placeholder={question.placeholder || '选择日期'}
                         disabled={question.isReadOnly}
+                        className={heightClass}
                     />
                 );
             };
@@ -123,6 +134,7 @@ export function createDateTimeRenderer() {
                         placeholder={question.placeholder || '选择时间'}
                         disabled={question.isReadOnly}
                         minuteStep={30}
+                        className={heightClass}
                     />
                 );
             };

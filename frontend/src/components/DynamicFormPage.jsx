@@ -165,13 +165,13 @@ const DynamicFormPage = () => {
                             const icon = document.createElement('span');
                             icon.className = 'private-field-icon';
                             icon.innerHTML = `
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-left: 8px; color: #6b7280;">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
                                     <line x1="1" y1="1" x2="23" y2="23"></line>
                                 </svg>
                             `;
                             icon.title = '此字段仅管理员可见';
-                            icon.style.cssText = 'cursor: help; display: inline-flex; align-items: center;';
+                            icon.style.cssText = 'display: inline-flex;';
                             titleElement.appendChild(icon);
                         }
                     }
@@ -236,6 +236,51 @@ const DynamicFormPage = () => {
                             // Watch for dynamic changes
                             const observer = new MutationObserver(removeFileCellPadding);
                             observer.observe(options.htmlElement, {
+                                childList: true,
+                                subtree: true
+                            });
+
+                            // Relocate the "Add Row" button outside the scrollable table container
+                            const relocateAddRowButton = () => {
+                                const footer = options.htmlElement.querySelector('.sd-matrixdynamic__footer');
+                                if (!footer || footer.dataset.customizedFooter === 'true') {
+                                    return;
+                                }
+
+                                footer.dataset.customizedFooter = 'true';
+
+                                const questionRoot = options.htmlElement;
+                                const content = questionRoot.querySelector('.sd-question__content');
+                                const table = content?.querySelector('.sd-table');
+                                
+                                // Wrap table in a scroll container if not already wrapped
+                                if (table && !table.parentElement.classList.contains('matrix-scroll-container')) {
+                                    const scrollContainer = document.createElement('div');
+                                    scrollContainer.className = 'matrix-scroll-container';
+                                    table.parentNode.insertBefore(scrollContainer, table);
+                                    scrollContainer.appendChild(table);
+                                }
+
+                                let wrapper = questionRoot.querySelector('.matrix-add-row-wrapper');
+
+                                if (!wrapper) {
+                                    wrapper = document.createElement('div');
+                                    wrapper.className = 'matrix-add-row-wrapper';
+
+                                    if (content && content.parentNode) {
+                                        content.insertAdjacentElement('afterend', wrapper);
+                                    } else {
+                                        questionRoot.appendChild(wrapper);
+                                    }
+                                }
+
+                                wrapper.appendChild(footer);
+                            };
+
+                            relocateAddRowButton();
+
+                            const footerObserver = new MutationObserver(relocateAddRowButton);
+                            footerObserver.observe(options.htmlElement, {
                                 childList: true,
                                 subtree: true
                             });
