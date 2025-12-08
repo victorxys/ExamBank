@@ -22,6 +22,7 @@ import {
     ChevronLeft as ChevronLeftIcon,
     ChevronRight as ChevronRightIcon,
     ImageNotSupported as ImageNotSupportedIcon,
+    Download as DownloadIcon,
 } from '@mui/icons-material';
 import { LazyLoadImage } from 'react-lazy-load-image-component';
 import 'react-lazy-load-image-component/src/effects/blur.css';
@@ -595,6 +596,76 @@ const FormDataListPage = () => {
                     }}
                     onClick={(e) => e.stopPropagation()}
                 >
+                    {/* Download Button */}
+                    <IconButton
+                        onClick={async () => {
+                            const imageUrl = lightboxImages[currentImageIndex];
+                            const filename = imageUrl.split('/').pop()?.split('?')[0] || `image-${currentImageIndex + 1}.jpg`;
+                            
+                            try {
+                                // Try to fetch with CORS mode
+                                const response = await fetch(imageUrl, {
+                                    mode: 'cors',
+                                    credentials: 'same-origin',
+                                });
+                                
+                                if (!response.ok) {
+                                    throw new Error('Network response was not ok');
+                                }
+                                
+                                const originalBlob = await response.blob();
+                                
+                                // Force download by changing MIME type to octet-stream
+                                const blob = new Blob([originalBlob], { type: 'application/octet-stream' });
+                                
+                                // Create download link
+                                const url = window.URL.createObjectURL(blob);
+                                const link = document.createElement('a');
+                                link.href = url;
+                                link.download = filename;
+                                link.style.display = 'none';
+                                
+                                // Trigger download
+                                document.body.appendChild(link);
+                                link.click();
+                                
+                                // Clean up
+                                setTimeout(() => {
+                                    document.body.removeChild(link);
+                                    window.URL.revokeObjectURL(url);
+                                }, 100);
+                            } catch (error) {
+                                console.error('Fetch download failed, trying direct download:', error);
+                                // Fallback: use direct download via anchor tag
+                                const link = document.createElement('a');
+                                link.href = imageUrl;
+                                link.download = filename;
+                                link.target = '_blank';
+                                link.rel = 'noopener noreferrer';
+                                link.style.display = 'none';
+                                
+                                document.body.appendChild(link);
+                                link.click();
+                                
+                                setTimeout(() => {
+                                    document.body.removeChild(link);
+                                }, 100);
+                            }
+                        }}
+                        sx={{
+                            position: 'absolute',
+                            top: -50,
+                            right: 50,
+                            color: 'white',
+                            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                            '&:hover': {
+                                backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                            },
+                        }}
+                    >
+                        <DownloadIcon />
+                    </IconButton>
+
                     {/* Close Button */}
                     <IconButton
                         onClick={() => setLightboxOpen(false)}
