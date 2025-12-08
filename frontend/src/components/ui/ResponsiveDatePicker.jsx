@@ -26,6 +26,10 @@ const ResponsiveDatePicker = ({
     const [isMobile, setIsMobile] = useState(false);
     const [mobilePickerVisible, setMobilePickerVisible] = useState(false);
     const [popoverOpen, setPopoverOpen] = useState(false);
+    
+    // 检查是否有自定义高度类传入 (h-10, h-8, h-[38px] 等)
+    const hasCustomHeight = className && /\bh-(\d+|\[)/.test(className);
+    const baseButtonClasses = hasCustomHeight ? "text-sm" : "h-10 min-h-[2.5rem] px-3 py-2 text-sm";
 
     // 检测设备类型
     useEffect(() => {
@@ -66,6 +70,7 @@ const ResponsiveDatePicker = ({
                     disabled={disabled}
                     className={cn(
                         "w-full justify-start text-left font-normal",
+                        baseButtonClasses,
                         !dateValue && "text-muted-foreground",
                         className
                     )}
@@ -98,6 +103,7 @@ const ResponsiveDatePicker = ({
                     disabled={disabled}
                     className={cn(
                         "w-full justify-between font-normal",
+                        baseButtonClasses,
                         !dateValue && "text-muted-foreground",
                         className
                     )}

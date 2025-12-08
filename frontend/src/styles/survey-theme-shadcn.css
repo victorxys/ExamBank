@@ -98,7 +98,7 @@
 .sd-question__header {
     margin-bottom: 0.5rem !important;
     display: flex !important;
-    align-items: baseline !important;
+    align-items: center !important;
     flex-wrap: wrap !important;
 }
 
@@ -326,9 +326,13 @@
 .sd-matrixdynamic,
 .sd-matrixdropdown {
     width: 100% !important;
-    border-collapse: collapse !important;
     font-size: 0.875rem !important;
     border: none !important;
+}
+
+.sd-table {
+    border-collapse: separate !important;
+    border-spacing: 0 0.75rem !important;
 }
 
 .sd-table__cell--header {
@@ -344,22 +348,45 @@
 }
 
 .sd-table__cell {
-    /* padding: 1rem 0.75rem !important; */
+    padding: 0.75rem 0.75rem !important;
     border: none !important;
     vertical-align: top !important;
+    background-color: hsl(var(--background)) !important;
+    border-radius: calc(var(--radius) * 0.75) !important;
+    box-shadow: 0 1px 2px rgb(15 23 42 / 0.08) !important;
 }
 
 .sd-table__row:hover {
     background-color: hsl(var(--muted) / 0.3) !important;
 }
 
-/* Table inputs */
+/* Table inputs - General */
 .sd-table__cell .sd-input,
 .sd-table__cell .sd-text,
-.sd-table__cell textarea {
+.sd-table__cell textarea,
+.sd-table__cell select {
     font-size: 0.8125rem !important;
+    width: 100% !important;
+    /* Force full width */
+    box-sizing: border-box !important;
+}
+
+/* Single line inputs - Match DatePicker height (h-10 = 2.5rem) */
+.sd-table__cell .sd-input,
+.sd-table__cell .sd-text,
+.sd-table__cell select {
+    height: 2.5rem !important;
+    padding: 0 0.5rem !important;
+    /* Adjust padding for fixed height */
+    line-height: 2.5rem !important;
+    /* Center text vertically */
+}
+
+/* Textarea - Auto height */
+.sd-table__cell textarea {
     padding: 0.375rem 0.5rem !important;
-    min-height: 2rem !important;
+    min-height: 2.5rem !important;
+    line-height: 1.5 !important;
 }
 
 /* Add row button container */
@@ -369,6 +396,23 @@
     justify-content: flex-end !important;
     width: 100% !important;
     margin-top: 0.5rem !important;
+}
+
+.matrix-add-row-wrapper {
+    display: flex !important;
+    justify-content: flex-end !important;
+    margin-top: 0.75rem !important;
+    padding: 0 0.75rem !important;
+    position: relative !important;
+    z-index: 2 !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+}
+
+.matrix-add-row-wrapper .sd-matrixdynamic__footer {
+    width: auto !important;
+    margin-top: 0 !important;
+    justify-content: flex-end !important;
 }
 
 /* Add row button */
@@ -489,6 +533,19 @@
         font-size: 1rem !important;
     }
 
+    /* Date picker - match input height and width on mobile */
+    .responsive-picker-container {
+        width: 100% !important;
+        display: block !important;
+    }
+
+    .responsive-picker-container button {
+        min-height: 2.75rem !important;
+        font-size: 1rem !important;
+        height: 2.75rem !important;
+        width: 100% !important;
+    }
+
     /* Radio/Checkbox - larger touch targets */
     .sd-item {
         padding: 0.625rem 0 !important;
@@ -516,11 +573,48 @@
         height: 2.75rem !important;
     }
 
-    /* Tables - horizontal scroll */
-    .sd-table {
-        display: block !important;
+    /* Tables - horizontal scroll container */
+    .matrix-scroll-container {
         overflow-x: auto !important;
         -webkit-overflow-scrolling: touch !important;
+        width: 100% !important;
+    }
+
+    .sd-table {
+        display: table !important;
+        border-spacing: 0 !important;
+        min-width: max-content !important;
+    }
+
+    .sd-table__cell {
+        background-color: transparent !important;
+        box-shadow: none !important;
+        padding: 0.5rem 0.25rem !important;
+        border-radius: 0 !important;
+        border-bottom: 0 !important;
+    }
+
+    /* Ensure all content fills table cell width on mobile */
+    .sd-table__cell .sd-question__content,
+    .sd-table__cell .sd-element__content,
+    .sd-table__cell .responsive-picker-container,
+    .sd-table__cell .responsive-picker-container button {
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    .sd-table__row,
+    .sd-table__row:hover {
+        background-color: transparent !important;
+    }
+
+    /* Fixed add row button - outside scroll container */
+    .matrix-add-row-wrapper {
+        position: relative !important;
+        margin-top: 0.75rem !important;
+        padding: 0 0.5rem !important;
+        width: 100% !important;
+        justify-content: flex-end !important;
     }
 }
 
@@ -549,4 +643,46 @@
         --border: 217.2 32.6% 17.5%;
         --input: 217.2 32.6% 17.5%;
     }
+}
+
+/* ===== Private Field Icon Alignment ===== */
+.private-field-icon {
+    display: inline-flex !important;
+    align-items: center !important;
+    vertical-align: middle !important;
+    cursor: help !important;
+}
+
+.private-field-icon svg {
+    width: 20px !important;
+    height: 20px !important;
+    display: block !important;
+    flex-shrink: 0 !important;
+}
+
+/* Ensure proper alignment with title text */
+.sd-question__title .private-field-icon {
+    margin-left: 8px !important;
+    vertical-align: middle !important;
+    align-self: center !important;
+}
+
+/* ===== Date Picker Width Fix ===== */
+/* General width fix for all form fields */
+.responsive-picker-container {
+    width: 100% !important;
+    display: block !important;
+}
+
+.responsive-picker-container button {
+    width: 100% !important;
+}
+
+/* Additional fix for table cells */
+.sd-table__cell .responsive-picker-container {
+    width: 100% !important;
+}
+
+.sd-table__cell .responsive-picker-container button {
+    width: 100% !important;
 }
