@@ -31,6 +31,7 @@ import {
     ChevronLeft as ChevronLeftIcon,
     ChevronRight as ChevronRightIcon,
     Close as CloseIcon,
+    Download as DownloadIcon,
 } from '@mui/icons-material';
 import { formatAddress } from '../utils/formatUtils';
 import { createDateTimeRenderer } from '../utils/surveyjs-custom-widgets.jsx';
@@ -83,7 +84,18 @@ const OptimizedFileCarousel = ({ questionValue, onImageClick }) => {
                         src={file?.content}
                         alt={`Image ${currentIndex + 1}`}
                         effect="blur"
-                        placeholderSrc="/data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgdmlld0JveD0iMCAwIDQwMCAzMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI0MDAiIGhlaWdodD0iMzAwIiBmaWxsPSIjRjhGOUZBIi8+CjxwYXRoIGQ9Ik0xNTAgMTUwIEgyNTAgTDIwMCAxMjVWMjI1WiIgc3Ryb2tlPSIjRERFRTJGIiBzdHJva2Utd2lkdGg9IjMiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgo8Y2lyY2xlIGN4PSIyMjUiIGN5PSIxMjUiIHI9IjYiIGZpbGw9IiNEREVFMkYiLz4KPC9zdmc+Cg=="
+                        placeholder={
+                            <Skeleton 
+                                variant="rectangular" 
+                                width={400} 
+                                height={300}
+                                animation="wave"
+                                sx={{ 
+                                    backgroundColor: '#f0f0f0',
+                                    borderRadius: '4px',
+                                }}
+                            />
+                        }
                         onError={() => setImageErrors(prev => ({ ...prev, [currentIndex]: true }))}
                         style={{
                             maxWidth: '100%',
@@ -156,7 +168,18 @@ const OptimizedSignatureImage = ({ src, style }) => {
             src={src}
             alt="签名图片"
             effect="blur"
-            placeholderSrc="/data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDIwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iMTAwIiBmaWxsPSIjRjhGOUZBIi8+CjxwYXRoIGQ9Ik03NSA1MCBIMTI1IEwxMDAgNDJWNzVaIiBzdHJva2U9IiNEREVFMkYiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+CjxjaXJjbGUgY3g9IjExMiIgY3k9IjQyIiByPSIzIiBmaWxsPSIjRERFRTJGIi8+Cjwvc3ZnPgo="
+            placeholder={
+                <Skeleton 
+                    variant="rectangular" 
+                    width={200} 
+                    height={100}
+                    animation="wave"
+                    sx={{ 
+                        backgroundColor: '#f0f0f0',
+                        borderRadius: '4px',
+                    }}
+                />
+            }
             onError={() => setImageError(true)}
             style={style}
         />
@@ -1976,6 +1999,86 @@ const DynamicFormPage = () => {
                     }}
                     onClick={(e) => e.stopPropagation()}
                 >
+                    {/* Download Button */}
+                    <IconButton
+                        onClick={async () => {
+                            const imageUrl = lightboxImages[currentImageIndex];
+                            const filename = imageUrl.split('/').pop()?.split('?')[0] || `image-${currentImageIndex + 1}.jpg`;
+                            
+                            console.log('[Download] Starting download:', filename);
+                            
+                            try {
+                                // Try to fetch with CORS mode
+                                console.log('[Download] Fetching image...');
+                                const response = await fetch(imageUrl, {
+                                    mode: 'cors',
+                                    credentials: 'same-origin',
+                                });
+                                
+                                if (!response.ok) {
+                                    throw new Error(`Network response was not ok: ${response.status}`);
+                                }
+                                
+                                console.log('[Download] Fetch successful, creating blob...');
+                                const originalBlob = await response.blob();
+                                console.log('[Download] Original blob - size:', originalBlob.size, 'type:', originalBlob.type);
+                                
+                                // Force download by changing MIME type to octet-stream
+                                const blob = new Blob([originalBlob], { type: 'application/octet-stream' });
+                                console.log('[Download] Converted to octet-stream for forced download');
+                                
+                                // Create download link
+                                const url = window.URL.createObjectURL(blob);
+                                const link = document.createElement('a');
+                                link.href = url;
+                                link.download = filename;
+                                link.style.display = 'none';
+                                
+                                // Trigger download
+                                console.log('[Download] Triggering download via blob URL...');
+                                document.body.appendChild(link);
+                                link.click();
+                                console.log('[Download] ✅ Download triggered successfully');
+                                
+                                // Clean up
+                                setTimeout(() => {
+                                    document.body.removeChild(link);
+                                    window.URL.revokeObjectURL(url);
+                                }, 100);
+                            } catch (error) {
+                                console.error('[Download] ❌ Fetch failed:', error);
+                                console.log('[Download] Trying fallback method...');
+                                // Fallback: use direct download via anchor tag
+                                const link = document.createElement('a');
+                                link.href = imageUrl;
+                                link.download = filename;
+                                link.target = '_blank';
+                                link.rel = 'noopener noreferrer';
+                                link.style.display = 'none';
+                                
+                                document.body.appendChild(link);
+                                link.click();
+                                console.log('[Download] Fallback download triggered');
+                                
+                                setTimeout(() => {
+                                    document.body.removeChild(link);
+                                }, 100);
+                            }
+                        }}
+                        sx={{
+                            position: 'absolute',
+                            top: -50,
+                            right: 50,
+                            color: 'white',
+                            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                            '&:hover': {
+                                backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                            },
+                        }}
+                    >
+                        <DownloadIcon />
+                    </IconButton>
+
                     {/* Close Button */}
                     <IconButton
                         onClick={() => setLightboxOpen(false)}
@@ -2017,8 +2120,19 @@ const DynamicFormPage = () => {
                     <LazyLoadImage
                         src={lightboxImages[currentImageIndex]}
                         alt={`Image ${currentImageIndex + 1}`}
-                        placeholderSrc="/data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAwIiBoZWlnaHQ9IjYwMCIgdmlld0JveD0iMCAwIDgwMCA2MDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI4MDAiIGhlaWdodD0iNjAwIiBmaWxsPSIjRjhGOUZBIi8+CjxwYXRoIGQ9Ik0zMDAgMzAwIEg1MDAgTDQwMCAyNTBWNTAwWiIgc3Ryb2tlPSIjRERFRTJGIiBzdHJva2Utd2lkdGg9IjQiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgo8Y2lyY2xlIGN4PSI0NTAiIGN5PSIyNTAiIHI9IjgiIGZpbGw9IiNEREVFMkYiLz4KPC9zdmc+Cg=="
                         effect="blur"
+                        placeholder={
+                            <Skeleton 
+                                variant="rectangular" 
+                                width="70vw" 
+                                height="70vh"
+                                animation="wave"
+                                sx={{ 
+                                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                                    borderRadius: '8px',
+                                }}
+                            />
+                        }
                         style={{
                             maxWidth: '90vw',
                             maxHeight: '90vh',

@@ -250,7 +250,7 @@ def _find_successor_contract_internal(contract_id: str) -> BaseContract | None:
 
         fallback_successor = BaseContract.query.filter(
             BaseContract.customer_name == current_contract.customer_name,
-            BaseContract.type == current_contract.type,
+            # BaseContract.type == current_contract.type,
             BaseContract.service_personnel_id == current_contract.service_personnel_id,
             BaseContract.id != current_contract.id,
             BaseContract.start_date >= effective_end_date,
