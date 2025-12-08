@@ -1918,7 +1918,7 @@ class BillingEngine:
             overrides = {}
 
         QUANTIZER = D("0.01")
-        cust_increase, cust_decrease, emp_increase, emp_decrease, deferred_fee, emp_commission= (
+        cust_increase, cust_decrease, emp_increase, emp_decrease, deferred_fee, emp_commission, emp_balance_transfer = (
             self._get_adjustments(bill.id, payroll.id)
         )
 
@@ -2099,7 +2099,7 @@ class BillingEngine:
         log_extras["employee_payout_reason"] = f"员工工资: 等同于客户应付金额 = {employee_base_payout:.2f}"
         # --- 修正结束 ---
 
-        cust_increase, cust_decrease, emp_increase, emp_decrease, deferred_fee, emp_commission = (
+        cust_increase, cust_decrease, emp_increase, emp_decrease, deferred_fee, emp_commission, emp_balance_transfer = (
             self._get_adjustments(bill.id, payroll.id)
         )
         
@@ -2611,7 +2611,7 @@ class BillingEngine:
 
         current_app.logger.info(f"[TrialTerm-v17] 计算试工合同 {contract.id} 结算细节: 级别 {level}, 取整后日薪 {final_daily_rate}, 试工天数 {days}, 加班天数 {overtime_days}, 基础费 {base_fee}, 加班费 {overtime_fee},管理费率{management_fee_rate}, 管理费 {management_fee}")
         
-        cust_increase, cust_decrease, emp_increase, emp_decrease, deferred_fee, emp_commission = (
+        cust_increase, cust_decrease, emp_increase, emp_decrease, deferred_fee, emp_commission, emp_balance_transfer = (
             self._get_adjustments(bill.id, payroll.id)
         )
         
@@ -3174,9 +3174,11 @@ class BillingEngine:
         current_app.logger.info(f"   -> 中期重算后员工应发 (trial_payroll.total_due): {trial_payroll.total_due}")
 
         # 步骤 7: 将【非重叠期】的费用（即试工账单的当前余额）转移到【正式合同】
+        # 注意：介绍费会在步骤8单独处理，所以这里需要从 total_due 中排除介绍费
+        introduction_fee = D(trial_contract.introduction_fee or '0')
         non_overlap_salary = trial_payroll.total_due
-        non_overlap_mgmt_fee = trial_bill.total_due
-        current_app.logger.info(f"[TRIAL_CONVERT_LOG] 7. 计算出非重叠期余额并准备转移: 工资={non_overlap_salary}, 管理费={non_overlap_mgmt_fee}")
+        non_overlap_mgmt_fee = trial_bill.total_due - introduction_fee  # 排除介绍费，避免重复计算
+        current_app.logger.info(f"[TRIAL_CONVERT_LOG] 7. 计算出非重叠期余额并准备转移: 工资={non_overlap_salary}, 管理费={non_overlap_mgmt_fee}, 介绍费={introduction_fee}(将在步骤8单独处理)")
 
         if non_overlap_salary > 0:
             db.session.add(FinancialAdjustment(
@@ -3189,7 +3191,7 @@ class BillingEngine:
             ))
             db.session.add(FinancialAdjustment(
                 employee_payroll_id=trial_payroll.id,
-                adjustment_type=AdjustmentType.EMPLOYEE_DECREASE,
+                adjustment_type=AdjustmentType.EMPLOYEE_BALANCE_TRANSFER,
                 amount=non_overlap_salary,
                 description=f"[系统] 试工成功,非重叠{non_overlap_days}天工资转至正式合同",
                 date=trial_bill.cycle_end_date
@@ -3213,17 +3215,15 @@ class BillingEngine:
             ))
 
         # 步骤 8: 处理【介绍费】
-        introduction_fee = D(trial_contract.introduction_fee or '0')
+        # 新业务逻辑：介绍费不转移到正式合同，保留在试工账单中
+        # 在步骤7中已经从 trial_bill.total_due 中排除了介绍费，所以介绍费会自动留在试工账单
         if introduction_fee > 0:
-            current_app.logger.info(f"[TRIAL_CONVERT_LOG] 8. 处理介绍费: {introduction_fee}")
-            # 转移介绍费 不显示为已支付
-            # intro_fee_adj = FinancialAdjustment(customer_bill_id=first_bill.id,adjustment_type=AdjustmentType.INTRODUCTION_FEE, amount=introduction_fee, description=f"[系统]来自试工合同的介绍费", date=first_bill.cycle_start_date, is_settled=True,settlement_date=trial_contract.start_date, details={"source_trial_contract_id": str(trial_contract.id)})
-            intro_fee_adj = FinancialAdjustment(customer_bill_id=first_bill.id,adjustment_type=AdjustmentType.INTRODUCTION_FEE, amount=introduction_fee, description=f"[系统]来自试工合同的介绍费", date=first_bill.cycle_start_date, is_settled=False, details={"source_trial_contract_id": str(trial_contract.id)})
-            db.session.add(intro_fee_adj)
-
-            # 转移介绍费 不显示为已支付
-            # payment_for_intro_fee = PaymentRecord(customer_bill_id=first_bill.id,amount=introduction_fee, payment_date=trial_contract.start_date, method='TRIAL_FEE_TRANSFER',notes=f"[系统] 试工合同 介绍费转入", created_by_user_id=operator_id)
-            # db.session.add(payment_for_intro_fee)
+            current_app.logger.info(f"[TRIAL_CONVERT_LOG] 8. 介绍费 {introduction_fee} 元保留在试工合同账单中，不转移到正式合同")
+        # --- 旧逻辑（已废弃）：转移介绍费到正式合同 ---
+        # if introduction_fee > 0:
+        #     current_app.logger.info(f"[TRIAL_CONVERT_LOG] 8. 处理介绍费: {introduction_fee}")
+        #     intro_fee_adj = FinancialAdjustment(customer_bill_id=first_bill.id,adjustment_type=AdjustmentType.INTRODUCTION_FEE, amount=introduction_fee, description=f"[系统]来自试工合同的介绍费", date=first_bill.cycle_start_date, is_settled=False, details={"source_trial_contract_id": str(trial_contract.id)})
+        #     db.session.add(intro_fee_adj)
 
         # 步骤 9: 最终重算，并提交
         current_app.logger.info(f"[TRIAL_CONVERT_LOG] 9. 准备对两个关联合同的账单进行最终重算。")

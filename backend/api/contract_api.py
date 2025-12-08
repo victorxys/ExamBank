@@ -720,6 +720,7 @@ def create_formal_contract():
             "is_auto_renew": data.get("is_auto_renew", False),
             "attachment_content": data.get("attachment_content"),
             "previous_contract_id": data.get("previous_contract_id"),
+            "requires_signature": data.get("requires_signature"),
         }
 
         # --- Update Customer Address if provided (only for existing customers) ---
@@ -775,8 +776,21 @@ def create_formal_contract():
             return jsonify({"error": f"不支持的合同类型: {contract_type}"}), 400
 
         new_contract = ContractModel(**common_attributes)
+        
+        # --- 处理无需签署的情况 ---
+        if data.get("requires_signature") is False:
+            new_contract.signing_status = SigningStatus.NOT_REQUIRED
+            new_contract.status = "active"
+            current_app.logger.info(f"合同 {new_contract.id} 无需签署，自动激活")
+        
         db.session.add(new_contract)
         db.session.commit()
+        
+        # --- 无需签署时，更新薪资历史 ---
+        if data.get("requires_signature") is False:
+            update_salary_history_on_contract_activation(new_contract)
+            db.session.commit()
+            current_app.logger.info(f"合同 {new_contract.id} 已更新薪资历史")
 
         # 触发后台任务以生成初始账单
         trigger_initial_bill_generation_task.delay(str(new_contract.id))

@@ -258,17 +258,32 @@ const CreateVirtualContractModal = ({ open, onClose, onSuccess }) => {
         }
     };
 
-    // --- START: Mutual Exclusion Logic for Nanny Trial Contracts ---
+    // --- START: Auto-set Management Fee Rate for Nanny Trial Contracts ---
+    // 当试工合同的介绍费发生变化时，自动设置管理费率
+    useEffect(() => {
+        if (formData.contract_type === 'nanny_trial') {
+            const introFeeValue = parseFloat(formData.introduction_fee);
+            if (introFeeValue > 0) {
+                // 有介绍费时，管理费率设为10%
+                if (formData.management_fee_rate !== 0.1) {
+                    setFormData(prev => ({ ...prev, management_fee_rate: 0.1 }));
+                }
+            } else {
+                // 无介绍费时，管理费率设为20%
+                if (formData.management_fee_rate !== 0.2) {
+                    setFormData(prev => ({ ...prev, management_fee_rate: 0.2 }));
+                }
+            }
+        }
+    }, [formData.contract_type, formData.introduction_fee]);
+    
     const isTrialContract = formData.contract_type === 'nanny_trial';
     const introFeeValue = parseFloat(formData.introduction_fee);
-    const mgmtFeeRateValue = parseFloat(formData.management_fee_rate); // <-- 使用费率
-
-    const isIntroFeeDisabled = isTrialContract && mgmtFeeRateValue > 0;
-    const isMgmtRateDisabled = isTrialContract && introFeeValue > 0;
-
-    const introFeeHelperText = isIntroFeeDisabled ? "不能与管理费率同时存在" : "";
-    const mgmtRateHelperText = isMgmtRateDisabled ? "不能与介绍费同时存在" : "";
-    // --- END: Mutual Exclusion Logic --
+    
+    // 试工合同的提示文本
+    const introFeeHelperText = isTrialContract ? (introFeeValue > 0 ? "已填写介绍费，管理费率为10%" : "未填写介绍费，管理费率为20%") : "";
+    const mgmtRateHelperText = isTrialContract ? (introFeeValue > 0 ? "有介绍费时按10%收取" : "无介绍费时按20%收取") : "";
+    // --- END: Auto-set Management Fee Rate Logic --
 
     return (
         <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
@@ -395,16 +410,15 @@ const CreateVirtualContractModal = ({ open, onClose, onSuccess }) => {
                                     <TextField required fullWidth name="daily_rate" label="日薪(元)" type="number" value={formData.daily_rate} onChange={handleInputChange} helperText="级别/26，可手动修改" />
                                 </Grid>
                                 <Grid item xs={12} sm={6}>
-                                    <Tooltip title={isIntroFeeDisabled ?"不能与管理费率同时存在" : ""}>
-                                        <TextField
-                                            fullWidth name="introduction_fee" label="介绍费 (元)" type="number"
-                                            value={formData.introduction_fee}
-                                            onChange={handleInputChange}
-                                            disabled={isIntroFeeDisabled}
-                                            error={isIntroFeeDisabled}
-                                            helperText={introFeeHelperText}
-                                        />
-                                    </Tooltip>
+                                    <TextField
+                                        fullWidth 
+                                        name="introduction_fee" 
+                                        label="介绍费 (元)" 
+                                        type="number"
+                                        value={formData.introduction_fee}
+                                        onChange={handleInputChange}
+                                        helperText={introFeeHelperText}
+                                    />
                                 </Grid>
 
                                 {/* --- 核心修改：将“管理费金额”替换为“管理费率” --- */}
