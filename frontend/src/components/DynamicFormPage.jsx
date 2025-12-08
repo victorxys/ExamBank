@@ -4,7 +4,7 @@ import { useParams, useLocation, useNavigate } from 'react-router-dom'; // 导�
 import { Model } from 'survey-core';
 import { Survey } from 'survey-react-ui';
 import 'survey-core/survey-core.min.css';
-import '../styles/survey-theme-fresh.css'; // Import Fresh Vitality Theme
+import '../styles/survey-theme-shadcn.css'; // Import Shadcn-style Theme
 // Import Chinese language pack
 import 'survey-core/i18n/simplified-chinese';
 
@@ -22,6 +22,7 @@ import {
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { formatAddress } from '../utils/formatUtils';
+import { createDateTimeRenderer } from '../utils/surveyjs-custom-widgets.jsx';
 import AlertMessage from './AlertMessage';
 
 // Portal Component to render buttons in the SurveyJS header
@@ -147,6 +148,10 @@ const DynamicFormPage = () => {
                         question.storeDataAsText = false;
                     }
                 });
+
+                // 注册自定义日期/时间选择器渲染器
+                // 将 SurveyJS 的日期/时间字段替换为响应式选择器组件
+                survey.onAfterRenderQuestion.add(createDateTimeRenderer());
 
                 // Add eye icon for private fields (visible: false in schema)
                 survey.onAfterRenderQuestion.add((sender, options) => {
@@ -1246,23 +1251,108 @@ const DynamicFormPage = () => {
                         selectors.forEach(selector => {
                             const elements = container.querySelectorAll(selector);
                             elements.forEach(el => {
+                                // 跳过必填标记元素
+                                if (el.classList.contains('sd-question__required-text') ||
+                                    el.getAttribute('data-key') === 'req-text' ||
+                                    el.getAttribute('data-key') === 'req-sp') {
+                                    // 为必填标记设置 inline 显示
+                                    el.style.setProperty('display', 'inline', 'important');
+                                    el.style.setProperty('width', 'auto', 'important');
+                                    return;
+                                }
+
                                 el.style.setProperty('white-space', 'normal', 'important');
                                 el.style.setProperty('word-wrap', 'break-word', 'important');
                                 el.style.setProperty('word-break', 'break-word', 'important');
                                 el.style.setProperty('overflow-wrap', 'break-word', 'important');
-                                el.style.setProperty('max-width', '100%', 'important');
-                                el.style.setProperty('display', 'block', 'important'); // 强制块级显示
+
+                                // 标题容器使用 flex 布局
+                                if (el.classList.contains('sd-question__title') ||
+                                    el.classList.contains('sv-question__title') ||
+                                    el.classList.contains('sd-element__title') ||
+                                    el.classList.contains('sv-element__title')) {
+                                    el.style.setProperty('max-width', '100%', 'important');
+                                    el.style.setProperty('display', 'flex', 'important');
+                                    el.style.setProperty('flex-wrap', 'wrap', 'important');
+                                    el.style.setProperty('align-items', 'baseline', 'important');
+                                }
+                                // 标题内的文本 span 使用 inline 显示，不限制宽度
+                                else if (el.classList.contains('sv-string-viewer') ||
+                                    el.parentElement?.classList.contains('sd-question__title') ||
+                                    el.parentElement?.classList.contains('sv-question__title')) {
+                                    el.style.setProperty('display', 'inline', 'important');
+                                    // 不设置 max-width，让文本和必填标记在同一行
+                                }
+                                // 其他元素使用 block
+                                else {
+                                    el.style.setProperty('max-width', '100%', 'important');
+                                    el.style.setProperty('display', 'block', 'important');
+                                }
+
                                 el.style.setProperty('height', 'auto', 'important');
+                            });
+                        });
+                    };
+
+                    // 3. 规范必填标记，始终与题目文本同一行
+                    const mergeTitleSpans = (container) => {
+                        if (!container) return;
+
+                        const titleSelectors = [
+                            '.sd-question__title',
+                            '.sv-question__title',
+                            '.sd-element__title',
+                            '.sv-element__title'
+                        ];
+
+                        titleSelectors.forEach(selector => {
+                            const titles = container.querySelectorAll(selector);
+                            titles.forEach(titleEl => {
+                                if (titleEl.dataset.requiredNormalized === 'true') {
+                                    return;
+                                }
+
+                                const requiredEls = Array.from(titleEl.querySelectorAll('.sd-question__required-text, [data-key="req-text"]'));
+                                const spacerEls = Array.from(titleEl.querySelectorAll('[data-key="req-sp"]'));
+                                spacerEls.forEach(el => el.remove());
+
+                                if (requiredEls.length > 0) {
+                                    const primaryReq = requiredEls.shift();
+                                    requiredEls.forEach(el => el.remove());
+
+                                    const textContainer = titleEl.querySelector('.sv-string-viewer, .sd-string-viewer, span[data-key="question-title"], span[data-name="title"]')
+                                        || titleEl.querySelector('span:not(.private-field-icon):not(.sd-question__required-text)')
+                                        || titleEl;
+
+                                    // Ensure container can wrap text and star together
+                                    textContainer.style.setProperty('display', 'inline', 'important');
+                                    textContainer.style.setProperty('white-space', 'normal', 'important');
+                                    textContainer.style.setProperty('word-break', 'break-word', 'important');
+
+                                    primaryReq.textContent = '*';
+                                    primaryReq.classList.add('sd-question__required-text');
+                                    primaryReq.style.setProperty('color', 'hsl(0 84.2% 60.2%)', 'important');
+                                    primaryReq.style.setProperty('display', 'inline', 'important');
+                                    primaryReq.style.setProperty('width', 'auto', 'important');
+                                    primaryReq.style.setProperty('margin-left', '0.25rem', 'important');
+
+                                    primaryReq.remove();
+                                    textContainer.appendChild(primaryReq);
+                                }
+
+                                titleEl.dataset.requiredNormalized = 'true';
                             });
                         });
                     };
 
                     // 立即执行一次
                     forceWrapTitles(options.htmlElement);
+                    mergeTitleSpans(options.htmlElement);
 
                     // 设置 MutationObserver 持续监控
                     const observer = new MutationObserver(() => {
                         forceWrapTitles(options.htmlElement);
+                        mergeTitleSpans(options.htmlElement);
                     });
 
                     observer.observe(options.htmlElement, {
@@ -1599,6 +1689,14 @@ const DynamicFormPage = () => {
                         width: auto !important;
                         max-width: 100% !important;
                         display: block !important;
+                    }
+                    
+                    /* 必填标记例外：保持 inline 显示 */
+                    body .sd-root-modern .sd-question__required-text,
+                    body .sd-root-modern span[data-key="req-text"],
+                    body .sd-root-modern span[data-key="req-sp"] {
+                        display: inline !important;
+                        width: auto !important;
                     }
                     
                     /* 强制题目容器边距 */
