@@ -6,7 +6,7 @@ from datetime import datetime, date, timedelta
 from dateutil.relativedelta import relativedelta
 import calendar
 import os
-
+ 
 attendance_form_bp = Blueprint('attendance_form_api', __name__, url_prefix='/api/attendance-forms')
 
 def calculate_last_month_cycle():
@@ -252,8 +252,8 @@ def form_to_dict(form, effective_start_date=None, effective_end_date=None):
     # 生成客户签署链接
     client_sign_url = None
     if form.customer_signature_token:
-        # 使用环境变量或默认值构建前端 URL
-        frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:5175')
+        # 使用环境变量或默认值构建前端 URL（统一使用 FRONTEND_BASE_URL）
+        frontend_url = os.getenv('FRONTEND_BASE_URL', 'http://localhost:5175')
         client_sign_url = f"{frontend_url}/attendance-sign/{form.customer_signature_token}"
     
     # 确定合同显示的起止日期
