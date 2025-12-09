@@ -3975,39 +3975,48 @@ def enable_auto_renewal(contract_id):
                 last_bill.cycle_end_date = last_day_of_month
                 current_app.logger.info(f"修复临界月账单周期：{original_cycle_end} → {last_day_of_month}")
             
-            # 2. 计算并创建管理费补差调整项
-            # 如果原合同不是月底结束，需要补收剩余天数的管理费
+            # 2. 创建管理费调整项（抵消临界月已收部分）
+            # 如果原合同不是月底结束，需要调整管理费
             if contract_end_date < last_day_of_month:
-                days_already_charged = contract_end_date.day  # 原合同已收的天数
-                days_to_charge = last_day_of_month.day - contract_end_date.day  # 需要补收的天数
+                days_already_charged = contract_end_date.day  # 原合同已收的天数（如7月4日 → 4天）
+                max_charge_days = 30  # 月签合同每月最多收30天
                 
-                # 计算补差金额
+                # 账单计算引擎会按整月（30天）收取管理费
+                # 我们需要减去原合同已收的部分（如4天）
+                # 最终客户应付：30天 - 4天 = 26天
+                
                 monthly_mgmt_fee = D(contract.management_fee_amount or 0)
-                if monthly_mgmt_fee > 0:
+                if monthly_mgmt_fee > 0 and days_already_charged > 0:
                     daily_rate = (monthly_mgmt_fee / D(30)).quantize(D("0.01"))
-                    additional_fee = (daily_rate * D(days_to_charge)).quantize(D("0.01"))
+                    adjustment_amount = (daily_rate * D(days_already_charged)).quantize(D("0.01"))
                     
-                    if additional_fee > 0:
-                        # 创建补差调整项
-                        description = f"[系统] 转月签补收管理费: 日管理费({daily_rate:.2f}) × 补收天数({days_to_charge}) = {additional_fee:.2f}元"
+                    if adjustment_amount > 0:
+                        # 创建减少管理费的调整项（抵消已收部分）
+                        description = f"[系统] 转月签管理费调整: 原合同已收{days_already_charged}天管理费，本月减免 {adjustment_amount:.2f}元"
                         
                         # 检查是否已存在相同的调整项（避免重复）
-                        existing_adj = FinancialAdjustment.query.filter_by(
-                            customer_bill_id=last_bill.id,
-                            description=description
+                        existing_adj = FinancialAdjustment.query.filter(
+                            FinancialAdjustment.customer_bill_id == last_bill.id,
+                            FinancialAdjustment.description.like('%转月签管理费调整%')
                         ).first()
                         
                         if not existing_adj:
                             db.session.add(FinancialAdjustment(
                                 customer_bill_id=last_bill.id,
-                                adjustment_type=AdjustmentType.CUSTOMER_INCREASE,
-                                amount=additional_fee,
+                                adjustment_type=AdjustmentType.CUSTOMER_DECREASE,  # 减少客户应付
+                                amount=adjustment_amount,
                                 description=description,
                                 date=last_day_of_month
                             ))
-                            current_app.logger.info(f"创建管理费补差调整项: 补收{days_to_charge}天，金额{additional_fee:.2f}元")
+                            # 计算实际补收天数用于日志
+                            actual_charge_days = max_charge_days - days_already_charged
+                            current_app.logger.info(
+                                f"创建转月签管理费调整项: 原合同已收{days_already_charged}天，"
+                                f"本月应收{max_charge_days}天，实际补收{actual_charge_days}天，"
+                                f"减免金额{adjustment_amount:.2f}元"
+                            )
                         else:
-                            current_app.logger.info(f"管理费补差调整项已存在，跳过创建")
+                            current_app.logger.info(f"转月签管理费调整项已存在，跳过创建")
             
             # 3. 重新计算最后一个月账单（此时 is_monthly_auto_renew = True，不会重新添加退款项）
             current_app.logger.info(f"开始重算临界月账单 {last_bill.id}...")
