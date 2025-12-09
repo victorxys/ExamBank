@@ -403,7 +403,35 @@ const PublicSigningPage = () => {
             {contract.role && renderSigningArea()}
 
             <Box sx={{ mt: 4, textAlign: 'center' }}>
-                <Button variant="outlined" onClick={() => window.close()}>关闭页面</Button>
+                <Button 
+                    variant="outlined" 
+                    onClick={() => {
+                        // 检测是否在微信浏览器中
+                        const isWechat = /micromessenger/i.test(navigator.userAgent);
+                        
+                        if (isWechat) {
+                            // 微信浏览器中，显示友好提示
+                            alert('签署完成！请点击右上角关闭页面。');
+                        } else {
+                            // 非微信浏览器
+                            // 1. 尝试关闭窗口（仅对脚本打开的窗口有效）
+                            const closed = window.close();
+                            
+                            // 2. 延迟检查是否关闭成功，如果没有则返回上一页
+                            setTimeout(() => {
+                                // 如果有历史记录，返回上一页
+                                if (window.history.length > 1) {
+                                    window.history.back();
+                                } else {
+                                    // 没有历史记录，显示提示
+                                    alert('签署完成！您可以关闭此页面了。');
+                                }
+                            }, 100);
+                        }
+                    }}
+                >
+                    关闭页面
+                </Button>
             </Box>
         </Container>
     );
