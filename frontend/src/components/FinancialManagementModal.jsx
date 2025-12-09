@@ -1101,6 +1101,93 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
                     </Box>
                 ))}
 
+                {/* 考勤明细显示（仅员工卡片显示） */}
+                {!isCustomer && billingDetails?.attendance && (
+                    billingDetails.attendance.leave_days > 0 || 
+                    billingDetails.attendance.rest_days > 0 || 
+                    billingDetails.attendance.paid_leave_days > 0 ||
+                    billingDetails.attendance.out_of_beijing_days > 0 ||
+                    billingDetails.attendance.out_of_country_days > 0
+                ) && (
+                    <Box sx={{ mt: 2 }}>
+                        <Divider textAlign="left" sx={{ mb: 1.5 }}>
+                            <Typography variant="overline" color="text.secondary">考勤明细</Typography>
+                        </Divider>
+                        <Grid container spacing={1} sx={{ 
+                            bgcolor: 'action.hover', 
+                            borderRadius: 1, 
+                            p: 1.5,
+                            border: '1px solid',
+                            borderColor: 'divider'
+                        }}>
+                            {billingDetails.attendance.leave_days > 0 && (
+                                <>
+                                    <Grid item xs={6}>
+                                        <Typography variant="body2" color="text.secondary">请假天数:</Typography>
+                                    </Grid>
+                                    <Grid item xs={6}>
+                                        <Typography variant="body2" sx={{ textAlign: 'right', fontWeight: 500, color: 'warning.main' }}>
+                                            {billingDetails.attendance.leave_days.toFixed(3)} 天
+                                        </Typography>
+                                    </Grid>
+                                </>
+                            )}
+                            {billingDetails.attendance.rest_days > 0 && (
+                                <>
+                                    <Grid item xs={6}>
+                                        <Typography variant="body2" color="text.secondary">休息天数:</Typography>
+                                    </Grid>
+                                    <Grid item xs={6}>
+                                        <Typography variant="body2" sx={{ textAlign: 'right', fontWeight: 500, color: 'info.main' }}>
+                                            {billingDetails.attendance.rest_days.toFixed(3)} 天
+                                        </Typography>
+                                    </Grid>
+                                </>
+                            )}
+                            {billingDetails.attendance.paid_leave_days > 0 && (
+                                <>
+                                    <Grid item xs={6}>
+                                        <Typography variant="body2" color="text.secondary">带薪休假:</Typography>
+                                    </Grid>
+                                    <Grid item xs={6}>
+                                        <Typography variant="body2" sx={{ textAlign: 'right', fontWeight: 500, color: 'success.main' }}>
+                                            {billingDetails.attendance.paid_leave_days.toFixed(3)} 天
+                                        </Typography>
+                                    </Grid>
+                                </>
+                            )}
+                            {billingDetails.attendance.out_of_beijing_days > 0 && (
+                                <>
+                                    <Grid item xs={6}>
+                                        <Typography variant="body2" color="text.secondary">出京天数:</Typography>
+                                    </Grid>
+                                    <Grid item xs={6}>
+                                        <Typography variant="body2" sx={{ textAlign: 'right', fontWeight: 500 }}>
+                                            {billingDetails.attendance.out_of_beijing_days.toFixed(3)} 天
+                                        </Typography>
+                                    </Grid>
+                                </>
+                            )}
+                            {billingDetails.attendance.out_of_country_days > 0 && (
+                                <>
+                                    <Grid item xs={6}>
+                                        <Typography variant="body2" color="text.secondary">出境天数:</Typography>
+                                    </Grid>
+                                    <Grid item xs={6}>
+                                        <Typography variant="body2" sx={{ textAlign: 'right', fontWeight: 500 }}>
+                                            {billingDetails.attendance.out_of_country_days.toFixed(3)} 天
+                                        </Typography>
+                                    </Grid>
+                                </>
+                            )}
+                            <Grid item xs={12} sx={{ mt: 1, pt: 1, borderTop: '1px dashed', borderColor: 'divider' }}>
+                                <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                                    💡 以上考勤数据来自客户签署的考勤表，已自动扣减工资
+                                </Typography>
+                            </Grid>
+                        </Grid>
+                    </Box>
+                )}
 
                 {(currentAdjustments.length > 0 || isEditMode) && (
                     <Box>
