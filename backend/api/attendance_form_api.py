@@ -521,7 +521,7 @@ def _prepare_calendar_data(data, start_date, end_date):
     
     # 考勤类型映射
     TYPE_LABELS = {
-        'normal': '正常', 'rest': '休息', 'leave': '请假', 
+        'normal': '出勤', 'rest': '休息', 'leave': '请假', 
         'overtime': '加班', 'out_of_beijing': '出京', 
         'out_of_country': '出境', 'paid_leave': '带薪假',
         'onboarding': '上户', 'offboarding': '下户'
@@ -541,7 +541,7 @@ def _prepare_calendar_data(data, start_date, end_date):
                 continue
                 
             # 查找当日记录
-            record_info = {'type': 'normal', 'label': '正常', 'duration': ''}
+            record_info = {'type': 'normal', 'label': '出勤', 'duration': ''}
             
             # 遍历数据查找记录 (简化版，未处理跨天的一致性，假设数据结构一致)
             # 前端逻辑是遍历所有 records 判断日期覆盖
@@ -609,7 +609,7 @@ def _prepare_special_records(data):
     """准备特殊记录列表"""
     records_list = []
     TYPE_LABELS = {
-        'normal': '正常', 'rest': '休息', 'leave': '请假', 
+        'normal': '出勤', 'rest': '休息', 'leave': '请假', 
         'overtime': '加班', 'out_of_beijing': '出京', 
         'out_of_country': '出境', 'paid_leave': '带薪假',
         'onboarding': '上户', 'offboarding': '下户'
