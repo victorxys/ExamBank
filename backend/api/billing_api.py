@@ -3909,7 +3909,13 @@ def enable_auto_renewal(contract_id):
         return jsonify({"message": "该合同已处于自动续签状态，无需重复操作。"}), 200
 
     try:
-        # --- 简化逻辑：直接删除最后一个月账单中的退款相关调整项 ---
+        # --- 关键修复：先设置为月签，再删除退款调整项 ---
+        # 这样重算账单时不会重新添加退款项
+        contract.is_monthly_auto_renew = True
+        db.session.flush()  # 确保这个更改对后续查询可见
+        current_app.logger.info(f"合同 {contract.id} 已被设置为自动续约（先设置，防止重算时重新添加退款项）。")
+
+        # --- 删除最后一个月账单中的退款相关调整项 ---
         last_bill = db.session.query(CustomerBill).filter(
             CustomerBill.contract_id == str(contract_id)
         ).order_by(CustomerBill.cycle_end_date.desc()).first()
@@ -3953,7 +3959,7 @@ def enable_auto_renewal(contract_id):
                     current_app.logger.info(f"删除调整项: {adj.id} ({adj.description})")
                     db.session.delete(adj)
                 
-                # 重新计算最后一个月账单
+                # 重新计算最后一个月账单（此时 is_monthly_auto_renew = True，不会重新添加退款项）
                 current_app.logger.info(f"已删除退款相关调整项，正在为账单 {last_bill.id} 触发重算...")
                 recalc_engine = BillingEngine()
                 recalc_engine.calculate_for_month(
@@ -3967,10 +3973,6 @@ def enable_auto_renewal(contract_id):
             else:
                 current_app.logger.info(f"未找到需要删除的退款相关调整项。")
         # --- 逻辑结束 ---
-
-        # 1. 更新合同状态
-        contract.is_monthly_auto_renew = True
-        current_app.logger.info(f"合同 {contract.id} 已被设置为自动续约。")
 
         # 2. 调用引擎延展账单
         engine = BillingEngine()
