@@ -24,7 +24,7 @@ const formatDuration = (hours, minutes = 0) => {
 };
 
 const ATTENDANCE_TYPES = {
-    NORMAL: { label: '正常出勤', color: 'bg-gray-100 text-gray-800', value: 'normal', border: 'border-l-gray-200' },
+    NORMAL: { label: '出勤', color: 'bg-gray-100 text-gray-800', value: 'normal', border: 'border-l-gray-200' },
     REST: { label: '休息', color: 'bg-blue-100 text-blue-800', value: 'rest', border: 'border-l-blue-400' },
     LEAVE: { label: '请假', color: 'bg-yellow-100 text-yellow-800', value: 'leave', border: 'border-l-yellow-400' },
     OVERTIME: { label: '加班', color: 'bg-green-100 text-green-800', value: 'overtime', border: 'border-l-green-400' },
@@ -512,7 +512,7 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                 return { ...record, type: typeValue, typeLabel: ATTENDANCE_TYPES[key].label, typeConfig: ATTENDANCE_TYPES[key] };
             }
         }
-        return { type: 'normal', typeLabel: '正常出勤', typeConfig: ATTENDANCE_TYPES.NORMAL, hours: 8, minutes: 0 };
+        return { type: 'normal', typeLabel: '出勤', typeConfig: ATTENDANCE_TYPES.NORMAL, hours: 8, minutes: 0 };
     };
 
     const openEditModal = (date) => {
@@ -1077,7 +1077,7 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                         <X className="w-4 h-4 text-gray-400" />
                                     ) : (
                                         <span className={`text-xs font-medium truncate w-full text-center ${statusTextColors[record.type] || 'text-gray-600'}`}>
-                                            {record.typeLabel || '正常'}
+                                            {record.typeLabel || '出勤'}
                                         </span>
                                     )}
 
