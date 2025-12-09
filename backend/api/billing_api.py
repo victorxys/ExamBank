@@ -3958,20 +3958,68 @@ def enable_auto_renewal(contract_id):
                 for adj in adjustments_to_delete:
                     current_app.logger.info(f"删除调整项: {adj.id} ({adj.description})")
                     db.session.delete(adj)
+            
+            # --- 修复临界月的周期和补收管理费 ---
+            # 获取原合同结束日期和该月最后一天
+            contract_end_date = contract.end_date
+            if isinstance(contract_end_date, datetime):
+                contract_end_date = contract_end_date.date()
+            
+            # 计算该月的最后一天
+            _, last_day_num = calendar.monthrange(contract_end_date.year, contract_end_date.month)
+            last_day_of_month = date(contract_end_date.year, contract_end_date.month, last_day_num)
+            
+            # 1. 修复账单的 cycle_end_date（从原合同结束日改为月末）
+            if last_bill.cycle_end_date != last_day_of_month:
+                original_cycle_end = last_bill.cycle_end_date
+                last_bill.cycle_end_date = last_day_of_month
+                current_app.logger.info(f"修复临界月账单周期：{original_cycle_end} → {last_day_of_month}")
+            
+            # 2. 计算并创建管理费补差调整项
+            # 如果原合同不是月底结束，需要补收剩余天数的管理费
+            if contract_end_date < last_day_of_month:
+                days_already_charged = contract_end_date.day  # 原合同已收的天数
+                days_to_charge = last_day_of_month.day - contract_end_date.day  # 需要补收的天数
                 
-                # 重新计算最后一个月账单（此时 is_monthly_auto_renew = True，不会重新添加退款项）
-                current_app.logger.info(f"已删除退款相关调整项，正在为账单 {last_bill.id} 触发重算...")
-                recalc_engine = BillingEngine()
-                recalc_engine.calculate_for_month(
-                    year=last_bill.year,
-                    month=last_bill.month,
-                    contract_id=last_bill.contract_id,
-                    force_recalculate=True,
-                    cycle_start_date_override=last_bill.cycle_start_date
-                )
-                current_app.logger.info(f"账单 {last_bill.id} 已重算完成。")
-            else:
-                current_app.logger.info(f"未找到需要删除的退款相关调整项。")
+                # 计算补差金额
+                monthly_mgmt_fee = D(contract.management_fee_amount or 0)
+                if monthly_mgmt_fee > 0:
+                    daily_rate = (monthly_mgmt_fee / D(30)).quantize(D("0.01"))
+                    additional_fee = (daily_rate * D(days_to_charge)).quantize(D("0.01"))
+                    
+                    if additional_fee > 0:
+                        # 创建补差调整项
+                        description = f"[系统] 转月签补收管理费: 日管理费({daily_rate:.2f}) × 补收天数({days_to_charge}) = {additional_fee:.2f}元"
+                        
+                        # 检查是否已存在相同的调整项（避免重复）
+                        existing_adj = FinancialAdjustment.query.filter_by(
+                            customer_bill_id=last_bill.id,
+                            description=description
+                        ).first()
+                        
+                        if not existing_adj:
+                            db.session.add(FinancialAdjustment(
+                                customer_bill_id=last_bill.id,
+                                adjustment_type=AdjustmentType.CUSTOMER_INCREASE,
+                                amount=additional_fee,
+                                description=description,
+                                date=last_day_of_month
+                            ))
+                            current_app.logger.info(f"创建管理费补差调整项: 补收{days_to_charge}天，金额{additional_fee:.2f}元")
+                        else:
+                            current_app.logger.info(f"管理费补差调整项已存在，跳过创建")
+            
+            # 3. 重新计算最后一个月账单（此时 is_monthly_auto_renew = True，不会重新添加退款项）
+            current_app.logger.info(f"开始重算临界月账单 {last_bill.id}...")
+            recalc_engine = BillingEngine()
+            recalc_engine.calculate_for_month(
+                year=last_bill.year,
+                month=last_bill.month,
+                contract_id=last_bill.contract_id,
+                force_recalculate=True,
+                cycle_start_date_override=last_bill.cycle_start_date
+            )
+            current_app.logger.info(f"临界月账单 {last_bill.id} 已重算完成。")
         # --- 逻辑结束 ---
 
         # 2. 调用引擎延展账单
