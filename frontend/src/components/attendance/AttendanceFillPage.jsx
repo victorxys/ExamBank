@@ -802,12 +802,13 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
     if (!formData) return <div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="text-center"><AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" /><h2 className="text-xl font-bold">无法加载考勤表</h2></div></div>;
 
     // Stats - Calculate total days for each category (with 3 decimal places)
-    let totalWorkDays = 0; // 出勤天数（包括正常、出京、出境，不包括加班）
-    let totalLeaveDays = 0; // 请假或休假天数（休息、请假、带薪休假）
+    let totalWorkDays = 0; // 出勤天数（包括正常、出京、出境、带薪休假，不包括加班）
+    let totalLeaveDays = 0; // 请假或休假天数（休息、请假，不含带薪休假）
     let totalOvertimeDays = 0; // 加班天数（单独统计）
 
-    // Calculate leave days (rest, leave, paid_leave)
-    ['rest_records', 'leave_records', 'paid_leave_records'].forEach(key => {
+    // Calculate leave days (rest, leave) - 【修复】不包含带薪休假
+    // 根据需求文档：出勤天数(含带薪休假、出京、出境) = 当月总天数 - 请假天数 - 休息天数
+    ['rest_records', 'leave_records'].forEach(key => {
         if (Array.isArray(attendanceData[key])) {
             attendanceData[key].forEach(record => {
                 const hours = (record.hours || 0) + (record.minutes || 0) / 60;
@@ -824,9 +825,12 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
         });
     }
 
-    // Work days = valid days - leave days - overtime days (加班不计入出勤)
+    // Work days (基本劳务天数) = valid days - leave days
+    // 【重要】加班不应该从出勤天数中扣除，加班是额外的，单独计算
+    // 带薪休假、出京、出境都算作出勤天数，不需要扣除
+    // 公式：出勤天数 = 当月总天数 - 休息天数 - 请假天数
     const validDaysCount = monthDays.filter(day => !isDateDisabled(day)).length;
-    totalWorkDays = validDaysCount - totalLeaveDays - totalOvertimeDays;
+    totalWorkDays = validDaysCount - totalLeaveDays;  // 不减去加班天数！
 
     return (
         <div className="min-h-screen bg-slate-50 pb-48 font-sans">
