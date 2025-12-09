@@ -3909,37 +3909,52 @@ def enable_auto_renewal(contract_id):
         return jsonify({"message": "该合同已处于自动续签状态，无需重复操作。"}), 200
 
     try:
-        # --- 新增逻辑：查找并冲抵可能存在的保证金退款 ---
+        # --- 简化逻辑：直接删除最后一个月账单中的退款相关调整项 ---
         last_bill = db.session.query(CustomerBill).filter(
             CustomerBill.contract_id == str(contract_id)
         ).order_by(CustomerBill.cycle_end_date.desc()).first()
 
         if last_bill:
-            # 【核心修正】直接查询与该账单关联的财务调整项
-            adjustments_for_bill = FinancialAdjustment.query.filter_by(customer_bill_id=last_bill.id).all()
-
-            # 查找保证金退款调整项
-            deposit_refund_adj = None
-            for adj in adjustments_for_bill:
-                if adj.adjustment_type == AdjustmentType.CUSTOMER_DECREASE and '保证金' in adj.description:
-                    deposit_refund_adj = adj
-                    break
-
+            current_app.logger.info(f"为合同 {contract.id} 查找最后一个账单: {last_bill.id}")
+            
+            # 收集需要删除的调整项
+            adjustments_to_delete = []
+            
+            # 1. 查找保证金退款调整项
+            deposit_refund_adj = FinancialAdjustment.query.filter(
+                FinancialAdjustment.customer_bill_id == last_bill.id,
+                FinancialAdjustment.adjustment_type == AdjustmentType.CUSTOMER_DECREASE,
+                FinancialAdjustment.description.like('%保证金%')
+            ).first()
+            
             if deposit_refund_adj:
-                current_app.logger.info(f"为合同 {contract.id} 找到了待冲抵的保证金退款项: {deposit_refund_adj.id}")
-                # 创建一个新的、相反的冲抵调整项
-                offsetting_adj = FinancialAdjustment(
-                    customer_bill_id=last_bill.id,
-                    adjustment_type=AdjustmentType.CUSTOMER_INCREASE,
-                    amount=deposit_refund_adj.amount,
-                    description="改为月签合同在合同终止时退还",
-                    date=last_bill.cycle_end_date.date()
-                )
-                db.session.add(offsetting_adj)
-                current_app.logger.info(f"已为账单 {last_bill.id} 添加保证金冲抵项。")
-
-                # --- 新增：立即重算当期账单 ---
-                current_app.logger.info(f"冲抵调整已添加，正在为账单 {last_bill.id} 触发重算...")
+                adjustments_to_delete.append(deposit_refund_adj)
+                current_app.logger.info(f"找到保证金退款调整项: {deposit_refund_adj.id}")
+            
+            # 2. 查找公司代付工资调整项
+            company_paid_salary_adj = FinancialAdjustment.query.filter(
+                FinancialAdjustment.customer_bill_id == last_bill.id,
+                FinancialAdjustment.adjustment_type == AdjustmentType.COMPANY_PAID_SALARY,
+                FinancialAdjustment.description == "[系统] 公司代付工资"
+            ).first()
+            
+            if company_paid_salary_adj:
+                adjustments_to_delete.append(company_paid_salary_adj)
+                current_app.logger.info(f"找到公司代付工资调整项: {company_paid_salary_adj.id}")
+                
+                # 3. 如果存在镜像调整项（保证金支付工资），也一并删除
+                if company_paid_salary_adj.mirrored_adjustment:
+                    adjustments_to_delete.append(company_paid_salary_adj.mirrored_adjustment)
+                    current_app.logger.info(f"找到镜像调整项（保证金支付工资）: {company_paid_salary_adj.mirrored_adjustment.id}")
+            
+            # 执行删除
+            if adjustments_to_delete:
+                for adj in adjustments_to_delete:
+                    current_app.logger.info(f"删除调整项: {adj.id} ({adj.description})")
+                    db.session.delete(adj)
+                
+                # 重新计算最后一个月账单
+                current_app.logger.info(f"已删除退款相关调整项，正在为账单 {last_bill.id} 触发重算...")
                 recalc_engine = BillingEngine()
                 recalc_engine.calculate_for_month(
                     year=last_bill.year,
@@ -3948,20 +3963,21 @@ def enable_auto_renewal(contract_id):
                     force_recalculate=True,
                     cycle_start_date_override=last_bill.cycle_start_date
                 )
-                current_app.logger.info(f"账单 {last_bill.id} 已重算。")
-                # --- 新增结束 ---
-        # --- 新增逻辑结束 ---
+                current_app.logger.info(f"账单 {last_bill.id} 已重算完成。")
+            else:
+                current_app.logger.info(f"未找到需要删除的退款相关调整项。")
+        # --- 逻辑结束 ---
 
-        # 1. 更新合同状态 (已有逻辑)
+        # 1. 更新合同状态
         contract.is_monthly_auto_renew = True
         current_app.logger.info(f"合同 {contract.id} 已被设置为自动续约。")
 
-        # 2. 调用引擎延展账单 (已有逻辑)
+        # 2. 调用引擎延展账单
         engine = BillingEngine()
         engine.extend_auto_renew_bills(contract.id)
         current_app.logger.info(f"已为合同 {contract.id} 触发账单自动延展。")
 
-        # 3. 提交事务 (已有逻辑)
+        # 3. 提交事务
         db.session.commit()
 
         return jsonify({"message": "合同已成功设置为自动续签，并已延展账单。"})
