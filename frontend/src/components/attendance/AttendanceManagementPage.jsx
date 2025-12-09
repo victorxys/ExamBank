@@ -195,7 +195,7 @@ const AttendanceManagementPage = () => {
                         <svg className="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                         </svg>
-                        未填写
+                        员工未填写
                     </span>
                 );
         }
@@ -242,7 +242,7 @@ const AttendanceManagementPage = () => {
                     <div className="bg-white/90 backdrop-blur rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow">
                         <div className="flex items-center justify-between mb-4">
                             <div>
-                                <p className="text-sm text-gray-600 mb-1">未填写</p>
+                                <p className="text-sm text-gray-600 mb-1">员工未填写</p>
                                 <p className="text-3xl font-bold text-gray-900">{stats.notStarted}</p>
                             </div>
                             <div className="h-12 w-12 rounded-full bg-gray-100 flex items-center justify-center">
@@ -260,7 +260,7 @@ const AttendanceManagementPage = () => {
                     <div className="bg-white/90 backdrop-blur rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow">
                         <div className="flex items-center justify-between mb-4">
                             <div>
-                                <p className="text-sm text-gray-600 mb-1">待签署</p>
+                                <p className="text-sm text-gray-600 mb-1">待客户签署</p>
                                 <p className="text-3xl font-bold text-gray-900">{stats.pending}</p>
                             </div>
                             <div className="h-12 w-12 rounded-full bg-amber-100 flex items-center justify-center">
@@ -277,7 +277,7 @@ const AttendanceManagementPage = () => {
                     <div className="bg-white/90 backdrop-blur rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow">
                         <div className="flex items-center justify-between mb-4">
                             <div>
-                                <p className="text-sm text-gray-600 mb-1">已完成</p>
+                                <p className="text-sm text-gray-600 mb-1">客户已签署</p>
                                 <p className="text-3xl font-bold text-gray-900">{stats.completed}</p>
                             </div>
                             <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
@@ -347,9 +347,9 @@ const AttendanceManagementPage = () => {
                                 className="border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 outline-none bg-white"
                             >
                                 <option value="all">全部状态</option>
-                                <option value="completed">已签署</option>
-                                <option value="pending">待签署</option>
-                                <option value="incomplete">未填写</option>
+                                <option value="completed">客户已签署</option>
+                                <option value="pending">待客户签署</option>
+                                <option value="incomplete">员工未填写</option>
                             </select>
                         </div>
                     </div>
