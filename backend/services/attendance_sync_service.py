@@ -158,8 +158,11 @@ def sync_attendance_to_record(attendance_form_id):
             force_recalculate=True,
             actual_work_days_override=float(total_days_worked)  # 传入考勤计算的实际出勤天数
         )
-        current_app.logger.info(f"[ATTENDANCE_SYNC] 账单重算完成，使用实际出勤天数: {total_days_worked}")
+        # 【关键修复】显式提交事务，确保账单更新保存到数据库
+        db.session.commit()
+        current_app.logger.info(f"[ATTENDANCE_SYNC] 账单重算完成并已提交，使用实际出勤天数: {total_days_worked}")
     except Exception as e:
+        db.session.rollback()
         current_app.logger.error(f"[ATTENDANCE_SYNC] 账单重算失败: {str(e)}", exc_info=True)
         # 不抛出异常，因为考勤数据已经保存成功
         # 用户可以手动触发重算
