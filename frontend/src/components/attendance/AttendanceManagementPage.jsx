@@ -92,7 +92,7 @@ const AttendanceManagementPage = () => {
     const stats = {
         total: employees.length,
         pending: employees.filter(e => e.form_status === 'confirmed').length,
-        completed: employees.filter(e => e.form_status === 'signed').length,
+        completed: employees.filter(e => e.form_status === 'customer_signed').length,
         notStarted: employees.filter(e => ['not_created', 'draft'].includes(e.form_status)).length
     };
 
