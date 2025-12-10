@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 // import { createPortal } from 'react-dom'; // Removed to avoid production build issues
 import { useParams, useLocation, useNavigate } from 'react-router-dom'; // 导入 useLocation 和 useNavigate
@@ -8,8 +8,9 @@ import 'survey-core/survey-core.min.css';
 import '../styles/survey-theme-shadcn.css'; // Import Shadcn-style Theme
 // Import Chinese language pack
 import 'survey-core/i18n/simplified-chinese';
-import { LazyLoadImage } from 'react-lazy-load-image-component';
-import 'react-lazy-load-image-component/src/effects/blur.css';
+// 移除懒加载，直接使用 img 标签以确保所有图片立即加载
+// import { LazyLoadImage } from 'react-lazy-load-image-component';
+// import 'react-lazy-load-image-component/src/effects/blur.css';
 
 // Note: Language will be set on each survey instance
 import api from '../api/axios';
@@ -47,22 +48,358 @@ import { formatAddress } from '../utils/formatUtils';
 import { createDateTimeRenderer } from '../utils/surveyjs-custom-widgets.jsx';
 import AlertMessage from './AlertMessage';
 
-// Optimized Image Components with Lightbox
-const OptimizedFileCarousel = ({ questionValue, onImageClick }) => {
+// 检测网络状况
+const getNetworkQuality = () => {
+    if ('connection' in navigator) {
+        const connection = navigator.connection;
+        if (connection.effectiveType === '4g') return 'high';
+        if (connection.effectiveType === '3g') return 'medium';
+        return 'low';
+    }
+    return 'medium'; // 默认中等质量
+};
+
+// ===== 完全统一图片加载系统 - 彻底避免重复网络请求 =====
+
+// 全局统一图片URL - 所有场景（缩略图、轮播、lightbox）使用完全相同的URL
+const getUnifiedImageUrl = (originalUrl) => {
+    if (!originalUrl) return originalUrl;
+    
+    // 检查是否是我们的图床域名
+    if (originalUrl.includes('img.mengyimengsao.com')) {
+        // 确保URL格式正确，路径部分应该以/开头
+        const urlParts = originalUrl.split('img.mengyimengsao.com');
+        if (urlParts.length === 2) {
+            let path = urlParts[1];
+            // 确保路径以/开头
+            if (!path.startsWith('/')) {
+                path = '/' + path;
+            }
+            // 关键修复：所有场景使用完全相同的URL，彻底避免重复下载
+            // 使用合理的尺寸和质量，平衡加载速度和显示效果
+            const unifiedUrl = `https://img.mengyimengsao.com/cdn-cgi/image/width=600,quality=80,format=jpeg${path}`;
+            console.log(`�️ 统一图片URL: ${originalUrl} -> ${unifiedUrl}`);
+            return unifiedUrl;
+        }
+    }
+    
+    // 检查是否是金数据图床
+    if (originalUrl.includes('jinshujufiles.com')) {
+        try {
+            const url = new URL(originalUrl);
+            url.searchParams.set('imageView2', '2/w/600/q/80');
+            const unifiedUrl = url.toString();
+            console.log(`� 金数据统一据图片URL: ${originalUrl} -> ${unifiedUrl}`);
+            return unifiedUrl;
+        } catch (e) {
+            console.warn(`❌ 金数据URL解析失败: ${originalUrl}`, e);
+            return originalUrl;
+        }
+    }
+    
+    // 如果不是支持的图床，直接返回原图
+    console.log(`⚠️ 不支持的图床，使用原图: ${originalUrl}`);
+    return originalUrl;
+};
+
+// 所有函数都指向同一个统一URL生成器
+const getThumbnailUrl = getUnifiedImageUrl;
+const getLightboxUrl = getUnifiedImageUrl;
+const getOptimizedImageUrl = getUnifiedImageUrl;
+
+// 原图URL - 用于下载
+const getOriginalUrl = (originalUrl) => {
+    return originalUrl; // 直接返回原图
+};
+
+// 全局统一缓存管理
+const unifiedImageCache = new Map(); // 统一图片缓存
+
+// 统一预加载函数 - 确保每个URL只下载一次
+const preloadUnifiedImage = (originalUrl) => {
+    return new Promise((resolve, reject) => {
+        const unifiedUrl = getUnifiedImageUrl(originalUrl);
+        
+        console.log(`📥 预加载统一图片: ${originalUrl} -> ${unifiedUrl}`);
+        
+        // 检查缓存
+        if (unifiedImageCache.has(unifiedUrl)) {
+            console.log(`🎯 图片已在缓存中，直接返回: ${unifiedUrl}`);
+            resolve(unifiedImageCache.get(unifiedUrl));
+            return;
+        }
+        
+        const img = new Image();
+        
+        // 添加超时机制
+        const timeout = setTimeout(() => {
+            console.warn(`⏰ 图片加载超时 (10秒): ${unifiedUrl}`);
+            reject(new Error('Image load timeout'));
+        }, 10000);
+        
+        img.onload = () => {
+            clearTimeout(timeout);
+            
+            // 缓存图片元素
+            unifiedImageCache.set(unifiedUrl, img);
+            
+            console.log(`✅ 图片加载完成并缓存: ${unifiedUrl}`);
+            console.log(`📊 图片尺寸: ${img.naturalWidth}x${img.naturalHeight}`);
+            console.log(`📈 缓存大小: ${unifiedImageCache.size} 张图片`);
+            
+            resolve(img);
+        };
+        
+        img.onerror = (error) => {
+            clearTimeout(timeout);
+            console.error(`❌ 统一图片加载失败: ${unifiedUrl}`, error);
+            console.log(`🔄 回退到原图: ${originalUrl}`);
+            
+            // 回退到原图
+            const fallbackImg = new Image();
+            const fallbackTimeout = setTimeout(() => {
+                console.warn(`⏰ 原图回退加载超时: ${originalUrl}`);
+                reject(new Error('Fallback image load timeout'));
+            }, 10000);
+            
+            fallbackImg.onload = () => {
+                clearTimeout(fallbackTimeout);
+                
+                // 缓存原图（使用统一URL作为key）
+                unifiedImageCache.set(unifiedUrl, fallbackImg);
+                
+                console.log(`✅ 原图回退加载完成: ${originalUrl}`);
+                resolve(fallbackImg);
+            };
+            
+            fallbackImg.onerror = (fallbackError) => {
+                clearTimeout(fallbackTimeout);
+                console.error(`❌ 原图回退也失败: ${originalUrl}`, fallbackError);
+                reject(fallbackError);
+            };
+            
+            fallbackImg.referrerPolicy = 'no-referrer';
+            fallbackImg.src = originalUrl;
+        };
+        
+        // 设置图片属性并开始加载
+        img.referrerPolicy = 'no-referrer';
+        img.src = unifiedUrl;
+    });
+};
+
+// 兼容性别名 - 所有预加载函数都指向统一函数
+const preloadThumbnail = preloadUnifiedImage;
+const preloadLightboxImage = preloadUnifiedImage;
+const preloadOptimizedImage = preloadUnifiedImage;
+
+// Lightbox 图片组件 - 简化版，使用统一URL避免重复请求
+const CachedLightboxImage = ({ src, alt, style, originalUrl, ...props }) => {
+    const [imageLoaded, setImageLoaded] = useState(false);
+    const [imageError, setImageError] = useState(false);
+    const [displaySrc, setDisplaySrc] = useState('');
+
+    useEffect(() => {
+        if (!src) return;
+
+        console.log(`🔍 Lightbox 组件接收到 src: ${src}`);
+        
+        // 重置状态
+        setImageLoaded(false);
+        setImageError(false);
+
+        // 检查统一缓存中是否有图片
+        const cachedImg = unifiedImageCache.get(src);
+        if (cachedImg && cachedImg.complete && cachedImg.naturalWidth > 0) {
+            console.log(`🎯 使用统一缓存的图片，应该立即显示: ${src}`);
+            setDisplaySrc(src);
+            // 由于图片已经缓存，应该立即显示
+            setTimeout(() => {
+                setImageLoaded(true);
+                console.log(`⚡ 缓存图片立即显示: ${src}`);
+            }, 50);
+        } else {
+            console.log(`⚠️ 图片未在统一缓存中，使用常规加载: ${src}`);
+            setDisplaySrc(src);
+        }
+    }, [src]);
+
+    const handleLoad = () => {
+        if (!imageLoaded) {
+            setImageLoaded(true);
+            setImageError(false);
+            console.log(`✅ Lightbox 图片显示完成: ${displaySrc}`);
+        }
+    };
+
+    const handleError = (error) => {
+        console.warn(`❌ Lightbox 图片加载失败: ${displaySrc}`, error);
+        setImageError(true);
+        setImageLoaded(false);
+    };
+
+    if (!displaySrc) {
+        return (
+            <Box
+                sx={{
+                    ...style,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                }}
+            >
+                <CircularProgress size={40} sx={{ color: 'white' }} />
+                <Typography sx={{ color: 'white', ml: 2 }}>准备图片...</Typography>
+            </Box>
+        );
+    }
+
+    if (imageError) {
+        return (
+            <Box
+                sx={{
+                    ...style,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: '#f8f9fa',
+                    border: '1px solid #dee2e6',
+                    borderRadius: '8px',
+                    minHeight: '200px',
+                }}
+            >
+                <Typography variant="h6" color="text.secondary">
+                    图片加载失败
+                </Typography>
+            </Box>
+        );
+    }
+
+    return (
+        <Box sx={{ position: 'relative', ...style }}>
+            {!imageLoaded && (
+                <Box
+                    sx={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                        zIndex: 1,
+                    }}
+                >
+                    <CircularProgress size={40} sx={{ color: 'white' }} />
+                    <Typography sx={{ color: 'white', ml: 2 }}>加载图片...</Typography>
+                </Box>
+            )}
+            
+            {/* 缓存状态指示器 */}
+            {/* {imageLoaded && (
+                <Box
+                    sx={{
+                        position: 'absolute',
+                        top: 10,
+                        left: 10,
+                        backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                        color: 'white',
+                        padding: '4px 8px',
+                        borderRadius: '4px',
+                        fontSize: '12px',
+                        zIndex: 2,
+                    }}
+                >
+                    {unifiedImageCache.has(src) ? '已缓存' : '网络加载'}
+                </Box>
+            )} */}
+            
+            <img
+                src={displaySrc}
+                alt={alt}
+                onLoad={handleLoad}
+                onError={handleError}
+                referrerPolicy="no-referrer"
+                style={{
+                    maxWidth: '90vw',
+                    maxHeight: '90vh',
+                    width: 'auto',
+                    height: 'auto',
+                    objectFit: 'contain',
+                    opacity: imageLoaded ? 1 : 0,
+                    transition: 'opacity 0.3s ease',
+                }}
+                {...props}
+            />
+        </Box>
+    );
+};
+
+// 三阶段图片轮播组件
+const OptimizedFileCarousel = ({ questionValue, onImageClick, onPreloadUpdate }) => {
     const [currentIndex, setCurrentIndex] = useState(0);
     const [imageErrors, setImageErrors] = useState({});
+    const [thumbnailsLoaded, setThumbnailsLoaded] = useState({}); // 第一阶段：缩略图加载状态
+    const [lightboxPreloaded, setLightboxPreloaded] = useState({}); // 第二阶段：大图预加载状态
+    const [allThumbnailsComplete, setAllThumbnailsComplete] = useState(false);
 
     const updateDisplay = (index) => {
         setCurrentIndex(index);
     };
 
-    // 下载图片函数
-    const downloadImage = async (imageUrl, index) => {
-        const filename = imageUrl.split('/').pop()?.split('?')[0] || `image-${index + 1}.jpg`;
+    // 简化的初始化 - 重置状态
+    useEffect(() => {
+        if (!questionValue || questionValue.length === 0) return;
+
+        console.log(`🚀 初始化图片轮播组件: ${questionValue.length} 张图片`);
+        
+        // 重置状态
+        setThumbnailsLoaded({});
+        setAllThumbnailsComplete(false);
+        setImageErrors({});
+        
+        // 打印图片URL用于调试
+        questionValue.forEach((imageFile, index) => {
+            const originalUrl = imageFile?.content;
+            const thumbnailUrl = getThumbnailUrl(originalUrl);
+            console.log(`图片 ${index + 1}: ${originalUrl} -> ${thumbnailUrl}`);
+        });
+    }, [questionValue]);
+
+    // 第二阶段：缩略图全部加载完成后，开始预加载大图
+    useEffect(() => {
+        if (!allThumbnailsComplete || !questionValue || questionValue.length === 0) return;
+
+        console.log(`🎉 所有缩略图加载完成，图片已在浏览器缓存中 // 原：开始预加载 ${questionValue.length} 张大图到缓存...`);
+        
+        // 由于使用统一URL，缩略图加载完成后图片已在浏览器缓存中，不需要额外预加载
+        // 标记所有图片为已预加载
+        const allPreloaded = {};
+        questionValue.forEach((_, index) => {
+            allPreloaded[index] = true;
+        });
+        setLightboxPreloaded(allPreloaded);
+        
+        if (onPreloadUpdate) {
+            onPreloadUpdate(questionValue.length, questionValue.length);
+        }
+    }, [allThumbnailsComplete, questionValue, onPreloadUpdate]);
+
+    // 注意：由于使用统一URL，缩略图加载完成后图片已在浏览器缓存中
+    // 不需要额外的预加载步骤
+
+    // 第三阶段：下载原图函数
+    const downloadOriginalImage = async (imageUrl, index) => {
+        console.log(`📥 第三阶段：下载原图 ${index + 1}`);
+        
+        const originalUrl = getOriginalUrl(imageUrl);
+        const filename = originalUrl.split('/').pop()?.split('?')[0] || `image-${index + 1}.jpg`;
 
         try {
-            // Try to fetch with CORS mode first (since R2 should support it)
-            const response = await fetch(imageUrl, {
+            const response = await fetch(originalUrl, {
                 mode: 'cors',
                 credentials: 'same-origin',
             });
@@ -72,31 +409,25 @@ const OptimizedFileCarousel = ({ questionValue, onImageClick }) => {
             }
 
             const originalBlob = await response.blob();
-
-            // Force download by changing MIME type to octet-stream
             const blob = new Blob([originalBlob], { type: 'application/octet-stream' });
 
-            // Create download link
             const url = window.URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
             link.download = filename;
             link.style.display = 'none';
 
-            // Trigger download
             document.body.appendChild(link);
             link.click();
 
-            // Clean up
             setTimeout(() => {
                 document.body.removeChild(link);
                 window.URL.revokeObjectURL(url);
             }, 100);
         } catch (error) {
-            console.warn('Fetch download failed, using direct link:', error);
-            // Fallback: use direct download via anchor tag
+            console.warn('原图下载失败，使用直接链接:', error);
             const link = document.createElement('a');
-            link.href = imageUrl;
+            link.href = originalUrl;
             link.download = filename;
             link.target = '_blank';
             link.rel = 'noopener noreferrer';
@@ -115,16 +446,16 @@ const OptimizedFileCarousel = ({ questionValue, onImageClick }) => {
         return null;
     }
 
-    const file = questionValue[currentIndex];
+    const currentFile = questionValue[currentIndex];
 
     return (
         <Box sx={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1.5, mt: 1 }}>
-            {/* Image Display with optimized size */}
+            {/* 图片显示区域 */}
             <Box
                 sx={{
                     position: 'relative',
-                    maxWidth: '500px', // 限制最大宽度
-                    maxHeight: '350px', // 限制最大高度，节省空间
+                    maxWidth: '500px',
+                    maxHeight: '350px',
                     width: '100%',
                     cursor: 'pointer',
                     border: '1px solid #e5e7eb',
@@ -139,7 +470,11 @@ const OptimizedFileCarousel = ({ questionValue, onImageClick }) => {
                         boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
                     }
                 }}
-                onClick={() => onImageClick && onImageClick(currentIndex)}
+                onClick={() => {
+                    if (onImageClick) {
+                        onImageClick(currentIndex, lightboxPreloaded);
+                    }
+                }}
             >
                 {imageErrors[currentIndex] ? (
                     <Box
@@ -159,14 +494,13 @@ const OptimizedFileCarousel = ({ questionValue, onImageClick }) => {
                             图片加载失败
                         </Typography>
                         <Typography variant="caption" color="text.disabled" sx={{ fontSize: '10px', textAlign: 'center', wordBreak: 'break-all' }}>
-                            URL: {file?.content || '无URL'}
+                            URL: {currentFile?.content || '无URL'}
                         </Typography>
                         <Button
                             size="small"
                             variant="text"
                             onClick={(e) => {
                                 e.stopPropagation();
-                                // 重试加载图片
                                 setImageErrors(prev => {
                                     const newErrors = { ...prev };
                                     delete newErrors[currentIndex];
@@ -179,84 +513,78 @@ const OptimizedFileCarousel = ({ questionValue, onImageClick }) => {
                         </Button>
                     </Box>
                 ) : (
-                    <LazyLoadImage
-                        src={file?.content}
-                        alt={`图片 ${currentIndex + 1}`}
-                        effect="blur"
-                        placeholder={
-                            <Box
-                                sx={{
-                                    width: '100%',
-                                    height: '250px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    backgroundColor: '#f0f0f0',
-                                }}
-                            >
-                                <Skeleton
-                                    variant="rectangular"
-                                    width="90%"
-                                    height="90%"
-                                    animation="wave"
-                                    sx={{
-                                        backgroundColor: '#e5e7eb',
-                                        borderRadius: '4px',
+                    <Box sx={{ position: 'relative', width: '100%', height: '100%' }}>
+                        {/* 预加载所有图片，但只显示当前的 */}
+                        {questionValue.map((imageFile, index) => {
+                            const originalUrl = imageFile?.content;
+                            const thumbnailUrl = getThumbnailUrl(originalUrl);
+                            
+                            return (
+                                <img
+                                    key={index}
+                                    src={thumbnailUrl}
+                                    alt={`缩略图 ${index + 1}`}
+                                    loading="eager"
+                                    referrerPolicy="no-referrer"
+                                    onError={(e) => {
+                                        console.warn(`缩略图 ${index + 1} 加载失败，回退到原图: ${originalUrl}`, e);
+                                        // 直接回退到原图
+                                        e.target.src = originalUrl;
+                                    }}
+                                    onLoad={(e) => {
+                                        const loadedUrl = e.target.src;
+                                        // 使用统一URL作为缓存key，确保lightbox能找到
+                                        const cacheKey = thumbnailUrl;
+                                        
+                                        console.log(`✅ 缩略图 ${index + 1} 加载完成`);
+                                        console.log(`   实际URL: ${loadedUrl}`);
+                                        console.log(`   缓存Key: ${cacheKey}`);
+                                        
+                                        // 关键修复：使用统一URL作为缓存key
+                                        if (!unifiedImageCache.has(cacheKey)) {
+                                            unifiedImageCache.set(cacheKey, e.target);
+                                            console.log(`📦 图片已添加到统一缓存: ${cacheKey}`);
+                                        }
+                                        
+                                        // 同时也用实际URL作为key（以防URL被浏览器修改）
+                                        if (loadedUrl !== cacheKey && !unifiedImageCache.has(loadedUrl)) {
+                                            unifiedImageCache.set(loadedUrl, e.target);
+                                            console.log(`📦 图片也用实际URL缓存: ${loadedUrl}`);
+                                        }
+                                        
+                                        // 更新加载状态
+                                        setThumbnailsLoaded(prev => {
+                                            const newLoaded = { ...prev, [index]: true };
+                                            const loadedCount = Object.keys(newLoaded).length;
+                                            
+                                            if (loadedCount === questionValue.length) {
+                                                console.log(`🎉 所有 ${questionValue.length} 张缩略图加载完成！`);
+                                                console.log(`📊 统一缓存大小: ${unifiedImageCache.size}`);
+                                                console.log(`📊 缓存Keys:`, Array.from(unifiedImageCache.keys()));
+                                                setAllThumbnailsComplete(true);
+                                            }
+                                            
+                                            return newLoaded;
+                                        });
+                                    }}
+                                    style={{
+                                        maxWidth: '100%',
+                                        maxHeight: '350px',
+                                        width: 'auto',
+                                        height: 'auto',
+                                        objectFit: 'contain',
+                                        display: index === currentIndex ? 'block' : 'none', // 只显示当前图片
+                                        position: index === currentIndex ? 'static' : 'absolute',
+                                        top: 0,
+                                        left: 0,
                                     }}
                                 />
-                            </Box>
-                        }
-                        onError={(e) => {
-                            console.warn(`图片加载失败: ${file?.content}`, e);
-                            
-                            // 调试：检查图片 URL 和 CORS 头部
-                            fetch(file?.content, { method: 'HEAD' })
-                                .then(response => {
-                                    console.log('图片 CORS 检查:', {
-                                        url: file?.content,
-                                        status: response.status,
-                                        headers: {
-                                            'access-control-allow-origin': response.headers.get('access-control-allow-origin'),
-                                            'access-control-allow-methods': response.headers.get('access-control-allow-methods'),
-                                            'access-control-allow-headers': response.headers.get('access-control-allow-headers')
-                                        }
-                                    });
-                                })
-                                .catch(err => {
-                                    console.error('CORS 检查失败:', err);
-                                });
-                            
-                            setImageErrors(prev => ({ ...prev, [currentIndex]: true }));
-                        }}
-                        onLoad={() => {
-                            // 清除错误状态（如果之前有错误）
-                            setImageErrors(prev => {
-                                const newErrors = { ...prev };
-                                delete newErrors[currentIndex];
-                                return newErrors;
-                            });
-                        }}
-                        style={{
-                            maxWidth: '100%',
-                            maxHeight: '350px',
-                            width: 'auto',
-                            height: 'auto',
-                            objectFit: 'contain',
-                            display: 'block',
-                        }}
-                        wrapperProps={{
-                            style: {
-                                width: '100%',
-                                height: '100%',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                            }
-                        }}
-                    />
+                            );
+                        })}
+                    </Box>
                 )}
                 
-                {/* 悬停时显示的操作按钮 */}
+                {/* 悬停操作按钮 */}
                 <Box
                     sx={{
                         position: 'absolute',
@@ -279,8 +607,8 @@ const OptimizedFileCarousel = ({ questionValue, onImageClick }) => {
                         size="small"
                         onClick={(e) => {
                             e.stopPropagation();
-                            if (file?.content) {
-                                downloadImage(file.content, currentIndex);
+                            if (currentFile?.content) {
+                                downloadOriginalImage(currentFile.content, currentIndex);
                             }
                         }}
                         sx={{
@@ -295,7 +623,7 @@ const OptimizedFileCarousel = ({ questionValue, onImageClick }) => {
                         <DownloadIcon sx={{ fontSize: '16px' }} />
                     </IconButton>
                     
-                    {/* 点击放大提示 */}
+                    {/* 点击提示 */}
                     <Box
                         sx={{
                             backgroundColor: 'rgba(0, 0, 0, 0.6)',
@@ -306,26 +634,25 @@ const OptimizedFileCarousel = ({ questionValue, onImageClick }) => {
                             pointerEvents: 'none',
                         }}
                     >
-                        点击放大
+                        点击查看大图
                     </Box>
                 </Box>
             </Box>
 
-            {/* Controls - 图片导航和操作按钮 */}
+            {/* 导航控制 */}
             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1.5, width: '100%' }}>
-                {/* 图片计数和切换按钮 - 使用固定布局 */}
                 <Box 
                     sx={{ 
                         display: 'flex', 
                         alignItems: 'center', 
                         justifyContent: 'center',
                         width: '100%',
-                        maxWidth: '200px', // 固定最大宽度
-                        height: '40px', // 固定高度
+                        maxWidth: '200px',
+                        height: '40px',
                         position: 'relative'
                     }}
                 >
-                    {/* 左箭头 - 固定位置 */}
+                    {/* 左箭头 */}
                     <Box sx={{ position: 'absolute', left: 0 }}>
                         {questionValue.length > 1 && (
                             <IconButton
@@ -350,7 +677,7 @@ const OptimizedFileCarousel = ({ questionValue, onImageClick }) => {
                         )}
                     </Box>
 
-                    {/* 图片计数 - 居中固定位置 */}
+                    {/* 图片计数 */}
                     <Box 
                         sx={{ 
                             position: 'absolute',
@@ -359,7 +686,7 @@ const OptimizedFileCarousel = ({ questionValue, onImageClick }) => {
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            minWidth: '60px', // 固定最小宽度
+                            minWidth: '60px',
                             height: '100%'
                         }}
                     >
@@ -379,7 +706,7 @@ const OptimizedFileCarousel = ({ questionValue, onImageClick }) => {
                         </Typography>
                     </Box>
 
-                    {/* 右箭头 - 固定位置 */}
+                    {/* 右箭头 */}
                     <Box sx={{ position: 'absolute', right: 0 }}>
                         {questionValue.length > 1 && (
                             <IconButton
@@ -405,7 +732,15 @@ const OptimizedFileCarousel = ({ questionValue, onImageClick }) => {
                     </Box>
                 </Box>
 
-
+                {/* 简化的加载进度指示器 */}
+                {Object.keys(thumbnailsLoaded).length < questionValue.length && (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <CircularProgress size={16} />
+                        <Typography variant="caption" color="text.secondary">
+                            图片加载中 {Object.keys(thumbnailsLoaded).length}/{questionValue.length}
+                        </Typography>
+                    </Box>
+                )}
             </Box>
         </Box>
     );
@@ -435,23 +770,17 @@ const OptimizedSignatureImage = ({ src, style }) => {
         );
     }
 
+    // 对签名图片也进行激进压缩
+    const optimizedSrc = getOptimizedImageUrl(src, { 
+        width: 300, 
+        quality: 45, // 签名图片质量也降低
+        format: 'webp' 
+    });
+
     return (
-        <LazyLoadImage
-            src={src}
+        <img
+            src={optimizedSrc}
             alt="签名图片"
-            effect="blur"
-            placeholder={
-                <Skeleton
-                    variant="rectangular"
-                    width={200}
-                    height={100}
-                    animation="wave"
-                    sx={{
-                        backgroundColor: '#f0f0f0',
-                        borderRadius: '4px',
-                    }}
-                />
-            }
             onError={() => setImageError(true)}
             style={style}
         />
@@ -549,6 +878,13 @@ const DynamicFormPage = () => {
     const [error, setError] = useState(null);
     const [currentMode, setCurrentMode] = useState('admin_view'); // 默认为编辑模式
     const [alert, setAlert] = useState({ open: false, message: '', severity: 'info' });
+    
+    // 全局预加载状态
+    const [globalPreloadStatus, setGlobalPreloadStatus] = useState({
+        previewsLoaded: 0,
+        originalsLoaded: 0,
+        totalImages: 0
+    });
 
     // Lightbox state for image viewing
     const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -557,6 +893,20 @@ const DynamicFormPage = () => {
 
     // Delete dialog state
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+
+    // 清理预加载的隐藏图片元素
+    useEffect(() => {
+        return () => {
+            // 组件卸载时清理所有预加载的隐藏图片
+            const preloadImages = document.querySelectorAll('img[data-preload-cache="true"]');
+            preloadImages.forEach(img => {
+                if (document.body.contains(img)) {
+                    document.body.removeChild(img);
+                }
+            });
+            console.log(`🧹 清理了 ${preloadImages.length} 个预加载图片元素`);
+        };
+    }, []);
 
     useEffect(() => {
         const fetchForm = async () => {
@@ -577,6 +927,11 @@ const DynamicFormPage = () => {
 
                 // Set Chinese locale for the survey
                 survey.locale = "zh-cn";
+                
+                // 强制显示所有页面内容（解决图片不完全加载的问题）
+                survey.questionsOnPageMode = "singlePage";
+                survey.showPageNumbers = false;
+                survey.showProgressBar = false;
 
                 // 根据场景决定是否显示SurveyJS默认按钮
                 if (dataId) {
@@ -599,8 +954,9 @@ const DynamicFormPage = () => {
                 survey.getAllQuestions().forEach(question => {
                     if (question.getType() === 'file') {
                         question.storeDataAsText = false;
-                        // 允许图片预览
-                        question.allowImagesPreview = true;
+                        // 关键修复：禁用 SurveyJS 内置图片预览，避免重复加载
+                        // 我们使用自定义的 OptimizedFileCarousel 组件来显示图片
+                        question.allowImagesPreview = false;
                     }
                 });
 
@@ -1253,18 +1609,15 @@ const DynamicFormPage = () => {
                                     return;
                                 }
 
-                                // 只在查看模式下使用自定义渲染器
-                                // 编辑模式(full_edit)下使用原生控件以支持删除功能
-                                // 注意: survey.mode 总是 'edit',所以我们使用 currentMode 状态来判断
-                                const isViewMode = currentMode === 'admin_view';
+                                // 在所有模式下都使用自定义渲染器来显示图片
+                                // 只有在 full_edit 模式下才同时显示原生控件以支持删除功能
+                                const isFullEditMode = currentMode === 'full_edit';
 
+                                if (Array.isArray(questionValue) && questionValue.length > 0) {
 
-
-                                if (isViewMode && Array.isArray(questionValue) && questionValue.length > 0) {
-
-                                    // Hide default preview in view mode
+                                    // 在非完全编辑模式下隐藏默认预览
                                     const defaultPreview = contentDiv.querySelector('.sd-file');
-                                    if (defaultPreview) {
+                                    if (defaultPreview && !isFullEditMode) {
                                         defaultPreview.style.display = 'none';
                                     }
 
@@ -1283,10 +1636,76 @@ const DynamicFormPage = () => {
                                     root.render(
                                         <OptimizedFileCarousel
                                             questionValue={questionValue}
-                                            onImageClick={(index) => {
-                                                setLightboxImages(imageUrls);
+                                            onPreloadUpdate={(loaded, total) => {
+                                                setGlobalPreloadStatus(prev => ({
+                                                    ...prev,
+                                                    originalsLoaded: prev.originalsLoaded + 1,
+                                                    totalImages: Math.max(prev.totalImages, total)
+                                                }));
+                                            }}
+                                            onImageClick={(index, lightboxPreloadedStatus) => {
+                                                console.log(`📸 打开 Lightbox: 图片 ${index + 1}`);
+                                                
+                                                // 生成所有图片的统一 URL
+                                                const lightboxUrls = questionValue.map((file, idx) => {
+                                                    const originalUrl = file?.content;
+                                                    const unifiedUrl = getUnifiedImageUrl(originalUrl);
+                                                    
+                                                    // 检查统一缓存中是否有图片
+                                                    const cachedImg = unifiedImageCache.get(unifiedUrl);
+                                                    const isCached = cachedImg && cachedImg.complete && cachedImg.naturalWidth > 0;
+                                                    
+                                                    if (isCached) {
+                                                        console.log(`🎯 图片 ${idx + 1} 使用统一缓存: ${unifiedUrl} (${cachedImg.naturalWidth}x${cachedImg.naturalHeight})`);
+                                                    } else {
+                                                        console.log(`⚠️ 图片 ${idx + 1} 未缓存，将从网络加载: ${unifiedUrl}`);
+                                                    }
+                                                    
+                                                    return unifiedUrl;
+                                                });
+                                                
+                                                // 检查统一缓存状态
+                                                const cacheStatus = questionValue.map((file, idx) => {
+                                                    const originalUrl = file?.content;
+                                                    const unifiedUrl = getUnifiedImageUrl(originalUrl);
+                                                    const cachedImg = unifiedImageCache.get(unifiedUrl);
+                                                    const isCached = cachedImg && cachedImg.complete && cachedImg.naturalWidth > 0;
+                                                    
+                                                    return {
+                                                        index: idx,
+                                                        originalUrl,
+                                                        unifiedUrl,
+                                                        finalUrl: lightboxUrls[idx],
+                                                        isPreloaded: lightboxPreloadedStatus[idx] || false,
+                                                        isCached,
+                                                        cachedImgSize: isCached ? `${cachedImg.naturalWidth}x${cachedImg.naturalHeight}` : 'N/A'
+                                                    };
+                                                });
+                                                
+                                                console.log(`📊 Lightbox 详细缓存状态:`, cacheStatus);
+                                                
+                                                // 修改数据结构：存储 lightbox URL 和原始 URL 的映射
+                                                const lightboxData = questionValue.map((file, idx) => ({
+                                                    lightboxUrl: lightboxUrls[idx],
+                                                    originalUrl: file?.content,
+                                                    index: idx
+                                                }));
+                                                
+                                                setLightboxImages(lightboxData);
                                                 setCurrentImageIndex(index);
                                                 setLightboxOpen(true);
+                                                
+                                                // 统计缓存状态
+                                                const cachedCount = cacheStatus.filter(item => item.isCached).length;
+                                                const totalCount = questionValue.length;
+                                                
+                                                console.log(`📈 统一缓存进度: ${cachedCount}/${totalCount}`);
+                                                
+                                                if (cacheStatus[index].isCached) {
+                                                    console.log(`✅ 当前图片已缓存，应该立即显示`);
+                                                } else {
+                                                    console.log(`⚠️ 当前图片未缓存，需要网络加载`);
+                                                }
                                             }}
                                         />
                                     );
@@ -1898,6 +2317,8 @@ const DynamicFormPage = () => {
                 }
 
                 setSurveyModel(survey);
+                
+                console.log('🚀 表单加载完成，三阶段图片加载系统已启动');
             }
             catch (err) {
                 console.error('加载表单失败:', err);
@@ -1996,18 +2417,12 @@ const DynamicFormPage = () => {
 
             // console.log('[useEffect currentMode] Processing question:', q.name);
 
-            // 移除所有自定义渲染
+            // 找到自定义渲染和原生文件控件
             const customRoot = questionRoot.querySelector('.custom-file-carousel-root');
-            if (customRoot) {
-                customRoot.remove();
-                // console.log('[useEffect currentMode] ✓ Removed custom carousel for:', q.name);
-            }
-
-            // 找到原生文件控件
             const nativeFileControl = questionRoot.querySelector('.sd-file');
 
             if (currentMode === 'full_edit') {
-                // 编辑模式：显示并重新初始化原生控件
+                // 编辑模式：显示原生控件，隐藏自定义轮播（不删除，避免重新加载）
                 // console.log('[useEffect currentMode] → Switching to EDIT mode for:', q.name);
 
                 if (nativeFileControl) {
@@ -2015,34 +2430,41 @@ const DynamicFormPage = () => {
                     // console.log('[useEffect currentMode] ✓ Showed native control');
                 }
 
-                // 强制 SurveyJS 重新渲染这个问题
-                // 通过临时改变问题的可见性来触发重新渲染
-                const wasVisible = q.visible;
-                q.visible = false;
-                setTimeout(() => {
-                    q.visible = wasVisible;
-                    // console.log('[useEffect currentMode] ✓ Triggered re-render via visibility toggle');
-                }, 0);
-
-            } else {
-                // 查看模式：隐藏原生控件，触发自定义渲染
-                // console.log('[useEffect currentMode] → Switching to VIEW mode for:', q.name);
-
-                if (nativeFileControl) {
-                    nativeFileControl.style.display = 'none';
-                    // console.log('[useEffect currentMode] ✓ Hidden native control');
-                } else {
-                    console.log('[useEffect currentMode] ⚠️ Native control not found');
+                // 隐藏自定义轮播而不是删除它，避免图片重新加载
+                if (customRoot) {
+                    customRoot.style.display = 'none';
+                    // console.log('[useEffect currentMode] ✓ Hidden custom carousel');
                 }
 
-                // 手动触发 onAfterRenderQuestion 来创建自定义轮播
-                setTimeout(() => {
-                    surveyModel.onAfterRenderQuestion.fire(surveyModel, {
-                        question: q,
-                        htmlElement: questionRoot
-                    });
-                    // console.log('[useEffect currentMode] ✓ Fired onAfterRenderQuestion for custom rendering');
-                }, 10);
+            } else {
+                // 非完全编辑模式：显示自定义轮播，可能同时显示原生控件
+                // console.log('[useEffect currentMode] → Switching to VIEW/EDIT mode for:', q.name);
+
+                // 自定义轮播始终显示
+                if (customRoot) {
+                    customRoot.style.display = 'block';
+                    // console.log('[useEffect currentMode] ✓ Showed existing custom carousel');
+                } else {
+                    // 手动触发 onAfterRenderQuestion 来创建自定义轮播
+                    setTimeout(() => {
+                        surveyModel.onAfterRenderQuestion.fire(surveyModel, {
+                            question: q,
+                            htmlElement: questionRoot
+                        });
+                        // console.log('[useEffect currentMode] ✓ Fired onAfterRenderQuestion for custom rendering');
+                    }, 10);
+                }
+
+                // 在查看模式下隐藏原生控件，在编辑模式下可能显示
+                if (nativeFileControl) {
+                    if (currentMode === 'admin_view') {
+                        nativeFileControl.style.display = 'none';
+                    } else {
+                        // 在普通编辑模式下，可以选择显示或隐藏原生控件
+                        nativeFileControl.style.display = 'none'; // 暂时隐藏，专注于轮播组件
+                    }
+                    // console.log('[useEffect currentMode] ✓ Updated native control visibility');
+                }
             }
         });
 
@@ -2163,6 +2585,8 @@ const DynamicFormPage = () => {
 
     return (
         <>
+
+
             {/* 固定顶部操作栏 - 仅在管理员查看/编辑模式下显示 */}
             {surveyModel && submissionState !== 'completed' && dataId && (
                 <Box
@@ -2535,12 +2959,15 @@ const DynamicFormPage = () => {
                     {/* Download Button */}
                     <IconButton
                         onClick={async () => {
-                            const imageUrl = lightboxImages[currentImageIndex];
-                            const filename = imageUrl.split('/').pop()?.split('?')[0] || `image-${currentImageIndex + 1}.jpg`;
+                            // 第三阶段：下载原图
+                            const originalImageUrl = lightboxImages[currentImageIndex]?.originalUrl;
+                            const originalUrl = getOriginalUrl(originalImageUrl);
+                            const filename = originalUrl.split('/').pop()?.split('?')[0] || `image-${currentImageIndex + 1}.jpg`;
+                            
+                            console.log(`📥 第三阶段：从 Lightbox 下载原图: ${originalUrl}`);
 
                             try {
-                                // Try to fetch with CORS mode
-                                const response = await fetch(imageUrl, {
+                                const response = await fetch(originalUrl, {
                                     mode: 'cors',
                                     credentials: 'same-origin',
                                 });
@@ -2549,38 +2976,26 @@ const DynamicFormPage = () => {
                                     throw new Error(`Network response was not ok: ${response.status}`);
                                 }
 
-                                
                                 const originalBlob = await response.blob();
-                                
-
-                                // Force download by changing MIME type to octet-stream
                                 const blob = new Blob([originalBlob], { type: 'application/octet-stream' });
-                                
 
-                                // Create download link
                                 const url = window.URL.createObjectURL(blob);
                                 const link = document.createElement('a');
                                 link.href = url;
                                 link.download = filename;
                                 link.style.display = 'none';
 
-                                // Trigger download
-                                
                                 document.body.appendChild(link);
                                 link.click();
-                                
 
-                                // Clean up
                                 setTimeout(() => {
                                     document.body.removeChild(link);
                                     window.URL.revokeObjectURL(url);
                                 }, 100);
                             } catch (error) {
-                                
-                                
-                                // Fallback: use direct download via anchor tag
+                                console.warn('原图下载失败，使用直接链接:', error);
                                 const link = document.createElement('a');
-                                link.href = imageUrl;
+                                link.href = originalUrl;
                                 link.download = filename;
                                 link.target = '_blank';
                                 link.rel = 'noopener noreferrer';
@@ -2588,7 +3003,6 @@ const DynamicFormPage = () => {
 
                                 document.body.appendChild(link);
                                 link.click();
-                                
 
                                 setTimeout(() => {
                                     document.body.removeChild(link);
@@ -2649,40 +3063,58 @@ const DynamicFormPage = () => {
                         </IconButton>
                     )}
 
-                    {/* Image */}
-                    <LazyLoadImage
-                        src={lightboxImages[currentImageIndex]}
-                        alt={`Image ${currentImageIndex + 1}`}
-                        effect="blur"
-                        placeholder={
-                            <Skeleton
-                                variant="rectangular"
-                                width="70vw"
-                                height="70vh"
-                                animation="wave"
-                                sx={{
-                                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                                    borderRadius: '8px',
-                                }}
-                            />
-                        }
-                        style={{
+                    {/* Image Container with Cache Optimization */}
+                    <Box 
+                        sx={{ 
+                            position: 'relative', 
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
                             maxWidth: '90vw',
                             maxHeight: '90vh',
                             width: 'auto',
                             height: 'auto',
-                            display: 'block',
-                            borderRadius: '8px',
-                            backgroundColor: 'white',
-                            boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
-                            objectFit: 'contain',
                         }}
-                        onError={(e) => {
-                            e.target.src = "/data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgdmlld0JveD0iMCAwIDQwMCAzMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI0MDAiIGhlaWdodD0iMzAwIiBmaWxsPSIjRjhGOUZBIi8+CjxwYXRoIGQ9Ik0xNTAgMTUwIEgyNTBMMjAwIDEyMlYyNTBaIiBzdHJva2U9IiNEREVFMkYiIHN0cm9rZS13aWR0aD0iMyIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+CjxjaXJjbGUgY3g9IjIyNSIgY3k9IjEyNSIgcj0iNSIgZmlsbD0iI0RERUUyRiIvPgo8L3N2Zz4K";
-                            e.target.style.width = '200px';
-                            e.target.style.height = '150px';
-                        }}
-                    />
+                    >
+                        <CachedLightboxImage
+                            src={lightboxImages[currentImageIndex]?.lightboxUrl}
+                            originalUrl={lightboxImages[currentImageIndex]?.originalUrl}
+                            alt={`Image ${currentImageIndex + 1}`}
+                            style={{
+                                maxWidth: '100%',
+                                maxHeight: '100%',
+                                width: 'auto',
+                                height: 'auto',
+                                display: 'block',
+                                borderRadius: '8px',
+                                backgroundColor: 'white',
+                                boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
+                                objectFit: 'contain',
+                            }}
+                            onError={(e) => {
+                                e.target.src = "/data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgdmlld0JveD0iMCAwIDQwMCAzMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI0MDAiIGhlaWdodD0iMzAwIiBmaWxsPSIjRjhGOUZBIi8+CjxwYXRoIGQ9Ik0xNTAgMTUwIEgyNTBMMjAwIDEyMlYyNTBaIiBzdHJva2U9IiNEREVFMkYiIHN0cm9rZS13aWR0aD0iMyIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+CjxjaXJjbGUgY3g9IjIyNSIgY3k9IjEyNSIgcj0iNSIgZmlsbD0iI0RERUUyRiIvPgo8L3N2Zz4K";
+                                e.target.style.width = '200px';
+                                e.target.style.height = '150px';
+                            }}
+                        />
+                        
+                        {/* Quality Indicator */}
+                        <Box
+                            sx={{
+                                position: 'absolute',
+                                bottom: 10,
+                                left: 10,
+                                backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                                color: 'white',
+                                padding: '4px 8px',
+                                borderRadius: '4px',
+                                fontSize: '12px',
+                                fontWeight: 500,
+                            }}
+                        >
+                            当前不是原图，因此可能不清晰。
+                        </Box>
+                    </Box>
 
                     {/* Next Button */}
                     {lightboxImages.length > 1 && (
