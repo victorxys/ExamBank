@@ -26,6 +26,7 @@ import FormCard from './FormCard';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import CreateNewFolderIcon from '@mui/icons-material/CreateNewFolder';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
+import HomeIcon from '@mui/icons-material/Home';
 import {
     DndContext,
     DragOverlay,
@@ -126,15 +127,15 @@ const FormListPage = () => {
     // Unified logic for displaying items with recursive search
     const itemsToDisplay = useMemo(() => {
         const lowerCaseSearchTerm = searchTerm.toLowerCase().trim();
-        
+
         if (lowerCaseSearchTerm) {
             console.log(`[Recursive Search] Searching for: "${lowerCaseSearchTerm}"`);
             // --- SEARCH MODE (with recursion) ---
-            const matchingForms = forms.filter(f => 
+            const matchingForms = forms.filter(f =>
                 f.name && f.name.toLowerCase().includes(lowerCaseSearchTerm)
             );
 
-            const matchingFolders = folders.filter(f => 
+            const matchingFolders = folders.filter(f =>
                 f.name && f.name.toLowerCase().includes(lowerCaseSearchTerm)
             );
 
@@ -164,7 +165,7 @@ const FormListPage = () => {
             const formsInFolder = currentFolder
                 ? forms.filter(f => f.folder_id === currentFolder.id)
                 : forms.filter(f => !f.folder_id);
-            
+
             const foldersInFolder = currentFolder
                 ? folders.filter(f => f.parent_id === currentFolder.id)
                 : folders.filter(f => !f.parent_id);
@@ -339,7 +340,7 @@ const FormListPage = () => {
                     }
                 />
 
-                <Card sx={{ 
+                <Card sx={{
                     boxShadow: '0 0 2rem 0 rgba(136, 152, 170, .15)',
                     backgroundColor: 'white',
                     borderRadius: '0.375rem',

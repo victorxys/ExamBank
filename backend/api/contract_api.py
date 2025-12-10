@@ -525,8 +525,8 @@ def search_contracts():
             remaining_months = 0
             highlight_remaining = False
             
-            # 修复：pending（待上户）状态的合同也应该显示剩余月数
-            if contract.status in ['pending', 'active'] and contract.end_date:
+            # 修复：pending（待上户）以及提前终止的 terminated 状态的合同也应该显示剩余月数
+            if contract.status in ['pending', 'active','terminated'] and contract.end_date:
                 end_date_obj = contract.end_date
                 if isinstance(end_date_obj, datetime):
                     end_date_obj = end_date_obj.date()

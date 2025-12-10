@@ -24,14 +24,18 @@ import {
     Portal, // Import Portal from MUI
     Modal,
     Skeleton,
+    Breadcrumbs,
+    Link,
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import { 
+import {
     ImageNotSupported as ImageNotSupportedIcon,
     ChevronLeft as ChevronLeftIcon,
     ChevronRight as ChevronRightIcon,
     Close as CloseIcon,
     Download as DownloadIcon,
+    Home as HomeIcon,
+    NavigateNext as NavigateNextIcon,
 } from '@mui/icons-material';
 import { formatAddress } from '../utils/formatUtils';
 import { createDateTimeRenderer } from '../utils/surveyjs-custom-widgets.jsx';
@@ -46,6 +50,60 @@ const OptimizedFileCarousel = ({ questionValue, onImageClick }) => {
         setCurrentIndex(index);
     };
 
+    // 下载图片函数
+    const downloadImage = async (imageUrl, index) => {
+        const filename = imageUrl.split('/').pop()?.split('?')[0] || `image-${index + 1}.jpg`;
+
+        try {
+            // Try to fetch with CORS mode
+            const response = await fetch(imageUrl, {
+                mode: 'cors',
+                credentials: 'same-origin',
+            });
+
+            if (!response.ok) {
+                throw new Error(`Network response was not ok: ${response.status}`);
+            }
+
+            const originalBlob = await response.blob();
+
+            // Force download by changing MIME type to octet-stream
+            const blob = new Blob([originalBlob], { type: 'application/octet-stream' });
+
+            // Create download link
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename;
+            link.style.display = 'none';
+
+            // Trigger download
+            document.body.appendChild(link);
+            link.click();
+
+            // Clean up
+            setTimeout(() => {
+                document.body.removeChild(link);
+                window.URL.revokeObjectURL(url);
+            }, 100);
+        } catch (error) {
+            // Fallback: use direct download via anchor tag
+            const link = document.createElement('a');
+            link.href = imageUrl;
+            link.download = filename;
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+            link.style.display = 'none';
+
+            document.body.appendChild(link);
+            link.click();
+
+            setTimeout(() => {
+                document.body.removeChild(link);
+            }, 100);
+        }
+    };
+
     if (!Array.isArray(questionValue) || questionValue.length === 0) {
         return null;
     }
@@ -53,88 +111,277 @@ const OptimizedFileCarousel = ({ questionValue, onImageClick }) => {
     const file = questionValue[currentIndex];
 
     return (
-        <Box sx={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, mt: 1 }}>
-            {/* Image Display */}
+        <Box sx={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1.5, mt: 1 }}>
+            {/* Image Display with optimized size */}
             <Box
                 sx={{
                     position: 'relative',
-                    maxWidth: '100%',
-                    maxHeight: '800px',
+                    maxWidth: '500px', // 限制最大宽度
+                    maxHeight: '350px', // 限制最大高度，节省空间
+                    width: '100%',
                     cursor: 'pointer',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '8px',
+                    overflow: 'hidden',
+                    backgroundColor: '#f9fafb',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'box-shadow 0.2s ease',
+                    '&:hover': {
+                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                    }
                 }}
                 onClick={() => onImageClick && onImageClick(currentIndex)}
             >
                 {imageErrors[currentIndex] ? (
                     <Box
                         sx={{
-                            width: '400px',
-                            height: '300px',
+                            width: '100%',
+                            height: '250px',
                             display: 'flex',
+                            flexDirection: 'column',
                             alignItems: 'center',
                             justifyContent: 'center',
                             backgroundColor: '#f8f9fa',
-                            borderRadius: '4px',
-                            border: '1px solid #dee2e6',
+                            padding: 2,
                         }}
                     >
-                        <ImageNotSupportedIcon sx={{ fontSize: 60, color: '#6c757d' }} />
+                        <ImageNotSupportedIcon sx={{ fontSize: 48, color: '#9ca3af', mb: 1 }} />
+                        <Typography variant="caption" color="text.secondary" sx={{ textAlign: 'center', mb: 1 }}>
+                            图片加载失败
+                        </Typography>
+                        <Typography variant="caption" color="text.disabled" sx={{ fontSize: '10px', textAlign: 'center', wordBreak: 'break-all' }}>
+                            URL: {file?.content || '无URL'}
+                        </Typography>
+                        <Button
+                            size="small"
+                            variant="text"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                // 重试加载图片
+                                setImageErrors(prev => {
+                                    const newErrors = { ...prev };
+                                    delete newErrors[currentIndex];
+                                    return newErrors;
+                                });
+                            }}
+                            sx={{ mt: 1, fontSize: '11px' }}
+                        >
+                            重试
+                        </Button>
                     </Box>
                 ) : (
                     <LazyLoadImage
                         src={file?.content}
-                        alt={`Image ${currentIndex + 1}`}
+                        alt={`图片 ${currentIndex + 1}`}
                         effect="blur"
                         placeholder={
-                            <Skeleton 
-                                variant="rectangular" 
-                                width={400} 
-                                height={300}
-                                animation="wave"
-                                sx={{ 
+                            <Box
+                                sx={{
+                                    width: '100%',
+                                    height: '250px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
                                     backgroundColor: '#f0f0f0',
-                                    borderRadius: '4px',
                                 }}
-                            />
+                            >
+                                <Skeleton
+                                    variant="rectangular"
+                                    width="90%"
+                                    height="90%"
+                                    animation="wave"
+                                    sx={{
+                                        backgroundColor: '#e5e7eb',
+                                        borderRadius: '4px',
+                                    }}
+                                />
+                            </Box>
                         }
-                        onError={() => setImageErrors(prev => ({ ...prev, [currentIndex]: true }))}
+                        onError={() => {
+                            setImageErrors(prev => ({ ...prev, [currentIndex]: true }));
+                        }}
+                        onLoad={() => {
+                            // 清除错误状态（如果之前有错误）
+                            setImageErrors(prev => {
+                                const newErrors = { ...prev };
+                                delete newErrors[currentIndex];
+                                return newErrors;
+                            });
+                        }}
+                        crossOrigin="anonymous"
                         style={{
                             maxWidth: '100%',
-                            maxHeight: '800px',
+                            maxHeight: '350px',
+                            width: 'auto',
+                            height: 'auto',
                             objectFit: 'contain',
                             display: 'block',
                         }}
+                        wrapperProps={{
+                            style: {
+                                width: '100%',
+                                height: '100%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                            }
+                        }}
                     />
                 )}
+                
+                {/* 悬停时显示的操作按钮 */}
+                <Box
+                    sx={{
+                        position: 'absolute',
+                        bottom: 8,
+                        left: 8,
+                        right: 8,
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        opacity: 0,
+                        transition: 'opacity 0.2s ease',
+                        pointerEvents: 'none',
+                        '.MuiBox-root:hover &': {
+                            opacity: 1,
+                        }
+                    }}
+                >
+                    {/* 下载按钮 */}
+                    <IconButton
+                        size="small"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            if (file?.content) {
+                                downloadImage(file.content, currentIndex);
+                            }
+                        }}
+                        sx={{
+                            backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                            color: 'white',
+                            pointerEvents: 'auto',
+                            '&:hover': {
+                                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            }
+                        }}
+                    >
+                        <DownloadIcon sx={{ fontSize: '16px' }} />
+                    </IconButton>
+                    
+                    {/* 点击放大提示 */}
+                    <Box
+                        sx={{
+                            backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                            color: 'white',
+                            padding: '4px 8px',
+                            borderRadius: '4px',
+                            fontSize: '12px',
+                            pointerEvents: 'none',
+                        }}
+                    >
+                        点击放大
+                    </Box>
+                </Box>
             </Box>
 
-            {/* Controls */}
-            {questionValue.length > 1 && (
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                    <IconButton
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            if (currentIndex > 0) updateDisplay(currentIndex - 1);
+            {/* Controls - 图片导航和操作按钮 */}
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1.5, width: '100%' }}>
+                {/* 图片计数和切换按钮 - 使用固定布局 */}
+                <Box 
+                    sx={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center',
+                        width: '100%',
+                        maxWidth: '200px', // 固定最大宽度
+                        height: '40px', // 固定高度
+                        position: 'relative'
+                    }}
+                >
+                    {/* 左箭头 - 固定位置 */}
+                    <Box sx={{ position: 'absolute', left: 0 }}>
+                        {questionValue.length > 1 && (
+                            <IconButton
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (currentIndex > 0) updateDisplay(currentIndex - 1);
+                                }}
+                                disabled={currentIndex === 0}
+                                size="small"
+                                sx={{
+                                    backgroundColor: '#f3f4f6',
+                                    '&:hover': {
+                                        backgroundColor: '#e5e7eb',
+                                    },
+                                    '&.Mui-disabled': {
+                                        backgroundColor: '#f9fafb',
+                                    }
+                                }}
+                            >
+                                <ChevronLeftIcon />
+                            </IconButton>
+                        )}
+                    </Box>
+
+                    {/* 图片计数 - 居中固定位置 */}
+                    <Box 
+                        sx={{ 
+                            position: 'absolute',
+                            left: '50%',
+                            transform: 'translateX(-50%)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            minWidth: '60px', // 固定最小宽度
+                            height: '100%'
                         }}
-                        disabled={currentIndex === 0}
-                        size="small"
                     >
-                        <ChevronLeftIcon />
-                    </IconButton>
-                    <Typography variant="body2" color="text.secondary">
-                        {currentIndex + 1} / {questionValue.length}
-                    </Typography>
-                    <IconButton
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            if (currentIndex < questionValue.length - 1) updateDisplay(currentIndex + 1);
-                        }}
-                        disabled={currentIndex === questionValue.length - 1}
-                        size="small"
-                    >
-                        <ChevronRightIcon />
-                    </IconButton>
+                        <Typography 
+                            variant="body2" 
+                            sx={{ 
+                                color: '#6b7280',
+                                fontWeight: 500,
+                                textAlign: 'center',
+                                fontSize: '14px'
+                            }}
+                        >
+                            {questionValue.length > 1 
+                                ? `${currentIndex + 1} / ${questionValue.length}`
+                                : '1 张图片'
+                            }
+                        </Typography>
+                    </Box>
+
+                    {/* 右箭头 - 固定位置 */}
+                    <Box sx={{ position: 'absolute', right: 0 }}>
+                        {questionValue.length > 1 && (
+                            <IconButton
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (currentIndex < questionValue.length - 1) updateDisplay(currentIndex + 1);
+                                }}
+                                disabled={currentIndex === questionValue.length - 1}
+                                size="small"
+                                sx={{
+                                    backgroundColor: '#f3f4f6',
+                                    '&:hover': {
+                                        backgroundColor: '#e5e7eb',
+                                    },
+                                    '&.Mui-disabled': {
+                                        backgroundColor: '#f9fafb',
+                                    }
+                                }}
+                            >
+                                <ChevronRightIcon />
+                            </IconButton>
+                        )}
+                    </Box>
                 </Box>
-            )}
+
+
+            </Box>
         </Box>
     );
 };
@@ -169,12 +416,12 @@ const OptimizedSignatureImage = ({ src, style }) => {
             alt="签名图片"
             effect="blur"
             placeholder={
-                <Skeleton 
-                    variant="rectangular" 
-                    width={200} 
+                <Skeleton
+                    variant="rectangular"
+                    width={200}
                     height={100}
                     animation="wave"
-                    sx={{ 
+                    sx={{
                         backgroundColor: '#f0f0f0',
                         borderRadius: '4px',
                     }}
@@ -277,7 +524,7 @@ const DynamicFormPage = () => {
     const [error, setError] = useState(null);
     const [currentMode, setCurrentMode] = useState('admin_view'); // 默认为编辑模式
     const [alert, setAlert] = useState({ open: false, message: '', severity: 'info' });
-    
+
     // Lightbox state for image viewing
     const [lightboxOpen, setLightboxOpen] = useState(false);
     const [lightboxImages, setLightboxImages] = useState([]);
@@ -312,6 +559,8 @@ const DynamicFormPage = () => {
                 survey.getAllQuestions().forEach(question => {
                     if (question.getType() === 'file') {
                         question.storeDataAsText = false;
+                        // 允许图片预览
+                        question.allowImagesPreview = true;
                     }
                 });
 
@@ -418,7 +667,7 @@ const DynamicFormPage = () => {
                                 const questionRoot = options.htmlElement;
                                 const content = questionRoot.querySelector('.sd-question__content');
                                 const table = content?.querySelector('.sd-table');
-                                
+
                                 // Wrap table in a scroll container if not already wrapped
                                 if (table && !table.parentElement.classList.contains('matrix-scroll-container')) {
                                     const scrollContainer = document.createElement('div');
@@ -559,12 +808,10 @@ const DynamicFormPage = () => {
                                                 if (firstItem && typeof firstItem === 'object' &&
                                                     firstItem.content && typeof firstItem.content === 'object' &&
                                                     firstItem.content.content) {
-                                                    console.log(`[File normalization] Detected nested content structure in ${fieldId}, normalizing...`);
                                                     userAnswer = userAnswer.map(fileObj => {
                                                         if (fileObj && typeof fileObj === 'object' &&
                                                             fileObj.content && typeof fileObj.content === 'object' &&
                                                             fileObj.content.content) {
-                                                            console.log(`[File normalization] Flattening:`, fileObj);
                                                             return {
                                                                 content: fileObj.content.content,
                                                                 name: fileObj.content.name || fileObj.name || "image.jpg",
@@ -573,7 +820,6 @@ const DynamicFormPage = () => {
                                                         }
                                                         return fileObj;
                                                     });
-                                                    console.log(`[File normalization] Normalized ${fieldId}:`, userAnswer);
                                                 }
                                             }
 
@@ -615,8 +861,7 @@ const DynamicFormPage = () => {
                                                         });
                                                     }
 
-                                                    console.log(`[DEBUG] fieldLabels:`, fieldLabels);
-                                                    console.log(`[DEBUG] userAnswer (field_1 value):`, userAnswer);
+
 
                                                     // Sort keys numerically by the associated field ID
                                                     associatedKeys.sort((a, b) => {
@@ -734,7 +979,6 @@ const DynamicFormPage = () => {
                                                     if (typeof fileObj === 'object' && fileObj !== null) {
                                                         // Check if content is nested: { content: { content: "url", name: "...", type: "..." } }
                                                         if (fileObj.content && typeof fileObj.content === 'object' && fileObj.content.content) {
-                                                            console.log('[File normalization] Flattening nested content for file field:', fileObj);
                                                             return {
                                                                 content: fileObj.content.content,
                                                                 name: fileObj.content.name || fileObj.name || "image.jpg",
@@ -779,7 +1023,7 @@ const DynamicFormPage = () => {
                                                     });
 
                                                     displayData[questionName] = transformedData;
-                                                    console.log(`[DEBUG] Transformed matrixdynamic data for ${questionName}:`, transformedData);
+
                                                 } else {
                                                     displayData[questionName] = userAnswer;
                                                 }
@@ -859,7 +1103,6 @@ const DynamicFormPage = () => {
                                                         }
                                                     });
                                                     displayData[questionName] = transformedData;
-                                                    console.log(`[DEBUG] Transformed matrixdropdown data for ${questionName}:`, transformedData);
                                                 } else {
                                                     displayData[questionName] = userAnswer;
                                                 }
@@ -890,16 +1133,15 @@ const DynamicFormPage = () => {
                                                         }
                                                     });
                                                     displayData[questionName] = transformedData;
-                                                    console.log(`[DEBUG] Transformed matrix (likert) data for ${questionName}:`, transformedData);
                                                 } else {
                                                     displayData[questionName] = userAnswer;
                                                 }
                                             } else if (question.type === 'rating') {
                                                 // Handle rating type (simple value)
                                                 displayData[questionName] = userAnswer;
-                                                console.log(`[DEBUG] Setting rating data for ${questionName}:`, userAnswer);
+
                                             } else { // Simple text question
-                                                console.log(`[DEBUG] Setting displayData[${questionName}] = `, userAnswer);
+
                                                 // Handle empty values - show placeholder
                                                 if (userAnswer === null || userAnswer === undefined || userAnswer === '') {
                                                     displayData[questionName] = '空';
@@ -961,15 +1203,26 @@ const DynamicFormPage = () => {
                             // Custom Rendering for File Questions
                             if (options.question.getType() === 'file') {
                                 const questionValue = options.question.value;
+                                const questionName = options.question.name;
                                 const contentDiv = options.htmlElement.querySelector('.sd-question__content') || options.htmlElement;
 
                                 // Prevent duplicate rendering
-                                if (contentDiv.querySelector('.custom-file-carousel-root')) {
+                                const existingCarousel = contentDiv.querySelector('.custom-file-carousel-root');
+                                if (existingCarousel) {
+
                                     return;
                                 }
 
-                                if (Array.isArray(questionValue) && questionValue.length > 0) {
-                                    // Hide default preview
+                                // 只在查看模式下使用自定义渲染器
+                                // 编辑模式(full_edit)下使用原生控件以支持删除功能
+                                // 注意: survey.mode 总是 'edit',所以我们使用 currentMode 状态来判断
+                                const isViewMode = currentMode === 'admin_view';
+
+
+
+                                if (isViewMode && Array.isArray(questionValue) && questionValue.length > 0) {
+
+                                    // Hide default preview in view mode
                                     const defaultPreview = contentDiv.querySelector('.sd-file');
                                     if (defaultPreview) {
                                         defaultPreview.style.display = 'none';
@@ -980,15 +1233,15 @@ const DynamicFormPage = () => {
                                     carouselContainer.className = 'custom-file-carousel-root';
                                     carouselContainer.style.width = '100%';
                                     contentDiv.appendChild(carouselContainer);
-                                    
+
                                     // Render React component using createRoot
                                     const root = createRoot(carouselContainer);
-                                    
+
                                     // Extract image URLs from questionValue
                                     const imageUrls = questionValue.map(file => file.content).filter(Boolean);
-                                    
+
                                     root.render(
-                                        <OptimizedFileCarousel 
+                                        <OptimizedFileCarousel
                                             questionValue={questionValue}
                                             onImageClick={(index) => {
                                                 setLightboxImages(imageUrls);
@@ -997,11 +1250,21 @@ const DynamicFormPage = () => {
                                             }}
                                         />
                                     );
+                                } else {
+                                    // console.log(`[File Rendering - ${questionName}] ✓ Using native SurveyJS control for edit mode`);
+                                    // 在编辑模式下,确保显示原生控件
+                                    const defaultPreview = contentDiv.querySelector('.sd-file');
+                                    // console.log(`[File Rendering - ${questionName}] defaultPreview element:`, defaultPreview);
+                                    if (defaultPreview) {
+                                        defaultPreview.style.display = 'block';
+                                        // console.log(`[File Rendering - ${questionName}] Ensured default preview is visible`);
+                                    }
                                 }
+                                // console.log(`[File Rendering - ${questionName}] ===== END =====`);
                             }
 
                             if (isSignature) {
-                                console.log(`[DEBUG] Rendering signature for ${questionName}`);
+                                // console.log(`[DEBUG] Rendering signature for ${questionName}`);
 
                                 // Check if already wrapped
                                 if (options.htmlElement.querySelector('.custom-signature-wrapper')) {
@@ -1059,9 +1322,9 @@ const DynamicFormPage = () => {
                                     wrapper.appendChild(signatureContainer);
                                     const root = createRoot(signatureContainer);
                                     root.render(
-                                        <OptimizedSignatureImage 
-                                            src={questionValue} 
-                                            style={{ display: 'block', maxWidth: '200px', maxHeight: '100px' }} 
+                                        <OptimizedSignatureImage
+                                            src={questionValue}
+                                            style={{ display: 'block', maxWidth: '200px', maxHeight: '100px' }}
                                         />
                                     );
                                 }
@@ -1097,7 +1360,7 @@ const DynamicFormPage = () => {
                         });
                     } else {
                         // --- NEW LOGIC FOR NATIVE SURVEYJS DATA (OR HYBRID) ---
-                        console.log("[DEBUG] Using Native/Hybrid Mapping");
+                        // console.log("[DEBUG] Using Native/Hybrid Mapping");
 
                         // Add custom rendering for signatures in Native/Hybrid mode
                         survey.onAfterRenderQuestion.add((sender, options) => {
@@ -1545,7 +1808,7 @@ const DynamicFormPage = () => {
 
                             debounceTimer = setTimeout(async () => {
                                 try {
-                                    console.log(`[AutoFill] Fetching contract for: ${employeeName}`);
+                                    // console.log(`[AutoFill] Fetching contract for: ${employeeName}`);
                                     const res = await api.get(`/staff/employees/by-name/${encodeURIComponent(employeeName.trim())}/latest-contract`);
                                     const { auto_fill_data, contract } = res.data;
 
@@ -1609,24 +1872,118 @@ const DynamicFormPage = () => {
 
     // 切换模式的函数
     const toggleMode = () => {
-        if (!surveyModel) return;
+        // console.log('[toggleMode] ===== TOGGLE MODE CALLED =====');
+        // console.log('[toggleMode] Current surveyModel:', surveyModel);
+
+        if (!surveyModel) {
+            // console.log('[toggleMode] ⚠️ No surveyModel, returning');
+            return;
+        }
+
+        // console.log('[toggleMode] Current isAdminView:', surveyModel.isAdminView);
+        // console.log('[toggleMode] Current currentMode:', currentMode);
+
+        // 保存当前数据，防止切换时数据丢失
+        const currentData = { ...surveyModel.data };
+        // console.log('[toggleMode] Saved current data');
 
         // If we are in "Admin View" (some readOnly, some not), switch to "Full Edit" (all not readOnly).
         // If we are in "Full Edit", switch back to "Admin View".
 
-        // How to detect current state? We can check a flag or just toggle.
-        // Let's add a custom property to surveyModel to track state.
-
         if (surveyModel.isAdminView) {
+            // console.log('[toggleMode] Switching from Admin View to Full Edit');
             surveyModel.applyFullEditState();
             surveyModel.isAdminView = false;
             setCurrentMode('full_edit'); // Custom mode name for UI
+            // console.log('[toggleMode] ✓ Switched to full_edit mode');
         } else {
+            // console.log('[toggleMode] Switching from Full Edit to Admin View');
             surveyModel.applyAdminViewState();
             surveyModel.isAdminView = true;
             setCurrentMode('admin_view'); // Custom mode name for UI
+            // console.log('[toggleMode] ✓ Switched to admin_view mode');
         }
+
+        // 恢复数据（以防万一）
+        setTimeout(() => {
+            surveyModel.data = currentData;
+        }, 100);
+
+        // Note: 实际的重新渲染在 useEffect 中处理,等待 currentMode 状态更新后执行
+        // console.log('[toggleMode] ===== TOGGLE MODE END =====');
     };
+
+    // 监听 currentMode 变化,在模式切换后重新渲染文件问题
+    useEffect(() => {
+        if (!surveyModel || !dataId) return; // 只在查看已有数据时才需要切换模式
+
+        // console.log('[useEffect currentMode] ===== MODE CHANGE DETECTED =====');
+        // console.log('[useEffect currentMode] New mode:', currentMode);
+
+        const fileQuestions = surveyModel.getAllQuestions().filter(q => q.getType() === 'file');
+        // console.log('[useEffect currentMode] File questions to process:', fileQuestions.length);
+
+        fileQuestions.forEach(q => {
+            const questionRoot = document.querySelector(`[data-name="${q.name}"]`);
+            if (!questionRoot) {
+                // console.log('[useEffect currentMode] ⚠️ Question root not found for:', q.name);
+                return;
+            }
+
+            // console.log('[useEffect currentMode] Processing question:', q.name);
+
+            // 移除所有自定义渲染
+            const customRoot = questionRoot.querySelector('.custom-file-carousel-root');
+            if (customRoot) {
+                customRoot.remove();
+                // console.log('[useEffect currentMode] ✓ Removed custom carousel for:', q.name);
+            }
+
+            // 找到原生文件控件
+            const nativeFileControl = questionRoot.querySelector('.sd-file');
+
+            if (currentMode === 'full_edit') {
+                // 编辑模式：显示并重新初始化原生控件
+                // console.log('[useEffect currentMode] → Switching to EDIT mode for:', q.name);
+
+                if (nativeFileControl) {
+                    nativeFileControl.style.display = 'block';
+                    // console.log('[useEffect currentMode] ✓ Showed native control');
+                }
+
+                // 强制 SurveyJS 重新渲染这个问题
+                // 通过临时改变问题的可见性来触发重新渲染
+                const wasVisible = q.visible;
+                q.visible = false;
+                setTimeout(() => {
+                    q.visible = wasVisible;
+                    // console.log('[useEffect currentMode] ✓ Triggered re-render via visibility toggle');
+                }, 0);
+
+            } else {
+                // 查看模式：隐藏原生控件，触发自定义渲染
+                // console.log('[useEffect currentMode] → Switching to VIEW mode for:', q.name);
+
+                if (nativeFileControl) {
+                    nativeFileControl.style.display = 'none';
+                    // console.log('[useEffect currentMode] ✓ Hidden native control');
+                } else {
+                    console.log('[useEffect currentMode] ⚠️ Native control not found');
+                }
+
+                // 手动触发 onAfterRenderQuestion 来创建自定义轮播
+                setTimeout(() => {
+                    surveyModel.onAfterRenderQuestion.fire(surveyModel, {
+                        question: q,
+                        htmlElement: questionRoot
+                    });
+                    // console.log('[useEffect currentMode] ✓ Fired onAfterRenderQuestion for custom rendering');
+                }, 10);
+            }
+        });
+
+        // console.log('[useEffect currentMode] ===== MODE CHANGE COMPLETE =====');
+    }, [currentMode, surveyModel, dataId]);
 
     // Score Display Component
     const ScoreDisplay = ({ result }) => {
@@ -1742,6 +2099,45 @@ const DynamicFormPage = () => {
 
     return (
         <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+            {/* 面包屑导航 */}
+            <Breadcrumbs
+                separator={<NavigateNextIcon fontSize="small" />}
+                aria-label="breadcrumb"
+                sx={{ mb: 3 }}
+            >
+                <Link
+                    underline="hover"
+                    sx={{
+                        cursor: 'pointer',
+                        color: 'inherit',
+                        '&:hover': {
+                            color: 'primary.main',
+                        }
+                    }}
+                    onClick={() => window.location.href = '/forms'}
+                >
+                    全部表单
+                </Link>
+                {dataId && (
+                    <Link
+                        underline="hover"
+                        sx={{
+                            cursor: 'pointer',
+                            color: 'inherit',
+                            '&:hover': {
+                                color: 'primary.main',
+                            }
+                        }}
+                        onClick={() => window.location.href = `/forms/${formToken}/data`}
+                    >
+                        {surveyModel?.title || '表单'}
+                    </Link>
+                )}
+                <Typography color="text.primary">
+                    {dataId ? '查看详情' : (surveyModel?.title || '表单详情')}
+                </Typography>
+            </Breadcrumbs>
+
             <AlertMessage
                 open={alert.open}
                 message={alert.message}
@@ -2004,50 +2400,47 @@ const DynamicFormPage = () => {
                         onClick={async () => {
                             const imageUrl = lightboxImages[currentImageIndex];
                             const filename = imageUrl.split('/').pop()?.split('?')[0] || `image-${currentImageIndex + 1}.jpg`;
-                            
-                            console.log('[Download] Starting download:', filename);
-                            
+
                             try {
                                 // Try to fetch with CORS mode
-                                console.log('[Download] Fetching image...');
                                 const response = await fetch(imageUrl, {
                                     mode: 'cors',
                                     credentials: 'same-origin',
                                 });
-                                
+
                                 if (!response.ok) {
                                     throw new Error(`Network response was not ok: ${response.status}`);
                                 }
+
                                 
-                                console.log('[Download] Fetch successful, creating blob...');
                                 const originalBlob = await response.blob();
-                                console.log('[Download] Original blob - size:', originalBlob.size, 'type:', originalBlob.type);
                                 
+
                                 // Force download by changing MIME type to octet-stream
                                 const blob = new Blob([originalBlob], { type: 'application/octet-stream' });
-                                console.log('[Download] Converted to octet-stream for forced download');
                                 
+
                                 // Create download link
                                 const url = window.URL.createObjectURL(blob);
                                 const link = document.createElement('a');
                                 link.href = url;
                                 link.download = filename;
                                 link.style.display = 'none';
-                                
+
                                 // Trigger download
-                                console.log('[Download] Triggering download via blob URL...');
+                                
                                 document.body.appendChild(link);
                                 link.click();
-                                console.log('[Download] ✅ Download triggered successfully');
                                 
+
                                 // Clean up
                                 setTimeout(() => {
                                     document.body.removeChild(link);
                                     window.URL.revokeObjectURL(url);
                                 }, 100);
                             } catch (error) {
-                                console.error('[Download] ❌ Fetch failed:', error);
-                                console.log('[Download] Trying fallback method...');
+                                
+                                
                                 // Fallback: use direct download via anchor tag
                                 const link = document.createElement('a');
                                 link.href = imageUrl;
@@ -2055,24 +2448,25 @@ const DynamicFormPage = () => {
                                 link.target = '_blank';
                                 link.rel = 'noopener noreferrer';
                                 link.style.display = 'none';
-                                
+
                                 document.body.appendChild(link);
                                 link.click();
-                                console.log('[Download] Fallback download triggered');
                                 
+
                                 setTimeout(() => {
                                     document.body.removeChild(link);
                                 }, 100);
                             }
                         }}
                         sx={{
-                            position: 'absolute',
-                            top: -50,
-                            right: 50,
+                            position: 'fixed',
+                            top: 20,
+                            right: 70,
                             color: 'white',
-                            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                            backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                            zIndex: 1301,
                             '&:hover': {
-                                backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                                backgroundColor: 'rgba(0, 0, 0, 0.8)',
                             },
                         }}
                     >
@@ -2083,13 +2477,14 @@ const DynamicFormPage = () => {
                     <IconButton
                         onClick={() => setLightboxOpen(false)}
                         sx={{
-                            position: 'absolute',
-                            top: -50,
-                            right: 0,
+                            position: 'fixed',
+                            top: 20,
+                            right: 20,
                             color: 'white',
-                            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                            backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                            zIndex: 1301,
                             '&:hover': {
-                                backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                                backgroundColor: 'rgba(0, 0, 0, 0.8)',
                             },
                         }}
                     >
@@ -2101,14 +2496,15 @@ const DynamicFormPage = () => {
                         <IconButton
                             onClick={() => setCurrentImageIndex((prev) => (prev > 0 ? prev - 1 : lightboxImages.length - 1))}
                             sx={{
-                                position: 'absolute',
-                                left: -60,
+                                position: 'fixed',
+                                left: 20,
                                 top: '50%',
                                 transform: 'translateY(-50%)',
                                 color: 'white',
-                                backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                                backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                                zIndex: 1301,
                                 '&:hover': {
-                                    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
                                 },
                             }}
                         >
@@ -2122,12 +2518,12 @@ const DynamicFormPage = () => {
                         alt={`Image ${currentImageIndex + 1}`}
                         effect="blur"
                         placeholder={
-                            <Skeleton 
-                                variant="rectangular" 
-                                width="70vw" 
+                            <Skeleton
+                                variant="rectangular"
+                                width="70vw"
                                 height="70vh"
                                 animation="wave"
-                                sx={{ 
+                                sx={{
                                     backgroundColor: 'rgba(255, 255, 255, 0.1)',
                                     borderRadius: '8px',
                                 }}
@@ -2156,14 +2552,15 @@ const DynamicFormPage = () => {
                         <IconButton
                             onClick={() => setCurrentImageIndex((prev) => (prev < lightboxImages.length - 1 ? prev + 1 : 0))}
                             sx={{
-                                position: 'absolute',
-                                right: -60,
+                                position: 'fixed',
+                                right: 20,
                                 top: '50%',
                                 transform: 'translateY(-50%)',
                                 color: 'white',
-                                backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                                backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                                zIndex: 1301,
                                 '&:hover': {
-                                    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
                                 },
                             }}
                         >
@@ -2171,19 +2568,25 @@ const DynamicFormPage = () => {
                         </IconButton>
                     )}
 
-                    {/* Image Counter */}
+                    {/* Image Counter - Fixed at bottom */}
                     {lightboxImages.length > 1 && (
                         <Box
                             sx={{
-                                position: 'absolute',
-                                bottom: -40,
+                                position: 'fixed',
+                                bottom: 30,
                                 left: '50%',
                                 transform: 'translateX(-50%)',
                                 color: 'white',
-                                backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                                padding: '8px 16px',
-                                borderRadius: '20px',
-                                fontSize: '0.875rem',
+                                backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                                padding: '10px 20px',
+                                borderRadius: '25px',
+                                fontSize: '1rem',
+                                fontWeight: 500,
+                                zIndex: 1301,
+                                minWidth: '80px',
+                                textAlign: 'center',
+                                backdropFilter: 'blur(10px)',
+                                border: '1px solid rgba(255, 255, 255, 0.1)',
                             }}
                         >
                             {currentImageIndex + 1} / {lightboxImages.length}

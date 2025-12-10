@@ -171,7 +171,7 @@ const PublicSigningPage = () => {
                             <TextField fullWidth required name="name" label="姓名" value={info. name || ''} onChange={(e) => handleInfoChange(role, e)} disabled={isFieldDisabled} />
                         </Grid>
                         <Grid item xs={12} sm={6}>
-                            <TextField fullWidth required name="phone_number" label="联系电话" value={info.phone_number || ''} onChange={(e) => handleInfoChange(role, e)} disabled={isFieldDisabled} />
+                            <TextField fullWidth required name="phone_number" label="联系电话" type="tel" value={info.phone_number || ''} onChange={(e) => handleInfoChange(role, e)} disabled={isFieldDisabled} />
                         </Grid>
                         <Grid item xs={12}>
                             <TextField fullWidth required name="id_card_number" label="身份证号" value={info.id_card_number || ''} onChange={(e) => handleInfoChange(role, e)} disabled={isFieldDisabled} />
