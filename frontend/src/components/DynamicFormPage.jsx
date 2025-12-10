@@ -61,12 +61,50 @@ const getNetworkQuality = () => {
 
 // ===== 完全统一图片加载系统 - 彻底避免重复网络请求 =====
 
+// 从统一URL中提取原始URL（用于保存时恢复原始URL）
+const extractOriginalUrl = (url) => {
+    if (!url) return url;
+    
+    // 检查是否是已处理的统一URL（可能被重复处理多次）
+    if (url.includes('img.mengyimengsao.com') && url.includes('/cdn-cgi/image/')) {
+        // 循环移除所有 cdn-cgi/image/xxx/ 前缀，直到没有为止
+        let cleanUrl = url;
+        while (cleanUrl.includes('/cdn-cgi/image/')) {
+            // 提取最后一个 cdn-cgi/image/xxx/ 后面的路径
+            const match = cleanUrl.match(/img\.mengyimengsao\.com(?:\/cdn-cgi\/image\/[^/]+)+\/([^c].+)/);
+            if (match && match[1]) {
+                cleanUrl = `https://img.mengyimengsao.com/${match[1]}`;
+            } else {
+                // 如果匹配失败，尝试另一种模式
+                const simpleMatch = cleanUrl.match(/\/cdn-cgi\/image\/[^/]+\/(.+)/);
+                if (simpleMatch && simpleMatch[1] && !simpleMatch[1].startsWith('cdn-cgi')) {
+                    cleanUrl = `https://img.mengyimengsao.com/${simpleMatch[1]}`;
+                }
+                break;
+            }
+        }
+        
+        if (cleanUrl !== url) {
+            console.log(`🔙 恢复原始URL: ${url} -> ${cleanUrl}`);
+        }
+        return cleanUrl;
+    }
+    
+    return url;
+};
+
 // 全局统一图片URL - 所有场景（缩略图、轮播、lightbox）使用完全相同的URL
 const getUnifiedImageUrl = (originalUrl) => {
     if (!originalUrl) return originalUrl;
     
     // 检查是否是我们的图床域名
     if (originalUrl.includes('img.mengyimengsao.com')) {
+        // 关键修复：检查URL是否已经包含cdn-cgi/image处理参数，避免重复处理
+        if (originalUrl.includes('/cdn-cgi/image/')) {
+            console.log(`⏭️ URL已包含cdn-cgi处理，跳过: ${originalUrl}`);
+            return originalUrl;
+        }
+        
         // 确保URL格式正确，路径部分应该以/开头
         const urlParts = originalUrl.split('img.mengyimengsao.com');
         if (urlParts.length === 2) {
@@ -78,7 +116,7 @@ const getUnifiedImageUrl = (originalUrl) => {
             // 关键修复：所有场景使用完全相同的URL，彻底避免重复下载
             // 使用合理的尺寸和质量，平衡加载速度和显示效果
             const unifiedUrl = `https://img.mengyimengsao.com/cdn-cgi/image/width=600,quality=80,format=jpeg${path}`;
-            console.log(`�️ 统一图片URL: ${originalUrl} -> ${unifiedUrl}`);
+            console.log(`🛠️ 统一图片URL: ${originalUrl} -> ${unifiedUrl}`);
             return unifiedUrl;
         }
     }
@@ -332,7 +370,6 @@ const CachedLightboxImage = ({ src, alt, style, originalUrl, ...props }) => {
                     opacity: imageLoaded ? 1 : 0,
                     transition: 'opacity 0.3s ease',
                 }}
-                {...props}
             />
         </Box>
     );
@@ -527,7 +564,10 @@ const OptimizedFileCarousel = ({ questionValue, onImageClick, onPreloadUpdate })
                                     loading="eager"
                                     referrerPolicy="no-referrer"
                                     onError={(e) => {
-                                        console.warn(`缩略图 ${index + 1} 加载失败，回退到原图: ${originalUrl}`, e);
+                                        // 防止重复回退导致死循环
+                                        if (e.target.dataset.fallback) return;
+                                        e.target.dataset.fallback = 'true';
+                                        console.warn(`缩略图 ${index + 1} 加载失败，回退到原图: ${originalUrl}`);
                                         // 直接回退到原图
                                         e.target.src = originalUrl;
                                     }}
@@ -1615,10 +1655,16 @@ const DynamicFormPage = () => {
 
                                 if (Array.isArray(questionValue) && questionValue.length > 0) {
 
-                                    // 在非完全编辑模式下隐藏默认预览
+                                    // 在非完全编辑模式下隐藏默认预览，并移除其中的图片以防止加载
                                     const defaultPreview = contentDiv.querySelector('.sd-file');
                                     if (defaultPreview && !isFullEditMode) {
                                         defaultPreview.style.display = 'none';
+                                        // 移除 SurveyJS 原生预览中的图片，防止重复加载
+                                        const nativeImages = defaultPreview.querySelectorAll('img');
+                                        nativeImages.forEach(img => {
+                                            img.src = '';
+                                            img.removeAttribute('src');
+                                        });
                                     }
 
                                     // Create container for React component
@@ -1999,7 +2045,25 @@ const DynamicFormPage = () => {
 
                 // 3. 设置 onComplete 回调
                 survey.onComplete.add(async (sender) => {
-                    const formData = sender.data;
+                    // 关键修复：在保存前，将统一URL恢复为原始URL
+                    const formData = { ...sender.data };
+                    const fileQuestions = sender.getAllQuestions().filter(q => q.getType() === 'file');
+                    fileQuestions.forEach(q => {
+                        const questionValue = formData[q.name];
+                        if (Array.isArray(questionValue) && questionValue.length > 0) {
+                            formData[q.name] = questionValue.map(file => {
+                                if (file && file.content) {
+                                    const originalUrl = extractOriginalUrl(file.content);
+                                    if (originalUrl !== file.content) {
+                                        console.log(`🔙 保存前恢复原始URL: ${file.content} -> ${originalUrl}`);
+                                    }
+                                    return { ...file, content: originalUrl };
+                                }
+                                return file;
+                            });
+                        }
+                    });
+                    
                     setSubmissionState('submitting');
 
                     try {
@@ -2353,19 +2417,45 @@ const DynamicFormPage = () => {
 
         if (surveyModel.isAdminView) {
             // console.log('[toggleMode] Switching from Admin View to Full Edit');
+            
+            // 关键修复：在切换到编辑模式前，将文件问题的URL替换为统一URL
+            // 这样 SurveyJS 渲染时会使用已缓存的图片
+            const fileQuestions = surveyModel.getAllQuestions().filter(q => q.getType() === 'file');
+            fileQuestions.forEach(q => {
+                q.allowImagesPreview = true; // 启用图片预览
+                const questionValue = currentData[q.name];
+                if (Array.isArray(questionValue) && questionValue.length > 0) {
+                    currentData[q.name] = questionValue.map(file => {
+                        if (file && file.content) {
+                            const unifiedUrl = getUnifiedImageUrl(file.content);
+                            console.log(`🔄 toggleMode: 替换图片URL为统一URL: ${file.content} -> ${unifiedUrl}`);
+                            return { ...file, content: unifiedUrl };
+                        }
+                        return file;
+                    });
+                }
+            });
+            
             surveyModel.applyFullEditState();
             surveyModel.isAdminView = false;
             setCurrentMode('full_edit'); // Custom mode name for UI
             // console.log('[toggleMode] ✓ Switched to full_edit mode');
         } else {
             // console.log('[toggleMode] Switching from Full Edit to Admin View');
+            
+            // 切换回查看模式时，禁用图片预览
+            const fileQuestions = surveyModel.getAllQuestions().filter(q => q.getType() === 'file');
+            fileQuestions.forEach(q => {
+                q.allowImagesPreview = false;
+            });
+            
             surveyModel.applyAdminViewState();
             surveyModel.isAdminView = true;
             setCurrentMode('admin_view'); // Custom mode name for UI
             // console.log('[toggleMode] ✓ Switched to admin_view mode');
         }
 
-        // 恢复数据（以防万一）
+        // 恢复数据（以防万一）- 现在数据中的图片URL已经是统一URL了
         setTimeout(() => {
             surveyModel.data = currentData;
         }, 100);
@@ -2425,6 +2515,27 @@ const DynamicFormPage = () => {
                 // 编辑模式：显示原生控件，隐藏自定义轮播（不删除，避免重新加载）
                 // console.log('[useEffect currentMode] → Switching to EDIT mode for:', q.name);
 
+                // 关键修复：启用 SurveyJS 图片预览，并将图片URL替换为已缓存的统一URL
+                // 这样 SurveyJS 会使用浏览器缓存而不是重新下载原图
+                q.allowImagesPreview = true;
+                
+                const questionValue = q.value;
+                if (Array.isArray(questionValue) && questionValue.length > 0) {
+                    const optimizedValue = questionValue.map(file => {
+                        if (file && file.content) {
+                            const unifiedUrl = getUnifiedImageUrl(file.content);
+                            console.log(`🔄 编辑模式：替换图片URL为统一URL: ${file.content} -> ${unifiedUrl}`);
+                            return {
+                                ...file,
+                                content: unifiedUrl
+                            };
+                        }
+                        return file;
+                    });
+                    // 临时更新值以使用缓存的URL
+                    q.value = optimizedValue;
+                }
+
                 if (nativeFileControl) {
                     nativeFileControl.style.display = 'block';
                     // console.log('[useEffect currentMode] ✓ Showed native control');
@@ -2439,6 +2550,9 @@ const DynamicFormPage = () => {
             } else {
                 // 非完全编辑模式：显示自定义轮播，可能同时显示原生控件
                 // console.log('[useEffect currentMode] → Switching to VIEW/EDIT mode for:', q.name);
+
+                // 关键：禁用 SurveyJS 图片预览，使用自定义轮播组件
+                q.allowImagesPreview = false;
 
                 // 自定义轮播始终显示
                 if (customRoot) {
@@ -3090,11 +3204,6 @@ const DynamicFormPage = () => {
                                 backgroundColor: 'white',
                                 boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
                                 objectFit: 'contain',
-                            }}
-                            onError={(e) => {
-                                e.target.src = "/data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgdmlld0JveD0iMCAwIDQwMCAzMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI0MDAiIGhlaWdodD0iMzAwIiBmaWxsPSIjRjhGOUZBIi8+CjxwYXRoIGQ9Ik0xNTAgMTUwIEgyNTBMMjAwIDEyMlYyNTBaIiBzdHJva2U9IiNEREVFMkYiIHN0cm9rZS13aWR0aD0iMyIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+CjxjaXJjbGUgY3g9IjIyNSIgY3k9IjEyNSIgcj0iNSIgZmlsbD0iI0RERUUyRiIvPgo8L3N2Zz4K";
-                                e.target.style.width = '200px';
-                                e.target.style.height = '150px';
                             }}
                         />
                         
