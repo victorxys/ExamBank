@@ -399,15 +399,22 @@ def create_staff_from_form(data_id):
         JSON response with success message and employee ID
     """
     try:
+        logging.info(f"[CREATE_STAFF] 开始处理表单数据 ID: {data_id}")
+        
         # 1. 查询表单数据
         form_data = DynamicFormData.query.get(str(data_id))
         if not form_data:
+            logging.error(f"[CREATE_STAFF] 表单数据不存在: {data_id}")
             return jsonify({"error": "表单数据不存在"}), 404
         
         # 2. 提取表单字段
         data = form_data.data
         if not data:
+            logging.error(f"[CREATE_STAFF] 表单数据为空: {data_id}")
             return jsonify({"error": "表单数据为空"}), 400
+        
+        logging.info(f"[CREATE_STAFF] 表单数据字段: {list(data.keys())}")
+        logging.debug(f"[CREATE_STAFF] 完整表单数据: {data}")
         
         # 3. 映射字段（支持多种格式）
         # 格式1: Jinshuju field_X 格式（萌嫂入职登记表使用此格式）
@@ -445,10 +452,14 @@ def create_staff_from_form(data_id):
         if phone_number and not isinstance(phone_number, str):
             phone_number = str(phone_number)
         
+        logging.info(f"[CREATE_STAFF] 提取的字段 - 姓名: {name}, 手机号: {phone_number}, 身份证: {id_card_number}, 地址: {address}")
+        
         # 4. 验证必填字段
         if not name:
+            logging.error(f"[CREATE_STAFF] 缺少必填字段：姓名")
             return jsonify({"error": "缺少必填字段：姓名"}), 400
         if not phone_number:
+            logging.error(f"[CREATE_STAFF] 缺少必填字段：手机号")
             return jsonify({"error": "缺少必填字段：手机号"}), 400
         
         # 5. 检查是否已存在（根据手机号）
