@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { format } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import { useToast } from '../ui/use-toast';
 import AttendanceFormModal from './AttendanceFormModal';
 import api from '../../api/axios';
+import { AttendanceDisplayLogic } from '../../utils/attendanceDisplayLogic';
 
 const AttendanceManagementPage = () => {
     const [selectedYear, setSelectedYear] = useState(() => {
@@ -57,8 +58,16 @@ const AttendanceManagementPage = () => {
         }
     };
 
+    // 处理考勤记录去重合并
+    const processedEmployees = useMemo(() => {
+        // 使用去重逻辑处理员工记录
+        const deduplicatedEmployees = AttendanceDisplayLogic.deduplicateRecords(employees);
+        
+        return deduplicatedEmployees;
+    }, [employees]);
+
     // Filter employees
-    const filteredEmployees = employees.filter(employee => {
+    const filteredEmployees = processedEmployees.filter(employee => {
         const matchesSearch =
             (employee.employee_name?.toLowerCase().includes(searchTerm.toLowerCase()) || '') ||
             (employee.customer_name?.toLowerCase().includes(searchTerm.toLowerCase()) || '');
@@ -88,13 +97,13 @@ const AttendanceManagementPage = () => {
         return (a.employee_name || '').localeCompare(b.employee_name || '', 'zh-CN');
     });
 
-    // 计算统计数据 (基于筛选后的数据? 通常统计数据基于全部数据比较好，这里保持基于全部数据)
-    const stats = {
-        total: employees.length,
-        pending: employees.filter(e => e.form_status === 'confirmed').length,
-        completed: employees.filter(e => e.form_status === 'customer_signed').length,
-        notStarted: employees.filter(e => ['not_created', 'draft'].includes(e.form_status)).length
-    };
+    // 计算统计数据 (基于去重后的数据)
+    const stats = useMemo(() => ({
+        total: processedEmployees.length,
+        pending: processedEmployees.filter(e => e.form_status === 'confirmed').length,
+        completed: processedEmployees.filter(e => e.form_status === 'customer_signed').length,
+        notStarted: processedEmployees.filter(e => ['not_created', 'draft'].includes(e.form_status)).length
+    }), [processedEmployees]);
 
     const handleCopyLink = (link) => {
         navigator.clipboard.writeText(link);
