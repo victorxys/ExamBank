@@ -15,6 +15,8 @@ import {
     Tooltip,
     Modal,
     Skeleton,
+    Breadcrumbs,
+    Link as MuiLink,
 } from '@mui/material';
 import {
     Visibility as VisibilityIcon,
@@ -23,6 +25,8 @@ import {
     ChevronRight as ChevronRightIcon,
     ImageNotSupported as ImageNotSupportedIcon,
     Download as DownloadIcon,
+    Home as HomeIcon,
+    NavigateNext as NavigateNextIcon,
 } from '@mui/icons-material';
 import { LazyLoadImage } from 'react-lazy-load-image-component';
 import 'react-lazy-load-image-component/src/effects/blur.css';
@@ -33,7 +37,7 @@ import { format } from 'date-fns';
 // 优化的图片组件，支持多种格式和错误处理
 const OptimizedThumbnail = ({ src, alt, onClick, index, totalImages }) => {
     const [imageError, setImageError] = useState(false);
-    
+
     // 生成 srcset 支持响应式图片
     const generateSrcSet = (url) => {
         const baseUrl = url.split('?')[0];
@@ -342,6 +346,30 @@ const FormDataListPage = () => {
                 }
             />
 
+            {/* 面包屑导航 */}
+            <Breadcrumbs
+                separator={<NavigateNextIcon fontSize="small" />}
+                aria-label="breadcrumb"
+                sx={{ mb: 3, mt: 3 }}
+            >
+                <MuiLink
+                    underline="hover"
+                    sx={{
+                        cursor: 'pointer',
+                        color: 'inherit',
+                        '&:hover': {
+                            color: 'primary.main',
+                        }
+                    }}
+                    onClick={() => window.location.href = '/forms'}
+                >
+                    表单列表
+                </MuiLink>
+                <Typography color="text.primary">
+                    {formName || '数据列表'}
+                </Typography>
+            </Breadcrumbs>
+
             <Card sx={{
                 boxShadow: '0 0 2rem 0 rgba(136, 152, 170, .15)',
                 backgroundColor: 'white',
@@ -601,34 +629,34 @@ const FormDataListPage = () => {
                         onClick={async () => {
                             const imageUrl = lightboxImages[currentImageIndex];
                             const filename = imageUrl.split('/').pop()?.split('?')[0] || `image-${currentImageIndex + 1}.jpg`;
-                            
+
                             try {
                                 // Try to fetch with CORS mode
                                 const response = await fetch(imageUrl, {
                                     mode: 'cors',
                                     credentials: 'same-origin',
                                 });
-                                
+
                                 if (!response.ok) {
                                     throw new Error('Network response was not ok');
                                 }
-                                
+
                                 const originalBlob = await response.blob();
-                                
+
                                 // Force download by changing MIME type to octet-stream
                                 const blob = new Blob([originalBlob], { type: 'application/octet-stream' });
-                                
+
                                 // Create download link
                                 const url = window.URL.createObjectURL(blob);
                                 const link = document.createElement('a');
                                 link.href = url;
                                 link.download = filename;
                                 link.style.display = 'none';
-                                
+
                                 // Trigger download
                                 document.body.appendChild(link);
                                 link.click();
-                                
+
                                 // Clean up
                                 setTimeout(() => {
                                     document.body.removeChild(link);
@@ -643,10 +671,10 @@ const FormDataListPage = () => {
                                 link.target = '_blank';
                                 link.rel = 'noopener noreferrer';
                                 link.style.display = 'none';
-                                
+
                                 document.body.appendChild(link);
                                 link.click();
-                                
+
                                 setTimeout(() => {
                                     document.body.removeChild(link);
                                 }, 100);
@@ -767,7 +795,7 @@ const FormDataListPage = () => {
                     )}
                 </Box>
             </Modal>
-        </Box>
+        </Box >
     );
 };
 

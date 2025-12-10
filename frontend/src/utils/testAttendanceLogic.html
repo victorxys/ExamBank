@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>考勤逻辑测试</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .test-case {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 16px;
+            margin: 16px 0;
+            background: #f9f9f9;
+        }
+        .test-result {
+            margin: 8px 0;
+            padding: 8px;
+            border-radius: 4px;
+        }
+        .pass {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .fail {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .summary {
+            background: #e2e3e5;
+            border: 1px solid #d6d8db;
+            border-radius: 8px;
+            padding: 16px;
+            margin: 20px 0;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .code {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 4px;
+            padding: 12px;
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 14px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 考勤显示逻辑测试</h1>
+    
+    <div class="summary">
+        <h2>📋 测试说明</h2>
+        <p>本页面用于测试考勤显示逻辑的各种业务场景，验证实现是否符合需求文档中的规则：</p>
+        <ul>
+            <li><strong>24小时规则</strong>：跨天记录中，某天考勤时长等于24小时才显示考勤类型</li>
+            <li><strong>中午12点规则</strong>：12点前开始显示考勤类型，12点后开始当天显示出勤</li>
+            <li><strong>短期考勤特殊处理</strong>：不满24小时且12点后开始，第二天显示考勤类型</li>
+            <li><strong>规则优先级</strong>：中午12点规则优先于24小时规则</li>
+        </ul>
+    </div>
+
+    <div>
+        <button onclick="runAllTests()">🚀 运行所有测试</button>
+        <button onclick="clearResults()">🧹 清空结果</button>
+        <button onclick="showTestData()">📊 显示测试数据</button>
+    </div>
+
+    <div id="test-results"></div>
+
+    <div class="summary" id="test-summary" style="display: none;">
+        <h2>📊 测试总结</h2>
+        <div id="summary-content"></div>
+    </div>
+
+    <div class="test-case" id="test-data" style="display: none;">
+        <h3>📋 测试用例数据</h3>
+        <div class="code" id="test-data-content"></div>
+    </div>
+
+    <script type="module">
+        // 模拟 date-fns 的基本功能
+        const format = (date, formatStr) => {
+            const d = new Date(date);
+            if (formatStr === 'yyyy-MM-dd') {
+                return d.toISOString().split('T')[0];
+            }
+            return d.toISOString();
+        };
+
+        const isSameDay = (date1, date2) => {
+            const d1 = new Date(date1);
+            const d2 = new Date(date2);
+            return d1.getFullYear() === d2.getFullYear() &&
+                   d1.getMonth() === d2.getMonth() &&
+                   d1.getDate() === d2.getDate();
+        };
+
+        // 简化的考勤显示逻辑实现
+        class AttendanceDisplayLogic {
+            static getDisplayTypeForDate(targetDateStr, attendanceRecords) {
+                const targetDate = new Date(targetDateStr);
+                
+                for (const record of attendanceRecords) {
+                    if (this.isDateCoveredByRecord(targetDateStr, record)) {
+                        const shouldShowType = this.shouldShowAttendanceType(targetDateStr, record);
+                        
+                        if (shouldShowType) {
+                            return {
+                                type: record.type,
+                                record: record,
+                                typeLabel: this.getTypeLabel(record.type)
+                            };
+                        }
+                    }
+                }
+                
+                return {
+                    type: 'normal',
+                    record: null,
+                    typeLabel: '出勤'
+                };
+            }
+
+            static isDateCoveredByRecord(targetDateStr, record) {
+                const targetDate = new Date(targetDateStr);
+                const startDate = new Date(record.date);
+                const daysOffset = record.daysOffset || 0;
+                const endDate = new Date(startDate);
+                endDate.setDate(startDate.getDate() + daysOffset);
+                
+                const targetTime = targetDate.getTime();
+                const startTime = startDate.getTime();
+                const endTime = endDate.getTime();
+                
+                return targetTime >= startTime && targetTime <= endTime;
+            }
+
+            static shouldShowAttendanceType(targetDateStr, record) {
+                const targetDate = new Date(targetDateStr);
+                const startDate = new Date(record.date);
+                const daysOffset = record.daysOffset || 0;
+                
+                if (daysOffset === 0) {
+                    return true;
+                }
+                
+                const endDate = new Date(startDate);
+                endDate.setDate(startDate.getDate() + daysOffset);
+                
+                const isStartDay = isSameDay(targetDate, startDate);
+                const isEndDay = isSameDay(targetDate, endDate);
+                
+                if (isStartDay) {
+                    return this.applyNoonRule(record);
+                } else if (isEndDay) {
+                    return this.applyEndDayRule(record);
+                } else {
+                    return true;
+                }
+            }
+
+            static applyNoonRule(record) {
+                const startTime = record.startTime || '09:00';
+                const [startHour, startMinute] = startTime.split(':').map(Number);
+                const startTimeInMinutes = startHour * 60 + startMinute;
+                const noonInMinutes = 12 * 60;
+                
+                return startTimeInMinutes < noonInMinutes;
+            }
+
+            static applyEndDayRule(record) {
+                const totalHours = (record.hours || 0) + (record.minutes || 0) / 60;
+                const endTime = record.endTime || '18:00';
+                const [endHour, endMinute] = endTime.split(':').map(Number);
+                
+                if (totalHours < 24) {
+                    const startTime = record.startTime || '09:00';
+                    const [startHour, startMinute] = startTime.split(':').map(Number);
+                    const startTimeInMinutes = startHour * 60 + startMinute;
+                    const noonInMinutes = 12 * 60;
+                    
+                    if (startTimeInMinutes >= noonInMinutes) {
+                        return true;
+                    }
+                    
+                    const hoursOnEndDay = endHour + endMinute / 60;
+                    return hoursOnEndDay >= 24;
+                }
+                
+                const hoursOnEndDay = endHour + endMinute / 60;
+                return hoursOnEndDay >= 24;
+            }
+
+            static getTypeLabel(type) {
+                const typeLabels = {
+                    'normal': '出勤',
+                    'rest': '休息',
+                    'leave': '请假',
+                    'overtime': '加班',
+                    'out_of_beijing': '出京',
+                    'out_of_country': '出境',
+                    'paid_leave': '带薪休假',
+                    'onboarding': '上户',
+                    'offboarding': '下户'
+                };
+                
+                return typeLabels[type] || '出勤';
+            }
+        }
+
+        // 测试用例
+        const testCases = [
+            {
+                name: '场景1：请假1天，从3号9点到4号9点',
+                record: {
+                    date: '2024-03-03',
+                    type: 'leave',
+                    startTime: '09:00',
+                    endTime: '09:00',
+                    daysOffset: 1,
+                    hours: 24,
+                    minutes: 0
+                },
+                expectations: [
+                    { date: '2024-03-03', expectedType: 'leave', reason: '9点开始，12点前，应显示请假' },
+                    { date: '2024-03-04', expectedType: 'normal', reason: '只有9小时，不满24小时，应显示出勤' }
+                ]
+            },
+            {
+                name: '场景2：请假3天，从3号9点到6号9点',
+                record: {
+                    date: '2024-03-03',
+                    type: 'leave',
+                    startTime: '09:00',
+                    endTime: '09:00',
+                    daysOffset: 3,
+                    hours: 72,
+                    minutes: 0
+                },
+                expectations: [
+                    { date: '2024-03-03', expectedType: 'leave', reason: '开始日，9点开始，12点前' },
+                    { date: '2024-03-04', expectedType: 'leave', reason: '中间日，整天24小时' },
+                    { date: '2024-03-05', expectedType: 'leave', reason: '中间日，整天24小时' },
+                    { date: '2024-03-06', expectedType: 'normal', reason: '结束日，只有9小时，不满24小时' }
+                ]
+            },
+            {
+                name: '场景3：当天中午12点前开始的休假',
+                record: {
+                    date: '2024-03-03',
+                    type: 'rest',
+                    startTime: '11:00',
+                    endTime: '18:00',
+                    daysOffset: 1,
+                    hours: 31,
+                    minutes: 0
+                },
+                expectations: [
+                    { date: '2024-03-03', expectedType: 'rest', reason: '11点开始，12点前，应显示休假' }
+                ]
+            },
+            {
+                name: '场景4：当天中午12点后开始的休假',
+                record: {
+                    date: '2024-03-03',
+                    type: 'rest',
+                    startTime: '13:00',
+                    endTime: '18:00',
+                    daysOffset: 1,
+                    hours: 29,
+                    minutes: 0
+                },
+                expectations: [
+                    { date: '2024-03-03', expectedType: 'normal', reason: '13点开始，12点后，当天应显示出勤' },
+                    { date: '2024-03-04', expectedType: 'rest', reason: '第二天应显示休假' }
+                ]
+            },
+            {
+                name: '场景5：整个假期不满24小时，首日晚于中午12点开始',
+                record: {
+                    date: '2024-03-03',
+                    type: 'leave',
+                    startTime: '14:00',
+                    endTime: '10:00',
+                    daysOffset: 1,
+                    hours: 20,
+                    minutes: 0
+                },
+                expectations: [
+                    { date: '2024-03-03', expectedType: 'normal', reason: '14点开始，12点后，首日应显示出勤' },
+                    { date: '2024-03-04', expectedType: 'leave', reason: '短期考勤特殊处理，第二天应显示请假' }
+                ]
+            },
+            {
+                name: '场景6：中午12点整点边界测试',
+                record: {
+                    date: '2024-03-03',
+                    type: 'leave',
+                    startTime: '12:00',
+                    endTime: '18:00',
+                    daysOffset: 1,
+                    hours: 30,
+                    minutes: 0
+                },
+                expectations: [
+                    { date: '2024-03-03', expectedType: 'normal', reason: '12点整点按12点后处理，应显示出勤' },
+                    { date: '2024-03-04', expectedType: 'leave', reason: '第二天应显示请假' }
+                ]
+            }
+        ];
+
+        // 全局变量
+        window.testCases = testCases;
+        window.AttendanceDisplayLogic = AttendanceDisplayLogic;
+
+        // 运行所有测试
+        window.runAllTests = function() {
+            const resultsDiv = document.getElementById('test-results');
+            const summaryDiv = document.getElementById('test-summary');
+            const summaryContent = document.getElementById('summary-content');
+            
+            resultsDiv.innerHTML = '';
+            
+            let totalTests = 0;
+            let passedTests = 0;
+            let failedTests = [];
+
+            testCases.forEach((testCase, index) => {
+                const testDiv = document.createElement('div');
+                testDiv.className = 'test-case';
+                testDiv.innerHTML = `<h3>📋 测试 ${index + 1}: ${testCase.name}</h3>`;
+                
+                const recordInfo = document.createElement('div');
+                recordInfo.innerHTML = `<strong>记录:</strong> ${testCase.record.date} ${testCase.record.startTime}-${testCase.record.endTime} (${testCase.record.daysOffset}天) ${testCase.record.type}`;
+                testDiv.appendChild(recordInfo);
+                
+                testCase.expectations.forEach((expectation) => {
+                    totalTests++;
+                    
+                    try {
+                        const result = AttendanceDisplayLogic.getDisplayTypeForDate(expectation.date, [testCase.record]);
+                        const passed = result.type === expectation.expectedType;
+                        
+                        const resultDiv = document.createElement('div');
+                        resultDiv.className = `test-result ${passed ? 'pass' : 'fail'}`;
+                        
+                        if (passed) {
+                            passedTests++;
+                            resultDiv.innerHTML = `✅ ${expectation.date}: ${result.type} (${result.typeLabel}) - ${expectation.reason}`;
+                        } else {
+                            failedTests.push({
+                                testCase: testCase.name,
+                                date: expectation.date,
+                                expected: expectation.expectedType,
+                                actual: result.type,
+                                reason: expectation.reason
+                            });
+                            resultDiv.innerHTML = `❌ ${expectation.date}: 期望 ${expectation.expectedType}, 实际 ${result.type} - ${expectation.reason}`;
+                        }
+                        
+                        testDiv.appendChild(resultDiv);
+                    } catch (error) {
+                        totalTests++;
+                        failedTests.push({
+                            testCase: testCase.name,
+                            date: expectation.date,
+                            expected: expectation.expectedType,
+                            actual: 'ERROR',
+                            reason: expectation.reason,
+                            error: error.message
+                        });
+                        
+                        const resultDiv = document.createElement('div');
+                        resultDiv.className = 'test-result fail';
+                        resultDiv.innerHTML = `💥 ${expectation.date}: 执行错误 - ${error.message}`;
+                        testDiv.appendChild(resultDiv);
+                    }
+                });
+                
+                resultsDiv.appendChild(testDiv);
+            });
+
+            // 显示总结
+            const successRate = ((passedTests / totalTests) * 100).toFixed(1);
+            summaryContent.innerHTML = `
+                <div><strong>总测试数:</strong> ${totalTests}</div>
+                <div><strong>通过:</strong> ${passedTests}</div>
+                <div><strong>失败:</strong> ${failedTests.length}</div>
+                <div><strong>成功率:</strong> ${successRate}%</div>
+                ${failedTests.length > 0 ? `
+                    <h4>❌ 失败的测试:</h4>
+                    <ul>
+                        ${failedTests.map((failure, index) => `
+                            <li>${failure.testCase} - ${failure.date}: 期望 ${failure.expected}, 实际 ${failure.actual}</li>
+                        `).join('')}
+                    </ul>
+                ` : '<div style="color: green; font-weight: bold;">🎉 所有测试都通过了！</div>'}
+            `;
+            
+            summaryDiv.style.display = 'block';
+        };
+
+        // 清空结果
+        window.clearResults = function() {
+            document.getElementById('test-results').innerHTML = '';
+            document.getElementById('test-summary').style.display = 'none';
+            document.getElementById('test-data').style.display = 'none';
+        };
+
+        // 显示测试数据
+        window.showTestData = function() {
+            const testDataDiv = document.getElementById('test-data');
+            const testDataContent = document.getElementById('test-data-content');
+            
+            testDataContent.textContent = JSON.stringify(testCases, null, 2);
+            testDataDiv.style.display = 'block';
+        };
+    </script>
+</body>
+</html>

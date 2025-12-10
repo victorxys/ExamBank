@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test First Display Day Logic</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-case { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .pass { background-color: #d4edda; border-color: #c3e6cb; }
+        .fail { background-color: #f8d7da; border-color: #f5c6cb; }
+        .test-title { font-weight: bold; margin-bottom: 10px; }
+        .test-result { margin-top: 10px; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 3px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>First Display Day Logic Test</h1>
+    <div id="test-results"></div>
+
+    <script type="module">
+        // Mock date-fns functions
+        const format = (date, formatStr) => {
+            if (typeof date === 'string') date = new Date(date);
+            if (formatStr === 'yyyy-MM-dd') {
+                return date.toISOString().split('T')[0];
+            }
+            return date.toISOString();
+        };
+
+        const isSameDay = (date1, date2) => {
+            if (typeof date1 === 'string') date1 = new Date(date1);
+            if (typeof date2 === 'string') date2 = new Date(date2);
+            return date1.toDateString() === date2.toDateString();
+        };
+
+        // Simplified AttendanceDisplayLogic for testing
+        class AttendanceDisplayLogic {
+            static shouldShowAttendanceType(targetDateStr, record) {
+                const targetDate = new Date(targetDateStr);
+                const startDate = new Date(record.date);
+                const daysOffset = record.daysOffset || 0;
+                
+                if (daysOffset === 0) return true;
+                
+                const endDate = new Date(startDate);
+                endDate.setDate(startDate.getDate() + daysOffset);
+                
+                const isStartDay = isSameDay(targetDate, startDate);
+                const isEndDay = isSameDay(targetDate, endDate);
+                
+                if (isStartDay) {
+                    // 出京、出境类型总是显示
+                    if (record.type === 'out_of_beijing' || record.type === 'out_of_country') {
+                        return true;
+                    }
+                    // 其他类型应用中午12点规则
+                    const startTime = record.startTime || '09:00';
+                    const [startHour, startMinute] = startTime.split(':').map(Number);
+                    const startTimeInMinutes = startHour * 60 + startMinute;
+                    const noonInMinutes = 12 * 60;
+                    return startTimeInMinutes < noonInMinutes;
+                } else if (isEndDay) {
+                    // 出京、出境类型总是显示
+                    if (record.type === 'out_of_beijing' || record.type === 'out_of_country') {
+                        return true;
+                    }
+                    // 其他类型应用24小时规则和短期考勤特殊处理
+                    const startTime = record.startTime || '09:00';
+                    const [startHour, startMinute] = startTime.split(':').map(Number);
+                    const startTimeInMinutes = startHour * 60 + startMinute;
+                    const noonInMinutes = 12 * 60;
+                    const isAfterNoon = startTimeInMinutes >= noonInMinutes;
+                    
+                    if (isAfterNoon) {
+                        return true;
+                    }
+                    
+                    const totalHours = (record.hours || 0) + (record.minutes || 0) / 60;
+                    if (totalHours < 24) {
+                        const endTime = record.endTime || '18:00';
+                        const [endHour, endMinute] = endTime.split(':').map(Number);
+                        const hoursOnEndDay = endHour + endMinute / 60;
+                        return hoursOnEndDay >= 24;
+                    } else {
+                        const endTime = record.endTime || '18:00';
+                        const [endHour, endMinute] = endTime.split(':').map(Number);
+                        const hoursOnEndDay = endHour + endMinute / 60;
+                        return hoursOnEndDay >= 24;
+                    }
+                } else {
+                    // 中间日逻辑
+                    const startTime = record.startTime || '09:00';
+                    const [startHour, startMinute] = startTime.split(':').map(Number);
+                    const startTimeInMinutes = startHour * 60 + startMinute;
+                    const noonInMinutes = 12 * 60;
+                    
+                    if (startTimeInMinutes >= noonInMinutes) {
+                        const startDate = new Date(record.date);
+                        const targetDate = new Date(targetDateStr);
+                        const daysDiff = Math.floor((targetDate - startDate) / (1000 * 60 * 60 * 24));
+                        
+                        if (daysDiff === 1) {
+                            return true;
+                        }
+                        
+                        const daysOffset = record.daysOffset || 0;
+                        if (daysDiff <= daysOffset) {
+                            return true;
+                        }
+                        
+                        return false;
+                    }
+                    
+                    return true;
+                }
+            }
+
+            static isFirstDisplayDay(targetDateStr, record, allRecords) {
+                const targetDate = new Date(targetDateStr);
+                const startDate = new Date(record.date);
+                const daysOffset = record.daysOffset || 0;
+                
+                console.log(`🔍 [DEBUG] isFirstDisplayDay - 目标日期: ${targetDateStr}, 记录开始: ${record.date}, 跨天: ${daysOffset}`);
+                
+                // 单天记录：开始日就是第一个显示日
+                if (daysOffset === 0) {
+                    const isStartDay = isSameDay(targetDate, startDate);
+                    console.log(`📅 [DEBUG] 单天记录，是开始日: ${isStartDay}`);
+                    return isStartDay;
+                }
+                
+                // 跨天记录：找到第一个应该显示考勤类型的日期
+                const endDate = new Date(startDate);
+                endDate.setDate(startDate.getDate() + daysOffset);
+                
+                // 遍历记录覆盖的所有日期，找到第一个应该显示考勤类型的日期
+                let currentDate = new Date(startDate);
+                while (currentDate <= endDate) {
+                    const currentDateStr = format(currentDate, 'yyyy-MM-dd');
+                    const shouldShow = this.shouldShowAttendanceType(currentDateStr, record);
+                    
+                    console.log(`📊 [DEBUG] 检查日期 ${currentDateStr}: 应该显示 = ${shouldShow}`);
+                    
+                    if (shouldShow) {
+                        // 找到第一个应该显示的日期
+                        const isFirstDay = isSameDay(targetDate, currentDate);
+                        console.log(`🎯 [DEBUG] 第一个显示日期: ${currentDateStr}, 目标是第一个: ${isFirstDay}`);
+                        return isFirstDay;
+                    }
+                    
+                    currentDate.setDate(currentDate.getDate() + 1);
+                }
+                
+                // 如果没有找到应该显示的日期，返回false
+                console.log(`❌ [DEBUG] 没有找到应该显示的日期`);
+                return false;
+            }
+        }
+
+        // Test cases
+        const testCases = [
+            {
+                name: '单天记录 - 开始日应该是第一显示日',
+                record: {
+                    date: '2024-03-03',
+                    type: 'leave',
+                    startTime: '09:00',
+                    endTime: '18:00',
+                    daysOffset: 0,
+                    hours: 9,
+                    minutes: 0
+                },
+                testDate: '2024-03-03',
+                expected: true
+            },
+            {
+                name: '跨天记录 - 12点前开始，开始日应该是第一显示日',
+                record: {
+                    date: '2024-03-03',
+                    type: 'rest',
+                    startTime: '11:00',
+                    endTime: '18:00',
+                    daysOffset: 1,
+                    hours: 31,
+                    minutes: 0
+                },
+                testDate: '2024-03-03',
+                expected: true
+            },
+            {
+                name: '跨天记录 - 12点前开始，结束日不应该是第一显示日',
+                record: {
+                    date: '2024-03-03',
+                    type: 'rest',
+                    startTime: '11:00',
+                    endTime: '18:00',
+                    daysOffset: 1,
+                    hours: 31,
+                    minutes: 0
+                },
+                testDate: '2024-03-04',
+                expected: false
+            },
+            {
+                name: '跨天记录 - 12点后开始，开始日不应该是第一显示日',
+                record: {
+                    date: '2024-03-03',
+                    type: 'rest',
+                    startTime: '13:00',
+                    endTime: '18:00',
+                    daysOffset: 1,
+                    hours: 29,
+                    minutes: 0
+                },
+                testDate: '2024-03-03',
+                expected: false
+            },
+            {
+                name: '跨天记录 - 12点后开始，结束日应该是第一显示日',
+                record: {
+                    date: '2024-03-03',
+                    type: 'rest',
+                    startTime: '13:00',
+                    endTime: '18:00',
+                    daysOffset: 1,
+                    hours: 29,
+                    minutes: 0
+                },
+                testDate: '2024-03-04',
+                expected: true
+            },
+            {
+                name: '出京类型 - 开始日应该总是第一显示日',
+                record: {
+                    date: '2024-03-03',
+                    type: 'out_of_beijing',
+                    startTime: '13:00',
+                    endTime: '18:00',
+                    daysOffset: 1,
+                    hours: 29,
+                    minutes: 0
+                },
+                testDate: '2024-03-03',
+                expected: true
+            },
+            {
+                name: '出京类型 - 结束日不应该是第一显示日',
+                record: {
+                    date: '2024-03-03',
+                    type: 'out_of_beijing',
+                    startTime: '13:00',
+                    endTime: '18:00',
+                    daysOffset: 1,
+                    hours: 29,
+                    minutes: 0
+                },
+                testDate: '2024-03-04',
+                expected: false
+            }
+        ];
+
+        // Run tests
+        const resultsDiv = document.getElementById('test-results');
+        let passCount = 0;
+        let totalCount = testCases.length;
+
+        testCases.forEach((testCase, index) => {
+            console.log(`\n🧪 运行测试 ${index + 1}: ${testCase.name}`);
+            
+            const result = AttendanceDisplayLogic.isFirstDisplayDay(
+                testCase.testDate, 
+                testCase.record, 
+                [testCase.record]
+            );
+            
+            const passed = result === testCase.expected;
+            if (passed) passCount++;
+            
+            const testDiv = document.createElement('div');
+            testDiv.className = `test-case ${passed ? 'pass' : 'fail'}`;
+            testDiv.innerHTML = `
+                <div class="test-title">${testCase.name}</div>
+                <div>测试日期: ${testCase.testDate}</div>
+                <div>记录: ${testCase.record.date} ${testCase.record.startTime}-${testCase.record.endTime} (${testCase.record.daysOffset}天) ${testCase.record.type}</div>
+                <div class="test-result">
+                    <strong>结果:</strong> ${result} | 
+                    <strong>期望:</strong> ${testCase.expected} | 
+                    <strong>状态:</strong> ${passed ? '✅ 通过' : '❌ 失败'}
+                </div>
+            `;
+            resultsDiv.appendChild(testDiv);
+        });
+
+        // Summary
+        const summaryDiv = document.createElement('div');
+        summaryDiv.className = 'test-case';
+        summaryDiv.style.backgroundColor = passCount === totalCount ? '#d4edda' : '#fff3cd';
+        summaryDiv.innerHTML = `
+            <div class="test-title">测试总结</div>
+            <div>通过: ${passCount}/${totalCount}</div>
+            <div>成功率: ${((passCount / totalCount) * 100).toFixed(1)}%</div>
+        `;
+        resultsDiv.appendChild(summaryDiv);
+    </script>
+</body>
+</html>

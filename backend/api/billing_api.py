@@ -3909,59 +3909,134 @@ def enable_auto_renewal(contract_id):
         return jsonify({"message": "该合同已处于自动续签状态，无需重复操作。"}), 200
 
     try:
-        # --- 新增逻辑：查找并冲抵可能存在的保证金退款 ---
+        # --- 关键修复：先设置为月签，再删除退款调整项 ---
+        # 这样重算账单时不会重新添加退款项
+        contract.is_monthly_auto_renew = True
+        db.session.flush()  # 确保这个更改对后续查询可见
+        current_app.logger.info(f"合同 {contract.id} 已被设置为自动续约（先设置，防止重算时重新添加退款项）。")
+
+        # --- 删除最后一个月账单中的退款相关调整项 ---
         last_bill = db.session.query(CustomerBill).filter(
             CustomerBill.contract_id == str(contract_id)
         ).order_by(CustomerBill.cycle_end_date.desc()).first()
 
         if last_bill:
-            # 【核心修正】直接查询与该账单关联的财务调整项
-            adjustments_for_bill = FinancialAdjustment.query.filter_by(customer_bill_id=last_bill.id).all()
-
-            # 查找保证金退款调整项
-            deposit_refund_adj = None
-            for adj in adjustments_for_bill:
-                if adj.adjustment_type == AdjustmentType.CUSTOMER_DECREASE and '保证金' in adj.description:
-                    deposit_refund_adj = adj
-                    break
-
+            current_app.logger.info(f"为合同 {contract.id} 查找最后一个账单: {last_bill.id}")
+            
+            # 收集需要删除的调整项
+            adjustments_to_delete = []
+            
+            # 1. 查找保证金退款调整项
+            deposit_refund_adj = FinancialAdjustment.query.filter(
+                FinancialAdjustment.customer_bill_id == last_bill.id,
+                FinancialAdjustment.adjustment_type == AdjustmentType.CUSTOMER_DECREASE,
+                FinancialAdjustment.description.like('%保证金%')
+            ).first()
+            
             if deposit_refund_adj:
-                current_app.logger.info(f"为合同 {contract.id} 找到了待冲抵的保证金退款项: {deposit_refund_adj.id}")
-                # 创建一个新的、相反的冲抵调整项
-                offsetting_adj = FinancialAdjustment(
-                    customer_bill_id=last_bill.id,
-                    adjustment_type=AdjustmentType.CUSTOMER_INCREASE,
-                    amount=deposit_refund_adj.amount,
-                    description="改为月签合同在合同终止时退还",
-                    date=last_bill.cycle_end_date.date()
-                )
-                db.session.add(offsetting_adj)
-                current_app.logger.info(f"已为账单 {last_bill.id} 添加保证金冲抵项。")
+                adjustments_to_delete.append(deposit_refund_adj)
+                current_app.logger.info(f"找到保证金退款调整项: {deposit_refund_adj.id}")
+            
+            # 2. 查找公司代付工资调整项
+            company_paid_salary_adj = FinancialAdjustment.query.filter(
+                FinancialAdjustment.customer_bill_id == last_bill.id,
+                FinancialAdjustment.adjustment_type == AdjustmentType.COMPANY_PAID_SALARY,
+                FinancialAdjustment.description == "[系统] 公司代付工资"
+            ).first()
+            
+            if company_paid_salary_adj:
+                adjustments_to_delete.append(company_paid_salary_adj)
+                current_app.logger.info(f"找到公司代付工资调整项: {company_paid_salary_adj.id}")
+                
+                # 3. 如果存在镜像调整项（保证金支付工资），也一并删除
+                if company_paid_salary_adj.mirrored_adjustment:
+                    adjustments_to_delete.append(company_paid_salary_adj.mirrored_adjustment)
+                    current_app.logger.info(f"找到镜像调整项（保证金支付工资）: {company_paid_salary_adj.mirrored_adjustment.id}")
+            
+            # 执行删除
+            if adjustments_to_delete:
+                for adj in adjustments_to_delete:
+                    current_app.logger.info(f"删除调整项: {adj.id} ({adj.description})")
+                    db.session.delete(adj)
+            
+            # --- 修复临界月的周期和补收管理费 ---
+            # 获取原合同结束日期和该月最后一天
+            contract_end_date = contract.end_date
+            if isinstance(contract_end_date, datetime):
+                contract_end_date = contract_end_date.date()
+            
+            # 计算该月的最后一天
+            _, last_day_num = calendar.monthrange(contract_end_date.year, contract_end_date.month)
+            last_day_of_month = date(contract_end_date.year, contract_end_date.month, last_day_num)
+            
+            # 1. 修复账单的 cycle_end_date（从原合同结束日改为月末）
+            if last_bill.cycle_end_date != last_day_of_month:
+                original_cycle_end = last_bill.cycle_end_date
+                last_bill.cycle_end_date = last_day_of_month
+                current_app.logger.info(f"修复临界月账单周期：{original_cycle_end} → {last_day_of_month}")
+            
+            # 2. 创建管理费调整项（抵消临界月已收部分）
+            # 如果原合同不是月底结束，需要调整管理费
+            if contract_end_date < last_day_of_month:
+                days_already_charged = contract_end_date.day  # 原合同已收的天数（如7月4日 → 4天）
+                max_charge_days = 30  # 月签合同每月最多收30天
+                
+                # 账单计算引擎会按整月（30天）收取管理费
+                # 我们需要减去原合同已收的部分（如4天）
+                # 最终客户应付：30天 - 4天 = 26天
+                
+                monthly_mgmt_fee = D(contract.management_fee_amount or 0)
+                if monthly_mgmt_fee > 0 and days_already_charged > 0:
+                    daily_rate = (monthly_mgmt_fee / D(30)).quantize(D("0.01"))
+                    adjustment_amount = (daily_rate * D(days_already_charged)).quantize(D("0.01"))
+                    
+                    if adjustment_amount > 0:
+                        # 创建减少管理费的调整项（抵消已收部分）
+                        description = f"[系统] 转月签管理费调整: 原合同已收{days_already_charged}天管理费，本月减免 {adjustment_amount:.2f}元"
+                        
+                        # 检查是否已存在相同的调整项（避免重复）
+                        existing_adj = FinancialAdjustment.query.filter(
+                            FinancialAdjustment.customer_bill_id == last_bill.id,
+                            FinancialAdjustment.description.like('%转月签管理费调整%')
+                        ).first()
+                        
+                        if not existing_adj:
+                            db.session.add(FinancialAdjustment(
+                                customer_bill_id=last_bill.id,
+                                adjustment_type=AdjustmentType.CUSTOMER_DECREASE,  # 减少客户应付
+                                amount=adjustment_amount,
+                                description=description,
+                                date=last_day_of_month
+                            ))
+                            # 计算实际补收天数用于日志
+                            actual_charge_days = max_charge_days - days_already_charged
+                            current_app.logger.info(
+                                f"创建转月签管理费调整项: 原合同已收{days_already_charged}天，"
+                                f"本月应收{max_charge_days}天，实际补收{actual_charge_days}天，"
+                                f"减免金额{adjustment_amount:.2f}元"
+                            )
+                        else:
+                            current_app.logger.info(f"转月签管理费调整项已存在，跳过创建")
+            
+            # 3. 重新计算最后一个月账单（此时 is_monthly_auto_renew = True，不会重新添加退款项）
+            current_app.logger.info(f"开始重算临界月账单 {last_bill.id}...")
+            recalc_engine = BillingEngine()
+            recalc_engine.calculate_for_month(
+                year=last_bill.year,
+                month=last_bill.month,
+                contract_id=last_bill.contract_id,
+                force_recalculate=True,
+                cycle_start_date_override=last_bill.cycle_start_date
+            )
+            current_app.logger.info(f"临界月账单 {last_bill.id} 已重算完成。")
+        # --- 逻辑结束 ---
 
-                # --- 新增：立即重算当期账单 ---
-                current_app.logger.info(f"冲抵调整已添加，正在为账单 {last_bill.id} 触发重算...")
-                recalc_engine = BillingEngine()
-                recalc_engine.calculate_for_month(
-                    year=last_bill.year,
-                    month=last_bill.month,
-                    contract_id=last_bill.contract_id,
-                    force_recalculate=True,
-                    cycle_start_date_override=last_bill.cycle_start_date
-                )
-                current_app.logger.info(f"账单 {last_bill.id} 已重算。")
-                # --- 新增结束 ---
-        # --- 新增逻辑结束 ---
-
-        # 1. 更新合同状态 (已有逻辑)
-        contract.is_monthly_auto_renew = True
-        current_app.logger.info(f"合同 {contract.id} 已被设置为自动续约。")
-
-        # 2. 调用引擎延展账单 (已有逻辑)
+        # 2. 调用引擎延展账单
         engine = BillingEngine()
         engine.extend_auto_renew_bills(contract.id)
         current_app.logger.info(f"已为合同 {contract.id} 触发账单自动延展。")
 
-        # 3. 提交事务 (已有逻辑)
+        # 3. 提交事务
         db.session.commit()
 
         return jsonify({"message": "合同已成功设置为自动续签，并已延展账单。"})

@@ -9,6 +9,9 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "../../utils";
 import SignatureCanvas from 'react-signature-canvas';
 import MobileTimePicker from './MobileTimePicker';
+import { AttendanceDisplayLogic } from '../../utils/attendanceDisplayLogic';
+import { AttendanceDateUtils } from '../../utils/attendanceDateUtils';
+import { debugSpecificCase } from '../../utils/debugAttendanceCase';
 
 // Helper function to format duration
 const formatDuration = (hours, minutes = 0) => {
@@ -401,6 +404,146 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
             const newUrl = window.location.pathname;
             window.history.replaceState({}, '', newUrl);
         }
+        
+        // 临时调试：在页面加载时运行调试
+        if (typeof window !== 'undefined') {
+            window.debugSpecificCase = debugSpecificCase;
+            
+            // 测试calculateActualWorkHours函数
+            window.testActualWorkHours = () => {
+                console.log('🧪 测试calculateActualWorkHours函数（24小时制）...');
+                
+                // 模拟11月6日13:00-18:00的休息记录（跨天到11月7日）
+                const testRecord = {
+                    date: '2025-11-06',
+                    startTime: '13:00',
+                    endTime: '18:00',
+                    daysOffset: 1,
+                    type: 'rest',
+                    hours: 29 // 总时长29小时
+                };
+                
+                const allRecords = [testRecord];
+                
+                // 测试11月6日的实际出勤时长
+                console.log('\n📅 测试11月6日:');
+                const actualHours6 = AttendanceDisplayLogic.calculateActualWorkHours('2025-11-06', allRecords);
+                console.log(`结果: ${actualHours6}小时`);
+                console.log(`预期: 13小时 (24小时 - 11小时休息时间)`);
+                console.log(`显示: 会显示"13h"，因为小于24小时`);
+                
+                // 测试11月7日的实际出勤时长
+                console.log('\n📅 测试11月7日:');
+                const actualHours7 = AttendanceDisplayLogic.calculateActualWorkHours('2025-11-07', allRecords);
+                console.log(`结果: ${actualHours7}小时`);
+                console.log(`预期: 6小时 (24小时 - 18小时休息时间)`);
+                console.log(`显示: 会显示"6h"，因为小于24小时`);
+                
+                // 测试整天出勤的情况
+                console.log('\n� 验测试整天出勤（11月8日）:');
+                const actualHours8 = AttendanceDisplayLogic.calculateActualWorkHours('2025-11-08', allRecords);
+                console.log(`结果: ${actualHours8}小时`);
+                console.log(`预期: 24小时 (无休息记录覆盖)`);
+                console.log(`显示: 不显示小时数，因为是整天24小时出勤`);
+                
+                // 验证calculateDailyHours的计算
+                console.log('\n🔍 验证calculateDailyHours:');
+                const dailyHours6 = AttendanceDisplayLogic.calculateDailyHours(testRecord, '2025-11-06');
+                const dailyHours7 = AttendanceDisplayLogic.calculateDailyHours(testRecord, '2025-11-07');
+                console.log(`11月6日休息时长: ${dailyHours6}小时 (13:00-24:00 = 11小时)`);
+                console.log(`11月7日休息时长: ${dailyHours7}小时 (00:00-18:00 = 18小时)`);
+            };
+            
+            // 测试不同考勤类型的显示逻辑
+            window.testAllAttendanceTypes = () => {
+                console.log('🧪 测试所有考勤类型的显示逻辑...');
+                
+                const testDate = '2025-11-06';
+                const testTypes = [
+                    { type: 'rest', label: '休息' },
+                    { type: 'leave', label: '请假' },
+                    { type: 'overtime', label: '加班' },
+                    { type: 'out_of_beijing', label: '出京' },
+                    { type: 'out_of_country', label: '出境' },
+                    { type: 'paid_leave', label: '带薪休假' },
+                    { type: 'onboarding', label: '上户' },
+                    { type: 'offboarding', label: '下户' }
+                ];
+                
+                testTypes.forEach(({ type, label }) => {
+                    console.log(`\n🔍 测试 ${label} (${type}):`);
+                    
+                    const testRecord = {
+                        date: testDate,
+                        startTime: '13:00',
+                        endTime: '18:00',
+                        daysOffset: 0,
+                        type: type,
+                        hours: 5
+                    };
+                    
+                    const allRecords = [testRecord];
+                    
+                    // 测试显示类型
+                    const displayResult = AttendanceDisplayLogic.getDisplayTypeForDate(testDate, allRecords);
+                    console.log(`  显示类型: ${displayResult.type} (${displayResult.typeLabel})`);
+                    
+                    // 测试实际出勤时长
+                    const actualHours = AttendanceDisplayLogic.calculateActualWorkHours(testDate, allRecords);
+                    console.log(`  实际出勤时长: ${actualHours}小时`);
+                    
+                    // 测试是否应该显示考勤类型
+                    const shouldShow = AttendanceDisplayLogic.shouldShowAttendanceType(testDate, testRecord);
+                    console.log(`  是否显示考勤类型: ${shouldShow}`);
+                });
+            };
+            
+            // 测试出京/出境的跨天逻辑
+            window.testCrossDayOutOfCity = () => {
+                console.log('🧪 测试出京/出境跨天逻辑...');
+                
+                // 测试13:00开始的跨天出京记录
+                const testRecord = {
+                    date: '2025-11-06',
+                    startTime: '13:00',
+                    endTime: '18:00',
+                    daysOffset: 1,
+                    type: 'out_of_beijing',
+                    hours: 29
+                };
+                
+                const allRecords = [testRecord];
+                
+                // 测试11月6日（开始日）
+                console.log('\n📅 测试11月6日（开始日）:');
+                const display6 = AttendanceDisplayLogic.getDisplayTypeForDate('2025-11-06', allRecords);
+                console.log(`  显示类型: ${display6.type} (${display6.typeLabel})`);
+                
+                const shouldShow6 = AttendanceDisplayLogic.shouldShowAttendanceType('2025-11-06', testRecord);
+                console.log(`  是否显示考勤类型: ${shouldShow6}`);
+                console.log(`  预期: true (出京开始日总是显示)`);
+                
+                const dailyHours6 = AttendanceDisplayLogic.calculateDailyHours(testRecord, '2025-11-06');
+                console.log(`  当天时长: ${dailyHours6}小时 (13:00-24:00 = 11小时)`);
+                
+                // 测试11月7日（结束日）
+                console.log('\n📅 测试11月7日（结束日）:');
+                const display7 = AttendanceDisplayLogic.getDisplayTypeForDate('2025-11-07', allRecords);
+                console.log(`  显示类型: ${display7.type} (${display7.typeLabel})`);
+                
+                const shouldShow7 = AttendanceDisplayLogic.shouldShowAttendanceType('2025-11-07', testRecord);
+                console.log(`  是否显示考勤类型: ${shouldShow7}`);
+                
+                const dailyHours7 = AttendanceDisplayLogic.calculateDailyHours(testRecord, '2025-11-07');
+                console.log(`  当天时长: ${dailyHours7}小时 (00:00-18:00 = 18小时)`);
+            };
+            
+            console.log('🚀 调试工具已加载！');
+            console.log('- 运行 debugSpecificCase() 来测试显示逻辑');
+            console.log('- 运行 testActualWorkHours() 来测试出勤时长计算');
+            console.log('- 运行 testAllAttendanceTypes() 来测试所有考勤类型');
+            console.log('- 运行 testCrossDayOutOfCity() 来测试出京/出境跨天逻辑');
+        }
     }, [token, location.search, selectedYear, selectedMonth]);
 
     // Resize observer for signature canvas
@@ -500,20 +643,103 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
 
     // Debug logs removed
 
-    const getDayRecord = (date) => {
-        const dateStr = format(date, 'yyyy-MM-dd');
-        for (const key of Object.keys(ATTENDANCE_TYPES)) {
-            const typeValue = ATTENDANCE_TYPES[key].value;
-            if (typeValue === 'normal') continue;
-
-            const records = attendanceData[`${typeValue}_records`] || [];
-            const record = records.find(r => r.date === dateStr);
-            if (record) {
-                return { ...record, type: typeValue, typeLabel: ATTENDANCE_TYPES[key].label, typeConfig: ATTENDANCE_TYPES[key] };
+    // 缓存考勤记录计算结果，避免重复计算
+    const attendanceCache = useMemo(() => new Map(), [attendanceData]);
+    
+    // 缓存考勤详情列表的计算结果
+    const allSpecialRecords = useMemo(() => {
+        // 收集所有非正常记录
+        const allRecords = [];
+        Object.keys(attendanceData).forEach(key => {
+            if (key.endsWith('_records') && Array.isArray(attendanceData[key])) {
+                attendanceData[key].forEach(record => {
+                    allRecords.push({
+                        ...record,
+                        type: record.type || key.replace('_records', ''),
+                        typeLabel: ATTENDANCE_TYPES[Object.keys(ATTENDANCE_TYPES).find(k => ATTENDANCE_TYPES[k].value === (record.type || key.replace('_records', '')))]?.label
+                    });
+                });
             }
+        });
+
+        // 使用新的去重逻辑处理记录
+        const deduplicatedRecords = AttendanceDisplayLogic.deduplicateRecords(allRecords);
+        
+        // 按日期排序
+        return deduplicatedRecords.sort((a, b) => new Date(a.date) - new Date(b.date));
+    }, [attendanceData]);
+    
+    const getDayRecord = useCallback((date) => {
+        const dateStr = format(date, 'yyyy-MM-dd');
+        
+        // 检查缓存
+        if (attendanceCache.has(dateStr)) {
+            return attendanceCache.get(dateStr);
         }
-        return { type: 'normal', typeLabel: '出勤', typeConfig: ATTENDANCE_TYPES.NORMAL, hours: 8, minutes: 0 };
-    };
+        
+        // 收集所有非正常考勤记录
+        const allRecords = [];
+        Object.keys(ATTENDANCE_TYPES).forEach(key => {
+            const typeValue = ATTENDANCE_TYPES[key].value;
+            if (typeValue === 'normal') return;
+            
+            const records = attendanceData[`${typeValue}_records`] || [];
+            records.forEach(record => {
+                allRecords.push({
+                    ...record,
+                    type: typeValue
+                });
+            });
+        });
+        
+        // 使用新的显示逻辑计算该日期应该显示的考勤类型
+        const displayResult = AttendanceDisplayLogic.getDisplayTypeForDate(dateStr, allRecords);
+        
+        console.log(`🔍 [DEBUG] getDayRecord - 日期: ${dateStr}, 显示类型: ${displayResult.type}, 记录:`, displayResult.record);
+        
+        let result;
+        if (displayResult.type !== 'normal' && displayResult.record) {
+            // 计算该日期的实际工作时长
+            const dailyHours = AttendanceDisplayLogic.calculateDailyHours(displayResult.record, dateStr);
+            
+            // 判断是否为该记录第一个显示考勤类型的日期
+            const isFirstDisplayDay = AttendanceDisplayLogic.isFirstDisplayDay(dateStr, displayResult.record, allRecords);
+            const totalHours = isFirstDisplayDay ? ((displayResult.record.hours || 0) + (displayResult.record.minutes || 0) / 60) : 0;
+            
+            console.log(`📊 [DEBUG] 非正常考勤 - 日期: ${dateStr}, 类型: ${displayResult.type}, 是第一显示日: ${isFirstDisplayDay}, 显示时长: ${totalHours}h`);
+            
+            result = {
+                ...displayResult.record,
+                type: displayResult.type,
+                typeLabel: displayResult.typeLabel,
+                typeConfig: ATTENDANCE_TYPES[Object.keys(ATTENDANCE_TYPES).find(k => ATTENDANCE_TYPES[k].value === displayResult.type)],
+                hours: Math.floor(totalHours),
+                minutes: Math.round((totalHours % 1) * 60),
+                isFirstDisplayDay: isFirstDisplayDay // 标记是否为第一个显示日
+            };
+        } else {
+            // 显示为"出勤"的情况，检查是否有部分非出勤时间需要扣除
+            const actualWorkHours = AttendanceDisplayLogic.calculateActualWorkHours(dateStr, allRecords);
+            
+            // 如果实际出勤时长不等于标准24小时，说明有部分时间被其他记录占用
+            const hasPartialNonWork = actualWorkHours !== 24;
+            
+            console.log(`📊 [DEBUG] 出勤类型 - 日期: ${dateStr}, 实际出勤: ${actualWorkHours}h, 有部分非出勤: ${hasPartialNonWork}`);
+            
+            result = { 
+                type: 'normal', 
+                typeLabel: '出勤', 
+                typeConfig: ATTENDANCE_TYPES.NORMAL, 
+                hours: Math.floor(actualWorkHours), 
+                minutes: Math.round((actualWorkHours % 1) * 60),
+                hasPartialNonWork: hasPartialNonWork // 标记是否有部分非出勤时间
+            };
+        }
+        
+        // 缓存结果
+        attendanceCache.set(dateStr, result);
+        return result;
+    }, [attendanceData, attendanceCache]);
 
     const openEditModal = (date) => {
         // 客户模式下禁止编辑
@@ -579,71 +805,108 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
         setIsReadOnly(false);
         setCoveringRecord(null);
 
-        const record = getDayRecord(date);
-        // Logic to restore from stored duration
-        let daysOffset = 0;
-        let startTime = '09:00';
-        let endTime = '18:00';
-
-        if (record.type !== 'normal') {
-            const totalMinutes = (record.hours || 0) * 60 + (record.minutes || 0);
-            if (totalMinutes > 0) {
-                // Calculate days offset and end time
-                const startDateTime = setMinutes(setHours(date, 9), 0);
-                const endDateTime = new Date(startDateTime.getTime() + totalMinutes * 60000);
-
-                // Calculate days difference
-                const daysDiff = Math.floor((endDateTime - startDateTime) / (1000 * 60 * 60 * 24));
-                daysOffset = daysDiff;
-
-                startTime = '09:00';
-                endTime = format(endDateTime, 'HH:mm');
+        // 查找该日期对应的原始考勤记录
+        let originalRecord = null;
+        Object.keys(attendanceData).forEach(key => {
+            if (key.endsWith('_records') && Array.isArray(attendanceData[key])) {
+                attendanceData[key].forEach(r => {
+                    if (r.date === dateStr) {
+                        originalRecord = r;
+                    }
+                });
             }
-        }
-
-        setTempRecord({
-            type: record.type,
-            daysOffset: daysOffset,
-            startTime: startTime,
-            endTime: endTime
         });
+
+        // 如果找到原始记录，使用原始记录的数据
+        if (originalRecord) {
+            setTempRecord({
+                type: originalRecord.type,
+                daysOffset: originalRecord.daysOffset || 0,
+                startTime: originalRecord.startTime || '09:00',
+                endTime: originalRecord.endTime || '18:00'
+            });
+        } else {
+            // 没有找到原始记录，使用默认值
+            setTempRecord({
+                type: 'normal',
+                daysOffset: 0,
+                startTime: '09:00',
+                endTime: '18:00'
+            });
+        }
+        
         setIsModalOpen(true);
     };
 
-    // Calculate duration based on days offset and time
+    // Calculate duration based on days offset and time using new utility functions
     const calculatedDuration = useMemo(() => {
         if (!editingDate || !tempRecord.startTime || !tempRecord.endTime) {
             return { days: 0, hours: 0, minutes: 0, totalHours: 0 };
         }
 
-        const [startH, startM] = tempRecord.startTime.split(':').map(Number);
-        const [endH, endM] = tempRecord.endTime.split(':').map(Number);
+        // 如果是只读模式（跨天记录的结束日），计算当天的小时数
+        if (isReadOnly && coveringRecord) {
+            // 使用calculateDailyHours计算该日期在整个记录中占用的时间
+            const dateStr = format(editingDate, 'yyyy-MM-dd');
+            const dailyHours = AttendanceDisplayLogic.calculateDailyHours(coveringRecord, dateStr);
+            
+            return {
+                days: Math.floor(dailyHours / 24),
+                hours: Math.floor(dailyHours % 24),
+                minutes: Math.round((dailyHours % 1) * 60),
+                totalHours: dailyHours
+            };
+        }
 
-        // Start date is always editingDate
-        const startDateTime = setMinutes(setHours(editingDate, startH), startM);
-        // End date is editingDate + daysOffset
-        const endDate = addDays(editingDate, tempRecord.daysOffset || 0);
-        const endDateTime = setMinutes(setHours(endDate, endH), endM);
+        // 构造临时记录对象
+        const tempRecordForCalculation = {
+            date: format(editingDate, 'yyyy-MM-dd'),
+            startTime: tempRecord.startTime,
+            endTime: tempRecord.endTime,
+            daysOffset: tempRecord.daysOffset || 0
+        };
 
-        // Calculate total minutes difference
-        const totalMinutes = Math.floor((endDateTime - startDateTime) / (1000 * 60));
-
-        if (totalMinutes < 0) {
+        // 使用新的工具函数计算时长
+        const duration = AttendanceDateUtils.CrossDayDurationCalculator.calculateTotalDuration(tempRecordForCalculation);
+        
+        // 验证记录有效性
+        const validation = AttendanceDateUtils.TimeRangeValidator.validateAttendanceTimeRange(tempRecordForCalculation);
+        
+        if (!validation.isValid) {
+            console.warn('Invalid attendance record:', validation.errors);
             return { days: 0, hours: 0, minutes: 0, totalHours: 0 };
         }
 
-        const days = Math.floor(totalMinutes / (24 * 60));
-        const remainingMinutes = totalMinutes % (24 * 60);
-        const hours = Math.floor(remainingMinutes / 60);
-        const minutes = remainingMinutes % 60;
-        const totalHours = Math.floor(totalMinutes / 60);
-
-        return { days, hours, minutes, totalHours };
-    }, [editingDate, tempRecord.daysOffset, tempRecord.startTime, tempRecord.endTime]);
+        return {
+            days: duration.days,
+            hours: duration.totalHours - Math.floor(duration.totalHours / 24) * 24,
+            minutes: duration.totalMinutes,
+            totalHours: duration.totalHours
+        };
+    }, [editingDate, tempRecord.daysOffset, tempRecord.startTime, tempRecord.endTime, isReadOnly, coveringRecord]);
 
     const handleSaveRecord = () => {
         if (!editingDate) return;
         const dateStr = format(editingDate, 'yyyy-MM-dd');
+
+        // 验证记录有效性
+        const recordToSave = {
+            date: dateStr,
+            startTime: tempRecord.startTime || '09:00',
+            endTime: tempRecord.endTime || '18:00',
+            daysOffset: tempRecord.daysOffset || 0,
+            type: tempRecord.type
+        };
+
+        const validation = AttendanceDateUtils.TimeRangeValidator.validateAttendanceTimeRange(recordToSave);
+        if (!validation.isValid) {
+            toast({
+                title: "数据验证失败",
+                description: validation.errors.join(', '),
+                variant: "destructive"
+            });
+            return;
+        }
 
         setAttendanceData(prev => {
             const newData = { ...prev };
@@ -802,12 +1065,13 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
     if (!formData) return <div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="text-center"><AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" /><h2 className="text-xl font-bold">无法加载考勤表</h2></div></div>;
 
     // Stats - Calculate total days for each category (with 3 decimal places)
-    let totalWorkDays = 0; // 出勤天数（包括正常、出京、出境，不包括加班）
-    let totalLeaveDays = 0; // 请假或休假天数（休息、请假、带薪休假）
+    let totalWorkDays = 0; // 出勤天数（包括正常、出京、出境、带薪休假，不包括加班）
+    let totalLeaveDays = 0; // 请假或休假天数（休息、请假，不含带薪休假）
     let totalOvertimeDays = 0; // 加班天数（单独统计）
 
-    // Calculate leave days (rest, leave, paid_leave)
-    ['rest_records', 'leave_records', 'paid_leave_records'].forEach(key => {
+    // Calculate leave days (rest, leave) - 【修复】不包含带薪休假
+    // 根据需求文档：出勤天数(含带薪休假、出京、出境) = 当月总天数 - 请假天数 - 休息天数
+    ['rest_records', 'leave_records'].forEach(key => {
         if (Array.isArray(attendanceData[key])) {
             attendanceData[key].forEach(record => {
                 const hours = (record.hours || 0) + (record.minutes || 0) / 60;
@@ -824,9 +1088,12 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
         });
     }
 
-    // Work days = valid days - leave days - overtime days (加班不计入出勤)
+    // Work days (基本劳务天数) = valid days - leave days
+    // 【重要】加班不应该从出勤天数中扣除，加班是额外的，单独计算
+    // 带薪休假、出京、出境都算作出勤天数，不需要扣除
+    // 公式：出勤天数 = 当月总天数 - 休息天数 - 请假天数
     const validDaysCount = monthDays.filter(day => !isDateDisabled(day)).length;
-    totalWorkDays = validDaysCount - totalLeaveDays - totalOvertimeDays;
+    totalWorkDays = validDaysCount - totalLeaveDays;  // 不减去加班天数！
 
     return (
         <div className="min-h-screen bg-slate-50 pb-48 font-sans">
@@ -984,42 +1251,8 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                         })()}
 
                         {monthDays.map((date, index) => {
-                            // 计算每一天的实际状态（处理跨天）
-                            const dateStr = format(date, 'yyyy-MM-dd');
-                            let effectiveRecord = { type: 'normal' };
-
-                            // 遍历所有非正常记录，查找覆盖当天的记录
-                            Object.keys(attendanceData).forEach(key => {
-                                if (key.endsWith('_records') && Array.isArray(attendanceData[key])) {
-                                    attendanceData[key].forEach(record => {
-                                        // Fallback for daysOffset
-                                        let daysOffset = record.daysOffset || 0;
-                                        if (daysOffset === 0 && (record.hours || 0) >= 24) {
-                                            daysOffset = Math.floor(record.hours / 24);
-                                        }
-
-                                        const startDate = new Date(record.date);
-                                        const endDate = new Date(startDate);
-                                        endDate.setDate(startDate.getDate() + daysOffset);
-
-                                        // 检查当前日期是否在记录范围内（包括开始和结束日期）
-                                        // 注意：比较日期时要忽略时间
-                                        const current = new Date(dateStr);
-                                        const start = new Date(format(startDate, 'yyyy-MM-dd'));
-                                        const end = new Date(format(endDate, 'yyyy-MM-dd'));
-
-                                        if (current >= start && current <= end) {
-                                            effectiveRecord = {
-                                                ...record,
-                                                daysOffset: daysOffset, // Ensure effective record has the calculated offset
-                                                typeLabel: ATTENDANCE_TYPES[Object.keys(ATTENDANCE_TYPES).find(k => ATTENDANCE_TYPES[k].value === record.type)]?.label
-                                            };
-                                        }
-                                    });
-                                }
-                            });
-
-                            const record = effectiveRecord;
+                            // 使用新的显示逻辑计算每一天的实际状态
+                            const record = getDayRecord(date);
                             const isWeekend = date.getDay() === 0 || date.getDay() === 6;
                             const isToday = format(date, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
 
@@ -1081,44 +1314,41 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                         </span>
                                     )}
 
-                                    {/* Duration (if not normal) */}
-                                    {!isDisabled && record.type !== 'normal' && (
+                                    {/* Duration (only show if not full 24h attendance) */}
+                                    {!isDisabled && (() => {
+                                        // 对于上户/下户，总是显示时间
+                                        if (['onboarding', 'offboarding'].includes(record.type)) {
+                                            return true;
+                                        }
+                                        
+                                        // 对于非正常考勤类型，只有第一个显示日才显示总时长
+                                        if (record.type !== 'normal') {
+                                            return record.isFirstDisplayDay && (record.hours > 0 || record.minutes > 0);
+                                        }
+                                        
+                                        // 对于出勤类型，只有当小时数小于24时才显示
+                                        if (record.type === 'normal' && record.hasPartialNonWork) {
+                                            const displayHours = record.hours || 0;
+                                            return displayHours < 24;
+                                        }
+                                        
+                                        return false;
+                                    })() && (
                                         <span className="text-[10px] text-gray-500 scale-90">
                                             {(() => {
                                                 if (['onboarding', 'offboarding'].includes(record.type)) {
                                                     return record.startTime;
                                                 }
 
-                                                // Calculate daily hours for multi-day records
-                                                let displayHours = parseFloat(record.hours || 0);
-                                                const startDate = new Date(record.date);
-
-                                                // Check if it's a multi-day record
-                                                if ((record.daysOffset || 0) > 0) {
-                                                    const endDate = new Date(startDate);
-                                                    endDate.setDate(startDate.getDate() + record.daysOffset);
-
-                                                    const currentStr = format(date, 'yyyy-MM-dd');
-                                                    const startStr = format(startDate, 'yyyy-MM-dd');
-                                                    const endStr = format(endDate, 'yyyy-MM-dd');
-
-                                                    if (currentStr === startStr) {
-                                                        // Start day: 24 - start time
-                                                        const [hours, minutes] = (record.startTime || '09:00').split(':').map(Number);
-                                                        const startH = hours + minutes / 60;
-                                                        displayHours = 24 - startH;
-                                                    } else if (currentStr === endStr) {
-                                                        // End day: end time
-                                                        const [hours, minutes] = (record.endTime || '18:00').split(':').map(Number);
-                                                        displayHours = hours + minutes / 60;
-                                                    } else {
-                                                        // Middle days
-                                                        displayHours = 24;
-                                                    }
+                                                // 对于非正常考勤类型，显示总时长（天数格式）
+                                                if (record.type !== 'normal') {
+                                                    const totalHours = (record.hours || 0) + (record.minutes || 0) / 60;
+                                                    const days = (totalHours / 24).toFixed(3);
+                                                    return `${days}天`;
                                                 }
 
-                                                // Format output
-                                                if (displayHours >= 24) return '24h';
+                                                // 对于出勤类型，显示实际工作时长
+                                                const displayHours = record.hours || 0;
                                                 return Number.isInteger(displayHours) ? `${displayHours}h` : `${displayHours.toFixed(1)}h`;
                                             })()}
                                         </span>
@@ -1135,27 +1365,8 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                 </div>
 
                 {/* 详情列表 - 显示所有非正常出勤记录 */}
-                {(() => {
-                    // 收集所有非正常记录并按日期排序
-                    const allSpecialRecords = [];
-                    Object.keys(attendanceData).forEach(key => {
-                        if (key.endsWith('_records') && Array.isArray(attendanceData[key])) {
-                            attendanceData[key].forEach(record => {
-                                allSpecialRecords.push({
-                                    ...record,
-                                    typeLabel: ATTENDANCE_TYPES[Object.keys(ATTENDANCE_TYPES).find(k => ATTENDANCE_TYPES[k].value === record.type)]?.label
-                                });
-                            });
-                        }
-                    });
-
-                    // 按日期排序
-                    allSpecialRecords.sort((a, b) => new Date(a.date) - new Date(b.date));
-
-                    if (allSpecialRecords.length === 0) return null;
-
-                    return (
-                        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+                {allSpecialRecords.length > 0 && (
+                    <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
                             <h3 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
                                 <Clock className="w-4 h-4" />
                                 考勤详情
@@ -1236,9 +1447,8 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                     );
                                 })}
                             </div>
-                        </div>
-                    );
-                })()}
+                    </div>
+                )}
             </div>
 
             {/* 客户签名展示 (仅在 Admin View 或已签署状态下显示) */}
@@ -1539,6 +1749,25 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                                 >
                                                     {tempRecord.startTime || '09:00'}
                                                 </button>
+                                                
+                                                {/* 中午12点边界条件提示 */}
+                                                {(() => {
+                                                    const recordForBoundary = {
+                                                        startTime: tempRecord.startTime || '09:00',
+                                                        daysOffset: tempRecord.daysOffset || 0
+                                                    };
+                                                    const boundaryResult = AttendanceDateUtils.BoundaryConditionHandler.handleNoonBoundary(recordForBoundary);
+                                                    
+                                                    if (boundaryResult.isNoonBoundary && tempRecord.daysOffset > 0) {
+                                                        return (
+                                                            <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded text-xs text-amber-700">
+                                                                <div className="font-medium">⚠️ 中午12点边界</div>
+                                                                <div>{boundaryResult.recommendation}</div>
+                                                            </div>
+                                                        );
+                                                    }
+                                                    return null;
+                                                })()}
                                             </div>
 
                                             {/* Days Offset Selector */}
@@ -1565,8 +1794,33 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                                     </button>
                                                 </div>
                                                 {tempRecord.daysOffset > 0 && (
-                                                    <div className="mt-2 text-center text-sm text-gray-600">
-                                                        结束日期: {editingDate && format(addDays(editingDate, tempRecord.daysOffset), 'M月d日 EEEE', { locale: zhCN })}
+                                                    <div className="mt-2 text-center">
+                                                        <div className="text-sm text-gray-600">
+                                                            结束日期: {editingDate && format(addDays(editingDate, tempRecord.daysOffset), 'M月d日 EEEE', { locale: zhCN })}
+                                                        </div>
+                                                        
+                                                        {/* 跨月跨年边界检查 */}
+                                                        {(() => {
+                                                            if (!editingDate) return null;
+                                                            
+                                                            const recordForBoundary = {
+                                                                date: format(editingDate, 'yyyy-MM-dd'),
+                                                                daysOffset: tempRecord.daysOffset
+                                                            };
+                                                            const crossResult = AttendanceDateUtils.BoundaryConditionHandler.handleCrossMonthYear(recordForBoundary);
+                                                            
+                                                            if (crossResult.crossMonth || crossResult.crossYear) {
+                                                                return (
+                                                                    <div className="mt-1 p-2 bg-blue-50 border border-blue-200 rounded text-xs text-blue-700">
+                                                                        <div className="font-medium">
+                                                                            📅 {crossResult.crossYear ? '跨年' : '跨月'}考勤记录
+                                                                        </div>
+                                                                        {crossResult.warning && <div>{crossResult.warning}</div>}
+                                                                    </div>
+                                                                );
+                                                            }
+                                                            return null;
+                                                        })()}
                                                     </div>
                                                 )}
                                             </div>
@@ -1604,6 +1858,42 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                                 : formatDuration(calculatedDuration.totalHours, calculatedDuration.minutes)
                                             }
                                         </span>
+                                        
+                                        {/* 极端时长检查 */}
+                                        {(() => {
+                                            if (!editingDate) return null;
+                                            
+                                            // 如果是只读模式（跨天记录的结束日），不显示时长警告
+                                            if (isReadOnly) return null;
+                                            
+                                            const recordForExtreme = {
+                                                date: format(editingDate, 'yyyy-MM-dd'),
+                                                hours: calculatedDuration.totalHours,
+                                                minutes: calculatedDuration.minutes,
+                                                daysOffset: tempRecord.daysOffset || 0,
+                                                type: tempRecord.type
+                                            };
+                                            
+                                            const extremeResult = AttendanceDateUtils.BoundaryConditionHandler.handleExtremeDuration(recordForExtreme);
+                                            
+                                            if (extremeResult.isExtreme) {
+                                                return (
+                                                    <div className="mt-2 space-y-1">
+                                                        {extremeResult.warnings.map((warning, index) => (
+                                                            <div key={index} className="p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-700">
+                                                                <div className="font-medium">⚠️ {warning}</div>
+                                                            </div>
+                                                        ))}
+                                                        {extremeResult.errors.map((error, index) => (
+                                                            <div key={index} className="p-2 bg-red-50 border border-red-200 rounded text-xs text-red-700">
+                                                                <div className="font-medium">❌ {error}</div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                );
+                                            }
+                                            return null;
+                                        })()}
                                     </div>
                                 </div>
                             )}

@@ -171,7 +171,7 @@ const PublicSigningPage = () => {
                             <TextField fullWidth required name="name" label="姓名" value={info. name || ''} onChange={(e) => handleInfoChange(role, e)} disabled={isFieldDisabled} />
                         </Grid>
                         <Grid item xs={12} sm={6}>
-                            <TextField fullWidth required name="phone_number" label="联系电话" value={info.phone_number || ''} onChange={(e) => handleInfoChange(role, e)} disabled={isFieldDisabled} />
+                            <TextField fullWidth required name="phone_number" label="联系电话" type="tel" value={info.phone_number || ''} onChange={(e) => handleInfoChange(role, e)} disabled={isFieldDisabled} />
                         </Grid>
                         <Grid item xs={12}>
                             <TextField fullWidth required name="id_card_number" label="身份证号" value={info.id_card_number || ''} onChange={(e) => handleInfoChange(role, e)} disabled={isFieldDisabled} />
@@ -402,9 +402,46 @@ const PublicSigningPage = () => {
             {/* Only show the signing area for the current user */}
             {contract.role && renderSigningArea()}
 
-            <Box sx={{ mt: 4, textAlign: 'center' }}>
-                <Button variant="outlined" onClick={() => window.close()}>关闭页面</Button>
-            </Box>
+            {/* 只在当前用户已签署后显示关闭按钮 */}
+            {(() => {
+                const role = contract.role;
+                const hasSigned = (role === 'customer' && contract.customer_signature) ||
+                                 (role === 'employee' && contract.employee_signature);
+                
+                return hasSigned && (
+                    <Box sx={{ mt: 4, textAlign: 'center' }}>
+                        <Button 
+                            variant="outlined" 
+                            onClick={() => {
+                                // 检测是否在微信浏览器中
+                                const isWechat = /micromessenger/i.test(navigator.userAgent);
+                                
+                                if (isWechat) {
+                                    // 微信浏览器中，显示友好提示
+                                    alert('签署完成！请点击左上角关闭页面。');
+                                } else {
+                                    // 非微信浏览器
+                                    // 1. 尝试关闭窗口（仅对脚本打开的窗口有效）
+                                    const closed = window.close();
+                                    
+                                    // 2. 延迟检查是否关闭成功，如果没有则返回上一页
+                                    setTimeout(() => {
+                                        // 如果有历史记录，返回上一页
+                                        if (window.history.length > 1) {
+                                            window.history.back();
+                                        } else {
+                                            // 没有历史记录，显示提示
+                                            alert('签署完成！您可以关闭此页面了。');
+                                        }
+                                    }, 100);
+                                }
+                            }}
+                        >
+                            关闭页面
+                        </Button>
+                    </Box>
+                );
+            })()}
         </Container>
     );
 };
