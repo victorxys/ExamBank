@@ -308,7 +308,10 @@ app.register_blueprint(attendance_form_bp)
 # app.register_blueprint(statement_bp, url_prefix="/api") 
 
 from backend.api.upload_api import upload_bp
-app.register_blueprint(upload_bp) 
+app.register_blueprint(upload_bp)
+
+from backend.api.image_proxy_api import image_proxy_bp
+app.register_blueprint(image_proxy_bp) 
 
 
 

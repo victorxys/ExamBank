@@ -61,7 +61,7 @@ const OptimizedFileCarousel = ({ questionValue, onImageClick }) => {
         const filename = imageUrl.split('/').pop()?.split('?')[0] || `image-${index + 1}.jpg`;
 
         try {
-            // Try to fetch with CORS mode
+            // Try to fetch with CORS mode first (since R2 should support it)
             const response = await fetch(imageUrl, {
                 mode: 'cors',
                 credentials: 'same-origin',
@@ -93,6 +93,7 @@ const OptimizedFileCarousel = ({ questionValue, onImageClick }) => {
                 window.URL.revokeObjectURL(url);
             }, 100);
         } catch (error) {
+            console.warn('Fetch download failed, using direct link:', error);
             // Fallback: use direct download via anchor tag
             const link = document.createElement('a');
             link.href = imageUrl;
@@ -205,7 +206,26 @@ const OptimizedFileCarousel = ({ questionValue, onImageClick }) => {
                                 />
                             </Box>
                         }
-                        onError={() => {
+                        onError={(e) => {
+                            console.warn(`图片加载失败: ${file?.content}`, e);
+                            
+                            // 调试：检查图片 URL 和 CORS 头部
+                            fetch(file?.content, { method: 'HEAD' })
+                                .then(response => {
+                                    console.log('图片 CORS 检查:', {
+                                        url: file?.content,
+                                        status: response.status,
+                                        headers: {
+                                            'access-control-allow-origin': response.headers.get('access-control-allow-origin'),
+                                            'access-control-allow-methods': response.headers.get('access-control-allow-methods'),
+                                            'access-control-allow-headers': response.headers.get('access-control-allow-headers')
+                                        }
+                                    });
+                                })
+                                .catch(err => {
+                                    console.error('CORS 检查失败:', err);
+                                });
+                            
                             setImageErrors(prev => ({ ...prev, [currentIndex]: true }));
                         }}
                         onLoad={() => {
@@ -216,7 +236,6 @@ const OptimizedFileCarousel = ({ questionValue, onImageClick }) => {
                                 return newErrors;
                             });
                         }}
-                        crossOrigin="anonymous"
                         style={{
                             maxWidth: '100%',
                             maxHeight: '350px',
