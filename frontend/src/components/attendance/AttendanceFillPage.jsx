@@ -498,10 +498,51 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                 });
             };
             
+            // 测试出京/出境的跨天逻辑
+            window.testCrossDayOutOfCity = () => {
+                console.log('🧪 测试出京/出境跨天逻辑...');
+                
+                // 测试13:00开始的跨天出京记录
+                const testRecord = {
+                    date: '2025-11-06',
+                    startTime: '13:00',
+                    endTime: '18:00',
+                    daysOffset: 1,
+                    type: 'out_of_beijing',
+                    hours: 29
+                };
+                
+                const allRecords = [testRecord];
+                
+                // 测试11月6日（开始日）
+                console.log('\n📅 测试11月6日（开始日）:');
+                const display6 = AttendanceDisplayLogic.getDisplayTypeForDate('2025-11-06', allRecords);
+                console.log(`  显示类型: ${display6.type} (${display6.typeLabel})`);
+                
+                const shouldShow6 = AttendanceDisplayLogic.shouldShowAttendanceType('2025-11-06', testRecord);
+                console.log(`  是否显示考勤类型: ${shouldShow6}`);
+                console.log(`  预期: true (出京开始日总是显示)`);
+                
+                const dailyHours6 = AttendanceDisplayLogic.calculateDailyHours(testRecord, '2025-11-06');
+                console.log(`  当天时长: ${dailyHours6}小时 (13:00-24:00 = 11小时)`);
+                
+                // 测试11月7日（结束日）
+                console.log('\n📅 测试11月7日（结束日）:');
+                const display7 = AttendanceDisplayLogic.getDisplayTypeForDate('2025-11-07', allRecords);
+                console.log(`  显示类型: ${display7.type} (${display7.typeLabel})`);
+                
+                const shouldShow7 = AttendanceDisplayLogic.shouldShowAttendanceType('2025-11-07', testRecord);
+                console.log(`  是否显示考勤类型: ${shouldShow7}`);
+                
+                const dailyHours7 = AttendanceDisplayLogic.calculateDailyHours(testRecord, '2025-11-07');
+                console.log(`  当天时长: ${dailyHours7}小时 (00:00-18:00 = 18小时)`);
+            };
+            
             console.log('🚀 调试工具已加载！');
             console.log('- 运行 debugSpecificCase() 来测试显示逻辑');
             console.log('- 运行 testActualWorkHours() 来测试出勤时长计算');
             console.log('- 运行 testAllAttendanceTypes() 来测试所有考勤类型');
+            console.log('- 运行 testCrossDayOutOfCity() 来测试出京/出境跨天逻辑');
         }
     }, [token, location.search, selectedYear, selectedMonth]);
 
@@ -661,15 +702,20 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
             // 计算该日期的实际工作时长
             const dailyHours = AttendanceDisplayLogic.calculateDailyHours(displayResult.record, dateStr);
             
-            console.log(`📊 [DEBUG] 非正常考勤 - 日期: ${dateStr}, 类型: ${displayResult.type}, 当天时长: ${dailyHours}h`);
+            // 判断是否为该记录第一个显示考勤类型的日期
+            const isFirstDisplayDay = AttendanceDisplayLogic.isFirstDisplayDay(dateStr, displayResult.record, allRecords);
+            const totalHours = isFirstDisplayDay ? ((displayResult.record.hours || 0) + (displayResult.record.minutes || 0) / 60) : 0;
+            
+            console.log(`📊 [DEBUG] 非正常考勤 - 日期: ${dateStr}, 类型: ${displayResult.type}, 是第一显示日: ${isFirstDisplayDay}, 显示时长: ${totalHours}h`);
             
             result = {
                 ...displayResult.record,
                 type: displayResult.type,
                 typeLabel: displayResult.typeLabel,
                 typeConfig: ATTENDANCE_TYPES[Object.keys(ATTENDANCE_TYPES).find(k => ATTENDANCE_TYPES[k].value === displayResult.type)],
-                hours: Math.floor(dailyHours),
-                minutes: Math.round((dailyHours % 1) * 60)
+                hours: Math.floor(totalHours),
+                minutes: Math.round((totalHours % 1) * 60),
+                isFirstDisplayDay: isFirstDisplayDay // 标记是否为第一个显示日
             };
         } else {
             // 显示为"出勤"的情况，检查是否有部分非出勤时间需要扣除
@@ -1275,9 +1321,9 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                             return true;
                                         }
                                         
-                                        // 对于非正常考勤类型，总是显示小时数
+                                        // 对于非正常考勤类型，只有第一个显示日才显示总时长
                                         if (record.type !== 'normal') {
-                                            return true;
+                                            return record.isFirstDisplayDay && (record.hours > 0 || record.minutes > 0);
                                         }
                                         
                                         // 对于出勤类型，只有当小时数小于24时才显示
@@ -1294,10 +1340,15 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                                     return record.startTime;
                                                 }
 
-                                                // 计算该天的实际工作时长
-                                                const displayHours = record.hours || 0;
+                                                // 对于非正常考勤类型，显示总时长（天数格式）
+                                                if (record.type !== 'normal') {
+                                                    const totalHours = (record.hours || 0) + (record.minutes || 0) / 60;
+                                                    const days = (totalHours / 24).toFixed(3);
+                                                    return `${days}天`;
+                                                }
 
-                                                // Format output - 不显示24h，因为已经在上面过滤掉了
+                                                // 对于出勤类型，显示实际工作时长
+                                                const displayHours = record.hours || 0;
                                                 return Number.isInteger(displayHours) ? `${displayHours}h` : `${displayHours.toFixed(1)}h`;
                                             })()}
                                         </span>

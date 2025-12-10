@@ -171,15 +171,27 @@ export class AttendanceDisplayLogic {
         console.log(`🎯 [DEBUG] 是开始日: ${isStartDay}, 是结束日: ${isEndDay}`);
         
         if (isStartDay) {
-            // 开始日：应用中午12点规则
-            const result = this.applyNoonRule(record);
-            console.log(`🕐 [DEBUG] 开始日应用中午12点规则: ${result}`);
-            return result;
+            // 开始日：出京、出境类型总是显示，其他类型应用中午12点规则
+            if (record.type === 'out_of_beijing' || record.type === 'out_of_country') {
+                console.log(`🌍 [DEBUG] 出京/出境类型，开始日总是显示`);
+                return true;
+            } else {
+                // 其他类型应用中午12点规则
+                const result = this.applyNoonRule(record);
+                console.log(`🕐 [DEBUG] 开始日应用中午12点规则: ${result}`);
+                return result;
+            }
         } else if (isEndDay) {
-            // 结束日：应用24小时规则和短期考勤特殊处理
-            const result = this.applyEndDayRule(record);
-            console.log(`🕕 [DEBUG] 结束日应用24小时规则: ${result}`);
-            return result;
+            // 结束日：出京、出境类型总是显示，其他类型应用24小时规则
+            if (record.type === 'out_of_beijing' || record.type === 'out_of_country') {
+                console.log(`🌍 [DEBUG] 出京/出境类型，结束日总是显示`);
+                return true;
+            } else {
+                // 其他类型应用24小时规则和短期考勤特殊处理
+                const result = this.applyEndDayRule(record);
+                console.log(`🕕 [DEBUG] 结束日应用24小时规则: ${result}`);
+                return result;
+            }
         } else {
             // 中间日：需要检查是否是12点后开始的考勤的第二天
             const result = this.applyMiddleDayRule(record, targetDateStr);
@@ -429,6 +441,54 @@ export class AttendanceDisplayLogic {
         console.log(`⏰ [DEBUG] calculateActualWorkHours - 日期: ${targetDateStr}, 基础: ${standardWorkHours}h, 扣除非出勤: ${totalNonWorkHours}h, 增加加班: ${totalOvertimeHours}h, 实际出勤: ${actualWorkHours}h`);
         
         return actualWorkHours;
+    }
+
+    /**
+     * 判断指定日期是否为该考勤记录第一个显示考勤类型的日期
+     * @param {string} targetDateStr - 目标日期字符串
+     * @param {Object} record - 考勤记录
+     * @param {Array} allRecords - 所有考勤记录数组（用于计算显示逻辑）
+     * @returns {boolean}
+     */
+    static isFirstDisplayDay(targetDateStr, record, allRecords) {
+        const targetDate = new Date(targetDateStr);
+        const startDate = new Date(record.date);
+        const daysOffset = record.daysOffset || 0;
+        
+        console.log(`🔍 [DEBUG] isFirstDisplayDay - 目标日期: ${targetDateStr}, 记录开始: ${record.date}, 跨天: ${daysOffset}`);
+        
+        // 单天记录：开始日就是第一个显示日
+        if (daysOffset === 0) {
+            const isStartDay = isSameDay(targetDate, startDate);
+            console.log(`📅 [DEBUG] 单天记录，是开始日: ${isStartDay}`);
+            return isStartDay;
+        }
+        
+        // 跨天记录：找到第一个应该显示考勤类型的日期
+        const endDate = new Date(startDate);
+        endDate.setDate(startDate.getDate() + daysOffset);
+        
+        // 遍历记录覆盖的所有日期，找到第一个应该显示考勤类型的日期
+        let currentDate = new Date(startDate);
+        while (currentDate <= endDate) {
+            const currentDateStr = format(currentDate, 'yyyy-MM-dd');
+            const shouldShow = this.shouldShowAttendanceType(currentDateStr, record);
+            
+            console.log(`📊 [DEBUG] 检查日期 ${currentDateStr}: 应该显示 = ${shouldShow}`);
+            
+            if (shouldShow) {
+                // 找到第一个应该显示的日期
+                const isFirstDay = isSameDay(targetDate, currentDate);
+                console.log(`🎯 [DEBUG] 第一个显示日期: ${currentDateStr}, 目标是第一个: ${isFirstDay}`);
+                return isFirstDay;
+            }
+            
+            currentDate.setDate(currentDate.getDate() + 1);
+        }
+        
+        // 如果没有找到应该显示的日期，返回false
+        console.log(`❌ [DEBUG] 没有找到应该显示的日期`);
+        return false;
     }
 
     /**

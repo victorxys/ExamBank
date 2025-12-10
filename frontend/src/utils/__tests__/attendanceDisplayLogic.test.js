@@ -170,6 +170,83 @@ describe('AttendanceDisplayLogic', () => {
         });
     });
 
+    describe('第一显示日测试', () => {
+        test('单天记录的开始日应该是第一显示日', () => {
+            const record = {
+                date: '2024-03-03',
+                type: 'leave',
+                startTime: '09:00',
+                endTime: '18:00',
+                daysOffset: 0,
+                hours: 9,
+                minutes: 0
+            };
+
+            const isFirstDay = AttendanceDisplayLogic.isFirstDisplayDay('2024-03-03', record, [record]);
+            expect(isFirstDay).toBe(true);
+        });
+
+        test('跨天记录中，12点前开始的记录开始日应该是第一显示日', () => {
+            const record = {
+                date: '2024-03-03',
+                type: 'rest',
+                startTime: '11:00', // 上午11点开始
+                endTime: '18:00',
+                daysOffset: 1,
+                hours: 31,
+                minutes: 0
+            };
+
+            // 开始日应该是第一显示日
+            const isFirstDay = AttendanceDisplayLogic.isFirstDisplayDay('2024-03-03', record, [record]);
+            expect(isFirstDay).toBe(true);
+
+            // 结束日不应该是第一显示日
+            const isEndFirstDay = AttendanceDisplayLogic.isFirstDisplayDay('2024-03-04', record, [record]);
+            expect(isEndFirstDay).toBe(false);
+        });
+
+        test('跨天记录中，12点后开始的记录第二天应该是第一显示日', () => {
+            const record = {
+                date: '2024-03-03',
+                type: 'rest',
+                startTime: '13:00', // 下午1点开始
+                endTime: '18:00',
+                daysOffset: 1,
+                hours: 29,
+                minutes: 0
+            };
+
+            // 开始日不应该是第一显示日（显示为出勤）
+            const isStartFirstDay = AttendanceDisplayLogic.isFirstDisplayDay('2024-03-03', record, [record]);
+            expect(isStartFirstDay).toBe(false);
+
+            // 结束日应该是第一显示日（第一个显示休息的日期）
+            const isEndFirstDay = AttendanceDisplayLogic.isFirstDisplayDay('2024-03-04', record, [record]);
+            expect(isEndFirstDay).toBe(true);
+        });
+
+        test('出京/出境类型的开始日应该总是第一显示日', () => {
+            const record = {
+                date: '2024-03-03',
+                type: 'out_of_beijing',
+                startTime: '13:00', // 下午1点开始
+                endTime: '18:00',
+                daysOffset: 1,
+                hours: 29,
+                minutes: 0
+            };
+
+            // 开始日应该是第一显示日（出京类型总是显示）
+            const isStartFirstDay = AttendanceDisplayLogic.isFirstDisplayDay('2024-03-03', record, [record]);
+            expect(isStartFirstDay).toBe(true);
+
+            // 结束日不应该是第一显示日
+            const isEndFirstDay = AttendanceDisplayLogic.isFirstDisplayDay('2024-03-04', record, [record]);
+            expect(isEndFirstDay).toBe(false);
+        });
+    });
+
     describe('考勤记录去重测试', () => {
         test('同一客户同一员工的记录应该去重', () => {
             const records = [
