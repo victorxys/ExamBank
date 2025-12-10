@@ -26,6 +26,11 @@ import {
     Skeleton,
     Breadcrumbs,
     Link,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogContentText,
+    DialogActions,
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import {
@@ -36,6 +41,7 @@ import {
     Download as DownloadIcon,
     Home as HomeIcon,
     NavigateNext as NavigateNextIcon,
+    Delete as DeleteIcon,
 } from '@mui/icons-material';
 import { formatAddress } from '../utils/formatUtils';
 import { createDateTimeRenderer } from '../utils/surveyjs-custom-widgets.jsx';
@@ -530,6 +536,9 @@ const DynamicFormPage = () => {
     const [lightboxImages, setLightboxImages] = useState([]);
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
+    // Delete dialog state
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+
     useEffect(() => {
         const fetchForm = async () => {
             try {
@@ -549,6 +558,18 @@ const DynamicFormPage = () => {
 
                 // Set Chinese locale for the survey
                 survey.locale = "zh-cn";
+
+                // 根据场景决定是否显示SurveyJS默认按钮
+                if (dataId) {
+                    // 管理员查看/编辑模式：隐藏默认按钮，使用顶部自定义按钮
+                    survey.showNavigationButtons = false;
+                    survey.showPrevButton = false;
+                    survey.showCompleteButton = false;
+                } else {
+                    // 访客填写模式：显示默认提交按钮
+                    survey.showNavigationButtons = true;
+                    survey.showCompleteButton = true;
+                }
 
                 // 管理员编辑模式下不显示完成页面
                 if (dataId) {
@@ -1913,6 +1934,30 @@ const DynamicFormPage = () => {
         // console.log('[toggleMode] ===== TOGGLE MODE END =====');
     };
 
+    // 删除记录的函数
+    const handleDeleteRecord = async () => {
+        try {
+            await api.delete(`/form-data/${dataId}`);
+            setAlert({
+                open: true,
+                message: '记录删除成功！',
+                severity: 'success'
+            });
+            // 延迟跳转到表单数据列表页面
+            setTimeout(() => {
+                navigate(`/forms/${formToken}/data`);
+            }, 1500);
+        } catch (err) {
+            console.error('删除记录失败:', err);
+            setAlert({
+                open: true,
+                message: `删除失败: ${err.response?.data?.message || err.message}`,
+                severity: 'error'
+            });
+        }
+        setDeleteDialogOpen(false);
+    };
+
     // 监听 currentMode 变化,在模式切换后重新渲染文件问题
     useEffect(() => {
         if (!surveyModel || !dataId) return; // 只在查看已有数据时才需要切换模式
@@ -2098,74 +2143,250 @@ const DynamicFormPage = () => {
     }
 
     return (
-        <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-            {/* 面包屑导航 */}
-            <Breadcrumbs
-                separator={<NavigateNextIcon fontSize="small" />}
-                aria-label="breadcrumb"
-                sx={{ mb: 3 }}
-            >
-                <Link
-                    underline="hover"
+        <>
+            {/* 固定顶部操作栏 - 仅在管理员查看/编辑模式下显示 */}
+            {surveyModel && submissionState !== 'completed' && dataId && (
+                <Box
                     sx={{
-                        cursor: 'pointer',
-                        color: 'inherit',
-                        '&:hover': {
-                            color: 'primary.main',
-                        }
+                        position: 'fixed',
+                        top: 0,
+                        left: { xs: 0, md: 240 }, // 移动端从0开始，桌面端避开左侧导航栏
+                        right: 0,
+                        backgroundColor: 'white',
+                        borderBottom: '1px solid #e5e7eb',
+                        boxShadow: '0 2px 4px -1px rgba(0, 0, 0, 0.1)',
+                        zIndex: 1100,
+                        padding: { xs: '8px 12px', md: '12px 24px' },
+                        display: 'flex',
+                        flexDirection: { xs: 'column', md: 'row' },
+                        justifyContent: 'space-between',
+                        alignItems: { xs: 'stretch', md: 'center' },
+                        gap: { xs: 2, md: 3 }
                     }}
-                    onClick={() => window.location.href = '/forms'}
                 >
-                    全部表单
-                </Link>
-                {dataId && (
-                    <Link
-                        underline="hover"
-                        sx={{
-                            cursor: 'pointer',
-                            color: 'inherit',
-                            '&:hover': {
-                                color: 'primary.main',
+                    {/* 面包屑导航 */}
+                    <Breadcrumbs
+                        separator={<NavigateNextIcon fontSize="small" />}
+                        aria-label="breadcrumb"
+                        sx={{ 
+                            fontSize: '0.875rem',
+                            '& .MuiBreadcrumbs-separator': {
+                                marginLeft: 1,
+                                marginRight: 1
                             }
                         }}
-                        onClick={() => window.location.href = `/forms/${formToken}/data`}
                     >
-                        {surveyModel?.title || '表单'}
-                    </Link>
-                )}
-                <Typography color="text.primary">
-                    {dataId ? '查看详情' : (surveyModel?.title || '表单详情')}
-                </Typography>
-            </Breadcrumbs>
+                        <Link
+                            underline="hover"
+                            sx={{
+                                cursor: 'pointer',
+                                color: 'text.secondary',
+                                fontSize: '0.875rem',
+                                '&:hover': {
+                                    color: 'primary.main',
+                                }
+                            }}
+                            onClick={() => window.location.href = '/forms'}
+                        >
+                            全部表单
+                        </Link>
+                        {dataId && (
+                            <Link
+                                underline="hover"
+                                sx={{
+                                    cursor: 'pointer',
+                                    color: 'text.secondary',
+                                    fontSize: '0.875rem',
+                                    '&:hover': {
+                                        color: 'primary.main',
+                                    }
+                                }}
+                                onClick={() => window.location.href = `/forms/${formToken}/data`}
+                            >
+                                {surveyModel?.title || '表单'}
+                            </Link>
+                        )}
+                        <Typography color="text.primary" sx={{ fontSize: '0.875rem' }}>
+                            {dataId ? '查看详情' : (surveyModel?.title || '表单详情')}
+                        </Typography>
+                    </Breadcrumbs>
 
-            <AlertMessage
-                open={alert.open}
-                message={alert.message}
-                severity={alert.severity}
-                onClose={() => setAlert({ ...alert, open: false })}
-            />
-            {loading && <CircularProgress />}
-            {error && <Alert severity="error">{error}</Alert>}
-            {!loading && !error && surveyModel && (
-                <>
-                    {/* 使用 React Portal 将按钮渲染到 SurveyJS 的标题区域 */}
-                    {dataId && surveyModel && (
-                        <HeaderButtonsPortal
-                            currentMode={currentMode}
-                            toggleMode={toggleMode}
-                            formToken={formToken}
-                            dataId={dataId}
-                            api={api}
-                        />
-                    )}
+                    {/* 操作按钮组 */}
+                    <Box sx={{ 
+                        display: 'flex', 
+                        gap: { xs: 1, md: 2 }, 
+                        alignItems: 'center',
+                        flexWrap: 'wrap',
+                        justifyContent: { xs: 'center', md: 'flex-end' }
+                    }}>
+                        {/* 创建员工信息按钮（仅 N0Il9H 表单显示） */}
+                        {formToken === 'N0Il9H' && dataId && (
+                            <Button
+                                variant="contained"
+                                color="secondary"
+                                size="small"
+                                onClick={async () => {
+                                    if (!window.confirm('确定要根据当前表单数据创建/更新员工信息吗？')) return;
+                                    try {
+                                        const res = await api.post(`/staff/create-from-form/${dataId}`);
+                                        setAlert({
+                                            open: true,
+                                            message: res.data.message,
+                                            severity: 'success'
+                                        });
+                                    } catch (err) {
+                                        console.error(err);
+                                        setAlert({
+                                            open: true,
+                                            message: '操作失败: ' + (err.response?.data?.message || err.message),
+                                            severity: 'error'
+                                        });
+                                    }
+                                }}
+                                sx={{
+                                    backgroundColor: 'secondary.main',
+                                    color: 'white',
+                                    '&:hover': {
+                                        backgroundColor: 'secondary.dark'
+                                    }
+                                }}
+                            >
+                                创建员工信息
+                            </Button>
+                        )}
 
-                    {submissionState === 'completed' && scoreResult ? (
-                        <ScoreDisplay result={scoreResult} />
-                    ) : (
-                        <Survey model={surveyModel} />
-                    )}
-                </>
+                        {/* 模式切换按钮（仅在查看已有数据时显示） */}
+                        {dataId && (
+                            <Button
+                                variant="contained"
+                                size="small"
+                                onClick={toggleMode}
+                                sx={{
+                                    backgroundColor: 'primary.main',
+                                    color: 'white',
+                                    px: 3,
+                                    '&:hover': {
+                                        backgroundColor: 'primary.dark'
+                                    },
+                                    '&:disabled': {
+                                        backgroundColor: '#9ca3af'
+                                    }
+                                }}
+                            >
+                                切换到 {currentMode === 'admin_view' ? '编辑模式' : '查看模式'}
+                            </Button>
+                        )}
+
+                        {/* 提交按钮 */}
+                        <Button
+                            variant="contained"
+                            size="small"
+                            onClick={() => {
+                                // 触发 SurveyJS 的提交
+                                if (surveyModel) {
+                                    surveyModel.completeLastPage();
+                                }
+                            }}
+                            disabled={submissionState === 'submitting'}
+                            sx={{
+                                backgroundColor: 'primary.main',
+                                color: 'white',
+                                px: 3,
+                                '&:hover': {
+                                    backgroundColor: 'primary.dark'
+                                },
+                                '&:disabled': {
+                                    backgroundColor: '#9ca3af'
+                                }
+                            }}
+                        >
+                            {submissionState === 'submitting' ? '提交中...' : (dataId ? '保存提交' : '提交表单')}
+                        </Button>
+                    </Box>
+                </Box>
             )}
+
+            <Container maxWidth="lg" sx={{ 
+                mt: (surveyModel && submissionState !== 'completed' && dataId) ? { xs: 12, md: 10 } : 2, 
+                mb: 4 
+            }}>
+                <AlertMessage
+                    open={alert.open}
+                    message={alert.message}
+                    severity={alert.severity}
+                    onClose={() => setAlert({ ...alert, open: false })}
+                />
+                {loading && <CircularProgress />}
+                {error && <Alert severity="error">{error}</Alert>}
+                {!loading && !error && surveyModel && (
+                    <>
+                        {submissionState === 'completed' && scoreResult ? (
+                            <ScoreDisplay result={scoreResult} />
+                        ) : (
+                            <>
+                                <Survey model={surveyModel} />
+                                
+                                {/* 底部危险操作区域 - 仅在查看已有数据时显示 */}
+                                {dataId && (
+                                    <Box
+                                        sx={{
+                                            mt: 6,
+                                            pt: 4,
+                                            borderTop: '1px solid #e5e7eb',
+                                            display: 'flex',
+                                            justifyContent: 'center',
+                                            backgroundColor: '#fafafa',
+                                            borderRadius: 2,
+                                            p: 3
+                                        }}
+                                    >
+                                        <Box sx={{ textAlign: 'center' }}>
+                                            <Typography 
+                                                variant="body2" 
+                                                color="text.secondary" 
+                                                sx={{ mb: 2, fontSize: '0.875rem' }}
+                                            >
+                                                危险操作区域
+                                            </Typography>
+                                            <Button
+                                                variant="outlined"
+                                                color="error"
+                                                size="medium"
+                                                startIcon={<DeleteIcon />}
+                                                onClick={() => setDeleteDialogOpen(true)}
+                                                sx={{
+                                                    borderColor: 'error.main',
+                                                    color: 'error.main',
+                                                    px: 4,
+                                                    '&:hover': {
+                                                        borderColor: 'error.dark',
+                                                        backgroundColor: 'error.light',
+                                                        color: 'error.dark'
+                                                    }
+                                                }}
+                                            >
+                                                删除此记录
+                                            </Button>
+                                            <Typography 
+                                                variant="caption" 
+                                                color="text.disabled" 
+                                                sx={{ 
+                                                    display: 'block', 
+                                                    mt: 1, 
+                                                    fontSize: '0.75rem',
+                                                    fontStyle: 'italic'
+                                                }}
+                                            >
+                                                此操作不可撤销，请谨慎操作
+                                            </Typography>
+                                        </Box>
+                                    </Box>
+                                )}
+                            </>
+                        )}
+                    </>
+                )}
+            </Container>
 
             <style>{`
                 /* 隐藏表单描述,减少顶部空白 */
@@ -2174,9 +2395,9 @@ const DynamicFormPage = () => {
                     display: none !important;
                 }
 
-                /* 为固定底部操作栏预留空间 */
+                /* 为固定顶部操作栏预留空间 */
                 body .sd-root-modern {
-                    padding-bottom: 80px !important;
+                    padding-top: 20px !important;
                 }
 
                 /* ===== 移动端强制优化 (最高优先级) ===== */
@@ -2262,109 +2483,6 @@ const DynamicFormPage = () => {
                     }
                 }
             `}</style>
-
-            {/* 固定底部操作栏 */}
-            {dataId && surveyModel && submissionState !== 'completed' && (
-                <Box
-                    sx={{
-                        position: 'fixed',
-                        bottom: 0,
-                        left: 0,
-                        right: 0,
-                        backgroundColor: 'white',
-                        borderTop: '2px solid #e5e7eb',
-                        boxShadow: '0 -4px 6px -1px rgba(0, 0, 0, 0.1), 0 -2px 4px -1px rgba(0, 0, 0, 0.06)',
-                        zIndex: 1000,
-                        padding: '12px 16px',
-                        display: 'flex',
-                        justifyContent: 'flex-end',
-                        alignItems: 'center',
-                        gap: 2
-                    }}
-                >
-                    {/* 创建员工信息按钮（仅 N0Il9H 表单显示） */}
-                    {formToken === 'N0Il9H' && (
-                        <Button
-                            variant="contained"
-                            color="secondary"
-                            size="medium"
-                            onClick={async () => {
-                                if (!window.confirm('确定要根据当前表单数据创建/更新员工信息吗？')) return;
-                                try {
-                                    const res = await api.post(`/staff/create-from-form/${dataId}`);
-                                    setAlert({
-                                        open: true,
-                                        message: res.data.message,
-                                        severity: 'success'
-                                    });
-                                } catch (err) {
-                                    console.error(err);
-                                    setAlert({
-                                        open: true,
-                                        message: '操作失败: ' + (err.response?.data?.message || err.message),
-                                        severity: 'error'
-                                    });
-                                }
-                            }}
-                            sx={{
-                                backgroundColor: 'secondary.main',
-                                color: 'white',
-                                '&:hover': {
-                                    backgroundColor: 'secondary.dark'
-                                }
-                            }}
-                        >
-                            创建员工信息
-                        </Button>
-                    )}
-
-                    {/* 模式切换按钮 */}
-                    <Button
-                        variant="contained"
-                        size="medium"
-                        onClick={toggleMode}
-                        sx={{
-                            backgroundColor: 'primary.main',
-                            color: 'white',
-                            px: 4,
-                            '&:hover': {
-                                backgroundColor: 'primary.dark'
-                            },
-                            '&:disabled': {
-                                backgroundColor: '#9ca3af'
-                            }
-                        }}
-                    >
-                        切换到 {currentMode === 'admin_view' ? '编辑模式' : '查看模式'}
-                    </Button>
-
-                    {/* 提交按钮 */}
-                    <Button
-                        variant="contained"
-                        size="medium"
-                        onClick={() => {
-                            // 触发 SurveyJS 的提交
-                            if (surveyModel) {
-                                surveyModel.completeLastPage();
-                            }
-                        }}
-                        disabled={submissionState === 'submitting'}
-                        sx={{
-                            backgroundColor: 'primary.main',
-                            color: 'white',
-                            px: 4,
-                            '&:hover': {
-                                backgroundColor: 'primary.dark'
-                            },
-                            '&:disabled': {
-                                backgroundColor: '#9ca3af'
-                            }
-                        }}
-                    >
-                        {submissionState === 'submitting' ? '提交中...' : '保存提交'}
-                    </Button>
-                </Box>
-            )}
 
             {/* Lightbox Modal for Image Viewing */}
             <Modal
@@ -2594,7 +2712,40 @@ const DynamicFormPage = () => {
                     )}
                 </Box>
             </Modal>
-        </Container>
+
+            {/* 删除确认对话框 */}
+            <Dialog
+                open={deleteDialogOpen}
+                onClose={() => setDeleteDialogOpen(false)}
+                aria-labelledby="delete-dialog-title"
+                aria-describedby="delete-dialog-description"
+            >
+                <DialogTitle id="delete-dialog-title">
+                    确认删除记录
+                </DialogTitle>
+                <DialogContent>
+                    <DialogContentText id="delete-dialog-description">
+                        您确定要删除这条记录吗？此操作不可撤销，删除后将无法恢复数据。
+                    </DialogContentText>
+                </DialogContent>
+                <DialogActions>
+                    <Button 
+                        onClick={() => setDeleteDialogOpen(false)} 
+                        color="primary"
+                    >
+                        取消
+                    </Button>
+                    <Button 
+                        onClick={handleDeleteRecord} 
+                        color="error" 
+                        variant="contained"
+                        autoFocus
+                    >
+                        确认删除
+                    </Button>
+                </DialogActions>
+            </Dialog>
+        </>
     );
 };
 

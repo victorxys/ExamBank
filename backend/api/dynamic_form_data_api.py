@@ -300,3 +300,28 @@ def update_form_data(data_id):
         db.session.rollback()
         current_app.logger.error(f"Error updating form data: {e}", exc_info=True)
         return jsonify({'message': 'Error updating form data', 'error': str(e)}), 500
+
+@dynamic_form_data_bp.route('/<uuid:data_id>', methods=['DELETE'])
+@jwt_required()
+def delete_form_data(data_id):
+    """
+    删除指定的表单数据记录。
+    """
+    current_user = get_current_user()
+    if not current_user:
+        return jsonify({'message': 'Unauthorized'}), 401
+
+    form_data = DynamicFormData.query.get(data_id)
+    
+    if not form_data:
+        return jsonify({'message': 'Form data not found'}), 404
+
+    try:
+        db.session.delete(form_data)
+        db.session.commit()
+        
+        return jsonify({'message': 'Form data deleted successfully'}), 200
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error deleting form data: {e}", exc_info=True)
+        return jsonify({'message': 'Error deleting form data', 'error': str(e)}), 500
