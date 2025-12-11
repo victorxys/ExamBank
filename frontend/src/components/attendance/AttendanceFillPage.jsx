@@ -1954,14 +1954,14 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                 console.log('WechatShare组件已激活', {
                     shareTitle: `${contractInfo.employee_name || '员工'} - ${selectedMonth}月考勤`,
                     shareDesc: `请查看并签署${selectedMonth}月考勤表`,
-                    shareImgUrl: `${window.location.origin}/logo.png`,
+                    shareImgUrl: `${window.location.origin}/logo_share.jpg`,
                     shareLink: window.location.href
                 });
                 return (
                     <WechatShare
                         shareTitle={`${contractInfo.employee_name || '员工'} - ${selectedMonth}月考勤`}
                         shareDesc={`请查看并签署${selectedMonth}月考勤表`}
-                        shareImgUrl={`${window.location.origin}/logo.png`}
+                        shareImgUrl={`${window.location.origin}/logo_share.jpg`}
                         shareLink={window.location.href}
                     />
                 );
