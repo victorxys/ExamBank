@@ -93,98 +93,253 @@ const extractOriginalUrl = (url) => {
     return url;
 };
 
-// 全局统一图片URL - 所有场景（缩略图、轮播、lightbox）使用完全相同的URL
-const getUnifiedImageUrl = (originalUrl) => {
-    if (!originalUrl) return originalUrl;
+// ===== 三层图片URL系统 =====
+// 1. 缩略图：小尺寸低质量，快速加载用于页面预览
+// 2. 大图：适配显示器尺寸，100%质量，用于lightbox查看
+// 3. 原图：原始尺寸100%质量，用于下载
+
+// 获取显示器尺寸（用于计算大图尺寸）
+const getScreenSize = () => {
+    return {
+        width: Math.min(window.screen.width, 1920),  // 最大1920
+        height: Math.min(window.screen.height, 1080) // 最大1080
+    };
+};
+
+// 从URL中提取原始路径（去除cdn-cgi处理参数）
+const getCleanPath = (originalUrl) => {
+    if (!originalUrl) return null;
     
-    // 检查是否是我们的图床域名
-    if (originalUrl.includes('img.mengyimengsao.com')) {
-        // 关键修复：检查URL是否已经包含cdn-cgi/image处理参数，避免重复处理
-        if (originalUrl.includes('/cdn-cgi/image/')) {
-            console.log(`⏭️ URL已包含cdn-cgi处理，跳过: ${originalUrl}`);
-            return originalUrl;
-        }
-        
-        // 确保URL格式正确，路径部分应该以/开头
-        const urlParts = originalUrl.split('img.mengyimengsao.com');
-        if (urlParts.length === 2) {
-            let path = urlParts[1];
-            // 确保路径以/开头
+    // 先用 extractOriginalUrl 清理可能被重复处理的URL
+    const cleanedUrl = extractOriginalUrl(originalUrl);
+    
+    if (cleanedUrl.includes('img.mengyimengsao.com')) {
+        try {
+            const url = new URL(cleanedUrl);
+            let path = url.pathname;
+            
+            // 确保路径以 / 开头
             if (!path.startsWith('/')) {
                 path = '/' + path;
             }
-            // 关键修复：所有场景使用完全相同的URL，彻底避免重复下载
-            // 使用合理的尺寸和质量，平衡加载速度和显示效果
-            const unifiedUrl = `https://img.mengyimengsao.com/cdn-cgi/image/width=600,quality=80,format=jpeg${path}`;
-            console.log(`🛠️ 统一图片URL: ${originalUrl} -> ${unifiedUrl}`);
-            return unifiedUrl;
+            
+            console.log(`🔍 提取路径: ${cleanedUrl} -> ${path}`);
+            return path;
+        } catch (e) {
+            console.error(`❌ URL解析失败: ${cleanedUrl}`, e);
+            return null;
+        }
+    }
+    return null;
+};
+
+// 1. 缩略图URL - 小尺寸低质量，快速加载
+const getThumbnailUrl = (originalUrl) => {
+    if (!originalUrl) return originalUrl;
+    
+    // 先清理URL，确保没有重复的cdn-cgi参数
+    const cleanedUrl = extractOriginalUrl(originalUrl);
+    
+    if (cleanedUrl.includes('img.mengyimengsao.com')) {
+        const path = getCleanPath(cleanedUrl);
+        if (path) {
+            // 缩略图：width=400, quality=50
+            const thumbnailUrl = `https://img.mengyimengsao.com/cdn-cgi/image/width=400,quality=50,format=jpeg${path}`;
+            console.log(`🖼️ 生成缩略图URL: ${cleanedUrl} -> ${thumbnailUrl}`);
+            return thumbnailUrl;
         }
     }
     
-    // 检查是否是金数据图床
+    // 金数据图床
+    if (cleanedUrl.includes('jinshujufiles.com')) {
+        try {
+            const url = new URL(cleanedUrl);
+            url.searchParams.set('imageView2', '2/w/400/q/50');
+            return url.toString();
+        } catch (e) {
+            return cleanedUrl;
+        }
+    }
+    
+    return cleanedUrl;
+};
+
+// 2. 大图URL - 适配显示器尺寸，100%质量
+const getLightboxUrl = (originalUrl) => {
+    if (!originalUrl) return originalUrl;
+    
+    // 既然缩略图URL是正确的，我们直接基于缩略图URL生成大图URL
+    // 这样可以确保使用相同的逻辑和路径处理
+    const thumbnailUrl = getThumbnailUrl(originalUrl);
+    
+    if (thumbnailUrl.includes('img.mengyimengsao.com/cdn-cgi/image/')) {
+        const screen = getScreenSize();
+        // 将缩略图的参数替换为大图参数
+        const lightboxUrl = thumbnailUrl.replace(
+            /width=\d+,quality=\d+/,
+            `width=${screen.width},quality=100`
+        );
+        console.log(`🖼️ 基于缩略图生成大图URL: ${thumbnailUrl} -> ${lightboxUrl}`);
+        return lightboxUrl;
+    }
+    
+    // 金数据图床
     if (originalUrl.includes('jinshujufiles.com')) {
         try {
-            const url = new URL(originalUrl);
-            url.searchParams.set('imageView2', '2/w/600/q/80');
-            const unifiedUrl = url.toString();
-            console.log(`� 金数据统一据图片URL: ${originalUrl} -> ${unifiedUrl}`);
-            return unifiedUrl;
+            const cleanedUrl = extractOriginalUrl(originalUrl);
+            const url = new URL(cleanedUrl);
+            const screen = getScreenSize();
+            url.searchParams.set('imageView2', `2/w/${screen.width}/q/100`);
+            return url.toString();
         } catch (e) {
-            console.warn(`❌ 金数据URL解析失败: ${originalUrl}`, e);
             return originalUrl;
         }
     }
     
-    // 如果不是支持的图床，直接返回原图
-    console.log(`⚠️ 不支持的图床，使用原图: ${originalUrl}`);
-    return originalUrl;
+    // 如果都不匹配，返回原始URL
+    return extractOriginalUrl(originalUrl);
 };
 
-// 所有函数都指向同一个统一URL生成器
-const getThumbnailUrl = getUnifiedImageUrl;
-const getLightboxUrl = getUnifiedImageUrl;
-const getOptimizedImageUrl = getUnifiedImageUrl;
-
-// 原图URL - 用于下载
+// 3. 原图URL - 原始尺寸100%质量，用于下载
 const getOriginalUrl = (originalUrl) => {
-    return originalUrl; // 直接返回原图
+    // 确保返回的是干净的原始URL
+    return extractOriginalUrl(originalUrl);
 };
 
-// 全局统一缓存管理
-const unifiedImageCache = new Map(); // 统一图片缓存
+// 兼容性别名
+const getUnifiedImageUrl = getThumbnailUrl; // 默认使用缩略图
+const getOptimizedImageUrl = getThumbnailUrl;
 
-// 统一预加载函数 - 确保每个URL只下载一次
-const preloadUnifiedImage = (originalUrl) => {
-    return new Promise((resolve, reject) => {
-        const unifiedUrl = getUnifiedImageUrl(originalUrl);
+// ===== 分层缓存管理 =====
+const thumbnailCache = new Map();  // 缩略图缓存
+const lightboxCache = new Map();   // 大图缓存（Blob URL）
+const unifiedImageCache = thumbnailCache; // 兼容性别名
+
+// 全局大图预加载队列（避免多个组件同时预加载导致请求阻塞）
+let globalLightboxPreloadQueue = [];
+let isPreloadingLightbox = false;
+
+const addToLightboxPreloadQueue = (originalUrl) => {
+    if (!globalLightboxPreloadQueue.includes(originalUrl) && !lightboxCache.has(originalUrl)) {
+        globalLightboxPreloadQueue.push(originalUrl);
+    }
+};
+
+const startGlobalLightboxPreload = async () => {
+    if (isPreloadingLightbox || globalLightboxPreloadQueue.length === 0) return;
+    
+    isPreloadingLightbox = true;
+    console.log(`🚀 开始全局大图预加载队列: ${globalLightboxPreloadQueue.length} 张图片`);
+    
+    // 逐个预加载，避免并发请求过多
+    while (globalLightboxPreloadQueue.length > 0) {
+        const url = globalLightboxPreloadQueue.shift();
+        if (lightboxCache.has(url)) continue;
         
-        console.log(`📥 预加载统一图片: ${originalUrl} -> ${unifiedUrl}`);
+        try {
+            await preloadLightboxImage(url);
+        } catch (error) {
+            console.error(`❌ 全局预加载失败: ${url.substring(0, 50)}...`);
+        }
+    }
+    
+    isPreloadingLightbox = false;
+    console.log(`✅ 全局大图预加载完成，缓存大小: ${lightboxCache.size}`);
+};
+
+// 预加载大图到缓存（转换为Blob URL确保从内存读取）
+const preloadLightboxImage = (originalUrl) => {
+    return new Promise((resolve, reject) => {
+        const lightboxUrl = getLightboxUrl(originalUrl);
         
         // 检查缓存
-        if (unifiedImageCache.has(unifiedUrl)) {
-            console.log(`🎯 图片已在缓存中，直接返回: ${unifiedUrl}`);
-            resolve(unifiedImageCache.get(unifiedUrl));
+        if (lightboxCache.has(originalUrl)) {
+            console.log(`🎯 大图已在缓存中: ${originalUrl.substring(0, 50)}...`);
+            resolve(lightboxCache.get(originalUrl));
+            return;
+        }
+        
+        // 输出完整的大图URL用于调试
+        console.log(`📥 预加载大图完整URL: ${lightboxUrl}`);
+        console.log(`📥 原始URL: ${originalUrl}`);
+        
+        // 使用Image对象预加载
+        // 不设置 crossOrigin，避免 CORS 错误
+        const img = new Image();
+        img.referrerPolicy = 'no-referrer';
+        
+        const timeout = setTimeout(() => {
+            console.warn(`⏰ 大图加载超时: ${lightboxUrl.substring(0, 50)}...`);
+            reject(new Error('Image load timeout'));
+        }, 30000);
+        
+        img.onload = () => {
+            clearTimeout(timeout);
+            
+            // 直接缓存URL（不转换为Blob，因为cdn-cgi不支持CORS）
+            // 图片已经加载到浏览器缓存中，再次请求时会从缓存读取
+            lightboxCache.set(originalUrl, {
+                img,
+                url: lightboxUrl,
+                originalUrl: lightboxUrl,
+                width: img.naturalWidth,
+                height: img.naturalHeight,
+                loaded: true,
+                isBlob: false
+            });
+            console.log(`✅ 大图预加载成功: ${img.naturalWidth}x${img.naturalHeight}, URL: ${lightboxUrl.substring(0, 60)}...`);
+            resolve(lightboxCache.get(originalUrl));
+        };
+        
+        img.onerror = (error) => {
+            clearTimeout(timeout);
+            console.error(`❌ 大图预加载失败，完整URL: ${lightboxUrl}`);
+            console.error(`❌ 错误详情:`, error);
+            console.error(`❌ img.src: ${img.src}`);
+            console.error(`❌ img.complete: ${img.complete}`);
+            console.error(`❌ img.naturalWidth: ${img.naturalWidth}`);
+            reject(error);
+        };
+        
+        // 设置src开始加载
+        console.log(`🔄 开始加载图片: ${lightboxUrl}`);
+        img.src = lightboxUrl;
+    });
+};
+
+// 获取缓存的大图Blob URL
+const getCachedLightboxUrl = (originalUrl) => {
+    const cached = lightboxCache.get(originalUrl);
+    if (cached && cached.blobUrl) {
+        return cached.blobUrl;
+    }
+    // 如果没有缓存，返回网络URL
+    return getLightboxUrl(originalUrl);
+};
+
+// 预加载缩略图（兼容旧代码）
+const preloadUnifiedImage = (originalUrl) => {
+    return new Promise((resolve, reject) => {
+        const thumbnailUrl = getThumbnailUrl(originalUrl);
+        
+        // 检查缓存
+        if (thumbnailCache.has(thumbnailUrl)) {
+            console.log(`🎯 缩略图已在缓存中: ${thumbnailUrl}`);
+            resolve(thumbnailCache.get(thumbnailUrl));
             return;
         }
         
         const img = new Image();
         
-        // 添加超时机制
         const timeout = setTimeout(() => {
-            console.warn(`⏰ 图片加载超时 (10秒): ${unifiedUrl}`);
+            console.warn(`⏰ 缩略图加载超时: ${thumbnailUrl}`);
             reject(new Error('Image load timeout'));
         }, 10000);
         
         img.onload = () => {
             clearTimeout(timeout);
-            
-            // 缓存图片元素
-            unifiedImageCache.set(unifiedUrl, img);
-            
-            console.log(`✅ 图片加载完成并缓存: ${unifiedUrl}`);
-            console.log(`📊 图片尺寸: ${img.naturalWidth}x${img.naturalHeight}`);
-            console.log(`📈 缓存大小: ${unifiedImageCache.size} 张图片`);
-            
+            thumbnailCache.set(thumbnailUrl, img);
+            console.log(`✅ 缩略图缓存完成: ${thumbnailUrl}`);
             resolve(img);
         };
         
@@ -226,57 +381,56 @@ const preloadUnifiedImage = (originalUrl) => {
     });
 };
 
-// 兼容性别名 - 所有预加载函数都指向统一函数
+// 兼容性别名
 const preloadThumbnail = preloadUnifiedImage;
-const preloadLightboxImage = preloadUnifiedImage;
 const preloadOptimizedImage = preloadUnifiedImage;
 
-// Lightbox 图片组件 - 简化版，使用统一URL避免重复请求
+// Lightbox 图片组件 - 使用预加载的 URL（浏览器 HTTP 缓存）
 const CachedLightboxImage = ({ src, alt, style, originalUrl, ...props }) => {
     const [imageLoaded, setImageLoaded] = useState(false);
     const [imageError, setImageError] = useState(false);
-    const [displaySrc, setDisplaySrc] = useState('');
+    const [isCached, setIsCached] = useState(false);
+    const [displayUrl, setDisplayUrl] = useState('');
 
     useEffect(() => {
-        if (!src) return;
+        if (!src || !originalUrl) return;
 
-        console.log(`🔍 Lightbox 组件接收到 src: ${src}`);
-        
         // 重置状态
         setImageLoaded(false);
         setImageError(false);
 
-        // 检查统一缓存中是否有图片
-        const cachedImg = unifiedImageCache.get(src);
-        if (cachedImg && cachedImg.complete && cachedImg.naturalWidth > 0) {
-            console.log(`🎯 使用统一缓存的图片，应该立即显示: ${src}`);
-            setDisplaySrc(src);
-            // 由于图片已经缓存，应该立即显示
-            setTimeout(() => {
-                setImageLoaded(true);
-                console.log(`⚡ 缓存图片立即显示: ${src}`);
-            }, 50);
+        // 检查大图是否已经预加载到缓存
+        const cached = lightboxCache.get(originalUrl);
+        
+        if (cached && cached.loaded && cached.url) {
+            // 大图已预加载，使用缓存的 URL
+            console.log(`🎯 Lightbox使用预加载URL: ${cached.width}x${cached.height}`);
+            setDisplayUrl(cached.url);
+            setIsCached(true);
         } else {
-            console.log(`⚠️ 图片未在统一缓存中，使用常规加载: ${src}`);
-            setDisplaySrc(src);
+            // 大图未缓存，需要从网络加载
+            console.log(`⚠️ Lightbox大图未缓存，从网络加载: ${src.substring(0, 60)}...`);
+            setDisplayUrl(src);
+            setIsCached(false);
         }
-    }, [src]);
+    }, [src, originalUrl]);
 
     const handleLoad = () => {
         if (!imageLoaded) {
             setImageLoaded(true);
             setImageError(false);
-            console.log(`✅ Lightbox 图片显示完成: ${displaySrc}`);
+            console.log(`✅ Lightbox 图片从网络加载完成`);
         }
     };
 
     const handleError = (error) => {
-        console.warn(`❌ Lightbox 图片加载失败: ${displaySrc}`, error);
+        console.warn(`❌ Lightbox 图片加载失败`, error);
         setImageError(true);
         setImageLoaded(false);
     };
 
-    if (!displaySrc) {
+    // 没有 displayUrl，显示加载中
+    if (!displayUrl) {
         return (
             <Box
                 sx={{
@@ -285,6 +439,8 @@ const CachedLightboxImage = ({ src, alt, style, originalUrl, ...props }) => {
                     alignItems: 'center',
                     justifyContent: 'center',
                     backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                    minWidth: '200px',
+                    minHeight: '200px',
                 }}
             >
                 <CircularProgress size={40} sx={{ color: 'white' }} />
@@ -314,49 +470,35 @@ const CachedLightboxImage = ({ src, alt, style, originalUrl, ...props }) => {
         );
     }
 
+    // 显示图片（使用 displayUrl，浏览器会从 HTTP 缓存读取已预加载的图片）
     return (
         <Box sx={{ position: 'relative', ...style }}>
+            {/* 加载指示器 - 仅在图片未加载完成时显示 */}
             {!imageLoaded && (
                 <Box
                     sx={{
                         position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
+                        top: '50%',
+                        left: '50%',
+                        transform: 'translate(-50%, -50%)',
                         display: 'flex',
                         alignItems: 'center',
-                        justifyContent: 'center',
-                        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                        padding: '12px 20px',
+                        borderRadius: '20px',
                         zIndex: 1,
                     }}
                 >
-                    <CircularProgress size={40} sx={{ color: 'white' }} />
-                    <Typography sx={{ color: 'white', ml: 2 }}>加载图片...</Typography>
+                    <CircularProgress size={24} sx={{ color: 'white' }} />
+                    <Typography sx={{ color: 'white', ml: 1.5, fontSize: '14px' }}>
+                        {isCached ? '从缓存加载...' : '加载大图...'}
+                    </Typography>
                 </Box>
             )}
             
-            {/* 缓存状态指示器 */}
-            {/* {imageLoaded && (
-                <Box
-                    sx={{
-                        position: 'absolute',
-                        top: 10,
-                        left: 10,
-                        backgroundColor: 'rgba(0, 0, 0, 0.6)',
-                        color: 'white',
-                        padding: '4px 8px',
-                        borderRadius: '4px',
-                        fontSize: '12px',
-                        zIndex: 2,
-                    }}
-                >
-                    {unifiedImageCache.has(src) ? '已缓存' : '网络加载'}
-                </Box>
-            )} */}
-            
+            {/* 大图 - 使用 displayUrl */}
             <img
-                src={displaySrc}
+                src={displayUrl}
                 alt={alt}
                 onLoad={handleLoad}
                 onError={handleError}
@@ -367,10 +509,28 @@ const CachedLightboxImage = ({ src, alt, style, originalUrl, ...props }) => {
                     width: 'auto',
                     height: 'auto',
                     objectFit: 'contain',
-                    opacity: imageLoaded ? 1 : 0,
-                    transition: 'opacity 0.3s ease',
+                    opacity: imageLoaded ? 1 : 0.3,
+                    transition: 'opacity 0.2s ease',
                 }}
             />
+            
+            {/* 缓存状态指示器 */}
+            {imageLoaded && (
+                <Box
+                    sx={{
+                        position: 'absolute',
+                        top: 10,
+                        left: 10,
+                        backgroundColor: isCached ? 'rgba(0, 128, 0, 0.8)' : 'rgba(0, 100, 200, 0.8)',
+                        color: 'white',
+                        padding: '4px 8px',
+                        borderRadius: '4px',
+                        fontSize: '12px',
+                    }}
+                >
+                    {isCached ? '✓ 已预加载' : '✓ 网络加载'}
+                </Box>
+            )}
         </Box>
     );
 };
@@ -401,32 +561,48 @@ const OptimizedFileCarousel = ({ questionValue, onImageClick, onPreloadUpdate })
         // 打印图片URL用于调试
         questionValue.forEach((imageFile, index) => {
             const originalUrl = imageFile?.content;
+            console.log(`🔍 原始图片 ${index + 1}:`, originalUrl);
+            
+            const cleanedUrl = extractOriginalUrl(originalUrl);
+            console.log(`🧹 清理后URL ${index + 1}:`, cleanedUrl);
+            
+            const path = getCleanPath(cleanedUrl);
+            console.log(`📁 提取路径 ${index + 1}:`, path);
+            
             const thumbnailUrl = getThumbnailUrl(originalUrl);
-            console.log(`图片 ${index + 1}: ${originalUrl} -> ${thumbnailUrl}`);
+            console.log(`🖼️ 缩略图URL ${index + 1}:`, thumbnailUrl);
+            
+            const lightboxUrl = getLightboxUrl(originalUrl);
+            console.log(`🔍 大图URL ${index + 1}:`, lightboxUrl);
         });
     }, [questionValue]);
 
-    // 第二阶段：缩略图全部加载完成后，开始预加载大图
+    // 第二阶段：缩略图全部加载完成后，将大图添加到全局预加载队列
     useEffect(() => {
         if (!allThumbnailsComplete || !questionValue || questionValue.length === 0) return;
 
-        console.log(`🎉 所有缩略图加载完成，图片已在浏览器缓存中 // 原：开始预加载 ${questionValue.length} 张大图到缓存...`);
+        console.log(`🎉 缩略图加载完成，将 ${questionValue.length} 张大图添加到预加载队列...`);
         
-        // 由于使用统一URL，缩略图加载完成后图片已在浏览器缓存中，不需要额外预加载
-        // 标记所有图片为已预加载
+        // 将大图URL添加到全局队列
+        questionValue.forEach((file, i) => {
+            const originalUrl = file?.content;
+            if (originalUrl) {
+                addToLightboxPreloadQueue(originalUrl);
+            }
+        });
+        
+        // 延迟启动全局预加载（等待所有组件的缩略图都加载完成）
+        setTimeout(() => {
+            startGlobalLightboxPreload();
+        }, 500);
+        
+        // 标记为已预加载（实际预加载在全局队列中进行）
         const allPreloaded = {};
         questionValue.forEach((_, index) => {
             allPreloaded[index] = true;
         });
         setLightboxPreloaded(allPreloaded);
-        
-        if (onPreloadUpdate) {
-            onPreloadUpdate(questionValue.length, questionValue.length);
-        }
-    }, [allThumbnailsComplete, questionValue, onPreloadUpdate]);
-
-    // 注意：由于使用统一URL，缩略图加载完成后图片已在浏览器缓存中
-    // 不需要额外的预加载步骤
+    }, [allThumbnailsComplete, questionValue]);
 
     // 第三阶段：下载原图函数
     const downloadOriginalImage = async (imageUrl, index) => {
@@ -550,7 +726,14 @@ const OptimizedFileCarousel = ({ questionValue, onImageClick, onPreloadUpdate })
                         </Button>
                     </Box>
                 ) : (
-                    <Box sx={{ position: 'relative', width: '100%', height: '100%' }}>
+                    <Box sx={{ 
+                        position: 'relative', 
+                        width: '100%', 
+                        height: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                    }}>
                         {/* 预加载所有图片，但只显示当前的 */}
                         {questionValue.map((imageFile, index) => {
                             const originalUrl = imageFile?.content;
@@ -1691,67 +1874,35 @@ const DynamicFormPage = () => {
                                             }}
                                             onImageClick={(index, lightboxPreloadedStatus) => {
                                                 console.log(`📸 打开 Lightbox: 图片 ${index + 1}`);
+                                                console.log(`📊 lightboxCache 大小: ${lightboxCache.size}`);
                                                 
-                                                // 生成所有图片的统一 URL
-                                                const lightboxUrls = questionValue.map((file, idx) => {
+                                                // 生成所有图片的大图URL（优先使用缓存的URL）
+                                                const lightboxData = questionValue.map((file, idx) => {
                                                     const originalUrl = file?.content;
-                                                    const unifiedUrl = getUnifiedImageUrl(originalUrl);
+                                                    const cached = lightboxCache.get(originalUrl);
                                                     
-                                                    // 检查统一缓存中是否有图片
-                                                    const cachedImg = unifiedImageCache.get(unifiedUrl);
-                                                    const isCached = cachedImg && cachedImg.complete && cachedImg.naturalWidth > 0;
+                                                    // 优先使用缓存的URL（已预加载到浏览器缓存），否则使用网络URL
+                                                    const lightboxUrl = cached?.url || getLightboxUrl(originalUrl);
+                                                    const isCached = !!cached?.loaded;
                                                     
-                                                    if (isCached) {
-                                                        console.log(`🎯 图片 ${idx + 1} 使用统一缓存: ${unifiedUrl} (${cachedImg.naturalWidth}x${cachedImg.naturalHeight})`);
-                                                    } else {
-                                                        console.log(`⚠️ 图片 ${idx + 1} 未缓存，将从网络加载: ${unifiedUrl}`);
-                                                    }
-                                                    
-                                                    return unifiedUrl;
-                                                });
-                                                
-                                                // 检查统一缓存状态
-                                                const cacheStatus = questionValue.map((file, idx) => {
-                                                    const originalUrl = file?.content;
-                                                    const unifiedUrl = getUnifiedImageUrl(originalUrl);
-                                                    const cachedImg = unifiedImageCache.get(unifiedUrl);
-                                                    const isCached = cachedImg && cachedImg.complete && cachedImg.naturalWidth > 0;
+                                                    console.log(`图片 ${idx + 1}: ${isCached ? '✅ 已缓存' : '⚠️ 网络加载'} ${cached ? `(${cached.width}x${cached.height})` : ''}`);
                                                     
                                                     return {
-                                                        index: idx,
+                                                        lightboxUrl,
                                                         originalUrl,
-                                                        unifiedUrl,
-                                                        finalUrl: lightboxUrls[idx],
-                                                        isPreloaded: lightboxPreloadedStatus[idx] || false,
+                                                        index: idx,
                                                         isCached,
-                                                        cachedImgSize: isCached ? `${cachedImg.naturalWidth}x${cachedImg.naturalHeight}` : 'N/A'
+                                                        dimensions: cached ? `${cached.width}x${cached.height}` : 'N/A'
                                                     };
                                                 });
                                                 
-                                                console.log(`📊 Lightbox 详细缓存状态:`, cacheStatus);
-                                                
-                                                // 修改数据结构：存储 lightbox URL 和原始 URL 的映射
-                                                const lightboxData = questionValue.map((file, idx) => ({
-                                                    lightboxUrl: lightboxUrls[idx],
-                                                    originalUrl: file?.content,
-                                                    index: idx
-                                                }));
+                                                // 统计缓存状态
+                                                const cachedCount = lightboxData.filter(item => item.isCached).length;
+                                                console.log(`📈 大图缓存进度: ${cachedCount}/${questionValue.length}`);
                                                 
                                                 setLightboxImages(lightboxData);
                                                 setCurrentImageIndex(index);
                                                 setLightboxOpen(true);
-                                                
-                                                // 统计缓存状态
-                                                const cachedCount = cacheStatus.filter(item => item.isCached).length;
-                                                const totalCount = questionValue.length;
-                                                
-                                                console.log(`📈 统一缓存进度: ${cachedCount}/${totalCount}`);
-                                                
-                                                if (cacheStatus[index].isCached) {
-                                                    console.log(`✅ 当前图片已缓存，应该立即显示`);
-                                                } else {
-                                                    console.log(`⚠️ 当前图片未缓存，需要网络加载`);
-                                                }
                                             }}
                                         />
                                     );
