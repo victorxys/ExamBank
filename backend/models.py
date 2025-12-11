@@ -2430,6 +2430,7 @@ class BaseContract(db.Model):
         db.String(500), nullable=True, index=True, comment="客户姓名拼音"
     )
     contact_person = db.Column(db.String(255), comment="客户联系人")
+    family_id = db.Column(db.String(100), nullable=True, index=True, comment="家庭ID，用于关联同一家庭的多个合同")
 
     # employee_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('service_personnel.id'), nullable=False, index=True)
     # 我们不再使用一个通用的 employee_id，而是用两个可为空的外键

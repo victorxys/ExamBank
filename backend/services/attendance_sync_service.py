@@ -66,28 +66,47 @@ def sync_attendance_to_record(attendance_form_id):
     overtime_days = calculate_days(data.get('overtime_records', []))
     out_of_beijing_days = calculate_days(data.get('out_of_beijing_records', []))  # 修复：使用正确的键名
     out_of_country_days = calculate_days(data.get('out_of_country_records', []))  # 修复：使用正确的键名
-    paid_leave_days = len(data.get('paid_leave_records', [])) # 带薪休假通常是整天? 假设是记录列表的长度
-    # 如果带薪休假也有时长:
-    if data.get('paid_leave_records') and isinstance(data.get('paid_leave_records')[0], dict):
-         paid_leave_days = calculate_days(data.get('paid_leave_records', []))
+    paid_leave_days = calculate_days(data.get('paid_leave_records', []))
     
-    current_app.logger.info(f"[ATTENDANCE_SYNC] 计算结果 - 休息:{rest_days}, 请假:{leave_days}, 加班:{overtime_days}, 出京:{out_of_beijing_days}, 出境:{out_of_country_days}")
+    current_app.logger.info(f"[ATTENDANCE_SYNC] 计算结果 - 休息:{rest_days}, 请假:{leave_days}, 带薪休假:{paid_leave_days}, 加班:{overtime_days}, 出京:{out_of_beijing_days}, 出境:{out_of_country_days}")
     
     # 3. 计算总出勤天数
-    # 逻辑: 当月总天数 - 休息天数 - 请假天数
+    # 逻辑: 合同有效天数 - 休息天数 - 请假天数
     # 注意: 带薪休假算做出勤? 
     # 需求文档: "total_days_worked: 出勤天数(含带薪休假、出京、出境)"
-    # 所以: Total = DaysInMonth - Rest - Leave
+    # 所以: Total = ValidDays - Rest - Leave
     
-    _, days_in_month = calendar.monthrange(form.cycle_start_date.year, form.cycle_start_date.month)
+    # 【关键修复】使用合同的有效日期范围，而不是整个考勤周期
+    contract = form.contract
+    if contract:
+        # 计算合同在当月的有效天数
+        cycle_start = form.cycle_start_date.date() if isinstance(form.cycle_start_date, datetime) else form.cycle_start_date
+        cycle_end = form.cycle_end_date.date() if isinstance(form.cycle_end_date, datetime) else form.cycle_end_date
+        
+        # 合同开始日期（如果在当月之后，使用合同开始日期）
+        contract_start = contract.start_date.date() if isinstance(contract.start_date, datetime) else contract.start_date
+        effective_start = max(cycle_start, contract_start)
+        
+        # 合同结束日期（如果在当月之前，使用合同结束日期）
+        contract_end = contract.end_date.date() if isinstance(contract.end_date, datetime) else contract.end_date
+        # 如果合同已终止，使用终止日期
+        if contract.termination_date:
+            termination_date = contract.termination_date.date() if isinstance(contract.termination_date, datetime) else contract.termination_date
+            contract_end = min(contract_end, termination_date)
+        effective_end = min(cycle_end, contract_end)
+        
+        # 计算有效天数（基础劳务天数）
+        base_work_days = (effective_end - effective_start).days + 1
+        current_app.logger.info(f"[ATTENDANCE_SYNC] 合同有效期: {effective_start} 到 {effective_end}, 基础劳务天数: {base_work_days}")
+    else:
+        # 如果没有合同信息，回退到使用考勤周期
+        base_work_days = (form.cycle_end_date.date() - form.cycle_start_date.date()).days + 1
+        current_app.logger.warning(f"[ATTENDANCE_SYNC] 未找到合同信息，使用考勤周期天数: {base_work_days}")
     
-    # 注意: 如果周期不是整月? 目前逻辑是"当月填上月"，通常是整月。
-    # 但如果 cycle_start_date 和 cycle_end_date 不是整月，应该用 (end - start).days + 1
-    cycle_days = (form.cycle_end_date.date() - form.cycle_start_date.date()).days + 1
+    # 出勤天数 = 基础劳务天数 - 休息天数 - 请假天数
+    total_days_worked = Decimal(base_work_days) - rest_days - leave_days
     
-    total_days_worked = Decimal(cycle_days) - rest_days - leave_days
-    
-    current_app.logger.info(f"[ATTENDANCE_SYNC] 周期天数:{cycle_days}, 总出勤天数:{total_days_worked}")
+    current_app.logger.info(f"[ATTENDANCE_SYNC] 基础劳务天数:{base_work_days}, 休息:{rest_days}, 请假:{leave_days}, 总出勤天数:{total_days_worked}")
     
     # 4. 创建或更新 AttendanceRecord
     attendance = AttendanceRecord.query.filter_by(
@@ -141,7 +160,7 @@ def sync_attendance_to_record(attendance_form_id):
     year = form.cycle_start_date.year
     month = form.cycle_start_date.month
     
-    current_app.logger.info(f"[ATTENDANCE_SYNC] 准备触发账单重算: contract_id={form.contract_id}, year={year}, month={month}, actual_work_days={total_days_worked}")
+    current_app.logger.info(f"[ATTENDANCE_SYNC] 准备触发账单重算: contract_id={form.contract_id}, year={year}, month={month}, 出勤天数={total_days_worked}")
     
     # 注意: calculate_for_month 是同步还是异步? 
     # 如果是耗时操作，建议异步。但在 sync_service 中，我们可能希望立即看到结果?
@@ -150,17 +169,19 @@ def sync_attendance_to_record(attendance_form_id):
     # 为了简化，直接调用 Engine，因为这是由用户提交触发的单一操作。
     try:
         engine = BillingEngine()
-        # 【关键修复】传入实际出勤天数，让工资计算引擎使用考勤记录的准确数据
+        # 【关键修复】传入出勤天数（合同有效天数 - 休息 - 请假）
+        # billing_engine 中的 actual_work_days_override 用于设置 base_work_days（基本劳务天数）
+        # 基本劳务天数 = 出勤天数（不含加班），加班天数通过 AttendanceRecord.overtime_days 单独计算
         engine.calculate_for_month(
             year, 
             month, 
             contract_id=form.contract_id, 
             force_recalculate=True,
-            actual_work_days_override=float(total_days_worked)  # 传入考勤计算的实际出勤天数
+            actual_work_days_override=float(total_days_worked)  # 传入出勤天数（合同有效天数 - 休息 - 请假）
         )
         # 【关键修复】显式提交事务，确保账单更新保存到数据库
         db.session.commit()
-        current_app.logger.info(f"[ATTENDANCE_SYNC] 账单重算完成并已提交，使用实际出勤天数: {total_days_worked}")
+        current_app.logger.info(f"[ATTENDANCE_SYNC] 账单重算完成并已提交，使用出勤天数: {total_days_worked}")
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"[ATTENDANCE_SYNC] 账单重算失败: {str(e)}", exc_info=True)

@@ -20,10 +20,12 @@ def calculate_last_month_cycle():
 
 def find_consecutive_contracts(employee_id, cycle_start, cycle_end):
     """
-    查找指定周期内，同一员工同一客户的连续合同链
+    查找指定周期内，同一员工同一家庭的连续合同链（支持家庭合并）
     返回: (primary_contract, effective_start_date, effective_end_date)
     primary_contract: 用于关联考勤表的合同（通常是最新的那个）
     """
+    current_app.logger.info(f"🔍 查找员工 {employee_id} 在周期 {cycle_start} 到 {cycle_end} 的合同")
+    
     # 1. 查找该员工在周期内所有活跃或已终止/完成的合同
     # 只要合同时间段与考勤周期有交集即可
     contracts = BaseContract.query.filter(
@@ -33,30 +35,50 @@ def find_consecutive_contracts(employee_id, cycle_start, cycle_end):
         BaseContract.end_date >= cycle_start
     ).order_by(BaseContract.start_date.desc()).all()
 
+    current_app.logger.info(f"📋 找到 {len(contracts)} 个符合条件的合同")
+    for c in contracts:
+        current_app.logger.info(f"  - 合同 {c.id}: {c.start_date} 到 {c.end_date}, family_id={c.family_id}, status={c.status}")
+
     if not contracts:
         return None, None, None
 
     # 2. 找到最新的合同作为"主合同" (primary_contract)
     # 优先选 active 的，如果没有 active 则选最近的一个
     primary_contract = next((c for c in contracts if c.status == 'active'), contracts[0])
+    current_app.logger.info(f"🎯 选择主合同: {primary_contract.id}, family_id={primary_contract.family_id}")
     
-    # 3. 找到与主合同属于同一客户的所有合同
-    if primary_contract.customer_id:
-        customer_contracts = [
+    # 3. 【家庭合并逻辑】找到与主合同属于同一家庭的所有合同
+    # 优先使用family_id，如果没有则使用customer_id或customer_name
+    family_contracts = []
+    
+    if primary_contract.family_id:
+        # 优先：如果主合同有family_id，按family_id合并
+        family_contracts = [
+            c for c in contracts 
+            if c.family_id == primary_contract.family_id
+        ]
+        current_app.logger.info(f"按family_id合并: {primary_contract.family_id}, 找到 {len(family_contracts)} 个合同")
+    elif primary_contract.customer_id:
+        # 回退1：按customer_id合并
+        family_contracts = [
             c for c in contracts 
             if c.customer_id == primary_contract.customer_id
         ]
+        current_app.logger.info(f"按customer_id合并: {primary_contract.customer_id}, 找到 {len(family_contracts)} 个合同")
     else:
-        customer_contracts = [
+        # 回退2：按customer_name合并
+        family_contracts = [
             c for c in contracts 
             if c.customer_name == primary_contract.customer_name 
         ]
+        current_app.logger.info(f"按customer_name合并: {primary_contract.customer_name}, 找到 {len(family_contracts)} 个合同")
 
     # 4. 计算有效日期范围 (合并这些合同的时间段)
     # 取最早的开始时间和最晚的结束时间
-    # 注意：这里我们假设同一客户的合同是连续的，或者即使有间断也允许在同一个表里填
-    effective_start = min(c.start_date for c in customer_contracts)
-    effective_end = max(c.end_date for c in customer_contracts)
+    effective_start = min(c.start_date for c in family_contracts)
+    effective_end = max(c.end_date for c in family_contracts)
+    
+    current_app.logger.info(f"合并后的服务期间: {effective_start} 到 {effective_end}")
 
     # 如果是自动月签合同，且有终止日期，使用终止日期作为结束边界
     # (针对 primary_contract 判断，或者检查链中是否有 terminated 的)
@@ -68,31 +90,73 @@ def find_consecutive_contracts(employee_id, cycle_start, cycle_end):
 @attendance_form_bp.route('/by-token/<employee_token>', methods=['GET'])
 def get_attendance_form_by_token(employee_token):
     """
-    根据员工访问令牌获取考勤表
-    如果当月考勤表不存在，则自动创建
-    支持 year/month 参数指定月份
+    根据访问令牌获取考勤表
+    支持三种查找方式（按优先级）：
+    1. 通过考勤表ID直接查找（UUID格式）
+    2. 通过 employee_access_token 查找
+    3. 通过员工ID + 年月参数查找
     """
     try:
-        # 1. 先读取 year/month 参数，确定要查询的月份
+        # 1. 首先尝试通过考勤表ID直接查找
+        try:
+            form_id = uuid.UUID(employee_token)
+            existing_form = AttendanceForm.query.get(form_id)
+            if existing_form:
+                # 直接使用考勤表关联的合同日期，而不是查找所有合同
+                contract = existing_form.contract
+                effective_start = contract.start_date if contract else None
+                effective_end = contract.end_date if contract else None
+                result = form_to_dict(existing_form, effective_start, effective_end)
+                return jsonify(result)
+        except ValueError:
+            pass
+        
+        # 2. 尝试通过 employee_access_token 直接查找考勤表
+        existing_form = AttendanceForm.query.filter_by(
+            employee_access_token=employee_token
+        ).first()
+        
+        if existing_form:
+            # 直接使用考勤表关联的合同日期
+            contract = existing_form.contract
+            effective_start = contract.start_date if contract else None
+            effective_end = contract.end_date if contract else None
+            result = form_to_dict(existing_form, effective_start, effective_end)
+            return jsonify(result)
+        
+        # 3. 尝试解析 token 获取员工ID
+        parts = employee_token.split('_')
+        if len(parts) >= 1:
+            employee_id_str = parts[0]
+        else:
+            return jsonify({"error": "无效的访问令牌"}), 404
+        
+        # 读取 year/month 参数，或从 token 中解析
         year = request.args.get('year', type=int)
         month = request.args.get('month', type=int)
+        
+        # 如果 token 中包含年月信息，优先使用
+        if len(parts) >= 3:
+            try:
+                year = int(parts[1])
+                month = int(parts[2])
+            except ValueError:
+                pass
         
         print(f"[DEBUG] Received year={year}, month={month}")
         
         if year and month:
-            # 使用指定的年月
             from calendar import monthrange
             last_day = monthrange(year, month)[1]
             cycle_start = date(year, month, 1)
             cycle_end = date(year, month, last_day)
         else:
-            # 默认上个月
             cycle_start, cycle_end = calculate_last_month_cycle()
         
-        # 2. 查找员工
+        # 4. 查找员工
         employee = None
         try:
-            employee_id = uuid.UUID(employee_token)
+            employee_id = uuid.UUID(employee_id_str)
             employee = ServicePersonnel.query.get(employee_id)
         except ValueError:
             pass
@@ -118,6 +182,7 @@ def get_attendance_form_by_token(employee_token):
                 existing_form.contract_id = contract.id
                 db.session.commit()
             
+            # 重新计算有效日期范围，确保家庭合并逻辑生效
             result = form_to_dict(existing_form, effective_start, effective_end)
             return jsonify(result)
 
@@ -201,10 +266,10 @@ def get_sign_page_data(signature_token):
         if not form:
             return jsonify({"error": "无效的签署链接"}), 404
             
-        # 同样需要计算有效日期范围
-        cycle_start = form.cycle_start_date.date() if isinstance(form.cycle_start_date, datetime) else form.cycle_start_date
-        cycle_end = form.cycle_end_date.date() if isinstance(form.cycle_end_date, datetime) else form.cycle_end_date
-        _, effective_start, effective_end = find_consecutive_contracts(form.employee_id, cycle_start, cycle_end)
+        # 直接使用考勤表关联的合同日期，而不是查找所有合同
+        contract = form.contract
+        effective_start = contract.start_date if contract else None
+        effective_end = contract.end_date if contract else None
 
         return jsonify(form_to_dict(form, effective_start, effective_end))
     except Exception as e:
@@ -261,6 +326,36 @@ def form_to_dict(form, effective_start_date=None, effective_end_date=None):
     # 否则回退到合同本身的 start_date
     display_start_date = effective_start_date if effective_start_date else (form.contract.start_date if form.contract else None)
     display_end_date = effective_end_date if effective_end_date else (form.contract.end_date if form.contract else None)
+    
+    # 【家庭信息】获取同一家庭的所有客户信息
+    family_customers = []
+    if form.contract and form.contract.family_id:
+        # 查找同一家庭的所有合同
+        family_contracts = BaseContract.query.filter_by(
+            service_personnel_id=form.employee_id,
+            family_id=form.contract.family_id
+        ).filter(
+            BaseContract.status.in_(['active', 'terminated', 'finished', 'completed']),
+            BaseContract.start_date <= form.cycle_end_date,
+            BaseContract.end_date >= form.cycle_start_date
+        ).all()
+        
+        # 收集所有客户名称（去重）
+        customer_names_seen = set()
+        for contract in family_contracts:
+            if contract.customer_name and contract.customer_name not in customer_names_seen:
+                family_customers.append({
+                    "name": contract.customer_name,
+                    "contract_id": str(contract.id)
+                })
+                customer_names_seen.add(contract.customer_name)
+    
+    # 如果没有家庭信息，使用单个合同的客户信息
+    if not family_customers and form.contract:
+        family_customers = [{
+            "name": form.contract.customer_name,
+            "contract_id": str(form.contract_id)
+        }]
 
     return {
         "id": str(form.id),
@@ -287,7 +382,11 @@ def form_to_dict(form, effective_start_date=None, effective_end_date=None):
             "termination_date": form.contract.termination_date.isoformat() if form.contract and form.contract.termination_date else None,
             # 是否为自动月签合同（NannyContract 特有字段）
             "is_monthly_auto_renew": getattr(form.contract, 'is_monthly_auto_renew', False) if form.contract else False,
-        }
+        },
+        # 【家庭信息】
+        "family_info": {
+            "customers": family_customers
+        } if family_customers else None
     }
 
 @attendance_form_bp.route('/monthly-list', methods=['GET'])
@@ -361,10 +460,12 @@ def get_monthly_attendance_list():
             if group[-1].status in ['terminated', 'finished'] and group[-1].termination_date:
                  max_end_date = group[-1].termination_date
 
-            # Find attendance form for this employee in this month
-            # We query by employee_id to find the form regardless of which contract in the group it's currently linked to
+            # Find attendance form for this specific contract group
+            # Look for forms linked to any contract in this group
+            contract_ids = [str(c.id) for c in group]
             form = AttendanceForm.query.filter(
                 AttendanceForm.employee_id == employee.id,
+                AttendanceForm.contract_id.in_(contract_ids),
                 AttendanceForm.cycle_start_date <= month_end,
                 AttendanceForm.cycle_end_date >= month_start
             ).order_by(AttendanceForm.created_at.desc()).first()
@@ -387,8 +488,8 @@ def get_monthly_attendance_list():
                 customer_signed_at = form.customer_signed_at.isoformat() if form.customer_signed_at else None
                 employee_access_token = form.employee_access_token
             
-            # Generate access link
-            access_link = f"{frontend_base_url}/attendance-form/{employee_access_token}"
+            # Generate access link - use fixed employee URL without year/month parameters
+            access_link = f"{frontend_base_url}/attendance/{employee.id}"
             
             item = {
                 "employee_id": str(employee.id),
@@ -670,3 +771,276 @@ def _prepare_special_records(data):
     # 按日期排序
     records_list.sort(key=lambda x: x['date_str'])
     return records_list
+
+# 智能路由API - 根据员工token返回考勤表选择信息
+@attendance_form_bp.route('/<employee_token>', methods=['GET'])
+def get_employee_attendance_forms(employee_token):
+    """
+    智能路由API：根据员工token获取该员工的考勤表列表
+    如果只有一个考勤表，返回single类型直接跳转
+    如果有多个考勤表，返回multiple类型显示选择页面
+    """
+    try:
+        # 获取年月参数，如果没有提供则使用当前月份
+        year = request.args.get('year', type=int)
+        month = request.args.get('month', type=int)
+        
+        if year and month:
+            from calendar import monthrange
+            last_day = monthrange(year, month)[1]
+            cycle_start = date(year, month, 1)
+            cycle_end = date(year, month, last_day)
+        else:
+            # 默认使用上个月（考勤通常是填写上个月的）
+            now = date.today()
+            from calendar import monthrange
+            # 计算上个月
+            if now.month == 1:
+                last_month_year = now.year - 1
+                last_month = 12
+            else:
+                last_month_year = now.year
+                last_month = now.month - 1
+            last_day = monthrange(last_month_year, last_month)[1]
+            cycle_start = date(last_month_year, last_month, 1)
+            cycle_end = date(last_month_year, last_month, last_day)
+        
+        # 查找员工
+        employee = None
+        try:
+            employee_id = uuid.UUID(employee_token)
+            employee = ServicePersonnel.query.get(employee_id)
+        except ValueError:
+            pass
+            
+        if not employee:
+            return jsonify({"error": "无效的访问令牌"}), 404
+        
+        # 查找该员工在指定月份的所有考勤表
+        # 这里需要根据家庭ID来分组考勤表
+        
+        # 1. 先找到该员工在该月份的所有合同
+        contracts = BaseContract.query.filter(
+            BaseContract.service_personnel_id == employee_id,
+            BaseContract.status.in_(['active', 'terminated', 'finished', 'completed']),
+            BaseContract.start_date <= cycle_end,
+            BaseContract.end_date >= cycle_start
+        ).all()
+        
+        if not contracts:
+            return jsonify({
+                "redirect_type": "none",
+                "employee_name": employee.name,
+                "message": "该月份没有有效合同"
+            })
+        
+        # 2. 按家庭ID分组合同，但如果没有family_id则按customer_name分组
+        family_groups = {}
+        for contract in contracts:
+            if contract.family_id:
+                family_key = f"family_{contract.family_id}"
+            else:
+                family_key = f"customer_{contract.customer_name}"
+            
+            if family_key not in family_groups:
+                family_groups[family_key] = []
+            family_groups[family_key].append(contract)
+        
+        # 3. 为每个家庭组生成或查找考勤表
+        attendance_forms = []
+        
+        for family_key, family_contracts in family_groups.items():
+            # 选择主合同（最新的active合同，或最新的合同）
+            primary_contract = next(
+                (c for c in family_contracts if c.status == 'active'), 
+                max(family_contracts, key=lambda x: x.start_date)
+            )
+            
+            # 查找该员工在该月份该合同的考勤表
+            # 对于不同客户/家庭，需要创建不同的考勤表
+            existing_form = AttendanceForm.query.filter(
+                AttendanceForm.employee_id == employee_id,
+                AttendanceForm.cycle_start_date == cycle_start,
+                AttendanceForm.contract_id == primary_contract.id
+            ).first()
+            
+            if not existing_form:
+                # 创建新的考勤表
+                # employee_access_token 需要唯一，所以包含年月和合同ID信息
+                access_token = f"{employee_id}_{cycle_start.year}_{cycle_start.month:02d}_{primary_contract.id}"
+                signature_token = str(uuid.uuid4())
+                
+                new_form = AttendanceForm(
+                    employee_id=employee_id,
+                    contract_id=primary_contract.id,
+                    cycle_start_date=cycle_start,
+                    cycle_end_date=cycle_end,
+                    employee_access_token=access_token,
+                    customer_signature_token=signature_token,
+                    status='draft'
+                )
+                db.session.add(new_form)
+                db.session.flush()  # 获取ID但不提交
+                existing_form = new_form
+            
+            # 收集家庭客户名称
+            family_customers = []
+            customer_names_seen = set()
+            for contract in family_contracts:
+                if contract.customer_name and contract.customer_name not in customer_names_seen:
+                    family_customers.append(contract.customer_name)
+                    customer_names_seen.add(contract.customer_name)
+            
+            # 计算服务期间
+            service_start = min(c.start_date for c in family_contracts)
+            service_end = max(c.end_date for c in family_contracts)
+            
+            attendance_forms.append({
+                "form_id": str(existing_form.id),  # 考勤表唯一ID
+                "form_token": existing_form.employee_access_token,  # 用于API调用的token
+                "contract_id": str(primary_contract.id),  # 合同ID
+                "family_customers": family_customers,
+                "service_period": f"{service_start.isoformat()} to {service_end.isoformat()}",
+                "status": existing_form.status,
+                "client_sign_url": f"/attendance-sign/{existing_form.customer_signature_token}" if existing_form.customer_signature_token else None
+            })
+        
+        db.session.commit()
+        
+        # 4. 根据考勤表数量返回不同的响应
+        if len(attendance_forms) == 1:
+            return jsonify({
+                "redirect_type": "single",
+                "employee_name": employee.name,
+                "data": {
+                    "form_token": attendance_forms[0]["form_token"]  # 使用考勤表的access_token
+                }
+            })
+        elif len(attendance_forms) > 1:
+            return jsonify({
+                "redirect_type": "multiple",
+                "employee_name": employee.name,
+                "data": {
+                    "forms": attendance_forms
+                }
+            })
+        else:
+            return jsonify({
+                "redirect_type": "none",
+                "employee_name": employee.name,
+                "message": "没有找到有效的考勤表"
+            })
+            
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"获取员工考勤表列表失败: {e}", exc_info=True)
+        return jsonify({"error": "服务器内部错误"}), 500
+
+# 新增API端点：获取考勤表详情用于查看
+@attendance_form_bp.route('/records/<record_id>/form', methods=['GET'])
+def get_attendance_form_by_record(record_id):
+    """通过考勤记录ID获取考勤表详情"""
+    try:
+        # 查找考勤记录
+        attendance_record = AttendanceRecord.query.get(record_id)
+        if not attendance_record:
+            return jsonify({"error": "考勤记录不存在"}), 404
+        
+        # 查找关联的考勤表
+        attendance_form = None
+        if attendance_record.attendance_form_id:
+            attendance_form = AttendanceForm.query.get(attendance_record.attendance_form_id)
+        
+        if not attendance_form:
+            return jsonify({"error": "未找到关联的考勤表"}), 404
+        
+        # 获取员工和合同信息
+        employee = ServicePersonnel.query.get(attendance_form.employee_id)
+        contract = BaseContract.query.get(attendance_form.contract_id)
+        
+        # 构建返回数据
+        form_data = {
+            "id": str(attendance_form.id),
+            "employee_id": str(attendance_form.employee_id),
+            "employee_name": employee.name if employee else "未知员工",
+            "contract_id": str(attendance_form.contract_id),
+            "customer_name": contract.customer_name if contract else "未知客户",
+            "year": attendance_form.cycle_start_date.year if attendance_form.cycle_start_date else None,
+            "month": attendance_form.cycle_start_date.month if attendance_form.cycle_start_date else None,
+            "cycle_start_date": attendance_form.cycle_start_date.isoformat() if attendance_form.cycle_start_date else None,
+            "cycle_end_date": attendance_form.cycle_end_date.isoformat() if attendance_form.cycle_end_date else None,
+            "attendance_details": attendance_form.form_data or {},
+            "customer_signature": attendance_form.signature_data.get('signature_image') if attendance_form.signature_data else None,
+            "submitted_at": attendance_form.customer_signed_at.isoformat() if attendance_form.customer_signed_at else None,
+            "is_submitted": attendance_form.status in ['customer_signed', 'synced'],
+            "status": attendance_form.status,
+            "form_type": "merged" if contract and contract.family_id else "single"
+        }
+        
+        return jsonify(form_data)
+        
+    except Exception as e:
+        current_app.logger.error(f"获取考勤表详情失败: {e}", exc_info=True)
+        return jsonify({"error": "服务器内部错误"}), 500
+
+@attendance_form_bp.route('/by-contract', methods=['GET'])
+def get_attendance_form_by_contract():
+    """通过合同ID和员工ID获取考勤表详情"""
+    try:
+        contract_id = request.args.get('contract_id')
+        employee_id = request.args.get('employee_id')
+        cycle_start = request.args.get('cycle_start')
+        cycle_end = request.args.get('cycle_end')
+        
+        if not contract_id or not employee_id:
+            return jsonify({"error": "缺少必要参数"}), 400
+        
+        # 如果提供了周期日期，使用它们；否则使用上个月
+        if cycle_start and cycle_end:
+            try:
+                cycle_start_date = datetime.strptime(cycle_start, '%Y-%m-%d').date()
+                cycle_end_date = datetime.strptime(cycle_end, '%Y-%m-%d').date()
+            except ValueError:
+                return jsonify({"error": "日期格式错误"}), 400
+        else:
+            cycle_start_date, cycle_end_date = calculate_last_month_cycle()
+        
+        # 查找考勤表 - 使用cycle_start_date进行查找
+        attendance_form = AttendanceForm.query.filter(
+            AttendanceForm.employee_id == employee_id,
+            AttendanceForm.contract_id == contract_id,
+            AttendanceForm.cycle_start_date >= datetime.combine(cycle_start_date, datetime.min.time()),
+            AttendanceForm.cycle_start_date < datetime.combine(cycle_start_date + timedelta(days=32), datetime.min.time())
+        ).first()
+        
+        if not attendance_form:
+            return jsonify({"error": "未找到考勤表"}), 404
+        
+        # 获取员工和合同信息
+        employee = ServicePersonnel.query.get(employee_id)
+        contract = BaseContract.query.get(contract_id)
+        
+        # 构建返回数据
+        form_data = {
+            "id": str(attendance_form.id),
+            "employee_id": str(attendance_form.employee_id),
+            "employee_name": employee.name if employee else "未知员工",
+            "contract_id": str(attendance_form.contract_id),
+            "customer_name": contract.customer_name if contract else "未知客户",
+            "year": attendance_form.cycle_start_date.year if attendance_form.cycle_start_date else None,
+            "month": attendance_form.cycle_start_date.month if attendance_form.cycle_start_date else None,
+            "cycle_start_date": attendance_form.cycle_start_date.isoformat() if attendance_form.cycle_start_date else None,
+            "cycle_end_date": attendance_form.cycle_end_date.isoformat() if attendance_form.cycle_end_date else None,
+            "attendance_details": attendance_form.form_data or {},
+            "customer_signature": attendance_form.signature_data.get('signature_image') if attendance_form.signature_data else None,
+            "submitted_at": attendance_form.customer_signed_at.isoformat() if attendance_form.customer_signed_at else None,
+            "is_submitted": attendance_form.status in ['customer_signed', 'synced'],
+            "status": attendance_form.status,
+            "form_type": "merged" if contract and contract.family_id else "single"
+        }
+        
+        return jsonify(form_data)
+        
+    except Exception as e:
+        current_app.logger.error(f"获取考勤表详情失败: {e}", exc_info=True)
+        return jsonify({"error": "服务器内部错误"}), 500

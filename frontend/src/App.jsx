@@ -299,6 +299,8 @@ const UserManagement = lazy(() => import('./components/UserManagement'));
 const StaffManagementPage = lazy(() => import('./components/StaffManagementPage'));
 const AttendanceManagementPage = lazy(() => import('./components/attendance/AttendanceManagementPage'));
 const AttendanceFillPage = lazy(() => import('./components/attendance/AttendanceFillPage'));
+const AttendanceRouter = lazy(() => import('./components/attendance/AttendanceRouter'));
+const HolidayTest = lazy(() => import('./components/HolidayTest'));
 const StaffDetailPage = lazy(() => import('./components/StaffDetailPage'));
 const UserEvaluation = lazy(() => import('./components/UserEvaluation'));
 const UserEvaluationSummary = lazy(() => import('./components/UserEvaluationSummary'));
@@ -417,11 +419,23 @@ function App() {
           <Route path="/employee-profile/:userId/exam-records" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <ExamRecords /> </Suspense>} />} />
           <Route path="/employee-profile/:userId/exam-records/:examId" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <ExamRecordDetail /> </Suspense>} />} />
           <Route path="/sign/:token" element={<Suspense fallback={<LoadingFallback />}><PublicSigningPage /></Suspense>} />
-          <Route path="/attendance-form/:token" element={<Suspense fallback={<LoadingFallback />}><AttendanceFillPage mode="employee" /></Suspense>} />
+          {/* 员工考勤智能路由入口 */}
+          <Route path="/attendance/:employee_token" element={<Suspense fallback={<LoadingFallback />}><AttendanceRouter /></Suspense>} />
+          
+          {/* 具体考勤表填写 */}
+          <Route path="/attendance-fill/:form_token" element={<Suspense fallback={<LoadingFallback />}><AttendanceFillPage mode="employee" /></Suspense>} />
+          
+          {/* 客户签署 */}
           <Route path="/attendance-sign/:token" element={<Suspense fallback={<LoadingFallback />}><AttendanceFillPage mode="customer" /></Suspense>} />
+          
+          {/* 管理员查看 */}
           <Route path="/attendance-admin/:token" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}><AttendanceFillPage mode="admin_view" /></Suspense>} />} />
+          
+          {/* 兼容旧路由 */}
+          <Route path="/attendance-form/:token" element={<Suspense fallback={<LoadingFallback />}><AttendanceFillPage mode="employee" /></Suspense>} />
           <Route path="/forms/:formToken" element={<Suspense fallback={<LoadingFallback />}><DynamicFormPage /></Suspense>} />
           <Route path="/picker-test" element={<Suspense fallback={<LoadingFallback />}><PickerTestPage /></Suspense>} />
+          <Route path="/holiday-test" element={<Suspense fallback={<LoadingFallback />}><HolidayTest /></Suspense>} />
 
           {/* EmployeeProfile 和其子路由已移到 MainLayout 下，这里不再需要 */}
         </Route>

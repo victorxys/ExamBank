@@ -36,7 +36,8 @@ api.interceptors.request.use(
       config.url.includes('/dynamic_forms') ||
       config.url.includes('/form-data/submit') ||
       config.url.includes('/attendance-forms/by-token/') ||  // 考勤表填写页面免登录
-      config.url.includes('/attendance-forms/sign/');  // 考勤表签署页面免登录
+      config.url.includes('/attendance-forms/sign/') ||  // 考勤表签署页面免登录
+      /^\/attendance-forms\/[0-9a-f-]+$/.test(config.url);  // 智能路由API免登录 (员工ID格式)
     const token = getToken();
 
     if (!isPublicRoute && !token) {

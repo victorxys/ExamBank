@@ -28,6 +28,7 @@ import { useTrialConversion } from '../hooks/useTrialConversion'; // <--- 添加
 import TrialConversionDialog from './modals/TrialConversionDialog'; // <--- 添加这个
 import SigningMessageModal from './SigningMessageModal'; // Import the new modal
 import EditContractModal from './EditContractModal';
+import FamilyIdManager from './FamilyIdManager';
 
 const formatDate = (isoString) => {
     if (!isoString) return '—';
@@ -1093,6 +1094,7 @@ const ContractDetail = () => {
         '客户姓名': contract.customer_name,
         // '联系人': contract.contact_person,
         '服务人员': contract.employee_name,
+        '家庭管理': <FamilyIdManager contract={contract} onUpdate={fetchData} />,
         '状态': (
             <Chip
                 label={STATUS_INFO[contract.status]?.label || contract.status}

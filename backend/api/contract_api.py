@@ -46,6 +46,87 @@ from dateutil.relativedelta import relativedelta # <--- 请确保文件顶部有
 contract_bp = Blueprint("contract_api", __name__, url_prefix="/api/contracts")
 
 
+# 家庭ID管理相关API
+@contract_bp.route("/families", methods=["GET"])
+@jwt_required()
+def get_existing_families():
+    """获取现有的家庭ID列表"""
+    try:
+        # 查询所有非空的family_id
+        families = db.session.query(BaseContract.family_id)\
+            .filter(BaseContract.family_id.isnot(None))\
+            .distinct()\
+            .order_by(BaseContract.family_id)\
+            .all()
+        
+        family_list = [family[0] for family in families if family[0]]
+        
+        return jsonify({
+            "success": True,
+            "families": family_list
+        })
+    except Exception as e:
+        current_app.logger.error(f"Failed to get existing families: {str(e)}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@contract_bp.route("/family/<string:family_id>", methods=["GET"])
+@jwt_required()
+def get_family_contracts(family_id):
+    """获取指定家庭的所有合同"""
+    try:
+        contracts = BaseContract.query.filter_by(family_id=family_id).all()
+        
+        contract_list = []
+        for contract in contracts:
+            contract_list.append({
+                "id": str(contract.id),
+                "customer_name": contract.customer_name,
+                "employee_name": contract.employee_name,
+                "contract_type_label": getattr(contract, 'contract_type_label', contract.type),
+                "start_date": contract.start_date.isoformat() if contract.start_date else None,
+                "end_date": contract.end_date.isoformat() if contract.end_date else None,
+                "status": contract.status
+            })
+        
+        return jsonify({
+            "success": True,
+            "contracts": contract_list
+        })
+    except Exception as e:
+        current_app.logger.error(f"Failed to get family contracts: {str(e)}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@contract_bp.route("/<string:contract_id>/family", methods=["PUT"])
+@jwt_required()
+def update_contract_family(contract_id):
+    """更新合同的家庭ID"""
+    try:
+        data = request.get_json()
+        family_id = data.get('family_id')
+        
+        # 查找合同
+        contract = BaseContract.query.get(contract_id)
+        if not contract:
+            return jsonify({"success": False, "error": "合同不存在"}), 404
+        
+        # 更新家庭ID
+        contract.family_id = family_id if family_id else None
+        db.session.commit()
+        
+        current_app.logger.info(f"Updated contract {contract_id} family_id to {family_id}")
+        
+        return jsonify({
+            "success": True,
+            "message": "家庭ID更新成功"
+        })
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Failed to update contract family: {str(e)}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 @contract_bp.route("/<string:contract_id>/substitutes", methods=["POST"])
 @jwt_required()
 def create_substitute_record(contract_id):
@@ -925,6 +1006,8 @@ def get_contract_details(contract_id):
             # --- 签署相关字段 ---
             "signing_status": contract.signing_status.value if contract.signing_status else 'UNSIGNED',
             "requires_signature": contract.requires_signature,
+            # --- 家庭ID字段 ---
+            "family_id": contract.family_id,
         }
 
         return jsonify(result)

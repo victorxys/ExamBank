@@ -2255,9 +2255,38 @@ class BillingEngine:
             return bill, payroll
 
     def _get_or_create_attendance(self, contract, cycle_start_date, cycle_end_date):
+        # 优先查找用户填写的考勤记录（有attendance_form_id的记录）
+        year = cycle_start_date.year
+        month = cycle_start_date.month
+        
+        # 1. 首先查找同一员工在同一月份的用户填写考勤记录（优先级最高）
+        user_filled_attendance = AttendanceRecord.query.filter(
+            AttendanceRecord.employee_id == contract.service_personnel_id,
+            AttendanceRecord.cycle_start_date >= date(year, month, 1),
+            AttendanceRecord.cycle_start_date < date(year, month + 1, 1) if month < 12 else date(year + 1, 1, 1),
+            AttendanceRecord.attendance_form_id.isnot(None)  # 有表单ID的是用户填写的
+        ).first()
+        
+        if user_filled_attendance:
+            current_app.logger.info(f"[BILLING] 找到用户填写的考勤记录: {user_filled_attendance.id} (员工: {contract.service_personnel_id}, 月份: {year}-{month:02d}, 出勤天数: {user_filled_attendance.total_days_worked})")
+            return user_filled_attendance
+        
+        # 2. 如果没有用户填写的记录，尝试精确匹配（正常情况）
         attendance = AttendanceRecord.query.filter_by(
             contract_id=contract.id, cycle_start_date=cycle_start_date
         ).first()
+        
+        # 3. 如果还没找到，尝试按员工ID和月份查找系统创建的记录
+        if not attendance and contract.service_personnel_id:
+            attendance = AttendanceRecord.query.filter(
+                AttendanceRecord.employee_id == contract.service_personnel_id,
+                AttendanceRecord.cycle_start_date >= date(year, month, 1),
+                AttendanceRecord.cycle_start_date < date(year, month + 1, 1) if month < 12 else date(year + 1, 1, 1)
+            ).first()
+            
+            if attendance:
+                current_app.logger.info(f"[BILLING] 找到系统创建的考勤记录: {attendance.id} (员工: {contract.service_personnel_id}, 月份: {year}-{month:02d})")
+        
         if not attendance:
             employee_id = contract.service_personnel_id
             if not employee_id:

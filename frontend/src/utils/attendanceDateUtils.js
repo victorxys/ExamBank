@@ -20,10 +20,26 @@ export class CrossDayDurationCalculator {
         const daysOffset = record.daysOffset || 0;
         
         if (daysOffset === 0) {
-            // 单天记录：直接返回记录的时长
+            // 单天记录：根据开始时间和结束时间计算
+            const startTime = record.startTime || '09:00';
+            const endTime = record.endTime || '18:00';
+            
+            const [startHour, startMinute] = startTime.split(':').map(Number);
+            const [endHour, endMinute] = endTime.split(':').map(Number);
+            
+            // 计算当天的时长
+            let totalMinutes;
+            if (endHour < startHour || (endHour === startHour && endMinute < startMinute)) {
+                // 跨午夜的情况（如 22:00 到 06:00）
+                totalMinutes = (24 * 60 - (startHour * 60 + startMinute)) + (endHour * 60 + endMinute);
+            } else {
+                // 正常情况（如 09:00 到 18:00）
+                totalMinutes = (endHour * 60 + endMinute) - (startHour * 60 + startMinute);
+            }
+            
             return {
-                totalHours: record.hours || 0,
-                totalMinutes: record.minutes || 0,
+                totalHours: totalMinutes / 60,
+                totalMinutes: totalMinutes % 60,
                 days: 0
             };
         }
