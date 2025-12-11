@@ -76,19 +76,14 @@ export class AttendanceDisplayLogic {
         const cacheKey = this._generateCacheKey(targetDateStr, attendanceRecords);
         
         return this._getOrCompute(cacheKey, () => {
-            console.log(`🔍 [DEBUG] 计算日期 ${targetDateStr} 的考勤显示类型`);
-            console.log(`📋 [DEBUG] 考勤记录数量: ${attendanceRecords.length}`);
             
             // 遍历所有考勤记录，找到覆盖目标日期的记录
             for (const record of attendanceRecords) {
-                console.log(`📝 [DEBUG] 检查记录: ${record.date} ${record.startTime}-${record.endTime} (${record.daysOffset}天) ${record.type}`);
                 
                 const isCovered = this.isDateCoveredByRecord(targetDateStr, record);
-                console.log(`📅 [DEBUG] 日期 ${targetDateStr} 是否被记录覆盖: ${isCovered}`);
                 
                 if (isCovered) {
                     const shouldShowType = this.shouldShowAttendanceType(targetDateStr, record);
-                    console.log(`🎯 [DEBUG] 是否应该显示考勤类型: ${shouldShowType}`);
                     
                     if (shouldShowType) {
                         const result = {
@@ -96,14 +91,12 @@ export class AttendanceDisplayLogic {
                             record: record,
                             typeLabel: this.getTypeLabel(record.type)
                         };
-                        console.log(`✅ [DEBUG] 最终结果: ${result.type} (${result.typeLabel})`);
                         return result;
                     }
                 }
             }
             
             // 没有找到覆盖的记录，返回正常出勤
-            console.log(`⚪ [DEBUG] 没有找到覆盖记录，返回正常出勤`);
             return {
                 type: 'normal',
                 record: null,
@@ -127,8 +120,6 @@ export class AttendanceDisplayLogic {
         const endDate = new Date(startDate);
         endDate.setDate(startDate.getDate() + daysOffset);
         
-        console.log(`📅 [DEBUG] isDateCoveredByRecord - 目标: ${targetDateStr}, 记录: ${record.date}, 跨天: ${daysOffset}`);
-        console.log(`📊 [DEBUG] 开始日期: ${format(startDate, 'yyyy-MM-dd')}, 结束日期: ${format(endDate, 'yyyy-MM-dd')}`);
         
         // 检查目标日期是否在记录范围内（包括开始和结束日期）
         const targetTime = targetDate.getTime();
@@ -136,7 +127,6 @@ export class AttendanceDisplayLogic {
         const endTime = endDate.getTime();
         
         const isCovered = targetTime >= startTime && targetTime <= endTime;
-        console.log(`🎯 [DEBUG] 时间比较 - 目标: ${targetTime}, 开始: ${startTime}, 结束: ${endTime}, 覆盖: ${isCovered}`);
         
         return isCovered;
     }
@@ -152,11 +142,9 @@ export class AttendanceDisplayLogic {
         const startDate = new Date(record.date);
         const daysOffset = record.daysOffset || 0;
         
-        console.log(`🔄 [DEBUG] shouldShowAttendanceType - 目标日期: ${targetDateStr}, 记录: ${record.date}, 跨天: ${daysOffset}`);
         
         // 单天记录：直接显示
         if (daysOffset === 0) {
-            console.log(`📅 [DEBUG] 单天记录，直接显示`);
             return true;
         }
         
@@ -167,35 +155,28 @@ export class AttendanceDisplayLogic {
         const isStartDay = isSameDay(targetDate, startDate);
         const isEndDay = isSameDay(targetDate, endDate);
         
-        console.log(`📊 [DEBUG] 开始日: ${format(startDate, 'yyyy-MM-dd')}, 结束日: ${format(endDate, 'yyyy-MM-dd')}`);
-        console.log(`🎯 [DEBUG] 是开始日: ${isStartDay}, 是结束日: ${isEndDay}`);
         
         if (isStartDay) {
             // 开始日：出京、出境类型总是显示，其他类型应用中午12点规则
             if (record.type === 'out_of_beijing' || record.type === 'out_of_country') {
-                console.log(`🌍 [DEBUG] 出京/出境类型，开始日总是显示`);
                 return true;
             } else {
                 // 其他类型应用中午12点规则
                 const result = this.applyNoonRule(record);
-                console.log(`🕐 [DEBUG] 开始日应用中午12点规则: ${result}`);
                 return result;
             }
         } else if (isEndDay) {
             // 结束日：出京、出境类型总是显示，其他类型应用24小时规则
             if (record.type === 'out_of_beijing' || record.type === 'out_of_country') {
-                console.log(`🌍 [DEBUG] 出京/出境类型，结束日总是显示`);
                 return true;
             } else {
                 // 其他类型应用24小时规则和短期考勤特殊处理
                 const result = this.applyEndDayRule(record);
-                console.log(`🕕 [DEBUG] 结束日应用24小时规则: ${result}`);
                 return result;
             }
         } else {
             // 中间日：需要检查是否是12点后开始的考勤的第二天
             const result = this.applyMiddleDayRule(record, targetDateStr);
-            console.log(`🕒 [DEBUG] 中间日应用中间日规则: ${result}`);
             return result;
         }
     }
@@ -226,7 +207,6 @@ export class AttendanceDisplayLogic {
         const endTime = record.endTime || '18:00';
         const [endHour, endMinute] = endTime.split(':').map(Number);
         
-        console.log(`🕕 [DEBUG] applyEndDayRule - 总时长: ${totalHours}小时, 结束时间: ${endTime}`);
         
         // 检查是否是12点后开始的考勤
         const startTime = record.startTime || '09:00';
@@ -235,11 +215,9 @@ export class AttendanceDisplayLogic {
         const noonInMinutes = 12 * 60;
         const isAfterNoon = startTimeInMinutes >= noonInMinutes;
         
-        console.log(`⏰ [DEBUG] 开始时间检查 - 开始时间: ${startTime} (${startTimeInMinutes}分钟), 是否12点后: ${isAfterNoon}`);
         
         // 【关键修复】对于12点后开始的考勤，结束日应该显示考勤类型（无论总时长和结束日时长）
         if (isAfterNoon) {
-            console.log(`✅ [DEBUG] 12点后开始的考勤，结束日显示考勤类型`);
             return true;
         }
         
@@ -247,12 +225,10 @@ export class AttendanceDisplayLogic {
         if (totalHours < 24) {
             // 短期考勤：结束日按24小时规则处理
             const hoursOnEndDay = endHour + endMinute / 60;
-            console.log(`🕐 [DEBUG] 短期考勤，12点前开始，结束日时长: ${hoursOnEndDay}小时`);
             return hoursOnEndDay >= 24;
         } else {
             // 长期考勤：结束日按24小时规则处理
             const hoursOnEndDay = endHour + endMinute / 60;
-            console.log(`📏 [DEBUG] 长期考勤，12点前开始，结束日时长: ${hoursOnEndDay}小时`);
             return hoursOnEndDay >= 24;
         }
     }
@@ -269,7 +245,6 @@ export class AttendanceDisplayLogic {
         const startTimeInMinutes = startHour * 60 + startMinute;
         const noonInMinutes = 12 * 60;
         
-        console.log(`🕒 [DEBUG] applyMiddleDayRule - 开始时间: ${startTime} (${startTimeInMinutes}分钟), 中午: ${noonInMinutes}分钟`);
         
         // 如果是12点后开始的考勤
         if (startTimeInMinutes >= noonInMinutes) {
@@ -277,27 +252,22 @@ export class AttendanceDisplayLogic {
             const targetDate = new Date(targetDateStr);
             const daysDiff = Math.floor((targetDate - startDate) / (1000 * 60 * 60 * 24));
             
-            console.log(`📅 [DEBUG] 12点后开始的考勤 - 开始日期: ${record.date}, 目标日期: ${targetDateStr}, 天数差: ${daysDiff}`);
             
             // 对于12点后开始的考勤，第二天（daysDiff === 1）应该显示考勤类型
             if (daysDiff === 1) {
-                console.log(`✅ [DEBUG] 第二天应该显示考勤类型`);
                 return true;
             }
             
             // 如果是更多天后，需要检查是否还在考勤范围内
             const daysOffset = record.daysOffset || 0;
             if (daysDiff <= daysOffset) {
-                console.log(`✅ [DEBUG] 在考勤范围内，显示考勤类型`);
                 return true;
             }
             
-            console.log(`❌ [DEBUG] 超出考勤范围，不显示考勤类型`);
             return false;
         }
         
         // 其他情况：中间日整天24小时，显示考勤类型
-        console.log(`✅ [DEBUG] 中间日整天24小时，显示考勤类型`);
         return true;
     }
 
@@ -423,14 +393,11 @@ export class AttendanceDisplayLogic {
                 if (record.type && typeCategories.nonWork.includes(record.type)) {
                     // 非出勤类型：从出勤时间中扣除
                     totalNonWorkHours += dailyHours;
-                    console.log(`📝 [DEBUG] 非出勤时间 - 类型: ${record.type}, 日期: ${targetDateStr}, 扣除: ${dailyHours}h`);
                 } else if (record.type && typeCategories.overtime.includes(record.type)) {
                     // 加班类型：额外增加出勤时间
                     totalOvertimeHours += dailyHours;
-                    console.log(`📝 [DEBUG] 加班时间 - 类型: ${record.type}, 日期: ${targetDateStr}, 增加: ${dailyHours}h`);
                 } else if (record.type && typeCategories.work.includes(record.type)) {
                     // 出勤类型：不影响基础24小时出勤时间
-                    console.log(`📝 [DEBUG] 出勤时间 - 类型: ${record.type}, 日期: ${targetDateStr}, 保持: ${dailyHours}h`);
                 }
             }
         }
@@ -438,7 +405,6 @@ export class AttendanceDisplayLogic {
         // 实际出勤时长 = 标准24小时 - 非出勤时长 + 加班时长
         const actualWorkHours = Math.max(0, standardWorkHours - totalNonWorkHours + totalOvertimeHours);
         
-        console.log(`⏰ [DEBUG] calculateActualWorkHours - 日期: ${targetDateStr}, 基础: ${standardWorkHours}h, 扣除非出勤: ${totalNonWorkHours}h, 增加加班: ${totalOvertimeHours}h, 实际出勤: ${actualWorkHours}h`);
         
         return actualWorkHours;
     }
@@ -455,12 +421,10 @@ export class AttendanceDisplayLogic {
         const startDate = new Date(record.date);
         const daysOffset = record.daysOffset || 0;
         
-        console.log(`🔍 [DEBUG] isFirstDisplayDay - 目标日期: ${targetDateStr}, 记录开始: ${record.date}, 跨天: ${daysOffset}`);
         
         // 单天记录：开始日就是第一个显示日
         if (daysOffset === 0) {
             const isStartDay = isSameDay(targetDate, startDate);
-            console.log(`📅 [DEBUG] 单天记录，是开始日: ${isStartDay}`);
             return isStartDay;
         }
         
@@ -474,12 +438,10 @@ export class AttendanceDisplayLogic {
             const currentDateStr = format(currentDate, 'yyyy-MM-dd');
             const shouldShow = this.shouldShowAttendanceType(currentDateStr, record);
             
-            console.log(`📊 [DEBUG] 检查日期 ${currentDateStr}: 应该显示 = ${shouldShow}`);
             
             if (shouldShow) {
                 // 找到第一个应该显示的日期
                 const isFirstDay = isSameDay(targetDate, currentDate);
-                console.log(`🎯 [DEBUG] 第一个显示日期: ${currentDateStr}, 目标是第一个: ${isFirstDay}`);
                 return isFirstDay;
             }
             
@@ -487,7 +449,6 @@ export class AttendanceDisplayLogic {
         }
         
         // 如果没有找到应该显示的日期，返回false
-        console.log(`❌ [DEBUG] 没有找到应该显示的日期`);
         return false;
     }
 

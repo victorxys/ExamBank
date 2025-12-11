@@ -11,7 +11,6 @@ import SignatureCanvas from 'react-signature-canvas';
 import MobileTimePicker from './MobileTimePicker';
 import { AttendanceDisplayLogic } from '../../utils/attendanceDisplayLogic';
 import { AttendanceDateUtils } from '../../utils/attendanceDateUtils';
-import { debugSpecificCase } from '../../utils/debugAttendanceCase';
 import { useHolidays } from '../../hooks/useHolidays';
 import WechatShare from '../WechatShare';
 
@@ -449,145 +448,7 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
             window.history.replaceState({}, '', newUrl);
         }
         
-        // 临时调试：在页面加载时运行调试
-        if (typeof window !== 'undefined') {
-            window.debugSpecificCase = debugSpecificCase;
-            
-            // 测试calculateActualWorkHours函数
-            window.testActualWorkHours = () => {
-                console.log('🧪 测试calculateActualWorkHours函数（24小时制）...');
-                
-                // 模拟11月6日13:00-18:00的休息记录（跨天到11月7日）
-                const testRecord = {
-                    date: '2025-11-06',
-                    startTime: '13:00',
-                    endTime: '18:00',
-                    daysOffset: 1,
-                    type: 'rest',
-                    hours: 29 // 总时长29小时
-                };
-                
-                const allRecords = [testRecord];
-                
-                // 测试11月6日的实际出勤时长
-                console.log('\n📅 测试11月6日:');
-                const actualHours6 = AttendanceDisplayLogic.calculateActualWorkHours('2025-11-06', allRecords);
-                console.log(`结果: ${actualHours6}小时`);
-                console.log(`预期: 13小时 (24小时 - 11小时休息时间)`);
-                console.log(`显示: 会显示"13h"，因为小于24小时`);
-                
-                // 测试11月7日的实际出勤时长
-                console.log('\n📅 测试11月7日:');
-                const actualHours7 = AttendanceDisplayLogic.calculateActualWorkHours('2025-11-07', allRecords);
-                console.log(`结果: ${actualHours7}小时`);
-                console.log(`预期: 6小时 (24小时 - 18小时休息时间)`);
-                console.log(`显示: 会显示"6h"，因为小于24小时`);
-                
-                // 测试整天出勤的情况
-                console.log('\n� 验测试整天出勤（11月8日）:');
-                const actualHours8 = AttendanceDisplayLogic.calculateActualWorkHours('2025-11-08', allRecords);
-                console.log(`结果: ${actualHours8}小时`);
-                console.log(`预期: 24小时 (无休息记录覆盖)`);
-                console.log(`显示: 不显示小时数，因为是整天24小时出勤`);
-                
-                // 验证calculateDailyHours的计算
-                console.log('\n🔍 验证calculateDailyHours:');
-                const dailyHours6 = AttendanceDisplayLogic.calculateDailyHours(testRecord, '2025-11-06');
-                const dailyHours7 = AttendanceDisplayLogic.calculateDailyHours(testRecord, '2025-11-07');
-                console.log(`11月6日休息时长: ${dailyHours6}小时 (13:00-24:00 = 11小时)`);
-                console.log(`11月7日休息时长: ${dailyHours7}小时 (00:00-18:00 = 18小时)`);
-            };
-            
-            // 测试不同考勤类型的显示逻辑
-            window.testAllAttendanceTypes = () => {
-                console.log('🧪 测试所有考勤类型的显示逻辑...');
-                
-                const testDate = '2025-11-06';
-                const testTypes = [
-                    { type: 'rest', label: '休息' },
-                    { type: 'leave', label: '请假' },
-                    { type: 'overtime', label: '加班' },
-                    { type: 'out_of_beijing', label: '出京' },
-                    { type: 'out_of_country', label: '出境' },
-                    { type: 'paid_leave', label: '带薪休假' },
-                    { type: 'onboarding', label: '上户' },
-                    { type: 'offboarding', label: '下户' }
-                ];
-                
-                testTypes.forEach(({ type, label }) => {
-                    console.log(`\n🔍 测试 ${label} (${type}):`);
-                    
-                    const testRecord = {
-                        date: testDate,
-                        startTime: '13:00',
-                        endTime: '18:00',
-                        daysOffset: 0,
-                        type: type,
-                        hours: 5
-                    };
-                    
-                    const allRecords = [testRecord];
-                    
-                    // 测试显示类型
-                    const displayResult = AttendanceDisplayLogic.getDisplayTypeForDate(testDate, allRecords);
-                    console.log(`  显示类型: ${displayResult.type} (${displayResult.typeLabel})`);
-                    
-                    // 测试实际出勤时长
-                    const actualHours = AttendanceDisplayLogic.calculateActualWorkHours(testDate, allRecords);
-                    console.log(`  实际出勤时长: ${actualHours}小时`);
-                    
-                    // 测试是否应该显示考勤类型
-                    const shouldShow = AttendanceDisplayLogic.shouldShowAttendanceType(testDate, testRecord);
-                    console.log(`  是否显示考勤类型: ${shouldShow}`);
-                });
-            };
-            
-            // 测试出京/出境的跨天逻辑
-            window.testCrossDayOutOfCity = () => {
-                console.log('🧪 测试出京/出境跨天逻辑...');
-                
-                // 测试13:00开始的跨天出京记录
-                const testRecord = {
-                    date: '2025-11-06',
-                    startTime: '13:00',
-                    endTime: '18:00',
-                    daysOffset: 1,
-                    type: 'out_of_beijing',
-                    hours: 29
-                };
-                
-                const allRecords = [testRecord];
-                
-                // 测试11月6日（开始日）
-                console.log('\n📅 测试11月6日（开始日）:');
-                const display6 = AttendanceDisplayLogic.getDisplayTypeForDate('2025-11-06', allRecords);
-                console.log(`  显示类型: ${display6.type} (${display6.typeLabel})`);
-                
-                const shouldShow6 = AttendanceDisplayLogic.shouldShowAttendanceType('2025-11-06', testRecord);
-                console.log(`  是否显示考勤类型: ${shouldShow6}`);
-                console.log(`  预期: true (出京开始日总是显示)`);
-                
-                const dailyHours6 = AttendanceDisplayLogic.calculateDailyHours(testRecord, '2025-11-06');
-                console.log(`  当天时长: ${dailyHours6}小时 (13:00-24:00 = 11小时)`);
-                
-                // 测试11月7日（结束日）
-                console.log('\n📅 测试11月7日（结束日）:');
-                const display7 = AttendanceDisplayLogic.getDisplayTypeForDate('2025-11-07', allRecords);
-                console.log(`  显示类型: ${display7.type} (${display7.typeLabel})`);
-                
-                const shouldShow7 = AttendanceDisplayLogic.shouldShowAttendanceType('2025-11-07', testRecord);
-                console.log(`  是否显示考勤类型: ${shouldShow7}`);
-                
-                const dailyHours7 = AttendanceDisplayLogic.calculateDailyHours(testRecord, '2025-11-07');
-                console.log(`  当天时长: ${dailyHours7}小时 (00:00-18:00 = 18小时)`);
-            };
-            
-            console.log('🚀 调试工具已加载！');
-            console.log('- 运行 debugSpecificCase() 来测试显示逻辑');
-            console.log('- 运行 testActualWorkHours() 来测试出勤时长计算');
-            console.log('- 运行 testAllAttendanceTypes() 来测试所有考勤类型');
-            console.log('- 运行 testCrossDayOutOfCity() 来测试出京/出境跨天逻辑');
-        }
+
     }, [realToken, location.search, selectedYear, selectedMonth]);
 
     // Resize observer for signature canvas
@@ -747,8 +608,6 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
         // 使用新的显示逻辑计算该日期应该显示的考勤类型
         const displayResult = AttendanceDisplayLogic.getDisplayTypeForDate(dateStr, allRecords);
         
-        console.log(`🔍 [DEBUG] getDayRecord - 日期: ${dateStr}, 显示类型: ${displayResult.type}, 记录:`, displayResult.record);
-        
         let result;
         if (displayResult.type !== 'normal' && displayResult.record) {
             // 计算该日期的实际工作时长
@@ -757,8 +616,6 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
             // 判断是否为该记录第一个显示考勤类型的日期
             const isFirstDisplayDay = AttendanceDisplayLogic.isFirstDisplayDay(dateStr, displayResult.record, allRecords);
             const totalHours = isFirstDisplayDay ? ((displayResult.record.hours || 0) + (displayResult.record.minutes || 0) / 60) : 0;
-            
-            console.log(`📊 [DEBUG] 非正常考勤 - 日期: ${dateStr}, 类型: ${displayResult.type}, 是第一显示日: ${isFirstDisplayDay}, 显示时长: ${totalHours}h`);
             
             result = {
                 ...displayResult.record,
@@ -775,8 +632,6 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
             
             // 如果实际出勤时长不等于标准24小时，说明有部分时间被其他记录占用
             const hasPartialNonWork = actualWorkHours !== 24;
-            
-            console.log(`📊 [DEBUG] 出勤类型 - 日期: ${dateStr}, 实际出勤: ${actualWorkHours}h, 有部分非出勤: ${hasPartialNonWork}`);
             
             result = { 
                 type: 'normal', 
@@ -2095,14 +1950,22 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
             )}
 
             {/* 微信分享卡片配置 - 用于客户签署页面在微信中分享 */}
-            {isCustomerMode && contractInfo && (
-                <WechatShare
-                    shareTitle={`${contractInfo.employee_name || '员工'} - ${selectedMonth}月考勤`}
-                    shareDesc={`请查看并签署${selectedMonth}月考勤表`}
-                    shareImgUrl={`${window.location.origin}/logo.png`}
-                    shareLink={window.location.href}
-                />
-            )}
+            {isCustomerMode && contractInfo && (() => {
+                console.log('WechatShare组件已激活', {
+                    shareTitle: `${contractInfo.employee_name || '员工'} - ${selectedMonth}月考勤`,
+                    shareDesc: `请查看并签署${selectedMonth}月考勤表`,
+                    shareImgUrl: `${window.location.origin}/logo.png`,
+                    shareLink: window.location.href
+                });
+                return (
+                    <WechatShare
+                        shareTitle={`${contractInfo.employee_name || '员工'} - ${selectedMonth}月考勤`}
+                        shareDesc={`请查看并签署${selectedMonth}月考勤表`}
+                        shareImgUrl={`${window.location.origin}/logo.png`}
+                        shareLink={window.location.href}
+                    />
+                );
+            })()}
         </div>
     );
 };
