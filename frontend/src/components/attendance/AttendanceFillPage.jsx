@@ -217,25 +217,31 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
         return parseISO(contractInfo.end_date) < parseISO(formData.cycle_end_date);
     }, [contractInfo, formData]);
 
-    // 计算可编辑的月份：默认上个月，末月时为当月
+    // 计算可编辑的最大月份：默认上个月，末月时扩展到当月
+    // 返回的是允许编辑的"最新"月份，员工可以编辑从合同开始到这个月份之间的所有月份
     const editableMonth = useMemo(() => {
         const now = new Date();
-        const lastMonth = { year: now.getFullYear(), month: now.getMonth() }; // 上个月 (0-indexed -> month值)
-        if (lastMonth.month === 0) {
-            lastMonth.year -= 1;
-            lastMonth.month = 12;
+        const currentYear = now.getFullYear();
+        const currentMonth = now.getMonth() + 1;
+        
+        // 默认可编辑到上个月
+        let maxEditableYear = currentYear;
+        let maxEditableMonth = currentMonth - 1;
+        if (maxEditableMonth === 0) {
+            maxEditableYear -= 1;
+            maxEditableMonth = 12;
         }
 
-        // 如果是末月，检查合同结束日期是否在当月
+        // 如果是末月（合同在当月结束），扩展可编辑范围到当月
+        // 但这不影响上个月的编辑权限
         if (contractInfo && !contractInfo.is_monthly_auto_renew) {
             const endDateStr = contractInfo.end_date;
             if (endDateStr) {
                 const endDate = parseISO(endDateStr);
-                const currentYear = now.getFullYear();
-                const currentMonth = now.getMonth() + 1;
-                // 如果合同结束月就是当月，允许编辑当月
+                // 如果合同结束月就是当月，允许编辑到当月（同时也能编辑上个月）
                 if (endDate.getFullYear() === currentYear && (endDate.getMonth() + 1) === currentMonth) {
-                    return { year: currentYear, month: currentMonth };
+                    maxEditableYear = currentYear;
+                    maxEditableMonth = currentMonth;
                 }
             }
         }
@@ -243,21 +249,41 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
         // 如果是已终止的自动月签合同，检查终止日期
         if (contractInfo?.is_monthly_auto_renew && contractInfo.status === 'terminated' && contractInfo.termination_date) {
             const terminationDate = parseISO(contractInfo.termination_date);
-            const currentYear = now.getFullYear();
-            const currentMonth = now.getMonth() + 1;
             if (terminationDate.getFullYear() === currentYear && (terminationDate.getMonth() + 1) === currentMonth) {
-                return { year: currentYear, month: currentMonth };
+                maxEditableYear = currentYear;
+                maxEditableMonth = currentMonth;
             }
         }
 
-        return lastMonth;
+        return { year: maxEditableYear, month: maxEditableMonth };
     }, [contractInfo]);
 
     // 判断当前是否为历史查看模式（只读）
+    // 可编辑范围：从合同开始月到 editableMonth（最大可编辑月份）
     const isHistoricalView = useMemo(() => {
         if (!editableMonth) return false;
-        // 如果当前选择的月份不是可编辑月份，则为历史查看模式
-        return selectedYear !== editableMonth.year || selectedMonth !== editableMonth.month;
+        
+        const now = new Date();
+        const currentYear = now.getFullYear();
+        const currentMonth = now.getMonth() + 1;
+        
+        // 计算上个月作为默认的最小可编辑月份
+        let minEditableYear = currentYear;
+        let minEditableMonth = currentMonth - 1;
+        if (minEditableMonth === 0) {
+            minEditableYear -= 1;
+            minEditableMonth = 12;
+        }
+        
+        // 如果选择的月份超过最大可编辑月份，则为只读
+        if (selectedYear > editableMonth.year) return true;
+        if (selectedYear === editableMonth.year && selectedMonth > editableMonth.month) return true;
+        
+        // 如果选择的月份早于上个月，则为只读（历史记录）
+        if (selectedYear < minEditableYear) return true;
+        if (selectedYear === minEditableYear && selectedMonth < minEditableMonth) return true;
+        
+        return false;
     }, [selectedYear, selectedMonth, editableMonth]);
 
     // 计算合同开始月份（用于限制向前切换）
