@@ -270,10 +270,12 @@ def get_sign_page_data(signature_token):
         if not form:
             return jsonify({"error": "无效的签署链接"}), 404
             
-        # 直接使用考勤表关联的合同日期，而不是查找所有合同
-        contract = form.contract
-        effective_start = contract.start_date if contract else None
-        effective_end = contract.end_date if contract else None
+        # 调用 find_consecutive_contracts 获取合并后的日期范围
+        _, effective_start, effective_end = find_consecutive_contracts(
+            form.employee_id,
+            form.cycle_start_date,
+            form.cycle_end_date
+        )
 
         return jsonify(form_to_dict(form, effective_start, effective_end))
     except Exception as e:
