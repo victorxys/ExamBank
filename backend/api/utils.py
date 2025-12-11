@@ -273,7 +273,22 @@ def get_billing_details_internal(
         if sub_record:
             overtime_days = sub_record.overtime_days or 0
     else:
-        attendance_record = AttendanceRecord.query.filter_by(contract_id=contract.id, cycle_start_date=cycle_start).first()
+        # 优先查找用户填写的考勤记录（家庭合并情况）
+        year = cycle_start.year
+        month = cycle_start.month
+        
+        # 首先查找同一员工在同一月份的用户填写考勤记录
+        attendance_record = AttendanceRecord.query.filter(
+            AttendanceRecord.employee_id == contract.service_personnel_id,
+            AttendanceRecord.cycle_start_date >= date(year, month, 1),
+            AttendanceRecord.cycle_start_date < date(year, month + 1, 1) if month < 12 else date(year + 1, 1, 1),
+            AttendanceRecord.attendance_form_id.isnot(None)  # 有表单ID的是用户填写的
+        ).first()
+        
+        # 如果没有用户填写的记录，尝试精确匹配
+        if not attendance_record:
+            attendance_record = AttendanceRecord.query.filter_by(contract_id=contract.id, cycle_start_date=cycle_start).first()
+        
         if attendance_record:
             overtime_days = attendance_record.overtime_days
 
@@ -394,6 +409,8 @@ def get_billing_details_internal(
         "payment_records": [p.to_dict() for p in customer_bill.payment_records],
         "payout_records": [p.to_dict() for p in employee_payroll.payout_records] if employee_payroll else [],
         "attendance": {
+            "record_id": str(attendance_record.id) if attendance_record else None,
+            "has_form": bool(attendance_record and attendance_record.attendance_form_id) if attendance_record else False,
             "overtime_days": float(overtime_days) if overtime_days is not None else 0,
             "out_of_beijing_days": float(attendance_record.out_of_beijing_days or 0) if attendance_record else 0,
             "out_of_country_days": float(attendance_record.out_of_country_days or 0) if attendance_record else 0,

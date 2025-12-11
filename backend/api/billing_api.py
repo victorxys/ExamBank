@@ -2249,6 +2249,7 @@ def get_single_contract_details(contract_id):
             'service_personnel_id': str(contract.service_personnel_id) if contract.service_personnel_id else None,
             "customer_name": contract.customer_name,
             "contact_person": contract.contact_person,
+            "family_id": contract.family_id,
             "introduction_fee": contract.introduction_fee,
             "deposit_amount": getattr(contract, "deposit_amount", None),
             "management_fee_amount": contract.management_fee_amount,

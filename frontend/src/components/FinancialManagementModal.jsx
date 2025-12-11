@@ -38,6 +38,7 @@ import AlertMessage from './AlertMessage';
 import PayoutDialog from './PayoutDialog';
 import PaymentMessageModal from './PaymentMessageModal';
 import MergePreviewModal from './MergePreviewModal';
+// Removed AttendanceFormViewModal import - using direct navigation instead
 
 
 // --- 辅助函数 ---
@@ -316,6 +317,70 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
         } catch (error) {
             console.error("余额结转失败:", error);
             setAlert({ open: true, message: `操作失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
+        }
+    };
+
+    const handleViewAttendanceForm = async () => {
+        try {
+            // 检查是否有考勤表信息
+            if (!billingDetails?.attendance?.has_form) {
+                setAlert({ open: true, message: '该账单没有关联的考勤表', severity: 'warning' });
+                return;
+            }
+
+
+
+            // 使用员工ID和年月来查找考勤表
+            const employeeId = billingDetails?.employee_payroll_details?.employee_id;
+            
+            // 从display_month中解析年月，格式通常是 "2025-11"
+            const displayMonth = billingDetails?.display_month;
+            let year, month;
+            
+            if (displayMonth && displayMonth.includes('-')) {
+                const [yearStr, monthStr] = displayMonth.split('-');
+                year = parseInt(yearStr, 10);
+                month = parseInt(monthStr, 10);
+            }
+            
+
+            
+            if (!employeeId || !year || !month) {
+                setAlert({ 
+                    open: true, 
+                    message: `缺少必要信息: employeeId=${employeeId}, year=${year}, month=${month}`, 
+                    severity: 'error' 
+                });
+                return;
+            }
+
+            // 通过员工token和年月查找考勤表
+            const response = await api.get(`/attendance-forms/by-token/${employeeId}`, {
+                params: {
+                    year: year,
+                    month: month
+                }
+            });
+            
+            const formData = response.data;
+            
+            // 使用customer_signature_token构建签署页面URL
+            const signatureToken = formData.customer_signature_token || formData.signature_token;
+            
+            if (signatureToken) {
+                // 直接导航到考勤签署页面
+                const attendanceUrl = `${window.location.origin}/attendance-sign/${signatureToken}`;
+                window.open(attendanceUrl, '_blank');
+            } else {
+                setAlert({ open: true, message: '无法找到对应的考勤表签署链接', severity: 'error' });
+            }
+        } catch (error) {
+            console.error('获取考勤表失败:', error);
+            setAlert({ 
+                open: true, 
+                message: `查看考勤表失败: ${error.response?.data?.message || error.message}`, 
+                severity: 'error' 
+            });
         }
     };
     // 当外部 billId prop 变化时，同步更新内部的 currentBillId
@@ -1103,6 +1168,7 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
 
                 {/* 考勤明细显示（仅员工卡片显示） */}
                 {!isCustomer && billingDetails?.attendance && (
+                    billingDetails.attendance.overtime_days > 0 ||
                     billingDetails.attendance.leave_days > 0 || 
                     billingDetails.attendance.rest_days > 0 || 
                     billingDetails.attendance.paid_leave_days > 0 ||
@@ -1120,6 +1186,18 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
                             border: '1px solid',
                             borderColor: 'divider'
                         }}>
+                            {billingDetails.attendance.overtime_days > 0 && (
+                                <>
+                                    <Grid item xs={6}>
+                                        <Typography variant="body2" color="text.secondary">加班天数:</Typography>
+                                    </Grid>
+                                    <Grid item xs={6}>
+                                        <Typography variant="body2" sx={{ textAlign: 'right', fontWeight: 500, color: 'primary.main' }}>
+                                            {billingDetails.attendance.overtime_days.toFixed(3)} 天
+                                        </Typography>
+                                    </Grid>
+                                </>
+                            )}
                             {billingDetails.attendance.leave_days > 0 && (
                                 <>
                                     <Grid item xs={6}>
@@ -1181,9 +1259,21 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
                                 </>
                             )}
                             <Grid item xs={12} sx={{ mt: 1, pt: 1, borderTop: '1px dashed', borderColor: 'divider' }}>
-                                <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
-                                    💡 以上考勤数据来自客户签署的考勤表，已自动扣减工资
-                                </Typography>
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                                        💡 以上考勤数据来自客户签署的考勤表，已自动扣减工资
+                                    </Typography>
+                                    {billingDetails.attendance?.has_form && billingDetails.attendance?.record_id && (
+                                        <Button
+                                            size="small"
+                                            variant="text"
+                                            onClick={handleViewAttendanceForm}
+                                            sx={{ fontSize: '0.75rem', minWidth: 'auto', p: 0.5 }}
+                                        >
+                                            查看考勤表
+                                        </Button>
+                                    )}
+                                </Box>
                             </Grid>
                         </Grid>
                     </Box>
@@ -2040,6 +2130,8 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
                 sourceBillId={billingDetails?.customer_bill_details?.id}
                 targetContractId={successorContract?.id}
             />
+
+            {/* AttendanceFormViewModal removed - using direct navigation instead */}
 
         </>
     );

@@ -12,6 +12,7 @@ import MobileTimePicker from './MobileTimePicker';
 import { AttendanceDisplayLogic } from '../../utils/attendanceDisplayLogic';
 import { AttendanceDateUtils } from '../../utils/attendanceDateUtils';
 import { debugSpecificCase } from '../../utils/debugAttendanceCase';
+import { useHolidays } from '../../hooks/useHolidays';
 
 // Helper function to format duration
 const formatDuration = (hours, minutes = 0) => {
@@ -125,7 +126,7 @@ const TimePicker = ({ value, onChange, disabled }) => {
 };
 
 const AttendanceFillPage = ({ mode = 'employee' }) => {
-    const { token } = useParams();
+    const { form_token, token, employee_token } = useParams();
     const navigate = useNavigate();
     const { toast } = useToast();
     const location = useLocation();
@@ -139,22 +140,32 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
 
-    // Parse token to handle optional year/month suffix (e.g., UUID_2025_11)
+    // Parse token to handle various formats
     const { realToken, initialYear, initialMonth } = useMemo(() => {
-        if (!token) return { realToken: '', initialYear: null, initialMonth: null };
+        // 优先使用 form_token，然后是 token（客户签署模式），最后是 employee_token
+        const actualToken = form_token || token || employee_token;
+        if (!actualToken) return { realToken: '', initialYear: null, initialMonth: null };
 
-        // Check if token matches UUID_YYYY_MM format
-        const parts = token.split('_');
-        if (parts.length === 3 && parts[0].length === 36) {
-            // Assume format is UUID_YYYY_MM
+        // 支持多种 token 格式：
+        // 1. 纯 UUID (考勤表ID 或 签署token): xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+        // 2. UUID_YYYY_MM: 员工ID_年_月
+        // 3. UUID_YYYY_MM_UUID: 员工ID_年_月_合同ID
+        const parts = actualToken.split('_');
+        
+        if (parts.length >= 3 && parts[0].length === 36) {
+            // 格式: UUID_YYYY_MM 或 UUID_YYYY_MM_UUID
+            // 对于这种格式，直接使用完整的 actualToken 作为 realToken
+            // 因为后端 by-token API 可以处理这种格式
             return {
-                realToken: parts[0],
+                realToken: actualToken,
                 initialYear: parseInt(parts[1], 10),
                 initialMonth: parseInt(parts[2], 10)
             };
         }
-        return { realToken: token, initialYear: null, initialMonth: null };
-    }, [token]);
+        
+        // 纯 UUID 格式，直接使用
+        return { realToken: actualToken, initialYear: null, initialMonth: null };
+    }, [form_token, token, employee_token]);
 
     // Month selection state (default to token suffix or last month)
     const getLastMonth = () => {
@@ -309,24 +320,24 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
         if (!contractInfo) return false;
         const targetDate = startOfDay(date);
 
-        if (isFirstMonth && contractInfo.start_date) {
+        // 始终检查合同开始日期 - 合同开始前的日期都禁用
+        if (contractInfo.start_date) {
             const startDate = startOfDay(parseISO(contractInfo.start_date));
             if (targetDate < startDate) return true;
         }
 
-        if (isLastMonth) {
-            // 对于自动月签合同，使用终止日期；否则使用结束日期
-            const endDateStr = contractInfo.is_monthly_auto_renew
-                ? contractInfo.termination_date
-                : contractInfo.end_date;
-            if (endDateStr) {
-                const endDate = startOfDay(parseISO(endDateStr));
-                if (targetDate > endDate) return true;
-            }
+        // 始终检查合同结束日期 - 合同结束后的日期都禁用
+        // 对于自动月签合同，如果已终止则使用终止日期；否则使用结束日期
+        const endDateStr = (contractInfo.is_monthly_auto_renew && contractInfo.status === 'terminated' && contractInfo.termination_date)
+            ? contractInfo.termination_date
+            : contractInfo.end_date;
+        if (endDateStr) {
+            const endDate = startOfDay(parseISO(endDateStr));
+            if (targetDate > endDate) return true;
         }
 
         return false;
-    }, [contractInfo, isFirstMonth, isLastMonth]);
+    }, [contractInfo]);
 
     // Modal State
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -384,6 +395,9 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
         value: '09:00'
     });
 
+    // 节假日数据
+    const { getHolidayLabel, loading: holidaysLoading } = useHolidays(selectedYear);
+
     // Auto-save effect (only for employee mode, draft/confirmed status, and NOT historical view)
     useEffect(() => {
         if (mode !== 'employee' || !['draft', 'employee_confirmed'].includes(formData?.status)) return;
@@ -420,7 +434,10 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
     }, [attendanceData, mode, formData?.status, token, isHistoricalView]);
 
     useEffect(() => {
-        fetchData(selectedYear, selectedMonth);
+        // 只有当realToken存在时才调用fetchData
+        if (realToken) {
+            fetchData(selectedYear, selectedMonth);
+        }
 
         // Check for showShareHint param
         const searchParams = new URLSearchParams(location.search);
@@ -570,7 +587,7 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
             console.log('- 运行 testAllAttendanceTypes() 来测试所有考勤类型');
             console.log('- 运行 testCrossDayOutOfCity() 来测试出京/出境跨天逻辑');
         }
-    }, [token, location.search, selectedYear, selectedMonth]);
+    }, [realToken, location.search, selectedYear, selectedMonth]);
 
     // Resize observer for signature canvas
     useEffect(() => {
@@ -607,6 +624,14 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
     const fetchData = async (year = selectedYear, month = selectedMonth) => {
         try {
             setLoading(true);
+            
+            // 确保有有效的token
+            if (!realToken) {
+                console.error('No valid token available');
+                setLoading(false);
+                return;
+            }
+            
             // 根据模式选择不同的 API 端点
             let endpoint = isCustomerMode
                 ? `/attendance-forms/sign/${realToken}`  // 客户签署模式
@@ -967,7 +992,7 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
     const handleSaveDraft = async () => {
         try {
             setSubmitting(true);
-            await api.put(`/attendance-forms/by-token/${token}`, {
+            await api.put(`/attendance-forms/by-token/${realToken}`, {
                 form_id: formData?.id,
                 form_data: attendanceData
             });
@@ -983,7 +1008,7 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
         if (!window.confirm("确认提交考勤表吗？\n\n提交后将生成客户签署链接。\n在客户签署前，您仍可以修改考勤数据，修改将自动同步。")) return;
         try {
             setSubmitting(true);
-            const response = await api.put(`/attendance-forms/by-token/${token}`, {
+            const response = await api.put(`/attendance-forms/by-token/${realToken}`, {
                 form_id: formData?.id,
                 form_data: attendanceData,
                 action: 'confirm'
@@ -1060,7 +1085,7 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
             setIsSigning(true);
             const signatureImage = sigCanvasRef.current.toDataURL('image/png');
 
-            const response = await api.post(`/attendance-forms/sign/${token}`, {
+            const response = await api.post(`/attendance-forms/sign/${realToken}`, {
                 signature_data: {
                     image: signatureImage,
                     signed_at: new Date().toISOString(),
@@ -1282,6 +1307,11 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                             const isWeekend = date.getDay() === 0 || date.getDay() === 6;
                             const isToday = format(date, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
 
+                            // 获取节假日信息
+                            const holidayLabel = getHolidayLabel(date);
+                            const isHoliday = holidayLabel?.type === 'holiday';
+                            const isWorkday = holidayLabel?.type === 'workday';
+
                             const isDisabled = isDateDisabled(date);
 
                             // Status color mapping
@@ -1321,15 +1351,29 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                             : `${statusColors[record.type] || 'bg-gray-50 border-gray-200'} cursor-pointer active:scale-95 hover:shadow-md`
                                         }
                                         ${isToday ? 'ring-2 ring-indigo-400 ring-offset-1' : ''}
-                                        ${!isDisabled && isWeekend && record.type === 'normal' ? 'bg-red-50/30' : ''}
+                                        ${!isDisabled && isWeekend && record.type === 'normal' && !isWorkday ? 'bg-red-50/30' : ''}
+                                        ${!isDisabled && isHoliday && record.type === 'normal' ? 'bg-red-50/50' : ''}
+                                        ${!isDisabled && isWorkday ? 'bg-blue-50/30' : ''}
                                     `}
                                 >
-                                    {/* Date Number */}
-                                    <span className={`text-lg font-bold mb-1 ${isDisabled ? 'text-gray-400' :
-                                        (isToday ? 'text-indigo-600' : 'text-gray-700')
-                                        }`}>
-                                        {format(date, 'd')}
-                                    </span>
+                                    {/* Date Number with Holiday Label */}
+                                    <div className="flex items-center justify-center mb-1">
+                                        <span className={`text-lg font-bold ${isDisabled ? 'text-gray-400' :
+                                            (isToday ? 'text-indigo-600' : 'text-gray-700')
+                                            }`}>
+                                            {format(date, 'd')}
+                                        </span>
+                                        {/* Holiday/Workday Label */}
+                                        {holidayLabel && (
+                                            <span className={`ml-1 text-xs font-bold px-1 py-0.5 rounded ${
+                                                holidayLabel.type === 'holiday' 
+                                                    ? 'bg-red-500 text-white' 
+                                                    : 'bg-blue-500 text-white'
+                                            }`}>
+                                                {holidayLabel.text}
+                                            </span>
+                                        )}
+                                    </div>
 
                                     {/* Status Label */}
                                     {isDisabled ? (
@@ -1506,7 +1550,7 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                         {isCustomerMode ? (
                             /* 客户签署模式 */
                             <div className="w-full space-y-3">
-                                {formData.status === 'customer_signed' ? (
+                                {(formData.status === 'customer_signed' || formData.status === 'synced') ? (
                                     <div className="w-full bg-green-50 text-green-700 py-3 rounded-xl text-center font-medium flex items-center justify-center gap-2">
                                         <CheckCircle2 className="w-5 h-5" />
                                         已签署
