@@ -13,6 +13,7 @@ import { AttendanceDisplayLogic } from '../../utils/attendanceDisplayLogic';
 import { AttendanceDateUtils } from '../../utils/attendanceDateUtils';
 import { debugSpecificCase } from '../../utils/debugAttendanceCase';
 import { useHolidays } from '../../hooks/useHolidays';
+import WechatShare from '../WechatShare';
 
 // Helper function to format duration
 const formatDuration = (hours, minutes = 0) => {
@@ -2090,6 +2091,16 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                         }
                     }}
                     onClose={() => setTimePickerDrawer({ isOpen: false, field: null, value: '09:00' })}
+                />
+            )}
+
+            {/* 微信分享卡片配置 - 用于客户签署页面在微信中分享 */}
+            {isCustomerMode && contractInfo && (
+                <WechatShare
+                    shareTitle={`${contractInfo.employee_name || '员工'} - ${selectedMonth}月考勤`}
+                    shareDesc={`请查看并签署${selectedMonth}月考勤表`}
+                    shareImgUrl={`${window.location.origin}/logo.png`}
+                    shareLink={window.location.href}
                 />
             )}
         </div>
