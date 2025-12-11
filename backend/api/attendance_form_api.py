@@ -48,7 +48,7 @@ def find_consecutive_contracts(employee_id, cycle_start, cycle_end):
     current_app.logger.info(f"🎯 选择主合同: {primary_contract.id}, family_id={primary_contract.family_id}")
     
     # 3. 【家庭合并逻辑】找到与主合同属于同一家庭的所有合同
-    # 优先使用family_id，如果没有则使用customer_id或customer_name
+    # 优先使用family_id，如果没有则使用customer_name（因为customer_id可能不一致）
     family_contracts = []
     
     if primary_contract.family_id:
@@ -58,20 +58,20 @@ def find_consecutive_contracts(employee_id, cycle_start, cycle_end):
             if c.family_id == primary_contract.family_id
         ]
         current_app.logger.info(f"按family_id合并: {primary_contract.family_id}, 找到 {len(family_contracts)} 个合同")
-    elif primary_contract.customer_id:
-        # 回退1：按customer_id合并
-        family_contracts = [
-            c for c in contracts 
-            if c.customer_id == primary_contract.customer_id
-        ]
-        current_app.logger.info(f"按customer_id合并: {primary_contract.customer_id}, 找到 {len(family_contracts)} 个合同")
-    else:
-        # 回退2：按customer_name合并
+    elif primary_contract.customer_name:
+        # 回退：按customer_name合并（因为续签合同的customer_id可能不一致）
         family_contracts = [
             c for c in contracts 
             if c.customer_name == primary_contract.customer_name 
         ]
         current_app.logger.info(f"按customer_name合并: {primary_contract.customer_name}, 找到 {len(family_contracts)} 个合同")
+    elif primary_contract.customer_id:
+        # 最后回退：按customer_id合并
+        family_contracts = [
+            c for c in contracts 
+            if c.customer_id == primary_contract.customer_id
+        ]
+        current_app.logger.info(f"按customer_id合并: {primary_contract.customer_id}, 找到 {len(family_contracts)} 个合同")
 
     # 4. 计算有效日期范围 (合并这些合同的时间段)
     # 取最早的开始时间和最晚的结束时间
@@ -102,10 +102,12 @@ def get_attendance_form_by_token(employee_token):
             form_id = uuid.UUID(employee_token)
             existing_form = AttendanceForm.query.get(form_id)
             if existing_form:
-                # 直接使用考勤表关联的合同日期，而不是查找所有合同
-                contract = existing_form.contract
-                effective_start = contract.start_date if contract else None
-                effective_end = contract.end_date if contract else None
+                # 调用 find_consecutive_contracts 获取合并后的日期范围
+                _, effective_start, effective_end = find_consecutive_contracts(
+                    existing_form.employee_id,
+                    existing_form.cycle_start_date,
+                    existing_form.cycle_end_date
+                )
                 result = form_to_dict(existing_form, effective_start, effective_end)
                 return jsonify(result)
         except ValueError:
@@ -117,10 +119,12 @@ def get_attendance_form_by_token(employee_token):
         ).first()
         
         if existing_form:
-            # 直接使用考勤表关联的合同日期
-            contract = existing_form.contract
-            effective_start = contract.start_date if contract else None
-            effective_end = contract.end_date if contract else None
+            # 调用 find_consecutive_contracts 获取合并后的日期范围
+            _, effective_start, effective_end = find_consecutive_contracts(
+                existing_form.employee_id,
+                existing_form.cycle_start_date,
+                existing_form.cycle_end_date
+            )
             result = form_to_dict(existing_form, effective_start, effective_end)
             return jsonify(result)
         
@@ -817,9 +821,8 @@ def get_employee_attendance_forms(employee_token):
             return jsonify({"error": "无效的访问令牌"}), 404
         
         # 查找该员工在指定月份的所有考勤表
-        # 这里需要根据家庭ID来分组考勤表
-        
         # 1. 先找到该员工在该月份的所有合同
+        # 包含 finished 和 completed 状态，以支持续签合同的考勤填写
         contracts = BaseContract.query.filter(
             BaseContract.service_personnel_id == employee_id,
             BaseContract.status.in_(['active', 'terminated', 'finished', 'completed']),
@@ -834,7 +837,7 @@ def get_employee_attendance_forms(employee_token):
                 "message": "该月份没有有效合同"
             })
         
-        # 2. 按家庭ID分组合同，但如果没有family_id则按customer_name分组
+        # 2. 按家庭ID分组合同，同一客户的多个合同（如续签）合并为一个考勤表
         family_groups = {}
         for contract in contracts:
             if contract.family_id:
@@ -850,14 +853,13 @@ def get_employee_attendance_forms(employee_token):
         attendance_forms = []
         
         for family_key, family_contracts in family_groups.items():
-            # 选择主合同（最新的active合同，或最新的合同）
+            # 选择主合同（优先active，否则选最新的）
             primary_contract = next(
                 (c for c in family_contracts if c.status == 'active'), 
                 max(family_contracts, key=lambda x: x.start_date)
             )
             
             # 查找该员工在该月份该合同的考勤表
-            # 对于不同客户/家庭，需要创建不同的考勤表
             existing_form = AttendanceForm.query.filter(
                 AttendanceForm.employee_id == employee_id,
                 AttendanceForm.cycle_start_date == cycle_start,
@@ -866,7 +868,6 @@ def get_employee_attendance_forms(employee_token):
             
             if not existing_form:
                 # 创建新的考勤表
-                # employee_access_token 需要唯一，所以包含年月和合同ID信息
                 access_token = f"{employee_id}_{cycle_start.year}_{cycle_start.month:02d}_{primary_contract.id}"
                 signature_token = str(uuid.uuid4())
                 
@@ -880,7 +881,7 @@ def get_employee_attendance_forms(employee_token):
                     status='draft'
                 )
                 db.session.add(new_form)
-                db.session.flush()  # 获取ID但不提交
+                db.session.flush()
                 existing_form = new_form
             
             # 收集家庭客户名称
@@ -891,14 +892,14 @@ def get_employee_attendance_forms(employee_token):
                     family_customers.append(contract.customer_name)
                     customer_names_seen.add(contract.customer_name)
             
-            # 计算服务期间
+            # 计算服务期间（合并所有合同的日期范围）
             service_start = min(c.start_date for c in family_contracts)
             service_end = max(c.end_date for c in family_contracts)
             
             attendance_forms.append({
-                "form_id": str(existing_form.id),  # 考勤表唯一ID
-                "form_token": existing_form.employee_access_token,  # 用于API调用的token
-                "contract_id": str(primary_contract.id),  # 合同ID
+                "form_id": str(existing_form.id),
+                "form_token": existing_form.employee_access_token,
+                "contract_id": str(primary_contract.id),
                 "family_customers": family_customers,
                 "service_period": f"{service_start.isoformat()} to {service_end.isoformat()}",
                 "status": existing_form.status,

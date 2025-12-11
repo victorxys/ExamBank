@@ -34,7 +34,11 @@ const AttendanceRouter = () => {
                     navigate(`/attendance-fill/${data.data.form_token}`, { replace: true });
                 } else if (data.redirect_type === 'multiple') {
                     // 多个考勤表，显示选择页面
-                    setAttendanceData(data.data);
+                    // employee_name 在顶层，forms 在 data.data 里
+                    setAttendanceData({
+                        forms: data.data.forms,
+                        employee_name: data.employee_name
+                    });
                     setLoading(false);
                 } else {
                     // 没有考勤表
