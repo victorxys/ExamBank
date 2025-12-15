@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../co
 import { useToast } from '../components/ui/use-toast';
 import api from '../api/axios';
 import { getWechatOpenId } from '../utils/wechatUtils';
+import WechatShare from '../components/WechatShare';
 
 /**
  * 微信公众号考勤入口页面
@@ -130,22 +131,37 @@ const WechatAttendance = () => {
     }
   };
 
+  // 微信分享配置
+  const shareConfig = (
+    <WechatShare
+      shareTitle="萌姨萌嫂 - 我的考勤"
+      shareDesc="点击进入考勤系统，填写和查看您的考勤信息"
+      shareImgUrl={`${window.location.origin}/logo_share.jpg`}
+      shareLink={`${window.location.origin}/wechat-attendance`}
+    />
+  );
+
   // 加载中状态
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-teal-50">
-        <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-teal-500" />
-          <p className="text-gray-600">正在加载...</p>
+      <>
+        {shareConfig}
+        <div className="min-h-screen flex items-center justify-center bg-teal-50">
+          <div className="text-center">
+            <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-teal-500" />
+            <p className="text-gray-600">正在加载...</p>
+          </div>
         </div>
-      </div>
+      </>
     );
   }
 
   // 员工未激活状态
   if (isInactive) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-teal-50">
+      <>
+        {shareConfig}
+        <div className="min-h-screen flex items-center justify-center p-4 bg-teal-50">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
             <img 
@@ -167,22 +183,25 @@ const WechatAttendance = () => {
             </div>
           </CardContent>
         </Card>
-      </div>
+        </div>
+      </>
     );
   }
 
   // 需要验证身份
   if (needVerify) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-teal-50">
-        <Card className="w-full max-w-md">
+      <>
+        {shareConfig}
+        <div className="min-h-screen flex items-center justify-center p-4 bg-teal-50">
+          <Card className="w-full max-w-md">
           <CardHeader className="text-center">
             <img 
               src="/logo.png" 
               alt="萌姨萌嫂" 
               className="mx-auto h-16 w-auto mb-4"
             />
-            <CardTitle>身份验证</CardTitle>
+            <CardTitle>考勤身份验证</CardTitle>
             <CardDescription>
               首次使用需要验证身份信息
             </CardDescription>
@@ -256,12 +275,13 @@ const WechatAttendance = () => {
             </div>
           </CardContent>
         </Card>
-      </div>
+        </div>
+      </>
     );
   }
 
   // 正常情况下不会显示这个，因为会直接跳转
-  return null;
+  return shareConfig;
 };
 
 export default WechatAttendance;
