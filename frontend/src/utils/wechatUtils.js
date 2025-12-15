@@ -2,9 +2,14 @@
  * 微信JS-SDK工具函数
  */
 
+// 检查是否为开发环境
+const isDevelopment = () => {
+  return import.meta.env.DEV || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+};
+
 // 获取微信用户openid
 export const getWechatOpenId = () => {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     // 在实际微信环境中，需要通过微信授权获取openid
     // 这里提供几种获取方式：
     
@@ -24,12 +29,28 @@ export const getWechatOpenId = () => {
       return;
     }
     
-    // 3. 检查是否在微信环境中
+    // 3. 开发环境：直接使用测试openid，跳过OAuth
+    if (isDevelopment()) {
+      const devOpenid = 'dev_openid_' + Date.now();
+      console.warn('开发环境，使用测试openid:', devOpenid);
+      localStorage.setItem('wechat_openid', devOpenid);
+      resolve(devOpenid);
+      return;
+    }
+    
+    // 4. 生产环境：检查是否在微信环境中
     if (isWechatBrowser()) {
       // 在微信环境中，需要进行OAuth授权
-      redirectToWechatAuth();
+      const redirected = redirectToWechatAuth();
+      if (!redirected) {
+        // 如果未能跳转（AppID未配置），使用临时openid
+        const tempOpenid = 'temp_wechat_' + Date.now();
+        console.warn('微信环境但AppID未配置，使用临时openid:', tempOpenid);
+        resolve(tempOpenid);
+      }
+      // 如果成功跳转，页面会重定向，Promise不需要resolve
     } else {
-      // 非微信环境，使用测试openid或提示用户
+      // 非微信环境，使用测试openid
       const testOpenid = 'demo_openid_' + Date.now();
       console.warn('非微信环境，使用测试openid:', testOpenid);
       resolve(testOpenid);
@@ -44,19 +65,21 @@ export const isWechatBrowser = () => {
 };
 
 // 跳转到微信OAuth授权
+// 返回 true 表示成功跳转，false 表示未能跳转
 export const redirectToWechatAuth = () => {
-  const appId = process.env.REACT_APP_WECHAT_APP_ID;
+  const appId = import.meta.env.VITE_WECHAT_APP_ID;
   const redirectUri = encodeURIComponent(window.location.href);
   const scope = 'snsapi_base'; // 静默授权，只获取openid
   
   if (!appId) {
-    console.error('未配置微信AppID');
-    return;
+    console.warn('未配置 VITE_WECHAT_APP_ID，无法进行微信OAuth授权');
+    return false;
   }
   
   const authUrl = `https://open.weixin.qq.com/connect/oauth2/authorize?appid=${appId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}&state=STATE#wechat_redirect`;
   
   window.location.href = authUrl;
+  return true;
 };
 
 // 初始化微信JS-SDK
@@ -67,26 +90,24 @@ export const initWechatJSSDK = async () => {
   }
   
   try {
-    // 获取JS-SDK配置
-    const response = await fetch('/api/wechat/jssdk-config', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        url: window.location.href.split('#')[0] // 当前页面URL，不包含#及其后面部分
-      })
-    });
+    // 获取JS-SDK配置 - 使用 GET 请求，URL 作为查询参数
+    const currentUrl = encodeURIComponent(window.location.href.split('#')[0]);
+    const response = await fetch(`/api/wechat/jssdk-config?url=${currentUrl}`);
     
-    const config = await response.json();
+    const data = await response.json();
+    
+    if (!data.success) {
+      console.error('获取JSSDK配置失败:', data.message);
+      return;
+    }
     
     if (window.wx) {
       window.wx.config({
         debug: false,
-        appId: config.config.appId,
-        timestamp: config.config.timestamp,
-        nonceStr: config.config.nonceStr,
-        signature: config.config.signature,
+        appId: data.config.appId,
+        timestamp: data.config.timestamp,
+        nonceStr: data.config.nonceStr,
+        signature: data.config.signature,
         jsApiList: [
           'chooseImage',
           'uploadImage',

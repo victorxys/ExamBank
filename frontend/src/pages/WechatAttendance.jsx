@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Loader2, User, CreditCard, AlertCircle } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { useToast } from '../components/ui/use-toast';
 import api from '../api/axios';
-import { getWechatOpenId, initWechatJSSDK } from '../utils/wechatUtils';
+import { getWechatOpenId } from '../utils/wechatUtils';
 
 /**
  * 微信公众号考勤入口页面
@@ -26,7 +26,6 @@ const WechatAttendance = () => {
   const [isInactive, setIsInactive] = useState(false);
 
   useEffect(() => {
-    initWechatJSSDK();
     checkEmployeeAndRedirect();
   }, []);
 
@@ -123,9 +122,9 @@ const WechatAttendance = () => {
   // 加载中状态
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+      <div className="min-h-screen flex items-center justify-center bg-teal-50">
         <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin text-indigo-600 mx-auto mb-4" />
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-teal-500" />
           <p className="text-gray-600">正在加载...</p>
         </div>
       </div>
@@ -135,12 +134,14 @@ const WechatAttendance = () => {
   // 员工未激活状态
   if (isInactive) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
+      <div className="min-h-screen flex items-center justify-center p-4 bg-teal-50">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
-            <div className="mx-auto w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mb-4">
-              <AlertCircle className="w-6 h-6 text-red-600" />
-            </div>
+            <img 
+              src="/logo.png" 
+              alt="萌姨萌嫂" 
+              className="mx-auto h-16 w-auto mb-4"
+            />
             <CardTitle className="text-red-600">无法访问</CardTitle>
             <CardDescription>
               您的账号当前未激活，无法使用考勤系统
@@ -162,12 +163,14 @@ const WechatAttendance = () => {
   // 需要验证身份
   if (needVerify) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
+      <div className="min-h-screen flex items-center justify-center p-4 bg-teal-50">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
-            <div className="mx-auto w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center mb-4">
-              <User className="w-6 h-6 text-indigo-600" />
-            </div>
+            <img 
+              src="/logo.png" 
+              alt="萌姨萌嫂" 
+              className="mx-auto h-16 w-auto mb-4"
+            />
             <CardTitle>身份验证</CardTitle>
             <CardDescription>
               首次使用需要验证身份信息
@@ -187,7 +190,7 @@ const WechatAttendance = () => {
                     placeholder="请输入您的姓名"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-colors"
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg outline-none transition-colors focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
                   />
                 </div>
               </div>
@@ -204,7 +207,7 @@ const WechatAttendance = () => {
                     placeholder="请输入身份证号"
                     value={idCardNumber}
                     onChange={(e) => setIdCardNumber(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-colors"
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg outline-none transition-colors focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
                   />
                 </div>
               </div>
@@ -218,7 +221,7 @@ const WechatAttendance = () => {
 
               <Button 
                 type="submit" 
-                className="w-full"
+                className="w-full text-white bg-teal-600 hover:bg-teal-500 border-teal-500"
                 disabled={verifying}
               >
                 {verifying ? (
@@ -232,7 +235,7 @@ const WechatAttendance = () => {
               </Button>
             </form>
 
-            <div className="mt-6 p-4 bg-slate-50 rounded-lg text-sm text-gray-600">
+            <div className="mt-6 p-4 rounded-lg text-sm text-gray-600 bg-teal-50">
               <p className="font-medium mb-2">💡 温馨提示：</p>
               <ul className="space-y-1 list-disc list-inside">
                 <li>请确保姓名和身份证号与公司登记信息一致</li>
