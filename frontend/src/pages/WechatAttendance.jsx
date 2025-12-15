@@ -221,7 +221,7 @@ const WechatAttendance = () => {
 
               <Button 
                 type="submit" 
-                className="w-full text-white bg-teal-500 hover:bg-teal-600 border-teal-500"
+                className="w-full text-white bg-teal-600 hover:bg-teal-500 border-teal-500"
                 disabled={verifying}
               >
                 {verifying ? (
