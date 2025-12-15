@@ -213,7 +213,7 @@ const PublicSigningPage = () => {
                 )}
                 {contract.management_fee_amount >0 && (
                 <Grid item xs={12}>
-                    <Typography><strong>丙方管理费:</strong> {contract.management_fee_amount?. toFixed(2)} 元/月</Typography>
+                    <Typography><strong>{contract.type === 'maternity_nurse' ? '丙方服务费' : '丙方管理费'}:</strong> {contract.management_fee_amount?. toFixed(2)} 元/月</Typography>
                 </Grid>
                 )}
                 {contract.contract_type_value === 'nanny_trial' ? (

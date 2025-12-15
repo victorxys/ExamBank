@@ -97,7 +97,7 @@
             <p><strong>保证金:</strong> {{ "%.2f"|format(contract.security_deposit_paid|float) }} 元</p>
         {% endif %}
         {% if contract.management_fee_amount and contract.management_fee_amount > 0 %}
-            <p><strong>丙方管理费:</strong> {{ "%.2f"|format(contract.management_fee_amount|float) }} 元/月</p>
+            <p><strong>{% if contract.type == 'maternity_nurse' %}丙方服务费{% else %}丙方管理费{% endif %}:</strong> {{ "%.2f"|format(contract.management_fee_amount|float) }} 元/月</p>
         {% endif %}
         {% if contract.type == 'nanny_trial' %}
             <p><strong>介绍费:</strong> {{ "%.2f"|format(contract.introduction_fee|float or 0) }} 元</p>
