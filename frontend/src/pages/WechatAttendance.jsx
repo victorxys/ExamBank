@@ -33,6 +33,15 @@ const WechatAttendance = () => {
     setLoading(true);
     try {
       const openid = await getWechatOpenId();
+      
+      // 如果 openid 为空，说明正在进行 OAuth 跳转，不需要继续
+      if (!openid) {
+        console.log('正在进行微信OAuth授权跳转...');
+        return;
+      }
+      
+      console.log('获取到openid:', openid);
+      
       const response = await api.get('/wechat-attendance/employee-info', {
         params: { openid }
       });
@@ -51,12 +60,14 @@ const WechatAttendance = () => {
         navigate(`/attendance/${employee.id}`, { replace: true });
       }
     } catch (err) {
+      console.error('checkEmployeeAndRedirect 错误:', err);
       if (err.response?.data?.need_verify) {
         setNeedVerify(true);
       } else {
+        const errorMsg = err.response?.data?.error || err.message || '未知错误';
         toast({
           title: "获取信息失败",
-          description: "请稍后重试",
+          description: errorMsg,
           variant: "destructive"
         });
       }

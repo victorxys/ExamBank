@@ -4,14 +4,24 @@
 
 // 检查是否为开发环境
 const isDevelopment = () => {
-  return import.meta.env.DEV || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  const hostname = window.location.hostname;
+  const isDev = import.meta.env.DEV || 
+                hostname === 'localhost' || 
+                hostname === '127.0.0.1' ||
+                hostname.includes('192.168.') ||  // 局域网IP
+                hostname.includes('10.');          // 局域网IP
+  console.log('isDevelopment check:', { isDev, hostname, envDev: import.meta.env.DEV });
+  return isDev;
 };
 
 // 获取微信用户openid
 export const getWechatOpenId = async () => {
+  console.log('getWechatOpenId 开始执行...');
+  
   // 1. 从localStorage获取（已缓存）
   const cachedOpenid = localStorage.getItem('wechat_openid');
   if (cachedOpenid) {
+    console.log('从缓存获取openid:', cachedOpenid);
     return cachedOpenid;
   }
   
@@ -19,23 +29,24 @@ export const getWechatOpenId = async () => {
   const urlParams = new URLSearchParams(window.location.search);
   const openidFromUrl = urlParams.get('openid');
   if (openidFromUrl) {
+    console.log('从URL获取openid:', openidFromUrl);
     localStorage.setItem('wechat_openid', openidFromUrl);
-    // 清理URL中的参数
     cleanUrlParams();
     return openidFromUrl;
   }
   
   // 3. 从URL参数获取 code（微信OAuth回调）
   const codeFromUrl = urlParams.get('code');
+  console.log('URL中的code:', codeFromUrl);
   if (codeFromUrl) {
     try {
-      // 用 code 换取 openid
+      console.log('用code换取openid...');
       const response = await fetch(`/api/wechat-attendance/oauth-callback?code=${codeFromUrl}`);
       const data = await response.json();
+      console.log('OAuth回调响应:', data);
       
       if (data.success && data.openid) {
         localStorage.setItem('wechat_openid', data.openid);
-        // 清理URL中的code参数，避免重复使用
         cleanUrlParams();
         return data.openid;
       } else {
@@ -55,15 +66,16 @@ export const getWechatOpenId = async () => {
   }
   
   // 5. 生产环境微信浏览器：触发OAuth授权
+  console.log('检查是否在微信浏览器中:', isWechatBrowser());
   if (isWechatBrowser()) {
+    console.log('在微信浏览器中，触发OAuth授权...');
     const redirected = redirectToWechatAuth();
     if (!redirected) {
-      // 如果未能跳转（AppID未配置），使用临时openid
       const tempOpenid = 'temp_wechat_' + Date.now();
       console.warn('微信环境但AppID未配置，使用临时openid:', tempOpenid);
       return tempOpenid;
     }
-    // 如果成功跳转，页面会重定向，返回空字符串（不会被使用）
+    // 如果成功跳转，页面会重定向，返回空字符串
     return '';
   }
   
