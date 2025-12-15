@@ -1982,6 +1982,7 @@ class ServicePersonnel(db.Model):
     )
     user_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True, unique=True, index=True, comment="关联的系统用户ID")
     user = db.relationship('User', backref=db.backref('service_personnel_profile', uselist=False))
+    wechat_openid = db.Column(db.String(100), nullable=True, unique=True, index=True, comment="微信公众号openid")
 
     current_contract_id = db.Column(
         PG_UUID(as_uuid=True),
@@ -2003,6 +2004,7 @@ class ServicePersonnel(db.Model):
             "id_card_number": self.id_card_number,
             "address": self.address,
             "is_active": self.is_active,
+            "wechat_openid": self.wechat_openid,
         }
 
     @sa.ext.hybrid.hybrid_property

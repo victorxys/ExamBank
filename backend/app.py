@@ -48,6 +48,8 @@ from backend.models import db, UserCourseAccess, User  #
 # from backend.api.evaluation_visibility import bp as evaluation_visibility_bp
 # from backend.api.evaluation_item import bp as evaluation_item_bp
 from backend.api.wechatshare import wechat_share_bp
+from backend.api.wechat_attendance_api import wechat_attendance_bp
+from backend.api.wechat_admin_api import wechat_admin_bp
 from backend.api.user_sync import sync_user
 from backend.api.employee_self_evaluation import employee_self_evaluation_bp
 from backend.api.evaluation_aspect import bp as evaluation_aspect_bp  # 新增
@@ -279,6 +281,8 @@ with app.app_context():
 # 注册评价管理相关的蓝图
 app.register_blueprint(evaluation_visibility_bp, url_prefix="/api")
 app.register_blueprint(wechat_share_bp, url_prefix="/api/wechat")
+app.register_blueprint(wechat_attendance_bp)
+app.register_blueprint(wechat_admin_bp)
 app.register_blueprint(employee_self_evaluation_bp)
 app.register_blueprint(evaluation_aspect_bp)
 app.register_blueprint(evaluation_category_bp)

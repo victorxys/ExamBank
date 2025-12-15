@@ -343,6 +343,7 @@ const FormBuilderPage = lazy(() => import('./components/FormBuilderPage'));
 const ExamResultsPage = lazy(() => import('./components/ExamResultsPage'));
 const ExamResultDetailPage = lazy(() => import('./components/ExamResultDetailPage'));
 const PickerTestPage = lazy(() => import('./components/PickerTestPage'));
+const WechatAttendance = lazy(() => import('./pages/WechatAttendance'));
 
 
 // --- 5. App 组件主体 ---
@@ -436,6 +437,9 @@ function App() {
           <Route path="/forms/:formToken" element={<Suspense fallback={<LoadingFallback />}><DynamicFormPage /></Suspense>} />
           <Route path="/picker-test" element={<Suspense fallback={<LoadingFallback />}><PickerTestPage /></Suspense>} />
           <Route path="/holiday-test" element={<Suspense fallback={<LoadingFallback />}><HolidayTest /></Suspense>} />
+          
+          {/* 微信公众号考勤页面 */}
+          <Route path="/wechat-attendance" element={<Suspense fallback={<LoadingFallback />}><WechatAttendance /></Suspense>} />
 
           {/* EmployeeProfile 和其子路由已移到 MainLayout 下，这里不再需要 */}
         </Route>
