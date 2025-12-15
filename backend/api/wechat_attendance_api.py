@@ -294,6 +294,67 @@ def get_status_text(status):
     }
     return status_map.get(status, status)
 
+@wechat_attendance_bp.route('/oauth-callback', methods=['GET'])
+def oauth_callback():
+    """
+    微信OAuth回调处理
+    用code换取openid
+    """
+    try:
+        code = request.args.get('code')
+        
+        if not code:
+            return jsonify({
+                "success": False,
+                "error": "缺少code参数"
+            }), 400
+        
+        # 从环境变量获取微信配置
+        app_id = os.environ.get('WECHAT_APP_ID')
+        app_secret = os.environ.get('WECHAT_APP_SECRET')
+        
+        if not app_id or not app_secret:
+            current_app.logger.error("微信配置缺失: WECHAT_APP_ID 或 WECHAT_APP_SECRET")
+            return jsonify({
+                "success": False,
+                "error": "服务器配置错误"
+            }), 500
+        
+        # 调用微信API获取access_token和openid
+        import requests
+        wx_url = f"https://api.weixin.qq.com/sns/oauth2/access_token?appid={app_id}&secret={app_secret}&code={code}&grant_type=authorization_code"
+        
+        response = requests.get(wx_url, timeout=10)
+        data = response.json()
+        
+        if 'errcode' in data:
+            current_app.logger.error(f"微信OAuth失败: {data}")
+            return jsonify({
+                "success": False,
+                "error": f"微信授权失败: {data.get('errmsg', '未知错误')}"
+            }), 400
+        
+        openid = data.get('openid')
+        if not openid:
+            return jsonify({
+                "success": False,
+                "error": "未能获取openid"
+            }), 400
+        
+        current_app.logger.info(f"微信OAuth成功，获取到openid: {openid[:8]}...")
+        
+        return jsonify({
+            "success": True,
+            "openid": openid
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"OAuth回调处理失败: {e}", exc_info=True)
+        return jsonify({
+            "success": False,
+            "error": "服务器内部错误"
+        }), 500
+
 @wechat_attendance_bp.route('/employee-info', methods=['GET'])
 def get_employee_info():
     """
