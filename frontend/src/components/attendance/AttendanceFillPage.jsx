@@ -167,15 +167,45 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
         return { realToken: actualToken, initialYear: null, initialMonth: null };
     }, [form_token, token, employee_token]);
 
-    // Month selection state (default to token suffix or last month)
+    // 从 URL 参数读取年月
+    const urlParams = useMemo(() => {
+        const searchParams = new URLSearchParams(location.search);
+        const year = searchParams.get('year');
+        const month = searchParams.get('month');
+        return {
+            year: year ? parseInt(year, 10) : null,
+            month: month ? parseInt(month, 10) : null
+        };
+    }, [location.search]);
+
+    // Month selection state (default to URL params > token suffix > null for smart selection)
     const getLastMonth = () => {
         const now = new Date();
         const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
         return { year: lastMonth.getFullYear(), month: lastMonth.getMonth() + 1 };
     };
 
-    const [selectedYear, setSelectedYear] = useState(() => initialYear || getLastMonth().year);
-    const [selectedMonth, setSelectedMonth] = useState(() => initialMonth || getLastMonth().month);
+    // 初始值：优先使用 URL 参数或 token 中的年月，否则为 null（让后端智能选择）
+    const [selectedYear, setSelectedYear] = useState(() => urlParams.year || initialYear || null);
+    const [selectedMonth, setSelectedMonth] = useState(() => urlParams.month || initialMonth || null);
+
+    // 更新 URL 参数的函数（不刷新页面）
+    const updateUrlParams = useCallback((year, month) => {
+        const searchParams = new URLSearchParams(location.search);
+        searchParams.set('year', year.toString());
+        searchParams.set('month', month.toString());
+        const newUrl = `${location.pathname}?${searchParams.toString()}`;
+        window.history.replaceState({}, '', newUrl);
+    }, [location.pathname, location.search]);
+
+    // 切换月份的函数
+    const handleMonthChange = useCallback((year, month) => {
+        // 清除上次请求记录，确保会重新请求
+        lastFetchedMonth.current = { year: null, month: null };
+        setSelectedYear(year);
+        setSelectedMonth(month);
+        updateUrlParams(year, month);
+    }, [updateUrlParams]);
 
     // Update selected year/month if token changes and has suffix
     useEffect(() => {
@@ -199,42 +229,14 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
     const [monthDays, setMonthDays] = useState([]);
     const [contractInfo, setContractInfo] = useState(null);
     
-    // 标记是否已经根据合同开始月份调整过默认月份
-    const hasAdjustedForContractStart = useRef(false);
+    // 标记是否已经根据合同月份调整过默认月份
+    const hasAdjustedForContractMonth = useRef(false);
     
-    // 当合同信息加载后，如果合同开始月份是当月或未来月份，自动切换到合同开始月份
-    useEffect(() => {
-        if (contractInfo?.start_date && !hasAdjustedForContractStart.current && !initialYear && !initialMonth) {
-            const startDate = parseISO(contractInfo.start_date);
-            const contractStartYear = startDate.getFullYear();
-            const contractStartMonth = startDate.getMonth() + 1;
-            
-            const now = new Date();
-            const currentYear = now.getFullYear();
-            const currentMonth = now.getMonth() + 1;
-            
-            // 计算上个月
-            let lastMonthYear = currentYear;
-            let lastMonth = currentMonth - 1;
-            if (lastMonth === 0) {
-                lastMonthYear -= 1;
-                lastMonth = 12;
-            }
-            
-            // 如果合同开始月份晚于上个月（即当月或未来），切换到合同开始月份
-            if (contractStartYear > lastMonthYear || 
-                (contractStartYear === lastMonthYear && contractStartMonth > lastMonth)) {
-                // 但不能超过当月
-                if (contractStartYear < currentYear || 
-                    (contractStartYear === currentYear && contractStartMonth <= currentMonth)) {
-                    setSelectedYear(contractStartYear);
-                    setSelectedMonth(contractStartMonth);
-                }
-            }
-            
-            hasAdjustedForContractStart.current = true;
-        }
-    }, [contractInfo, initialYear, initialMonth]);
+    // 跟踪最后一次成功请求的年月，避免重复请求
+    const lastFetchedMonth = useRef({ year: null, month: null });
+    
+    // 注意：默认月份的智能选择已由后端处理，前端不再需要额外的调整逻辑
+    // 后端会根据合同开始/结束月份返回 actual_year 和 actual_month
 
     // First/Last Month Logic
     const isFirstMonth = useMemo(() => {
@@ -472,8 +474,10 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
         if (realToken) {
             fetchData(selectedYear, selectedMonth);
         }
+    }, [realToken, selectedYear, selectedMonth]);
 
-        // Check for showShareHint param
+    // 检查 showShareHint 参数（单独的 useEffect）
+    useEffect(() => {
         const searchParams = new URLSearchParams(location.search);
         if (searchParams.get('showShareHint') === 'true') {
             setShowShareHint(true);
@@ -481,9 +485,7 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
             const newUrl = window.location.pathname;
             window.history.replaceState({}, '', newUrl);
         }
-        
-
-    }, [realToken, location.search, selectedYear, selectedMonth]);
+    }, [location.search]);
 
     // Resize observer for signature canvas
     useEffect(() => {
@@ -519,6 +521,12 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
 
     const fetchData = async (year = selectedYear, month = selectedMonth) => {
         try {
+            // 如果请求的年月与上次成功请求的相同，跳过（避免重复请求）
+            if (lastFetchedMonth.current.year === year && lastFetchedMonth.current.month === month && formData) {
+                console.log(`[fetchData] Skipping duplicate request for ${year}-${month}`);
+                return;
+            }
+            
             setLoading(true);
             
             // 确保有有效的token
@@ -543,6 +551,24 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
 
             setFormData(data);
             setContractInfo(data.contract_info);
+
+            // 如果后端返回了实际使用的年月（智能选择），同步更新前端状态和 URL
+            // 注意：使用传入的 year/month 参数比较，而不是 selectedYear/selectedMonth（可能是旧值）
+            const actualYear = data.actual_year || year;
+            const actualMonth = data.actual_month || month;
+            
+            // 记录成功请求的年月（使用后端返回的实际年月）
+            lastFetchedMonth.current = { 
+                year: data.actual_year || actualYear, 
+                month: data.actual_month || actualMonth 
+            };
+            
+            if (data.actual_year && data.actual_month) {
+                // 始终更新前端状态为后端返回的实际年月
+                setSelectedYear(data.actual_year);
+                setSelectedMonth(data.actual_month);
+                updateUrlParams(data.actual_year, data.actual_month);
+            }
 
             // 重置考勤数据 - 先清空，再填充新数据
             const emptyData = {
@@ -584,9 +610,8 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                 const suggestedYear = error.response.data.suggested_year;
                 const suggestedMonth = error.response.data.suggested_month;
                 
-                // 自动切换到建议的月份
-                setSelectedYear(suggestedYear);
-                setSelectedMonth(suggestedMonth);
+                // 自动切换到建议的月份（同时更新 URL）
+                handleMonthChange(suggestedYear, suggestedMonth);
                 // 不显示错误提示，因为会自动重新加载
                 return;
             }
@@ -1081,8 +1106,7 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                         onClick={() => {
                                             if (!canGoPrev) return;
                                             const newDate = new Date(selectedYear, selectedMonth - 2, 1);
-                                            setSelectedYear(newDate.getFullYear());
-                                            setSelectedMonth(newDate.getMonth() + 1);
+                                            handleMonthChange(newDate.getFullYear(), newDate.getMonth() + 1);
                                         }}
                                         disabled={!canGoPrev}
                                         className={`p-1.5 rounded-lg transition-colors ${canGoPrev
@@ -1102,7 +1126,7 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                         lineHeight: '1.2'
                                     }}
                                 >
-                                    {selectedMonth}月考勤{isHistoricalView ? '记录' : '填报'}
+                                    {selectedMonth || formData?.month || ''}月考勤{isHistoricalView ? '记录' : '填报'}
                                     {isAdminView && <span className="ml-2 text-sm bg-gray-200 text-gray-600 px-2 py-1 rounded">查看模式</span>}
                                     {isHistoricalView && !isAdminView && <span className="ml-2 text-sm bg-amber-100 text-amber-700 px-2 py-1 rounded">只读</span>}
                                 </h1>
@@ -1120,8 +1144,7 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                             onClick={() => {
                                                 if (!canGoNext) return;
                                                 const newDate = new Date(selectedYear, selectedMonth, 1);
-                                                setSelectedYear(newDate.getFullYear());
-                                                setSelectedMonth(newDate.getMonth() + 1);
+                                                handleMonthChange(newDate.getFullYear(), newDate.getMonth() + 1);
                                             }}
                                             disabled={!canGoNext}
                                             className={`p-1.5 rounded-lg transition-colors ${canGoNext

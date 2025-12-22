@@ -92,52 +92,18 @@ def get_attendance_form_by_token(employee_token):
     """
     根据访问令牌获取考勤表
     支持三种查找方式（按优先级）：
-    1. 通过考勤表ID直接查找（UUID格式）
-    2. 通过 employee_access_token 查找
-    3. 通过员工ID + 年月参数查找
+    1. 通过考勤表ID直接查找（UUID格式，无年月参数时）
+    2. 通过员工ID + 年月参数查找（有年月参数时）
+    3. 通过 employee_access_token 查找（无年月参数时的回退）
     """
     try:
-        # 1. 首先尝试通过考勤表ID直接查找
-        try:
-            form_id = uuid.UUID(employee_token)
-            existing_form = AttendanceForm.query.get(form_id)
-            if existing_form:
-                # 调用 find_consecutive_contracts 获取合并后的日期范围
-                _, effective_start, effective_end = find_consecutive_contracts(
-                    existing_form.employee_id,
-                    existing_form.cycle_start_date,
-                    existing_form.cycle_end_date
-                )
-                result = form_to_dict(existing_form, effective_start, effective_end)
-                return jsonify(result)
-        except ValueError:
-            pass
-        
-        # 2. 尝试通过 employee_access_token 直接查找考勤表
-        existing_form = AttendanceForm.query.filter_by(
-            employee_access_token=employee_token
-        ).first()
-        
-        if existing_form:
-            # 调用 find_consecutive_contracts 获取合并后的日期范围
-            _, effective_start, effective_end = find_consecutive_contracts(
-                existing_form.employee_id,
-                existing_form.cycle_start_date,
-                existing_form.cycle_end_date
-            )
-            result = form_to_dict(existing_form, effective_start, effective_end)
-            return jsonify(result)
-        
-        # 3. 尝试解析 token 获取员工ID
-        parts = employee_token.split('_')
-        if len(parts) >= 1:
-            employee_id_str = parts[0]
-        else:
-            return jsonify({"error": "无效的访问令牌"}), 404
-        
-        # 读取 year/month 参数，或从 token 中解析
+        # 读取 year/month 参数
         year = request.args.get('year', type=int)
         month = request.args.get('month', type=int)
+        
+        # 尝试解析 token 获取员工ID
+        parts = employee_token.split('_')
+        employee_id_str = parts[0] if len(parts) >= 1 else employee_token
         
         # 如果 token 中包含年月信息，优先使用
         if len(parts) >= 3:
@@ -147,28 +113,101 @@ def get_attendance_form_by_token(employee_token):
             except ValueError:
                 pass
         
-        print(f"[DEBUG] Received year={year}, month={month}")
+        print(f"[DEBUG] Received year={year}, month={month}, token={employee_token}")
         
+        # 1. 如果没有年月参数，尝试通过考勤表ID直接查找
+        if not year or not month:
+            try:
+                form_id = uuid.UUID(employee_token)
+                existing_form = AttendanceForm.query.get(form_id)
+                if existing_form:
+                    # 调用 find_consecutive_contracts 获取合并后的日期范围
+                    _, effective_start, effective_end = find_consecutive_contracts(
+                        existing_form.employee_id,
+                        existing_form.cycle_start_date,
+                        existing_form.cycle_end_date
+                    )
+                    result = form_to_dict(existing_form, effective_start, effective_end)
+                    return jsonify(result)
+            except ValueError:
+                pass
+        
+        # 初始化 employee 变量
+        employee = None
+        
+        # 2. 尝试获取员工信息
+        try:
+            employee_id = uuid.UUID(employee_id_str)
+            employee = ServicePersonnel.query.get(employee_id)
+        except ValueError:
+            pass
+        
+        if not employee:
+            return jsonify({"error": "无效的访问令牌"}), 404
+        
+        # 3. 智能选择默认月份（如果没有传入年月参数）
         if year and month:
             from calendar import monthrange
             last_day = monthrange(year, month)[1]
             cycle_start = date(year, month, 1)
             cycle_end = date(year, month, last_day)
         else:
-            cycle_start, cycle_end = calculate_last_month_cycle()
-        
-        # 4. 查找员工
-        employee = None
-        try:
-            employee_id = uuid.UUID(employee_id_str)
-            employee = ServicePersonnel.query.get(employee_id)
-        except ValueError:
-            pass
+            # 没有传入年月参数，智能选择默认月份
+            # 查找该员工的活跃合同
+            active_contracts = BaseContract.query.filter(
+                BaseContract.service_personnel_id == employee.id,
+                BaseContract.status.in_(['active', 'terminated', 'finished', 'completed'])
+            ).order_by(BaseContract.end_date.desc()).all()
             
-        if not employee:
-            return jsonify({"error": "无效的访问令牌"}), 404
+            today = date.today()
+            current_year = today.year
+            current_month = today.month
+            
+            # 计算上个月
+            if current_month == 1:
+                last_month_year = current_year - 1
+                last_month = 12
+            else:
+                last_month_year = current_year
+                last_month = current_month - 1
+            
+            # 默认使用上个月
+            selected_year = last_month_year
+            selected_month = last_month
+            
+            # 检查是否有合同在当月结束
+            for contract in active_contracts:
+                # 获取合同结束日期（对于已终止合同使用终止日期）
+                end_date = contract.termination_date if contract.termination_date else contract.end_date
+                if end_date:
+                    if end_date.year == current_year and end_date.month == current_month:
+                        # 合同在当月结束，默认显示当月
+                        selected_year = current_year
+                        selected_month = current_month
+                        current_app.logger.info(f"合同 {contract.id} 在当月结束，默认显示当月")
+                        break
+            
+            # 检查是否有合同在当月开始（且晚于上个月）
+            for contract in active_contracts:
+                if contract.start_date:
+                    if (contract.start_date.year > last_month_year or 
+                        (contract.start_date.year == last_month_year and contract.start_date.month > last_month)):
+                        # 合同开始月份晚于上个月，使用合同开始月份
+                        if (contract.start_date.year < current_year or 
+                            (contract.start_date.year == current_year and contract.start_date.month <= current_month)):
+                            selected_year = contract.start_date.year
+                            selected_month = contract.start_date.month
+                            current_app.logger.info(f"合同 {contract.id} 开始于 {selected_year}-{selected_month}，默认显示该月")
+                            break
+            
+            from calendar import monthrange
+            last_day = monthrange(selected_year, selected_month)[1]
+            cycle_start = date(selected_year, selected_month, 1)
+            cycle_end = date(selected_year, selected_month, last_day)
+            
+            current_app.logger.info(f"智能选择月份: {selected_year}-{selected_month}")
 
-        # 3. 查找合同 (支持连续合同合并)
+        # 4. 查找合同 (支持连续合同合并)
         contract, effective_start, effective_end = find_consecutive_contracts(employee.id, cycle_start, cycle_end)
         
         if not contract:
@@ -189,7 +228,7 @@ def get_attendance_form_by_token(employee_token):
             
             return jsonify({"error": "未找到该员工的合同"}), 404
         
-        # 4. 检查是否已经存在该员工该周期的表单 (按 employee_id 查询，更可靠)
+        # 5. 检查是否已经存在该员工该周期的表单 (按 employee_id 和 cycle_start_date 查询)
         existing_form = AttendanceForm.query.filter_by(
             employee_id=employee.id,
             cycle_start_date=cycle_start
@@ -203,15 +242,19 @@ def get_attendance_form_by_token(employee_token):
             
             # 重新计算有效日期范围，确保家庭合并逻辑生效
             result = form_to_dict(existing_form, effective_start, effective_end)
+            # 添加实际使用的年月（让前端同步 URL）
+            result['actual_year'] = cycle_start.year
+            result['actual_month'] = cycle_start.month
             return jsonify(result)
 
-        # 5. 创建新表单 - 使用员工ID作为 access_token（固定，不包含年月）
+        # 6. 创建新表单 - access_token 使用纯员工ID（固定，不包含年月）
+        access_token = str(employee.id)
         new_form = AttendanceForm(
             contract_id=contract.id,
             employee_id=employee.id,
             cycle_start_date=cycle_start,
             cycle_end_date=cycle_end,
-            employee_access_token=str(employee.id),
+            employee_access_token=access_token,
             form_data={},
             status='draft'
         )
@@ -219,6 +262,9 @@ def get_attendance_form_by_token(employee_token):
         db.session.commit()
         
         result = form_to_dict(new_form, effective_start, effective_end)
+        # 添加实际使用的年月（让前端同步 URL）
+        result['actual_year'] = cycle_start.year
+        result['actual_month'] = cycle_start.month
         return jsonify(result)
 
     except Exception as e:
@@ -870,6 +916,31 @@ def get_employee_attendance_forms(employee_token):
                     "employee_name": employee.name,
                     "message": "该月份没有有效合同"
                 })
+        else:
+            # 上个月有合同，但还需要检查是否有合同在当月结束
+            # 如果有合同在当月结束，优先显示当月
+            now = date.today()
+            current_month_start = date(now.year, now.month, 1)
+            current_month_end = date(now.year, now.month, monthrange(now.year, now.month)[1])
+            
+            for contract in contracts:
+                # 获取合同结束日期（对于已终止合同使用终止日期）
+                end_date = contract.termination_date if contract.termination_date else contract.end_date
+                if end_date and end_date.year == now.year and end_date.month == now.month:
+                    # 合同在当月结束，切换到当月
+                    current_month_contracts = BaseContract.query.filter(
+                        BaseContract.service_personnel_id == employee_id,
+                        BaseContract.status.in_(['active', 'terminated', 'finished', 'completed']),
+                        BaseContract.start_date <= current_month_end,
+                        BaseContract.end_date >= current_month_start
+                    ).all()
+                    
+                    if current_month_contracts:
+                        cycle_start = current_month_start
+                        cycle_end = current_month_end
+                        contracts = current_month_contracts
+                        current_app.logger.info(f"合同 {contract.id} 在当月结束，切换到当月")
+                    break
         
         # 2. 按家庭ID分组合同，同一客户的多个合同（如续签）合并为一个考勤表
         family_groups = {}
@@ -901,7 +972,8 @@ def get_employee_attendance_forms(employee_token):
             ).first()
             
             if not existing_form:
-                # 创建新的考勤表 - 使用员工ID作为 access_token（固定，不包含年月）
+                # 创建新的考勤表 - access_token 使用纯员工ID（固定，不包含年月）
+                access_token = str(employee_id)
                 signature_token = str(uuid.uuid4())
                 
                 new_form = AttendanceForm(
@@ -909,7 +981,7 @@ def get_employee_attendance_forms(employee_token):
                     contract_id=primary_contract.id,
                     cycle_start_date=cycle_start,
                     cycle_end_date=cycle_end,
-                    employee_access_token=str(employee_id),
+                    employee_access_token=access_token,
                     customer_signature_token=signature_token,
                     status='draft'
                 )
@@ -947,7 +1019,10 @@ def get_employee_attendance_forms(employee_token):
                 "redirect_type": "single",
                 "employee_name": employee.name,
                 "data": {
-                    "form_token": attendance_forms[0]["form_token"]  # 使用考勤表的access_token
+                    # 使用员工ID作为跳转token，不使用考勤表的access_token（可能包含年月）
+                    "form_token": str(employee_id),
+                    "year": cycle_start.year,
+                    "month": cycle_start.month
                 }
             })
         elif len(attendance_forms) > 1:
