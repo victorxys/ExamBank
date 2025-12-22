@@ -40,9 +40,10 @@ const ATTENDANCE_TYPES = {
 };
 
 // Custom TimePicker Component
-const TimePicker = ({ value, onChange, disabled }) => {
+const TimePicker = ({ value, onChange, disabled, placeholder = '请选择' }) => {
     const [isOpen, setIsOpen] = useState(false);
-    const [hour, minute] = (value || '00:00').split(':');
+    const isEmpty = !value || value === '';
+    const [hour, minute] = isEmpty ? ['', ''] : (value || '00:00').split(':');
     // Generate a unique ID prefix for this instance to avoid conflicts
     const idPrefix = useMemo(() => Math.random().toString(36).substr(2, 9), []);
 
@@ -52,7 +53,7 @@ const TimePicker = ({ value, onChange, disabled }) => {
 
     // Scroll to selected item when popover opens
     useEffect(() => {
-        if (isOpen) {
+        if (isOpen && !isEmpty) {
             // Simple timeout to ensure DOM is ready
             setTimeout(() => {
                 const hourEl = document.getElementById(`${idPrefix}-hour-${hour}`);
@@ -61,7 +62,7 @@ const TimePicker = ({ value, onChange, disabled }) => {
                 minuteEl?.scrollIntoView({ block: 'center' });
             }, 0);
         }
-    }, [isOpen, hour, minute, idPrefix]);
+    }, [isOpen, hour, minute, idPrefix, isEmpty]);
 
     return (
         <Popover open={isOpen} onOpenChange={setIsOpen} modal={true}>
@@ -71,11 +72,12 @@ const TimePicker = ({ value, onChange, disabled }) => {
                     className={cn(
                         "w-full p-3 bg-white border border-gray-200 rounded-xl flex items-center justify-center gap-2 text-lg font-mono transition-all outline-none",
                         disabled ? "opacity-50 cursor-not-allowed bg-gray-50 text-gray-500" : "hover:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20 text-gray-900",
-                        isOpen && "border-indigo-500 ring-2 ring-indigo-500/20"
+                        isOpen && "border-indigo-500 ring-2 ring-indigo-500/20",
+                        isEmpty && !disabled && "border-amber-300 bg-amber-50"
                     )}
                 >
-                    <Clock className={cn("w-4 h-4", disabled ? "text-gray-400" : "text-gray-500")} />
-                    <span className="font-bold">{value}</span>
+                    <Clock className={cn("w-4 h-4", disabled ? "text-gray-400" : isEmpty ? "text-amber-500" : "text-gray-500")} />
+                    <span className={cn("font-bold", isEmpty && "text-amber-600 text-base")}>{isEmpty ? placeholder : value}</span>
                 </button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0 bg-white shadow-xl rounded-xl border border-gray-100" align="center">
@@ -88,7 +90,8 @@ const TimePicker = ({ value, onChange, disabled }) => {
                                 key={h}
                                 id={`${idPrefix}-hour-${h}`}
                                 onClick={() => {
-                                    onChange(`${h}:${minute}`);
+                                    const newMinute = minute || '00';
+                                    onChange(`${h}:${newMinute}`);
                                 }}
                                 className={cn(
                                     "p-2 text-center rounded-lg cursor-pointer text-sm mb-1 transition-all font-mono",
@@ -107,7 +110,8 @@ const TimePicker = ({ value, onChange, disabled }) => {
                                 key={m}
                                 id={`${idPrefix}-minute-${m}`}
                                 onClick={() => {
-                                    onChange(`${hour}:${m}`);
+                                    const newHour = hour || '09';
+                                    onChange(`${newHour}:${m}`);
                                     // Optional: Close on minute selection if desired, but keeping open allows adjustment
                                 }}
                                 className={cn(
@@ -118,6 +122,7 @@ const TimePicker = ({ value, onChange, disabled }) => {
                                 {m}
                             </div>
                         ))}
+
                     </div>
                 </div>
             </PopoverContent>
@@ -801,8 +806,9 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
             setTempRecord({
                 type: originalRecord.type,
                 daysOffset: originalRecord.daysOffset || 0,
-                startTime: originalRecord.startTime || '09:00',
-                endTime: originalRecord.endTime || '18:00'
+                // 保留空时间（上户/下户记录需要用户手动填写）
+                startTime: originalRecord.startTime || '',
+                endTime: originalRecord.endTime || ''
             });
         } else {
             // 没有找到原始记录，使用默认值
@@ -868,23 +874,32 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
         if (!editingDate) return;
         const dateStr = format(editingDate, 'yyyy-MM-dd');
 
-        // 验证记录有效性
-        const recordToSave = {
-            date: dateStr,
-            startTime: tempRecord.startTime || '09:00',
-            endTime: tempRecord.endTime || '18:00',
-            daysOffset: tempRecord.daysOffset || 0,
-            type: tempRecord.type
-        };
+        // 对于上户/下户记录，允许保存空时间（后端提交时会验证）
+        const isOnboardingOrOffboarding = tempRecord.type === 'onboarding' || tempRecord.type === 'offboarding';
+        
+        // 如果时间为空且不是上户/下户，使用默认值
+        const startTime = tempRecord.startTime || (isOnboardingOrOffboarding ? '' : '09:00');
+        const endTime = tempRecord.endTime || (isOnboardingOrOffboarding ? '' : '18:00');
 
-        const validation = AttendanceDateUtils.TimeRangeValidator.validateAttendanceTimeRange(recordToSave);
-        if (!validation.isValid) {
-            toast({
-                title: "数据验证失败",
-                description: validation.errors.join(', '),
-                variant: "destructive"
-            });
-            return;
+        // 验证记录有效性（上户/下户允许空时间）
+        if (!isOnboardingOrOffboarding || (startTime && endTime)) {
+            const recordToSave = {
+                date: dateStr,
+                startTime: startTime || '09:00',
+                endTime: endTime || '18:00',
+                daysOffset: tempRecord.daysOffset || 0,
+                type: tempRecord.type
+            };
+
+            const validation = AttendanceDateUtils.TimeRangeValidator.validateAttendanceTimeRange(recordToSave);
+            if (!validation.isValid) {
+                toast({
+                    title: "数据验证失败",
+                    description: validation.errors.join(', '),
+                    variant: "destructive"
+                });
+                return;
+            }
         }
 
         setAttendanceData(prev => {
@@ -907,8 +922,8 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                     minutes: calculatedDuration.minutes,
                     type: tempRecord.type,
                     daysOffset: tempRecord.daysOffset || 0,
-                    startTime: tempRecord.startTime || '09:00',
-                    endTime: tempRecord.endTime || '18:00'
+                    startTime: startTime,
+                    endTime: endTime
                 }];
             }
 
@@ -944,7 +959,15 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
             setFormData(prev => ({ ...prev, status: response.data.status, client_sign_url: response.data.client_sign_url }));
             toast({ title: "提交成功", description: "考勤表已确认，请等待客户签署。" });
         } catch (error) {
-            toast({ title: "提交失败", description: "请稍后重试。", variant: "destructive" });
+            // 显示后端返回的具体错误信息
+            const errorMessage = error.response?.data?.error || "请稍后重试。";
+            console.error('提交失败:', error.response?.data);
+            toast({ 
+                title: "提交失败", 
+                description: errorMessage, 
+                variant: "destructive",
+                duration: 5000  // 显示5秒
+            });
         } finally {
             setSubmitting(false);
         }
@@ -1330,10 +1353,15 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                         
                                         return false;
                                     })() && (
-                                        <span className="text-[10px] text-gray-500 scale-90">
+                                        <span className={`text-[10px] scale-90 ${
+                                            ['onboarding', 'offboarding'].includes(record.type) && !record.startTime 
+                                                ? 'text-amber-600 font-medium' 
+                                                : 'text-gray-500'
+                                        }`}>
                                             {(() => {
                                                 if (['onboarding', 'offboarding'].includes(record.type)) {
-                                                    return record.startTime;
+                                                    // 如果时间为空，显示提示
+                                                    return record.startTime || '待填写';
                                                 }
 
                                                 // 对于非正常考勤类型，显示总时长（天数格式）
@@ -1371,6 +1399,7 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                 {allSpecialRecords.map((record, index) => {
                                     const date = new Date(record.date);
                                     const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+                                    const isOnboardingOrOffboarding = ['onboarding', 'offboarding'].includes(record.type);
 
                                     // 计算结束日期和时间显示字符串
                                     const startDate = new Date(record.date);
@@ -1385,10 +1414,14 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                     endDate.setDate(startDate.getDate() + daysOffset);
 
                                     let timeRangeStr = '';
-                                    const startTime = record.startTime || '09:00';
+                                    // 上户/下户：不使用默认时间，未填写时显示"待填写"
+                                    const startTime = isOnboardingOrOffboarding ? record.startTime : (record.startTime || '09:00');
                                     const endTime = record.endTime || '18:00';
 
-                                    if (daysOffset > 0) {
+                                    if (isOnboardingOrOffboarding) {
+                                        // 上户/下户：只显示日期和时间，未填写时显示"待填写"
+                                        timeRangeStr = `${format(startDate, 'M月d日')} ${startTime || '待填写'}`;
+                                    } else if (daysOffset > 0) {
                                         // 跨天：显示完整起止时间
                                         timeRangeStr = `${format(startDate, 'M月d日')} ${startTime} ~ ${format(endDate, 'M月d日')} ${endTime}`;
                                     } else {
@@ -1429,16 +1462,19 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                                     <div className="text-sm font-medium text-gray-900">
                                                         {record.typeLabel}
                                                     </div>
-                                                    <div className="text-xs text-gray-500">
+                                                    <div className={`text-xs ${!record.startTime && isOnboardingOrOffboarding ? 'text-amber-600 font-medium' : 'text-gray-500'}`}>
                                                         {timeRangeStr}
                                                     </div>
                                                 </div>
                                             </div>
-                                            <div className="text-right">
-                                                <div className="text-sm font-bold text-gray-900">
-                                                    {formatDuration(record.hours, record.minutes)}
+                                            {/* 上户/下户不显示时长 */}
+                                            {!isOnboardingOrOffboarding && (
+                                                <div className="text-right">
+                                                    <div className="text-sm font-bold text-gray-900">
+                                                        {formatDuration(record.hours, record.minutes)}
+                                                    </div>
                                                 </div>
-                                            </div>
+                                            )}
                                         </div>
                                     );
                                 })}
@@ -1558,7 +1594,19 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                                             window.location.href = signUrl.toString();
                                                         }
                                                     } catch (error) {
-                                                        toast({ title: "提交失败", description: "请稍后重试。", variant: "destructive" });
+                                                        // 显示后端返回的具体错误信息
+                                                        const errorMessage = error.response?.data?.error || "请稍后重试。";
+                                                        toast({ title: "提交失败", description: errorMessage, variant: "destructive", duration: 5000 });
+                                                        
+                                                        // 如果是上户/下户时间未填写的错误，自动打开对应日期的编辑界面
+                                                        if (errorMessage.includes('上户') && contractInfo?.start_date) {
+                                                            const startDate = parseISO(contractInfo.start_date);
+                                                            setTimeout(() => openEditModal(startDate), 500);
+                                                        } else if (errorMessage.includes('下户') && contractInfo?.end_date) {
+                                                            const endDate = parseISO(contractInfo.end_date);
+                                                            setTimeout(() => openEditModal(endDate), 500);
+                                                        }
+                                                        
                                                         setSubmitting(false);
                                                     }
                                                 }}
@@ -1697,21 +1745,33 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
 
                                     {['onboarding', 'offboarding'].includes(tempRecord.type) ? (
                                         // Onboarding/Offboarding: Single Time Picker
-                                        <div className="bg-white rounded-lg border border-gray-200 p-3"
-                                            onClick={() => !isReadOnly && setTimePickerDrawer({
-                                                isOpen: true,
-                                                field: 'startTime',
-                                                value: tempRecord.startTime || '09:00'
-                                            })}
-                                        >
-                                            <div className="text-xs text-gray-500 mb-1">
-                                                {tempRecord.type === 'onboarding' ? '到达时间' : '离开时间'}
+                                        <>
+                                            {/* 提示信息 */}
+                                            <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                                                <div className="text-sm text-amber-800 font-medium">
+                                                    {tempRecord.type === 'onboarding' 
+                                                        ? '⏰ 请确认上户到达客户家的时间' 
+                                                        : '⏰ 请确认下户离开客户家的时间'}
+                                                </div>
                                             </div>
-                                            <div className="text-lg font-medium text-gray-900 flex items-center justify-between">
-                                                {tempRecord.startTime || '09:00'}
-                                                <ChevronRight className="w-4 h-4 text-gray-400" />
+                                            <div className="bg-white rounded-lg border border-gray-200 p-3"
+                                                onClick={() => !isReadOnly && setTimePickerDrawer({
+                                                    isOpen: true,
+                                                    field: 'startTime',
+                                                    value: tempRecord.startTime || '09:00'
+                                                })}
+                                            >
+                                                <div className="text-xs text-gray-500 mb-1">
+                                                    {tempRecord.type === 'onboarding' ? '到达时间' : '离开时间'}
+                                                </div>
+                                                <div className={`text-lg font-medium flex items-center justify-between ${
+                                                    !tempRecord.startTime ? 'text-amber-600' : 'text-gray-900'
+                                                }`}>
+                                                    {tempRecord.startTime || '请选择时间'}
+                                                    <ChevronRight className="w-4 h-4 text-gray-400" />
+                                                </div>
                                             </div>
-                                        </div>
+                                        </>
                                     ) : (
                                         // Standard Duration Picker
                                         <>

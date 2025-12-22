@@ -18,6 +18,105 @@ def calculate_last_month_cycle():
     last_month_end = today.replace(day=1) - relativedelta(days=1)
     return last_month_start, last_month_end
 
+
+def is_continuous_service(contract):
+    """
+    检查当前合同是否是连续服务（续约合同）
+    判断条件：同一员工在同一客户/家庭有前一个合同，且前合同结束日期与当前合同开始日期连续（相差<=1天）
+    返回: True 如果是续约/连续服务，False 如果是新上户
+    """
+    if not contract or not contract.service_personnel_id:
+        return False
+    
+    contract_start = contract.start_date.date() if isinstance(contract.start_date, datetime) else contract.start_date
+    if not contract_start:
+        return False
+    
+    # 查找同一员工、同一客户/家庭的其他合同
+    query = BaseContract.query.filter(
+        BaseContract.service_personnel_id == contract.service_personnel_id,
+        BaseContract.id != contract.id,
+        BaseContract.status.in_(['active', 'terminated', 'finished', 'completed'])
+    )
+    
+    # 按家庭ID或客户名匹配
+    if contract.family_id:
+        query = query.filter(BaseContract.family_id == contract.family_id)
+    elif contract.customer_name:
+        query = query.filter(BaseContract.customer_name == contract.customer_name)
+    else:
+        return False
+    
+    previous_contracts = query.all()
+    
+    for prev in previous_contracts:
+        # 获取前合同的结束日期
+        prev_end = prev.end_date.date() if isinstance(prev.end_date, datetime) else prev.end_date
+        if prev.termination_date:
+            prev_end = prev.termination_date.date() if isinstance(prev.termination_date, datetime) else prev.termination_date
+        
+        if not prev_end:
+            continue
+        
+        # 检查是否连续（前合同结束日期与当前合同开始日期相差<=1天）
+        days_gap = (contract_start - prev_end).days
+        if 0 <= days_gap <= 1:
+            current_app.logger.info(f"检测到续约合同: 前合同 {prev.id} 结束于 {prev_end}, 当前合同开始于 {contract_start}, 间隔 {days_gap} 天")
+            return True
+    
+    return False
+
+
+def has_following_contract(contract):
+    """
+    检查当前合同结束后是否有续约合同（连续服务）
+    判断条件：同一员工在同一客户/家庭有后续合同，且后续合同开始日期与当前合同结束日期连续（相差<=1天）
+    返回: True 如果有续约合同，False 如果是真正的下户
+    """
+    if not contract or not contract.service_personnel_id:
+        return False
+    
+    # 获取当前合同的结束日期
+    contract_end = contract.end_date.date() if isinstance(contract.end_date, datetime) else contract.end_date
+    if contract.termination_date:
+        contract_end = contract.termination_date.date() if isinstance(contract.termination_date, datetime) else contract.termination_date
+    
+    if not contract_end:
+        return False
+    
+    # 查找同一员工、同一客户/家庭的其他合同
+    query = BaseContract.query.filter(
+        BaseContract.service_personnel_id == contract.service_personnel_id,
+        BaseContract.id != contract.id,
+        BaseContract.status.in_(['active', 'terminated', 'finished', 'completed'])
+    )
+    
+    # 按家庭ID或客户名匹配
+    if contract.family_id:
+        query = query.filter(BaseContract.family_id == contract.family_id)
+    elif contract.customer_name:
+        query = query.filter(BaseContract.customer_name == contract.customer_name)
+    else:
+        return False
+    
+    following_contracts = query.all()
+    
+    for following in following_contracts:
+        # 获取后续合同的开始日期
+        following_start = following.start_date.date() if isinstance(following.start_date, datetime) else following.start_date
+        
+        if not following_start:
+            continue
+        
+        # 检查是否连续（当前合同结束日期与后续合同开始日期相差<=1天）
+        days_gap = (following_start - contract_end).days
+        if 0 <= days_gap <= 1:
+            current_app.logger.info(f"检测到续约合同: 当前合同 {contract.id} 结束于 {contract_end}, 后续合同 {following.id} 开始于 {following_start}, 间隔 {days_gap} 天")
+            return True
+    
+    return False
+
+
 def find_consecutive_contracts(employee_id, cycle_start, cycle_end):
     """
     查找指定周期内，同一员工同一家庭的连续合同链（支持家庭合并）
@@ -121,12 +220,11 @@ def get_attendance_form_by_token(employee_token):
                 form_id = uuid.UUID(employee_token)
                 existing_form = AttendanceForm.query.get(form_id)
                 if existing_form:
-                    # 调用 find_consecutive_contracts 获取合并后的日期范围
-                    _, effective_start, effective_end = find_consecutive_contracts(
-                        existing_form.employee_id,
-                        existing_form.cycle_start_date,
-                        existing_form.cycle_end_date
-                    )
+                    # 直接使用该考勤表关联的合同日期，不合并其他合同
+                    # 这样每个考勤表显示的是其对应合同的真实日期
+                    contract = existing_form.contract
+                    effective_start = contract.start_date if contract else None
+                    effective_end = contract.end_date if contract else None
                     result = form_to_dict(existing_form, effective_start, effective_end)
                     return jsonify(result)
             except ValueError:
@@ -175,29 +273,35 @@ def get_attendance_form_by_token(employee_token):
             selected_year = last_month_year
             selected_month = last_month
             
-            # 检查是否有合同在当月结束
+            # 检查是否有合同在当月结束（且没有续约合同）
             for contract in active_contracts:
                 # 获取合同结束日期（对于已终止合同使用终止日期）
                 end_date = contract.termination_date if contract.termination_date else contract.end_date
                 if end_date:
                     if end_date.year == current_year and end_date.month == current_month:
-                        # 合同在当月结束，默认显示当月
-                        selected_year = current_year
-                        selected_month = current_month
-                        current_app.logger.info(f"合同 {contract.id} 在当月结束，默认显示当月")
-                        break
+                        # 检查是否有续约合同，如果有则不算"当月下户"
+                        if not has_following_contract(contract):
+                            # 合同在当月结束且没有续约，默认显示当月
+                            selected_year = current_year
+                            selected_month = current_month
+                            current_app.logger.info(f"合同 {contract.id} 在当月结束（无续约），默认显示当月")
+                            break
             
-            # 检查是否有合同在当月开始（且晚于上个月）
+            # 检查是否有合同在当月开始（且晚于上个月，且不是续约合同）
             for contract in active_contracts:
                 if contract.start_date:
                     if (contract.start_date.year > last_month_year or 
                         (contract.start_date.year == last_month_year and contract.start_date.month > last_month)):
+                        # 检查是否是续约合同，如果是则不算"当月上户"
+                        if is_continuous_service(contract):
+                            current_app.logger.info(f"合同 {contract.id} 是续约合同，不算当月上户")
+                            continue
                         # 合同开始月份晚于上个月，使用合同开始月份
                         if (contract.start_date.year < current_year or 
                             (contract.start_date.year == current_year and contract.start_date.month <= current_month)):
                             selected_year = contract.start_date.year
                             selected_month = contract.start_date.month
-                            current_app.logger.info(f"合同 {contract.id} 开始于 {selected_year}-{selected_month}，默认显示该月")
+                            current_app.logger.info(f"合同 {contract.id} 开始于 {selected_year}-{selected_month}（新上户），默认显示该月")
                             break
             
             from calendar import monthrange
@@ -217,27 +321,88 @@ def get_attendance_form_by_token(employee_token):
                 BaseContract.status.in_(['active', 'terminated', 'finished', 'completed'])
             ).order_by(BaseContract.start_date.asc()).first()
             
-            if earliest_contract and earliest_contract.start_date > cycle_end:
-                # 合同开始日期在请求的周期之后，返回建议的月份
-                return jsonify({
-                    "error": "未找到该员工的合同",
-                    "suggested_year": earliest_contract.start_date.year,
-                    "suggested_month": earliest_contract.start_date.month,
-                    "contract_start_date": earliest_contract.start_date.isoformat()
-                }), 404
+            if earliest_contract:
+                # 转换为 date 类型进行比较
+                earliest_start = earliest_contract.start_date.date() if isinstance(earliest_contract.start_date, datetime) else earliest_contract.start_date
+                if earliest_start > cycle_end:
+                    # 合同开始日期在请求的周期之后，返回建议的月份
+                    return jsonify({
+                        "error": "未找到该员工的合同",
+                        "suggested_year": earliest_contract.start_date.year,
+                        "suggested_month": earliest_contract.start_date.month,
+                        "contract_start_date": earliest_contract.start_date.isoformat()
+                    }), 404
             
             return jsonify({"error": "未找到该员工的合同"}), 404
         
-        # 5. 检查是否已经存在该员工该周期的表单 (按 employee_id 和 cycle_start_date 查询)
+        # 5. 检查是否已经存在该员工该合同该周期的表单
         existing_form = AttendanceForm.query.filter_by(
             employee_id=employee.id,
+            contract_id=contract.id,
             cycle_start_date=cycle_start
         ).first()
         
         if existing_form:
-            # 更新合同 ID（可能合同续签了，或者变成了新合同）
-            if existing_form.contract_id != contract.id:
-                existing_form.contract_id = contract.id
+            
+            # 检查并补充上户/下户记录（如果缺失）
+            form_data = existing_form.form_data or {}
+            form_data_updated = False
+            
+            # 确保所有记录类型都存在
+            for key in ['rest_records', 'leave_records', 'overtime_records', 'out_of_beijing_records', 
+                        'out_of_country_records', 'paid_leave_records', 'onboarding_records', 'offboarding_records']:
+                if key not in form_data:
+                    form_data[key] = []
+            
+            # 转换合同日期为 date 类型（如果是 datetime）
+            contract_start = contract.start_date.date() if isinstance(contract.start_date, datetime) else contract.start_date
+            
+            # 检查是否为合同开始月，且缺少上户记录
+            # 注意：如果是续约合同（同一客户/家庭的连续服务），则不需要上户记录
+            if contract_start and cycle_start <= contract_start <= cycle_end:
+                contract_start_str = contract_start.isoformat()
+                has_onboarding = any(r.get('date') == contract_start_str for r in form_data.get('onboarding_records', []))
+                if not has_onboarding and not is_continuous_service(contract):
+                    form_data['onboarding_records'].append({
+                        'date': contract_start_str,
+                        'type': 'onboarding',
+                        'startTime': '',
+                        'endTime': '',
+                        'hours': 0,
+                        'minutes': 0,
+                        'daysOffset': 0
+                    })
+                    form_data_updated = True
+                    current_app.logger.info(f"已存在的考勤表补充上户记录: {contract_start}")
+            
+            # 检查是否为合同结束月，且缺少下户记录
+            
+            # 检查是否为合同结束月，且缺少下户记录
+            contract_end_date = None
+            if contract.is_monthly_auto_renew and contract.status == 'terminated' and contract.termination_date:
+                contract_end_date = contract.termination_date.date() if isinstance(contract.termination_date, datetime) else contract.termination_date
+            elif not contract.is_monthly_auto_renew and contract.end_date:
+                contract_end_date = contract.end_date.date() if isinstance(contract.end_date, datetime) else contract.end_date
+            
+            if contract_end_date and cycle_start <= contract_end_date <= cycle_end:
+                contract_end_str = contract_end_date.isoformat()
+                has_offboarding = any(r.get('date') == contract_end_str for r in form_data.get('offboarding_records', []))
+                if not has_offboarding and not has_following_contract(contract):
+                    form_data['offboarding_records'].append({
+                        'date': contract_end_str,
+                        'type': 'offboarding',
+                        'startTime': '',
+                        'endTime': '',
+                        'hours': 0,
+                        'minutes': 0,
+                        'daysOffset': 0
+                    })
+                    form_data_updated = True
+                    current_app.logger.info(f"已存在的考勤表补充下户记录: {contract_end_date}")
+            
+            # 如果有更新，保存到数据库
+            if form_data_updated:
+                existing_form.form_data = form_data
                 db.session.commit()
             
             # 重新计算有效日期范围，确保家庭合并逻辑生效
@@ -249,13 +414,72 @@ def get_attendance_form_by_token(employee_token):
 
         # 6. 创建新表单 - access_token 使用纯员工ID（固定，不包含年月）
         access_token = str(employee.id)
+        
+        # 初始化 form_data，根据合同开始/结束日期自动添加"上户"/"下户"记录
+        initial_form_data = {
+            'rest_records': [],
+            'leave_records': [],
+            'overtime_records': [],
+            'out_of_beijing_records': [],
+            'out_of_country_records': [],
+            'paid_leave_records': [],
+            'onboarding_records': [],
+            'offboarding_records': []
+        }
+        
+        # 转换合同日期为 date 类型（如果是 datetime）
+        contract_start = contract.start_date.date() if isinstance(contract.start_date, datetime) else contract.start_date
+        
+        # 判断是否为合同开始月（合同开始日期在当前考勤周期内）
+        # 注意：如果是续约合同（同一客户/家庭的连续服务），则不需要上户记录
+        if contract_start and cycle_start <= contract_start <= cycle_end:
+            if not is_continuous_service(contract):
+                # 添加"上户"记录，时间为空（需要用户填写）
+                initial_form_data['onboarding_records'].append({
+                    'date': contract_start.isoformat(),
+                    'type': 'onboarding',
+                    'startTime': '',  # 空，需要用户填写
+                    'endTime': '',    # 空，需要用户填写
+                    'hours': 0,
+                    'minutes': 0,
+                    'daysOffset': 0
+                })
+                current_app.logger.info(f"合同开始月，自动添加上户记录: {contract_start}")
+            else:
+                current_app.logger.info(f"续约合同，跳过上户记录: {contract_start}")
+        
+        # 判断是否为合同结束月
+        # 对于自动月签合同，使用终止日期；否则使用结束日期
+        # 注意：如果有续约合同（同一客户/家庭的连续服务），则不需要下户记录
+        contract_end_date = None
+        if contract.is_monthly_auto_renew and contract.status == 'terminated' and contract.termination_date:
+            contract_end_date = contract.termination_date.date() if isinstance(contract.termination_date, datetime) else contract.termination_date
+        elif not contract.is_monthly_auto_renew and contract.end_date:
+            contract_end_date = contract.end_date.date() if isinstance(contract.end_date, datetime) else contract.end_date
+        
+        if contract_end_date and cycle_start <= contract_end_date <= cycle_end:
+            if not has_following_contract(contract):
+                # 添加"下户"记录，时间为空（需要用户填写）
+                initial_form_data['offboarding_records'].append({
+                    'date': contract_end_date.isoformat(),
+                    'type': 'offboarding',
+                    'startTime': '',  # 空，需要用户填写
+                    'endTime': '',    # 空，需要用户填写
+                    'hours': 0,
+                    'minutes': 0,
+                    'daysOffset': 0
+                })
+                current_app.logger.info(f"合同结束月，自动添加下户记录: {contract_end_date}")
+            else:
+                current_app.logger.info(f"有续约合同，跳过下户记录: {contract_end_date}")
+        
         new_form = AttendanceForm(
             contract_id=contract.id,
             employee_id=employee.id,
             cycle_start_date=cycle_start,
             cycle_end_date=cycle_end,
             employee_access_token=access_token,
-            form_data={},
+            form_data=initial_form_data,
             status='draft'
         )
         db.session.add(new_form)
@@ -300,6 +524,57 @@ def update_attendance_form(employee_token):
         # 如果是提交确认
         action = data.get('action')
         if action == 'confirm':
+            # 验证"上户"和"下户"记录的时间是否已填写
+            validation_errors = []
+            
+            # 获取合同信息
+            contract = BaseContract.query.get(form.contract_id)
+            cycle_start = form.cycle_start_date.date() if isinstance(form.cycle_start_date, datetime) else form.cycle_start_date
+            cycle_end = form.cycle_end_date.date() if isinstance(form.cycle_end_date, datetime) else form.cycle_end_date
+            
+            # 转换合同日期为 date 类型
+            contract_start = None
+            if contract and contract.start_date:
+                contract_start = contract.start_date.date() if isinstance(contract.start_date, datetime) else contract.start_date
+            
+            # 检查是否为合同开始月
+            if contract_start and cycle_start <= contract_start <= cycle_end:
+                # 查找上户记录
+                current_form_data = form_data if form_data else form.form_data or {}
+                onboarding_records = current_form_data.get('onboarding_records', [])
+                contract_start_str = contract_start.isoformat()
+                current_app.logger.info(f"[验证] 合同开始日: {contract_start_str}, 上户记录: {onboarding_records}")
+                onboarding_record = next((r for r in onboarding_records if r.get('date') == contract_start_str), None)
+                
+                if not onboarding_record:
+                    validation_errors.append(f"合同开始日 {contract_start.strftime('%m月%d日')} 需要填写「上户」记录")
+                elif not onboarding_record.get('startTime') or not onboarding_record.get('endTime'):
+                    validation_errors.append(f"上户日 {contract_start.strftime('%m月%d日')} 的具体时间未填写")
+            
+            # 检查是否为合同结束月
+            contract_end_date = None
+            if contract:
+                if contract.is_monthly_auto_renew and contract.status == 'terminated' and contract.termination_date:
+                    contract_end_date = contract.termination_date.date() if isinstance(contract.termination_date, datetime) else contract.termination_date
+                elif not contract.is_monthly_auto_renew and contract.end_date:
+                    contract_end_date = contract.end_date.date() if isinstance(contract.end_date, datetime) else contract.end_date
+            
+            if contract_end_date and cycle_start <= contract_end_date <= cycle_end:
+                # 查找下户记录
+                current_form_data = form_data if form_data else form.form_data or {}
+                offboarding_records = current_form_data.get('offboarding_records', [])
+                contract_end_str = contract_end_date.isoformat()
+                offboarding_record = next((r for r in offboarding_records if r.get('date') == contract_end_str), None)
+                
+                if not offboarding_record:
+                    validation_errors.append(f"合同结束日 {contract_end_date.strftime('%m月%d日')} 需要填写「下户」记录")
+                elif not offboarding_record.get('startTime') or not offboarding_record.get('endTime'):
+                    validation_errors.append(f"下户日 {contract_end_date.strftime('%m月%d日')} 的具体时间未填写")
+            
+            if validation_errors:
+                current_app.logger.info(f"[验证] 验证失败: {validation_errors}")
+                return jsonify({"error": "；".join(validation_errors)}), 400
+            
             form.status = 'employee_confirmed'
             # 生成客户签署 token（如果还没有）
             if not form.customer_signature_token:
@@ -917,30 +1192,36 @@ def get_employee_attendance_forms(employee_token):
                     "message": "该月份没有有效合同"
                 })
         else:
-            # 上个月有合同，但还需要检查是否有合同在当月结束
-            # 如果有合同在当月结束，优先显示当月
+            # 上个月有合同，但还需要检查是否有合同在当月结束（且没有续约）
+            # 如果有合同在当月结束且没有续约，优先显示当月
             now = date.today()
             current_month_start = date(now.year, now.month, 1)
             current_month_end = date(now.year, now.month, monthrange(now.year, now.month)[1])
             
+            should_switch_to_current_month = False
             for contract in contracts:
                 # 获取合同结束日期（对于已终止合同使用终止日期）
                 end_date = contract.termination_date if contract.termination_date else contract.end_date
                 if end_date and end_date.year == now.year and end_date.month == now.month:
-                    # 合同在当月结束，切换到当月
-                    current_month_contracts = BaseContract.query.filter(
-                        BaseContract.service_personnel_id == employee_id,
-                        BaseContract.status.in_(['active', 'terminated', 'finished', 'completed']),
-                        BaseContract.start_date <= current_month_end,
-                        BaseContract.end_date >= current_month_start
-                    ).all()
-                    
-                    if current_month_contracts:
-                        cycle_start = current_month_start
-                        cycle_end = current_month_end
-                        contracts = current_month_contracts
-                        current_app.logger.info(f"合同 {contract.id} 在当月结束，切换到当月")
-                    break
+                    # 检查是否有续约合同，如果有则不算"当月下户"
+                    if not has_following_contract(contract):
+                        should_switch_to_current_month = True
+                        current_app.logger.info(f"合同 {contract.id} 在当月结束（无续约），切换到当月")
+                        break
+            
+            if should_switch_to_current_month:
+                # 合同在当月结束且没有续约，切换到当月
+                current_month_contracts = BaseContract.query.filter(
+                    BaseContract.service_personnel_id == employee_id,
+                    BaseContract.status.in_(['active', 'terminated', 'finished', 'completed']),
+                    BaseContract.start_date <= current_month_end,
+                    BaseContract.end_date >= current_month_start
+                ).all()
+                
+                if current_month_contracts:
+                    cycle_start = current_month_start
+                    cycle_end = current_month_end
+                    contracts = current_month_contracts
         
         # 2. 按家庭ID分组合同，同一客户的多个合同（如续签）合并为一个考勤表
         family_groups = {}

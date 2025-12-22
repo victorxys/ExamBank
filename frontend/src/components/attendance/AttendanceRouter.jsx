@@ -31,7 +31,13 @@ const AttendanceRouter = () => {
 
                 if (data.redirect_type === 'single') {
                     // 只有一个考勤表，直接重定向
-                    navigate(`/attendance-fill/${data.data.form_token}`, { replace: true });
+                    // 使用 URL 参数传递年月，而不是嵌入到 token 中
+                    const { form_token, year, month } = data.data;
+                    let url = `/attendance-fill/${form_token}`;
+                    if (year && month) {
+                        url += `?year=${year}&month=${month}`;
+                    }
+                    navigate(url, { replace: true });
                 } else if (data.redirect_type === 'multiple') {
                     // 多个考勤表，显示选择页面
                     // employee_name 在顶层，forms 在 data.data 里

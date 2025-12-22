@@ -3054,7 +3054,6 @@ class AttendanceForm(db.Model):
     employee_access_token = db.Column(
         db.String(255), 
         nullable=True,
-        unique=True, 
         index=True,
         comment="员工访问令牌,用于生成固定链接"
     )
