@@ -104,6 +104,12 @@ const EditContractModal = ({ open, onClose, onSuccess, contractId }) => {
                         management_fee_rate: parseFloat(data.management_fee_rate) || 0.20,
                     };
                     setFormData(newFormData);
+                    
+                    // 初始化预产期 ref，防止编辑时立即覆盖结束日期
+                    if (data.provisional_start_date) {
+                        prevProvisionalDateRef.current = new Date(data.provisional_start_date).getTime();
+                    }
+                    
                     console.log('Initial formData after setting:', newFormData);
 
                     // Set selected customer/employee for display (they are read-only)
@@ -186,23 +192,28 @@ const EditContractModal = ({ open, onClose, onSuccess, contractId }) => {
 
     }, [formData.employee_level, formData.contract_type, formData.deposit_rate, formData.management_fee_rate]);
 
+    // 追踪预产期的上一个值，只在预产期变化时自动计算日期
+    const prevProvisionalDateRef = useRef(null);
+
     // 月嫂合同预产期联动合同日期
     useEffect(() => {
         if (formData.contract_type === 'maternity_nurse' && formData.provisional_start_date) {
             const provisionalDate = new Date(formData.provisional_start_date);
             if (!isNaN(provisionalDate.getTime())) {
-                const newStartDate = provisionalDate;
-                const newEndDate = new Date(provisionalDate);
-                newEndDate.setDate(newEndDate.getDate() + 26); // 假设月嫂合同默认26天
-                
-                const startTimeChanged = formData.start_date?.getTime() !== newStartDate.getTime();
-                const endTimeChanged = formData.end_date?.getTime() !== newEndDate.getTime();
-                if (startTimeChanged || endTimeChanged) {
+                const provisionalTime = provisionalDate.getTime();
+                const prevTime = prevProvisionalDateRef.current;
+
+                // 只在预产期首次设置或变化时自动计算日期
+                if (prevTime !== provisionalTime) {
+                    prevProvisionalDateRef.current = provisionalTime;
+                    const newStartDate = provisionalDate;
+                    const newEndDate = new Date(provisionalDate);
+                    newEndDate.setDate(newEndDate.getDate() + 26); // 假设月嫂合同默认26天
                     setFormData(prev => ({ ...prev, start_date: newStartDate, end_date: newEndDate }));
                 }
             }
         }
-    }, [formData.provisional_start_date, formData.contract_type, formData.start_date, formData.end_date]);
+    }, [formData.provisional_start_date, formData.contract_type]);
 
     // 育儿嫂试工合同开始日期联动结束日期
     useEffect(() => {
