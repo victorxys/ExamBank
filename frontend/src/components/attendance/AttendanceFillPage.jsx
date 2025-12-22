@@ -228,49 +228,22 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
         return parseISO(contractInfo.end_date) < parseISO(formData.cycle_end_date);
     }, [contractInfo, formData]);
 
-    // 计算可编辑的最大月份：默认上个月，末月时扩展到当月
+    // 计算可编辑的最大月份：允许员工切换到当月
     // 返回的是允许编辑的"最新"月份，员工可以编辑从合同开始到这个月份之间的所有月份
     const editableMonth = useMemo(() => {
         const now = new Date();
         const currentYear = now.getFullYear();
         const currentMonth = now.getMonth() + 1;
         
-        // 默认可编辑到上个月
+        // 默认可编辑到当月（允许员工手动切换到当月）
         let maxEditableYear = currentYear;
-        let maxEditableMonth = currentMonth - 1;
-        if (maxEditableMonth === 0) {
-            maxEditableYear -= 1;
-            maxEditableMonth = 12;
-        }
-
-        // 如果是末月（合同在当月结束），扩展可编辑范围到当月
-        // 但这不影响上个月的编辑权限
-        if (contractInfo && !contractInfo.is_monthly_auto_renew) {
-            const endDateStr = contractInfo.end_date;
-            if (endDateStr) {
-                const endDate = parseISO(endDateStr);
-                // 如果合同结束月就是当月，允许编辑到当月（同时也能编辑上个月）
-                if (endDate.getFullYear() === currentYear && (endDate.getMonth() + 1) === currentMonth) {
-                    maxEditableYear = currentYear;
-                    maxEditableMonth = currentMonth;
-                }
-            }
-        }
-
-        // 如果是已终止的自动月签合同，检查终止日期
-        if (contractInfo?.is_monthly_auto_renew && contractInfo.status === 'terminated' && contractInfo.termination_date) {
-            const terminationDate = parseISO(contractInfo.termination_date);
-            if (terminationDate.getFullYear() === currentYear && (terminationDate.getMonth() + 1) === currentMonth) {
-                maxEditableYear = currentYear;
-                maxEditableMonth = currentMonth;
-            }
-        }
+        let maxEditableMonth = currentMonth;
 
         return { year: maxEditableYear, month: maxEditableMonth };
-    }, [contractInfo]);
+    }, []);
 
     // 判断当前是否为历史查看模式（只读）
-    // 可编辑范围：从合同开始月到 editableMonth（最大可编辑月份）
+    // 可编辑范围：从合同开始月到当月（上个月和当月都可编辑）
     const isHistoricalView = useMemo(() => {
         if (!editableMonth) return false;
         
@@ -278,7 +251,7 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
         const currentYear = now.getFullYear();
         const currentMonth = now.getMonth() + 1;
         
-        // 计算上个月作为默认的最小可编辑月份
+        // 计算上个月作为最早可编辑月份
         let minEditableYear = currentYear;
         let minEditableMonth = currentMonth - 1;
         if (minEditableMonth === 0) {
@@ -286,16 +259,40 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
             minEditableMonth = 12;
         }
         
-        // 如果选择的月份超过最大可编辑月份，则为只读
+        // 如果选择的月份超过当月，则为只读（不能填写未来月份）
         if (selectedYear > editableMonth.year) return true;
         if (selectedYear === editableMonth.year && selectedMonth > editableMonth.month) return true;
         
         // 如果选择的月份早于上个月，则为只读（历史记录）
-        if (selectedYear < minEditableYear) return true;
-        if (selectedYear === minEditableYear && selectedMonth < minEditableMonth) return true;
+        // 但如果是合同开始月或结束月，仍然可编辑
+        if (selectedYear < minEditableYear || 
+            (selectedYear === minEditableYear && selectedMonth < minEditableMonth)) {
+            // 检查是否为合同开始月
+            if (contractInfo?.start_date) {
+                const startDate = parseISO(contractInfo.start_date);
+                if (startDate.getFullYear() === selectedYear && (startDate.getMonth() + 1) === selectedMonth) {
+                    return false; // 合同开始月可编辑
+                }
+            }
+            // 检查是否为合同结束月
+            if (contractInfo?.end_date && !contractInfo.is_monthly_auto_renew) {
+                const endDate = parseISO(contractInfo.end_date);
+                if (endDate.getFullYear() === selectedYear && (endDate.getMonth() + 1) === selectedMonth) {
+                    return false; // 合同结束月可编辑
+                }
+            }
+            // 检查是否为终止月（自动月签合同）
+            if (contractInfo?.is_monthly_auto_renew && contractInfo.status === 'terminated' && contractInfo.termination_date) {
+                const terminationDate = parseISO(contractInfo.termination_date);
+                if (terminationDate.getFullYear() === selectedYear && (terminationDate.getMonth() + 1) === selectedMonth) {
+                    return false; // 终止月可编辑
+                }
+            }
+            return true; // 其他历史月份只读
+        }
         
         return false;
-    }, [selectedYear, selectedMonth, editableMonth]);
+    }, [selectedYear, selectedMonth, editableMonth, contractInfo]);
 
     // 计算合同开始月份（用于限制向前切换）
     const contractStartMonth = useMemo(() => {

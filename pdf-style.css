@@ -1,0 +1,133 @@
+
+/* PDF Styling for Chinese Documentation */
+body {
+    font-family: "SimSun", "宋体", serif;
+    font-size: 12pt;
+    line-height: 1.6;
+    color: #333;
+    max-width: none;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    font-family: "SimHei", "黑体", sans-serif;
+    color: #2c3e50;
+    page-break-after: avoid;
+}
+
+h1 {
+    font-size: 24pt;
+    border-bottom: 3px solid #3498db;
+    padding-bottom: 10px;
+    page-break-before: always;
+}
+
+h2 {
+    font-size: 18pt;
+    border-bottom: 2px solid #3498db;
+    padding-bottom: 5px;
+    margin-top: 30px;
+}
+
+h3 {
+    font-size: 16pt;
+    color: #34495e;
+    margin-top: 25px;
+}
+
+h4 {
+    font-size: 14pt;
+    color: #34495e;
+    margin-top: 20px;
+}
+
+/* Table styling */
+table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 20px 0;
+    page-break-inside: avoid;
+}
+
+th, td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: left;
+}
+
+th {
+    background-color: #f8f9fa;
+    font-weight: bold;
+}
+
+/* Image styling */
+img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 20px auto;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    page-break-inside: avoid;
+}
+
+/* Figure caption styling */
+p strong {
+    color: #2c3e50;
+    font-size: 11pt;
+}
+
+/* Code styling */
+code {
+    background-color: #f8f9fa;
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-family: "Courier New", monospace;
+    font-size: 10pt;
+}
+
+pre {
+    background-color: #f8f9fa;
+    padding: 15px;
+    border-radius: 5px;
+    border-left: 4px solid #3498db;
+    overflow-x: auto;
+    page-break-inside: avoid;
+}
+
+/* List styling */
+ul, ol {
+    margin: 10px 0;
+    padding-left: 30px;
+}
+
+li {
+    margin: 5px 0;
+}
+
+/* Page breaks */
+.page-break {
+    page-break-before: always;
+}
+
+/* Print-specific styles */
+@media print {
+    body {
+        font-size: 11pt;
+    }
+    
+    h1 {
+        font-size: 20pt;
+    }
+    
+    h2 {
+        font-size: 16pt;
+    }
+    
+    h3 {
+        font-size: 14pt;
+    }
+    
+    img {
+        max-height: 400px;
+    }
+}

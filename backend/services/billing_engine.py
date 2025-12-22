@@ -2260,10 +2260,11 @@ class BillingEngine:
         month = cycle_start_date.month
         
         # 1. 首先查找同一员工在同一月份的用户填写考勤记录（优先级最高）
+        next_month_start = date(year, month + 1, 1) if month < 12 else date(year + 1, 1, 1)
         user_filled_attendance = AttendanceRecord.query.filter(
             AttendanceRecord.employee_id == contract.service_personnel_id,
             AttendanceRecord.cycle_start_date >= date(year, month, 1),
-            AttendanceRecord.cycle_start_date < date(year, month + 1, 1) if month < 12 else date(year + 1, 1, 1),
+            AttendanceRecord.cycle_start_date < next_month_start,
             AttendanceRecord.attendance_form_id.isnot(None)  # 有表单ID的是用户填写的
         ).first()
         
@@ -2281,7 +2282,7 @@ class BillingEngine:
             attendance = AttendanceRecord.query.filter(
                 AttendanceRecord.employee_id == contract.service_personnel_id,
                 AttendanceRecord.cycle_start_date >= date(year, month, 1),
-                AttendanceRecord.cycle_start_date < date(year, month + 1, 1) if month < 12 else date(year + 1, 1, 1)
+                AttendanceRecord.cycle_start_date < next_month_start
             ).first()
             
             if attendance:
