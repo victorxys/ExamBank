@@ -1000,7 +1000,10 @@ def get_contract_details(contract_id):
             "is_monthly_auto_renew": getattr(contract, 'is_monthly_auto_renew', False),
             # --- 新增字段 ---
             "deposit_amount": str(getattr(contract, 'deposit_amount', '')) if contract.type == 'maternity_nurse' else '',
-            "deposit_rate": str(getattr(contract, 'deposit_rate', '')) if contract.type == 'maternity_nurse' else '',
+            # 根据 security_deposit_paid 和 employee_level 反算 deposit_rate
+            "deposit_rate": str(
+                round(1 - (float(contract.employee_level or 0) / float(contract.security_deposit_paid)), 2)
+            ) if contract.type == 'maternity_nurse' and contract.security_deposit_paid and float(contract.security_deposit_paid) > 0 else '0.25',
             "security_deposit_paid": str(getattr(contract, 'security_deposit_paid', '')) if contract.type == 'maternity_nurse' else '',
             "provisional_start_date": getattr(contract, 'provisional_start_date').isoformat() if getattr(contract, 'provisional_start_date', None) else None,
             # --- 签署相关字段 ---

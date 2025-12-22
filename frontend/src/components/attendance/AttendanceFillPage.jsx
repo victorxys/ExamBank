@@ -198,6 +198,43 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
     });
     const [monthDays, setMonthDays] = useState([]);
     const [contractInfo, setContractInfo] = useState(null);
+    
+    // 标记是否已经根据合同开始月份调整过默认月份
+    const hasAdjustedForContractStart = useRef(false);
+    
+    // 当合同信息加载后，如果合同开始月份是当月或未来月份，自动切换到合同开始月份
+    useEffect(() => {
+        if (contractInfo?.start_date && !hasAdjustedForContractStart.current && !initialYear && !initialMonth) {
+            const startDate = parseISO(contractInfo.start_date);
+            const contractStartYear = startDate.getFullYear();
+            const contractStartMonth = startDate.getMonth() + 1;
+            
+            const now = new Date();
+            const currentYear = now.getFullYear();
+            const currentMonth = now.getMonth() + 1;
+            
+            // 计算上个月
+            let lastMonthYear = currentYear;
+            let lastMonth = currentMonth - 1;
+            if (lastMonth === 0) {
+                lastMonthYear -= 1;
+                lastMonth = 12;
+            }
+            
+            // 如果合同开始月份晚于上个月（即当月或未来），切换到合同开始月份
+            if (contractStartYear > lastMonthYear || 
+                (contractStartYear === lastMonthYear && contractStartMonth > lastMonth)) {
+                // 但不能超过当月
+                if (contractStartYear < currentYear || 
+                    (contractStartYear === currentYear && contractStartMonth <= currentMonth)) {
+                    setSelectedYear(contractStartYear);
+                    setSelectedMonth(contractStartMonth);
+                }
+            }
+            
+            hasAdjustedForContractStart.current = true;
+        }
+    }, [contractInfo, initialYear, initialMonth]);
 
     // First/Last Month Logic
     const isFirstMonth = useMemo(() => {
@@ -541,6 +578,19 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
 
         } catch (error) {
             console.error("Failed to fetch attendance data", error);
+            
+            // 检查是否有建议的月份（合同开始月份在请求的周期之后）
+            if (error.response?.status === 404 && error.response?.data?.suggested_year && error.response?.data?.suggested_month) {
+                const suggestedYear = error.response.data.suggested_year;
+                const suggestedMonth = error.response.data.suggested_month;
+                
+                // 自动切换到建议的月份
+                setSelectedYear(suggestedYear);
+                setSelectedMonth(suggestedMonth);
+                // 不显示错误提示，因为会自动重新加载
+                return;
+            }
+            
             toast({
                 title: "获取数据失败",
                 description: "无法加载考勤表数据，请检查链接是否正确。",

@@ -176,8 +176,7 @@ def get_my_attendance():
             ).first()
             
             if not existing_form:
-                # 创建新的考勤表
-                access_token = f"{employee.id}_{cycle_start.year}_{cycle_start.month:02d}_{primary_contract.id}"
+                # 创建新的考勤表 - 使用员工ID作为 access_token（固定，不包含年月）
                 signature_token = str(uuid.uuid4())
                 
                 existing_form = AttendanceForm(
@@ -185,7 +184,7 @@ def get_my_attendance():
                     contract_id=primary_contract.id,
                     cycle_start_date=cycle_start,
                     cycle_end_date=cycle_end,
-                    employee_access_token=access_token,
+                    employee_access_token=str(employee.id),
                     customer_signature_token=signature_token,
                     status='draft'
                 )

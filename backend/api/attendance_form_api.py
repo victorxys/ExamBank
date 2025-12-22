@@ -172,6 +172,21 @@ def get_attendance_form_by_token(employee_token):
         contract, effective_start, effective_end = find_consecutive_contracts(employee.id, cycle_start, cycle_end)
         
         if not contract:
+            # 查找该员工最早的活跃合同，返回建议的月份
+            earliest_contract = BaseContract.query.filter(
+                BaseContract.service_personnel_id == employee.id,
+                BaseContract.status.in_(['active', 'terminated', 'finished', 'completed'])
+            ).order_by(BaseContract.start_date.asc()).first()
+            
+            if earliest_contract and earliest_contract.start_date > cycle_end:
+                # 合同开始日期在请求的周期之后，返回建议的月份
+                return jsonify({
+                    "error": "未找到该员工的合同",
+                    "suggested_year": earliest_contract.start_date.year,
+                    "suggested_month": earliest_contract.start_date.month,
+                    "contract_start_date": earliest_contract.start_date.isoformat()
+                }), 404
+            
             return jsonify({"error": "未找到该员工的合同"}), 404
         
         # 4. 检查是否已经存在该员工该周期的表单 (按 employee_id 查询，更可靠)
@@ -190,14 +205,13 @@ def get_attendance_form_by_token(employee_token):
             result = form_to_dict(existing_form, effective_start, effective_end)
             return jsonify(result)
 
-        # 5. 创建新表单 - 使用唯一的 access_token（加上月份信息）
-        unique_token = f"{employee_token}_{cycle_start.year}_{cycle_start.month:02d}"
+        # 5. 创建新表单 - 使用员工ID作为 access_token（固定，不包含年月）
         new_form = AttendanceForm(
             contract_id=contract.id,
             employee_id=employee.id,
             cycle_start_date=cycle_start,
             cycle_end_date=cycle_end,
-            employee_access_token=unique_token,
+            employee_access_token=str(employee.id),
             form_data={},
             status='draft'
         )
@@ -833,11 +847,29 @@ def get_employee_attendance_forms(employee_token):
         ).all()
         
         if not contracts:
-            return jsonify({
-                "redirect_type": "none",
-                "employee_name": employee.name,
-                "message": "该月份没有有效合同"
-            })
+            # 如果上个月没有合同，检查是否有当月开始的合同
+            now = date.today()
+            current_month_start = date(now.year, now.month, 1)
+            current_month_end = date(now.year, now.month, monthrange(now.year, now.month)[1])
+            
+            current_month_contracts = BaseContract.query.filter(
+                BaseContract.service_personnel_id == employee_id,
+                BaseContract.status.in_(['active', 'terminated', 'finished', 'completed']),
+                BaseContract.start_date <= current_month_end,
+                BaseContract.end_date >= current_month_start
+            ).all()
+            
+            if current_month_contracts:
+                # 有当月的合同，切换到当月
+                cycle_start = current_month_start
+                cycle_end = current_month_end
+                contracts = current_month_contracts
+            else:
+                return jsonify({
+                    "redirect_type": "none",
+                    "employee_name": employee.name,
+                    "message": "该月份没有有效合同"
+                })
         
         # 2. 按家庭ID分组合同，同一客户的多个合同（如续签）合并为一个考勤表
         family_groups = {}
@@ -869,8 +901,7 @@ def get_employee_attendance_forms(employee_token):
             ).first()
             
             if not existing_form:
-                # 创建新的考勤表
-                access_token = f"{employee_id}_{cycle_start.year}_{cycle_start.month:02d}_{primary_contract.id}"
+                # 创建新的考勤表 - 使用员工ID作为 access_token（固定，不包含年月）
                 signature_token = str(uuid.uuid4())
                 
                 new_form = AttendanceForm(
@@ -878,7 +909,7 @@ def get_employee_attendance_forms(employee_token):
                     contract_id=primary_contract.id,
                     cycle_start_date=cycle_start,
                     cycle_end_date=cycle_end,
-                    employee_access_token=access_token,
+                    employee_access_token=str(employee_id),
                     customer_signature_token=signature_token,
                     status='draft'
                 )
