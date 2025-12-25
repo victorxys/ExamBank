@@ -39,8 +39,10 @@ const initialState = {
     attachment_content: '',
     customer_id_card: '',
     customer_address: '',
+    customer_phone: '',
     employee_id_card: '',
     employee_address: '',
+    employee_phone: '',
     requires_signature: null,  // 是否需要客户签署，默认为 null 强制用户选择
 };
 
@@ -210,13 +212,13 @@ const CreateFormalContractModal = ({ open, onClose, onSuccess }) => {
                     managementFeeNotePart = '';
                     feeIntroducePart = `甲方只需支付阿姨实际出勤天数的劳务费`;
                 } else {
-                    managementFeeNotePart = `丙方管理费计算方法为：${roundedMonthlySalary}元✖️ ${(managementFeeRate * 100).toFixed(0)}%➗30天✖️阿姨实际出勤天数。`;
+                    managementFeeNotePart = `丙方管理费计算方法为：${roundedMonthlySalary}元 × ${(managementFeeRate * 100).toFixed(0)}% ÷ 30天 × 阿姨服务时间段。`;
                     feeIntroducePart = `甲方需支付阿姨实际出勤天数的劳务费和丙方管理费`;
                 }
 
                 const attachmentContentTemplate =
                     `乙方${employeeName}阿姨上户，${feeIntroducePart}:
-阿姨劳务费计算方法为：${roundedMonthlySalary}元➗26天✖️阿姨实际出勤天数；
+阿姨劳务费计算方法为：${roundedMonthlySalary}元 ÷ 26天 × 阿姨实际出勤天数；
 ${managementFeeNotePart}`;
 
                 setFormData(prev => ({ ...prev, attachment_content: attachmentContentTemplate }));
@@ -592,7 +594,7 @@ ${managementFeeNotePart}`;
                                 <Select name="contract_type" value={formData.contract_type} label="合同类型" onChange={handleChange}>
                                     <MenuItem value="nanny">育儿嫂合同</MenuItem>
                                     <MenuItem value="maternity_nurse">月嫂合同</MenuItem>
-                                    <MenuItem value="nanny_trial">育儿嫂试工合同</MenuItem>
+                                    <MenuItem value="nanny_trial">试工合同</MenuItem>
                                     <MenuItem value="external_substitution">外部替班合同</MenuItem>
                                 </Select>
                             </FormControl>
@@ -660,6 +662,7 @@ ${managementFeeNotePart}`;
                                             ...prev,
                                             customer_id_card: newValue.id_card_number || '',
                                             customer_address: newValue.address || '',
+                                            customer_phone: newValue.phone_number || '',
                                         }));
 
                                         // --- 新增逻辑：检查可转移的合同 ---
@@ -729,6 +732,7 @@ ${managementFeeNotePart}`;
                                             employee_level: newValue.latest_salary || '',
                                             employee_id_card: newValue.id_card_number || '',
                                             employee_address: newValue.address || '',
+                                            employee_phone: newValue.phone_number || '',
                                         }));
                                     }
                                 }}
@@ -751,6 +755,12 @@ ${managementFeeNotePart}`;
                         </Grid>
                         <Grid item xs={12} sm={6}>
                             <TextField fullWidth name="employee_id_card" label="员工身份证号" value={formData.employee_id_card} onChange={handleInputChange} InputLabelProps={{ shrink: true }} />
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                            <TextField fullWidth name="customer_phone" label="客户手机号" value={formData.customer_phone} onChange={handleInputChange} InputLabelProps={{ shrink: true }} />
+                        </Grid>
+                        <Grid item xs={12} sm={6}>
+                            <TextField fullWidth name="employee_phone" label="员工手机号" value={formData.employee_phone} onChange={handleInputChange} InputLabelProps={{ shrink: true }} />
                         </Grid>
                         <Grid item xs={12} sm={6}>
                             <TextField fullWidth name="customer_address" label="客户地址" value={formData.customer_address} onChange={handleInputChange} InputLabelProps={{ shrink: true }} />
