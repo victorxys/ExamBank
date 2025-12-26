@@ -1,16 +1,36 @@
 #!/usr/bin/env python3
 """
 修正员工工资单上的保证金支付工资调整项，确保与客户账单上的公司代付工资调整项金额一致。
+同时修复金额计算逻辑：使用实际劳务费（基础劳务费+加班费）而不是工资单总额。
 """
 
 import sys
 import os
+from decimal import Decimal
 
 # 添加项目根目录到Python路径
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from backend.app import app
 from backend.models import db, BaseContract, CustomerBill, EmployeePayroll, FinancialAdjustment, AdjustmentType
+
+D = Decimal
+
+def calculate_correct_amount(contract, payroll):
+    """
+    计算正确的代付工资金额：使用实际劳务费（基础劳务费+加班费），但不超过月薪
+    """
+    calc_details = payroll.calculation_details or {}
+    employee_base_payout = D(str(calc_details.get('employee_base_payout', 0)))
+    employee_overtime_fee = D(str(calc_details.get('employee_overtime_fee', 0)))
+    # 实际劳务费 = 基础劳务费 + 加班费
+    actual_labor_fee = employee_base_payout + employee_overtime_fee
+    
+    if contract.type == 'nanny_trial':
+        return actual_labor_fee.quantize(D("1"))
+    else:
+        employee_level = D(contract.employee_level or '0')
+        return min(actual_labor_fee, employee_level).quantize(D("1"))
 
 def fix_employee_salary_adjustments(contract_id=None, dry_run=True):
     """修正员工工资单上的保证金支付工资调整项，确保与客户账单上的公司代付工资调整项金额一致。"""
@@ -68,16 +88,19 @@ def fix_employee_salary_adjustments(contract_id=None, dry_run=True):
                     print(" -> 跳过 (无有效工资单)")
                     continue
 
+                # 计算正确的代付金额
+                correct_amount = calculate_correct_amount(contract, last_payroll)
+                
+                if correct_amount <= 0:
+                    print(" -> 跳过 (计算金额为0)")
+                    continue
+
                 # 查找客户账单上的公司代付工资调整项
                 company_adj = FinancialAdjustment.query.filter_by(
                     customer_bill_id=last_bill.id,
                     adjustment_type=AdjustmentType.COMPANY_PAID_SALARY,
                     description="[系统] 公司代付工资"
                 ).first()
-
-                if not company_adj:
-                    print(" -> 跳过 (无公司代付工资调整项)")
-                    continue
 
                 # 查找员工工资单上的保证金支付工资调整项
                 employee_adj = FinancialAdjustment.query.filter_by(
@@ -86,83 +109,99 @@ def fix_employee_salary_adjustments(contract_id=None, dry_run=True):
                     description="[系统] 保证金支付工资"
                 ).first()
 
-                print(f" -> 客户账单代付金额: {company_adj.amount}", end='')
+                print(f" -> 正确金额: {correct_amount}", end='')
 
-                if employee_adj:
-                    print(f", 员工工资单金额: {employee_adj.amount}", end='')
-                    
-                    # 检查金额是否匹配
-                    amounts_match = employee_adj.amount == company_adj.amount
-                    
-                    # 检查镜像关联是否正确
-                    mirror_links_correct = (
-                        company_adj.mirrored_adjustment_id == employee_adj.id and 
-                        employee_adj.mirrored_adjustment_id == company_adj.id
-                    )
-                    
-                    if not amounts_match or not mirror_links_correct:
-                        if not amounts_match:
-                            print(f" -> 金额不匹配", end='')
-                        if not mirror_links_correct:
-                            print(f" -> 镜像关联错误", end='')
-                        
-                        if not dry_run:
-                            # 更新员工工资单上的调整项金额
-                            employee_adj.amount = company_adj.amount
-                            db.session.add(employee_adj)
-                            
-                            # 确保互相关联
-                            company_adj.mirrored_adjustment_id = employee_adj.id
-                            employee_adj.mirrored_adjustment_id = company_adj.id
-                            db.session.add(company_adj)
-                            db.session.add(employee_adj)
-                            
-                            db.session.commit()
-                            processed_count += 1
-                            print(" -> 已修正")
-                        else:
-                            print(" -> [演习模式] 将会修正")
-                            processed_count += 1
+                needs_fix = False
+                
+                # 检查客户账单调整项
+                if company_adj:
+                    if company_adj.amount != correct_amount:
+                        print(f", 客户账单金额: {company_adj.amount} (需修正)", end='')
+                        needs_fix = True
                     else:
-                        print(" -> 金额和关联都正确")
+                        print(f", 客户账单金额: {company_adj.amount} (正确)", end='')
                 else:
-                    print(" -> 缺少员工调整项", end='')
+                    print(", 缺少客户账单调整项", end='')
+                    needs_fix = True
+
+                # 检查员工工资单调整项
+                if employee_adj:
+                    if employee_adj.amount != correct_amount:
+                        print(f", 员工工资单金额: {employee_adj.amount} (需修正)", end='')
+                        needs_fix = True
+                    else:
+                        print(f", 员工工资单金额: {employee_adj.amount} (正确)", end='')
+                else:
+                    print(", 缺少员工工资单调整项", end='')
+                    needs_fix = True
+
+                # 检查镜像关联
+                if company_adj and employee_adj:
+                    if company_adj.mirrored_adjustment_id != employee_adj.id or employee_adj.mirrored_adjustment_id != company_adj.id:
+                        print(", 镜像关联错误", end='')
+                        needs_fix = True
+
+                if not needs_fix:
+                    print(" -> 无需修正")
+                    continue
+
+                if not dry_run:
+                    # 创建或更新客户账单调整项
+                    if not company_adj:
+                        company_adj = FinancialAdjustment(
+                            customer_bill_id=last_bill.id,
+                            adjustment_type=AdjustmentType.COMPANY_PAID_SALARY,
+                            amount=correct_amount,
+                            description="[系统] 公司代付工资",
+                            date=last_bill.cycle_end_date
+                        )
+                        db.session.add(company_adj)
+                        db.session.flush()
+                    else:
+                        company_adj.amount = correct_amount
+                        db.session.add(company_adj)
                     
-                    if not dry_run:
-                        # 创建员工工资单上的镜像调整项
-                        new_employee_adj = FinancialAdjustment(
+                    # 创建或更新员工工资单调整项
+                    if not employee_adj:
+                        employee_adj = FinancialAdjustment(
                             employee_payroll_id=last_payroll.id,
                             adjustment_type=AdjustmentType.DEPOSIT_PAID_SALARY,
-                            amount=company_adj.amount,
+                            amount=correct_amount,
                             description="[系统] 保证金支付工资",
-                            date=company_adj.date,
+                            date=last_bill.cycle_end_date,
                             mirrored_adjustment_id=company_adj.id
                         )
-                        db.session.add(new_employee_adj)
+                        db.session.add(employee_adj)
                         db.session.flush()
-                        
-                        # 更新客户账单调整项的关联
-                        company_adj.mirrored_adjustment_id = new_employee_adj.id
-                        db.session.add(company_adj)
-                        
-                        db.session.commit()
-                        processed_count += 1
-                        print(" -> 已创建")
                     else:
-                        print(" -> [演习模式] 将会创建")
-                        processed_count += 1
+                        employee_adj.amount = correct_amount
+                        db.session.add(employee_adj)
+                    
+                    # 确保双向镜像关联
+                    company_adj.mirrored_adjustment_id = employee_adj.id
+                    employee_adj.mirrored_adjustment_id = company_adj.id
+                    db.session.add(company_adj)
+                    db.session.add(employee_adj)
+                    
+                    db.session.commit()
+                    processed_count += 1
+                    print(" -> 已修正")
+                else:
+                    print(" -> [演习模式] 将会修正")
+                    processed_count += 1
 
             print(f"\n--- 任务执行完毕 ---")
             if dry_run:
-                print(f"【演习模式】共检查 {total} 个合同，将为 {processed_count} 个合同修正员工工资单调整项。")
+                print(f"【演习模式】共检查 {total} 个合同，将为 {processed_count} 个合同修正调整项。")
             else:
-                print(f"共检查 {total} 个合同，成功为 {processed_count} 个合同修正了员工工资单调整项。")
+                print(f"共检查 {total} 个合同，成功为 {processed_count} 个合同修正了调整项。")
 
         except Exception as e:
             print(f"执行任务时发生严重错误: {e}")
+            import traceback
+            traceback.print_exc()
             if not dry_run:
                 db.session.rollback()
-            raise
 
 if __name__ == "__main__":
     import argparse

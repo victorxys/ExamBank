@@ -2991,17 +2991,23 @@ class BillingEngine:
             current_app.logger.error(f"[FinalAdj] 找不到与账单 {bill_id} 关联的薪酬单。")
             return
 
-        gross_pay = payroll.total_due
+        # 从 calculation_details 中获取基础劳务费（包含加班费）
+        calc_details = payroll.calculation_details or {}
+        employee_base_payout = D(str(calc_details.get('employee_base_payout', 0)))
+        employee_overtime_fee = D(str(calc_details.get('employee_overtime_fee', 0)))
+        # 实际劳务费 = 基础劳务费 + 加班费
+        actual_labor_fee = employee_base_payout + employee_overtime_fee
+        
         amount_to_set = D('0')
 
         if contract.type == 'nanny_trial':
             # 试工合同：使用实际劳务费
-            amount_to_set = gross_pay.quantize(D("1"))
+            amount_to_set = actual_labor_fee.quantize(D("1"))
         else:
             employee_level = D(contract.employee_level or '0')
-            # 修复：始终使用实际劳务费（包含加班费），不管是否提前终止
+            # 使用实际劳务费（基础劳务费+加班费），但不超过月薪
             # 这样当用户修改实际劳务天数时，代付工资也会相应更新
-            amount_to_set = min(gross_pay, employee_level).quantize(D("1"))
+            amount_to_set = min(actual_labor_fee, employee_level).quantize(D("1"))
 
         existing_adj = FinancialAdjustment.query.filter_by(
             customer_bill_id=bill.id,
