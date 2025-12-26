@@ -2388,10 +2388,13 @@ class BillingEngine:
             + D(details.get("customer_increase", 0))  # 出京/出境管理费通过调整项自动包含在这里
             + D(details.get("deferred_fee", "0.00"))
             + D(details.get("extension_fee_reason", "0.00"))
-            + total_paid_salary_adjustments  # 减去所有代付的工资
+            + total_paid_salary_adjustments  # 加上所有代付的工资（公司代付工资是客户应付的一部分）
             - D(details.get("customer_decrease", 0))
             - D(details.get("discount", 0))
         )
+        
+        # 将代付工资总额存入 details，供日志使用
+        details["total_paid_salary_adjustments"] = str(total_paid_salary_adjustments)
         # --- 员工应付总额计算 (核心修改点) ---
         # Gross Pay = Base + Overtime + Increase
         employee_gross_payout = (
@@ -2526,6 +2529,8 @@ class BillingEngine:
             customer_parts.append(f"增款({d['customer_increase']:.2f})")
         if d.get("deferred_fee"):
             customer_parts.append(f"上期顺延({d['deferred_fee']:.2f})")
+        if d.get("total_paid_salary_adjustments"):
+            customer_parts.append(f"公司代付工资({d['total_paid_salary_adjustments']:.2f})")
 
         # 处理减项
         if d.get("discount"):
@@ -2995,19 +3000,20 @@ class BillingEngine:
         calc_details = payroll.calculation_details or {}
         employee_base_payout = D(str(calc_details.get('employee_base_payout', 0)))
         employee_overtime_fee = D(str(calc_details.get('employee_overtime_fee', 0)))
-        # 实际劳务费 = 基础劳务费 + 加班费
+        # 实际劳务费 = 基础劳务费 + 加班费（计算过程不四舍五入）
         actual_labor_fee = employee_base_payout + employee_overtime_fee
-        
-        amount_to_set = D('0')
 
         if contract.type == 'nanny_trial':
             # 试工合同：使用实际劳务费
-            amount_to_set = actual_labor_fee.quantize(D("1"))
+            amount_to_set = actual_labor_fee
         else:
             employee_level = D(contract.employee_level or '0')
             # 使用实际劳务费（基础劳务费+加班费），但不超过月薪
             # 这样当用户修改实际劳务天数时，代付工资也会相应更新
-            amount_to_set = min(actual_labor_fee, employee_level).quantize(D("1"))
+            amount_to_set = min(actual_labor_fee, employee_level)
+        
+        # 保留两位小数，不四舍五入到整数
+        amount_to_set = amount_to_set.quantize(D("0.01"))
 
         existing_adj = FinancialAdjustment.query.filter_by(
             customer_bill_id=bill.id,

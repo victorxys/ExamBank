@@ -19,18 +19,22 @@ D = Decimal
 def calculate_correct_amount(contract, payroll):
     """
     计算正确的代付工资金额：使用实际劳务费（基础劳务费+加班费），但不超过月薪
+    计算过程不四舍五入，只在最终金额时才四舍五入
     """
     calc_details = payroll.calculation_details or {}
     employee_base_payout = D(str(calc_details.get('employee_base_payout', 0)))
     employee_overtime_fee = D(str(calc_details.get('employee_overtime_fee', 0)))
-    # 实际劳务费 = 基础劳务费 + 加班费
+    # 实际劳务费 = 基础劳务费 + 加班费（计算过程不四舍五入）
     actual_labor_fee = employee_base_payout + employee_overtime_fee
     
     if contract.type == 'nanny_trial':
-        return actual_labor_fee.quantize(D("1"))
+        amount = actual_labor_fee
     else:
         employee_level = D(contract.employee_level or '0')
-        return min(actual_labor_fee, employee_level).quantize(D("1"))
+        amount = min(actual_labor_fee, employee_level)
+    
+    # 保留两位小数，不四舍五入到整数
+    return amount.quantize(D("0.01"))
 
 def fix_employee_salary_adjustments(contract_id=None, dry_run=True):
     """修正员工工资单上的保证金支付工资调整项，确保与客户账单上的公司代付工资调整项金额一致。"""
