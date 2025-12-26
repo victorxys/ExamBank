@@ -1152,14 +1152,11 @@ def batch_update_billing_details():
         # !!! 新增日志 !!!
         current_app.logger.info(f"!!! FLAG CHECK !!! In batch_update_billing_details, was_deletion is: {was_deletion}")
 
-        # --- 4. 运行引擎重算 ---
         # --- 3.5. 汇总并记录日志 ---
-        new_overtime_decimal = D(str(data.get("overtime_days","0")))
-        if original_overtime_days.quantize(D('0.01')) !=new_overtime_decimal.quantize(D('0.01')):
+        if original_overtime_days.quantize(D('0.01')) != new_overtime_decimal.quantize(D('0.01')):
             log_details['加班天数'] = {'from': str(original_overtime_days), 'to': str(new_overtime_decimal)}
 
-        new_actual_work_days = D(str(data['actual_work_days'])) if 'actual_work_days' in data and data['actual_work_days']is not None and data['actual_work_days'] != '' else None
-        if new_actual_work_days is not None and original_actual_work_days!=new_actual_work_days:
+        if new_actual_work_days is not None and original_actual_work_days != new_actual_work_days:
             log_details['实际工作天数'] = {'from': str(original_actual_work_days), 'to': str(new_actual_work_days)}
 
         new_invoice_needed = data.get('invoice_needed', False)
@@ -2391,55 +2388,105 @@ def terminate_contract(contract_id):
                 daily_management_fee = (monthly_management_fee / D(30)).quantize(D("0.0001"))
                 management_refund_item = None
                 if not contract.is_monthly_auto_renew:
-                    if termination_date.year == original_end_date.year and termination_date.month ==original_end_date.month:
+                    # 非月签合同的管理费退款逻辑
+                    if termination_date.year == original_end_date.year and termination_date.month == original_end_date.month:
+                        # 同月终止的情况
                         days_to_refund = (original_end_date - termination_date).days if charge_on_termination_date else (original_end_date - termination_date).days + 1
                         if days_to_refund > 0:
                             amount = (daily_management_fee * D(days_to_refund)).quantize(D("0.01"))
                             if amount > 0:
                                 management_refund_item = {'amount': amount, 'description': f"[系统] 单月合同提前终止退款: 日管理费({daily_management_fee:.4f}) * 退款天数({days_to_refund}) = {amount:.2f}元"}
                     else:
+                        # 跨月终止的情况 - 使用新的非月签逻辑
                         description_parts = ["合同提前终止，管理费退款计算如下："]
-                        term_month_refund_amount = D(0)
-
-                        _, days_in_month = calendar.monthrange(termination_date.year, termination_date.month)
-                        refund_days_term = (days_in_month - termination_date.day) if charge_on_termination_date else(days_in_month - termination_date.day + 1)
-
-                        if refund_days_term > 0: term_month_refund_amount = (D(refund_days_term) *daily_management_fee).quantize(D("0.01"))
-
-                        full_months_count = 0
-                        full_months_total_amount = D(0)
-                        full_months_start_date = None
-                        full_months_end_date = None
-                        current_month_start = termination_date.replace(day=1) + relativedelta(months=1)
-                        while current_month_start.year < original_end_date.year or (current_month_start.year ==original_end_date.year and current_month_start.month < original_end_date.month):
-                            if full_months_start_date is None: full_months_start_date = current_month_start
-                            full_months_end_date = current_month_start
-                            full_months_count += 1
-                            current_month_start += relativedelta(months=1)
-                        if full_months_count > 0: full_months_total_amount = monthly_management_fee *D(full_months_count)
-
-                        original_end_month_refund_amount = D(0)
-                        is_original_end_month_a_full_month = False
-                        if not (termination_date.year == original_end_date.year and termination_date.month ==original_end_date.month):
-                            _, last_day_of_month = calendar.monthrange(original_end_date.year,original_end_date.month)
-                            is_full_month = (original_end_date.day == last_day_of_month)
-                            if is_full_month:
-                                is_original_end_month_a_full_month = True
-                                original_end_month_refund_amount = monthly_management_fee
+                        total_refund_amount = D(0)
+                        
+                        # 对于x月11日开始y月11日结束的非月签合同
+                        # 按 x月11日~x+1月10日算一个整月
+                        contract_start_day = contract_start_date.day
+                        contract_end_day = original_end_date.day
+                        
+                        # 计算从终止日到下一个周期结束日的天数
+                        if contract_start_day == contract_end_day:
+                            # 例如：11日开始11日结束的合同
+                            # 计算n+1月10日（下一个周期的前一天）
+                            if termination_date.month == 12:
+                                next_month_10th = date(termination_date.year + 1, 1, contract_end_day - 1)
                             else:
+                                next_month_10th = date(termination_date.year, termination_date.month + 1, contract_end_day - 1)
+                            
+                            # 用n+1月10日与终止日n月m日之间的差距来计算待退还管理费的天数
+                            # 根据是否收取终止日管理费来决定退款起始日期
+                            if charge_on_termination_date:
+                                # 收取终止日管理费，从终止日的下一天开始退款
+                                refund_start_date = termination_date + timedelta(days=1)
+                                days_to_next_cycle_end = (next_month_10th - refund_start_date).days + 1
+                                description_suffix = f"(收取终止日管理费，从{refund_start_date.month}月{refund_start_date.day}日开始退款)"
+                            else:
+                                # 不收取终止日管理费，从终止日当天开始退款
+                                refund_start_date = termination_date
+                                days_to_next_cycle_end = (next_month_10th - refund_start_date).days + 1
+                                description_suffix = f"(不收取终止日管理费，从{refund_start_date.month}月{refund_start_date.day}日开始退款)"
+                            
+                            if days_to_next_cycle_end > 0:
+                                partial_refund = (daily_management_fee * D(days_to_next_cycle_end)).quantize(D("0.01"))
+                                total_refund_amount += partial_refund
+                                description_parts.append(f"  - 退款天数: {days_to_next_cycle_end}天 * {daily_management_fee:.4f} = {partial_refund:.2f}元 {description_suffix}")
+                            
+                            # 计算剩余的完整周期数
+                            remaining_cycles = 0
+                            current_cycle_start = next_month_10th + timedelta(days=1)  # 从n+1月11日开始
+                            
+                            while current_cycle_start < original_end_date:
+                                remaining_cycles += 1
+                                # 移动到下一个周期开始
+                                if current_cycle_start.month == 12:
+                                    current_cycle_start = date(current_cycle_start.year + 1, 1, contract_start_day)
+                                else:
+                                    try:
+                                        current_cycle_start = date(current_cycle_start.year, current_cycle_start.month + 1, contract_start_day)
+                                    except ValueError:
+                                        # 处理月末日期不存在的情况（如31日）
+                                        current_cycle_start = date(current_cycle_start.year, current_cycle_start.month + 1, min(contract_start_day, calendar.monthrange(current_cycle_start.year, current_cycle_start.month + 1)[1]))
+                            
+                            if remaining_cycles > 0:
+                                full_cycles_refund = monthly_management_fee * D(remaining_cycles)
+                                total_refund_amount += full_cycles_refund
+                                description_parts.append(f"  - 剩余完整周期: {remaining_cycles}个 * {monthly_management_fee:.2f} = {full_cycles_refund:.2f}元")
+                        else:
+                            # 其他情况使用原有逻辑
+                            term_month_refund_amount = D(0)
+                            _, days_in_month = calendar.monthrange(termination_date.year, termination_date.month)
+                            refund_days_term = (days_in_month - termination_date.day) if charge_on_termination_date else (days_in_month - termination_date.day + 1)
+                            
+                            if refund_days_term > 0:
+                                term_month_refund_amount = (D(refund_days_term) * daily_management_fee).quantize(D("0.01"))
+                            
+                            full_months_count = 0
+                            full_months_total_amount = D(0)
+                            current_month_start = termination_date.replace(day=1) + relativedelta(months=1)
+                            while current_month_start.year < original_end_date.year or (current_month_start.year == original_end_date.year and current_month_start.month < original_end_date.month):
+                                full_months_count += 1
+                                current_month_start += relativedelta(months=1)
+                            if full_months_count > 0:
+                                full_months_total_amount = monthly_management_fee * D(full_months_count)
+                            
+                            original_end_month_refund_amount = D(0)
+                            if not (termination_date.year == original_end_date.year and termination_date.month == original_end_date.month):
                                 refund_days_original_end = original_end_date.day
-                                if refund_days_original_end > 0: original_end_month_refund_amount =(D(refund_days_original_end) * daily_management_fee).quantize(D("0.01"))
-
-                        total_refund_amount = term_month_refund_amount + full_months_total_amount +original_end_month_refund_amount
-                        if total_refund_amount > 0:
-                            if term_month_refund_amount > 0: description_parts.append(f"  - 终止月({termination_date.month}月{termination_date.day}日)剩余 {refund_days_term} 天: {term_month_refund_amount:.2f}元")
+                                if refund_days_original_end > 0:
+                                    original_end_month_refund_amount = (D(refund_days_original_end) * daily_management_fee).quantize(D("0.01"))
+                            
+                            total_refund_amount = term_month_refund_amount + full_months_total_amount + original_end_month_refund_amount
+                            
+                            if term_month_refund_amount > 0:
+                                description_parts.append(f"  - 终止月({termination_date.month}月{termination_date.day}日)剩余 {refund_days_term} 天: {term_month_refund_amount:.2f}元")
                             if full_months_count > 0 and full_months_total_amount > 0:
-                                start_str = f"{full_months_start_date.year}年{full_months_start_date.month}月";end_str = f"{full_months_end_date.year}年{full_months_end_date.month}月"
-                                period_str = start_str if full_months_count == 1 else f"{start_str}~{end_str}"
-                                description_parts.append(f"  - {period_str}"); description_parts.append(f"    {full_months_count}个整月*{monthly_management_fee:.2f}元 = {full_months_total_amount:.2f}元")
+                                description_parts.append(f"  - 完整月份: {full_months_count}个月 * {monthly_management_fee:.2f} = {full_months_total_amount:.2f}元")
                             if original_end_month_refund_amount > 0:
-                                if is_original_end_month_a_full_month: description_parts.append(f"  - 原始末月({original_end_date.year}年{original_end_date.month}月)整月: {original_end_month_refund_amount:.2f}元")
-                                else: description_parts.append(f"  - 原始末月({original_end_date.month}月)部分 {original_end_date.day} 天: {original_end_month_refund_amount:.2f}元")
+                                description_parts.append(f"  - 原始末月({original_end_date.month}月)部分 {original_end_date.day} 天: {original_end_month_refund_amount:.2f}元")
+                        
+                        if total_refund_amount > 0:
                             description_parts.append(f"  - 总计：{total_refund_amount:.2f}元")
                             management_refund_item = {'amount': total_refund_amount, 'description': '\n'.join(description_parts)}
                 elif contract.is_monthly_auto_renew:

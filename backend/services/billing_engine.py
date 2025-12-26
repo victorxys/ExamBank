@@ -2995,9 +2995,12 @@ class BillingEngine:
         amount_to_set = D('0')
 
         if contract.type == 'nanny_trial':
+            # 试工合同：使用实际劳务费
             amount_to_set = gross_pay.quantize(D("1"))
         else:
             employee_level = D(contract.employee_level or '0')
+            # 修复：始终使用实际劳务费（包含加班费），不管是否提前终止
+            # 这样当用户修改实际劳务天数时，代付工资也会相应更新
             amount_to_set = min(gross_pay, employee_level).quantize(D("1"))
 
         existing_adj = FinancialAdjustment.query.filter_by(
