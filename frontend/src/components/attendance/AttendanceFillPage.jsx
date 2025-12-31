@@ -877,6 +877,26 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
         // 对于上户/下户记录，允许保存空时间（后端提交时会验证）
         const isOnboardingOrOffboarding = tempRecord.type === 'onboarding' || tempRecord.type === 'offboarding';
         
+        // 非正常考勤类型需要检查时间是否为空
+        if (tempRecord.type !== 'normal' && !isOnboardingOrOffboarding) {
+            if (!tempRecord.startTime) {
+                toast({
+                    title: "请选择开始时间",
+                    description: "开始时间不能为空",
+                    variant: "destructive"
+                });
+                return;
+            }
+            if (!tempRecord.endTime) {
+                toast({
+                    title: "请选择结束时间",
+                    description: "结束时间不能为空",
+                    variant: "destructive"
+                });
+                return;
+            }
+        }
+        
         // 如果时间为空且不是上户/下户，使用默认值
         const startTime = tempRecord.startTime || (isOnboardingOrOffboarding ? '' : '09:00');
         const endTime = tempRecord.endTime || (isOnboardingOrOffboarding ? '' : '18:00');
@@ -904,13 +924,28 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
 
         setAttendanceData(prev => {
             const newData = { ...prev };
+            
+            // 计算新记录的日期范围
+            const newStartDate = new Date(dateStr);
+            const newEndDate = new Date(dateStr);
+            newEndDate.setDate(newEndDate.getDate() + (tempRecord.daysOffset || 0));
+            
+            // 检查两个日期范围是否重叠的辅助函数
+            const isOverlapping = (record) => {
+                const recordStartDate = new Date(record.date);
+                const recordEndDate = new Date(record.date);
+                recordEndDate.setDate(recordEndDate.getDate() + (record.daysOffset || 0));
+                
+                // 两个范围重叠的条件：一个范围的开始日期 <= 另一个范围的结束日期，且反之亦然
+                return newStartDate <= recordEndDate && newEndDate >= recordStartDate;
+            };
 
-            // Remove existing record for this date from all lists
+            // Remove existing records that overlap with the new record's date range
             Object.keys(ATTENDANCE_TYPES).forEach(key => {
                 const tVal = ATTENDANCE_TYPES[key].value;
                 if (tVal === 'normal') return;
                 const recordKey = `${tVal}_records`;
-                newData[recordKey] = (newData[recordKey] || []).filter(r => r.date !== dateStr);
+                newData[recordKey] = (newData[recordKey] || []).filter(r => !isOverlapping(r));
             });
 
             // If not normal, add to the new list
@@ -1090,12 +1125,12 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
         });
     }
 
-    // Work days (基本劳务天数) = valid days - leave days
-    // 【重要】加班不应该从出勤天数中扣除，加班是额外的，单独计算
+    // Work days (基本劳务天数) = valid days - leave days - overtime days
+    // 【重要】只有"出勤"才算出勤天数，加班不计算在出勤天数中
     // 带薪休假、出京、出境都算作出勤天数，不需要扣除
-    // 公式：出勤天数 = 当月总天数 - 休息天数 - 请假天数
+    // 公式：出勤天数 = 当月总天数 - 休息天数 - 请假天数 - 加班天数
     const validDaysCount = monthDays.filter(day => !isDateDisabled(day)).length;
-    totalWorkDays = validDaysCount - totalLeaveDays;  // 不减去加班天数！
+    totalWorkDays = validDaysCount - totalLeaveDays - totalOvertimeDays;  // 减去加班天数！
 
     return (
         <div className="min-h-screen bg-slate-50 pb-48 font-sans">
@@ -1716,7 +1751,29 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                     return (
                                         <button
                                             key={key}
-                                            onClick={() => setTempRecord(prev => ({ ...prev, type: type.value }))}
+                                            onClick={() => {
+                                                // 根据考勤类型设置不同的默认时间
+                                                let defaultStartTime = '';
+                                                let defaultEndTime = '';
+                                                
+                                                if (type.value === 'overtime') {
+                                                    // 加班：默认整天 00:00 - 24:00
+                                                    defaultStartTime = '00:00';
+                                                    defaultEndTime = '24:00';
+                                                } else if (type.value === 'normal') {
+                                                    // 出勤：不需要时间设置
+                                                    defaultStartTime = '';
+                                                    defaultEndTime = '';
+                                                }
+                                                // 其他类型（休息、请假、出京、出境、带薪休假等）：默认时间为空，需要用户选择
+                                                
+                                                setTempRecord(prev => ({
+                                                    ...prev,
+                                                    type: type.value,
+                                                    startTime: defaultStartTime,
+                                                    endTime: defaultEndTime
+                                                }));
+                                            }}
                                             className={`py-3 px-2 rounded-xl text-sm font-medium transition-all border ${isSelected
                                                 ? 'bg-black text-white border-black shadow-md'
                                                 : 'bg-white text-gray-900 border-gray-300 hover:border-indigo-400 hover:bg-indigo-50'
@@ -1793,7 +1850,8 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                                             setTimePickerDrawer({
                                                                 isOpen: true,
                                                                 field: 'startTime',
-                                                                value: tempRecord.startTime || '09:00'
+                                                                // 非加班类型默认显示08:00方便用户选择
+                                                                value: tempRecord.startTime || '08:00'
                                                             });
                                                         }
                                                     }}
@@ -1803,7 +1861,7 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                                         : 'bg-white text-gray-900 border-gray-300 hover:border-teal-400 hover:bg-teal-50 active:bg-teal-100'
                                                         }`}
                                                 >
-                                                    {tempRecord.startTime || '09:00'}
+                                                    {tempRecord.startTime || '请选择'}
                                                 </button>
                                                 
                                                 {/* 中午12点边界条件提示 */}
@@ -1838,8 +1896,8 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                                         −
                                                     </button>
                                                     <div className="flex-1 text-center">
-                                                        <div className="text-3xl font-bold text-gray-900">{(tempRecord.daysOffset || 0) === 0 ? '当天' : tempRecord.daysOffset}</div>
-                                                        <div className="text-xs text-gray-500 mt-1">{(tempRecord.daysOffset || 0) === 0 ? '' : '天后'}</div>
+                                                        <div className="text-3xl font-bold text-gray-900">{(tempRecord.daysOffset || 0) + 1}</div>
+                                                        <div className="text-xs text-gray-500 mt-1">天</div>
                                                     </div>
                                                     <button
                                                         type="button"
@@ -1891,6 +1949,7 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                                             setTimePickerDrawer({
                                                                 isOpen: true,
                                                                 field: 'endTime',
+                                                                // 非加班类型默认显示18:00方便用户选择
                                                                 value: tempRecord.endTime || '18:00'
                                                             });
                                                         }
@@ -1901,7 +1960,7 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                                         : 'bg-white text-gray-900 border-gray-300 hover:border-teal-400 hover:bg-teal-50 active:bg-teal-100'
                                                         }`}
                                                 >
-                                                    {tempRecord.endTime || '18:00'}
+                                                    {tempRecord.endTime || '请选择'}
                                                 </button>
                                             </div>
                                         </>

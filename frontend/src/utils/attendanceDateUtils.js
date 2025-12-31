@@ -25,15 +25,22 @@ export class CrossDayDurationCalculator {
             const endTime = record.endTime || '18:00';
             
             const [startHour, startMinute] = startTime.split(':').map(Number);
-            const [endHour, endMinute] = endTime.split(':').map(Number);
+            let [endHour, endMinute] = endTime.split(':').map(Number);
+            
+            // 特殊处理 24:00，视为当天的 24 小时整点
+            const isEndTime24 = endTime === '24:00';
+            if (isEndTime24) {
+                endHour = 24;
+                endMinute = 0;
+            }
             
             // 计算当天的时长
             let totalMinutes;
-            if (endHour < startHour || (endHour === startHour && endMinute < startMinute)) {
-                // 跨午夜的情况（如 22:00 到 06:00）
+            if (!isEndTime24 && (endHour < startHour || (endHour === startHour && endMinute < startMinute))) {
+                // 跨午夜的情况（如 22:00 到 06:00）- 但不适用于 24:00
                 totalMinutes = (24 * 60 - (startHour * 60 + startMinute)) + (endHour * 60 + endMinute);
             } else {
-                // 正常情况（如 09:00 到 18:00）
+                // 正常情况（如 09:00 到 18:00）或 00:00 到 24:00
                 totalMinutes = (endHour * 60 + endMinute) - (startHour * 60 + startMinute);
             }
             
@@ -49,7 +56,14 @@ export class CrossDayDurationCalculator {
         const endTime = record.endTime || '18:00';
         
         const [startHour, startMinute] = startTime.split(':').map(Number);
-        const [endHour, endMinute] = endTime.split(':').map(Number);
+        let [endHour, endMinute] = endTime.split(':').map(Number);
+        
+        // 特殊处理 24:00
+        const isEndTime24 = endTime === '24:00';
+        if (isEndTime24) {
+            endHour = 24;
+            endMinute = 0;
+        }
         
         // 计算开始日期时间
         const startDateTime = new Date(startDate);
@@ -59,7 +73,14 @@ export class CrossDayDurationCalculator {
         const endDate = new Date(startDate);
         endDate.setDate(startDate.getDate() + daysOffset);
         const endDateTime = new Date(endDate);
-        endDateTime.setHours(endHour, endMinute, 0, 0);
+        
+        // 对于 24:00，设置为当天的 24:00（即次日 00:00）
+        if (isEndTime24) {
+            endDateTime.setDate(endDateTime.getDate() + 1);
+            endDateTime.setHours(0, 0, 0, 0);
+        } else {
+            endDateTime.setHours(endHour, endMinute, 0, 0);
+        }
         
         // 计算总分钟数
         const totalMinutes = differenceInMinutes(endDateTime, startDateTime);
@@ -172,6 +193,10 @@ export class DailyWorkHoursCalculator {
         } else if (isEndDay) {
             // 结束日：从00:00到结束时间
             const endTime = record.endTime || '18:00';
+            // 特殊处理 24:00
+            if (endTime === '24:00') {
+                return 24;
+            }
             const [hours, minutes] = endTime.split(':').map(Number);
             return hours + minutes / 60;
         } else {
@@ -220,8 +245,18 @@ export class TimeRangeValidator {
             return false;
         }
         
-        const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
-        return timeRegex.test(timeStr);
+        // 支持 00:00 到 24:00（24:00 表示当天结束/次日开始）
+        const timeRegex = /^([01]?[0-9]|2[0-4]):[0-5][0-9]$/;
+        if (!timeRegex.test(timeStr)) {
+            return false;
+        }
+        
+        // 特殊处理：24:xx 只允许 24:00
+        if (timeStr.startsWith('24:') && timeStr !== '24:00') {
+            return false;
+        }
+        
+        return true;
     }
 
     /**
