@@ -379,9 +379,9 @@ def get_attendance_form_by_token(employee_token):
             
             # 检查是否为合同结束月，且缺少下户记录
             contract_end_date = None
-            if contract.is_monthly_auto_renew and contract.status == 'terminated' and contract.termination_date:
+            if getattr(contract, 'is_monthly_auto_renew', False) and contract.status == 'terminated' and contract.termination_date:
                 contract_end_date = contract.termination_date.date() if isinstance(contract.termination_date, datetime) else contract.termination_date
-            elif not contract.is_monthly_auto_renew and contract.end_date:
+            elif not getattr(contract, 'is_monthly_auto_renew', False) and contract.end_date:
                 contract_end_date = contract.end_date.date() if isinstance(contract.end_date, datetime) else contract.end_date
             
             if contract_end_date and cycle_start <= contract_end_date <= cycle_end:
@@ -452,9 +452,9 @@ def get_attendance_form_by_token(employee_token):
         # 对于自动月签合同，使用终止日期；否则使用结束日期
         # 注意：如果有续约合同（同一客户/家庭的连续服务），则不需要下户记录
         contract_end_date = None
-        if contract.is_monthly_auto_renew and contract.status == 'terminated' and contract.termination_date:
+        if getattr(contract, 'is_monthly_auto_renew', False) and contract.status == 'terminated' and contract.termination_date:
             contract_end_date = contract.termination_date.date() if isinstance(contract.termination_date, datetime) else contract.termination_date
-        elif not contract.is_monthly_auto_renew and contract.end_date:
+        elif not getattr(contract, 'is_monthly_auto_renew', False) and contract.end_date:
             contract_end_date = contract.end_date.date() if isinstance(contract.end_date, datetime) else contract.end_date
         
         if contract_end_date and cycle_start <= contract_end_date <= cycle_end:
@@ -554,9 +554,9 @@ def update_attendance_form(employee_token):
             # 检查是否为合同结束月
             contract_end_date = None
             if contract:
-                if contract.is_monthly_auto_renew and contract.status == 'terminated' and contract.termination_date:
+                if getattr(contract, 'is_monthly_auto_renew', False) and contract.status == 'terminated' and contract.termination_date:
                     contract_end_date = contract.termination_date.date() if isinstance(contract.termination_date, datetime) else contract.termination_date
-                elif not contract.is_monthly_auto_renew and contract.end_date:
+                elif not getattr(contract, 'is_monthly_auto_renew', False) and contract.end_date:
                     contract_end_date = contract.end_date.date() if isinstance(contract.end_date, datetime) else contract.end_date
             
             if contract_end_date and cycle_start <= contract_end_date <= cycle_end:

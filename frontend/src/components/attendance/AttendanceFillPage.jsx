@@ -1158,8 +1158,8 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                         {/* 下半部分：主标题区域（60px，会保留在顶部） */}
                         <div className="h-[60px] flex items-center justify-between">
                             <div className="flex items-center gap-2">
-                                {/* 月份切换 - 仅员工模式显示 */}
-                                {!isCustomerMode && !isAdminView && (
+                                {/* 月份切换 - 员工模式和管理员查看模式显示 */}
+                                {!isCustomerMode && (
                                     <button
                                         onClick={() => {
                                             if (!canGoPrev) return;
@@ -1184,13 +1184,13 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                         lineHeight: '1.2'
                                     }}
                                 >
-                                    {selectedMonth || formData?.month || ''}月考勤{isHistoricalView ? '记录' : '填报'}
+                                    {selectedMonth || formData?.month || ''}月考勤{isHistoricalView || isAdminView ? '记录' : '填报'}
                                     {isAdminView && <span className="ml-2 text-sm bg-gray-200 text-gray-600 px-2 py-1 rounded">查看模式</span>}
                                     {isHistoricalView && !isAdminView && <span className="ml-2 text-sm bg-amber-100 text-amber-700 px-2 py-1 rounded">只读</span>}
                                 </h1>
 
-                                {/* 月份切换 - 仅员工模式显示 */}
-                                {!isCustomerMode && !isAdminView && (() => {
+                                {/* 月份切换 - 员工模式和管理员查看模式显示 */}
+                                {!isCustomerMode && (() => {
                                     // 判断是否可以切换到下个月（不能超过可编辑月份）
                                     const canGoNext = editableMonth && (
                                         selectedYear < editableMonth.year ||
@@ -1209,7 +1209,7 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                                 ? 'bg-gray-100 hover:bg-gray-200 active:bg-gray-300'
                                                 : 'bg-gray-50 cursor-not-allowed'
                                                 }`}
-                                            title={canGoNext ? "下个月" : "不能填写未来月份"}
+                                            title={canGoNext ? "下个月" : "不能查看未来月份"}
                                         >
                                             <ChevronRight className={`w-5 h-5 ${canGoNext ? 'text-gray-600' : 'text-gray-300'}`} />
                                         </button>
