@@ -54,9 +54,20 @@ def sync_attendance_to_record(attendance_form_id):
             # r 结构: {date: '...', hours: 24, minutes: 0}
             h = r.get('hours', 0)
             m = r.get('minutes', 0)
-            # 简单处理: 如果 hours=24, 则是1天。
-            # 如果 hours=12, 则是0.5天。
-            days = Decimal(h) / Decimal(24) + Decimal(m) / Decimal(1440)
+            
+            # 兼容两种数据格式：
+            # 1. 旧格式：hours 是小数（如 10.5），minutes 也有值（如 30）- 此时 hours 已包含分钟
+            # 2. 新格式：hours 是整数（如 10），minutes 是余数（如 30）
+            # 检测方式：如果 hours 有小数部分，说明是旧格式
+            if isinstance(h, float) and h % 1 != 0:
+                # 旧格式：hours 已经是完整的小时数（包含小数），忽略 minutes
+                total_hours = Decimal(str(h))
+            else:
+                # 新格式：hours 是整数，minutes 是余数分钟
+                total_hours = Decimal(str(h)) + Decimal(str(m)) / Decimal(60)
+            
+            # 转换为天数（24小时 = 1天）
+            days = total_hours / Decimal(24)
             total_days += days
         return total_days
 

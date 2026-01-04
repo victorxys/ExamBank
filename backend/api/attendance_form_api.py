@@ -276,11 +276,14 @@ def get_attendance_form_by_token(employee_token):
                     effective_start = contract.start_date if contract else None
                     effective_end = contract.end_date if contract else None
                     
-                    # 对于月签合同，不使用合同的 end_date，因为它会自动续约
-                    # 前端会根据 is_monthly_auto_renew 和 status 来判断
-                    if contract and hasattr(contract, 'is_monthly_auto_renew') and contract.is_monthly_auto_renew and contract.status == 'active':
-                        # 月签合同：不设置 effective_end，让前端知道这是一个持续的合同
-                        effective_end = None
+                    # 对于月签合同，根据状态处理 effective_end
+                    if contract and hasattr(contract, 'is_monthly_auto_renew') and contract.is_monthly_auto_renew:
+                        if contract.status == 'active':
+                            # 月签合同且未终止：不设置 effective_end，让前端知道这是一个持续的合同
+                            effective_end = None
+                        elif contract.status == 'terminated' and contract.termination_date:
+                            # 月签合同已终止：使用 termination_date 作为实际结束日期
+                            effective_end = contract.termination_date
                     
                     result = form_to_dict(existing_form, effective_start, effective_end)
                     # 添加实际使用的年月（让前端同步 URL 和状态）

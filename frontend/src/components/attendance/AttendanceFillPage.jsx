@@ -15,8 +15,21 @@ import { useHolidays } from '../../hooks/useHolidays';
 import WechatShare from '../WechatShare';
 
 // Helper function to format duration
+// 兼容两种数据格式：
+// 1. 旧格式：hours 是小数（如 10.5），minutes 也有值（如 30）- 此时 hours 已包含分钟，忽略 minutes
+// 2. 新格式：hours 是整数（如 10），minutes 是余数（如 30）- 正常计算
 const formatDuration = (hours, minutes = 0) => {
-    const totalHours = hours + minutes / 60;
+    let totalHours;
+    
+    // 检测旧格式：如果 hours 有小数部分，说明是旧格式，直接使用 hours
+    if (hours % 1 !== 0) {
+        // 旧格式：hours 已经是完整的小时数（包含小数），忽略 minutes
+        totalHours = hours;
+    } else {
+        // 新格式：hours 是整数，minutes 是余数分钟
+        totalHours = hours + minutes / 60;
+    }
+    
     if (totalHours < 24) {
         // Less than 24 hours: show hours with 2 decimal places
         return `${totalHours.toFixed(2)}小时`;
@@ -890,11 +903,18 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
             return { days: 0, hours: 0, minutes: 0, totalHours: 0 };
         }
 
+        // 注意：totalHours 是包含小数的总小时数（如 10.5）
+        // minutes 应该是 totalHours 的小数部分转换为分钟，而不是额外的分钟
+        // 这样在显示时 formatDuration(totalHours, 0) 或 formatDuration(hours, minutes) 都能正确显示
+        const totalHoursFloat = duration.totalHours;
+        const wholeHours = Math.floor(totalHoursFloat);
+        const remainingMinutes = Math.round((totalHoursFloat - wholeHours) * 60);
+
         return {
             days: duration.days,
-            hours: duration.totalHours - Math.floor(duration.totalHours / 24) * 24,
-            minutes: duration.totalMinutes,
-            totalHours: duration.totalHours
+            hours: wholeHours,
+            minutes: remainingMinutes,
+            totalHours: totalHoursFloat
         };
     }, [editingDate, tempRecord.daysOffset, tempRecord.startTime, tempRecord.endTime, isReadOnly, coveringRecord]);
 
@@ -981,7 +1001,7 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                 const recordKey = `${tempRecord.type}_records`;
                 newData[recordKey] = [...(newData[recordKey] || []), {
                     date: dateStr,
-                    hours: calculatedDuration.totalHours,
+                    hours: calculatedDuration.hours,
                     minutes: calculatedDuration.minutes,
                     type: tempRecord.type,
                     daysOffset: tempRecord.daysOffset || 0,
@@ -2010,7 +2030,7 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                             
                                             const recordForExtreme = {
                                                 date: format(editingDate, 'yyyy-MM-dd'),
-                                                hours: calculatedDuration.totalHours,
+                                                hours: calculatedDuration.hours,
                                                 minutes: calculatedDuration.minutes,
                                                 daysOffset: tempRecord.daysOffset || 0,
                                                 type: tempRecord.type
