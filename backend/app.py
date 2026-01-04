@@ -78,6 +78,7 @@ from backend.api.dynamic_form_api import dynamic_form_bp
 from backend.api.dynamic_form_data_api import dynamic_form_data_bp
 from backend.api.form_folder_api import form_folder_bp
 from backend.api.attendance_form_api import attendance_form_bp
+from backend.api.dashboard_routes import dashboard_bp as revenue_dashboard_bp
 
 # ... (existing code)
 
@@ -309,6 +310,7 @@ app.register_blueprint(dynamic_form_bp)
 app.register_blueprint(dynamic_form_data_bp)
 app.register_blueprint(form_folder_bp)
 app.register_blueprint(attendance_form_bp)
+app.register_blueprint(revenue_dashboard_bp)
 # app.register_blueprint(statement_bp, url_prefix="/api") 
 
 from backend.api.upload_api import upload_bp

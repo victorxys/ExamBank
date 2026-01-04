@@ -21,10 +21,28 @@ const formatDuration = (hours, minutes = 0) => {
         // Less than 24 hours: show hours with 2 decimal places
         return `${totalHours.toFixed(2)}小时`;
     } else {
-        // 24 hours or more: show as days with 3 decimal places
-        const days = (totalHours / 24).toFixed(3);
-        return `${days}天`;
+        // 24 hours or more: show as days and hours
+        const days = Math.floor(totalHours / 24);
+        const remainingHours = Math.round(totalHours % 24);
+        if (remainingHours === 0) {
+            return `${days}天`;
+        }
+        return `${days}天${remainingHours}小时`;
     }
+};
+
+// Helper function to format days (for summary display)
+const formatDays = (totalDays) => {
+    if (totalDays === 0) return '0';
+    const days = Math.floor(totalDays);
+    const remainingHours = Math.round((totalDays - days) * 24);
+    if (remainingHours === 0) {
+        return `${days}`;
+    }
+    if (days === 0) {
+        return `${remainingHours}小时`;
+    }
+    return `${days}天${remainingHours}小时`;
 };
 
 const ATTENDANCE_TYPES = {
@@ -1249,15 +1267,15 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                     <div className="bg-white rounded-2xl p-4 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.08)] border border-gray-100">
                         <div className="grid grid-cols-3 gap-3 text-center divide-x divide-gray-100">
                             <div>
-                                <div className="text-2xl font-black text-gray-900">{totalWorkDays.toFixed(3)}</div>
+                                <div className="text-2xl font-black text-gray-900">{formatDays(totalWorkDays)}</div>
                                 <div className="text-[11px] font-medium text-gray-400 mt-1">出勤(天)</div>
                             </div>
                             <div>
-                                <div className="text-2xl font-black text-orange-500">{totalLeaveDays.toFixed(3)}</div>
+                                <div className="text-2xl font-black text-orange-500">{formatDays(totalLeaveDays)}</div>
                                 <div className="text-[11px] font-medium text-gray-400 mt-1">请假/休假</div>
                             </div>
                             <div>
-                                <div className="text-2xl font-black text-green-600">{totalOvertimeDays.toFixed(3)}</div>
+                                <div className="text-2xl font-black text-green-600">{formatDays(totalOvertimeDays)}</div>
                                 <div className="text-[11px] font-medium text-gray-400 mt-1">加班(天)</div>
                             </div>
                         </div>
@@ -1412,8 +1430,7 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                                 // 对于非正常考勤类型，显示总时长（天数格式）
                                                 if (record.type !== 'normal') {
                                                     const totalHours = (record.hours || 0) + (record.minutes || 0) / 60;
-                                                    const days = (totalHours / 24).toFixed(3);
-                                                    return `${days}天`;
+                                                    return formatDuration(totalHours);
                                                 }
 
                                                 // 对于出勤类型，显示实际工作时长

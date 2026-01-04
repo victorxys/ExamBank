@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>营收概览 - 行政视图 (V7)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+        }
+
+        .card {
+            background-color: #1e293b;
+            border: 1px solid #334155;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+
+        .glass {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+    </style>
+</head>
+
+<body class="min-h-screen p-6">
+
+    <!-- Header -->
+    <header class="flex justify-between items-center mb-8">
+        <div>
+            <h1 class="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-emerald-400">
+                营收概览</h1>
+            <p class="text-slate-400 mt-1">2026年财年 · 实时数据</p>
+        </div>
+        <div class="flex gap-3">
+            <button
+                class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-sm font-medium rounded-lg border border-slate-700 transition">本年</button>
+            <button
+                class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-sm font-medium rounded-lg shadow-lg shadow-blue-500/30 transition">最近12个月</button>
+        </div>
+    </header>
+
+    <!-- KPI Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <!-- KPI 1: Total Revenue -->
+        <div class="card rounded-2xl p-6 relative overflow-hidden group">
+            <div
+                class="absolute right-0 top-0 w-32 h-32 bg-emerald-500/10 rounded-full -mr-16 -mt-16 group-hover:bg-emerald-500/20 transition duration-500">
+            </div>
+            <div class="flex justify-between items-start">
+                <div>
+                    <p class="text-slate-400 text-sm font-medium uppercase tracking-wider">总营收 (Total Revenue)</p>
+                    <h3 class="text-3xl font-bold text-white mt-2">¥ 2,845,000</h3>
+                </div>
+                <span
+                    class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400">
+                    +12.5% ↑
+                </span>
+            </div>
+            <p class="text-slate-500 text-xs mt-4">较去年同期增长 ¥315,000</p>
+        </div>
+
+        <!-- KPI 2: Net Income -->
+        <div class="card rounded-2xl p-6 relative overflow-hidden group">
+            <div
+                class="absolute right-0 top-0 w-32 h-32 bg-blue-500/10 rounded-full -mr-16 -mt-16 group-hover:bg-blue-500/20 transition duration-500">
+            </div>
+            <div class="flex justify-between items-start">
+                <div>
+                    <p class="text-slate-400 text-sm font-medium uppercase tracking-wider">净收入 (Net Income)</p>
+                    <h3 class="text-3xl font-bold text-white mt-2">¥ 1,920,400</h3>
+                </div>
+                <span
+                    class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-500/10 text-blue-400">
+                    +8.2% ↑
+                </span>
+            </div>
+            <p class="text-slate-500 text-xs mt-4">扣除返佣与渠道费</p>
+        </div>
+
+        <!-- KPI 3: Active Customers -->
+        <div class="card rounded-2xl p-6 relative overflow-hidden group border-orange-500/20">
+            <div
+                class="absolute right-0 top-0 w-32 h-32 bg-orange-500/10 rounded-full -mr-16 -mt-16 group-hover:bg-orange-500/20 transition duration-500">
+            </div>
+            <div class="flex justify-between items-start">
+                <div>
+                    <p class="text-slate-400 text-sm font-medium uppercase tracking-wider">活跃客户 (Active Customers)</p>
+                    <h3 class="text-3xl font-bold text-orange-200 mt-2">482 人</h3>
+                </div>
+                <span class="text-orange-400">
+                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
+                </span>
+            </div>
+            <p class="text-slate-500 text-xs mt-4">当前有生效合同的客户</p>
+        </div>
+
+        <!-- KPI 4: Current Employees -->
+        <div class="card rounded-2xl p-6 relative overflow-hidden group">
+            <div
+                class="absolute right-0 top-0 w-32 h-32 bg-purple-500/10 rounded-full -mr-16 -mt-16 group-hover:bg-purple-500/20 transition duration-500">
+            </div>
+            <div class="flex justify-between items-start">
+                <div>
+                    <p class="text-slate-400 text-sm font-medium uppercase tracking-wider">当前员工 (Employees)</p>
+                    <h3 class="text-3xl font-bold text-white mt-2">156 人</h3>
+                </div>
+                <span
+                    class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-500/10 text-purple-400">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </span>
+            </div>
+            <p class="text-slate-500 text-xs mt-4">在上户阿姨 + 内部员工</p>
+        </div>
+    </div>
+
+    <!-- Charts Row 1: Trend & Composition -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+
+        <!-- Main Revenue Trend (Left) -->
+        <div class="card rounded-2xl p-6 lg:col-span-2">
+            <div class="flex justify-between items-center mb-6">
+                <h4 class="text-lg font-semibold text-white">年度营收趋势 (YoY)</h4>
+                <div class="flex items-center gap-4 text-xs">
+                    <span class="flex items-center text-slate-400"><span
+                            class="w-3 h-3 rounded-full bg-blue-500 mr-2"></span>今年</span>
+                    <span class="flex items-center text-slate-400"><span
+                            class="w-3 h-3 rounded-full bg-slate-700 mr-2"></span>去年</span>
+                </div>
+            </div>
+            <div class="h-80 w-full">
+                <canvas id="revenueChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Service Type Revenue Breakdown (Right) -->
+        <div class="card rounded-2xl p-6 flex flex-col">
+            <h4 class="text-lg font-semibold text-white mb-2">业务收入占比</h4>
+            <p class="text-xs text-slate-400 mb-6">按业务及费用类型细分</p>
+
+            <div class="flex-1 flex justify-center items-center relative">
+                <div class="h-64 w-full">
+                    <canvas id="serviceMixChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Detailed Legend -->
+            <div class="mt-4 grid grid-cols-2 gap-2 text-xs">
+                <!-- Nanny -->
+                <div class="col-span-1 space-y-1">
+                    <p class="text-blue-200 font-semibold mb-1">育儿嫂 (Nanny)</p>
+                    <div class="flex justify-between items-center">
+                        <span class="flex items-center text-slate-400"><span
+                                class="w-2 h-2 rounded-full bg-blue-600 mr-1.5"></span>管理费</span>
+                        <span class="text-white">56%</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="flex items-center text-slate-400"><span
+                                class="w-2 h-2 rounded-full bg-blue-400 mr-1.5"></span>介绍费</span>
+                        <span class="text-white">14%</span>
+                    </div>
+                </div>
+                <!-- Maternity + Other -->
+                <div class="col-span-1 space-y-1">
+                    <p class="text-emerald-200 font-semibold mb-1">月嫂 & 其他</p>
+                    <div class="flex justify-between items-center">
+                        <span class="flex items-center text-slate-400"><span
+                                class="w-2 h-2 rounded-full bg-emerald-500 mr-1.5"></span>管理/介绍</span>
+                        <span class="text-white">20%</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="flex items-center text-slate-400"><span
+                                class="w-2 h-2 rounded-full bg-slate-500 mr-1.5"></span>其他/试工</span>
+                        <span class="text-white">10%</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row 2: Detailed Fee Comparison -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="card rounded-2xl p-6">
+            <h4 class="text-lg font-semibold text-white mb-6">收入类型构成详情</h4>
+            <!-- Stacked Bar Horizontal -->
+            <div class="space-y-6">
+                <!-- Nanny Row -->
+                <div>
+                    <div class="flex justify-between text-sm mb-2">
+                        <span class="text-white font-medium">育儿嫂 (Nanny)</span>
+                        <span class="text-slate-400">总计: ¥ 1,991,500</span>
+                    </div>
+                    <div class="w-full h-8 bg-slate-800 rounded-full flex overflow-hidden">
+                        <div class="h-full bg-blue-600 flex items-center justify-center text-xs text-white font-medium"
+                            style="width: 80%">管理费 80%</div>
+                        <div class="h-full bg-blue-400 flex items-center justify-center text-xs text-input font-medium"
+                            style="width: 20%">介绍费 20%</div>
+                    </div>
+                </div>
+
+                <!-- Maternity Row -->
+                <div>
+                    <div class="flex justify-between text-sm mb-2">
+                        <span class="text-white font-medium">月嫂 (Maternity Nurse)</span>
+                        <span class="text-slate-400">总计: ¥ 569,000</span>
+                    </div>
+                    <div class="w-full h-8 bg-slate-800 rounded-full flex overflow-hidden">
+                        <div class="h-full bg-emerald-500 flex items-center justify-center text-xs text-white font-medium"
+                            style="width: 30%">管理费 30%</div>
+                        <div class="h-full bg-emerald-300 flex items-center justify-center text-xs text-slate-900 font-medium"
+                            style="width: 70%">介绍费 70%</div>
+                    </div>
+                </div>
+
+                <!-- Other Row -->
+                <div>
+                    <div class="flex justify-between text-sm mb-2">
+                        <span class="text-slate-300 font-medium">其他 (Other/Trial)</span>
+                        <span class="text-slate-400">总计: ¥ 284,500</span>
+                    </div>
+                    <div class="w-full h-8 bg-slate-800 rounded-full flex overflow-hidden">
+                        <div class="h-full bg-slate-500 flex items-center justify-center text-xs text-white font-medium"
+                            style="width: 50%">试工费 50%</div>
+                        <div class="h-full bg-slate-600 flex items-center justify-center text-xs text-white font-medium"
+                            style="width: 50%">杂项收入 50%</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Trend Breakdown -->
+        <div class="card rounded-2xl p-6">
+            <div class="flex justify-between items-center mb-6">
+                <h4 class="text-lg font-semibold text-white">各类目营收趋势 (Annual)</h4>
+                <!-- Mock Toggle for Visual Representation -->
+                <div class="flex gap-1 bg-slate-800 p-1 rounded-lg">
+                    <span class="px-2 py-1 text-xs text-white bg-slate-600 rounded">本年</span>
+                    <span class="px-2 py-1 text-xs text-slate-400">近12月</span>
+                </div>
+            </div>
+            <div class="h-48 w-full">
+                <canvas id="trendBreakdownChart"></canvas>
+            </div>
+            <div class="mt-4 flex gap-4 justify-center text-xs">
+                <span class="flex items-center text-slate-300"><span
+                        class="w-2 h-2 rounded-full bg-blue-500 mr-2"></span>育儿嫂</span>
+                <span class="flex items-center text-slate-300"><span
+                        class="w-2 h-2 rounded-full bg-emerald-500 mr-2"></span>月嫂</span>
+                <span class="flex items-center text-slate-300"><span
+                        class="w-2 h-2 rounded-full bg-slate-500 mr-2"></span>其他</span>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+        // --- 1. Main Revenue Trend (Bar) ---
+        const revenueCtx = document.getElementById('revenueChart').getContext('2d');
+        new Chart(revenueCtx, {
+            type: 'bar',
+            data: {
+                labels: ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'],
+                datasets: [
+                    {
+                        label: '2025 营收',
+                        data: [150, 180, 160, 200, 220, 250, 280, 260, 300, 280, 320, 350],
+                        backgroundColor: '#3b82f6',
+                        borderRadius: 4,
+                        barPercentage: 0.6
+                    },
+                    {
+                        label: '2024 营收',
+                        data: [120, 140, 130, 160, 180, 200, 210, 200, 220, 210, 240, 260],
+                        backgroundColor: '#334155',
+                        borderRadius: 4,
+                        barPercentage: 0.6
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' } },
+                    x: { grid: { display: false }, ticks: { color: '#94a3b8' } }
+                }
+            }
+        });
+
+        // --- 2. Service Mix (Doughnut - Detailed) ---
+        const serviceMixCtx = document.getElementById('serviceMixChart').getContext('2d');
+        new Chart(serviceMixCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['育儿嫂-管理费', '育儿嫂-介绍费', '月嫂-介绍费', '月嫂-管理费', '其他'],
+                datasets: [{
+                    data: [56, 14, 14, 6, 10],
+                    backgroundColor: [
+                        '#2563eb', // Nanny Mgmt
+                        '#60a5fa', // Nanny Intro
+                        '#34d399', // Maternity Intro
+                        '#10b981', // Maternity Mgmt
+                        '#64748b'  // Other
+                    ],
+                    borderColor: '#1e293b',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '65%',
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+
+        // --- 3. Trend Breakdown (Line - Annual 12 Months) ---
+        const trendBreakdownCtx = document.getElementById('trendBreakdownChart').getContext('2d');
+        new Chart(trendBreakdownCtx, {
+            type: 'line',
+            data: {
+                labels: ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'],
+                datasets: [
+                    {
+                        label: '育儿嫂 (Nanny)',
+                        data: [50, 52, 55, 58, 60, 65, 68, 70, 72, 75, 78, 80],
+                        borderColor: '#3b82f6',
+                        backgroundColor: '#3b82f6',
+                        pointRadius: 2,
+                        tension: 0.4
+                    },
+                    {
+                        label: '月嫂 (Maternity)',
+                        data: [15, 18, 16, 20, 22, 20, 25, 24, 28, 26, 30, 28],
+                        borderColor: '#10b981',
+                        backgroundColor: '#10b981',
+                        pointRadius: 2,
+                        tension: 0.4
+                    },
+                    {
+                        label: '其他 (Other)',
+                        data: [8, 9, 8, 10, 12, 11, 13, 12, 14, 13, 15, 14],
+                        borderColor: '#64748b',
+                        backgroundColor: '#64748b',
+                        borderDash: [5, 5],
+                        pointRadius: 2,
+                        tension: 0.4
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { display: false },
+                    x: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' } }
+                }
+            }
+        });
+    </script>
+</body>
+
+</html>

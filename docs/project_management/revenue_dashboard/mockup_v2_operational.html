@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Operational Flow - Design B (V2)</title>
+    <title>运营流水 - 方案 B (V2)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -63,12 +63,12 @@
     <!-- Header -->
     <header class="flex justify-between items-center mb-10">
         <div>
-            <h1 class="text-3xl font-bold text-white">Operational Flow</h1>
-            <p class="text-slate-400 mt-1">Leading Indicators & Pipeline Health</p>
+            <h1 class="text-3xl font-bold text-white">运营流水 (Operational Flow)</h1>
+            <p class="text-slate-400 mt-1">领先指标 & 管道健康度</p>
         </div>
         <button
             class="bg-primary-600 hover:bg-primary-500 text-white px-6 py-2 rounded-lg font-medium transition shadow-lg shadow-cyan-500/20">
-            Export Pipeline Report
+            导出管道报表
         </button>
     </header>
 
@@ -80,31 +80,31 @@
             <!-- Overall Health Stats -->
             <div class="grid grid-cols-3 gap-4">
                 <div class="card p-5 rounded-2xl">
-                    <p class="text-xs text-slate-400 uppercase tracking-widest">Active Leads</p>
+                    <p class="text-xs text-slate-400 uppercase tracking-widest">活跃线索 (Active Leads)</p>
                     <h3 class="text-2xl font-bold text-white mt-1">482</h3>
-                    <p class="text-emerald-400 text-xs mt-1">+12% vs Last Month</p>
+                    <p class="text-emerald-400 text-xs mt-1">环比 +12%</p>
                 </div>
                 <div class="card p-5 rounded-2xl">
-                    <p class="text-xs text-slate-400 uppercase tracking-widest">Conversion Rate</p>
+                    <p class="text-xs text-slate-400 uppercase tracking-widest">总体转化率 (Conversion)</p>
                     <h3 class="text-2xl font-bold text-white mt-1">18.5%</h3>
-                    <p class="text-emerald-400 text-xs mt-1">+2.1% Efficiency</p>
+                    <p class="text-emerald-400 text-xs mt-1">效率提升 +2.1%</p>
                 </div>
                 <div class="card p-5 rounded-2xl border-rose-500/30">
-                    <p class="text-xs text-slate-400 uppercase tracking-widest">Churn Risk</p>
-                    <h3 class="text-2xl font-bold text-rose-400 mt-1">8 Contracts</h3>
-                    <p class="text-slate-500 text-xs mt-1">High probability of drop-off</p>
+                    <p class="text-xs text-slate-400 uppercase tracking-widest">流失风险 (Churn Risks)</p>
+                    <h3 class="text-2xl font-bold text-rose-400 mt-1">8 个合同</h3>
+                    <p class="text-slate-500 text-xs mt-1">极高概率退单</p>
                 </div>
             </div>
 
             <!-- Funnel Visualization -->
             <div class="card rounded-3xl p-8">
-                <h3 class="text-lg font-bold text-white mb-6">Sales Funnel (This Month)</h3>
+                <h3 class="text-lg font-bold text-white mb-6">销售漏斗 (本月)</h3>
 
                 <div class="space-y-2">
                     <!-- Step 1 -->
                     <div class="funnel-step rounded-r-lg flex justify-between items-center group">
                         <div class="funnel-bar rounded-r-lg" style="width: 100%"></div>
-                        <span class="font-medium text-slate-200">Total Leads (Inquiries)</span>
+                        <span class="font-medium text-slate-200">总线索 (Inquiries)</span>
                         <div class="text-right">
                             <span class="block font-bold text-white">2,450</span>
                             <span class="text-xs text-slate-500">100%</span>
@@ -113,35 +113,35 @@
                     <!-- Step 2 -->
                     <div class="funnel-step rounded-r-lg flex justify-between items-center">
                         <div class="funnel-bar rounded-r-lg" style="width: 60%"></div>
-                        <span class="font-medium text-slate-200">Qualified (Interviewed)</span>
+                        <span class="font-medium text-slate-200">有效沟通 (Qualified)</span>
                         <div class="text-right">
                             <span class="block font-bold text-white">1,470</span>
-                            <span class="text-xs text-slate-500">60% conv.</span>
+                            <span class="text-xs text-slate-500">60% 转化</span>
                         </div>
                     </div>
                     <!-- Step 3 -->
                     <div class="funnel-step rounded-r-lg flex justify-between items-center">
                         <div class="funnel-bar rounded-r-lg" style="width: 35%"></div>
-                        <span class="font-medium text-slate-200">Trial Period (Probation)</span>
+                        <span class="font-medium text-slate-200">试工期 (Trial)</span>
                         <div class="text-right">
                             <span class="block font-bold text-white">857</span>
-                            <span class="text-xs text-slate-500">58% conv.</span>
+                            <span class="text-xs text-slate-500">58% 转化</span>
                         </div>
                     </div>
                     <!-- Step 4 -->
                     <div
                         class="funnel-step rounded-r-lg flex justify-between items-center border-l-emerald-500 bg-emerald-500/10">
                         <div class="funnel-bar bg-emerald-500 rounded-r-lg" style="width: 18%"></div>
-                        <span class="font-medium text-white">Closed Won (Signed)</span>
+                        <span class="font-medium text-white">正式签约 (Signed)</span>
                         <div class="text-right">
                             <span class="block font-bold text-emerald-400">441</span>
-                            <span class="text-xs text-slate-400">51% conv.</span>
+                            <span class="text-xs text-slate-400">51% 转化</span>
                         </div>
                     </div>
                 </div>
 
                 <div class="mt-6 pt-6 border-t border-slate-700">
-                    <h4 class="text-sm font-semibold text-slate-400 mb-3">Conversion Trend</h4>
+                    <h4 class="text-sm font-semibold text-slate-400 mb-3">转化率趋势</h4>
                     <div class="h-32">
                         <canvas id="funnelTrendChart"></canvas>
                     </div>
@@ -155,31 +155,31 @@
             <!-- Renewals -->
             <div class="card rounded-3xl p-6">
                 <div class="flex justify-between mb-4">
-                    <h3 class="font-bold text-white">Upcoming Renewals</h3>
-                    <span class="bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded text-xs">Next 30 Days</span>
+                    <h3 class="font-bold text-white">即将续签</h3>
+                    <span class="bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded text-xs">未来 30 天</span>
                 </div>
                 <div class="space-y-4">
                     <div class="flex items-center gap-3 p-3 hover:bg-slate-800 rounded-xl transition cursor-pointer">
                         <div
                             class="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-300">
-                            JL</div>
+                            刘</div>
                         <div class="flex-1">
-                            <p class="text-sm font-medium text-white">James Liu</p>
-                            <p class="text-xs text-slate-400">Exp: Jan 12 · ¥18,000</p>
+                            <p class="text-sm font-medium text-white">刘先生 (James Liu)</p>
+                            <p class="text-xs text-slate-400">到期: 1月12日 · ¥18,000</p>
                         </div>
                         <button
-                            class="text-xs bg-primary-600 px-3 py-1.5 rounded text-white hover:bg-primary-500">Renew</button>
+                            class="text-xs bg-primary-600 px-3 py-1.5 rounded text-white hover:bg-primary-500">续签</button>
                     </div>
                     <div class="flex items-center gap-3 p-3 hover:bg-slate-800 rounded-xl transition cursor-pointer">
                         <div
                             class="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-300">
-                            SW</div>
+                            王</div>
                         <div class="flex-1">
-                            <p class="text-sm font-medium text-white">Sarah Wang</p>
-                            <p class="text-xs text-slate-400">Exp: Jan 15 · ¥22,000</p>
+                            <p class="text-sm font-medium text-white">王女士 (Sarah)</p>
+                            <p class="text-xs text-slate-400">到期: 1月15日 · ¥22,000</p>
                         </div>
                         <button
-                            class="text-xs bg-primary-600 px-3 py-1.5 rounded text-white hover:bg-primary-500">Renew</button>
+                            class="text-xs bg-primary-600 px-3 py-1.5 rounded text-white hover:bg-primary-500">续签</button>
                     </div>
                     <div
                         class="flex items-center gap-3 p-3 hover:bg-slate-800 rounded-xl transition cursor-pointer border border-rose-500/20 bg-rose-500/5">
@@ -187,18 +187,17 @@
                             class="w-10 h-10 rounded-full bg-rose-900/50 flex items-center justify-center text-xs font-bold text-rose-300">
                             !!</div>
                         <div class="flex-1">
-                            <p class="text-sm font-medium text-white">Project Delta</p>
-                            <p class="text-xs text-rose-400">Auto-renew failed</p>
+                            <p class="text-sm font-medium text-white">Delta 项目</p>
+                            <p class="text-xs text-rose-400">自动续费失败</p>
                         </div>
-                        <button
-                            class="text-xs bg-rose-600 px-3 py-1.5 rounded text-white hover:bg-rose-500">Fix</button>
+                        <button class="text-xs bg-rose-600 px-3 py-1.5 rounded text-white hover:bg-rose-500">修复</button>
                     </div>
                 </div>
             </div>
 
             <!-- AR Aging Summary -->
             <div class="card rounded-3xl p-6">
-                <h3 class="font-bold text-white mb-4">AR Aging Summary</h3>
+                <h3 class="font-bold text-white mb-4">应收账款账龄 (AR Aging)</h3>
                 <div class="flex items-end gap-2 mb-2">
                     <div class="text-center w-1/3">
                         <div class="h-20 bg-slate-700 rounded-t w-full relative group">
@@ -206,7 +205,7 @@
                             <span
                                 class="absolute -top-6 left-0 w-full text-xs text-slate-400 opacity-0 group-hover:opacity-100">¥80k</span>
                         </div>
-                        <p class="text-xs text-slate-400 mt-1">0-30d</p>
+                        <p class="text-xs text-slate-400 mt-1">0-30天</p>
                     </div>
                     <div class="text-center w-1/3">
                         <div class="h-20 bg-slate-700 rounded-t w-full relative group">
@@ -214,7 +213,7 @@
                             <span
                                 class="absolute -top-6 left-0 w-full text-xs text-slate-400 opacity-0 group-hover:opacity-100">¥30k</span>
                         </div>
-                        <p class="text-xs text-slate-400 mt-1">31-60d</p>
+                        <p class="text-xs text-slate-400 mt-1">31-60天</p>
                     </div>
                     <div class="text-center w-1/3">
                         <div class="h-20 bg-slate-700 rounded-t w-full relative group">
@@ -222,7 +221,7 @@
                             <span
                                 class="absolute -top-6 left-0 w-full text-xs text-slate-400 opacity-0 group-hover:opacity-100">¥15k</span>
                         </div>
-                        <p class="text-xs text-rose-400 font-bold mt-1">60d+</p>
+                        <p class="text-xs text-rose-400 font-bold mt-1">60天+</p>
                     </div>
                 </div>
             </div>
@@ -235,9 +234,9 @@
         new Chart(ctx, {
             type: 'line',
             data: {
-                labels: ['W1', 'W2', 'W3', 'W4'],
+                labels: ['第1周', '第2周', '第3周', '第4周'],
                 datasets: [{
-                    label: 'Conversion Rate',
+                    label: '转化率',
                     data: [15, 16.5, 17, 18.5],
                     borderColor: '#06b6d4',
                     tension: 0.4,
