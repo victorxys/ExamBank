@@ -367,8 +367,16 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
             if (targetDate < startDate) return true;
         }
 
-        // 始终检查合同结束日期 - 合同结束后的日期都禁用
-        // 对于自动月签合同，如果已终止则使用终止日期；否则使用结束日期
+        // 检查合同结束日期 - 合同结束后的日期都禁用
+        // 对于自动月签合同：
+        //   - 如果状态是 active，不检查结束日期（会自动续约）
+        //   - 如果已终止，使用终止日期
+        // 对于普通合同，使用结束日期
+        if (contractInfo.is_monthly_auto_renew && contractInfo.status === 'active') {
+            // 月签合同且未终止，不检查结束日期限制
+            return false;
+        }
+        
         const endDateStr = (contractInfo.is_monthly_auto_renew && contractInfo.status === 'terminated' && contractInfo.termination_date)
             ? contractInfo.termination_date
             : contractInfo.end_date;
