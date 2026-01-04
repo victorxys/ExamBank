@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Strategic Pulse - Design A (V2)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        slate: { 850: '#151e2e', 900: '#0f172a' },
+                        primary: { 500: '#6366f1', 600: '#4f46e5' } // Indigo theme for Strategy
+                    },
+                    fontFamily: {
+                        sans: ['SF Pro Display', 'Inter', 'system-ui', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            background-color: #0f172a;
+            color: #e2e8f0;
+        }
+
+        .card {
+            background: #1e293b;
+            border: 1px solid #334155;
+        }
+
+        .gauge-bg {
+            fill: #334155;
+        }
+
+        .gauge-val {
+            fill: #6366f1;
+            transition: stroke-dasharray 1s ease;
+        }
+    </style>
+</head>
+
+<body class="min-h-screen p-8 max-w-7xl mx-auto">
+
+    <!-- Header -->
+    <header class="flex justify-between items-end mb-10">
+        <div>
+            <h1 class="text-4xl font-bold text-white tracking-tight">Strategic Pulse</h1>
+            <p class="text-slate-400 mt-2 text-lg">2026 Q1 · 目标与进度监控</p>
+        </div>
+        <div class="flex gap-4">
+            <div class="text-right">
+                <p class="text-xs text-slate-500 uppercase tracking-widest font-semibold">Current Runway</p>
+                <p class="text-2xl font-bold text-emerald-400">8.5 Months</p>
+            </div>
+            <div class="text-right border-l border-slate-700 pl-4">
+                <p class="text-xs text-slate-500 uppercase tracking-widest font-semibold">YTD Revenue</p>
+                <p class="text-2xl font-bold text-white">¥ 2.85M</p>
+            </div>
+        </div>
+    </header>
+
+    <!-- Section 1: Goals & Targets -->
+    <section class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
+        <!-- Goal 1: Revenue -->
+        <div class="card rounded-3xl p-8 relative overflow-hidden flex flex-col items-center">
+            <h3 class="text-slate-400 font-medium mb-4 uppercase text-sm tracking-wider">Revenue Target</h3>
+            <div class="relative w-48 h-24 overflow-hidden mb-4">
+                <!-- CSS-only simple gauge representation or SVG -->
+                <svg viewBox="0 0 100 50" class="w-full h-full transform translate-y-2">
+                    <path d="M10 50 A 40 40 0 0 1 90 50" class="gauge-bg" fill="none" stroke="#334155"
+                        stroke-width="12" />
+                    <path d="M10 50 A 40 40 0 0 1 75 20" class="gauge-val" fill="none" stroke="#6366f1"
+                        stroke-width="12" stroke-linecap="round" />
+                </svg>
+                <div class="absolute bottom-0 w-full text-center">
+                    <span class="text-3xl font-bold text-white">82%</span>
+                </div>
+            </div>
+            <p class="text-center text-slate-300">¥2.85M / <span class="text-slate-500">¥3.50M</span></p>
+            <div class="mt-4 px-3 py-1 bg-emerald-500/10 text-emerald-400 text-xs rounded-full font-medium">On Track
+            </div>
+        </div>
+
+        <!-- Goal 2: Net Profit Margin -->
+        <div class="card rounded-3xl p-8 relative overflow-hidden flex flex-col items-center">
+            <h3 class="text-slate-400 font-medium mb-4 uppercase text-sm tracking-wider">Net Profit Margin</h3>
+            <div class="relative w-48 h-24 overflow-hidden mb-4">
+                <svg viewBox="0 0 100 50" class="w-full h-full transform translate-y-2">
+                    <path d="M10 50 A 40 40 0 0 1 90 50" class="gauge-bg" fill="none" stroke="#334155"
+                        stroke-width="12" />
+                    <path d="M10 50 A 40 40 0 0 1 50 10" class="gauge-val" fill="none" stroke="#ec4899"
+                        stroke-width="12" stroke-linecap="round" />
+                </svg>
+                <div class="absolute bottom-0 w-full text-center">
+                    <span class="text-3xl font-bold text-white">45%</span>
+                </div>
+            </div>
+            <p class="text-center text-slate-300">Target: <span class="text-slate-500">40%</span></p>
+            <div class="mt-4 px-3 py-1 bg-pink-500/10 text-pink-400 text-xs rounded-full font-medium">Exceeding</div>
+        </div>
+
+        <!-- Goal 3: New Contracts -->
+        <div class="card rounded-3xl p-8 relative overflow-hidden flex flex-col items-center">
+            <h3 class="text-slate-400 font-medium mb-4 uppercase text-sm tracking-wider">New Signings</h3>
+            <div class="relative w-48 h-24 overflow-hidden mb-4">
+                <svg viewBox="0 0 100 50" class="w-full h-full transform translate-y-2">
+                    <path d="M10 50 A 40 40 0 0 1 90 50" class="gauge-bg" fill="none" stroke="#334155"
+                        stroke-width="12" />
+                    <path d="M10 50 A 40 40 0 0 1 40 20" class="gauge-val" fill="none" stroke="#f59e0b"
+                        stroke-width="12" stroke-linecap="round" />
+                </svg>
+                <div class="absolute bottom-0 w-full text-center">
+                    <span class="text-3xl font-bold text-white">124</span>
+                </div>
+            </div>
+            <p class="text-center text-slate-300">Goal: <span class="text-slate-500">200 / Month</span></p>
+            <div class="mt-4 px-3 py-1 bg-yellow-500/10 text-yellow-400 text-xs rounded-full font-medium">Lagging (-15%)
+            </div>
+        </div>
+    </section>
+
+    <!-- Section 2: Financial Health Trends -->
+    <section class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div class="card rounded-3xl p-8">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-bold text-white">Monthly Revenue vs Expenses</h3>
+                <div class="flex gap-2 text-sm text-slate-400">
+                    <span class="flex items-center"><span
+                            class="w-3 h-3 bg-indigo-500 rounded-full mr-2"></span>Income</span>
+                    <span class="flex items-center"><span
+                            class="w-3 h-3 bg-slate-600 rounded-full mr-2"></span>Expense</span>
+                </div>
+            </div>
+            <div class="h-64">
+                <canvas id="financeChart"></canvas>
+            </div>
+        </div>
+
+        <div class="card rounded-3xl p-8">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-bold text-white">Operational Efficiency</h3>
+            </div>
+            <div class="space-y-6">
+                <div>
+                    <div class="flex justify-between mb-2">
+                        <span class="text-slate-400">User Acquisition Cost (CAC)</span>
+                        <span class="text-white font-medium">¥ 450.00 <span
+                                class="text-xs text-emerald-400">(-5%)</span></span>
+                    </div>
+                    <div class="w-full bg-slate-800 rounded-full h-2">
+                        <div class="bg-indigo-500 h-2 rounded-full" style="width: 30%"></div>
+                    </div>
+                </div>
+                <div>
+                    <div class="flex justify-between mb-2">
+                        <span class="text-slate-400">Avg. Revenue Per User (ARPU)</span>
+                        <span class="text-white font-medium">¥ 12,500 <span
+                                class="text-xs text-emerald-400">(+12%)</span></span>
+                    </div>
+                    <div class="w-full bg-slate-800 rounded-full h-2">
+                        <div class="bg-purple-500 h-2 rounded-full" style="width: 75%"></div>
+                    </div>
+                </div>
+                <div>
+                    <div class="flex justify-between mb-2">
+                        <span class="text-slate-400">Churn Rate (Maternity)</span>
+                        <span class="text-white font-medium">2.1% <span
+                                class="text-xs text-rose-400 text-xs">(+0.5%)</span></span>
+                    </div>
+                    <div class="w-full bg-slate-800 rounded-full h-2">
+                        <div class="bg-rose-500 h-2 rounded-full" style="width: 15%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <script>
+        const ctx = document.getElementById('financeChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan'],
+                datasets: [
+                    {
+                        label: 'Income',
+                        data: [200, 220, 240, 280, 420, 380],
+                        backgroundColor: '#6366f1',
+                        borderRadius: 4
+                    },
+                    {
+                        label: 'Expenses',
+                        data: [150, 160, 180, 200, 250, 210],
+                        backgroundColor: '#475569',
+                        borderRadius: 4
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' } },
+                    x: { grid: { display: false }, ticks: { color: '#94a3b8' } }
+                }
+            }
+        });
+    </script>
+</body>
+
+</html>

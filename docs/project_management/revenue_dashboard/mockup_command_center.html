@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Command Center - Best Practice</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        slate: { 850: '#151e2e', 900: '#0f172a', 950: '#020617' },
+                        primary: { 500: '#3b82f6', 600: '#2563eb' }
+                    }
+                }
+            }
+        }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: #020617;
+            color: #e2e8f0;
+        }
+
+        .dashboard-card {
+            background: linear-gradient(145deg, #0f172a 0%, #172033 100%);
+            border: 1px solid #1e293b;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+        }
+
+        .progress-ring__circle {
+            transition: stroke-dashoffset 0.35s;
+            transform: rotate(-90deg);
+            transform-origin: 50% 50%;
+        }
+    </style>
+</head>
+
+<body class="min-h-screen p-6 grid grid-cols-12 gap-6">
+
+    <!-- Sidebar (Mini) -->
+    <aside class="col-span-1 hidden lg:flex flex-col items-center py-6 gap-8 border-r border-slate-800">
+        <div class="h-10 w-10 bg-primary-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/30">
+            <svg class="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+        </div>
+        <nav class="flex flex-col gap-6">
+            <a href="#" class="p-3 bg-slate-800 rounded-xl text-blue-400"><svg class="w-6 h-6" fill="none"
+                    viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                </svg></a>
+            <a href="#" class="p-3 text-slate-500 hover:text-slate-300 transition"><svg class="w-6 h-6" fill="none"
+                    viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg></a>
+            <a href="#" class="p-3 text-slate-500 hover:text-slate-300 transition"><svg class="w-6 h-6" fill="none"
+                    viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg></a>
+        </nav>
+    </aside>
+
+    <!-- Main Board -->
+    <main class="col-span-12 lg:col-span-11 grid grid-cols-12 gap-6">
+
+        <!-- Header -->
+        <div class="col-span-12 flex justify-between items-end mb-2">
+            <div>
+                <h2 class="text-3xl font-bold text-white">Command Center</h2>
+                <p class="text-slate-400 text-sm mt-1">2026 Q1 · January Performance</p>
+            </div>
+            <div class="flex items-center gap-4">
+                <div
+                    class="flex items-center gap-2 px-3 py-1 bg-rose-500/10 border border-rose-500/20 rounded-full text-rose-400 text-sm animate-pulse">
+                    <span class="w-2 h-2 rounded-full bg-rose-500"></span>
+                    2 笔大额合同即将到期
+                </div>
+                <div
+                    class="flex items-center gap-2 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full text-emerald-400 text-sm">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                    系统资源健康
+                </div>
+            </div>
+        </div>
+
+        <!-- 1. The Pulse (Target vs Actual) -->
+        <div class="col-span-12 lg:col-span-8 dashboard-card rounded-3xl p-8 relative overflow-hidden">
+            <div class="flex justify-between items-start z-10 relative">
+                <div>
+                    <h3 class="text-slate-400 uppercase tracking-wider text-sm font-semibold">Revenue Pace (Target:
+                        ¥3.5M)</h3>
+                    <div class="flex items-baseline gap-4 mt-2">
+                        <span class="text-5xl font-bold text-white">¥ 2,845,000</span>
+                        <span class="text-lg text-emerald-400 font-medium">+12.5% YoY</span>
+                    </div>
+                    <p class="text-slate-500 mt-2 text-sm">当前进度: 81.2% · 时间进度: 75% · <span class="text-emerald-400">超前进度
+                            (Ahead)</span></p>
+                </div>
+                <!-- Mini Progress Circle -->
+                <div class="relative w-24 h-24">
+                    <svg class="w-full h-full" viewBox="0 0 100 100">
+                        <circle class="text-slate-800" stroke-width="8" stroke="currentColor" fill="transparent" r="42"
+                            cx="50" cy="50" />
+                        <circle class="text-blue-500 progress-ring__circle" stroke-width="8" stroke-dasharray="264"
+                            stroke-dashoffset="50" stroke-linecap="round" stroke="currentColor" fill="transparent"
+                            r="42" cx="50" cy="50" />
+                    </svg>
+                    <div class="absolute inset-0 flex items-center justify-center text-white font-bold text-lg">81%
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chart overlay -->
+            <div class="mt-8 h-48 w-full">
+                <canvas id="targetChart"></canvas>
+            </div>
+        </div>
+
+        <!-- 2. Actionable Alerts (The "Do This Now" Column) -->
+        <div class="col-span-12 lg:col-span-4 flex flex-col gap-6">
+            <!-- AR Alert -->
+            <div class="dashboard-card rounded-3xl p-6 border-l-4 border-l-rose-500">
+                <div class="flex justify-between items-start mb-4">
+                    <div>
+                        <h4 class="text-rose-400 font-bold flex items-center gap-2">
+                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                            应收账款预警 (AR Risk)
+                        </h4>
+                        <p class="text-2xl font-bold text-white mt-1">¥ 124,000</p>
+                    </div>
+                </div>
+                <div class="space-y-3">
+                    <div class="flex justify-between text-sm py-2 border-b border-slate-700">
+                        <span class="text-slate-400">王先生 (逾期 45天)</span>
+                        <span class="text-rose-400">¥ 12,000</span>
+                    </div>
+                    <div class="flex justify-between text-sm py-2 border-b border-slate-700">
+                        <span class="text-slate-400">李女士 (逾期 32天)</span>
+                        <span class="text-rose-400">¥ 8,500</span>
+                    </div>
+                </div>
+                <button
+                    class="w-full mt-4 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 rounded-lg text-sm font-medium transition">
+                    查看全部逾期及催款
+                </button>
+            </div>
+
+            <!-- Conversion Health -->
+            <div class="dashboard-card rounded-3xl p-6 border-l-4 border-l-emerald-500">
+                <h4 class="text-emerald-400 font-bold mb-2">漏斗健康度 (Conversion)</h4>
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-slate-400 text-sm">线索 -> 签约</span>
+                    <span class="text-white font-bold">18.5% <span class="text-emerald-500 text-xs">↑ 2.1%</span></span>
+                </div>
+                <div class="w-full bg-slate-800 rounded-full h-2 mb-4">
+                    <div class="bg-emerald-500 h-2 rounded-full" style="width: 65%"></div>
+                </div>
+                <p class="text-xs text-slate-500">本月新增高意向线索 42 个，预计转化营收 ¥120k。</p>
+            </div>
+        </div>
+
+        <!-- 3. Leading Indicators & Operational Efficiency -->
+        <div class="col-span-12 lg:col-span-12 grid grid-cols-3 gap-6">
+            <!-- Metric A: Renewal Rate -->
+            <div class="dashboard-card rounded-2xl p-6 flex flex-col justify-between">
+                <div>
+                    <h5 class="text-slate-400 text-sm">合同续签率 (Renewal Rate)</h5>
+                    <h3 class="text-3xl font-bold text-white mt-2">88%</h3>
+                    <p class="text-xs text-slate-500 mt-1">其中 12% 升级为金牌月嫂</p>
+                </div>
+                <div class="mt-4 h-16 w-full opacity-50">
+                    <canvas id="renewalChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Metric B: Avg Revenue Per Contract -->
+            <div class="dashboard-card rounded-2xl p-6 flex flex-col justify-between">
+                <div>
+                    <h5 class="text-slate-400 text-sm">客单价 (ARPU)</h5>
+                    <h3 class="text-3xl font-bold text-white mt-2">¥ 12,500</h3>
+                    <p class="text-xs text-slate-500 mt-1">较上季度增长 ¥500</p>
+                </div>
+                <div class="mt-4 h-16 w-full opacity-50">
+                    <canvas id="arpuChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Metric C: Operational Cost Efficiency -->
+            <div class="dashboard-card rounded-2xl p-6 flex flex-col justify-between">
+                <div>
+                    <h5 class="text-slate-400 text-sm">纠纷退款占比 (Refund Rate)</h5>
+                    <h3 class="text-3xl font-bold text-rose-400 mt-2">2.1%</h3>
+                    <p class="text-xs text-slate-500 mt-1">控制在 5% 红线以内</p>
+                </div>
+                <div class="w-full bg-slate-800 rounded-full h-2 mt-auto">
+                    <div class="bg-rose-500 h-2 rounded-full" style="width: 20%"></div>
+                    <!-- Visualizing 2.1% relative to 10% max scale -->
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        // --- 1. Main Target vs Actual Chart ---
+        const targetCtx = document.getElementById('targetChart').getContext('2d');
+        const gradient = targetCtx.createLinearGradient(0, 0, 0, 400);
+        gradient.addColorStop(0, 'rgba(59, 130, 246, 0.5)'); // Blue
+        gradient.addColorStop(1, 'rgba(59, 130, 246, 0.0)');
+
+        new Chart(targetCtx, {
+            type: 'line',
+            data: {
+                labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
+                datasets: [
+                    {
+                        label: '实际营收',
+                        data: [650000, 1400000, 2100000, 2845000],
+                        borderColor: '#3b82f6',
+                        backgroundColor: gradient,
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 4,
+                        pointBackgroundColor: '#1e293b',
+                        pointBorderColor: '#3b82f6',
+                        pointBorderWidth: 2
+                    },
+                    {
+                        label: '目标进度',
+                        data: [875000, 1750000, 2625000, 3500000],
+                        borderColor: '#475569', // Slate 600
+                        borderWidth: 2,
+                        borderDash: [5, 5],
+                        fill: false,
+                        tension: 0.4,
+                        pointRadius: 0
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { display: false },
+                    y: { display: false, min: 0 }
+                },
+                layout: { padding: 0 }
+            }
+        });
+
+        // --- Mini Sparklines ---
+        function createSparkline(id, color) {
+            new Chart(document.getElementById(id).getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: [1, 2, 3, 4, 5, 6, 7],
+                    datasets: [{
+                        data: Array.from({ length: 7 }, () => Math.floor(Math.random() * 100)),
+                        backgroundColor: color,
+                        borderRadius: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { x: { display: false }, y: { display: false } },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+        createSparkline('renewalChart', '#10b981'); // Emerald
+        createSparkline('arpuChart', '#3b82f6'); // Blue
+    </script>
+</body>
+
+</html>

@@ -11,10 +11,10 @@ beat_schedule = {
         'task': 'tasks.reset_daily_tts_usage',
         'schedule': crontab(hour=0, minute=1),
     },
-    'sync-contracts-hourly': {
-        'task': 'tasks.sync_all_contracts',
-        'schedule': crontab(minute=1),
-    },
+    # 'sync-contracts-hourly': {
+    #     'task': 'tasks.sync_all_contracts',
+    #     'schedule': crontab(minute=1),
+    # },
     'auto-extend-renewal-bills-weekly': {
         'task': 'tasks.auto_check_and_extend_renewal_bills',
         'schedule': crontab(hour=2, minute=0, day_of_week='monday'),

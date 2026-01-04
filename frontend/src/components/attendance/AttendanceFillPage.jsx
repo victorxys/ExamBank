@@ -490,11 +490,13 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
     }, [realToken, selectedYear, selectedMonth]);
 
     // 检查 showShareHint 参数（单独的 useEffect）
+    // 当 URL 中有 showShareHint=true 参数时显示分享提示遮罩
+    // 这个参数只在员工提交后跳转时添加，客户直接打开链接时不会有这个参数
     useEffect(() => {
         const searchParams = new URLSearchParams(location.search);
         if (searchParams.get('showShareHint') === 'true') {
             setShowShareHint(true);
-            // Optional: Remove param from URL without reload
+            // 移除 URL 参数，这样客户分享后打开的链接不会有这个参数
             const newUrl = window.location.pathname;
             window.history.replaceState({}, '', newUrl);
         }
@@ -1630,7 +1632,7 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                                         });
                                                         // 更新状态
                                                         setFormData(prev => ({ ...prev, status: response.data.status, client_sign_url: response.data.client_sign_url }));
-                                                        // 直接跳转到签署页面
+                                                        // 直接跳转到签署页面，带上分享提示参数
                                                         if (response.data.client_sign_url) {
                                                             const signUrl = new URL(response.data.client_sign_url);
                                                             signUrl.searchParams.set('showShareHint', 'true');
@@ -2115,17 +2117,44 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                 </div>
             )}
 
-            {/* Share Hint Overlay */}
+            {/* Share Hint Overlay - 不可关闭，强制员工分享给客户 */}
+            {/* 只在有 showShareHint URL 参数时显示，客户直接打开链接时不会有这个参数 */}
             {showShareHint && (
-                <div
-                    className="fixed inset-0 bg-black/80 z-[100] flex flex-col items-end p-8 cursor-pointer"
-                    onClick={() => setShowShareHint(false)}
-                >
-                    <div className="text-white flex flex-col items-end animate-bounce">
-                        <ArrowRight className="w-12 h-12 -rotate-45 mb-4" />
-                        <div className="text-xl font-bold mb-2">点击右上角菜单</div>
-                        <div className="text-lg">选择"发送给朋友"</div>
-                        <div className="text-lg">分享给客户签署</div>
+                <div className="fixed inset-0 bg-black/90 z-[100] flex flex-col items-center justify-center p-8">
+                    {/* 右上角箭头指示 */}
+                    <div className="absolute top-4 right-4 text-white flex flex-col items-end animate-bounce">
+                        <ArrowRight className="w-12 h-12 -rotate-45 mb-2" />
+                    </div>
+                    
+                    {/* 中央提示内容 */}
+                    <div className="text-white text-center max-w-sm">
+                        <div className="text-2xl font-bold mb-4">考勤已提交</div>
+                        <div className="text-lg mb-6 text-gray-300">请将此页面分享给客户签署</div>
+                        
+                        <div className="bg-white/10 rounded-xl p-4 mb-6">
+                            <div className="text-lg font-bold mb-2">操作步骤：</div>
+                            <div className="text-left space-y-2">
+                                <div className="flex items-center gap-2">
+                                    <span className="bg-yellow-400 text-black w-6 h-6 rounded-full flex items-center justify-center text-sm font-bold">1</span>
+                                    <span>点击右上角「...」菜单</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <span className="bg-yellow-400 text-black w-6 h-6 rounded-full flex items-center justify-center text-sm font-bold">2</span>
+                                    <span>选择「发送给朋友」</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <span className="bg-yellow-400 text-black w-6 h-6 rounded-full flex items-center justify-center text-sm font-bold">3</span>
+                                    <span>发送给客户</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div className="text-yellow-300 font-bold text-lg">
+                            ⚠️ 请勿自己签署
+                        </div>
+                        <div className="text-gray-400 text-sm mt-2">
+                            签署需由客户完成
+                        </div>
                     </div>
                 </div>
             )}

@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analytical Grid - Design C (V2)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        slate: { 850: '#151e2e', 900: '#0f172a' },
+                        primary: { 500: '#8b5cf6', 600: '#7c3aed' } // Violet theme for Analysis/Data
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #0f172a;
+            color: #e2e8f0;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .card {
+            background: #1e293b;
+            border: 1px solid #334155;
+        }
+
+        .table-head {
+            @apply px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider;
+        }
+
+        .table-cell {
+            @apply px-6 py-4 whitespace-nowrap text-sm text-slate-300;
+        }
+
+        .badge {
+            @apply px-2 inline-flex text-xs leading-5 font-semibold rounded-full;
+        }
+    </style>
+</head>
+
+<body class="min-h-screen p-8 max-w-full">
+
+    <header class="flex justify-between items-center mb-8">
+        <div>
+            <h1 class="text-3xl font-bold text-white">Financial Analytics Grid</h1>
+            <p class="text-slate-400 mt-1">Outstanding AR, Liabilities & Revenue Audit</p>
+        </div>
+        <div class="flex gap-4">
+            <button class="text-slate-300 hover:text-white font-medium">Customize Columns</button>
+            <button
+                class="bg-primary-600 hover:bg-primary-500 text-white px-4 py-2 rounded-lg font-medium shadow-lg shadow-violet-500/20">Download
+                CSV</button>
+        </div>
+    </header>
+
+    <!-- AR Aging Analysis Section -->
+    <div class="card rounded-2xl mb-8 overflow-hidden">
+        <div class="p-6 border-b border-slate-700 flex justify-between items-center">
+            <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                <svg class="w-5 h-5 text-rose-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Accounts Receivable (AR) Aging Report
+            </h3>
+            <span class="text-sm text-slate-400">Total Outstanding: <span class="text-white font-bold">¥
+                    124,500.00</span></span>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-slate-700">
+                <thead class="bg-slate-800">
+                    <tr>
+                        <th class="table-head">Customer / Contract</th>
+                        <th class="table-head">Advisor</th>
+                        <th class="table-head">Due Date</th>
+                        <th class="table-head text-right">0-30 Days</th>
+                        <th class="table-head text-right">31-60 Days</th>
+                        <th class="table-head text-right">60+ Days (Risk)</th>
+                        <th class="table-head text-center">Action</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-slate-900 divide-y divide-slate-800">
+                    <!-- Row 1: High Risk -->
+                    <tr>
+                        <td class="table-cell">
+                            <div class="font-medium text-white">Wang, Michael</div>
+                            <div class="text-xs text-slate-500">Contract #8892 (Nanny)</div>
+                        </td>
+                        <td class="table-cell">Sarah Li</td>
+                        <td class="table-cell text-rose-400">Oct 12, 2025</td>
+                        <td class="table-cell text-right text-slate-600">-</td>
+                        <td class="table-cell text-right text-slate-600">-</td>
+                        <td class="table-cell text-right font-bold text-rose-500">¥ 12,000.00</td>
+                        <td class="table-cell text-center">
+                            <button class="text-indigo-400 hover:text-indigo-300 font-medium text-xs">Send
+                                Notice</button>
+                        </td>
+                    </tr>
+                    <!-- Row 2: Medium Risk -->
+                    <tr>
+                        <td class="table-cell">
+                            <div class="font-medium text-white">Chen, Emily</div>
+                            <div class="text-xs text-slate-500">Contract #9001 (Maternity)</div>
+                        </td>
+                        <td class="table-cell">John Wu</td>
+                        <td class="table-cell text-yellow-500">Nov 20, 2025</td>
+                        <td class="table-cell text-right text-slate-600">-</td>
+                        <td class="table-cell text-right font-medium text-yellow-500">¥ 8,500.00</td>
+                        <td class="table-cell text-right text-slate-600">-</td>
+                        <td class="table-cell text-center">
+                            <button class="text-indigo-400 hover:text-indigo-300 font-medium text-xs">Email</button>
+                        </td>
+                    </tr>
+                    <!-- Row 3: Current -->
+                    <tr>
+                        <td class="table-cell">
+                            <div class="font-medium text-white">Zhang, David</div>
+                            <div class="text-xs text-slate-500">Contract #9120 (Nanny)</div>
+                        </td>
+                        <td class="table-cell">Sarah Li</td>
+                        <td class="table-cell text-emerald-500">Dec 28, 2025</td>
+                        <td class="table-cell text-right font-medium text-white">¥ 4,000.00</td>
+                        <td class="table-cell text-right text-slate-600">-</td>
+                        <td class="table-cell text-right text-slate-600">-</td>
+                        <td class="table-cell text-center">
+                            <span class="text-slate-500 text-xs text-center">Current</span>
+                        </td>
+                    </tr>
+                </tbody>
+                <tfoot class="bg-slate-800 font-bold text-white">
+                    <tr>
+                        <td colspan="3" class="px-6 py-3 text-right">Subtotals</td>
+                        <td class="px-6 py-3 text-right">¥ 82,000.00</td>
+                        <td class="px-6 py-3 text-right text-yellow-500">¥ 27,500.00</td>
+                        <td class="px-6 py-3 text-right text-rose-500">¥ 15,000.00</td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+
+    <!-- Revenue & Liability Mix -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+
+        <!-- Detailed Revenue Mix -->
+        <div class="card rounded-2xl p-6">
+            <h3 class="font-bold text-white mb-4">Revenue Composition Audit</h3>
+            <div class="space-y-4">
+                <div class="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg">
+                    <div>
+                        <p class="text-sm font-medium text-white">Management Fees</p>
+                        <p class="text-xs text-slate-400">Recurring Monthly Revenue</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-sm font-bold text-white">¥ 1,840,000</p>
+                        <p class="text-xs text-emerald-400">65% of Total</p>
+                    </div>
+                </div>
+                <div class="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg">
+                    <div>
+                        <p class="text-sm font-medium text-white">Introduction Fees</p>
+                        <p class="text-xs text-slate-400">One-time Placement</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-sm font-bold text-white">¥ 720,000</p>
+                        <p class="text-xs text-emerald-400">25% of Total</p>
+                    </div>
+                </div>
+                <div class="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg opacity-60">
+                    <div>
+                        <p class="text-sm font-medium text-white">Other / Misc</p>
+                        <p class="text-xs text-slate-400">Late fees, adjustments</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-sm font-bold text-white">¥ 285,000</p>
+                        <p class="text-xs text-emerald-400">10% of Total</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Liability Watch -->
+        <div class="card rounded-2xl p-6 border-orange-500/20">
+            <h3 class="font-bold text-white mb-4 flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-orange-500"></span>
+                Held Liabilities (Deposits)
+            </h3>
+            <div class="p-4 bg-orange-500/10 rounded-xl mb-4">
+                <p class="text-orange-200 text-sm mb-1">Total Held in Escrow</p>
+                <h2 class="text-3xl font-bold text-orange-400">¥ 580,000</h2>
+            </div>
+            <p class="text-sm text-slate-400 mb-4">These funds are <strong>NOT</strong> revenue. They must be maintained
+                in the cash reserve.</p>
+            <div class="w-full bg-slate-800 rounded-full h-1.5">
+                <div class="bg-orange-500 h-1.5 rounded-full" style="width: 42%"></div>
+            </div>
+            <div class="flex justify-between text-xs text-slate-500 mt-2">
+                <span>Current Reserve</span>
+                <span>Req: ¥1.2M</span>
+            </div>
+        </div>
+
+    </div>
+
+</body>
+
+</html>
