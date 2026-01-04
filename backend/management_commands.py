@@ -1733,6 +1733,118 @@ def _create_management_fee_refund_adjustment(contract, bill):
             if not dry_run:
                 db.session.rollback()
 
+    @app.cli.command("debug-employee-contracts")
+    @click.argument("employee_id")
+    @click.option("--year", type=int, help="指定年份")
+    @click.option("--month", type=int, help="指定月份")
+    @with_appcontext
+    def debug_employee_contracts_command(employee_id, year, month):
+        """调试员工合同信息，用于排查考勤表显示问题。"""
+        from datetime import date
+        from calendar import monthrange
+        
+        print(f"\n=== 调试员工合同信息 ===")
+        print(f"员工ID: {employee_id}")
+        
+        # 1. 查找员工
+        employee = ServicePersonnel.query.get(employee_id)
+        if not employee:
+            print(f"❌ 错误：找不到员工 ID {employee_id}")
+            return
+        
+        print(f"✅ 员工姓名: {employee.name}")
+        print(f"   手机号: {employee.phone_number}")
+        print(f"   是否激活: {employee.is_active}")
+        
+        # 2. 查找该员工的所有合同
+        all_contracts = BaseContract.query.filter(
+            BaseContract.service_personnel_id == employee_id
+        ).order_by(BaseContract.start_date.desc()).all()
+        
+        print(f"\n--- 该员工的所有合同 ({len(all_contracts)} 个) ---")
+        for c in all_contracts:
+            is_monthly = getattr(c, 'is_monthly_auto_renew', False)
+            print(f"  合同ID: {c.id}")
+            print(f"    类型: {c.type}")
+            print(f"    状态: {c.status}")
+            print(f"    客户名: {c.customer_name}")
+            print(f"    family_id: {c.family_id}")
+            print(f"    开始日期: {c.start_date}")
+            print(f"    结束日期: {c.end_date}")
+            print(f"    终止日期: {c.termination_date}")
+            print(f"    月签合同: {is_monthly}")
+            print()
+        
+        # 3. 如果指定了年月，模拟 find_consecutive_contracts 的逻辑
+        if year and month:
+            last_day = monthrange(year, month)[1]
+            cycle_start = date(year, month, 1)
+            cycle_end = date(year, month, last_day)
+            
+            print(f"\n--- 模拟查找 {year}年{month}月 的合同 ---")
+            print(f"周期: {cycle_start} 到 {cycle_end}")
+            
+            # 模拟 find_consecutive_contracts 的查询逻辑
+            from sqlalchemy import or_, and_
+            
+            contracts = BaseContract.query.filter(
+                BaseContract.service_personnel_id == employee_id,
+                BaseContract.status.in_(['active', 'terminated', 'finished', 'completed']),
+                BaseContract.start_date <= cycle_end,
+                or_(
+                    # 情况1: 月签合同且状态为 active，不检查 end_date
+                    and_(
+                        BaseContract.type == 'nanny',
+                        NannyContract.is_monthly_auto_renew == True,
+                        BaseContract.status == 'active'
+                    ),
+                    # 情况2: 普通合同，检查 end_date
+                    BaseContract.end_date >= cycle_start
+                )
+            ).order_by(BaseContract.start_date.desc()).all()
+            
+            print(f"📋 符合条件的合同: {len(contracts)} 个")
+            for c in contracts:
+                is_monthly = getattr(c, 'is_monthly_auto_renew', False)
+                print(f"  - 合同 {c.id}: {c.start_date} 到 {c.end_date}, status={c.status}, 月签={is_monthly}")
+            
+            if not contracts:
+                print("\n❌ 没有找到符合条件的合同，这就是为什么显示'暂无考勤表'")
+                print("\n可能的原因:")
+                print("  1. 合同状态不在 ['active', 'terminated', 'finished', 'completed'] 中")
+                print("  2. 合同开始日期晚于周期结束日期")
+                print("  3. 合同结束日期早于周期开始日期（且不是月签合同）")
+                
+                # 额外检查：查看是否有合同但条件不匹配
+                print("\n--- 详细检查每个合同 ---")
+                for c in all_contracts:
+                    is_monthly = getattr(c, 'is_monthly_auto_renew', False)
+                    c_start = c.start_date.date() if hasattr(c.start_date, 'date') else c.start_date
+                    c_end = c.end_date.date() if c.end_date and hasattr(c.end_date, 'date') else c.end_date
+                    
+                    print(f"\n  合同 {c.id}:")
+                    print(f"    状态检查: {c.status} in ['active', 'terminated', 'finished', 'completed'] = {c.status in ['active', 'terminated', 'finished', 'completed']}")
+                    print(f"    开始日期检查: {c_start} <= {cycle_end} = {c_start <= cycle_end if c_start else 'N/A'}")
+                    if is_monthly and c.status == 'active':
+                        print(f"    月签合同且active，跳过结束日期检查")
+                    else:
+                        print(f"    结束日期检查: {c_end} >= {cycle_start} = {c_end >= cycle_start if c_end else 'N/A'}")
+                    
+                    # 检查是否是变更合同
+                    if c.customer_name:
+                        same_customer_contracts = BaseContract.query.filter(
+                            BaseContract.service_personnel_id == employee_id,
+                            BaseContract.customer_name == c.customer_name,
+                            BaseContract.id != c.id
+                        ).all()
+                        if same_customer_contracts:
+                            print(f"    同客户的其他合同: {len(same_customer_contracts)} 个")
+                            for sc in same_customer_contracts:
+                                print(f"      - {sc.id}: {sc.start_date} 到 {sc.end_date}, status={sc.status}")
+        else:
+            print("\n提示: 使用 --year 和 --month 参数可以模拟特定月份的合同查找逻辑")
+            print("例如: flask debug-employee-contracts <employee_id> --year 2025 --month 12")
+
 class UserImporter:
     def __init__(self):
         self.sync_service = DataSyncService()

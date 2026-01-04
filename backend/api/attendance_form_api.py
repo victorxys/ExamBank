@@ -1189,11 +1189,22 @@ def get_employee_attendance_forms(employee_token):
         # 查找该员工在指定月份的所有考勤表
         # 1. 先找到该员工在该月份的所有合同
         # 包含 finished 和 completed 状态，以支持续签合同的考勤填写
+        # 注意：对于月签合同（is_monthly_auto_renew=True），如果状态是 active，则忽略 end_date 限制
+        from sqlalchemy import or_, and_
         contracts = BaseContract.query.filter(
             BaseContract.service_personnel_id == employee_id,
             BaseContract.status.in_(['active', 'terminated', 'finished', 'completed']),
             BaseContract.start_date <= cycle_end,
-            BaseContract.end_date >= cycle_start
+            or_(
+                # 情况1: 月签合同且状态为 active，不检查 end_date（会自动续约）
+                and_(
+                    BaseContract.type == 'nanny',
+                    NannyContract.is_monthly_auto_renew == True,
+                    BaseContract.status == 'active'
+                ),
+                # 情况2: 普通合同，检查 end_date
+                BaseContract.end_date >= cycle_start
+            )
         ).all()
         
         if not contracts:
@@ -1206,7 +1217,16 @@ def get_employee_attendance_forms(employee_token):
                 BaseContract.service_personnel_id == employee_id,
                 BaseContract.status.in_(['active', 'terminated', 'finished', 'completed']),
                 BaseContract.start_date <= current_month_end,
-                BaseContract.end_date >= current_month_start
+                or_(
+                    # 情况1: 月签合同且状态为 active，不检查 end_date
+                    and_(
+                        BaseContract.type == 'nanny',
+                        NannyContract.is_monthly_auto_renew == True,
+                        BaseContract.status == 'active'
+                    ),
+                    # 情况2: 普通合同，检查 end_date
+                    BaseContract.end_date >= current_month_start
+                )
             ).all()
             
             if current_month_contracts:
@@ -1244,7 +1264,16 @@ def get_employee_attendance_forms(employee_token):
                     BaseContract.service_personnel_id == employee_id,
                     BaseContract.status.in_(['active', 'terminated', 'finished', 'completed']),
                     BaseContract.start_date <= current_month_end,
-                    BaseContract.end_date >= current_month_start
+                    or_(
+                        # 情况1: 月签合同且状态为 active，不检查 end_date
+                        and_(
+                            BaseContract.type == 'nanny',
+                            NannyContract.is_monthly_auto_renew == True,
+                            BaseContract.status == 'active'
+                        ),
+                        # 情况2: 普通合同，检查 end_date
+                        BaseContract.end_date >= current_month_start
+                    )
                 ).all()
                 
                 if current_month_contracts:
