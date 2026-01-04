@@ -123,15 +123,27 @@ def find_consecutive_contracts(employee_id, cycle_start, cycle_end):
     返回: (primary_contract, effective_start_date, effective_end_date)
     primary_contract: 用于关联考勤表的合同（通常是最新的那个）
     """
+    from sqlalchemy import or_, and_
+    
     current_app.logger.info(f"🔍 查找员工 {employee_id} 在周期 {cycle_start} 到 {cycle_end} 的合同")
     
     # 1. 查找该员工在周期内所有活跃或已终止/完成的合同
     # 只要合同时间段与考勤周期有交集即可
+    # 注意：对于月签合同（is_monthly_auto_renew=True），如果状态是 active，则忽略 end_date 限制
     contracts = BaseContract.query.filter(
         BaseContract.service_personnel_id == employee_id,
         BaseContract.status.in_(['active', 'terminated', 'finished', 'completed']),
         BaseContract.start_date <= cycle_end,
-        BaseContract.end_date >= cycle_start
+        or_(
+            # 情况1: 月签合同且状态为 active，不检查 end_date（会自动续约）
+            and_(
+                BaseContract.type == 'nanny',
+                NannyContract.is_monthly_auto_renew == True,
+                BaseContract.status == 'active'
+            ),
+            # 情况2: 普通合同，检查 end_date
+            BaseContract.end_date >= cycle_start
+        )
     ).order_by(BaseContract.start_date.desc()).all()
 
     current_app.logger.info(f"📋 找到 {len(contracts)} 个符合条件的合同")
@@ -538,18 +550,23 @@ def update_attendance_form(employee_token):
                 contract_start = contract.start_date.date() if isinstance(contract.start_date, datetime) else contract.start_date
             
             # 检查是否为合同开始月
+            # 注意：如果是续约合同（同一客户/家庭的连续服务），则不需要上户记录
             if contract_start and cycle_start <= contract_start <= cycle_end:
-                # 查找上户记录
-                current_form_data = form_data if form_data else form.form_data or {}
-                onboarding_records = current_form_data.get('onboarding_records', [])
-                contract_start_str = contract_start.isoformat()
-                current_app.logger.info(f"[验证] 合同开始日: {contract_start_str}, 上户记录: {onboarding_records}")
-                onboarding_record = next((r for r in onboarding_records if r.get('date') == contract_start_str), None)
-                
-                if not onboarding_record:
-                    validation_errors.append(f"合同开始日 {contract_start.strftime('%m月%d日')} 需要填写「上户」记录")
-                elif not onboarding_record.get('startTime') or not onboarding_record.get('endTime'):
-                    validation_errors.append(f"上户日 {contract_start.strftime('%m月%d日')} 的具体时间未填写")
+                # 检查是否是续约合同
+                if not is_continuous_service(contract):
+                    # 不是续约合同，需要验证上户记录
+                    current_form_data = form_data if form_data else form.form_data or {}
+                    onboarding_records = current_form_data.get('onboarding_records', [])
+                    contract_start_str = contract_start.isoformat()
+                    current_app.logger.info(f"[验证] 合同开始日: {contract_start_str}, 上户记录: {onboarding_records}")
+                    onboarding_record = next((r for r in onboarding_records if r.get('date') == contract_start_str), None)
+                    
+                    if not onboarding_record:
+                        validation_errors.append(f"合同开始日 {contract_start.strftime('%m月%d日')} 需要填写「上户」记录")
+                    elif not onboarding_record.get('startTime') or not onboarding_record.get('endTime'):
+                        validation_errors.append(f"上户日 {contract_start.strftime('%m月%d日')} 的具体时间未填写")
+                else:
+                    current_app.logger.info(f"[验证] 续约合同，跳过上户记录验证: {contract_start}")
             
             # 检查是否为合同结束月
             contract_end_date = None
@@ -560,16 +577,20 @@ def update_attendance_form(employee_token):
                     contract_end_date = contract.end_date.date() if isinstance(contract.end_date, datetime) else contract.end_date
             
             if contract_end_date and cycle_start <= contract_end_date <= cycle_end:
-                # 查找下户记录
-                current_form_data = form_data if form_data else form.form_data or {}
-                offboarding_records = current_form_data.get('offboarding_records', [])
-                contract_end_str = contract_end_date.isoformat()
-                offboarding_record = next((r for r in offboarding_records if r.get('date') == contract_end_str), None)
-                
-                if not offboarding_record:
-                    validation_errors.append(f"合同结束日 {contract_end_date.strftime('%m月%d日')} 需要填写「下户」记录")
-                elif not offboarding_record.get('startTime') or not offboarding_record.get('endTime'):
-                    validation_errors.append(f"下户日 {contract_end_date.strftime('%m月%d日')} 的具体时间未填写")
+                # 检查是否有续约合同
+                if not has_following_contract(contract):
+                    # 没有续约合同，需要验证下户记录
+                    current_form_data = form_data if form_data else form.form_data or {}
+                    offboarding_records = current_form_data.get('offboarding_records', [])
+                    contract_end_str = contract_end_date.isoformat()
+                    offboarding_record = next((r for r in offboarding_records if r.get('date') == contract_end_str), None)
+                    
+                    if not offboarding_record:
+                        validation_errors.append(f"合同结束日 {contract_end_date.strftime('%m月%d日')} 需要填写「下户」记录")
+                    elif not offboarding_record.get('startTime') or not offboarding_record.get('endTime'):
+                        validation_errors.append(f"下户日 {contract_end_date.strftime('%m月%d日')} 的具体时间未填写")
+                else:
+                    current_app.logger.info(f"[验证] 有续约合同，跳过下户记录验证: {contract_end_date}")
             
             if validation_errors:
                 current_app.logger.info(f"[验证] 验证失败: {validation_errors}")
