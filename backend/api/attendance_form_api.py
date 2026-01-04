@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify, request, current_app, render_template, make_response
-from backend.models import db, AttendanceForm, BaseContract, ServicePersonnel, AttendanceRecord
+from backend.models import db, AttendanceForm, BaseContract, ServicePersonnel, AttendanceRecord, NannyContract
 from backend.services.attendance_sync_service import sync_attendance_to_record
 import uuid
 from datetime import datetime, date, timedelta
@@ -757,14 +757,22 @@ def get_monthly_attendance_list():
         from sqlalchemy import or_, and_
 
         # 查找所有活跃、已完成或已终止的合同，且合同有效期与指定月份有交集
-        # 注意：对于已终止合同，使用 termination_date 作为结束时间
+        # 注意：
+        # 1. 对于已终止合同，使用 termination_date 作为结束时间
+        # 2. 对于月签合同（is_monthly_auto_renew=True），如果状态是 active，则忽略 end_date 限制
         contracts = BaseContract.query.filter(
             BaseContract.status.in_(['active', 'terminated', 'finished', 'completed']),
             BaseContract.start_date <= month_end,
             or_(
-                # 情况1: 没有终止日期，使用 end_date 判断
+                # 情况1: 月签合同且状态为 active，不检查 end_date（会自动续约）
+                and_(
+                    BaseContract.type == 'nanny',
+                    NannyContract.is_monthly_auto_renew == True,
+                    BaseContract.status == 'active'
+                ),
+                # 情况2: 没有终止日期，使用 end_date 判断
                 and_(BaseContract.termination_date.is_(None), BaseContract.end_date >= month_start),
-                # 情况2: 有终止日期，使用 termination_date 判断
+                # 情况3: 有终止日期，使用 termination_date 判断
                 and_(BaseContract.termination_date.isnot(None), BaseContract.termination_date >= month_start)
             )
         ).order_by(BaseContract.service_personnel_id).all()
