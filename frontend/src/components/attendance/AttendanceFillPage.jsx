@@ -538,20 +538,14 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
         }
     }, [realToken, selectedYear, selectedMonth]);
 
-    // 检查 showShareHint 参数（单独的 useEffect）
-    // 当 URL 中有 showShareHint=true 参数时显示分享提示遮罩
-    // 这个参数只在员工从"填写考勤页面"提交后跳转时添加
-    // 客户直接打开签署链接时不会有这个参数
+    // 检查是否需要显示分享提示遮罩
+    // 使用 sessionStorage 传递状态，避免 URL 参数被分享出去
     useEffect(() => {
-        // 使用 window.location.search 确保获取最新的 URL 参数
-        const searchParams = new URLSearchParams(window.location.search);
-        if (searchParams.get('showShareHint') === 'true') {
+        const shouldShowHint = sessionStorage.getItem('showShareHint');
+        if (shouldShowHint === 'true') {
             setShowShareHint(true);
-            // 移除 showShareHint 参数，保留其他参数
-            searchParams.delete('showShareHint');
-            const newSearch = searchParams.toString();
-            const newUrl = newSearch ? `${window.location.pathname}?${newSearch}` : window.location.pathname;
-            window.history.replaceState({}, '', newUrl);
+            // 立即清除，确保只显示一次
+            sessionStorage.removeItem('showShareHint');
         }
     }, []); // 只在组件挂载时执行一次
 
@@ -1988,11 +1982,11 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                                         });
                                                         // 更新状态
                                                         setFormData(prev => ({ ...prev, status: response.data.status, client_sign_url: response.data.client_sign_url }));
-                                                        // 直接跳转到签署页面，带上分享提示参数
+                                                        // 直接跳转到签署页面
                                                         if (response.data.client_sign_url) {
-                                                            const signUrl = new URL(response.data.client_sign_url);
-                                                            signUrl.searchParams.set('showShareHint', 'true');
-                                                            window.location.href = signUrl.toString();
+                                                            // 使用 sessionStorage 传递分享提示状态，避免 URL 参数被分享出去
+                                                            sessionStorage.setItem('showShareHint', 'true');
+                                                            window.location.href = response.data.client_sign_url;
                                                         }
                                                     } catch (error) {
                                                         // 显示后端返回的具体错误信息
@@ -2023,10 +2017,9 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                         {formData.client_sign_url && formData.status === 'employee_confirmed' && (
                                             <button
                                                 onClick={() => {
-                                                    // 跳转到签署页面，并带上分享提示参数
-                                                    const signUrl = new URL(formData.client_sign_url);
-                                                    signUrl.searchParams.set('showShareHint', 'true');
-                                                    window.location.href = signUrl.toString();
+                                                    // 使用 sessionStorage 传递分享提示状态，避免 URL 参数被分享出去
+                                                    sessionStorage.setItem('showShareHint', 'true');
+                                                    window.location.href = formData.client_sign_url;
                                                 }}
                                                 className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 transition-colors shadow-md"
                                             >

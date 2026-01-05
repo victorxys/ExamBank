@@ -103,8 +103,9 @@ const AttendanceSelectionPage = ({ forms, employeeName }) => {
                                 {form.status === 'employee_confirmed' && form.client_sign_url && (
                                     <button
                                         onClick={() => {
-                                            // 跳转到签署页面
-                                            window.location.href = form.client_sign_url + '?showShareHint=true';
+                                            // 使用 sessionStorage 传递分享提示状态，避免 URL 参数被分享出去
+                                            sessionStorage.setItem('showShareHint', 'true');
+                                            window.location.href = form.client_sign_url;
                                         }}
                                         className="px-4 py-3 bg-green-600 hover:bg-green-700 text-white font-medium rounded-xl transition-colors flex items-center justify-center"
                                         title="分享给客户签署"
