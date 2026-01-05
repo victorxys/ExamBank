@@ -5,9 +5,117 @@ from sqlalchemy.orm import joinedload
 from flask_jwt_extended import jwt_required, get_current_user
 import json
 import uuid
+import base64
+import re
+import os
+import time
+from io import BytesIO
 from backend.services.exam_service import _calculate_exam_score
 
+# R2 配置
+import boto3
+from botocore.client import Config
+
 dynamic_form_data_bp = Blueprint('dynamic_form_data_api', __name__, url_prefix='/api/form-data')
+
+
+def _get_r2_client():
+    """获取 R2 客户端"""
+    CF_ACCOUNT_ID = os.environ.get("CF_ACCOUNT_ID")
+    R2_ACCESS_KEY_ID = os.environ.get("R2_ACCESS_KEY_ID")
+    R2_SECRET_ACCESS_KEY = os.environ.get("R2_SECRET_ACCESS_KEY")
+    R2_BUCKET_NAME = os.environ.get("R2_BUCKET_NAME")
+    
+    if not all([CF_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME]):
+        return None, None
+    
+    client = boto3.client(
+        's3',
+        endpoint_url=f'https://{CF_ACCOUNT_ID}.r2.cloudflarestorage.com',
+        aws_access_key_id=R2_ACCESS_KEY_ID,
+        aws_secret_access_key=R2_SECRET_ACCESS_KEY,
+        config=Config(signature_version='s3v4')
+    )
+    return client, R2_BUCKET_NAME
+
+
+def _upload_signature_to_r2(base64_data, form_token, field_name, data_id):
+    """
+    将 base64 签名数据上传到 R2，返回图片 URL。
+    """
+    if not base64_data or not base64_data.startswith('data:image'):
+        return base64_data  # 不是 base64 图片数据，原样返回
+    
+    try:
+        # 解析 base64 数据
+        # 格式: data:image/png;base64,iVBORw0KGgo...
+        match = re.match(r'data:image/(\w+);base64,(.+)', base64_data)
+        if not match:
+            current_app.logger.warning(f"Invalid base64 image format for {field_name}")
+            return base64_data
+        
+        image_format = match.group(1)  # png, jpeg, etc.
+        image_data = base64.b64decode(match.group(2))
+        
+        # 获取 R2 客户端
+        s3, bucket_name = _get_r2_client()
+        if not s3:
+            current_app.logger.error("R2 client not configured, cannot upload signature")
+            return base64_data
+        
+        # 生成文件名: form_token/data_id/field_name/timestamp_signature.png
+        timestamp = time.time()
+        filename = f"{form_token}/{data_id}/{field_name}/{form_token}_{field_name}_{timestamp}_signature.{image_format}"
+        
+        # 上传到 R2
+        s3.put_object(
+            Bucket=bucket_name,
+            Key=filename,
+            Body=BytesIO(image_data),
+            ContentType=f'image/{image_format}'
+        )
+        
+        # 返回公开 URL
+        PUBLIC_DOMAIN = os.environ.get("PUBLIC_DOMAIN", "https://img.mengyimengsao.com")
+        url = f"{PUBLIC_DOMAIN}/{filename}"
+        current_app.logger.info(f"Signature uploaded to R2: {url}")
+        return url
+        
+    except Exception as e:
+        current_app.logger.error(f"Error uploading signature to R2: {e}", exc_info=True)
+        return base64_data  # 上传失败，返回原始数据
+
+
+def _process_signaturepad_fields(form_data_content, surveyjs_schema, form_token, data_id):
+    """
+    处理表单数据中的 signaturepad 字段，将 base64 数据上传到 R2。
+    返回处理后的表单数据。
+    """
+    if not surveyjs_schema or 'pages' not in surveyjs_schema:
+        return form_data_content
+    
+    # 找出所有 signaturepad 类型的字段
+    signaturepad_fields = set()
+    for page in surveyjs_schema.get('pages', []):
+        for element in page.get('elements', []):
+            if element.get('type') == 'signaturepad':
+                signaturepad_fields.add(element.get('name'))
+    
+    if not signaturepad_fields:
+        return form_data_content
+    
+    # 处理每个 signaturepad 字段
+    processed_data = dict(form_data_content)
+    for field_name in signaturepad_fields:
+        if field_name in processed_data:
+            value = processed_data[field_name]
+            if value and isinstance(value, str) and value.startswith('data:image'):
+                # 上传到 R2 并替换为 URL
+                processed_data[field_name] = _upload_signature_to_r2(
+                    value, form_token, field_name, data_id
+                )
+    
+    return processed_data
 
 def get_model_by_name(model_name):
     """安全地根据模型名称字符串获取模型类。"""
@@ -219,10 +327,22 @@ def submit_form_data(form_id):
         )
 
     try:
+        # 先生成 data_id 用于签名文件路径
+        data_id = str(uuid.uuid4())
+        
+        # 处理 signaturepad 字段，将 base64 上传到 R2
+        processed_data = _process_signaturepad_fields(
+            form_data_content,
+            dynamic_form.surveyjs_schema,
+            dynamic_form.form_token,
+            data_id
+        )
+        
         new_form_data = DynamicFormData(
+            id=uuid.UUID(data_id),
             form_id=form_id,
             user_id=current_user.id if current_user else None,
-            data=form_data_content,
+            data=processed_data,
             score=score,
             result_details=result_details
         )
@@ -270,15 +390,23 @@ def update_form_data(data_id):
         return jsonify({'message': 'Form data not found'}), 404
 
     try:
+        # 处理 signaturepad 字段，将 base64 上传到 R2
+        processed_data = _process_signaturepad_fields(
+            updated_data_content,
+            form_data.dynamic_form.surveyjs_schema,
+            form_data.dynamic_form.form_token,
+            str(data_id)
+        )
+        
         # 更新基础数据
-        form_data.data = updated_data_content
+        form_data.data = processed_data
         form_data.updated_at = db.func.now()
 
         # 如果是考试，则重新计算分数
         if form_data.dynamic_form.form_type == 'EXAM':
             score, result_details = _calculate_exam_score(
                 form_data.dynamic_form.surveyjs_schema,
-                updated_data_content
+                processed_data
             )
             form_data.score = score
             form_data.result_details = result_details

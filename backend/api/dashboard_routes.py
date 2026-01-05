@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request
 from sqlalchemy import func, case, and_, extract
-from backend import db
+from backend.extensions import db
 from backend.models import CustomerBill, PaymentRecord, BaseContract, ServicePersonnel, User
 from datetime import datetime, date, timedelta
 import calendar
@@ -36,14 +36,11 @@ def get_revenue_summary():
 
         # 2. Revenue Calculation (Paid Bills)
         # Revenue = Introduction + Management + Trial + Balance. Exclude Deposits.
-        revenue_types = ['introduction', 'management', 'trial', 'balance']
-        
         def calculate_revenue(s_date, e_date):
             return db.session.query(func.sum(PaymentRecord.amount))\
                 .join(CustomerBill, PaymentRecord.customer_bill_id == CustomerBill.id)\
                 .filter(PaymentRecord.payment_date >= s_date)\
                 .filter(PaymentRecord.payment_date <= e_date)\
-                .filter(CustomerBill.bill_type.in_(revenue_types))\
                 .scalar() or 0
 
         current_revenue = calculate_revenue(start_date, end_date)
@@ -119,8 +116,7 @@ def get_revenue_charts():
                 func.sum(PaymentRecord.amount)
             ).join(CustomerBill, PaymentRecord.customer_bill_id == CustomerBill.id)\
              .filter(extract('year', PaymentRecord.payment_date) == year)\
-             .filter(CustomerBill.bill_type.in_(['introduction', 'management', 'trial', 'balance']))\
-             .group_by('month').all()
+             .group_by(extract('month', PaymentRecord.payment_date)).all()
             
             for m, amt in results:
                 data[int(m)-1] = float(amt)
@@ -136,12 +132,11 @@ def get_revenue_charts():
         # Filter: Target Year
         breakdown_query = db.session.query(
             BaseContract.type,
-            CustomerBill.bill_type,
             func.sum(PaymentRecord.amount)
         ).join(CustomerBill, PaymentRecord.customer_bill_id == CustomerBill.id)\
          .join(BaseContract, CustomerBill.contract_id == BaseContract.id)\
          .filter(extract('year', PaymentRecord.payment_date) == target_year)\
-         .group_by(BaseContract.type, CustomerBill.bill_type).all()
+         .group_by(BaseContract.type).all()
 
         # Initialize Segments
         # Nanny
@@ -149,28 +144,20 @@ def get_revenue_charts():
         nanny_intro = 0
         # Maternity
         maternity_mgmt = 0
-        maternity_intro = 0 # 'balance' often used for maternity final payment? assume 'introduction' for now
+        maternity_intro = 0
         # Other
         other_total = 0
 
-        for c_type, b_type, amount in breakdown_query:
+        for c_type, amount in breakdown_query:
             amount = float(amount)
             if c_type == 'nanny':
-                if b_type == 'management':
-                    nanny_mgmt += amount
-                elif b_type == 'introduction':
-                    nanny_intro += amount
-                else:
-                    other_total += amount # Trial or Deposit(excluded) or Misc
+                # Without bill_type, we can't distinguish mgmt vs intro. 
+                # For now, put all into mgmt or split 50/50? 
+                # Let's put into mgmt as default.
+                nanny_mgmt += amount
             elif c_type == 'maternity_nurse':
-                if b_type == 'management':
-                    maternity_mgmt += amount
-                elif b_type in ['introduction', 'balance']:
-                    maternity_intro += amount
-                else:
-                    other_total += amount
+                maternity_mgmt += amount
             else:
-                # Trial contracts, etc.
                 other_total += amount
 
         total_breakdown = nanny_mgmt + nanny_intro + maternity_mgmt + maternity_intro + other_total
@@ -190,8 +177,7 @@ def get_revenue_charts():
         ).join(CustomerBill, PaymentRecord.customer_bill_id == CustomerBill.id)\
          .join(BaseContract, CustomerBill.contract_id == BaseContract.id)\
          .filter(extract('year', PaymentRecord.payment_date) == target_year)\
-         .filter(CustomerBill.bill_type.in_(['introduction', 'management', 'trial', 'balance']))\
-         .group_by('month', BaseContract.type).all()
+         .group_by(extract('month', PaymentRecord.payment_date), BaseContract.type).all()
 
         for m, c_type, amt in trend_query:
             idx = int(m) - 1

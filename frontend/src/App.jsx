@@ -346,6 +346,9 @@ const PickerTestPage = lazy(() => import('./components/PickerTestPage'));
 const WechatAttendance = lazy(() => import('./pages/WechatAttendance'));
 
 
+const ExecutiveDashboard = lazy(() => import('./pages/ExecutiveDashboard'));
+
+
 // --- 5. App 组件主体 ---
 function App() {
   return (
@@ -359,6 +362,7 @@ function App() {
           {/* --- 5. 使用 Suspense 包裹懒加载组件 --- */}
           <Route path="/" element={<PrivateRoute element={<Navigate to="/dashboard" />} />} /> {/* <-- 可以将默认页指向仪表盘 */}
           <Route path="/dashboard" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}><DashboardPage /></Suspense>} />} /> {/* <-- 添加这行新路由 */}
+          <Route path="/dashboard/executive" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}><ExecutiveDashboard /></Suspense>} />} />
           {/* <Route path="/" element={<PrivateRoute element={<Navigate to="/my-courses" />} />} /> */}
           <Route path="/exams" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <ExamList /> </Suspense>} />} />
           <Route path="/exams/:examId" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <ExamDetail /> </Suspense>} />} />
@@ -422,22 +426,22 @@ function App() {
           <Route path="/sign/:token" element={<Suspense fallback={<LoadingFallback />}><PublicSigningPage /></Suspense>} />
           {/* 员工考勤智能路由入口 */}
           <Route path="/attendance/:employee_token" element={<Suspense fallback={<LoadingFallback />}><AttendanceRouter /></Suspense>} />
-          
+
           {/* 具体考勤表填写 */}
           <Route path="/attendance-fill/:form_token" element={<Suspense fallback={<LoadingFallback />}><AttendanceFillPage mode="employee" /></Suspense>} />
-          
+
           {/* 客户签署 */}
           <Route path="/attendance-sign/:token" element={<Suspense fallback={<LoadingFallback />}><AttendanceFillPage mode="customer" /></Suspense>} />
-          
+
           {/* 管理员查看 */}
           <Route path="/attendance-admin/:token" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}><AttendanceFillPage mode="admin_view" /></Suspense>} />} />
-          
+
           {/* 兼容旧路由 */}
           <Route path="/attendance-form/:token" element={<Suspense fallback={<LoadingFallback />}><AttendanceFillPage mode="employee" /></Suspense>} />
           <Route path="/forms/:formToken" element={<Suspense fallback={<LoadingFallback />}><DynamicFormPage /></Suspense>} />
           <Route path="/picker-test" element={<Suspense fallback={<LoadingFallback />}><PickerTestPage /></Suspense>} />
           <Route path="/holiday-test" element={<Suspense fallback={<LoadingFallback />}><HolidayTest /></Suspense>} />
-          
+
           {/* 微信公众号考勤页面 */}
           <Route path="/wechat-attendance" element={<Suspense fallback={<LoadingFallback />}><WechatAttendance /></Suspense>} />
 

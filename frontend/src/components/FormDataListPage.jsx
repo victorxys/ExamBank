@@ -177,8 +177,8 @@ const FormDataListPage = () => {
                 const fullTitle = element.title || element.name;
                 const truncatedTitle = fullTitle.length > 10 ? fullTitle.substring(0, 10) + '...' : fullTitle;
 
-                // Handle file/image fields (including signatures)
-                if (element.type === 'file' || element.type === 'image') {
+                // Handle file/image/signaturepad fields (including signatures)
+                if (element.type === 'file' || element.type === 'image' || element.type === 'signaturepad') {
                     schemaColumns.push({
                         accessorFn: (row) => {
                             const value = row.data?.[element.name];
@@ -195,7 +195,37 @@ const FormDataListPage = () => {
                             const value = cell.getValue();
                             if (!value) return null;
 
-                            // Handle array of image URLs
+                            // Handle signaturepad (base64 data URL)
+                            if (element.type === 'signaturepad') {
+                                // signaturepad value is a base64 data URL string
+                                if (typeof value === 'string' && (value.startsWith('data:image') || value.startsWith('http'))) {
+                                    return (
+                                        <Box
+                                            component="img"
+                                            src={value}
+                                            alt="签名"
+                                            sx={{
+                                                maxWidth: '100px',
+                                                maxHeight: '40px',
+                                                objectFit: 'contain',
+                                                border: '1px solid #e0e0e0',
+                                                borderRadius: '4px',
+                                                backgroundColor: '#fff',
+                                                cursor: 'pointer',
+                                            }}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setLightboxImages([value]);
+                                                setCurrentImageIndex(0);
+                                                setLightboxOpen(true);
+                                            }}
+                                        />
+                                    );
+                                }
+                                return null;
+                            }
+
+                            // Handle array of image URLs (for file/image types)
                             const urls = Array.isArray(value) ? value : [value];
                             const imageUrls = urls.filter(url =>
                                 typeof url === 'string' &&
