@@ -68,14 +68,31 @@ const AttendanceManagementPage = () => {
 
     // Filter employees
     const filteredEmployees = processedEmployees.filter(employee => {
-        const matchesSearch =
-            (employee.employee_name?.toLowerCase().includes(searchTerm.toLowerCase()) || '') ||
-            (employee.customer_name?.toLowerCase().includes(searchTerm.toLowerCase()) || '');
+        const searchLower = searchTerm.toLowerCase();
+        const matchesSearch = !searchTerm || 
+            (employee.employee_name?.toLowerCase().includes(searchLower)) ||
+            (employee.employee_name_pinyin?.toLowerCase().includes(searchLower)) ||
+            (employee.customer_name?.toLowerCase().includes(searchLower)) ||
+            (employee.customer_name_pinyin?.toLowerCase().includes(searchLower));
 
-        const matchesStatus = statusFilter === 'all' ||
-            (statusFilter === 'completed' && employee.form_status === 'customer_signed') ||
-            (statusFilter === 'pending' && employee.form_status === 'confirmed') ||
-            (statusFilter === 'incomplete' && ['not_created', 'draft'].includes(employee.form_status));
+        let matchesStatus = false;
+        if (statusFilter === 'all') {
+            matchesStatus = true;
+        } else if (statusFilter === 'completed') {
+            matchesStatus = employee.form_status === 'customer_signed';
+        } else if (statusFilter === 'pending') {
+            matchesStatus = employee.form_status === 'confirmed';
+        } else if (statusFilter === 'not_submitted') {
+            // 已填写但未提交
+            matchesStatus = employee.form_status === 'draft' && employee.has_data;
+        } else if (statusFilter === 'not_filled') {
+            // 未填写
+            matchesStatus = ['not_created'].includes(employee.form_status) || 
+                           (employee.form_status === 'draft' && !employee.has_data);
+        } else if (statusFilter === 'incomplete') {
+            // 兼容旧的筛选值：未填写 + 未提交
+            matchesStatus = ['not_created', 'draft'].includes(employee.form_status);
+        }
 
         return matchesSearch && matchesStatus;
     }).sort((a, b) => {
@@ -98,12 +115,23 @@ const AttendanceManagementPage = () => {
     });
 
     // 计算统计数据 (基于去重后的数据)
-    const stats = useMemo(() => ({
-        total: processedEmployees.length,
-        pending: processedEmployees.filter(e => e.form_status === 'confirmed').length,
-        completed: processedEmployees.filter(e => e.form_status === 'customer_signed').length,
-        notStarted: processedEmployees.filter(e => ['not_created', 'draft'].includes(e.form_status)).length
-    }), [processedEmployees]);
+    const stats = useMemo(() => {
+        const notFilled = processedEmployees.filter(e => 
+            ['not_created'].includes(e.form_status) || 
+            (e.form_status === 'draft' && !e.has_data)
+        ).length;
+        const notSubmitted = processedEmployees.filter(e => 
+            e.form_status === 'draft' && e.has_data
+        ).length;
+        
+        return {
+            total: processedEmployees.length,
+            pending: processedEmployees.filter(e => e.form_status === 'confirmed').length,
+            completed: processedEmployees.filter(e => e.form_status === 'customer_signed').length,
+            notFilled: notFilled,
+            notSubmitted: notSubmitted
+        };
+    }, [processedEmployees]);
 
     const handleCopyLink = (link) => {
         navigator.clipboard.writeText(link);
@@ -172,7 +200,7 @@ const AttendanceManagementPage = () => {
         }
     };
 
-    const getStatusBadge = (status) => {
+    const getStatusBadge = (status, hasData = false) => {
         switch (status) {
             case 'customer_signed':
                 return (
@@ -197,10 +225,30 @@ const AttendanceManagementPage = () => {
                     </span>
                 );
             case 'draft':
+                // draft 状态下，根据是否有数据区分"未提交"和"未填写"
+                if (hasData) {
+                    return (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-100 text-amber-800 rounded-full text-sm font-medium">
+                            <svg className="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v3.586L7.707 9.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 10.586V7z" clipRule="evenodd" />
+                            </svg>
+                            员工未提交
+                        </span>
+                    );
+                }
+                // 没有数据，显示"未填写" - 红色
+                return (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-red-100 text-red-800 rounded-full text-sm font-medium">
+                        <svg className="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                        </svg>
+                        员工未填写
+                    </span>
+                );
             case 'not_created':
             default:
                 return (
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-sm font-medium">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-red-100 text-red-800 rounded-full text-sm font-medium">
                         <svg className="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                         </svg>
@@ -227,10 +275,13 @@ const AttendanceManagementPage = () => {
                 </div>
 
                 {/* 统计卡片 */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                     {/* ... (Stats cards remain same) ... */}
                     {/* 总员工数 */}
-                    <div className="bg-white/90 backdrop-blur rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow">
+                    <div 
+                        onClick={() => setStatusFilter('all')}
+                        className={`bg-white/90 backdrop-blur rounded-lg shadow-lg p-6 hover:shadow-xl transition-all cursor-pointer ${statusFilter === 'all' ? 'ring-2 ring-blue-500' : ''}`}
+                    >
                         <div className="flex items-center justify-between mb-4">
                             <div>
                                 <p className="text-sm text-gray-600 mb-1">总员工数</p>
@@ -247,47 +298,77 @@ const AttendanceManagementPage = () => {
                         <div className="h-1 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full"></div>
                     </div>
 
-                    {/* 未填写 */}
-                    <div className="bg-white/90 backdrop-blur rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow">
+                    {/* 未填写 - 红色 */}
+                    <div 
+                        onClick={() => setStatusFilter('not_filled')}
+                        className={`bg-white/90 backdrop-blur rounded-lg shadow-lg p-6 hover:shadow-xl transition-all cursor-pointer ${statusFilter === 'not_filled' ? 'ring-2 ring-red-500' : ''}`}
+                    >
                         <div className="flex items-center justify-between mb-4">
                             <div>
                                 <p className="text-sm text-gray-600 mb-1">员工未填写</p>
-                                <p className="text-3xl font-bold text-gray-900">{stats.notStarted}</p>
+                                <p className="text-3xl font-bold text-red-600">{stats.notFilled}</p>
                             </div>
-                            <div className="h-12 w-12 rounded-full bg-gray-100 flex items-center justify-center">
-                                <svg className="h-6 w-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <div className="h-12 w-12 rounded-full bg-red-100 flex items-center justify-center">
+                                <svg className="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
                                         d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z">
                                     </path>
                                 </svg>
                             </div>
                         </div>
-                        <div className="h-1 bg-gradient-to-r from-gray-400 to-gray-500 rounded-full"></div>
+                        <div className="h-1 bg-gradient-to-r from-red-400 to-red-500 rounded-full"></div>
                     </div>
 
-                    {/* 待签署 */}
-                    <div className="bg-white/90 backdrop-blur rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow">
+                    {/* 未提交 - 橙色 */}
+                    <div 
+                        onClick={() => setStatusFilter('not_submitted')}
+                        className={`bg-white/90 backdrop-blur rounded-lg shadow-lg p-6 hover:shadow-xl transition-all cursor-pointer ${statusFilter === 'not_submitted' ? 'ring-2 ring-amber-500' : ''}`}
+                    >
                         <div className="flex items-center justify-between mb-4">
                             <div>
-                                <p className="text-sm text-gray-600 mb-1">待客户签署</p>
-                                <p className="text-3xl font-bold text-gray-900">{stats.pending}</p>
+                                <p className="text-sm text-gray-600 mb-1">员工未提交</p>
+                                <p className="text-3xl font-bold text-amber-600">{stats.notSubmitted}</p>
                             </div>
                             <div className="h-12 w-12 rounded-full bg-amber-100 flex items-center justify-center">
                                 <svg className="h-6 w-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
+                                    </path>
+                                </svg>
+                            </div>
+                        </div>
+                        <div className="h-1 bg-gradient-to-r from-amber-400 to-amber-500 rounded-full"></div>
+                    </div>
+
+                    {/* 待签署 - 蓝色 */}
+                    <div 
+                        onClick={() => setStatusFilter('pending')}
+                        className={`bg-white/90 backdrop-blur rounded-lg shadow-lg p-6 hover:shadow-xl transition-all cursor-pointer ${statusFilter === 'pending' ? 'ring-2 ring-blue-500' : ''}`}
+                    >
+                        <div className="flex items-center justify-between mb-4">
+                            <div>
+                                <p className="text-sm text-gray-600 mb-1">待客户签署</p>
+                                <p className="text-3xl font-bold text-blue-600">{stats.pending}</p>
+                            </div>
+                            <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center">
+                                <svg className="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
                                         d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                                 </svg>
                             </div>
                         </div>
-                        <div className="h-1 bg-gradient-to-r from-amber-500 to-amber-600 rounded-full"></div>
+                        <div className="h-1 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full"></div>
                     </div>
 
-                    {/* 已完成 */}
-                    <div className="bg-white/90 backdrop-blur rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow">
+                    {/* 已完成 - 绿色 */}
+                    <div 
+                        onClick={() => setStatusFilter('completed')}
+                        className={`bg-white/90 backdrop-blur rounded-lg shadow-lg p-6 hover:shadow-xl transition-all cursor-pointer ${statusFilter === 'completed' ? 'ring-2 ring-green-500' : ''}`}
+                    >
                         <div className="flex items-center justify-between mb-4">
                             <div>
                                 <p className="text-sm text-gray-600 mb-1">客户已签署</p>
-                                <p className="text-3xl font-bold text-gray-900">{stats.completed}</p>
+                                <p className="text-3xl font-bold text-green-600">{stats.completed}</p>
                             </div>
                             <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
                                 <svg className="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -340,7 +421,7 @@ const AttendanceManagementPage = () => {
                             <div className="relative">
                                 <input
                                     type="text"
-                                    placeholder="搜索员工或客户姓名..."
+                                    placeholder="搜索姓名或拼音..."
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
                                     className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none w-full md:w-64"
@@ -358,7 +439,8 @@ const AttendanceManagementPage = () => {
                                 <option value="all">全部状态</option>
                                 <option value="completed">客户已签署</option>
                                 <option value="pending">待客户签署</option>
-                                <option value="incomplete">员工未填写</option>
+                                <option value="not_submitted">员工未提交</option>
+                                <option value="not_filled">员工未填写</option>
                             </select>
                         </div>
                     </div>
@@ -422,7 +504,7 @@ const AttendanceManagementPage = () => {
                                                 ) : '-'}
                                             </td>
                                             <td className="px-6 py-4">
-                                                {getStatusBadge(employee.form_status)}
+                                                {getStatusBadge(employee.form_status, employee.has_data)}
                                             </td>
                                             <td className="px-6 py-4 text-right">
                                                 <div className="flex items-center justify-end gap-2">

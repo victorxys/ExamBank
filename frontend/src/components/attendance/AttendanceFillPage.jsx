@@ -540,16 +540,20 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
 
     // 检查 showShareHint 参数（单独的 useEffect）
     // 当 URL 中有 showShareHint=true 参数时显示分享提示遮罩
-    // 这个参数只在员工提交后跳转时添加，客户直接打开链接时不会有这个参数
+    // 这个参数只在员工从"填写考勤页面"提交后跳转时添加
+    // 客户直接打开签署链接时不会有这个参数
     useEffect(() => {
-        const searchParams = new URLSearchParams(location.search);
+        // 使用 window.location.search 确保获取最新的 URL 参数
+        const searchParams = new URLSearchParams(window.location.search);
         if (searchParams.get('showShareHint') === 'true') {
             setShowShareHint(true);
-            // 移除 URL 参数，这样客户分享后打开的链接不会有这个参数
-            const newUrl = window.location.pathname;
+            // 移除 showShareHint 参数，保留其他参数
+            searchParams.delete('showShareHint');
+            const newSearch = searchParams.toString();
+            const newUrl = newSearch ? `${window.location.pathname}?${newSearch}` : window.location.pathname;
             window.history.replaceState({}, '', newUrl);
         }
-    }, [location.search]);
+    }, []); // 只在组件挂载时执行一次
 
     // Resize observer for signature canvas
     useEffect(() => {
@@ -2780,8 +2784,9 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                 </div>
             )}
 
-            {/* Share Hint Overlay - 不可关闭，强制员工分享给客户 */}
-            {/* 只在有 showShareHint URL 参数时显示，客户直接打开链接时不会有这个参数 */}
+            {/* Share Hint Overlay - 员工提交后显示，提示分享给客户 */}
+            {/* 只在有 showShareHint URL 参数时显示（员工提交后跳转时带此参数） */}
+            {/* 客户从微信打开的链接不会有这个参数，因为已经在 useEffect 中移除了 */}
             {showShareHint && (
                 <div className="fixed inset-0 bg-black/90 z-[100] flex flex-col items-center justify-center p-8">
                     {/* 右上角箭头指示 */}
@@ -2840,16 +2845,17 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
 
             {/* 微信分享卡片配置 - 用于客户签署页面在微信中分享 */}
             {isCustomerMode && contractInfo && (() => {
+                const displayMonth = selectedMonth || formData?.month;
                 console.log('WechatShare组件已激活', {
-                    shareTitle: `${contractInfo.employee_name || '员工'} - ${selectedMonth}月考勤`,
-                    shareDesc: `请查看并签署${selectedMonth}月考勤表`,
+                    shareTitle: `${contractInfo.employee_name || '员工'} - ${displayMonth}月考勤`,
+                    shareDesc: `请查看并签署${displayMonth}月考勤表`,
                     shareImgUrl: `${window.location.origin}/logo_share.jpg`,
                     shareLink: window.location.href
                 });
                 return (
                     <WechatShare
-                        shareTitle={`${contractInfo.employee_name || '员工'} - ${selectedMonth}月考勤`}
-                        shareDesc={`请查看并签署${selectedMonth}月考勤表`}
+                        shareTitle={`${contractInfo.employee_name || '员工'} - ${displayMonth}月考勤`}
+                        shareDesc={`请查看并签署${displayMonth}月考勤表`}
                         shareImgUrl={`${window.location.origin}/logo_share.jpg`}
                         shareLink={window.location.href}
                     />

@@ -1103,6 +1103,7 @@ def get_monthly_attendance_list():
                 form_status = "not_created"
                 form_id = None
                 customer_signed_at = None
+                has_data = False
                 # Use primary contract's employee ID as fallback token
                 employee_access_token = employee.id 
             else:
@@ -1115,6 +1116,24 @@ def get_monthly_attendance_list():
                 form_id = str(form.id)
                 customer_signed_at = form.customer_signed_at.isoformat() if form.customer_signed_at else None
                 employee_access_token = form.employee_access_token
+                
+                # 检查是否有实际的考勤数据（排除自动生成的上户/下户记录）
+                has_data = False
+                if form.form_data:
+                    for key, records in form.form_data.items():
+                        if key.endswith('_records') and isinstance(records, list):
+                            for record in records:
+                                # 上户/下户记录如果没有填写时间，不算有数据
+                                if record.get('type') in ['onboarding', 'offboarding']:
+                                    if record.get('startTime') or record.get('endTime'):
+                                        has_data = True
+                                        break
+                                else:
+                                    # 其他类型的记录都算有数据
+                                    has_data = True
+                                    break
+                        if has_data:
+                            break
             
             # Generate access link - use fixed employee URL without year/month parameters
             access_link = f"{frontend_base_url}/attendance/{employee.id}"
@@ -1122,11 +1141,14 @@ def get_monthly_attendance_list():
             item = {
                 "employee_id": str(employee.id),
                 "employee_name": employee.name,
+                "employee_name_pinyin": employee.name_pinyin or "",
                 "customer_name": primary_contract.customer_name,
+                "customer_name_pinyin": primary_contract.customer_name_pinyin or "",
                 # Show merged date range
                 "contract_start_date": min_start_date.isoformat() if min_start_date else None,
                 "contract_end_date": max_end_date.isoformat() if max_end_date else None,
                 "form_status": form_status,
+                "has_data": has_data,  # 是否有实际考勤数据
                 "employee_access_token": str(employee_access_token),
                 "access_link": access_link,
                 "form_id": form_id,
