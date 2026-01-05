@@ -125,6 +125,7 @@ def filter_contracts_for_cycle(employee_id, cycle_start, cycle_end):
     1. 月签合同（is_monthly_auto_renew=True 且 status='active'）：不检查 end_date
     2. 已终止合同：使用 termination_date 作为实际结束日期
     3. 普通合同：检查 end_date >= cycle_start
+    4. 月嫂合同：优先使用 actual_onboarding_date 作为开始日期
     
     返回: 符合条件的合同列表
     """
@@ -135,21 +136,42 @@ def filter_contracts_for_cycle(employee_id, cycle_start, cycle_end):
         cycle_end = cycle_end.date()
     
     # 先查询所有可能的合同（start_date <= cycle_end）
+    # 注意：这里使用 start_date 是为了获取所有可能的合同，后面会根据 actual_onboarding_date 再过滤
     all_contracts = BaseContract.query.filter(
         BaseContract.service_personnel_id == employee_id,
         BaseContract.status.in_(['active', 'terminated', 'finished', 'completed']),
         BaseContract.start_date <= cycle_end
     ).order_by(BaseContract.start_date.desc()).all()
     
+    current_app.logger.info(f"[DEBUG] filter_contracts_for_cycle: employee_id={employee_id}, cycle={cycle_start} ~ {cycle_end}")
+    current_app.logger.info(f"[DEBUG] 查询到 {len(all_contracts)} 个候选合同")
+    for c in all_contracts:
+        monthly_flag = getattr(c, 'is_monthly_auto_renew', None)
+        current_app.logger.info(f"[DEBUG]   - 合同 {c.id}: type={c.type}, status={c.status}, start={c.start_date}, end={c.end_date}, is_monthly_auto_renew={monthly_flag}")
+    
     # 过滤：只保留 end_date >= cycle_start 的合同，或者月签合同（active 状态）
     contracts = []
     for c in all_contracts:
-        # 检查是否是月签合同
+        # 获取实际开始日期（月嫂合同优先使用 actual_onboarding_date）
+        actual_start = getattr(c, 'actual_onboarding_date', None)
+        if actual_start:
+            actual_start = actual_start.date() if isinstance(actual_start, datetime) else actual_start
+        else:
+            actual_start = c.start_date.date() if isinstance(c.start_date, datetime) else c.start_date
+        
+        # 如果实际开始日期在周期结束之后，跳过这个合同
+        if actual_start > cycle_end:
+            current_app.logger.info(f"  - 跳过合同 {c.id}: 实际开始日期 {actual_start} 在周期 {cycle_end} 之后")
+            continue
+        
+        # 检查是否是月签合同（育儿嫂合同）
         is_monthly = False
         if c.type == 'nanny' and c.status == 'active':
-            # 尝试获取 NannyContract 的 is_monthly_auto_renew 属性
-            if hasattr(c, 'is_monthly_auto_renew') and c.is_monthly_auto_renew:
-                is_monthly = True
+            # 使用 getattr 获取 is_monthly_auto_renew 属性，默认为 False
+            # 注意：getattr 可能返回 None，需要显式转换为 bool
+            monthly_flag = getattr(c, 'is_monthly_auto_renew', None)
+            is_monthly = bool(monthly_flag)
+            current_app.logger.info(f"  - 合同 {c.id}: type={c.type}, status={c.status}, is_monthly_auto_renew={monthly_flag}, is_monthly={is_monthly}")
         
         # 转换 end_date 为 date 类型
         end_date = c.end_date.date() if isinstance(c.end_date, datetime) else c.end_date
@@ -163,11 +185,11 @@ def filter_contracts_for_cycle(employee_id, cycle_start, cycle_end):
         # 月签合同（active）不检查 end_date
         if is_monthly:
             contracts.append(c)
-            current_app.logger.info(f"  - 月签合同 {c.id}: {c.start_date} 到 {c.end_date}, 客户={c.customer_name}, status={c.status}")
+            current_app.logger.info(f"  - 月签合同 {c.id}: {actual_start} 到 {c.end_date}, 客户={c.customer_name}, status={c.status}")
         # 普通合同检查实际结束日期（考虑 termination_date）
         elif actual_end and actual_end >= cycle_start:
             contracts.append(c)
-            current_app.logger.info(f"  - 普通合同 {c.id}: {c.start_date} 到 {actual_end}, 客户={c.customer_name}, status={c.status}")
+            current_app.logger.info(f"  - 普通合同 {c.id}: {actual_start} 到 {actual_end}, 客户={c.customer_name}, status={c.status}")
     
     current_app.logger.info(f"📋 找到 {len(contracts)} 个符合条件的合同")
     return contracts
@@ -224,7 +246,15 @@ def find_consecutive_contracts(employee_id, cycle_start, cycle_end):
 
     # 4. 计算有效日期范围 (合并这些合同的时间段)
     # 取最早的开始时间和最晚的结束时间
-    effective_start = min(c.start_date for c in family_contracts)
+    # 对于月嫂合同，优先使用 actual_onboarding_date（实际上户日期）
+    def get_effective_start(contract):
+        # 如果是月嫂合同且有实际上户日期，使用实际上户日期
+        actual_onboarding = getattr(contract, 'actual_onboarding_date', None)
+        if actual_onboarding:
+            return actual_onboarding
+        return contract.start_date
+    
+    effective_start = min(get_effective_start(c) for c in family_contracts)
     effective_end = max(c.end_date for c in family_contracts)
     
     current_app.logger.info(f"合并后的服务期间: {effective_start} 到 {effective_end}")
@@ -242,13 +272,14 @@ def get_attendance_form_by_token(employee_token):
     根据访问令牌获取考勤表
     支持三种查找方式（按优先级）：
     1. 通过考勤表ID直接查找（UUID格式，无年月参数时）
-    2. 通过员工ID + 年月参数查找（有年月参数时）
+    2. 通过员工ID + 年月参数 + 可选的合同ID查找（有年月参数时）
     3. 通过 employee_access_token 查找（无年月参数时的回退）
     """
     try:
-        # 读取 year/month 参数
+        # 读取 year/month/contractId 参数
         year = request.args.get('year', type=int)
         month = request.args.get('month', type=int)
+        contract_id_param = request.args.get('contractId', type=str)
         
         # 尝试解析 token 获取员工ID
         parts = employee_token.split('_')
@@ -262,16 +293,42 @@ def get_attendance_form_by_token(employee_token):
             except ValueError:
                 pass
         
-        print(f"[DEBUG] Received year={year}, month={month}, token={employee_token}")
+        current_app.logger.info(f"[DEBUG] Received year={year}, month={month}, token={employee_token}, contractId={contract_id_param}")
         
-        # 1. 如果没有年月参数，尝试通过考勤表ID直接查找
-        if not year or not month:
+        # 初始化 employee 变量
+        employee = None
+        form_contract = None  # 用于存储通过考勤表找到的合同
+        specified_contract = None  # 用于存储通过 contractId 参数指定的合同
+        
+        # 如果传入了 contractId 参数，先尝试获取指定的合同
+        if contract_id_param:
             try:
-                form_id = uuid.UUID(employee_token)
-                existing_form = AttendanceForm.query.get(form_id)
-                if existing_form:
+                specified_contract_id = uuid.UUID(contract_id_param)
+                specified_contract = BaseContract.query.get(specified_contract_id)
+                if specified_contract:
+                    current_app.logger.info(f"[DEBUG] 通过 contractId 参数找到合同: {specified_contract.id}, customer={specified_contract.customer_name}")
+            except ValueError:
+                current_app.logger.warning(f"[DEBUG] 无效的 contractId 参数: {contract_id_param}")
+        
+        # 1. 尝试通过考勤表ID直接查找（无论是否有年月参数）
+        try:
+            form_id = uuid.UUID(employee_token)
+            existing_form = AttendanceForm.query.get(form_id)
+            if existing_form:
+                # 找到了考勤表，获取关联的员工
+                employee = existing_form.contract.service_personnel if existing_form.contract else None
+                form_contract = existing_form.contract
+                
+                # 调试日志：打印合同信息
+                if form_contract:
+                    current_app.logger.info(f"[DEBUG] 通过考勤表找到合同: id={form_contract.id}, type={form_contract.type}, status={form_contract.status}")
+                    current_app.logger.info(f"[DEBUG] 合同日期: start={form_contract.start_date}, end={form_contract.end_date}")
+                    monthly_flag = getattr(form_contract, 'is_monthly_auto_renew', None)
+                    current_app.logger.info(f"[DEBUG] is_monthly_auto_renew={monthly_flag}, hasattr={hasattr(form_contract, 'is_monthly_auto_renew')}")
+                
+                # 如果没有年月参数，直接返回这个考勤表
+                if not year or not month:
                     # 直接使用该考勤表关联的合同日期，不合并其他合同
-                    # 这样每个考勤表显示的是其对应合同的真实日期
                     contract = existing_form.contract
                     effective_start = contract.start_date if contract else None
                     effective_end = contract.end_date if contract else None
@@ -279,32 +336,27 @@ def get_attendance_form_by_token(employee_token):
                     # 对于月签合同，根据状态处理 effective_end
                     if contract and hasattr(contract, 'is_monthly_auto_renew') and contract.is_monthly_auto_renew:
                         if contract.status == 'active':
-                            # 月签合同且未终止：不设置 effective_end，让前端知道这是一个持续的合同
                             effective_end = None
                         elif contract.status == 'terminated' and contract.termination_date:
-                            # 月签合同已终止：使用 termination_date 作为实际结束日期
                             effective_end = contract.termination_date
                     
                     result = form_to_dict(existing_form, effective_start, effective_end)
-                    # 添加实际使用的年月（让前端同步 URL 和状态）
                     cycle_start = existing_form.cycle_start_date
                     if isinstance(cycle_start, datetime):
                         cycle_start = cycle_start.date()
                     result['actual_year'] = cycle_start.year
                     result['actual_month'] = cycle_start.month
                     return jsonify(result)
-            except ValueError:
-                pass
-        
-        # 初始化 employee 变量
-        employee = None
-        
-        # 2. 尝试获取员工信息
-        try:
-            employee_id = uuid.UUID(employee_id_str)
-            employee = ServicePersonnel.query.get(employee_id)
         except ValueError:
             pass
+        
+        # 2. 如果没有通过考勤表找到员工，尝试通过员工ID查找
+        if not employee:
+            try:
+                employee_id = uuid.UUID(employee_id_str)
+                employee = ServicePersonnel.query.get(employee_id)
+            except ValueError:
+                pass
         
         if not employee:
             return jsonify({"error": "无效的访问令牌"}), 404
@@ -377,8 +429,54 @@ def get_attendance_form_by_token(employee_token):
             
             current_app.logger.info(f"智能选择月份: {selected_year}-{selected_month}")
 
-        # 4. 查找合同 (支持连续合同合并)
-        contract, effective_start, effective_end = find_consecutive_contracts(employee.id, cycle_start, cycle_end)
+        # 4. 查找合同
+        # 优先级：specified_contract (contractId参数) > form_contract (考勤表关联) > find_consecutive_contracts
+        contract = None
+        effective_start = None
+        effective_end = None
+        
+        # 优先使用 contractId 参数指定的合同
+        target_contract = specified_contract or form_contract
+        
+        if target_contract:
+            # 使用指定的合同，检查该合同是否在请求的周期内有效
+            current_app.logger.info(f"[DEBUG] 使用指定的合同: {target_contract.id}, customer={target_contract.customer_name}")
+            
+            # 获取合同的实际开始日期（月嫂合同优先使用 actual_onboarding_date）
+            actual_start = getattr(target_contract, 'actual_onboarding_date', None)
+            if actual_start:
+                actual_start = actual_start.date() if isinstance(actual_start, datetime) else actual_start
+            else:
+                actual_start = target_contract.start_date.date() if isinstance(target_contract.start_date, datetime) else target_contract.start_date
+            
+            # 获取合同的实际结束日期
+            is_monthly = getattr(target_contract, 'is_monthly_auto_renew', False) and target_contract.status == 'active'
+            if is_monthly:
+                # 月签合同（active）没有结束日期限制
+                actual_end = None
+            elif target_contract.status == 'terminated' and target_contract.termination_date:
+                actual_end = target_contract.termination_date.date() if isinstance(target_contract.termination_date, datetime) else target_contract.termination_date
+            else:
+                actual_end = target_contract.end_date.date() if isinstance(target_contract.end_date, datetime) else target_contract.end_date
+            
+            # 检查合同是否在请求的周期内有效
+            # 条件：actual_start <= cycle_end 且 (is_monthly 或 actual_end >= cycle_start)
+            is_valid = actual_start <= cycle_end and (is_monthly or (actual_end and actual_end >= cycle_start))
+            
+            current_app.logger.info(f"[DEBUG] 合同有效性检查: actual_start={actual_start}, actual_end={actual_end}, is_monthly={is_monthly}, is_valid={is_valid}")
+            
+            if is_valid:
+                contract = target_contract
+                effective_start = actual_start
+                effective_end = actual_end
+                
+                # 如果通过 contractId 指定了合同，还需要确保 employee 变量正确设置
+                if specified_contract and not employee:
+                    employee = specified_contract.service_personnel
+        
+        # 如果没有通过指定合同找到有效合同，使用原来的逻辑查找
+        if not contract:
+            contract, effective_start, effective_end = find_consecutive_contracts(employee.id, cycle_start, cycle_end)
         
         if not contract:
             # 查找该员工最早的活跃合同，返回建议的月份

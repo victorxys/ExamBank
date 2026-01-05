@@ -205,14 +205,16 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
         return { realToken: actualToken, initialYear: null, initialMonth: null };
     }, [form_token, token, employee_token]);
 
-    // 从 URL 参数读取年月
+    // 从 URL 参数读取年月和合同ID
     const urlParams = useMemo(() => {
         const searchParams = new URLSearchParams(location.search);
         const year = searchParams.get('year');
         const month = searchParams.get('month');
+        const contractId = searchParams.get('contractId');
         return {
             year: year ? parseInt(year, 10) : null,
-            month: month ? parseInt(month, 10) : null
+            month: month ? parseInt(month, 10) : null,
+            contractId: contractId || null
         };
     }, [location.search]);
 
@@ -228,10 +230,14 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
     const [selectedMonth, setSelectedMonth] = useState(() => urlParams.month || initialMonth || null);
 
     // 更新 URL 参数的函数（不刷新页面）
-    const updateUrlParams = useCallback((year, month) => {
+    const updateUrlParams = useCallback((year, month, contractId = null) => {
         const searchParams = new URLSearchParams(location.search);
         searchParams.set('year', year.toString());
         searchParams.set('month', month.toString());
+        // 如果传入了 contractId，更新它；否则保留现有的
+        if (contractId) {
+            searchParams.set('contractId', contractId);
+        }
         const newUrl = `${location.pathname}?${searchParams.toString()}`;
         window.history.replaceState({}, '', newUrl);
     }, [location.pathname, location.search]);
@@ -385,6 +391,8 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
 
     // 能否切换到上个月（不能早于合同开始月）
     const canGoPrev = useMemo(() => {
+        // 如果合同信息还没加载，禁用切换
+        if (!contractInfo) return false;
         if (!contractStartMonth) return true;
         const prevMonth = selectedMonth === 1
             ? { year: selectedYear - 1, month: 12 }
@@ -393,7 +401,7 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
         if (prevMonth.year < contractStartMonth.year) return false;
         if (prevMonth.year === contractStartMonth.year && prevMonth.month < contractStartMonth.month) return false;
         return true;
-    }, [selectedYear, selectedMonth, contractStartMonth]);
+    }, [selectedYear, selectedMonth, contractStartMonth, contractInfo]);
 
     const isDateDisabled = useCallback((date) => {
         if (!contractInfo) return false;
@@ -600,6 +608,13 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
             // 添加月份参数 (仅员工模式)
             if (!isCustomerMode && year && month) {
                 endpoint += `?year=${year}&month=${month}`;
+                // 如果有 contractId，也传递给后端
+                if (urlParams.contractId) {
+                    endpoint += `&contractId=${urlParams.contractId}`;
+                }
+            } else if (!isCustomerMode && urlParams.contractId) {
+                // 没有年月参数但有 contractId
+                endpoint += `?contractId=${urlParams.contractId}`;
             }
 
             const response = await api.get(endpoint);
@@ -623,7 +638,14 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                 // 始终更新前端状态为后端返回的实际年月
                 setSelectedYear(data.actual_year);
                 setSelectedMonth(data.actual_month);
-                updateUrlParams(data.actual_year, data.actual_month);
+                // 同时保存 contract_id 到 URL（如果还没有的话）
+                updateUrlParams(data.actual_year, data.actual_month, data.contract_id);
+            } else if (data.contract_id && !urlParams.contractId) {
+                // 即使没有年月变化，也要保存 contract_id
+                const searchParams = new URLSearchParams(location.search);
+                searchParams.set('contractId', data.contract_id);
+                const newUrl = `${location.pathname}?${searchParams.toString()}`;
+                window.history.replaceState({}, '', newUrl);
             }
 
             // 重置考勤数据 - 先清空，再填充新数据
@@ -1472,11 +1494,56 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
 
                                 {/* 月份切换 - 员工模式和管理员查看模式显示 */}
                                 {!isCustomerMode && (() => {
-                                    // 判断是否可以切换到下个月（不能超过可编辑月份）
-                                    const canGoNext = editableMonth && (
+                                    // 判断是否可以切换到下个月
+                                    // 1. 不能超过可编辑月份（当月）
+                                    // 2. 已终止的自动月签合同不能超过终止月
+                                    // 3. 普通合同不能超过结束月
+                                    let canGoNext = editableMonth && (
                                         selectedYear < editableMonth.year ||
                                         (selectedYear === editableMonth.year && selectedMonth < editableMonth.month)
                                     );
+                                    
+                                    // 检查合同结束限制
+                                    if (canGoNext && contractInfo) {
+                                        let endYear, endMonth;
+                                        let isContractEnded = false;
+                                        
+                                        if (contractInfo.is_monthly_auto_renew) {
+                                            // 自动月签合同：只有终止时才有结束限制
+                                            if (contractInfo.status === 'terminated' && contractInfo.termination_date) {
+                                                const terminationDate = parseISO(contractInfo.termination_date);
+                                                endYear = terminationDate.getFullYear();
+                                                endMonth = terminationDate.getMonth() + 1;
+                                                isContractEnded = true;
+                                            }
+                                        } else {
+                                            // 普通合同：使用结束日期
+                                            if (contractInfo.end_date) {
+                                                const endDate = parseISO(contractInfo.end_date);
+                                                endYear = endDate.getFullYear();
+                                                endMonth = endDate.getMonth() + 1;
+                                                isContractEnded = true;
+                                            }
+                                        }
+                                        
+                                        // 如果当前已经是结束月或之后，不能再向后切换
+                                        if (isContractEnded && (selectedYear > endYear || 
+                                            (selectedYear === endYear && selectedMonth >= endMonth))) {
+                                            canGoNext = false;
+                                        }
+                                    }
+                                    
+                                    // 确定提示文字
+                                    let nextTitle = "下个月";
+                                    if (!canGoNext) {
+                                        if (contractInfo?.is_monthly_auto_renew && contractInfo.status === 'terminated') {
+                                            nextTitle = "合同已终止，无法查看后续月份";
+                                        } else if (contractInfo?.end_date && !contractInfo?.is_monthly_auto_renew) {
+                                            nextTitle = "合同已结束，无法查看后续月份";
+                                        } else {
+                                            nextTitle = "不能查看未来月份";
+                                        }
+                                    }
 
                                     return (
                                         <button
@@ -1490,7 +1557,7 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                                 ? 'bg-gray-100 hover:bg-gray-200 active:bg-gray-300'
                                                 : 'bg-gray-50 cursor-not-allowed'
                                                 }`}
-                                            title={canGoNext ? "下个月" : "不能查看未来月份"}
+                                            title={nextTitle}
                                         >
                                             <ChevronRight className={`w-5 h-5 ${canGoNext ? 'text-gray-600' : 'text-gray-300'}`} />
                                         </button>
@@ -2218,9 +2285,14 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                                                     if (!editingDate) return true;
                                                                     // 禁用结束日之后的日期
                                                                     if (date > editingDate) return true;
-                                                                    // 禁用不满30天的日期（结束日往前推29天之后的日期）
+                                                                    // 计算最早可选日期（结束日往前推29天）
+                                                                    // 例如：结束日是12月4日，最早可选日期是11月5日（12月4日 - 29天）
+                                                                    // 这样从11月5日到12月4日正好是30天
                                                                     const minStartDate = addDays(editingDate, -29);
+                                                                    // 只禁用 minStartDate 之后的日期（不含 minStartDate）
+                                                                    // minStartDate 本身是可选的
                                                                     if (date > minStartDate) return true;
+                                                                    // 其他日期都可选
                                                                     return false;
                                                                 }}
                                                                 locale={calendarZhCN}

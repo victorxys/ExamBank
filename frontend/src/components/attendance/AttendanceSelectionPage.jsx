@@ -73,7 +73,7 @@ const AttendanceSelectionPage = ({ forms, employeeName }) => {
 
                     return (
                         <div
-                            key={form.form_token}
+                            key={`${form.form_token}-${form.form_id || index}`}
                             className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 hover:shadow-md transition-shadow"
                         >
                             {/* Header */}
@@ -92,7 +92,7 @@ const AttendanceSelectionPage = ({ forms, employeeName }) => {
                             {/* Action Buttons */}
                             <div className="flex gap-3">
                                 <button
-                                    onClick={() => navigate(`/attendance-fill/${form.form_id}`)}
+                                    onClick={() => navigate(`/attendance-fill/${form.form_id}?contractId=${form.contract_id}`)}
                                     className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 rounded-xl transition-colors flex items-center justify-center gap-2"
                                 >
                                     <FileText className="w-4 h-4" />
