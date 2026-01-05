@@ -1027,8 +1027,22 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
         
         // 如果时间为空且不是上户/下户，使用默认值
         // 有延续时，开始时间固定为 00:00
-        const startTime = hasContinuation ? '00:00' : (tempRecord.startTime || (isOnboardingOrOffboarding ? '' : '09:00'));
-        const endTime = tempRecord.endTime || (isOnboardingOrOffboarding ? '' : '18:00');
+        let startTime = hasContinuation ? '00:00' : (tempRecord.startTime || (isOnboardingOrOffboarding ? '' : '09:00'));
+        let endTime = tempRecord.endTime || (isOnboardingOrOffboarding ? '' : '18:00');
+        
+        // 上户/下户特殊处理：
+        // 上户：startTime 是到达时间，endTime 固定为 24:00
+        // 下户：startTime 固定为 00:00，endTime 是离开时间（用户输入的 startTime）
+        if (isOnboardingOrOffboarding && tempRecord.startTime) {
+            if (tempRecord.type === 'onboarding') {
+                startTime = tempRecord.startTime;
+                endTime = '24:00';
+            } else {
+                // offboarding
+                startTime = '00:00';
+                endTime = tempRecord.startTime; // 用户输入的是离开时间
+            }
+        }
 
         // 出京/出境：计算实际的开始日期
         let actualStartDateStr = dateStr;
@@ -2051,6 +2065,11 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                                     defaultStartTime = '00:00';
                                                     defaultEndTime = '24:00';
                                                     defaultDaysOffset = -1; // -1 表示未选择开始日期
+                                                } else if (type.value === 'onboarding' || type.value === 'offboarding') {
+                                                    // 上户/下户：时间为空，用户需要手动选择具体时间
+                                                    defaultStartTime = '';
+                                                    defaultEndTime = '';
+                                                    defaultDaysOffset = 0;
                                                 } else {
                                                     // 其他类型（休息、请假、带薪休假等）：默认整天 00:00 - 24:00
                                                     defaultStartTime = '00:00';
