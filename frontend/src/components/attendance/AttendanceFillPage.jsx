@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { format, parseISO, addDays, setHours, setMinutes, isSameDay, startOfDay } from 'date-fns';
+import { format, parseISO, addDays, setHours, setMinutes, isSameDay, startOfDay, differenceInDays } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import api from '../../api/axios';
 import { useToast } from '../ui/use-toast';
-import { Loader2, CheckCircle2, AlertCircle, Save, Send, X, Clock, ChevronRight, ChevronLeft, ArrowRight, Copy, Check, Share2, Eraser } from 'lucide-react';
+import { Loader2, CheckCircle2, AlertCircle, Save, Send, X, Clock, ChevronRight, ChevronLeft, ArrowRight, Copy, Check, Share2, Eraser, CalendarIcon } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "../../utils";
 import SignatureCanvas from 'react-signature-canvas';
@@ -13,6 +13,8 @@ import { AttendanceDisplayLogic } from '../../utils/attendanceDisplayLogic';
 import { AttendanceDateUtils } from '../../utils/attendanceDateUtils';
 import { useHolidays } from '../../hooks/useHolidays';
 import WechatShare from '../WechatShare';
+import { Calendar } from '../ui/calendar';
+import { zhCN as calendarZhCN } from 'react-day-picker/locale';
 
 // Helper function to format duration
 // 兼容两种数据格式：
@@ -475,6 +477,9 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
         value: '09:00'
     });
 
+    // 出京/出境日历选择器状态
+    const [outOfBeijingCalendarOpen, setOutOfBeijingCalendarOpen] = useState(false);
+
     // 节假日数据
     const { getHolidayLabel, loading: holidaysLoading } = useHolidays(selectedYear);
 
@@ -844,6 +849,14 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
 
         // 如果找到原始记录，使用原始记录的数据
         if (originalRecord) {
+            // 出京/出境特殊处理：UI 以结束日为基准，需要调整 editingDate
+            const isOutOfBeijingOrCountry = originalRecord.type === 'out_of_beijing' || originalRecord.type === 'out_of_country';
+            if (isOutOfBeijingOrCountry && originalRecord.daysOffset > 0) {
+                // 计算结束日期并设置为 editingDate
+                const endDate = addDays(date, originalRecord.daysOffset);
+                setEditingDate(endDate);
+            }
+            
             setTempRecord({
                 type: originalRecord.type,
                 daysOffset: originalRecord.daysOffset || 0,
@@ -906,12 +919,18 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
         // 注意：totalHours 是包含小数的总小时数（如 10.5）
         // minutes 应该是 totalHours 的小数部分转换为分钟，而不是额外的分钟
         // 这样在显示时 formatDuration(totalHours, 0) 或 formatDuration(hours, minutes) 都能正确显示
-        const totalHoursFloat = duration.totalHours;
+        let totalHoursFloat = duration.totalHours;
+        
+        // 当开始时间等于结束时间时（totalHours <= 0），表示整天（24小时）
+        if (totalHoursFloat <= 0) {
+            totalHoursFloat = 24;
+        }
+        
         const wholeHours = Math.floor(totalHoursFloat);
         const remainingMinutes = Math.round((totalHoursFloat - wholeHours) * 60);
 
         return {
-            days: duration.days,
+            days: duration.days > 0 ? duration.days : (totalHoursFloat >= 24 ? 1 : 0),
             hours: wholeHours,
             minutes: remainingMinutes,
             totalHours: totalHoursFloat
@@ -924,6 +943,18 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
 
         // 对于上户/下户记录，允许保存空时间（后端提交时会验证）
         const isOnboardingOrOffboarding = tempRecord.type === 'onboarding' || tempRecord.type === 'offboarding';
+        // 出京/出境特殊处理：用户点击的是结束日
+        const isOutOfBeijingOrCountry = tempRecord.type === 'out_of_beijing' || tempRecord.type === 'out_of_country';
+        
+        // 出京/出境需要检查是否已选择开始日期
+        if (isOutOfBeijingOrCountry && tempRecord.daysOffset < 0) {
+            toast({
+                title: "请选择开始日期",
+                description: "出京/出境需要选择开始日期（出发日）",
+                variant: "destructive"
+            });
+            return;
+        }
         
         // 非正常考勤类型需要检查时间是否为空
         if (tempRecord.type !== 'normal' && !isOnboardingOrOffboarding) {
@@ -949,10 +980,17 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
         const startTime = tempRecord.startTime || (isOnboardingOrOffboarding ? '' : '09:00');
         const endTime = tempRecord.endTime || (isOnboardingOrOffboarding ? '' : '18:00');
 
+        // 出京/出境：计算实际的开始日期（用户点击的是结束日）
+        let actualStartDateStr = dateStr;
+        if (isOutOfBeijingOrCountry) {
+            const actualStartDate = addDays(editingDate, -(tempRecord.daysOffset || 0));
+            actualStartDateStr = format(actualStartDate, 'yyyy-MM-dd');
+        }
+
         // 验证记录有效性（上户/下户允许空时间）
         if (!isOnboardingOrOffboarding || (startTime && endTime)) {
             const recordToSave = {
-                date: dateStr,
+                date: actualStartDateStr,
                 startTime: startTime || '09:00',
                 endTime: endTime || '18:00',
                 daysOffset: tempRecord.daysOffset || 0,
@@ -974,9 +1012,13 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
             const newData = { ...prev };
             
             // 计算新记录的日期范围
-            const newStartDate = new Date(dateStr);
-            const newEndDate = new Date(dateStr);
-            newEndDate.setDate(newEndDate.getDate() + (tempRecord.daysOffset || 0));
+            // 出京/出境：开始日期是往前推的日期
+            const newStartDate = isOutOfBeijingOrCountry 
+                ? addDays(editingDate, -(tempRecord.daysOffset || 0))
+                : new Date(dateStr);
+            const newEndDate = isOutOfBeijingOrCountry
+                ? new Date(dateStr) // 用户点击的日期就是结束日
+                : addDays(new Date(dateStr), tempRecord.daysOffset || 0);
             
             // 检查两个日期范围是否重叠的辅助函数
             const isOverlapping = (record) => {
@@ -1000,7 +1042,7 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
             if (tempRecord.type !== 'normal') {
                 const recordKey = `${tempRecord.type}_records`;
                 newData[recordKey] = [...(newData[recordKey] || []), {
-                    date: dateStr,
+                    date: actualStartDateStr, // 出京/出境使用计算后的开始日期
                     hours: calculatedDuration.hours,
                     minutes: calculatedDuration.minutes,
                     type: tempRecord.type,
@@ -1802,6 +1844,7 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                                 // 根据考勤类型设置不同的默认时间
                                                 let defaultStartTime = '';
                                                 let defaultEndTime = '';
+                                                let defaultDaysOffset = 0;
                                                 
                                                 if (type.value === 'overtime') {
                                                     // 加班：默认整天 00:00 - 24:00
@@ -1811,14 +1854,24 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                                     // 出勤：不需要时间设置
                                                     defaultStartTime = '';
                                                     defaultEndTime = '';
+                                                } else if (type.value === 'out_of_beijing' || type.value === 'out_of_country') {
+                                                    // 出京/出境：开始日期需要用户手动选择，不设置默认值
+                                                    defaultStartTime = '00:00';
+                                                    defaultEndTime = '24:00';
+                                                    defaultDaysOffset = -1; // -1 表示未选择开始日期
+                                                } else {
+                                                    // 其他类型（休息、请假、带薪休假等）：默认整天 00:00 - 24:00
+                                                    defaultStartTime = '00:00';
+                                                    defaultEndTime = '24:00';
+                                                    defaultDaysOffset = 0; // 默认单天
                                                 }
-                                                // 其他类型（休息、请假、出京、出境、带薪休假等）：默认时间为空，需要用户选择
                                                 
                                                 setTempRecord(prev => ({
                                                     ...prev,
                                                     type: type.value,
                                                     startTime: defaultStartTime,
-                                                    endTime: defaultEndTime
+                                                    endTime: defaultEndTime,
+                                                    daysOffset: defaultDaysOffset
                                                 }));
                                             }}
                                             className={`py-3 px-2 rounded-xl text-sm font-medium transition-all border ${isSelected
@@ -1876,6 +1929,175 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                                 </div>
                                             </div>
                                         </>
+                                    ) : ['out_of_beijing', 'out_of_country'].includes(tempRecord.type) ? (
+                                        // 出京/出境：特殊处理，用户选择的是结束日，需要选择开始日
+                                        <>
+                                            {/* 30天规则提示 */}
+                                            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                                <div className="text-sm text-blue-800 font-medium">
+                                                    📋 {tempRecord.type === 'out_of_beijing' ? '出京' : '出境'}考勤规则
+                                                </div>
+                                                <div className="text-xs text-blue-700 mt-1">
+                                                    连续{tempRecord.type === 'out_of_beijing' ? '出京' : '出境'}满30天才计入考勤，不满30天不计算额外费用
+                                                </div>
+                                            </div>
+
+                                            {/* 开始日期选择（通过日历选择） */}
+                                            <div className="mb-4">
+                                                <label className="text-xs text-gray-500 mb-2 block">开始日期（出发日）</label>
+                                                <Popover open={outOfBeijingCalendarOpen} onOpenChange={setOutOfBeijingCalendarOpen}>
+                                                    <PopoverTrigger asChild>
+                                                        <button
+                                                            type="button"
+                                                            disabled={isReadOnly}
+                                                            className={`w-full p-3 rounded-lg border text-center font-bold transition-colors flex items-center justify-center gap-2 ${isReadOnly
+                                                                ? 'bg-gray-100 text-gray-500 border-gray-200 cursor-not-allowed'
+                                                                : (tempRecord.daysOffset < 0 
+                                                                    ? 'bg-amber-50 text-amber-700 border-amber-300 hover:border-amber-400 hover:bg-amber-100'
+                                                                    : 'bg-white text-gray-900 border-gray-300 hover:border-teal-400 hover:bg-teal-50 active:bg-teal-100')
+                                                            }`}
+                                                        >
+                                                            <CalendarIcon className="w-4 h-4" />
+                                                            {tempRecord.daysOffset < 0 
+                                                                ? '请选择开始日期' 
+                                                                : (editingDate && format(addDays(editingDate, -(tempRecord.daysOffset || 0)), 'yyyy年M月d日 EEEE', { locale: zhCN }))}
+                                                        </button>
+                                                    </PopoverTrigger>
+                                                    <PopoverContent className="w-auto p-0" align="center">
+                                                        <Calendar
+                                                            mode="single"
+                                                            selected={tempRecord.daysOffset >= 0 && editingDate ? addDays(editingDate, -tempRecord.daysOffset) : undefined}
+                                                            defaultMonth={editingDate ? addDays(editingDate, -30) : undefined}
+                                                            onSelect={(date) => {
+                                                                if (date && editingDate) {
+                                                                    // 计算新的 daysOffset（结束日 - 开始日）
+                                                                    const newDaysOffset = differenceInDays(editingDate, date);
+                                                                    // 确保至少30天
+                                                                    if (newDaysOffset >= 29) {
+                                                                        setTempRecord(prev => ({ ...prev, daysOffset: newDaysOffset }));
+                                                                        // 选择后关闭日历
+                                                                        setOutOfBeijingCalendarOpen(false);
+                                                                    }
+                                                                }
+                                                            }}
+                                                            disabled={(date) => {
+                                                                if (!editingDate) return true;
+                                                                // 禁用结束日之后的日期
+                                                                if (date > editingDate) return true;
+                                                                // 禁用不满30天的日期（结束日往前推29天之后的日期）
+                                                                const minStartDate = addDays(editingDate, -29);
+                                                                if (date > minStartDate) return true;
+                                                                return false;
+                                                            }}
+                                                            locale={calendarZhCN}
+                                                            initialFocus
+                                                        />
+                                                        <div className="p-2 border-t text-xs text-gray-500 text-center">
+                                                            灰色日期不满30天，无法选择
+                                                        </div>
+                                                    </PopoverContent>
+                                                </Popover>
+                                            </div>
+
+                                            {/* 开始时间 */}
+                                            <div className="mb-4">
+                                                <label className="text-xs text-gray-500 mb-2 block">开始时间</label>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        if (!isReadOnly) {
+                                                            setTimePickerDrawer({
+                                                                isOpen: true,
+                                                                field: 'startTime',
+                                                                value: tempRecord.startTime || '00:00'
+                                                            });
+                                                        }
+                                                    }}
+                                                    disabled={isReadOnly}
+                                                    className={`w-full p-3 rounded-lg border text-center font-mono text-lg transition-colors ${isReadOnly
+                                                        ? 'bg-gray-100 text-gray-500 border-gray-200 cursor-not-allowed'
+                                                        : 'bg-white text-gray-900 border-gray-300 hover:border-teal-400 hover:bg-teal-50 active:bg-teal-100'
+                                                        }`}
+                                                >
+                                                    {tempRecord.startTime || '请选择'}
+                                                </button>
+                                            </div>
+
+                                            {/* 持续天数调整 - 放在开始和结束之间 */}
+                                            <div className="mb-4">
+                                                <label className="text-xs text-gray-500 mb-2 block">持续天数</label>
+                                                <div className="flex items-center gap-3">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setTempRecord(prev => ({ 
+                                                            ...prev, 
+                                                            daysOffset: Math.max(29, (prev.daysOffset || 0) - 1) // 最小30天
+                                                        }))}
+                                                        disabled={tempRecord.daysOffset < 0 || tempRecord.daysOffset <= 29}
+                                                        className={`w-12 h-12 rounded-lg flex items-center justify-center text-2xl font-bold ${
+                                                            tempRecord.daysOffset < 0 || tempRecord.daysOffset <= 29
+                                                                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                                                : 'bg-black hover:bg-gray-800 active:bg-gray-700 text-white'
+                                                        }`}
+                                                    >
+                                                        −
+                                                    </button>
+                                                    <div className="flex-1 text-center">
+                                                        <div className={`text-3xl font-bold ${tempRecord.daysOffset < 0 ? 'text-amber-600' : 'text-gray-900'}`}>
+                                                            {tempRecord.daysOffset < 0 ? '--' : tempRecord.daysOffset + 1}
+                                                        </div>
+                                                        <div className="text-xs text-gray-500 mt-1">天</div>
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setTempRecord(prev => ({ 
+                                                            ...prev, 
+                                                            daysOffset: prev.daysOffset < 0 ? 29 : prev.daysOffset + 1 
+                                                        }))}
+                                                        className="w-12 h-12 rounded-lg bg-black hover:bg-gray-800 active:bg-gray-700 flex items-center justify-center text-2xl font-bold text-white"
+                                                    >
+                                                        +
+                                                    </button>
+                                                </div>
+                                                {/* 30天限制提示 */}
+                                                <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded text-xs text-amber-700">
+                                                    <div className="font-medium">⚠️ 最少需要连续30天</div>
+                                                    <div>不满30天的{tempRecord.type === 'out_of_beijing' ? '出京' : '出境'}不计入考勤</div>
+                                                </div>
+                                            </div>
+
+                                            {/* 结束日期（用户点击的日期） */}
+                                            <div className="mb-4">
+                                                <label className="text-xs text-gray-500 mb-2 block">结束日期（返回日）</label>
+                                                <div className="bg-gray-100 text-gray-700 text-center p-3 rounded-lg border border-gray-200 font-bold">
+                                                    {editingDate && format(editingDate, 'yyyy年M月d日 EEEE', { locale: zhCN })}
+                                                </div>
+                                            </div>
+
+                                            {/* 结束时间 */}
+                                            <div className="mb-4">
+                                                <label className="text-xs text-gray-500 mb-2 block">结束时间</label>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        if (!isReadOnly) {
+                                                            setTimePickerDrawer({
+                                                                isOpen: true,
+                                                                field: 'endTime',
+                                                                value: tempRecord.endTime || '18:00'
+                                                            });
+                                                        }
+                                                    }}
+                                                    disabled={isReadOnly}
+                                                    className={`w-full p-3 rounded-lg border text-center font-mono text-lg transition-colors ${isReadOnly
+                                                        ? 'bg-gray-100 text-gray-500 border-gray-200 cursor-not-allowed'
+                                                        : 'bg-white text-gray-900 border-gray-300 hover:border-teal-400 hover:bg-teal-50 active:bg-teal-100'
+                                                        }`}
+                                                >
+                                                    {tempRecord.endTime || '请选择'}
+                                                </button>
+                                            </div>
+                                        </>
                                     ) : (
                                         // Standard Duration Picker
                                         <>
@@ -1897,8 +2119,8 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                                             setTimePickerDrawer({
                                                                 isOpen: true,
                                                                 field: 'startTime',
-                                                                // 非加班类型默认显示08:00方便用户选择
-                                                                value: tempRecord.startTime || '08:00'
+                                                                // 默认显示10:00方便用户选择（如果当前是00:00则显示10:00）
+                                                                value: tempRecord.startTime === '00:00' ? '10:00' : (tempRecord.startTime || '10:00')
                                                             });
                                                         }
                                                     }}
@@ -1908,13 +2130,13 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                                         : 'bg-white text-gray-900 border-gray-300 hover:border-teal-400 hover:bg-teal-50 active:bg-teal-100'
                                                         }`}
                                                 >
-                                                    {tempRecord.startTime || '请选择'}
+                                                    {tempRecord.startTime || '00:00'}
                                                 </button>
                                                 
                                                 {/* 中午12点边界条件提示 */}
                                                 {(() => {
                                                     const recordForBoundary = {
-                                                        startTime: tempRecord.startTime || '09:00',
+                                                        startTime: tempRecord.startTime || '00:00',
                                                         daysOffset: tempRecord.daysOffset || 0
                                                     };
                                                     const boundaryResult = AttendanceDateUtils.BoundaryConditionHandler.handleNoonBoundary(recordForBoundary);
@@ -1933,18 +2155,89 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
 
                                             {/* Days Offset Selector */}
                                             <div className="mb-4">
-                                                <label className="text-xs text-gray-500 mb-2 block">持续天数</label>
+                                                <label className="text-xs text-gray-500 mb-2 block">持续时长</label>
                                                 <div className="flex items-center gap-3">
                                                     <button
                                                         type="button"
                                                         onClick={() => setTempRecord(prev => ({ ...prev, daysOffset: Math.max(0, (prev.daysOffset || 0) - 1) }))}
-                                                        className="w-12 h-12 rounded-lg bg-black hover:bg-gray-800 active:bg-gray-700 flex items-center justify-center text-2xl font-bold text-white"
+                                                        disabled={(tempRecord.daysOffset || 0) <= 0}
+                                                        className={`w-12 h-12 rounded-lg flex items-center justify-center text-2xl font-bold ${
+                                                            (tempRecord.daysOffset || 0) <= 0
+                                                                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                                                : 'bg-black hover:bg-gray-800 active:bg-gray-700 text-white'
+                                                        }`}
                                                     >
                                                         −
                                                     </button>
                                                     <div className="flex-1 text-center">
-                                                        <div className="text-3xl font-bold text-gray-900">{(tempRecord.daysOffset || 0) + 1}</div>
-                                                        <div className="text-xs text-gray-500 mt-1">天</div>
+                                                        {/* 显示实际时长：如果是单天且开始时间不是00:00，显示小时数 */}
+                                                        {(() => {
+                                                            const daysOffset = tempRecord.daysOffset || 0;
+                                                            const startTime = tempRecord.startTime || '00:00';
+                                                            const endTime = tempRecord.endTime || '24:00';
+                                                            
+                                                            if (daysOffset === 0) {
+                                                                // 单天：显示小时数
+                                                                const [startH, startM] = startTime.split(':').map(Number);
+                                                                const [endH, endM] = endTime === '24:00' ? [24, 0] : endTime.split(':').map(Number);
+                                                                const totalMinutes = (endH * 60 + endM) - (startH * 60 + startM);
+                                                                
+                                                                // 当开始时间等于结束时间时（totalMinutes <= 0），表示整天
+                                                                if (totalMinutes <= 0) {
+                                                                    return (
+                                                                        <>
+                                                                            <div className="text-3xl font-bold text-gray-900">1</div>
+                                                                            <div className="text-xs text-gray-500 mt-1">天</div>
+                                                                        </>
+                                                                    );
+                                                                }
+                                                                
+                                                                const hours = Math.floor(totalMinutes / 60);
+                                                                const minutes = totalMinutes % 60;
+                                                                
+                                                                if (hours >= 24) {
+                                                                    return (
+                                                                        <>
+                                                                            <div className="text-3xl font-bold text-gray-900">1</div>
+                                                                            <div className="text-xs text-gray-500 mt-1">天</div>
+                                                                        </>
+                                                                    );
+                                                                }
+                                                                return (
+                                                                    <>
+                                                                        <div className="text-2xl font-bold text-gray-900">
+                                                                            {minutes > 0 ? `${hours}小时${minutes}分` : `${hours}小时`}
+                                                                        </div>
+                                                                    </>
+                                                                );
+                                                            } else {
+                                                                // 跨天：显示天数+小时数
+                                                                const [startH, startM] = startTime.split(':').map(Number);
+                                                                const [endH, endM] = endTime === '24:00' ? [24, 0] : endTime.split(':').map(Number);
+                                                                
+                                                                // 第一天的小时数
+                                                                const firstDayHours = 24 - startH - startM / 60;
+                                                                // 最后一天的小时数
+                                                                const lastDayHours = endH + endM / 60;
+                                                                // 中间天数（完整的24小时）
+                                                                const middleDays = daysOffset - 1;
+                                                                
+                                                                // 总小时数
+                                                                const totalHours = firstDayHours + lastDayHours + middleDays * 24;
+                                                                const days = Math.floor(totalHours / 24);
+                                                                const remainingHours = Math.round(totalHours % 24);
+                                                                
+                                                                return (
+                                                                    <>
+                                                                        <div className="text-2xl font-bold text-gray-900">
+                                                                            {days > 0 && `${days}天`}
+                                                                            {remainingHours > 0 && `${remainingHours}小时`}
+                                                                            {days === 0 && remainingHours === 0 && '1天'}
+                                                                        </div>
+                                                                    </>
+                                                                );
+                                                            }
+                                                        })()}
                                                     </div>
                                                     <button
                                                         type="button"
@@ -1996,8 +2289,8 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                                             setTimePickerDrawer({
                                                                 isOpen: true,
                                                                 field: 'endTime',
-                                                                // 非加班类型默认显示18:00方便用户选择
-                                                                value: tempRecord.endTime || '18:00'
+                                                                // 默认显示18:00方便用户选择（如果当前是24:00则显示18:00）
+                                                                value: tempRecord.endTime === '24:00' ? '18:00' : (tempRecord.endTime || '18:00')
                                                             });
                                                         }
                                                     }}
@@ -2007,7 +2300,7 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                                         : 'bg-white text-gray-900 border-gray-300 hover:border-teal-400 hover:bg-teal-50 active:bg-teal-100'
                                                         }`}
                                                 >
-                                                    {tempRecord.endTime || '请选择'}
+                                                    {tempRecord.endTime || '24:00'}
                                                 </button>
                                             </div>
                                         </>
@@ -2027,6 +2320,9 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                             
                                             // 如果是只读模式（跨天记录的结束日），不显示时长警告
                                             if (isReadOnly) return null;
+                                            
+                                            // 出京/出境类型不显示时长警告（因为本身就是长时间的）
+                                            if (tempRecord.type === 'out_of_beijing' || tempRecord.type === 'out_of_country') return null;
                                             
                                             const recordForExtreme = {
                                                 date: format(editingDate, 'yyyy-MM-dd'),
