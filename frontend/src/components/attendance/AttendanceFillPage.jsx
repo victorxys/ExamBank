@@ -890,10 +890,28 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
             previousMonthContinuation?.has_continuation && 
             previousMonthContinuation.continuation_type === tempRecord.type;
 
+        // 检查是否是上户/下户
+        const isOnboardingOrOffboarding = tempRecord.type === 'onboarding' || tempRecord.type === 'offboarding';
+
         // 有延续时，开始时间固定为 00:00
-        const effectiveStartTime = hasContinuation ? '00:00' : tempRecord.startTime;
+        let effectiveStartTime = hasContinuation ? '00:00' : tempRecord.startTime;
+        let effectiveEndTime = tempRecord.endTime;
         
-        if (!editingDate || !effectiveStartTime || !tempRecord.endTime) {
+        // 上户/下户特殊处理：
+        // 上户：从到达时间到当天24:00
+        // 下户：从当天00:00到离开时间
+        if (isOnboardingOrOffboarding && tempRecord.startTime) {
+            if (tempRecord.type === 'onboarding') {
+                effectiveStartTime = tempRecord.startTime;
+                effectiveEndTime = '24:00';
+            } else {
+                // offboarding
+                effectiveStartTime = '00:00';
+                effectiveEndTime = tempRecord.startTime; // 下户的 startTime 实际是离开时间
+            }
+        }
+        
+        if (!editingDate || !effectiveStartTime || !effectiveEndTime) {
             return { days: 0, hours: 0, minutes: 0, totalHours: 0 };
         }
 
@@ -927,7 +945,7 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
         const tempRecordForCalculation = {
             date: format(editingDate, 'yyyy-MM-dd'),
             startTime: effectiveStartTime,
-            endTime: tempRecord.endTime,
+            endTime: effectiveEndTime,
             daysOffset: effectiveDaysOffset
         };
 
