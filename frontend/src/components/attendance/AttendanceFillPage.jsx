@@ -267,6 +267,11 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
     const [monthDays, setMonthDays] = useState([]);
     const [contractInfo, setContractInfo] = useState(null);
     
+    // 上月出京/出境延续信息（用于判断本月是否需要满30天）
+    const previousMonthContinuation = useMemo(() => {
+        return formData?.previous_month_continuation || null;
+    }, [formData]);
+    
     // 标记是否已经根据合同月份调整过默认月份
     const hasAdjustedForContractMonth = useRef(false);
     
@@ -879,7 +884,16 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
 
     // Calculate duration based on days offset and time using new utility functions
     const calculatedDuration = useMemo(() => {
-        if (!editingDate || !tempRecord.startTime || !tempRecord.endTime) {
+        // 检查是否是出京/出境且有延续
+        const isOutOfBeijingOrCountry = tempRecord.type === 'out_of_beijing' || tempRecord.type === 'out_of_country';
+        const hasContinuation = isOutOfBeijingOrCountry && 
+            previousMonthContinuation?.has_continuation && 
+            previousMonthContinuation.continuation_type === tempRecord.type;
+
+        // 有延续时，开始时间固定为 00:00
+        const effectiveStartTime = hasContinuation ? '00:00' : tempRecord.startTime;
+        
+        if (!editingDate || !effectiveStartTime || !tempRecord.endTime) {
             return { days: 0, hours: 0, minutes: 0, totalHours: 0 };
         }
 
@@ -897,12 +911,24 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
             };
         }
 
+        // 计算实际的 daysOffset
+        let effectiveDaysOffset = tempRecord.daysOffset || 0;
+        if (hasContinuation) {
+            // 有延续时，计算实际的 daysOffset（结束日 - 本月1日）
+            const cycleStart = formData?.cycle_start_date 
+                ? startOfDay(parseISO(formData.cycle_start_date))
+                : new Date(selectedYear, selectedMonth - 1, 1);
+            const endDate = startOfDay(editingDate);
+            effectiveDaysOffset = differenceInDays(endDate, cycleStart);
+            if (effectiveDaysOffset < 0) effectiveDaysOffset = 0;
+        }
+
         // 构造临时记录对象
         const tempRecordForCalculation = {
             date: format(editingDate, 'yyyy-MM-dd'),
-            startTime: tempRecord.startTime,
+            startTime: effectiveStartTime,
             endTime: tempRecord.endTime,
-            daysOffset: tempRecord.daysOffset || 0
+            daysOffset: effectiveDaysOffset
         };
 
         // 使用新的工具函数计算时长
@@ -935,7 +961,7 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
             minutes: remainingMinutes,
             totalHours: totalHoursFloat
         };
-    }, [editingDate, tempRecord.daysOffset, tempRecord.startTime, tempRecord.endTime, isReadOnly, coveringRecord]);
+    }, [editingDate, tempRecord.daysOffset, tempRecord.startTime, tempRecord.endTime, tempRecord.type, isReadOnly, coveringRecord, previousMonthContinuation, formData, selectedYear, selectedMonth]);
 
     const handleSaveRecord = () => {
         if (!editingDate) return;
@@ -946,8 +972,13 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
         // 出京/出境特殊处理：用户点击的是结束日
         const isOutOfBeijingOrCountry = tempRecord.type === 'out_of_beijing' || tempRecord.type === 'out_of_country';
         
-        // 出京/出境需要检查是否已选择开始日期
-        if (isOutOfBeijingOrCountry && tempRecord.daysOffset < 0) {
+        // 检查是否有延续
+        const hasContinuation = isOutOfBeijingOrCountry && 
+            previousMonthContinuation?.has_continuation && 
+            previousMonthContinuation.continuation_type === tempRecord.type;
+        
+        // 出京/出境需要检查是否已选择开始日期（有延续时不需要检查，因为开始日期固定为本月1日）
+        if (isOutOfBeijingOrCountry && !hasContinuation && tempRecord.daysOffset < 0) {
             toast({
                 title: "请选择开始日期",
                 description: "出京/出境需要选择开始日期（出发日）",
@@ -956,9 +987,9 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
             return;
         }
         
-        // 非正常考勤类型需要检查时间是否为空
+        // 非正常考勤类型需要检查时间是否为空（有延续时开始时间固定为00:00）
         if (tempRecord.type !== 'normal' && !isOnboardingOrOffboarding) {
-            if (!tempRecord.startTime) {
+            if (!hasContinuation && !tempRecord.startTime) {
                 toast({
                     title: "请选择开始时间",
                     description: "开始时间不能为空",
@@ -977,14 +1008,36 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
         }
         
         // 如果时间为空且不是上户/下户，使用默认值
-        const startTime = tempRecord.startTime || (isOnboardingOrOffboarding ? '' : '09:00');
+        // 有延续时，开始时间固定为 00:00
+        const startTime = hasContinuation ? '00:00' : (tempRecord.startTime || (isOnboardingOrOffboarding ? '' : '09:00'));
         const endTime = tempRecord.endTime || (isOnboardingOrOffboarding ? '' : '18:00');
 
-        // 出京/出境：计算实际的开始日期（用户点击的是结束日）
+        // 出京/出境：计算实际的开始日期
         let actualStartDateStr = dateStr;
         if (isOutOfBeijingOrCountry) {
-            const actualStartDate = addDays(editingDate, -(tempRecord.daysOffset || 0));
-            actualStartDateStr = format(actualStartDate, 'yyyy-MM-dd');
+            if (hasContinuation) {
+                // 有延续时，开始日期固定为本月1日
+                const cycleStartDate = formData?.cycle_start_date 
+                    ? format(parseISO(formData.cycle_start_date), 'yyyy-MM-dd')
+                    : format(new Date(selectedYear, selectedMonth - 1, 1), 'yyyy-MM-dd');
+                actualStartDateStr = cycleStartDate;
+            } else {
+                // 无延续时，根据 daysOffset 计算开始日期
+                const actualStartDate = addDays(editingDate, -(tempRecord.daysOffset || 0));
+                actualStartDateStr = format(actualStartDate, 'yyyy-MM-dd');
+            }
+        }
+
+        // 计算验证用的 daysOffset
+        let validationDaysOffset = tempRecord.daysOffset || 0;
+        if (isOutOfBeijingOrCountry && hasContinuation) {
+            // 有延续时，计算实际的 daysOffset（结束日 - 本月1日）
+            const cycleStart = formData?.cycle_start_date 
+                ? startOfDay(parseISO(formData.cycle_start_date))
+                : new Date(selectedYear, selectedMonth - 1, 1);
+            const endDate = startOfDay(parseISO(dateStr));
+            validationDaysOffset = differenceInDays(endDate, cycleStart);
+            if (validationDaysOffset < 0) validationDaysOffset = 0;
         }
 
         // 验证记录有效性（上户/下户允许空时间）
@@ -993,7 +1046,7 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                 date: actualStartDateStr,
                 startTime: startTime || '09:00',
                 endTime: endTime || '18:00',
-                daysOffset: tempRecord.daysOffset || 0,
+                daysOffset: validationDaysOffset,
                 type: tempRecord.type
             };
 
@@ -1012,13 +1065,30 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
             const newData = { ...prev };
             
             // 计算新记录的日期范围
-            // 出京/出境：开始日期是往前推的日期
-            const newStartDate = isOutOfBeijingOrCountry 
-                ? addDays(editingDate, -(tempRecord.daysOffset || 0))
-                : new Date(dateStr);
-            const newEndDate = isOutOfBeijingOrCountry
-                ? new Date(dateStr) // 用户点击的日期就是结束日
-                : addDays(new Date(dateStr), tempRecord.daysOffset || 0);
+            let newStartDate, newEndDate, actualDaysOffset;
+            
+            if (isOutOfBeijingOrCountry) {
+                if (hasContinuation) {
+                    // 有延续时，开始日期固定为本月1日
+                    newStartDate = formData?.cycle_start_date 
+                        ? startOfDay(parseISO(formData.cycle_start_date))
+                        : new Date(selectedYear, selectedMonth - 1, 1);
+                    newEndDate = startOfDay(parseISO(dateStr)); // 用户点击的日期就是结束日
+                    // 计算实际的 daysOffset（结束日 - 本月1日）
+                    actualDaysOffset = differenceInDays(newEndDate, newStartDate);
+                    // 确保 daysOffset 非负
+                    if (actualDaysOffset < 0) actualDaysOffset = 0;
+                } else {
+                    // 无延续时，根据 daysOffset 计算
+                    newStartDate = addDays(editingDate, -(tempRecord.daysOffset || 0));
+                    newEndDate = new Date(dateStr); // 用户点击的日期就是结束日
+                    actualDaysOffset = tempRecord.daysOffset || 0;
+                }
+            } else {
+                newStartDate = new Date(dateStr);
+                newEndDate = addDays(new Date(dateStr), tempRecord.daysOffset || 0);
+                actualDaysOffset = tempRecord.daysOffset || 0;
+            }
             
             // 检查两个日期范围是否重叠的辅助函数
             const isOverlapping = (record) => {
@@ -1046,7 +1116,7 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                     hours: calculatedDuration.hours,
                     minutes: calculatedDuration.minutes,
                     type: tempRecord.type,
-                    daysOffset: tempRecord.daysOffset || 0,
+                    daysOffset: actualDaysOffset,
                     startTime: startTime,
                     endTime: endTime
                 }];
@@ -1932,138 +2002,185 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                     ) : ['out_of_beijing', 'out_of_country'].includes(tempRecord.type) ? (
                                         // 出京/出境：特殊处理，用户选择的是结束日，需要选择开始日
                                         <>
-                                            {/* 30天规则提示 */}
-                                            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                                                <div className="text-sm text-blue-800 font-medium">
-                                                    📋 {tempRecord.type === 'out_of_beijing' ? '出京' : '出境'}考勤规则
+                                            {/* 30天规则提示 或 延续提示 */}
+                                            {previousMonthContinuation?.has_continuation && 
+                                             previousMonthContinuation.continuation_type === tempRecord.type ? (
+                                                // 有上月延续，显示延续提示
+                                                <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                                                    <div className="text-sm text-green-800 font-medium">
+                                                        ✅ 延续上月{tempRecord.type === 'out_of_beijing' ? '出京' : '出境'}记录
+                                                    </div>
+                                                    <div className="text-xs text-green-700 mt-1">
+                                                        上月已记录 {previousMonthContinuation.total_days_before} 天（{previousMonthContinuation.previous_start_date} 至 {previousMonthContinuation.previous_end_date}），
+                                                        本月可继续记录，无需满30天
+                                                    </div>
                                                 </div>
-                                                <div className="text-xs text-blue-700 mt-1">
-                                                    连续{tempRecord.type === 'out_of_beijing' ? '出京' : '出境'}满30天才计入考勤，不满30天不计算额外费用
+                                            ) : (
+                                                // 无延续，显示30天规则提示
+                                                <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                                    <div className="text-sm text-blue-800 font-medium">
+                                                        📋 {tempRecord.type === 'out_of_beijing' ? '出京' : '出境'}考勤规则
+                                                    </div>
+                                                    <div className="text-xs text-blue-700 mt-1">
+                                                        连续{tempRecord.type === 'out_of_beijing' ? '出京' : '出境'}满30天才计入考勤，不满30天不计算额外费用
+                                                    </div>
                                                 </div>
-                                            </div>
+                                            )}
 
-                                            {/* 开始日期选择（通过日历选择） */}
+                                            {/* 开始日期选择 */}
                                             <div className="mb-4">
                                                 <label className="text-xs text-gray-500 mb-2 block">开始日期（出发日）</label>
-                                                <Popover open={outOfBeijingCalendarOpen} onOpenChange={setOutOfBeijingCalendarOpen}>
-                                                    <PopoverTrigger asChild>
-                                                        <button
-                                                            type="button"
-                                                            disabled={isReadOnly}
-                                                            className={`w-full p-3 rounded-lg border text-center font-bold transition-colors flex items-center justify-center gap-2 ${isReadOnly
-                                                                ? 'bg-gray-100 text-gray-500 border-gray-200 cursor-not-allowed'
-                                                                : (tempRecord.daysOffset < 0 
-                                                                    ? 'bg-amber-50 text-amber-700 border-amber-300 hover:border-amber-400 hover:bg-amber-100'
-                                                                    : 'bg-white text-gray-900 border-gray-300 hover:border-teal-400 hover:bg-teal-50 active:bg-teal-100')
-                                                            }`}
-                                                        >
-                                                            <CalendarIcon className="w-4 h-4" />
-                                                            {tempRecord.daysOffset < 0 
-                                                                ? '请选择开始日期' 
-                                                                : (editingDate && format(addDays(editingDate, -(tempRecord.daysOffset || 0)), 'yyyy年M月d日 EEEE', { locale: zhCN }))}
-                                                        </button>
-                                                    </PopoverTrigger>
-                                                    <PopoverContent className="w-auto p-0" align="center">
-                                                        <Calendar
-                                                            mode="single"
-                                                            selected={tempRecord.daysOffset >= 0 && editingDate ? addDays(editingDate, -tempRecord.daysOffset) : undefined}
-                                                            defaultMonth={editingDate ? addDays(editingDate, -30) : undefined}
-                                                            onSelect={(date) => {
-                                                                if (date && editingDate) {
-                                                                    // 计算新的 daysOffset（结束日 - 开始日）
-                                                                    const newDaysOffset = differenceInDays(editingDate, date);
-                                                                    // 确保至少30天
-                                                                    if (newDaysOffset >= 29) {
-                                                                        setTempRecord(prev => ({ ...prev, daysOffset: newDaysOffset }));
-                                                                        // 选择后关闭日历
-                                                                        setOutOfBeijingCalendarOpen(false);
+                                                {/* 有延续时，开始日期固定为本月1日 */}
+                                                {previousMonthContinuation?.has_continuation && 
+                                                 previousMonthContinuation.continuation_type === tempRecord.type ? (
+                                                    <div className="bg-green-50 text-green-700 text-center p-3 rounded-lg border border-green-200 font-bold">
+                                                        {formData?.cycle_start_date && format(parseISO(formData.cycle_start_date), 'yyyy年M月d日 EEEE', { locale: zhCN })}
+                                                        <span className="ml-2 text-xs font-normal">（延续上月，固定为月初）</span>
+                                                    </div>
+                                                ) : (
+                                                    <Popover open={outOfBeijingCalendarOpen} onOpenChange={setOutOfBeijingCalendarOpen}>
+                                                        <PopoverTrigger asChild>
+                                                            <button
+                                                                type="button"
+                                                                disabled={isReadOnly}
+                                                                className={`w-full p-3 rounded-lg border text-center font-bold transition-colors flex items-center justify-center gap-2 ${isReadOnly
+                                                                    ? 'bg-gray-100 text-gray-500 border-gray-200 cursor-not-allowed'
+                                                                    : (tempRecord.daysOffset < 0 
+                                                                        ? 'bg-amber-50 text-amber-700 border-amber-300 hover:border-amber-400 hover:bg-amber-100'
+                                                                        : 'bg-white text-gray-900 border-gray-300 hover:border-teal-400 hover:bg-teal-50 active:bg-teal-100')
+                                                                }`}
+                                                            >
+                                                                <CalendarIcon className="w-4 h-4" />
+                                                                {tempRecord.daysOffset < 0 
+                                                                    ? '请选择开始日期' 
+                                                                    : (editingDate && format(addDays(editingDate, -(tempRecord.daysOffset || 0)), 'yyyy年M月d日 EEEE', { locale: zhCN }))}
+                                                            </button>
+                                                        </PopoverTrigger>
+                                                        <PopoverContent className="w-auto p-0" align="center">
+                                                            <Calendar
+                                                                mode="single"
+                                                                selected={tempRecord.daysOffset >= 0 && editingDate ? addDays(editingDate, -tempRecord.daysOffset) : undefined}
+                                                                defaultMonth={editingDate ? addDays(editingDate, -30) : undefined}
+                                                                onSelect={(date) => {
+                                                                    if (date && editingDate) {
+                                                                        // 计算新的 daysOffset（结束日 - 开始日）
+                                                                        const newDaysOffset = differenceInDays(editingDate, date);
+                                                                        // 需要至少30天
+                                                                        if (newDaysOffset >= 29) {
+                                                                            setTempRecord(prev => ({ ...prev, daysOffset: newDaysOffset }));
+                                                                            // 选择后关闭日历
+                                                                            setOutOfBeijingCalendarOpen(false);
+                                                                        }
                                                                     }
-                                                                }
-                                                            }}
-                                                            disabled={(date) => {
-                                                                if (!editingDate) return true;
-                                                                // 禁用结束日之后的日期
-                                                                if (date > editingDate) return true;
-                                                                // 禁用不满30天的日期（结束日往前推29天之后的日期）
-                                                                const minStartDate = addDays(editingDate, -29);
-                                                                if (date > minStartDate) return true;
-                                                                return false;
-                                                            }}
-                                                            locale={calendarZhCN}
-                                                            initialFocus
-                                                        />
-                                                        <div className="p-2 border-t text-xs text-gray-500 text-center">
-                                                            灰色日期不满30天，无法选择
-                                                        </div>
-                                                    </PopoverContent>
-                                                </Popover>
+                                                                }}
+                                                                disabled={(date) => {
+                                                                    if (!editingDate) return true;
+                                                                    // 禁用结束日之后的日期
+                                                                    if (date > editingDate) return true;
+                                                                    // 禁用不满30天的日期（结束日往前推29天之后的日期）
+                                                                    const minStartDate = addDays(editingDate, -29);
+                                                                    if (date > minStartDate) return true;
+                                                                    return false;
+                                                                }}
+                                                                locale={calendarZhCN}
+                                                                initialFocus
+                                                            />
+                                                            <div className="p-2 border-t text-xs text-gray-500 text-center">
+                                                                灰色日期不满30天，无法选择
+                                                            </div>
+                                                        </PopoverContent>
+                                                    </Popover>
+                                                )}
                                             </div>
 
-                                            {/* 开始时间 */}
+                                            {/* 开始时间 - 有延续时固定为 00:00 */}
                                             <div className="mb-4">
                                                 <label className="text-xs text-gray-500 mb-2 block">开始时间</label>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => {
-                                                        if (!isReadOnly) {
-                                                            setTimePickerDrawer({
-                                                                isOpen: true,
-                                                                field: 'startTime',
-                                                                value: tempRecord.startTime || '00:00'
-                                                            });
-                                                        }
-                                                    }}
-                                                    disabled={isReadOnly}
-                                                    className={`w-full p-3 rounded-lg border text-center font-mono text-lg transition-colors ${isReadOnly
-                                                        ? 'bg-gray-100 text-gray-500 border-gray-200 cursor-not-allowed'
-                                                        : 'bg-white text-gray-900 border-gray-300 hover:border-teal-400 hover:bg-teal-50 active:bg-teal-100'
-                                                        }`}
-                                                >
-                                                    {tempRecord.startTime || '请选择'}
-                                                </button>
+                                                {previousMonthContinuation?.has_continuation && 
+                                                 previousMonthContinuation.continuation_type === tempRecord.type ? (
+                                                    <div className="bg-green-50 text-green-700 text-center p-3 rounded-lg border border-green-200 font-mono text-lg font-bold">
+                                                        00:00
+                                                        {/* <span className="ml-2 text-xs font-normal">（延续上月，固定为0点）</span> */}
+                                                    </div>
+                                                ) : (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            if (!isReadOnly) {
+                                                                setTimePickerDrawer({
+                                                                    isOpen: true,
+                                                                    field: 'startTime',
+                                                                    value: tempRecord.startTime || '00:00'
+                                                                });
+                                                            }
+                                                        }}
+                                                        disabled={isReadOnly}
+                                                        className={`w-full p-3 rounded-lg border text-center font-mono text-lg transition-colors ${isReadOnly
+                                                            ? 'bg-gray-100 text-gray-500 border-gray-200 cursor-not-allowed'
+                                                            : 'bg-white text-gray-900 border-gray-300 hover:border-teal-400 hover:bg-teal-50 active:bg-teal-100'
+                                                            }`}
+                                                    >
+                                                        {tempRecord.startTime || '请选择'}
+                                                    </button>
+                                                )}
                                             </div>
 
                                             {/* 持续天数调整 - 放在开始和结束之间 */}
                                             <div className="mb-4">
                                                 <label className="text-xs text-gray-500 mb-2 block">持续天数</label>
-                                                <div className="flex items-center gap-3">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setTempRecord(prev => ({ 
-                                                            ...prev, 
-                                                            daysOffset: Math.max(29, (prev.daysOffset || 0) - 1) // 最小30天
-                                                        }))}
-                                                        disabled={tempRecord.daysOffset < 0 || tempRecord.daysOffset <= 29}
-                                                        className={`w-12 h-12 rounded-lg flex items-center justify-center text-2xl font-bold ${
-                                                            tempRecord.daysOffset < 0 || tempRecord.daysOffset <= 29
-                                                                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                                                                : 'bg-black hover:bg-gray-800 active:bg-gray-700 text-white'
-                                                        }`}
-                                                    >
-                                                        −
-                                                    </button>
-                                                    <div className="flex-1 text-center">
-                                                        <div className={`text-3xl font-bold ${tempRecord.daysOffset < 0 ? 'text-amber-600' : 'text-gray-900'}`}>
-                                                            {tempRecord.daysOffset < 0 ? '--' : tempRecord.daysOffset + 1}
+                                                {/* 有延续时，持续天数 = 结束日的日期（因为开始日期固定为本月1日） */}
+                                                {previousMonthContinuation?.has_continuation && 
+                                                 previousMonthContinuation.continuation_type === tempRecord.type ? (
+                                                    <div className="bg-green-50 text-green-700 text-center p-3 rounded-lg border border-green-200">
+                                                        <div className="text-3xl font-bold">
+                                                            {editingDate ? format(editingDate, 'd') : '--'}
                                                         </div>
-                                                        <div className="text-xs text-gray-500 mt-1">天</div>
+                                                        <div className="text-xs mt-1">天（本月1日 至 {editingDate ? format(editingDate, 'M月d日') : '--'}）</div>
                                                     </div>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setTempRecord(prev => ({ 
-                                                            ...prev, 
-                                                            daysOffset: prev.daysOffset < 0 ? 29 : prev.daysOffset + 1 
-                                                        }))}
-                                                        className="w-12 h-12 rounded-lg bg-black hover:bg-gray-800 active:bg-gray-700 flex items-center justify-center text-2xl font-bold text-white"
-                                                    >
-                                                        +
-                                                    </button>
-                                                </div>
-                                                {/* 30天限制提示 */}
-                                                <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded text-xs text-amber-700">
-                                                    <div className="font-medium">⚠️ 最少需要连续30天</div>
-                                                    <div>不满30天的{tempRecord.type === 'out_of_beijing' ? '出京' : '出境'}不计入考勤</div>
-                                                </div>
+                                                ) : (
+                                                    <>
+                                                        <div className="flex items-center gap-3">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    setTempRecord(prev => ({ 
+                                                                        ...prev, 
+                                                                        daysOffset: Math.max(29, (prev.daysOffset || 0) - 1)
+                                                                    }));
+                                                                }}
+                                                                disabled={tempRecord.daysOffset < 0 || tempRecord.daysOffset <= 29}
+                                                                className={`w-12 h-12 rounded-lg flex items-center justify-center text-2xl font-bold ${
+                                                                    tempRecord.daysOffset < 0 || tempRecord.daysOffset <= 29
+                                                                        ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                                                        : 'bg-black hover:bg-gray-800 active:bg-gray-700 text-white'
+                                                                }`}
+                                                            >
+                                                                −
+                                                            </button>
+                                                            <div className="flex-1 text-center">
+                                                                <div className={`text-3xl font-bold ${tempRecord.daysOffset < 0 ? 'text-amber-600' : 'text-gray-900'}`}>
+                                                                    {tempRecord.daysOffset < 0 ? '--' : tempRecord.daysOffset + 1}
+                                                                </div>
+                                                                <div className="text-xs text-gray-500 mt-1">天</div>
+                                                            </div>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setTempRecord(prev => ({ 
+                                                                    ...prev, 
+                                                                    daysOffset: prev.daysOffset < 0 ? 29 : prev.daysOffset + 1 
+                                                                }))}
+                                                                className="w-12 h-12 rounded-lg bg-black hover:bg-gray-800 active:bg-gray-700 flex items-center justify-center text-2xl font-bold text-white"
+                                                            >
+                                                                +
+                                                            </button>
+                                                        </div>
+                                                        {/* 30天限制提示 */}
+                                                        <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded text-xs text-amber-700">
+                                                            <div className="font-medium">⚠️ 最少需要连续30天</div>
+                                                            <div>不满30天的{tempRecord.type === 'out_of_beijing' ? '出京' : '出境'}不计入考勤</div>
+                                                        </div>
+                                                    </>
+                                                )}
                                             </div>
 
                                             {/* 结束日期（用户点击的日期） */}

@@ -729,6 +729,104 @@ def submit_customer_signature(signature_token):
         current_app.logger.error(f"提交签名失败: {e}", exc_info=True)
         return jsonify({"error": "服务器内部错误"}), 500
 
+
+def check_previous_month_out_of_beijing(employee_id, contract_id, current_cycle_start):
+    """
+    检查上月是否有出京/出境记录延续到本月初
+    
+    业务场景：员工连续出京跨月
+    - 11月5日出京 → 12月31日（12月考勤记录满30天）
+    - 1月1日 → 1月15日返京（1月只有15天，但与上月连续，满足30天规则）
+    
+    返回: {
+        'has_continuation': True/False,
+        'continuation_type': 'out_of_beijing' | 'out_of_country' | None,
+        'previous_end_date': '2024-12-31',  # 上月记录的结束日期
+        'total_days_before': 57,  # 上月记录的总天数（用于显示）
+    }
+    """
+    try:
+        # 计算上个月的周期
+        if isinstance(current_cycle_start, datetime):
+            current_cycle_start = current_cycle_start.date()
+        
+        prev_month_end = current_cycle_start - timedelta(days=1)
+        prev_month_start = prev_month_end.replace(day=1)
+        
+        # 查找上月的考勤表
+        prev_form = AttendanceForm.query.filter_by(
+            employee_id=employee_id,
+            contract_id=contract_id,
+            cycle_start_date=prev_month_start
+        ).first()
+        
+        if not prev_form or not prev_form.form_data:
+            return {
+                'has_continuation': False,
+                'continuation_type': None,
+                'previous_end_date': None,
+                'total_days_before': 0
+            }
+        
+        form_data = prev_form.form_data
+        
+        # 检查出京记录
+        out_of_beijing_records = form_data.get('out_of_beijing_records', [])
+        for record in out_of_beijing_records:
+            record_date = record.get('date')
+            days_offset = record.get('daysOffset', 0)
+            if record_date and days_offset >= 0:
+                # 计算记录的结束日期
+                start_date = datetime.strptime(record_date, '%Y-%m-%d').date()
+                end_date = start_date + timedelta(days=days_offset)
+                
+                # 如果记录的结束日期是上月最后一天，说明延续到本月
+                if end_date == prev_month_end:
+                    return {
+                        'has_continuation': True,
+                        'continuation_type': 'out_of_beijing',
+                        'previous_end_date': end_date.isoformat(),
+                        'previous_start_date': start_date.isoformat(),
+                        'total_days_before': days_offset + 1
+                    }
+        
+        # 检查出境记录
+        out_of_country_records = form_data.get('out_of_country_records', [])
+        for record in out_of_country_records:
+            record_date = record.get('date')
+            days_offset = record.get('daysOffset', 0)
+            if record_date and days_offset >= 0:
+                # 计算记录的结束日期
+                start_date = datetime.strptime(record_date, '%Y-%m-%d').date()
+                end_date = start_date + timedelta(days=days_offset)
+                
+                # 如果记录的结束日期是上月最后一天，说明延续到本月
+                if end_date == prev_month_end:
+                    return {
+                        'has_continuation': True,
+                        'continuation_type': 'out_of_country',
+                        'previous_end_date': end_date.isoformat(),
+                        'previous_start_date': start_date.isoformat(),
+                        'total_days_before': days_offset + 1
+                    }
+        
+        return {
+            'has_continuation': False,
+            'continuation_type': None,
+            'previous_end_date': None,
+            'total_days_before': 0
+        }
+        
+    except Exception as e:
+        current_app.logger.error(f"检查上月出京/出境延续失败: {e}", exc_info=True)
+        return {
+            'has_continuation': False,
+            'continuation_type': None,
+            'previous_end_date': None,
+            'total_days_before': 0
+        }
+
+
 def form_to_dict(form, effective_start_date=None, effective_end_date=None):
     # 生成客户签署链接
     client_sign_url = None
@@ -804,7 +902,13 @@ def form_to_dict(form, effective_start_date=None, effective_end_date=None):
         # 【家庭信息】
         "family_info": {
             "customers": family_customers
-        } if family_customers else None
+        } if family_customers else None,
+        # 【上月出京/出境延续信息】用于判断本月出京/出境是否需要满30天
+        "previous_month_continuation": check_previous_month_out_of_beijing(
+            form.employee_id, 
+            form.contract_id, 
+            form.cycle_start_date
+        ) if form.cycle_start_date else None
     }
 
 @attendance_form_bp.route('/monthly-list', methods=['GET'])
