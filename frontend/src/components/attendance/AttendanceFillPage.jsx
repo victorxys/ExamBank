@@ -1127,6 +1127,95 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
         setIsModalOpen(false);
     };
 
+    // 自动将超出26天的出勤转为加班
+    // 返回处理后的 attendanceData
+    const autoConvertOvertimeIfNeeded = (data) => {
+        const MAX_WORK_DAYS = 26;
+        
+        // 计算当前的请假/休息天数
+        let totalLeaveDays = 0;
+        ['rest_records', 'leave_records'].forEach(key => {
+            if (Array.isArray(data[key])) {
+                data[key].forEach(record => {
+                    const hours = (record.hours || 0) + (record.minutes || 0) / 60;
+                    totalLeaveDays += hours / 24;
+                });
+            }
+        });
+        
+        // 计算当前的加班天数
+        let totalOvertimeDays = 0;
+        if (Array.isArray(data.overtime_records)) {
+            data.overtime_records.forEach(record => {
+                const hours = (record.hours || 0) + (record.minutes || 0) / 60;
+                totalOvertimeDays += hours / 24;
+            });
+        }
+        
+        // 计算有效天数（合同范围内的天数）
+        const validDaysCount = monthDays.filter(day => !isDateDisabled(day)).length;
+        
+        // 出勤天数 = 有效天数 - 请假天数 - 加班天数
+        const currentWorkDays = validDaysCount - totalLeaveDays - totalOvertimeDays;
+        
+        // 如果出勤天数 <= 26，不需要处理
+        if (currentWorkDays <= MAX_WORK_DAYS) {
+            return { data, converted: false, overtimeDays: 0 };
+        }
+        
+        // 需要转换的天数
+        const daysToConvert = Math.ceil(currentWorkDays - MAX_WORK_DAYS);
+        
+        // 找出当月最后 X 天（从月末往前数，排除已有记录的日期）
+        const validDays = monthDays.filter(day => !isDateDisabled(day));
+        
+        // 收集所有已有非正常记录的日期
+        const occupiedDates = new Set();
+        Object.keys(data).forEach(key => {
+            if (key.endsWith('_records') && Array.isArray(data[key])) {
+                data[key].forEach(record => {
+                    if (record.date) {
+                        // 添加记录覆盖的所有日期
+                        const startDate = parseISO(record.date);
+                        const daysOffset = record.daysOffset || 0;
+                        for (let i = 0; i <= daysOffset; i++) {
+                            occupiedDates.add(format(addDays(startDate, i), 'yyyy-MM-dd'));
+                        }
+                    }
+                });
+            }
+        });
+        
+        // 从月末往前找可用的日期
+        const availableDays = validDays
+            .filter(day => !occupiedDates.has(format(day, 'yyyy-MM-dd')))
+            .reverse() // 从月末开始
+            .slice(0, daysToConvert);
+        
+        if (availableDays.length === 0) {
+            return { data, converted: false, overtimeDays: 0 };
+        }
+        
+        // 创建新的数据副本
+        const newData = { ...data };
+        newData.overtime_records = [...(newData.overtime_records || [])];
+        
+        // 为每个需要转换的日期添加加班记录（整天24小时）
+        availableDays.forEach(day => {
+            newData.overtime_records.push({
+                date: format(day, 'yyyy-MM-dd'),
+                hours: 24,
+                minutes: 0,
+                type: 'overtime',
+                daysOffset: 0,
+                startTime: '00:00',
+                endTime: '24:00'
+            });
+        });
+        
+        return { data: newData, converted: true, overtimeDays: availableDays.length };
+    };
+
     const handleSaveDraft = async () => {
         try {
             setSubmitting(true);
@@ -1771,12 +1860,27 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                         {formData.status === 'draft' && (
                                             <button
                                                 onClick={async () => {
-                                                    if (!window.confirm("确认提交考勤表并分享给客户？\n\n提交后将跳转到签署页面，请在微信中分享给客户签署。")) return;
+                                                    // 检查是否需要自动转换加班
+                                                    const { data: processedData, converted, overtimeDays } = autoConvertOvertimeIfNeeded(attendanceData);
+                                                    
+                                                    let confirmMessage = "确认提交考勤表并分享给客户？\n\n提交后将跳转到签署页面，请在微信中分享给客户签署。";
+                                                    if (converted) {
+                                                        confirmMessage = `本月出勤天数超过26天，系统将自动将最后${overtimeDays}天设置为加班。\n\n确认提交考勤表并分享给客户？`;
+                                                    }
+                                                    
+                                                    if (!window.confirm(confirmMessage)) return;
+                                                    
                                                     try {
                                                         setSubmitting(true);
+                                                        
+                                                        // 如果有转换，先更新本地状态
+                                                        if (converted) {
+                                                            setAttendanceData(processedData);
+                                                        }
+                                                        
                                                         const response = await api.put(`/attendance-forms/by-token/${realToken}`, {
                                                             form_id: formData?.id,
-                                                            form_data: attendanceData,
+                                                            form_data: processedData,
                                                             action: 'confirm'
                                                         });
                                                         // 更新状态
