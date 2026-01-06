@@ -34,43 +34,50 @@ def get_revenue_summary():
             prev_start_date = date(target_year - 1, 1, 1)
             prev_end_date = date(target_year - 1, 12, 31)
 
-        # 2. Revenue Calculation (Paid Bills)
-        # Revenue = Introduction + Management + Trial + Balance. Exclude Deposits.
-        def calculate_revenue(s_date, e_date):
-            return db.session.query(func.sum(PaymentRecord.amount))\
-                .join(CustomerBill, PaymentRecord.customer_bill_id == CustomerBill.id)\
-                .filter(PaymentRecord.payment_date >= s_date)\
-                .filter(PaymentRecord.payment_date <= e_date)\
-                .scalar() or 0
+        # 2. Revenue Calculation (Real Revenue based on Fees & Commissions)
+        # Formula: management_fee + extension_fee + employee_commission
+        real_revenue_expr = (
+            func.coalesce(
+                func.cast(CustomerBill.calculation_details['management_fee'].astext, db.Numeric), 0
+            ) +
+            func.coalesce(
+                func.cast(CustomerBill.calculation_details['extension_fee'].astext, db.Numeric), 0
+            ) +
+            func.coalesce(
+                func.cast(CustomerBill.calculation_details['employee_commission'].astext, db.Numeric), 0
+            )
+        )
 
-        current_revenue = calculate_revenue(start_date, end_date)
-        prev_revenue = calculate_revenue(prev_start_date, prev_end_date)
+        def calculate_revenue(y=None, start=None, end=None):
+            query = db.session.query(func.sum(real_revenue_expr))
+            if y:
+                query = query.filter(CustomerBill.year == y)
+            elif start and end:
+                query = query.filter(CustomerBill.cycle_start_date >= start)\
+                             .filter(CustomerBill.cycle_start_date <= end)
+            return query.scalar() or 0
+
+        # Current Period
+        if period == 'year':
+            current_revenue = calculate_revenue(y=target_year)
+        else:
+            current_revenue = calculate_revenue(start=start_date, end=end_date)
+        
+        # Previous Period
+        if period == 'year':
+            prev_revenue = calculate_revenue(y=target_year - 1)
+        else:
+            prev_revenue = calculate_revenue(start=prev_start_date, end=prev_end_date)
         
         yoy_diff = float(current_revenue) - float(prev_revenue)
         yoy_growth = (yoy_diff / float(prev_revenue)) if prev_revenue > 0 else 0
 
         # 3. People Stats (Snapshot - Realtime)
-        # Active Customers = Active Contracts
-        # Assuming 'status' column exists and has 'active' or 'servicing'. 
         active_customers = db.session.query(BaseContract).filter(
-            # Adjust status filter based on actual Model status enums. Assuming 'active' for now.
-            # BaseContract doesn't have a simple 'status' in snippet, might be inferred or mapped.
-            # Using 'nanny' etc. type check for now + checking strict status if calculated.
-            # Let's approximate: Bills generated recently or EndDate > Today.
-            # Simplified: Count all contracts not 'terminated' or 'completed'
              BaseContract.status.in_(['active', 'pending_renewal', 'servicing']) 
         ).count()
 
-        # Employees = ServicePersonnel + Internal Staff
-        # Count all ServicePersonnel
         total_personnel = db.session.query(ServicePersonnel).count()
-        # Count all Internal Users (Staff)
-        # Assuming User table has an 'is_staff' or role. 
-        # For now, just count Users or ServicePersonnel to be safe.
-        # Let's count ServicePersonnel (Aunties) + User (Staff)
-        # This might double count if staff are users.
-        # Let's just use ServicePersonnel for 'Field Staff' as represented in mockup context?
-        # Mockup said "Aunties + Internal".
         internal_staff = db.session.query(User).count()
         total_employees = total_personnel + internal_staff
 
@@ -80,12 +87,9 @@ def get_revenue_summary():
                 "yoy_growth": round(yoy_growth * 100, 1),
                 "yoy_diff": float(yoy_diff)
             },
-            # Placeholder for Net Income (Revenue - Expenses)
-            # Complex to calc accurately without Expense model details.
-            # For V1, we might approximate or set as Revenue * Margin or 0 if not calc.
             "net_income": {
                 "value": float(current_revenue) * 0.7, # Mock: 30% operational cost
-                "yoy_growth": round(yoy_growth * 100, 1) # Assumed similar trend
+                "yoy_growth": round(yoy_growth * 100, 1)
             },
             "active_customers": {
                 "value": active_customers,
@@ -94,6 +98,15 @@ def get_revenue_summary():
             "employees": {
                 "value": total_employees,
                 "label": "Total Staff"
+            },
+            "_debug": {
+                "message": "Data based on CUSTOMER_BILLS (Accrual Basis).",
+                "filter_mode": "year_column" if period == 'year' else "date_range",
+                "period": period,
+                "target_year": target_year,
+                "start_date": str(start_date) if period != 'year' else None,
+                "end_date": str(end_date) if period != 'year' else None,
+                "billed_revenue": float(current_revenue)
             }
         })
 
@@ -105,55 +118,92 @@ def get_revenue_charts():
     try:
         current_year = date.today().year
         target_year = request.args.get('year', default=current_year, type=int)
+        period = request.args.get('period', default='year', type=str)
         
-        # 1. Monthly Revenue Trend (Annual)
-        # Group by Month for Target Year and Target Year - 1
+        # 1. Trend Data & Labels
+        labels = []
+        current_trend = []
+        prev_trend = [0] * 12 
         
-        def get_monthly_data(year):
-            data = [0] * 12
-            results = db.session.query(
-                extract('month', PaymentRecord.payment_date).label('month'),
-                func.sum(PaymentRecord.amount)
-            ).join(CustomerBill, PaymentRecord.customer_bill_id == CustomerBill.id)\
-             .filter(extract('year', PaymentRecord.payment_date) == year)\
-             .group_by(extract('month', PaymentRecord.payment_date)).all()
+        start_date = None
+        end_date = None
+        
+        # Real Revenue Expression (Management + Extension + Commission)
+        real_revenue_val = (
+            func.coalesce(func.cast(CustomerBill.calculation_details['management_fee'].astext, db.Numeric), 0) +
+            func.coalesce(func.cast(CustomerBill.calculation_details['extension_fee'].astext, db.Numeric), 0) +
+            func.coalesce(func.cast(CustomerBill.calculation_details['employee_commission'].astext, db.Numeric), 0)
+        )
+        
+        if period == 'year':
+            labels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
             
-            for m, amt in results:
-                data[int(m)-1] = float(amt)
-            return data
+            start_date = date(target_year, 1, 1)
+            end_date = date(target_year, 12, 31)
 
-        current_trend = get_monthly_data(target_year)
-        prev_trend = get_monthly_data(target_year - 1)
+            def get_year_data(y):
+                data = [0] * 12
+                # Use real_revenue_val sum
+                results = db.session.query(
+                    CustomerBill.month,
+                    func.sum(real_revenue_val)
+                ).filter(CustomerBill.year == y)\
+                 .group_by(CustomerBill.month).all()
+                for m, amt in results:
+                    if 1 <= m <= 12:
+                        data[int(m)-1] = float(amt)
+                return data
+
+            current_trend = get_year_data(target_year)
+            prev_trend = get_year_data(target_year - 1)
+
+        else:
+            # Last 12 Months (Rolling)
+            end_date_obj = date.today()
+            # 12 buckets ending in current month.
+            
+            for i in range(-11, 1):
+                # Calculate relative month
+                m = (end_date_obj.month + i - 1) % 12 + 1
+                y = end_date_obj.year + ((end_date_obj.month + i - 1) // 12)
+                
+                # Label
+                label_name = calendar.month_abbr[m]
+                labels.append(label_name)
+                
+                # Query
+                val = db.session.query(func.sum(real_revenue_val))\
+                    .filter(CustomerBill.year == y, CustomerBill.month == m)\
+                    .scalar() or 0
+                current_trend.append(float(val))
+
+            start_date = end_date_obj - timedelta(days=365)
+            end_date = end_date_obj
 
         # 2. Revenue Breakdown & Service Mix
-        # Segments: Nanny-Mgmt, Nanny-Intro, Maternity-Mgmt, Maternity-Intro, Other
-        
-        # Query: Sum Amount Group By Contract.type, Bill.bill_type
-        # Filter: Target Year
         breakdown_query = db.session.query(
             BaseContract.type,
-            func.sum(PaymentRecord.amount)
-        ).join(CustomerBill, PaymentRecord.customer_bill_id == CustomerBill.id)\
-         .join(BaseContract, CustomerBill.contract_id == BaseContract.id)\
-         .filter(extract('year', PaymentRecord.payment_date) == target_year)\
-         .group_by(BaseContract.type).all()
+            func.sum(real_revenue_val)
+        ).join(BaseContract, CustomerBill.contract_id == BaseContract.id)
+
+        if period == 'year':
+            breakdown_query = breakdown_query.filter(CustomerBill.year == target_year)
+        else:
+            breakdown_query = breakdown_query.filter(CustomerBill.cycle_start_date >= start_date)\
+                                             .filter(CustomerBill.cycle_start_date <= end_date)
+
+        breakdown_results = breakdown_query.group_by(BaseContract.type).all()
 
         # Initialize Segments
-        # Nanny
         nanny_mgmt = 0
         nanny_intro = 0
-        # Maternity
         maternity_mgmt = 0
         maternity_intro = 0
-        # Other
         other_total = 0
 
-        for c_type, amount in breakdown_query:
+        for c_type, amount in breakdown_results:
             amount = float(amount)
             if c_type == 'nanny':
-                # Without bill_type, we can't distinguish mgmt vs intro. 
-                # For now, put all into mgmt or split 50/50? 
-                # Let's put into mgmt as default.
                 nanny_mgmt += amount
             elif c_type == 'maternity_nurse':
                 maternity_mgmt += amount
@@ -163,35 +213,56 @@ def get_revenue_charts():
         total_breakdown = nanny_mgmt + nanny_intro + maternity_mgmt + maternity_intro + other_total
         
         # 3. Category Trends (Monthly)
-        # Nanny Trend, Maternity Trend, Other Trend
         category_trends = {
             'nanny': [0]*12,
             'maternity': [0]*12,
             'other': [0]*12
         }
-        
-        trend_query = db.session.query(
-            extract('month', PaymentRecord.payment_date).label('month'),
-            BaseContract.type,
-            func.sum(PaymentRecord.amount)
-        ).join(CustomerBill, PaymentRecord.customer_bill_id == CustomerBill.id)\
-         .join(BaseContract, CustomerBill.contract_id == BaseContract.id)\
-         .filter(extract('year', PaymentRecord.payment_date) == target_year)\
-         .group_by(extract('month', PaymentRecord.payment_date), BaseContract.type).all()
 
-        for m, c_type, amt in trend_query:
-            idx = int(m) - 1
-            amt = float(amt)
-            if c_type == 'nanny':
-                category_trends['nanny'][idx] += amt
-            elif c_type == 'maternity_nurse':
-                category_trends['maternity'][idx] += amt
-            else:
-                category_trends['other'][idx] += amt
+        # Build Index Map for (Year, Month) -> Chart Index (0-11)
+        bucket_map = {}
+        if period == 'year':
+            for m in range(1, 13):
+                bucket_map[f"{target_year}-{m}"] = m - 1
+        else:
+            # L12M: Re-generate buckets to map Y-M
+            end_date_obj = date.today()
+            for i in range(-11, 1):
+                m = (end_date_obj.month + i - 1) % 12 + 1
+                y = end_date_obj.year + ((end_date_obj.month + i - 1) // 12)
+                idx = i + 11 
+                bucket_map[f"{y}-{m}"] = idx
+
+        trend_query = db.session.query(
+            CustomerBill.year,
+            CustomerBill.month,
+            BaseContract.type,
+            func.sum(real_revenue_val)
+        ).join(BaseContract, CustomerBill.contract_id == BaseContract.id)
+
+        if period == 'year':
+             trend_query = trend_query.filter(CustomerBill.year == target_year)
+        else:
+             trend_query = trend_query.filter(CustomerBill.cycle_start_date >= start_date)\
+                                      .filter(CustomerBill.cycle_start_date <= end_date)
+        
+        trend_results = trend_query.group_by(CustomerBill.year, CustomerBill.month, BaseContract.type).all()
+
+        for y, m, c_type, amt in trend_results:
+            key = f"{y}-{m}"
+            if key in bucket_map:
+                idx = bucket_map[key]
+                amt = float(amt)
+                if c_type == 'nanny':
+                    category_trends['nanny'][idx] += amt
+                elif c_type == 'maternity_nurse':
+                    category_trends['maternity'][idx] += amt
+                else:
+                    category_trends['other'][idx] += amt
 
         return jsonify({
             "trend": {
-                "labels": ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+                "labels": labels,
                 "current": current_trend,
                 "previous": prev_trend
             },

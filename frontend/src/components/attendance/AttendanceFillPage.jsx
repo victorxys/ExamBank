@@ -1784,10 +1784,12 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                     // 计算结束日期和时间显示字符串
                                     const startDate = new Date(record.date);
 
-                                    // Fallback for daysOffset
+                                    // 使用记录中的 daysOffset，但需要修正一个特殊情况：
+                                    // 当 hours=24, daysOffset=1 时，实际上是单天 00:00~24:00，应该显示为同一天
                                     let daysOffset = record.daysOffset || 0;
-                                    if (daysOffset === 0 && (record.hours || 0) >= 24) {
-                                        daysOffset = Math.floor(record.hours / 24);
+                                    const totalHours = (record.hours || 0) + (record.minutes || 0) / 60;
+                                    if (daysOffset === 1 && totalHours === 24 && record.startTime === '00:00' && record.endTime === '24:00') {
+                                        daysOffset = 0; // 修正为单天
                                     }
 
                                     const endDate = new Date(startDate);
