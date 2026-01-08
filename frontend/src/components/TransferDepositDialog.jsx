@@ -4,12 +4,13 @@ import React, { useState, useEffect } from 'react';
 import {
     Dialog, DialogTitle, DialogContent, DialogActions, Button, Typography,
     Box, CircularProgress, FormControl, InputLabel, Select, MenuItem, Alert,
-    FormControlLabel, Switch
+    FormControlLabel, Switch, Chip
 } from '@mui/material';
 import api from '../api/axios';
 
 const TransferDepositDialog = ({ open, onClose, adjustment, sourceContract, onConfirm, sourceBillEndDate }) => {
     const [eligibleItems, setEligibleItems] = useState([]);
+    const [familyMembers, setFamilyMembers] = useState([]);
     const [selectedId, setSelectedId] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
@@ -20,6 +21,7 @@ const TransferDepositDialog = ({ open, onClose, adjustment, sourceContract, onCo
             setIsLoading(true);
             setError('');
             setEligibleItems([]);
+            setFamilyMembers([]);
             setSelectedId('');
 
             const endpoint = transferToSubstitute 
@@ -28,12 +30,23 @@ const TransferDepositDialog = ({ open, onClose, adjustment, sourceContract, onCo
             
             const params = {
                 customer_name: sourceContract.customer_name,
-                exclude_contract_id: sourceContract.contract_id
+                exclude_contract_id: sourceContract.contract_id,
+                family_id: sourceContract.family_id || null
             };
 
             api.get(endpoint, { params })
             .then(response => {
-                let items = response.data;
+                // 处理新的响应格式
+                let items, members;
+                if (transferToSubstitute) {
+                    // 替班账单API返回数组
+                    items = response.data;
+                    members = [];
+                } else {
+                    // 合同API返回对象 { contracts, family_members }
+                    items = response.data.contracts || response.data;
+                    members = response.data.family_members || [];
+                }
 
                 if (!transferToSubstitute && sourceBillEndDate) {
                     const currentBillEndDate = new Date(sourceBillEndDate);
@@ -54,8 +67,16 @@ const TransferDepositDialog = ({ open, onClose, adjustment, sourceContract, onCo
                 }
 
                 setEligibleItems(items);
+                setFamilyMembers(members);
+                
                 if (items.length === 0) {
-                    setError(transferToSubstitute ? '该客户名下没有可供转移的替班账单。' : '该客户名下没有其他符合条件的有效合同。');
+                    const baseMsg = transferToSubstitute 
+                        ? '该客户名下没有可供转移的替班账单。' 
+                        : '该客户名下没有其他符合条件的有效合同。';
+                    const familyHint = sourceContract.family_id 
+                        ? '' 
+                        : '（提示：如果需要转移到其他家庭成员的合同，请先设置家庭ID）';
+                    setError(baseMsg + familyHint);
                 }
             })
             .catch(err => {
@@ -91,13 +112,35 @@ const TransferDepositDialog = ({ open, onClose, adjustment, sourceContract, onCo
                     </Typography>
                 )}
                 
+                {sourceContract?.family_id && (
+                    <Alert severity="info" sx={{ mt: 1, mb: 1 }}>
+                        <Typography variant="body2">
+                            已启用家庭关联（{sourceContract.family_id}），可转移到同一家庭下其他客户的合同
+                        </Typography>
+                        {familyMembers.length > 0 && (
+                            <Box sx={{ mt: 1, display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                                <Typography variant="caption" sx={{ mr: 0.5 }}>家庭成员：</Typography>
+                                {familyMembers.map((member, idx) => (
+                                    <Chip 
+                                        key={idx} 
+                                        label={member} 
+                                        size="small" 
+                                        variant="outlined"
+                                        color="info"
+                                    />
+                                ))}
+                            </Box>
+                        )}
+                    </Alert>
+                )}
+                
                 <FormControlLabel
                     control={
                         <Switch
                             checked={transferToSubstitute}
                             onChange={(e) => {
                                 setTransferToSubstitute(e.target.checked);
-                                setSelectedId(''); // Reset selection on switch
+                                setSelectedId('');
                             }}
                             name="transferToSubstituteSwitch"
                         />
@@ -127,7 +170,17 @@ const TransferDepositDialog = ({ open, onClose, adjustment, sourceContract, onCo
                                 onChange={(e) => setSelectedId(e.target.value)}
                             >
                                 {eligibleItems.map(item => (
-                                    <MenuItem key={item.id} value={item.id}>
+                                    <MenuItem 
+                                        key={item.id} 
+                                        value={item.id}
+                                        sx={{
+                                            ...(item.is_same_customer === false && {
+                                                borderLeft: '3px solid',
+                                                borderLeftColor: 'info.main',
+                                                pl: 1.5
+                                            })
+                                        }}
+                                    >
                                         {item.label}
                                     </MenuItem>
                                 ))}

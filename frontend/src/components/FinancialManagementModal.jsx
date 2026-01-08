@@ -2097,6 +2097,17 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
                 onConfirm={handleConfirmTransferBalance}
                 sourceBillEndDate={billingDetails?.cycle_end_date}
             />
+            {/* 财务调整项转移对话框 */}
+            <TransferDepositDialog
+                open={isTransferDialogOpen}
+                onClose={handleCloseTransferDialog}
+                adjustment={transferringAdjustment}
+                sourceContract={contract}
+                onConfirm={(transferData) => {
+                    handleInitiateTransfer(transferringAdjustment, transferData.destinationId);
+                }}
+                sourceBillEndDate={billingDetails?.cycle_end_date}
+            />
             <PaymentDialog
                 open={isPaymentDialogOpen}
                 onClose={handleClosePaymentDialog}

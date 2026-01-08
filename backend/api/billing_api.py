@@ -1285,30 +1285,69 @@ def get_activity_logs():
 def get_eligible_contracts_for_transfer():
     """
     获取用于保证金转移的目标合同列表。
-    列表只包含同一客户名下、状态为 active 的、非当前的其它合同。
+    V2: 支持基于 family_id 的跨客户转移。
+    列表包含：
+    1. 同一客户名下的其他合同
+    2. 同一 family_id 下的其他合同（不同客户名）
     """
     customer_name = request.args.get("customer_name")
     exclude_contract_id = request.args.get("exclude_contract_id")
+    family_id = request.args.get("family_id")
+
     if not customer_name or not exclude_contract_id:
         return jsonify({"error": "缺少 customer_name 或 exclude_contract_id 参数"}), 400
 
     try:
-        eligible_contracts = BaseContract.query.join(
-            ServicePersonnel, BaseContract.service_personnel_id == ServicePersonnel.id
-        ).filter(
-            BaseContract.customer_name == customer_name,
-            BaseContract.id != exclude_contract_id,
-        ).order_by(BaseContract.start_date.desc()).all()
+        # 构建查询条件：同一客户名 OR 同一家庭ID
+        filter_conditions = [BaseContract.customer_name == customer_name]
 
-        results = [
-            {
-                "id": str(contract.id),
-                "label": f"{get_contract_type_details(contract.type)} - {contract.service_personnel.name} ({contract.start_date.strftime('%Y-%m-%d')}生效)"
-            }
-            for contract in eligible_contracts
-        ]
+        # 如果有 family_id，添加家庭匹配条件
+        family_members = []
+        if family_id:
+            filter_conditions.append(BaseContract.family_id == family_id)
+            # 查询同一家庭下的所有不同客户名
+            family_customer_names = (
+                db.session.query(BaseContract.customer_name)
+                .filter(BaseContract.family_id == family_id)
+                .distinct()
+                .all()
+            )
+            family_members = [name[0] for name in family_customer_names if name[0] != customer_name]
 
-        return jsonify(results)
+        eligible_contracts = (
+            BaseContract.query.join(
+                ServicePersonnel, BaseContract.service_personnel_id == ServicePersonnel.id
+            )
+            .filter(
+                or_(*filter_conditions),  # 使用 OR 连接条件
+                BaseContract.id != exclude_contract_id,
+            )
+            .order_by(BaseContract.start_date.desc())
+            .all()
+        )
+
+        results = []
+        for contract in eligible_contracts:
+            # 如果是不同客户名（通过 family_id 匹配），在标签中显示客户名
+            if contract.customer_name != customer_name:
+                label = f"{get_contract_type_details(contract.type)} - {contract.service_personnel.name} ({contract.start_date.strftime('%Y-%m-%d')}生效) [客户: {contract.customer_name}]"
+            else:
+                label = f"{get_contract_type_details(contract.type)} - {contract.service_personnel.name} ({contract.start_date.strftime('%Y-%m-%d')}生效)"
+
+            results.append(
+                {
+                    "id": str(contract.id),
+                    "label": label,
+                    "customer_name": contract.customer_name,
+                    "is_same_customer": contract.customer_name == customer_name,
+                }
+            )
+
+        # 返回结果，包含家庭成员信息
+        return jsonify({
+            "contracts": results,
+            "family_members": family_members
+        })
 
     except Exception as e:
         current_app.logger.error(f"获取可转移合同列表失败: {e}", exc_info=True)
@@ -3477,8 +3516,16 @@ def transfer_financial_adjustment(adjustment_id):
 
         # 如果通过策略2或3找到了目标合同，现在查找它的第一个账单
         if dest_contract and not dest_bill:
-            if dest_contract.customer_name != source_contract.customer_name:
-                 return jsonify({"error": "只能在同一客户名下的不同合同间转移"}), 400
+            # V2: 支持基于 family_id 的跨客户转移
+            is_same_customer = dest_contract.customer_name == source_contract.customer_name
+            is_same_family = (
+                source_contract.family_id 
+                and dest_contract.family_id 
+                and source_contract.family_id == dest_contract.family_id
+            )
+            
+            if not is_same_customer and not is_same_family:
+                return jsonify({"error": "只能在同一客户或同一家庭下的不同合同间转移"}), 400
 
             dest_bill = CustomerBill.query.filter(
                 CustomerBill.contract_id == dest_contract.id,

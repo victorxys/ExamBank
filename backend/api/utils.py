@@ -443,7 +443,9 @@ def get_billing_details_internal(
             "customer_name": contract.customer_name,
             "status": contract.status,
             "remaining_months": remaining_months_str,
-            "is_monthly_auto_renew": getattr(contract,'is_monthly_auto_renew', None)
+            "is_monthly_auto_renew": getattr(contract,'is_monthly_auto_renew', None),
+            "family_id": contract.family_id,  # 新增：用于跨客户转移
+            "contract_type_value": contract.type  # 新增：合同类型值
         },
         "has_prev_bill": has_prev_bill,
         "prev_bill_id": prev_bill_id,
