@@ -128,6 +128,19 @@ app.config["DEFAULT_GRADIO_PT_FILE_PATH"] = (
 app.config['BACKEND_BASE_URL'] = os.environ.get('BACKEND_BASE_URL', 'http://localhost:5001')
 app.config['FRONTEND_BASE_URL'] = os.environ.get('FRONTEND_BASE_URL', 'http://localhost:5175')
 
+# IndexTTS2 服务配置
+app.config["INDEXTTS_BASE_URL"] = os.environ.get(
+    "INDEXTTS_BASE_URL", "http://test.mengyimengsao.com:37860"
+)
+
+# 默认的 TTS 配置
+app.config["DEFAULT_TTS_CONFIG"] = {
+    "engine": "gemini_tts",  # 默认使用 Gemini TTS
+    "model": "gemini-2.5-flash-preview-tts",
+    "temperature": 0.7,
+    "system_prompt": "你是一名专业的育儿嫂培训师，请用口语化的培训师的口吻以及标准的普通话来讲解以下内容：",
+}
+
 # 默认的 Gradio 参数
 app.config["DEFAULT_GRADIO_PARAMS"] = {
     "num_seeds": 1,

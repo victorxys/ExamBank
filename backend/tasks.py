@@ -40,6 +40,9 @@ from backend.api.ai_generate import generate_video_script  # 导入新函数
 from backend.api.ai_generate import (
     generate_audio_with_gemini_tts,
 )  # 导入新的 Gemini TTS 函数
+from backend.services.indextts_service import (
+    generate_audio_with_indextts,
+)  # 导入 IndexTTS2 服务
 from .manager_module import get_next_identity
 from .manager_module import reset_all_usage
 from .services.data_sync_service import DataSyncService
@@ -734,6 +737,100 @@ def generate_single_sentence_audio_async(
                         absolute_pt_file_path_for_log
                     )
                     del actual_generation_params_for_log["pt_file"]
+
+            elif tts_engine_identifier == "indextts":
+                # IndexTTS2 引擎 - 零样本 TTS
+                logger.info(
+                    f"GenerateAudio Task: Using IndexTTS2 for sentence {sentence_id_str}"
+                )
+                
+                # 获取 IndexTTS2 服务配置
+                indextts_base_url = app.config.get(
+                    "INDEXTTS_BASE_URL", "http://test.mengyimengsao.com:37860"
+                )
+                
+                # 获取参考音频路径
+                voice_reference_path = final_config.get("voice_reference_path")
+                if not voice_reference_path:
+                    # 使用默认参考音频
+                    default_voice_folder = os.path.join(app.root_path, "static", "tts_voices")
+                    voice_reference_path = final_config.get(
+                        "voice_reference_path",
+                        os.path.join(default_voice_folder, "default_voice.wav")
+                    )
+                
+                # 如果是相对路径，转换为绝对路径
+                if not os.path.isabs(voice_reference_path):
+                    voice_folder = os.path.join(app.root_path, "static", "tts_voices")
+                    voice_reference_path = os.path.join(voice_folder, voice_reference_path)
+                
+                if not os.path.exists(voice_reference_path):
+                    raise FileNotFoundError(f"参考音频文件不存在: {voice_reference_path}")
+                
+                logger.info(f"IndexTTS2: 使用参考音频: {voice_reference_path}")
+                
+                # 获取情感参考音频（可选）
+                emotion_reference_path = final_config.get("emotion_reference_path")
+                if emotion_reference_path and not os.path.isabs(emotion_reference_path):
+                    voice_folder = os.path.join(app.root_path, "static", "tts_voices")
+                    emotion_reference_path = os.path.join(voice_folder, emotion_reference_path)
+                
+                # 构建 IndexTTS2 参数
+                indextts_params = {
+                    "emo_control_method": final_config.get("emo_control_method", "Same as the voice reference"),
+                    "emo_weight": final_config.get("emo_weight", 0.8),
+                    "max_text_tokens_per_segment": final_config.get("max_text_tokens_per_segment", 120),
+                    "do_sample": final_config.get("do_sample", True),
+                    "top_p": final_config.get("top_p", 0.8),
+                    "top_k": final_config.get("top_k", 30),
+                    "temperature": final_config.get("temperature", 0.8),
+                    "length_penalty": final_config.get("length_penalty", 0.0),
+                    "num_beams": final_config.get("num_beams", 3),
+                    "repetition_penalty": final_config.get("repetition_penalty", 10.0),
+                    "max_mel_tokens": final_config.get("max_mel_tokens", 1500),
+                    # 情感向量
+                    "vec_happy": final_config.get("vec_happy", 0.0),
+                    "vec_angry": final_config.get("vec_angry", 0.0),
+                    "vec_sad": final_config.get("vec_sad", 0.0),
+                    "vec_afraid": final_config.get("vec_afraid", 0.0),
+                    "vec_disgusted": final_config.get("vec_disgusted", 0.0),
+                    "vec_melancholic": final_config.get("vec_melancholic", 0.0),
+                    "vec_surprised": final_config.get("vec_surprised", 0.0),
+                    "vec_calm": final_config.get("vec_calm", 0.0),
+                    "emo_text": final_config.get("emo_text", ""),
+                    "emo_random": final_config.get("emo_random", False),
+                }
+                
+                # 如果有 tts_engine_params，合并进去
+                if tts_engine_params:
+                    indextts_params.update(tts_engine_params)
+                
+                # 移除已经作为单独参数传递的键，避免重复
+                indextts_params.pop("voice_reference_path", None)
+                indextts_params.pop("emotion_reference_path", None)
+                indextts_params.pop("base_url", None)
+                
+                # 调用 IndexTTS2 服务
+                logger.info("--- [业务逻辑开始] 正在调用 generate_audio_with_indextts ---")
+                
+                audio_binary_content, output_audio_mime_type = generate_audio_with_indextts(
+                    text_to_speak=sentence.sentence_text,
+                    voice_reference_path=voice_reference_path,
+                    emotion_reference_path=emotion_reference_path,
+                    base_url=indextts_base_url,
+                    **indextts_params
+                )
+                
+                logger.info("--- [业务逻辑结束] 调用 generate_audio_with_indextts 成功 ---")
+                
+                actual_generation_params_for_log = {
+                    "engine": "indextts",
+                    "voice_reference": os.path.basename(voice_reference_path),
+                    "emotion_reference": os.path.basename(emotion_reference_path) if emotion_reference_path else None,
+                    "emo_control_method": indextts_params.get("emo_control_method"),
+                    "temperature": indextts_params.get("temperature"),
+                    "base_url": indextts_base_url,
+                }
 
             else:
                 raise ValueError(f"未知的 TTS 引擎标识符: {tts_engine_identifier}")

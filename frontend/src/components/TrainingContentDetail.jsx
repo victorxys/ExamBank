@@ -237,10 +237,16 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
         } else {
           // Reset to default if no config is saved for this content
           setGlobalTtsConfig({
-            engine: 'gemini',
-            model: 'gemini-2.5-pro-preview-tts', // 默认模型
+            engine: 'gemini_tts',
+            model: 'gemini-2.5-flash-preview-tts',
             system_prompt: '你是一名专业的育儿嫂培训师，请用口语化的培训师的口吻以及标准的普通话来讲解以下内容：',
-            temperature: 0.7
+            temperature: 0.7,
+            // IndexTTS2 默认参数
+            voice_reference_path: '',
+            emo_control_method: 'Same as the voice reference',
+            emo_weight: 0.8,
+            emo_text: '',
+            max_text_tokens_per_segment: 120,
           });
         }
         setLoading(false);
@@ -996,28 +1002,42 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
     // console.log(`Started polling for task: ${pollingKey}`);
   }, [fetchContentDetail, overallProgress]); // 移除 mergeProgress
 
-  const handleBatchGenerateAudio = async (engineToUse = 'gradio_default') => {
+  const handleBatchGenerateAudio = async (engineToUse = null) => {
     
     if (!contentDetail || !contentDetail.id) return;
+    
+    // 如果没有指定引擎，使用全局配置中的引擎
+    const finalEngine = engineToUse || globalTtsConfig.engine || 'gemini_tts';
+    
     const apiParams = {
-      tts_engine: engineToUse,
+      tts_engine: finalEngine,
       tts_params: {}, 
     };
-    // console.log("Preparing to batch generate audio with engine:", apiParams);
-    // console.log("Value of apiParams before sending:", JSON.stringify(apiParams));
-    if (engineToUse === 'gemini_tts') {
-      // apiParams.tts_params.voice_name = "gemini-voice-for-batch";
-    } else if (engineToUse === 'gradio_default') {
-        
-    //   apiParams.tts_params.roleid = "1";
-    //   apiParams.pt_file_path_relative = "uploads/tts_pt/your_default_voice.pt"; // 如果Gradio批量需要特定PT
+    
+    // 根据引擎类型设置特定参数
+    if (finalEngine === 'gemini_tts') {
+      apiParams.tts_params = {
+        model: globalTtsConfig.model || 'gemini-2.5-flash-preview-tts',
+        system_prompt: globalTtsConfig.system_prompt || '',
+        temperature: globalTtsConfig.temperature || 0.7,
+      };
+    } else if (finalEngine === 'indextts') {
+      apiParams.tts_params = {
+        voice_reference_path: globalTtsConfig.voice_reference_path || 'default_voice.wav',
+        emo_control_method: globalTtsConfig.emo_control_method || 'Same as the voice reference',
+        emo_weight: globalTtsConfig.emo_weight || 0.8,
+        emo_text: globalTtsConfig.emo_text || '',
+        temperature: globalTtsConfig.temperature || 0.8,
+        max_text_tokens_per_segment: globalTtsConfig.max_text_tokens_per_segment || 120,
+      };
+    } else if (finalEngine === 'gradio_default') {
+      // 保留原有的 gradio_default 逻辑
     }
     
-    const actionKey = `batch_generate_${engineToUse}`;
+    const actionKey = `batch_generate_${finalEngine}`;
     setActionLoading(prev => ({ ...prev, [actionKey]: true }));
     setAlert({ open: false, message: '', severity: 'info' });
     try {
-    //   console.log("Type of apiParams before sending:", typeof apiParams);
     //   console.log("Value of apiParams before sending:", JSON.stringify(apiParams)); // 打印JSON字符串形式，看是否能正确序列化
       const response = await ttsApi.batchGenerateAudioForContent(contentDetail.id, apiParams);
       setAlert({ open: true, message: response.data.message || `批量语音生成任务 (${engineToUse}) 已提交。`, severity: 'info' });
@@ -1032,26 +1052,37 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
     }
   };
 
-  const handleGenerateSentenceAudio = async (sentenceId, engineToUse = 'gemini_tts',config) => { // 参数名可以是 engineToUse 或您选择的
+  const handleGenerateSentenceAudio = async (sentenceId, engineToUse = null, config = null) => {
     const loadingKey = `sentence_${sentenceId}`;
     setActionLoading(prev => ({ ...prev, [loadingKey]: true }));
-    // 准备参数，可以根据需要从UI获取
+    
+    // 如果没有指定引擎，使用全局配置中的引擎
+    const finalEngine = engineToUse || globalTtsConfig.engine || 'gemini_tts';
+    
+    // 准备参数
     let apiParams = {
-      tts_engine: engineToUse,
-      tts_params: {}, // 特定于引擎的参数
-      // pt_file_path_relative: "uploads/tts_pt/your_specific_voice.pt" // 如果Gradio引擎需要特定文件
+      tts_engine: finalEngine,
+      tts_params: {},
     };
 
-    if (engineToUse === 'gemini_tts') {
+    // 根据引擎类型设置特定参数
+    if (finalEngine === 'gemini_tts') {
       apiParams.tts_params = {
-        // voice_name: "gemini-voice-example", // 如果需要指定 Gemini 的音色
-        // model: "models/tts-004" // 如果要用不同的 Gemini TTS 模型
+        model: config?.model || globalTtsConfig.model || 'gemini-2.5-flash-preview-tts',
+        system_prompt: config?.system_prompt || globalTtsConfig.system_prompt || '',
+        temperature: config?.temperature || globalTtsConfig.temperature || 0.7,
       };
-    } else if (engineToUse === 'gradio_default') {
+    } else if (finalEngine === 'indextts') {
       apiParams.tts_params = {
-        // roleid: "2", // 如果要为 Gradio 指定不同的 roleid
+        voice_reference_path: config?.voice_reference_path || globalTtsConfig.voice_reference_path || 'default_voice.wav',
+        emo_control_method: config?.emo_control_method || globalTtsConfig.emo_control_method || 'Same as the voice reference',
+        emo_weight: config?.emo_weight || globalTtsConfig.emo_weight || 0.8,
+        emo_text: config?.emo_text || globalTtsConfig.emo_text || '',
+        temperature: config?.temperature || globalTtsConfig.temperature || 0.8,
+        max_text_tokens_per_segment: config?.max_text_tokens_per_segment || globalTtsConfig.max_text_tokens_per_segment || 120,
       };
-      // 如果需要为 Gradio 指定 PT 文件，可以在这里设置 apiParams.pt_file_path_relative
+    } else if (finalEngine === 'gradio_default') {
+      apiParams.tts_params = config || {};
     }
     try {
       if (contentDetail) {
@@ -1556,32 +1587,95 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
                       <Box sx={{ p: 2 }}>
                           <Grid container spacing={3}>
                               <Grid item xs={12} md={6}>
+                                  {/* TTS 引擎选择 */}
                                   <FormControl fullWidth margin="dense">
-                                      <InputLabel>TTS 模型</InputLabel>
-                                        <Select
-                                            value={globalTtsConfig.model || 'gemini-2.5-flash-preview-tts'} // 提供一个默认值
-                                            label="TTS 模型"
-                                            onChange={(e) => handleGlobalConfigChange('model', e.target.value)}
-                                        >
-                                            <MenuItem value="gemini-2.5-flash-preview-tts">Gemini Flash (速度快)</MenuItem>
-                                            <MenuItem value="gemini-2.5-pro-preview-tts">Gemini Pro (质量高)</MenuItem>
-                                            {/* 你可以在这里添加更多模型选项 */}
-                                        </Select>
-                                        <FormHelperText>为所有未单独设置的句子选择默认的语音合成模型。</FormHelperText>
+                                      <InputLabel>TTS 引擎</InputLabel>
+                                      <Select
+                                          value={globalTtsConfig.engine || 'gemini_tts'}
+                                          label="TTS 引擎"
+                                          onChange={(e) => handleGlobalConfigChange('engine', e.target.value)}
+                                      >
+                                          <MenuItem value="gemini_tts">Gemini TTS (Google AI)</MenuItem>
+                                          <MenuItem value="indextts">IndexTTS2 (本地部署)</MenuItem>
+                                      </Select>
+                                      <FormHelperText>选择语音合成引擎</FormHelperText>
                                   </FormControl>
 
-                                  <TextField
-                                      fullWidth
-                                      margin="dense"
-                                      label="系统提示词 (System Prompt)"
-                                      multiline
-                                      rows={4}
-                                      value={globalTtsConfig.system_prompt}
-                                      onChange={(e) => handleGlobalConfigChange('system_prompt', e.target.value)}
-                                      placeholder="例如：你是一名专业的育儿嫂培训师..."
-                                      variant="outlined"
-                                      sx={{ mt: 2 }}
-                                  />
+                                  {/* Gemini TTS 特有配置 */}
+                                  {globalTtsConfig.engine === 'gemini_tts' && (
+                                      <>
+                                          <FormControl fullWidth margin="dense" sx={{ mt: 2 }}>
+                                              <InputLabel>TTS 模型</InputLabel>
+                                              <Select
+                                                  value={globalTtsConfig.model || 'gemini-2.5-flash-preview-tts'}
+                                                  label="TTS 模型"
+                                                  onChange={(e) => handleGlobalConfigChange('model', e.target.value)}
+                                              >
+                                                  <MenuItem value="gemini-2.5-flash-preview-tts">Gemini Flash (速度快)</MenuItem>
+                                                  <MenuItem value="gemini-2.5-pro-preview-tts">Gemini Pro (质量高)</MenuItem>
+                                              </Select>
+                                              <FormHelperText>为所有未单独设置的句子选择默认的语音合成模型。</FormHelperText>
+                                          </FormControl>
+
+                                          <TextField
+                                              fullWidth
+                                              margin="dense"
+                                              label="系统提示词 (System Prompt)"
+                                              multiline
+                                              rows={4}
+                                              value={globalTtsConfig.system_prompt}
+                                              onChange={(e) => handleGlobalConfigChange('system_prompt', e.target.value)}
+                                              placeholder="例如：你是一名专业的育儿嫂培训师..."
+                                              variant="outlined"
+                                              sx={{ mt: 2 }}
+                                          />
+                                      </>
+                                  )}
+
+                                  {/* IndexTTS2 特有配置 */}
+                                  {globalTtsConfig.engine === 'indextts' && (
+                                      <>
+                                          <TextField
+                                              fullWidth
+                                              margin="dense"
+                                              label="参考音频文件名"
+                                              value={globalTtsConfig.voice_reference_path || ''}
+                                              onChange={(e) => handleGlobalConfigChange('voice_reference_path', e.target.value)}
+                                              placeholder="例如：default_voice.wav"
+                                              helperText="放置在 backend/static/tts_voices/ 目录下的参考音频文件"
+                                              variant="outlined"
+                                              sx={{ mt: 2 }}
+                                          />
+
+                                          <FormControl fullWidth margin="dense" sx={{ mt: 2 }}>
+                                              <InputLabel>情感控制方式</InputLabel>
+                                              <Select
+                                                  value={globalTtsConfig.emo_control_method || 'Same as the voice reference'}
+                                                  label="情感控制方式"
+                                                  onChange={(e) => handleGlobalConfigChange('emo_control_method', e.target.value)}
+                                              >
+                                                  <MenuItem value="Same as the voice reference">与参考音频相同</MenuItem>
+                                                  <MenuItem value="Use emotion reference audio">使用情感参考音频</MenuItem>
+                                                  <MenuItem value="Use emotion vectors">使用情感向量</MenuItem>
+                                                  <MenuItem value="Use text description to control emotion">使用文本描述控制</MenuItem>
+                                              </Select>
+                                              <FormHelperText>控制生成语音的情感表达方式</FormHelperText>
+                                          </FormControl>
+
+                                          {globalTtsConfig.emo_control_method === 'Use text description to control emotion' && (
+                                              <TextField
+                                                  fullWidth
+                                                  margin="dense"
+                                                  label="情感描述"
+                                                  value={globalTtsConfig.emo_text || ''}
+                                                  onChange={(e) => handleGlobalConfigChange('emo_text', e.target.value)}
+                                                  placeholder="例如：温柔、专业、亲切"
+                                                  variant="outlined"
+                                                  sx={{ mt: 2 }}
+                                              />
+                                          )}
+                                      </>
+                                  )}
                               </Grid>
                               <Grid item xs={12} md={6}>
                                   <Typography gutterBottom>温度 (Temperature)</Typography>
@@ -1591,18 +1685,51 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
                                           onChange={(e, newValue) => handleGlobalConfigChange('temperature', newValue)}
                                           aria-labelledby="temperature-slider"
                                           valueLabelDisplay="auto"
-                                          step={0.01} // 步长改为0.01，以支持两位小数
-                                          marks={[      // 自定义标记点，更清晰
+                                          step={0.01}
+                                          marks={[
                                               { value: 0, label: '0.0' },
                                               { value: 1, label: '1.0' },
                                               { value: 2, label: '2.0' },
                                           ]}
                                           min={0}
-                                          max={2}       // 最大值改为2
+                                          max={2}
                                       />
-                                      <Chip label={globalTtsConfig.temperature.toFixed(2)} />
+                                      <Chip label={globalTtsConfig.temperature?.toFixed(2) || '0.00'} />
                                   </Stack>
                                   <FormHelperText>控制输出的随机性。值越高越随机，越低越确定。</FormHelperText>
+
+                                  {/* IndexTTS2 额外参数 */}
+                                  {globalTtsConfig.engine === 'indextts' && (
+                                      <>
+                                          <Typography gutterBottom sx={{ mt: 3 }}>情感权重 (Emotion Weight)</Typography>
+                                          <Stack spacing={2} direction="row" sx={{ alignItems: 'center' }}>
+                                              <Slider
+                                                  value={globalTtsConfig.emo_weight || 0.8}
+                                                  onChange={(e, newValue) => handleGlobalConfigChange('emo_weight', newValue)}
+                                                  valueLabelDisplay="auto"
+                                                  step={0.1}
+                                                  min={0}
+                                                  max={1.6}
+                                              />
+                                              <Chip label={(globalTtsConfig.emo_weight || 0.8).toFixed(1)} />
+                                          </Stack>
+                                          <FormHelperText>控制情感表达的强度</FormHelperText>
+
+                                          <Typography gutterBottom sx={{ mt: 3 }}>每段最大Token数</Typography>
+                                          <Stack spacing={2} direction="row" sx={{ alignItems: 'center' }}>
+                                              <Slider
+                                                  value={globalTtsConfig.max_text_tokens_per_segment || 120}
+                                                  onChange={(e, newValue) => handleGlobalConfigChange('max_text_tokens_per_segment', newValue)}
+                                                  valueLabelDisplay="auto"
+                                                  step={10}
+                                                  min={20}
+                                                  max={600}
+                                              />
+                                              <Chip label={globalTtsConfig.max_text_tokens_per_segment || 120} />
+                                          </Stack>
+                                          <FormHelperText>推荐 80-200，值越大语音越流畅但需要更多显存</FormHelperText>
+                                      </>
+                                  )}
                               </Grid>
                           </Grid>
                           <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
@@ -1619,14 +1746,23 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
                   </Collapse>
                 </Paper>
                 <Stack direction={{xs: 'column', sm: 'row'}} spacing={2} sx={{mb:2, alignItems: 'flex-start'}}>
-                    {/* <Button 
+                    {/* 批量生成语音按钮 - 使用当前选择的引擎 */}
+                    <Button 
                         variant="contained" 
-                        onClick={() => handleBatchGenerateAudio('gradio_default')}
-                        disabled={actionLoading[`batch_generate_${contentId}`] || loading || !contentDetail?.final_script_sentences?.length} 
-                        startIcon={(actionLoading[`batch_generate_${contentId}`] || (overallProgress && (overallProgress.status === 'PROGRESS' || overallProgress.status === 'PENDING'))) ? <CircularProgress size={16} /> : <PlaylistPlayIcon />}
+                        color="primary"
+                        onClick={() => handleBatchGenerateAudio()}
+                        disabled={
+                            actionLoading[`batch_generate_${globalTtsConfig.engine || 'gemini_tts'}`] || 
+                            loading || 
+                            !contentDetail?.final_script_sentences?.length ||
+                            (overallProgress && (overallProgress.status === 'PROGRESS' || overallProgress.status === 'PENDING'))
+                        } 
+                        startIcon={(actionLoading[`batch_generate_${globalTtsConfig.engine || 'gemini_tts'}`] || (overallProgress && (overallProgress.status === 'PROGRESS' || overallProgress.status === 'PENDING'))) ? <CircularProgress size={16} /> : <PlaylistPlayIcon />}
                     >
-                        {overallProgress && (overallProgress.status === 'PROGRESS' || overallProgress.status === 'PENDING') ? "批量生成中..." : "批量生成所有待处理语音"}
-                    </Button> */}
+                        {overallProgress && (overallProgress.status === 'PROGRESS' || overallProgress.status === 'PENDING') 
+                            ? "批量生成中..." 
+                            : `批量生成 (${globalTtsConfig.engine === 'indextts' ? 'IndexTTS2' : 'Gemini'})`}
+                    </Button>
                     <Button 
                         variant="contained" 
                         color="secondary" 

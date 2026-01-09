@@ -432,7 +432,8 @@ const SentenceList = ({
 
     const handleGenerateClick = (sentenceId) => {
         if (editingConfig && onGenerateAudio) {
-            onGenerateAudio(sentenceId,'gemini_tts', editingConfig);
+            // 传递引擎类型和完整配置
+            onGenerateAudio(sentenceId, editingConfig.engine || 'gemini_tts', editingConfig);
             // Optionally close panel after generating
             // setExpandedSentenceId(null);
         }
@@ -684,24 +685,76 @@ const SentenceList = ({
                                                             {editingConfig && (
                                                                 <Grid container spacing={2}>
                                                                     <Grid item xs={12} md={6}>
+                                                                        {/* TTS 引擎选择 */}
                                                                         <FormControl fullWidth size="small" margin="dense">
-                                                                            <InputLabel>TTS 模型</InputLabel>
+                                                                            <InputLabel>TTS 引擎</InputLabel>
                                                                             <Select
-                                                                                value={editingConfig.model || ''}
-                                                                                label="TTS 模型"
-                                                                                onChange={(e) => handleConfigChange('model', e.target.value)}
+                                                                                value={editingConfig.engine || 'gemini_tts'}
+                                                                                label="TTS 引擎"
+                                                                                onChange={(e) => handleConfigChange('engine', e.target.value)}
                                                                             >
-                                                                                <MenuItem value="gemini-2.5-flash-preview-tts">Gemini Flash (速度快)</MenuItem>
-                                                                                <MenuItem value="gemini-2.5-pro-preview-tts">Gemini Pro (质量高)</MenuItem>
+                                                                                <MenuItem value="gemini_tts">Gemini TTS</MenuItem>
+                                                                                <MenuItem value="indextts">IndexTTS2</MenuItem>
                                                                             </Select>
                                                                         </FormControl>
-                                                                        <TextField
-                                                                            fullWidth multiline rows={3} margin="dense" size="small"
-                                                                            label="系统提示词 (留空则使用全局)"
-                                                                            value={editingConfig.system_prompt || ''}
-                                                                            placeholder={globalTtsConfig.system_prompt}
-                                                                            onChange={(e) => handleConfigChange('system_prompt', e.target.value)}
-                                                                        />
+
+                                                                        {/* Gemini TTS 配置 */}
+                                                                        {editingConfig.engine === 'gemini_tts' && (
+                                                                            <>
+                                                                                <FormControl fullWidth size="small" margin="dense">
+                                                                                    <InputLabel>TTS 模型</InputLabel>
+                                                                                    <Select
+                                                                                        value={editingConfig.model || ''}
+                                                                                        label="TTS 模型"
+                                                                                        onChange={(e) => handleConfigChange('model', e.target.value)}
+                                                                                    >
+                                                                                        <MenuItem value="gemini-2.5-flash-preview-tts">Gemini Flash (速度快)</MenuItem>
+                                                                                        <MenuItem value="gemini-2.5-pro-preview-tts">Gemini Pro (质量高)</MenuItem>
+                                                                                    </Select>
+                                                                                </FormControl>
+                                                                                <TextField
+                                                                                    fullWidth multiline rows={3} margin="dense" size="small"
+                                                                                    label="系统提示词 (留空则使用全局)"
+                                                                                    value={editingConfig.system_prompt || ''}
+                                                                                    placeholder={globalTtsConfig.system_prompt}
+                                                                                    onChange={(e) => handleConfigChange('system_prompt', e.target.value)}
+                                                                                />
+                                                                            </>
+                                                                        )}
+
+                                                                        {/* IndexTTS2 配置 */}
+                                                                        {editingConfig.engine === 'indextts' && (
+                                                                            <>
+                                                                                <TextField
+                                                                                    fullWidth margin="dense" size="small"
+                                                                                    label="参考音频文件名"
+                                                                                    value={editingConfig.voice_reference_path || ''}
+                                                                                    placeholder={globalTtsConfig.voice_reference_path || 'default_voice.wav'}
+                                                                                    onChange={(e) => handleConfigChange('voice_reference_path', e.target.value)}
+                                                                                    helperText="留空则使用全局配置"
+                                                                                />
+                                                                                <FormControl fullWidth size="small" margin="dense">
+                                                                                    <InputLabel>情感控制方式</InputLabel>
+                                                                                    <Select
+                                                                                        value={editingConfig.emo_control_method || 'Same as the voice reference'}
+                                                                                        label="情感控制方式"
+                                                                                        onChange={(e) => handleConfigChange('emo_control_method', e.target.value)}
+                                                                                    >
+                                                                                        <MenuItem value="Same as the voice reference">与参考音频相同</MenuItem>
+                                                                                        <MenuItem value="Use text description to control emotion">使用文本描述</MenuItem>
+                                                                                    </Select>
+                                                                                </FormControl>
+                                                                                {editingConfig.emo_control_method === 'Use text description to control emotion' && (
+                                                                                    <TextField
+                                                                                        fullWidth margin="dense" size="small"
+                                                                                        label="情感描述"
+                                                                                        value={editingConfig.emo_text || ''}
+                                                                                        placeholder="例如：温柔、专业"
+                                                                                        onChange={(e) => handleConfigChange('emo_text', e.target.value)}
+                                                                                    />
+                                                                                )}
+                                                                            </>
+                                                                        )}
                                                                     </Grid>
                                                                     <Grid item xs={12} md={6}>
                                                                         <Typography gutterBottom variant="body2">温度</Typography>
@@ -711,7 +764,6 @@ const SentenceList = ({
                                                                                 onChange={(e, val) => handleConfigChange('temperature', val)}
                                                                                 aria-labelledby="sentence-temperature-slider"
                                                                                 valueLabelDisplay="auto"
-                                                                                // --- 修改点 ---
                                                                                 step={0.01}
                                                                                 marks={[
                                                                                     { value: 0, label: '0.0' },
@@ -720,10 +772,27 @@ const SentenceList = ({
                                                                                 ]}
                                                                                 min={0}
                                                                                 max={2}
-                                                                                // --- 修改结束 ---
                                                                             />
-                                                                            <Chip label={editingConfig.temperature.toFixed(2)} />
+                                                                            <Chip label={(editingConfig.temperature || 0).toFixed(2)} />
                                                                         </Stack>
+
+                                                                        {/* IndexTTS2 额外参数 */}
+                                                                        {editingConfig.engine === 'indextts' && (
+                                                                            <>
+                                                                                <Typography gutterBottom variant="body2" sx={{ mt: 2 }}>情感权重</Typography>
+                                                                                <Stack spacing={2} direction="row" alignItems="center">
+                                                                                    <Slider
+                                                                                        value={editingConfig.emo_weight || 0.8}
+                                                                                        onChange={(e, val) => handleConfigChange('emo_weight', val)}
+                                                                                        valueLabelDisplay="auto"
+                                                                                        step={0.1}
+                                                                                        min={0}
+                                                                                        max={1.6}
+                                                                                    />
+                                                                                    <Chip label={(editingConfig.emo_weight || 0.8).toFixed(1)} />
+                                                                                </Stack>
+                                                                            </>
+                                                                        )}
                                                                     </Grid>
                                                                     <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, pt: 1 }}>
                                                                         <Button size="small" onClick={() => handleToggleSettings(sentence)}>取消</Button>
