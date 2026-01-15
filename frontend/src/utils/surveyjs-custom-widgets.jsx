@@ -2,6 +2,7 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { ResponsiveDatePicker } from '../components/ui/ResponsiveDatePicker';
 import { ResponsiveTimePicker } from '../components/ui/ResponsiveTimePicker';
+import { FullscreenSignaturePad } from '../components/ui/FullscreenSignaturePad';
 
 /**
  * 为 SurveyJS 日期/时间字段创建自定义渲染
@@ -153,4 +154,100 @@ export function cleanupDateTimeRenderers(reactRoots) {
         root.unmount();
     });
     reactRoots.clear();
+}
+
+/**
+ * 修复 SurveyJS signaturepad 的触摸偏移问题
+ * 
+ * 问题原因：canvas 的 CSS 尺寸（通过 width: 100% 设置）与 canvas 的
+ * 内部像素尺寸（width/height 属性）不一致，导致坐标计算错误。
+ * 
+ * 解决方案：完全替换原生 signaturepad，使用自定义的全屏横屏签名组件。
+ * 点击签名区域后会进入全屏横屏模式，最大化签名区域，解决偏移问题。
+ * 
+ * 使用方法:
+ * survey.onAfterRenderQuestion.add(createSignaturePadFixer());
+ */
+export function createSignaturePadFixer() {
+    const reactRoots = new Map();
+
+    return (sender, options) => {
+        const question = options.question;
+        
+        // 只处理 signaturepad 类型
+        if (question.getType() !== 'signaturepad') return;
+        
+        const container = options.htmlElement;
+        const contentDiv = container.querySelector('.sd-question__content') || container;
+        
+        // 防止重复渲染
+        if (contentDiv.querySelector('.fullscreen-signature-container')) return;
+        
+        // 隐藏原生 signaturepad（无论是编辑还是只读模式都隐藏）
+        const originalSignaturepad = contentDiv.querySelector('.sd-signaturepad');
+        if (originalSignaturepad) {
+            originalSignaturepad.style.display = 'none';
+        }
+        
+        // 如果是只读模式，只显示签名图片
+        if (sender.mode === 'display') {
+            const signatureValue = question.value;
+            if (signatureValue) {
+                const imgContainer = document.createElement('div');
+                imgContainer.className = 'fullscreen-signature-container';
+                imgContainer.style.cssText = 'width: 100%; min-height: 120px; border: 1px solid #e5e7eb; border-radius: 6px; background: #f9fafb; display: flex; align-items: center; justify-content: center; padding: 8px;';
+                
+                const img = document.createElement('img');
+                img.src = signatureValue;
+                img.alt = '签名';
+                img.style.cssText = 'max-width: 100%; max-height: 150px; object-fit: contain;';
+                
+                imgContainer.appendChild(img);
+                contentDiv.appendChild(imgContainer);
+            }
+            return;
+        }
+        
+        // 创建自定义签名组件容器
+        const signatureContainer = document.createElement('div');
+        signatureContainer.className = 'fullscreen-signature-container';
+        contentDiv.appendChild(signatureContainer);
+        
+        // 创建 React root
+        const root = createRoot(signatureContainer);
+        const questionName = question.name;
+        reactRoots.set(questionName, root);
+        
+        // 签名组件包装器
+        const SignatureWrapper = () => {
+            const [value, setValue] = React.useState(() => question.value || null);
+            
+            React.useEffect(() => {
+                // 监听 SurveyJS 值变化
+                const updateValue = () => {
+                    setValue(question.value || null);
+                };
+                question.registerFunctionOnPropertyValueChanged('value', updateValue);
+                return () => {
+                    question.unRegisterFunctionOnPropertyValueChanged('value', updateValue);
+                };
+            }, []);
+            
+            const handleChange = (dataUrl) => {
+                setValue(dataUrl);
+                question.value = dataUrl;
+            };
+            
+            return (
+                <FullscreenSignaturePad
+                    value={value}
+                    onChange={handleChange}
+                    disabled={question.isReadOnly}
+                    placeholder={question.placeholder || '点击此处签名'}
+                />
+            );
+        };
+        
+        root.render(<SignatureWrapper />);
+    };
 }

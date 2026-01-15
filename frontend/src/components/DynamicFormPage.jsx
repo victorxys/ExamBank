@@ -45,7 +45,7 @@ import {
     Delete as DeleteIcon,
 } from '@mui/icons-material';
 import { formatAddress } from '../utils/formatUtils';
-import { createDateTimeRenderer } from '../utils/surveyjs-custom-widgets.jsx';
+import { createDateTimeRenderer, createSignaturePadFixer } from '../utils/surveyjs-custom-widgets.jsx';
 import AlertMessage from './AlertMessage';
 
 // 检测网络状况
@@ -1187,6 +1187,9 @@ const DynamicFormPage = () => {
                 // 将 SurveyJS 的日期/时间字段替换为响应式选择器组件
                 survey.onAfterRenderQuestion.add(createDateTimeRenderer());
 
+                // 注册签名板修复器，解决触摸偏移问题
+                survey.onAfterRenderQuestion.add(createSignaturePadFixer());
+
                 // Add eye icon for private fields (visible: false in schema)
                 survey.onAfterRenderQuestion.add((sender, options) => {
                     const question = options.question;
@@ -1792,6 +1795,13 @@ const DynamicFormPage = () => {
                             }
 
                             // Check if this is a signature field
+                            // 注意：排除 signaturepad 类型，因为它已经由 createSignaturePadFixer 处理
+                            const questionType = options.question.getType();
+                            if (questionType === 'signaturepad') {
+                                // signaturepad 类型由自定义组件处理，跳过这里的签名渲染逻辑
+                                return;
+                            }
+                            
                             const signatureMarker = '[SIGNATURE:';
                             const hasSignatureMarker = typeof questionValue === 'string' && questionValue.includes(signatureMarker);
                             const isMultiLineAssociation = typeof questionValue === 'string' && (questionValue.includes('\n') || questionValue.includes('nested-form-container'));
