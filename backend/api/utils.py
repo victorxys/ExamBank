@@ -414,8 +414,9 @@ def get_billing_details_internal(
     offboarding_time_info = attendance_details.get("offboarding_time_info") if attendance_details else None
     offboarding_day_work = attendance_details.get("offboarding_day_work", 0) if attendance_details else 0
     
-    # 【修复】如果当前月份没有上户时间信息，但有下户时间信息，则动态查找合同的第一条上户记录
-    if not onboarding_time_info and offboarding_time_info and attendance_record:
+    # 【修复】如果当前月份没有上户时间信息，动态查找合同的第一条上户记录
+    # 适用于：1) 下户月需要显示上户时间 2) 旧数据上户月没有存储上户时间信息
+    if not onboarding_time_info and attendance_record:
         from backend.services.attendance_sync_service import get_onboarding_time_for_contract
         onboarding_info = get_onboarding_time_for_contract(
             str(attendance_record.employee_id), 
@@ -426,6 +427,17 @@ def get_billing_details_internal(
                 'date': onboarding_info['onboarding_date'],
                 'time': onboarding_info['onboarding_time']
             }
+        else:
+            # 备选方案：从当前 attendance_details.raw_data 中查找上户记录
+            raw_data = attendance_details.get('raw_data', {}) if attendance_details else {}
+            onboarding_records = raw_data.get('onboarding_records', [])
+            if onboarding_records:
+                record = onboarding_records[0]
+                if record.get('date') and record.get('startTime'):
+                    onboarding_time_info = {
+                        'date': record['date'],
+                        'time': record['startTime']
+                    }
 
     return {
         "customer_bill_details": customer_details,
