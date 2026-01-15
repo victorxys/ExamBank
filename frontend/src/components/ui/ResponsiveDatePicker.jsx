@@ -84,7 +84,7 @@ const ResponsiveDatePicker = ({
                     onClose={() => setMobilePickerVisible(false)}
                     onConfirm={handleMobileConfirm}
                     value={dateValue}
-                    min={minDate}
+                    min={minDate || new Date(1950, 0, 1)}
                     max={maxDate}
                     title="选择日期"
                     confirmText="确定"
