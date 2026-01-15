@@ -925,6 +925,63 @@ def check_previous_month_out_of_beijing(employee_id, contract_id, current_cycle_
         }
 
 
+def get_onboarding_time_info(employee_id, contract_id, current_cycle_start):
+    """
+    获取上户时间信息（用于下户时显示参考）
+    
+    查找逻辑：
+    1. 先查找当前月份的考勤表中的上户记录
+    2. 如果没有，查找之前月份的考勤表中的上户记录
+    
+    返回: {
+        'has_onboarding': True/False,
+        'onboarding_date': '2024-12-29',
+        'onboarding_time': '09:00',
+    }
+    """
+    try:
+        if isinstance(current_cycle_start, datetime):
+            current_cycle_start = current_cycle_start.date()
+        
+        # 查找所有该合同的考勤表，按时间倒序
+        forms = AttendanceForm.query.filter_by(
+            employee_id=employee_id,
+            contract_id=contract_id
+        ).order_by(AttendanceForm.cycle_start_date.desc()).all()
+        
+        for form in forms:
+            if not form.form_data:
+                continue
+            
+            onboarding_records = form.form_data.get('onboarding_records', [])
+            if onboarding_records:
+                # 取第一条上户记录
+                record = onboarding_records[0]
+                onboarding_date = record.get('date')
+                onboarding_time = record.get('startTime')  # 上户时间存储在 startTime 中
+                
+                if onboarding_date and onboarding_time:
+                    return {
+                        'has_onboarding': True,
+                        'onboarding_date': onboarding_date,
+                        'onboarding_time': onboarding_time
+                    }
+        
+        return {
+            'has_onboarding': False,
+            'onboarding_date': None,
+            'onboarding_time': None
+        }
+        
+    except Exception as e:
+        current_app.logger.error(f"获取上户时间信息失败: {e}", exc_info=True)
+        return {
+            'has_onboarding': False,
+            'onboarding_date': None,
+            'onboarding_time': None
+        }
+
+
 def form_to_dict(form, effective_start_date=None, effective_end_date=None):
     # 生成客户签署链接
     client_sign_url = None
@@ -1005,6 +1062,12 @@ def form_to_dict(form, effective_start_date=None, effective_end_date=None):
         "previous_month_continuation": check_previous_month_out_of_beijing(
             form.employee_id, 
             form.contract_id, 
+            form.cycle_start_date
+        ) if form.cycle_start_date else None,
+        # 【上户时间信息】用于下户时显示参考
+        "onboarding_time_info": get_onboarding_time_info(
+            form.employee_id,
+            form.contract_id,
             form.cycle_start_date
         ) if form.cycle_start_date else None
     }

@@ -202,6 +202,29 @@ const getTooltipContent = (fieldName, billingDetails, isCustomer, adjustment = n
 
     if (!logMessage) return null;
 
+    // 【新增】如果是"实际劳务天数"且有上户/下户时间信息，添加额外显示
+    let extraInfo = null;
+    if (fieldName === '实际劳务天数' && billingDetails?.attendance) {
+        const attendance = billingDetails.attendance;
+        const onboardingInfo = attendance.onboarding_time_info;
+        const offboardingInfo = attendance.offboarding_time_info;
+        const offboardingDayWork = attendance.offboarding_day_work;
+        
+        if (onboardingInfo || offboardingInfo) {
+            const parts = [];
+            if (onboardingInfo) {
+                parts.push(`上户时间: ${onboardingInfo.date} ${onboardingInfo.time}`);
+            }
+            if (offboardingInfo) {
+                parts.push(`下户时间: ${offboardingInfo.date} ${offboardingInfo.time}`);
+            }
+            if (offboardingDayWork > 0 && offboardingDayWork < 1) {
+                parts.push(`下户日出勤: ${offboardingDayWork.toFixed(3)} 天`);
+            }
+            extraInfo = parts.join('\n');
+        }
+    }
+
     return (
         <Box sx={{ p: 1, maxWidth: 350 }}>
             <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'common.white', display: 'block', mb: 1 }}>
@@ -210,6 +233,16 @@ const getTooltipContent = (fieldName, billingDetails, isCustomer, adjustment = n
             <Typography variant="body2" sx={{ fontFamily: 'monospace', color: 'grey.200', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
                 {logMessage}
             </Typography>
+            {extraInfo && (
+                <>
+                    <Typography variant="caption" sx={{ fontWeight: 'bold', color: 'common.white', display: 'block', mt: 1.5, mb: 0.5 }}>
+                        考勤详情
+                    </Typography>
+                    <Typography variant="body2" sx={{ fontFamily: 'monospace', color: 'grey.200', whiteSpace: 'pre-wrap' }}>
+                        {extraInfo}
+                    </Typography>
+                </>
+            )}
         </Box>
     );
 };
@@ -1173,7 +1206,9 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
                     billingDetails.attendance.rest_days > 0 || 
                     billingDetails.attendance.paid_leave_days > 0 ||
                     billingDetails.attendance.out_of_beijing_days > 0 ||
-                    billingDetails.attendance.out_of_country_days > 0
+                    billingDetails.attendance.out_of_country_days > 0 ||
+                    billingDetails.attendance.onboarding_time_info ||
+                    billingDetails.attendance.offboarding_time_info
                 ) && (
                     <Box sx={{ mt: 2 }}>
                         <Divider textAlign="left" sx={{ mb: 1.5 }}>
@@ -1254,6 +1289,32 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
                                     <Grid item xs={6}>
                                         <Typography variant="body2" sx={{ textAlign: 'right', fontWeight: 500 }}>
                                             {billingDetails.attendance.out_of_country_days.toFixed(3)} 天
+                                        </Typography>
+                                    </Grid>
+                                </>
+                            )}
+                            {/* 上户时间显示 */}
+                            {billingDetails.attendance.onboarding_time_info && (
+                                <>
+                                    <Grid item xs={6}>
+                                        <Typography variant="body2" color="text.secondary">上户时间:</Typography>
+                                    </Grid>
+                                    <Grid item xs={6}>
+                                        <Typography variant="body2" sx={{ textAlign: 'right', fontWeight: 500, fontFamily: 'monospace' }}>
+                                            {billingDetails.attendance.onboarding_time_info.date} {billingDetails.attendance.onboarding_time_info.time}
+                                        </Typography>
+                                    </Grid>
+                                </>
+                            )}
+                            {/* 下户时间显示 */}
+                            {billingDetails.attendance.offboarding_time_info && (
+                                <>
+                                    <Grid item xs={6}>
+                                        <Typography variant="body2" color="text.secondary">下户时间:</Typography>
+                                    </Grid>
+                                    <Grid item xs={6}>
+                                        <Typography variant="body2" sx={{ textAlign: 'right', fontWeight: 500, fontFamily: 'monospace' }}>
+                                            {billingDetails.attendance.offboarding_time_info.date} {billingDetails.attendance.offboarding_time_info.time}
                                         </Typography>
                                     </Grid>
                                 </>

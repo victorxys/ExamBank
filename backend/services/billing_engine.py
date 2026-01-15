@@ -892,7 +892,23 @@ class BillingEngine:
         # 优先使用从API传入的覆盖值
         if actual_work_days_override is not None:
             base_work_days = D(actual_work_days_override)
-            log_extras["base_work_days_reason"] = f"使用用户传入的实际劳务天数 ( {actual_work_days_override:.3f})"
+            reason_parts = [f"使用用户传入的实际劳务天数 ( {actual_work_days_override:.3f})"]
+            
+            # 【新增】如果有上户/下户时间信息，添加到reason中
+            if attendance and attendance.attendance_details:
+                details = attendance.attendance_details
+                onboarding_info = details.get('onboarding_time_info')
+                offboarding_info = details.get('offboarding_time_info')
+                offboarding_day_work = details.get('offboarding_day_work', 0)
+                
+                if onboarding_info:
+                    reason_parts.append(f"上户: {onboarding_info.get('date')} {onboarding_info.get('time')}")
+                if offboarding_info:
+                    reason_parts.append(f"下户: {offboarding_info.get('date')} {offboarding_info.get('time')}")
+                if offboarding_day_work > 0 and offboarding_day_work < 1:
+                    reason_parts.append(f"下户日出勤: {offboarding_day_work:.3f}天")
+            
+            log_extras["base_work_days_reason"] = "\n".join(reason_parts)
             # 同步更新数据库中的字段，确保前端刷新后能看到正确的值
             bill.actual_work_days = actual_work_days_override
             payroll.actual_work_days = actual_work_days_override
@@ -1541,7 +1557,23 @@ class BillingEngine:
         # --- NEW LOGIC for actual_work_days ---
         if actual_work_days_override is not None:
             base_work_days = D(actual_work_days_override)
-            log_extras["base_work_days_reason"] = f"使用用户传入的实际劳务天数 ( {actual_work_days_override:.3f})"
+            reason_parts = [f"使用用户传入的实际劳务天数 ( {actual_work_days_override:.3f})"]
+            
+            # 【新增】如果有上户/下户时间信息，添加到reason中
+            if attendance and attendance.attendance_details:
+                details = attendance.attendance_details
+                onboarding_info = details.get('onboarding_time_info')
+                offboarding_info = details.get('offboarding_time_info')
+                offboarding_day_work = details.get('offboarding_day_work', 0)
+                
+                if onboarding_info:
+                    reason_parts.append(f"上户: {onboarding_info.get('date')} {onboarding_info.get('time')}")
+                if offboarding_info:
+                    reason_parts.append(f"下户: {offboarding_info.get('date')} {offboarding_info.get('time')}")
+                if offboarding_day_work > 0 and offboarding_day_work < 1:
+                    reason_parts.append(f"下户日出勤: {offboarding_day_work:.3f}天")
+            
+            log_extras["base_work_days_reason"] = "\n".join(reason_parts)
             bill.actual_work_days = actual_work_days_override
             payroll.actual_work_days = actual_work_days_override
         elif bill.actual_work_days and bill.actual_work_days > 0:
@@ -2059,7 +2091,24 @@ class BillingEngine:
 
         if actual_work_days_override is not None:
             service_days = D(actual_work_days_override)
-            log_extras["base_work_days_reason"] = f"使用用户传入的实际劳务天数 ( {actual_work_days_override:.3f})"
+            reason_parts = [f"使用用户传入的实际劳务天数 ( {actual_work_days_override:.3f})"]
+            
+            # 【新增】如果有上户/下户时间信息，添加到reason中
+            attendance_for_info = self._get_or_create_attendance(contract, bill.cycle_start_date, bill.cycle_end_date)
+            if attendance_for_info and attendance_for_info.attendance_details:
+                details = attendance_for_info.attendance_details
+                onboarding_info = details.get('onboarding_time_info')
+                offboarding_info = details.get('offboarding_time_info')
+                offboarding_day_work = details.get('offboarding_day_work', 0)
+                
+                if onboarding_info:
+                    reason_parts.append(f"上户: {onboarding_info.get('date')} {onboarding_info.get('time')}")
+                if offboarding_info:
+                    reason_parts.append(f"下户: {offboarding_info.get('date')} {offboarding_info.get('time')}")
+                if offboarding_day_work > 0 and offboarding_day_work < 1:
+                    reason_parts.append(f"下户日出勤: {offboarding_day_work:.3f}天")
+            
+            log_extras["base_work_days_reason"] = "\n".join(reason_parts)
             bill.actual_work_days = actual_work_days_override
             if payroll:
                 payroll.actual_work_days = actual_work_days_override
@@ -2617,7 +2666,24 @@ class BillingEngine:
         log_extras = {}
         if actual_work_days_override is not None:
             days = D(actual_work_days_override)
-            log_extras["base_work_days_reason"] = f"使用用户传入的实际劳务天数 ({actual_work_days_override:.3f})"
+            reason_parts = [f"使用用户传入的实际劳务天数 ({actual_work_days_override:.3f})"]
+            
+            # 【新增】如果有上户/下户时间信息，添加到reason中
+            attendance = self._get_or_create_attendance(contract, bill.cycle_start_date, bill.cycle_end_date)
+            if attendance and attendance.attendance_details:
+                details = attendance.attendance_details
+                onboarding_info = details.get('onboarding_time_info')
+                offboarding_info = details.get('offboarding_time_info')
+                offboarding_day_work = details.get('offboarding_day_work', 0)
+                
+                if onboarding_info:
+                    reason_parts.append(f"上户: {onboarding_info.get('date')} {onboarding_info.get('time')}")
+                if offboarding_info:
+                    reason_parts.append(f"下户: {offboarding_info.get('date')} {offboarding_info.get('time')}")
+                if offboarding_day_work > 0 and offboarding_day_work < 1:
+                    reason_parts.append(f"下户日出勤: {offboarding_day_work:.3f}天")
+            
+            log_extras["base_work_days_reason"] = "\n".join(reason_parts)
             bill.actual_work_days = actual_work_days_override
             payroll.actual_work_days = actual_work_days_override
         else:

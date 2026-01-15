@@ -882,11 +882,16 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                 setEditingDate(endDate);
             }
             
+            // 下户特殊处理：UI 中用户输入的是离开时间（存储在 endTime 中）
+            // 需要把 endTime 赋值给 tempRecord.startTime 以便在 UI 中显示
+            const isOffboarding = originalRecord.type === 'offboarding';
+            
             setTempRecord({
                 type: originalRecord.type,
                 daysOffset: originalRecord.daysOffset || 0,
-                // 保留空时间（上户/下户记录需要用户手动填写）
-                startTime: originalRecord.startTime || '',
+                // 下户：startTime 显示的是离开时间（即 endTime）
+                // 上户/其他：保留原始 startTime
+                startTime: isOffboarding ? (originalRecord.endTime || '') : (originalRecord.startTime || ''),
                 endTime: originalRecord.endTime || ''
             });
         } else {
@@ -1426,22 +1431,54 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
         });
     }
 
-    // 【新增】计算上户天数（上户不计算出勤天数，下户计算出勤天数）
+    // 【新增】计算上户天数（上户当月，上户日不计入出勤天数，按整天扣除；下户当月，下户日计作1整天出勤）
+    // 上户：无论几点到达，上户日都不算出勤，扣除整整1天
+    // 下户：需要根据上户时间和下户时间计算实际出勤
     let totalOnboardingDays = 0;
     if (Array.isArray(attendanceData.onboarding_records)) {
-        attendanceData.onboarding_records.forEach(record => {
-            const hours = (record.hours || 0) + (record.minutes || 0) / 60;
-            totalOnboardingDays += hours / 24;
+        attendanceData.onboarding_records.forEach(() => {
+            // 每条上户记录扣除1整天（不按小时计算）
+            totalOnboardingDays += 1;
         });
     }
 
-    // Work days (基本劳务天数) = valid days - leave days - overtime days - onboarding days
+    // 【下户月特殊处理】计算上户日补回 + 下户日出勤
+    let offboardingAdjustment = 0;
+    if (Array.isArray(attendanceData.offboarding_records) && attendanceData.offboarding_records.length > 0) {
+        const offboardingRecord = attendanceData.offboarding_records[0];
+        const offboardingTime = offboardingRecord.endTime; // 下户时间存储在 endTime 中
+        
+        // 获取上户时间（优先从后端返回的信息获取，否则从当前月份的考勤数据获取）
+        const onboardingInfo = formData?.onboarding_time_info;
+        const onboardingTime = onboardingInfo?.onboarding_time || 
+            (attendanceData.onboarding_records?.[0]?.startTime);
+        
+        if (onboardingTime && offboardingTime) {
+            // 解析上户时间
+            const [onboardingHour, onboardingMinute] = onboardingTime.split(':').map(Number);
+            const onboardingHours = onboardingHour + (onboardingMinute || 0) / 60;
+            
+            // 解析下户时间
+            const [offboardingHour, offboardingMinute] = offboardingTime.split(':').map(Number);
+            const offboardingHours = offboardingHour + (offboardingMinute || 0) / 60;
+            
+            // 上户日实际出勤（上户时间到24:00）+ 下户日实际出勤（00:00到下户时间）
+            const onboardingDayWork = 24 - onboardingHours;
+            const offboardingDayWork = offboardingHours;
+            const totalExtraHours = onboardingDayWork + offboardingDayWork;
+            
+            // 调整量 = 额外出勤 - 1（因为下户日已经算了1天）
+            offboardingAdjustment = totalExtraHours / 24 - 1;
+        }
+    }
+
+    // Work days (基本劳务天数) = valid days - leave days - overtime days - onboarding days + offboarding adjustment
     // 【重要】只有"出勤"才算出勤天数，加班不计算在出勤天数中
-    // 带薪休假、出京、出境、下户都算作出勤天数，不需要扣除
-    // 【新增】上户不计算出勤天数，需要扣除
-    // 公式：出勤天数 = 当月总天数 - 休息天数 - 请假天数 - 加班天数 - 上户天数
+    // 带薪休假、出京、出境都算作出勤天数，不需要扣除
+    // 【新增】上户不计算出勤天数，需要扣除；下户月需要加上调整量
+    // 公式：出勤天数 = 当月总天数 - 休息天数 - 请假天数 - 加班天数 - 上户天数 + 下户调整
     const validDaysCount = monthDays.filter(day => !isDateDisabled(day)).length;
-    totalWorkDays = validDaysCount - totalLeaveDays - totalOvertimeDays - totalOnboardingDays;  // 减去加班天数和上户天数！
+    totalWorkDays = validDaysCount - totalLeaveDays - totalOvertimeDays - totalOnboardingDays + offboardingAdjustment;
 
     return (
         <div className="min-h-screen bg-slate-50 pb-48 font-sans">
@@ -1745,14 +1782,16 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                         return false;
                                     })() && (
                                         <span className={`text-[10px] scale-90 ${
-                                            ['onboarding', 'offboarding'].includes(record.type) && !record.startTime 
+                                            ['onboarding', 'offboarding'].includes(record.type) && 
+                                            !(record.type === 'offboarding' ? record.endTime : record.startTime)
                                                 ? 'text-amber-600 font-medium' 
                                                 : 'text-gray-500'
                                         }`}>
                                             {(() => {
                                                 if (['onboarding', 'offboarding'].includes(record.type)) {
-                                                    // 如果时间为空，显示提示
-                                                    return record.startTime || '待填写';
+                                                    // 上户显示 startTime（到达时间），下户显示 endTime（离开时间）
+                                                    const displayTime = record.type === 'offboarding' ? record.endTime : record.startTime;
+                                                    return displayTime || '待填写';
                                                 }
 
                                                 // 对于非正常考勤类型，显示总时长（天数格式）
@@ -1811,8 +1850,10 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                     const endTime = record.endTime || '18:00';
 
                                     if (isOnboardingOrOffboarding) {
-                                        // 上户/下户：只显示日期和时间，未填写时显示"待填写"
-                                        timeRangeStr = `${format(startDate, 'M月d日')} ${startTime || '待填写'}`;
+                                        // 上户：显示到达时间（startTime）
+                                        // 下户：显示离开时间（endTime）
+                                        const displayTime = record.type === 'offboarding' ? endTime : startTime;
+                                        timeRangeStr = `${format(startDate, 'M月d日')} ${displayTime || '待填写'}`;
                                     } else if (daysOffset > 0) {
                                         // 跨天：显示完整起止时间
                                         timeRangeStr = `${format(startDate, 'M月d日')} ${startTime} ~ ${format(endDate, 'M月d日')} ${endTime}`;
@@ -1854,7 +1895,12 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                                     <div className="text-sm font-medium text-gray-900">
                                                         {record.typeLabel}
                                                     </div>
-                                                    <div className={`text-xs ${!record.startTime && isOnboardingOrOffboarding ? 'text-amber-600 font-medium' : 'text-gray-500'}`}>
+                                                <div className={`text-xs ${
+                                                    isOnboardingOrOffboarding && 
+                                                    !(record.type === 'offboarding' ? record.endTime : record.startTime)
+                                                        ? 'text-amber-600 font-medium' 
+                                                        : 'text-gray-500'
+                                                }`}>
                                                         {timeRangeStr}
                                                     </div>
                                                 </div>
@@ -2197,6 +2243,28 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                                         ? '⏰ 请确认上户到达客户家的时间' 
                                                         : '⏰ 请确认下户离开客户家的时间'}
                                                 </div>
+                                                {/* 下户时显示上户时间参考（如果有） */}
+                                                {tempRecord.type === 'offboarding' && (() => {
+                                                    // 优先使用后端返回的上户时间信息（可跨月查找）
+                                                    const onboardingInfo = formData?.onboarding_time_info;
+                                                    if (onboardingInfo?.has_onboarding && onboardingInfo.onboarding_time) {
+                                                        return (
+                                                            <div className="text-xs text-amber-700 mt-1">
+                                                                📌 上户时间：{onboardingInfo.onboarding_date} {onboardingInfo.onboarding_time}
+                                                            </div>
+                                                        );
+                                                    }
+                                                    // 兼容：如果后端没有返回，尝试从当前月份的考勤数据中获取
+                                                    const onboardingRecord = attendanceData.onboarding_records?.[0];
+                                                    if (onboardingRecord?.startTime) {
+                                                        return (
+                                                            <div className="text-xs text-amber-700 mt-1">
+                                                                📌 上户时间：{onboardingRecord.date} {onboardingRecord.startTime}
+                                                            </div>
+                                                        );
+                                                    }
+                                                    return null;
+                                                })()}
                                             </div>
                                             <div className="bg-white rounded-lg border border-gray-200 p-3"
                                                 onClick={() => !isReadOnly && setTimePickerDrawer({

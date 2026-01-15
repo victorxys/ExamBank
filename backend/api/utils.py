@@ -408,6 +408,25 @@ def get_billing_details_internal(
                 }
     # --- End of logic ---
 
+    # 获取考勤详情中的上户/下户时间信息
+    attendance_details = attendance_record.attendance_details if attendance_record else {}
+    onboarding_time_info = attendance_details.get("onboarding_time_info") if attendance_details else None
+    offboarding_time_info = attendance_details.get("offboarding_time_info") if attendance_details else None
+    offboarding_day_work = attendance_details.get("offboarding_day_work", 0) if attendance_details else 0
+    
+    # 【修复】如果当前月份没有上户时间信息，但有下户时间信息，则动态查找合同的第一条上户记录
+    if not onboarding_time_info and offboarding_time_info and attendance_record:
+        from backend.services.attendance_sync_service import get_onboarding_time_for_contract
+        onboarding_info = get_onboarding_time_for_contract(
+            str(attendance_record.employee_id), 
+            str(attendance_record.contract_id)
+        )
+        if onboarding_info['has_onboarding']:
+            onboarding_time_info = {
+                'date': onboarding_info['onboarding_date'],
+                'time': onboarding_info['onboarding_time']
+            }
+
     return {
         "customer_bill_details": customer_details,
         "employee_payroll_details": employee_details,
@@ -423,6 +442,10 @@ def get_billing_details_internal(
             "leave_days": float((attendance_record.attendance_details or {}).get("leave_days", 0)) if attendance_record else 0,
             "paid_leave_days": float((attendance_record.attendance_details or {}).get("paid_leave_days", 0)) if attendance_record else 0,
             "rest_days": float((attendance_record.attendance_details or {}).get("rest_days", 0)) if attendance_record else 0,
+            # 【新增】上户/下户时间信息
+            "onboarding_time_info": onboarding_time_info,
+            "offboarding_time_info": offboarding_time_info,
+            "offboarding_day_work": float(offboarding_day_work),
         },
         "invoice_details": {
             "number": (customer_bill.payment_details or {}).get("invoice_number", ""),
