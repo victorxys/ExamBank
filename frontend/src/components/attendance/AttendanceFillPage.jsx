@@ -1426,12 +1426,22 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
         });
     }
 
-    // Work days (基本劳务天数) = valid days - leave days - overtime days
+    // 【新增】计算上户天数（上户不计算出勤天数，下户计算出勤天数）
+    let totalOnboardingDays = 0;
+    if (Array.isArray(attendanceData.onboarding_records)) {
+        attendanceData.onboarding_records.forEach(record => {
+            const hours = (record.hours || 0) + (record.minutes || 0) / 60;
+            totalOnboardingDays += hours / 24;
+        });
+    }
+
+    // Work days (基本劳务天数) = valid days - leave days - overtime days - onboarding days
     // 【重要】只有"出勤"才算出勤天数，加班不计算在出勤天数中
-    // 带薪休假、出京、出境都算作出勤天数，不需要扣除
-    // 公式：出勤天数 = 当月总天数 - 休息天数 - 请假天数 - 加班天数
+    // 带薪休假、出京、出境、下户都算作出勤天数，不需要扣除
+    // 【新增】上户不计算出勤天数，需要扣除
+    // 公式：出勤天数 = 当月总天数 - 休息天数 - 请假天数 - 加班天数 - 上户天数
     const validDaysCount = monthDays.filter(day => !isDateDisabled(day)).length;
-    totalWorkDays = validDaysCount - totalLeaveDays - totalOvertimeDays;  // 减去加班天数！
+    totalWorkDays = validDaysCount - totalLeaveDays - totalOvertimeDays - totalOnboardingDays;  // 减去加班天数和上户天数！
 
     return (
         <div className="min-h-screen bg-slate-50 pb-48 font-sans">

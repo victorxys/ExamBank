@@ -62,6 +62,7 @@ from backend.api.evaluation_order import bp as evaluation_order_bp  # 新增
 from backend.api.llm_config_api import llm_config_bp  # 修改导入
 from backend.api.llm_log_api import llm_log_bp  
 from backend.api.tts_api import tts_bp  
+from backend.api.tts_import_api import tts_import_bp  
 from backend.api.course_resource_api import course_resource_bp  
 from backend.api.permission_api import permission_bp  
 from backend.api.billing_api import billing_bp  
@@ -305,6 +306,7 @@ app.register_blueprint(evaluation_order_bp)
 app.register_blueprint(llm_config_bp)
 app.register_blueprint(llm_log_bp)
 app.register_blueprint(tts_bp, url_prefix="/api/tts")
+app.register_blueprint(tts_import_bp)  # 第三方TTS数据导入
 
 app.register_blueprint(course_resource_bp)
 app.register_blueprint(permission_bp)

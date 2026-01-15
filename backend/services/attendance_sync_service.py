@@ -78,8 +78,11 @@ def sync_attendance_to_record(attendance_form_id):
     out_of_beijing_days = calculate_days(data.get('out_of_beijing_records', []))  # 修复：使用正确的键名
     out_of_country_days = calculate_days(data.get('out_of_country_records', []))  # 修复：使用正确的键名
     paid_leave_days = calculate_days(data.get('paid_leave_records', []))
+    # 【新增】上户天数（上户不计算出勤天数，下户计算出勤天数）
+    onboarding_days = calculate_days(data.get('onboarding_records', []))
+    offboarding_days = calculate_days(data.get('offboarding_records', []))
     
-    current_app.logger.info(f"[ATTENDANCE_SYNC] 计算结果 - 休息:{rest_days}, 请假:{leave_days}, 带薪休假:{paid_leave_days}, 加班:{overtime_days}, 出京:{out_of_beijing_days}, 出境:{out_of_country_days}")
+    current_app.logger.info(f"[ATTENDANCE_SYNC] 计算结果 - 休息:{rest_days}, 请假:{leave_days}, 带薪休假:{paid_leave_days}, 加班:{overtime_days}, 出京:{out_of_beijing_days}, 出境:{out_of_country_days}, 上户:{onboarding_days}, 下户:{offboarding_days}")
     
     # 3. 计算总出勤天数
     # 逻辑: 合同有效天数 - 休息天数 - 请假天数
@@ -114,10 +117,11 @@ def sync_attendance_to_record(attendance_form_id):
         base_work_days = (form.cycle_end_date.date() - form.cycle_start_date.date()).days + 1
         current_app.logger.warning(f"[ATTENDANCE_SYNC] 未找到合同信息，使用考勤周期天数: {base_work_days}")
     
-    # 出勤天数 = 基础劳务天数 - 休息天数 - 请假天数
-    total_days_worked = Decimal(base_work_days) - rest_days - leave_days
+    # 出勤天数 = 基础劳务天数 - 休息天数 - 请假天数 - 上户天数
+    # 【新增】上户不计算出勤天数，下户计算出勤天数
+    total_days_worked = Decimal(base_work_days) - rest_days - leave_days - onboarding_days
     
-    current_app.logger.info(f"[ATTENDANCE_SYNC] 基础劳务天数:{base_work_days}, 休息:{rest_days}, 请假:{leave_days}, 总出勤天数:{total_days_worked}")
+    current_app.logger.info(f"[ATTENDANCE_SYNC] 基础劳务天数:{base_work_days}, 休息:{rest_days}, 请假:{leave_days}, 上户:{onboarding_days}, 总出勤天数:{total_days_worked}")
     
     # 4. 创建或更新 AttendanceRecord
     attendance = AttendanceRecord.query.filter_by(
@@ -152,6 +156,8 @@ def sync_attendance_to_record(attendance_form_id):
         "overtime_days": float(overtime_days),
         "out_of_beijing_days": float(out_of_beijing_days),
         "out_of_country_days": float(out_of_country_days),
+        "onboarding_days": float(onboarding_days),
+        "offboarding_days": float(offboarding_days),
         "raw_data": data
     }
     attendance.attendance_details = details

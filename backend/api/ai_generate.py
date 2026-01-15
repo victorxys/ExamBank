@@ -841,7 +841,15 @@ def generate_video_script(
                     raise Exception("LLM 返回了空内容。")
 
                 llm_output_raw = {"raw_response": response_text, "streamed": True}
-                parsed_output = json.loads(response_text)  # 强制 JSON
+                
+                # 尝试解析 JSON，如果失败则清理控制字符后重试
+                try:
+                    parsed_output = json.loads(response_text)
+                except json.JSONDecodeError as json_err:
+                    # LLM 有时会在 JSON 字符串值中生成未转义的控制字符
+                    # 使用 strict=False 允许控制字符
+                    current_app.logger.warning(f"JSON 解析失败，尝试使用 strict=False: {json_err}")
+                    parsed_output = json.loads(response_text, strict=False)
 
                 duration_ms = int((time.time() - start_time) * 1000)
                 update_llm_log_result(

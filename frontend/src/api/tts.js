@@ -91,4 +91,18 @@ export const ttsApi = {
     return api.put(`/tts/synthesis/${synthesisId}/script`, { video_script_json: scriptData });
   },
 
+  // 第三方TTS数据导入
+  importExternalTtsData: (contentId, formData) => {
+    return api.post(`/tts/training-contents/${contentId}/import-external`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
+  
+  importFromServerPath: (contentId, jsonFilePath, audioFolderPath) => {
+    return api.post(`/tts/training-contents/${contentId}/import-from-server`, {
+      json_file_path: jsonFilePath,
+      audio_folder_path: audioFolderPath
+    });
+  },
+
 };

@@ -50,6 +50,8 @@ import VideoSynthesisStep from './VideoSynthesisStep'; // <<<--- 导入新组件
 import SentenceList from './SentenceList';
 import formatMsToTime from '../utils/timeUtils'; // 确保有这个工具函数来格式化时间戳
 import SkipNextIcon from '@mui/icons-material/SkipNext'
+import FileUploadIcon from '@mui/icons-material/FileUpload';
+import ImportExternalTtsDialog from './ImportExternalTtsDialog';
 
 // +++ 把这个辅助函数放在组件外部或一个单独的 utils 文件中 +++
 function formatMsToSrtTime(ms) {
@@ -105,6 +107,7 @@ const TrainingContentDetail = () => {
 
   // New states for Global TTS Settings
   const [isGlobalSettingsOpen, setIsGlobalSettingsOpen] = useState(false);
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false); // 第三方导入对话框
   const [globalTtsConfig, setGlobalTtsConfig] = useState({
     engine: 'gemini_tts',
     system_prompt: '',
@@ -1242,6 +1245,16 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
     // 例如： ttsApi.remergeAudio(contentId, { modified_sentence_id: '...' })
   };
 
+  // 第三方TTS数据导入成功的回调
+  const handleImportSuccess = (result) => {
+    setAlert({ 
+      open: true, 
+      message: result.message || '导入成功！', 
+      severity: 'success' 
+    });
+    fetchContentDetail(false); // 刷新页面数据
+  };
+
   const handleVideoTaskStart = (taskId, taskType, initialMessage) => {
       // 当 VideoSynthesisStep 调用 onTaskStart 时，我们在这里启动轮询
       startPolling(taskId, taskType, initialMessage);
@@ -1805,6 +1818,17 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
                         导出 SRT 字幕
                     </Button>
 
+                    {/* 导入第三方TTS数据按钮 */}
+                    <Button
+                        variant="outlined"
+                        color="secondary"
+                        startIcon={<FileUploadIcon />}
+                        onClick={() => setIsImportDialogOpen(true)}
+                        disabled={loading}
+                    >
+                        导入第三方数据
+                    </Button>
+
                     <Button
                         variant="contained"
                         onClick={() => handleBatchGenerateAudio('gemini_tts')}
@@ -2124,6 +2148,14 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
             </Button>
           </DialogActions>
       </Dialog>
+
+      {/* 第三方TTS数据导入对话框 */}
+      <ImportExternalTtsDialog
+        open={isImportDialogOpen}
+        onClose={() => setIsImportDialogOpen(false)}
+        contentId={contentId}
+        onImportSuccess={handleImportSuccess}
+      />
     </Box>
   );
 };
