@@ -179,7 +179,7 @@ const getLightboxUrl = (originalUrl) => {
             /width=\d+,quality=\d+/,
             `width=${screen.width},quality=100`
         );
-        console.log(`🖼️ 基于缩略图生成大图URL: ${thumbnailUrl} -> ${lightboxUrl}`);
+        // console.log(`🖼️ 基于缩略图生成大图URL: ${thumbnailUrl} -> ${lightboxUrl}`);
         return lightboxUrl;
     }
     
@@ -229,7 +229,7 @@ const startGlobalLightboxPreload = async () => {
     if (isPreloadingLightbox || globalLightboxPreloadQueue.length === 0) return;
     
     isPreloadingLightbox = true;
-    console.log(`🚀 开始全局大图预加载队列: ${globalLightboxPreloadQueue.length} 张图片`);
+    // console.log(`🚀 开始全局大图预加载队列: ${globalLightboxPreloadQueue.length} 张图片`);
     
     // 逐个预加载，避免并发请求过多
     while (globalLightboxPreloadQueue.length > 0) {
@@ -244,7 +244,7 @@ const startGlobalLightboxPreload = async () => {
     }
     
     isPreloadingLightbox = false;
-    console.log(`✅ 全局大图预加载完成，缓存大小: ${lightboxCache.size}`);
+    // console.log(`✅ 全局大图预加载完成，缓存大小: ${lightboxCache.size}`);
 };
 
 // 预加载大图到缓存（转换为Blob URL确保从内存读取）
@@ -254,14 +254,14 @@ const preloadLightboxImage = (originalUrl) => {
         
         // 检查缓存
         if (lightboxCache.has(originalUrl)) {
-            console.log(`🎯 大图已在缓存中: ${originalUrl.substring(0, 50)}...`);
+            // console.log(`🎯 大图已在缓存中: ${originalUrl.substring(0, 50)}...`);
             resolve(lightboxCache.get(originalUrl));
             return;
         }
         
         // 输出完整的大图URL用于调试
-        console.log(`📥 预加载大图完整URL: ${lightboxUrl}`);
-        console.log(`📥 原始URL: ${originalUrl}`);
+        // console.log(`📥 预加载大图完整URL: ${lightboxUrl}`);
+        // console.log(`📥 原始URL: ${originalUrl}`);
         
         // 使用Image对象预加载
         // 不设置 crossOrigin，避免 CORS 错误
@@ -269,7 +269,7 @@ const preloadLightboxImage = (originalUrl) => {
         img.referrerPolicy = 'no-referrer';
         
         const timeout = setTimeout(() => {
-            console.warn(`⏰ 大图加载超时: ${lightboxUrl.substring(0, 50)}...`);
+            // console.warn(`⏰ 大图加载超时: ${lightboxUrl.substring(0, 50)}...`);
             reject(new Error('Image load timeout'));
         }, 30000);
         
@@ -287,22 +287,22 @@ const preloadLightboxImage = (originalUrl) => {
                 loaded: true,
                 isBlob: false
             });
-            console.log(`✅ 大图预加载成功: ${img.naturalWidth}x${img.naturalHeight}, URL: ${lightboxUrl.substring(0, 60)}...`);
+            // console.log(`✅ 大图预加载成功: ${img.naturalWidth}x${img.naturalHeight}, URL: ${lightboxUrl.substring(0, 60)}...`);
             resolve(lightboxCache.get(originalUrl));
         };
         
         img.onerror = (error) => {
             clearTimeout(timeout);
-            console.error(`❌ 大图预加载失败，完整URL: ${lightboxUrl}`);
-            console.error(`❌ 错误详情:`, error);
-            console.error(`❌ img.src: ${img.src}`);
-            console.error(`❌ img.complete: ${img.complete}`);
-            console.error(`❌ img.naturalWidth: ${img.naturalWidth}`);
+            // console.error(`❌ 大图预加载失败，完整URL: ${lightboxUrl}`);
+            // console.error(`❌ 错误详情:`, error);
+            // console.error(`❌ img.src: ${img.src}`);
+            // console.error(`❌ img.complete: ${img.complete}`);
+            // console.error(`❌ img.naturalWidth: ${img.naturalWidth}`);
             reject(error);
         };
         
         // 设置src开始加载
-        console.log(`🔄 开始加载图片: ${lightboxUrl}`);
+        // console.log(`🔄 开始加载图片: ${lightboxUrl}`);
         img.src = lightboxUrl;
     });
 };
@@ -324,7 +324,7 @@ const preloadUnifiedImage = (originalUrl) => {
         
         // 检查缓存
         if (thumbnailCache.has(thumbnailUrl)) {
-            console.log(`🎯 缩略图已在缓存中: ${thumbnailUrl}`);
+            // console.log(`🎯 缩略图已在缓存中: ${thumbnailUrl}`);
             resolve(thumbnailCache.get(thumbnailUrl));
             return;
         }
@@ -332,26 +332,26 @@ const preloadUnifiedImage = (originalUrl) => {
         const img = new Image();
         
         const timeout = setTimeout(() => {
-            console.warn(`⏰ 缩略图加载超时: ${thumbnailUrl}`);
+            // console.warn(`⏰ 缩略图加载超时: ${thumbnailUrl}`);
             reject(new Error('Image load timeout'));
         }, 10000);
         
         img.onload = () => {
             clearTimeout(timeout);
             thumbnailCache.set(thumbnailUrl, img);
-            console.log(`✅ 缩略图缓存完成: ${thumbnailUrl}`);
+            // console.log(`✅ 缩略图缓存完成: ${thumbnailUrl}`);
             resolve(img);
         };
         
         img.onerror = (error) => {
             clearTimeout(timeout);
-            console.error(`❌ 统一图片加载失败: ${unifiedUrl}`, error);
-            console.log(`🔄 回退到原图: ${originalUrl}`);
+            // console.error(`❌ 统一图片加载失败: ${unifiedUrl}`, error);
+            // console.log(`🔄 回退到原图: ${originalUrl}`);
             
             // 回退到原图
             const fallbackImg = new Image();
             const fallbackTimeout = setTimeout(() => {
-                console.warn(`⏰ 原图回退加载超时: ${originalUrl}`);
+                // console.warn(`⏰ 原图回退加载超时: ${originalUrl}`);
                 reject(new Error('Fallback image load timeout'));
             }, 10000);
             
@@ -361,13 +361,13 @@ const preloadUnifiedImage = (originalUrl) => {
                 // 缓存原图（使用统一URL作为key）
                 unifiedImageCache.set(unifiedUrl, fallbackImg);
                 
-                console.log(`✅ 原图回退加载完成: ${originalUrl}`);
+                // console.log(`✅ 原图回退加载完成: ${originalUrl}`);
                 resolve(fallbackImg);
             };
             
             fallbackImg.onerror = (fallbackError) => {
                 clearTimeout(fallbackTimeout);
-                console.error(`❌ 原图回退也失败: ${originalUrl}`, fallbackError);
+                // console.error(`❌ 原图回退也失败: ${originalUrl}`, fallbackError);
                 reject(fallbackError);
             };
             
@@ -404,12 +404,12 @@ const CachedLightboxImage = ({ src, alt, style, originalUrl, ...props }) => {
         
         if (cached && cached.loaded && cached.url) {
             // 大图已预加载，使用缓存的 URL
-            console.log(`🎯 Lightbox使用预加载URL: ${cached.width}x${cached.height}`);
+            // console.log(`🎯 Lightbox使用预加载URL: ${cached.width}x${cached.height}`);
             setDisplayUrl(cached.url);
             setIsCached(true);
         } else {
             // 大图未缓存，需要从网络加载
-            console.log(`⚠️ Lightbox大图未缓存，从网络加载: ${src.substring(0, 60)}...`);
+            // console.log(`⚠️ Lightbox大图未缓存，从网络加载: ${src.substring(0, 60)}...`);
             setDisplayUrl(src);
             setIsCached(false);
         }
@@ -419,7 +419,7 @@ const CachedLightboxImage = ({ src, alt, style, originalUrl, ...props }) => {
         if (!imageLoaded) {
             setImageLoaded(true);
             setImageError(false);
-            console.log(`✅ Lightbox 图片从网络加载完成`);
+            // console.log(`✅ Lightbox 图片从网络加载完成`);
         }
     };
 
@@ -551,7 +551,7 @@ const OptimizedFileCarousel = ({ questionValue, onImageClick, onPreloadUpdate })
     useEffect(() => {
         if (!questionValue || questionValue.length === 0) return;
 
-        console.log(`🚀 初始化图片轮播组件: ${questionValue.length} 张图片`);
+        // console.log(`🚀 初始化图片轮播组件: ${questionValue.length} 张图片`);
         
         // 重置状态
         setThumbnailsLoaded({});
@@ -561,19 +561,19 @@ const OptimizedFileCarousel = ({ questionValue, onImageClick, onPreloadUpdate })
         // 打印图片URL用于调试
         questionValue.forEach((imageFile, index) => {
             const originalUrl = imageFile?.content;
-            console.log(`🔍 原始图片 ${index + 1}:`, originalUrl);
+            // console.log(`🔍 原始图片 ${index + 1}:`, originalUrl);
             
             const cleanedUrl = extractOriginalUrl(originalUrl);
-            console.log(`🧹 清理后URL ${index + 1}:`, cleanedUrl);
+            // console.log(`🧹 清理后URL ${index + 1}:`, cleanedUrl);
             
             const path = getCleanPath(cleanedUrl);
-            console.log(`📁 提取路径 ${index + 1}:`, path);
+            // console.log(`📁 提取路径 ${index + 1}:`, path);
             
             const thumbnailUrl = getThumbnailUrl(originalUrl);
-            console.log(`🖼️ 缩略图URL ${index + 1}:`, thumbnailUrl);
+            // console.log(`🖼️ 缩略图URL ${index + 1}:`, thumbnailUrl);
             
             const lightboxUrl = getLightboxUrl(originalUrl);
-            console.log(`🔍 大图URL ${index + 1}:`, lightboxUrl);
+            // console.log(`🔍 大图URL ${index + 1}:`, lightboxUrl);
         });
     }, [questionValue]);
 
@@ -581,7 +581,7 @@ const OptimizedFileCarousel = ({ questionValue, onImageClick, onPreloadUpdate })
     useEffect(() => {
         if (!allThumbnailsComplete || !questionValue || questionValue.length === 0) return;
 
-        console.log(`🎉 缩略图加载完成，将 ${questionValue.length} 张大图添加到预加载队列...`);
+        // console.log(`🎉 缩略图加载完成，将 ${questionValue.length} 张大图添加到预加载队列...`);
         
         // 将大图URL添加到全局队列
         questionValue.forEach((file, i) => {
@@ -606,7 +606,7 @@ const OptimizedFileCarousel = ({ questionValue, onImageClick, onPreloadUpdate })
 
     // 第三阶段：下载原图函数
     const downloadOriginalImage = async (imageUrl, index) => {
-        console.log(`📥 第三阶段：下载原图 ${index + 1}`);
+        // console.log(`📥 第三阶段：下载原图 ${index + 1}`);
         
         const originalUrl = getOriginalUrl(imageUrl);
         const filename = originalUrl.split('/').pop()?.split('?')[0] || `image-${index + 1}.jpg`;
@@ -759,20 +759,20 @@ const OptimizedFileCarousel = ({ questionValue, onImageClick, onPreloadUpdate })
                                         // 使用统一URL作为缓存key，确保lightbox能找到
                                         const cacheKey = thumbnailUrl;
                                         
-                                        console.log(`✅ 缩略图 ${index + 1} 加载完成`);
-                                        console.log(`   实际URL: ${loadedUrl}`);
-                                        console.log(`   缓存Key: ${cacheKey}`);
+                                        // console.log(`✅ 缩略图 ${index + 1} 加载完成`);
+                                        // console.log(`   实际URL: ${loadedUrl}`);
+                                        // console.log(`   缓存Key: ${cacheKey}`);
                                         
                                         // 关键修复：使用统一URL作为缓存key
                                         if (!unifiedImageCache.has(cacheKey)) {
                                             unifiedImageCache.set(cacheKey, e.target);
-                                            console.log(`📦 图片已添加到统一缓存: ${cacheKey}`);
+                                            // console.log(`📦 图片已添加到统一缓存: ${cacheKey}`);
                                         }
                                         
                                         // 同时也用实际URL作为key（以防URL被浏览器修改）
                                         if (loadedUrl !== cacheKey && !unifiedImageCache.has(loadedUrl)) {
                                             unifiedImageCache.set(loadedUrl, e.target);
-                                            console.log(`📦 图片也用实际URL缓存: ${loadedUrl}`);
+                                            // console.log(`📦 图片也用实际URL缓存: ${loadedUrl}`);
                                         }
                                         
                                         // 更新加载状态
@@ -781,9 +781,9 @@ const OptimizedFileCarousel = ({ questionValue, onImageClick, onPreloadUpdate })
                                             const loadedCount = Object.keys(newLoaded).length;
                                             
                                             if (loadedCount === questionValue.length) {
-                                                console.log(`🎉 所有 ${questionValue.length} 张缩略图加载完成！`);
-                                                console.log(`📊 统一缓存大小: ${unifiedImageCache.size}`);
-                                                console.log(`📊 缓存Keys:`, Array.from(unifiedImageCache.keys()));
+                                                // console.log(`🎉 所有 ${questionValue.length} 张缩略图加载完成！`);
+                                                // console.log(`📊 统一缓存大小: ${unifiedImageCache.size}`);
+                                                // console.log(`📊 缓存Keys:`, Array.from(unifiedImageCache.keys()));
                                                 setAllThumbnailsComplete(true);
                                             }
                                             
@@ -1127,7 +1127,7 @@ const DynamicFormPage = () => {
                     document.body.removeChild(img);
                 }
             });
-            console.log(`🧹 清理了 ${preloadImages.length} 个预加载图片元素`);
+            // console.log(`🧹 清理了 ${preloadImages.length} 个预加载图片元素`);
         };
     }, []);
 
@@ -1273,6 +1273,276 @@ const DynamicFormPage = () => {
                             // Watch for dynamic changes
                             const observer = new MutationObserver(removeFileCellPadding);
                             observer.observe(options.htmlElement, {
+                                childList: true,
+                                subtree: true
+                            });
+
+                            // 处理 textarea 的行数设置
+                            const applyTextareaRows = () => {
+                                const columns = question.columns || [];
+                                
+                                const rows = options.htmlElement.querySelectorAll('tbody tr, .sd-table__row:not(.sd-table__row--header)');
+                                
+                                rows.forEach((row, rowIdx) => {
+                                    const allCells = row.querySelectorAll('td, .sd-table__cell');
+                                    const dataCells = Array.from(allCells).filter(cell => !cell.querySelector('.sd-action-bar'));
+                                    
+                                    columns.forEach((col, colIndex) => {
+                                        const cell = dataCells[colIndex];
+                                        if (!cell) return;
+                                        
+                                        const textarea = cell.querySelector('textarea');
+                                        if (textarea && col.rows && col.rows > 1) {
+                                            // 设置 rows 属性
+                                            textarea.setAttribute('rows', col.rows);
+                                            // 计算高度：每行约 1.4em (正常行高) + padding
+                                            const lineHeight = 1.4;
+                                            const paddingPx = 16; // 8px top + 8px bottom
+                                            const fontSizePx = 14; // 0.875rem
+                                            const heightPx = Math.round(col.rows * lineHeight * fontSizePx + paddingPx);
+                                            // 强制设置高度和行高
+                                            textarea.style.setProperty('height', `${heightPx}px`, 'important');
+                                            textarea.style.setProperty('min-height', `${heightPx}px`, 'important');
+                                            textarea.style.setProperty('line-height', '1.4', 'important');
+                                            textarea.style.setProperty('resize', 'vertical', 'important');
+                                        }
+                                    });
+                                });
+                            };
+                            
+                            // 初始应用（延迟执行确保DOM已渲染）
+                            setTimeout(applyTextareaRows, 100);
+                            
+                            // 监听变化
+                            const textareaObserver = new MutationObserver(() => {
+                                setTimeout(applyTextareaRows, 50);
+                            });
+                            textareaObserver.observe(options.htmlElement, {
+                                childList: true,
+                                subtree: true
+                            });
+
+                            // 获取"图片"列的索引和列名
+                            const getImageColumnInfo = () => {
+                                const info = [];
+                                const columns = question.columns || [];
+                                
+                                // console.log('=== getImageColumnInfo ===');
+                                // console.log('question.name:', question.name);
+                                // console.log('columns.length:', columns.length);
+                                // columns.forEach((col, i) => {
+                                //     console.log(`列 ${i}:`, { name: col.name, title: col.title, value: col.value });
+                                // });
+                                
+                                // 直接遍历 SurveyJS 的 columns 定义，根据列标题匹配
+                                columns.forEach((col, colIndex) => {
+                                    const title = col.title || col.name || '';
+                                    if (title.includes('图片') || title.includes('照片') || title.includes('凭证')) {
+                                        const colName = col.name || col.value;
+                                        // cellIndex 就是 colIndex，不需要 +1（操作按钮列在最后或不存在）
+                                        info.push({ cellIndex: colIndex, colIndex, name: colName, title });
+                                        // console.log('检测到图片列:', { colIndex, colName, title });
+                                    }
+                                });
+                                return info;
+                            };
+
+                            // 处理表格中的图片列
+                            const processImageColumns = () => {
+                                const imageColInfo = getImageColumnInfo();
+                                // console.log('imageColInfo:', imageColInfo);
+                                if (imageColInfo.length === 0) return;
+
+                                const rows = options.htmlElement.querySelectorAll('tbody tr, .sd-table__row:not(.sd-table__row--header)');
+                                // console.log('找到行数:', rows.length);
+                                rows.forEach((row, rowIndex) => {
+                                    // 获取数据单元格（排除操作按钮列）
+                                    const allCells = row.querySelectorAll('td, .sd-table__cell');
+                                    // 过滤掉包含 action-bar 的单元格
+                                    const dataCells = Array.from(allCells).filter(cell => !cell.querySelector('.sd-action-bar'));
+                                    // console.log(`行 ${rowIndex} 数据单元格数:`, dataCells.length);
+                                    
+                                    imageColInfo.forEach(({ cellIndex, colIndex, name: colName }) => {
+                                        const cell = dataCells[colIndex];
+                                        if (!cell) {
+                                            // console.log(`行 ${rowIndex}: 找不到单元格, colIndex=${colIndex}, dataCells.length=${dataCells.length}`);
+                                            return;
+                                        }
+                                        
+                                        // console.log(`行 ${rowIndex} 单元格内容:`, cell.innerHTML.substring(0, 200));
+                                        
+                                        // 跳过已处理的单元格
+                                        if (cell.dataset.imageColumnProcessed === 'true') return;
+                                        
+                                        // 如果已有文件上传控件，跳过
+                                        if (cell.querySelector('.sd-file, .matrix-image-uploader')) return;
+                                        
+                                        // 查找文本输入框或 textarea
+                                        let input = cell.querySelector('input[type="text"]:not([type="date"]):not([type="number"])');
+                                        if (!input) {
+                                            input = cell.querySelector('textarea');
+                                        }
+                                        // 也尝试查找任何 input
+                                        if (!input) {
+                                            input = cell.querySelector('input:not([type="date"]):not([type="number"]):not([type="checkbox"]):not([type="radio"])');
+                                        }
+                                        if (!input) {
+                                            // console.log(`行 ${rowIndex}: 找不到文本输入框或textarea, 单元格所有input:`, cell.querySelectorAll('input, textarea'));
+                                            return;
+                                        }
+                                        
+                                        const currentValue = input.value?.trim() || '';
+                                        
+                                        // 解析图片URL列表（支持逗号分隔的多图片）
+                                        const parseImageUrls = (value) => {
+                                            if (!value) return [];
+                                            return value.split(',').map(url => url.trim()).filter(url => url.startsWith('http'));
+                                        };
+                                        
+                                        const imageUrls = parseImageUrls(currentValue);
+                                        cell.dataset.imageColumnProcessed = 'true';
+                                        
+                                        // 创建容器
+                                        const container = document.createElement('div');
+                                        container.className = 'matrix-image-container';
+                                        container.style.cssText = 'display: flex; flex-wrap: wrap; gap: 8px; padding: 4px; align-items: center;';
+                                        
+                                        // 显示已有图片
+                                        imageUrls.forEach((url, imgIndex) => {
+                                            const imgWrapper = document.createElement('div');
+                                            imgWrapper.style.cssText = 'position: relative; display: inline-block;';
+                                            
+                                            const img = document.createElement('img');
+                                            img.src = getThumbnailUrl(url);
+                                            img.alt = `图片${imgIndex + 1}`;
+                                            img.style.cssText = 'width: 50px; height: 50px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 1px solid #e5e7eb;';
+                                            img.onclick = () => {
+                                                const allImages = imageUrls.map(u => ({ lightboxUrl: getLightboxUrl(u), originalUrl: u }));
+                                                setLightboxImages(allImages);
+                                                setCurrentImageIndex(imgIndex);
+                                                setLightboxOpen(true);
+                                            };
+                                            
+                                            // 删除按钮
+                                            const deleteBtn = document.createElement('button');
+                                            deleteBtn.type = 'button';
+                                            deleteBtn.innerHTML = '×';
+                                            deleteBtn.style.cssText = 'position: absolute; top: -6px; right: -6px; width: 18px; height: 18px; border-radius: 50%; background: #ef4444; color: white; border: none; cursor: pointer; font-size: 12px; line-height: 1; display: flex; align-items: center; justify-content: center;';
+                                            deleteBtn.onclick = (e) => {
+                                                e.stopPropagation();
+                                                const newUrls = imageUrls.filter((_, i) => i !== imgIndex);
+                                                const newValue = newUrls.join(',');
+                                                
+                                                // 更新 SurveyJS 数据
+                                                const matrixValue = question.value ? [...question.value] : [];
+                                                if (matrixValue[rowIndex]) {
+                                                    matrixValue[rowIndex] = { ...matrixValue[rowIndex], [colName]: newValue };
+                                                    question.value = matrixValue;
+                                                }
+                                                input.value = newValue;
+                                                
+                                                // 重新渲染
+                                                cell.dataset.imageColumnProcessed = 'false';
+                                                container.remove();
+                                                processImageColumns();
+                                            };
+                                            
+                                            imgWrapper.appendChild(img);
+                                            imgWrapper.appendChild(deleteBtn);
+                                            container.appendChild(imgWrapper);
+                                        });
+                                        
+                                        // 添加上传按钮
+                                        const fileInput = document.createElement('input');
+                                        fileInput.type = 'file';
+                                        fileInput.accept = 'image/*';
+                                        fileInput.multiple = true;
+                                        fileInput.style.display = 'none';
+                                        
+                                        const uploadBtn = document.createElement('button');
+                                        uploadBtn.type = 'button';
+                                        uploadBtn.innerHTML = imageUrls.length > 0 ? '+' : '上传图片';
+                                        uploadBtn.style.cssText = imageUrls.length > 0 
+                                            ? 'width: 50px; height: 50px; border: 1px dashed #d1d5db; border-radius: 4px; background: #f9fafb; cursor: pointer; font-size: 20px; color: #9ca3af; display: flex; align-items: center; justify-content: center;'
+                                            : 'padding: 8px 16px; font-size: 12px; background: #f3f4f6; border: 1px dashed #d1d5db; border-radius: 4px; cursor: pointer; color: #6b7280;';
+                                        uploadBtn.onclick = () => fileInput.click();
+                                        
+                                        fileInput.onchange = async (e) => {
+                                            const files = Array.from(e.target.files || []);
+                                            if (files.length === 0) return;
+                                            
+                                            uploadBtn.innerHTML = '上传中...';
+                                            uploadBtn.disabled = true;
+                                            
+                                            try {
+                                                const uploadedUrls = [];
+                                                for (const file of files) {
+                                                    const formData = new FormData();
+                                                    formData.append('file', file);
+                                                    
+                                                    const response = await fetch('/api/upload/r2', {
+                                                        method: 'POST',
+                                                        body: formData,
+                                                        headers: {
+                                                            'Authorization': `Bearer ${localStorage.getItem('token')}`
+                                                        }
+                                                    });
+                                                    
+                                                    if (response.ok) {
+                                                        const data = await response.json();
+                                                        uploadedUrls.push(data.url || data.file_url);
+                                                    }
+                                                }
+                                                
+                                                if (uploadedUrls.length > 0) {
+                                                    // 合并新旧图片URL
+                                                    const allUrls = [...imageUrls, ...uploadedUrls];
+                                                    const newValue = allUrls.join(',');
+                                                    
+                                                    // console.log('=== 多图片上传成功 ===');
+                                                    // console.log('新上传:', uploadedUrls);
+                                                    // console.log('合并后:', newValue);
+                                                    
+                                                    // 更新 SurveyJS 数据
+                                                    const matrixValue = question.value ? [...question.value] : [];
+                                                    while (matrixValue.length <= rowIndex) {
+                                                        matrixValue.push({});
+                                                    }
+                                                    matrixValue[rowIndex] = { ...matrixValue[rowIndex], [colName]: newValue };
+                                                    question.value = matrixValue;
+                                                    input.value = newValue;
+                                                    
+                                                    // 重新渲染
+                                                    cell.dataset.imageColumnProcessed = 'false';
+                                                    container.remove();
+                                                    processImageColumns();
+                                                }
+                                            } catch (err) {
+                                                console.error('Upload error:', err);
+                                            }
+                                            
+                                            uploadBtn.innerHTML = imageUrls.length > 0 ? '+' : '上传图片';
+                                            uploadBtn.disabled = false;
+                                            fileInput.value = '';
+                                        };
+                                        
+                                        container.appendChild(fileInput);
+                                        container.appendChild(uploadBtn);
+                                        
+                                        input.style.display = 'none';
+                                        input.parentNode.insertBefore(container, input);
+                                    });
+                                });
+                            };
+
+                            // 初始处理
+                            processImageColumns();
+                            
+                            // 监听变化（新增行时触发）
+                            const imageColObserver = new MutationObserver(() => {
+                                setTimeout(processImageColumns, 50);
+                            });
+                            imageColObserver.observe(options.htmlElement, {
                                 childList: true,
                                 subtree: true
                             });
@@ -1883,8 +2153,8 @@ const DynamicFormPage = () => {
                                                 }));
                                             }}
                                             onImageClick={(index, lightboxPreloadedStatus) => {
-                                                console.log(`📸 打开 Lightbox: 图片 ${index + 1}`);
-                                                console.log(`📊 lightboxCache 大小: ${lightboxCache.size}`);
+                                                // console.log(`📸 打开 Lightbox: 图片 ${index + 1}`);
+                                                // console.log(`📊 lightboxCache 大小: ${lightboxCache.size}`);
                                                 
                                                 // 生成所有图片的大图URL（优先使用缓存的URL）
                                                 const lightboxData = questionValue.map((file, idx) => {
@@ -1895,7 +2165,7 @@ const DynamicFormPage = () => {
                                                     const lightboxUrl = cached?.url || getLightboxUrl(originalUrl);
                                                     const isCached = !!cached?.loaded;
                                                     
-                                                    console.log(`图片 ${idx + 1}: ${isCached ? '✅ 已缓存' : '⚠️ 网络加载'} ${cached ? `(${cached.width}x${cached.height})` : ''}`);
+                                                    // console.log(`图片 ${idx + 1}: ${isCached ? '✅ 已缓存' : '⚠️ 网络加载'} ${cached ? `(${cached.width}x${cached.height})` : ''}`);
                                                     
                                                     return {
                                                         lightboxUrl,

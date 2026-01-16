@@ -224,6 +224,7 @@ body {
     padding: 0.875rem 0 !important;
     font-size: 1.1rem !important;
     color: var(--text-main) !important;
+    resize: vertical !important;
 }
 
 .sd-comment:focus {
@@ -414,19 +415,16 @@ body {
     box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1) !important;
 }
 
-/* Textarea in table - auto height to match content, no scrollbar */
+/* Textarea in table - respect rows attribute for height */
 .sd-table__cell textarea,
 .sd-matrix__cell textarea {
     width: 100% !important;
-    min-height: 3rem !important;
-    height: auto !important;
     padding: 0.5rem !important;
     font-size: 0.875rem !important;
     line-height: 1.5 !important;
     border: 1px solid #E5E7EB !important;
     border-radius: 4px !important;
-    resize: none !important;
-    overflow: hidden !important;
+    resize: vertical !important;
     font-family: inherit !important;
     transition: border-color 0.2s !important;
     box-sizing: border-box !important;
@@ -635,9 +633,7 @@ body {
 
 /* Auto-expanding textareas in edit mode */
 .sd-table__cell textarea:not([disabled]) {
-    min-height: 2.5rem !important;
     resize: vertical !important;
-    overflow: hidden !important;
     padding: 0.5rem !important;
     line-height: 1.5 !important;
     font-family: inherit !important;
