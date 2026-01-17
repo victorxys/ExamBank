@@ -24,6 +24,7 @@ from jwt import PyJWTError  # 用于捕获 decode_token 可能的错误
 from werkzeug.utils import secure_filename
 from datetime import datetime, timezone
 from sqlalchemy import func, or_, desc
+import requests
 
 
 # 从 backend.models 导入所有需要的模型
@@ -1222,3 +1223,218 @@ def get_resource_play_history(resource_id_str):
             exc_info=True,
         )
         return jsonify({"error": "Failed to fetch play history"}), 500
+
+
+# Qiniu Cloud HLS Proxy Endpoint
+@course_resource_bp.route("/resources/<uuid:resource_id_str>/qiniu-hls-proxy", methods=["GET"])
+@jwt_required()
+def qiniu_hls_proxy(resource_id_str):
+    """
+    Proxy endpoint for Qiniu Cloud HLS streaming with authentication
+    This provides an additional layer of security and logging for Qiniu Cloud videos
+    """
+    try:
+        resource_id_uuid = resource_id_str
+        current_user_id = get_jwt_identity()
+        user_jwt_claims = get_jwt()
+        
+        current_app.logger.info(f"Qiniu HLS Proxy: Request for resource {resource_id_uuid} by user {current_user_id}")
+        
+        # Convert user ID to UUID
+        try:
+            current_user_id_uuid = uuid.UUID(current_user_id)
+        except (ValueError, TypeError) as e:
+            current_app.logger.error(f"Qiniu HLS Proxy: Invalid user ID format: {current_user_id}")
+            return jsonify({"error": "Invalid user identity"}), 400
+        
+        # Check if user exists
+        user = User.query.get(current_user_id_uuid)
+        if not user:
+            current_app.logger.error(f"Qiniu HLS Proxy: User {current_user_id_uuid} not found")
+            return jsonify({"error": "User not found"}), 401
+        
+        # Check if resource exists
+        resource = CourseResource.query.get(resource_id_uuid)
+        if not resource:
+            current_app.logger.warning(f"Qiniu HLS Proxy: Resource {resource_id_uuid} not found")
+            return jsonify({"error": "Resource not found"}), 404
+        
+        # Check access permissions (same logic as streaming endpoint)
+        is_admin = user_jwt_claims.get("role") == "admin"
+        can_access = False
+        
+        if is_admin:
+            can_access = True
+            current_app.logger.info("Qiniu HLS Proxy: Access granted via admin role")
+        else:
+            # Check direct resource access
+            direct_access = check_resource_access(current_user_id_uuid, resource_id_uuid)
+            if direct_access:
+                can_access = True
+                current_app.logger.info("Qiniu HLS Proxy: Access granted via direct resource permission")
+            else:
+                # Check course context access
+                course_access = check_course_access_for_resource(current_user_id_uuid, resource)
+                if course_access:
+                    can_access = True
+                    current_app.logger.info("Qiniu HLS Proxy: Access granted via course context permission")
+        
+        if not can_access:
+            current_app.logger.warning(f"Qiniu HLS Proxy: Access denied for user {current_user_id_uuid} on resource {resource_id_uuid}")
+            return jsonify({"error": "Access denied to this resource"}), 403
+        
+        # Extract key from resource file_path (assuming it's a Qiniu URL)
+        file_path = resource.file_path
+        if not file_path:
+            return jsonify({"error": "Resource file path not found"}), 404
+        
+        try:
+            # Extract key from Qiniu URL
+            if file_path.startswith('http'):
+                from urllib.parse import urlparse
+                parsed_url = urlparse(file_path)
+                key = parsed_url.path.lstrip('/')
+            else:
+                key = file_path
+            
+            if not key:
+                return jsonify({"error": "Invalid file path format"}), 400
+            
+            # Make request to MengSchool API
+            mengschool_api = "https://mengschool.mengyimengsao.com"
+            proxy_url = f"{mengschool_api}/api/v1/courses/public/video/hls-manifest"
+            
+            # Get API key from environment variable
+            qiniu_api_key = current_app.config.get('QINIU_API_KEY', 'examdb_system')
+            
+            current_app.logger.info(f"Qiniu HLS Proxy: Requesting HLS manifest for key: {key}")
+            
+            # Forward the request to MengSchool API with key and token
+            response = requests.get(
+                proxy_url,
+                params={
+                    "key": key,
+                    "token": qiniu_api_key
+                },
+                timeout=30,
+                stream=True
+            )
+            
+            if response.status_code != 200:
+                current_app.logger.error(f"Qiniu HLS Proxy: MengSchool API returned status {response.status_code}")
+                return jsonify({"error": "Failed to fetch HLS manifest"}), response.status_code
+            
+            # Return the HLS manifest with appropriate headers
+            def generate():
+                for chunk in response.iter_content(chunk_size=8192):
+                    if chunk:
+                        yield chunk
+            
+            return Response(
+                generate(),
+                content_type=response.headers.get('content-type', 'application/vnd.apple.mpegurl'),
+                headers={
+                    'Cache-Control': 'no-cache',
+                    'Access-Control-Allow-Origin': '*',
+                    'Access-Control-Allow-Methods': 'GET',
+                    'Access-Control-Allow-Headers': 'Range'
+                }
+            )
+            
+        except requests.RequestException as e:
+            current_app.logger.error(f"Qiniu HLS Proxy: Request to MengSchool API failed: {e}")
+            return jsonify({"error": "Failed to connect to video service"}), 502
+        except Exception as e:
+            current_app.logger.error(f"Qiniu HLS Proxy: Unexpected error: {e}", exc_info=True)
+            return jsonify({"error": "Internal server error"}), 500
+            
+    except Exception as e:
+        current_app.logger.error(f"Qiniu HLS Proxy: General error: {e}", exc_info=True)
+        return jsonify({"error": "Internal server error"}), 500
+
+
+@course_resource_bp.route("/resources/<uuid:resource_id_str>/qiniu-info", methods=["GET"])
+@jwt_required()
+def get_qiniu_video_info(resource_id_str):
+    """
+    Get Qiniu Cloud video information and generate appropriate streaming URL
+    """
+    try:
+        resource_id_uuid = resource_id_str
+        current_user_id = get_jwt_identity()
+        
+        # Convert user ID to UUID
+        try:
+            current_user_id_uuid = uuid.UUID(current_user_id)
+        except (ValueError, TypeError):
+            return jsonify({"error": "Invalid user identity"}), 400
+        
+        # Check if resource exists
+        resource = CourseResource.query.get(resource_id_uuid)
+        if not resource:
+            return jsonify({"error": "Resource not found"}), 404
+        
+        # Check access permissions (simplified version)
+        user = User.query.get(current_user_id_uuid)
+        if not user:
+            return jsonify({"error": "User not found"}), 401
+        
+        user_jwt_claims = get_jwt()
+        is_admin = user_jwt_claims.get("role") == "admin"
+        
+        # Basic access check
+        can_access = is_admin or check_resource_access(current_user_id_uuid, resource_id_uuid)
+        if not can_access:
+            can_access = check_course_access_for_resource(current_user_id_uuid, resource)
+        
+        if not can_access:
+            return jsonify({"error": "Access denied"}), 403
+        
+        file_path = resource.file_path
+        if not file_path:
+            return jsonify({"error": "Resource file path not found"}), 404
+        
+        # Determine if this is a Qiniu Cloud video
+        is_qiniu = any(domain in file_path for domain in ['mengyimengsao.com', 'qiniucdn.com', 'clouddn.com'])
+        
+        if is_qiniu:
+            # For Qiniu videos, provide both direct and proxy URLs
+            try:
+                from urllib.parse import urlparse
+                parsed_url = urlparse(file_path)
+                key = parsed_url.path.lstrip('/')
+                
+                # Direct MengSchool API URL
+                mengschool_api = "https://mengschool.mengyimengsao.com"
+                qiniu_api_key = current_app.config.get('QINIU_API_KEY', 'examdb_system')
+                direct_hls_url = f"{mengschool_api}/api/v1/courses/public/video/hls-manifest?key={key}&token={qiniu_api_key}"
+                
+                # Proxy URL through our backend (for additional security/logging)
+                proxy_hls_url = f"/resources/{resource_id_uuid}/qiniu-hls-proxy"
+                
+                return jsonify({
+                    "is_qiniu": True,
+                    "original_url": file_path,
+                    "key": key,
+                    "direct_hls_url": direct_hls_url,
+                    "proxy_hls_url": proxy_hls_url,
+                    "recommended_url": direct_hls_url  # Use direct for better performance
+                })
+            except Exception as e:
+                current_app.logger.error(f"Error processing Qiniu URL: {e}")
+                return jsonify({"error": "Failed to process Qiniu URL"}), 500
+        else:
+            # For local videos, return the standard streaming URL
+            token = request.headers.get('Authorization', '').replace('Bearer ', '')
+            stream_url = f"/resources/{resource_id_uuid}/stream?access_token={token}"
+            
+            return jsonify({
+                "is_qiniu": False,
+                "original_url": file_path,
+                "stream_url": stream_url,
+                "recommended_url": stream_url
+            })
+            
+    except Exception as e:
+        current_app.logger.error(f"Error in get_qiniu_video_info: {e}", exc_info=True)
+        return jsonify({"error": "Internal server error"}), 500

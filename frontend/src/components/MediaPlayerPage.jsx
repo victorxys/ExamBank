@@ -19,6 +19,8 @@ import PageHeader from './PageHeader';
 import { API_BASE_URL } from '../config';
 import { getToken } from '../api/auth-utils';
 import { jwtDecode } from 'jwt-decode';
+import Hls from 'hls.js';
+import { getVideoUrl, isQiniuVideoUrl, isHLSUrl } from '../utils/videoUtils';
 
 import { format, parseISO, isValid, isFuture, differenceInDays, differenceInHours, differenceInMinutes, differenceInSeconds } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
@@ -84,6 +86,8 @@ const MediaPlayerPage = () => {
   const [userId, setUserId] = useState(null);
 
   const [streamUrlWithToken, setStreamUrlWithToken] = useState('');
+  const [hlsInstance, setHlsInstance] = useState(null);
+  const [useHLS, setUseHLS] = useState(false);
 
   const [sessionId, setSessionId] = useState(null);
   const heartbeatTimerRef = useRef(null);
@@ -300,6 +304,14 @@ const MediaPlayerPage = () => {
         setLoading(true); setError('');
         setCanAccess(false); setResourceInfo(null);
         setStreamUrlWithToken(''); setIsMediaReady(false); setBuffering(true);
+        setUseHLS(false);
+        
+        // Cleanup previous HLS instance
+        if (hlsInstance) {
+            hlsInstance.destroy();
+            setHlsInstance(null);
+        }
+        
         // console.log("[MediaPlayerPage fetchData] Initiated. resourceId:", resourceId);
 
         try {
@@ -316,15 +328,59 @@ const MediaPlayerPage = () => {
                 setCanAccess(true);
                 // console.log("[MediaPlayerPage fetchData] Resource info set, canAccess set to true.");
 
-                const token = getToken();
-                if (token) {
-                    const streamUrl = `${API_BASE_URL}/resources/${resourceId}/stream?access_token=${token}`;
-                    setStreamUrlWithToken(streamUrl);
-                    // console.log("[MediaPlayerPage fetchData] Stream URL set:", streamUrl);
-                } else {
-                    setError("无法获取认证Token进行播放。请确保您已登录。");
-                    setCanAccess(false);
-                    console.warn("[MediaPlayerPage fetchData] No token found, cannot play protected stream.");
+                // Get video information from backend to determine streaming method
+                try {
+                    const videoInfoRes = await api.get(`/resources/${resourceId}/qiniu-info`);
+                    const videoInfo = videoInfoRes.data;
+                    
+                    if (videoInfo.is_qiniu) {
+                        // For Qiniu Cloud videos, use HLS streaming
+                        const hlsUrl = videoInfo.recommended_url || videoInfo.direct_hls_url;
+                        setStreamUrlWithToken(hlsUrl);
+                        setUseHLS(true);
+                        console.log("[MediaPlayerPage fetchData] Qiniu Cloud video detected, HLS URL set:", hlsUrl);
+                    } else {
+                        // For local videos, use the existing token-based streaming
+                        let streamUrl = videoInfo.recommended_url || videoInfo.stream_url;
+                        // Handle relative URLs properly
+                        if (streamUrl.startsWith('/')) {
+                            // For relative URLs starting with /, add the API_BASE_URL
+                            streamUrl = `${API_BASE_URL}${streamUrl}`;
+                        } else if (!streamUrl.startsWith('http')) {
+                            // For other relative URLs, add the full API_BASE_URL with /
+                            streamUrl = `${API_BASE_URL}/${streamUrl}`;
+                        }
+                        setStreamUrlWithToken(streamUrl);
+                        setUseHLS(false);
+                        console.log("[MediaPlayerPage fetchData] Local stream URL set:", streamUrl);
+                    }
+                } catch (videoInfoError) {
+                    console.warn("[MediaPlayerPage fetchData] Failed to get video info, falling back to legacy method:", videoInfoError);
+                    
+                    // Fallback to legacy method
+                    const filePath = detailsRes.data.file_path;
+                    const isQiniuVideo = isQiniuVideoUrl(filePath);
+                    
+                    if (isQiniuVideo) {
+                        // For Qiniu Cloud videos, convert to HLS URL
+                        const hlsUrl = getVideoUrl(filePath);
+                        setStreamUrlWithToken(hlsUrl);
+                        setUseHLS(isHLSUrl(hlsUrl));
+                        console.log("[MediaPlayerPage fetchData] Fallback: Qiniu Cloud video detected, HLS URL set:", hlsUrl);
+                    } else {
+                        // For local videos, use the existing token-based streaming
+                        const token = getToken();
+                        if (token) {
+                            const streamUrl = `${API_BASE_URL}/resources/${resourceId}/stream?access_token=${token}`;
+                            setStreamUrlWithToken(streamUrl);
+                            setUseHLS(false);
+                            console.log("[MediaPlayerPage fetchData] Fallback: Local stream URL set:", streamUrl);
+                        } else {
+                            setError("无法获取认证Token进行播放。请确保您已登录。");
+                            setCanAccess(false);
+                            console.warn("[MediaPlayerPage fetchData] No token found, cannot play protected stream.");
+                        }
+                    }
                 }
             } else if (detailsRes.data && !detailsRes.data.can_access_now) {
                  const expiryMsg = detailsRes.data.user_access_expires_at ? `已于 ${format(parseISO(detailsRes.data.user_access_expires_at), 'yyyy-MM-dd HH:mm', { locale: zhCN })} 过期。` : '您没有当前访问权限。';
@@ -355,6 +411,16 @@ const MediaPlayerPage = () => {
     fetchData();
     return () => { controller.abort(); };
   }, [resourceId]);
+
+  // Cleanup HLS instance on unmount
+  useEffect(() => {
+    return () => {
+      if (hlsInstance) {
+        hlsInstance.destroy();
+        setHlsInstance(null);
+      }
+    };
+  }, [hlsInstance]);
 
   const handleReactPlayerReady = useCallback(() => {
     // console.log('[ReactPlayer Event] "onReady"');
@@ -388,23 +454,35 @@ const MediaPlayerPage = () => {
   };
   const handleReactPlayerError = (e) => {
     console.error('ReactPlayer Error:', e);
-     let displayErrorMessage = `无法播放媒体，请稍后重试。`;
-     if (typeof e === 'object' && e !== null) {
-        if (e.type) {
-            displayErrorMessage = `媒体播放错误: ${e.type}`;
-        }
-     } else if (typeof e === 'string') {
-        displayErrorMessage = `媒体播放错误: ${e}`;
-     }
-     if (error && (error.toLowerCase().includes("权限") || error.toLowerCase().includes("认证"))) {
-        displayErrorMessage = error;
-     } else if (e && typeof e === 'object' && e.message && (e.message.toLowerCase().includes("401") || e.message.toLowerCase().includes("403"))) {
-         displayErrorMessage = "权限不足或认证失败，请刷新页面或重新登录。";
-         console.error("ReactPlayer reported potential HTTP permission error:", e.message);
-     }
-     setError(displayErrorMessage);
-     setCanAccess(false);
-     setPlaying(false);
+    let displayErrorMessage = `无法播放媒体，请稍后重试。`;
+    
+    // Handle HLS-specific errors
+    if (useHLS && e && typeof e === 'object') {
+      if (e.type === 'hlsError' || e.message?.includes('HLS')) {
+        displayErrorMessage = `HLS视频流播放错误，请检查网络连接或稍后重试。`;
+      } else if (e.type === 'networkError') {
+        displayErrorMessage = `网络连接错误，无法加载视频流。`;
+      }
+    }
+    
+    if (typeof e === 'object' && e !== null) {
+      if (e.type) {
+        displayErrorMessage = `媒体播放错误: ${e.type}`;
+      }
+    } else if (typeof e === 'string') {
+      displayErrorMessage = `媒体播放错误: ${e}`;
+    }
+    
+    if (error && (error.toLowerCase().includes("权限") || error.toLowerCase().includes("认证"))) {
+      displayErrorMessage = error;
+    } else if (e && typeof e === 'object' && e.message && (e.message.toLowerCase().includes("401") || e.message.toLowerCase().includes("403"))) {
+      displayErrorMessage = "权限不足或认证失败，请刷新页面或重新登录。";
+      console.error("ReactPlayer reported potential HTTP permission error:", e.message);
+    }
+    
+    setError(displayErrorMessage);
+    setCanAccess(false);
+    setPlaying(false);
   };
   const handleReactPlayerProgress = (state) => {
     if (!seeking) {
@@ -586,8 +664,30 @@ const MediaPlayerPage = () => {
               size="small"
               color={resourceInfo.user_access_expires_at && !isFuture(parseISO(resourceInfo.user_access_expires_at)) ? "error" : "info"}
               variant="outlined"
-              sx={{ fontWeight: 'medium', mb: 2 }}
+              sx={{ fontWeight: 'medium', mb: 1 }}
             />
+        )}
+
+        {/* Video streaming type indicator */}
+        {streamUrlWithToken && (
+          <Box sx={{ display: 'flex', gap: 1, mb: 2, justifyContent: 'center' }}>
+            <Chip
+              label={useHLS ? "HLS流媒体" : "本地视频"}
+              size="small"
+              color={useHLS ? "success" : "default"}
+              variant="outlined"
+              sx={{ fontSize: '0.75rem' }}
+            />
+            {useHLS && (
+              <Chip
+                label="七牛云"
+                size="small"
+                color="primary"
+                variant="outlined"
+                sx={{ fontSize: '0.75rem' }}
+              />
+            )}
+          </Box>
         )}
 
         <Paper 
@@ -649,11 +749,45 @@ const MediaPlayerPage = () => {
                 // maxWidth 和 maxHeight 也由 CSS 控制
                 display: 'block', // 有助于 video 表现如预期
               }}
-              config={{ file: {
+              config={{ 
+                file: {
                   attributes: { controlsList: 'nodownload' },
                   forceAudio: isAudio,
                   forceVideo: isVideo,
-              }}}
+                },
+                // HLS configuration for Qiniu Cloud videos
+                ...(useHLS && {
+                  file: {
+                    attributes: { controlsList: 'nodownload' },
+                    forceAudio: isAudio,
+                    forceVideo: isVideo,
+                    hlsOptions: {
+                      debug: false,
+                      enableWorker: true,
+                      lowLatencyMode: false,
+                      backBufferLength: 90,
+                      // 优化缓冲设置
+                      maxBufferLength: 30,        // 最大缓冲30秒
+                      maxMaxBufferLength: 60,     // 绝对最大缓冲60秒
+                      maxBufferSize: 60 * 1000 * 1000, // 60MB缓冲大小
+                      maxBufferHole: 0.5,         // 允许0.5秒的缓冲空洞
+                      highBufferWatchdogPeriod: 2, // 高缓冲监控周期
+                      nudgeOffset: 0.1,           // 微调偏移
+                      nudgeMaxRetry: 3,           // 最大重试次数
+                      maxFragLookUpTolerance: 0.25, // 片段查找容差
+                      liveSyncDurationCount: 3,   // 直播同步片段数
+                      liveMaxLatencyDurationCount: 10, // 最大延迟片段数
+                      enableSoftwareAES: true,    // 启用软件AES解密
+                      manifestLoadingTimeOut: 10000, // manifest加载超时10秒
+                      manifestLoadingMaxRetry: 1, // manifest最大重试1次
+                      manifestLoadingRetryDelay: 1000, // 重试延迟1秒
+                      fragLoadingTimeOut: 20000,  // 片段加载超时20秒
+                      fragLoadingMaxRetry: 3,     // 片段最大重试3次
+                      fragLoadingRetryDelay: 1000, // 片段重试延迟1秒
+                    }
+                  }
+                })
+              }}
             />
             {(buffering || !isMediaReady) && streamUrlWithToken && resourceInfo && (
               <Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)',
