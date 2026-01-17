@@ -678,15 +678,6 @@ const MediaPlayerPage = () => {
               variant="outlined"
               sx={{ fontSize: '0.75rem' }}
             />
-            {useHLS && (
-              <Chip
-                label="七牛云"
-                size="small"
-                color="primary"
-                variant="outlined"
-                sx={{ fontSize: '0.75rem' }}
-              />
-            )}
           </Box>
         )}
 
