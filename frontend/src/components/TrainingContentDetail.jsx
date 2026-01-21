@@ -7,7 +7,8 @@ import {
   Dialog, DialogTitle, DialogContent, DialogActions,  FormControl, InputLabel, Select, MenuItem, // 用于引擎选择
   List, ListItem, ListItemText, Divider, IconButton, TextField, Stack, TextareaAutosize,Collapse,FormHelperText,Slider,
   LinearProgress, // 确保导入 LinearProgress
-  TablePagination // 确保导入 TablePagination
+  TablePagination, // 确保导入 TablePagination
+  FormControlLabel, Checkbox // 添加SSML配置所需的组件
 } from '@mui/material';
 
 import {
@@ -112,7 +113,7 @@ const TrainingContentDetail = () => {
     engine: 'gemini_tts',
     system_prompt: '',
     model: 'gemini-2.5-pro-preview-tts', // <--- 新增并设置默认模型
-    temperature: 0.58
+    temperature: 0.58,
   });
   
 //   // onProgress 回调函数 ---<<<
@@ -236,9 +237,18 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
 
         // Initialize global TTS config from fetched data or set defaults
         if (detail.default_tts_config) {
-          setGlobalTtsConfig(prev => ({ ...prev, ...detail.default_tts_config }));
+          // 合并后端返回的配置和环境变量配置
+          const envConfig = detail.tts_server_env_config || {};
+          setGlobalTtsConfig(prev => ({ 
+            ...prev, 
+            ...detail.default_tts_config,
+            // 从环境变量获取TTS-Server配置
+            server_url: envConfig.tts_server_base_url || 'http://localhost:5002',
+            api_key: envConfig.tts_server_api_key || '',
+          }));
         } else {
           // Reset to default if no config is saved for this content
+          const envConfig = detail.tts_server_env_config || {};
           setGlobalTtsConfig({
             engine: 'gemini_tts',
             model: 'gemini-2.5-flash-preview-tts',
@@ -250,6 +260,11 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
             emo_weight: 0.8,
             emo_text: '',
             max_text_tokens_per_segment: 120,
+            // TTS-Server 默认参数（从环境变量获取）
+            server_url: envConfig.tts_server_base_url || 'http://localhost:5002',
+            api_key: envConfig.tts_server_api_key || '',
+            model: 'cosyvoice-v3-flash',
+            voice: 'longanling_v3',
           });
         }
         setLoading(false);
@@ -379,32 +394,89 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
     }, [fetchContentDetail]); // 依赖项现在是正确的
 
   const handleSkipStep = async (stepToSkipKey, inputScriptId) => {
-    if (!stepToSkipKey || !inputScriptId) {
-        setAlert({open: true, message: '无法执行跳过操作：缺少必要信息。', severity: 'error'});
+    if (!stepToSkipKey) {
+        setAlert({open: true, message: '无法执行跳过操作：缺少步骤信息。', severity: 'error'});
         return;
     }
 
-    const actionKey = `skip_${stepToSkipKey}_${inputScriptId}`;
+    const actionKey = `skip_${stepToSkipKey}_${inputScriptId || 'no_input'}`;
     setActionLoading(prev => ({ ...prev, [actionKey]: true }));
     setAlert({ open: false, message: '', severity: 'info' });
 
     try {
         let response;
-        if (stepToSkipKey === 'triggerTtsRefine') { // 我们要跳过的是 TTS 初步优化
-            response = await ttsApi.skipTtsRefine(inputScriptId); // inputScriptId 应该是 oral_script_id
+        if (stepToSkipKey === 'generateOralScript') {
+            // 跳过口播稿生成，直接使用原始内容作为口播稿
+            response = await ttsApi.skipOralScriptGeneration(contentId);
+            setAlert({ open: true, message: response.data.message || '口播稿生成已跳过，使用原始内容。', severity: 'success' });
+        } else if (stepToSkipKey === 'triggerTtsRefine') {
+            if (!inputScriptId) {
+                setAlert({open: true, message: '跳过TTS优化需要口播稿ID。', severity: 'error'});
+                return;
+            }
+            response = await ttsApi.skipTtsRefine(inputScriptId);
             setAlert({ open: true, message: response.data.message || 'TTS优化步骤已跳过。', severity: 'success' });
-            fetchContentDetail(false); // 跳过后直接刷新数据，UI会根据新的状态流转
+        } else if (stepToSkipKey === 'triggerLlmRefine') {
+            if (!inputScriptId) {
+                setAlert({open: true, message: '跳过LLM修订需要TTS优化稿ID。', severity: 'error'});
+                return;
+            }
+            response = await ttsApi.skipLlmRefine(inputScriptId);
+            setAlert({ open: true, message: response.data.message || 'LLM修订步骤已跳过。', severity: 'success' });
+        } else if (stepToSkipKey === 'splitSentences') {
+            if (!inputScriptId) {
+                setAlert({open: true, message: '跳过句子拆分需要最终脚本ID。', severity: 'error'});
+                return;
+            }
+            response = await ttsApi.skipSentenceSplit(inputScriptId);
+            setAlert({ open: true, message: response.data.message || '句子拆分已跳过。', severity: 'success' });
+        } else if (stepToSkipKey === 'generateAndMergeAudio') {
+            // 跳过语音生成和合并
+            response = await ttsApi.skipAudioGeneration(contentId);
+            setAlert({ open: true, message: response.data.message || '语音生成和合并已跳过。', severity: 'success' });
+        } else if (stepToSkipKey === 'synthesizeVideo') {
+            // 跳过视频合成
+            response = await ttsApi.skipVideoSynthesis(contentId);
+            setAlert({ open: true, message: response.data.message || '视频合成已跳过。', severity: 'success' });
         } else {
-            // 如果将来有其他步骤也可以跳过，可以在这里添加逻辑
             setAlert({open: true, message: '此步骤当前不支持跳过。', severity: 'warning'});
             return;
         }
+        
+        fetchContentDetail(false); // 跳过后直接刷新数据，UI会根据新的状态流转
     } catch (error) {
         console.error(`跳过步骤 ${stepToSkipKey} 失败:`, error);
         setAlert({ open: true, message: `跳过步骤失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
     } finally {
         setActionLoading(prev => ({ ...prev, [actionKey]: false }));
     }
+  };
+
+  // Helper function to render skip button for each step
+  const renderSkipButton = (step, inputScriptId = null) => {
+    const actionKey = `skip_${step.key}_${inputScriptId || 'no_input'}`;
+    const isLoading = actionLoading[actionKey];
+    
+    // Don't show skip button if step is already completed
+    const isCompleted = step.isCompleted ? 
+      step.isCompleted(contentDetail?.status, contentDetail?.scripts, contentDetail?.final_script_sentences, contentDetail?.latest_merged_audio)
+      : false;
+    
+    if (isCompleted) return null;
+
+    return (
+      <Button
+        variant="outlined"
+        size="small"
+        color="warning"
+        startIcon={isLoading ? <CircularProgress size={16} /> : <SkipNextIcon />}
+        onClick={() => handleSkipStep(step.key, inputScriptId)}
+        disabled={isLoading || isPolling}
+        sx={{ ml: 1 }}
+      >
+        {isLoading ? '跳过中...' : '跳过当前'}
+      </Button>
+    );
   };
 
    const handleTaskFailure = useCallback((taskData, taskType) => {
@@ -630,6 +702,30 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
       await ttsApi.updateTrainingContentTtsConfig(contentId, globalTtsConfig);
       setAlert({ open: true, message: '全局TTS配置已保存！', severity: 'success' });
       setIsGlobalSettingsOpen(false); // 保存后自动收起
+      
+      // 同步个别句子的配置：将全局配置应用到所有句子的默认配置
+      if (contentDetail?.final_script_sentences?.length > 0) {
+        try {
+          // 为每个句子更新配置，使其继承全局配置
+          const updatePromises = contentDetail.final_script_sentences.map(sentence => {
+            // 合并全局配置和句子特定配置，全局配置作为基础
+            const mergedConfig = {
+              ...globalTtsConfig,
+              ...(sentence.tts_config || {}) // 保留句子特定的覆盖配置
+            };
+            return ttsApi.updateSentenceTtsConfig(sentence.id, mergedConfig);
+          });
+          
+          await Promise.all(updatePromises);
+          
+          // 刷新数据以显示更新后的配置
+          fetchContentDetail(false);
+          setAlert({ open: true, message: '全局TTS配置已保存并同步到所有句子！', severity: 'success' });
+        } catch (syncError) {
+          console.warn('同步句子配置时出现部分错误:', syncError);
+          setAlert({ open: true, message: '全局配置已保存，但同步到句子时出现部分错误。', severity: 'warning' });
+        }
+      }
     } catch (error) {
       setAlert({ open: true, message: `保存失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
     } finally {
@@ -1033,6 +1129,14 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
         temperature: globalTtsConfig.temperature || 0.8,
         max_text_tokens_per_segment: globalTtsConfig.max_text_tokens_per_segment || 120,
       };
+    } else if (finalEngine === 'tts_server') {
+      apiParams.tts_params = {
+        model: globalTtsConfig.model || 'cosyvoice-v3-flash',
+        voice: globalTtsConfig.voice || 'longanling_v3',
+        server_url: globalTtsConfig.server_url || 'http://localhost:5002',
+        api_key: globalTtsConfig.api_key || '',
+        format: 'mp3',
+      };
     } else if (finalEngine === 'gradio_default') {
       // 保留原有的 gradio_default 逻辑
     }
@@ -1043,13 +1147,13 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
     try {
     //   console.log("Value of apiParams before sending:", JSON.stringify(apiParams)); // 打印JSON字符串形式，看是否能正确序列化
       const response = await ttsApi.batchGenerateAudioForContent(contentDetail.id, apiParams);
-      setAlert({ open: true, message: response.data.message || `批量语音生成任务 (${engineToUse}) 已提交。`, severity: 'info' });
+      setAlert({ open: true, message: response.data.message || `批量语音生成任务 (${finalEngine}) 已提交。`, severity: 'info' });
       if (response.data.task_id) {
         pollTaskStatus(response.data.task_id, true, 'batch_audio_main'); 
       }
     } catch (error) {
-      console.error(`批量生成语音 (${engineToUse}) 失败:`, error);
-      setAlert({ open: true, message: `批量生成语音 (${engineToUse}) 失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
+      console.error(`批量生成语音 (${finalEngine}) 失败:`, error);
+      setAlert({ open: true, message: `批量生成语音 (${finalEngine}) 失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
     } finally {
       setActionLoading(prev => ({ ...prev, [actionKey]: false }));
     }
@@ -1083,6 +1187,14 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
         emo_text: config?.emo_text || globalTtsConfig.emo_text || '',
         temperature: config?.temperature || globalTtsConfig.temperature || 0.8,
         max_text_tokens_per_segment: config?.max_text_tokens_per_segment || globalTtsConfig.max_text_tokens_per_segment || 120,
+      };
+    } else if (finalEngine === 'tts_server') {
+      apiParams.tts_params = {
+        model: config?.model || globalTtsConfig.model || 'cosyvoice-v3-flash',
+        voice: config?.voice || globalTtsConfig.voice || 'longanling_v3',
+        server_url: config?.server_url || globalTtsConfig.server_url || 'http://localhost:5002',
+        api_key: config?.api_key || globalTtsConfig.api_key || '',
+        format: config?.format || 'mp3',
       };
     } else if (finalEngine === 'gradio_default') {
       apiParams.tts_params = config || {};
@@ -1555,6 +1667,7 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
                             > 重新拆分 </Button>
                         </span>
                       </Tooltip>
+                      {renderSkipButton(currentActiveStepDetails, currentInputScriptId)}
                     </Stack>
                   </Box>
                   {isEditingInput ? ( // 如果正在编辑，显示 Textarea
@@ -1610,6 +1723,7 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
                                       >
                                           <MenuItem value="gemini_tts">Gemini TTS (Google AI)</MenuItem>
                                           <MenuItem value="indextts">IndexTTS2 (本地部署)</MenuItem>
+                                          <MenuItem value="tts_server">TTS-Server (微服务)</MenuItem>
                                       </Select>
                                       <FormHelperText>选择语音合成引擎</FormHelperText>
                                   </FormControl>
@@ -1645,7 +1759,64 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
                                       </>
                                   )}
 
-                                  {/* IndexTTS2 特有配置 */}
+                                  {/* TTS-Server 特有配置 */}
+                                  {globalTtsConfig.engine === 'tts_server' && (
+                                      <>
+                                          <FormControl fullWidth margin="dense" sx={{ mt: 2 }}>
+                                              <InputLabel>语音模型</InputLabel>
+                                              <Select
+                                                  value={globalTtsConfig.model || 'cosyvoice-v3-flash'}
+                                                  label="语音模型"
+                                                  onChange={(e) => handleGlobalConfigChange('model', e.target.value)}
+                                              >
+                                                  <MenuItem value="cosyvoice-v3-flash">CosyVoice V3 Flash</MenuItem>
+                                                  <MenuItem value="cosyvoice-v1">CosyVoice V1</MenuItem>
+                                              </Select>
+                                              <FormHelperText>选择TTS-Server语音合成模型</FormHelperText>
+                                          </FormControl>
+
+                                          <FormControl fullWidth margin="dense" sx={{ mt: 2 }}>
+                                              <InputLabel>语音音色</InputLabel>
+                                              <Select
+                                                  value={globalTtsConfig.voice || 'longanling_v3'}
+                                                  label="语音音色"
+                                                  onChange={(e) => handleGlobalConfigChange('voice', e.target.value)}
+                                              >
+                                                  <MenuItem value="longanling_v3">龙安灵 V3 (温柔女声)</MenuItem>
+                                                  <MenuItem value="longwan">龙湾 (温柔女声)</MenuItem>
+                                                  <MenuItem value="longyuan">龙渊 (磁性男声)</MenuItem>
+                                              </Select>
+                                              <FormHelperText>选择语音音色</FormHelperText>
+                                          </FormControl>
+
+                                          <TextField
+                                              fullWidth
+                                              margin="dense"
+                                              label="TTS服务器地址"
+                                              value={globalTtsConfig.server_url || 'http://localhost:5002'}
+                                              variant="outlined"
+                                              sx={{ mt: 2 }}
+                                              helperText="TTS微服务的基础URL地址（从环境变量获取）"
+                                              InputProps={{
+                                                  readOnly: true,
+                                              }}
+                                          />
+
+                                          <TextField
+                                              fullWidth
+                                              margin="dense"
+                                              label="API密钥"
+                                              type="password"
+                                              value={globalTtsConfig.api_key ? '••••••••••••' : '未设置'}
+                                              variant="outlined"
+                                              sx={{ mt: 2 }}
+                                              helperText="用于访问TTS微服务的API密钥（从环境变量获取）"
+                                              InputProps={{
+                                                  readOnly: true,
+                                              }}
+                                          />
+                                      </>
+                                  )}
                                   {globalTtsConfig.engine === 'indextts' && (
                                       <>
                                           <TextField
@@ -1774,7 +1945,7 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
                     >
                         {overallProgress && (overallProgress.status === 'PROGRESS' || overallProgress.status === 'PENDING') 
                             ? "批量生成中..." 
-                            : `批量生成 (${globalTtsConfig.engine === 'indextts' ? 'IndexTTS2' : 'Gemini'})`}
+                            : `批量生成 (${globalTtsConfig.engine === 'indextts' ? 'IndexTTS2' : globalTtsConfig.engine === 'tts_server' ? 'TTS-Server' : 'Gemini'})`}
                     </Button>
                     <Button 
                         variant="contained" 
@@ -1840,6 +2011,19 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
                         }}
                     >
                         批量生成 (Gemini)
+                    </Button>
+
+                    <Button
+                        variant="contained"
+                        onClick={() => handleBatchGenerateAudio('tts_server')}
+                        disabled={actionLoading['batch_generate_tts_server'] || !contentDetail?.final_script_sentences?.length}
+                        startIcon={actionLoading['batch_generate_tts_server'] ? <CircularProgress size={20} color="inherit" /> : <GraphicEqIcon />}
+                        sx={{ 
+                            backgroundColor: '#2196F3', // 蓝色
+                            '&:hover': { backgroundColor: '#1976D2' }
+                        }}
+                    >
+                        批量生成 (TTS-Server)
                     </Button>
                     
                 </Stack>
@@ -1930,11 +2114,12 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
                       actionLoading={actionLoading}
                       onPlayAudio={handlePlayAudio} 
                       onGenerateAudio={handleGenerateSentenceAudio}
-                      onUpdateSentenceText={handleUpdateSentence} onDeleteSentence={handleDeleteSentence}
+                      onUpdateSentenceText={handleUpdateSentence} 
+                      onDeleteSentence={handleDeleteSentence}
                       mergedAudioSegments={contentDetail?.latest_merged_audio?.segments}
                       globalTtsConfig={globalTtsConfig}
                       onSaveSentenceConfig={handleSaveSentenceConfig}
-
+                      onRefreshData={() => fetchContentDetail(false)}
                   />
                 )}
               </Box>
@@ -1951,6 +2136,7 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
                         onResetTask={handleResetTask}
                         onAlert={setAlert}
                         setSynthesisTask={setSynthesisTask} // <<<--- 确保传递这个 prop
+                        onSkipStep={handleSkipStep} // 传递跳过函数
 
                     />
             ) : ( // 默认的网格布局，用于步骤 1, 2, 3 (口播稿, TTS优化, LLM修订)
@@ -2056,17 +2242,19 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
                                 return '';
                             })()}
                         </Typography> 
-                        <Button
-                            variant="contained"
-                            color="primary"
-                            size="small"
-                            startIcon={actionLoading[`${currentActiveStepDetails.actionName}_${currentInputScriptId}`] ? <CircularProgress size={16} color="inherit"/> : <CachedIcon />}
-                            onClick={() => handleRecreateOutput(currentActiveStepDetails.actionName, currentInputScriptId)}
-                            disabled={isPolling || actionLoading[`${currentActiveStepDetails.actionName}_${currentInputScriptId}`] || (currentActiveStepDetails.inputScriptTypeKey !== 'original_content' && !currentInputScriptId && currentActiveStepDetails.actionName !== 'generateOralScript')} // generateOralScript 不需要 inputScriptId
-                        >
-                            {isPolling ? '任务处理中' : '重新生成输出'}
-
-                        </Button>
+                        <Box sx={{ display: 'flex', gap: 1 }}>
+                            <Button
+                                variant="contained"
+                                color="primary"
+                                size="small"
+                                startIcon={actionLoading[`${currentActiveStepDetails.actionName}_${currentInputScriptId}`] ? <CircularProgress size={16} color="inherit"/> : <CachedIcon />}
+                                onClick={() => handleRecreateOutput(currentActiveStepDetails.actionName, currentInputScriptId)}
+                                disabled={isPolling || actionLoading[`${currentActiveStepDetails.actionName}_${currentInputScriptId}`] || (currentActiveStepDetails.inputScriptTypeKey !== 'original_content' && !currentInputScriptId && currentActiveStepDetails.actionName !== 'generateOralScript')} // generateOralScript 不需要 inputScriptId
+                            >
+                                {isPolling ? '任务处理中' : '重新生成输出'}
+                            </Button>
+                            {renderSkipButton(currentActiveStepDetails, currentInputScriptId)}
+                        </Box>
                     </Box>
                     <Box sx={{ flexGrow: 1, overflowY: 'auto', whiteSpace: 'pre-wrap', p:1, border: '1px solid #eee', borderRadius: 1, minHeight: 300, backgroundColor: '#f9f9f9' }}>
                       {(() => {

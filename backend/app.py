@@ -134,6 +134,12 @@ app.config["INDEXTTS_BASE_URL"] = os.environ.get(
     "INDEXTTS_BASE_URL", "http://test.mengyimengsao.com:37860"
 )
 
+# TTS-Server 微服务配置
+app.config["TTS_SERVER_BASE_URL"] = os.environ.get(
+    "TTS_SERVER_BASE_URL", "http://localhost:5002"
+)
+app.config["TTS_SERVER_API_KEY"] = os.environ.get("TTS_SERVER_API_KEY", "")
+
 # 默认的 TTS 配置
 app.config["DEFAULT_TTS_CONFIG"] = {
     "engine": "gemini_tts",  # 默认使用 Gemini TTS

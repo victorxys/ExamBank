@@ -26,6 +26,13 @@ export const ttsApi = {
   triggerLlmRefine: (refinedScriptId) => api.post(`/tts/scripts/${refinedScriptId}/llm-refine`),
   splitSentences: (finalScriptId) => api.post(`/tts/scripts/${finalScriptId}/split-sentences`),
 
+  // --- 跳过步骤的 API ---
+  skipOralScriptGeneration: (contentId) => api.post(`/tts/training-contents/${contentId}/skip-oral-script`),
+  skipLlmRefine: (ttsRefinedScriptId) => api.post(`/tts/scripts/${ttsRefinedScriptId}/skip-llm-refine`),
+  skipSentenceSplit: (finalScriptId) => api.post(`/tts/scripts/${finalScriptId}/skip-sentence-split`),
+  skipAudioGeneration: (contentId) => api.post(`/tts/training-contents/${contentId}/skip-audio-generation`),
+  skipVideoSynthesis: (contentId) => api.post(`/tts/training-contents/${contentId}/skip-video-synthesis`),
+
   // Task Status
   getTaskStatus: (taskId) => api.get(`/tts/task-status/${taskId}`),
 
@@ -57,6 +64,9 @@ export const ttsApi = {
 
   // 新增：删除句子及其语音
   deleteSentence: (sentenceId) => api.delete(`/tts/sentences/${sentenceId}`),
+
+  // 新增：向前/向后插入句子
+  insertSentences: (referenceSentenceId, data) => api.post(`/tts/sentences/${referenceSentenceId}/insert`, data),
 
   // TtsAudio - 列表和删除 (其他如生成、合并的触发在上面)
   getAudiosByContent: (contentId, params) => api.get(`/tts/audios/by-content/${contentId}`, { params }),

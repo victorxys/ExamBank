@@ -832,6 +832,65 @@ def generate_single_sentence_audio_async(
                     "base_url": indextts_base_url,
                 }
 
+            elif tts_engine_identifier == "tts_server":
+                # TTS-Server 微服务引擎
+                logger.info(
+                    f"GenerateAudio Task: Using TTS-Server for sentence {sentence_id_str}"
+                )
+                
+                # 从环境变量获取默认配置
+                tts_server_params = {
+                    "model": final_config.get("model", "cosyvoice-v3-flash"),
+                    "voice": final_config.get("voice", "longanling_v3"),
+                    "server_url": final_config.get("server_url") or app.config.get("TTS_SERVER_BASE_URL", "http://localhost:5002"),
+                    "api_key": final_config.get("api_key") or app.config.get("TTS_SERVER_API_KEY", ""),
+                    "format": final_config.get("format", "mp3"),
+                }
+                
+                # 如果有 tts_engine_params，合并进去
+                if tts_engine_params:
+                    tts_server_params.update(tts_engine_params)
+                
+                # 直接使用句子文本，TTS-Server 现在支持 SSML
+                text_to_synthesize = sentence.sentence_text
+                
+                try:
+                    from backend.services.tts_server_service import TTSServerService
+                    tts_server_service = TTSServerService(
+                        base_url=tts_server_params["server_url"],
+                        api_key=tts_server_params["api_key"]
+                    )
+                    
+                    audio_binary_content = tts_server_service.synthesize_text(
+                        text=text_to_synthesize,
+                        model=tts_server_params["model"],
+                        voice=tts_server_params["voice"],
+                        format=tts_server_params["format"],
+                        enable_ssml=True  # 默认启用 SSML
+                    )
+                    
+                    # Set MIME type based on format
+                    format_to_mime = {
+                        "mp3": "audio/mpeg",
+                        "wav": "audio/wav",
+                        "flac": "audio/flac"
+                    }
+                    output_audio_mime_type = format_to_mime.get(tts_server_params["format"], "audio/mpeg")
+                    
+                    actual_generation_params_for_log = {
+                        "engine": "tts_server",
+                        "model": tts_server_params["model"],
+                        "voice": tts_server_params["voice"],
+                        "voice_name": tts_server_params["voice"],  # Add voice_name for consistency
+                        "server_url": tts_server_params["server_url"],
+                        "format": tts_server_params["format"],
+                        "enable_ssml": True  # 记录 SSML 已启用
+                    }
+                    
+                except Exception as e:
+                    logger.error(f"TTS-Server generation failed: {e}")
+                    raise
+
             else:
                 raise ValueError(f"未知的 TTS 引擎标识符: {tts_engine_identifier}")
 

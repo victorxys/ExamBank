@@ -38,7 +38,10 @@ import {
     MergeType as MergeTypeIcon,
     GraphicEq as GraphicEqIcon, // 一个示例图标 for Gemini
     Movie as MovieIcon, // 用于视频合成步骤
-    Subtitles as SubtitlesIcon // 新增字幕图标
+    Subtitles as SubtitlesIcon, // 新增字幕图标
+    AddCircleOutline as AddCircleOutlineIcon, // 新增：插入句子图标
+    ArrowUpward as ArrowUpwardIcon, // 新增：向前插入图标
+    ArrowDownward as ArrowDownwardIcon // 新增：向后插入图标
 } from '@mui/icons-material';
 import FormatBoldIcon from '@mui/icons-material/FormatBold'; // 导入加粗图标
 
@@ -48,6 +51,8 @@ import { formatRelativeTime } from '../api/dateUtils';
 import MiniAudioPlayer from './MiniAudioPlayer'; // 导入新的迷你播放器组件
 import { pinyin } from 'pinyin-pro'; // 1. 导入 pinyin-pro
 import FontDownloadIcon from '@mui/icons-material/FontDownload'; // 示例图标 for 拼音
+import { ttsApi } from '../api/tts'; // 新增：导入API
+import InsertSentenceDialog from './InsertSentenceDialog'; // 新增：导入插入句子对话框
 
 
 
@@ -63,11 +68,17 @@ const SentenceList = ({
     onUpdateSentenceText, 
     onDeleteSentence,
     onSaveSentenceConfig,
-    mergedAudioSegments // 新增：传递合并后的分段信息
+    mergedAudioSegments, // 新增：传递合并后的分段信息
+    onRefreshData // 新增：刷新数据的回调函数
 }) => {
     // --- 1. 新增 State ---
     const [statusFilter, setStatusFilter] = useState('all'); // 'all', 'generated', 'pending', 'error'
     const [showModifiedOnly, setShowModifiedOnly] = useState(false); // 控制是否只显示修改过的句子
+    
+    // 新增：插入句子相关的state
+    const [insertDialogOpen, setInsertDialogOpen] = useState(false);
+    const [insertReferenceSentence, setInsertReferenceSentence] = useState(null);
+    const [insertLoading, setInsertLoading] = useState(false);
     // --- ----------------- ---
     const [page, setPage] = useState(0);
     const [rowsPerPage, setRowsPerPage] = useState(50);
@@ -228,6 +239,7 @@ const SentenceList = ({
     const [editSentenceDialogOpen, setEditSentenceDialogOpen] = useState(false);
     const [sentenceToEdit, setSentenceToEdit] = useState(null);
     const [editingSentenceText, setEditingSentenceText] = useState('');
+    const [isSSMLMode, setIsSSMLMode] = useState(false); // 新增：SSML模式状态
     const [deleteSentenceConfirmOpen, setDeleteSentenceConfirmOpen] = useState(false);
     const [sentenceToDelete, setSentenceToDelete] = useState(null);
 
@@ -254,6 +266,7 @@ const SentenceList = ({
         setEditSentenceDialogOpen(false);
         setSentenceToEdit(null);
         setEditingSentenceText('');
+        setIsSSMLMode(false); // 重置SSML模式
     };
     const handleSaveEditedSentence = async () => {
         if (!sentenceToEdit || !editingSentenceText.trim()) {
@@ -265,6 +278,76 @@ const SentenceList = ({
         }
         handleCloseEditSentenceDialog();
     };
+
+    // SSML相关功能函数
+    const insertSSMLTag = (tag, hasClosingTag = true) => {
+        const textarea = editTextAreaRef.current;
+        if (!textarea) return;
+
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const selectedText = editingSentenceText.substring(start, end);
+
+        let insertText;
+        if (hasClosingTag) {
+            insertText = selectedText ? `<${tag}>${selectedText}</${tag}>` : `<${tag}></${tag}>`;
+        } else {
+            insertText = `<${tag}/>`;
+        }
+
+        const newText = editingSentenceText.substring(0, start) + insertText + editingSentenceText.substring(end);
+        setEditingSentenceText(newText);
+
+        setTimeout(() => {
+            textarea.focus();
+            if (hasClosingTag && !selectedText) {
+                // 将光标放在标签中间
+                const newPos = start + tag.length + 2;
+                textarea.setSelectionRange(newPos, newPos);
+            } else {
+                const newPos = start + insertText.length;
+                textarea.setSelectionRange(newPos, newPos);
+            }
+        }, 0);
+    };
+
+    const insertBreakTag = (duration = '500ms') => {
+        const textarea = editTextAreaRef.current;
+        if (!textarea) return;
+
+        const start = textarea.selectionStart;
+        const insertText = `<break time="${duration}"/>`;
+        const newText = editingSentenceText.substring(0, start) + insertText + editingSentenceText.substring(start);
+        setEditingSentenceText(newText);
+
+        setTimeout(() => {
+            textarea.focus();
+            textarea.setSelectionRange(start + insertText.length, start + insertText.length);
+        }, 0);
+    };
+
+    const wrapWithSpeak = () => {
+        if (editingSentenceText.includes('<speak')) return;
+        const newText = `<speak>\n${editingSentenceText}\n</speak>`;
+        setEditingSentenceText(newText);
+    };
+
+    // 检查文本是否已经包含speak标签
+    const ensureSpeakWrapper = (text) => {
+        if (text.includes('<speak')) {
+            return text;
+        }
+        return `<speak>\n${text}\n</speak>`;
+    };
+
+    // 检测文本是否包含SSML标签
+    const hasSSMLTags = editingSentenceText.includes('<') && editingSentenceText.includes('>');
+
+    // 获取纯文本预览（移除SSML标签）
+    const getPlainTextPreview = (text) => {
+        return text.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+    };
+
     // 处理拼音标记的函数
 
     const [pinyinMenu, setPinyinMenu] = useState({
@@ -272,6 +355,27 @@ const SentenceList = ({
         options: [],         // 多音字选项 ['chong', 'chòng']
         selectionInfo: null, // 选中的文本信息 { start, end, text }
     });
+
+    // 新增状态变量用于多字符拼音选择
+    const [pinyinOptions, setPinyinOptions] = useState([]); // 每个字符的拼音选项
+    const [selectedPinyins, setSelectedPinyins] = useState({}); // 用户选择的拼音
+    const [showPinyinPicker, setShowPinyinPicker] = useState(false); // 拼音选择器显示状态
+    const [selectionInfo, setSelectionInfo] = useState(null); // 选中的文本信息
+
+    // 获取汉字的所有可能读音
+    const getPinyinOptions = (char) => {
+        if (!char || !/[\u4e00-\u9fa5]/.test(char)) {
+            return [];
+        }
+        
+        const result = pinyin(char, { 
+            toneType: 'num', // 使用数字标示音调，例如 wu2 wu4
+            multiple: true,
+            type: 'array'
+        });
+        
+        return [...new Set(result)];
+    };
     const handleApplyPinyin = (event) => {
         const textArea = editTextAreaRef.current;
         if (!textArea) return;
@@ -280,16 +384,18 @@ const SentenceList = ({
         const end = textArea.selectionEnd;
         const selectedText = editingSentenceText.substring(start, end);
 
-        // 校验：只处理单个汉字
-        if (!selectedText || !/^[\u4e00-\u9fa5]$/.test(selectedText)) {
-            // alert('请只选中一个汉字来标注拼音。'); // 可以用 AlertMessage 替代
+        if (!selectedText) {
+            alert('请先选择要注音的文字');
             return;
         }
 
+        // 支持多字符选择 - 按照参考文档要求
+        if (selectedText.length === 1 && /[\u4e00-\u9fa5]/.test(selectedText)) {
+
         // 2. 获取所有可能的拼音
-        // pinyin-pro 返回类似 [['chōng'], ['chòng']] 的多音字数组
+        // pinyin-pro 返回类似 [['chong1'], ['chong4']] 的多音字数组
         const pinyinResult = pinyin(selectedText, {
-            toneType: 'symbol', // 带音调符号，例如 chōng
+            toneType: 'num', // 使用数字标示音调，例如 chong1 chong4
             multiple: true,     // 启用多音字模式
             type: 'array'
         });
@@ -309,6 +415,36 @@ const SentenceList = ({
         } else {
             // alert('无法获取该汉字的拼音。');
         }
+        } else {
+            // 多字符选择的处理逻辑 - 按照参考文档实现
+            const options = [];
+            const initialSelected = {};
+            
+            for (let i = 0; i < selectedText.length; i++) {
+                const char = selectedText[i];
+                if (/[\u4e00-\u9fa5]/.test(char)) {
+                    const pinyins = getPinyinOptions(char);
+                    if (pinyins.length > 0) {
+                        options.push({ char, pinyins });
+                        initialSelected[i] = pinyins[0]; // 默认选择第一个读音
+                    } else {
+                        options.push({ char, pinyins: [] });
+                    }
+                } else {
+                    // 非汉字字符，不需要拼音
+                    options.push({ char, pinyins: [] });
+                }
+            }
+
+            if (options.some(opt => opt.pinyins.length > 0)) {
+                setPinyinOptions(options);
+                setSelectedPinyins(initialSelected);
+                setSelectionInfo({ start, end, text: selectedText });
+                setShowPinyinPicker(true);
+            } else {
+                alert('选中的文本中没有汉字需要注音');
+            }
+        }
     };
 
     const handlePinyinSelect = (selectedPinyin) => {
@@ -322,22 +458,83 @@ const SentenceList = ({
     };
 
     const replaceTextWithPinyin = (originalText, pinyin, start, end) => {
-        // const replacement = `${originalText}:${pinyin}`;
-        const replacement = pinyin;
-        // +++++ 使用 editingSentenceText 和 setEditingSentenceText +++++
+        // 对于单字符，使用SSML phoneme标签格式
+        const replacement = `<phoneme alphabet="py" ph="${pinyin}">${originalText}</phoneme>`;
+        
         const newText = 
             editingSentenceText.substring(0, start) +
             replacement +
             editingSentenceText.substring(end);
 
-        setEditingSentenceText(newText);
-        // +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+        // 确保整个文本包含在speak标签内
+        const finalText = ensureSpeakWrapper(newText);
+        setEditingSentenceText(finalText);
         
         setTimeout(() => {
             const textArea = editTextAreaRef.current;
             if (textArea) {
                 textArea.focus();
-                textArea.selectionStart = textArea.selectionEnd = start + replacement.length;
+                // 计算新的光标位置，考虑可能添加的speak标签
+                const speakOffset = finalText.startsWith('<speak>') && !editingSentenceText.includes('<speak') ? 8 : 0; // "<speak>\n".length
+                textArea.selectionStart = textArea.selectionEnd = start + replacement.length + speakOffset;
+            }
+        }, 0);
+    };
+
+    // 新增：多字符拼音选择相关函数
+    const handlePinyinSelectMulti = (charIndex, selectedPinyin) => {
+        setSelectedPinyins(prev => ({ 
+            ...prev, 
+            [charIndex]: selectedPinyin 
+        }));
+    };
+
+    const handleClosePinyinPicker = () => {
+        setShowPinyinPicker(false);
+        setPinyinOptions([]);
+        setSelectedPinyins({});
+        setSelectionInfo(null);
+    };
+
+    const confirmPinyinSelection = () => {
+        if (!selectionInfo) return;
+
+        const { start, end, text: selectedText } = selectionInfo;
+        
+        // 构建拼音字符串 - 只包含有拼音的字符
+        const pinyinArray = [];
+        for (let i = 0; i < selectedText.length; i++) {
+            const char = selectedText[i];
+            if (/[\u4e00-\u9fa5]/.test(char) && selectedPinyins[i]) {
+                pinyinArray.push(selectedPinyins[i]);
+            }
+        }
+
+        if (pinyinArray.length === 0) {
+            handleClosePinyinPicker();
+            return;
+        }
+
+        const pinyinStr = pinyinArray.join(' ');
+        
+        // 使用SSML phoneme标签格式
+        const insertText = `<phoneme alphabet="py" ph="${pinyinStr}">${selectedText}</phoneme>`;
+        const newText = editingSentenceText.substring(0, start) + insertText + editingSentenceText.substring(end);
+        
+        // 确保整个文本包含在speak标签内
+        const finalText = ensureSpeakWrapper(newText);
+        setEditingSentenceText(finalText);
+        handleClosePinyinPicker();
+
+        // 恢复光标位置
+        setTimeout(() => {
+            const textArea = editTextAreaRef.current;
+            if (textArea) {
+                textArea.focus();
+                // 计算新的光标位置，考虑可能添加的speak标签
+                const speakOffset = finalText.startsWith('<speak>') && !editingSentenceText.includes('<speak') ? 8 : 0; // "<speak>\n".length
+                const newPos = start + insertText.length + speakOffset;
+                textArea.setSelectionRange(newPos, newPos);
             }
         }, 0);
     };
@@ -398,6 +595,48 @@ const SentenceList = ({
         handleCloseDeleteSentenceDialog();
     };
 
+    // 新增：插入句子相关的处理函数
+    const handleOpenInsertDialog = (sentence) => {
+        setInsertReferenceSentence(sentence);
+        setInsertDialogOpen(true);
+    };
+
+    const handleCloseInsertDialog = () => {
+        setInsertDialogOpen(false);
+        setInsertReferenceSentence(null);
+    };
+
+    const handleInsertSentences = async (insertData) => {
+        if (!insertReferenceSentence) return;
+        
+        setInsertLoading(true);
+        try {
+            // 添加全局TTS配置到请求数据中
+            const requestData = {
+                ...insertData,
+                tts_config: globalTtsConfig  // 传递全局TTS配置
+            };
+            
+            const response = await ttsApi.insertSentences(insertReferenceSentence.id, requestData);
+            
+            // 显示成功消息
+            alert(`成功插入 ${response.data.inserted_count} 个句子！`);
+            
+            // 关闭对话框
+            handleCloseInsertDialog();
+            
+            // 刷新数据
+            if (typeof onRefreshData === 'function') {
+                await onRefreshData();
+            }
+        } catch (error) {
+            console.error('插入句子失败:', error);
+            alert(`插入句子失败: ${error.response?.data?.error || error.message}`);
+        } finally {
+            setInsertLoading(false);
+        }
+    };
+
     const handleToggleSettings = (sentence) => {
         const isCurrentlyExpanded = expandedSentenceId === sentence.id;
         if (isCurrentlyExpanded) {
@@ -405,11 +644,15 @@ const SentenceList = ({
             setEditingConfig(null);
         } else {
             // Priority: sentence.tts_config > globalTtsConfig
+            // 先使用全局配置作为基础，然后用句子特定配置覆盖
             const initialConfig = {
                 ...globalTtsConfig,
                 ...(sentence.tts_config || {}),
             };
-            initialConfig.engine = 'gemini_tts'; 
+            // 如果没有设置引擎，使用全局配置的引擎或默认值
+            if (!initialConfig.engine) {
+                initialConfig.engine = globalTtsConfig.engine || 'gemini_tts';
+            }
             setEditingConfig(initialConfig);
             setExpandedSentenceId(sentence.id);
         }
@@ -626,6 +869,17 @@ const SentenceList = ({
                                                             </IconButton>
                                                             </span>
                                                         </Tooltip>
+                                                        <Tooltip title="插入句子">
+                                                            <span>
+                                                            <IconButton 
+                                                                size="small" 
+                                                                onClick={() => handleOpenInsertDialog(sentence)}
+                                                                color="primary"
+                                                            >
+                                                                <AddCircleOutlineIcon fontSize="small" />
+                                                            </IconButton>
+                                                            </span>
+                                                        </Tooltip>
                                                         {/* +++++ 修改播放按钮的行为以打开对话框 +++++ */}
                                                         {sentence.audio_status === 'generated' && sentence.latest_audio_url && (
                                                             <Tooltip title="预览语音">
@@ -651,7 +905,7 @@ const SentenceList = ({
                                                         )}
                                                         {(['pending_generation', 'error_generation', 'pending_regeneration', 'error_submission', 'error_polling', 'queued'].includes(sentence.audio_status) || !sentence.audio_status) && (
                                                             <span>
-                                                            <Button size="small" variant="outlined" onClick={() => onGenerateAudio(sentence.id,'gemini_tts')} disabled={actionLoading[`sentence_${sentence.id}`] || sentence.audio_status === 'processing_request' || sentence.audio_status === 'generating'} startIcon={(actionLoading[`sentence_${sentence.id}`] || sentence.audio_status === 'processing_request' || sentence.audio_status === 'generating') ? <CircularProgress size={16} /> : <AudiotrackIcon />}>
+                                                            <Button size="small" variant="outlined" onClick={() => onGenerateAudio(sentence.id, globalTtsConfig.engine || 'gemini_tts')} disabled={actionLoading[`sentence_${sentence.id}`] || sentence.audio_status === 'processing_request' || sentence.audio_status === 'generating'} startIcon={(actionLoading[`sentence_${sentence.id}`] || sentence.audio_status === 'processing_request' || sentence.audio_status === 'generating') ? <CircularProgress size={16} /> : <AudiotrackIcon />}>
                                                                 {sentence.audio_status?.startsWith('error') ? '重试' : '生成'}
                                                             </Button>
                                                             </span>
@@ -661,11 +915,24 @@ const SentenceList = ({
                                                                 <SettingsIcon fontSize="small" />
                                                             </IconButton>
                                                         </Tooltip>
-                                                        {sentence.audio_status === 'generated' && (
-                                                            <Tooltip title="重新生成语音">
+                                                        {/* 生成/重新生成按钮 */}
+                                                        {(sentence.audio_status === 'pending' || sentence.audio_status === 'error' || sentence.audio_status === 'generated') && (
+                                                            <Tooltip title={sentence.audio_status === 'generated' ? "重新生成语音" : "生成语音"}>
                                                                 <span>
-                                                                    <IconButton size="small" onClick={() => onGenerateAudio(sentence.id,'gemini_tts')} disabled={actionLoading[`sentence_${sentence.id}`] || sentence.audio_status === 'processing_request' || sentence.audio_status === 'generating'} sx={{ ml: 0.5 }}>
-                                                                        {(actionLoading[`sentence_${sentence.id}`] || sentence.audio_status === 'processing_request' || sentence.audio_status === 'generating') ? <CircularProgress size={20} color="inherit" /> : <RefreshIcon />}
+                                                                    <IconButton 
+                                                                        size="small" 
+                                                                        onClick={() => onGenerateAudio(sentence.id, globalTtsConfig.engine || 'gemini_tts')} 
+                                                                        disabled={actionLoading[`sentence_${sentence.id}`] || sentence.audio_status === 'processing_request' || sentence.audio_status === 'generating'} 
+                                                                        sx={{ ml: 0.5 }}
+                                                                        color={sentence.audio_status === 'pending' ? "primary" : "default"}
+                                                                    >
+                                                                        {(actionLoading[`sentence_${sentence.id}`] || sentence.audio_status === 'processing_request' || sentence.audio_status === 'generating') ? (
+                                                                            <CircularProgress size={20} color="inherit" />
+                                                                        ) : sentence.audio_status === 'generated' ? (
+                                                                            <RefreshIcon />
+                                                                        ) : (
+                                                                            <AudiotrackIcon />
+                                                                        )}
                                                                     </IconButton>
                                                                 </span>
                                                             </Tooltip>
@@ -695,6 +962,7 @@ const SentenceList = ({
                                                                             >
                                                                                 <MenuItem value="gemini_tts">Gemini TTS</MenuItem>
                                                                                 <MenuItem value="indextts">IndexTTS2</MenuItem>
+                                                                                <MenuItem value="tts_server">TTS-Server</MenuItem>
                                                                             </Select>
                                                                         </FormControl>
 
@@ -753,6 +1021,57 @@ const SentenceList = ({
                                                                                         onChange={(e) => handleConfigChange('emo_text', e.target.value)}
                                                                                     />
                                                                                 )}
+                                                                            </>
+                                                                        )}
+
+                                                                        {/* TTS-Server 配置 */}
+                                                                        {editingConfig.engine === 'tts_server' && (
+                                                                            <>
+                                                                                <FormControl fullWidth size="small" margin="dense">
+                                                                                    <InputLabel>TTS模型</InputLabel>
+                                                                                    <Select
+                                                                                        value={editingConfig.model || 'cosyvoice-v3-flash'}
+                                                                                        label="TTS模型"
+                                                                                        onChange={(e) => handleConfigChange('model', e.target.value)}
+                                                                                    >
+                                                                                        <MenuItem value="cosyvoice-v3-flash">CosyVoice V3 Flash</MenuItem>
+                                                                                        <MenuItem value="cosyvoice-v1">CosyVoice V1</MenuItem>
+                                                                                    </Select>
+                                                                                    <FormHelperText>选择TTS-Server语音合成模型</FormHelperText>
+                                                                                </FormControl>
+                                                                                <FormControl fullWidth size="small" margin="dense">
+                                                                                    <InputLabel>语音音色</InputLabel>
+                                                                                    <Select
+                                                                                        value={editingConfig.voice || 'longanling_v3'}
+                                                                                        label="语音音色"
+                                                                                        onChange={(e) => handleConfigChange('voice', e.target.value)}
+                                                                                    >
+                                                                                        <MenuItem value="longanling_v3">龙安灵 V3 (温柔女声)</MenuItem>
+                                                                                        <MenuItem value="longwan">龙湾 (温柔女声)</MenuItem>
+                                                                                        <MenuItem value="longyuan">龙渊 (磁性男声)</MenuItem>
+                                                                                    </Select>
+                                                                                    <FormHelperText>选择语音音色</FormHelperText>
+                                                                                </FormControl>
+                                                                                <TextField
+                                                                                    fullWidth margin="dense" size="small"
+                                                                                    label="服务器地址"
+                                                                                    value={editingConfig.server_url || globalTtsConfig.server_url || 'http://localhost:5002'}
+                                                                                    placeholder={globalTtsConfig.server_url || 'http://localhost:5002'}
+                                                                                    onChange={(e) => handleConfigChange('server_url', e.target.value)}
+                                                                                    helperText="TTS-Server微服务地址 (从环境变量读取)"
+                                                                                    InputProps={{ readOnly: true }}
+                                                                                    sx={{ '& .MuiInputBase-input': { color: 'text.secondary' } }}
+                                                                                />
+                                                                                <TextField
+                                                                                    fullWidth margin="dense" size="small"
+                                                                                    label="API密钥"
+                                                                                    value={editingConfig.api_key || globalTtsConfig.api_key || ''}
+                                                                                    placeholder="从环境变量读取"
+                                                                                    onChange={(e) => handleConfigChange('api_key', e.target.value)}
+                                                                                    helperText="API认证密钥 (从环境变量读取)"
+                                                                                    InputProps={{ readOnly: true }}
+                                                                                    sx={{ '& .MuiInputBase-input': { color: 'text.secondary' } }}
+                                                                                />
                                                                             </>
                                                                         )}
                                                                     </Grid>
@@ -883,10 +1202,199 @@ const SentenceList = ({
                 </CardContent>
             </Card>
 
-            <Dialog open={editSentenceDialogOpen} disableRestoreFocus onClose={handleCloseEditSentenceDialog} maxWidth="sm" fullWidth>
-                <DialogTitle>编辑句子 (序号: {sentenceToEdit?.order_index != null ? sentenceToEdit.order_index + 1 : ''})</DialogTitle>
+            <Dialog open={editSentenceDialogOpen} disableRestoreFocus onClose={handleCloseEditSentenceDialog} maxWidth="md" fullWidth>
+                <DialogTitle>
+                    编辑句子 (序号: {sentenceToEdit?.order_index != null ? sentenceToEdit.order_index + 1 : ''})
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mt: 1 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                            <Button
+                                variant={isSSMLMode ? "contained" : "outlined"}
+                                size="small"
+                                onClick={() => setIsSSMLMode(!isSSMLMode)}
+                                startIcon={<ArticleIcon />}
+                            >
+                                SSML模式
+                            </Button>
+                            {hasSSMLTags && !isSSMLMode && (
+                                <Chip 
+                                    label="包含SSML标记" 
+                                    size="small" 
+                                    color="primary" 
+                                    variant="outlined"
+                                />
+                            )}
+                        </Box>
+                        {hasSSMLTags && (
+                            <Typography variant="caption" color="text.secondary">
+                                预览: {getPlainTextPreview(editingSentenceText).substring(0, 30)}...
+                            </Typography>
+                        )}
+                    </Box>
+                </DialogTitle>
                 <DialogContent>
-                    {/* +++++ 3. 添加格式化工具栏 +++++ */}
+                    {/* SSML工具栏 - 只在SSML模式下显示 */}
+                    {isSSMLMode && (
+                        <Box sx={{ 
+                            mb: 2, 
+                            p: 2, 
+                            bgcolor: 'grey.50', 
+                            border: '1px solid', 
+                            borderColor: 'grey.300',
+                            borderRadius: 1,
+                            borderBottom: 0,
+                            borderBottomLeftRadius: 0,
+                            borderBottomRightRadius: 0
+                        }}>
+                            <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
+                                SSML工具栏:
+                            </Typography>
+                            
+                            {/* TTS-Server SSML兼容性警告 */}
+                            {globalTtsConfig?.engine === 'tts_server' && (
+                                <Box sx={{ 
+                                    mb: 2, 
+                                    p: 1.5, 
+                                    bgcolor: 'warning.light', 
+                                    borderRadius: 1,
+                                    border: '1px solid',
+                                    borderColor: 'warning.main'
+                                }}>
+                                    <Typography variant="caption" color="warning.contrastText" sx={{ fontWeight: 'bold' }}>
+                                        ⚠️ 注意：TTS-Server (DashScope) 目前不支持SSML标记
+                                    </Typography>
+                                    <Typography variant="caption" color="warning.contrastText" sx={{ display: 'block', mt: 0.5 }}>
+                                        建议使用Gemini TTS引擎以获得完整的SSML支持，或者关闭SSML模式使用纯文本
+                                    </Typography>
+                                </Box>
+                            )}
+                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                                {/* 基础SSML标签 */}
+                                <Tooltip title="插入停顿 - <break time='500ms'/>">
+                                    <Button
+                                        size="small"
+                                        variant="outlined"
+                                        onClick={() => insertBreakTag('500ms')}
+                                        sx={{ minWidth: 'auto', px: 1 }}
+                                    >
+                                        停顿
+                                    </Button>
+                                </Tooltip>
+                                
+                                <Tooltip title="插入1秒停顿">
+                                    <Button
+                                        size="small"
+                                        variant="outlined"
+                                        onClick={() => insertBreakTag('1s')}
+                                        sx={{ minWidth: 'auto', px: 1 }}
+                                    >
+                                        1秒
+                                    </Button>
+                                </Tooltip>
+                                
+                                <Tooltip title="插入2秒停顿">
+                                    <Button
+                                        size="small"
+                                        variant="outlined"
+                                        onClick={() => insertBreakTag('2s')}
+                                        sx={{ minWidth: 'auto', px: 1 }}
+                                    >
+                                        2秒
+                                    </Button>
+                                </Tooltip>
+
+                                <Tooltip title="电话号码读法 - 选中文字后点击">
+                                    <Button
+                                        size="small"
+                                        variant="outlined"
+                                        onClick={() => insertSSMLTag('say-as interpret-as="telephone"')}
+                                        sx={{ minWidth: 'auto', px: 1 }}
+                                    >
+                                        电话
+                                    </Button>
+                                </Tooltip>
+
+                                <Tooltip title="数字逐个读 - 选中文字后点击">
+                                    <Button
+                                        size="small"
+                                        variant="outlined"
+                                        onClick={() => insertSSMLTag('say-as interpret-as="digits"')}
+                                        sx={{ minWidth: 'auto', px: 1 }}
+                                    >
+                                        逐字
+                                    </Button>
+                                </Tooltip>
+
+                                <Tooltip title="数值读法 - 选中文字后点击">
+                                    <Button
+                                        size="small"
+                                        variant="outlined"
+                                        onClick={() => insertSSMLTag('say-as interpret-as="cardinal"')}
+                                        sx={{ minWidth: 'auto', px: 1 }}
+                                    >
+                                        数值
+                                    </Button>
+                                </Tooltip>
+
+                                <Tooltip title="标注拼音 (支持多字符选择)">
+                                    <Button
+                                        size="small"
+                                        variant="outlined"
+                                        onClick={handleApplyPinyin}
+                                        sx={{ minWidth: 'auto', px: 1 }}
+                                        startIcon={<FontDownloadIcon sx={{ fontSize: '14px !important' }} />}
+                                    >
+                                        注音
+                                    </Button>
+                                </Tooltip>
+
+                                <Tooltip title="包裹speak标签">
+                                    <Button
+                                        size="small"
+                                        variant="contained"
+                                        color="primary"
+                                        onClick={wrapWithSpeak}
+                                        disabled={hasSSMLTags}
+                                        sx={{ minWidth: 'auto', px: 1, ml: 1 }}
+                                    >
+                                        &lt;speak&gt;
+                                    </Button>
+                                </Tooltip>
+                            </Box>
+                            
+                            {/* SSML使用说明 */}
+                            <Box sx={{ mt: 1, p: 1, bgcolor: 'info.light', borderRadius: 1 }}>
+                                <Typography variant="caption" color="info.contrastText">
+                                    💡 SSML使用提示: 选中文字后点击相应按钮添加标记，或直接在文本框中编辑SSML标签
+                                    {globalTtsConfig?.engine === 'tts_server' && (
+                                        <span style={{ display: 'block', marginTop: '4px', fontWeight: 'bold' }}>
+                                            注意：当前使用TTS-Server引擎，SSML标记将被自动转换为纯文本
+                                        </span>
+                                    )}
+                                </Typography>
+                            </Box>
+                        </Box>
+                    )}
+
+                    {/* 普通工具栏 - 在非SSML模式下显示 */}
+                    {!isSSMLMode && (
+                        <Box sx={{ mt: 2, mb: 1 }}>
+                            <Tooltip title="加粗 (选中文字后点击)">
+                                <IconButton 
+                                    size="small" 
+                                    onClick={() => handleApplyMarkdownToSentence('**')}
+                                    sx={{ border: '1px solid #ddd', borderRadius: 1 }}
+                                >
+                                    <FormatBoldIcon />
+                                </IconButton>
+                            </Tooltip>
+                            <Tooltip title="标注拼音 (支持多字符选择)">
+                                <IconButton size="small" onClick={handleApplyPinyin} sx={{ ml: 1, border: '1px solid #ddd', borderRadius: 1 }}>
+                                    <FontDownloadIcon />
+                                </IconButton>
+                            </Tooltip>
+                        </Box>
+                    )}
+
                     <Box sx={{ mt: 2, mb: 1 }}>
                         <Tooltip title="加粗 (选中文字后点击)">
                             <IconButton 
@@ -898,7 +1406,7 @@ const SentenceList = ({
                             </IconButton>
                         </Tooltip>
                         {/* +++++ 5. 新增“标注拼音”按钮 +++++ */}
-                        <Tooltip title="标注拼音 (请选中单个汉字)">
+                        <Tooltip title="标注拼音 (支持多字符选择)">
                             <IconButton size="small" onClick={handleApplyPinyin} sx={{ ml: 1, border: '1px solid #ddd', borderRadius: 1 }}>
                                 <FontDownloadIcon />
                             </IconButton>
@@ -917,17 +1425,26 @@ const SentenceList = ({
                     <TextField 
                         autoFocus 
                         margin="dense" 
-                        label="句子内容" 
+                        label={isSSMLMode ? "SSML内容" : "句子内容"}
                         type="text" 
                         fullWidth 
                         multiline 
-                        rows={4} 
+                        rows={isSSMLMode ? 6 : 4}
                         value={editingSentenceText} 
                         onChange={(e) => setEditingSentenceText(e.target.value)} 
-                        // sx={{ mt: 1 }} // mt 已被外层 Box 控制
-                        // +++++ 4. 附加 ref +++++
-                        inputRef={editTextAreaRef} 
-                        // +++++++++++++++++++++++
+                        inputRef={editTextAreaRef}
+                        placeholder={isSSMLMode ? '<speak>\n  在这里输入带SSML标记的文本...\n</speak>' : '输入句子内容...'}
+                        sx={{ 
+                            '& .MuiInputBase-input': {
+                                fontFamily: isSSMLMode ? 'monospace' : 'inherit',
+                                fontSize: isSSMLMode ? '0.875rem' : 'inherit'
+                            }
+                        }}
+                        helperText={
+                            isSSMLMode && hasSSMLTags 
+                                ? `纯文本预览: ${getPlainTextPreview(editingSentenceText).substring(0, 100)}${getPlainTextPreview(editingSentenceText).length > 100 ? '...' : ''}`
+                                : `字符数: ${editingSentenceText.length}`
+                        }
                     />
                 </DialogContent>
                 <DialogActions>
@@ -949,6 +1466,117 @@ const SentenceList = ({
                         </MenuItem>
                     ))}
                 </Menu>
+                
+                {/* +++++ 7. 多字符拼音选择对话框 +++++ */}
+                <Dialog 
+                    open={showPinyinPicker} 
+                    onClose={handleClosePinyinPicker} 
+                    maxWidth="md" 
+                    fullWidth
+                >
+                    <DialogTitle>
+                        选择拼音读音
+                        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                            为选中的文字选择正确的拼音读音: "{selectionInfo?.text}"
+                        </Typography>
+                    </DialogTitle>
+                    <DialogContent>
+                        <Box sx={{ pt: 2 }}>
+                            <Grid container spacing={2}>
+                                {pinyinOptions.map((option, index) => (
+                                    <Grid item xs={12} sm={6} md={4} key={index}>
+                                        <Box sx={{ 
+                                            display: 'flex', 
+                                            flexDirection: 'column', 
+                                            alignItems: 'center',
+                                            p: 2,
+                                            border: '1px solid',
+                                            borderColor: 'grey.300',
+                                            borderRadius: 1,
+                                            bgcolor: 'grey.50'
+                                        }}>
+                                            <Typography 
+                                                variant="h4" 
+                                                sx={{ 
+                                                    mb: 1, 
+                                                    fontWeight: 'bold',
+                                                    color: /[\u4e00-\u9fa5]/.test(option.char) ? 'primary.main' : 'text.disabled'
+                                                }}
+                                            >
+                                                {option.char}
+                                            </Typography>
+                                            {option.pinyins.length > 0 ? (
+                                                <FormControl size="small" fullWidth>
+                                                    <Select
+                                                        value={selectedPinyins[index] || ''}
+                                                        onChange={(e) => handlePinyinSelectMulti(index, e.target.value)}
+                                                        displayEmpty
+                                                    >
+                                                        {option.pinyins.map((py) => (
+                                                            <MenuItem key={py} value={py}>
+                                                                {py}
+                                                            </MenuItem>
+                                                        ))}
+                                                    </Select>
+                                                </FormControl>
+                                            ) : (
+                                                <Typography variant="caption" color="text.disabled">
+                                                    无需拼音
+                                                </Typography>
+                                            )}
+                                        </Box>
+                                    </Grid>
+                                ))}
+                            </Grid>
+                            
+                            {/* 预览区域 */}
+                            <Box sx={{ mt: 3, p: 2, bgcolor: 'info.light', borderRadius: 1 }}>
+                                <Typography variant="subtitle2" gutterBottom>
+                                    SSML预览:
+                                </Typography>
+                                <Typography 
+                                    variant="body2" 
+                                    sx={{ 
+                                        fontFamily: 'monospace',
+                                        bgcolor: 'background.paper',
+                                        p: 1,
+                                        borderRadius: 1,
+                                        border: '1px solid',
+                                        borderColor: 'grey.300'
+                                    }}
+                                >
+                                    {(() => {
+                                        const pinyinArray = [];
+                                        for (let i = 0; i < (selectionInfo?.text.length || 0); i++) {
+                                            const char = selectionInfo?.text[i];
+                                            if (/[\u4e00-\u9fa5]/.test(char) && selectedPinyins[i]) {
+                                                pinyinArray.push(selectedPinyins[i]);
+                                            }
+                                        }
+                                        const pinyinStr = pinyinArray.join(' ');
+                                        if (pinyinStr) {
+                                            const phonemeTag = `<phoneme alphabet="py" ph="${pinyinStr}">${selectionInfo?.text}</phoneme>`;
+                                            return `<speak>\n${phonemeTag}\n</speak>`;
+                                        }
+                                        return '请选择拼音...';
+                                    })()}
+                                </Typography>
+                            </Box>
+                        </Box>
+                    </DialogContent>
+                    <DialogActions>
+                        <Button onClick={handleClosePinyinPicker}>
+                            取消
+                        </Button>
+                        <Button 
+                            onClick={confirmPinyinSelection} 
+                            variant="contained"
+                            disabled={!Object.values(selectedPinyins).some(p => p)}
+                        >
+                            确认插入
+                        </Button>
+                    </DialogActions>
+                </Dialog>
                 {/* +++++++++++++++++++++++++++ */}
             </Dialog>
             <Dialog open={deleteSentenceConfirmOpen} disableRestoreFocus onClose={handleCloseDeleteSentenceDialog} maxWidth="xs" fullWidth>
@@ -965,6 +1593,15 @@ const SentenceList = ({
                     <Button onClick={handleConfirmDeleteSentence} color="error" variant="contained">确认删除</Button>
                 </DialogActions>
             </Dialog>
+            
+            {/* 新增：插入句子对话框 */}
+            <InsertSentenceDialog
+                open={insertDialogOpen}
+                onClose={handleCloseInsertDialog}
+                onInsert={handleInsertSentences}
+                referenceSentence={insertReferenceSentence}
+                loading={insertLoading}
+            />
         </>
     );
 };

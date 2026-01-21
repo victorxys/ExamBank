@@ -34,6 +34,12 @@ celery_result_backend = os.environ.get('CELERY_RESULT_BACKEND', 'redis://localho
 print(f"Celery App (root): Broker URL: {celery_broker_url}")
 print(f"Celery App (root): Result Backend URL: {celery_result_backend}")
 
+# 输出 TTS-Server 配置用于调试
+tts_server_url = os.environ.get('TTS_SERVER_BASE_URL', 'http://localhost:5002')
+tts_server_api_key = os.environ.get('TTS_SERVER_API_KEY', '')
+print(f"Celery Worker: TTS_SERVER_BASE_URL = {tts_server_url}")
+print(f"Celery Worker: TTS_SERVER_API_KEY = {'***' + tts_server_api_key[-4:] if len(tts_server_api_key) > 4 else '(empty)'}")
+
 # Celery 应用实例，应用名可以是 'proj' 或其他
 # include 参数现在指向 'backend.tasks'，因为是从项目根目录导入
 celery_app  = Celery( # 通常将 Celery 实例命名为 app 或 celery_app

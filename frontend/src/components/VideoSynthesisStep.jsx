@@ -46,7 +46,7 @@ const ResultRow = ({ icon, title, data, renderItem }) => {
 };
 
 
-const VideoSynthesisStep = ({ contentId, setSynthesisTask, synthesisTask, allSentences, progressData, isSubmitting, onStartTask, onResetTask, onAlert 
+const VideoSynthesisStep = ({ contentId, setSynthesisTask, synthesisTask, allSentences, progressData, isSubmitting, onStartTask, onResetTask, onAlert, onSkipStep 
     }) => {
         const navigate = useNavigate();
         const theme = useTheme();
@@ -439,10 +439,22 @@ const VideoSynthesisStep = ({ contentId, setSynthesisTask, synthesisTask, allSen
             <Paper elevation={3} sx={{ mt: 3, p: { xs: 2, md: 3 }, borderRadius: '12px' }}>
                 <Box display="flex" alignItems="center" mb={3}>
                     <Avatar sx={{ bgcolor: 'primary.main', mr: 2 }}><MovieIcon /></Avatar>
-                    <Box>
+                    <Box sx={{ flexGrow: 1 }}>
                         <Typography variant="h5" component="h3" sx={{ fontWeight: 'bold' }}>第六步：合成视频</Typography>
                         <Typography variant="body2" color="text.secondary">将音频、字幕与PPT结合，生成教学视频。</Typography>
                     </Box>
+                    {status === 'idle' && onSkipStep && (
+                        <Button
+                            variant="outlined"
+                            size="small"
+                            color="warning"
+                            startIcon={<span>⏭️</span>}
+                            onClick={() => onSkipStep('synthesizeVideo')}
+                            disabled={isSubmitting}
+                        >
+                            跳过当前
+                        </Button>
+                    )}
                 </Box>
                 {renderUIByStatus()}
                 <VideoScriptPreviewDialog

@@ -1,75 +1,73 @@
-feat: 集成七牛云HLS视频播放支持
+feat: 实现TTS句子插入功能并优化TTS-Server集成
 
-## 🎯 功能概述
-- 新增七牛云HLS (HTTP Live Streaming) 视频播放支持
-- 通过MengSchool代理服务实现安全的视频流传输
-- 保持对现有本地视频的完全向后兼容
+## 主要功能
 
-## ✨ 新增功能
+### 1. TTS-Server API集成优化
+- 更新TTS-Server端口从5003改为5002
+- 简化API调用：使用直接接口 `POST /api/tts/generate-batch`
+- 移除SSML复选框，默认启用SSML支持
+- 修复拼音注音格式：使用数字音调（wu2 wu4）而非符号（wú wù）
+- 设置默认模型为 `cosyvoice-v3-flash`，默认音色为 `longanling_v3`
 
-### 前端改进
-- **智能检测**: 自动识别七牛云视频URL并切换到HLS播放模式
-- **HLS支持**: 集成hls.js库，提供原生HLS流媒体播放
-- **状态指示**: 添加视频类型指示器（"HLS流媒体 + 七牛云" / "本地视频"）
-- **增强错误处理**: 针对HLS特定错误提供友好的错误信息
-- **智能回退**: API失败时自动回退到原有播放方式
+### 2. 句子插入功能
+- **后端API** (`backend/api/tts_api.py`):
+  - 新增 `POST /api/tts/sentences/<sentence_id>/insert` 端点
+  - 支持向前/向后插入（before/after）
+  - 支持直接插入/拆分插入（direct/split）
+  - 自动更新后续句子的 order_index
+  - 继承全局TTS配置到新句子
+  - 标记新句子为 `modified_after_merge=True`
 
-### 后端新增API
-- **`GET /api/resources/{id}/qiniu-info`**: 获取视频信息并返回推荐播放URL
-- **`GET /api/resources/{id}/qiniu-hls-proxy`**: 安全的七牛云HLS代理端点（可选）
-- **权限验证**: 确保所有视频访问都经过适当的权限检查
-- **日志记录**: 记录所有视频访问请求用于审计
+- **前端对话框** (`frontend/src/components/InsertSentenceDialog.jsx`):
+  - 创建插入句子对话框组件
+  - 实时预览拆分结果（使用与后端相同的拆分逻辑）
+  - 支持位置选择（向前/向后）
+  - 支持模式选择（直接/拆分）
 
-### 工具函数
-- **`videoUtils.js`**: 提供URL检测、转换和验证功能
-- **自动转换**: 将七牛云URL转换为HLS manifest URL
-- **域名检测**: 支持多种七牛云域名格式
+- **前端集成** (`frontend/src/components/SentenceList.jsx`):
+  - 在每个句子旁添加插入按钮（➕图标）
+  - 新插入的句子自动显示生成按钮
+  - 修复生成按钮显示逻辑：支持 pending、error、generated 状态
+  - 修复生成设置面板：正确显示全局TTS配置作为默认值
 
-## 🔧 技术实现
+### 3. 服务层改进
+- **新增** `backend/services/tts_server_service.py`:
+  - 封装TTS-Server API调用逻辑
+  - 统一错误处理和日志记录
+  - 支持单句和批量生成
 
-### 依赖项
-- **前端**: 新增 `hls.js` 用于HLS播放支持
-- **后端**: 新增 `requests` 用于代理API调用
+- **更新** `backend/tasks.py`:
+  - 集成TTS-Server服务
+  - 移除SSML检测和转换逻辑（统一启用）
+  - 优化单句生成任务
 
-### 环境配置
-- **`VITE_QINIU_API_KEY`**: 前端七牛云API密钥
-- **`QINIU_API_KEY`**: 后端七牛云API密钥
+### 4. 文档更新
+- 新增 `docs/TTS_MICROSERVICE_API.md`: TTS-Server API文档
+- 新增 `docs/FRONTEND_SENTENCE_EDITING_REFERENCE.md`: 前端句子编辑参考文档
 
-### URL处理逻辑
-- 七牛云URL: `https://rss.mengyimengsao.com/videos/xxx.mp4`
-- 转换为HLS: `https://mengschool.mengyimengsao.com/api/v1/courses/public/video/hls-manifest?key=videos/xxx.mp4&token={api_key}`
+## 技术细节
 
-## 🛠️ 修复问题
-- **URL路径重复**: 修复了`/api/api/resources/...`的重复路径问题
-- **相对URL处理**: 改进前后端URL拼接逻辑，正确处理相对和绝对URL
-- **错误处理**: 增强HLS播放错误的用户友好提示
+### 数据库字段
+- 使用 `tts_script_id`（非 `training_content_id`）
+- 使用 `sentence_text`（非 `text`）
+- 使用 `audio_status="pending"`（非 `"not_generated"`）
 
-## 📁 新增文件
-- `frontend/src/utils/videoUtils.js` - 视频URL处理工具
-- `docs/qiniu-hls-integration.md` - 详细的集成文档
-- `backend/test_qiniu_integration.py` - 测试脚本
-- `QINIU_HLS_TEST_GUIDE.md` - 完整测试指南
-- `frontend/.env.example` - 前端环境变量示例
-- `backend/.env.example` - 后端环境变量示例
+### 环境变量
+- `TTS_SERVER_BASE_URL`: TTS-Server地址（默认 http://localhost:5002）
+- Flask服务器和Celery worker都需要重启以应用新配置
 
-## 🔄 向后兼容
-- ✅ 现有本地视频继续正常工作
-- ✅ 无需修改现有数据库记录
-- ✅ 用户界面保持一致
-- ✅ API接口保持兼容
+### 字幕导出
+- 字幕导出功能按 `order_index` 排序，正确支持插入的句子
+- 前提：插入的句子需要生成音频并重新合并
 
-## 🧪 测试状态
-- ✅ URL转换功能正常
-- ✅ MengSchool API连接正常  
-- ✅ 前端HLS播放器集成完成
-- ✅ 后端代理API实现完成
-- ✅ 错误处理和回退机制正常
-- 🧪 生产环境测试待进行
+## 影响范围
+- 后端: API路由、Celery任务、服务层
+- 前端: 句子列表、插入对话框、TTS配置面板
+- 配置: 环境变量、默认值
 
-## 📋 使用说明
-1. 配置环境变量中的七牛云API密钥
-2. 创建资源时使用七牛云URL格式
-3. 系统自动检测并使用HLS播放
-4. 现有本地视频无需任何更改
-
-Co-authored-by: Kiro AI Assistant
+## 测试建议
+1. 测试句子插入（向前/向后，直接/拆分）
+2. 验证插入句子的生成按钮显示
+3. 检查TTS配置继承是否正确
+4. 测试音频生成和合并流程
+5. 验证字幕导出包含插入的句子

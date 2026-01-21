@@ -400,6 +400,15 @@ def get_training_content_detail(content_id):
                 "latest_synthesis_task": synthesis_task_data,  # --- 新增：将任务信息附加到响应中
             }
 
+        # 合并全局配置和环境变量配置
+        merged_tts_config = content.default_tts_config or {}
+        
+        # 添加TTS-Server环境变量配置
+        tts_server_env_config = {
+            "tts_server_base_url": current_app.config.get("TTS_SERVER_BASE_URL", "http://localhost:5002"),
+            "tts_server_api_key": current_app.config.get("TTS_SERVER_API_KEY", "")
+        }
+        
         response_payload = {
             "id": str(content.id),
             "content_name": content.content_name,
@@ -423,7 +432,8 @@ def get_training_content_detail(content_id):
             "final_script_sentences": sentences_data,
             "latest_merged_audio": merged_audio_info,
             "latest_synthesis_task": synthesis_task_data,
-            "default_tts_config": content.default_tts_config,  # 返回全局配置
+            "default_tts_config": merged_tts_config,  # 返回全局配置
+            "tts_server_env_config": tts_server_env_config,  # 返回环境变量配置
         }
         current_app.logger.info(
             f"Successfully prepared response for content {content_id}."
@@ -2300,3 +2310,270 @@ def skip_tts_refine_route(oral_script_id):
         # training_content.status = 'pending_tts_refine' # 或者一个错误状态
         # db.session.commit()
         return jsonify({"error": f"跳过TTS Refine步骤时发生服务器错误: {str(e)}"}), 500
+
+
+@tts_bp.route("/training-contents/<uuid:content_id>/skip-oral-script", methods=["POST"])
+@admin_required
+def skip_oral_script_generation_route(content_id):
+    """跳过口播稿生成，直接使用原始内容作为口播稿"""
+    training_content = TrainingContent.query.get(str(content_id))
+    if not training_content:
+        return jsonify({"error": "培训内容未找到"}), 404
+
+    try:
+        current_app.logger.info(f"用户请求跳过口播稿生成步骤，将原始内容直接作为口播稿。")
+
+        # 创建新的口播稿，内容与原始内容相同
+        new_oral_script = _create_new_script_version(
+            source_script_id=None,  # 没有源脚本
+            training_content_id=training_content.id,
+            new_script_type="oral_script",
+            new_content=training_content.original_content,
+        )
+
+        training_content.status = "pending_tts_refine"
+        db.session.commit()
+
+        current_app.logger.info(f"口播稿生成步骤已跳过。新的口播稿 (ID: {new_oral_script.id}) 已创建。")
+
+        return jsonify({
+            "message": "口播稿生成已跳过，原始内容已用作口播稿。",
+            "skipped_to_script_id": str(new_oral_script.id),
+            "next_status_expected": "pending_tts_refine",
+        }), 201
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"跳过口播稿生成失败 for content {content_id}: {e}", exc_info=True)
+        return jsonify({"error": f"跳过口播稿生成时发生服务器错误: {str(e)}"}), 500
+
+
+@tts_bp.route("/scripts/<uuid:tts_refined_script_id>/skip-llm-refine", methods=["POST"])
+@admin_required
+def skip_llm_refine_route(tts_refined_script_id):
+    """跳过LLM修订，直接使用TTS优化稿作为最终脚本"""
+    tts_refined_script = TtsScript.query.get(str(tts_refined_script_id))
+    if not tts_refined_script or tts_refined_script.script_type != "tts_refined_script":
+        return jsonify({"error": "无效的TTS优化稿ID或类型不匹配"}), 400
+
+    training_content = tts_refined_script.training_content
+    if not training_content:
+        return jsonify({"error": "脚本未关联到培训内容"}), 404
+
+    try:
+        current_app.logger.info(f"用户请求跳过LLM修订步骤，将TTS优化稿直接作为最终脚本。")
+
+        # 创建新的最终脚本，内容与TTS优化稿相同
+        new_final_script = _create_new_script_version(
+            source_script_id=tts_refined_script.id,
+            training_content_id=training_content.id,
+            new_script_type="final_tts_script",
+            new_content=tts_refined_script.content,
+        )
+
+        training_content.status = "pending_sentence_split"
+        db.session.commit()
+
+        current_app.logger.info(f"LLM修订步骤已跳过。新的最终脚本 (ID: {new_final_script.id}) 已创建。")
+
+        return jsonify({
+            "message": "LLM修订步骤已跳过，TTS优化稿已用作最终脚本。",
+            "skipped_to_script_id": str(new_final_script.id),
+            "next_status_expected": "pending_sentence_split",
+        }), 201
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"跳过LLM修订失败 for script {tts_refined_script_id}: {e}", exc_info=True)
+        return jsonify({"error": f"跳过LLM修订时发生服务器错误: {str(e)}"}), 500
+
+
+@tts_bp.route("/scripts/<uuid:final_script_id>/skip-sentence-split", methods=["POST"])
+@admin_required
+def skip_sentence_split_route(final_script_id):
+    """跳过句子拆分，创建一个包含整个脚本的单句子"""
+    final_script = TtsScript.query.get(str(final_script_id))
+    if not final_script or final_script.script_type != "final_tts_script":
+        return jsonify({"error": "无效的最终脚本ID或类型不匹配"}), 400
+
+    training_content = final_script.training_content
+    if not training_content:
+        return jsonify({"error": "脚本未关联到培训内容"}), 404
+
+    try:
+        current_app.logger.info(f"用户请求跳过句子拆分步骤，将整个脚本作为单个句子。")
+
+        # 删除现有的句子（如果有）
+        existing_sentences = TtsSentence.query.filter_by(
+            training_content_id=training_content.id,
+            source_script_id=final_script.id
+        ).all()
+        for sentence in existing_sentences:
+            db.session.delete(sentence)
+
+        # 创建单个句子包含整个脚本内容
+        new_sentence = TtsSentence(
+            training_content_id=training_content.id,
+            source_script_id=final_script.id,
+            text=final_script.content,
+            order_index=1,
+            audio_status="not_generated"
+        )
+        db.session.add(new_sentence)
+
+        training_content.status = "pending_audio_generation"
+        db.session.commit()
+
+        current_app.logger.info(f"句子拆分步骤已跳过。创建了单个句子 (ID: {new_sentence.id})。")
+
+        return jsonify({
+            "message": "句子拆分已跳过，整个脚本作为单个句子。",
+            "sentence_id": str(new_sentence.id),
+            "next_status_expected": "pending_audio_generation",
+        }), 201
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"跳过句子拆分失败 for script {final_script_id}: {e}", exc_info=True)
+        return jsonify({"error": f"跳过句子拆分时发生服务器错误: {str(e)}"}), 500
+
+
+# --- 新增：向前/向后插入句子的API ---
+@tts_bp.route("/sentences/<uuid:reference_sentence_id>/insert", methods=["POST"])
+@jwt_required()
+@admin_required
+def insert_sentences_route(reference_sentence_id):
+    """
+    在指定句子的前面或后面插入新句子
+    
+    请求体参数:
+    - text: 要插入的文本内容
+    - position: "before" 或 "after" (在参考句子之前或之后)
+    - split_mode: "direct" 或 "split" (直接插入整段 或 拆分后插入)
+    - tts_config: 全局TTS配置（可选）
+    """
+    data = request.get_json()
+    text = data.get("text", "").strip()
+    position = data.get("position", "after")  # "before" or "after"
+    split_mode = data.get("split_mode", "direct")  # "direct" or "split"
+    tts_config = data.get("tts_config")  # 新增：接收TTS配置
+    
+    if not text:
+        return jsonify({"error": "文本内容不能为空"}), 400
+    
+    if position not in ["before", "after"]:
+        return jsonify({"error": "position 必须是 'before' 或 'after'"}), 400
+    
+    if split_mode not in ["direct", "split"]:
+        return jsonify({"error": "split_mode 必须是 'direct' 或 'split'"}), 400
+    
+    reference_sentence_id_str = str(reference_sentence_id)
+    reference_sentence = TtsSentence.query.get(reference_sentence_id_str)
+    
+    if not reference_sentence:
+        return jsonify({"error": "参考句子不存在"}), 404
+    
+    # 使用正确的字段名
+    tts_script_id = reference_sentence.tts_script_id
+    reference_order_index = reference_sentence.order_index
+    
+    try:
+        current_app.logger.info(
+            f"开始插入句子: position={position}, split_mode={split_mode}, "
+            f"reference_sentence_id={reference_sentence_id_str}, "
+            f"reference_order_index={reference_order_index}"
+        )
+        
+        # 1. 准备要插入的句子列表
+        sentences_to_insert = []
+        
+        if split_mode == "direct":
+            # 直接插入整段文本作为一个句子
+            sentences_to_insert = [text]
+        else:  # split_mode == "split"
+            # 按句子拆分规则拆分文本
+            # 使用换行符拆分
+            sentences_to_insert = [s.strip() for s in text.split("\n") if s.strip()]
+            
+            # 如果没有换行符，尝试用句号拆分
+            if len(sentences_to_insert) <= 1:
+                sentences_to_insert = [
+                    s.strip() + "。" 
+                    for s in text.split("。") 
+                    if s.strip()
+                ]
+            
+            # 如果还是只有一句或为空，就保持原文本
+            if not sentences_to_insert:
+                sentences_to_insert = [text]
+        
+        current_app.logger.info(f"准备插入 {len(sentences_to_insert)} 个句子")
+        
+        # 2. 确定插入位置的 order_index
+        if position == "before":
+            insert_start_index = reference_order_index
+        else:  # after
+            insert_start_index = reference_order_index + 1
+        
+        # 3. 更新后续句子的 order_index（为新句子腾出空间）
+        # 获取所有需要更新的句子（order_index >= insert_start_index）
+        sentences_to_update = TtsSentence.query.filter(
+            TtsSentence.tts_script_id == tts_script_id,
+            TtsSentence.order_index >= insert_start_index
+        ).order_by(TtsSentence.order_index.desc()).all()  # 从后往前更新，避免冲突
+        
+        # 将这些句子的 order_index 增加 len(sentences_to_insert)
+        for sentence in sentences_to_update:
+            sentence.order_index += len(sentences_to_insert)
+        
+        current_app.logger.info(f"更新了 {len(sentences_to_update)} 个后续句子的 order_index")
+        
+        # 4. 插入新句子
+        created_sentences = []
+        for i, sentence_text in enumerate(sentences_to_insert):
+            new_sentence = TtsSentence(
+                tts_script_id=tts_script_id,
+                sentence_text=sentence_text,  # 使用正确的字段名
+                order_index=insert_start_index + i,
+                audio_status="pending",  # 使用正确的状态值
+                modified_after_merge=True,  # 标记为新插入的句子
+                tts_config=tts_config  # 新增：保存TTS配置
+            )
+            db.session.add(new_sentence)
+            created_sentences.append(new_sentence)
+        
+        db.session.flush()  # 确保新句子获得ID
+        
+        current_app.logger.info(
+            f"成功插入 {len(created_sentences)} 个新句子，"
+            f"起始 order_index={insert_start_index}"
+        )
+        
+        # 5. 提交事务
+        db.session.commit()
+        
+        # 6. 返回结果
+        return jsonify({
+            "message": f"成功插入 {len(created_sentences)} 个句子",
+            "inserted_count": len(created_sentences),
+            "inserted_sentences": [
+                {
+                    "id": str(s.id),
+                    "text": s.sentence_text,  # 使用正确的字段名
+                    "order_index": s.order_index,
+                    "audio_status": s.audio_status,
+                    "tts_config": s.tts_config
+                }
+                for s in created_sentences
+            ],
+            "position": position,
+            "split_mode": split_mode
+        }), 201
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(
+            f"插入句子失败 for reference_sentence {reference_sentence_id_str}: {e}",
+            exc_info=True
+        )
+        return jsonify({"error": f"插入句子时发生服务器错误: {str(e)}"}), 500
