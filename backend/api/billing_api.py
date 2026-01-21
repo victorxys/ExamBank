@@ -2445,14 +2445,23 @@ def terminate_contract(contract_id):
                         contract_start_day = contract_start_date.day
                         contract_end_day = original_end_date.day
                         
-                        # 计算从终止日到下一个周期结束日的天数
+                        # 计算从终止日到当前周期结束日的天数
                         if contract_start_day == contract_end_day:
-                            # 例如：11日开始11日结束的合同
-                            # 计算n+1月10日（下一个周期的前一天）
-                            if termination_date.month == 12:
-                                next_month_10th = date(termination_date.year + 1, 1, contract_end_day - 1)
+                            # 例如：17日开始17日结束的合同，周期是 X月17日 ~ X+1月16日
+                            # 需要找到终止日所在周期的结束日
+                            if termination_date.day >= contract_start_day:
+                                # 终止日在当前周期内（例如：1月17日~1月31日之间）
+                                # 当前周期结束日是下个月的 contract_start_day - 1
+                                if termination_date.month == 12:
+                                    current_cycle_end = date(termination_date.year + 1, 1, contract_start_day - 1)
+                                else:
+                                    current_cycle_end = date(termination_date.year, termination_date.month + 1, contract_start_day - 1)
                             else:
-                                next_month_10th = date(termination_date.year, termination_date.month + 1, contract_end_day - 1)
+                                # 终止日在上个周期的后半段（例如：1月1日~1月16日之间）
+                                # 当前周期结束日是本月的 contract_start_day - 1
+                                current_cycle_end = date(termination_date.year, termination_date.month, contract_start_day - 1)
+                            
+                            next_month_10th = current_cycle_end  # 保持变量名兼容性
                             
                             # 用n+1月10日与终止日n月m日之间的差距来计算待退还管理费的天数
                             # 根据是否收取终止日管理费来决定退款起始日期
