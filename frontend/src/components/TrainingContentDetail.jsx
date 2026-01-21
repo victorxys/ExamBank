@@ -112,7 +112,8 @@ const TrainingContentDetail = () => {
   const [globalTtsConfig, setGlobalTtsConfig] = useState({
     engine: 'gemini_tts',
     system_prompt: '',
-    model: 'gemini-2.5-pro-preview-tts', // <--- 新增并设置默认模型
+    gemini_model: 'gemini-2.5-pro-preview-tts', // Gemini TTS 模型
+    server_model: 'cosyvoice-v3-flash', // TTS Server 模型
     temperature: 0.58,
   });
   
@@ -251,7 +252,8 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
           const envConfig = detail.tts_server_env_config || {};
           setGlobalTtsConfig({
             engine: 'gemini_tts',
-            model: 'gemini-2.5-flash-preview-tts',
+            // Gemini TTS 参数
+            gemini_model: 'gemini-2.5-flash-preview-tts',
             system_prompt: '你是一名专业的育儿嫂培训师，请用口语化的培训师的口吻以及标准的普通话来讲解以下内容：',
             temperature: 0.7,
             // IndexTTS2 默认参数
@@ -263,7 +265,7 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
             // TTS-Server 默认参数（从环境变量获取）
             server_url: envConfig.tts_server_base_url || 'http://localhost:5002',
             api_key: envConfig.tts_server_api_key || '',
-            model: 'cosyvoice-v3-flash',
+            server_model: 'cosyvoice-v3-flash',
             voice: 'longanling_v3',
           });
         }
@@ -1116,7 +1118,7 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
     // 根据引擎类型设置特定参数
     if (finalEngine === 'gemini_tts') {
       apiParams.tts_params = {
-        model: globalTtsConfig.model || 'gemini-2.5-flash-preview-tts',
+        model: globalTtsConfig.gemini_model || 'gemini-2.5-flash-preview-tts',
         system_prompt: globalTtsConfig.system_prompt || '',
         temperature: globalTtsConfig.temperature || 0.7,
       };
@@ -1131,7 +1133,7 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
       };
     } else if (finalEngine === 'tts_server') {
       apiParams.tts_params = {
-        model: globalTtsConfig.model || 'cosyvoice-v3-flash',
+        model: globalTtsConfig.server_model || 'cosyvoice-v3-flash',
         voice: globalTtsConfig.voice || 'longanling_v3',
         server_url: globalTtsConfig.server_url || 'http://localhost:5002',
         api_key: globalTtsConfig.api_key || '',
@@ -1175,7 +1177,7 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
     // 根据引擎类型设置特定参数
     if (finalEngine === 'gemini_tts') {
       apiParams.tts_params = {
-        model: config?.model || globalTtsConfig.model || 'gemini-2.5-flash-preview-tts',
+        model: config?.gemini_model || globalTtsConfig.gemini_model || 'gemini-2.5-flash-preview-tts',
         system_prompt: config?.system_prompt || globalTtsConfig.system_prompt || '',
         temperature: config?.temperature || globalTtsConfig.temperature || 0.7,
       };
@@ -1190,7 +1192,7 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
       };
     } else if (finalEngine === 'tts_server') {
       apiParams.tts_params = {
-        model: config?.model || globalTtsConfig.model || 'cosyvoice-v3-flash',
+        model: config?.server_model || globalTtsConfig.server_model || 'cosyvoice-v3-flash',
         voice: config?.voice || globalTtsConfig.voice || 'longanling_v3',
         server_url: config?.server_url || globalTtsConfig.server_url || 'http://localhost:5002',
         api_key: config?.api_key || globalTtsConfig.api_key || '',
@@ -1734,9 +1736,9 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
                                           <FormControl fullWidth margin="dense" sx={{ mt: 2 }}>
                                               <InputLabel>TTS 模型</InputLabel>
                                               <Select
-                                                  value={globalTtsConfig.model || 'gemini-2.5-flash-preview-tts'}
+                                                  value={globalTtsConfig.gemini_model || 'gemini-2.5-flash-preview-tts'}
                                                   label="TTS 模型"
-                                                  onChange={(e) => handleGlobalConfigChange('model', e.target.value)}
+                                                  onChange={(e) => handleGlobalConfigChange('gemini_model', e.target.value)}
                                               >
                                                   <MenuItem value="gemini-2.5-flash-preview-tts">Gemini Flash (速度快)</MenuItem>
                                                   <MenuItem value="gemini-2.5-pro-preview-tts">Gemini Pro (质量高)</MenuItem>
@@ -1765,9 +1767,9 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
                                           <FormControl fullWidth margin="dense" sx={{ mt: 2 }}>
                                               <InputLabel>语音模型</InputLabel>
                                               <Select
-                                                  value={globalTtsConfig.model || 'cosyvoice-v3-flash'}
+                                                  value={globalTtsConfig.server_model || 'cosyvoice-v3-flash'}
                                                   label="语音模型"
-                                                  onChange={(e) => handleGlobalConfigChange('model', e.target.value)}
+                                                  onChange={(e) => handleGlobalConfigChange('server_model', e.target.value)}
                                               >
                                                   <MenuItem value="cosyvoice-v3-flash">CosyVoice V3 Flash</MenuItem>
                                                   <MenuItem value="cosyvoice-v1">CosyVoice V1</MenuItem>

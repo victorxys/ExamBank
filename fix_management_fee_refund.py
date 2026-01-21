@@ -66,6 +66,8 @@ def calculate_correct_refund(contract, termination_date, charge_on_termination_d
     monthly_management_fee = contract.management_fee_amount if contract.management_fee_amount and contract.management_fee_amount > 0 else (D(contract.employee_level or '0') * D("0.1"))
     daily_management_fee = (monthly_management_fee / D(30)).quantize(D("0.0001"))
     
+    print(f"  [DEBUG] 月管理费: {monthly_management_fee:.2f}元, 日管理费: {daily_management_fee:.4f}元")
+    
     # 找到终止日所在周期的结束日
     if termination_date.day >= contract_start_day:
         # 终止日在当前周期内（例如：1月17日~1月31日之间）
@@ -185,11 +187,39 @@ def find_affected_contracts():
         
         # 计算正确的退款金额
         # 尝试从描述中判断是否收取终止日管理费
-        charge_on_termination_date = False
+        charge_on_termination_date = True  # 默认收取（与API默认值一致）
+        
+        # 首先检查描述中是否有明确说明
+        has_explicit_flag = False
         for adj in refund_adjustments:
-            if '收取终止日管理费' in adj.description:
-                charge_on_termination_date = True
+            if '不收取终止日管理费' in adj.description:
+                charge_on_termination_date = False
+                has_explicit_flag = True
                 break
+            elif '收取终止日管理费' in adj.description:
+                charge_on_termination_date = True
+                has_explicit_flag = True
+                break
+        
+        # 如果描述中没有明确说明，尝试通过天数反推
+        if not has_explicit_flag:
+            # 尝试两种情况，看哪种更接近当前金额
+            correct_refund_charge = calculate_correct_refund(contract, termination_date, True)
+            correct_refund_no_charge = calculate_correct_refund(contract, termination_date, False)
+            
+            current_total_refund = sum(adj.amount for adj in refund_adjustments)
+            
+            if correct_refund_charge and correct_refund_no_charge:
+                diff_charge = abs(current_total_refund - correct_refund_charge['total_refund'])
+                diff_no_charge = abs(current_total_refund - correct_refund_no_charge['total_refund'])
+                
+                # 选择差异较小的那个
+                charge_on_termination_date = diff_charge < diff_no_charge
+                
+                print(f"  [自动判断] 当前金额: {current_total_refund:.2f}元")
+                print(f"  [自动判断] 收取终止日: {correct_refund_charge['total_refund']:.2f}元 (差异: {diff_charge:.2f})")
+                print(f"  [自动判断] 不收取终止日: {correct_refund_no_charge['total_refund']:.2f}元 (差异: {diff_no_charge:.2f})")
+                print(f"  [自动判断] 判断结果: {'收取' if charge_on_termination_date else '不收取'}终止日管理费")
         
         correct_refund = calculate_correct_refund(contract, termination_date, charge_on_termination_date)
         
@@ -228,12 +258,14 @@ def fix_contract_refund(item, dry_run=True):
     current_total_refund = item['current_total_refund']
     correct_refund = item['correct_refund']
     termination_date = item['termination_date']
+    charge_on_termination_date = item['charge_on_termination_date']
     
     print(f"\n{'[演习]' if dry_run else '[执行]'} 修复合同 {contract.id}")
     print(f"  客户: {contract.customer.name if contract.customer else 'N/A'}")
     print(f"  员工: {contract.service_personnel.name if contract.service_personnel else 'N/A'}")
     print(f"  合同周期: {contract.start_date.date()} ~ {contract.end_date.date()}")
     print(f"  终止日期: {termination_date}")
+    print(f"  终止日管理费: {'收取' if charge_on_termination_date else '不收取'}")
     print(f"  当前退款: {current_total_refund:.2f}元")
     print(f"  正确退款: {correct_refund['total_refund']:.2f}元")
     print(f"  差额: {correct_refund['total_refund'] - current_total_refund:.2f}元")
