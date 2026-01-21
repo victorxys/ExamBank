@@ -192,7 +192,7 @@ const CreateFormalContractModal = ({ open, onClose, onSuccess }) => {
 
     // --- 新增：自动生成试工合同备注的 useEffect ---
     // --- 自动生成试工合同备注的 useEffect (V2 - 处理介绍费互斥逻辑) ---
-    // --- 自动生成试工合同附件内容的 useEffect (V3 - 修正为 attachment_content) ---
+    // --- 自动生成试工合同附件内容的 useEffect (V4 - 管理费率不为0时始终显示) ---
     useEffect(() => {
         if (formData.contract_type === 'nanny_trial') {
             const dailyRate = parseFloat(formData.daily_rate);
@@ -205,15 +205,18 @@ const CreateFormalContractModal = ({ open, onClose, onSuccess }) => {
                 const managementFeeRate = parseFloat(formData.management_fee_rate);
                 const introductionFee = parseFloat(formData.introduction_fee);
 
-
                 let managementFeeNotePart = '';
                 let feeIntroducePart = '';
-                if (!isNaN(introductionFee) && introductionFee > 0 || managementFeeRate == 0) {
-                    managementFeeNotePart = '';
-                    feeIntroducePart = `甲方只需支付阿姨实际出勤天数的劳务费`;
-                } else {
+                
+                // 判断是否需要显示管理费
+                if (!isNaN(managementFeeRate) && managementFeeRate > 0) {
+                    // 管理费率不为0时，显示管理费说明
                     managementFeeNotePart = `丙方管理费计算方法为：${roundedMonthlySalary}元 × ${(managementFeeRate * 100).toFixed(0)}% ÷ 30天 × 阿姨服务时间段。`;
                     feeIntroducePart = `甲方需支付阿姨实际出勤天数的劳务费和丙方管理费`;
+                } else {
+                    // 管理费率为0时，不显示管理费
+                    managementFeeNotePart = '';
+                    feeIntroducePart = `甲方只需支付阿姨实际出勤天数的劳务费`;
                 }
 
                 const attachmentContentTemplate =
@@ -559,9 +562,9 @@ ${managementFeeNotePart}`;
         if (formData.contract_type === 'nanny_trial') {
             const introFeeValue = parseFloat(formData.introduction_fee);
             if (introFeeValue > 0) {
-                // 有介绍费时，管理费率设为10%
-                if (formData.management_fee_rate !== 0.1) {
-                    setFormData(prev => ({ ...prev, management_fee_rate: 0.1 }));
+                // 有介绍费时，管理费率设为0%
+                if (formData.management_fee_rate !== 0) {
+                    setFormData(prev => ({ ...prev, management_fee_rate: 0 }));
                 }
             } else {
                 // 无介绍费时，管理费率设为20%
@@ -576,8 +579,8 @@ ${managementFeeNotePart}`;
     const introFeeValue = parseFloat(formData.introduction_fee);
     
     // 试工合同的提示文本
-    const introFeeHelperText = isTrialContract ? (introFeeValue > 0 ? "已填写介绍费，管理费率为10%" : "未填写介绍费，管理费率为20%") : "";
-    const mgmtRateHelperText = isTrialContract ? (introFeeValue > 0 ? "有介绍费时按10%收取" : "无介绍费时按20%收取") : "";
+    const introFeeHelperText = isTrialContract ? (introFeeValue > 0 ? "已填写介绍费，管理费率为0%" : "未填写介绍费，管理费率为20%") : "";
+    const mgmtRateHelperText = isTrialContract ? (introFeeValue > 0 ? "有介绍费时不收取管理费" : "无介绍费时按20%收取") : "";
 
     // console.log('State before render:', { customerOptions, employeeOptions });
 

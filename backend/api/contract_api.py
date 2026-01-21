@@ -1006,6 +1006,8 @@ def get_contract_details(contract_id):
             ) if contract.type == 'maternity_nurse' and contract.security_deposit_paid and float(contract.security_deposit_paid) > 0 else '0.25',
             "security_deposit_paid": str(getattr(contract, 'security_deposit_paid', '')) if contract.type == 'maternity_nurse' else '',
             "provisional_start_date": getattr(contract, 'provisional_start_date').isoformat() if getattr(contract, 'provisional_start_date', None) else None,
+            # --- 试工合同特殊字段：日薪 ---
+            "daily_rate": str(contract.employee_level) if contract.type == 'nanny_trial' and contract.employee_level is not None else '',
             # --- 签署相关字段 ---
             "signing_status": contract.signing_status.value if contract.signing_status else 'UNSIGNED',
             "requires_signature": contract.requires_signature,

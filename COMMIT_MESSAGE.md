@@ -1,73 +1,35 @@
-feat: 实现TTS句子插入功能并优化TTS-Server集成
+fix: 修复试工合同编辑界面字段显示和联动逻辑
 
-## 主要功能
+问题描述：
+1. 编辑试工合同时，日薪、介绍费、管理费率字段未正确显示
+2. 管理费率和介绍费字段被错误禁用，无法编辑
+3. 缺少日薪与附件内容的联动逻辑
+4. 有介绍费时管理费率默认值不正确
 
-### 1. TTS-Server API集成优化
-- 更新TTS-Server端口从5003改为5002
-- 简化API调用：使用直接接口 `POST /api/tts/generate-batch`
-- 移除SSML复选框，默认启用SSML支持
-- 修复拼音注音格式：使用数字音调（wu2 wu4）而非符号（wú wù）
-- 设置默认模型为 `cosyvoice-v3-flash`，默认音色为 `longanling_v3`
+修复内容：
 
-### 2. 句子插入功能
-- **后端API** (`backend/api/tts_api.py`):
-  - 新增 `POST /api/tts/sentences/<sentence_id>/insert` 端点
-  - 支持向前/向后插入（before/after）
-  - 支持直接插入/拆分插入（direct/split）
-  - 自动更新后续句子的 order_index
-  - 继承全局TTS配置到新句子
-  - 标记新句子为 `modified_after_merge=True`
+后端 (backend/api/contract_api.py):
+- 在 get_contract_details 接口中添加 daily_rate 字段返回
+- 对试工合同，将 employee_level 映射为 daily_rate 返回给前端
 
-- **前端对话框** (`frontend/src/components/InsertSentenceDialog.jsx`):
-  - 创建插入句子对话框组件
-  - 实时预览拆分结果（使用与后端相同的拆分逻辑）
-  - 支持位置选择（向前/向后）
-  - 支持模式选择（直接/拆分）
+前端 (frontend/src/components/EditContractModal.jsx):
+- 移除编辑模式下介绍费和管理费率的互斥禁用逻辑
+- 修复 management_fee_rate 初始化时 0 值被错误替换的问题
+- 为管理费率字段添加 % 后缀显示（InputAdornment）
+- 新增试工合同附件内容自动生成逻辑，与创建合同保持一致
+- 日薪、管理费率、介绍费变化时自动更新附件内容
 
-- **前端集成** (`frontend/src/components/SentenceList.jsx`):
-  - 在每个句子旁添加插入按钮（➕图标）
-  - 新插入的句子自动显示生成按钮
-  - 修复生成按钮显示逻辑：支持 pending、error、generated 状态
-  - 修复生成设置面板：正确显示全局TTS配置作为默认值
+前端 (frontend/src/components/CreateFormalContractModal.jsx):
+- 修改有介绍费时管理费率默认值从 10% 改为 0%
+- 优化附件内容生成逻辑：管理费率不为0时始终显示管理费说明
+- 更新提示文本，明确说明有介绍费时不收取管理费
 
-### 3. 服务层改进
-- **新增** `backend/services/tts_server_service.py`:
-  - 封装TTS-Server API调用逻辑
-  - 统一错误处理和日志记录
-  - 支持单句和批量生成
+影响范围：
+- 试工合同的创建和编辑功能
+- 合同附件内容的自动生成逻辑
 
-- **更新** `backend/tasks.py`:
-  - 集成TTS-Server服务
-  - 移除SSML检测和转换逻辑（统一启用）
-  - 优化单句生成任务
-
-### 4. 文档更新
-- 新增 `docs/TTS_MICROSERVICE_API.md`: TTS-Server API文档
-- 新增 `docs/FRONTEND_SENTENCE_EDITING_REFERENCE.md`: 前端句子编辑参考文档
-
-## 技术细节
-
-### 数据库字段
-- 使用 `tts_script_id`（非 `training_content_id`）
-- 使用 `sentence_text`（非 `text`）
-- 使用 `audio_status="pending"`（非 `"not_generated"`）
-
-### 环境变量
-- `TTS_SERVER_BASE_URL`: TTS-Server地址（默认 http://localhost:5002）
-- Flask服务器和Celery worker都需要重启以应用新配置
-
-### 字幕导出
-- 字幕导出功能按 `order_index` 排序，正确支持插入的句子
-- 前提：插入的句子需要生成音频并重新合并
-
-## 影响范围
-- 后端: API路由、Celery任务、服务层
-- 前端: 句子列表、插入对话框、TTS配置面板
-- 配置: 环境变量、默认值
-
-## 测试建议
-1. 测试句子插入（向前/向后，直接/拆分）
-2. 验证插入句子的生成按钮显示
-3. 检查TTS配置继承是否正确
-4. 测试音频生成和合并流程
-5. 验证字幕导出包含插入的句子
+测试建议：
+1. 创建试工合同，验证有介绍费时管理费率为0%
+2. 编辑已有试工合同，验证日薪、介绍费、管理费率正确显示和可编辑
+3. 修改日薪、管理费率，验证附件内容自动更新
+4. 验证管理费率为0时附件不显示管理费，不为0时显示管理费

@@ -100,8 +100,8 @@ const EditContractModal = ({ open, onClose, onSuccess, contractId }) => {
                         introduction_fee: data.introduction_fee || '',
                         deposit_amount: data.deposit_amount || '3000',
                         management_fee_amount: data.management_fee_amount || '',
-                        deposit_rate: parseFloat(data.deposit_rate) || 0.25,
-                        management_fee_rate: parseFloat(data.management_fee_rate) || 0.20,
+                        deposit_rate: data.deposit_rate ? parseFloat(data.deposit_rate) : 0.25,
+                        management_fee_rate: data.management_fee_rate !== undefined && data.management_fee_rate !== '' ? parseFloat(data.management_fee_rate) : 0,
                     };
                     setFormData(newFormData);
                     
@@ -246,6 +246,44 @@ const EditContractModal = ({ open, onClose, onSuccess, contractId }) => {
         }
     }, [formData.is_monthly_auto_renew, formData.start_date, formData.contract_type, formData.end_date]);
 
+    // --- 新增：试工合同附件内容自动生成逻辑 (V2 - 管理费率不为0时始终显示) ---
+    useEffect(() => {
+        if (formData.contract_type === 'nanny_trial') {
+            const dailyRate = parseFloat(formData.daily_rate);
+
+            if (!isNaN(dailyRate) && dailyRate > 0) {
+                const provisionalMonthlySalary = dailyRate * 26;
+                const roundedMonthlySalary = Math.round(provisionalMonthlySalary / 100) * 100;
+
+                const employeeName = formData.employee_name || '服务人员';
+                const managementFeeRate = parseFloat(formData.management_fee_rate);
+                const introductionFee = parseFloat(formData.introduction_fee);
+
+                let managementFeeNotePart = '';
+                let feeIntroducePart = '';
+                
+                // 判断是否需要显示管理费
+                if (!isNaN(managementFeeRate) && managementFeeRate > 0) {
+                    // 管理费率不为0时，显示管理费说明
+                    managementFeeNotePart = `丙方管理费计算方法为：${roundedMonthlySalary}元 × ${(managementFeeRate * 100).toFixed(0)}% ÷ 30天 × 阿姨服务时间段。`;
+                    feeIntroducePart = `甲方需支付阿姨实际出勤天数的劳务费和丙方管理费`;
+                } else {
+                    // 管理费率为0时，不显示管理费
+                    managementFeeNotePart = '';
+                    feeIntroducePart = `甲方只需支付阿姨实际出勤天数的劳务费`;
+                }
+
+                const attachmentContentTemplate =
+                    `乙方${employeeName}阿姨上户，${feeIntroducePart}:
+阿姨劳务费计算方法为：${roundedMonthlySalary}元 ÷ 26天 × 阿姨实际出勤天数；
+${managementFeeNotePart}`;
+
+                setFormData(prev => ({ ...prev, attachment_content: attachmentContentTemplate }));
+            }
+        }
+    }, [formData.contract_type, formData.daily_rate, formData.management_fee_rate, formData.introduction_fee, formData.employee_name]);
+    // --- 新增结束 ---
+
 
     const handleChange = (event) => {
         const { name, value, checked, type } = event.target;
@@ -326,11 +364,13 @@ const EditContractModal = ({ open, onClose, onSuccess, contractId }) => {
     const isExternalSubstitution = formData.contract_type === 'external_substitution';
 
     // Mutual exclusivity for introduction_fee and management_fee_rate for nanny_trial
+    // 注意：编辑模式下，允许两个字段都有值，不强制互斥
     const introFeeValue = parseFloat(formData.introduction_fee);
     const mgmtFeeRateValue = parseFloat(formData.management_fee_rate);
 
-    const isIntroFeeDisabled = isNannyTrial && mgmtFeeRateValue > 0;
-    const isMgmtRateDisabled = isNannyTrial && introFeeValue > 0;
+    // 编辑模式下不启用互斥逻辑，允许用户自由编辑
+    const isIntroFeeDisabled = false;
+    const isMgmtRateDisabled = false;
 
 
     return (
@@ -511,6 +551,9 @@ const EditContractModal = ({ open, onClose, onSuccess, contractId }) => {
                                             error={isMgmtRateDisabled}
                                             helperText={isMgmtRateDisabled ? "不能与介绍费同时存在" : ""}
                                             onWheel={(e) => e.target.blur()}
+                                            InputProps={{
+                                                endAdornment: <InputAdornment position="end">%</InputAdornment>,
+                                            }}
                                         />
                                     </Grid>
                                 </>
