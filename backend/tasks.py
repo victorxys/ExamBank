@@ -347,8 +347,14 @@ def _save_merged_audio_file(audio_segment_obj, training_content_id_str, version_
         relative_file_path = os.path.join(relative_dir, file_name)
 
         try:
-            audio_segment_obj.export(full_file_path, format="mp3")
-            logger.info(f"合并的音频文件已保存: {full_file_path}")
+            # 使用固定比特率导出，确保输出质量一致
+            # 128k 是 MP3 的标准比特率，平衡质量和文件大小
+            audio_segment_obj.export(
+                full_file_path, 
+                format="mp3",
+                bitrate="128k"
+            )
+            logger.info(f"合并的音频文件已保存: {full_file_path} (128 kb/s)")
             return relative_file_path, os.path.getsize(full_file_path)
         except Exception as e:
             logger.error(f"保存合并的音频文件失败 {full_file_path}: {e}", exc_info=True)

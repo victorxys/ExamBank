@@ -1295,25 +1295,45 @@ def _calculate_pdf_stats(data, start_date, end_date):
     total_leave = 0
     total_overtime = 0
     
-    # 计算请假天数
-    for key in ['rest_records', 'leave_records', 'paid_leave_records']:
+    # 【关键】假期（rest/leave）也算出勤，不需要计算请假天数
+    # 这里的 total_leave 只是用于显示，不影响出勤计算
+    for key in ['rest_records', 'leave_records']:
         for record in data.get(key, []):
             hours = (record.get('hours', 0)) + (record.get('minutes', 0) / 60)
             total_leave += hours / 24
-            
-    # 计算加班天数
+    
+    # 【修复】计算加班天数，区分假期加班和正常加班
+    holiday_overtime = 0
+    normal_overtime = 0
+    
     for record in data.get('overtime_records', []):
         hours = (record.get('hours', 0)) + (record.get('minutes', 0) / 60)
-        total_overtime += hours / 24
+        overtime_days = hours / 24
         
-    # 计算总天数 (简单计算，不扣除周末，因为前端逻辑比较复杂，这里简化处理或需完全复刻前端逻辑)
-    # 为了准确，我们应该遍历每一天判断是否禁用
-    # 这里简化：总天数 - 请假 - 加班 (前端逻辑是 validDays - leave - overtime)
-    # 假设 validDays 是当月所有天数 (不考虑合同外的日期，因为 PDF 是针对考勤表的，考勤表应该只包含合同期内)
-    # 实际上 form.cycle_start_date 和 end_date 已经限定了范围
+        # 检查该日期是否有休息或请假记录
+        overtime_date = record.get('date')
+        is_holiday_overtime = False
+        
+        for key in ['rest_records', 'leave_records']:
+            for other_record in data.get(key, []):
+                if other_record.get('date') == overtime_date:
+                    is_holiday_overtime = True
+                    break
+            if is_holiday_overtime:
+                break
+        
+        if is_holiday_overtime:
+            holiday_overtime += overtime_days
+        else:
+            normal_overtime += overtime_days
     
+    total_overtime = holiday_overtime + normal_overtime
+    
+    # 【关键修复】计算出勤天数
+    # 假期也算出勤，不扣除！只扣除正常加班天数
+    # 公式：出勤天数 = 当月总天数 - 正常加班天数
     days_count = (end_date - start_date).days + 1
-    total_work = days_count - total_leave - total_overtime
+    total_work = days_count - normal_overtime
     
     return {
         'work_days': total_work,

@@ -1189,31 +1189,56 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
     const autoConvertOvertimeIfNeeded = (data) => {
         const MAX_WORK_DAYS = 26;
         
-        // 计算当前的请假/休息天数
-        let totalLeaveDays = 0;
-        ['rest_records', 'leave_records'].forEach(key => {
-            if (Array.isArray(data[key])) {
-                data[key].forEach(record => {
-                    const hours = (record.hours || 0) + (record.minutes || 0) / 60;
-                    totalLeaveDays += hours / 24;
-                });
-            }
-        });
+        // 【关键】假期也算出勤，不需要计算请假天数
+        // 只需要计算正常加班天数
         
-        // 计算当前的加班天数
-        let totalOvertimeDays = 0;
+        // 【修复】计算当前的加班天数，区分假期加班和正常加班
+        let holidayOvertimeDays = 0;
+        let normalOvertimeDays = 0;
+        
         if (Array.isArray(data.overtime_records)) {
             data.overtime_records.forEach(record => {
                 const hours = (record.hours || 0) + (record.minutes || 0) / 60;
-                totalOvertimeDays += hours / 24;
+                const overtimeDays = hours / 24;
+                
+                // 检查该日期是否有休息或请假记录，或者是否为法定节假日
+                let isHolidayOvertime = false;
+                const overtimeDate = record.date;
+                
+                // 方法1：检查是否有考勤记录
+                ['rest_records', 'leave_records'].forEach(key => {
+                    if (Array.isArray(data[key])) {
+                        data[key].forEach(otherRecord => {
+                            if (otherRecord.date === overtimeDate) {
+                                isHolidayOvertime = true;
+                            }
+                        });
+                    }
+                });
+                
+                // 方法2：检查是否为法定节假日
+                if (!isHolidayOvertime) {
+                    const overtimeDateObj = parseISO(overtimeDate);
+                    const holidayLabel = getHolidayLabel(overtimeDateObj);
+                    if (holidayLabel && holidayLabel.type === 'holiday') {
+                        isHolidayOvertime = true;
+                    }
+                }
+                
+                if (isHolidayOvertime) {
+                    holidayOvertimeDays += overtimeDays;
+                } else {
+                    normalOvertimeDays += overtimeDays;
+                }
             });
         }
         
         // 计算有效天数（合同范围内的天数）
         const validDaysCount = monthDays.filter(day => !isDateDisabled(day)).length;
         
-        // 出勤天数 = 有效天数 - 请假天数 - 加班天数
-        const currentWorkDays = validDaysCount - totalLeaveDays - totalOvertimeDays;
+        // 【修复】出勤天数 = 有效天数 - 正常加班天数
+        // 注意：假期也算出勤，不扣除
+        const currentWorkDays = validDaysCount - normalOvertimeDays;
         
         // 如果出勤天数 <= 26，不需要处理
         if (currentWorkDays <= MAX_WORK_DAYS) {
@@ -1408,12 +1433,13 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
     if (!formData) return <div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="text-center"><AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" /><h2 className="text-xl font-bold">无法加载考勤表</h2></div></div>;
 
     // Stats - Calculate total days for each category (with 3 decimal places)
-    let totalWorkDays = 0; // 出勤天数（包括正常、出京、出境、带薪休假，不包括加班）
+    let totalWorkDays = 0; // 出勤天数（包括正常、出京、出境、带薪休假、假期，不包括正常加班）
     let totalLeaveDays = 0; // 请假或休假天数（休息、请假，不含带薪休假）
     let totalOvertimeDays = 0; // 加班天数（单独统计）
 
     // Calculate leave days (rest, leave) - 【修复】不包含带薪休假
-    // 根据需求文档：出勤天数(含带薪休假、出京、出境) = 当月总天数 - 请假天数 - 休息天数
+    // 【重要】注意：这里的 rest_records 和 leave_records 实际上是"假期"，也算出勤！
+    // 所以不应该从出勤中扣除，只是用于统计显示
     ['rest_records', 'leave_records'].forEach(key => {
         if (Array.isArray(attendanceData[key])) {
             attendanceData[key].forEach(record => {
@@ -1423,13 +1449,48 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
         }
     });
 
-    // Calculate overtime days separately
+    // 【修复】计算加班天数，区分假期加班和正常加班
+    let holidayOvertimeDays = 0; // 假期加班天数（假期+加班，算出勤+加班）
+    let normalOvertimeDays = 0;  // 正常加班天数（只算加班，不算出勤）
+    
     if (Array.isArray(attendanceData.overtime_records)) {
         attendanceData.overtime_records.forEach(record => {
             const hours = (record.hours || 0) + (record.minutes || 0) / 60;
-            totalOvertimeDays += hours / 24;
+            const overtimeDays = hours / 24;
+            
+            // 检查加班日期是否有其他类型的记录（休息、请假等）或者是否为法定节假日
+            const overtimeDate = record.date;
+            let isHolidayOvertime = false;
+            
+            // 方法1：检查该日期是否有休息或请假记录
+            ['rest_records', 'leave_records'].forEach(key => {
+                if (Array.isArray(attendanceData[key])) {
+                    attendanceData[key].forEach(otherRecord => {
+                        if (otherRecord.date === overtimeDate) {
+                            isHolidayOvertime = true;
+                        }
+                    });
+                }
+            });
+            
+            // 方法2：检查是否为法定节假日
+            if (!isHolidayOvertime) {
+                const overtimeDateObj = parseISO(overtimeDate);
+                const holidayLabel = getHolidayLabel(overtimeDateObj);
+                if (holidayLabel && holidayLabel.type === 'holiday') {
+                    isHolidayOvertime = true;
+                }
+            }
+            
+            if (isHolidayOvertime) {
+                holidayOvertimeDays += overtimeDays;
+            } else {
+                normalOvertimeDays += overtimeDays;
+            }
         });
     }
+    
+    totalOvertimeDays = holidayOvertimeDays + normalOvertimeDays;
 
     // 【新增】计算上户天数（上户当月，上户日不计入出勤天数，按整天扣除；下户当月，下户日计作1整天出勤）
     // 上户：无论几点到达，上户日都不算出勤，扣除整整1天
@@ -1472,13 +1533,15 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
         }
     }
 
-    // Work days (基本劳务天数) = valid days - leave days - overtime days - onboarding days + offboarding adjustment
-    // 【重要】只有"出勤"才算出勤天数，加班不计算在出勤天数中
+    // Work days (基本劳务天数) = valid days - normal overtime days - onboarding days + offboarding adjustment
+    // 【关键修复】假期（rest/leave）也算出勤，不应该扣除！
+    // 【重要】只有"正常加班"不算出勤，需要扣除；假期、假期加班都算出勤
     // 带薪休假、出京、出境都算作出勤天数，不需要扣除
     // 【新增】上户不计算出勤天数，需要扣除；下户月需要加上调整量
-    // 公式：出勤天数 = 当月总天数 - 休息天数 - 请假天数 - 加班天数 - 上户天数 + 下户调整
+    // 公式：出勤天数 = 当月总天数 - 正常加班天数 - 上户天数 + 下户调整
+    // 注意：假期（rest/leave）不扣除，因为假期也算出勤！
     const validDaysCount = monthDays.filter(day => !isDateDisabled(day)).length;
-    totalWorkDays = validDaysCount - totalLeaveDays - totalOvertimeDays - totalOnboardingDays + offboardingAdjustment;
+    totalWorkDays = validDaysCount - normalOvertimeDays - totalOnboardingDays + offboardingAdjustment;
 
     return (
         <div className="min-h-screen bg-slate-50 pb-48 font-sans">

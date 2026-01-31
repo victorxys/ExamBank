@@ -242,3 +242,6 @@ analyze_jinshuju_types_v2.py
 
 # 软件著作权申请文档
 software-copyright-docs/
+
+debug*
+*.md
