@@ -714,10 +714,57 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
         Object.keys(attendanceData).forEach(key => {
             if (key.endsWith('_records') && Array.isArray(attendanceData[key])) {
                 attendanceData[key].forEach(record => {
+                    // 【关键修复】计算当前月份内的实际天数
+                    const recordStartDate = parseISO(record.date);
+                    const daysOffset = record.daysOffset || 0;
+                    const recordEndDate = addDays(recordStartDate, daysOffset);
+                    
+                    // 当前月份的开始和结束日期
+                    const cycleStartDate = parseISO(formData.cycle_start_date);
+                    const cycleEndDate = parseISO(formData.cycle_end_date);
+                    
+                    // 计算记录在当前月份内的实际天数
+                    const actualStartDate = recordStartDate < cycleStartDate ? cycleStartDate : recordStartDate;
+                    const actualEndDate = recordEndDate > cycleEndDate ? cycleEndDate : recordEndDate;
+                    
+                    // 如果记录完全不在当前月份内，跳过
+                    if (actualStartDate > cycleEndDate || actualEndDate < cycleStartDate) {
+                        return;
+                    }
+                    
+                    // 计算当前月份内的天数
+                    const daysInCurrentMonth = differenceInDays(actualEndDate, actualStartDate) + 1;
+                    
+                    // 计算当前月份内的小时数
+                    let hoursInCurrentMonth = 0;
+                    let minutesInCurrentMonth = 0;
+                    
+                    if (daysOffset === 0) {
+                        // 单天记录，直接使用原始时长
+                        hoursInCurrentMonth = record.hours || 0;
+                        minutesInCurrentMonth = record.minutes || 0;
+                    } else {
+                        // 跨天记录，按天数比例计算
+                        const totalHours = daysInCurrentMonth * 24;
+                        hoursInCurrentMonth = Math.floor(totalHours);
+                        minutesInCurrentMonth = Math.round((totalHours % 1) * 60);
+                    }
+                    
                     allRecords.push({
                         ...record,
                         type: record.type || key.replace('_records', ''),
-                        typeLabel: ATTENDANCE_TYPES[Object.keys(ATTENDANCE_TYPES).find(k => ATTENDANCE_TYPES[k].value === (record.type || key.replace('_records', '')))]?.label
+                        typeLabel: ATTENDANCE_TYPES[Object.keys(ATTENDANCE_TYPES).find(k => ATTENDANCE_TYPES[k].value === (record.type || key.replace('_records', '')))]?.label,
+                        // 【关键】使用当前月份内的时长
+                        hours: hoursInCurrentMonth,
+                        minutes: minutesInCurrentMonth,
+                        // 保存原始数据用于其他用途
+                        originalHours: record.hours,
+                        originalMinutes: record.minutes,
+                        originalDaysOffset: record.daysOffset,
+                        // 添加当前月份内的实际日期范围（用于显示）
+                        displayStartDate: format(actualStartDate, 'yyyy-MM-dd'),
+                        displayEndDate: format(actualEndDate, 'yyyy-MM-dd'),
+                        daysInCurrentMonth: daysInCurrentMonth
                     });
                 });
             }
@@ -728,7 +775,7 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
         
         // 按日期排序
         return deduplicatedRecords.sort((a, b) => new Date(a.date) - new Date(b.date));
-    }, [attendanceData]);
+    }, [attendanceData, formData]);
     
     const getDayRecord = useCallback((date) => {
         const dateStr = format(date, 'yyyy-MM-dd');
@@ -1193,13 +1240,42 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
         // 只需要计算正常加班天数
         
         // 【修复】计算当前的加班天数，区分假期加班和正常加班
+        // 【关键】对于跨月记录，只计算当前月份内的天数
         let holidayOvertimeDays = 0;
         let normalOvertimeDays = 0;
         
         if (Array.isArray(data.overtime_records)) {
             data.overtime_records.forEach(record => {
-                const hours = (record.hours || 0) + (record.minutes || 0) / 60;
-                const overtimeDays = hours / 24;
+                // 【关键修复】计算当前月份内的实际天数
+                const recordStartDate = parseISO(record.date);
+                const daysOffset = record.daysOffset || 0;
+                const recordEndDate = addDays(recordStartDate, daysOffset);
+                
+                // 当前月份的开始和结束日期
+                const cycleStartDate = monthDays[0];
+                const cycleEndDate = monthDays[monthDays.length - 1];
+                
+                // 计算记录在当前月份内的实际天数
+                const actualStartDate = recordStartDate < cycleStartDate ? cycleStartDate : recordStartDate;
+                const actualEndDate = recordEndDate > cycleEndDate ? cycleEndDate : recordEndDate;
+                
+                // 如果记录完全不在当前月份内，跳过
+                if (actualStartDate > cycleEndDate || actualEndDate < cycleStartDate) {
+                    return;
+                }
+                
+                // 计算当前月份内的天数
+                const daysInCurrentMonth = differenceInDays(actualEndDate, actualStartDate) + 1;
+                
+                // 计算当前月份内的小时数
+                let hoursInCurrentMonth = 0;
+                if (daysOffset === 0) {
+                    hoursInCurrentMonth = (record.hours || 0) + (record.minutes || 0) / 60;
+                } else {
+                    hoursInCurrentMonth = daysInCurrentMonth * 24;
+                }
+                
+                const overtimeDays = hoursInCurrentMonth / 24;
                 
                 // 检查该日期是否有休息或请假记录，或者是否为法定节假日
                 let isHolidayOvertime = false;
@@ -1438,25 +1514,87 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
     let totalOvertimeDays = 0; // 加班天数（单独统计）
 
     // Calculate leave days (rest, leave) - 【修复】不包含带薪休假
-    // 【重要】注意：这里的 rest_records 和 leave_records 实际上是"假期"，也算出勤！
-    // 所以不应该从出勤中扣除，只是用于统计显示
+    // 【关键修复】休息和请假不算出勤，需要从出勤天数中扣除
+    // 【关键】对于跨月记录，只计算当前月份内的天数
     ['rest_records', 'leave_records'].forEach(key => {
         if (Array.isArray(attendanceData[key])) {
             attendanceData[key].forEach(record => {
-                const hours = (record.hours || 0) + (record.minutes || 0) / 60;
-                totalLeaveDays += hours / 24;
+                // 【关键修复】计算当前月份内的实际天数
+                const recordStartDate = parseISO(record.date);
+                const daysOffset = record.daysOffset || 0;
+                const recordEndDate = addDays(recordStartDate, daysOffset);
+                
+                // 当前月份的开始和结束日期
+                const cycleStartDate = parseISO(formData.cycle_start_date);
+                const cycleEndDate = parseISO(formData.cycle_end_date);
+                
+                // 计算记录在当前月份内的实际天数
+                const actualStartDate = recordStartDate < cycleStartDate ? cycleStartDate : recordStartDate;
+                const actualEndDate = recordEndDate > cycleEndDate ? cycleEndDate : recordEndDate;
+                
+                // 如果记录完全不在当前月份内，跳过
+                if (actualStartDate > cycleEndDate || actualEndDate < cycleStartDate) {
+                    return;
+                }
+                
+                // 计算当前月份内的天数
+                const daysInCurrentMonth = differenceInDays(actualEndDate, actualStartDate) + 1;
+                
+                // 计算当前月份内的小时数
+                let hoursInCurrentMonth = 0;
+                if (daysOffset === 0) {
+                    // 单天记录，直接使用原始时长
+                    hoursInCurrentMonth = (record.hours || 0) + (record.minutes || 0) / 60;
+                } else {
+                    // 跨天记录，按天数比例计算
+                    hoursInCurrentMonth = daysInCurrentMonth * 24;
+                }
+                
+                totalLeaveDays += hoursInCurrentMonth / 24;
             });
         }
     });
 
     // 【修复】计算加班天数，区分假期加班和正常加班
+    // 【关键】对于跨月记录，只计算当前月份内的天数
     let holidayOvertimeDays = 0; // 假期加班天数（假期+加班，算出勤+加班）
     let normalOvertimeDays = 0;  // 正常加班天数（只算加班，不算出勤）
     
     if (Array.isArray(attendanceData.overtime_records)) {
         attendanceData.overtime_records.forEach(record => {
-            const hours = (record.hours || 0) + (record.minutes || 0) / 60;
-            const overtimeDays = hours / 24;
+            // 【关键修复】计算当前月份内的实际天数
+            const recordStartDate = parseISO(record.date);
+            const daysOffset = record.daysOffset || 0;
+            const recordEndDate = addDays(recordStartDate, daysOffset);
+            
+            // 当前月份的开始和结束日期
+            const cycleStartDate = parseISO(formData.cycle_start_date);
+            const cycleEndDate = parseISO(formData.cycle_end_date);
+            
+            // 计算记录在当前月份内的实际天数
+            const actualStartDate = recordStartDate < cycleStartDate ? cycleStartDate : recordStartDate;
+            const actualEndDate = recordEndDate > cycleEndDate ? cycleEndDate : recordEndDate;
+            
+            // 如果记录完全不在当前月份内，跳过
+            if (actualStartDate > cycleEndDate || actualEndDate < cycleStartDate) {
+                return;
+            }
+            
+            // 计算当前月份内的天数（包括开始和结束日期）
+            const daysInCurrentMonth = differenceInDays(actualEndDate, actualStartDate) + 1;
+            
+            // 计算当前月份内的小时数
+            let hoursInCurrentMonth = 0;
+            if (daysOffset === 0) {
+                // 单天记录，直接使用原始时长
+                hoursInCurrentMonth = (record.hours || 0) + (record.minutes || 0) / 60;
+            } else {
+                // 跨天记录，按天数比例计算
+                // 假设每天24小时均匀分布
+                hoursInCurrentMonth = daysInCurrentMonth * 24;
+            }
+            
+            const overtimeDays = hoursInCurrentMonth / 24;
             
             // 检查加班日期是否有其他类型的记录（休息、请假等）或者是否为法定节假日
             const overtimeDate = record.date;
@@ -1533,15 +1671,14 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
         }
     }
 
-    // Work days (基本劳务天数) = valid days - normal overtime days - onboarding days + offboarding adjustment
-    // 【关键修复】假期（rest/leave）也算出勤，不应该扣除！
-    // 【重要】只有"正常加班"不算出勤，需要扣除；假期、假期加班都算出勤
+    // Work days (基本劳务天数) = valid days - normal overtime days - onboarding days + offboarding adjustment - leave days
+    // 【关键修复】休息和请假不算出勤，需要扣除！
+    // 【重要】只有"正常加班"不算出勤，需要扣除；假期加班算出勤
     // 带薪休假、出京、出境都算作出勤天数，不需要扣除
     // 【新增】上户不计算出勤天数，需要扣除；下户月需要加上调整量
-    // 公式：出勤天数 = 当月总天数 - 正常加班天数 - 上户天数 + 下户调整
-    // 注意：假期（rest/leave）不扣除，因为假期也算出勤！
+    // 公式：出勤天数 = 当月总天数 - 正常加班天数 - 上户天数 + 下户调整 - 休息天数 - 请假天数
     const validDaysCount = monthDays.filter(day => !isDateDisabled(day)).length;
-    totalWorkDays = validDaysCount - normalOvertimeDays - totalOnboardingDays + offboardingAdjustment;
+    totalWorkDays = validDaysCount - normalOvertimeDays - totalOnboardingDays + offboardingAdjustment - totalLeaveDays;
 
     return (
         <div className="min-h-screen bg-slate-50 pb-48 font-sans">
@@ -1893,19 +2030,13 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                     const isWeekend = date.getDay() === 0 || date.getDay() === 6;
                                     const isOnboardingOrOffboarding = ['onboarding', 'offboarding'].includes(record.type);
 
-                                    // 计算结束日期和时间显示字符串
-                                    const startDate = new Date(record.date);
-
-                                    // 使用记录中的 daysOffset，但需要修正一个特殊情况：
-                                    // 当 hours=24, daysOffset=1 时，实际上是单天 00:00~24:00，应该显示为同一天
-                                    let daysOffset = record.daysOffset || 0;
-                                    const totalHours = (record.hours || 0) + (record.minutes || 0) / 60;
-                                    if (daysOffset === 1 && totalHours === 24 && record.startTime === '00:00' && record.endTime === '24:00') {
-                                        daysOffset = 0; // 修正为单天
-                                    }
-
-                                    const endDate = new Date(startDate);
-                                    endDate.setDate(startDate.getDate() + daysOffset);
+                                    // 【关键修复】使用当前月份内的实际日期范围
+                                    const startDate = record.displayStartDate ? parseISO(record.displayStartDate) : new Date(record.date);
+                                    const endDate = record.displayEndDate ? parseISO(record.displayEndDate) : new Date(record.date);
+                                    
+                                    // 计算当前月份内的实际天数偏移
+                                    const daysInCurrentMonth = record.daysInCurrentMonth || 1;
+                                    const actualDaysOffset = daysInCurrentMonth - 1;
 
                                     let timeRangeStr = '';
                                     // 上户/下户：不使用默认时间，未填写时显示"待填写"
@@ -1917,8 +2048,8 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                         // 下户：显示离开时间（endTime）
                                         const displayTime = record.type === 'offboarding' ? endTime : startTime;
                                         timeRangeStr = `${format(startDate, 'M月d日')} ${displayTime || '待填写'}`;
-                                    } else if (daysOffset > 0) {
-                                        // 跨天：显示完整起止时间
+                                    } else if (actualDaysOffset > 0) {
+                                        // 跨天：显示当前月份内的起止时间
                                         timeRangeStr = `${format(startDate, 'M月d日')} ${startTime} ~ ${format(endDate, 'M月d日')} ${endTime}`;
                                     } else {
                                         // 单天：只显示时间范围

@@ -1295,8 +1295,7 @@ def _calculate_pdf_stats(data, start_date, end_date):
     total_leave = 0
     total_overtime = 0
     
-    # 【关键】假期（rest/leave）也算出勤，不需要计算请假天数
-    # 这里的 total_leave 只是用于显示，不影响出勤计算
+    # 【关键修复】休息和请假不算出勤，需要计算并扣除
     for key in ['rest_records', 'leave_records']:
         for record in data.get(key, []):
             hours = (record.get('hours', 0)) + (record.get('minutes', 0) / 60)
@@ -1330,10 +1329,10 @@ def _calculate_pdf_stats(data, start_date, end_date):
     total_overtime = holiday_overtime + normal_overtime
     
     # 【关键修复】计算出勤天数
-    # 假期也算出勤，不扣除！只扣除正常加班天数
-    # 公式：出勤天数 = 当月总天数 - 正常加班天数
+    # 休息和请假不算出勤，需要扣除！
+    # 公式：出勤天数 = 当月总天数 - 正常加班天数 - 休息天数 - 请假天数
     days_count = (end_date - start_date).days + 1
-    total_work = days_count - normal_overtime
+    total_work = days_count - normal_overtime - total_leave
     
     return {
         'work_days': total_work,
