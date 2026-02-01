@@ -494,7 +494,25 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
     const [outOfBeijingCalendarOpen, setOutOfBeijingCalendarOpen] = useState(false);
 
     // 节假日数据
-    const { getHolidayLabel, loading: holidaysLoading } = useHolidays(selectedYear);
+    // 【修复】如果 selectedYear 为 null，从 formData 中提取年份
+    const effectiveYear = selectedYear || (formData?.cycle_start_date ? parseISO(formData.cycle_start_date).getFullYear() : null);
+    const { getHolidayLabel, loading: holidaysLoading } = useHolidays(effectiveYear);
+    
+    // 【调试】打印节假日数据加载状态
+    useEffect(() => {
+        console.log('=== 节假日数据调试 ===');
+        console.log('selectedYear:', selectedYear);
+        console.log('effectiveYear:', effectiveYear);
+        console.log('formData?.cycle_start_date:', formData?.cycle_start_date);
+        console.log('holidaysLoading:', holidaysLoading);
+        console.log('getHolidayLabel:', typeof getHolidayLabel);
+        if (effectiveYear && getHolidayLabel) {
+            const testDate = new Date(effectiveYear, 0, 1); // 1月1日
+            const testLabel = getHolidayLabel(testDate);
+            console.log('测试1月1日:', testLabel);
+        }
+        console.log('====================');
+    }, [selectedYear, effectiveYear, formData?.cycle_start_date, holidaysLoading, getHolidayLabel]);
 
     // Auto-save effect (only for employee mode, draft/confirmed status, and NOT historical view)
     useEffect(() => {
@@ -1236,8 +1254,46 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
     const autoConvertOvertimeIfNeeded = (data) => {
         const MAX_WORK_DAYS = 26;
         
-        // 【关键】假期也算出勤，不需要计算请假天数
-        // 只需要计算正常加班天数
+        // 【关键修复】法定节假日算出勤（带薪假期），休息和请假不算出勤
+        
+        // 1. 计算休息和请假天数
+        let totalLeaveDays = 0;
+        ['rest_records', 'leave_records'].forEach(key => {
+            if (Array.isArray(data[key])) {
+                data[key].forEach(record => {
+                    // 【关键修复】计算当前月份内的实际天数
+                    const recordStartDate = parseISO(record.date);
+                    const daysOffset = record.daysOffset || 0;
+                    const recordEndDate = addDays(recordStartDate, daysOffset);
+                    
+                    // 当前月份的开始和结束日期
+                    const cycleStartDate = monthDays[0];
+                    const cycleEndDate = monthDays[monthDays.length - 1];
+                    
+                    // 计算记录在当前月份内的实际天数
+                    const actualStartDate = recordStartDate < cycleStartDate ? cycleStartDate : recordStartDate;
+                    const actualEndDate = recordEndDate > cycleEndDate ? cycleEndDate : recordEndDate;
+                    
+                    // 如果记录完全不在当前月份内，跳过
+                    if (actualStartDate > cycleEndDate || actualEndDate < cycleStartDate) {
+                        return;
+                    }
+                    
+                    // 计算当前月份内的天数
+                    const daysInCurrentMonth = differenceInDays(actualEndDate, actualStartDate) + 1;
+                    
+                    // 计算当前月份内的小时数
+                    let hoursInCurrentMonth = 0;
+                    if (daysOffset === 0) {
+                        hoursInCurrentMonth = (record.hours || 0) + (record.minutes || 0) / 60;
+                    } else {
+                        hoursInCurrentMonth = daysInCurrentMonth * 24;
+                    }
+                    
+                    totalLeaveDays += hoursInCurrentMonth / 24;
+                });
+            }
+        });
         
         // 【修复】计算当前的加班天数，区分假期加班和正常加班
         // 【关键】对于跨月记录，只计算当前月份内的天数
@@ -1312,9 +1368,9 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
         // 计算有效天数（合同范围内的天数）
         const validDaysCount = monthDays.filter(day => !isDateDisabled(day)).length;
         
-        // 【修复】出勤天数 = 有效天数 - 正常加班天数
-        // 注意：假期也算出勤，不扣除
-        const currentWorkDays = validDaysCount - normalOvertimeDays;
+        // 【关键修复】出勤天数 = 有效天数 - 正常加班天数 - 休息天数 - 请假天数
+        // 法定节假日算出勤（带薪假期），不需要扣除
+        const currentWorkDays = validDaysCount - normalOvertimeDays - totalLeaveDays;
         
         // 如果出勤天数 <= 26，不需要处理
         if (currentWorkDays <= MAX_WORK_DAYS) {
@@ -1509,7 +1565,7 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
     if (!formData) return <div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="text-center"><AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" /><h2 className="text-xl font-bold">无法加载考勤表</h2></div></div>;
 
     // Stats - Calculate total days for each category (with 3 decimal places)
-    let totalWorkDays = 0; // 出勤天数（包括正常、出京、出境、带薪休假、假期，不包括正常加班）
+    let totalWorkDays = 0; // 出勤天数
     let totalLeaveDays = 0; // 请假或休假天数（休息、请假，不含带薪休假）
     let totalOvertimeDays = 0; // 加班天数（单独统计）
 
@@ -1672,7 +1728,7 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
     }
 
     // Work days (基本劳务天数) = valid days - normal overtime days - onboarding days + offboarding adjustment - leave days
-    // 【关键修复】休息和请假不算出勤，需要扣除！
+    // 【关键修复】法定节假日算出勤（带薪假期），休息和请假不算出勤
     // 【重要】只有"正常加班"不算出勤，需要扣除；假期加班算出勤
     // 带薪休假、出京、出境都算作出勤天数，不需要扣除
     // 【新增】上户不计算出勤天数，需要扣除；下户月需要加上调整量
@@ -1888,6 +1944,11 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                             const holidayLabel = getHolidayLabel(date);
                             const isHoliday = holidayLabel?.type === 'holiday';
                             const isWorkday = holidayLabel?.type === 'workday';
+                            
+                            // 【调试】打印法定节假日信息
+                            if (index < 5 && holidayLabel) {
+                                console.log(`日期 ${format(date, 'yyyy-MM-dd')}:`, holidayLabel);
+                            }
 
                             const isDisabled = isDateDisabled(date);
 
