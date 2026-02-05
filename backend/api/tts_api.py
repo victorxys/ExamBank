@@ -1892,20 +1892,65 @@ def export_training_materials(content_id):
         .first()
     )
     
+    # 获取最新的合并音频及其片段信息
+    latest_merged_audio = (
+        TtsAudio.query.filter_by(
+            training_content_id=content_id,
+            audio_type='merged_audio',
+            is_latest_for_content=True
+        )
+        .order_by(TtsAudio.created_at.desc())
+        .first()
+    )
+    
+    # 构建句子ID到时间戳的映射
+    sentence_to_timestamp = {}
+    if latest_merged_audio:
+        current_app.logger.info(f"[ExportMaterials] 找到最新合并音频: {latest_merged_audio.id}")
+        # 获取所有片段
+        segments = MergedAudioSegment.query.filter_by(
+            merged_audio_id=latest_merged_audio.id
+        ).order_by(MergedAudioSegment.original_order_index).all()
+        
+        current_app.logger.info(f"[ExportMaterials] 找到 {len(segments)} 个音频片段")
+        
+        for segment in segments:
+            if segment.tts_sentence_id:
+                sentence_to_timestamp[str(segment.tts_sentence_id)] = {
+                    'start_ms': segment.start_ms,
+                    'end_ms': segment.end_ms,
+                    'duration_ms': segment.duration_ms
+                }
+                current_app.logger.info(
+                    f"[ExportMaterials] 映射句子 {segment.tts_sentence_id} -> "
+                    f"{segment.start_ms}-{segment.end_ms}ms"
+                )
+    else:
+        current_app.logger.warning(f"[ExportMaterials] 没有找到合并音频，无法获取时间戳")
+    
+    current_app.logger.info(f"[ExportMaterials] 总共映射了 {len(sentence_to_timestamp)} 个句子到时间戳")
+    
     # 构建句子ID到图片路径的映射
     sentence_to_image = {}
+    
     if latest_synthesis and latest_synthesis.video_script_json:
         current_app.logger.info(f"[ExportMaterials] 视频合成任务ID: {latest_synthesis.id}")
         current_app.logger.info(f"[ExportMaterials] 句子数量: {len(sentences)}")
         
         video_script = latest_synthesis.video_script_json
+        current_app.logger.info(f"[ExportMaterials] video_script_json 类型: {type(video_script)}")
+        current_app.logger.info(f"[ExportMaterials] video_script_json 键: {list(video_script.keys()) if isinstance(video_script, dict) else 'Not a dict'}")
         
         # 处理两种可能的结构
         slides = []
         if isinstance(video_script, dict) and 'video_scripts' in video_script:
             slides = video_script['video_scripts']
+            current_app.logger.info(f"[ExportMaterials] 从 video_scripts 字段获取 slides")
         elif isinstance(video_script, list):
             slides = video_script
+            current_app.logger.info(f"[ExportMaterials] video_script 本身就是列表")
+        else:
+            current_app.logger.warning(f"[ExportMaterials] video_script 结构不符合预期")
         
         current_app.logger.info(f"[ExportMaterials] 找到 {len(slides)} 个 slides")
         
@@ -1922,7 +1967,9 @@ def export_training_materials(content_id):
         for slide_index, slide in enumerate(slides):
             current_app.logger.info(f"[ExportMaterials] 处理 slide {slide_index}: {slide.get('text', '')[:50]}...")
             current_app.logger.info(f"[ExportMaterials] slide 内容: {slide}")
+            current_app.logger.info(f"[ExportMaterials] slide 的所有键: {list(slide.keys())}")
             
+            # 提取图片路径
             if 'ppt_page' in slide:
                 ppt_page = slide['ppt_page']
                 current_app.logger.info(f"[ExportMaterials] slide {slide_index} 的 ppt_page: {ppt_page}")
@@ -1955,8 +2002,46 @@ def export_training_materials(content_id):
             slide_data = {
                 "text": sentence.sentence_text,
                 "audio_filename": None,
-                "image_filename": None
+                "image_filename": None,
+                "start": None,
+                "end": None
             }
+            
+            current_app.logger.info(f"[ExportMaterials] ========== 处理句子 {idx} ==========")
+            current_app.logger.info(f"[ExportMaterials] 句子ID: {sentence.id}")
+            current_app.logger.info(f"[ExportMaterials] 句子文本: {sentence.sentence_text[:50]}...")
+            current_app.logger.info(f"[ExportMaterials] 音频状态: {sentence.audio_status}")
+            
+            # 从 MergedAudioSegment 获取时间戳
+            sentence_id_str = str(sentence.id)
+            if sentence_id_str in sentence_to_timestamp:
+                timestamp_info = sentence_to_timestamp[sentence_id_str]
+                start_ms = timestamp_info['start_ms']
+                end_ms = timestamp_info['end_ms']
+                
+                # 转换为 SRT 格式：HH:MM:SS,mmm
+                def ms_to_srt_time(ms):
+                    hours = ms // 3600000
+                    ms %= 3600000
+                    minutes = ms // 60000
+                    ms %= 60000
+                    seconds = ms // 1000
+                    milliseconds = ms % 1000
+                    return f"{hours:02d}:{minutes:02d}:{seconds:02d},{milliseconds:03d}"
+                
+                start_time_str = ms_to_srt_time(start_ms)
+                end_time_str = ms_to_srt_time(end_ms)
+                slide_data["start"] = start_time_str
+                slide_data["end"] = end_time_str
+                
+                current_app.logger.info(
+                    f"[ExportMaterials] ✓ 句子 {idx} 时间戳: {start_time_str} --> {end_time_str} "
+                    f"({start_ms}-{end_ms}ms)"
+                )
+            else:
+                current_app.logger.warning(
+                    f"[ExportMaterials] ✗ 句子 {idx} 在 MergedAudioSegment 中没有找到时间戳"
+                )
             
             # 处理音频文件
             if sentence.audio_status == 'generated':
@@ -1971,7 +2056,6 @@ def export_training_materials(content_id):
                 )
                 
                 if latest_audio and latest_audio.file_path:
-                    # 获取音频文件的实际路径
                     audio_path = os.path.join(
                         current_app.config.get('TTS_AUDIO_FOLDER', 'backend/static/tts_audio'),
                         latest_audio.file_path
@@ -1994,6 +2078,11 @@ def export_training_materials(content_id):
                                 zf.writestr(f"assets/{audio_filename}", audio_file.read())
                         except Exception as e:
                             current_app.logger.warning(f"无法读取音频文件 {audio_path}: {e}")
+            else:
+                current_app.logger.warning(f"[ExportMaterials] ✗ 句子 {idx} 音频状态不是 generated: {sentence.audio_status}")
+            
+            current_app.logger.info(f"[ExportMaterials] 句子 {idx} 最终 slide_data: {slide_data}")
+            current_app.logger.info(f"[ExportMaterials] ========================================")
             
             # 处理图片文件（使用句子索引匹配）
             # idx 是从 1 开始的，所以 slide_index 应该是 idx - 1
