@@ -1824,6 +1824,232 @@ def get_merged_audio_segments_route(merged_audio_id):
     )
 
 
+@tts_bp.route("/training-contents/<uuid:content_id>/export-materials", methods=["GET"])
+@jwt_required()
+def export_training_materials(content_id):
+    """
+    导出培训内容的所有资料，包括句子文本、音频文件和图片（如果有）。
+    返回一个包含 manifest.json 和所有资源文件的 ZIP 压缩包。
+    """
+    import zipfile
+    import io
+    import json
+    from flask import send_file
+    
+    def detect_audio_extension(file_path):
+        """通过读取文件头来检测音频格式"""
+        try:
+            with open(file_path, 'rb') as f:
+                header = f.read(12)
+                
+            # MP3 文件通常以 ID3 或 0xFF 0xFB 开头
+            if header.startswith(b'ID3') or (len(header) >= 2 and header[0] == 0xFF and (header[1] & 0xE0) == 0xE0):
+                return '.mp3'
+            # WAV 文件以 RIFF 开头
+            elif header.startswith(b'RIFF') and b'WAVE' in header:
+                return '.wav'
+            # OGG 文件以 OggS 开头
+            elif header.startswith(b'OggS'):
+                return '.ogg'
+            # M4A/AAC 文件
+            elif b'ftyp' in header[:12]:
+                return '.m4a'
+            else:
+                # 默认返回 .mp3
+                return '.mp3'
+        except Exception:
+            return '.mp3'
+    
+    content = TrainingContent.query.get(str(content_id))
+    if not content:
+        return jsonify({"error": "培训内容未找到"}), 404
+    
+    # 获取最新的 final_tts_script
+    final_script = (
+        TtsScript.query.filter_by(
+            training_content_id=str(content_id),
+            script_type="final_tts_script"
+        )
+        .order_by(TtsScript.version.desc())
+        .first()
+    )
+    
+    if not final_script:
+        return jsonify({"error": "该内容还没有最终TTS脚本"}), 404
+    
+    # 获取所有句子
+    sentences = TtsSentence.query.filter_by(
+        tts_script_id=final_script.id
+    ).order_by(TtsSentence.order_index).all()
+    
+    if not sentences:
+        return jsonify({"error": "该内容没有可导出的句子"}), 404
+    
+    # 获取最新的视频合成任务（如果有）来获取图片映射
+    latest_synthesis = (
+        VideoSynthesis.query.filter_by(training_content_id=str(content_id))
+        .order_by(VideoSynthesis.created_at.desc())
+        .first()
+    )
+    
+    # 构建句子ID到图片路径的映射
+    sentence_to_image = {}
+    if latest_synthesis and latest_synthesis.video_script_json:
+        current_app.logger.info(f"[ExportMaterials] 视频合成任务ID: {latest_synthesis.id}")
+        current_app.logger.info(f"[ExportMaterials] 句子数量: {len(sentences)}")
+        
+        video_script = latest_synthesis.video_script_json
+        
+        # 处理两种可能的结构
+        slides = []
+        if isinstance(video_script, dict) and 'video_scripts' in video_script:
+            slides = video_script['video_scripts']
+        elif isinstance(video_script, list):
+            slides = video_script
+        
+        current_app.logger.info(f"[ExportMaterials] 找到 {len(slides)} 个 slides")
+        
+        # 检查 ppt_image_paths
+        if latest_synthesis.ppt_image_paths:
+            current_app.logger.info(f"[ExportMaterials] PPT图片路径数量: {len(latest_synthesis.ppt_image_paths)}")
+            current_app.logger.info(f"[ExportMaterials] PPT图片路径示例: {latest_synthesis.ppt_image_paths[:3] if len(latest_synthesis.ppt_image_paths) > 0 else 'None'}")
+        else:
+            current_app.logger.info(f"[ExportMaterials] 没有 ppt_image_paths")
+        
+        # 从 slides 中提取句子顺序和图片路径的映射
+        # video_scripts 中的每个 slide 对应一个句子，按顺序排列
+        # slide 中的 ppt_page 指向 ppt_image_paths 数组中的图片
+        for slide_index, slide in enumerate(slides):
+            current_app.logger.info(f"[ExportMaterials] 处理 slide {slide_index}: {slide.get('text', '')[:50]}...")
+            current_app.logger.info(f"[ExportMaterials] slide 内容: {slide}")
+            
+            if 'ppt_page' in slide:
+                ppt_page = slide['ppt_page']
+                current_app.logger.info(f"[ExportMaterials] slide {slide_index} 的 ppt_page: {ppt_page}")
+                
+                if latest_synthesis.ppt_image_paths and isinstance(latest_synthesis.ppt_image_paths, list):
+                    # ppt_page 是从 1 开始的，而数组索引是从 0 开始的
+                    if 0 < ppt_page <= len(latest_synthesis.ppt_image_paths):
+                        image_path = latest_synthesis.ppt_image_paths[ppt_page - 1]
+                        # 使用 slide_index 作为键，因为句子也是按顺序排列的
+                        sentence_to_image[slide_index] = image_path
+                        current_app.logger.info(f"[ExportMaterials] ✓ 映射 slide {slide_index} (PPT页{ppt_page}) -> {image_path}")
+                    else:
+                        current_app.logger.warning(f"[ExportMaterials] ✗ ppt_page {ppt_page} 超出范围 (1-{len(latest_synthesis.ppt_image_paths)})")
+                else:
+                    current_app.logger.warning(f"[ExportMaterials] ✗ ppt_image_paths 不存在或不是列表")
+            else:
+                current_app.logger.warning(f"[ExportMaterials] ✗ slide {slide_index} 没有 ppt_page 字段")
+        
+        current_app.logger.info(f"[ExportMaterials] 总共映射了 {len(sentence_to_image)} 个 slide 到图片")
+    
+    # 准备 manifest 数据
+    manifest_data = []
+    
+    # 创建内存中的 ZIP 文件
+    memory_file = io.BytesIO()
+    
+    with zipfile.ZipFile(memory_file, 'w', zipfile.ZIP_DEFLATED) as zf:
+        # 创建 assets 文件夹结构
+        for idx, sentence in enumerate(sentences, 1):
+            slide_data = {
+                "text": sentence.sentence_text,
+                "audio_filename": None,
+                "image_filename": None
+            }
+            
+            # 处理音频文件
+            if sentence.audio_status == 'generated':
+                # 获取最新的音频
+                latest_audio = (
+                    TtsAudio.query.filter_by(
+                        tts_sentence_id=sentence.id,
+                        audio_type='sentence_audio'
+                    )
+                    .order_by(TtsAudio.created_at.desc())
+                    .first()
+                )
+                
+                if latest_audio and latest_audio.file_path:
+                    # 获取音频文件的实际路径
+                    audio_path = os.path.join(
+                        current_app.config.get('TTS_AUDIO_FOLDER', 'backend/static/tts_audio'),
+                        latest_audio.file_path
+                    )
+                    
+                    if os.path.exists(audio_path):
+                        # 从数据库路径获取扩展名
+                        audio_ext = os.path.splitext(latest_audio.file_path)[1]
+                        
+                        # 如果数据库中没有扩展名，通过文件内容检测
+                        if not audio_ext or audio_ext == '.bin':
+                            audio_ext = detect_audio_extension(audio_path)
+                        
+                        audio_filename = f"audio_{idx}{audio_ext}"
+                        slide_data["audio_filename"] = audio_filename
+                        
+                        # 添加到 ZIP
+                        try:
+                            with open(audio_path, 'rb') as audio_file:
+                                zf.writestr(f"assets/{audio_filename}", audio_file.read())
+                        except Exception as e:
+                            current_app.logger.warning(f"无法读取音频文件 {audio_path}: {e}")
+            
+            # 处理图片文件（使用句子索引匹配）
+            # idx 是从 1 开始的，所以 slide_index 应该是 idx - 1
+            slide_index = idx - 1
+            if slide_index in sentence_to_image:
+                image_relative_path = sentence_to_image[slide_index]
+                
+                # 图片可能在 instance/uploads 或其他位置
+                # 尝试多个可能的路径
+                possible_paths = [
+                    os.path.join(current_app.config.get('UPLOAD_FOLDER', 'instance/uploads'), image_relative_path),
+                    image_relative_path,  # 如果是绝对路径
+                ]
+                
+                image_path = None
+                for path in possible_paths:
+                    if os.path.exists(path):
+                        image_path = path
+                        break
+                
+                if image_path and os.path.exists(image_path):
+                    # 生成新的文件名
+                    image_ext = os.path.splitext(image_relative_path)[1] or '.jpg'
+                    image_filename = f"image_{idx}{image_ext}"
+                    slide_data["image_filename"] = image_filename
+                    
+                    # 添加到 ZIP
+                    try:
+                        with open(image_path, 'rb') as image_file:
+                            zf.writestr(f"assets/{image_filename}", image_file.read())
+                        current_app.logger.info(f"[ExportMaterials] 成功添加图片: {image_filename} <- {image_relative_path}")
+                    except Exception as e:
+                        current_app.logger.warning(f"无法读取图片文件 {image_path}: {e}")
+                else:
+                    current_app.logger.warning(f"[ExportMaterials] 找不到图片文件: {image_relative_path}")
+            
+            manifest_data.append(slide_data)
+        
+        # 添加 manifest.json 到 ZIP
+        manifest_json = json.dumps(manifest_data, ensure_ascii=False, indent=2)
+        zf.writestr("manifest.json", manifest_json)
+    
+    # 重置文件指针到开始位置
+    memory_file.seek(0)
+    
+    # 生成下载文件名
+    download_filename = f"{content.content_name}_materials.zip"
+    
+    return send_file(
+        memory_file,
+        mimetype='application/zip',
+        as_attachment=True,
+        download_name=download_filename
+    )
+
+
 @tts_bp.route("/content/<uuid:content_id>/video-synthesis/latest", methods=["GET"])
 @jwt_required()  # 或者 @admin_required，根据您的权限设计
 def get_latest_synthesis_task_for_content(content_id):

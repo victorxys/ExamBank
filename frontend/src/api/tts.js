@@ -115,4 +115,11 @@ export const ttsApi = {
     });
   },
 
+  // 导出培训资料（音频、图片、manifest.json）
+  exportTrainingMaterials: (contentId) => {
+    return api.get(`/tts/training-contents/${contentId}/export-materials`, {
+      responseType: 'blob' // 重要：告诉 axios 这是二进制数据
+    });
+  },
+
 };

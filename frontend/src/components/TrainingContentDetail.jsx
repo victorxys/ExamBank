@@ -1305,6 +1305,39 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
     }
   };
 
+  // 新增：导出培训资料（音频、图片、manifest.json）
+  const handleExportMaterials = async () => {
+    if (!contentId) return;
+    
+    const loadingKey = `export_materials_${contentId}`;
+    setActionLoading(prev => ({ ...prev, [loadingKey]: true }));
+    
+    try {
+      const response = await ttsApi.exportTrainingMaterials(contentId);
+      
+      // 创建下载链接
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `${contentDetail?.content_name || 'training'}_materials.zip`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      
+      setAlert({ open: true, message: '资料导出成功！', severity: 'success' });
+    } catch (error) {
+      console.error('导出资料失败:', error);
+      setAlert({ 
+        open: true, 
+        message: `导出资料失败: ${error.response?.data?.error || error.message}`, 
+        severity: 'error' 
+      });
+    } finally {
+      setActionLoading(prev => ({ ...prev, [loadingKey]: false }));
+    }
+  };
+
   const handleExportSrt = () => {
     if (!contentDetail || !contentDetail.final_script_sentences || !contentDetail.latest_merged_audio?.segments) {
         setAlert({ open: true, message: '没有足够的数扰生成SRT文件。', severity: 'warning' });
@@ -2060,9 +2093,18 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
                                 href={contentDetail.latest_merged_audio.file_path.startsWith('http') ? contentDetail.latest_merged_audio.file_path : `${API_BASE_URL.replace('/api', '')}/media/tts_audio/${contentDetail.latest_merged_audio.file_path}`}
                                 download={`merged_audio_v${contentDetail.latest_merged_audio.version}.mp3`} // 假设是mp3
                                 startIcon={<DownloadIcon />}
-                                sx={{ml: 'auto'}}
                             >
                                 下载合并语音
+                            </Button>
+                            <Button 
+                                size="small" 
+                                variant="contained"
+                                color="secondary"
+                                onClick={handleExportMaterials}
+                                disabled={actionLoading[`export_materials_${contentId}`]}
+                                startIcon={actionLoading[`export_materials_${contentId}`] ? <CircularProgress size={16} color="inherit" /> : <CloudUploadIcon />}
+                            >
+                                {actionLoading[`export_materials_${contentId}`] ? '导出中...' : '导出资料'}
                             </Button>
                         </Box>
                     </Paper>
