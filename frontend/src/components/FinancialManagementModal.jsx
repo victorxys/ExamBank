@@ -114,6 +114,7 @@ const formatDate = (dateString) => {
 
 
 const formatValue = (key, value, calculationDetails) => { // 添加 calculationDetails 参数
+    // 【修复】不要把 "0" 或 "0.00" 当作空值
     if (value === null || value === undefined || value === '' || String(value).includes('待计算'))
         return <Box component="span" sx={{ color: 'text.disabled' }}>{value || '—'}</Box>;
 

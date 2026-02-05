@@ -32,7 +32,7 @@ def _fill_group_fields(group_fields, calc, field_keys, is_substitute_payroll=Fal
     for key in field_keys:
         if key in calc:
             label_map = {
-                "base_work_days": "基本劳务天数",
+                "base_work_days": "出勤天数",  # 修改：统一显示为"出勤天数"（从考勤表获取，默认从劳务时间段计算）
                 "overtime_days": "加班天数",
                 "total_days_worked": "总劳务天数",
                 "substitute_days": "被替班天数",

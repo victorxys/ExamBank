@@ -889,10 +889,10 @@ class BillingEngine:
             cycle_actual_days = (cycle_end - cycle_start).days
         
         # --- NEW LOGIC for actual_work_days ---
-        # 优先使用从API传入的覆盖值
+        # 优先使用从API传入的覆盖值（来自考勤表）
         if actual_work_days_override is not None:
             base_work_days = D(actual_work_days_override)
-            reason_parts = [f"使用用户传入的实际劳务天数 ( {actual_work_days_override:.3f})"]
+            reason_parts = [f"使用考勤表中的出勤天数: {actual_work_days_override:.3f}天"]
             
             # 【新增】如果有上户/下户时间信息，添加到reason中
             if attendance and attendance.attendance_details:
@@ -914,11 +914,11 @@ class BillingEngine:
             payroll.actual_work_days = actual_work_days_override
         elif bill.actual_work_days and bill.actual_work_days > 0:
             base_work_days = D(bill.actual_work_days)
-            log_extras["base_work_days_reason"] = f"使用数据库中已存的实际劳务天数 ( {bill.actual_work_days})"
+            log_extras["base_work_days_reason"] = f"使用数据库中已存的出勤天数: {bill.actual_work_days}天"
         else:
-            # 回退到旧的计算逻辑
+            # 回退到旧的计算逻辑（从劳务时间段自动计算）
             base_work_days = D(min(cycle_actual_days, 26))
-            log_extras["base_work_days_reason"] = f"默认逻辑: min(周期天数( {cycle_actual_days}), 26)"
+            log_extras["base_work_days_reason"] = f"默认逻辑（从劳务时间段计算）: min(周期天数({cycle_actual_days}), 26)"
         # --- END NEW LOGIC ---
         
         # total_days_worked = base_work_days + overtime_days - D(total_substitute_days)

@@ -352,7 +352,7 @@ def sync_attendance_to_record(attendance_form_id):
     year = form.cycle_start_date.year
     month = form.cycle_start_date.month
     
-    current_app.logger.info(f"[ATTENDANCE_SYNC] 准备触发账单重算: contract_id={form.contract_id}, year={year}, month={month}, 出勤天数={total_days_worked}")
+    current_app.logger.info(f"[ATTENDANCE_SYNC] 准备触发账单重算: contract_id={form.contract_id}, year={year}, month={month}, 出勤天数={total_days_worked}天")
     
     # 注意: calculate_for_month 是同步还是异步? 
     # 如果是耗时操作，建议异步。但在 sync_service 中，我们可能希望立即看到结果?
@@ -361,7 +361,7 @@ def sync_attendance_to_record(attendance_form_id):
     # 为了简化，直接调用 Engine，因为这是由用户提交触发的单一操作。
     try:
         engine = BillingEngine()
-        # 【关键修复】传入出勤天数（合同有效天数 - 休息 - 请假）
+        # 【关键修复】传入出勤天数（合同有效天数 - 休息 - 请假 - 上户 + 下户调整）
         # billing_engine 中的 actual_work_days_override 用于设置 base_work_days（基本劳务天数）
         # 基本劳务天数 = 出勤天数（不含加班），加班天数通过 AttendanceRecord.overtime_days 单独计算
         engine.calculate_for_month(
@@ -369,11 +369,11 @@ def sync_attendance_to_record(attendance_form_id):
             month, 
             contract_id=form.contract_id, 
             force_recalculate=True,
-            actual_work_days_override=float(total_days_worked)  # 传入出勤天数（合同有效天数 - 休息 - 请假）
+            actual_work_days_override=float(total_days_worked)  # 传入出勤天数（从考勤表计算）
         )
         # 【关键修复】显式提交事务，确保账单更新保存到数据库
         db.session.commit()
-        current_app.logger.info(f"[ATTENDANCE_SYNC] 账单重算完成并已提交，使用出勤天数: {total_days_worked}")
+        current_app.logger.info(f"[ATTENDANCE_SYNC] 账单重算完成并已提交，使用出勤天数: {total_days_worked}天")
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"[ATTENDANCE_SYNC] 账单重算失败: {str(e)}", exc_info=True)

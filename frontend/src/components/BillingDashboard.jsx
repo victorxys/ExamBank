@@ -55,6 +55,7 @@ const formatDate = (dateString) => {
 };
 
 const formatValue = (key, value) => {
+    // 【修复】不要把 "0" 或 "0.00" 当作空值
     if (value === null || value === undefined || value === '' || String(value).includes('待计算'))
         return <Box component="span" sx={{ color: 'text.disabled' }}>{value || '—'}</Box>;
 
@@ -1113,7 +1114,9 @@ const BillingDashboard = () => {
                                 <Tooltip title="客户应付款 / 支付状态">
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                         <Typography sx={{ fontWeight: 'bold', color: 'error.main', width: '100px' }}>
-                                            {bill.customer_payable ? `¥${bill.customer_payable}` : '待计算'}
+                                            {bill.customer_payable !== null && bill.customer_payable !== undefined && bill.customer_payable !== '' 
+                                                ? `¥${bill.customer_payable}` 
+                                                : '待计算'}
                                         </Typography>
                                         {/* --- 修改这里的逻辑 --- */}
                                         {bill.is_deferred ? (
@@ -1131,7 +1134,9 @@ const BillingDashboard = () => {
                                 <Tooltip title="员工应领款 / 领款状态">
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                         <Typography sx={{ fontWeight: 'bold', color: 'success.main', width: '100px' }}>
-                                            {bill.employee_payout ? `¥${bill.employee_payout}` : '待计算'}
+                                            {bill.employee_payout !== null && bill.employee_payout !== undefined && bill.employee_payout !== '' 
+                                                ? `¥${bill.employee_payout}` 
+                                                : '待计算'}
                                         </Typography>
                                         {bill.employee_is_paid === true && <CheckCircleIcon color="success" fontSize="small" />}
                                         {bill.employee_is_paid === false && <HighlightOffIcon color="disabled" fontSize="small" />}
