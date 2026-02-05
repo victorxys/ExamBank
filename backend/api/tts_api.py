@@ -1935,11 +1935,9 @@ def export_training_materials(content_id):
     
     if latest_synthesis and latest_synthesis.video_script_json:
         current_app.logger.info(f"[ExportMaterials] 视频合成任务ID: {latest_synthesis.id}")
-        current_app.logger.info(f"[ExportMaterials] 句子数量: {len(sentences)}")
         
         video_script = latest_synthesis.video_script_json
         current_app.logger.info(f"[ExportMaterials] video_script_json 类型: {type(video_script)}")
-        current_app.logger.info(f"[ExportMaterials] video_script_json 键: {list(video_script.keys()) if isinstance(video_script, dict) else 'Not a dict'}")
         
         # 处理两种可能的结构
         slides = []
@@ -1949,52 +1947,74 @@ def export_training_materials(content_id):
         elif isinstance(video_script, list):
             slides = video_script
             current_app.logger.info(f"[ExportMaterials] video_script 本身就是列表")
-        else:
-            current_app.logger.warning(f"[ExportMaterials] video_script 结构不符合预期")
         
         current_app.logger.info(f"[ExportMaterials] 找到 {len(slides)} 个 slides")
         
         # 检查 ppt_image_paths
         if latest_synthesis.ppt_image_paths:
             current_app.logger.info(f"[ExportMaterials] PPT图片路径数量: {len(latest_synthesis.ppt_image_paths)}")
-            current_app.logger.info(f"[ExportMaterials] PPT图片路径示例: {latest_synthesis.ppt_image_paths[:3] if len(latest_synthesis.ppt_image_paths) > 0 else 'None'}")
-        else:
-            current_app.logger.info(f"[ExportMaterials] 没有 ppt_image_paths")
         
-        # 从 slides 中提取句子顺序和图片路径的映射
-        # video_scripts 中的每个 slide 对应一个句子，按顺序排列
-        # slide 中的 ppt_page 指向 ppt_image_paths 数组中的图片
-        for slide_index, slide in enumerate(slides):
-            current_app.logger.info(f"[ExportMaterials] 处理 slide {slide_index}: {slide.get('text', '')[:50]}...")
-            current_app.logger.info(f"[ExportMaterials] slide 内容: {slide}")
-            current_app.logger.info(f"[ExportMaterials] slide 的所有键: {list(slide.keys())}")
+        # 从 slides 中提取图片映射关系
+        # 每个 slide 有 ppt_page 和 time_range
+        # 我们需要找出每个句子的时间戳落在哪个 slide 的 time_range 内
+        for slide in slides:
+            if 'ppt_page' not in slide or 'time_range' not in slide:
+                continue
             
-            # 提取图片路径
-            if 'ppt_page' in slide:
-                ppt_page = slide['ppt_page']
-                current_app.logger.info(f"[ExportMaterials] slide {slide_index} 的 ppt_page: {ppt_page}")
+            ppt_page = slide['ppt_page']
+            time_range_str = slide['time_range']
+            
+            # 解析时间范围：'00:00:00,000 ~ 00:00:28,011'
+            try:
+                start_str, end_str = [t.strip() for t in time_range_str.split('~')]
                 
-                if latest_synthesis.ppt_image_paths and isinstance(latest_synthesis.ppt_image_paths, list):
-                    # ppt_page 是从 1 开始的，而数组索引是从 0 开始的
-                    if 0 < ppt_page <= len(latest_synthesis.ppt_image_paths):
-                        image_path = latest_synthesis.ppt_image_paths[ppt_page - 1]
-                        # 使用 slide_index 作为键，因为句子也是按顺序排列的
-                        sentence_to_image[slide_index] = image_path
-                        current_app.logger.info(f"[ExportMaterials] ✓ 映射 slide {slide_index} (PPT页{ppt_page}) -> {image_path}")
-                    else:
-                        current_app.logger.warning(f"[ExportMaterials] ✗ ppt_page {ppt_page} 超出范围 (1-{len(latest_synthesis.ppt_image_paths)})")
-                else:
-                    current_app.logger.warning(f"[ExportMaterials] ✗ ppt_image_paths 不存在或不是列表")
-            else:
-                current_app.logger.warning(f"[ExportMaterials] ✗ slide {slide_index} 没有 ppt_page 字段")
+                # 转换为毫秒
+                def srt_time_to_ms(time_str):
+                    # 格式：HH:MM:SS,mmm
+                    time_str = time_str.replace(',', '.')
+                    parts = time_str.split(':')
+                    hours = int(parts[0])
+                    minutes = int(parts[1])
+                    sec_parts = parts[2].split('.')
+                    seconds = int(sec_parts[0])
+                    milliseconds = int(sec_parts[1]) if len(sec_parts) > 1 else 0
+                    return hours * 3600000 + minutes * 60000 + seconds * 1000 + milliseconds
+                
+                slide_start_ms = srt_time_to_ms(start_str)
+                slide_end_ms = srt_time_to_ms(end_str)
+                
+                # 获取图片路径
+                if latest_synthesis.ppt_image_paths and 0 < ppt_page <= len(latest_synthesis.ppt_image_paths):
+                    image_path = latest_synthesis.ppt_image_paths[ppt_page - 1]
+                    
+                    # 找出所有时间戳在这个范围内的句子
+                    for sentence_id_str, timestamp_info in sentence_to_timestamp.items():
+                        sentence_start_ms = timestamp_info['start_ms']
+                        sentence_end_ms = timestamp_info['end_ms']
+                        
+                        # 判断句子是否在这个 slide 的时间范围内
+                        # 只要句子的时间有任何重叠，就认为属于这个 slide
+                        if not (sentence_end_ms <= slide_start_ms or sentence_start_ms >= slide_end_ms):
+                            sentence_to_image[sentence_id_str] = image_path
+                            current_app.logger.info(
+                                f"[ExportMaterials] 映射句子 {sentence_id_str[:8]}... -> PPT页{ppt_page} "
+                                f"(句子: {sentence_start_ms}-{sentence_end_ms}ms, "
+                                f"Slide: {slide_start_ms}-{slide_end_ms}ms)"
+                            )
+            except Exception as e:
+                current_app.logger.warning(f"[ExportMaterials] 解析 slide 时间范围失败: {e}")
+                continue
         
-        current_app.logger.info(f"[ExportMaterials] 总共映射了 {len(sentence_to_image)} 个 slide 到图片")
+        current_app.logger.info(f"[ExportMaterials] 总共映射了 {len(sentence_to_image)} 个句子到图片")
     
     # 准备 manifest 数据
     manifest_data = []
     
     # 创建内存中的 ZIP 文件
     memory_file = io.BytesIO()
+    
+    # 记录已添加的图片，避免重复
+    added_images = {}  # {image_relative_path: image_filename}
     
     with zipfile.ZipFile(memory_file, 'w', zipfile.ZIP_DEFLATED) as zf:
         # 创建 assets 文件夹结构
@@ -2084,40 +2104,52 @@ def export_training_materials(content_id):
             current_app.logger.info(f"[ExportMaterials] 句子 {idx} 最终 slide_data: {slide_data}")
             current_app.logger.info(f"[ExportMaterials] ========================================")
             
-            # 处理图片文件（使用句子索引匹配）
-            # idx 是从 1 开始的，所以 slide_index 应该是 idx - 1
-            slide_index = idx - 1
-            if slide_index in sentence_to_image:
-                image_relative_path = sentence_to_image[slide_index]
+            # 处理图片文件（根据句子ID从映射中获取）
+            sentence_id_str = str(sentence.id)
+            if sentence_id_str in sentence_to_image:
+                image_relative_path = sentence_to_image[sentence_id_str]
                 
-                # 图片可能在 instance/uploads 或其他位置
-                # 尝试多个可能的路径
-                possible_paths = [
-                    os.path.join(current_app.config.get('UPLOAD_FOLDER', 'instance/uploads'), image_relative_path),
-                    image_relative_path,  # 如果是绝对路径
-                ]
-                
-                image_path = None
-                for path in possible_paths:
-                    if os.path.exists(path):
-                        image_path = path
-                        break
-                
-                if image_path and os.path.exists(image_path):
-                    # 生成新的文件名
-                    image_ext = os.path.splitext(image_relative_path)[1] or '.jpg'
-                    image_filename = f"image_{idx}{image_ext}"
-                    slide_data["image_filename"] = image_filename
-                    
-                    # 添加到 ZIP
-                    try:
-                        with open(image_path, 'rb') as image_file:
-                            zf.writestr(f"assets/{image_filename}", image_file.read())
-                        current_app.logger.info(f"[ExportMaterials] 成功添加图片: {image_filename} <- {image_relative_path}")
-                    except Exception as e:
-                        current_app.logger.warning(f"无法读取图片文件 {image_path}: {e}")
+                # 检查是否已经添加过这张图片
+                if image_relative_path in added_images:
+                    # 直接使用已有的文件名
+                    slide_data["image_filename"] = added_images[image_relative_path]
+                    current_app.logger.info(
+                        f"[ExportMaterials] 句子 {idx} 复用已添加的图片: {added_images[image_relative_path]}"
+                    )
                 else:
-                    current_app.logger.warning(f"[ExportMaterials] 找不到图片文件: {image_relative_path}")
+                    # 第一次遇到这张图片，需要添加到 ZIP
+                    # 图片可能在 instance/uploads 或其他位置
+                    # 尝试多个可能的路径
+                    possible_paths = [
+                        os.path.join(current_app.config.get('UPLOAD_FOLDER', 'instance/uploads'), image_relative_path),
+                        image_relative_path,  # 如果是绝对路径
+                    ]
+                    
+                    image_path = None
+                    for path in possible_paths:
+                        if os.path.exists(path):
+                            image_path = path
+                            break
+                    
+                    if image_path and os.path.exists(image_path):
+                        # 生成新的文件名（使用图片计数而不是句子索引）
+                        image_ext = os.path.splitext(image_relative_path)[1] or '.jpg'
+                        image_counter = len(added_images) + 1
+                        image_filename = f"image_{image_counter}{image_ext}"
+                        slide_data["image_filename"] = image_filename
+                        
+                        # 添加到 ZIP
+                        try:
+                            with open(image_path, 'rb') as image_file:
+                                zf.writestr(f"assets/{image_filename}", image_file.read())
+                            added_images[image_relative_path] = image_filename
+                            current_app.logger.info(
+                                f"[ExportMaterials] 成功添加图片: {image_filename} <- {image_relative_path}"
+                            )
+                        except Exception as e:
+                            current_app.logger.warning(f"无法读取图片文件 {image_path}: {e}")
+                    else:
+                        current_app.logger.warning(f"[ExportMaterials] 找不到图片文件: {image_relative_path}")
             
             manifest_data.append(slide_data)
         
