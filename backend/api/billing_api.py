@@ -749,19 +749,25 @@ def update_single_contract(contract_id):
                 contract.introduction_fee = new_fee
 
         if 'requires_signature' in data:
-            requires_signature = data['requires_signature']
-            contract.requires_signature = requires_signature
-            if requires_signature is False:
-                contract.signing_status = SigningStatus.NOT_REQUIRED
-                # 无需签署时，自动激活合同
-                if contract.status not in ['active', 'finished', 'terminated']:
-                    contract.status = 'active'
-                    update_salary_history_on_contract_activation(contract)
-                    current_app.logger.info(f"合同 {contract_id} 已激活（无需签署），已更新薪资历史")
-            elif requires_signature is True:
-                contract.signing_status = SigningStatus.UNSIGNED
+            new_requires_signature = data['requires_signature']
+            old_requires_signature = contract.requires_signature
+            contract.requires_signature = new_requires_signature
+            # 仅在值真正发生变化时才更新 signing_status
+            if old_requires_signature != new_requires_signature:
+                if new_requires_signature is False:
+                    contract.signing_status = SigningStatus.NOT_REQUIRED
+                    # 无需签署时，自动激活合同
+                    if contract.status not in ['active', 'finished', 'terminated']:
+                        contract.status = 'active'
+                        update_salary_history_on_contract_activation(contract)
+                        current_app.logger.info(f"合同 {contract_id} 已激活（无需签署），已更新薪资历史")
+                elif new_requires_signature is True:
+                    contract.signing_status = SigningStatus.UNSIGNED
+                    current_app.logger.info(f"合同 {contract_id}：签署需求变更为需要签署，signing_status 设置为 UNSIGNED")
+            else:
+                current_app.logger.info(f"合同 {contract_id}：签署需求未变化({new_requires_signature})，保留当前签署状态 {contract.signing_status}")
             current_app.logger.info(
-                f"合同 {contract_id} 的签署需求更新为: {requires_signature}, 签署状态: {contract.signing_status}, 合同状态: {contract.status}"
+                f"合同 {contract_id} 的签署需求更新为: {new_requires_signature}, 签署状态: {contract.signing_status}, 合同状态: {contract.status}"
             )
                 
 

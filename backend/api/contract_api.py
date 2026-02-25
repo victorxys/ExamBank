@@ -1114,14 +1114,19 @@ def update_contract(contract_id):
         
         # Handle requires_signature and signing_status editing
         if 'requires_signature' in data:
-            requires_signature = data['requires_signature']
-            contract.requires_signature = requires_signature
-            if requires_signature is False:
-                contract.signing_status = SigningStatus.NOT_REQUIRED
-                current_app.logger.info(f"编辑合同：无需签署，signing_status 设置为 NOT_REQUIRED")
-            elif requires_signature is True:
-                contract.signing_status = SigningStatus.UNSIGNED
-                current_app.logger.info(f"编辑合同：需要签署，signing_status 设置为 UNSIGNED")
+            new_requires_signature = data['requires_signature']
+            old_requires_signature = contract.requires_signature
+            contract.requires_signature = new_requires_signature
+            # 仅在值真正发生变化时才更新 signing_status
+            if old_requires_signature != new_requires_signature:
+                if new_requires_signature is False:
+                    contract.signing_status = SigningStatus.NOT_REQUIRED
+                    current_app.logger.info(f"编辑合同：签署需求变更为无需签署，signing_status 设置为 NOT_REQUIRED")
+                elif new_requires_signature is True:
+                    contract.signing_status = SigningStatus.UNSIGNED
+                    current_app.logger.info(f"编辑合同：签署需求变更为需要签署，signing_status 设置为 UNSIGNED")
+            else:
+                current_app.logger.info(f"编辑合同：签署需求未变化({new_requires_signature})，保留当前签署状态 {contract.signing_status}")
         
         # 4. 重要：触发账单重算
         trigger_initial_bill_generation_task.delay(str(contract.id))

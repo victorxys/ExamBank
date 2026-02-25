@@ -967,7 +967,7 @@ class ContractService:
 
         # If both have signed, mark as fully signed
         if contract.customer_signature and contract.employee_signature:
-            contract.signing_status = SigningStatus.FULLY_SIGNED
+            contract.signing_status = SigningStatus.SIGNED
             current_app.logger.info(f"合同 {contract_id} 已完全签署。")
 
         # Generate separate signing tokens if they don't exist
