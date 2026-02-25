@@ -64,7 +64,7 @@ const getNetworkQuality = () => {
 // 从统一URL中提取原始URL（用于保存时恢复原始URL）
 const extractOriginalUrl = (url) => {
     if (!url) return url;
-    
+
     // 检查是否是已处理的统一URL（可能被重复处理多次）
     if (url.includes('img.mengyimengsao.com') && url.includes('/cdn-cgi/image/')) {
         // 循环移除所有 cdn-cgi/image/xxx/ 前缀，直到没有为止
@@ -83,13 +83,13 @@ const extractOriginalUrl = (url) => {
                 break;
             }
         }
-        
+
         if (cleanUrl !== url) {
             console.log(`🔙 恢复原始URL: ${url} -> ${cleanUrl}`);
         }
         return cleanUrl;
     }
-    
+
     return url;
 };
 
@@ -109,20 +109,20 @@ const getScreenSize = () => {
 // 从URL中提取原始路径（去除cdn-cgi处理参数）
 const getCleanPath = (originalUrl) => {
     if (!originalUrl) return null;
-    
+
     // 先用 extractOriginalUrl 清理可能被重复处理的URL
     const cleanedUrl = extractOriginalUrl(originalUrl);
-    
+
     if (cleanedUrl.includes('img.mengyimengsao.com')) {
         try {
             const url = new URL(cleanedUrl);
             let path = url.pathname;
-            
+
             // 确保路径以 / 开头
             if (!path.startsWith('/')) {
                 path = '/' + path;
             }
-            
+
             console.log(`🔍 提取路径: ${cleanedUrl} -> ${path}`);
             return path;
         } catch (e) {
@@ -136,10 +136,10 @@ const getCleanPath = (originalUrl) => {
 // 1. 缩略图URL - 小尺寸低质量，快速加载
 const getThumbnailUrl = (originalUrl) => {
     if (!originalUrl) return originalUrl;
-    
+
     // 先清理URL，确保没有重复的cdn-cgi参数
     const cleanedUrl = extractOriginalUrl(originalUrl);
-    
+
     if (cleanedUrl.includes('img.mengyimengsao.com')) {
         const path = getCleanPath(cleanedUrl);
         if (path) {
@@ -149,7 +149,7 @@ const getThumbnailUrl = (originalUrl) => {
             return thumbnailUrl;
         }
     }
-    
+
     // 金数据图床
     if (cleanedUrl.includes('jinshujufiles.com')) {
         try {
@@ -160,18 +160,18 @@ const getThumbnailUrl = (originalUrl) => {
             return cleanedUrl;
         }
     }
-    
+
     return cleanedUrl;
 };
 
 // 2. 大图URL - 适配显示器尺寸，100%质量
 const getLightboxUrl = (originalUrl) => {
     if (!originalUrl) return originalUrl;
-    
+
     // 既然缩略图URL是正确的，我们直接基于缩略图URL生成大图URL
     // 这样可以确保使用相同的逻辑和路径处理
     const thumbnailUrl = getThumbnailUrl(originalUrl);
-    
+
     if (thumbnailUrl.includes('img.mengyimengsao.com/cdn-cgi/image/')) {
         const screen = getScreenSize();
         // 将缩略图的参数替换为大图参数
@@ -182,7 +182,7 @@ const getLightboxUrl = (originalUrl) => {
         // console.log(`🖼️ 基于缩略图生成大图URL: ${thumbnailUrl} -> ${lightboxUrl}`);
         return lightboxUrl;
     }
-    
+
     // 金数据图床
     if (originalUrl.includes('jinshujufiles.com')) {
         try {
@@ -195,7 +195,7 @@ const getLightboxUrl = (originalUrl) => {
             return originalUrl;
         }
     }
-    
+
     // 如果都不匹配，返回原始URL
     return extractOriginalUrl(originalUrl);
 };
@@ -227,22 +227,22 @@ const addToLightboxPreloadQueue = (originalUrl) => {
 
 const startGlobalLightboxPreload = async () => {
     if (isPreloadingLightbox || globalLightboxPreloadQueue.length === 0) return;
-    
+
     isPreloadingLightbox = true;
     // console.log(`🚀 开始全局大图预加载队列: ${globalLightboxPreloadQueue.length} 张图片`);
-    
+
     // 逐个预加载，避免并发请求过多
     while (globalLightboxPreloadQueue.length > 0) {
         const url = globalLightboxPreloadQueue.shift();
         if (lightboxCache.has(url)) continue;
-        
+
         try {
             await preloadLightboxImage(url);
         } catch (error) {
             console.error(`❌ 全局预加载失败: ${url.substring(0, 50)}...`);
         }
     }
-    
+
     isPreloadingLightbox = false;
     // console.log(`✅ 全局大图预加载完成，缓存大小: ${lightboxCache.size}`);
 };
@@ -251,31 +251,31 @@ const startGlobalLightboxPreload = async () => {
 const preloadLightboxImage = (originalUrl) => {
     return new Promise((resolve, reject) => {
         const lightboxUrl = getLightboxUrl(originalUrl);
-        
+
         // 检查缓存
         if (lightboxCache.has(originalUrl)) {
             // console.log(`🎯 大图已在缓存中: ${originalUrl.substring(0, 50)}...`);
             resolve(lightboxCache.get(originalUrl));
             return;
         }
-        
+
         // 输出完整的大图URL用于调试
         // console.log(`📥 预加载大图完整URL: ${lightboxUrl}`);
         // console.log(`📥 原始URL: ${originalUrl}`);
-        
+
         // 使用Image对象预加载
         // 不设置 crossOrigin，避免 CORS 错误
         const img = new Image();
         img.referrerPolicy = 'no-referrer';
-        
+
         const timeout = setTimeout(() => {
             // console.warn(`⏰ 大图加载超时: ${lightboxUrl.substring(0, 50)}...`);
             reject(new Error('Image load timeout'));
         }, 30000);
-        
+
         img.onload = () => {
             clearTimeout(timeout);
-            
+
             // 直接缓存URL（不转换为Blob，因为cdn-cgi不支持CORS）
             // 图片已经加载到浏览器缓存中，再次请求时会从缓存读取
             lightboxCache.set(originalUrl, {
@@ -290,7 +290,7 @@ const preloadLightboxImage = (originalUrl) => {
             // console.log(`✅ 大图预加载成功: ${img.naturalWidth}x${img.naturalHeight}, URL: ${lightboxUrl.substring(0, 60)}...`);
             resolve(lightboxCache.get(originalUrl));
         };
-        
+
         img.onerror = (error) => {
             clearTimeout(timeout);
             // console.error(`❌ 大图预加载失败，完整URL: ${lightboxUrl}`);
@@ -300,7 +300,7 @@ const preloadLightboxImage = (originalUrl) => {
             // console.error(`❌ img.naturalWidth: ${img.naturalWidth}`);
             reject(error);
         };
-        
+
         // 设置src开始加载
         // console.log(`🔄 开始加载图片: ${lightboxUrl}`);
         img.src = lightboxUrl;
@@ -321,60 +321,60 @@ const getCachedLightboxUrl = (originalUrl) => {
 const preloadUnifiedImage = (originalUrl) => {
     return new Promise((resolve, reject) => {
         const thumbnailUrl = getThumbnailUrl(originalUrl);
-        
+
         // 检查缓存
         if (thumbnailCache.has(thumbnailUrl)) {
             // console.log(`🎯 缩略图已在缓存中: ${thumbnailUrl}`);
             resolve(thumbnailCache.get(thumbnailUrl));
             return;
         }
-        
+
         const img = new Image();
-        
+
         const timeout = setTimeout(() => {
             // console.warn(`⏰ 缩略图加载超时: ${thumbnailUrl}`);
             reject(new Error('Image load timeout'));
         }, 10000);
-        
+
         img.onload = () => {
             clearTimeout(timeout);
             thumbnailCache.set(thumbnailUrl, img);
             // console.log(`✅ 缩略图缓存完成: ${thumbnailUrl}`);
             resolve(img);
         };
-        
+
         img.onerror = (error) => {
             clearTimeout(timeout);
             // console.error(`❌ 统一图片加载失败: ${unifiedUrl}`, error);
             // console.log(`🔄 回退到原图: ${originalUrl}`);
-            
+
             // 回退到原图
             const fallbackImg = new Image();
             const fallbackTimeout = setTimeout(() => {
                 // console.warn(`⏰ 原图回退加载超时: ${originalUrl}`);
                 reject(new Error('Fallback image load timeout'));
             }, 10000);
-            
+
             fallbackImg.onload = () => {
                 clearTimeout(fallbackTimeout);
-                
+
                 // 缓存原图（使用统一URL作为key）
                 unifiedImageCache.set(unifiedUrl, fallbackImg);
-                
+
                 // console.log(`✅ 原图回退加载完成: ${originalUrl}`);
                 resolve(fallbackImg);
             };
-            
+
             fallbackImg.onerror = (fallbackError) => {
                 clearTimeout(fallbackTimeout);
                 // console.error(`❌ 原图回退也失败: ${originalUrl}`, fallbackError);
                 reject(fallbackError);
             };
-            
+
             fallbackImg.referrerPolicy = 'no-referrer';
             fallbackImg.src = originalUrl;
         };
-        
+
         // 设置图片属性并开始加载
         img.referrerPolicy = 'no-referrer';
         img.src = unifiedUrl;
@@ -401,7 +401,7 @@ const CachedLightboxImage = ({ src, alt, style, originalUrl, ...props }) => {
 
         // 检查大图是否已经预加载到缓存
         const cached = lightboxCache.get(originalUrl);
-        
+
         if (cached && cached.loaded && cached.url) {
             // 大图已预加载，使用缓存的 URL
             // console.log(`🎯 Lightbox使用预加载URL: ${cached.width}x${cached.height}`);
@@ -495,7 +495,7 @@ const CachedLightboxImage = ({ src, alt, style, originalUrl, ...props }) => {
                     </Typography>
                 </Box>
             )}
-            
+
             {/* 大图 - 使用 displayUrl */}
             <img
                 src={displayUrl}
@@ -513,7 +513,7 @@ const CachedLightboxImage = ({ src, alt, style, originalUrl, ...props }) => {
                     transition: 'opacity 0.2s ease',
                 }}
             />
-            
+
             {/* 缓存状态指示器 */}
             {imageLoaded && (
                 <Box
@@ -552,26 +552,26 @@ const OptimizedFileCarousel = ({ questionValue, onImageClick, onPreloadUpdate })
         if (!questionValue || questionValue.length === 0) return;
 
         // console.log(`🚀 初始化图片轮播组件: ${questionValue.length} 张图片`);
-        
+
         // 重置状态
         setThumbnailsLoaded({});
         setAllThumbnailsComplete(false);
         setImageErrors({});
-        
+
         // 打印图片URL用于调试
         questionValue.forEach((imageFile, index) => {
             const originalUrl = imageFile?.content;
             // console.log(`🔍 原始图片 ${index + 1}:`, originalUrl);
-            
+
             const cleanedUrl = extractOriginalUrl(originalUrl);
             // console.log(`🧹 清理后URL ${index + 1}:`, cleanedUrl);
-            
+
             const path = getCleanPath(cleanedUrl);
             // console.log(`📁 提取路径 ${index + 1}:`, path);
-            
+
             const thumbnailUrl = getThumbnailUrl(originalUrl);
             // console.log(`🖼️ 缩略图URL ${index + 1}:`, thumbnailUrl);
-            
+
             const lightboxUrl = getLightboxUrl(originalUrl);
             // console.log(`🔍 大图URL ${index + 1}:`, lightboxUrl);
         });
@@ -582,7 +582,7 @@ const OptimizedFileCarousel = ({ questionValue, onImageClick, onPreloadUpdate })
         if (!allThumbnailsComplete || !questionValue || questionValue.length === 0) return;
 
         // console.log(`🎉 缩略图加载完成，将 ${questionValue.length} 张大图添加到预加载队列...`);
-        
+
         // 将大图URL添加到全局队列
         questionValue.forEach((file, i) => {
             const originalUrl = file?.content;
@@ -590,12 +590,12 @@ const OptimizedFileCarousel = ({ questionValue, onImageClick, onPreloadUpdate })
                 addToLightboxPreloadQueue(originalUrl);
             }
         });
-        
+
         // 延迟启动全局预加载（等待所有组件的缩略图都加载完成）
         setTimeout(() => {
             startGlobalLightboxPreload();
         }, 500);
-        
+
         // 标记为已预加载（实际预加载在全局队列中进行）
         const allPreloaded = {};
         questionValue.forEach((_, index) => {
@@ -607,7 +607,7 @@ const OptimizedFileCarousel = ({ questionValue, onImageClick, onPreloadUpdate })
     // 第三阶段：下载原图函数
     const downloadOriginalImage = async (imageUrl, index) => {
         // console.log(`📥 第三阶段：下载原图 ${index + 1}`);
-        
+
         const originalUrl = getOriginalUrl(imageUrl);
         const filename = originalUrl.split('/').pop()?.split('?')[0] || `image-${index + 1}.jpg`;
 
@@ -726,9 +726,9 @@ const OptimizedFileCarousel = ({ questionValue, onImageClick, onPreloadUpdate })
                         </Button>
                     </Box>
                 ) : (
-                    <Box sx={{ 
-                        position: 'relative', 
-                        width: '100%', 
+                    <Box sx={{
+                        position: 'relative',
+                        width: '100%',
                         height: '100%',
                         display: 'flex',
                         alignItems: 'center',
@@ -738,7 +738,7 @@ const OptimizedFileCarousel = ({ questionValue, onImageClick, onPreloadUpdate })
                         {questionValue.map((imageFile, index) => {
                             const originalUrl = imageFile?.content;
                             const thumbnailUrl = getThumbnailUrl(originalUrl);
-                            
+
                             return (
                                 <img
                                     key={index}
@@ -758,35 +758,35 @@ const OptimizedFileCarousel = ({ questionValue, onImageClick, onPreloadUpdate })
                                         const loadedUrl = e.target.src;
                                         // 使用统一URL作为缓存key，确保lightbox能找到
                                         const cacheKey = thumbnailUrl;
-                                        
+
                                         // console.log(`✅ 缩略图 ${index + 1} 加载完成`);
                                         // console.log(`   实际URL: ${loadedUrl}`);
                                         // console.log(`   缓存Key: ${cacheKey}`);
-                                        
+
                                         // 关键修复：使用统一URL作为缓存key
                                         if (!unifiedImageCache.has(cacheKey)) {
                                             unifiedImageCache.set(cacheKey, e.target);
                                             // console.log(`📦 图片已添加到统一缓存: ${cacheKey}`);
                                         }
-                                        
+
                                         // 同时也用实际URL作为key（以防URL被浏览器修改）
                                         if (loadedUrl !== cacheKey && !unifiedImageCache.has(loadedUrl)) {
                                             unifiedImageCache.set(loadedUrl, e.target);
                                             // console.log(`📦 图片也用实际URL缓存: ${loadedUrl}`);
                                         }
-                                        
+
                                         // 更新加载状态
                                         setThumbnailsLoaded(prev => {
                                             const newLoaded = { ...prev, [index]: true };
                                             const loadedCount = Object.keys(newLoaded).length;
-                                            
+
                                             if (loadedCount === questionValue.length) {
                                                 // console.log(`🎉 所有 ${questionValue.length} 张缩略图加载完成！`);
                                                 // console.log(`📊 统一缓存大小: ${unifiedImageCache.size}`);
                                                 // console.log(`📊 缓存Keys:`, Array.from(unifiedImageCache.keys()));
                                                 setAllThumbnailsComplete(true);
                                             }
-                                            
+
                                             return newLoaded;
                                         });
                                     }}
@@ -806,7 +806,7 @@ const OptimizedFileCarousel = ({ questionValue, onImageClick, onPreloadUpdate })
                         })}
                     </Box>
                 )}
-                
+
                 {/* 悬停操作按钮 */}
                 <Box
                     sx={{
@@ -845,7 +845,7 @@ const OptimizedFileCarousel = ({ questionValue, onImageClick, onPreloadUpdate })
                     >
                         <DownloadIcon sx={{ fontSize: '16px' }} />
                     </IconButton>
-                    
+
                     {/* 点击提示 */}
                     <Box
                         sx={{
@@ -864,10 +864,10 @@ const OptimizedFileCarousel = ({ questionValue, onImageClick, onPreloadUpdate })
 
             {/* 导航控制 */}
             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1.5, width: '100%' }}>
-                <Box 
-                    sx={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
+                <Box
+                    sx={{
+                        display: 'flex',
+                        alignItems: 'center',
                         justifyContent: 'center',
                         width: '100%',
                         maxWidth: '200px',
@@ -901,8 +901,8 @@ const OptimizedFileCarousel = ({ questionValue, onImageClick, onPreloadUpdate })
                     </Box>
 
                     {/* 图片计数 */}
-                    <Box 
-                        sx={{ 
+                    <Box
+                        sx={{
                             position: 'absolute',
                             left: '50%',
                             transform: 'translateX(-50%)',
@@ -913,16 +913,16 @@ const OptimizedFileCarousel = ({ questionValue, onImageClick, onPreloadUpdate })
                             height: '100%'
                         }}
                     >
-                        <Typography 
-                            variant="body2" 
-                            sx={{ 
+                        <Typography
+                            variant="body2"
+                            sx={{
                                 color: '#6b7280',
                                 fontWeight: 500,
                                 textAlign: 'center',
                                 fontSize: '14px'
                             }}
                         >
-                            {questionValue.length > 1 
+                            {questionValue.length > 1
                                 ? `${currentIndex + 1} / ${questionValue.length}`
                                 : '1 张图片'
                             }
@@ -994,10 +994,10 @@ const OptimizedSignatureImage = ({ src, style }) => {
     }
 
     // 对签名图片也进行激进压缩
-    const optimizedSrc = getOptimizedImageUrl(src, { 
-        width: 300, 
+    const optimizedSrc = getOptimizedImageUrl(src, {
+        width: 300,
         quality: 45, // 签名图片质量也降低
-        format: 'webp' 
+        format: 'webp'
     });
 
     return (
@@ -1101,7 +1101,7 @@ const DynamicFormPage = () => {
     const [error, setError] = useState(null);
     const [currentMode, setCurrentMode] = useState('admin_view'); // 默认为编辑模式
     const [alert, setAlert] = useState({ open: false, message: '', severity: 'info' });
-    
+
     // 全局预加载状态
     const [globalPreloadStatus, setGlobalPreloadStatus] = useState({
         previewsLoaded: 0,
@@ -1150,7 +1150,7 @@ const DynamicFormPage = () => {
 
                 // Set Chinese locale for the survey
                 survey.locale = "zh-cn";
-                
+
                 // 强制显示所有页面内容（解决图片不完全加载的问题）
                 survey.questionsOnPageMode = "singlePage";
                 survey.showPageNumbers = false;
@@ -1280,17 +1280,17 @@ const DynamicFormPage = () => {
                             // 处理 textarea 的行数设置
                             const applyTextareaRows = () => {
                                 const columns = question.columns || [];
-                                
+
                                 const rows = options.htmlElement.querySelectorAll('tbody tr, .sd-table__row:not(.sd-table__row--header)');
-                                
+
                                 rows.forEach((row, rowIdx) => {
                                     const allCells = row.querySelectorAll('td, .sd-table__cell');
                                     const dataCells = Array.from(allCells).filter(cell => !cell.querySelector('.sd-action-bar'));
-                                    
+
                                     columns.forEach((col, colIndex) => {
                                         const cell = dataCells[colIndex];
                                         if (!cell) return;
-                                        
+
                                         const textarea = cell.querySelector('textarea');
                                         if (textarea && col.rows && col.rows > 1) {
                                             // 设置 rows 属性
@@ -1309,10 +1309,10 @@ const DynamicFormPage = () => {
                                     });
                                 });
                             };
-                            
+
                             // 初始应用（延迟执行确保DOM已渲染）
                             setTimeout(applyTextareaRows, 100);
-                            
+
                             // 监听变化
                             const textareaObserver = new MutationObserver(() => {
                                 setTimeout(applyTextareaRows, 50);
@@ -1326,14 +1326,14 @@ const DynamicFormPage = () => {
                             const getImageColumnInfo = () => {
                                 const info = [];
                                 const columns = question.columns || [];
-                                
+
                                 // console.log('=== getImageColumnInfo ===');
                                 // console.log('question.name:', question.name);
                                 // console.log('columns.length:', columns.length);
                                 // columns.forEach((col, i) => {
                                 //     console.log(`列 ${i}:`, { name: col.name, title: col.title, value: col.value });
                                 // });
-                                
+
                                 // 直接遍历 SurveyJS 的 columns 定义，根据列标题匹配
                                 columns.forEach((col, colIndex) => {
                                     const title = col.title || col.name || '';
@@ -1361,22 +1361,22 @@ const DynamicFormPage = () => {
                                     // 过滤掉包含 action-bar 的单元格
                                     const dataCells = Array.from(allCells).filter(cell => !cell.querySelector('.sd-action-bar'));
                                     // console.log(`行 ${rowIndex} 数据单元格数:`, dataCells.length);
-                                    
+
                                     imageColInfo.forEach(({ cellIndex, colIndex, name: colName }) => {
                                         const cell = dataCells[colIndex];
                                         if (!cell) {
                                             // console.log(`行 ${rowIndex}: 找不到单元格, colIndex=${colIndex}, dataCells.length=${dataCells.length}`);
                                             return;
                                         }
-                                        
+
                                         // console.log(`行 ${rowIndex} 单元格内容:`, cell.innerHTML.substring(0, 200));
-                                        
+
                                         // 跳过已处理的单元格
                                         if (cell.dataset.imageColumnProcessed === 'true') return;
-                                        
+
                                         // 如果已有文件上传控件，跳过
                                         if (cell.querySelector('.sd-file, .matrix-image-uploader')) return;
-                                        
+
                                         // 查找文本输入框或 textarea
                                         let input = cell.querySelector('input[type="text"]:not([type="date"]):not([type="number"])');
                                         if (!input) {
@@ -1390,28 +1390,28 @@ const DynamicFormPage = () => {
                                             // console.log(`行 ${rowIndex}: 找不到文本输入框或textarea, 单元格所有input:`, cell.querySelectorAll('input, textarea'));
                                             return;
                                         }
-                                        
+
                                         const currentValue = input.value?.trim() || '';
-                                        
+
                                         // 解析图片URL列表（支持逗号分隔的多图片）
                                         const parseImageUrls = (value) => {
                                             if (!value) return [];
                                             return value.split(',').map(url => url.trim()).filter(url => url.startsWith('http'));
                                         };
-                                        
+
                                         const imageUrls = parseImageUrls(currentValue);
                                         cell.dataset.imageColumnProcessed = 'true';
-                                        
+
                                         // 创建容器
                                         const container = document.createElement('div');
                                         container.className = 'matrix-image-container';
                                         container.style.cssText = 'display: flex; flex-wrap: wrap; gap: 8px; padding: 4px; align-items: center;';
-                                        
+
                                         // 显示已有图片
                                         imageUrls.forEach((url, imgIndex) => {
                                             const imgWrapper = document.createElement('div');
                                             imgWrapper.style.cssText = 'position: relative; display: inline-block;';
-                                            
+
                                             const img = document.createElement('img');
                                             img.src = getThumbnailUrl(url);
                                             img.alt = `图片${imgIndex + 1}`;
@@ -1422,7 +1422,7 @@ const DynamicFormPage = () => {
                                                 setCurrentImageIndex(imgIndex);
                                                 setLightboxOpen(true);
                                             };
-                                            
+
                                             // 删除按钮
                                             const deleteBtn = document.createElement('button');
                                             deleteBtn.type = 'button';
@@ -1432,7 +1432,7 @@ const DynamicFormPage = () => {
                                                 e.stopPropagation();
                                                 const newUrls = imageUrls.filter((_, i) => i !== imgIndex);
                                                 const newValue = newUrls.join(',');
-                                                
+
                                                 // 更新 SurveyJS 数据
                                                 const matrixValue = question.value ? [...question.value] : [];
                                                 if (matrixValue[rowIndex]) {
@@ -1440,46 +1440,46 @@ const DynamicFormPage = () => {
                                                     question.value = matrixValue;
                                                 }
                                                 input.value = newValue;
-                                                
+
                                                 // 重新渲染
                                                 cell.dataset.imageColumnProcessed = 'false';
                                                 container.remove();
                                                 processImageColumns();
                                             };
-                                            
+
                                             imgWrapper.appendChild(img);
                                             imgWrapper.appendChild(deleteBtn);
                                             container.appendChild(imgWrapper);
                                         });
-                                        
+
                                         // 添加上传按钮
                                         const fileInput = document.createElement('input');
                                         fileInput.type = 'file';
                                         fileInput.accept = 'image/*';
                                         fileInput.multiple = true;
                                         fileInput.style.display = 'none';
-                                        
+
                                         const uploadBtn = document.createElement('button');
                                         uploadBtn.type = 'button';
                                         uploadBtn.innerHTML = imageUrls.length > 0 ? '+' : '上传图片';
-                                        uploadBtn.style.cssText = imageUrls.length > 0 
+                                        uploadBtn.style.cssText = imageUrls.length > 0
                                             ? 'width: 50px; height: 50px; border: 1px dashed #d1d5db; border-radius: 4px; background: #f9fafb; cursor: pointer; font-size: 20px; color: #9ca3af; display: flex; align-items: center; justify-content: center;'
                                             : 'padding: 8px 16px; font-size: 12px; background: #f3f4f6; border: 1px dashed #d1d5db; border-radius: 4px; cursor: pointer; color: #6b7280;';
                                         uploadBtn.onclick = () => fileInput.click();
-                                        
+
                                         fileInput.onchange = async (e) => {
                                             const files = Array.from(e.target.files || []);
                                             if (files.length === 0) return;
-                                            
+
                                             uploadBtn.innerHTML = '上传中...';
                                             uploadBtn.disabled = true;
-                                            
+
                                             try {
                                                 const uploadedUrls = [];
                                                 for (const file of files) {
                                                     const formData = new FormData();
                                                     formData.append('file', file);
-                                                    
+
                                                     const response = await fetch('/api/upload/r2', {
                                                         method: 'POST',
                                                         body: formData,
@@ -1487,22 +1487,22 @@ const DynamicFormPage = () => {
                                                             'Authorization': `Bearer ${localStorage.getItem('token')}`
                                                         }
                                                     });
-                                                    
+
                                                     if (response.ok) {
                                                         const data = await response.json();
                                                         uploadedUrls.push(data.url || data.file_url);
                                                     }
                                                 }
-                                                
+
                                                 if (uploadedUrls.length > 0) {
                                                     // 合并新旧图片URL
                                                     const allUrls = [...imageUrls, ...uploadedUrls];
                                                     const newValue = allUrls.join(',');
-                                                    
+
                                                     // console.log('=== 多图片上传成功 ===');
                                                     // console.log('新上传:', uploadedUrls);
                                                     // console.log('合并后:', newValue);
-                                                    
+
                                                     // 更新 SurveyJS 数据
                                                     const matrixValue = question.value ? [...question.value] : [];
                                                     while (matrixValue.length <= rowIndex) {
@@ -1511,7 +1511,7 @@ const DynamicFormPage = () => {
                                                     matrixValue[rowIndex] = { ...matrixValue[rowIndex], [colName]: newValue };
                                                     question.value = matrixValue;
                                                     input.value = newValue;
-                                                    
+
                                                     // 重新渲染
                                                     cell.dataset.imageColumnProcessed = 'false';
                                                     container.remove();
@@ -1520,15 +1520,15 @@ const DynamicFormPage = () => {
                                             } catch (err) {
                                                 console.error('Upload error:', err);
                                             }
-                                            
+
                                             uploadBtn.innerHTML = imageUrls.length > 0 ? '+' : '上传图片';
                                             uploadBtn.disabled = false;
                                             fileInput.value = '';
                                         };
-                                        
+
                                         container.appendChild(fileInput);
                                         container.appendChild(uploadBtn);
-                                        
+
                                         input.style.display = 'none';
                                         input.parentNode.insertBefore(container, input);
                                     });
@@ -1537,7 +1537,7 @@ const DynamicFormPage = () => {
 
                             // 初始处理
                             processImageColumns();
-                            
+
                             // 监听变化（新增行时触发）
                             const imageColObserver = new MutationObserver(() => {
                                 setTimeout(processImageColumns, 50);
@@ -2071,7 +2071,7 @@ const DynamicFormPage = () => {
                                 // signaturepad 类型由自定义组件处理，跳过这里的签名渲染逻辑
                                 return;
                             }
-                            
+
                             const signatureMarker = '[SIGNATURE:';
                             const hasSignatureMarker = typeof questionValue === 'string' && questionValue.includes(signatureMarker);
                             const isMultiLineAssociation = typeof questionValue === 'string' && (questionValue.includes('\n') || questionValue.includes('nested-form-container'));
@@ -2155,18 +2155,18 @@ const DynamicFormPage = () => {
                                             onImageClick={(index, lightboxPreloadedStatus) => {
                                                 // console.log(`📸 打开 Lightbox: 图片 ${index + 1}`);
                                                 // console.log(`📊 lightboxCache 大小: ${lightboxCache.size}`);
-                                                
+
                                                 // 生成所有图片的大图URL（优先使用缓存的URL）
                                                 const lightboxData = questionValue.map((file, idx) => {
                                                     const originalUrl = file?.content;
                                                     const cached = lightboxCache.get(originalUrl);
-                                                    
+
                                                     // 优先使用缓存的URL（已预加载到浏览器缓存），否则使用网络URL
                                                     const lightboxUrl = cached?.url || getLightboxUrl(originalUrl);
                                                     const isCached = !!cached?.loaded;
-                                                    
+
                                                     // console.log(`图片 ${idx + 1}: ${isCached ? '✅ 已缓存' : '⚠️ 网络加载'} ${cached ? `(${cached.width}x${cached.height})` : ''}`);
-                                                    
+
                                                     return {
                                                         lightboxUrl,
                                                         originalUrl,
@@ -2175,11 +2175,11 @@ const DynamicFormPage = () => {
                                                         dimensions: cached ? `${cached.width}x${cached.height}` : 'N/A'
                                                     };
                                                 });
-                                                
+
                                                 // 统计缓存状态
                                                 const cachedCount = lightboxData.filter(item => item.isCached).length;
                                                 console.log(`📈 大图缓存进度: ${cachedCount}/${questionValue.length}`);
-                                                
+
                                                 setLightboxImages(lightboxData);
                                                 setCurrentImageIndex(index);
                                                 setLightboxOpen(true);
@@ -2460,7 +2460,52 @@ const DynamicFormPage = () => {
                     // survey.applyFullEditState(); // Commented out - default to admin view
                     survey.isAdminView = true; // Track state
                     initialMode = 'admin_view'; // We use 'admin_view' mode by default
+                } else {
+                    // --- AUTO-LOAD LOGIC ---
+                    // Only auto-load for new submissions (no dataId)
+                    const autoSaveKey = `survey-autosave-${formToken}`;
+                    const savedData = localStorage.getItem(autoSaveKey);
+                    if (savedData) {
+                        try {
+                            const parsedData = JSON.parse(savedData);
+                            if (parsedData && Object.keys(parsedData).length > 0) {
+                                survey.data = parsedData;
+                                console.log(`🔄 自动加载本地暂存数据 (${formToken})`);
+                            }
+                        } catch (e) {
+                            console.error('解析本地暂存数据失败:', e);
+                        }
+                    }
                 }
+
+                // --- AUTO-SAVE LOGIC ---
+                // Listen for any value change to auto-save
+                survey.onValueChanged.add((sender, options) => {
+                    // Only auto-save for new submissions
+                    if (dataId) return;
+
+                    // Check if "姓名" (Name) is filled to trigger auto-save
+                    // The name field is usually field_1, but we check common variations
+                    const nameFieldNames = ['field_1', '姓名', 'name'];
+                    const data = sender.data;
+                    const hasName = nameFieldNames.some(name => {
+                        const val = data[name];
+                        return typeof val === 'string' && val.trim().length > 0;
+                    }) || sender.getAllQuestions().some(q => {
+                        // Also check question title for "姓名"
+                        if (q.title && q.title.includes('姓名')) {
+                            const val = data[q.name];
+                            return typeof val === 'string' && val.trim().length > 0;
+                        }
+                        return false;
+                    });
+
+                    if (hasName) {
+                        const autoSaveKey = `survey-autosave-${formToken}`;
+                        localStorage.setItem(autoSaveKey, JSON.stringify(data));
+                        // console.log(`💾 自动保存数据 (${formToken})`);
+                    }
+                });
 
                 // 检查 URL 查询参数
                 const queryParams = new URLSearchParams(location.search);
@@ -2494,7 +2539,7 @@ const DynamicFormPage = () => {
                             });
                         }
                     });
-                    
+
                     setSubmissionState('submitting');
 
                     try {
@@ -2539,6 +2584,8 @@ const DynamicFormPage = () => {
                                 incorrectAnswers: totalQuestions - correctAnswers
                             });
                             setSubmissionState('completed');
+                            // Cleanup auto-save on successful completion
+                            localStorage.removeItem(`survey-autosave-${formToken}`);
                         } else {
                             // 非考试类型：区分管理员编辑和访客提交
                             if (dataId) {
@@ -2552,6 +2599,8 @@ const DynamicFormPage = () => {
                             } else {
                                 // 访客提交：设置 completed 状态，SurveyJS 会自动显示 completedHtml
                                 setSubmissionState('completed');
+                                // Cleanup auto-save on successful submission
+                                localStorage.removeItem(`survey-autosave-${formToken}`);
                             }
                         }
 
@@ -2812,7 +2861,7 @@ const DynamicFormPage = () => {
                 }
 
                 setSurveyModel(survey);
-                
+
                 console.log('🚀 表单加载完成，三阶段图片加载系统已启动');
             }
             catch (err) {
@@ -2848,7 +2897,7 @@ const DynamicFormPage = () => {
 
         if (surveyModel.isAdminView) {
             // console.log('[toggleMode] Switching from Admin View to Full Edit');
-            
+
             // 关键修复：在切换到编辑模式前，将文件问题的URL替换为统一URL
             // 这样 SurveyJS 渲染时会使用已缓存的图片
             const fileQuestions = surveyModel.getAllQuestions().filter(q => q.getType() === 'file');
@@ -2866,20 +2915,20 @@ const DynamicFormPage = () => {
                     });
                 }
             });
-            
+
             surveyModel.applyFullEditState();
             surveyModel.isAdminView = false;
             setCurrentMode('full_edit'); // Custom mode name for UI
             // console.log('[toggleMode] ✓ Switched to full_edit mode');
         } else {
             // console.log('[toggleMode] Switching from Full Edit to Admin View');
-            
+
             // 切换回查看模式时，禁用图片预览
             const fileQuestions = surveyModel.getAllQuestions().filter(q => q.getType() === 'file');
             fileQuestions.forEach(q => {
                 q.allowImagesPreview = false;
             });
-            
+
             surveyModel.applyAdminViewState();
             surveyModel.isAdminView = true;
             setCurrentMode('admin_view'); // Custom mode name for UI
@@ -2949,7 +2998,7 @@ const DynamicFormPage = () => {
                 // 关键修复：启用 SurveyJS 图片预览，并将图片URL替换为已缓存的统一URL
                 // 这样 SurveyJS 会使用浏览器缓存而不是重新下载原图
                 q.allowImagesPreview = true;
-                
+
                 const questionValue = q.value;
                 if (Array.isArray(questionValue) && questionValue.length > 0) {
                     const optimizedValue = questionValue.map(file => {
@@ -3156,7 +3205,7 @@ const DynamicFormPage = () => {
                     <Breadcrumbs
                         separator={<NavigateNextIcon fontSize="small" />}
                         aria-label="breadcrumb"
-                        sx={{ 
+                        sx={{
                             fontSize: '0.875rem',
                             '& .MuiBreadcrumbs-separator': {
                                 marginLeft: 1,
@@ -3200,9 +3249,9 @@ const DynamicFormPage = () => {
                     </Breadcrumbs>
 
                     {/* 操作按钮组 */}
-                    <Box sx={{ 
-                        display: 'flex', 
-                        gap: { xs: 1, md: 2 }, 
+                    <Box sx={{
+                        display: 'flex',
+                        gap: { xs: 1, md: 2 },
                         alignItems: 'center',
                         flexWrap: 'wrap',
                         justifyContent: { xs: 'center', md: 'flex-end' }
@@ -3294,9 +3343,9 @@ const DynamicFormPage = () => {
                 </Box>
             )}
 
-            <Container maxWidth="lg" sx={{ 
-                mt: (surveyModel && submissionState !== 'completed' && dataId) ? { xs: 12, md: 10 } : 2, 
-                mb: 4 
+            <Container maxWidth="lg" sx={{
+                mt: (surveyModel && submissionState !== 'completed' && dataId) ? { xs: 12, md: 10 } : 2,
+                mb: 4
             }}>
                 <AlertMessage
                     open={alert.open}
@@ -3313,7 +3362,7 @@ const DynamicFormPage = () => {
                         ) : (
                             <>
                                 <Survey model={surveyModel} />
-                                
+
                                 {/* 底部危险操作区域 - 仅在查看已有数据时显示 */}
                                 {dataId && (
                                     <Box
@@ -3329,9 +3378,9 @@ const DynamicFormPage = () => {
                                         }}
                                     >
                                         <Box sx={{ textAlign: 'center' }}>
-                                            <Typography 
-                                                variant="body2" 
-                                                color="text.secondary" 
+                                            <Typography
+                                                variant="body2"
+                                                color="text.secondary"
                                                 sx={{ mb: 2, fontSize: '0.875rem' }}
                                             >
                                                 危险操作区域
@@ -3355,12 +3404,12 @@ const DynamicFormPage = () => {
                                             >
                                                 删除此记录
                                             </Button>
-                                            <Typography 
-                                                variant="caption" 
-                                                color="text.disabled" 
-                                                sx={{ 
-                                                    display: 'block', 
-                                                    mt: 1, 
+                                            <Typography
+                                                variant="caption"
+                                                color="text.disabled"
+                                                sx={{
+                                                    display: 'block',
+                                                    mt: 1,
                                                     fontSize: '0.75rem',
                                                     fontStyle: 'italic'
                                                 }}
@@ -3508,7 +3557,7 @@ const DynamicFormPage = () => {
                             const originalImageUrl = lightboxImages[currentImageIndex]?.originalUrl;
                             const originalUrl = getOriginalUrl(originalImageUrl);
                             const filename = originalUrl.split('/').pop()?.split('?')[0] || `image-${currentImageIndex + 1}.jpg`;
-                            
+
                             console.log(`📥 第三阶段：从 Lightbox 下载原图: ${originalUrl}`);
 
                             try {
@@ -3609,9 +3658,9 @@ const DynamicFormPage = () => {
                     )}
 
                     {/* Image Container with Cache Optimization */}
-                    <Box 
-                        sx={{ 
-                            position: 'relative', 
+                    <Box
+                        sx={{
+                            position: 'relative',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
@@ -3637,7 +3686,7 @@ const DynamicFormPage = () => {
                                 objectFit: 'contain',
                             }}
                         />
-                        
+
                         {/* Quality Indicator */}
                         <Box
                             sx={{
@@ -3720,15 +3769,15 @@ const DynamicFormPage = () => {
                     </DialogContentText>
                 </DialogContent>
                 <DialogActions>
-                    <Button 
-                        onClick={() => setDeleteDialogOpen(false)} 
+                    <Button
+                        onClick={() => setDeleteDialogOpen(false)}
                         color="primary"
                     >
                         取消
                     </Button>
-                    <Button 
-                        onClick={handleDeleteRecord} 
-                        color="error" 
+                    <Button
+                        onClick={handleDeleteRecord}
+                        color="error"
                         variant="contained"
                         autoFocus
                     >
