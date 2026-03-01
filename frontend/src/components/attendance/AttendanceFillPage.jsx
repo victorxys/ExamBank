@@ -1368,9 +1368,9 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
         // 计算有效天数（合同范围内的天数）
         const validDaysCount = monthDays.filter(day => !isDateDisabled(day)).length;
         
-        // 【关键修复】出勤天数 = 有效天数 - 正常加班天数 - 休息天数 - 请假天数
-        // 法定节假日算出勤（带薪假期），不需要扣除
-        const currentWorkDays = validDaysCount - normalOvertimeDays - totalLeaveDays;
+        // 【关键修复】出勤天数 = 有效天数 - 休息天数 - 请假天数
+        // 无论节假日加班还是正常加班，都算出勤，不需要扣除
+        const currentWorkDays = validDaysCount - totalLeaveDays;
         
         // 如果出勤天数 <= 26，不需要处理
         if (currentWorkDays <= MAX_WORK_DAYS) {
@@ -1613,8 +1613,8 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
 
     // 【修复】计算加班天数，区分假期加班和正常加班
     // 【关键】对于跨月记录，只计算当前月份内的天数
-    let holidayOvertimeDays = 0; // 假期加班天数（假期+加班，算出勤+加班）
-    let normalOvertimeDays = 0;  // 正常加班天数（只算加班，不算出勤）
+    let holidayOvertimeDays = 0; // 假期加班天数
+    let normalOvertimeDays = 0;  // 正常加班天数（修复：现在正常加班也算出勤）
     
     if (Array.isArray(attendanceData.overtime_records)) {
         attendanceData.overtime_records.forEach(record => {
@@ -1727,14 +1727,14 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
         }
     }
 
-    // Work days (基本劳务天数) = valid days - normal overtime days - onboarding days + offboarding adjustment - leave days
+    // Work days (基本劳务天数) = valid days - onboarding days + offboarding adjustment - leave days
     // 【关键修复】法定节假日算出勤（带薪假期），休息和请假不算出勤
-    // 【重要】只有"正常加班"不算出勤，需要扣除；假期加班算出勤
+    // 【重要】无论是"假期加班"还是"正常加班"均算出勤，不需要扣除
     // 带薪休假、出京、出境都算作出勤天数，不需要扣除
     // 【新增】上户不计算出勤天数，需要扣除；下户月需要加上调整量
-    // 公式：出勤天数 = 当月总天数 - 正常加班天数 - 上户天数 + 下户调整 - 休息天数 - 请假天数
+    // 公式：出勤天数 = 当月总天数 - 上户天数 + 下户调整 - 休息天数 - 请假天数
     const validDaysCount = monthDays.filter(day => !isDateDisabled(day)).length;
-    totalWorkDays = validDaysCount - normalOvertimeDays - totalOnboardingDays + offboardingAdjustment - totalLeaveDays;
+    totalWorkDays = validDaysCount - totalOnboardingDays + offboardingAdjustment - totalLeaveDays;
 
     return (
         <div className="min-h-screen bg-slate-50 pb-48 font-sans">
