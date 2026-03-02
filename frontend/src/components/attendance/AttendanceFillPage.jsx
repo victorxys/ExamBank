@@ -33,16 +33,24 @@ const formatDuration = (hours, minutes = 0) => {
     }
 
     if (totalHours < 24) {
-        // Less than 24 hours: show hours with 2 decimal places
-        return `${totalHours.toFixed(2)}小时`;
+        // Less than 24 hours: show hours without unnecessary decimal places
+        const formattedHours = Number(totalHours.toFixed(2));
+        return `${formattedHours}小时`;
     } else {
         // 24 hours or more: show as days and hours
         const days = Math.floor(totalHours / 24);
-        const remainingHours = Math.round(totalHours % 24);
+        const remainingHours = totalHours % 24;
+
         if (remainingHours === 0) {
             return `${days}天`;
         }
-        return `${days}天${remainingHours}小时`;
+
+        // 如果剩余小时数是整数，直接显示；否则保留一位小数
+        const formattedRemaining = remainingHours % 1 === 0
+            ? remainingHours
+            : Number(remainingHours.toFixed(2));
+
+        return `${days}天${formattedRemaining}小时`;
     }
 };
 
@@ -50,14 +58,22 @@ const formatDuration = (hours, minutes = 0) => {
 const formatDays = (totalDays) => {
     if (totalDays === 0) return '0';
     const days = Math.floor(totalDays);
-    const remainingHours = Math.round((totalDays - days) * 24);
-    if (remainingHours === 0) {
+    const remainingHours = (totalDays - days) * 24;
+
+    // 如果没有余数小时，仅显示天数
+    if (remainingHours <= 0.01) { // 极小余数忽略
         return `${days}`;
     }
+
+    // 格式化余数小时：如果是整数则不带小数，否则带1-2位小数
+    const formattedHours = remainingHours % 1 === 0
+        ? remainingHours
+        : Number(remainingHours.toFixed(2));
+
     if (days === 0) {
-        return `${remainingHours}小时`;
+        return `${formattedHours}小时`;
     }
-    return `${days}天${remainingHours}小时`;
+    return `${days}天${formattedHours}小时`;
 };
 
 const ATTENDANCE_TYPES = {
@@ -828,7 +844,13 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
 
             // 判断是否为该记录第一个显示考勤类型的日期
             const isFirstDisplayDay = AttendanceDisplayLogic.isFirstDisplayDay(dateStr, displayResult.record, allRecords);
-            const totalHours = isFirstDisplayDay ? ((displayResult.record.hours || 0) + (displayResult.record.minutes || 0) / 60) : 0;
+
+            // 使用工具函数计算总时长，确保即使存储的 hours/minutes 有误也能正确显示
+            const durationResult = isFirstDisplayDay
+                ? AttendanceDateUtils.CrossDayDurationCalculator.calculateTotalDuration(displayResult.record)
+                : { totalHours: 0 };
+
+            const totalHours = durationResult.totalHours;
 
             result = {
                 ...displayResult.record,
@@ -1615,7 +1637,10 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                 const daysInCurrentMonth = differenceInDays(actualEndDate, actualStartDate) + 1;
 
                 // 计算当前月份内的小时数
-                let totalRecordHours = (record.hours || 0) + (record.minutes || 0) / 60;
+                // 【重要修复】使用工具函数计算总时长以保证精确度，避免存储的 hours/minutes 截断问题
+                const durationResult = AttendanceDateUtils.CrossDayDurationCalculator.calculateTotalDuration(record);
+                let totalRecordHours = durationResult.totalHours;
+
                 if (totalRecordHours === 0 && daysOffset > 0) {
                     totalRecordHours = (daysOffset + 1) * 24;
                 }
@@ -1662,7 +1687,10 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
             const daysInCurrentMonth = differenceInDays(actualEndDate, actualStartDate) + 1;
 
             // 计算当前月份内的小时数
-            let totalRecordHours = (record.hours || 0) + (record.minutes || 0) / 60;
+            // 【重要修复】使用工具函数计算总时长以保证精确度
+            const durationResult = AttendanceDateUtils.CrossDayDurationCalculator.calculateTotalDuration(record);
+            let totalRecordHours = durationResult.totalHours;
+
             if (totalRecordHours === 0 && daysOffset > 0) {
                 totalRecordHours = (daysOffset + 1) * 24;
             }
@@ -2913,13 +2941,14 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                                                 // 总小时数
                                                                 const totalHours = firstDayHours + lastDayHours + middleDays * 24;
                                                                 const days = Math.floor(totalHours / 24);
-                                                                const remainingHours = Math.round(totalHours % 24);
+                                                                const remainingHours = totalHours % 24;
+                                                                const formattedRemaining = remainingHours % 1 === 0 ? remainingHours : Number(remainingHours.toFixed(2));
 
                                                                 return (
                                                                     <>
                                                                         <div className="text-2xl font-bold text-gray-900">
                                                                             {days > 0 && `${days}天`}
-                                                                            {remainingHours > 0 && `${remainingHours}小时`}
+                                                                            {remainingHours > 0 && `${formattedRemaining}小时`}
                                                                             {days === 0 && remainingHours === 0 && '1天'}
                                                                         </div>
                                                                     </>
