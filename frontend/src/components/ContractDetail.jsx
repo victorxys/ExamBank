@@ -603,6 +603,7 @@ const ContractDetail = () => {
             transfer_deposit: true,
             template_id: templateId,
             content: templateContent,
+            is_monthly_auto_renew: contract.is_monthly_auto_renew || false,
         });
         setIsRenewModalOpen(true);
     };
@@ -646,6 +647,7 @@ const ContractDetail = () => {
             transfer_deposit: true,
             template_id: templateId,
             content: templateContent,
+            is_monthly_auto_renew: contract.is_monthly_auto_renew || false,
         });
         setSelectedPersonnel({ id: contract.service_personnel_id, name: contract.employee_name });
 
@@ -1908,6 +1910,21 @@ const ContractDetail = () => {
                         {/* --- 新增结束 --- */}
 
                         {/* --- 新增开关 --- */}
+                        {contract?.contract_type_value === 'nanny' && (
+                            <FormControlLabel
+                                control={
+                                    <Switch
+                                        checked={renewalData.is_monthly_auto_renew}
+                                        onChange={(e) => setRenewalData({ ...renewalData, is_monthly_auto_renew: e.target.checked })}
+                                        name="is_monthly_auto_renew"
+                                        color="primary"
+                                    />
+                                }
+                                label="是否自动月签"
+                                sx={{ mt: 2, display: 'block' }}
+                            />
+                        )}
+
                         <FormControlLabel
                             control={
                                 <Switch
@@ -2013,6 +2030,20 @@ const ContractDetail = () => {
                             helperText={changeData.management_fee_rate > 0 ? `根据 ${changeData.management_fee_rate * 100}% 的费率自动计算` : ''}
                         />
                         {/* --- 新增开关 --- */}
+                        {contract?.contract_type_value === 'nanny' && (
+                            <FormControlLabel
+                                control={
+                                    <Switch
+                                        checked={changeData.is_monthly_auto_renew}
+                                        onChange={(e) => setChangeData({ ...changeData, is_monthly_auto_renew: e.target.checked })}
+                                        name="is_monthly_auto_renew"
+                                        color="primary"
+                                    />
+                                }
+                                label="是否自动月签"
+                                sx={{ mt: 2, display: 'block' }}
+                            />
+                        )}
                         <FormControlLabel
                             control={
                                 <Switch

@@ -733,6 +733,13 @@ class ContractService:
                 # "template_content": template_content, <-- REMOVED 
             }
 
+            if isinstance(old_contract, NannyContract):
+                # 确保 is_monthly_auto_renew 属性从旧合同继承
+                new_contract_fields['is_monthly_auto_renew'] = old_contract.is_monthly_auto_renew
+                # 如果 change_data 中提供了该字段，则覆盖
+                if 'is_monthly_auto_renew' in change_data:
+                    new_contract_fields['is_monthly_auto_renew'] = change_data['is_monthly_auto_renew']
+
             NewContractModel = type(old_contract)
             changed_contract = NewContractModel(**new_contract_fields)
             db.session.add(changed_contract)
