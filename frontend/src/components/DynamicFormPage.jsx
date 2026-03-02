@@ -1689,8 +1689,10 @@ const DynamicFormPage = () => {
                                             if (fieldEntry) fieldDef = fieldEntry[fieldId];
                                         }
 
-                                        if (fieldId && rawData[fieldId] !== undefined) {
-                                            let userAnswer = rawData[fieldId];
+                                        // Determine the actual data key: use fieldId if found, otherwise fall back to questionName directly
+                                        const dataKey = fieldId || (rawData[questionName] !== undefined ? questionName : null);
+                                        if (dataKey && rawData[dataKey] !== undefined) {
+                                            let userAnswer = rawData[dataKey];
 
                                             // Normalize file objects if this is a file field with nested content structure
                                             // Check if userAnswer is an array of file objects with nested content
