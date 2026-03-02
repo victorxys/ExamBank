@@ -910,7 +910,6 @@ def submit_customer_signature(signature_token):
             # 注意：这里我们记录错误但不阻断返回，因为签署已经成功
             
         try:
-            from datetime import datetime
             cycle_start = form.cycle_start_date.date() if isinstance(form.cycle_start_date, datetime) else form.cycle_start_date
             cycle_end = form.cycle_end_date.date() if isinstance(form.cycle_end_date, datetime) else form.cycle_end_date
             
