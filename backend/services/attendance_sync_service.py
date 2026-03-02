@@ -255,12 +255,27 @@ def sync_attendance_to_record(attendance_form_id):
         effective_start = max(cycle_start, contract_start)
         
         # 合同结束日期（如果在当月之前，使用合同结束日期）
-        contract_end = contract.end_date.date() if isinstance(contract.end_date, datetime) else contract.end_date
-        # 如果合同已终止，使用终止日期
-        if contract.termination_date:
+        is_monthly_auto_renew = getattr(contract, 'is_monthly_auto_renew', False)
+        
+        if is_monthly_auto_renew and contract.status == 'active':
+            # 月签合同（active状态）没有实际固定的结束日期限制
+            contract_end = None
+        else:
+            contract_end = contract.end_date.date() if getattr(contract, 'end_date', None) and isinstance(contract.end_date, datetime) else getattr(contract, 'end_date', None)
+            
+        # 如果合同已终止且包含终止日期，优先使用终止日期
+        if contract.status == 'terminated' and getattr(contract, 'termination_date', None):
             termination_date = contract.termination_date.date() if isinstance(contract.termination_date, datetime) else contract.termination_date
-            contract_end = min(contract_end, termination_date)
-        effective_end = min(cycle_end, contract_end)
+            if contract_end:
+                contract_end = min(contract_end, termination_date)
+            else:
+                contract_end = termination_date
+                
+        if contract_end:
+            effective_end = max(effective_start, min(cycle_end, contract_end))  # 防止 contract_end 在 effective_start 之前导致负数
+        else:
+            effective_end = cycle_end
+
         
         # 计算有效天数（基础劳务天数）
         base_work_days = (effective_end - effective_start).days + 1
@@ -285,6 +300,12 @@ def sync_attendance_to_record(attendance_form_id):
         current_app.logger.info(f"[ATTENDANCE_SYNC] 下户月调整 - 基础:{base_work_days}, 上户日+下户日出勤:{offboarding_day_work}, 调整后出勤:{total_days_worked}")
     else:
         total_days_worked = Decimal(base_work_days) - rest_days - leave_days - onboarding_days
+    
+    # 【关键修复】基础劳务天数（出勤天数）单月最高不超过26天
+    # 超过的部分在前端会被自动转换为 overtime_days 加班，防止在计算账单时被计算两遍
+    if total_days_worked > Decimal('26'):
+        total_days_worked = Decimal('26')
+
     
     # 保留3位小数
     total_days_worked = total_days_worked.quantize(Decimal('0.001'), rounding=ROUND_HALF_UP)

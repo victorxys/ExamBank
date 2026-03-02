@@ -263,7 +263,15 @@ def save_attendance():
 
         # 自动触发重算
         engine = BillingEngine()
-        engine.calculate_for_month(billing_year, billing_month)
+        # 核心修正：显式传入出勤天数（26天固定基数），并指定合同进行强制重算
+        base_work_days = 26 
+        engine.calculate_for_month(
+            billing_year, 
+            billing_month, 
+            contract_id=contract_id, 
+            force_recalculate=True,
+            actual_work_days_override=float(base_work_days)
+        )
 
         latest_details = get_billing_details_internal(
             contract_id=contract_id,

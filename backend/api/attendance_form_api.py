@@ -6,7 +6,8 @@ from datetime import datetime, date, timedelta
 from dateutil.relativedelta import relativedelta
 import calendar
 import os
- 
+from sqlalchemy.orm.attributes import flag_modified
+
 attendance_form_bp = Blueprint('attendance_form_api', __name__, url_prefix='/api/attendance-forms')
 
 def calculate_last_month_cycle():
@@ -36,7 +37,7 @@ def is_continuous_service(contract):
     query = BaseContract.query.filter(
         BaseContract.service_personnel_id == contract.service_personnel_id,
         BaseContract.id != contract.id,
-        BaseContract.status.in_(['active', 'terminated', 'finished', 'completed'])
+        BaseContract.status.in_(['active', 'pending', 'terminated', 'finished', 'completed'])
     )
     
     # 按家庭ID或客户名匹配
@@ -88,7 +89,7 @@ def has_following_contract(contract):
     query = BaseContract.query.filter(
         BaseContract.service_personnel_id == contract.service_personnel_id,
         BaseContract.id != contract.id,
-        BaseContract.status.in_(['active', 'terminated', 'finished', 'completed'])
+        BaseContract.status.in_(['active', 'pending', 'terminated', 'finished', 'completed'])
     )
     
     # 按家庭ID或客户名匹配
@@ -139,7 +140,7 @@ def filter_contracts_for_cycle(employee_id, cycle_start, cycle_end):
     # 注意：这里使用 start_date 是为了获取所有可能的合同，后面会根据 actual_onboarding_date 再过滤
     all_contracts = BaseContract.query.filter(
         BaseContract.service_personnel_id == employee_id,
-        BaseContract.status.in_(['active', 'terminated', 'finished', 'completed']),
+        BaseContract.status.in_(['active', 'pending', 'terminated', 'finished', 'completed']),
         BaseContract.start_date <= cycle_end
     ).order_by(BaseContract.start_date.desc()).all()
     
@@ -256,14 +257,14 @@ def find_consecutive_contracts(employee_id, cycle_start, cycle_end):
     
     effective_start = min(get_effective_start(c) for c in family_contracts)
     effective_end = max(c.end_date for c in family_contracts)
+
+    # 考虑最后一个合同如果是自动月签且未终止（active或pending），则 effective_end 为 None
+    last_contract = max(family_contracts, key=lambda c: c.end_date)
+    if getattr(last_contract, 'is_monthly_auto_renew', False) and last_contract.status in ('active', 'pending'):
+        effective_end = None
     
     current_app.logger.info(f"合并后的服务期间: {effective_start} 到 {effective_end}")
 
-    # 如果是自动月签合同，且有终止日期，使用终止日期作为结束边界
-    # (针对 primary_contract 判断，或者检查链中是否有 terminated 的)
-    # 逻辑：如果链中包含已终止的合同，且该合同是自动月签，我们需要确保 effective_end 不会误导前端
-    # 但通常 max(end_date) 已经足够，因为 terminated 合同的 end_date 应该是终止日期
-    
     return primary_contract, effective_start, effective_end
 
 @attendance_form_bp.route('/by-token/<employee_token>', methods=['GET'])
@@ -346,6 +347,11 @@ def get_attendance_form_by_token(employee_token):
                         cycle_start = cycle_start.date()
                     result['actual_year'] = cycle_start.year
                     result['actual_month'] = cycle_start.month
+                    
+                    if effective_end is None and result.get('contract_info'):
+                        result['contract_info']['status'] = 'active'
+                        result['contract_info']['is_monthly_auto_renew'] = True
+                        
                     return jsonify(result)
         except ValueError:
             pass
@@ -372,7 +378,7 @@ def get_attendance_form_by_token(employee_token):
             # 查找该员工的活跃合同
             active_contracts = BaseContract.query.filter(
                 BaseContract.service_personnel_id == employee.id,
-                BaseContract.status.in_(['active', 'terminated', 'finished', 'completed'])
+                BaseContract.status.in_(['active', 'pending', 'terminated', 'finished', 'completed'])
             ).order_by(BaseContract.end_date.desc()).all()
             
             today = date.today()
@@ -473,16 +479,52 @@ def get_attendance_form_by_token(employee_token):
                 # 如果通过 contractId 指定了合同，还需要确保 employee 变量正确设置
                 if specified_contract and not employee:
                     employee = specified_contract.service_personnel
+                
+                # 【修复】使用指定的合同，也要像 find_consecutive_contracts 一样合并关联的家庭合同
+                # 这样续签的合同（上一个结束，下一个开始）才能在一个考勤表中填写
+                from backend.api.attendance_form_api import filter_contracts_for_cycle
+                employee_contracts = filter_contracts_for_cycle(employee.id, cycle_start, cycle_end)
+                family_contracts = []
+                if target_contract.family_id:
+                    family_contracts = [c for c in employee_contracts if c.family_id == target_contract.family_id]
+                elif target_contract.customer_name:
+                    family_contracts = [c for c in employee_contracts if c.customer_name == target_contract.customer_name]
+                elif target_contract.customer_id:
+                    family_contracts = [c for c in employee_contracts if c.customer_id == target_contract.customer_id]
+                
+                if target_contract not in family_contracts:
+                    family_contracts.append(target_contract)
+                    
+                def get_eff_start(c):
+                    onboarding = getattr(c, 'actual_onboarding_date', None)
+                    if onboarding:
+                        return onboarding.date() if isinstance(onboarding, datetime) else onboarding
+                    return c.start_date.date() if isinstance(c.start_date, datetime) else c.start_date
+                    
+                def get_act_end(c):
+                    is_mo = getattr(c, 'is_monthly_auto_renew', False) and c.status in ('active', 'pending')
+                    if is_mo:
+                        return None
+                    elif c.status == 'terminated' and c.termination_date:
+                        return c.termination_date.date() if isinstance(c.termination_date, datetime) else c.termination_date
+                    return c.end_date.date() if isinstance(c.end_date, datetime) else c.end_date
+                
+                starts = [get_eff_start(c) for c in family_contracts]
+                ends = [get_act_end(c) for c in family_contracts]
+                
+                effective_start = min(starts)
+                effective_end = None if None in ends else max(ends)
         
         # 如果没有通过指定合同找到有效合同，使用原来的逻辑查找
         if not contract:
             contract, effective_start, effective_end = find_consecutive_contracts(employee.id, cycle_start, cycle_end)
+
         
         if not contract:
             # 查找该员工最早的活跃合同，返回建议的月份
             earliest_contract = BaseContract.query.filter(
                 BaseContract.service_personnel_id == employee.id,
-                BaseContract.status.in_(['active', 'terminated', 'finished', 'completed'])
+                BaseContract.status.in_(['active', 'pending', 'terminated', 'finished', 'completed'])
             ).order_by(BaseContract.start_date.asc()).first()
             
             if earliest_contract:
@@ -550,23 +592,34 @@ def get_attendance_form_by_token(employee_token):
             
             if contract_end_date and cycle_start <= contract_end_date <= cycle_end:
                 contract_end_str = contract_end_date.isoformat()
-                has_offboarding = any(r.get('date') == contract_end_str for r in form_data.get('offboarding_records', []))
-                if not has_offboarding and not has_following_contract(contract):
-                    form_data['offboarding_records'].append({
-                        'date': contract_end_str,
-                        'type': 'offboarding',
-                        'startTime': '',
-                        'endTime': '',
-                        'hours': 0,
-                        'minutes': 0,
-                        'daysOffset': 0
-                    })
-                    form_data_updated = True
-                    current_app.logger.info(f"已存在的考勤表补充下户记录: {contract_end_date}")
+                
+                # Check for existing offboarding
+                existing_offboarding = [r for r in form_data.get('offboarding_records', []) if r.get('date') == contract_end_str]
+                
+                if has_following_contract(contract):
+                    # 【修复】如果有续约合同，不仅不添加，还要删除之前错误添加的（如果有的话）
+                    if existing_offboarding:
+                        form_data['offboarding_records'] = [r for r in form_data.get('offboarding_records', []) if r.get('date') != contract_end_str]
+                        form_data_updated = True
+                        current_app.logger.info(f"由于发现续约合同，清除已存在的错误下户记录: {contract_end_date}")
+                else:
+                    if not existing_offboarding:
+                        form_data['offboarding_records'].append({
+                            'date': contract_end_str,
+                            'type': 'offboarding',
+                            'startTime': '',
+                            'endTime': '',
+                            'hours': 0,
+                            'minutes': 0,
+                            'daysOffset': 0
+                        })
+                        form_data_updated = True
+                        current_app.logger.info(f"已存在的考勤表补充下户记录: {contract_end_date}")
             
             # 如果有更新，保存到数据库
             if form_data_updated:
                 existing_form.form_data = form_data
+                flag_modified(existing_form, "form_data")
                 db.session.commit()
             
             # 重新计算有效日期范围，确保家庭合并逻辑生效
@@ -574,6 +627,13 @@ def get_attendance_form_by_token(employee_token):
             # 添加实际使用的年月（让前端同步 URL）
             result['actual_year'] = cycle_start.year
             result['actual_month'] = cycle_start.month
+            
+            # 【修复】如果合并后的 family_contracts 中有 active 的自动续签合同，
+            # 即使当前主合同是 terminated，也向前端宣称其实际上是 active，避免日历被截断
+            if effective_end is None and result.get('contract_info'):
+                result['contract_info']['status'] = 'active'
+                result['contract_info']['is_monthly_auto_renew'] = True
+                
             return jsonify(result)
 
         # 6. 创建新表单 - access_token 使用纯员工ID（固定，不包含年月）
@@ -653,6 +713,13 @@ def get_attendance_form_by_token(employee_token):
         # 添加实际使用的年月（让前端同步 URL）
         result['actual_year'] = cycle_start.year
         result['actual_month'] = cycle_start.month
+        
+        # 【修复】如果合并后的 family_contracts 中有 active 的自动续签合同，
+        # 即使当前主合同是 terminated，也向前端宣称其实际上是 active，避免日历被截断
+        if effective_end is None and result.get('contract_info'):
+            result['contract_info']['status'] = 'active'
+            result['contract_info']['is_monthly_auto_renew'] = True
+            
         return jsonify(result)
 
     except Exception as e:
@@ -764,7 +831,12 @@ def update_attendance_form(employee_token):
         
         _, effective_start, effective_end = find_consecutive_contracts(form.employee_id, cycle_start, cycle_end)
         
-        return jsonify(form_to_dict(form, effective_start, effective_end))
+        result = form_to_dict(form, effective_start, effective_end)
+        if effective_end is None and result.get('contract_info'):
+            result['contract_info']['status'] = 'active'
+            result['contract_info']['is_monthly_auto_renew'] = True
+            
+        return jsonify(result)
         
     except Exception as e:
         current_app.logger.error(f"更新考勤表失败: {e}", exc_info=True)
@@ -779,13 +851,29 @@ def get_sign_page_data(signature_token):
             return jsonify({"error": "无效的签署链接"}), 404
             
         # 调用 find_consecutive_contracts 获取合并后的日期范围
-        _, effective_start, effective_end = find_consecutive_contracts(
-            form.employee_id,
-            form.cycle_start_date,
-            form.cycle_end_date
-        )
+        try:
+            from datetime import datetime
+            cycle_start = form.cycle_start_date.date() if isinstance(form.cycle_start_date, datetime) else form.cycle_start_date
+            cycle_end = form.cycle_end_date.date() if isinstance(form.cycle_end_date, datetime) else form.cycle_end_date
+            
+            _, effective_start, effective_end = find_consecutive_contracts(
+                form.employee_id,
+                cycle_start,
+                cycle_end
+            )
+        except Exception:
+            _, effective_start, effective_end = find_consecutive_contracts(
+                form.employee_id,
+                form.cycle_start_date,
+                form.cycle_end_date
+            )
 
-        return jsonify(form_to_dict(form, effective_start, effective_end))
+        result = form_to_dict(form, effective_start, effective_end)
+        if effective_end is None and result.get('contract_info'):
+            result['contract_info']['status'] = 'active'
+            result['contract_info']['is_monthly_auto_renew'] = True
+
+        return jsonify(result)
     except Exception as e:
         current_app.logger.error(f"获取签署页面失败: {e}", exc_info=True)
         return jsonify({"error": "服务器内部错误"}), 500
@@ -821,7 +909,25 @@ def submit_customer_signature(signature_token):
             current_app.logger.error(f"同步考勤记录失败: {sync_error}", exc_info=True)
             # 注意：这里我们记录错误但不阻断返回，因为签署已经成功
             
-        return jsonify({"message": "签署成功", "form": form_to_dict(form)})
+        try:
+            from datetime import datetime
+            cycle_start = form.cycle_start_date.date() if isinstance(form.cycle_start_date, datetime) else form.cycle_start_date
+            cycle_end = form.cycle_end_date.date() if isinstance(form.cycle_end_date, datetime) else form.cycle_end_date
+            
+            _, effective_start, effective_end = find_consecutive_contracts(
+                form.employee_id,
+                cycle_start,
+                cycle_end
+            )
+        except Exception:
+            _, effective_start, effective_end = find_consecutive_contracts(form.employee_id, form.cycle_start_date, form.cycle_end_date)
+            
+        result = form_to_dict(form, effective_start, effective_end)
+        if effective_end is None and result.get('contract_info'):
+            result['contract_info']['status'] = 'active'
+            result['contract_info']['is_monthly_auto_renew'] = True
+
+        return jsonify({"message": "签署成功", "form": result})
         
     except Exception as e:
         current_app.logger.error(f"提交签名失败: {e}", exc_info=True)
@@ -1004,7 +1110,7 @@ def form_to_dict(form, effective_start_date=None, effective_end_date=None):
             service_personnel_id=form.employee_id,
             family_id=form.contract.family_id
         ).filter(
-            BaseContract.status.in_(['active', 'terminated', 'finished', 'completed']),
+            BaseContract.status.in_(['active', 'pending', 'terminated', 'finished', 'completed']),
             BaseContract.start_date <= form.cycle_end_date,
             BaseContract.end_date >= form.cycle_start_date
         ).all()
@@ -1103,7 +1209,7 @@ def get_monthly_attendance_list():
         # 1. 对于已终止合同，使用 termination_date 作为结束时间
         # 2. 对于月签合同（is_monthly_auto_renew=True），如果状态是 active，则忽略 end_date 限制
         contracts = BaseContract.query.filter(
-            BaseContract.status.in_(['active', 'terminated', 'finished', 'completed']),
+            BaseContract.status.in_(['active', 'pending', 'terminated', 'finished', 'completed']),
             BaseContract.start_date <= month_end,
             or_(
                 # 情况1: 月签合同且状态为 active，不检查 end_date（会自动续约）

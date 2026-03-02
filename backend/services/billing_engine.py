@@ -919,6 +919,9 @@ class BillingEngine:
             # 回退到旧的计算逻辑（从劳务时间段自动计算）
             base_work_days = D(min(cycle_actual_days, 26))
             log_extras["base_work_days_reason"] = f"默认逻辑（从劳务时间段计算）: min(周期天数({cycle_actual_days}), 26)"
+            # 【关键修正】即使使用默认逻辑，也将其保存到数据库字段中，避免前端显示“待计算”
+            bill.actual_work_days = float(base_work_days)
+            payroll.actual_work_days = float(base_work_days)
         # --- END NEW LOGIC ---
         
         # total_days_worked = base_work_days + overtime_days - D(total_substitute_days)
@@ -1582,6 +1585,9 @@ class BillingEngine:
         else:
             base_work_days = D(min(actual_cycle_days, 26))
             log_extras["base_work_days_reason"] = f"默认逻辑: min(周期天数( {actual_cycle_days}), 26)"
+            # 【关键修正】即使使用默认逻辑，也将其保存到数据库字段中，避免前端显示“待计算”
+            bill.actual_work_days = float(base_work_days)
+            payroll.actual_work_days = float(base_work_days)
         # --- END NEW LOGIC ---
 
         total_days_worked = base_work_days + overtime_days
