@@ -62,14 +62,14 @@ const AttendanceManagementPage = () => {
     const processedEmployees = useMemo(() => {
         // 使用去重逻辑处理员工记录
         const deduplicatedEmployees = AttendanceDisplayLogic.deduplicateRecords(employees);
-        
+
         return deduplicatedEmployees;
     }, [employees]);
 
     // Filter employees
     const filteredEmployees = processedEmployees.filter(employee => {
         const searchLower = searchTerm.toLowerCase();
-        const matchesSearch = !searchTerm || 
+        const matchesSearch = !searchTerm ||
             (employee.employee_name?.toLowerCase().includes(searchLower)) ||
             (employee.employee_name_pinyin?.toLowerCase().includes(searchLower)) ||
             (employee.customer_name?.toLowerCase().includes(searchLower)) ||
@@ -87,8 +87,8 @@ const AttendanceManagementPage = () => {
             matchesStatus = employee.form_status === 'draft' && employee.has_data;
         } else if (statusFilter === 'not_filled') {
             // 未填写
-            matchesStatus = ['not_created'].includes(employee.form_status) || 
-                           (employee.form_status === 'draft' && !employee.has_data);
+            matchesStatus = ['not_created'].includes(employee.form_status) ||
+                (employee.form_status === 'draft' && !employee.has_data);
         } else if (statusFilter === 'incomplete') {
             // 兼容旧的筛选值：未填写 + 未提交
             matchesStatus = ['not_created', 'draft'].includes(employee.form_status);
@@ -110,20 +110,25 @@ const AttendanceManagementPage = () => {
             return priorityA - priorityB;
         }
 
-        // 2. Name Priority: Alphabetical
+        // 2. 客户已签署的记录按签署时间倒序（新签署的在上面）
+        if (a.form_status === 'customer_signed' && a.customer_signed_at && b.customer_signed_at) {
+            return new Date(b.customer_signed_at) - new Date(a.customer_signed_at);
+        }
+
+        // 3. 其他状态按姓名中文排序
         return (a.employee_name || '').localeCompare(b.employee_name || '', 'zh-CN');
     });
 
     // 计算统计数据 (基于去重后的数据)
     const stats = useMemo(() => {
-        const notFilled = processedEmployees.filter(e => 
-            ['not_created'].includes(e.form_status) || 
+        const notFilled = processedEmployees.filter(e =>
+            ['not_created'].includes(e.form_status) ||
             (e.form_status === 'draft' && !e.has_data)
         ).length;
-        const notSubmitted = processedEmployees.filter(e => 
+        const notSubmitted = processedEmployees.filter(e =>
             e.form_status === 'draft' && e.has_data
         ).length;
-        
+
         return {
             total: processedEmployees.length,
             pending: processedEmployees.filter(e => e.form_status === 'confirmed').length,
@@ -278,7 +283,7 @@ const AttendanceManagementPage = () => {
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                     {/* ... (Stats cards remain same) ... */}
                     {/* 总员工数 */}
-                    <div 
+                    <div
                         onClick={() => setStatusFilter('all')}
                         className={`bg-white/90 backdrop-blur rounded-lg shadow-lg p-6 hover:shadow-xl transition-all cursor-pointer ${statusFilter === 'all' ? 'ring-2 ring-blue-500' : ''}`}
                     >
@@ -299,7 +304,7 @@ const AttendanceManagementPage = () => {
                     </div>
 
                     {/* 未填写 - 红色 */}
-                    <div 
+                    <div
                         onClick={() => setStatusFilter('not_filled')}
                         className={`bg-white/90 backdrop-blur rounded-lg shadow-lg p-6 hover:shadow-xl transition-all cursor-pointer ${statusFilter === 'not_filled' ? 'ring-2 ring-red-500' : ''}`}
                     >
@@ -320,7 +325,7 @@ const AttendanceManagementPage = () => {
                     </div>
 
                     {/* 未提交 - 橙色 */}
-                    <div 
+                    <div
                         onClick={() => setStatusFilter('not_submitted')}
                         className={`bg-white/90 backdrop-blur rounded-lg shadow-lg p-6 hover:shadow-xl transition-all cursor-pointer ${statusFilter === 'not_submitted' ? 'ring-2 ring-amber-500' : ''}`}
                     >
@@ -341,7 +346,7 @@ const AttendanceManagementPage = () => {
                     </div>
 
                     {/* 待签署 - 蓝色 */}
-                    <div 
+                    <div
                         onClick={() => setStatusFilter('pending')}
                         className={`bg-white/90 backdrop-blur rounded-lg shadow-lg p-6 hover:shadow-xl transition-all cursor-pointer ${statusFilter === 'pending' ? 'ring-2 ring-blue-500' : ''}`}
                     >
@@ -361,7 +366,7 @@ const AttendanceManagementPage = () => {
                     </div>
 
                     {/* 已完成 - 绿色 */}
-                    <div 
+                    <div
                         onClick={() => setStatusFilter('completed')}
                         className={`bg-white/90 backdrop-blur rounded-lg shadow-lg p-6 hover:shadow-xl transition-all cursor-pointer ${statusFilter === 'completed' ? 'ring-2 ring-green-500' : ''}`}
                     >
