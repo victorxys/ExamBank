@@ -1610,7 +1610,13 @@ const ContractDetail = () => {
                             label="终止日期"
                             value={terminationDate}
                             onChange={(date) => setTerminationDate(date)}
-                            minDate={contract.start_date ? new Date(contract.start_date) : undefined}
+                            minDate={
+                                contract.contract_type_value === 'maternity_nurse'
+                                    ? (contract.actual_onboarding_date
+                                        ? new Date(contract.actual_onboarding_date)
+                                        : (contract.provisional_start_date ? new Date(contract.provisional_start_date) : (contract.start_date ? new Date(contract.start_date) : undefined)))
+                                    : (contract.start_date ? new Date(contract.start_date) : undefined)
+                            }
                             sx={{ width: '100%', mt: 1 }}
                         />
                         <FormControl component="fieldset" sx={{ mt: 2 }}>
