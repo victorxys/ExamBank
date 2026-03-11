@@ -94,8 +94,10 @@ CORS(
     supports_credentials=True,
     origins=[
         "http://localhost:5175",
+        "http://localhost:5273",
         "https://ai.mengyimengsao.com",
         "https://mengai.mengyimengsao.com",
+        "https://school.mengyimengsao.com",
         "https://hr.mengyimengsao.com",
         "https://www.mengyimengsao.com",
     ],
@@ -451,10 +453,14 @@ def login():
         conn.close()
 
 
-# API key 用来确保来源系统的可靠性。
-AUTHORIZED_KEYS = {
-    "api_key_123": "ai_mengyimengsao"  # 目前用于 聊天机器人的登录与认证。
-}
+# API key 用来确保来源系统的可靠性。从环境变量 EXTERNAL_AUTH_API_KEYS 读取，格式为 key1:name1,key2:name2
+_keys_env = os.environ.get("EXTERNAL_AUTH_API_KEYS", "api_key_123:ai_mengyimengsao")
+AUTHORIZED_KEYS = {}
+for pair in _keys_env.split(','):
+    pair = pair.strip()
+    if ':' in pair:
+        k, v = pair.split(':', 1)
+        AUTHORIZED_KEYS[k.strip()] = v.strip()
 
 
 # 外部用户登录的api 为 ai系统提供的配额和 AUTHORIZED_KEYS 来配置使用
@@ -4367,4 +4373,4 @@ from backend import management_commands
 management_commands.register_commands(app)
 
 if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=5000)
+    app.run(debug=True, host="0.0.0.0", port=5001)
