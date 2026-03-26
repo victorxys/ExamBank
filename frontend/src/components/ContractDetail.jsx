@@ -1424,7 +1424,7 @@ const ContractDetail = () => {
                                     变更合同
                                 </Button>
                             )}
-                            {['active', 'finished'].includes(contract.status) && contract.contract_type_value !== 'nanny_trial' && (
+                            {['active', 'finished', 'pending'].includes(contract.status) && contract.contract_type_value !== 'nanny_trial' && (
                                 <Button variant="contained" color="error" onClick={handleOpenTerminationDialog}>
                                     终止合同
                                 </Button>

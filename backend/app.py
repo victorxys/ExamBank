@@ -93,6 +93,7 @@ CORS(
     app,
     supports_credentials=True,
     origins=[
+        "http://localhost:3000",
         "http://localhost:5175",
         "http://localhost:5273",
         "https://ai.mengyimengsao.com",
