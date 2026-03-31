@@ -1402,9 +1402,9 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
         // 计算有效天数（合同范围内的天数）
         const validDaysCount = monthDays.filter(day => !isDateDisabled(day)).length;
 
-        // 【关键修复】出勤天数 = 有效天数 - 休息天数 - 请假天数
-        // 无论节假日加班还是正常加班，都算出勤，不需要扣除
-        const currentWorkDays = validDaysCount - totalLeaveDays;
+        // 【关键修复】出勤天数 = 有效天数 - 休息天数 - 请假天数 - 已有加班天数
+        // 如果用户已经手动填写了加班，不应再重复计算为正常出勤
+        const currentWorkDays = validDaysCount - totalLeaveDays - normalOvertimeDays - holidayOvertimeDays;
 
         // 如果出勤天数 <= 26，不需要处理
         if (currentWorkDays <= MAX_WORK_DAYS) {
@@ -1435,14 +1435,32 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
             }
         });
 
-        // 从月末往前找可用的日期
-        const availableDays = validDays
+        // 从月末往前找可用的日期，但按日期升序排序以方便合并
+        const sortedAvailableDays = validDays
             .filter(day => !occupiedDates.has(format(day, 'yyyy-MM-dd')))
-            .reverse() // 从月末开始
-            .slice(0, daysToConvert);
+            .slice(-daysToConvert) // 取最后 X 个可用天数
+            .sort((a, b) => a - b); // 升序排列
 
-        if (availableDays.length === 0) {
+        if (sortedAvailableDays.length === 0) {
             return { data, converted: false, overtimeDays: 0 };
+        }
+
+        // 将连续日期进行分组
+        const groups = [];
+        if (sortedAvailableDays.length > 0) {
+            let currentGroup = [sortedAvailableDays[0]];
+            for (let i = 1; i < sortedAvailableDays.length; i++) {
+                const prev = sortedAvailableDays[i - 1];
+                const curr = sortedAvailableDays[i];
+                // 如果是连续的一天
+                if (differenceInDays(curr, prev) === 1) {
+                    currentGroup.push(curr);
+                } else {
+                    groups.push(currentGroup);
+                    currentGroup = [curr];
+                }
+            }
+            groups.push(currentGroup);
         }
 
         // 创建新的数据副本
@@ -1450,21 +1468,45 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
         newData.overtime_records = [...(newData.overtime_records || [])];
 
         let remainingHours = exactDaysToConvert * 24;
-        availableDays.forEach(day => {
-            const dateStr = format(day, 'yyyy-MM-dd');
-            const hoursForThisDay = Math.min(24, remainingHours);
+
+        groups.forEach(group => {
+            const firstDay = group[0];
+            const lastDay = group[group.length - 1];
+            const daysCount = group.length;
+
+            // 计算该片段可分配的时长
+            const maxHoursForGroup = daysCount * 24;
+            const hoursForGroup = Math.min(maxHoursForGroup, remainingHours);
+
+            if (hoursForGroup <= 0.01) return; // 忽略忽略不计的时长
+
+            // 构造跨天记录
+            const startTime = '00:00';
+            let endTime = '24:00';
+
+            // 如果该片段的时长不是整天倍数，调整 endTime
+            if (Math.abs(hoursForGroup - maxHoursForGroup) > 0.01) {
+                // 计算最后一天的截止时间
+                const lastDayDuration = hoursForGroup % 24 || 24;
+                if (Math.abs(lastDayDuration - 24) > 0.01) {
+                    const h = Math.floor(lastDayDuration);
+                    const m = Math.round((lastDayDuration % 1) * 60);
+                    endTime = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+                }
+            }
 
             newData.overtime_records.push({
                 id: Math.random().toString(36).substr(2, 9),
-                date: dateStr,
+                date: format(firstDay, 'yyyy-MM-dd'),
                 type: 'overtime',
-                startTime: '08:00',
-                endTime: '20:00', // Just placeholder times
-                hours: Math.floor(hoursForThisDay),
-                minutes: Math.round((hoursForThisDay % 1) * 60),
-                daysOffset: 0
+                startTime: startTime,
+                endTime: endTime,
+                hours: Math.floor(hoursForGroup),
+                minutes: Math.round((hoursForGroup % 1) * 60),
+                daysOffset: daysCount - 1
             });
-            remainingHours -= hoursForThisDay;
+
+            remainingHours -= hoursForGroup;
         });
 
         return { data: newData, converted: true, overtimeDays: exactDaysToConvert };
