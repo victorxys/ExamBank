@@ -405,19 +405,14 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
         return { year: startDate.getFullYear(), month: startDate.getMonth() + 1 };
     }, [contractInfo]);
 
-    // 能否切换到上个月（不能早于合同开始月）
+    // 能否切换到上个月
     const canGoPrev = useMemo(() => {
-        // 如果合同信息还没加载，禁用切换
-        if (!contractInfo) return false;
-        if (!contractStartMonth) return true;
-        const prevMonth = selectedMonth === 1
-            ? { year: selectedYear - 1, month: 12 }
-            : { year: selectedYear, month: selectedMonth - 1 };
-
-        if (prevMonth.year < contractStartMonth.year) return false;
-        if (prevMonth.year === contractStartMonth.year && prevMonth.month < contractStartMonth.month) return false;
+        if (!selectedYear || !selectedMonth) return false;
+        // 允许向后追溯。虽然不知道更早有没有合同，但后端会智能处理（不限制在当前合同内）
+        // 简单限制一个系统底限即可（例如 2024 年）
+        if (selectedYear < 2024) return false;
         return true;
-    }, [selectedYear, selectedMonth, contractStartMonth, contractInfo]);
+    }, [selectedYear, selectedMonth]);
 
     const isDateDisabled = useCallback((date) => {
         if (!contractInfo) return false;
@@ -1877,7 +1872,7 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                             ? 'bg-gray-100 hover:bg-gray-200 active:bg-gray-300'
                                             : 'bg-gray-50 cursor-not-allowed'
                                             }`}
-                                        title={canGoPrev ? "上个月" : "不能查看合同开始前的考勤"}
+                                        title="上个月"
                                     >
                                         <ChevronLeft className={`w-5 h-5 ${canGoPrev ? 'text-gray-600' : 'text-gray-300'}`} />
                                     </button>
@@ -1898,55 +1893,15 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                 {/* 月份切换 - 员工模式和管理员查看模式显示 */}
                                 {!isCustomerMode && (() => {
                                     // 判断是否可以切换到下个月
-                                    // 1. 不能超过可编辑月份（当月）
-                                    // 2. 已终止的自动月签合同不能超过终止月
-                                    // 3. 普通合同不能超过结束月
+                                    // 放开合同结束日期限制，允许用户尝试切换到包含新合同的下个月
+                                    // 唯一的限制是不能超过系统当前的可编辑月份（通常是当前月）
                                     let canGoNext = editableMonth && (
                                         selectedYear < editableMonth.year ||
                                         (selectedYear === editableMonth.year && selectedMonth < editableMonth.month)
                                     );
 
-                                    // 检查合同结束限制
-                                    if (canGoNext && contractInfo) {
-                                        let endYear, endMonth;
-                                        let isContractEnded = false;
-
-                                        if (contractInfo.is_monthly_auto_renew) {
-                                            // 自动月签合同：只有终止时才有结束限制
-                                            if (contractInfo.status === 'terminated' && contractInfo.termination_date) {
-                                                const terminationDate = parseISO(contractInfo.termination_date);
-                                                endYear = terminationDate.getFullYear();
-                                                endMonth = terminationDate.getMonth() + 1;
-                                                isContractEnded = true;
-                                            }
-                                        } else {
-                                            // 普通合同：使用结束日期
-                                            if (contractInfo.end_date) {
-                                                const endDate = parseISO(contractInfo.end_date);
-                                                endYear = endDate.getFullYear();
-                                                endMonth = endDate.getMonth() + 1;
-                                                isContractEnded = true;
-                                            }
-                                        }
-
-                                        // 如果当前已经是结束月或之后，不能再向后切换
-                                        if (isContractEnded && (selectedYear > endYear ||
-                                            (selectedYear === endYear && selectedMonth >= endMonth))) {
-                                            canGoNext = false;
-                                        }
-                                    }
-
                                     // 确定提示文字
-                                    let nextTitle = "下个月";
-                                    if (!canGoNext) {
-                                        if (contractInfo?.is_monthly_auto_renew && contractInfo.status === 'terminated') {
-                                            nextTitle = "合同已终止，无法查看后续月份";
-                                        } else if (contractInfo?.end_date && !contractInfo?.is_monthly_auto_renew) {
-                                            nextTitle = "合同已结束，无法查看后续月份";
-                                        } else {
-                                            nextTitle = "不能查看未来月份";
-                                        }
-                                    }
+                                    const nextTitle = canGoNext ? "下个月" : "不能查看未开启的未来月份";
 
                                     return (
                                         <button
