@@ -764,19 +764,28 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                     // 计算当前月份内的天数
                     const daysInCurrentMonth = differenceInDays(actualEndDate, actualStartDate) + 1;
 
-                    // 计算当前月份内的小时数
+                    // 【关键修复】使用与总览一致的逻辑计算时长，解决跨天显示不准的问题
+                    const durationResult = AttendanceDateUtils.CrossDayDurationCalculator.calculateTotalDuration(record);
+                    let totalRecordHours = durationResult.totalHours;
+
+                    // 兼容旧数据或容错：如果 totalRecordHours 为 0 但有 daysOffset，按天计算
+                    if (totalRecordHours === 0 && daysOffset > 0) {
+                        totalRecordHours = (daysOffset + 1) * 24;
+                    }
+
                     let hoursInCurrentMonth = 0;
                     let minutesInCurrentMonth = 0;
 
-                    if (daysOffset === 0) {
-                        // 单天记录，直接使用原始时长
-                        hoursInCurrentMonth = record.hours || 0;
-                        minutesInCurrentMonth = record.minutes || 0;
+                    if (actualStartDate.getTime() === recordStartDate.getTime() && actualEndDate.getTime() === recordEndDate.getTime()) {
+                        // 记录完全在当前月份内，直接使用总时长
+                        hoursInCurrentMonth = Math.floor(totalRecordHours);
+                        minutesInCurrentMonth = Math.round((totalRecordHours % 1) * 60);
                     } else {
-                        // 跨天记录，按天数比例计算
-                        const totalHours = daysInCurrentMonth * 24;
-                        hoursInCurrentMonth = Math.floor(totalHours);
-                        minutesInCurrentMonth = Math.round((totalHours % 1) * 60);
+                        // 跨月记录，按天数比例计算（与首页汇总统计逻辑保持一致）
+                        const totalDaysSpan = daysOffset + 1;
+                        const比例时长 = totalRecordHours * (daysInCurrentMonth / totalDaysSpan);
+                        hoursInCurrentMonth = Math.floor(比例时长);
+                        minutesInCurrentMonth = Math.round((比例时长 % 1) * 60);
                     }
 
                     allRecords.push({
