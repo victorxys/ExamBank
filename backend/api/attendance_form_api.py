@@ -1,6 +1,7 @@
 from flask import Blueprint, jsonify, request, current_app, render_template, make_response
 from backend.models import db, AttendanceForm, BaseContract, ServicePersonnel, AttendanceRecord, NannyContract
 from backend.services.attendance_sync_service import sync_attendance_to_record
+from backend.services.billing_engine import BillingEngine
 import uuid
 from datetime import datetime, date, timedelta
 from dateutil.relativedelta import relativedelta
@@ -840,6 +841,78 @@ def update_attendance_form(employee_token):
         
     except Exception as e:
         current_app.logger.error(f"更新考勤表失败: {e}", exc_info=True)
+        return jsonify({"error": "服务器内部错误"}), 500
+
+@attendance_form_bp.route('/<uuid:form_id>/status', methods=['PUT'])
+def update_attendance_form_status_admin(form_id):
+    """管理员手动修改考勤表状态"""
+    try:
+        data = request.get_json()
+        new_status = data.get('status')
+        
+        if not new_status or new_status not in ['draft', 'employee_confirmed', 'customer_signed', 'synced']:
+            return jsonify({"error": "无效的状态"}), 400
+            
+        form = AttendanceForm.query.get(form_id)
+        if not form:
+            return jsonify({"error": "考勤表不存在"}), 404
+            
+        # 更新状态
+        form.status = new_status
+        
+        # 如果是设置回待签署或草稿，清除之前的签署数据，以便重新签署
+        if new_status in ['draft', 'employee_confirmed']:
+            form.signature_data = None
+            form.customer_signed_at = None
+            # 重新生成签署 token (可选，通常保持不变即可)
+            if not form.customer_signature_token:
+                form.customer_signature_token = str(uuid.uuid4())
+            
+            # --- 核心增强：确保财务数据同步恢复 ---
+            # 1. 撤销同步状态位
+            form.synced_to_attendance = False
+            
+            # 2. 查找并删除关联的 AttendanceRecord
+            attendance_record_id = form.attendance_record_id
+            if attendance_record_id:
+                record = AttendanceRecord.query.get(attendance_record_id)
+                if record:
+                    current_app.logger.info(f"管理员重置考勤状态，删除关联的出勤记录: {attendance_record_id}")
+                    db.session.delete(record)
+                form.attendance_record_id = None
+            
+            # 3. 提交删除/重置操作，确保账单引擎能看到更新后的数据库状态
+            db.session.commit()
+            
+            # 4. 触发账单重算（恢复到没有考勤确认的默认状态）
+            try:
+                year = form.cycle_start_date.year
+                month = form.cycle_start_date.month
+                current_app.logger.info(f"触发账单恢复计算: 合同={form.contract_id}, 周期={year}-{month}")
+                
+                engine = BillingEngine()
+                engine.calculate_for_month(
+                    year, 
+                    month, 
+                    contract_id=form.contract_id, 
+                    force_recalculate=True
+                )
+                db.session.commit()
+                current_app.logger.info("账单恢复重算成功")
+            except Exception as billing_err:
+                current_app.logger.error(f"账单恢复重算失败: {billing_err}", exc_info=True)
+                # 即使账单重算失败，考勤状态修改也已生效
+        else:
+            db.session.commit()
+            
+        return jsonify({
+            "message": "状态已更新",
+            "status": form.status,
+            "id": str(form.id)
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"修改考勤表状态失败: {e}", exc_info=True)
         return jsonify({"error": "服务器内部错误"}), 500
 
 @attendance_form_bp.route('/sign/<signature_token>', methods=['GET'])

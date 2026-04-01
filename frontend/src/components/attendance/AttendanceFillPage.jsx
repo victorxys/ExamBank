@@ -2262,7 +2262,7 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
             )}
 
             {/* Bottom Fixed Action Bar */}
-            {!isAdminView && (
+            {(true) && (
                 <div className="fixed bottom-0 left-0 right-0 bg-white border-t p-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-20">
                     <div className="max-w-3xl mx-auto">
                         {isCustomerMode ? (
@@ -2329,8 +2329,8 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                             )}
                                         </div>
 
-                                        {/* Submit and Share button for draft status */}
-                                        {formData.status === 'draft' && (
+                                        {/* Submit and Share button for employees */}
+                                        {!isAdminView && (formData.status === 'draft' || formData.status === 'employee_confirmed') && (
                                             <button
                                                 onClick={async () => {
                                                     // 检查是否需要自动转换加班
@@ -2389,8 +2389,8 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                             </button>
                                         )}
 
-                                        {/* Share button for already confirmed status */}
-                                        {formData.client_sign_url && formData.status === 'employee_confirmed' && (
+                                        {/* Share button for employees in confirmed status */}
+                                        {!isAdminView && formData.client_sign_url && formData.status === 'employee_confirmed' && (
                                             <button
                                                 onClick={() => {
                                                     // 使用 sessionStorage 传递分享提示状态，避免 URL 参数被分享出去
@@ -2411,7 +2411,30 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                             {formData.status === 'customer_signed' ? '客户已签署' : '已完成'}
                                         </div>
 
-
+                                            {isAdminView && (
+                                                <button
+                                                    onClick={async () => {
+                                                        if (!window.confirm("确认将考勤状态改为「待客户签署」？\n\n这将清除原有的签署信息，员工可重新编辑。")) return;
+                                                        try {
+                                                            setSubmitting(true);
+                                                            await api.put(`/attendance-forms/${formData.id}/status`, {
+                                                                status: 'employee_confirmed'
+                                                            });
+                                                            toast({ title: "修改成功", description: "状态已重置为待签署，员工可重新编辑。" });
+                                                            // 刷新数据
+                                                            fetchData(selectedYear, selectedMonth);
+                                                        } catch (error) {
+                                                            toast({ title: "修改失败", description: "服务器错误，请联系技术人员", variant: "destructive" });
+                                                        } finally {
+                                                            setSubmitting(false);
+                                                        }
+                                                    }}
+                                                    className="w-full bg-amber-100 hover:bg-amber-200 text-amber-700 py-3 rounded-xl font-medium transition-colors flex items-center justify-center gap-2 border border-amber-200"
+                                                >
+                                                    <Clock className="w-5 h-5" />
+                                                    修改状态：回退到待签署
+                                                </button>
+                                            )}
                                     </div>
                                 )}
                             </div>
