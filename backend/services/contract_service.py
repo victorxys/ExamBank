@@ -552,9 +552,9 @@ class ContractService:
                     )
                     db.session.add(deposit_adj)
 
-            # 3. 更新旧合同状态
-            old_contract.status = 'finished'
-            db.session.add(old_contract)
+            # 3. 更新旧合同状态 (续约时不改变原合同状态，允许其自然到期)
+            # old_contract.status = 'finished'
+            # db.session.add(old_contract)
 
 
         current_app.logger.info(f"成功续约合同 {old_contract_id}，创建新合同 {renewed_contract.id}。")
