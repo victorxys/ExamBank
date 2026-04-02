@@ -3112,7 +3112,7 @@ class AttendanceForm(db.Model):
         onupdate=db.func.now()
     )
     
-    contract = db.relationship("BaseContract", backref=db.backref("attendance_forms", lazy="dynamic"))
+    contract = db.relationship("BaseContract", backref=db.backref("attendance_forms", lazy="dynamic", cascade="all, delete-orphan"))
     attendance_record = db.relationship("AttendanceRecord", backref=db.backref("attendance_form", uselist=False), foreign_keys=[attendance_record_id])
 
 

@@ -19,7 +19,8 @@ from backend.models import (
     CompanyBankAccount,
     FinancialAdjustment,
     PaymentRecord,
-    AttendanceRecord, # <-- 确保此行存在
+    AttendanceRecord,
+    AttendanceForm,
     EmployeeSalaryHistory,
     ContractSignature
 )
@@ -939,13 +940,16 @@ def delete_contract(contract_id):
         if payroll_ids:
             EmployeePayroll.query.filter(EmployeePayroll.id.in_(payroll_ids)).delete(synchronize_session=False)
 
-        # 6. 删除考勤记录
+        # 6. 删除考勤表
+        AttendanceForm.query.filter_by(contract_id=contract_id_str).delete(synchronize_session=False)
+
+        # 7. 删除考勤记录
         AttendanceRecord.query.filter_by(contract_id=contract_id_str).delete(synchronize_session=False)
 
-        # 7. 删除薪酬历史
+        # 8. 删除薪酬历史
         EmployeeSalaryHistory.query.filter_by(contract_id=contract_id_str).delete(synchronize_session=False)
 
-        # 8. 最后，删除合同本身
+        # 9. 最后，删除合同本身
         db.session.delete(contract)
         
         db.session.commit()

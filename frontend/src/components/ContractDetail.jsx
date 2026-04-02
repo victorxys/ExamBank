@@ -604,11 +604,16 @@ const ContractDetail = () => {
             template_id: templateId,
             content: templateContent,
             is_monthly_auto_renew: contract.is_monthly_auto_renew || false,
+            requires_signature: null,
         });
         setIsRenewModalOpen(true);
     };
 
     const handleRenewContract = async () => {
+        if (renewalData.requires_signature === undefined || renewalData.requires_signature === null) {
+            setAlert({ open: true, message: '请选择是否需要客户签署。', severity: 'warning' });
+            return;
+        }
         try {
             const response = await api.post(`/contracts/${contractId}/renew`, renewalData);
             setAlert({ open: true, message: '合同续约成功！', severity: 'success' });
@@ -648,6 +653,7 @@ const ContractDetail = () => {
             template_id: templateId,
             content: templateContent,
             is_monthly_auto_renew: contract.is_monthly_auto_renew || false,
+            requires_signature: null,
         });
         setSelectedPersonnel({ id: contract.service_personnel_id, name: contract.employee_name });
 
@@ -660,6 +666,10 @@ const ContractDetail = () => {
     };
 
     const handleConfirmChange = async () => {
+        if (changeData.requires_signature === undefined || changeData.requires_signature === null) {
+            setAlert({ open: true, message: '请选择是否需要客户签署。', severity: 'warning' });
+            return;
+        }
         setLoading(true);
         // setError(''); // This is not a defined state, maybe it was removed. I'll use setAlert.
         setAlert({ open: false, message: '', severity: 'info' });
@@ -1945,10 +1955,10 @@ const ContractDetail = () => {
                         <Typography variant="caption" color="text.secondary">如果不转移，旧合同的保证金将按终止流程处理（通常为退款），新合同则需支付新的保证金。</Typography>
 
                         {/* --- 新增：是否需要客户签署 --- */}
-                        <FormControl fullWidth required sx={{ mt: 2 }}>
+                        <FormControl fullWidth required sx={{ mt: 2 }} error={renewalData.requires_signature === null}>
                             <InputLabel>是否需要客户签署</InputLabel>
                             <Select
-                                value={renewalData.requires_signature ?? ''}
+                                value={renewalData.requires_signature === null ? '' : String(renewalData.requires_signature)}
                                 onChange={(e) => setRenewalData({ ...renewalData, requires_signature: e.target.value === 'true' })}
                                 label="是否需要客户签署"
                             >
@@ -2064,10 +2074,10 @@ const ContractDetail = () => {
                         <Typography variant="caption" color="text.secondary">如果不转移，旧合同的保证金将按终止流程处理（通常为退款），新合同则需支付新的保证金。</Typography>
 
                         {/* --- 新增：是否需要客户签署 --- */}
-                        <FormControl fullWidth required sx={{ mt: 2 }}>
+                        <FormControl fullWidth required sx={{ mt: 2 }} error={changeData.requires_signature === null}>
                             <InputLabel>是否需要客户签署</InputLabel>
                             <Select
-                                value={changeData.requires_signature ?? ''}
+                                value={changeData.requires_signature === null ? '' : String(changeData.requires_signature)}
                                 onChange={(e) => setChangeData({ ...changeData, requires_signature: e.target.value === 'true' })}
                                 label="是否需要客户签署"
                             >
