@@ -1,6 +1,6 @@
 // frontend/src/components/CreateVirtualContractModal.jsx (v6 - with mutual exclusion)
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     Dialog, DialogTitle, DialogContent, DialogActions, Button, Grid, TextField,
@@ -38,6 +38,10 @@ const CreateVirtualContractModal = ({ open, onClose, onSuccess }) => {
     const [formData, setFormData] = useState(initialState);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    
+    // 追踪日期的上一个值，只在变化时自动计算日期
+    const prevProvisionalDateRef = useRef(null);
+    const prevStartDateRef = useRef(null);
 
     const [customerOptions, setCustomerOptions] = useState([]);
     const [employeeOptions, setEmployeeOptions] = useState([]);
@@ -48,23 +52,33 @@ const CreateVirtualContractModal = ({ open, onClose, onSuccess }) => {
         if (formData.contract_type === 'maternity_nurse' && formData.provisional_start_date) {
             const provisionalDate = new Date(formData.provisional_start_date);
             if (!isNaN(provisionalDate.getTime())) {
-                const newStartDate = provisionalDate;
-                const newEndDate = new Date(provisionalDate);
-                newEndDate.setDate(newEndDate.getDate() + 26);
-                const startTimeChanged = formData.start_date?.getTime() !==newStartDate.getTime();
-                const endTimeChanged = formData.end_date?.getTime() !==newEndDate.getTime();
-                if (startTimeChanged || endTimeChanged) {
-                    setFormData(prev => ({ ...prev, start_date: newStartDate,end_date: newEndDate }));
+                const provisionalTime = provisionalDate.getTime();
+                const prevTime = prevProvisionalDateRef.current;
+                
+                // 只在预产期首次设置或变化时自动计算日期
+                if (prevTime !== provisionalTime) {
+                    prevProvisionalDateRef.current = provisionalTime;
+                    const newStartDate = provisionalDate;
+                    const newEndDate = new Date(provisionalDate);
+                    newEndDate.setDate(newEndDate.getDate() + 26);
+                    setFormData(prev => ({ ...prev, start_date: newStartDate, end_date: newEndDate }));
                 }
             }
         } else if (formData.contract_type === 'nanny_trial' && formData.start_date) {
             const startDate = new Date(formData.start_date);
             if (!isNaN(startDate.getTime())) {
-                const newEndDate = new Date(startDate);
-                newEndDate.setDate(newEndDate.getDate() + 7);
-                const endTimeChanged = formData.end_date?.getTime() !==newEndDate.getTime();
-                if (endTimeChanged) {
-                    setFormData(prev => ({ ...prev, end_date: newEndDate }));
+                const startTime = startDate.getTime();
+                const prevTime = prevStartDateRef.current;
+
+                // 只在开始日期首次动作或由于用户交互变化时自动计算日期
+                if (prevTime !== startTime) {
+                    prevStartDateRef.current = startTime;
+                    const newEndDate = new Date(startDate);
+                    newEndDate.setDate(newEndDate.getDate() + 7);
+                    const endTimeChanged = formData.end_date?.getTime() !== newEndDate.getTime();
+                    if (endTimeChanged) {
+                        setFormData(prev => ({ ...prev, end_date: newEndDate }));
+                    }
                 }
             }
         }

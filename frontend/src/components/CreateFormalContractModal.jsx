@@ -390,8 +390,9 @@ ${managementFeeNotePart}`;
     };
 
     // All other useEffects and handlers remain the same...
-    // 追踪预产期的上一个值，只在预产期变化时自动计算日期
+    // 追踪日期的上一个值，只在变化时自动计算日期
     const prevProvisionalDateRef = React.useRef(null);
+    const prevStartDateRef = React.useRef(null);
     
     useEffect(() => {
         if (formData.contract_type === 'maternity_nurse' && formData.provisional_start_date) {
@@ -412,11 +413,18 @@ ${managementFeeNotePart}`;
         } else if (formData.contract_type === 'nanny_trial' && formData.start_date) {
             const startDate = new Date(formData.start_date);
             if (!isNaN(startDate.getTime())) {
-                const newEndDate = new Date(startDate);
-                newEndDate.setDate(newEndDate.getDate() + 7);
-                const endTimeChanged = formData.end_date?.getTime() !== newEndDate.getTime();
-                if (endTimeChanged) {
-                    setFormData(prev => ({ ...prev, end_date: newEndDate }));
+                const startTime = startDate.getTime();
+                const prevTime = prevStartDateRef.current;
+
+                // 只在开始日期首次设置或变化时自动计算日期
+                if (prevTime !== startTime) {
+                    prevStartDateRef.current = startTime;
+                    const newEndDate = new Date(startDate);
+                    newEndDate.setDate(newEndDate.getDate() + 7);
+                    const endTimeChanged = formData.end_date?.getTime() !== newEndDate.getTime();
+                    if (endTimeChanged) {
+                        setFormData(prev => ({ ...prev, end_date: newEndDate }));
+                    }
                 }
             }
         }

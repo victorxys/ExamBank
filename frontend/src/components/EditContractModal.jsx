@@ -109,6 +109,9 @@ const EditContractModal = ({ open, onClose, onSuccess, contractId }) => {
                     if (data.provisional_start_date) {
                         prevProvisionalDateRef.current = new Date(data.provisional_start_date).getTime();
                     }
+                    if (data.start_date) {
+                        prevStartDateRef.current = new Date(data.start_date).getTime();
+                    }
                     
                     console.log('Initial formData after setting:', newFormData);
 
@@ -192,8 +195,9 @@ const EditContractModal = ({ open, onClose, onSuccess, contractId }) => {
 
     }, [formData.employee_level, formData.contract_type, formData.deposit_rate, formData.management_fee_rate]);
 
-    // 追踪预产期的上一个值，只在预产期变化时自动计算日期
+    // 追踪日期的上一个值，只在变化时自动计算日期
     const prevProvisionalDateRef = useRef(null);
+    const prevStartDateRef = useRef(null);
 
     // 月嫂合同预产期联动合同日期
     useEffect(() => {
@@ -220,15 +224,23 @@ const EditContractModal = ({ open, onClose, onSuccess, contractId }) => {
         if (formData.contract_type === 'nanny_trial' && formData.start_date) {
             const startDate = new Date(formData.start_date);
             if (!isNaN(startDate.getTime())) {
-                const newEndDate = new Date(startDate);
-                newEndDate.setDate(newEndDate.getDate() + 7); // 试工合同默认7天
-                const endTimeChanged = formData.end_date?.getTime() !== newEndDate.getTime();
-                if (endTimeChanged) {
-                    setFormData(prev => ({ ...prev, end_date: newEndDate }));
+                const startTime = startDate.getTime();
+                const prevTime = prevStartDateRef.current;
+
+                // 只在开始日期首次动作或由于用户交互变化时自动计算日期
+                if (prevTime !== startTime) {
+                    prevStartDateRef.current = startTime;
+                    const newEndDate = new Date(startDate);
+                    newEndDate.setDate(newEndDate.getDate() + 7); // 试工合同默认7天
+                    
+                    const endTimeChanged = formData.end_date?.getTime() !== newEndDate.getTime();
+                    if (endTimeChanged) {
+                        setFormData(prev => ({ ...prev, end_date: newEndDate }));
+                    }
                 }
             }
         }
-    }, [formData.start_date, formData.contract_type, formData.end_date]);
+    }, [formData.start_date, formData.contract_type]);
 
     // 育儿嫂合同自动月签联动结束日期
     useEffect(() => {
