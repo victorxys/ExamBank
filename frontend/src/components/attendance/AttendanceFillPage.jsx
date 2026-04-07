@@ -1280,6 +1280,15 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
     const autoConvertOvertimeIfNeeded = (data) => {
         const MAX_WORK_DAYS = 26;
 
+        // 【关键修复】先清洗掉上一轮自动生成的垃圾加班数据（垃圾回收机制）
+        // 确保后续的计算完全基于用户“确定”填写的数据
+        const cleanData = { ...data };
+        if (Array.isArray(cleanData.overtime_records)) {
+            // 只保留非自动生成的加班记录（即用户手填的确定的加班记录）
+            cleanData.overtime_records = cleanData.overtime_records.filter(r => !r.is_auto);
+        }
+        data = cleanData;
+
         // 【关键修复】法定节假日算出勤（带薪假期），休息和请假不算出勤
 
         // 1. 计算休息和请假天数
@@ -1371,34 +1380,42 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
 
                 const overtimeDays = hoursInCurrentMonth / 24;
 
-                // 检查该日期是否有休息或请假记录，或者是否为法定节假日
-                let isHolidayOvertime = false;
-                const overtimeDate = record.date;
+                // 将连续的多天加班拆分为每天独立判断，确保精准捕捉连续跨度内的真实法定节假日
+                const daysInSpan = differenceInDays(actualEndDate, actualStartDate) + 1;
+                const dailyOvertime = overtimeDays / daysInSpan;
 
-                // 方法1：检查是否有考勤记录
-                ['rest_records', 'leave_records'].forEach(key => {
-                    if (Array.isArray(data[key])) {
-                        data[key].forEach(otherRecord => {
-                            if (otherRecord.date === overtimeDate) {
-                                isHolidayOvertime = true;
+                let currentDay = actualStartDate;
+                while (currentDay <= actualEndDate) {
+                    let isHolidayDay = false;
+
+                    // 方法1：检查是否为法定节假日（通过 wage === 3 判断真的法定假）
+                    const holidayLabel = getHolidayLabel(currentDay);
+                    if (holidayLabel && holidayLabel.type === 'holiday' && holidayLabel.wage === 3) {
+                        isHolidayDay = true;
+                    }
+
+                    // 方法2：检查是否有重叠的请假或休息记录
+                    if (!isHolidayDay) {
+                        ['rest_records', 'leave_records'].forEach(key => {
+                            if (Array.isArray(data[key])) {
+                                data[key].forEach(otherRecord => {
+                                    const otherStart = parseISO(otherRecord.date);
+                                    const otherEnd = addDays(otherStart, otherRecord.daysOffset || 0);
+                                    if (currentDay >= otherStart && currentDay <= otherEnd) {
+                                        isHolidayDay = true;
+                                    }
+                                });
                             }
                         });
                     }
-                });
 
-                // 方法2：检查是否为法定节假日
-                if (!isHolidayOvertime) {
-                    const overtimeDateObj = parseISO(overtimeDate);
-                    const holidayLabel = getHolidayLabel(overtimeDateObj);
-                    if (holidayLabel && holidayLabel.type === 'holiday') {
-                        isHolidayOvertime = true;
+                    if (isHolidayDay) {
+                        holidayOvertimeDays += dailyOvertime;
+                    } else {
+                        normalOvertimeDays += dailyOvertime;
                     }
-                }
 
-                if (isHolidayOvertime) {
-                    holidayOvertimeDays += overtimeDays;
-                } else {
-                    normalOvertimeDays += overtimeDays;
+                    currentDay = addDays(currentDay, 1);
                 }
             });
         }
@@ -1406,9 +1423,9 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
         // 计算有效天数（合同范围内的天数）
         const validDaysCount = monthDays.filter(day => !isDateDisabled(day)).length;
 
-        // 【关键修复】出勤天数 = 有效天数 - 休息天数 - 请假天数 - 已有加班天数
-        // 如果用户已经手动填写了加班，不应再重复计算为正常出勤
-        const currentWorkDays = validDaysCount - totalLeaveDays - normalOvertimeDays - holidayOvertimeDays;
+        // 【关键修复】待分配出勤天数 = 有效天数 - 休息请假天数 - 普通加班天数
+        // 【重要】确定的法定节假日加班是“额外”奖金，不消耗物理出勤天数的名额，因此不减去 holidayOvertimeDays
+        const currentWorkDays = validDaysCount - totalLeaveDays - normalOvertimeDays;
 
         // 如果出勤天数 <= 26，不需要处理
         if (currentWorkDays <= MAX_WORK_DAYS) {
@@ -1507,7 +1524,8 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                 endTime: endTime,
                 hours: Math.floor(hoursForGroup),
                 minutes: Math.round((hoursForGroup % 1) * 60),
-                daysOffset: daysCount - 1
+                daysOffset: daysCount - 1,
+                is_auto: true // 标记为系统自动补齐的加班，便于下一次计算时实施垃圾回收
             });
 
             remainingHours -= hoursForGroup;
@@ -1751,34 +1769,42 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
 
             const overtimeDays = hoursInCurrentMonth / 24;
 
-            // 检查加班日期是否有其他类型的记录（休息、请假等）或者是否为法定节假日
-            const overtimeDate = record.date;
-            let isHolidayOvertime = false;
+            // 将连续的多天加班拆分为每天独立判断，确保精准捕捉连续跨度内的真实法定节假日
+            const daysInSpan = differenceInDays(actualEndDate, actualStartDate) + 1;
+            const dailyOvertime = overtimeDays / daysInSpan;
 
-            // 方法1：检查该日期是否有休息或请假记录
-            ['rest_records', 'leave_records'].forEach(key => {
-                if (Array.isArray(attendanceData[key])) {
-                    attendanceData[key].forEach(otherRecord => {
-                        if (otherRecord.date === overtimeDate) {
-                            isHolidayOvertime = true;
+            let currentDay = actualStartDate;
+            while (currentDay <= actualEndDate) {
+                let isHolidayDay = false;
+
+                // 方法1：检查是否为法定节假日
+                const holidayLabel = getHolidayLabel(currentDay);
+                if (holidayLabel && holidayLabel.type === 'holiday' && holidayLabel.wage === 3) {
+                    isHolidayDay = true;
+                }
+
+                // 方法2：检查是否有重叠的请假或休息记录
+                if (!isHolidayDay) {
+                    ['rest_records', 'leave_records'].forEach(key => {
+                        if (Array.isArray(attendanceData[key])) {
+                            attendanceData[key].forEach(otherRecord => {
+                                const otherStart = parseISO(otherRecord.date);
+                                const otherEnd = addDays(otherStart, otherRecord.daysOffset || 0);
+                                if (currentDay >= otherStart && currentDay <= otherEnd) {
+                                    isHolidayDay = true;
+                                }
+                            });
                         }
                     });
                 }
-            });
 
-            // 方法2：检查是否为法定节假日
-            if (!isHolidayOvertime) {
-                const overtimeDateObj = parseISO(overtimeDate);
-                const holidayLabel = getHolidayLabel(overtimeDateObj);
-                if (holidayLabel && holidayLabel.type === 'holiday') {
-                    isHolidayOvertime = true;
+                if (isHolidayDay) {
+                    holidayOvertimeDays += dailyOvertime;
+                } else {
+                    normalOvertimeDays += dailyOvertime;
                 }
-            }
 
-            if (isHolidayOvertime) {
-                holidayOvertimeDays += overtimeDays;
-            } else {
-                normalOvertimeDays += overtimeDays;
+                currentDay = addDays(currentDay, 1);
             }
         });
     }
@@ -1947,11 +1973,11 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                - sticky 定位
                - Header 可见部分固定为 60px，所以统计卡片固定在 top-[60px]
             */}
-            <div className="sticky top-[60px] z-20 bg-slate-50 transition-all duration-300 ease-in-out px-4 pt-2 pb-2">
+            <div className="sticky top-[60px] z-20 bg-slate-50 transition-all duration-300 ease-in-out px-1 sm:px-4 pt-2 pb-2">
 
                 {/* 加上一个外层 div 控制最大宽度，防止在大屏上太宽 */}
                 <div className="max-w-3xl mx-auto">
-                    <div className="bg-white rounded-2xl p-4 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.08)] border border-gray-100">
+                    <div className="bg-white rounded-2xl p-3 sm:p-4 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.08)] border border-gray-100">
                         <div className="grid grid-cols-3 gap-3 text-center divide-x divide-gray-100">
                             <div>
                                 <div className="text-2xl font-black text-gray-900">{formatDays(totalWorkDays)}</div>
@@ -1971,9 +1997,9 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
             </div>
 
             {/* Main Content */}
-            <div className="max-w-3xl mx-auto p-4 space-y-4">
+            <div className="max-w-3xl mx-auto p-1 sm:p-4 space-y-4">
                 {/* Calendar Grid */}
-                <div className="bg-white rounded-2xl p-3 shadow-sm border border-gray-100">
+                <div className="bg-white rounded-2xl p-1.5 sm:p-3 shadow-sm border border-gray-100">
                     {/* Week Header */}
                     <div className="grid grid-cols-7 gap-1 mb-2">
                         {['一', '二', '三', '四', '五', '六', '日'].map((day, index) => (
@@ -2060,29 +2086,30 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                         ${!isDisabled && isWorkday ? 'bg-blue-50/30' : ''}
                                     `}
                                 >
-                                    {/* Date Number with Holiday Label */}
-                                    <div className="flex items-center justify-center mb-1">
-                                        <span className={`text-lg font-bold ${isDisabled ? 'text-gray-400' :
+                                    {/* 贴合在格子内部右上角的标签 */}
+                                    {holidayLabel && (
+                                        <span className={`absolute top-0 right-0 text-[8px] leading-none font-bold px-1 py-0.5 rounded-bl-md rounded-tr-[6px] shadow-sm z-10 whitespace-nowrap ${holidayLabel.type === 'holiday'
+                                                ? 'bg-red-500 text-white'
+                                                : 'bg-blue-500 text-white'
+                                            }`}>
+                                            {holidayLabel.text}
+                                        </span>
+                                    )}
+
+                                    {/* Date Number */}
+                                    <div className="flex items-center justify-center mb-0.5">
+                                        <span className={`text-lg font-bold leading-none ${isDisabled ? 'text-gray-400' :
                                             (isToday ? 'text-indigo-600' : 'text-gray-700')
                                             }`}>
                                             {format(date, 'd')}
                                         </span>
-                                        {/* Holiday/Workday Label */}
-                                        {holidayLabel && (
-                                            <span className={`ml-1 text-xs font-bold px-1 py-0.5 rounded ${holidayLabel.type === 'holiday'
-                                                ? 'bg-red-500 text-white'
-                                                : 'bg-blue-500 text-white'
-                                                }`}>
-                                                {holidayLabel.text}
-                                            </span>
-                                        )}
                                     </div>
 
                                     {/* Status Label */}
                                     {isDisabled ? (
-                                        <X className="w-4 h-4 text-gray-400" />
+                                        <X className="w-4 h-4 text-gray-400 mt-0.5" />
                                     ) : (
-                                        <span className={`text-xs font-medium truncate w-full text-center ${statusTextColors[record.type] || 'text-gray-600'}`}>
+                                        <span className={`text-[10px] leading-none mt-0.5 font-medium truncate w-full text-center ${statusTextColors[record.type] || 'text-gray-600'}`}>
                                             {record.typeLabel || '出勤'}
                                         </span>
                                     )}
@@ -2094,9 +2121,9 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                             return true;
                                         }
 
-                                        // 对于非正常考勤类型，只有第一个显示日才显示总时长
+                                        // 对于非正常考勤类型，不再显示多天的天数（如3天），从而保证所有日期的格子高度一致
                                         if (record.type !== 'normal') {
-                                            return record.isFirstDisplayDay && (record.hours > 0 || record.minutes > 0);
+                                            return false;
                                         }
 
                                         // 对于出勤类型，只有当小时数小于24时才显示
@@ -2107,10 +2134,10 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
 
                                         return false;
                                     })() && (
-                                            <span className={`text-[10px] scale-90 ${['onboarding', 'offboarding'].includes(record.type) &&
+                                            <span className={`text-[9px] leading-none mt-0.5 whitespace-nowrap scale-95 ${['onboarding', 'offboarding'].includes(record.type) &&
                                                 !(record.type === 'offboarding' ? record.endTime : record.startTime)
                                                 ? 'text-amber-600 font-medium'
-                                                : 'text-gray-500'
+                                                : 'text-gray-400'
                                                 }`}>
                                                 {(() => {
                                                     if (['onboarding', 'offboarding'].includes(record.type)) {
@@ -2453,8 +2480,21 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                         {/* Fixed Header */}
                         <div className="flex items-center justify-between p-6 pb-4 border-b border-gray-200 shrink-0">
                             <div>
-                                <h3 className="text-lg font-bold text-gray-900">
-                                    {format(editingDate, 'M月d日')} {format(editingDate, 'EEEE', { locale: zhCN })}
+                                <h3 className="flex items-center text-lg font-bold text-gray-900">
+                                    <span>
+                                        {format(editingDate, 'M月d日')} {format(editingDate, 'EEEE', { locale: zhCN })}
+                                    </span>
+                                    {(() => {
+                                        const label = getHolidayLabel(editingDate);
+                                        if (label && label.type === 'holiday' && label.wage === 3) {
+                                            return (
+                                                <span className="ml-2 text-[11px] leading-tight font-bold px-1.5 py-0.5 rounded bg-red-500 text-white">
+                                                    {label.fullText || '法定节假日'}
+                                                </span>
+                                            );
+                                        }
+                                        return null;
+                                    })()}
                                 </h3>
                                 <p className="text-sm text-gray-500">请选择当日考勤状态</p>
                             </div>

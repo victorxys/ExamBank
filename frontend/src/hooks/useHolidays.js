@@ -114,10 +114,11 @@ export const useHolidays = (year) => {
         const info = getHolidayInfo(date);
         if (!info) return null;
 
-        if (info.holiday === true) {
-            // 法定节假日
+        // 只对真正的法定节假日（多薪日）显示“假”标签
+        if (info.holiday === true && info.wage === 3) {
             return {
-                text: '假',
+                text: '法',
+                fullText: '法定节假日',
                 type: 'holiday',
                 name: info.name,
                 wage: info.wage
