@@ -392,6 +392,34 @@ const VideoSynthesisStep = ({ contentId, setSynthesisTask, synthesisTask, allSen
                             </Grid>
                         </Grid>
                         <Box sx={{ mt: 3, pt: 3, borderTop: 1, borderColor: 'divider' }}>
+                            <Box sx={{ flexGrow: 1, mb: 3, pb: 2, borderBottom: 1, borderColor: 'divider' }}>
+                                <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold', display: 'flex', alignItems: 'center' }}>
+                                    <PdfIcon sx={{ mr: 1, fontSize: '1.2rem', color: 'error.main' }} />
+                                    导出讲义 PDF
+                                </Typography>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+                                    <FormControl component="fieldset">
+                                        <RadioGroup
+                                            row
+                                            value={exportOrientation}
+                                            onChange={(e) => setExportOrientation(e.target.value)}
+                                        >
+                                            <FormControlLabel value="portrait" control={<Radio size="small" />} label="纵向" />
+                                            <FormControlLabel value="landscape" control={<Radio size="small" />} label="横向" />
+                                        </RadioGroup>
+                                    </FormControl>
+                                    <Button 
+                                        variant="outlined" 
+                                        size="small" 
+                                        startIcon={isExporting ? <CircularProgress size={16} /> : <PdfIcon />} 
+                                        onClick={handleExportPdf}
+                                        disabled={isExporting || isSubmitting}
+                                    >
+                                        {isExporting ? '生成中...' : '下载 PDF'}
+                                    </Button>
+                                </Box>
+                            </Box>
+
                             {status === 'complete' && finalVideoResourceId ? (
                                 <Box textAlign="center" py={2}>
                                     <Chip icon={<CheckCircleIcon />} label="视频已生成！" color="success" sx={{ mb: 3, fontSize: '1rem', p: 2 }} />
@@ -401,43 +429,14 @@ const VideoSynthesisStep = ({ contentId, setSynthesisTask, synthesisTask, allSen
                                     </Box>
                                 </Box>
                             ) : (
-                                <>
-                                    <Box sx={{ flexGrow: 1 }}>
-                                        <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold', display: 'flex', alignItems: 'center' }}>
-                                            <PdfIcon sx={{ mr: 1, fontSize: '1.2rem', color: 'error.main' }} />
-                                            导出讲义 PDF
-                                        </Typography>
-                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-                                            <FormControl component="fieldset">
-                                                <RadioGroup
-                                                    row
-                                                    value={exportOrientation}
-                                                    onChange={(e) => setExportOrientation(e.target.value)}
-                                                >
-                                                    <FormControlLabel value="portrait" control={<Radio size="small" />} label="纵向" />
-                                                    <FormControlLabel value="landscape" control={<Radio size="small" />} label="横向" />
-                                                </RadioGroup>
-                                            </FormControl>
-                                            <Button 
-                                                variant="outlined" 
-                                                size="small" 
-                                                startIcon={isExporting ? <CircularProgress size={16} /> : <PdfIcon />} 
-                                                onClick={handleExportPdf}
-                                                disabled={isExporting || isSubmitting}
-                                            >
-                                                {isExporting ? '生成中...' : '下载 PDF'}
-                                            </Button>
-                                        </Box>
-                                    </Box>
-                                    <Box sx={{ display: 'flex', justifyContent: 'flex-end',gap: 2 }}>
-                                        <Button variant="contained"   size="small" onClick={onResetTask} startIcon={<ReplayIcon/>} disabled={isSubmitting}>
-                                            {isSubmitting ? '...' : '重试'}
-                                        </Button>
-                                        <Button variant="contained" color="success" onClick={handleSynthesize} disabled={isSubmitting || isEditingScript} startIcon={isSubmitting ? <CircularProgress size={20}/> : <SynthesizeIcon />}>
-                                            {isSubmitting ? '处理中...' : '确认并合成视频'}
-                                        </Button>
-                                    </Box>
-                                </>
+                                <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
+                                    <Button variant="contained" size="small" onClick={onResetTask} startIcon={<ReplayIcon />} disabled={isSubmitting}>
+                                        {isSubmitting ? '...' : '重试'}
+                                    </Button>
+                                    <Button variant="contained" color="success" onClick={handleSynthesize} disabled={isSubmitting || isEditingScript} startIcon={isSubmitting ? <CircularProgress size={20} /> : <SynthesizeIcon />}>
+                                        {isSubmitting ? '处理中...' : '确认并合成视频'}
+                                    </Button>
+                                </Box>
                             )}
                         </Box>
                     </Box>
