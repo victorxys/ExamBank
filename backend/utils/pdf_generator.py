@@ -102,7 +102,7 @@ def generate_alignment_pdf(output_stream, synthesis_task, training_content, orie
     story = []
     
     # 1. 标题页（可选，这里直接作为第一页的页眉）
-    title = training_content.title or "未命名课程"
+    title = training_content.content_name or "未命名内容"
     story.append(Paragraph(f"{title} - 讲义", title_style))
     story.append(Spacer(1, 10))
     

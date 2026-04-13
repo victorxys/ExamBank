@@ -2952,7 +2952,7 @@ def export_alignment_pdf(synthesis_id):
         output.seek(0)
 
         # 清理文件名中的非法字符
-        safe_title = "".join([c for c in (training_content.title or 'handout') if c.isalnum() or c in (' ', '_', '-')]).strip()
+        safe_title = "".join([c for c in (training_content.content_name or 'handout') if c.isalnum() or c in (' ', '_', '-')]).strip()
         filename = f"{safe_title}_alignment.pdf"
         
         return send_file(
