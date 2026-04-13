@@ -122,10 +122,12 @@ def generate_alignment_pdf(output_stream, synthesis_task, training_content, orie
             grouped_scripts[page] = []
         grouped_scripts[page].append(item.get('text', ''))
 
-    # 获取图片路径
+    # 获取图片存放的根目录
+    # 优先使用配置项，如果没有则默认使用 instance/uploads
     ppt_image_paths = synthesis_task.ppt_image_paths or []
-    # 假设 ppt_image_paths 是相对 UPLOAD_FOLDER 的路径
     upload_folder = current_app.config.get('UPLOAD_FOLDER')
+    if not upload_folder:
+        upload_folder = os.path.join(current_app.instance_path, 'uploads')
     
     # 遍历页面
     sorted_pages = sorted(grouped_scripts.keys())
