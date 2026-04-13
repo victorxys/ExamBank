@@ -122,4 +122,12 @@ export const ttsApi = {
     });
   },
 
+
+  // 导出讲义 PDF
+  exportVideoHandoutPdf: (synthesisId, orientation = 'portrait') => {
+    return api.get(`/tts/synthesis/${synthesisId}/export-pdf`, {
+      params: { orientation },
+      responseType: 'blob'
+    });
+  },
 };

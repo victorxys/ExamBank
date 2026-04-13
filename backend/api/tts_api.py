@@ -1,6 +1,7 @@
 # backend/api/tts_api.py
 
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify, current_app, send_file
+import io
 from backend.models import (
     db,
     TrainingCourse,
@@ -37,6 +38,7 @@ from backend.tasks import resplit_and_match_sentences_task  # 重新拆分后匹
 from backend.tasks import trigger_tts_refine_async  # 导入新的Celery任务
 from sqlalchemy import func  # 导入 SQLAlchemy 的函数和操作符
 from datetime import datetime
+from backend.utils.pdf_generator import generate_alignment_pdf
 
 
 tts_bp = Blueprint("tts", __name__, url_prefix="/api/tts")
@@ -2924,3 +2926,42 @@ def insert_sentences_route(reference_sentence_id):
             exc_info=True
         )
         return jsonify({"error": f"插入句子时发生服务器错误: {str(e)}"}), 500
+
+
+@tts_bp.route("/synthesis/<uuid:synthesis_id>/export-pdf", methods=["GET"])
+@jwt_required()
+def export_alignment_pdf(synthesis_id):
+    """
+    导出讲义 PDF。
+    """
+    orientation = request.args.get('orientation', 'portrait').lower()
+    if orientation not in ['portrait', 'landscape']:
+        orientation = 'portrait'
+
+    try:
+        synthesis_task = VideoSynthesis.query.get(str(synthesis_id))
+        if not synthesis_task:
+            return jsonify({"error": "视频合成任务未找到"}), 404
+        
+        training_content = synthesis_task.training_content
+        if not training_content:
+            return jsonify({"error": "关联的教学内容未找到"}), 404
+
+        output = io.BytesIO()
+        generate_alignment_pdf(output, synthesis_task, training_content, orientation)
+        output.seek(0)
+
+        # 清理文件名中的非法字符
+        safe_title = "".join([c for c in (training_content.title or 'handout') if c.isalnum() or c in (' ', '_', '-')]).strip()
+        filename = f"{safe_title}_alignment.pdf"
+        
+        return send_file(
+            output,
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=filename
+        )
+
+    except Exception as e:
+        current_app.logger.error(f"导出 PDF 失败 (ID: {synthesis_id}): {e}", exc_info=True)
+        return jsonify({"error": f"导出 PDF 失败: {str(e)}"}), 500
