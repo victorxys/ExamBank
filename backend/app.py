@@ -531,6 +531,7 @@ def login_api():
                     "user": {
                         "id": user["id"],
                         "username": user["username"],
+                        "role": user["role"],
                     },
                 }
             )
