@@ -28,6 +28,8 @@ import {
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { ttsApi } from '../api/tts';
+import { getToken } from '../api/auth-utils';
+import { API_BASE_URL } from '../config';
 import VideoScriptPreviewDialog from './VideoScriptPreviewDialog';
 
 
@@ -49,7 +51,7 @@ const ResultRow = ({ icon, title, data, renderItem }) => {
 };
 
 
-const VideoSynthesisStep = ({ contentId, setSynthesisTask, synthesisTask, allSentences, progressData, isSubmitting, onStartTask, onResetTask, onAlert, onSkipStep
+const VideoSynthesisStep = ({ contentId, contentName, setSynthesisTask, synthesisTask, allSentences, progressData, isSubmitting, onStartTask, onResetTask, onAlert, onSkipStep
 }) => {
     const navigate = useNavigate();
     const theme = useTheme();
@@ -203,34 +205,21 @@ const VideoSynthesisStep = ({ contentId, setSynthesisTask, synthesisTask, allSen
         }
     };
 
-    const [isDownloadingVideo, setIsDownloadingVideo] = useState(false);
-
-    const handleDownloadVideo = async () => {
+    const handleDownloadVideo = () => {
         if (!finalVideoResourceId) return;
-        setIsDownloadingVideo(true);
-        try {
-            const response = await ttsApi.downloadVideoResource(finalVideoResourceId);
-            const url = window.URL.createObjectURL(new Blob([response.data]));
-            const link = document.createElement('a');
-            link.href = url;
-            // 从 Content-Disposition 头尝试获取文件名，否则用默认名
-            const disposition = response.headers['content-disposition'];
-            let filename = 'video.mp4';
-            if (disposition) {
-                const match = disposition.match(/filename="?([^"]+)"?/);
-                if (match) filename = match[1];
-            }
-            link.setAttribute('download', filename);
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
-            window.URL.revokeObjectURL(url);
-        } catch (error) {
-            console.error('下载视频失败:', error);
-            onAlert({ open: true, message: '下载视频失败，请稍后重试。', severity: 'error' });
-        } finally {
-            setIsDownloadingVideo(false);
+        const token = getToken();
+        if (!token) {
+            onAlert({ open: true, message: '登录已过期，请重新登录后再下载。', severity: 'warning' });
+            return;
         }
+        const url = `${API_BASE_URL}/resources/${finalVideoResourceId}/stream?access_token=${token}&download=1`;
+        const link = document.createElement('a');
+        link.href = url;
+        const filename = `${contentName || '视频'}.mp4`;
+        link.setAttribute('download', filename);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
     };
 
     const handleExportPdf = async () => {
@@ -459,11 +448,10 @@ const VideoSynthesisStep = ({ contentId, setSynthesisTask, synthesisTask, allSen
                                         <Button
                                             variant="outlined"
                                             color="success"
-                                            startIcon={isDownloadingVideo ? <CircularProgress size={18} /> : <DownloadIcon />}
+                                            startIcon={<DownloadIcon />}
                                             onClick={handleDownloadVideo}
-                                            disabled={isDownloadingVideo}
                                         >
-                                            {isDownloadingVideo ? '下载中...' : '下载视频'}
+                                            下载视频
                                         </Button>
                                         <Button variant="outlined" color="primary" onClick={onResetTask} startIcon={<RestartAltIcon />} disabled={isSubmitting}>重新分析</Button>
                                     </Box>

@@ -2172,6 +2172,7 @@ const fetchContentDetail = useCallback(async (showLoadingIndicator = true) => {
             ) : activeStepKey === 'synthesizeVideo' ?(
                     <VideoSynthesisStep 
                         contentId={contentId}
+                        contentName={contentDetail?.content_name}
                         synthesisTask={synthesisTask}
                         allSentences={enhancedSentences}
                         progressData={synthesisProgress}

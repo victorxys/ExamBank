@@ -748,14 +748,17 @@ def stream_course_resource(resource_id_str):
 
     file_size = resource.size_bytes or os.path.getsize(file_absolute_path)
     range_header = request.headers.get("Range", None)
+    is_download = request.args.get("download", "0") == "1"
 
     start = 0
     end = file_size - 1
     status_code = 200
     content_length = file_size
+    safe_filename = secure_filename(resource.name) or "video.mp4"
+    disposition = f'attachment; filename="{safe_filename}"' if is_download else f'inline; filename="{safe_filename}"'
     headers = {
         "Content-Type": resource.mime_type or "application/octet-stream",
-        "Content-Disposition": f'inline; filename="{secure_filename(resource.name)}"',
+        "Content-Disposition": disposition,
         "Accept-Ranges": "bytes",  # 非常重要，告知客户端支持 Range
     }
 
