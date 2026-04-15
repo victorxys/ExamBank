@@ -22,7 +22,8 @@ import {
     Cancel as CancelIcon, // 新增：取消图标
     Replay as ReplayIcon, // <<<--- 新增：导入重试图标
     RestartAlt as RestartAltIcon, // <<<--- 新增：一个更适合“重置/重新开始”的图标,
-    PictureAsPdf as PdfIcon
+    PictureAsPdf as PdfIcon,
+    Download as DownloadIcon
 
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
@@ -199,6 +200,36 @@ const VideoSynthesisStep = ({ contentId, setSynthesisTask, synthesisTask, allSen
         // 直接调用从父组件传入的 onResetTask 函数
         if (onResetTask) {
             onResetTask();
+        }
+    };
+
+    const [isDownloadingVideo, setIsDownloadingVideo] = useState(false);
+
+    const handleDownloadVideo = async () => {
+        if (!finalVideoResourceId) return;
+        setIsDownloadingVideo(true);
+        try {
+            const response = await ttsApi.downloadVideoResource(finalVideoResourceId);
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            // 从 Content-Disposition 头尝试获取文件名，否则用默认名
+            const disposition = response.headers['content-disposition'];
+            let filename = 'video.mp4';
+            if (disposition) {
+                const match = disposition.match(/filename="?([^"]+)"?/);
+                if (match) filename = match[1];
+            }
+            link.setAttribute('download', filename);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error('下载视频失败:', error);
+            onAlert({ open: true, message: '下载视频失败，请稍后重试。', severity: 'error' });
+        } finally {
+            setIsDownloadingVideo(false);
         }
     };
 
@@ -425,6 +456,15 @@ const VideoSynthesisStep = ({ contentId, setSynthesisTask, synthesisTask, allSen
                                     <Chip icon={<CheckCircleIcon />} label="视频已生成！" color="success" sx={{ mb: 3, fontSize: '1rem', p: 2 }} />
                                     <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2 }}>
                                         <Button variant="contained" startIcon={<PlayCircleOutlineIcon />} onClick={() => navigate(`/my-courses/${contentId}/resource/${finalVideoResourceId}/play`)}>在线预览</Button>
+                                        <Button
+                                            variant="outlined"
+                                            color="success"
+                                            startIcon={isDownloadingVideo ? <CircularProgress size={18} /> : <DownloadIcon />}
+                                            onClick={handleDownloadVideo}
+                                            disabled={isDownloadingVideo}
+                                        >
+                                            {isDownloadingVideo ? '下载中...' : '下载视频'}
+                                        </Button>
                                         <Button variant="outlined" color="primary" onClick={onResetTask} startIcon={<RestartAltIcon />} disabled={isSubmitting}>重新分析</Button>
                                     </Box>
                                 </Box>

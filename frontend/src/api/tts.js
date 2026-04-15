@@ -130,4 +130,11 @@ export const ttsApi = {
       responseType: 'blob'
     });
   },
+
+  // 下载已生成的视频资源
+  downloadVideoResource: (resourceId) => {
+    return api.get(`/resources/${resourceId}/stream`, {
+      responseType: 'blob',
+    });
+  },
 };
