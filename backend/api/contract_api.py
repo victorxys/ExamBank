@@ -516,11 +516,28 @@ def download_contract_pdf(contract_id):
 
         pdf_file = HTML(string=rendered_html, base_url=request.url_root).write_pdf()
 
+        # --- 核心修改：构建符合用户要求的下载文件名 ---
+        employee_name = contract.service_personnel.name if contract.service_personnel else "未知员工"
+        
+        # 定义类型映射（带“合同”后缀）
+        TYPE_LABELS = {
+            "nanny": "育儿嫂合同",
+            "maternity_nurse": "月嫂合同",
+            "nanny_trial": "育儿嫂试工合同",
+            "external_substitution": "外部替班合同",
+        }
+        contract_type_label = TYPE_LABELS.get(contract.type, "合同")
+        
+        # 清理文件名非法字符
+        today_str = datetime.now().strftime('%Y%m%d')
+        safe_filename = f"{employee_name}-{contract_type_label}-{today_str}.pdf"
+        safe_filename = safe_filename.replace("/", "_").replace("\\", "_")
+
         return send_file(
             io.BytesIO(pdf_file),
             mimetype='application/pdf',
             as_attachment=True,
-            download_name=f"contract_{contract.customer_name}_{contract.start_date.strftime('%Y%m%d')}.pdf"
+            download_name=safe_filename
         )
 
     except Exception as e:

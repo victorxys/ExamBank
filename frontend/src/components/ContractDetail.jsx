@@ -460,14 +460,16 @@ const ContractDetail = () => {
 
             const contentDisposition = response.headers['content-disposition'];
 
-            // --- 核心修改：构建更具描述性的默认文件名 ---
-            const customerName = contract.customer_name || '未知客户';
+            // --- 核心修改：构建符合用户要求的下载文件名 ---
             const employeeName = contract.employee_name || '未知员工';
-            const contractTypeLabel = contract.contract_type_label || '合同'; // 假设 contract_type_label 存在
-            const startDate = contract.start_date ? formatDate(contract.start_date) : '未知日期';
+            const contractTypeLabel = contract.contract_type_label || '合同'; 
+
+            // 如果 contractTypeLabel 已经包含“合同”二字，就不再重复添加
+            const finalTypeLabel = contractTypeLabel.includes('合同') ? contractTypeLabel : `${contractTypeLabel}合同`;
 
             // 清理文件名，替换掉文件系统不允许的字符，并处理多余空格
-            let defaultFilename = `${customerName}-${employeeName}-${contractTypeLabel}合同-${startDate}.pdf`;
+            const todayStr = new Date().toISOString().split('T')[0].replace(/-/g, '');
+            let defaultFilename = `${employeeName}-${finalTypeLabel}-${todayStr}.pdf`;
             defaultFilename = defaultFilename.replace(/[\\/:*?"<>|]/g, '_').replace(/\s+/g, ' ').trim();
 
             let filename = defaultFilename; // 默认使用我们构建的文件名
