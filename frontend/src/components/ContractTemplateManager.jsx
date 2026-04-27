@@ -4,11 +4,12 @@ import {
     Table, TableHead, TableBody, TableRow, TableCell, TableContainer,
     Dialog, DialogTitle, DialogContent, DialogActions, Grid, InputAdornment,
     Select, FormControl, InputLabel, Checkbox, CircularProgress, Alert, Snackbar,
-    TablePagination
+    TablePagination, Tooltip
 } from '@mui/material';
 import {
     Edit as EditIcon, Delete as DeleteIcon, Visibility as VisibilityIcon,
-    CompareArrows as CompareArrowsIcon, Add as AddIcon, Search as SearchIcon
+    CompareArrows as CompareArrowsIcon, Add as AddIcon, Search as SearchIcon,
+    Download as DownloadIcon
 } from '@mui/icons-material';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { debounce } from 'lodash';
@@ -38,6 +39,7 @@ const ContractTemplateManager = () => {
     const [comparisonTemplates, setComparisonTemplates] = useState({ t1: null, t2: null });
     const [isComparing, setIsComparing] = useState(false);
     const [compareError, setCompareError] = useState(null);
+    const [exportingTemplateIds, setExportingTemplateIds] = useState([]);
 
     // Modals states
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -177,6 +179,45 @@ const ContractTemplateManager = () => {
         navigate(`/contract-templates/edit/${templateId}`);
     };
 
+    const handleExportPdf = async (template) => {
+        if (!template?.id) return;
+
+        setExportingTemplateIds(prev => [...prev, template.id]);
+        setCompareError(null);
+
+        try {
+            const response = await api.get(`/contract_templates/${template.id}/export-pdf`, {
+                responseType: 'blob',
+            });
+
+            let filename = `${(template.template_name || '合同模板').replace(/[\\/:*?"<>|]/g, '_').trim() || '合同模板'}.pdf`;
+            const contentDisposition = response.headers['content-disposition'];
+            if (contentDisposition) {
+                const utf8FilenameMatch = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i);
+                const filenameMatch = contentDisposition.match(/filename="?([^";]+)"?/i);
+                if (utf8FilenameMatch?.[1]) {
+                    filename = decodeURIComponent(utf8FilenameMatch[1]);
+                } else if (filenameMatch?.[1]) {
+                    filename = decodeURIComponent(filenameMatch[1]);
+                }
+            }
+
+            const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', filename);
+            document.body.appendChild(link);
+            link.click();
+            link.parentNode.removeChild(link);
+            window.URL.revokeObjectURL(url);
+        } catch (err) {
+            console.error('Error exporting template PDF:', err);
+            setCompareError(err.response?.data?.error || '导出PDF失败。');
+        } finally {
+            setExportingTemplateIds(prev => prev.filter(id => id !== template.id));
+        }
+    };
+
     const handleCompare = async (template) => {
         setIsComparing(true);
         setCompareError(null);
@@ -267,6 +308,7 @@ const ContractTemplateManager = () => {
                         ) : (
                             templates.map((template) => {
                                 const isSelected = selectedTemplates.some(t => t.id === template.id);
+                                const isExporting = exportingTemplateIds.includes(template.id);
                                 return (
                                     <TableRow hover key={template.id} selected={isSelected}>
                                         <TableCell padding="checkbox"><Checkbox color="primary" checked={isSelected} onChange={() => handleSelectTemplate(template)} /></TableCell>
@@ -277,10 +319,27 @@ const ContractTemplateManager = () => {
                                         <TableCell>{new Date(template.created_at).toLocaleString()}</TableCell>
                                         <TableCell>{new Date(template.updated_at).toLocaleString()}</TableCell>
                                         <TableCell align="right">
-                                            <IconButton size="small" onClick={() => handleView(template.id)}><VisibilityIcon /></IconButton>
-                                            <IconButton size="small" onClick={() => handleEdit(template.id)}><EditIcon /></IconButton>
-                                            <IconButton size="small" onClick={() => handleCompare(template)} disabled={template.version <= 1 || isComparing}><CompareArrowsIcon /></IconButton>
-                                            <IconButton size="small" onClick={() => handleDelete(template.id)}><DeleteIcon /></IconButton>
+                                            <Tooltip title="预览">
+                                                <IconButton size="small" onClick={() => handleView(template.id)}><VisibilityIcon /></IconButton>
+                                            </Tooltip>
+                                            <Tooltip title="编辑">
+                                                <IconButton size="small" onClick={() => handleEdit(template.id)}><EditIcon /></IconButton>
+                                            </Tooltip>
+                                            <Tooltip title="导出PDF">
+                                                <span>
+                                                    <IconButton size="small" onClick={() => handleExportPdf(template)} disabled={isExporting}>
+                                                        {isExporting ? <CircularProgress size={18} /> : <DownloadIcon />}
+                                                    </IconButton>
+                                                </span>
+                                            </Tooltip>
+                                            <Tooltip title="比较上一版本">
+                                                <span>
+                                                    <IconButton size="small" onClick={() => handleCompare(template)} disabled={template.version <= 1 || isComparing}><CompareArrowsIcon /></IconButton>
+                                                </span>
+                                            </Tooltip>
+                                            <Tooltip title="删除">
+                                                <IconButton size="small" onClick={() => handleDelete(template.id)}><DeleteIcon /></IconButton>
+                                            </Tooltip>
                                         </TableCell>
                                     </TableRow>
                                 );

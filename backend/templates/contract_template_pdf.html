@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ template.template_name }}</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 22mm 18mm;
+        }
+        body {
+            font-family: 'SimSun', 'Songti SC', 'PingFang SC', serif;
+            font-size: 12px;
+            line-height: 1.85;
+            color: #222;
+        }
+        h1 {
+            text-align: center;
+            font-size: 22px;
+            margin: 0 0 20px;
+        }
+        h2 {
+            font-size: 18px;
+            margin: 22px 0 10px;
+        }
+        h3 {
+            font-size: 15px;
+            margin: 18px 0 8px;
+        }
+        p {
+            margin: 6px 0;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 12px 0;
+        }
+        th,
+        td {
+            border: 1px solid #999;
+            padding: 6px 8px;
+            vertical-align: top;
+        }
+        th {
+            background: #f2f2f2;
+            font-weight: bold;
+        }
+        ul,
+        ol {
+            padding-left: 22px;
+        }
+        blockquote {
+            margin: 10px 0;
+            padding: 8px 12px;
+            border-left: 3px solid #bbb;
+            color: #555;
+        }
+        .template-content {
+            word-wrap: break-word;
+        }
+    </style>
+</head>
+<body>
+    <h1>{{ template.template_name }}</h1>
+    <div class="template-content">
+        {{ content_html | safe }}
+    </div>
+</body>
+</html>

@@ -1,11 +1,21 @@
 # backend/api/contract_template_api.py
-from flask import Blueprint, jsonify, request, current_app
+import io
+
+import markdown
+from flask import Blueprint, jsonify, request, current_app, render_template, send_file
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from backend.models import db, ContractTemplate
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import or_
+from weasyprint import HTML
 
 contract_template_bp = Blueprint("contract_template_api", __name__, url_prefix="/api/contract_templates")
+
+def _sanitize_pdf_filename(filename):
+    safe_name = (filename or "合同模板").strip()
+    for char in r'\/:*?"<>|':
+        safe_name = safe_name.replace(char, "_")
+    return safe_name or "合同模板"
 
 @contract_template_bp.route("", methods=["POST", "OPTIONS"])
 @jwt_required(optional=True)
@@ -150,6 +160,44 @@ def get_contract_template(template_id):
     except Exception as e:
         current_app.logger.error(f"获取合同模板 {template_id} 失败: {e}", exc_info=True)
         return jsonify({"error": "内部服务器错误"}), 500
+
+@contract_template_bp.route("/<uuid:template_id>/export-pdf", methods=["GET", "OPTIONS"])
+@jwt_required(optional=True)
+def export_contract_template_pdf(template_id):
+    """
+    将合同模板内容导出为 PDF。
+    """
+    if request.method == 'OPTIONS':
+        return jsonify({}), 200
+    if not get_jwt_identity():
+        return jsonify(msg="Missing Authorization Header"), 401
+
+    try:
+        template = ContractTemplate.query.get(template_id)
+        if not template:
+            return jsonify({"error": "合同模板未找到"}), 404
+
+        content_html = markdown.markdown(
+            template.content or "模板内容为空。",
+            extensions=["extra", "nl2br"]
+        )
+        rendered_html = render_template(
+            "contract_template_pdf.html",
+            template=template,
+            content_html=content_html
+        )
+        pdf_file = HTML(string=rendered_html, base_url=request.url_root).write_pdf()
+        safe_filename = f"{_sanitize_pdf_filename(template.template_name)}.pdf"
+
+        return send_file(
+            io.BytesIO(pdf_file),
+            mimetype="application/pdf",
+            as_attachment=True,
+            download_name=safe_filename
+        )
+    except Exception as e:
+        current_app.logger.error(f"导出合同模板 {template_id} PDF 失败: {e}", exc_info=True)
+        return jsonify({"error": "生成PDF失败"}), 500
 
 @contract_template_bp.route("/<uuid:template_id>", methods=["PUT", "OPTIONS"])
 @jwt_required(optional=True)
