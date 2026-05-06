@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import {
     Dialog, DialogTitle, DialogContent, DialogActions, Button, Grid, TextField,
     Select, MenuItem, InputLabel, FormControl, FormControlLabel, Switch, Box,
-    CircularProgress, Alert, Autocomplete, Chip, Typography, FormHelperText, Tooltip,
-    InputAdornment, IconButton, RadioGroup, Radio
+    CircularProgress, Alert, Autocomplete, Chip, Typography, FormHelperText, Tooltip, Paper,
+    InputAdornment, IconButton, RadioGroup, Radio, Table, TableBody, TableCell,
+    TableContainer, TableHead, TableRow
 } from '@mui/material';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import CompareArrowsIcon from '@mui/icons-material/CompareArrows';
@@ -73,6 +74,8 @@ const CreateFormalContractModal = ({ open, onClose, onSuccess }) => {
     const [employeeOptions, setEmployeeOptions] = useState([]);
     const [loadingCustomers, setLoadingCustomers] = useState(false);
     const [loadingEmployees, setLoadingEmployees] = useState(false);
+    const [checkingEmployeeContracts, setCheckingEmployeeContracts] = useState(false);
+    const [employeeContractConflicts, setEmployeeContractConflicts] = useState([]);
     const [selectedCustomer, setSelectedCustomer] = useState(null);
     const [selectedEmployee, setSelectedEmployee] = useState(null);
 
@@ -113,6 +116,8 @@ const CreateFormalContractModal = ({ open, onClose, onSuccess }) => {
             setLoading(false);
             setCustomerOptions([]);
             setEmployeeOptions([]);
+            setEmployeeContractConflicts([]);
+            setCheckingEmployeeContracts(false);
         }
     }, [open]);
 
@@ -267,6 +272,65 @@ ${managementFeeNotePart}`;
         }
     };
 
+    const formatContractDate = (value) => {
+        if (!value) return '—';
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return '无效日期';
+        return date.toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' });
+    };
+
+    const fetchEmployeeContractConflicts = async (servicePersonnelId) => {
+        if (!servicePersonnelId) {
+            setEmployeeContractConflicts([]);
+            return;
+        }
+
+        setCheckingEmployeeContracts(true);
+        try {
+            const response = await api.get(`/contracts/employees/${servicePersonnelId}/ongoing-contracts`);
+            setEmployeeContractConflicts(response.data.contracts || []);
+        } catch (err) {
+            console.error('检查员工进行中合同失败:', err);
+            setError(err.response?.data?.error || '检查员工进行中合同失败，请稍后重试。');
+            setEmployeeContractConflicts([]);
+        } finally {
+            setCheckingEmployeeContracts(false);
+        }
+    };
+
+    const handleGoTerminateContract = (contractId) => {
+        window.open(`/contract/detail/${contractId}?openTerminateDialog=1&closeAfterTermination=1`, '_blank');
+    };
+
+    useEffect(() => {
+        if (!open) return undefined;
+
+        const refreshSelectedEmployeeContracts = (servicePersonnelId) => {
+            const employeeId = servicePersonnelId || selectedEmployee?.id || formData.service_personnel_id;
+            if (employeeId) {
+                fetchEmployeeContractConflicts(employeeId);
+            }
+        };
+
+        const handleContractTerminatedMessage = (event) => {
+            if (event.origin !== window.location.origin) return;
+            if (event.data?.type !== 'CONTRACT_TERMINATED_FROM_CREATE_FORMAL') return;
+
+            refreshSelectedEmployeeContracts(event.data?.servicePersonnelId);
+        };
+
+        const handleWindowFocus = () => {
+            refreshSelectedEmployeeContracts();
+        };
+
+        window.addEventListener('message', handleContractTerminatedMessage);
+        window.addEventListener('focus', handleWindowFocus);
+        return () => {
+            window.removeEventListener('message', handleContractTerminatedMessage);
+            window.removeEventListener('focus', handleWindowFocus);
+        };
+    }, [open, formData.service_personnel_id, selectedEmployee?.id]);
+
     const searchParties = (query, role) => {
         // console.log(`searchParties called with query: "${query}", role: "${role}"`);
         if (searchTimeout.current) {
@@ -338,6 +402,12 @@ ${managementFeeNotePart}`;
             return;
         }
 
+        if (employeeContractConflicts.length > 0) {
+            setError("该服务人员当前已有进行中合同，请先终止原合同后再创建新合同。");
+            setLoading(false);
+            return;
+        }
+
         const payload = { ...formData };
 
         // 修正后的客户信息处理逻辑
@@ -383,6 +453,9 @@ ${managementFeeNotePart}`;
             onSuccess(response.data.contract_id);
         } catch (err) {
             console.error("创建正式合同失败:", err);
+            if (err.response?.status === 409 && err.response?.data?.code === 'EMPLOYEE_CONTRACT_CONFLICT') {
+                setEmployeeContractConflicts(err.response.data.contracts || []);
+            }
             setError(err.response?.data?.error || '创建失败，请检查所有必填项。');
         } finally {
             setLoading(false);
@@ -598,6 +671,71 @@ ${managementFeeNotePart}`;
             <Box component="form" onSubmit={handleSubmit}>
                 <DialogContent dividers>
                     {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+                    {checkingEmployeeContracts && (
+                        <Alert severity="info" sx={{ mb: 2 }}>
+                            正在检查该服务人员是否存在进行中合同...
+                        </Alert>
+                    )}
+                    {employeeContractConflicts.length > 0 && (
+                        <Alert
+                            severity="warning"
+                            sx={{
+                                mb: 2,
+                                '& .MuiAlert-message': {
+                                    width: '100%',
+                                },
+                            }}
+                        >
+                            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
+                                该服务人员当前已有进行中合同，请先终止原合同后再签署新合同。
+                            </Typography>
+                            <Paper
+                                variant="outlined"
+                                sx={{
+                                    width: '100%',
+                                    overflow: 'hidden',
+                                    backgroundColor: 'rgba(255, 255, 255, 0.75)',
+                                }}
+                            >
+                                <TableContainer>
+                                    <Table size="small" sx={{ width: '100%', tableLayout: 'fixed' }}>
+                                        <TableHead>
+                                            <TableRow>
+                                                <TableCell sx={{ width: '18%' }}>客户名</TableCell>
+                                                <TableCell sx={{ width: '22%' }}>合同类型</TableCell>
+                                                <TableCell sx={{ width: '20%' }}>开始时间</TableCell>
+                                                <TableCell sx={{ width: '20%' }}>终止时间</TableCell>
+                                                <TableCell align="right" sx={{ width: '20%' }}>操作</TableCell>
+                                            </TableRow>
+                                        </TableHead>
+                                        <TableBody>
+                                            {employeeContractConflicts.map(conflict => (
+                                                <TableRow key={conflict.id}>
+                                                    <TableCell sx={{ fontWeight: 600 }}>{conflict.customer_name || '未知客户'}</TableCell>
+                                                    <TableCell>{conflict.contract_type_label || '—'}</TableCell>
+                                                    <TableCell>{formatContractDate(conflict.start_date)}</TableCell>
+                                                    <TableCell>
+                                                        {conflict.is_monthly_auto_renew ? '自动月签' : formatContractDate(conflict.end_date)}
+                                                    </TableCell>
+                                                    <TableCell align="right">
+                                                        <Button
+                                                            type="button"
+                                                            size="small"
+                                                            variant="contained"
+                                                            color="warning"
+                                                            onClick={() => handleGoTerminateContract(conflict.id)}
+                                                        >
+                                                            去终止合同
+                                                        </Button>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </TableContainer>
+                            </Paper>
+                        </Alert>
+                    )}
                     <Grid container spacing={3}>
                         <Grid item xs={12} sm={6}>
                             <FormControl fullWidth required>
@@ -737,14 +875,23 @@ ${managementFeeNotePart}`;
                                 isOptionEqualToValue={(option, value) => option && value && option.id === value.id}
                                 onChange={(event, newValue) => {
                                     setSelectedEmployee(newValue);
+                                    setError('');
                                     if (newValue) {
                                         setFormData(prev => ({
                                             ...prev,
+                                            service_personnel_id: newValue.id,
                                             employee_level: newValue.latest_salary || '',
                                             employee_id_card: newValue.id_card_number || '',
                                             employee_address: newValue.address || '',
                                             employee_phone: newValue.phone_number || '',
                                         }));
+                                        fetchEmployeeContractConflicts(newValue.id);
+                                    } else {
+                                        setFormData(prev => ({
+                                            ...prev,
+                                            service_personnel_id: null,
+                                        }));
+                                        setEmployeeContractConflicts([]);
                                     }
                                 }}
                                 onInputChange={(event, newInputValue, reason) => {
@@ -1009,7 +1156,11 @@ ${managementFeeNotePart}`;
                 </DialogContent>
                 <DialogActions sx={{ p: 3 }}>
                     <Button onClick={onClose}>取消</Button>
-                    <Button type="submit" variant="contained" disabled={loading}>
+                    <Button
+                        type="submit"
+                        variant="contained"
+                        disabled={loading || checkingEmployeeContracts || employeeContractConflicts.length > 0}
+                    >
                         {loading ? <CircularProgress size={24} /> : '创建合同'}
                     </Button>
                 </DialogActions>

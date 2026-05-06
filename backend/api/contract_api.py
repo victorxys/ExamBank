@@ -46,6 +46,40 @@ from dateutil.relativedelta import relativedelta # <--- 请确保文件顶部有
 
 contract_bp = Blueprint("contract_api", __name__, url_prefix="/api/contracts")
 
+ONGOING_EMPLOYEE_CONTRACT_STATUSES = ("active", "pending", "trial_active")
+
+
+def _serialize_employee_ongoing_contract(contract):
+    type_choices = {
+        "nanny": "育儿嫂合同",
+        "maternity_nurse": "月嫂合同",
+        "nanny_trial": "育儿嫂试工合同",
+        "external_substitution": "外部替班合同",
+    }
+    return {
+        "id": str(contract.id),
+        "customer_name": contract.customer_name,
+        "service_personnel_id": str(contract.service_personnel_id) if contract.service_personnel_id else None,
+        "service_personnel_name": contract.service_personnel.name if contract.service_personnel else None,
+        "contract_type_value": contract.type,
+        "contract_type_label": type_choices.get(contract.type, contract.type),
+        "status": contract.status,
+        "start_date": contract.start_date.isoformat() if contract.start_date else None,
+        "end_date": contract.end_date.isoformat() if contract.end_date else None,
+        "termination_date": contract.termination_date.isoformat() if contract.termination_date else None,
+        "is_monthly_auto_renew": getattr(contract, "is_monthly_auto_renew", False),
+    }
+
+
+def _get_employee_ongoing_contracts(service_personnel_id, exclude_contract_id=None):
+    query = BaseContract.query.options(joinedload(BaseContract.service_personnel)).filter(
+        BaseContract.service_personnel_id == service_personnel_id,
+        BaseContract.status.in_(ONGOING_EMPLOYEE_CONTRACT_STATUSES),
+    )
+    if exclude_contract_id:
+        query = query.filter(BaseContract.id != str(exclude_contract_id))
+    return query.order_by(BaseContract.start_date.desc()).all()
+
 
 # 家庭ID管理相关API
 @contract_bp.route("/families", methods=["GET"])
@@ -712,6 +746,29 @@ def get_contract_substitute_context(contract_id):
     except Exception as e:
         current_app.logger.error(f"Failed to get contract substitute context for {contract_id}: {e}",exc_info=True)
         return jsonify({"error": "Internal server error"}), 500
+
+
+@contract_bp.route("/employees/<uuid:service_personnel_id>/ongoing-contracts", methods=["GET"])
+@jwt_required()
+def get_employee_ongoing_contracts(service_personnel_id):
+    """
+    获取指定服务人员当前占用中的合同，用于创建新合同时提示先终止原合同。
+    """
+    try:
+        service_personnel = ServicePersonnel.query.get(str(service_personnel_id))
+        if not service_personnel:
+            return jsonify({"error": "服务人员未找到"}), 404
+
+        contracts = _get_employee_ongoing_contracts(str(service_personnel_id))
+        return jsonify({
+            "has_conflict": len(contracts) > 0,
+            "service_personnel_id": str(service_personnel.id),
+            "service_personnel_name": service_personnel.name,
+            "contracts": [_serialize_employee_ongoing_contract(contract) for contract in contracts],
+        })
+    except Exception as e:
+        current_app.logger.error(f"获取服务人员进行中合同失败 {service_personnel_id}: {e}", exc_info=True)
+        return jsonify({"error": "内部服务器错误"}), 500
     
 @contract_bp.route("/<uuid:contract_id>/successor", methods=["GET"])
 @jwt_required()
@@ -760,6 +817,14 @@ def create_formal_contract():
         service_personnel = ServicePersonnel.query.get(data["service_personnel_id"])
         if not service_personnel:
             return jsonify({"error": "服务人员未找到"}), 404
+
+        ongoing_contracts = _get_employee_ongoing_contracts(str(service_personnel.id))
+        if ongoing_contracts:
+            return jsonify({
+                "error": "该服务人员存在进行中的合同，请先终止原合同后再创建新合同。",
+                "code": "EMPLOYEE_CONTRACT_CONFLICT",
+                "contracts": [_serialize_employee_ongoing_contract(contract) for contract in ongoing_contracts],
+            }), 409
 
         contract_template = ContractTemplate.query.get(data["template_id"])
         if not contract_template:

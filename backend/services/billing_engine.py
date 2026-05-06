@@ -98,6 +98,17 @@ class BillingEngine:
         if isinstance(dt_obj, date):
             return dt_obj
         return None
+
+    def _to_datetime(self, dt_obj, tzinfo=None):
+        """将 date 或 datetime 统一转换为 datetime，用于需要精确时长计算的场景。"""
+        if isinstance(dt_obj, datetime):
+            if tzinfo and dt_obj.tzinfo is None:
+                return dt_obj.replace(tzinfo=tzinfo)
+            return dt_obj
+        if isinstance(dt_obj, date):
+            return datetime(dt_obj.year, dt_obj.month, dt_obj.day, tzinfo=tzinfo)
+        return None
+
     def get_or_create_bill_for_nanny_contract(self, contract_id, year, month, end_date_override=None):
         """
         获取或创建指定育儿嫂合同在特定年月的账单。
@@ -348,6 +359,11 @@ class BillingEngine:
                 # Determine start and end dates
                 start_date = cycle_start_date_override or (bill.cycle_start_date if bill else contract.start_date)
                 end_date = end_date_override or (bill.cycle_end_date if bill else (getattr (contract, 'expected_offboarding_date', None) or contract.end_date))
+
+                if isinstance(start_date, datetime) and isinstance(end_date, date) and not isinstance(end_date, datetime):
+                    end_date = self._to_datetime(end_date, tzinfo=start_date.tzinfo)
+                elif isinstance(end_date, datetime) and isinstance(start_date, date) and not isinstance(start_date, datetime):
+                    start_date = self._to_datetime(start_date, tzinfo=end_date.tzinfo)
 
                 # Get or create the bill and payroll with the correct dates
                 bill, payroll = self._get_or_create_bill_and_payroll(
@@ -2090,9 +2106,14 @@ class BillingEngine:
         bill_end_date = self._to_date(bill.cycle_end_date)
         original_contract_end_date = self._to_date(contract.end_date)
         start_date = self._to_date(bill.cycle_start_date)
+        service_start_datetime = self._to_datetime(bill.cycle_start_date)
+        service_end_datetime = self._to_datetime(
+            bill.cycle_end_date,
+            tzinfo=service_start_datetime.tzinfo if service_start_datetime else None
+        )
         # --- 修复结束 ---
 
-        if not start_date or not bill_end_date or not original_contract_end_date:
+        if not start_date or not bill_end_date or not original_contract_end_date or not service_start_datetime or not service_end_datetime:
             raise ValueError("外部替班合同的起止日期不完整，无法计算。")
 
         if actual_work_days_override is not None:
@@ -2119,7 +2140,7 @@ class BillingEngine:
             if payroll:
                 payroll.actual_work_days = actual_work_days_override
         else:
-            time_difference = bill.cycle_end_date - bill.cycle_start_date
+            time_difference = service_end_datetime - service_start_datetime
             service_days = D(time_difference.total_seconds()) / D(86400)
             log_extras["service_days_reason"] = f"服务总时长 {time_difference} = {service_days:.3f} 天"
 

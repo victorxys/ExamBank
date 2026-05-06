@@ -1,6 +1,6 @@
 // frontend/src/components/ContractDetail.jsx
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
     Box, Typography, Paper, Grid, CircularProgress, Button, InputLabel, Select,
@@ -124,7 +124,10 @@ const EditableNotesItem = ({ label, originalValue, operationalValue, isEditing, 
 const ContractDetail = () => {
     const { contractId } = useParams();
     const navigate = useNavigate();
-    const { state } = useLocation();
+    const { state, search } = useLocation();
+    const detailSearchParams = new URLSearchParams(search);
+    const shouldOpenTerminateDialog = state?.openTerminateDialog || detailSearchParams.get('openTerminateDialog') === '1';
+    const shouldCloseAfterTermination = detailSearchParams.get('closeAfterTermination') === '1';
     const [contract, setContract] = useState(null);
     const [bills, setBills] = useState([]);
     const [adjustments, setAdjustments] = useState([]);
@@ -179,6 +182,7 @@ const ContractDetail = () => {
     const [signingModalOpen, setSigningModalOpen] = useState(false);
     const [signingMessage, setSigningMessage] = useState('');
     const [signingModalTitle, setSigningModalTitle] = useState('');
+    const autoOpenedTerminationDialogRef = useRef(false);
 
     // State for editing signature requirement
     const [isEditingSignature, setIsEditingSignature] = useState(false);
@@ -420,6 +424,43 @@ const ContractDetail = () => {
         return () => clearTimeout(delayDebounceFn);
     }, [personnelSearchTerm]);
     // --- End of Change Contract Logic ---
+
+    const handleOpenTerminationDialog = async () => {
+        if (!contract) return;
+
+        const defaultDate = contract.start_date ? new Date(contract.start_date) : new Date();
+        setTerminationDate(defaultDate);
+        setTerminationDialogOpen(true);
+
+        // 重置所有转签相关的状态
+        setIsTransfer(false);
+        setSelectedSubstituteUserId('');
+        setSelectedNewContractId('');
+        setEligibleContracts([]); // 清空旧的合同列表
+        setSubstitutes([]); // 清空旧的替班列表
+
+        setLoadingTransferOptions(true);
+        try {
+            // 现在只获取替班员工列表
+            const substitutesRes = await api.get(`/contracts/${contractId}/substitutes`);
+            // 去重，确保每个替班员工只在下拉列表中出现一次
+            const uniqueSubstitutes = Array.from(new Map(substitutesRes.data.map(item => [item.substitute_user_id, item])).values());
+            setSubstitutes(uniqueSubstitutes);
+        } catch (error) {
+            setAlert({ open: true, message: `获取替班员工列表失败: ${error.message}`, severity: 'warning' });
+        } finally {
+            setLoadingTransferOptions(false);
+        }
+    };
+
+    useEffect(() => {
+        if (!shouldOpenTerminateDialog || !contract || autoOpenedTerminationDialogRef.current) {
+            return;
+        }
+
+        autoOpenedTerminationDialogRef.current = true;
+        handleOpenTerminationDialog();
+    }, [contract, shouldOpenTerminateDialog]);
 
     if (loading) return <CircularProgress />;
     if (!contract) return <Typography>未找到合同信息。</Typography>;
@@ -856,35 +897,6 @@ const ContractDetail = () => {
         }
     };
 
-    const handleOpenTerminationDialog = async () => {
-        if (!contract) return;
-
-        const defaultDate = contract.start_date ? new Date(contract.start_date) : new Date();
-        setTerminationDate(defaultDate);
-        setTerminationDialogOpen(true);
-
-        // 重置所有转签相关的状态
-        setIsTransfer(false);
-        setSelectedSubstituteUserId('');
-        setSelectedNewContractId('');
-        setEligibleContracts([]); // 清空旧的合同列表
-        setSubstitutes([]); // 清空旧的替班列表
-
-        setLoadingTransferOptions(true);
-        try {
-            // 现在只获取替班员工列表
-            const substitutesRes = await api.get(`/contracts/${contractId}/substitutes`);
-            // 去重，确保每个替班员工只在下拉列表中出现一次
-            const uniqueSubstitutes = Array.from(new Map(substitutesRes.data.map(item => [item.substitute_user_id, item])).values());
-            setSubstitutes(uniqueSubstitutes);
-        } catch (error) {
-            setAlert({ open: true, message: `获取替班员工列表失败: ${error.message}`, severity: 'warning' });
-        } finally {
-            setLoadingTransferOptions(false);
-        }
-    };
-
-
     const handleCloseTerminationDialog = () => {
         setTerminationDialogOpen(false);
         setTerminationDate(null);
@@ -922,6 +934,19 @@ const ContractDetail = () => {
             await api.post(`/billing/contracts/${contract.id}/terminate`, payload);
             setAlert({ open: true, message: '合同终止操作成功！', severity: 'success' });
             handleCloseTerminationDialog();
+            if (shouldCloseAfterTermination) {
+                window.opener?.postMessage(
+                    {
+                        type: 'CONTRACT_TERMINATED_FROM_CREATE_FORMAL',
+                        contractId: contract.id,
+                        servicePersonnelId: contract.service_personnel_id,
+                    },
+                    window.location.origin
+                );
+                window.opener?.focus();
+                setTimeout(() => window.close(), 100);
+                return;
+            }
             fetchData();
         } catch (error) {
             setAlert({ open: true, message: `操作失败: ${error.response?.data?.message || error.message}`, severity: 'error' });
