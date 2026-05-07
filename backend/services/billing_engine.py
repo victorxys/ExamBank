@@ -3226,7 +3226,7 @@ class BillingEngine:
         current_app.logger.info(f"[TRIAL_CONVERT_LOG] 1. 合同状态已更新。")
 
         # 步骤 2: 为成功的试工合同创建并结算其自身的账单
-        trial_days = (self._to_date(trial_contract.end_date) - self._to_date(trial_contract.start_date)).days + 1
+        trial_days = (self._to_date(trial_contract.end_date) - self._to_date(trial_contract.start_date)).days
         term_date = self._to_date(trial_contract.end_date)
 
         trial_bill, trial_payroll = self._get_or_create_bill_and_payroll(
@@ -3260,9 +3260,9 @@ class BillingEngine:
 
         non_overlap_days = 0
         if formal_start > trial_start:
-            non_overlap_end = min(trial_end, formal_start - timedelta(days=1))
-            if non_overlap_end >= trial_start:
-                non_overlap_days = (non_overlap_end - trial_start).days + 1
+            non_overlap_end = min(trial_end, formal_start)
+            if non_overlap_end > trial_start:
+                non_overlap_days = (non_overlap_end - trial_start).days
 
         overlap_days = 0
         if formal_start <= trial_end:

@@ -76,6 +76,11 @@ const CreateFormalContractModal = ({ open, onClose, onSuccess }) => {
     const [loadingEmployees, setLoadingEmployees] = useState(false);
     const [checkingEmployeeContracts, setCheckingEmployeeContracts] = useState(false);
     const [employeeContractConflicts, setEmployeeContractConflicts] = useState([]);
+    const [pendingTrialContracts, setPendingTrialContracts] = useState([]);
+    const [selectedTrialConversionOption, setSelectedTrialConversionOption] = useState('none');
+    const [trialConversionPreview, setTrialConversionPreview] = useState(null);
+    const [loadingTrialConversionPreview, setLoadingTrialConversionPreview] = useState(false);
+    const [trialConversionPreviewError, setTrialConversionPreviewError] = useState('');
     const [selectedCustomer, setSelectedCustomer] = useState(null);
     const [selectedEmployee, setSelectedEmployee] = useState(null);
 
@@ -117,6 +122,11 @@ const CreateFormalContractModal = ({ open, onClose, onSuccess }) => {
             setCustomerOptions([]);
             setEmployeeOptions([]);
             setEmployeeContractConflicts([]);
+            setPendingTrialContracts([]);
+            setSelectedTrialConversionOption('none');
+            setTrialConversionPreview(null);
+            setLoadingTrialConversionPreview(false);
+            setTrialConversionPreviewError('');
             setCheckingEmployeeContracts(false);
         }
     }, [open]);
@@ -148,6 +158,68 @@ const CreateFormalContractModal = ({ open, onClose, onSuccess }) => {
             }
         }
     }, [formData.contract_type, templates]);
+
+    useEffect(() => {
+        if (formData.contract_type !== 'nanny') {
+            setSelectedTrialConversionOption('none');
+            setTrialConversionPreview(null);
+            setTrialConversionPreviewError('');
+        }
+    }, [formData.contract_type]);
+
+    useEffect(() => {
+        if (
+            formData.contract_type !== 'nanny' ||
+            selectedTrialConversionOption === 'none' ||
+            !formData.start_date
+        ) {
+            setTrialConversionPreview(null);
+            setTrialConversionPreviewError('');
+            setLoadingTrialConversionPreview(false);
+            return;
+        }
+
+        let isCancelled = false;
+        const fetchPreview = async () => {
+            setLoadingTrialConversionPreview(true);
+            setTrialConversionPreviewError('');
+            try {
+                const response = await api.post(
+                    `/contracts/nanny-trial-contracts/${selectedTrialConversionOption}/draft-conversion-preview`,
+                    {
+                        start_date: formatDateForBackend(formData.start_date),
+                        employee_level: formData.employee_level,
+                        management_fee_amount: formData.management_fee_amount,
+                        management_fee_rate: formData.management_fee_rate,
+                    }
+                );
+                if (!isCancelled) {
+                    setTrialConversionPreview(response.data);
+                }
+            } catch (err) {
+                if (!isCancelled) {
+                    setTrialConversionPreview(null);
+                    setTrialConversionPreviewError(err.response?.data?.error || '无法计算试工成功费用预览');
+                }
+            } finally {
+                if (!isCancelled) {
+                    setLoadingTrialConversionPreview(false);
+                }
+            }
+        };
+
+        fetchPreview();
+        return () => {
+            isCancelled = true;
+        };
+    }, [
+        formData.contract_type,
+        formData.start_date,
+        formData.employee_level,
+        formData.management_fee_amount,
+        formData.management_fee_rate,
+        selectedTrialConversionOption,
+    ]);
 
     useEffect(() => {
         const level = parseFloat(formData.employee_level);
@@ -279,6 +351,19 @@ ${managementFeeNotePart}`;
         return date.toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' });
     };
 
+    const formatMoney = (value) => {
+        const amount = Number(value || 0);
+        if (Number.isNaN(amount)) return '0';
+        return amount.toLocaleString('zh-CN', { maximumFractionDigits: 2 });
+    };
+
+    const formatDateForBackend = (date) => {
+        if (!date) return null;
+        const d = new Date(date);
+        d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+        return d.toISOString().split('T')[0];
+    };
+
     const fetchEmployeeContractConflicts = async (servicePersonnelId) => {
         if (!servicePersonnelId) {
             setEmployeeContractConflicts([]);
@@ -298,6 +383,31 @@ ${managementFeeNotePart}`;
         }
     };
 
+    const fetchEmployeePendingTrialContracts = async (servicePersonnelId) => {
+        if (!servicePersonnelId) {
+            setPendingTrialContracts([]);
+            setSelectedTrialConversionOption('none');
+            return;
+        }
+
+        try {
+            const response = await api.get(`/contracts/employees/${servicePersonnelId}/pending-trial-contracts`);
+            const contracts = response.data.contracts || [];
+            setPendingTrialContracts(contracts);
+            setSelectedTrialConversionOption(prev => (
+                prev !== 'none' && contracts.some(contract => contract.id === prev) ? prev : 'none'
+            ));
+            setTrialConversionPreview(null);
+            setTrialConversionPreviewError('');
+        } catch (err) {
+            console.error('获取员工待处理试工合同失败:', err);
+            setPendingTrialContracts([]);
+            setSelectedTrialConversionOption('none');
+            setTrialConversionPreview(null);
+            setTrialConversionPreviewError('');
+        }
+    };
+
     const handleGoTerminateContract = (contractId) => {
         window.open(`/contract/detail/${contractId}?openTerminateDialog=1&closeAfterTermination=1`, '_blank');
     };
@@ -309,6 +419,7 @@ ${managementFeeNotePart}`;
             const employeeId = servicePersonnelId || selectedEmployee?.id || formData.service_personnel_id;
             if (employeeId) {
                 fetchEmployeeContractConflicts(employeeId);
+                fetchEmployeePendingTrialContracts(employeeId);
             }
         };
 
@@ -385,13 +496,6 @@ ${managementFeeNotePart}`;
     };
 
     const handleSubmit = async (event) => {
-        const formatDateForBackend = (date) => {
-            if (!date) return null;
-            const d = new Date(date);
-            // 通过减去时区偏移量来“欺骗” toISOString，使其输出我们想要的本地日期
-            d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-            return d.toISOString().split('T')[0];
-        };
         event.preventDefault();
         setLoading(true);
         setError('');
@@ -402,8 +506,8 @@ ${managementFeeNotePart}`;
             return;
         }
 
-        if (employeeContractConflicts.length > 0) {
-            setError("该服务人员当前已有进行中合同，请先终止原合同后再创建新合同。");
+        if (hasOngoingContractConflicts) {
+            setError("为了避免数据异常，要先终止进行中合同才可以创建新合同。");
             setLoading(false);
             return;
         }
@@ -447,6 +551,11 @@ ${managementFeeNotePart}`;
         payload.start_date = formatDateForBackend(payload.start_date);
         payload.end_date = formatDateForBackend(payload.end_date);
         payload.provisional_start_date = formatDateForBackend(payload.provisional_start_date);
+        if (payload.contract_type === 'nanny' && selectedTrialConversionOption !== 'none') {
+            payload.trial_contract_id_to_convert = selectedTrialConversionOption;
+        } else {
+            delete payload.trial_contract_id_to_convert;
+        }
 
         try {
             const response = await api.post('/contracts/formal', payload);
@@ -576,6 +685,17 @@ ${managementFeeNotePart}`;
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
+    const getNextMonthSameDay = (dateValue) => {
+        const date = new Date(dateValue);
+        const target = new Date(date);
+        const originalDay = date.getDate();
+        target.setDate(1);
+        target.setMonth(target.getMonth() + 1);
+        const lastDayOfTargetMonth = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
+        target.setDate(Math.min(originalDay, lastDayOfTargetMonth));
+        return target;
+    };
+
     const handleDateChange = (name, newValue) => {
         setFormData(prev => {
             const newFormData = { ...prev, [name]: newValue };
@@ -583,7 +703,11 @@ ${managementFeeNotePart}`;
                 const newStartDate = new Date(newValue);
                 const currentEndDate = prev.end_date ? new Date(prev.end_date) : null;
                 if (!currentEndDate || currentEndDate < newStartDate) {
-                    newFormData.end_date = newStartDate;
+                    newFormData.end_date = (
+                        prev.contract_type === 'nanny' && !prev.is_monthly_auto_renew
+                    )
+                        ? getNextMonthSameDay(newStartDate)
+                        : newStartDate;
                 }
             }
             return newFormData;
@@ -592,7 +716,18 @@ ${managementFeeNotePart}`;
 
     const handleSwitchChange = (event) => {
         const { name, checked } = event.target;
-        setFormData(prev => ({ ...prev, [name]: checked }));
+        setFormData(prev => {
+            const newFormData = { ...prev, [name]: checked };
+            if (
+                name === 'is_monthly_auto_renew' &&
+                !checked &&
+                prev.contract_type === 'nanny' &&
+                prev.start_date
+            ) {
+                newFormData.end_date = getNextMonthSameDay(prev.start_date);
+            }
+            return newFormData;
+        });
     };
 
     const handleCompare = async (template) => {
@@ -637,6 +772,48 @@ ${managementFeeNotePart}`;
         return templates.filter(t => t.contract_type === formData.contract_type);
     }, [templates, formData.contract_type]);
 
+    const trialContractSections = useMemo(() => {
+        const currentCustomerName = (
+            typeof selectedCustomer === 'object' && selectedCustomer !== null
+                ? selectedCustomer.name
+                : customerInputValue
+        )?.trim();
+
+        if (!currentCustomerName) {
+            return [
+                {
+                    key: 'all',
+                    title: '待处理试工合同',
+                    contracts: pendingTrialContracts,
+                },
+            ];
+        }
+
+        const currentCustomerTrials = [];
+        const otherCustomerTrials = [];
+
+        pendingTrialContracts.forEach(trial => {
+            if ((trial.customer_name || '').trim() === currentCustomerName) {
+                currentCustomerTrials.push(trial);
+            } else {
+                otherCustomerTrials.push(trial);
+            }
+        });
+
+        return [
+            {
+                key: 'current',
+                title: '当前客户试工合同',
+                contracts: currentCustomerTrials,
+            },
+            {
+                key: 'other',
+                title: '其他客户试工合同',
+                contracts: otherCustomerTrials,
+            },
+        ];
+    }, [customerInputValue, pendingTrialContracts, selectedCustomer]);
+
 
     // --- 自动调整试工合同的管理费率 ---
     useEffect(() => {
@@ -662,6 +839,232 @@ ${managementFeeNotePart}`;
     // 试工合同的提示文本
     const introFeeHelperText = isTrialContract ? (introFeeValue > 0 ? "已填写介绍费，管理费率为0%" : "未填写介绍费，管理费率为20%") : "";
     const mgmtRateHelperText = isTrialContract ? (introFeeValue > 0 ? "有介绍费时不收取管理费" : "无介绍费时按20%收取") : "";
+    const hasOngoingContractConflicts = employeeContractConflicts.length > 0;
+    const createDisabledReason = hasOngoingContractConflicts
+        ? "为了避免数据异常，要先终止进行中合同才可以创建新合同"
+        : "";
+
+    const ongoingContractWarning = hasOngoingContractConflicts ? (
+        <Alert
+            severity="warning"
+            sx={{
+                mb: 0,
+                '& .MuiAlert-message': {
+                    width: '100%',
+                },
+            }}
+        >
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
+                为了避免数据异常，要先终止进行中合同才可以创建新合同。
+            </Typography>
+            <Paper
+                variant="outlined"
+                sx={{
+                    width: '100%',
+                    overflow: 'hidden',
+                    backgroundColor: 'rgba(255, 255, 255, 0.75)',
+                }}
+            >
+                <TableContainer>
+                    <Table size="small" sx={{ width: '100%', tableLayout: 'fixed' }}>
+                        <TableHead>
+                            <TableRow>
+                                <TableCell sx={{ width: '18%' }}>客户名</TableCell>
+                                <TableCell sx={{ width: '22%' }}>合同类型</TableCell>
+                                <TableCell sx={{ width: '20%' }}>开始时间</TableCell>
+                                <TableCell sx={{ width: '20%' }}>终止时间</TableCell>
+                                <TableCell align="right" sx={{ width: '20%' }}>操作</TableCell>
+                            </TableRow>
+                        </TableHead>
+                        <TableBody>
+                            {employeeContractConflicts.map(conflict => (
+                                <TableRow key={conflict.id}>
+                                    <TableCell sx={{ fontWeight: 600 }}>{conflict.customer_name || '未知客户'}</TableCell>
+                                    <TableCell>{conflict.contract_type_label || '—'}</TableCell>
+                                    <TableCell>{formatContractDate(conflict.start_date)}</TableCell>
+                                    <TableCell>
+                                        {conflict.is_monthly_auto_renew ? '自动月签' : formatContractDate(conflict.end_date)}
+                                    </TableCell>
+                                    <TableCell align="right">
+                                        <Button
+                                            type="button"
+                                            size="small"
+                                            variant="contained"
+                                            color="warning"
+                                            onClick={() => handleGoTerminateContract(conflict.id)}
+                                        >
+                                            去终止合同
+                                        </Button>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </TableContainer>
+            </Paper>
+        </Alert>
+    ) : null;
+
+    const trialContractSelection = formData.contract_type === 'nanny' && pendingTrialContracts.length > 0 ? (
+        <Alert
+            severity="info"
+            sx={{
+                mb: 0,
+                '& .MuiAlert-message': {
+                    width: '100%',
+                },
+            }}
+        >
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
+                该服务人员存在待处理试工合同，可在创建正式合同时一并确认试工成功并转移费用。
+            </Typography>
+            <RadioGroup
+                value={selectedTrialConversionOption}
+                onChange={(event) => setSelectedTrialConversionOption(event.target.value)}
+            >
+                <Paper
+                    variant="outlined"
+                    sx={{
+                        width: '100%',
+                        overflow: 'hidden',
+                        backgroundColor: 'rgba(255, 255, 255, 0.75)',
+                    }}
+                >
+                    <Box sx={{ px: 2, py: 1.25, borderBottom: '1px solid rgba(0, 0, 0, 0.12)' }}>
+                        <FormControlLabel
+                            value="none"
+                            control={<Radio />}
+                            label="不处理试工合同，仅创建正式合同"
+                        />
+                    </Box>
+                    <TableContainer sx={{ overflowX: 'auto' }}>
+                        <Table
+                            size="small"
+                            sx={{
+                                width: '100%',
+                                minWidth: 820,
+                                tableLayout: 'fixed',
+                                '& .trial-select-cell': { width: 76, px: 2.5 },
+                                '& .trial-customer-cell': { width: 170 },
+                                '& .trial-period-cell': { width: 250 },
+                                '& .trial-money-cell': { width: 130 },
+                                '& .trial-view-cell': { width: 90, textAlign: 'center', whiteSpace: 'nowrap' },
+                            }}
+                        >
+                            <TableHead>
+                                <TableRow>
+                                    <TableCell className="trial-select-cell">选择</TableCell>
+                                    <TableCell className="trial-customer-cell">客户名</TableCell>
+                                    <TableCell className="trial-period-cell">试工周期</TableCell>
+                                    <TableCell className="trial-money-cell">日薪</TableCell>
+                                    <TableCell className="trial-money-cell">介绍费</TableCell>
+                                    <TableCell className="trial-view-cell">查看</TableCell>
+                                </TableRow>
+                            </TableHead>
+                            <TableBody>
+                                {trialContractSections.filter(section => section.contracts.length > 0).map(section => (
+                                    <React.Fragment key={section.key}>
+                                        <TableRow>
+                                            <TableCell
+                                                colSpan={6}
+                                                sx={{
+                                                    py: 0.75,
+                                                    fontWeight: 700,
+                                                    color: 'text.secondary',
+                                                    backgroundColor: 'rgba(0, 0, 0, 0.03)',
+                                                }}
+                                            >
+                                                {section.title}（{section.contracts.length}）
+                                            </TableCell>
+                                        </TableRow>
+                                        {section.contracts.map(trial => (
+                                            <TableRow
+                                                key={trial.id}
+                                                hover
+                                                onClick={() => setSelectedTrialConversionOption(trial.id)}
+                                                sx={{ cursor: 'pointer' }}
+                                            >
+                                                <TableCell className="trial-select-cell">
+                                                    <Radio value={trial.id} checked={selectedTrialConversionOption === trial.id} />
+                                                </TableCell>
+                                                <TableCell className="trial-customer-cell" sx={{ fontWeight: 600 }}>{trial.customer_name || '未知客户'}</TableCell>
+                                                <TableCell className="trial-period-cell">
+                                                    {formatContractDate(trial.start_date)} - {formatContractDate(trial.end_date)}
+                                                </TableCell>
+                                                <TableCell className="trial-money-cell">¥{formatMoney(trial.daily_rate)}</TableCell>
+                                                <TableCell className="trial-money-cell">¥{formatMoney(trial.introduction_fee)}</TableCell>
+                                                <TableCell className="trial-view-cell">
+                                                    <Button
+                                                        type="button"
+                                                        size="small"
+                                                        variant="text"
+                                                        sx={{ minWidth: 48, px: 1, whiteSpace: 'nowrap' }}
+                                                        onClick={(event) => {
+                                                            event.stopPropagation();
+                                                            window.open(`/contract/detail/${trial.id}`, '_blank');
+                                                        }}
+                                                    >
+                                                        查看
+                                                    </Button>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </React.Fragment>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </TableContainer>
+                    {selectedTrialConversionOption !== 'none' && (
+                        <Box sx={{ px: 2, py: 1.5, borderTop: '1px solid rgba(0, 0, 0, 0.12)' }}>
+                            {!formData.start_date ? (
+                                <Typography variant="body2" color="text.secondary">
+                                    选择合同开始日期后，将自动预览预计转移费用。
+                                </Typography>
+                            ) : loadingTrialConversionPreview ? (
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    <CircularProgress size={18} />
+                                    <Typography variant="body2" color="text.secondary">正在计算试工成功费用预览...</Typography>
+                                </Box>
+                            ) : trialConversionPreviewError ? (
+                                <Alert severity="warning" sx={{ my: 0 }}>
+                                    {trialConversionPreviewError}
+                                </Alert>
+                            ) : trialConversionPreview ? (
+                                <Box>
+                                    <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
+                                        预计转入正式合同合计：¥{formatMoney(trialConversionPreview.total_transfer_amount)}
+                                    </Typography>
+                                    <Grid container spacing={1.5}>
+                                        <Grid item xs={12} sm={4}>
+                                            <Typography variant="caption" color="text.secondary">试工劳务费</Typography>
+                                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                                ¥{formatMoney(trialConversionPreview.service_fee?.amount)}
+                                            </Typography>
+                                        </Grid>
+                                        <Grid item xs={12} sm={4}>
+                                            <Typography variant="caption" color="text.secondary">试工管理费</Typography>
+                                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                                ¥{formatMoney(trialConversionPreview.management_fee?.amount)}
+                                            </Typography>
+                                        </Grid>
+                                        <Grid item xs={12} sm={4}>
+                                            <Typography variant="caption" color="text.secondary">介绍费</Typography>
+                                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                                ¥{formatMoney(trialConversionPreview.introduction_fee?.amount)}
+                                            </Typography>
+                                        </Grid>
+                                    </Grid>
+                                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+                                        非重叠试工 {trialConversionPreview.non_overlap_days} 天将转入正式合同；介绍费按现有试工成功逻辑保留在试工合同账单中。
+                                    </Typography>
+                                </Box>
+                            ) : null}
+                        </Box>
+                    )}
+                </Paper>
+            </RadioGroup>
+        </Alert>
+    ) : null;
 
     // console.log('State before render:', { customerOptions, employeeOptions });
 
@@ -674,66 +1077,6 @@ ${managementFeeNotePart}`;
                     {checkingEmployeeContracts && (
                         <Alert severity="info" sx={{ mb: 2 }}>
                             正在检查该服务人员是否存在进行中合同...
-                        </Alert>
-                    )}
-                    {employeeContractConflicts.length > 0 && (
-                        <Alert
-                            severity="warning"
-                            sx={{
-                                mb: 2,
-                                '& .MuiAlert-message': {
-                                    width: '100%',
-                                },
-                            }}
-                        >
-                            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
-                                该服务人员当前已有进行中合同，请先终止原合同后再签署新合同。
-                            </Typography>
-                            <Paper
-                                variant="outlined"
-                                sx={{
-                                    width: '100%',
-                                    overflow: 'hidden',
-                                    backgroundColor: 'rgba(255, 255, 255, 0.75)',
-                                }}
-                            >
-                                <TableContainer>
-                                    <Table size="small" sx={{ width: '100%', tableLayout: 'fixed' }}>
-                                        <TableHead>
-                                            <TableRow>
-                                                <TableCell sx={{ width: '18%' }}>客户名</TableCell>
-                                                <TableCell sx={{ width: '22%' }}>合同类型</TableCell>
-                                                <TableCell sx={{ width: '20%' }}>开始时间</TableCell>
-                                                <TableCell sx={{ width: '20%' }}>终止时间</TableCell>
-                                                <TableCell align="right" sx={{ width: '20%' }}>操作</TableCell>
-                                            </TableRow>
-                                        </TableHead>
-                                        <TableBody>
-                                            {employeeContractConflicts.map(conflict => (
-                                                <TableRow key={conflict.id}>
-                                                    <TableCell sx={{ fontWeight: 600 }}>{conflict.customer_name || '未知客户'}</TableCell>
-                                                    <TableCell>{conflict.contract_type_label || '—'}</TableCell>
-                                                    <TableCell>{formatContractDate(conflict.start_date)}</TableCell>
-                                                    <TableCell>
-                                                        {conflict.is_monthly_auto_renew ? '自动月签' : formatContractDate(conflict.end_date)}
-                                                    </TableCell>
-                                                    <TableCell align="right">
-                                                        <Button
-                                                            type="button"
-                                                            size="small"
-                                                            variant="contained"
-                                                            color="warning"
-                                                            onClick={() => handleGoTerminateContract(conflict.id)}
-                                                        >
-                                                            去终止合同
-                                                        </Button>
-                                                    </TableCell>
-                                                </TableRow>
-                                            ))}
-                                        </TableBody>
-                                    </Table>
-                                </TableContainer>
-                            </Paper>
                         </Alert>
                     )}
                     <Grid container spacing={3}>
@@ -886,12 +1229,17 @@ ${managementFeeNotePart}`;
                                             employee_phone: newValue.phone_number || '',
                                         }));
                                         fetchEmployeeContractConflicts(newValue.id);
+                                        fetchEmployeePendingTrialContracts(newValue.id);
                                     } else {
                                         setFormData(prev => ({
                                             ...prev,
                                             service_personnel_id: null,
                                         }));
                                         setEmployeeContractConflicts([]);
+                                        setPendingTrialContracts([]);
+                                        setSelectedTrialConversionOption('none');
+                                        setTrialConversionPreview(null);
+                                        setTrialConversionPreviewError('');
                                     }
                                 }}
                                 onInputChange={(event, newInputValue, reason) => {
@@ -926,6 +1274,16 @@ ${managementFeeNotePart}`;
                         <Grid item xs={12} sm={6}>
                             <TextField fullWidth name="employee_address" label="员工地址" value={formData.employee_address} onChange={handleInputChange} InputLabelProps={{ shrink: true }} />
                         </Grid>
+                        {ongoingContractWarning && (
+                            <Grid item xs={12}>
+                                {ongoingContractWarning}
+                            </Grid>
+                        )}
+                        {trialContractSelection && (
+                            <Grid item xs={12}>
+                                {trialContractSelection}
+                            </Grid>
+                        )}
                         {/* ... other form fields remain unchanged ... */}
                         {formData.contract_type === 'nanny' && (
                             <Grid item xs={12}>
@@ -1156,13 +1514,17 @@ ${managementFeeNotePart}`;
                 </DialogContent>
                 <DialogActions sx={{ p: 3 }}>
                     <Button onClick={onClose}>取消</Button>
-                    <Button
-                        type="submit"
-                        variant="contained"
-                        disabled={loading || checkingEmployeeContracts || employeeContractConflicts.length > 0}
-                    >
-                        {loading ? <CircularProgress size={24} /> : '创建合同'}
-                    </Button>
+                    <Tooltip title={createDisabledReason}>
+                        <span>
+                            <Button
+                                type="submit"
+                                variant="contained"
+                                disabled={loading || checkingEmployeeContracts || hasOngoingContractConflicts}
+                            >
+                                {loading ? <CircularProgress size={24} /> : (formData.contract_type === 'nanny' && selectedTrialConversionOption !== 'none' ? '创建合同并确认试工成功' : '创建合同')}
+                            </Button>
+                        </span>
+                    </Tooltip>
                 </DialogActions>
             </Box>
             <Dialog open={previewOpen} onClose={() => setPreviewOpen(false)} maxWidth="md" fullWidth>

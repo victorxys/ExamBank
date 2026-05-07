@@ -4571,8 +4571,8 @@ def get_trial_conversion_preview(contract_id):
         # --- 1. 计算日期重叠和非重叠部分 ---
         non_overlap_days = 0
         if formal_start > trial_start:
-            non_overlap_end = min(trial_end, formal_start - timedelta(days=1))
-            if non_overlap_end >= trial_start:
+            non_overlap_end = min(trial_end, formal_start)
+            if non_overlap_end > trial_start:
                 non_overlap_days = (non_overlap_end - trial_start).days
         
         overlap_days = 0

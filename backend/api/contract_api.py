@@ -1,7 +1,7 @@
 # backend/api/contract_api.py
 from flask import Blueprint, jsonify, request, current_app, send_file, render_template,send_from_directory
 import os
-from flask_jwt_extended import jwt_required
+from flask_jwt_extended import jwt_required, get_jwt_identity
 from backend.models import (
     db,
     BaseContract,
@@ -13,6 +13,7 @@ from backend.models import (
     PaymentStatus,
     ContractTemplate,
     SigningStatus, # 导入 SigningStatus 枚举
+    TrialOutcome,
     Customer, # 导入 Customer
     ServicePersonnel, # 导入 ServicePersonnel
     NannyContract,MaternityNurseContract,NannyTrialContract, ExternalSubstitutionContract,
@@ -35,7 +36,7 @@ from backend.services.contract_service import (
     update_salary_history_on_contract_activation # 导入薪资历史服务函数
 )
 # from backend.api.billing_api import _get_billing_details_internal
-from datetime import datetime
+from datetime import datetime, timedelta
 import decimal
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import or_, and_, extract, func
@@ -71,6 +72,23 @@ def _serialize_employee_ongoing_contract(contract):
     }
 
 
+def _serialize_employee_pending_trial_contract(contract):
+    return {
+        "id": str(contract.id),
+        "customer_name": contract.customer_name,
+        "service_personnel_id": str(contract.service_personnel_id) if contract.service_personnel_id else None,
+        "service_personnel_name": contract.service_personnel.name if contract.service_personnel else None,
+        "contract_type_value": contract.type,
+        "contract_type_label": "育儿嫂试工合同",
+        "status": contract.status,
+        "trial_outcome": contract.trial_outcome.value if contract.trial_outcome else None,
+        "start_date": contract.start_date.isoformat() if contract.start_date else None,
+        "end_date": contract.end_date.isoformat() if contract.end_date else None,
+        "daily_rate": str(contract.employee_level) if contract.employee_level is not None else "",
+        "introduction_fee": str(contract.introduction_fee) if contract.introduction_fee is not None else "0",
+    }
+
+
 def _get_employee_ongoing_contracts(service_personnel_id, exclude_contract_id=None):
     query = BaseContract.query.options(joinedload(BaseContract.service_personnel)).filter(
         BaseContract.service_personnel_id == service_personnel_id,
@@ -80,6 +98,16 @@ def _get_employee_ongoing_contracts(service_personnel_id, exclude_contract_id=No
     if exclude_contract_id:
         query = query.filter(BaseContract.id != str(exclude_contract_id))
     return query.order_by(BaseContract.start_date.desc()).all()
+
+
+def _get_employee_pending_trial_contracts(service_personnel_id):
+    return NannyTrialContract.query.options(joinedload(NannyTrialContract.service_personnel)).filter(
+        NannyTrialContract.service_personnel_id == service_personnel_id,
+        or_(
+            NannyTrialContract.trial_outcome == TrialOutcome.PENDING,
+            NannyTrialContract.status == "trial_active",
+        ),
+    ).order_by(NannyTrialContract.end_date.desc()).all()
 
 
 # 家庭ID管理相关API
@@ -471,14 +499,17 @@ def get_signature_image(signature_id):
     # current_app.root_path is the 'backend' folder.
     signatures_dir = os.path.join(current_app.root_path, 'static', 'signatures')
     filename = os.path.basename(signature.file_path)
+    signature_file_path = os.path.join(signatures_dir, filename)
+
+    if not os.path.isfile(signature_file_path):
+        current_app.logger.warning(
+            f"Signature file not found on disk. Looked for '{filename}' in '{signatures_dir}'."
+        )
+        return "Signature file not found on disk", 404
 
     # Use send_from_directory with an absolute directory path.
     # It will handle the file existence check and return a 404 if not found.
-    try:
-        return send_from_directory(signatures_dir, filename)
-    except FileNotFoundError:
-        current_app.logger.error(f"Signature file not found on disk. Looked for '{filename}' in '{signatures_dir}'.")
-        return "Signature file not found on disk", 404
+    return send_from_directory(signatures_dir, filename)
 
 @contract_bp.route("/<string:contract_id>/download", methods=["GET"])
 @jwt_required()
@@ -770,7 +801,108 @@ def get_employee_ongoing_contracts(service_personnel_id):
     except Exception as e:
         current_app.logger.error(f"获取服务人员进行中合同失败 {service_personnel_id}: {e}", exc_info=True)
         return jsonify({"error": "内部服务器错误"}), 500
-    
+
+
+@contract_bp.route("/employees/<uuid:service_personnel_id>/pending-trial-contracts", methods=["GET"])
+@jwt_required()
+def get_employee_pending_trial_contracts(service_personnel_id):
+    """
+    获取指定服务人员待处理的试工合同，用于创建正式合同时选择是否一并确认试工成功。
+    """
+    try:
+        service_personnel = ServicePersonnel.query.get(str(service_personnel_id))
+        if not service_personnel:
+            return jsonify({"error": "服务人员未找到"}), 404
+
+        contracts = _get_employee_pending_trial_contracts(str(service_personnel_id))
+        return jsonify({
+            "has_pending_trials": len(contracts) > 0,
+            "service_personnel_id": str(service_personnel.id),
+            "service_personnel_name": service_personnel.name,
+            "contracts": [_serialize_employee_pending_trial_contract(contract) for contract in contracts],
+        })
+    except Exception as e:
+        current_app.logger.error(f"获取服务人员待处理试工合同失败 {service_personnel_id}: {e}", exc_info=True)
+        return jsonify({"error": "内部服务器错误"}), 500
+
+
+@contract_bp.route("/nanny-trial-contracts/<uuid:trial_contract_id>/draft-conversion-preview", methods=["POST"])
+@jwt_required()
+def preview_trial_conversion_for_draft_contract(trial_contract_id):
+    """
+    基于创建正式合同弹窗中的草稿参数，预览试工成功后预计转入正式合同的费用。
+    """
+    data = request.get_json() or {}
+    formal_start_date_str = data.get("start_date")
+    if not formal_start_date_str:
+        return jsonify({"error": "缺少正式合同开始日期"}), 400
+
+    trial_contract = db.session.get(NannyTrialContract, str(trial_contract_id))
+    if not trial_contract:
+        return jsonify({"error": "试工合同未找到"}), 404
+
+    is_pending_trial = (
+        trial_contract.trial_outcome == TrialOutcome.PENDING
+        or trial_contract.status == "trial_active"
+    )
+    if not is_pending_trial:
+        return jsonify({"error": "该试工合同已处理，无法预览试工成功费用"}), 400
+
+    try:
+        formal_start = datetime.fromisoformat(formal_start_date_str.split("T")[0]).date()
+        trial_start = trial_contract.start_date.date() if isinstance(trial_contract.start_date, datetime) else trial_contract.start_date
+        trial_end = trial_contract.end_date.date() if isinstance(trial_contract.end_date, datetime) else trial_contract.end_date
+
+        if not trial_start or not trial_end:
+            return jsonify({"error": "试工合同起止日期不完整"}), 400
+
+        non_overlap_days = 0
+        if formal_start > trial_start:
+            non_overlap_end = min(trial_end, formal_start)
+            if non_overlap_end > trial_start:
+                non_overlap_days = (non_overlap_end - trial_start).days
+
+        overlap_days = 0
+        if formal_start <= trial_end:
+            overlap_start = max(trial_start, formal_start)
+            if trial_end >= overlap_start:
+                overlap_days = (trial_end - overlap_start).days
+
+        trial_daily_rate = D(trial_contract.employee_level or "0")
+        trial_monthly_rate = trial_daily_rate * D(26)
+        management_fee_rate = D(
+            trial_contract.management_fee_rate
+            if trial_contract.management_fee_rate is not None
+            else "0.1"
+        )
+
+        service_fee = (trial_daily_rate * D(non_overlap_days)).quantize(D("0.01"))
+        management_fee = (trial_monthly_rate * management_fee_rate / D(30) * D(non_overlap_days)).quantize(D("0.01"))
+        introduction_fee = D(trial_contract.introduction_fee or "0").quantize(D("0.01"))
+        total_transfer_amount = (service_fee + management_fee).quantize(D("0.01"))
+
+        return jsonify({
+            "trial_contract_id": str(trial_contract.id),
+            "non_overlap_days": non_overlap_days,
+            "overlap_days": overlap_days,
+            "service_fee": {
+                "amount": str(service_fee),
+                "description": f"预计转入正式合同的试工劳务费：日薪 {trial_daily_rate} × 非重叠 {non_overlap_days} 天",
+            },
+            "management_fee": {
+                "amount": str(management_fee),
+                "description": f"预计转入正式合同的试工管理费：试工月薪 {trial_monthly_rate} × 管理费率 {management_fee_rate} ÷ 30 × 非重叠 {non_overlap_days} 天",
+            },
+            "introduction_fee": {
+                "amount": str(introduction_fee),
+                "description": "介绍费按现有试工成功逻辑保留在试工合同账单中，不转入正式合同。",
+            },
+            "total_transfer_amount": str(total_transfer_amount),
+        })
+    except Exception as e:
+        current_app.logger.error(f"预览创建正式合同时的试工成功费用失败 {trial_contract_id}: {e}", exc_info=True)
+        return jsonify({"error": "计算试工成功费用预览失败"}), 500
+     
 @contract_bp.route("/<uuid:contract_id>/successor", methods=["GET"])
 @jwt_required()
 def find_successor_contract(contract_id):
@@ -818,6 +950,21 @@ def create_formal_contract():
         service_personnel = ServicePersonnel.query.get(data["service_personnel_id"])
         if not service_personnel:
             return jsonify({"error": "服务人员未找到"}), 404
+
+        trial_contract_id_to_convert = data.get("trial_contract_id_to_convert")
+        trial_contract_to_convert = None
+        if trial_contract_id_to_convert:
+            trial_contract_to_convert = db.session.get(NannyTrialContract, str(trial_contract_id_to_convert))
+            if not trial_contract_to_convert:
+                return jsonify({"error": "选择的试工合同未找到"}), 404
+            if str(trial_contract_to_convert.service_personnel_id) != str(service_personnel.id):
+                return jsonify({"error": "选择的试工合同不属于当前服务人员"}), 400
+            is_pending_trial = (
+                trial_contract_to_convert.trial_outcome == TrialOutcome.PENDING
+                or trial_contract_to_convert.status == "trial_active"
+            )
+            if not is_pending_trial:
+                return jsonify({"error": "选择的试工合同已被处理，无法再次确认试工成功"}), 400
 
         ongoing_contracts = _get_employee_ongoing_contracts(str(service_personnel.id))
         if ongoing_contracts:
@@ -941,6 +1088,9 @@ def create_formal_contract():
         else:
             return jsonify({"error": f"不支持的合同类型: {contract_type}"}), 400
 
+        if trial_contract_to_convert and contract_type != "nanny":
+            return jsonify({"error": "试工成功只能关联到育儿嫂正式合同"}), 400
+
         new_contract = ContractModel(**common_attributes)
         
         # --- 处理无需签署的情况 ---
@@ -957,6 +1107,18 @@ def create_formal_contract():
             update_salary_history_on_contract_activation(new_contract)
             db.session.commit()
             current_app.logger.info(f"合同 {new_contract.id} 已更新薪资历史")
+
+        if trial_contract_to_convert:
+            operator_id = get_jwt_identity()
+            engine = BillingEngine()
+            engine.process_trial_conversion(
+                trial_contract_id=str(trial_contract_to_convert.id),
+                formal_contract_id=str(new_contract.id),
+                operator_id=operator_id,
+            )
+            current_app.logger.info(
+                f"试工合同 {trial_contract_to_convert.id} 已在创建正式合同 {new_contract.id} 后确认试工成功。"
+            )
 
         # 触发后台任务以生成初始账单
         trigger_initial_bill_generation_task.delay(str(new_contract.id))
