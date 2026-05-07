@@ -95,6 +95,8 @@ CORS(
     origins=[
         "http://localhost:3000",
         "http://localhost:5175",
+        "http://localhost:5176",
+        "http://localhost:5178",
         "http://localhost:5273",
         "https://ai.mengyimengsao.com",
         "https://mengai.mengyimengsao.com",

@@ -75,6 +75,7 @@ def _get_employee_ongoing_contracts(service_personnel_id, exclude_contract_id=No
     query = BaseContract.query.options(joinedload(BaseContract.service_personnel)).filter(
         BaseContract.service_personnel_id == service_personnel_id,
         BaseContract.status.in_(ONGOING_EMPLOYEE_CONTRACT_STATUSES),
+        BaseContract.type != "nanny_trial",
     )
     if exclude_contract_id:
         query = query.filter(BaseContract.id != str(exclude_contract_id))

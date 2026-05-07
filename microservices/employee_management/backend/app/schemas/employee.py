@@ -5,8 +5,7 @@ from pydantic import BaseModel, ConfigDict
 from decimal import Decimal
 
 class SalaryHistoryBase(BaseModel):
-    employee_id: UUID
-    contract_id: UUID
+    contract_id: Optional[UUID] = None
     effective_date: date
     base_salary: Decimal
     commission_rate: Optional[Decimal] = None
@@ -16,8 +15,17 @@ class SalaryHistoryBase(BaseModel):
 class SalaryHistoryCreate(SalaryHistoryBase):
     pass
 
+class SalaryHistoryUpdate(BaseModel):
+    contract_id: Optional[UUID] = None
+    effective_date: Optional[date] = None
+    base_salary: Optional[Decimal] = None
+    commission_rate: Optional[Decimal] = None
+    bonus: Optional[Decimal] = None
+    notes: Optional[str] = None
+
 class SalaryHistory(SalaryHistoryBase):
     id: UUID
+    employee_id: UUID
     created_at: datetime
     updated_at: datetime
 

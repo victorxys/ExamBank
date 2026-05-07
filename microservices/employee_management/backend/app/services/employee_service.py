@@ -2,8 +2,8 @@ from typing import List, Optional
 from uuid import UUID
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
-from app.models.employee import Employee
-from app.schemas.employee import EmployeeCreate, EmployeeUpdate
+from app.models.employee import Employee, EmployeeSalaryHistory
+from app.schemas.employee import EmployeeCreate, EmployeeUpdate, SalaryHistoryCreate, SalaryHistoryUpdate
 
 def get_employee(db: Session, employee_id: UUID) -> Optional[Employee]:
     return db.query(Employee).filter(Employee.id == employee_id).first()
@@ -53,3 +53,61 @@ def delete_employee(db: Session, employee_id: UUID) -> Optional[Employee]:
         db.delete(db_employee)
         db.commit()
     return db_employee
+
+def create_salary_history(
+    db: Session,
+    *,
+    employee_id: UUID,
+    salary_in: SalaryHistoryCreate,
+) -> EmployeeSalaryHistory:
+    db_salary = EmployeeSalaryHistory(
+        employee_id=employee_id,
+        contract_id=salary_in.contract_id,
+        effective_date=salary_in.effective_date,
+        base_salary=salary_in.base_salary,
+        commission_rate=salary_in.commission_rate,
+        bonus=salary_in.bonus,
+        notes=salary_in.notes,
+    )
+    db.add(db_salary)
+    db.commit()
+    db.refresh(db_salary)
+    return db_salary
+
+def get_salary_history(
+    db: Session,
+    *,
+    employee_id: UUID,
+    salary_history_id: UUID,
+) -> Optional[EmployeeSalaryHistory]:
+    return (
+        db.query(EmployeeSalaryHistory)
+        .filter(
+            EmployeeSalaryHistory.id == salary_history_id,
+            EmployeeSalaryHistory.employee_id == employee_id,
+        )
+        .first()
+    )
+
+def update_salary_history(
+    db: Session,
+    *,
+    db_salary: EmployeeSalaryHistory,
+    salary_in: SalaryHistoryUpdate,
+) -> EmployeeSalaryHistory:
+    update_data = salary_in.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(db_salary, field, value)
+    db.add(db_salary)
+    db.commit()
+    db.refresh(db_salary)
+    return db_salary
+
+def delete_salary_history(
+    db: Session,
+    *,
+    db_salary: EmployeeSalaryHistory,
+) -> EmployeeSalaryHistory:
+    db.delete(db_salary)
+    db.commit()
+    return db_salary

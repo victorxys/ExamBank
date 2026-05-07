@@ -27,7 +27,7 @@ class EmployeeSalaryHistory(Base):
 
     id = Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     employee_id = Column(PG_UUID(as_uuid=True), ForeignKey("employees.id"), nullable=False)
-    contract_id = Column(PG_UUID(as_uuid=True), nullable=False) # No FK to other DB
+    contract_id = Column(PG_UUID(as_uuid=True), nullable=True) # Optional external contract ID
     effective_date = Column(DateTime, nullable=False)
     base_salary = Column(Numeric(10, 2), nullable=False)
     commission_rate = Column(Numeric(5, 4), nullable=True)

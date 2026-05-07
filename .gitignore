@@ -247,3 +247,5 @@ debug*
 *.md
 test*
 docs/
+microservices/
+software-copyright-redesign/

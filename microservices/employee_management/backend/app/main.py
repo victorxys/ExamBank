@@ -4,7 +4,9 @@ from app.api.endpoints import employees
 from app.core.config import settings
 
 app = FastAPI(
-    title="Employee Management API",
+    title="Employee Profile Management API",
+    description="Independently deployable employee profile management service.",
+    version="1.0.0",
     openapi_url=f"{settings.API_V1_STR}/openapi.json"
 )
 
@@ -21,4 +23,4 @@ app.include_router(employees.router, prefix=settings.API_V1_STR, tags=["employee
 
 @app.get("/")
 def root():
-    return {"message": "Employee Management Microservice is running"}
+    return {"message": "Employee Profile Management System API is running"}
