@@ -384,9 +384,7 @@ const PublicSigningPage = () => {
                     }
                 }}>
                     <ReactMarkdown>
-                        {contract.template_content
-                            ? contract.template_content.replace(/(?<=[^\s])\*\*(?=[^\s])/g, '** ' )
-                            : '合同条款内容加载中...'}
+                        {contract.template_content || '合同条款内容加载中...'}
                     </ReactMarkdown>
                 </Box>
                 {contract.attachment_content && (
