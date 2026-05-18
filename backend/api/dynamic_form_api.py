@@ -18,8 +18,19 @@ def manage_dynamic_forms():
         if not data or 'name' not in data:
             return jsonify({'message': 'Missing required fields'}), 400
 
+        # 检查是否传入了 form_token，如果未传入则自动生成一个唯一的 token
+        form_token = data.get('form_token')
+        if not form_token:
+            while True:
+                # 生成一个 8 位的唯一 UUID 前缀
+                form_token = uuid.uuid4().hex[:8]
+                # 检查是否已存在，防止极低概率的哈希冲突
+                if not DynamicForm.query.filter_by(form_token=form_token).first():
+                    break
+
         new_form = DynamicForm(
             name=data['name'],
+            form_token=form_token,  # 传入自动生成或显式指定的 token
             description=data.get('description', ''),
             form_type=data.get('form_type', 'QUESTIONNAIRE'),
             surveyjs_schema=data.get('surveyjs_schema', {}),
