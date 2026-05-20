@@ -512,12 +512,65 @@ def lookup_user_api():
         user = cur.fetchone()
 
         if user is None:
+            cur.execute(
+                """
+                SELECT
+                    sp.id AS service_personnel_id,
+                    sp.name,
+                    sp.phone_number,
+                    sp.is_active,
+                    sp.user_id,
+                    u.role AS linked_user_role,
+                    u.status AS linked_user_status
+                FROM service_personnel sp
+                LEFT JOIN "user" u ON u.id = sp.user_id
+                WHERE sp.phone_number = %s
+                LIMIT 1
+                """,
+                (phone_number,),
+            )
+            service_personnel = cur.fetchone()
+
+            if service_personnel is None:
+                log.info(
+                    "User lookup miss. client=%s phone=%s",
+                    api_client,
+                    phone_number,
+                )
+                return jsonify({"error": "User not found"}), 404
+
+            status = service_personnel["linked_user_status"] or (
+                "active" if service_personnel["is_active"] else "inactive"
+            )
+            role = service_personnel["linked_user_role"] or "student"
+            response_id = (
+                service_personnel["user_id"]
+                or service_personnel["service_personnel_id"]
+            )
+
             log.info(
-                "User lookup miss. client=%s phone=%s",
+                "Service personnel lookup hit. client=%s phone=%s service_personnel_id=%s user_id=%s",
                 api_client,
                 phone_number,
+                service_personnel["service_personnel_id"],
+                service_personnel["user_id"],
             )
-            return jsonify({"error": "User not found"}), 404
+            return jsonify(
+                {
+                    "user": {
+                        "id": str(response_id),
+                        "username": service_personnel["name"],
+                        "name": service_personnel["name"],
+                        "phone_number": service_personnel["phone_number"],
+                        "role": role,
+                        "status": status,
+                        "source": "service_personnel",
+                        "service_personnel_id": str(
+                            service_personnel["service_personnel_id"]
+                        ),
+                    }
+                }
+            )
 
         log.info(
             "User lookup hit. client=%s phone=%s user_id=%s",
