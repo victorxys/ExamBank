@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 import uuid
 import logging
 import json
+import re
 from pypinyin import pinyin, Style
 from backend.security_utils import generate_password_hash
 from werkzeug.security import check_password_hash
@@ -466,6 +467,91 @@ for pair in _keys_env.split(','):
         AUTHORIZED_KEYS[k.strip()] = v.strip()
 
 
+def _get_authorized_api_client():
+    api_key = request.headers.get("X-API-Key")
+    if not api_key or api_key not in AUTHORIZED_KEYS:
+        return None
+    return AUTHORIZED_KEYS[api_key]
+
+
+def _is_valid_mainland_phone(phone_number):
+    return bool(re.fullmatch(r"1[3-9]\d{9}", phone_number or ""))
+
+
+@app.route("/api/users/lookup", methods=["POST"])
+def lookup_user_api():
+    api_client = _get_authorized_api_client()
+    if not api_client:
+        log.warning("User lookup rejected: invalid or missing API key.")
+        return jsonify({"error": "Invalid API key"}), 401
+
+    data = request.get_json(silent=True) or {}
+    phone_number = (data.get("phone_number") or "").strip()
+
+    if not phone_number:
+        log.warning("User lookup rejected: missing phone_number. client=%s", api_client)
+        return jsonify({"error": "phone_number is required"}), 400
+
+    if not _is_valid_mainland_phone(phone_number):
+        log.warning(
+            "User lookup rejected: invalid phone_number. client=%s phone=%s",
+            api_client,
+            phone_number,
+        )
+        return jsonify({"error": "Invalid phone_number"}), 400
+
+    conn = None
+    cur = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute(
+            'SELECT id, username, phone_number, role, status FROM "user" WHERE "phone_number" = %s',
+            (phone_number,),
+        )
+        user = cur.fetchone()
+
+        if user is None:
+            log.info(
+                "User lookup miss. client=%s phone=%s",
+                api_client,
+                phone_number,
+            )
+            return jsonify({"error": "User not found"}), 404
+
+        log.info(
+            "User lookup hit. client=%s phone=%s user_id=%s",
+            api_client,
+            phone_number,
+            user["id"],
+        )
+        return jsonify(
+            {
+                "user": {
+                    "id": str(user["id"]),
+                    "username": user["username"],
+                    "name": user["username"],
+                    "phone_number": user["phone_number"],
+                    "role": user["role"],
+                    "status": user["status"],
+                }
+            }
+        )
+
+    except Exception:
+        log.exception(
+            "User lookup failed unexpectedly. client=%s phone=%s",
+            api_client,
+            phone_number,
+        )
+        return jsonify({"error": "Internal server error"}), 500
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
+
+
 # 外部用户登录的api 为 ai系统提供的配额和 AUTHORIZED_KEYS 来配置使用
 @app.route("/api/auth/login", methods=["POST"])
 def login_api():
@@ -474,7 +560,7 @@ def login_api():
         f"Received API login request with API Key: {'*' * len(api_key) if api_key else 'None'}"
     )
 
-    if not api_key or api_key not in AUTHORIZED_KEYS:
+    if not _get_authorized_api_client():
         log.warning("Invalid or missing API Key received.")
         return jsonify({"error": "Invalid API Key"}), 401
 
