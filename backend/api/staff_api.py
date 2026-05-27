@@ -462,12 +462,21 @@ def create_staff_from_form(data_id):
             logging.error(f"[CREATE_STAFF] 缺少必填字段：手机号")
             return jsonify({"error": "缺少必填字段：手机号"}), 400
         
-        # 5. 检查是否已存在（根据手机号）
-        existing_employee = ServicePersonnel.query.filter_by(phone_number=phone_number).first()
+        # 5. 检查是否已存在。手机号可能在登记表里被更新，所以身份证要先作为稳定身份兜底。
+        existing_employee = None
+        if id_card_number:
+            existing_employee = ServicePersonnel.query.filter_by(
+                id_card_number=id_card_number
+            ).first()
+        if not existing_employee:
+            existing_employee = ServicePersonnel.query.filter_by(
+                phone_number=phone_number
+            ).first()
         
         if existing_employee:
             # 更新现有员工信息
             existing_employee.name = name
+            existing_employee.phone_number = phone_number
             if id_card_number:
                 existing_employee.id_card_number = id_card_number
             if address:

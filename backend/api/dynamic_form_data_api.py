@@ -127,6 +127,49 @@ def get_model_by_name(model_name):
     }
     return model_map.get(model_name)
 
+
+def _clean_lookup_value(value):
+    if value is None:
+        return None
+    if isinstance(value, str):
+        value = value.strip()
+    return value or None
+
+
+def _find_record_by_unique_field(model, field_name, value):
+    value = _clean_lookup_value(value)
+    if not value:
+        return None
+
+    filter_attr = getattr(model, field_name, None)
+    if filter_attr is None:
+        return None
+
+    return db.session.query(model).filter(filter_attr == value).first()
+
+
+def _find_service_personnel_by_unique_mappings(mappings_list, form_data):
+    """
+    员工登记表允许更新手机号；当手机号作为 lookup_field 时，必须还能通过
+    身份证等稳定唯一字段找回原员工，避免误判为新增员工。
+    """
+    unique_fields = ("id_card_number", "phone_number", "wechat_openid", "user_id")
+
+    for field_name in unique_fields:
+        for mapping in mappings_list:
+            if mapping.get("target_field") != field_name:
+                continue
+
+            lookup_value = form_data.get(mapping.get("form_field"))
+            target_record = _find_record_by_unique_field(
+                ServicePersonnel, field_name, lookup_value
+            )
+            if target_record:
+                return target_record
+
+    return None
+
+
 def _process_sync_mapping(form_data_instance, dynamic_form_instance, current_user):
     """
     处理动态表单的同步映射逻辑，根据配置创建或更新关联模型的记录。
@@ -161,12 +204,16 @@ def _process_sync_mapping(form_data_instance, dynamic_form_instance, current_use
             
             if lookup_field_name and lookup_form_field:
                 lookup_value = form_data_instance.data.get(lookup_form_field)
-                if lookup_value:
-                    filter_attr = getattr(TargetModel, lookup_field_name, None)
-                    if filter_attr:
-                        target_record = db.session.query(TargetModel).filter(filter_attr == lookup_value).first()
-                    else:
-                        print(f"Warning: Lookup field '{lookup_field_name}' not found in model '{target_model_name}'.")
+                target_record = _find_record_by_unique_field(
+                    TargetModel, lookup_field_name, lookup_value
+                )
+                if not target_record and getattr(TargetModel, lookup_field_name, None) is None:
+                    print(f"Warning: Lookup field '{lookup_field_name}' not found in model '{target_model_name}'.")
+
+        if not target_record and target_model_name == 'ServicePersonnel':
+            target_record = _find_service_personnel_by_unique_mappings(
+                mappings_list, form_data_instance.data
+            )
 
         # 准备数据
         data_to_update = {}
