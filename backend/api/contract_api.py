@@ -23,7 +23,8 @@ from backend.models import (
     AttendanceRecord,
     AttendanceForm,
     EmployeeSalaryHistory,
-    ContractSignature
+    ContractSignature,
+    WechatMessageLog
 )
 import base64
 from backend.tasks import calculate_monthly_billing_task
@@ -1747,6 +1748,60 @@ def handle_signing_page_action(token):
                         contract_locked.signing_status = SigningStatus.EMPLOYEE_SIGNED
 
             db.session.commit()
+
+            # --- 触发企业微信异步推送 ---
+            try:
+                from backend.tasks import send_wechat_notification_task
+                
+                # 获取相关属性
+                customer_name = contract.customer_name
+                employee_name = contract.service_personnel.name if contract.service_personnel else "服务人员"
+                
+                type_choices = {
+                    "nanny": "育儿嫂合同",
+                    "maternity_nurse": "月嫂合同",
+                    "nanny_trial": "育儿嫂试工合同",
+                    "external_substitution": "外部替班合同",
+                }
+                contract_type_label = type_choices.get(contract.type, contract.type)
+                
+                frontend_base_url = current_app.config.get('FRONTEND_BASE_URL', 'http://localhost:5175')
+                jump_url = f"{frontend_base_url}/contracts/{contract.id}"
+
+                if has_customer_sig and has_employee_sig:
+                    msg_type = "SIGN_FULLY"
+                    title = "🎉 合同双发签署完成（合同已激活）"
+                    description = f"""<div class="gray">时间：{datetime.now().strftime('%Y-%m-%d %H:%M')}</div>
+                                    <div class="normal">合同已由<b>客户({customer_name})</b>与<b>服务人员({employee_name})</b>双方共同签署完毕，系统已自动将其激活。</div>
+                                    <div class="normal">合同类型：{contract_type_label}</div>
+                                    <div class="normal">合同周期：{contract.start_date.strftime('%Y-%m-%d')} 至 {contract.end_date.strftime('%Y-%m-%d')}</div>
+                                    <div class="highlight">请进入后台确认后续服务对接安排。</div>"""
+                elif role == "customer":
+                    msg_type = "SIGN_CUSTOMER"
+                    title = "✍️ 客户已完成合同签署"
+                    description = f"""<div class="gray">时间：{datetime.now().strftime('%Y-%m-%d %H:%M')}</div>
+                                    <div class="normal">客户 <b>{customer_name}</b> 已在线上签署了合同。</div>
+                                    <div class="normal">合同类型：{contract_type_label}</div>
+                                    <div class="highlight">目前等待服务人员签署。</div>"""
+                else:
+                    msg_type = "SIGN_EMPLOYEE"
+                    title = "🤝 服务人员已完成合同签署"
+                    description = f"""<div class="gray">时间：{datetime.now().strftime('%Y-%m-%d %H:%M')}</div>
+                                    <div class="normal">服务人员 <b>{employee_name}</b> 已在线上签署了合同。</div>
+                                    <div class="normal">合同类型：{contract_type_label}</div>
+                                    <div class="highlight">目前等待客户签署。</div>"""
+                
+                # 调用 Celery 任务进行异步微信发送，指定 touser 为空（任务中会自动取配置的 WECHAT_NOTIFY_USERS）
+                send_wechat_notification_task.delay(
+                    touser=None,
+                    title=title,
+                    description=description,
+                    jump_url=jump_url,
+                    msg_type=msg_type
+                )
+            except Exception as pe:
+                current_app.logger.error(f"触发企业微信异步推送失败: {pe}", exc_info=True)
+
             return jsonify({"message": "签名成功！"}), 200
 
         except Exception as e:
@@ -2203,3 +2258,44 @@ def get_contract_signature(contract_id, role):
     except Exception as e:
         current_app.logger.error(f"获取合同 {contract_id} 的签名失败: {e}", exc_info=True)
         return jsonify({"error": "内部服务器错误"}), 500
+
+
+@contract_bp.route("/wechat-messages", methods=["GET"])
+@jwt_required()
+def get_wechat_messages():
+    """
+    分页拉取企业微信消息通知日志，用于后台审计管理。
+    支持过滤: status, message_type, touser
+    """
+    try:
+        page = request.args.get("page", 1, type=int)
+        per_page = request.args.get("per_page", 20, type=int)
+        status = request.args.get("status")
+        message_type = request.args.get("message_type")
+        touser = request.args.get("touser")
+
+        query = WechatMessageLog.query
+
+        if status:
+            query = query.filter_by(status=status)
+        if message_type:
+            query = query.filter_by(message_type=message_type)
+        if touser:
+            query = query.filter(WechatMessageLog.touser.like(f"%{touser}%"))
+
+        pagination = query.order_by(WechatMessageLog.sent_at.desc()).paginate(
+            page=page, per_page=per_page, error_out=False
+        )
+
+        return jsonify({
+            "total": pagination.total,
+            "page": pagination.page,
+            "per_page": pagination.per_page,
+            "pages": pagination.pages,
+            "items": [item.to_dict() for item in pagination.items]
+        }), 200
+
+    except Exception as e:
+        current_app.logger.error(f"获取微信消息日志审计列表失败: {e}", exc_info=True)
+        return jsonify({"error": "内部服务器错误"}), 500
+

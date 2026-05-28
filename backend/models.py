@@ -3564,4 +3564,35 @@ class UserFavoriteForm(db.Model):
     created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
 
 
+class WechatMessageLog(db.Model):
+    __tablename__ = "wechat_message_logs"
+    __table_args__ = (
+        {"comment": "企业微信通知发送日志审计表"}
+    )
+
+    id = db.Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    message_type = db.Column(db.String(50), nullable=False, index=True, comment="消息类型 (SIGN_CUSTOMER, SIGN_EMPLOYEE, SIGN_FULLY, TRIAL_EXPIRING, CONTRACT_EXPIRING, PREGNANCY_ALERT, ATTENDANCE_REMINDER)")
+    touser = db.Column(db.String(255), nullable=False, index=True, comment="接收者")
+    title = db.Column(db.String(255), nullable=False, comment="卡片标题")
+    description = db.Column(db.Text, nullable=False, comment="卡片正文")
+    jump_url = db.Column(db.String(512), nullable=True, comment="跳转URL")
+    status = db.Column(db.String(50), nullable=False, index=True, comment="发送状态 (SUCCESS, FAILED)")
+    error_details = db.Column(db.Text, nullable=True, comment="微信API返回的错误详情")
+    sent_at = db.Column(db.DateTime(timezone=True), server_default=func.now(), comment="发送时间")
+
+    def to_dict(self):
+        return {
+            "id": str(self.id),
+            "message_type": self.message_type,
+            "touser": self.touser,
+            "title": self.title,
+            "description": self.description,
+            "jump_url": self.jump_url,
+            "status": self.status,
+            "error_details": self.error_details,
+            "sent_at": self.sent_at.isoformat() if self.sent_at else None
+        }
+
+
+
 

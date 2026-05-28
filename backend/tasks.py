@@ -3033,3 +3033,86 @@ def trigger_initial_bill_generation_task(contract_id):
             logger.error(f"为合同 {contract_id} 生成初始账单时发生错误: {e}", exc_info=True)
             # 重新抛出异常，以便Celery知道任务失败了
             raise
+
+
+@celery_app.task(name='tasks.send_wechat_notification_task')
+def send_wechat_notification_task(touser, title, description, jump_url, msg_type):
+    """
+    异步发送企业微信卡片消息通知，并落库审计日志。
+    """
+    app = create_flask_app_for_task()
+    with app.app_context():
+        from backend.utils.wechat_notifier import send_wechat_notification
+        from backend.models import WechatMessageLog
+        
+        success, raw_result = send_wechat_notification(
+            touser=touser,
+            title=title,
+            description=description,
+            jump_url=jump_url
+        )
+        
+        try:
+            import json
+            # 获取实际被投递的 touser
+            from backend.utils.wechat_notifier import get_wechat_config
+            _, _, _, default_users = get_wechat_config()
+            target_user = touser if touser else default_users
+            if not target_user:
+                target_user = "@all"
+                
+            log_record = WechatMessageLog(
+                message_type=msg_type,
+                touser=target_user,
+                title=title,
+                description=description,
+                jump_url=jump_url,
+                status="SUCCESS" if success else "FAILED",
+                error_details=json.dumps(raw_result, ensure_ascii=False) if not success else None
+            )
+            db.session.add(log_record)
+            db.session.commit()
+            logger.info(f"WeChat message audit log recorded successfully for type {msg_type}.")
+        except Exception as log_err:
+            db.session.rollback()
+            logger.error(f"Failed to save WeChat message audit log: {log_err}", exc_info=True)
+            
+        return {"success": success, "result": raw_result}
+
+
+@celery_app.task(name='tasks.send_daily_reminders')
+def send_daily_reminders():
+    """
+    定时日常预警扫描任务。
+    """
+    app = create_flask_app_for_task()
+    with app.app_context():
+        from backend.services.reminder_service import run_daily_reminders_check
+        run_daily_reminders_check()
+        return "Daily reminders scan executed."
+
+
+@celery_app.task(name='tasks.send_monthly_attendance_reminder')
+def send_monthly_attendance_reminder():
+    """
+    月初考勤收集提醒。
+    """
+    app = create_flask_app_for_task()
+    with app.app_context():
+        from backend.app import app as flask_app
+        frontend_base_url = flask_app.config.get('FRONTEND_BASE_URL', 'http://localhost:5175')
+        jump_url = f"{frontend_base_url}/attendance"
+        
+        title = "⏰ 月初考勤收集提醒"
+        desc = f"""<div class="gray">时间：{datetime.now().strftime('%Y-%m-%d')}</div>
+                <div class="normal">今天是月初 <b>1 号</b>，请及时收集并录入上月服务人员的考勤数据。</div>
+                <div class="highlight">考勤导入完成后，系统将自动重算并生成对应的账单与工资单。</div>"""
+                
+        send_wechat_notification_task.delay(
+            touser=None,
+            title=title,
+            description=desc,
+            jump_url=jump_url,
+            msg_type="ATTENDANCE_REMINDER"
+        )
+        return "Monthly attendance reminder sent to Celery queue."

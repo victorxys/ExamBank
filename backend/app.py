@@ -135,6 +135,13 @@ app.config["DEFAULT_GRADIO_PT_FILE_PATH"] = (
 app.config['BACKEND_BASE_URL'] = os.environ.get('BACKEND_BASE_URL', 'http://localhost:5001')
 app.config['FRONTEND_BASE_URL'] = os.environ.get('FRONTEND_BASE_URL', 'http://localhost:5175')
 
+# --- 企业微信自建应用配置 ---
+app.config['WECHAT_CORP_ID'] = os.environ.get('WECHAT_CORP_ID', 'ww_dummy_corp_id')
+app.config['WECHAT_AGENT_ID'] = os.environ.get('WECHAT_AGENT_ID', '1000002')
+app.config['WECHAT_SECRET'] = os.environ.get('WECHAT_SECRET', 'dummy_app_secret')
+app.config['WECHAT_NOTIFY_USERS'] = os.environ.get('WECHAT_NOTIFY_USERS', '@all')
+
+
 # IndexTTS2 服务配置
 app.config["INDEXTTS_BASE_URL"] = os.environ.get(
     "INDEXTTS_BASE_URL", "http://test.mengyimengsao.com:37860"
