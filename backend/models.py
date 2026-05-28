@@ -3548,3 +3548,20 @@ class TtsProviderState(db.Model):
     def __repr__(self):
         return f'<TtsProviderState {self.group_id}: Index {self.current_provider_index}, Count {self.usage_count}>'
 
+
+class UserFavoriteForm(db.Model):
+    __tablename__ = "user_favorite_form"
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'form_id', name='uq_user_form_favorite'),
+        {"comment": "用户常用表单关联表"}
+    )
+
+    id = db.Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey("user.id", ondelete="CASCADE"), nullable=False, index=True)
+    form_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey("dynamic_form.id", ondelete="CASCADE"), nullable=False, index=True)
+    is_pinned = db.Column(db.Boolean, nullable=False, default=False, server_default='false', comment='是否置顶')
+    last_accessed_at = db.Column(db.DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), comment='最近访问时间')
+    created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
+
+
+

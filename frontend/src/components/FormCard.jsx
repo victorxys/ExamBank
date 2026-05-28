@@ -6,9 +6,11 @@ import QuizIcon from '@mui/icons-material/Quiz';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import QrCode2Icon from '@mui/icons-material/QrCode2';
 import ModeEditOutlineIcon from '@mui/icons-material/ModeEditOutline';
+import StarIcon from '@mui/icons-material/Star';
+import StarBorderIcon from '@mui/icons-material/StarBorder';
 import { QRCodeSVG } from 'qrcode.react';
 
-const FormCard = ({ form, isDragging }) => {
+const FormCard = ({ form, isDragging, isFavorite, onToggleFavorite }) => {
     const isExam = form.form_type === 'EXAM';
     const [qrDialogOpen, setQrDialogOpen] = useState(false);
     const navigate = useNavigate();
@@ -53,15 +55,37 @@ const FormCard = ({ form, isDragging }) => {
                     ) : (
                         <DescriptionIcon sx={{ fontSize: 40, color: '#11cdef' }} />
                     )}
-                    <Chip
-                        label={isExam ? '考试' : '问卷'}
-                        size="small"
-                        sx={{
-                            backgroundColor: isExam ? '#fb6340' : '#11cdef',
-                            color: 'white',
-                            fontWeight: 'bold'
-                        }}
-                    />
+                    <Box display="flex" alignItems="center" gap={0.5}>
+                        {onToggleFavorite && (
+                            <IconButton
+                                size="small"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onToggleFavorite(form);
+                                }}
+                                title={isFavorite ? "取消常用" : "设为常用"}
+                                sx={{
+                                    p: '2px',
+                                    color: isFavorite ? '#feb236' : '#8898aa',
+                                    '&:hover': {
+                                        transform: 'scale(1.2)',
+                                        transition: 'all 0.2s ease'
+                                    }
+                                }}
+                            >
+                                {isFavorite ? <StarIcon fontSize="small" /> : <StarBorderIcon fontSize="small" />}
+                            </IconButton>
+                        )}
+                        <Chip
+                            label={isExam ? '考试' : '问卷'}
+                            size="small"
+                            sx={{
+                                backgroundColor: isExam ? '#fb6340' : '#11cdef',
+                                color: 'white',
+                                fontWeight: 'bold'
+                            }}
+                        />
+                    </Box>
                 </Box>
 
                 <Typography variant="subtitle1" gutterBottom sx={{

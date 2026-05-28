@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request
 from backend.extensions import db
-from backend.models import DynamicForm
+from backend.models import DynamicForm, UserFavoriteForm
 from sqlalchemy.exc import IntegrityError
 from flask_jwt_extended import jwt_required, get_jwt_identity
 import uuid
@@ -78,8 +78,31 @@ def get_dynamic_form_by_token(form_token):
     form = DynamicForm.query.filter_by(form_token=form_token).first()
     if not form:
         return jsonify({'message': 'DynamicForm not found'}), 404
+
+    # --- 自动、无感记录最近访问时间 ---
+    try:
+        from flask_jwt_extended import verify_jwt_in_request
+        verify_jwt_in_request(optional=True)
+        current_user_id = get_jwt_identity()
+        if current_user_id:
+            fav = UserFavoriteForm.query.filter_by(user_id=current_user_id, form_id=form.id).first()
+            if fav:
+                fav.last_accessed_at = db.func.now()
+            else:
+                new_fav = UserFavoriteForm(
+                    user_id=current_user_id,
+                    form_id=form.id,
+                    is_pinned=False
+                )
+                db.session.add(new_fav)
+            db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        import logging
+        logging.getLogger(__name__).error(f"自动记录表单访问失败: {e}")
     
     # 构建 associated_form_meta 用于动态解析嵌套表单
+
     associated_form_meta = {}
     
     if form.jinshuju_schema and 'fields' in form.jinshuju_schema:
@@ -252,3 +275,88 @@ def get_form_data_by_token_and_id(form_token, data_id):
     }
 
     return jsonify(response_data), 200
+
+
+@dynamic_form_bp.route('/favorites', methods=['GET'])
+@jwt_required()
+def get_user_favorites():
+    """
+    获取当前登录用户的所有常用表单（区分置顶项与最近使用项）。
+    """
+    current_user_id = get_jwt_identity()
+
+    # 1. 置顶项：is_pinned == True
+    pinned_favorites = db.session.query(DynamicForm, UserFavoriteForm.is_pinned, UserFavoriteForm.last_accessed_at).join(
+        UserFavoriteForm, UserFavoriteForm.form_id == DynamicForm.id
+    ).filter(
+        UserFavoriteForm.user_id == current_user_id,
+        UserFavoriteForm.is_pinned == True
+    ).all()
+
+    # 2. 最近使用：is_pinned == False 且有最近访问时间，按最近访问倒序前 5 项
+    recent_favorites = db.session.query(DynamicForm, UserFavoriteForm.is_pinned, UserFavoriteForm.last_accessed_at).join(
+        UserFavoriteForm, UserFavoriteForm.form_id == DynamicForm.id
+    ).filter(
+        UserFavoriteForm.user_id == current_user_id,
+        UserFavoriteForm.is_pinned == False,
+        UserFavoriteForm.last_accessed_at.isnot(None)
+    ).order_by(
+        UserFavoriteForm.last_accessed_at.desc()
+    ).limit(5).all()
+    
+    def serialize_form(form, is_pinned, last_accessed_at):
+        return {
+            'id': str(form.id),
+            'name': form.name,
+            'form_token': form.form_token,
+            'description': form.description,
+            'form_type': form.form_type,
+            'folder_id': str(form.folder_id) if form.folder_id else None,
+            'is_pinned': is_pinned,
+            'last_accessed_at': last_accessed_at.isoformat() if last_accessed_at else None
+        }
+
+    return jsonify({
+        'pinned': [serialize_form(f, pin, lat) for f, pin, lat in pinned_favorites],
+        'recent': [serialize_form(f, pin, lat) for f, pin, lat in recent_favorites]
+    }), 200
+
+
+@dynamic_form_bp.route('/favorites/toggle', methods=['POST'])
+@jwt_required()
+def toggle_favorite():
+    """
+    原子化切换表单的置顶 (is_pinned) 状态。
+    """
+    current_user_id = get_jwt_identity()
+    data = request.get_json() or {}
+    form_id = data.get('form_id')
+    if not form_id:
+        return jsonify({'message': 'Missing form_id'}), 400
+        
+    fav = UserFavoriteForm.query.filter_by(user_id=current_user_id, form_id=form_id).first()
+    if fav:
+        if fav.is_pinned:
+            # 如果曾经被访问过（即 last_accessed_at 不为空），我们仅仅是取消置顶，退回“最近访问”队列
+            if fav.last_accessed_at:
+                fav.is_pinned = False
+                db.session.commit()
+                return jsonify({'status': 'unpinned', 'message': '已取消置顶'}), 200
+            else:
+                # 否则，纯手动置顶，直接物理删除关联
+                db.session.delete(fav)
+                db.session.commit()
+                return jsonify({'status': 'removed', 'message': '已取消收藏'}), 200
+        else:
+            # 如果是在“最近访问”中，直接升级为置顶
+            fav.is_pinned = True
+            db.session.commit()
+            return jsonify({'status': 'pinned', 'message': '已置顶表单'}), 200
+    else:
+        # 原本没有任何关联，直接创建并置顶
+        new_fav = UserFavoriteForm(user_id=current_user_id, form_id=form_id, is_pinned=True)
+        db.session.add(new_fav)
+        db.session.commit()
+        return jsonify({'status': 'pinned', 'message': '已置顶表单'}), 201
+
+

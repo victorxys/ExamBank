@@ -5,12 +5,13 @@ from sqlalchemy import event
 import os
 import sqlalchemy as sa
 from flask_jwt_extended import JWTManager
-from backend.models import User
+from backend.models import User, UserFavoriteForm, DynamicForm  # 导入全部需要建表的 model
 
 # Import the blueprint that the test file needs
 from backend.api.dynamic_form_data_api import dynamic_form_data_bp
 from backend.api.contract_template_api import contract_template_bp
 from backend.api.attendance_form_api import attendance_form_bp
+from backend.api.dynamic_form_api import dynamic_form_bp
 
 @pytest.fixture(scope='session')
 def _app():
@@ -43,8 +44,10 @@ def _app():
     app.register_blueprint(dynamic_form_data_bp)
     app.register_blueprint(contract_template_bp)
     app.register_blueprint(attendance_form_bp)
+    app.register_blueprint(dynamic_form_bp)
 
     with app.app_context():
+        db.create_all()  # 自动创建缺失的测试表结构
         yield app
 
 @pytest.fixture(scope='function')
