@@ -447,6 +447,7 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
 
     // Modal State
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isAutoOvertimeAlertOpen, setIsAutoOvertimeAlertOpen] = useState(false);
     const [editingDate, setEditingDate] = useState(null);
 
     // Time Selection State
@@ -1726,6 +1727,7 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
     // 【关键】对于跨月记录，只计算当前月份内的天数
     let holidayOvertimeDays = 0; // 假期加班天数
     let normalOvertimeDays = 0;  // 正常加班天数（修复：现在正常加班也算出勤）
+    let autoOvertimeDays = 0;    // 【新增】自动补齐的加班天数
 
     if (Array.isArray(attendanceData.overtime_records)) {
         attendanceData.overtime_records.forEach(record => {
@@ -1768,6 +1770,10 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
             }
 
             const overtimeDays = hoursInCurrentMonth / 24;
+
+            if (record.is_auto) {
+                autoOvertimeDays += overtimeDays;
+            }
 
             // 将连续的多天加班拆分为每天独立判断，确保精准捕捉连续跨度内的真实法定节假日
             const daysInSpan = differenceInDays(actualEndDate, actualStartDate) + 1;
@@ -1998,6 +2004,19 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
 
             {/* Main Content */}
             <div className="max-w-3xl mx-auto p-1 sm:p-4 space-y-4">
+                {/* 自动补齐加班提示 Banner */}
+                {autoOvertimeDays > 0 && (
+                    <div className="bg-emerald-50 border border-emerald-200/80 rounded-2xl p-4 flex items-start gap-3 shadow-sm transition-all duration-300">
+                        <span className="text-lg mt-0.5" role="img" aria-label="info">💡</span>
+                        <div className="space-y-1">
+                            <h4 className="text-sm font-bold text-emerald-900">考勤折算说明</h4>
+                            <p className="text-xs text-emerald-700 leading-relaxed">
+                                本月实际工作出勤已超过 <strong>26天</strong> 上限。超出上限的 <strong>{formatDays(autoOvertimeDays)}</strong> 已由系统依据劳务规则自动折算为加班（从月末往前补齐显示），以便于合规计费和维护您的合理权益。
+                            </p>
+                        </div>
+                    </div>
+                )}
+
                 {/* Calendar Grid */}
                 <div className="bg-white rounded-2xl p-1.5 sm:p-3 shadow-sm border border-gray-100">
                     {/* Week Header */}
@@ -2072,13 +2091,23 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                             return (
                                 <div
                                     key={index}
-                                    onClick={() => !isDisabled && openEditModal(date)}
+                                    onClick={() => {
+                                        if (isDisabled) return;
+                                        if (record.type === 'overtime' && record.is_auto) {
+                                            setIsAutoOvertimeAlertOpen(true);
+                                            return;
+                                        }
+                                        openEditModal(date);
+                                    }}
                                     className={`
                                         relative aspect-square rounded-lg border-2 p-1 
                                         transition-all duration-200 flex flex-col items-center justify-center
                                         ${isDisabled
                                             ? 'bg-gray-100 border-gray-200 cursor-not-allowed opacity-60'
-                                            : `${statusColors[record.type] || 'bg-gray-50 border-gray-200'} cursor-pointer active:scale-95 hover:shadow-md`
+                                            : `${record.type === 'overtime' && record.is_auto
+                                                ? 'bg-emerald-50/30 border-emerald-300/50 border-dashed'
+                                                : (statusColors[record.type] || 'bg-gray-50 border-gray-200')
+                                            } cursor-pointer active:scale-95 hover:shadow-md`
                                         }
                                         ${isToday ? 'ring-2 ring-indigo-400 ring-offset-1' : ''}
                                         ${!isDisabled && isWeekend && record.type === 'normal' && !isWorkday ? 'bg-red-50/30' : ''}
@@ -2109,8 +2138,8 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                     {isDisabled ? (
                                         <X className="w-4 h-4 text-gray-400 mt-0.5" />
                                     ) : (
-                                        <span className={`text-[10px] leading-none mt-0.5 font-medium truncate w-full text-center ${statusTextColors[record.type] || 'text-gray-600'}`}>
-                                            {record.typeLabel || '出勤'}
+                                        <span className={`text-[10px] leading-none mt-0.5 font-medium truncate w-full text-center ${record.type === 'overtime' && record.is_auto ? 'text-emerald-600 font-bold' : (statusTextColors[record.type] || 'text-gray-600')}`}>
+                                            {record.type === 'overtime' && record.is_auto ? '自动补齐' : (record.typeLabel || '出勤')}
                                         </span>
                                     )}
 
@@ -2211,7 +2240,13 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                 return (
                                     <div
                                         key={index}
-                                        onClick={() => openEditModal(date)}
+                                        onClick={() => {
+                                            if (record.is_auto) {
+                                                setIsAutoOvertimeAlertOpen(true);
+                                                return;
+                                            }
+                                            openEditModal(date);
+                                        }}
                                         className="flex items-center justify-between p-3 rounded-lg bg-gray-50 hover:bg-gray-100 cursor-pointer transition-colors active:scale-[0.98]"
                                     >
                                         <div className="flex items-center gap-3">
@@ -2227,7 +2262,9 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                                     'onboarding': 'bg-cyan-100 text-cyan-700 border-cyan-300',
                                                     'offboarding': 'bg-orange-100 text-orange-700 border-orange-300',
                                                 };
-                                                const colorClass = typeColors[record.type] || (isWeekend ? 'bg-red-50 text-red-600 border-red-200' : 'bg-white text-gray-700 border-gray-200');
+                                                const colorClass = record.type === 'overtime' && record.is_auto
+                                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-300 border-dashed'
+                                                    : (typeColors[record.type] || (isWeekend ? 'bg-red-50 text-red-600 border-red-200' : 'bg-white text-gray-700 border-gray-200'));
 
                                                 return (
                                                     <div className={`flex flex-col items-center justify-center w-10 h-10 rounded-lg ${colorClass} border`}>
@@ -2239,7 +2276,7 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
 
                                             <div>
                                                 <div className="text-sm font-medium text-gray-900">
-                                                    {record.typeLabel}
+                                                    {record.is_auto ? '自动补齐加班' : record.typeLabel}
                                                 </div>
                                                 <div className={`text-xs ${isOnboardingOrOffboarding &&
                                                     !(record.type === 'offboarding' ? record.endTime : record.startTime)
@@ -2247,6 +2284,11 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                                     : 'text-gray-500'
                                                     }`}>
                                                     {timeRangeStr}
+                                                    {record.is_auto && (
+                                                        <span className="text-[10px] text-gray-400 block mt-0.5 font-normal">
+                                                            （因出勤天数超26天上限自动转换）
+                                                        </span>
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>
@@ -3232,6 +3274,36 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                 )}
                             </button>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* 自动补齐说明弹窗 */}
+            {isAutoOvertimeAlertOpen && (
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl border border-gray-100 flex flex-col gap-4 relative animate-in fade-in zoom-in-95 duration-200">
+                        {/* 右上角关闭按钮 */}
+                        <button 
+                            onClick={() => setIsAutoOvertimeAlertOpen(false)}
+                            className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-lg hover:bg-gray-100"
+                            aria-label="关闭"
+                        >
+                            <X className="w-5 h-5" />
+                        </button>
+
+                        <div className="flex items-center gap-3 text-emerald-600">
+                            <span className="text-2xl" role="img" aria-label="info">💡</span>
+                            <h3 className="text-lg font-bold text-gray-900">自动补齐说明</h3>
+                        </div>
+                        <p className="text-sm text-gray-600 leading-relaxed pr-2">
+                            本月出勤天数已超过 26 天上限，超出上限的加班时长已自动折算至该日（自月末起自动补齐）。此记录由系统生成，无需手动编辑。
+                        </p>
+                        <button
+                            onClick={() => setIsAutoOvertimeAlertOpen(false)}
+                            className="mt-2 w-full py-3 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white text-sm font-semibold rounded-xl transition-all shadow-md shadow-emerald-600/10"
+                        >
+                            关闭并返回
+                        </button>
                     </div>
                 </div>
             )}

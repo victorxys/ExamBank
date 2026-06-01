@@ -2534,26 +2534,32 @@ def resplit_and_match_sentences_task(self, final_tts_script_id_str):
 # ==============================================================================
 
 
-# @celery_app.on_after_configure.connect
-# def setup_periodic_tasks(sender, **kwargs):
-#     # Crontab for daily reset task
-#     sender.add_periodic_task(
-#         crontab(hour=0, minute=5),  # 每天凌晨 00:05
-#         reset_daily_tts_usage_task.s(),
-#         name="reset daily tts usage at midnight",
-#     )
-#     # Crontab for auto-renewal bill generation
-#     sender.add_periodic_task(
-#         crontab(minute="1", hour="0", day_of_week="1"),  # 每周一 00:01
-#         auto_check_and_extend_renewal_bills_task.s(),
-#         name="auto check and extend renewal bills every monday",
-#     )
-#     # Crontab for syncing contracts from Jinshuju
-#     sender.add_periodic_task(
-#         crontab(minute=0, hour='*'),  # 每小时的0分执行
-#         sync_all_contracts_task.s(),
-#         name="sync contracts from jinshuju every hour",
-#     )
+@celery_app.on_after_configure.connect
+def setup_periodic_tasks(sender, **kwargs):
+    # Crontab for daily reset task
+    sender.add_periodic_task(
+        crontab(hour=0, minute=5),  # 每天凌晨 00:05
+        reset_daily_tts_usage_task.s(),
+        name="reset daily tts usage at midnight",
+    )
+    # Crontab for auto-renewal bill generation
+    sender.add_periodic_task(
+        crontab(minute="1", hour="0", day_of_week="1"),  # 每周一 00:01
+        auto_check_and_extend_renewal_bills_task.s(),
+        name="auto check and extend renewal bills every monday",
+    )
+    # Crontab for syncing contracts from Jinshuju
+    sender.add_periodic_task(
+        crontab(minute=0, hour='*'),  # 每小时的0分执行
+        sync_all_contracts_task.s(),
+        name="sync contracts from jinshuju every hour",
+    )
+    # Crontab for daily reminders (dynamic check)
+    sender.add_periodic_task(
+        crontab(minute='*/10'),
+        check_and_run_daily_reminders_task.s(),
+        name="check and run daily reminders dynamically"
+    )
 
 
 @celery_app.task(bind=True, name="tasks.auto_check_and_extend_renewal_bills")
@@ -3080,17 +3086,115 @@ def send_wechat_notification_task(touser, title, description, jump_url, msg_type
         return {"success": success, "result": raw_result}
 
 
-@celery_app.task(name='tasks.send_daily_reminders')
-def send_daily_reminders():
+@celery_app.task(name='tasks.check_and_run_daily_reminders_task')
+def check_and_run_daily_reminders_task():
     """
-    定时日常预警扫描任务。
+    通过轮询方式检查每个通知配置，在到达其设定时间且今天未执行过时，触发对应的预警和考勤通知。
     """
     app = create_flask_app_for_task()
     with app.app_context():
-        from backend.services.reminder_service import run_daily_reminders_check
-        run_daily_reminders_check()
-        return "Daily reminders scan executed."
+        from backend.models import db, SystemSetting
+        from backend.api.setting_api import DEFAULT_NOTIFICATION_CONFIG, get_or_create_notification_config
+        from backend.services.reminder_service import (
+            check_nanny_trial_contracts,
+            check_nanny_contracts_expiring,
+            check_maternity_nurse_delivery
+        )
+        
+        config_obj = get_or_create_notification_config()
+        val = config_obj.value
+        reminders = val.get("reminders", {})
+        
+        now = datetime.now()
+        today_str = now.strftime("%Y-%m-%d")
+        current_time_str = now.strftime("%H:%M")
+        
+        changes_made = False
+        
+        # 1. 试工到期提醒
+        trial_cfg = reminders.get("trial_expiry", {})
+        if trial_cfg.get("enabled", True) and current_time_str >= trial_cfg.get("time", "09:00") and trial_cfg.get("last_run_date", "2000-01-01") < today_str:
+            logger.info("Triggering trial_expiry reminder...")
+            trials = check_nanny_trial_contracts(advance_days=trial_cfg.get("advance_days", 1))
+            for contract in trials:
+                try:
+                    frontend_base_url = app.config.get('FRONTEND_BASE_URL', 'http://localhost:5175')
+                    jump_url = f"{frontend_base_url}/contract/detail/{contract['contract_id']}"
+                    
+                    title = "🚨 试工到期结果确认提醒"
+                    desc = (
+                        f'<div class="gray">到期时间：{contract["end_date"]}</div>\n'
+                        f'<div class="normal">阿姨 {contract["employee_name"]} 在客户 {contract["customer_name"]} 家的试工合同已到期/即将到期。</div>\n'
+                        f'<div class="normal">试工日薪：{contract["daily_rate"]} 元</div>\n'
+                        f'<div class="highlight">请及时沟通并确认试工结果（成功/失败/延长）。</div>'
+                    )
+                    send_wechat_notification_task.delay(touser=None, title=title, description=desc, jump_url=jump_url, msg_type="TRIAL_EXPIRING")
+                except Exception as pe:
+                    logger.error(f"排队试工到期通知任务失败: {pe}")
+            val["reminders"]["trial_expiry"]["last_run_date"] = today_str
+            changes_made = True
 
+        # 2. 正式合同到期提醒
+        contract_cfg = reminders.get("contract_expiry", {})
+        if contract_cfg.get("enabled", True) and current_time_str >= contract_cfg.get("time", "09:00") and contract_cfg.get("last_run_date", "2000-01-01") < today_str:
+            logger.info("Triggering contract_expiry reminder...")
+            expirings = check_nanny_contracts_expiring(advance_days=contract_cfg.get("advance_days", 30))
+            for contract in expirings:
+                try:
+                    frontend_base_url = app.config.get('FRONTEND_BASE_URL', 'http://localhost:5175')
+                    jump_url = f"{frontend_base_url}/contract/detail/{contract['contract_id']}"
+                    title = "📅 正式合同即将到期提醒"
+                    desc = (
+                        f'<div class="gray">到期时间：{contract["end_date"]}</div>\n'
+                        f'<div class="normal">客户 {contract["customer_name"]} 与服务人员 {contract["employee_name"]} 的正式合同即将到期。</div>\n'
+                        f'<div class="highlight">该合同为非自动续签合同，请提前联系客户和服务人员沟通续期或下户事宜。</div>'
+                    )
+                    send_wechat_notification_task.delay(touser=None, title=title, description=desc, jump_url=jump_url, msg_type="CONTRACT_EXPIRING")
+                except Exception as pe:
+                    logger.error(f"排队合同到期通知任务失败: {pe}")
+            val["reminders"]["contract_expiry"]["last_run_date"] = today_str
+            changes_made = True
+
+        # 3. 预产期临近提醒
+        preg_cfg = reminders.get("pregnancy", {})
+        if preg_cfg.get("enabled", True) and current_time_str >= preg_cfg.get("time", "09:00") and preg_cfg.get("last_run_date", "2000-01-01") < today_str:
+            logger.info("Triggering pregnancy reminder...")
+            deliveries = check_maternity_nurse_delivery(advance_days=preg_cfg.get("advance_days", 7))
+            for contract in deliveries:
+                try:
+                    frontend_base_url = app.config.get('FRONTEND_BASE_URL', 'http://localhost:5175')
+                    jump_url = f"{frontend_base_url}/contract/detail/{contract['contract_id']}"
+                    title = "👶 月嫂合同预产期临近提醒"
+                    desc = (
+                        f'<div class="gray">预计预产期：{contract["provisional_start_date"]}</div>\n'
+                        f'<div class="normal">客户 {contract["customer_name"]} 的合同预计即将生产。</div>\n'
+                        f'<div class="normal">服务人员：{contract["employee_name"]}</div>\n'
+                        f'<div class="highlight">服务人员尚未实际上户，请及时跟进客户的生产情况与阿姨的准备状态，并记录上户时间。</div>'
+                    )
+                    send_wechat_notification_task.delay(touser=None, title=title, description=desc, jump_url=jump_url, msg_type="PREGNANCY_ALERT")
+                except Exception as pe:
+                    logger.error(f"排队预产期通知任务失败: {pe}")
+            val["reminders"]["pregnancy"]["last_run_date"] = today_str
+            changes_made = True
+
+        # 4. 考勤提醒
+        att_cfg = reminders.get("attendance", {})
+        if att_cfg.get("enabled", True) and current_time_str >= att_cfg.get("time", "09:00") and att_cfg.get("last_run_date", "2000-01-01") < today_str:
+            target_day = att_cfg.get("day_of_month", 1)
+            if now.day == target_day:
+                logger.info("Triggering monthly attendance reminder.")
+                send_monthly_attendance_reminder.delay()
+                val["reminders"]["attendance"]["last_run_date"] = today_str
+                changes_made = True
+            
+        if changes_made:
+            new_val = dict(config_obj.value)
+            new_val["reminders"] = val["reminders"]
+            config_obj.value = new_val
+            db.session.commit()
+            return f"Daily reminders executed and updated for {today_str}."
+            
+        return "Reminders checked, no new notifications sent."
 
 @celery_app.task(name='tasks.send_monthly_attendance_reminder')
 def send_monthly_attendance_reminder():
@@ -3104,9 +3208,11 @@ def send_monthly_attendance_reminder():
         jump_url = f"{frontend_base_url}/attendance"
         
         title = "⏰ 月初考勤收集提醒"
-        desc = f"""<div class="gray">时间：{datetime.now().strftime('%Y-%m-%d')}</div>
-                <div class="normal">今天是月初 <b>1 号</b>，请及时收集并录入上月服务人员的考勤数据。</div>
-                <div class="highlight">考勤导入完成后，系统将自动重算并生成对应的账单与工资单。</div>"""
+        desc = (
+            f'<div class="gray">时间：{datetime.now().strftime("%Y-%m-%d")}</div>\n'
+            f'<div class="normal">今天是月初 1 号，请及时收集并录入上月服务人员的考勤数据。</div>\n'
+            f'<div class="highlight">考勤导入完成后，系统将自动重算并生成对应的账单与工资单。</div>'
+        )
                 
         send_wechat_notification_task.delay(
             touser=None,

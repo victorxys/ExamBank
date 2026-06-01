@@ -353,6 +353,9 @@ app.register_blueprint(upload_bp)
 from backend.api.image_proxy_api import image_proxy_bp
 app.register_blueprint(image_proxy_bp) 
 
+from backend.api.setting_api import setting_api_bp
+app.register_blueprint(setting_api_bp)
+
 
 
 flask_log = os.environ["FLASK_LOG_FILE"]  # 设置flask log地址

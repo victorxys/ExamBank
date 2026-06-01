@@ -326,6 +326,7 @@ const BillingDashboard = lazy(() => import('./components/BillingDashboard'));
 const ContractList = lazy(() => import('./components/ContractList'));
 const ContractDetail = lazy(() => import('./components/ContractDetail')); // 新建合同详情页
 const ConflictCheckerPage = lazy(() => import('./components/ConflictCheckerPage'));
+const NotificationSettings = lazy(() => import('./pages/NotificationSettings'));
 const BankStatementUploader = lazy(() => import('./components/BankStatementUploader'));
 const ReconciliationPage = lazy(() => import('./components/ReconciliationPage'));
 const AllBankTransactions = lazy(() => import('./components/AllBankTransactions'));
@@ -344,6 +345,7 @@ const ExamResultsPage = lazy(() => import('./components/ExamResultsPage'));
 const ExamResultDetailPage = lazy(() => import('./components/ExamResultDetailPage'));
 const PickerTestPage = lazy(() => import('./components/PickerTestPage'));
 const WechatAttendance = lazy(() => import('./pages/WechatAttendance'));
+const WechatMessageLogs = lazy(() => import('./pages/WechatMessageLogs'));
 
 
 const ExecutiveDashboard = lazy(() => import('./pages/ExecutiveDashboard'));
@@ -382,6 +384,8 @@ function App() {
           <Route path="/employee-self-evaluations" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <EmployeeSelfEvaluationList /> </Suspense>} />} />
           <Route path="/employee-self-evaluations/:evaluationId" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <EmployeeSelfEvaluationDetail /> </Suspense>} />} />
           <Route path="/evaluation-management" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <EvaluationManagement /> </Suspense>} />} />
+          <Route path="/admin/wechat-messages" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <WechatMessageLogs /> </Suspense>} />} />
+          <Route path="/admin/settings/notifications" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <NotificationSettings /> </Suspense>} />} />
           <Route path="/admin/llm/models" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <LlmModelManagement /> </Suspense>} />} />
           <Route path="/admin/llm/api-keys" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <LlmApiKeyManagement /> </Suspense>} />} />
           <Route path="/admin/llm/prompts" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <LlmPromptManagement /> </Suspense>} />} />

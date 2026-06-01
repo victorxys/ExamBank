@@ -503,7 +503,7 @@ const ContractDetail = () => {
 
             // --- 核心修改：构建符合用户要求的下载文件名 ---
             const employeeName = contract.employee_name || '未知员工';
-            const contractTypeLabel = contract.contract_type_label || '合同'; 
+            const contractTypeLabel = contract.contract_type_label || '合同';
 
             // 如果 contractTypeLabel 已经包含“合同”二字，就不再重复添加
             const finalTypeLabel = contractTypeLabel.includes('合同') ? contractTypeLabel : `${contractTypeLabel}合同`;
@@ -1193,17 +1193,21 @@ const ContractDetail = () => {
             ) : (
                 <Tooltip title="点击设置实际上户日期" arrow>
                     <Chip
-                        icon={<EventBusyIcon />}
-                        label="未确认上户日期"
+                        icon={<EventBusyIcon sx={{ color: 'white !important' }} />}
+                        label="立即设置上户日期"
                         size="small"
-                        variant="outlined"
                         onClick={() => handleOpenOnboardingDialog(contract)}
                         sx={{
-                            borderColor: 'grey.400',
-                            borderStyle: 'dashed',
-                            color: 'text.secondary',
+                            backgroundColor: '#fb6340',
+                            color: 'white',
+                            fontWeight: 600,
                             cursor: 'pointer',
-                            '&:hover': { backgroundColor: 'action.hover' }
+                            boxShadow: '0 2px 8px rgba(251, 99, 64, 0.3)',
+                            border: 'none',
+                            '&:hover': {
+                                backgroundColor: '#fa3a0e',
+                                transform: 'translateY(-0.5px)'
+                            }
                         }}
                     />
                 </Tooltip>
@@ -1440,6 +1444,72 @@ const ContractDetail = () => {
         <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={zhCN}>
             <Box>
                 <AlertMessage open={alert.open} message={alert.message} severity={alert.severity} onClose={() => setAlert(prev => ({ ...prev, open: false }))} />
+
+                {/* 顶部全局待办强力引导 Notice Banner */}
+                {contract?.contract_type_value === 'maternity_nurse' && !contract?.actual_onboarding_date && (
+                    <Box
+                        sx={{
+                            mb: 3.5,
+                            p: 2.2,
+                            borderRadius: '0.375rem',
+                            background: 'linear-gradient(87deg, #fb6340 0, #f5365c 100%)',
+                            color: 'white',
+                            boxShadow: '0 4px 20px rgba(251, 99, 64, 0.25)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            flexWrap: 'wrap',
+                            gap: 2,
+                            animation: 'pulse 2s infinite ease-in-out',
+                            '@keyframes pulse': {
+                                '0%': { transform: 'scale(1)', boxShadow: '0 4px 20px rgba(251, 99, 64, 0.25)' },
+                                '50%': { transform: 'scale(1.003)', boxShadow: '0 4px 28px rgba(251, 99, 64, 0.4)' },
+                                '100%': { transform: 'scale(1)', boxShadow: '0 4px 20px rgba(251, 99, 64, 0.25)' }
+                            }
+                        }}
+                    >
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                            <Typography sx={{ fontSize: '1.4rem' }}>🚨</Typography>
+                            <Box>
+                                <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'white', mb: 0.2 }}>
+                                    待办提醒：该月嫂合同尚未确认实际上户日期！
+                                </Typography>
+                                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.92)' }}>
+                                    系统已通过微信向您推送了预警。请点击右侧按钮立即确认实际上户日期，以便系统自动为您重新预生成该合同对应的全部账单与考勤。
+                                </Typography>
+                            </Box>
+                        </Box>
+                        <Button
+                            variant="text"
+                            onClick={() => handleOpenOnboardingDialog(contract)}
+                            sx={{
+                                backgroundColor: '#ffffff !important',
+                                color: '#f5365c !important',
+                                fontWeight: 800,
+                                borderRadius: '24px !important',
+                                px: 3.5,
+                                py: 1,
+                                fontSize: '0.9rem',
+                                letterSpacing: '1px',
+                                textTransform: 'none',
+                                boxShadow: '0 6px 16px rgba(0, 0, 0, 0.12) !important',
+                                transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important',
+                                '&:hover': {
+                                    backgroundColor: '#ffffff !important',
+                                    transform: 'translateY(-2px) scale(1.04)',
+                                    boxShadow: '0 8px 24px rgba(0, 0, 0, 0.18) !important',
+                                },
+                                '&:active': {
+                                    transform: 'translateY(0) scale(0.98)',
+                                }
+                            }}
+                            startIcon={<EventBusyIcon sx={{ color: '#f5365c !important' }} />}
+                        >
+                            立即确认上户
+                        </Button>
+                    </Box>
+                )}
+
                 <PageHeader
                     title="合同详情"
                     description={`${contract.customer_name} - ${contract.employee_name}`}
