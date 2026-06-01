@@ -69,6 +69,8 @@ export const allMenuItems = [
   { text: '员工自评列表', icon: <AssignmentTurnedInIcon />, path: '/employee-self-evaluations', adminOnly: true },
   { text: '动态表单', icon: <DescriptionIcon />, path: '/forms', adminOnly: true },
   { text: '评价体系管理', icon: <AssignmentIcon />, path: '/evaluation-management', adminOnly: true },
+  { text: '微信提醒审计', icon: <HistoryIcon />, path: '/admin/wechat-messages', adminOnly: true },
+  { text: '系统通知配置', icon: <SettingsIcon />, path: '/admin/settings/notifications', adminOnly: true },
   {
     text: 'LLM 管理',
     icon: <SettingsIcon />,

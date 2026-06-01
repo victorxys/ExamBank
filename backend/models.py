@@ -2635,6 +2635,14 @@ class MaternityNurseContract(BaseContract):  # 月嫂合同
     discount_amount = db.Column(db.Numeric(10, 2), default=0, comment="优惠金额")
 
 
+# 为数据库中遗留/金数据同步过来的中文合同类型名称注册多态标识映射
+# 解决 No such polymorphic_identity '育儿嫂正式合同' is defined 的致命报错
+BaseContract.__mapper__.polymorphic_map['育儿嫂正式合同'] = NannyContract.__mapper__
+BaseContract.__mapper__.polymorphic_map['育儿嫂试工合同'] = NannyTrialContract.__mapper__
+BaseContract.__mapper__.polymorphic_map['月嫂合同'] = MaternityNurseContract.__mapper__
+BaseContract.__mapper__.polymorphic_map['月嫂正式合同'] = MaternityNurseContract.__mapper__
+
+
 
 
 class EmployeeSalaryHistory(db.Model):
@@ -3562,6 +3570,55 @@ class UserFavoriteForm(db.Model):
     is_pinned = db.Column(db.Boolean, nullable=False, default=False, server_default='false', comment='是否置顶')
     last_accessed_at = db.Column(db.DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), comment='最近访问时间')
     created_at = db.Column(db.DateTime(timezone=True), server_default=func.now())
+
+
+class WechatMessageLog(db.Model):
+    __tablename__ = "wechat_message_logs"
+    __table_args__ = (
+        {"comment": "企业微信通知发送日志审计表"}
+    )
+
+    id = db.Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    message_type = db.Column(db.String(50), nullable=False, index=True, comment="消息类型 (SIGN_CUSTOMER, SIGN_EMPLOYEE, SIGN_FULLY, TRIAL_EXPIRING, CONTRACT_EXPIRING, PREGNANCY_ALERT, ATTENDANCE_REMINDER)")
+    touser = db.Column(db.String(255), nullable=False, index=True, comment="接收者")
+    title = db.Column(db.String(255), nullable=False, comment="卡片标题")
+    description = db.Column(db.Text, nullable=False, comment="卡片正文")
+    jump_url = db.Column(db.String(512), nullable=True, comment="跳转URL")
+    status = db.Column(db.String(50), nullable=False, index=True, comment="发送状态 (SUCCESS, FAILED)")
+    error_details = db.Column(db.Text, nullable=True, comment="微信API返回的错误详情")
+    sent_at = db.Column(db.DateTime(timezone=True), server_default=func.now(), comment="发送时间")
+
+    def to_dict(self):
+        return {
+            "id": str(self.id),
+            "message_type": self.message_type,
+            "touser": self.touser,
+            "title": self.title,
+            "description": self.description,
+            "jump_url": self.jump_url,
+            "status": self.status,
+            "error_details": self.error_details,
+            "sent_at": self.sent_at.isoformat() if self.sent_at else None
+        }
+
+class SystemSetting(db.Model):
+    __tablename__ = "system_settings"
+    __table_args__ = ({"comment": "系统全局配置表"})
+
+    id = db.Column(db.String(100), primary_key=True, comment="配置键名")
+    value = db.Column(db.JSON, nullable=False, comment="配置值(JSON)")
+    description = db.Column(db.String(255), nullable=True, comment="说明")
+    updated_at = db.Column(db.DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "value": self.value,
+            "description": self.description,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None
+        }
+
+
 
 
 

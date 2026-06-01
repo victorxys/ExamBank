@@ -26,6 +26,16 @@ beat_schedule = {
         # 10:30 CST is 18:30 PST on the previous day.
         'schedule': crontab(hour=10, minute=5), # 北京时间每天上午 00:05
     },
+    'send-daily-reminders-job': {
+        'task': 'tasks.send_daily_reminders',
+        # 北京时间每天上午 09:00
+        'schedule': crontab(hour=17, minute=0),
+    },
+    'send-monthly-attendance-reminder-job': {
+        'task': 'tasks.send_monthly_attendance_reminder',
+        # 北京时间每月 1 号上午 09:00
+        'schedule': crontab(day_of_month=1, hour=17, minute=0),
+    },
 }
 
 # Other Celery settings
