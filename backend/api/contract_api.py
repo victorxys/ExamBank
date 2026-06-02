@@ -1766,7 +1766,7 @@ def handle_signing_page_action(token):
                 contract_type_label = type_choices.get(contract.type, contract.type)
                 
                 frontend_base_url = current_app.config.get('FRONTEND_BASE_URL', 'http://localhost:5175')
-                jump_url = f"{frontend_base_url}/contracts/{contract.id}"
+                jump_url = f"{frontend_base_url}/contract/detail/{contract.id}"
 
                 if has_customer_sig and has_employee_sig:
                     msg_type = "SIGN_FULLY"
@@ -1796,19 +1796,15 @@ def handle_signing_page_action(token):
                         f'<div class="normal">合同类型：{contract_type_label}</div>\n'
                         f'<div class="highlight">目前等待客户签署。</div>'
                     )
-                from backend.models import SystemSetting
-                from backend.api.setting_api import DEFAULT_NOTIFICATION_CONFIG
+                from backend.api.setting_api import get_or_create_notification_config
                 
-                config_obj = SystemSetting.query.get('notification_config')
-                if not config_obj:
-                    switches = DEFAULT_NOTIFICATION_CONFIG.get("switches", {})
-                else:
-                    switches = config_obj.value.get("switches", {})
+                config_obj = get_or_create_notification_config()
+                sign_event_cfg = config_obj.value.get("reminders", {}).get("sign_event", {})
                     
-                if switches.get("sign_event", True):
-                    # 调用 Celery 任务进行异步微信发送，指定 touser 为空（任务中会自动取配置的 WECHAT_NOTIFY_USERS）
+                if sign_event_cfg.get("enabled", True):
+                    notify_users = (sign_event_cfg.get("notify_users") or "").strip() or None
                     send_wechat_notification_task.delay(
-                        touser=None,
+                        touser=notify_users,
                         title=title,
                         description=description,
                         jump_url=jump_url,
@@ -2360,5 +2356,3 @@ def retry_wechat_message(log_id):
     except Exception as e:
         current_app.logger.error(f"重试发送微信消息失败: {e}", exc_info=True)
         return jsonify({"error": f"系统内部错误: {str(e)}"}), 500
-
-

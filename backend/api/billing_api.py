@@ -3813,6 +3813,190 @@ def add_payment_record(bill_id):
         return jsonify({"error": "服务器内部错误"}), 500
     
 
+def _month_key(year, month):
+    return f"{int(year):04d}-{int(month):02d}"
+
+
+def _get_default_management_fee_target():
+    today = date.today()
+    first_day = today.replace(day=1)
+    target = first_day - relativedelta(months=1)
+    return target.year, target.month
+
+
+def _get_bill_management_fee(bill):
+    details = bill.calculation_details or {}
+    return D(str(details.get("management_fee") or 0)).quantize(D("0.01"))
+
+
+def _get_bill_receivable_balance(bill):
+    return D(bill.total_due or 0) - D(bill.total_paid or 0)
+
+
+def _monthly_management_fee_item(bill):
+    contract = bill.contract
+    paid_months = list(getattr(contract, "management_fee_paid_months", None) or [])
+    month_key = _month_key(bill.year, bill.month)
+    management_fee = _get_bill_management_fee(bill)
+    receivable_balance = _get_bill_receivable_balance(bill).quantize(D("0.01"))
+    employee = contract.service_personnel if contract else None
+
+    return {
+        "bill_id": str(bill.id),
+        "contract_id": str(contract.id),
+        "customer_name": contract.customer_name,
+        "employee_name": employee.name if employee else "N/A",
+        "billing_month": month_key,
+        "cycle_start_date": bill.cycle_start_date.isoformat(),
+        "cycle_end_date": bill.cycle_end_date.isoformat(),
+        "management_fee": str(management_fee),
+        "total_due": str(D(bill.total_due or 0).quantize(D("0.01"))),
+        "total_paid": str(D(bill.total_paid or 0).quantize(D("0.01"))),
+        "receivable_balance": str(receivable_balance),
+        "is_management_fee_paid": month_key in paid_months,
+        "payment_records": [p.to_dict() for p in bill.payment_records.order_by(PaymentRecord.payment_date.asc()).all()],
+    }
+
+
+def get_pending_monthly_management_fee_items(year=None, month=None):
+    if not year or not month:
+        year, month = _get_default_management_fee_target()
+
+    bills = (
+        CustomerBill.query
+        .join(NannyContract, CustomerBill.contract_id == NannyContract.id)
+        .filter(
+            CustomerBill.year == int(year),
+            CustomerBill.month == int(month),
+            CustomerBill.is_substitute_bill.is_(False),
+            CustomerBill.is_merged.is_(False),
+            CustomerBill.total_due != D("0.00"),
+        )
+        .order_by(CustomerBill.customer_name.asc(), CustomerBill.cycle_start_date.asc())
+        .all()
+    )
+
+    items = []
+    for bill in bills:
+        item = _monthly_management_fee_item(bill)
+        if D(item["total_due"]) == D("0.00"):
+            continue
+        if D(item["receivable_balance"]) == D("0.00"):
+            continue
+        items.append(item)
+    return items
+
+
+@billing_bp.route("/monthly-management-fees/pending", methods=["GET"])
+@admin_required
+def list_pending_monthly_management_fees():
+    year = request.args.get("year")
+    month = request.args.get("month")
+    items = get_pending_monthly_management_fee_items(year, month)
+    target_year, target_month = (int(year), int(month)) if year and month else _get_default_management_fee_target()
+    return jsonify({
+        "status": "success",
+        "data": {
+            "year": target_year,
+            "month": target_month,
+            "month_key": _month_key(target_year, target_month),
+            "items": items,
+        }
+    }), 200
+
+
+@billing_bp.route("/monthly-management-fees/<string:bill_id>/mark-paid", methods=["POST"])
+@admin_required
+def mark_monthly_management_fee_paid(bill_id):
+    bill = db.session.get(CustomerBill, bill_id)
+    if not bill:
+        return jsonify({"error": "账单未找到"}), 404
+    if not isinstance(bill.contract, NannyContract):
+        return jsonify({"error": "仅支持育儿嫂合同账单"}), 400
+
+    data = request.get_json(silent=True) or {}
+    method = (data.get("method") or "").strip()
+    if method not in {"微信", "支付宝", "银行转账"}:
+        return jsonify({"error": "请选择有效的支付方式"}), 400
+
+    management_fee = _get_bill_management_fee(bill)
+    if management_fee <= 0:
+        return jsonify({"error": "该账单没有可记录的管理费金额"}), 400
+
+    receivable_balance = _get_bill_receivable_balance(bill)
+    total_due = D(bill.total_due or 0).quantize(D("0.01"))
+    if total_due == D("0.00"):
+        return jsonify({"error": "该账单应付款总额为 0，无需催缴管理费"}), 400
+
+    contract = bill.contract
+    month_key = _month_key(bill.year, bill.month)
+    paid_months = list(contract.management_fee_paid_months or [])
+    if month_key in paid_months and receivable_balance == D("0.00"):
+        return jsonify({"error": "该月管理费已标记缴清"}), 400
+
+    payment_date_raw = data.get("payment_date") or date.today().isoformat()
+    try:
+        payment_date = date_parse(payment_date_raw).date()
+    except Exception:
+        return jsonify({"error": "支付日期格式不正确"}), 400
+
+    notes = (data.get("notes") or "").strip()
+    payment_amount_raw = data.get("amount")
+    try:
+        payment_amount = D(str(payment_amount_raw if payment_amount_raw not in (None, "") else management_fee)).quantize(D("0.01"))
+    except Exception:
+        return jsonify({"error": "收款金额格式不正确"}), 400
+    if payment_amount <= 0:
+        return jsonify({"error": "收款金额必须大于 0"}), 400
+
+    record_notes = f"[育儿嫂月度管理费] {month_key} 月度管理费处理"
+    if notes:
+        record_notes = f"{record_notes}；{notes}"
+
+    try:
+        new_payment = PaymentRecord(
+            customer_bill_id=bill.id,
+            amount=payment_amount,
+            payment_date=payment_date,
+            method=method,
+            notes=record_notes,
+            created_by_user_id=get_jwt_identity(),
+        )
+        db.session.add(new_payment)
+        bill.total_paid = D(bill.total_paid or 0) + payment_amount
+        _update_bill_payment_status(bill)
+
+        paid_months.append(month_key)
+        contract.management_fee_paid_months = sorted(set(paid_months))
+        attributes.flag_modified(contract, "management_fee_paid_months")
+
+        _log_activity(
+            bill,
+            None,
+            f"记录育儿嫂月度管理费收款，金额: {payment_amount:.2f}",
+            details={
+                "billing_month": month_key,
+                "method": method,
+                "notes": notes,
+                "management_fee": str(management_fee),
+                "payment_record_amount": str(payment_amount),
+                "total_due_before": str(total_due),
+                "receivable_balance_before": str(receivable_balance.quantize(D("0.01"))),
+            },
+            contract=contract,
+        )
+        db.session.commit()
+        return jsonify({
+            "status": "success",
+            "message": "本次收款已记录，月度管理费已标记处理",
+            "data": _monthly_management_fee_item(bill),
+        }), 201
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"标记育儿嫂月度管理费已缴清失败 (bill_id: {bill_id}): {e}", exc_info=True)
+        return jsonify({"error": "服务器内部错误"}), 500
+
+
 
 @billing_bp.route("/payrolls/<string:payroll_id>/payouts", methods=["POST", "OPTIONS"])
 @admin_required

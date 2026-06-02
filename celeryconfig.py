@@ -3,7 +3,7 @@ from celery.schedules import crontab
 # This file centralizes all Celery configuration, especially for beat schedules.
 
 # Define the timezone for Celery Beat
-timezone = 'America/Los_Angeles'
+timezone = 'Asia/Shanghai'
 
 # Define all periodic tasks
 beat_schedule = {
@@ -21,22 +21,32 @@ beat_schedule = {
     },
     'update-contract-statuses-daily': {
         'task': 'tasks.update_contract_statuses',
-        # Schedule for 00:05 AM Beijing Time.
-        # Beijing (UTC+8) vs Los Angeles (PST, UTC-8 in winter) is a 16-hour difference.
-        # 10:30 CST is 18:30 PST on the previous day.
-        'schedule': crontab(hour=10, minute=5), # 北京时间每天上午 00:05
+        # 北京时间每天凌晨 00:05 执行合同状态自动更新
+        'schedule': crontab(hour=0, minute=5),
     },
-    'send-daily-reminders-job': {
-        'task': 'tasks.send_daily_reminders',
-        # 北京时间每天上午 09:00
-        'schedule': crontab(hour=17, minute=0),
+    'check-daily-reminders-dynamically': {
+        'task': 'tasks.check_and_run_daily_reminders_task',
+        # 高频轮询数据库中的动态提醒配置；实际是否发送由任务内部按开关、日期、时间和 last_run_date 判断。
+        'schedule': crontab(minute='*/1'),
     },
-    'send-monthly-attendance-reminder-job': {
-        'task': 'tasks.send_monthly_attendance_reminder',
-        # 北京时间每月 1 号上午 09:00
-        'schedule': crontab(day_of_month=1, hour=17, minute=0),
-    },
+    # =========================================================================
+    # ⚠️ 【重要说明】以下静态定时提醒任务已废弃！
+    # 提醒的开启状态、提前天数、具体推送时间已全部移交至数据库进行动态管理 (SystemSetting: notification_config)。
+    # 新的调度器 check_and_run_daily_reminders_task 会在后台每 10 分钟执行一次高频轮询扫描，
+    # 避免了静态 crontab 由于 America/Los_Angeles 时区差导致的“北京时间清晨推送/提前/滞后”的幽灵 bug。
+    # =========================================================================
+    # 'send-daily-reminders-job': {
+    #     'task': 'tasks.send_daily_reminders',
+    #     # 北京时间每天上午 09:00
+    #     'schedule': crontab(hour=17, minute=0),
+    # },
+    # 'send-monthly-attendance-reminder-job': {
+    #     'task': 'tasks.send_monthly_attendance_reminder',
+    #     # 北京时间每月 1 号上午 09:00
+    #     'schedule': crontab(day_of_month=1, hour=17, minute=0),
+    # },
 }
+
 
 # Other Celery settings
 task_serializer = 'json'
