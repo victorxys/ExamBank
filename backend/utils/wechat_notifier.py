@@ -6,6 +6,14 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+def normalize_wechat_touser(value):
+    if not value:
+        return ""
+    stripped = str(value).strip()
+    if stripped == "@all":
+        return stripped
+    return "|".join(part.strip() for part in stripped.split("|") if part.strip())
+
 def get_wechat_config():
     """获取企业微信配置"""
     # 优先从 Flask config 获取，如果无法获取则从 os.environ 获取
@@ -70,7 +78,7 @@ def send_wechat_notification(touser, title, description, jump_url, btn_text="点
     """
     _, agent_id, _, default_users = get_wechat_config()
     
-    target_user = touser if touser else default_users
+    target_user = normalize_wechat_touser(touser) if touser else normalize_wechat_touser(default_users)
     if not target_user:
         target_user = "@all"
 
