@@ -8,7 +8,12 @@ logger = logging.getLogger(__name__)
 setting_api_bp = Blueprint('setting_api', __name__, url_prefix='/api/settings')
 
 RESET_LAST_RUN_DATE = "2000-01-01"
-RESETTABLE_REMINDER_FIELDS = {"enabled", "advance_days", "day_of_month", "start_day", "end_day", "time"}
+RESET_LAST_RUN_AT = ""
+RESETTABLE_REMINDER_FIELDS = {"enabled", "advance_days", "day_of_month", "start_day", "end_day", "time", "contract_created_after", "contract_end_after", "trial_end_after"}
+
+DEFAULT_CONTRACT_CREATED_AFTER = "2026-06-01"
+DEFAULT_CONTRACT_END_AFTER = "2026-06-01"
+DEFAULT_TRIAL_END_AFTER = "2026-06-01"
 
 
 def normalize_wechat_touser(value):
@@ -25,29 +30,36 @@ DEFAULT_NOTIFICATION_CONFIG = {
             "enabled": True,
             "advance_days": 30,
             "time": "09:00",
+            "contract_end_after": DEFAULT_CONTRACT_END_AFTER,
             "notify_users": "",
-            "last_run_date": RESET_LAST_RUN_DATE
+            "last_run_date": RESET_LAST_RUN_DATE,
+            "last_run_at": RESET_LAST_RUN_AT
         },
         "trial_expiry": {
             "enabled": True,
             "advance_days": 1,
             "time": "09:00",
+            "trial_end_after": DEFAULT_TRIAL_END_AFTER,
             "notify_users": "",
-            "last_run_date": RESET_LAST_RUN_DATE
+            "last_run_date": RESET_LAST_RUN_DATE,
+            "last_run_at": RESET_LAST_RUN_AT
         },
         "pregnancy": {
             "enabled": True,
             "advance_days": 7,
             "time": "09:00",
+            "contract_created_after": DEFAULT_CONTRACT_CREATED_AFTER,
             "notify_users": "",
-            "last_run_date": RESET_LAST_RUN_DATE
+            "last_run_date": RESET_LAST_RUN_DATE,
+            "last_run_at": RESET_LAST_RUN_AT
         },
         "attendance": {
             "enabled": True,
             "day_of_month": 1,
             "time": "09:00",
             "notify_users": "",
-            "last_run_date": RESET_LAST_RUN_DATE
+            "last_run_date": RESET_LAST_RUN_DATE,
+            "last_run_at": RESET_LAST_RUN_AT
         },
         "monthly_management_fee": {
             "enabled": True,
@@ -55,35 +67,41 @@ DEFAULT_NOTIFICATION_CONFIG = {
             "end_day": 5,
             "time": "09:00",
             "notify_users": "",
-            "last_run_date": RESET_LAST_RUN_DATE
+            "last_run_date": RESET_LAST_RUN_DATE,
+            "last_run_at": RESET_LAST_RUN_AT
         },
         "insurance_expiry": {
             "enabled": True,
             "advance_days": 30,
             "time": "09:00",
             "notify_users": "",
-            "last_run_date": RESET_LAST_RUN_DATE
+            "last_run_date": RESET_LAST_RUN_DATE,
+            "last_run_at": RESET_LAST_RUN_AT
         },
         "physical_exam_expiry": {
             "enabled": True,
             "advance_days": 30,
             "time": "09:00",
             "notify_users": "",
-            "last_run_date": RESET_LAST_RUN_DATE
+            "last_run_date": RESET_LAST_RUN_DATE,
+            "last_run_at": RESET_LAST_RUN_AT
         },
         "debt": {
             "enabled": True,
             "advance_days": 3,
             "time": "09:00",
             "notify_users": "",
-            "last_run_date": RESET_LAST_RUN_DATE
+            "last_run_date": RESET_LAST_RUN_DATE,
+            "last_run_at": RESET_LAST_RUN_AT
         },
         "onboarding": {
             "enabled": True,
             "advance_days": 1,
             "time": "09:00",
+            "contract_created_after": DEFAULT_CONTRACT_CREATED_AFTER,
             "notify_users": "",
-            "last_run_date": RESET_LAST_RUN_DATE
+            "last_run_date": RESET_LAST_RUN_DATE,
+            "last_run_at": RESET_LAST_RUN_AT
         },
         "sign_event": {
             "enabled": True,
@@ -115,10 +133,19 @@ def migrate_old_config(old_val):
             if key in new_config["reminders"]:
                 for sub_k, sub_v in val.items():
                     new_config["reminders"][key][sub_k] = sub_v
+        contract_expiry = new_config["reminders"].get("contract_expiry", {})
+        if not contract_expiry.get("contract_end_after") and contract_expiry.get("contract_created_after"):
+            contract_expiry["contract_end_after"] = contract_expiry["contract_created_after"]
+        trial_expiry = new_config["reminders"].get("trial_expiry", {})
+        if not trial_expiry.get("trial_end_after") and trial_expiry.get("contract_created_after"):
+            trial_expiry["trial_end_after"] = trial_expiry["contract_created_after"]
     if legacy_notify_users:
         for reminder in new_config["reminders"].values():
             if not reminder.get("notify_users"):
                 reminder["notify_users"] = legacy_notify_users
+    for reminder in new_config["reminders"].values():
+        if "last_run_date" in reminder and "last_run_at" not in reminder:
+            reminder["last_run_at"] = RESET_LAST_RUN_AT
     return new_config
 
 def get_or_create_notification_config():
@@ -190,6 +217,7 @@ def update_notification_config():
                     current_val["reminders"][k][sub_k] = sub_v
                 if should_reset_last_run and "last_run_date" in current_val["reminders"][k]:
                     current_val["reminders"][k]["last_run_date"] = RESET_LAST_RUN_DATE
+                    current_val["reminders"][k]["last_run_at"] = RESET_LAST_RUN_AT
                 
         config.value = current_val
         from sqlalchemy.orm.attributes import flag_modified
@@ -221,6 +249,7 @@ def reset_notification_reminder_last_run(reminder_key):
             return jsonify({"status": "error", "message": "This reminder has no send state to reset"}), 400
 
         reminder["last_run_date"] = RESET_LAST_RUN_DATE
+        reminder["last_run_at"] = RESET_LAST_RUN_AT
         config.value = current_val
         from sqlalchemy.orm.attributes import flag_modified
         flag_modified(config, 'value')

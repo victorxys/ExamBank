@@ -3097,6 +3097,7 @@ def check_and_run_daily_reminders_task():
        - `time`: 北京时间触发点（如 '09:30'）。
        - `advance_days` 或 `day_of_month`: 业务提前天数或特定日期。
        - `last_run_date`: 记录上一次成功扫描发送的日期（格式: 'YYYY-MM-DD'）。
+       - `last_run_at`: 记录上一次成功扫描发送的分钟级时间（格式: 'YYYY-MM-DD HH:mm'），用于后台配置页展示。
     4. 幂等与时区防护：
        - 轮询器每 10 分钟在后台唤醒一次。获取服务器当前的本地时间与 `time` 配置做对比。
        - 只要当前北京时间走过设定时间，且 `last_run_date` 仍是昨天以前的旧日期，就会触发扫描并发送。
@@ -3122,6 +3123,7 @@ def check_and_run_daily_reminders_task():
         # 2. 获取服务器的当前本地时间，作为时间比对基准
         now = datetime.now()
         today_str = now.strftime("%Y-%m-%d")
+        run_at_str = now.strftime("%Y-%m-%d %H:%M")
         current_time_str = now.strftime("%H:%M")
         
         changes_made = False
@@ -3131,7 +3133,10 @@ def check_and_run_daily_reminders_task():
         trial_notify_users = (trial_cfg.get("notify_users") or "").strip() or None
         if trial_cfg.get("enabled", True) and current_time_str >= trial_cfg.get("time", "09:00") and trial_cfg.get("last_run_date", "2000-01-01") < today_str:
             logger.info("Triggering trial_expiry reminder...")
-            trials = check_nanny_trial_contracts(advance_days=trial_cfg.get("advance_days", 1))
+            trials = check_nanny_trial_contracts(
+                advance_days=trial_cfg.get("advance_days", 1),
+                trial_end_after=trial_cfg.get("trial_end_after") or trial_cfg.get("contract_created_after")
+            )
             for contract in trials:
                 try:
                     frontend_base_url = app.config.get('FRONTEND_BASE_URL', 'http://localhost:5175')
@@ -3148,6 +3153,7 @@ def check_and_run_daily_reminders_task():
                 except Exception as pe:
                     logger.error(f"排队试工到期通知任务失败: {pe}")
             val["reminders"]["trial_expiry"]["last_run_date"] = today_str
+            val["reminders"]["trial_expiry"]["last_run_at"] = run_at_str
             changes_made = True
 
         # 2. 正式合同到期提醒
@@ -3155,7 +3161,10 @@ def check_and_run_daily_reminders_task():
         contract_notify_users = (contract_cfg.get("notify_users") or "").strip() or None
         if contract_cfg.get("enabled", True) and current_time_str >= contract_cfg.get("time", "09:00") and contract_cfg.get("last_run_date", "2000-01-01") < today_str:
             logger.info("Triggering contract_expiry reminder...")
-            expirings = check_nanny_contracts_expiring(advance_days=contract_cfg.get("advance_days", 30))
+            expirings = check_nanny_contracts_expiring(
+                advance_days=contract_cfg.get("advance_days", 30),
+                contract_end_after=contract_cfg.get("contract_end_after") or contract_cfg.get("contract_created_after")
+            )
             for contract in expirings:
                 try:
                     frontend_base_url = app.config.get('FRONTEND_BASE_URL', 'http://localhost:5175')
@@ -3170,6 +3179,7 @@ def check_and_run_daily_reminders_task():
                 except Exception as pe:
                     logger.error(f"排队合同到期通知任务失败: {pe}")
             val["reminders"]["contract_expiry"]["last_run_date"] = today_str
+            val["reminders"]["contract_expiry"]["last_run_at"] = run_at_str
             changes_made = True
 
         # 3. 预产期临近提醒
@@ -3177,7 +3187,10 @@ def check_and_run_daily_reminders_task():
         preg_notify_users = (preg_cfg.get("notify_users") or "").strip() or None
         if preg_cfg.get("enabled", True) and current_time_str >= preg_cfg.get("time", "09:00") and preg_cfg.get("last_run_date", "2000-01-01") < today_str:
             logger.info("Triggering pregnancy reminder...")
-            deliveries = check_maternity_nurse_delivery(advance_days=preg_cfg.get("advance_days", 7))
+            deliveries = check_maternity_nurse_delivery(
+                advance_days=preg_cfg.get("advance_days", 7),
+                contract_created_after=preg_cfg.get("contract_created_after")
+            )
             for contract in deliveries:
                 try:
                     frontend_base_url = app.config.get('FRONTEND_BASE_URL', 'http://localhost:5175')
@@ -3193,6 +3206,7 @@ def check_and_run_daily_reminders_task():
                 except Exception as pe:
                     logger.error(f"排队预产期通知任务失败: {pe}")
             val["reminders"]["pregnancy"]["last_run_date"] = today_str
+            val["reminders"]["pregnancy"]["last_run_at"] = run_at_str
             changes_made = True
 
         # 4. 考勤提醒
@@ -3204,6 +3218,7 @@ def check_and_run_daily_reminders_task():
                 logger.info("Triggering monthly attendance reminder.")
                 send_monthly_attendance_reminder.delay(touser=att_notify_users)
                 val["reminders"]["attendance"]["last_run_date"] = today_str
+                val["reminders"]["attendance"]["last_run_at"] = run_at_str
                 changes_made = True
 
         # 5. 育儿嫂月度管理费提醒
@@ -3235,6 +3250,7 @@ def check_and_run_daily_reminders_task():
                         msg_type="MONTHLY_MANAGEMENT_FEE"
                     )
                 val["reminders"]["monthly_management_fee"]["last_run_date"] = today_str
+                val["reminders"]["monthly_management_fee"]["last_run_at"] = run_at_str
                 changes_made = True
             
         # 3. 只有当配置发生改变（例如更新了 last_run_date），才使用 flag_modified 强制保存回数据库
