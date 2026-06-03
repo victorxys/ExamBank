@@ -15,6 +15,7 @@ import {
     Download as DownloadIcon,
     PictureAsPdf as PictureAsPdfIcon,
     Autorenew as AutorenewIcon,
+    History as HistoryIcon,
 } from '@mui/icons-material';
 import { DatePicker, LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -132,6 +133,7 @@ const ContractDetail = () => {
     const [bills, setBills] = useState([]);
     const [adjustments, setAdjustments] = useState([]);
     const [logs, setLogs] = useState([]);
+    const [operationLogs, setOperationLogs] = useState([]);
     const depositAdjustment = adjustments.find(adj => adj && adj.adjustment_type === 'deposit');
     const [loading, setLoading] = useState(true);
     const [alert, setAlert] = useState({ open: false, message: '', severity: 'info' });
@@ -233,17 +235,19 @@ const ContractDetail = () => {
     const fetchData = useCallback(async () => {
         setLoading(true);
         try {
-            const [contractRes, billsRes, adjustmentsRes, logsRes] = await Promise.all([
+            const [contractRes, billsRes, adjustmentsRes, logsRes, operationLogsRes] = await Promise.all([
                 api.get(`/billing/contracts/${contractId}/details`),
                 api.get(`/billing/contracts/${contractId}/bills`),
                 api.get(`/billing/contracts/${contractId}/adjustments`),
-                api.get(`/billing/contracts/${contractId}/logs`)
+                api.get(`/billing/contracts/${contractId}/logs`),
+                api.get(`/contracts/${contractId}/operation-logs`)
             ]);
             setContract(contractRes.data);
             setBills(billsRes.data);
             setAdjustments(adjustmentsRes.data);
             setIntroFee(contractRes.data.introduction_fee || '0');
             setLogs(logsRes.data);
+            setOperationLogs(operationLogsRes.data);
 
             const separator = '\n\n--- 运营备注 ---\n';
             const notes = contractRes.data.notes || '';
@@ -1449,6 +1453,103 @@ const ContractDetail = () => {
         </Grid>
     ) : null;
 
+    const formatDateTime = (isoString) => {
+        if (!isoString) return '—';
+        try {
+            const date = new Date(isoString);
+            if (isNaN(date.getTime())) return '无效时间';
+            return date.toLocaleString('zh-CN', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+            });
+        } catch (e) {
+            return '无效时间';
+        }
+    };
+
+    const formatLogValue = (value) => {
+        if (value === null || value === undefined || value === '') return '空';
+        if (typeof value === 'boolean') return value ? '是' : '否';
+        if (typeof value === 'string') {
+            const mappedValue = operationValueLabels[value];
+            if (mappedValue) return mappedValue;
+            if (/^\d{4}-\d{2}-\d{2}T/.test(value)) return formatDateTime(value);
+        }
+        if (typeof value === 'object') return JSON.stringify(value);
+        return String(value);
+    };
+
+    const operationFieldLabels = {
+        actual_onboarding_date: '实际上户日期',
+        attachment_content: '附件内容',
+        customer_name: '客户姓名',
+        employee_level: '级别/月薪',
+        end_date: '结束日期',
+        expected_offboarding_date: '预计下户日期',
+        introduction_fee: '介绍费',
+        is_monthly_auto_renew: '是否自动月签',
+        management_fee_amount: '管理费金额',
+        management_fee_rate: '管理费率',
+        notes: '备注',
+        requires_signature: '是否需要签署',
+        security_deposit_paid: '保证金',
+        service_personnel_id: '服务人员',
+        service_personnel_name: '服务人员姓名',
+        signing_status: '签署状态',
+        start_date: '开始日期',
+        status: '合同状态',
+        termination_date: '终止日期',
+        type: '合同类型',
+    };
+
+    const operationValueLabels = {
+        active: '服务中',
+        base: '基础合同',
+        change: '变更',
+        CUSTOMER_SIGNED: '客户已签署',
+        EMPLOYEE_SIGNED: '员工已签署',
+        external_substitution: '外部替班合同',
+        failed: '失败',
+        failure: '失败',
+        finished: '已结束',
+        jinshuju: '金数据',
+        maternity_nurse: '月嫂合同',
+        nanny: '育儿嫂合同',
+        nanny_trial: '育儿嫂试工合同',
+        NOT_REQUIRED: '无需签署',
+        pending: '待处理',
+        renewal: '续约',
+        SIGNED: '已签署',
+        success: '成功',
+        terminated: '已终止',
+        trial_active: '试工中',
+        trial_succeeded: '试工成功',
+        UNSIGNED: '未签署',
+        virtual: '虚拟合同',
+    };
+
+    const formatLogFieldName = (field) => operationFieldLabels[field] || field;
+
+    const operationActionLabels = {
+        create: '创建',
+        edit: '编辑',
+        renew: '续约',
+        create_from_renewal: '续约创建',
+        change: '变更',
+        create_from_change: '变更创建',
+        terminate: '终止',
+        extend: '延长',
+        sign: '签署',
+        enable_auto_renew: '开启月签',
+    };
+
+    const visibleOperationLogs = operationLogs.filter(
+        (log) => String(log.contract_id) === String(contractId)
+    );
+
     return (
         <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={zhCN}>
             <Box>
@@ -1645,6 +1746,132 @@ const ContractDetail = () => {
                                 </>
                             )}
                         </Box>
+                    </Grid>
+
+                    <Grid item xs={12}>
+                        <Paper sx={{ p: 3 }}>
+                            <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
+                                <HistoryIcon color="primary" />
+                                <Typography variant="h5">合同操作日志</Typography>
+                            </Stack>
+                            {visibleOperationLogs.length > 0 ? (
+                                <Stack spacing={2}>
+                                    {visibleOperationLogs.map((log) => {
+                                        const changes = Object.entries(log.changes || {});
+                                        const shouldShowRelatedContractLink = ['create_from_renewal', 'create_from_change'].includes(log.action) && log.related_contract_id;
+                                        const relatedContractLabel = log.action === 'create_from_renewal' ? '查看续约前合同' : '查看变更前合同';
+                                        const relatedContractHint = log.related_contract_customer_name || log.related_contract_employee_name
+                                            ? [log.related_contract_customer_name, log.related_contract_employee_name].filter(Boolean).join(' · ')
+                                            : '打开关联的源合同详情';
+                                        return (
+                                            <Paper
+                                                key={log.id}
+                                                variant="outlined"
+                                                sx={{
+                                                    p: 2,
+                                                    borderLeft: '4px solid',
+                                                    borderLeftColor: 'primary.main',
+                                                    backgroundColor: 'grey.50',
+                                                }}
+                                            >
+                                                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ xs: 'flex-start', sm: 'center' }} justifyContent="space-between">
+                                                    <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+                                                        <Chip label={operationActionLabels[log.action] || log.action} color="primary" size="small" variant="outlined" />
+                                                        <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                                                            {log.title}
+                                                        </Typography>
+                                                    </Stack>
+                                                    <Typography variant="caption" color="text.secondary">
+                                                        {formatDateTime(log.created_at)} · {log.user || '系统'}
+                                                    </Typography>
+                                                </Stack>
+                                                {log.summary && (
+                                                    <Typography variant="body2" sx={{ mt: 1 }}>
+                                                        {log.summary}
+                                                    </Typography>
+                                                )}
+                                                {shouldShowRelatedContractLink && (
+                                                    <Box
+                                                        role="button"
+                                                        tabIndex={0}
+                                                        onClick={() => navigate(`/contract/detail/${log.related_contract_id}`)}
+                                                        onKeyDown={(event) => {
+                                                            if (event.key === 'Enter' || event.key === ' ') {
+                                                                event.preventDefault();
+                                                                navigate(`/contract/detail/${log.related_contract_id}`);
+                                                            }
+                                                        }}
+                                                        sx={{
+                                                            mt: 1.5,
+                                                            p: 1.25,
+                                                            display: 'inline-flex',
+                                                            alignItems: 'center',
+                                                            gap: 1.25,
+                                                            borderRadius: 2,
+                                                            cursor: 'pointer',
+                                                            color: 'primary.dark',
+                                                            background: 'linear-gradient(135deg, rgba(20, 184, 166, 0.12), rgba(14, 165, 233, 0.08))',
+                                                            border: '1px solid rgba(20, 184, 166, 0.25)',
+                                                            boxShadow: '0 8px 20px rgba(15, 118, 110, 0.08)',
+                                                            transition: 'all 0.2s ease',
+                                                            '&:hover': {
+                                                                transform: 'translateY(-1px)',
+                                                                background: 'linear-gradient(135deg, rgba(20, 184, 166, 0.18), rgba(14, 165, 233, 0.12))',
+                                                                boxShadow: '0 10px 24px rgba(15, 118, 110, 0.14)',
+                                                            },
+                                                        }}
+                                                    >
+                                                        <Box
+                                                            sx={{
+                                                                width: 30,
+                                                                height: 30,
+                                                                borderRadius: '50%',
+                                                                display: 'grid',
+                                                                placeItems: 'center',
+                                                                backgroundColor: 'rgba(255,255,255,0.75)',
+                                                            }}
+                                                        >
+                                                            <LinkIcon fontSize="small" />
+                                                        </Box>
+                                                        <Box>
+                                                            <Typography variant="body2" sx={{ fontWeight: 800, lineHeight: 1.2 }}>
+                                                                {relatedContractLabel}
+                                                            </Typography>
+                                                            <Typography variant="caption" color="text.secondary">
+                                                                {relatedContractHint}
+                                                            </Typography>
+                                                        </Box>
+                                                    </Box>
+                                                )}
+                                                {changes.length > 0 && (
+                                                    <Box sx={{ mt: 1.5 }}>
+                                                        <Typography variant="caption" color="text.secondary">
+                                                            字段变更
+                                                        </Typography>
+                                                        <Stack spacing={0.75} sx={{ mt: 0.5 }}>
+                                                            {changes.slice(0, 8).map(([field, change]) => (
+                                                                <Typography key={field} variant="body2" color="text.secondary">
+                                                                    <b>{formatLogFieldName(field)}</b>: {formatLogValue(change.from)} → {formatLogValue(change.to)}
+                                                                </Typography>
+                                                            ))}
+                                                            {changes.length > 8 && (
+                                                                <Typography variant="caption" color="text.secondary">
+                                                                    还有 {changes.length - 8} 项变更未展开
+                                                                </Typography>
+                                                            )}
+                                                        </Stack>
+                                                    </Box>
+                                                )}
+                                            </Paper>
+                                        );
+                                    })}
+                                </Stack>
+                            ) : (
+                                <Typography variant="body1" sx={{ py: 3, textAlign: 'center', color: 'text.secondary' }}>
+                                    暂无合同操作日志
+                                </Typography>
+                            )}
+                        </Paper>
                     </Grid>
 
                     <Grid item xs={12}>

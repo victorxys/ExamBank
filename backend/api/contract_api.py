@@ -24,7 +24,8 @@ from backend.models import (
     AttendanceForm,
     EmployeeSalaryHistory,
     ContractSignature,
-    WechatMessageLog
+    WechatMessageLog,
+    ContractOperationLog,
 )
 import base64
 from backend.tasks import calculate_monthly_billing_task
@@ -45,6 +46,11 @@ from sqlalchemy.orm import joinedload
 D = decimal.Decimal
 from backend.tasks import calculate_monthly_billing_task, trigger_initial_bill_generation_task
 from dateutil.relativedelta import relativedelta # <--- 请确保文件顶部有此导入
+from backend.services.contract_operation_log_service import (
+    create_contract_operation_log,
+    diff_snapshots,
+    snapshot_contract,
+)
 
 contract_bp = Blueprint("contract_api", __name__, url_prefix="/api/contracts")
 
@@ -1101,6 +1107,21 @@ def create_formal_contract():
             current_app.logger.info(f"合同 {new_contract.id} 无需签署，自动激活")
         
         db.session.add(new_contract)
+        db.session.flush()
+        create_contract_operation_log(
+            contract=new_contract,
+            user_id=get_jwt_identity(),
+            action="create",
+            title="创建合同",
+            summary=f"创建{new_contract.customer_name}的合同",
+            details={
+                "contract_type": new_contract.type,
+                "customer_name": new_contract.customer_name,
+                "service_personnel_name": service_personnel.name,
+                "requires_signature": data.get("requires_signature"),
+            },
+            changes={"created": {"from": None, "to": snapshot_contract(new_contract)}},
+        )
         db.session.commit()
         
         # --- 无需签署时，更新薪资历史 ---
@@ -1270,6 +1291,182 @@ def get_contract_details(contract_id):
     except Exception as e:
         current_app.logger.error(f"获取合同 {contract_id} 详情失败: {e}", exc_info=True)
         return jsonify({"error": "内部服务器错误"}), 500
+
+
+@contract_bp.route("/<uuid:contract_id>/operation-logs", methods=["GET"])
+@jwt_required()
+def get_contract_operation_logs(contract_id):
+    """
+    获取合同生命周期操作日志。
+    只返回当前合同页面应展示的日志。
+    对启用日志功能前已经存在的续约/变更链路，补充只读派生日志，避免历史合同详情出现空白。
+    """
+    try:
+        contract = db.session.get(BaseContract, contract_id)
+        if not contract:
+            return jsonify({"error": "合同不存在"}), 404
+
+        persisted_logs = (
+            ContractOperationLog.query.filter(ContractOperationLog.contract_id == contract_id)
+            .order_by(ContractOperationLog.created_at.desc())
+            .all()
+        )
+        show_only_legacy_inbound_log = _should_show_only_legacy_inbound_log(contract, persisted_logs)
+        visible_persisted_logs = [] if show_only_legacy_inbound_log else persisted_logs
+        log_payloads = [log.to_dict() for log in visible_persisted_logs]
+        log_payloads.extend(_build_derived_contract_operation_logs(contract, persisted_logs))
+        log_payloads.sort(key=lambda item: item.get("created_at") or "", reverse=True)
+        return jsonify(log_payloads)
+    except Exception as e:
+        current_app.logger.error(f"获取合同 {contract_id} 操作日志失败: {e}", exc_info=True)
+        return jsonify({"error": "内部服务器错误"}), 500
+
+
+def _build_derived_contract_operation_logs(contract, persisted_logs):
+    derived_logs = []
+
+    if _should_derive_legacy_edit_log(contract, persisted_logs):
+        derived_logs.append(
+            _serialize_derived_contract_operation_log(
+                contract=contract,
+                related_contract=None,
+                action="edit",
+                title="编辑合同",
+                summary="历史数据中该合同曾被更新，启用操作日志前无法还原具体字段差异",
+                created_at=contract.updated_at or contract.created_at,
+                details={"derived": True, "reason": "legacy_updated_contract"},
+            )
+        )
+
+    if contract.previous_contract_id:
+        source = _normalize_contract_link_source(contract.source)
+        create_action = "create_from_renewal" if source == "renewal" else "create_from_change"
+        if not _has_contract_link_log(
+            persisted_logs,
+            action=create_action,
+            contract_id=contract.id,
+            related_contract_id=contract.previous_contract_id,
+        ):
+            previous_contract = contract.previous_contract
+            title = "由续约创建" if source == "renewal" else "由变更创建"
+            verb = "续约" if source == "renewal" else "变更"
+            derived_logs.append(
+                _serialize_derived_contract_operation_log(
+                    contract=contract,
+                    related_contract=previous_contract,
+                    action=create_action,
+                    title=title,
+                    summary=f"由源合同 {contract.previous_contract_id} {verb}创建",
+                    created_at=contract.created_at or contract.updated_at,
+                    details={"source_contract_id": str(contract.previous_contract_id), "derived": True},
+                )
+            )
+
+    for next_contract in contract.next_contracts:
+        source = _normalize_contract_link_source(next_contract.source)
+        action = "renew" if source == "renewal" else "change"
+        if _has_contract_link_log(
+            persisted_logs,
+            action=action,
+            contract_id=contract.id,
+            related_contract_id=next_contract.id,
+        ):
+            continue
+
+        title = "续约合同" if source == "renewal" else "变更合同"
+        verb = "续约" if source == "renewal" else "变更"
+        changes = {}
+        if contract.status:
+            changes["status"] = {"from": None, "to": contract.status}
+        if contract.termination_date:
+            changes["termination_date"] = {"from": None, "to": contract.termination_date.isoformat()}
+        if contract.end_date:
+            changes["end_date"] = {"from": None, "to": contract.end_date.isoformat()}
+
+        derived_logs.append(
+            _serialize_derived_contract_operation_log(
+                contract=contract,
+                related_contract=next_contract,
+                action=action,
+                title=title,
+                summary=f"{verb}生成新合同 {next_contract.id}",
+                created_at=next_contract.created_at or contract.updated_at or contract.created_at,
+                details={
+                    "new_contract_id": str(next_contract.id),
+                    "new_start_date": next_contract.start_date.isoformat() if next_contract.start_date else None,
+                    "new_end_date": next_contract.end_date.isoformat() if next_contract.end_date else None,
+                    "derived": True,
+                },
+                changes=changes,
+            )
+        )
+
+    return derived_logs
+
+
+def _should_show_only_legacy_inbound_log(contract, persisted_logs):
+    if not contract.previous_contract_id:
+        return False
+
+    inbound_actions = {"create_from_renewal", "create_from_change"}
+    return not any(
+        log.action in inbound_actions and str(log.related_contract_id) == str(contract.previous_contract_id)
+        for log in persisted_logs
+    )
+
+
+def _should_derive_legacy_edit_log(contract, persisted_logs):
+    if contract.previous_contract_id or persisted_logs or not contract.created_at or not contract.updated_at:
+        return False
+    return _to_naive_second(contract.updated_at) > _to_naive_second(contract.created_at)
+
+
+def _to_naive_second(value):
+    return value.replace(tzinfo=None, microsecond=0)
+
+
+def _normalize_contract_link_source(source):
+    return "renewal" if source == "renewal" else "change"
+
+
+def _has_contract_link_log(logs, action, contract_id, related_contract_id):
+    return any(
+        log.action == action
+        and str(log.contract_id) == str(contract_id)
+        and str(log.related_contract_id) == str(related_contract_id)
+        for log in logs
+    )
+
+
+def _serialize_derived_contract_operation_log(
+    contract,
+    related_contract,
+    action,
+    title,
+    summary,
+    created_at,
+    details=None,
+    changes=None,
+):
+    return {
+        "id": f"derived-{action}-{contract.id}-{related_contract.id if related_contract else 'none'}",
+        "contract_id": str(contract.id),
+        "related_contract_id": str(related_contract.id) if related_contract else None,
+        "related_contract_customer_name": related_contract.customer_name if related_contract else None,
+        "related_contract_employee_name": (
+            related_contract.service_personnel.name
+            if related_contract and related_contract.service_personnel
+            else None
+        ),
+        "user": "系统",
+        "action": action,
+        "title": title,
+        "summary": summary,
+        "details": details or {},
+        "changes": changes or {},
+        "created_at": created_at.isoformat() if created_at else None,
+        "derived": True,
+    }
     
 @contract_bp.route("/<uuid:contract_id>", methods=["PUT"])
 @jwt_required()
@@ -1284,6 +1481,7 @@ def update_contract(contract_id):
     contract = BaseContract.query.get_or_404(contract_id_str)
 
     try:
+        before_snapshot = snapshot_contract(contract)
         # 1. 通用安全字段更新 (所有状态下都允许)
         if 'notes' in data:
             contract.notes = data.get('notes')
@@ -1292,6 +1490,17 @@ def update_contract(contract_id):
 
         # 2. 对于非 'pending' 状态的合同，只更新安全字段后就直接返回
         if contract.status != 'pending':
+            changes = diff_snapshots(before_snapshot, snapshot_contract(contract))
+            if changes:
+                create_contract_operation_log(
+                    contract=contract,
+                    user_id=get_jwt_identity(),
+                    action="edit",
+                    title="编辑合同",
+                    summary="更新合同备注/附件等非核心字段",
+                    details={"updated_fields": list(changes.keys())},
+                    changes=changes,
+                )
             db.session.commit()
             current_app.logger.info(f"合同 {contract_id_str} (状态: {contract.status}) 的非核心字段已更新。")
             return jsonify({"message": "合同更新成功 (仅限备注等安全字段)。"}), 200
@@ -1381,6 +1590,18 @@ def update_contract(contract_id):
         # 4. 重要：触发账单重算
         trigger_initial_bill_generation_task.delay(str(contract.id))
         current_app.logger.info(f"已为更新后的合同 {contract.id} 触发账单重算任务。")
+
+        changes = diff_snapshots(before_snapshot, snapshot_contract(contract))
+        if changes:
+            create_contract_operation_log(
+                contract=contract,
+                user_id=get_jwt_identity(),
+                action="edit",
+                title="编辑合同",
+                summary="更新待签署合同信息并触发账单重算",
+                details={"updated_fields": list(changes.keys())},
+                changes=changes,
+            )
 
         db.session.commit()
         return jsonify({"message": "合同更新成功"}), 200
@@ -1748,6 +1969,19 @@ def handle_signing_page_action(token):
                         contract_locked.signing_status = SigningStatus.EMPLOYEE_SIGNED
 
             db.session.commit()
+            create_contract_operation_log(
+                contract=contract,
+                user_id=None,
+                action="sign",
+                title="合同签署",
+                summary=f"{'客户' if role == 'customer' else '服务人员'}完成签署",
+                details={
+                    "role": role,
+                    "signing_status": contract.signing_status.value if contract.signing_status else None,
+                    "contract_status": contract.status,
+                },
+            )
+            db.session.commit()
 
             # --- 触发企业微信异步推送 ---
             try:
@@ -2048,6 +2282,8 @@ def renew_contract_api(contract_id):
     try:
         contract_service = ContractService()
         # 1. 创建合同对象（不提交）
+        old_contract = db.session.get(BaseContract, str(contract_id))
+        before_snapshot = snapshot_contract(old_contract)
         renewed_contract = contract_service.renew_contract(str(contract_id), data)
 
         # 2. 在同一事务中，同步生成初始账单并处理自动续约
@@ -2072,6 +2308,33 @@ def renew_contract_api(contract_id):
             engine.extend_auto_renew_bills(renewed_contract.id)
             current_app.logger.info(f"合同 {renewed_contract.id} 的首次自动续签检查完成。")
         # 3. 所有操作成功后，执行唯一一次提交
+        old_contract_after = db.session.get(BaseContract, str(contract_id))
+        old_changes = diff_snapshots(before_snapshot, snapshot_contract(old_contract_after))
+        create_contract_operation_log(
+            contract=old_contract_after,
+            related_contract=renewed_contract,
+            user_id=get_jwt_identity(),
+            action="renew",
+            title="续约合同",
+            summary=f"续约生成新合同 {renewed_contract.id}",
+            details={
+                "new_contract_id": str(renewed_contract.id),
+                "new_start_date": renewed_contract.start_date.isoformat() if renewed_contract.start_date else None,
+                "new_end_date": renewed_contract.end_date.isoformat() if renewed_contract.end_date else None,
+                "transfer_deposit": data.get("transfer_deposit", True),
+            },
+            changes=old_changes,
+        )
+        create_contract_operation_log(
+            contract=renewed_contract,
+            related_contract=old_contract_after,
+            user_id=get_jwt_identity(),
+            action="create_from_renewal",
+            title="由续约创建",
+            summary=f"由源合同 {contract_id} 续约创建",
+            details={"source_contract_id": str(contract_id)},
+            changes={"created": {"from": None, "to": snapshot_contract(renewed_contract)}},
+        )
         db.session.commit()
         current_app.logger.info(f"已为合同 {renewed_contract.id} 的续约及账单生成操作提交数据库事务。")
 
@@ -2103,7 +2366,19 @@ def extend_contract_api(contract_id):
         new_end_date = datetime.fromisoformat(data["new_end_date"]).date()
         
         contract_service = ContractService()
+        contract_before = db.session.get(BaseContract, str(contract_id))
+        before_snapshot = snapshot_contract(contract_before)
         contract, bills_count, new_bills = contract_service.extend_contract(str(contract_id), new_end_date)
+        changes = diff_snapshots(before_snapshot, snapshot_contract(contract))
+        create_contract_operation_log(
+            contract=contract,
+            user_id=get_jwt_identity(),
+            action="extend",
+            title="延长合同",
+            summary=f"合同结束日期延长至 {new_end_date}",
+            details={"new_end_date": str(new_end_date), "bills_count": bills_count},
+            changes=changes,
+        )
         
         # 提交事务
         db.session.commit()
@@ -2144,12 +2419,41 @@ def change_contract_api(contract_id):
     try:
         contract_service = ContractService()
         # This service call will be atomic
+        old_contract = db.session.get(BaseContract, str(contract_id))
+        before_snapshot = snapshot_contract(old_contract)
         changed_contract = contract_service.change_contract(str(contract_id), data)
         
         # Optional: trigger background tasks if needed, like for the new contract's bills
         trigger_initial_bill_generation_task.delay(str(changed_contract.id))
         
         # --- 在这里添加下面这行 ---
+        old_contract_after = db.session.get(BaseContract, str(contract_id))
+        old_changes = diff_snapshots(before_snapshot, snapshot_contract(old_contract_after))
+        create_contract_operation_log(
+            contract=old_contract_after,
+            related_contract=changed_contract,
+            user_id=get_jwt_identity(),
+            action="change",
+            title="变更合同",
+            summary=f"变更生成新合同 {changed_contract.id}",
+            details={
+                "new_contract_id": str(changed_contract.id),
+                "new_start_date": changed_contract.start_date.isoformat() if changed_contract.start_date else None,
+                "new_end_date": changed_contract.end_date.isoformat() if changed_contract.end_date else None,
+                "transfer_deposit": data.get("transfer_deposit", True),
+            },
+            changes=old_changes,
+        )
+        create_contract_operation_log(
+            contract=changed_contract,
+            related_contract=old_contract_after,
+            user_id=get_jwt_identity(),
+            action="create_from_change",
+            title="由变更创建",
+            summary=f"由源合同 {contract_id} 变更创建",
+            details={"source_contract_id": str(contract_id)},
+            changes={"created": {"from": None, "to": snapshot_contract(changed_contract)}},
+        )
         db.session.commit()
 
         return jsonify({

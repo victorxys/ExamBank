@@ -40,6 +40,17 @@ import PaymentMessageModal from './PaymentMessageModal';
 import { Decimal } from 'decimal.js';
 
 
+const toDecimalOrZero = (value) => {
+    if (value === null || value === undefined || value === '') return new Decimal(0);
+    const normalized = String(value).replace(/,/g, '').trim();
+    if (!normalized || normalized.includes('待计算')) return new Decimal(0);
+    try {
+        return new Decimal(normalized);
+    } catch (error) {
+        return new Decimal(0);
+    }
+};
+
 
 
 // 1. 修正 formatDate 函数，使其能优雅地处理双日期字符串
@@ -476,7 +487,7 @@ const BillingDashboard = () => {
             ) || [];
 
             const newEmployeePayableAmount = employeePayableAdjustments.reduce(
-                (sum, adj) => new Decimal(sum).plus(new Decimal(adj.amount || 0)),
+                (sum, adj) => sum.plus(toDecimalOrZero(adj.amount)),
                 new Decimal(0)
             ).toString();
 
@@ -814,8 +825,8 @@ const BillingDashboard = () => {
         setGeneratedMessage('');
     };
 
-    const customerPayableTotal = contracts.reduce((acc, bill) => new Decimal(acc).plus(new Decimal(bill.customer_payable || 0)).toNumber(), 0);
-    const employeePayoutTotal = contracts.reduce((acc, bill) => new Decimal(acc).plus(new Decimal(bill.employee_payout || 0)).toNumber(), 0);
+    const customerPayableTotal = contracts.reduce((acc, bill) => acc.plus(toDecimalOrZero(bill.customer_payable)), new Decimal(0)).toNumber();
+    const employeePayoutTotal = contracts.reduce((acc, bill) => acc.plus(toDecimalOrZero(bill.employee_payout)), new Decimal(0)).toNumber();
 
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={zhCN}>
@@ -1002,8 +1013,8 @@ const BillingDashboard = () => {
                     const isItemSelected = selected.indexOf(bill.id) !== -1;
 
                     // --- 新增：计算账单是否已结清 ---
-                    const amountDue = new Decimal(bill.customer_payable || 0);
-                    const amountPaid = new Decimal(bill.customer_total_paid || 0);
+                    const amountDue = toDecimalOrZero(bill.customer_payable);
+                    const amountPaid = toDecimalOrZero(bill.customer_total_paid);
                     const isEffectivelyPaid = amountPaid.gte(amountDue);
                     // --- 结束 ---
 

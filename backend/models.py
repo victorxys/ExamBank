@@ -2635,6 +2635,72 @@ class MaternityNurseContract(BaseContract):  # 月嫂合同
     discount_amount = db.Column(db.Numeric(10, 2), default=0, comment="优惠金额")
 
 
+class ContractOperationLog(db.Model):
+    __tablename__ = "contract_operation_logs"
+    __table_args__ = (
+        db.Index("ix_contract_operation_logs_contract_created", "contract_id", "created_at"),
+        db.Index("ix_contract_operation_logs_related_contract", "related_contract_id"),
+        {"comment": "合同生命周期操作日志表"},
+    )
+
+    id = db.Column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    contract_id = db.Column(
+        PG_UUID(as_uuid=True),
+        db.ForeignKey("contracts.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+        comment="主合同ID",
+    )
+    related_contract_id = db.Column(
+        PG_UUID(as_uuid=True),
+        db.ForeignKey("contracts.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+        comment="关联的新/旧合同ID",
+    )
+    user_id = db.Column(
+        PG_UUID(as_uuid=True),
+        db.ForeignKey("user.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+        comment="操作人ID",
+    )
+    action = db.Column(db.String(50), nullable=False, index=True, comment="操作类型")
+    title = db.Column(db.String(255), nullable=False, comment="操作标题")
+    summary = db.Column(db.Text, nullable=True, comment="操作摘要")
+    details = db.Column(PG_JSONB, nullable=True, comment="操作详情")
+    changes = db.Column(PG_JSONB, nullable=True, comment="字段变更前后值")
+    created_at = db.Column(db.DateTime(timezone=True), server_default=func.now(), index=True)
+
+    contract = db.relationship(
+        "BaseContract",
+        foreign_keys=[contract_id],
+        backref=db.backref("operation_logs", lazy="dynamic"),
+    )
+    related_contract = db.relationship("BaseContract", foreign_keys=[related_contract_id])
+    user = db.relationship("User")
+
+    def to_dict(self):
+        return {
+            "id": str(self.id),
+            "contract_id": str(self.contract_id) if self.contract_id else None,
+            "related_contract_id": str(self.related_contract_id) if self.related_contract_id else None,
+            "related_contract_customer_name": self.related_contract.customer_name if self.related_contract else None,
+            "related_contract_employee_name": (
+                self.related_contract.service_personnel.name
+                if self.related_contract and self.related_contract.service_personnel
+                else None
+            ),
+            "user": self.user.username if self.user else "系统",
+            "action": self.action,
+            "title": self.title,
+            "summary": self.summary,
+            "details": self.details or {},
+            "changes": self.changes or {},
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
 # 为数据库中遗留/金数据同步过来的中文合同类型名称注册多态标识映射
 # 解决 No such polymorphic_identity '育儿嫂正式合同' is defined 的致命报错
 BaseContract.__mapper__.polymorphic_map['育儿嫂正式合同'] = NannyContract.__mapper__
@@ -3617,7 +3683,6 @@ class SystemSetting(db.Model):
             "description": self.description,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None
         }
-
 
 
 

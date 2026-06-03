@@ -68,6 +68,11 @@ from backend.api.utils import get_billing_details_internal, get_contract_type_de
 from backend.services.contract_service import _find_successor_contract_internal
 from backend.services.payment_message_generator import PaymentMessageGenerator
 from backend.services.bank_statement_service import BankStatementService
+from backend.services.contract_operation_log_service import (
+    create_contract_operation_log,
+    diff_snapshots,
+    snapshot_contract,
+)
 
 
 D = decimal.Decimal
@@ -713,6 +718,7 @@ def update_single_contract(contract_id):
         should_generate_bills = False
         should_recalculate_first_bill = False
         log_details = {}
+        before_snapshot = snapshot_contract(contract)
 
         if "actual_onboarding_date" in data:
             new_onboarding_date_str = data["actual_onboarding_date"]
@@ -762,6 +768,10 @@ def update_single_contract(contract_id):
             contract.requires_signature = new_requires_signature
             # 仅在值真正发生变化时才更新 signing_status
             if old_requires_signature != new_requires_signature:
+                log_details['签署需求'] = {
+                    'from': old_requires_signature,
+                    'to': new_requires_signature,
+                }
                 if new_requires_signature is False:
                     contract.signing_status = SigningStatus.NOT_REQUIRED
                     # 无需签署时，自动激活合同
@@ -796,6 +806,16 @@ def update_single_contract(contract_id):
             any_bill = CustomerBill.query.filter_by(contract_id=contract.id).first()
             any_payroll = EmployeePayroll.query.filter_by(contract_id=contract.id).first()
             _log_activity(any_bill, any_payroll, "更新了合同详情", details=log_details)
+            changes = diff_snapshots(before_snapshot, snapshot_contract(contract))
+            create_contract_operation_log(
+                contract=contract,
+                user_id=get_jwt_identity(),
+                action="edit",
+                title="更新合同详情",
+                summary="更新合同详情字段",
+                details={"updated_fields": list(log_details.keys())},
+                changes=changes,
+            )
 
         db.session.commit()
 
@@ -2351,6 +2371,7 @@ def terminate_contract(contract_id):
     termination_date_str = data.get("termination_date")
     transfer_options = data.get("transfer_options")
     charge_on_termination_date = data.get("charge_on_termination_date", True)
+    new_contract = None
 
     if not termination_date_str:
         return jsonify({"error": "Termination date is required"}), 400
@@ -2364,6 +2385,7 @@ def terminate_contract(contract_id):
     if not contract:
         return jsonify({"error": "Contract not found"}), 404
 
+    before_snapshot = snapshot_contract(contract)
     contract.termination_date = termination_date
     original_end_date = contract.end_date.date() if isinstance(contract.end_date, datetime) else contract.end_date
     contract_start_date = contract.start_date.date() if isinstance(contract.start_date,datetime) else contract.start_date
@@ -2379,6 +2401,19 @@ def terminate_contract(contract_id):
             engine.process_trial_termination(contract, actual_trial_days)
             contract.status = "terminated"
             contract.end_date = termination_date
+            create_contract_operation_log(
+                contract=contract,
+                user_id=get_jwt_identity(),
+                action="terminate",
+                title="终止试工合同",
+                summary=f"试工失败，终止日期 {termination_date}",
+                details={
+                    "termination_date": str(termination_date),
+                    "trial_outcome": contract.trial_outcome.value if contract.trial_outcome else None,
+                    "actual_trial_days": actual_trial_days,
+                },
+                changes=diff_snapshots(before_snapshot, snapshot_contract(contract)),
+            )
             db.session.commit()
             return jsonify({"message": "育儿嫂试工合同已成功结算并终止。"})
         except Exception as e:
@@ -2629,6 +2664,23 @@ def terminate_contract(contract_id):
                 current_app.logger.info(
                     f"因合同 {contract.id} 提前终止，替班记录 {sub_record.id} 未产生管理费 (total_fee: {total_fee})."
                 )
+        create_contract_operation_log(
+            contract=contract,
+            related_contract=new_contract if transfer_options else None,
+            user_id=get_jwt_identity(),
+            action="terminate",
+            title="终止合同",
+            summary=message,
+            details={
+                "termination_date": str(termination_date),
+                "charge_on_termination_date": charge_on_termination_date,
+                "transfer_options": transfer_options,
+                "deleted_bill_count": len(bill_ids_to_delete),
+                "deleted_payroll_count": len(payroll_ids_to_delete),
+                "final_bill_id": str(final_bill.id) if final_bill else None,
+            },
+            changes=diff_snapshots(before_snapshot, snapshot_contract(contract)),
+        )
         db.session.commit()
         current_app.logger.info(message)
         return jsonify({"message": message}), 200
@@ -4211,6 +4263,7 @@ def enable_auto_renewal(contract_id):
         return jsonify({"message": "该合同已处于自动续签状态，无需重复操作。"}), 200
 
     try:
+        before_snapshot = snapshot_contract(contract)
         # --- 关键修复：先设置为月签，再删除退款调整项 ---
         # 这样重算账单时不会重新添加退款项
         contract.is_monthly_auto_renew = True
@@ -4339,6 +4392,15 @@ def enable_auto_renewal(contract_id):
         current_app.logger.info(f"已为合同 {contract.id} 触发账单自动延展。")
 
         # 3. 提交事务
+        create_contract_operation_log(
+            contract=contract,
+            user_id=get_jwt_identity(),
+            action="enable_auto_renew",
+            title="开启自动月签",
+            summary="开启自动续签并延展未来账单",
+            details={"last_bill_id": str(last_bill.id) if last_bill else None},
+            changes=diff_snapshots(before_snapshot, snapshot_contract(contract)),
+        )
         db.session.commit()
 
         return jsonify({"message": "合同已成功设置为自动续签，并已延展账单。"})
