@@ -176,7 +176,7 @@ class BillingEngine:
         检查并为自动续约合同创建未来的账单，直到最后一个账单月距离当前月11个月。
         """
         contract = db.session.get(NannyContract, contract_id)
-        if not contract or not contract.is_monthly_auto_renew:
+        if not contract or not contract.is_monthly_auto_renew or contract.status != "active":
             current_app.logger.info(
                 f"[AutoRenewExtend] 合同 {contract_id} 不是有效的自动续约育儿嫂合同，跳过。"
             )
