@@ -232,7 +232,9 @@ start_dev.sh
 # Ignored by user request
 jinshujuexport/
 backend/static/signatures/
-scripts/
+backend/scripts/
+scripts/*
+!scripts/cleanup_renewed_nanny_contract_history.py
 commit_message.txt
 
 design_proposals/
