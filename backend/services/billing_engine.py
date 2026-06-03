@@ -833,8 +833,8 @@ class BillingEngine:
         contract_start_date = self._to_date(contract.start_date)
         contract_end_date = self._to_date(contract.end_date)
         authoritative_end_date = self._to_date(contract.expected_offboarding_date or contract.end_date)
-         # 月管理费从合同获取 xxxx.xx元/月
-        management_fee_amount = D(contract.management_fee_amount or 0)
+         # 月管理费从合同获取 xxxx.xx元/月，保留 None 以便区分“未设置”和“设置为0”
+        management_fee_amount = D(contract.management_fee_amount) if contract.management_fee_amount is not None else None
 
         attendance = self._get_or_create_attendance(contract, cycle_start, cycle_end)
         overtime_days = D(attendance.overtime_days)
@@ -1084,9 +1084,9 @@ class BillingEngine:
         )
 
         # 管理费计算
-        if management_fee_amount:
+        if management_fee_amount is not None:
             current_app.logger.info(f"management_fee_amount:{management_fee_amount}")
-            management_fee_daily_rate = management_fee_amount/30
+            management_fee_daily_rate = management_fee_amount/D(30)
         else:
             # 合同中没有管理费，按10%收取
             current_app.logger.info(f"level:{level}")
@@ -1130,7 +1130,7 @@ class BillingEngine:
                 management_fee = (management_fee_daily_rate * management_days).quantize(
                     QUANTIZER
                 )
-                if management_fee_amount:
+                if management_fee_amount is not None:
                     management_fee_reason =  f"月签合同首月不足月，按天收取: 管理费 {management_fee_amount}/30 * 劳务天数 ({current_month_contract_days} + 1) = {management_fee:.2f}"
 
                 else:
@@ -1140,15 +1140,15 @@ class BillingEngine:
                 cycle_duration_days = (cycle_end - cycle_start).days + 1
                 management_days = D(min(cycle_duration_days, 30))
                 management_fee = (management_fee_daily_rate * management_days).quantize(QUANTIZER)
-                if management_fee_amount:
-                    management_fee_reason = f"末期账单不足月，按天收取: 管理费 {management_fee_amount}/30 * min(周期天数({cycle_duration_days}), 30) = {management_fee: .2f}"
+                if management_fee_amount is not None:
+                    management_fee_reason = f"末期账单不足月，按天收取: 管理费 {management_fee_amount}/30 * min(周期天数({cycle_duration_days}), 30) = {management_fee:.2f}"
                 else:
                     management_fee_reason = f"末期账单不足月，按天收取: 级别({level} )*10%/30 * min(周期天数({cycle_duration_days}), 30) = {management_fee:.2f}"
                 log_extras["management_fee_reason"] = management_fee_reason
             else:
-                if management_fee_amount:
+                if management_fee_amount is not None:
                     management_fee = management_fee_amount.quantize(QUANTIZER)
-                    management_fee_reason = f"月签合同整月，按月收取: {management_fee_amount} "
+                    management_fee_reason = f"月签合同整月，按月收取: {management_fee_amount}"
                 else:
                     management_fee = (level * D("0.1")).quantize(QUANTIZER)
                     management_fee_reason = f"月签合同整月，按月收取: {level} * 10%"
@@ -1157,7 +1157,7 @@ class BillingEngine:
             # --- 非月签合同逻辑 ---
             current_app.logger.info("进入非月签合同逻辑")
             if is_first_bill_of_contract:
-                monthly_management_fee = management_fee_amount if management_fee_amount > 0 else(level * D("0.1"))
+                monthly_management_fee = management_fee_amount if management_fee_amount is not None else (level * D("0.1"))
                 current_app.logger.info(f"contract_start_date.day: {contract_start_date.day},contract_end_date.day:{contract_end_date.day}")
                 # --- V2 优化：定义更通用的“整月”规则 ---
                 is_full_calendar_months = (
@@ -1260,8 +1260,8 @@ class BillingEngine:
                             log_extras["extension_days_reason"] = f"原合同于 {authoritative_end_date.strftime('%m月%d日')} 结束，延长至 {cycle_end.strftime('%m月%d日' )}，共 {extension_days} 天。"
                             log_extras["extension_fee_reason"] = f"延期劳务费: 日薪( {daily_rate:.2f}) * 延长天数({extension_days}) = {extension_fee:.2f}"
 
-                            management_fee_daily_rate = (management_fee_amount or (level *D("0.1"))) / D(30)
-                            extension_management_fee = (management_fee_daily_rate *D(extension_days)).quantize(QUANTIZER)
+                            management_fee_daily_rate = (management_fee_amount if management_fee_amount is not None else (level * D("0.1"))) / D(30)
+                            extension_management_fee = (management_fee_daily_rate * D(extension_days)).quantize(QUANTIZER)
                             current_app.logger.info(f"--- [DEBUG-EXT] Calculated extension_management_fee: {extension_management_fee} ---")
                             if extension_management_fee > 0:
                                 # 【关键修复】确保日志被正确记录
