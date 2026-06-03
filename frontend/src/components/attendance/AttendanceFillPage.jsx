@@ -1823,8 +1823,8 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
     let totalOnboardingDays = 0;
     if (Array.isArray(attendanceData.onboarding_records)) {
         attendanceData.onboarding_records.forEach(() => {
-            // 每条上户记录扣除1整天（不按小时计算）
-            totalOnboardingDays += 1;
+            // 考勤中的”上户“那天要算作”出勤“天数，因此不扣除
+            totalOnboardingDays += 0;
         });
     }
 
@@ -1848,8 +1848,8 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
             const [offboardingHour, offboardingMinute] = offboardingTime.split(':').map(Number);
             const offboardingHours = offboardingHour + (offboardingMinute || 0) / 60;
 
-            // 上户日实际出勤（上户时间到24:00）+ 下户日实际出勤（00:00到下户时间）
-            const onboardingDayWork = 24 - onboardingHours;
+            // 上户日实际出勤（上户日已算作满额1天正常出勤，即24小时）+ 下户日实际出勤（00:00到下户时间）
+            const onboardingDayWork = 24;
             const offboardingDayWork = offboardingHours;
             const totalExtraHours = onboardingDayWork + offboardingDayWork;
 

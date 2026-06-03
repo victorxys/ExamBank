@@ -89,8 +89,8 @@ def calculate_offboarding_work_days(onboarding_time, offboarding_date, offboardi
         offboarding_hour, offboarding_minute = map(int, offboarding_time.split(':'))
         offboarding_hours = offboarding_hour + offboarding_minute / 60
         
-        # 上户日实际出勤（上户时间到24:00）
-        onboarding_day_work = 24 - onboarding_hours
+        # 上户日实际出勤（上户日已算作满额1天正常出勤，即24小时）
+        onboarding_day_work = 24
         
         # 下户日实际出勤（00:00到下户时间）
         offboarding_day_work = offboarding_hours
@@ -186,9 +186,8 @@ def sync_attendance_to_record(attendance_form_id):
     onboarding_records = data.get('onboarding_records', [])
     offboarding_records = data.get('offboarding_records', [])
     
-    # 上户天数：上户当月，上户日不计入出勤天数（扣除整天）
-    # 注意：这里改为按整天扣除，而不是按小时计算
-    onboarding_days = Decimal(len(onboarding_records))  # 每条上户记录扣除1整天
+    # 考勤中的“上户”那天要算作“出勤”天数，因此不扣除
+    onboarding_days = Decimal(0)
     
     # 下户天数：下户当月，下户日计作出勤
     # 需要根据上户时间和下户时间计算下户日的实际出勤
