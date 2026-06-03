@@ -391,6 +391,20 @@ class ContractService:
             
             final_management_fee_rate = Decimal(new_contract_data.get("management_fee_rate", old_contract.management_fee_rate or 0))
             final_management_fee_amount = Decimal(new_contract_data.get("management_fee_amount", old_contract.management_fee_amount or 0))
+            if (
+                final_management_fee_rate <= 0
+                and final_management_fee_amount > 0
+                and new_employee_level > 0
+            ):
+                if isinstance(old_contract, MaternityNurseContract):
+                    total_amount = new_employee_level + final_management_fee_amount
+                    if total_amount > 0:
+                        final_management_fee_rate = (final_management_fee_amount / total_amount).quantize(Decimal('0.0001'))
+                else:
+                    final_management_fee_rate = (final_management_fee_amount / new_employee_level).quantize(Decimal('0.0001'))
+                current_app.logger.info(
+                    f"续约合同：管理费率为空或为0，已按管理费金额反推费率为 {final_management_fee_rate}"
+                )
 
             if final_management_fee_rate > 0:
                 # 区分月嫂合同和育儿嫂合同的计算逻辑
@@ -474,12 +488,17 @@ class ContractService:
             renewed_contract = NewContractModel(**new_contract_fields)
             db.session.add(renewed_contract)
             db.session.flush()
+
+            renewal_termination_date = start_date.date() - timedelta(days=1)
+            self._delete_future_billing_records(old_contract.id, renewal_termination_date)
+
             if not transfer_deposit:
+                self._finalize_old_contract_after_renewal(old_contract, renewal_termination_date)
                 current_app.logger.info(f"不转移保证金续签更流程完成。旧合同 {old_contract.id} 的保证金将按标准终止流程处理。")
                 return renewed_contract            
 
             # 2. 根据旧合同结束日期判断费用处理策略
-            old_end_date = old_contract.end_date.date() if isinstance(old_contract.end_date, datetime) else old_contract.end_date
+            old_end_date = renewal_termination_date
             _, last_day_of_month = calendar.monthrange(old_end_date.year, old_end_date.month)
             is_end_of_month = old_end_date.day == last_day_of_month
 
@@ -516,49 +535,165 @@ class ContractService:
                 # 场景2: 合同结束日是月末，只转移保证金
                 current_app.logger.info(f"合同 {old_contract.id} 结束日是月末，仅转移保证金。")
                 if old_contract.security_deposit_paid and old_contract.security_deposit_paid > 0:
-                    # 步骤1: 在旧合同的最后一个账单上创建“转出”调整项
-                    last_bill_old_contract = CustomerBill.query.filter_by(contract_id=old_contract.id ).order_by(CustomerBill.cycle_end_date.desc()).first()
-                        
-                    if last_bill_old_contract:
-                        self._delete_non_transferable_adjustments(old_contract, last_bill_old_contract)
-                        refund_adj = FinancialAdjustment(
-                            customer_bill_id=last_bill_old_contract.id,
-                            adjustment_type=AdjustmentType.CUSTOMER_INCREASE,
-                            amount=old_contract.security_deposit_paid,
-                            description="[保证金转出]至续约合同",
-                            date=old_contract.end_date.date(),
-                            details={'transferred_to_contract_id': str(renewed_contract.id)}
-                        )
-                        db.session.add(refund_adj)
-
-                        engine = BillingEngine()
-                        engine.calculate_for_month(
-                            year=last_bill_old_contract.year,
-                            month=last_bill_old_contract.month,
-                            contract_id=last_bill_old_contract.contract_id,
-                            force_recalculate=True,
-                            cycle_start_date_override=last_bill_old_contract.cycle_start_date
-                        )
-
-                    # 步骤2: 在新合同上创建“转入”的待处理调整项
-                    deposit_adj = FinancialAdjustment(
-                        contract_id=renewed_contract.id,
-                        adjustment_type=AdjustmentType.CUSTOMER_DECREASE,
-                        amount=old_contract.security_deposit_paid,
-                        description="[从续约前合同转入] 保证金冲抵",
-                        date=start_date.date(),
-                        status='PENDING',
-                        details={'transferred_from_contract_id': str(old_contract.id)}
+                    self._ensure_renewal_deposit_transfer(
+                        old_contract,
+                        renewed_contract,
+                        renewal_termination_date,
                     )
-                    db.session.add(deposit_adj)
 
-            # 3. 更新旧合同状态 (续约时不改变原合同状态，允许其自然到期)
-            # old_contract.status = 'finished'
-            # db.session.add(old_contract)
+            self._finalize_old_contract_after_renewal(old_contract, renewal_termination_date)
 
 
         current_app.logger.info(f"成功续约合同 {old_contract_id}，创建新合同 {renewed_contract.id}。")
         return renewed_contract
+
+    def _finalize_old_contract_after_renewal(self, old_contract: BaseContract, renewal_termination_date: date) -> None:
+        """
+        续约完成后，冻结旧合同的后续出账能力。
+        """
+        current_app.logger.info(
+            f"续约后停用旧合同 {old_contract.id}，终止日期设为 {renewal_termination_date}"
+        )
+
+        old_contract.termination_date = renewal_termination_date
+        old_contract.end_date = datetime.combine(renewal_termination_date, datetime.min.time())
+        old_contract.status = "finished"
+
+        db.session.add(old_contract)
+
+    def _ensure_renewal_deposit_transfer(
+        self,
+        old_contract: BaseContract,
+        renewed_contract: BaseContract,
+        renewal_termination_date: date,
+    ) -> None:
+        """
+        确保续约场景下的保证金转移链完整：
+        1. 旧合同最后一期账单上存在系统生成的“保证金退款”
+        2. 旧合同最后一期账单上存在“保证金转出”
+        3. 新合同存在“从续约前合同转入”的冲抵调整项
+        """
+        old_contract.termination_date = renewal_termination_date
+        old_contract.end_date = datetime.combine(renewal_termination_date, datetime.min.time())
+        old_contract.status = "finished"
+        db.session.add(old_contract)
+        db.session.flush()
+
+        engine = BillingEngine()
+        engine.calculate_for_month(
+            year=renewal_termination_date.year,
+            month=renewal_termination_date.month,
+            contract_id=str(old_contract.id),
+            force_recalculate=True,
+            end_date_override=renewal_termination_date,
+        )
+        db.session.flush()
+
+        last_bill_old_contract = CustomerBill.query.filter_by(
+            contract_id=old_contract.id
+        ).order_by(CustomerBill.cycle_end_date.desc()).first()
+
+        if not last_bill_old_contract:
+            raise ValueError(f"旧合同 {old_contract.id} 未找到最后一期账单，无法转移保证金。")
+
+        self._delete_non_transferable_adjustments(old_contract, last_bill_old_contract)
+
+        transfer_out_adjustment = None
+        for adjustment in last_bill_old_contract.financial_adjustments.all():
+            if (
+                adjustment.adjustment_type == AdjustmentType.CUSTOMER_INCREASE
+                and adjustment.description == "[保证金转出]至续约合同"
+                and adjustment.details
+                and adjustment.details.get("transferred_to_contract_id") == str(renewed_contract.id)
+            ):
+                transfer_out_adjustment = adjustment
+                break
+
+        if transfer_out_adjustment:
+            transfer_out_adjustment.amount = old_contract.security_deposit_paid
+            transfer_out_adjustment.date = renewal_termination_date
+        else:
+            transfer_out_adjustment = FinancialAdjustment(
+                customer_bill_id=last_bill_old_contract.id,
+                adjustment_type=AdjustmentType.CUSTOMER_INCREASE,
+                amount=old_contract.security_deposit_paid,
+                description="[保证金转出]至续约合同",
+                date=renewal_termination_date,
+                details={"transferred_to_contract_id": str(renewed_contract.id)},
+            )
+            db.session.add(transfer_out_adjustment)
+
+        transfer_in_adjustment = FinancialAdjustment.query.filter_by(
+            contract_id=renewed_contract.id,
+            adjustment_type=AdjustmentType.CUSTOMER_DECREASE,
+            description="[从续约前合同转入] 保证金冲抵",
+        ).all()
+
+        matched_transfer_in = None
+        for adjustment in transfer_in_adjustment:
+            if adjustment.details and adjustment.details.get("transferred_from_contract_id") == str(old_contract.id):
+                matched_transfer_in = adjustment
+                break
+
+        if matched_transfer_in:
+            matched_transfer_in.amount = old_contract.security_deposit_paid
+            matched_transfer_in.date = renewed_contract.start_date.date()
+            matched_transfer_in.status = matched_transfer_in.status or "PENDING"
+        else:
+            deposit_adj = FinancialAdjustment(
+                contract_id=renewed_contract.id,
+                adjustment_type=AdjustmentType.CUSTOMER_DECREASE,
+                amount=old_contract.security_deposit_paid,
+                description="[从续约前合同转入] 保证金冲抵",
+                date=renewed_contract.start_date.date(),
+                status="PENDING",
+                details={"transferred_from_contract_id": str(old_contract.id)},
+            )
+            db.session.add(deposit_adj)
+
+        engine.calculate_for_month(
+            year=last_bill_old_contract.year,
+            month=last_bill_old_contract.month,
+            contract_id=last_bill_old_contract.contract_id,
+            force_recalculate=True,
+            cycle_start_date_override=last_bill_old_contract.cycle_start_date,
+        )
+
+    def _delete_future_billing_records(self, contract_id: str, cutoff_date: date) -> None:
+        """
+        删除合同在截止月份之后的未来账单和工资单。
+        用于续约后清理旧自动续约合同已经预生成的未来单据。
+        """
+        cutoff_year = cutoff_date.year
+        cutoff_month = cutoff_date.month
+
+        bills_to_delete_query = CustomerBill.query.with_entities(CustomerBill.id).filter(
+            CustomerBill.contract_id == str(contract_id),
+            ((CustomerBill.year == cutoff_year) & (CustomerBill.month > cutoff_month))
+            | (CustomerBill.year > cutoff_year),
+        )
+        bill_ids_to_delete = [item[0] for item in bills_to_delete_query.all()]
+        if bill_ids_to_delete:
+            FinancialActivityLog.query.filter(
+                FinancialActivityLog.customer_bill_id.in_(bill_ids_to_delete)
+            ).delete(synchronize_session=False)
+            CustomerBill.query.filter(CustomerBill.id.in_(bill_ids_to_delete)).delete(
+                synchronize_session=False
+            )
+
+        payrolls_to_delete_query = EmployeePayroll.query.with_entities(EmployeePayroll.id).filter(
+            EmployeePayroll.contract_id == str(contract_id),
+            ((EmployeePayroll.year == cutoff_year) & (EmployeePayroll.month > cutoff_month))
+            | (EmployeePayroll.year > cutoff_year),
+        )
+        payroll_ids_to_delete = [item[0] for item in payrolls_to_delete_query.all()]
+        if payroll_ids_to_delete:
+            FinancialActivityLog.query.filter(
+                FinancialActivityLog.employee_payroll_id.in_(payroll_ids_to_delete)
+            ).delete(synchronize_session=False)
+            EmployeePayroll.query.filter(
+                EmployeePayroll.id.in_(payroll_ids_to_delete)
+            ).delete(synchronize_session=False)
     def _to_date(self, dt_obj):
         """辅助函数：将 datetime 或 date 转换为 date"""
         if isinstance(dt_obj, datetime):

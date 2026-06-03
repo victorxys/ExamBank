@@ -636,12 +636,21 @@ const ContractDetail = () => {
             templateContent = latestTemplate.content;
         }
 
+        const employeeLevel = parseFloat(contract.employee_level || 0);
+        const managementFeeAmount = parseFloat(contract.management_fee_amount || 0);
+        let managementFeeRate = parseFloat(contract.management_fee_rate || 0);
+        if (!managementFeeRate && employeeLevel > 0 && managementFeeAmount > 0) {
+            managementFeeRate = contract.contract_type_value === 'maternity_nurse'
+                ? managementFeeAmount / (employeeLevel + managementFeeAmount)
+                : managementFeeAmount / employeeLevel;
+        }
+
         setRenewalData({
             start_date: defaultStartDate,
             end_date: defaultEndDate,
             duration_months: approxDurationInMonths, // 使用计算出的近似月数
             employee_level: contract.employee_level || '',
-            management_fee_rate: contract.management_fee_rate || 0,
+            management_fee_rate: managementFeeRate || 0,
             management_fee_amount: contract.management_fee_amount || '',
             transfer_deposit: true,
             template_id: templateId,
