@@ -16,7 +16,7 @@ class ErrorBoundary extends React.Component {
       error: error,
       errorInfo: errorInfo
     });
-    // 这里可以添加错误日志上报逻辑
+    console.error('ErrorBoundary caught an error:', error, errorInfo);
   }
 
   render() {
@@ -39,6 +39,15 @@ class ErrorBoundary extends React.Component {
           <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
             组件加载过程中发生错误，请尝试刷新页面
           </Typography>
+          {import.meta.env.DEV && this.state.error && (
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ mb: 3, maxWidth: 720, whiteSpace: 'pre-wrap', textAlign: 'left' }}
+            >
+              {String(this.state.error?.stack || this.state.error?.message || this.state.error)}
+            </Typography>
+          )}
           <Button
             variant="contained"
             color="primary"

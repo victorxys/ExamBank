@@ -833,6 +833,9 @@ def update_attendance_form(employee_token):
         _, effective_start, effective_end = find_consecutive_contracts(form.employee_id, cycle_start, cycle_end)
         
         result = form_to_dict(form, effective_start, effective_end)
+        cycle_start_date = form.cycle_start_date.date() if isinstance(form.cycle_start_date, datetime) else form.cycle_start_date
+        result['actual_year'] = cycle_start_date.year
+        result['actual_month'] = cycle_start_date.month
         if effective_end is None and result.get('contract_info'):
             result['contract_info']['status'] = 'active'
             result['contract_info']['is_monthly_auto_renew'] = True
@@ -922,6 +925,24 @@ def get_sign_page_data(signature_token):
         form = AttendanceForm.query.filter_by(customer_signature_token=signature_token).first()
         if not form:
             return jsonify({"error": "无效的签署链接"}), 404
+
+        contract_id_param = request.args.get('contractId', type=str)
+        if contract_id_param and str(form.contract_id) != contract_id_param:
+            corrected_form = AttendanceForm.query.filter(
+                AttendanceForm.contract_id == contract_id_param,
+                AttendanceForm.employee_id == form.employee_id,
+                AttendanceForm.cycle_start_date == form.cycle_start_date,
+            ).first()
+            if corrected_form:
+                if not corrected_form.customer_signature_token:
+                    corrected_form.customer_signature_token = str(uuid.uuid4())
+                    db.session.add(corrected_form)
+                    db.session.commit()
+                current_app.logger.info(
+                    f"签署链接合同不匹配，按 contractId 修正考勤表: "
+                    f"token_form={form.id}, corrected_form={corrected_form.id}, contractId={contract_id_param}"
+                )
+                form = corrected_form
             
         # 调用 find_consecutive_contracts 获取合并后的日期范围
         try:
