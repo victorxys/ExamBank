@@ -235,6 +235,7 @@ backend/static/signatures/
 backend/scripts/
 scripts/*
 !scripts/cleanup_renewed_nanny_contract_history.py
+!scripts/normalize_attendance_auto_overtime.py
 commit_message.txt
 
 design_proposals/

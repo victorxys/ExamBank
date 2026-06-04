@@ -1503,21 +1503,22 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
             // 计算该片段可分配的时长
             const maxHoursForGroup = daysCount * 24;
             const hoursForGroup = Math.min(maxHoursForGroup, remainingHours);
+            const totalMinutesForGroup = Math.round(hoursForGroup * 60);
 
             if (hoursForGroup <= 0.01) return; // 忽略忽略不计的时长
 
-            // 构造跨天记录
-            const startTime = '00:00';
+            // 构造跨天记录：从月末往前补齐，零头放在该片段最早一天，最后一天保持补满
+            let startTime = '00:00';
             let endTime = '24:00';
 
-            // 如果该片段的时长不是整天倍数，调整 endTime
+            // 如果该片段的时长不是整天倍数，调整 startTime，而不是 endTime
             if (Math.abs(hoursForGroup - maxHoursForGroup) > 0.01) {
-                // 计算最后一天的截止时间
-                const lastDayDuration = hoursForGroup % 24 || 24;
-                if (Math.abs(lastDayDuration - 24) > 0.01) {
-                    const h = Math.floor(lastDayDuration);
-                    const m = Math.round((lastDayDuration % 1) * 60);
-                    endTime = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+                const missingMinutesOnFirstDay = maxHoursForGroup * 60 - totalMinutesForGroup;
+                if (missingMinutesOnFirstDay > 0) {
+                    const startMinutes = missingMinutesOnFirstDay;
+                    const h = Math.floor(startMinutes / 60);
+                    const m = startMinutes % 60;
+                    startTime = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
                 }
             }
 
@@ -1527,8 +1528,8 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                 type: 'overtime',
                 startTime: startTime,
                 endTime: endTime,
-                hours: Math.floor(hoursForGroup),
-                minutes: Math.round((hoursForGroup % 1) * 60),
+                hours: Math.floor(totalMinutesForGroup / 60),
+                minutes: totalMinutesForGroup % 60,
                 daysOffset: daysCount - 1,
                 is_auto: true // 标记为系统自动补齐的加班，便于下一次计算时实施垃圾回收
             });
@@ -1677,6 +1678,9 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
     let totalWorkDays = 0; // 出勤天数
     let totalLeaveDays = 0; // 请假或休假天数（休息、请假，不含带薪休假）
     let totalOvertimeDays = 0; // 加班天数（单独统计）
+    let totalManualOvertimeDays = 0; // 用户手动填写的加班天数
+    let manualNormalOvertimeDays = 0; // 用户手动填写的普通日加班天数
+    const MAX_WORK_DAYS = 26;
 
     // Calculate leave days (rest, leave) - 【修复】不包含带薪休假
     // 【关键修复】休息和请假不算出勤，需要从出勤天数中扣除
@@ -1732,6 +1736,28 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
     let holidayOvertimeDays = 0; // 假期加班天数
     let normalOvertimeDays = 0;  // 正常加班天数（修复：现在正常加班也算出勤）
     let autoOvertimeDays = 0;    // 【新增】自动补齐的加班天数
+    const legacyAutoOvertimeDates = new Set();
+
+    // 兼容旧数据：早期自动补齐会保存为月末连续的普通加班记录，没有 is_auto 标记。
+    if (Array.isArray(attendanceData.overtime_records)) {
+        const overtimeByDate = new Map(
+            attendanceData.overtime_records
+                .filter(record => {
+                    if (record.is_auto || (record.daysOffset || 0) !== 0) return false;
+                    const hours = (record.hours || 0) + (record.minutes || 0) / 60;
+                    return hours >= 23.99 && record.startTime === '00:00' && record.endTime === '24:00';
+                })
+                .map(record => [record.date, record])
+        );
+        for (let i = monthDays.length - 1; i >= 0; i--) {
+            const dateStr = format(monthDays[i], 'yyyy-MM-dd');
+            if (overtimeByDate.has(dateStr)) {
+                legacyAutoOvertimeDates.add(dateStr);
+            } else {
+                break;
+            }
+        }
+    }
 
     if (Array.isArray(attendanceData.overtime_records)) {
         attendanceData.overtime_records.forEach(record => {
@@ -1775,8 +1801,12 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
 
             const overtimeDays = hoursInCurrentMonth / 24;
 
-            if (record.is_auto) {
+            const isAutoOvertime = record.is_auto || legacyAutoOvertimeDates.has(record.date);
+
+            if (isAutoOvertime) {
                 autoOvertimeDays += overtimeDays;
+            } else {
+                totalManualOvertimeDays += overtimeDays;
             }
 
             // 将连续的多天加班拆分为每天独立判断，确保精准捕捉连续跨度内的真实法定节假日
@@ -1812,14 +1842,15 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                     holidayOvertimeDays += dailyOvertime;
                 } else {
                     normalOvertimeDays += dailyOvertime;
+                    if (!isAutoOvertime) {
+                        manualNormalOvertimeDays += dailyOvertime;
+                    }
                 }
 
                 currentDay = addDays(currentDay, 1);
             }
         });
     }
-
-    totalOvertimeDays = holidayOvertimeDays + normalOvertimeDays;
 
     // 【新增】计算上户天数（上户当月，上户日不计入出勤天数，按整天扣除；下户当月，下户日计作1整天出勤）
     // 上户：无论几点到达，上户日都不算出勤，扣除整整1天
@@ -1870,10 +1901,18 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
     // 公式：出勤天数 = 当月总天数 - 上户天数 + 下户调整 - 休息天数 - 请假天数
     const validDaysCount = monthDays.filter(day => !isDateDisabled(day)).length;
     totalWorkDays = validDaysCount - totalOnboardingDays + offboardingAdjustment - totalLeaveDays;
+    const recalculatedAutoOvertimeDays = Math.max(
+        0,
+        totalWorkDays - MAX_WORK_DAYS - manualNormalOvertimeDays
+    );
+    if (autoOvertimeDays > 0) {
+        autoOvertimeDays = recalculatedAutoOvertimeDays;
+    }
+    const displayAutoOvertimeDays = autoOvertimeDays;
+    totalOvertimeDays = totalManualOvertimeDays + autoOvertimeDays;
 
     // 【关键修复】出勤天数(基本劳务天数)单月最高不超过26天
     // 超过的部分已经在保存时被 autoConvertOvertimeIfNeeded 转换为了 overtime_records
-    const MAX_WORK_DAYS = 26;
     if (totalWorkDays > MAX_WORK_DAYS) {
         totalWorkDays = MAX_WORK_DAYS;
     }
@@ -2009,13 +2048,13 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
             {/* Main Content */}
             <div className="max-w-3xl mx-auto p-1 sm:p-4 space-y-4">
                 {/* 自动补齐加班提示 Banner */}
-                {autoOvertimeDays > 0 && (
+                {displayAutoOvertimeDays > 0 && (
                     <div className="bg-emerald-50 border border-emerald-200/80 rounded-2xl p-4 flex items-start gap-3 shadow-sm transition-all duration-300">
                         <span className="text-lg mt-0.5" role="img" aria-label="info">💡</span>
                         <div className="space-y-1">
                             <h4 className="text-sm font-bold text-emerald-900">考勤折算说明</h4>
                             <p className="text-xs text-emerald-700 leading-relaxed">
-                                本月实际工作出勤已超过 <strong>26天</strong> 上限。超出上限的 <strong>{formatDays(autoOvertimeDays)}</strong> 已由系统依据劳务规则自动折算为加班（从月末往前补齐显示），以便于合规计费和维护您的合理权益。
+                                本月实际工作出勤已超过 <strong>26天</strong> 上限。超出上限的 <strong>{formatDays(displayAutoOvertimeDays)}</strong> 已由系统依据劳务规则自动折算为加班（从月末往前补齐显示），以便于合规计费和维护您的合理权益。
                             </p>
                         </div>
                     </div>
@@ -2225,8 +2264,18 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
 
                                 let timeRangeStr = '';
                                 // 上户/下户：不使用默认时间，未填写时显示"待填写"
-                                const startTime = isOnboardingOrOffboarding ? record.startTime : (record.startTime || '09:00');
-                                const endTime = record.endTime || '18:00';
+                                const normalizeDisplayTime = (time) => {
+                                    if (!time) return time;
+                                    const [rawHours, rawMinutes] = String(time).split(':').map(Number);
+                                    if (!Number.isFinite(rawHours) || !Number.isFinite(rawMinutes)) return time;
+                                    const totalMinutes = rawHours * 60 + rawMinutes;
+                                    if (totalMinutes >= 24 * 60) return '24:00';
+                                    const hours = Math.floor(totalMinutes / 60);
+                                    const minutes = totalMinutes % 60;
+                                    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+                                };
+                                const startTime = normalizeDisplayTime(isOnboardingOrOffboarding ? record.startTime : (record.startTime || '09:00'));
+                                const endTime = normalizeDisplayTime(record.endTime || '18:00');
 
                                 if (isOnboardingOrOffboarding) {
                                     // 上户：显示到达时间（startTime）

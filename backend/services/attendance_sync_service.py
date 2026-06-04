@@ -1,9 +1,147 @@
 from backend.models import db, AttendanceForm, AttendanceRecord, BaseContract
 from backend.services.billing_engine import BillingEngine
 from datetime import datetime, date
+from copy import deepcopy
 import calendar
 from decimal import Decimal, ROUND_HALF_UP
 from flask import current_app
+
+
+def _parse_date(value):
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    return datetime.fromisoformat(str(value)).date()
+
+
+def _record_hours(record):
+    hours = record.get("hours", 0) or 0
+    minutes = record.get("minutes", 0) or 0
+    return Decimal(str(hours)) + Decimal(str(minutes)) / Decimal(60)
+
+
+def _is_full_day_overtime(record):
+    return (
+        record.get("type") == "overtime"
+        and (record.get("daysOffset") or 0) == 0
+        and record.get("startTime") == "00:00"
+        and record.get("endTime") == "24:00"
+        and _record_hours(record) >= Decimal("23.99")
+    )
+
+
+def _is_statutory_holiday(target_date):
+    # 目前自动补齐只需要避免把 5/1、5/2 这类法定假日加班误识别为月末补齐。
+    fixed_holidays = {(1, 1), (5, 1), (5, 2), (5, 3), (10, 1), (10, 2), (10, 3)}
+    return (target_date.month, target_date.day) in fixed_holidays
+
+
+def _calculate_records_days(records):
+    total_days = Decimal(0)
+    for record in records or []:
+        total_days += _record_hours(record) / Decimal(24)
+    return total_days
+
+
+def normalize_auto_overtime_form_data(form):
+    """
+    规范化自动补齐加班数据，避免历史表把月末补齐块按整天入库导致工资多算。
+    返回 (normalized_data, changed)。
+    """
+    data = deepcopy(form.form_data or {})
+    overtime_records = data.get("overtime_records") or []
+    if not overtime_records:
+        return data, False
+
+    cycle_start = _parse_date(form.cycle_start_date)
+    cycle_end = _parse_date(form.cycle_end_date)
+    month_days = [
+        date.fromordinal(day_ordinal)
+        for day_ordinal in range(cycle_start.toordinal(), cycle_end.toordinal() + 1)
+    ]
+
+    overtime_by_date = {}
+    for record in overtime_records:
+        record_date = record.get("date")
+        if record_date and _is_full_day_overtime(record):
+            overtime_by_date[record_date] = record
+
+    legacy_auto_dates = []
+    for day in reversed(month_days):
+        day_str = day.isoformat()
+        if day_str in overtime_by_date and not _is_statutory_holiday(day):
+            legacy_auto_dates.append(day_str)
+        else:
+            break
+
+    existing_auto_records = [r for r in overtime_records if r.get("is_auto")]
+    if not legacy_auto_dates and not existing_auto_records:
+        return data, False
+
+    rest_days = _calculate_records_days(data.get("rest_records", []))
+    leave_days = _calculate_records_days(data.get("leave_records", []))
+    total_leave_days = rest_days + leave_days
+
+    manual_normal_overtime_days = Decimal(0)
+    legacy_auto_date_set = set(legacy_auto_dates)
+    for record in overtime_records:
+        if record.get("is_auto") or record.get("date") in legacy_auto_date_set:
+            continue
+        record_date = _parse_date(record.get("date"))
+        if not _is_statutory_holiday(record_date):
+            manual_normal_overtime_days += _record_hours(record) / Decimal(24)
+
+    valid_days_count = Decimal(len(month_days))
+    total_work_days_before_cap = valid_days_count - total_leave_days
+    auto_overtime_days = total_work_days_before_cap - Decimal("26") - manual_normal_overtime_days
+    if auto_overtime_days <= 0:
+        auto_overtime_days = Decimal(0)
+
+    # 对没有 is_auto 标记的历史数据，只做“降噪/等量规范化”，绝不自动增加加班天数。
+    # 否则可能把真实手填的月末加班误判为自动补齐。
+    legacy_auto_days = Decimal(len(legacy_auto_dates))
+    if legacy_auto_dates and not existing_auto_records and auto_overtime_days > legacy_auto_days:
+        return data, False
+
+    auto_minutes = int((auto_overtime_days * Decimal(24) * Decimal(60)).to_integral_value(rounding=ROUND_HALF_UP))
+    auto_hours = auto_minutes // 60
+    auto_remaining_minutes = auto_minutes % 60
+
+    normalized_overtime = [
+        r for r in overtime_records
+        if not r.get("is_auto") and r.get("date") not in legacy_auto_date_set
+    ]
+
+    if auto_minutes > 0:
+        auto_dates = sorted(legacy_auto_dates)
+        if not auto_dates and existing_auto_records:
+            first_auto = min(existing_auto_records, key=lambda r: r.get("date", "9999-99-99"))
+            first_date = _parse_date(first_auto.get("date"))
+            days_offset = int(existing_auto_records[0].get("daysOffset") or 0)
+            auto_dates = [
+                date.fromordinal(day_ordinal).isoformat()
+                for day_ordinal in range(first_date.toordinal(), first_date.toordinal() + days_offset + 1)
+            ]
+        if auto_dates:
+            max_minutes = len(auto_dates) * 24 * 60
+            missing_minutes_on_first_day = max(0, max_minutes - auto_minutes)
+            start_hour = missing_minutes_on_first_day // 60
+            start_minute = missing_minutes_on_first_day % 60
+            normalized_overtime.append({
+                "date": auto_dates[0],
+                "type": "overtime",
+                "startTime": f"{start_hour:02d}:{start_minute:02d}",
+                "endTime": "24:00",
+                "hours": auto_hours,
+                "minutes": auto_remaining_minutes,
+                "daysOffset": len(auto_dates) - 1,
+                "is_auto": True
+            })
+
+    normalized_overtime.sort(key=lambda r: r.get("date", ""))
+    data["overtime_records"] = normalized_overtime
+    return data, data != (form.form_data or {})
 
 def get_onboarding_time_for_contract(employee_id, contract_id):
     """
@@ -120,7 +258,10 @@ def sync_attendance_to_record(attendance_form_id):
         current_app.logger.error(f"[ATTENDANCE_SYNC] AttendanceForm {attendance_form_id} not found")
         raise ValueError(f"AttendanceForm {attendance_form_id} not found")
         
-    data = form.form_data
+    data, normalized = normalize_auto_overtime_form_data(form)
+    if normalized:
+        form.form_data = data
+        current_app.logger.info(f"[ATTENDANCE_SYNC] 已规范化自动补齐加班数据: form_id={form.id}")
     current_app.logger.debug(f"[ATTENDANCE_SYNC] 表单数据: {data}")
     
     # 1. 辅助函数: 将小时分钟转换为天数 (8小时制? 还是24小时? 通常考勤按工作日计算)
