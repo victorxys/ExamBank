@@ -397,8 +397,8 @@ def sync_attendance_to_record(attendance_form_id):
         # 合同结束日期（如果在当月之前，使用合同结束日期）
         is_monthly_auto_renew = getattr(contract, 'is_monthly_auto_renew', False)
         
-        if is_monthly_auto_renew and contract.status == 'active':
-            # 月签合同（active状态）没有实际固定的结束日期限制
+        if is_monthly_auto_renew and contract.status in ('active', 'pending'):
+            # 月签合同（active/pending状态）没有实际固定的结束日期限制
             contract_end = None
         else:
             contract_end = contract.end_date.date() if getattr(contract, 'end_date', None) and isinstance(contract.end_date, datetime) else getattr(contract, 'end_date', None)
