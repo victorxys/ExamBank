@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request, current_app, render_template, make_response
 from backend.models import db, AttendanceForm, BaseContract, ServicePersonnel, AttendanceRecord, NannyContract
-from backend.services.attendance_sync_service import sync_attendance_to_record
+from backend.services.attendance_sync_service import sync_attendance_to_record, normalize_auto_overtime_form_data
 from backend.services.billing_engine import BillingEngine
 import uuid
 from datetime import datetime, date, timedelta
@@ -124,7 +124,7 @@ def filter_contracts_for_cycle(employee_id, cycle_start, cycle_end):
     统一的合同过滤函数：查找指定周期内有效的合同
     
     过滤规则：
-    1. 月签合同（is_monthly_auto_renew=True 且 status='active'）：不检查 end_date
+    1. 月签合同（is_monthly_auto_renew=True 且 status 为 active/pending）：不检查 end_date
     2. 已终止合同：使用 termination_date 作为实际结束日期
     3. 普通合同：检查 end_date >= cycle_start
     4. 月嫂合同：优先使用 actual_onboarding_date 作为开始日期
@@ -151,7 +151,7 @@ def filter_contracts_for_cycle(employee_id, cycle_start, cycle_end):
         monthly_flag = getattr(c, 'is_monthly_auto_renew', None)
         current_app.logger.info(f"[DEBUG]   - 合同 {c.id}: type={c.type}, status={c.status}, start={c.start_date}, end={c.end_date}, is_monthly_auto_renew={monthly_flag}")
     
-    # 过滤：只保留 end_date >= cycle_start 的合同，或者月签合同（active 状态）
+    # 过滤：只保留 end_date >= cycle_start 的合同，或者月签合同（active/pending 状态）
     contracts = []
     for c in all_contracts:
         # 获取实际开始日期（月嫂合同优先使用 actual_onboarding_date）
@@ -168,7 +168,7 @@ def filter_contracts_for_cycle(employee_id, cycle_start, cycle_end):
         
         # 检查是否是月签合同（育儿嫂合同）
         is_monthly = False
-        if c.type == 'nanny' and c.status == 'active':
+        if c.type == 'nanny' and c.status in ('active', 'pending'):
             # 使用 getattr 获取 is_monthly_auto_renew 属性，默认为 False
             # 注意：getattr 可能返回 None，需要显式转换为 bool
             monthly_flag = getattr(c, 'is_monthly_auto_renew', None)
@@ -184,7 +184,7 @@ def filter_contracts_for_cycle(employee_id, cycle_start, cycle_end):
         else:
             actual_end = end_date
         
-        # 月签合同（active）不检查 end_date
+        # 月签合同（active/pending）不检查 end_date
         if is_monthly:
             contracts.append(c)
             current_app.logger.info(f"  - 月签合同 {c.id}: {actual_start} 到 {c.end_date}, 客户={c.customer_name}, status={c.status}")
@@ -457,9 +457,9 @@ def get_attendance_form_by_token(employee_token):
                 actual_start = target_contract.start_date.date() if isinstance(target_contract.start_date, datetime) else target_contract.start_date
             
             # 获取合同的实际结束日期
-            is_monthly = getattr(target_contract, 'is_monthly_auto_renew', False) and target_contract.status == 'active'
+            is_monthly = getattr(target_contract, 'is_monthly_auto_renew', False) and target_contract.status in ('active', 'pending')
             if is_monthly:
-                # 月签合同（active）没有结束日期限制
+                # 月签合同（active/pending）没有结束日期限制
                 actual_end = None
             elif target_contract.status == 'terminated' and target_contract.termination_date:
                 actual_end = target_contract.termination_date.date() if isinstance(target_contract.termination_date, datetime) else target_contract.termination_date
@@ -752,6 +752,10 @@ def update_attendance_form(employee_token):
         
         if form_data:
             form.form_data = form_data
+            normalized_form_data, normalized = normalize_auto_overtime_form_data(form)
+            if normalized:
+                form.form_data = normalized_form_data
+                form_data = normalized_form_data
             
         # 如果是提交确认
         action = data.get('action')
@@ -1300,16 +1304,16 @@ def get_monthly_attendance_list():
         # 查找所有活跃、已完成或已终止的合同，且合同有效期与指定月份有交集
         # 注意：
         # 1. 对于已终止合同，使用 termination_date 作为结束时间
-        # 2. 对于月签合同（is_monthly_auto_renew=True），如果状态是 active，则忽略 end_date 限制
+        # 2. 对于月签合同（is_monthly_auto_renew=True），如果状态是 active 或 pending，则忽略 end_date 限制
         contracts = BaseContract.query.filter(
             BaseContract.status.in_(['active', 'pending', 'terminated', 'finished', 'completed']),
             BaseContract.start_date <= month_end,
             or_(
-                # 情况1: 月签合同且状态为 active，不检查 end_date（会自动续约）
+                # 情况1: 月签合同且状态为 active/pending，不检查 end_date（会自动续约）
                 and_(
                     BaseContract.type == 'nanny',
                     NannyContract.is_monthly_auto_renew == True,
-                    BaseContract.status == 'active'
+                    BaseContract.status.in_(['active', 'pending'])
                 ),
                 # 情况2: 没有终止日期，使用 end_date 判断
                 and_(BaseContract.termination_date.is_(None), BaseContract.end_date >= month_start),

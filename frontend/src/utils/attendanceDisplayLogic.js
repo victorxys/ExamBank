@@ -34,7 +34,7 @@ export class AttendanceDisplayLogic {
     static _generateCacheKey(targetDateStr, attendanceRecords) {
         // 使用日期和记录的哈希值作为缓存键
         const recordsHash = attendanceRecords
-            .map(r => `${r.date}_${r.type}_${r.startTime}_${r.endTime}_${r.daysOffset}`)
+            .map(r => `${r.date}_${r.type}_${r.startTime}_${r.endTime}_${r.daysOffset}_${r.is_auto ? 'auto' : 'manual'}`)
             .sort()
             .join('|');
         return `${targetDateStr}:${recordsHash}`;
@@ -142,6 +142,10 @@ export class AttendanceDisplayLogic {
         const startDate = new Date(record.date);
         const daysOffset = record.daysOffset || 0;
         
+        // 系统自动补齐的加班记录需要从月末往前标记，覆盖到的日期都显示为“自动补齐”
+        if (record.type === 'overtime' && record.is_auto) {
+            return true;
+        }
         
         // 单天记录：直接显示
         if (daysOffset === 0) {
