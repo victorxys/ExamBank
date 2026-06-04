@@ -633,6 +633,10 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                 ? `/attendance-forms/sign/${realToken}`  // 客户签署模式
                 : `/attendance-forms/by-token/${realToken}`;  // 员工填写模式或管理员查看模式
 
+            if (isCustomerMode && urlParams.contractId) {
+                endpoint += `?contractId=${urlParams.contractId}`;
+            }
+
             // 添加月份参数 (仅员工模式)
             if (!isCustomerMode && year && month) {
                 endpoint += `?year=${year}&month=${month}`;
@@ -784,9 +788,9 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                     } else {
                         // 跨月记录，按天数比例计算（与首页汇总统计逻辑保持一致）
                         const totalDaysSpan = daysOffset + 1;
-                        const比例时长 = totalRecordHours * (daysInCurrentMonth / totalDaysSpan);
-                        hoursInCurrentMonth = Math.floor(比例时长);
-                        minutesInCurrentMonth = Math.round((比例时长 % 1) * 60);
+                        const proratedHours = totalRecordHours * (daysInCurrentMonth / totalDaysSpan);
+                        hoursInCurrentMonth = Math.floor(proratedHours);
+                        minutesInCurrentMonth = Math.round((proratedHours % 1) * 60);
                     }
 
                     allRecords.push({

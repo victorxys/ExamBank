@@ -273,27 +273,9 @@ def get_billing_details_internal(
         if sub_record:
             overtime_days = sub_record.overtime_days or 0
     else:
-        # 优先查找用户填写的考勤记录（家庭合并情况）
-        year = cycle_start.year
-        month = cycle_start.month
-        
-        # 首先查找同一员工在同一月份的用户填写考勤记录
-        month_start = date(year, month, 1)
-        if month < 12:
-            month_end = date(year, month + 1, 1)
-        else:
-            month_end = date(year + 1, 1, 1)
-            
-        attendance_record = AttendanceRecord.query.filter(
-            AttendanceRecord.employee_id == contract.service_personnel_id,
-            AttendanceRecord.cycle_start_date >= month_start,
-            AttendanceRecord.cycle_start_date < month_end,
-            AttendanceRecord.attendance_form_id.isnot(None)  # 有表单ID的是用户填写的
-        ).first()
-        
-        # 如果没有用户填写的记录，尝试精确匹配
-        if not attendance_record:
-            attendance_record = AttendanceRecord.query.filter_by(contract_id=contract.id, cycle_start_date=cycle_start).first()
+        # 月中续约时，同一员工同月会同时服务前后两个合同。这里必须优先取
+        # 当前合同+当前账期的分摊考勤，不能直接复用整月考勤表记录。
+        attendance_record = BillingEngine()._get_or_create_attendance(contract, cycle_start, cycle_end)
         
         if attendance_record:
             overtime_days = attendance_record.overtime_days

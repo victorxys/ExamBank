@@ -366,6 +366,7 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
 
             // 使用员工ID和年月来查找考勤表
             const employeeId = billingDetails?.employee_payroll_details?.employee_id;
+            const contractId = billingDetails?.contract_info?.contract_id;
             
             // 从display_month中解析年月，格式通常是 "2025-11"
             const displayMonth = billingDetails?.display_month;
@@ -392,7 +393,8 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
             const response = await api.get(`/attendance-forms/by-token/${employeeId}`, {
                 params: {
                     year: year,
-                    month: month
+                    month: month,
+                    ...(contractId ? { contractId } : {})
                 }
             });
             
@@ -2211,4 +2213,3 @@ const FinancialManagementModal = ({ open, onClose, billId, onSave, onNavigateToB
 };
 
 export default FinancialManagementModal;
-

@@ -14,6 +14,7 @@ from backend.models import (
     NannyContract,
     MaternityNurseContract,
     NannyTrialContract,
+    AttendanceForm,
     AttendanceRecord,
     CustomerBill,
     EmployeePayroll,
@@ -340,7 +341,13 @@ class BillingEngine:
                 )
             elif contract.type == "nanny":
                 self._calculate_nanny_bill_for_month(
-                    contract, year, month, force_recalculate, actual_work_days_override , end_date_override=end_date_override
+                    contract,
+                    year,
+                    month,
+                    force_recalculate,
+                    actual_work_days_override,
+                    cycle_start_date_override=cycle_start_date_override,
+                    end_date_override=end_date_override,
                 )
             elif contract.type == "nanny_trial":
                 self._calculate_nanny_trial_bill(
@@ -626,7 +633,14 @@ class BillingEngine:
         return refunds
 
     def _calculate_nanny_bill_for_month(
-        self, contract: NannyContract, year: int, month: int, force_recalculate=False ,actual_work_days_override=None, end_date_override=None
+        self,
+        contract: NannyContract,
+        year: int,
+        month: int,
+        force_recalculate=False,
+        actual_work_days_override=None,
+        cycle_start_date_override=None,
+        end_date_override=None,
     ):
         # <--- 在这里增加下面的代码块 --->
         current_app.logger.debug(f"[DEBUG-ENGINE] -> Entering _calculate_nanny_bill_for_month for contract: {contract.id}, status: {contract.status}")
@@ -642,9 +656,15 @@ class BillingEngine:
 
         bill_to_recalculate = None
         if force_recalculate:
-            bill_to_recalculate = CustomerBill.query.filter_by(
-                contract_id=contract.id, year=year, month=month, is_substitute_bill=False
-            ).first()
+            bill_query = CustomerBill.query.filter_by(
+                contract_id=contract.id,
+                year=year,
+                month=month,
+                is_substitute_bill=False,
+            )
+            if cycle_start_date_override:
+                bill_query = bill_query.filter_by(cycle_start_date=cycle_start_date_override)
+            bill_to_recalculate = bill_query.order_by(CustomerBill.cycle_start_date.asc()).first()
 
         if bill_to_recalculate:
             cycle_start = bill_to_recalculate.cycle_start_date
@@ -657,9 +677,6 @@ class BillingEngine:
             return
 
         local_actual_work_days_override = actual_work_days_override
-        if end_date_override and local_actual_work_days_override is None:
-            days = (self._to_date(cycle_end) - self._to_date(cycle_start)).days + 1
-            local_actual_work_days_override = days
         
         bill, payroll = self._get_or_create_bill_and_payroll(contract, year, month, cycle_start, cycle_end)
         if not bill or not payroll:
@@ -669,6 +686,8 @@ class BillingEngine:
         if not force_recalculate and bill.calculation_details and "calculation_log" in bill.calculation_details:
             current_app.logger.info(f"[NannyCALC] 合同 {contract.id} 的账单已存在且无需重算，跳过。")
             return
+
+        self._remove_final_salary_adjustments_after_payroll_transfer(bill, payroll)
 
         # --- 简化为单次计算 ---
         details = self._calculate_nanny_details(contract, bill, payroll, local_actual_work_days_override)
@@ -838,6 +857,9 @@ class BillingEngine:
 
         attendance = self._get_or_create_attendance(contract, cycle_start, cycle_end)
         overtime_days = D(attendance.overtime_days)
+        attendance_details = attendance.attendance_details or {}
+        rest_days = D(str(attendance_details.get("rest_days") or 0))
+        leave_days = D(str(attendance_details.get("leave_days") or 0))
         current_app.logger.info(f"[OVERTIME_DEBUG] AttendanceRecord ID: {attendance.id}, overtime_days from DB: {attendance.overtime_days}, converted to Decimal: {overtime_days}")
 
         # 在这里处理保证金，然后再获取调整项
@@ -892,20 +914,22 @@ class BillingEngine:
 
         is_last_bill = contract_end_date and cycle_end == contract_end_date
 
-        cycle_actual_days = (cycle_end - cycle_start).days
-        if is_last_bill:  # 育儿嫂最后一个月账单天数 +1
-            cycle_actual_days += 1
+        cycle_actual_days = (cycle_end - cycle_start).days + 1
         # 【核心修复】更健壮地判断是否为合同的首月账单
         is_first_bill_of_contract = not db.session.query(CustomerBill.id).filter(
             CustomerBill.contract_id == contract.id,
             CustomerBill.cycle_start_date < bill.cycle_start_date,
             CustomerBill.is_substitute_bill == False
         ).first()
-        if is_first_bill_of_contract:  # 育儿嫂第一个月账单天数 +1
-            cycle_actual_days = (cycle_end - cycle_start).days
+        if is_first_bill_of_contract:
+            cycle_actual_days = (cycle_end - cycle_start).days + 1
         
         # --- NEW LOGIC for actual_work_days ---
         # 优先使用从API传入的覆盖值（来自考勤表）
+        should_recalculate_from_allocated_attendance = bool(
+            attendance_details.get("allocated_from_form_id")
+        )
+
         if actual_work_days_override is not None:
             base_work_days = D(actual_work_days_override)
             reason_parts = [f"使用考勤表中的出勤天数: {actual_work_days_override:.3f}天"]
@@ -928,13 +952,24 @@ class BillingEngine:
             # 同步更新数据库中的字段，确保前端刷新后能看到正确的值
             bill.actual_work_days = actual_work_days_override
             payroll.actual_work_days = actual_work_days_override
-        elif bill.actual_work_days and bill.actual_work_days > 0:
+        elif should_recalculate_from_allocated_attendance:
+            base_work_days = max(D(0), D(min(cycle_actual_days, 26)) - rest_days - leave_days)
+            log_extras["base_work_days_reason"] = (
+                f"按整月考勤表分配到账单周期后计算: "
+                f"min(周期天数({cycle_actual_days}), 26) - 休息({rest_days}) - 请假({leave_days})"
+            )
+            bill.actual_work_days = float(base_work_days)
+            payroll.actual_work_days = float(base_work_days)
+        elif bill.actual_work_days and bill.actual_work_days > 0 and D(bill.actual_work_days) <= D(min(cycle_actual_days, 26)):
             base_work_days = D(bill.actual_work_days)
             log_extras["base_work_days_reason"] = f"使用数据库中已存的出勤天数: {bill.actual_work_days}天"
         else:
             # 回退到旧的计算逻辑（从劳务时间段自动计算）
-            base_work_days = D(min(cycle_actual_days, 26))
-            log_extras["base_work_days_reason"] = f"默认逻辑（从劳务时间段计算）: min(周期天数({cycle_actual_days}), 26)"
+            base_work_days = max(D(0), D(min(cycle_actual_days, 26)) - rest_days - leave_days)
+            log_extras["base_work_days_reason"] = (
+                f"默认逻辑（从劳务时间段计算并扣减考勤）: "
+                f"min(周期天数({cycle_actual_days}), 26) - 休息({rest_days}) - 请假({leave_days})"
+            )
             # 【关键修正】即使使用默认逻辑，也将其保存到数据库字段中，避免前端显示“待计算”
             bill.actual_work_days = float(base_work_days)
             payroll.actual_work_days = float(base_work_days)
@@ -2331,39 +2366,31 @@ class BillingEngine:
             return bill, payroll
 
     def _get_or_create_attendance(self, contract, cycle_start_date, cycle_end_date):
-        # 优先查找用户填写的考勤记录（有attendance_form_id的记录）
+        # 优先精确匹配当前合同和当前周期。月中续约时同一员工同月会有前后两个合同，
+        # 不能先复用整月考勤，否则新合同首期账单会继承错误的实际劳务天数。
         year = cycle_start_date.year
         month = cycle_start_date.month
-        
-        # 1. 首先查找同一员工在同一月份的用户填写考勤记录（优先级最高）
-        next_month_start = date(year, month + 1, 1) if month < 12 else date(year + 1, 1, 1)
-        user_filled_attendance = AttendanceRecord.query.filter(
-            AttendanceRecord.employee_id == contract.service_personnel_id,
-            AttendanceRecord.cycle_start_date >= date(year, month, 1),
-            AttendanceRecord.cycle_start_date < next_month_start,
-            AttendanceRecord.attendance_form_id.isnot(None)  # 有表单ID的是用户填写的
-        ).first()
-        
-        if user_filled_attendance:
-            current_app.logger.info(f"[BILLING] 找到用户填写的考勤记录: {user_filled_attendance.id} (员工: {contract.service_personnel_id}, 月份: {year}-{month:02d}, 出勤天数: {user_filled_attendance.total_days_worked})")
-            return user_filled_attendance
-        
-        # 2. 如果没有用户填写的记录，尝试精确匹配（正常情况）
+
         attendance = AttendanceRecord.query.filter_by(
             contract_id=contract.id, cycle_start_date=cycle_start_date
         ).first()
-        
-        # 3. 如果还没找到，尝试按员工ID和月份查找系统创建的记录
-        if not attendance and contract.service_personnel_id:
-            attendance = AttendanceRecord.query.filter(
-                AttendanceRecord.employee_id == contract.service_personnel_id,
-                AttendanceRecord.cycle_start_date >= date(year, month, 1),
-                AttendanceRecord.cycle_start_date < next_month_start
-            ).first()
-            
-            if attendance:
-                current_app.logger.info(f"[BILLING] 找到系统创建的考勤记录: {attendance.id} (员工: {contract.service_personnel_id}, 月份: {year}-{month:02d})")
-        
+
+        if attendance and attendance.attendance_form_id:
+            signed_form = db.session.get(AttendanceForm, attendance.attendance_form_id)
+            form_start = self._to_date(signed_form.cycle_start_date) if signed_form else None
+            form_end = self._to_date(signed_form.cycle_end_date) if signed_form else None
+            cycle_start = self._to_date(cycle_start_date)
+            cycle_end = self._to_date(cycle_end_date)
+            if signed_form and (form_start != cycle_start or form_end != cycle_end):
+                self._apply_attendance_allocation(attendance, signed_form, cycle_start, cycle_end)
+
+        if not attendance:
+            attendance = self._build_attendance_from_monthly_form(
+                contract,
+                cycle_start_date,
+                cycle_end_date,
+            )
+
         if not attendance:
             employee_id = contract.service_personnel_id
             if not employee_id:
@@ -2373,7 +2400,7 @@ class BillingEngine:
             if contract.type == "maternity_nurse":
                 default_work_days = 26
             elif contract.type == "nanny":
-                default_work_days = min((cycle_end_date - cycle_start_date).days, 26)
+                default_work_days = min((cycle_end_date - cycle_start_date).days + 1, 26)
 
             attendance = AttendanceRecord(
                 employee_id=employee_id,
@@ -2387,6 +2414,115 @@ class BillingEngine:
             db.session.add(attendance)
             db.session.flush()
         return attendance
+
+    def _build_attendance_from_monthly_form(self, contract, cycle_start_date, cycle_end_date):
+        if not contract.service_personnel_id:
+            return None
+
+        cycle_start = self._to_date(cycle_start_date)
+        cycle_end = self._to_date(cycle_end_date)
+        if not cycle_start or not cycle_end:
+            return None
+
+        month_start = date(cycle_start.year, cycle_start.month, 1)
+        next_month_start = (
+            date(cycle_start.year + 1, 1, 1)
+            if cycle_start.month == 12
+            else date(cycle_start.year, cycle_start.month + 1, 1)
+        )
+
+        candidate_forms = AttendanceForm.query.filter(
+            AttendanceForm.employee_id == contract.service_personnel_id,
+            AttendanceForm.cycle_start_date >= month_start,
+            AttendanceForm.cycle_start_date < next_month_start,
+            AttendanceForm.status.in_(["customer_signed", "synced"]),
+        ).order_by(AttendanceForm.updated_at.desc().nullslast(), AttendanceForm.created_at.desc()).all()
+
+        def same_family_or_customer(form):
+            form_contract = form.contract
+            if not form_contract:
+                return False
+            if str(form_contract.id) == str(contract.id):
+                return True
+            if contract.family_id and form_contract.family_id:
+                return form_contract.family_id == contract.family_id
+            if contract.customer_id and form_contract.customer_id:
+                return str(form_contract.customer_id) == str(contract.customer_id)
+            return bool(contract.customer_name and form_contract.customer_name == contract.customer_name)
+
+        signed_form = next((form for form in candidate_forms if same_family_or_customer(form)), None)
+        if not signed_form or not signed_form.form_data:
+            return None
+
+        attendance = AttendanceRecord(
+            employee_id=contract.service_personnel_id,
+            contract_id=contract.id,
+            cycle_start_date=cycle_start_date,
+            cycle_end_date=cycle_end_date,
+            total_days_worked=0,
+            statutory_holiday_days=0,
+            attendance_form_id=signed_form.id,
+        )
+        db.session.add(attendance)
+        self._apply_attendance_allocation(attendance, signed_form, cycle_start, cycle_end)
+        db.session.flush()
+        return attendance
+
+    def _attendance_days_in_cycle(self, records, cycle_start, cycle_end):
+        total = D(0)
+        for record in records or []:
+            record_date = record.get("date")
+            if not record_date:
+                continue
+            record_start = self._to_date(datetime.fromisoformat(record_date))
+            if not record_start:
+                continue
+            days_offset = int(record.get("daysOffset") or 0)
+            record_end = record_start + timedelta(days=days_offset)
+            overlap_start = max(record_start, cycle_start)
+            overlap_end = min(record_end, cycle_end)
+            if overlap_start > overlap_end:
+                continue
+
+            span_days = D(days_offset + 1)
+            overlap_days = D((overlap_end - overlap_start).days + 1)
+            hours = D(str(record.get("hours") or 0))
+            minutes = D(str(record.get("minutes") or 0))
+            total_hours = hours + minutes / D(60)
+            record_days = total_hours / D(24)
+            if span_days > 0:
+                total += record_days * overlap_days / span_days
+        return total.quantize(D("0.001"))
+
+    def _apply_attendance_allocation(self, attendance, signed_form, cycle_start, cycle_end):
+        form_data = signed_form.form_data or {}
+        rest_days = self._attendance_days_in_cycle(form_data.get("rest_records"), cycle_start, cycle_end)
+        leave_days = self._attendance_days_in_cycle(form_data.get("leave_records"), cycle_start, cycle_end)
+        overtime_days = self._attendance_days_in_cycle(form_data.get("overtime_records"), cycle_start, cycle_end)
+        out_of_beijing_days = self._attendance_days_in_cycle(form_data.get("out_of_beijing_records"), cycle_start, cycle_end)
+        out_of_country_days = self._attendance_days_in_cycle(form_data.get("out_of_country_records"), cycle_start, cycle_end)
+
+        details = dict(attendance.attendance_details or {})
+        details.update({
+            "rest_days": float(rest_days),
+            "leave_days": float(leave_days),
+            "overtime_days": float(overtime_days),
+            "out_of_beijing_days": float(out_of_beijing_days),
+            "out_of_country_days": float(out_of_country_days),
+            "raw_data": form_data,
+            "allocated_from_form_id": str(signed_form.id),
+            "allocated_cycle_start_date": cycle_start.isoformat(),
+            "allocated_cycle_end_date": cycle_end.isoformat(),
+        })
+        attendance.overtime_days = overtime_days
+        attendance.out_of_beijing_days = out_of_beijing_days
+        attendance.out_of_country_days = out_of_country_days
+        attendance.attendance_details = details
+        db.session.add(attendance)
+        current_app.logger.info(
+            f"[BILLING] 从整月考勤表 {signed_form.id} 按账单周期 {cycle_start}~{cycle_end} "
+            f"分配考勤: rest={rest_days}, leave={leave_days}, overtime={overtime_days}"
+        )
 
     def _get_adjustments(self, bill_id, payroll_id):
         customer_adjustments = FinancialAdjustment.query.filter_by(
@@ -3067,15 +3203,25 @@ class BillingEngine:
         为给定的最后一个月账单创建“公司代付工资”及其镜像调整项。
         此函数是幂等的：如果调整项已存在，它会检查并更新金额；如果不存在，则创建。
         """
-        from backend.services.contract_service import _find_successor_contract_internal
         bill = db.session.get(CustomerBill, bill_id)
-        if _find_successor_contract_internal(bill.contract_id):
-            current_app.logger.info(
-                f"合同 {bill.contract_id} 存在后续合同，跳过最终薪资结算调整项的创建。"
-            )
-            return
         if not bill:
             current_app.logger.error(f"[FinalAdj] 找不到账单ID: {bill_id}")
+            return
+        if self._has_payroll_transfer_to_successor(bill):
+            current_app.logger.info(
+                f"账单 {bill.id} 的员工工资已转移至后继合同，跳过最终薪资结算调整项的创建。"
+            )
+            if self._remove_final_salary_adjustments_after_payroll_transfer(bill):
+                payroll = EmployeePayroll.query.filter_by(
+                    contract_id=bill.contract_id,
+                    cycle_start_date=bill.cycle_start_date,
+                    is_substitute_payroll=bill.is_substitute_bill,
+                ).first()
+                if payroll:
+                    details = self._calculate_nanny_details(bill.contract, bill, payroll, bill.actual_work_days)
+                    final_bill, final_payroll = self._calculate_final_amounts(bill, payroll, details)
+                    log = self._create_calculation_log(details)
+                    self._update_bill_with_log(final_bill, final_payroll, details, log)
             return
 
         contract = bill.contract
@@ -3199,6 +3345,88 @@ class BillingEngine:
             db.session.flush()
             company_adj.mirrored_adjustment_id = new_adj.id
             db.session.add(company_adj)
+
+    def _remove_final_salary_adjustments_after_payroll_transfer(self, bill: CustomerBill, payroll: EmployeePayroll | None = None):
+        """
+        当员工工资已经转移到后继合同首期时，源合同当期不应再保留
+        普通合同结束才使用的“公司代付工资/保证金支付工资”。
+        """
+        if not bill:
+            return False
+
+        if not self._has_payroll_transfer_to_successor(bill, payroll):
+            return False
+
+        if payroll is None:
+            payroll = EmployeePayroll.query.filter_by(
+                contract_id=bill.contract_id,
+                cycle_start_date=bill.cycle_start_date,
+                is_substitute_payroll=bill.is_substitute_bill,
+            ).first()
+
+        adjustment_was_deleted = False
+        company_paid_adjustments = FinancialAdjustment.query.filter(
+            FinancialAdjustment.customer_bill_id == bill.id,
+            FinancialAdjustment.adjustment_type == AdjustmentType.COMPANY_PAID_SALARY,
+        ).all()
+        for adjustment in company_paid_adjustments:
+            if adjustment.mirrored_adjustment:
+                db.session.delete(adjustment.mirrored_adjustment)
+            db.session.delete(adjustment)
+            adjustment_was_deleted = True
+
+        if payroll:
+            deposit_paid_adjustments = FinancialAdjustment.query.filter(
+                FinancialAdjustment.employee_payroll_id == payroll.id,
+                FinancialAdjustment.adjustment_type == AdjustmentType.DEPOSIT_PAID_SALARY,
+            ).all()
+            for adjustment in deposit_paid_adjustments:
+                db.session.delete(adjustment)
+                adjustment_was_deleted = True
+
+        if adjustment_was_deleted:
+            current_app.logger.info(
+                f"[SuccessorPayrollTransferFinalAdj] 账单 {bill.id} 的员工工资已转移到后继合同，已清理"
+                "上的公司代付工资/保证金支付工资调整项。"
+            )
+            db.session.flush()
+        return adjustment_was_deleted
+
+    def _has_payroll_transfer_to_successor(self, bill: CustomerBill, payroll: EmployeePayroll | None = None) -> bool:
+        """
+        只有源工资单已明确把员工待付工资转到后继合同首期时，才认为该账单不应再有公司代付工资。
+        这避免误伤“换员工/月底变更只转保证金”的真实终止场景。
+        """
+        if not bill:
+            return False
+
+        from backend.services.contract_service import _find_successor_contract_internal
+        successor = _find_successor_contract_internal(str(bill.contract_id))
+        if not successor:
+            return False
+
+        if payroll is None:
+            payroll = EmployeePayroll.query.filter_by(
+                contract_id=bill.contract_id,
+                cycle_start_date=bill.cycle_start_date,
+                is_substitute_payroll=bill.is_substitute_bill,
+            ).first()
+        if not payroll:
+            return False
+
+        successor_first_bill = CustomerBill.query.filter_by(
+            contract_id=successor.id,
+            is_substitute_bill=False,
+        ).order_by(CustomerBill.cycle_start_date.asc()).first()
+
+        query = FinancialAdjustment.query.filter(
+            FinancialAdjustment.employee_payroll_id == payroll.id,
+            FinancialAdjustment.adjustment_type == AdjustmentType.EMPLOYEE_BALANCE_TRANSFER,
+            FinancialAdjustment.description.contains("员工待付工资转移至"),
+        )
+        if successor_first_bill:
+            query = query.filter(FinancialAdjustment.details["linked_bill_id"].astext == str(successor_first_bill.id))
+        return db.session.query(query.exists()).scalar()
     
     def process_trial_conversion(self, trial_contract_id: str, formal_contract_id: str,operator_id: str, conversion_costs: dict = None):
         """
