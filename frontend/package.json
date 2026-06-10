@@ -27,7 +27,7 @@
     "@radix-ui/react-toast": "^1.2.15",
     "antd-mobile": "^5.41.1",
     "apexcharts": "^5.3.3",
-    "axios": "^1.7.9",
+    "axios": "^1.16.0",
     "chart.js": "^4.5.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
