@@ -1,0 +1,9 @@
+.bind-tip {
+  margin-top: 20rpx;
+  padding: 18rpx 20rpx;
+  border-radius: 12rpx;
+  background: rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 24rpx;
+  line-height: 36rpx;
+}

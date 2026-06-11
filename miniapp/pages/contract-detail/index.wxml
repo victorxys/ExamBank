@@ -1,0 +1,134 @@
+<view class="page">
+  <view class="hero">
+    <view class="hero-head">
+      <view class="logo-box"><image class="logo" src="/assets/logo.png" mode="aspectFit" /></view>
+      <view class="hero-copy">
+        <view class="hero-title">{{contract.type_label || '合同详情'}}</view>
+        <view class="hero-desc">{{contract.employee_name || '服务人员'}} · {{contract.status_text || ''}}</view>
+      </view>
+    </view>
+    <view class="date-range">{{contract.date_range}}</view>
+  </view>
+
+  <view class="card">
+    <view class="section-title no-margin">合同信息</view>
+    <view class="row"><text class="row-label">客户</text><text class="row-value">{{contract.customer_name || '-'}}</text></view>
+    <view class="row"><text class="row-label">服务人员</text><text class="row-value">{{contract.employee_name || '-'}}</text></view>
+    <view class="row"><text class="row-label">劳务报酬</text><text class="row-value">{{contract.employee_level_text}}</text></view>
+    <view class="row"><text class="row-label">管理费</text><text class="row-value">{{contract.management_fee_text}}</text></view>
+    <view class="row"><text class="row-label">签署状态</text><text class="row-value">{{contract.signing_status_text}}</text></view>
+  </view>
+
+  <view wx:if="{{(role === 'customer' && hasCustomerActions) || (role === 'employee' && hasEmployeeActions)}}" class="card actions-card">
+    <view class="section-title no-margin">待处理提示</view>
+    <view wx:if="{{role === 'customer' && hasCustomerActions}}" class="notice-list">
+      <view wx:if="{{canCustomerSign}}" class="notice-panel warning">
+        <view class="notice-main">
+          <view class="notice-kicker">合同尚未签署</view>
+          <view class="notice-title">当前合同需要您确认并完成签署</view>
+          <view class="notice-desc">签署后可继续在小程序中查看履约、考勤确认和服务评价记录。</view>
+        </view>
+        <button class="notice-btn primary" bindtap="goContractSign">签署合同</button>
+      </view>
+      <view
+        wx:for="{{pendingAttendanceForms}}"
+        wx:key="id"
+        class="notice-panel"
+      >
+        <view class="notice-main">
+          <view class="notice-kicker">考勤表未签署</view>
+          <view class="notice-title">当前有{{item.year || ''}}年{{item.month || ''}}月考勤表需要您确认</view>
+          <view class="notice-desc">请在下方“考勤记录”中查看出勤、加班、休假汇总后完成签署。</view>
+        </view>
+        <button
+          class="notice-btn primary"
+          data-token="{{item.customer_signature_token}}"
+          bindtap="goAttendanceSign"
+        >查看考勤记录</button>
+      </view>
+      <view wx:if="{{canEvaluate}}" class="notice-panel">
+        <view class="notice-main">
+          <view class="notice-kicker">服务待评价</view>
+          <view class="notice-title">可以评价本合同的服务人员</view>
+          <view class="notice-desc">评价会帮助运营继续跟进服务质量。</view>
+        </view>
+        <button class="notice-btn primary" bindtap="goEvaluation">去评价</button>
+      </view>
+    </view>
+    <view wx:if="{{role === 'employee' && hasEmployeeActions}}" class="notice-list">
+      <view wx:if="{{canEmployeeSign}}" class="notice-panel warning">
+        <view class="notice-main">
+          <view class="notice-kicker">合同尚未签署</view>
+          <view class="notice-title">当前合同需要您确认并完成签署</view>
+          <view class="notice-desc">签署后可继续在小程序中填写考勤，并分享给客户确认。</view>
+        </view>
+        <button class="notice-btn primary" bindtap="goContractSign">签署合同</button>
+      </view>
+    </view>
+    <view wx:if="{{role === 'customer' && contract.evaluation_count}}" class="hint-line">已有 {{contract.evaluation_count}} 条评价记录。</view>
+  </view>
+
+  <view wx:if="{{role === 'customer'}}" class="card">
+    <view class="section-title no-margin">考勤记录</view>
+    <view wx:if="{{attendanceForms.length === 0}}" class="empty-line">暂无考勤记录</view>
+    <view wx:for="{{attendanceForms}}" wx:key="id" class="attendance-record-card" bindtap="goAttendanceSign" data-token="{{item.customer_signature_token}}">
+      <view class="attendance-record-head">
+        <view class="record-main">
+          <view class="record-title">{{item.year || ''}}年{{item.month || ''}}月考勤</view>
+          <view class="record-desc">{{item.date_range}}</view>
+        </view>
+        <view class="record-status {{item.status_class}}">{{item.status_badge_text}}</view>
+      </view>
+      <view class="attendance-mini-stats">
+        <view class="mini-stat work">
+          <view class="mini-stat-value">{{item.work_days_text}}</view>
+          <view class="mini-stat-label">出勤</view>
+        </view>
+        <view class="mini-stat overtime">
+          <view class="mini-stat-value">{{item.overtime_text}}</view>
+          <view class="mini-stat-label">加班</view>
+        </view>
+        <view class="mini-stat leave">
+          <view class="mini-stat-value">{{item.leave_days_text}}</view>
+          <view class="mini-stat-label">休假</view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{role === 'customer'}}" class="card">
+    <view class="section-title-row">
+      <view class="section-title no-margin">评价记录</view>
+      <view wx:if="{{canEvaluationEntry}}" class="eval-entry-link" bindtap="goEvaluation">{{evaluationEntryText}}</view>
+    </view>
+    <view wx:if="{{evaluations.length === 0}}" class="empty-line">暂无评价记录</view>
+    <view wx:for="{{evaluations}}" wx:key="id" class="record-item">
+      <view class="record-main">
+        <view class="record-title">{{item.rating_text}}</view>
+        <view class="record-desc">{{item.summary_text}}</view>
+      </view>
+      <view class="record-status">{{item.created_at_text}}</view>
+    </view>
+  </view>
+
+  <view class="card">
+    <view class="section-title no-margin">合同正文</view>
+    <scroll-view scroll-y class="text-block md-block">
+      <rich-text nodes="{{markdownNodes}}"></rich-text>
+    </scroll-view>
+  </view>
+
+  <view class="card" wx:if="{{contract.customer_signature_image}}">
+    <view class="section-title no-margin">客户签字</view>
+    <view class="signature-preview">
+      <image class="signature-image" src="{{contract.customer_signature_image}}" mode="aspectFit" />
+    </view>
+  </view>
+
+  <view class="card" wx:if="{{contract.employee_signature_image}}">
+    <view class="section-title no-margin">员工签字</view>
+    <view class="signature-preview">
+      <image class="signature-image" src="{{contract.employee_signature_image}}" mode="aspectFit" />
+    </view>
+  </view>
+</view>

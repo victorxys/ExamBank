@@ -825,6 +825,394 @@ class Customer(db.Model):
         return f'<Customer {self.name}>'
 
 
+class CustomerWechatAccount(db.Model):
+    __tablename__ = "customer_wechat_accounts"
+    __table_args__ = (
+        db.UniqueConstraint("mini_openid", name="uq_customer_wechat_accounts_mini_openid"),
+        db.Index("ix_customer_wechat_accounts_customer_id", "customer_id"),
+        {"comment": "客户小程序微信身份绑定表"},
+    )
+
+    id = db.Column(
+        PG_UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+        comment="主键",
+    )
+    customer_id = db.Column(
+        PG_UUID(as_uuid=True),
+        db.ForeignKey("customer.id", ondelete="CASCADE"),
+        nullable=False,
+        comment="关联客户ID",
+    )
+    mini_openid = db.Column(
+        db.String(100),
+        nullable=False,
+        comment="微信小程序openid",
+    )
+    unionid = db.Column(
+        db.String(100),
+        nullable=True,
+        index=True,
+        comment="微信开放平台unionid",
+    )
+    phone_number = db.Column(db.String(20), nullable=True, comment="绑定手机号")
+    bind_method = db.Column(
+        db.String(50),
+        nullable=False,
+        default="contract_sign",
+        server_default="contract_sign",
+        comment="绑定方式: contract_sign/phone_verify/admin/dev_mock",
+    )
+    verified_at = db.Column(
+        db.DateTime(timezone=True),
+        server_default=func.now(),
+        comment="绑定验证时间",
+    )
+    last_login_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=True,
+        comment="最后登录时间",
+    )
+    created_at = db.Column(
+        db.DateTime(timezone=True),
+        server_default=func.now(),
+        comment="创建时间",
+    )
+    updated_at = db.Column(
+        db.DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        comment="更新时间",
+    )
+
+    customer = db.relationship(
+        "Customer",
+        backref=db.backref("wechat_accounts", lazy="dynamic", cascade="all, delete-orphan"),
+    )
+
+    def __repr__(self):
+        return f"<CustomerWechatAccount {self.mini_openid} -> {self.customer_id}>"
+
+
+class EmployeeWechatAccount(db.Model):
+    __tablename__ = "employee_wechat_accounts"
+    __table_args__ = (
+        db.UniqueConstraint("mini_openid", name="uq_employee_wechat_accounts_mini_openid"),
+        db.Index("ix_employee_wechat_accounts_employee_id", "employee_id"),
+        {"comment": "服务人员小程序微信身份绑定表"},
+    )
+
+    id = db.Column(
+        PG_UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+        comment="主键",
+    )
+    employee_id = db.Column(
+        PG_UUID(as_uuid=True),
+        db.ForeignKey("service_personnel.id", ondelete="CASCADE"),
+        nullable=False,
+        comment="关联服务人员ID",
+    )
+    mini_openid = db.Column(
+        db.String(100),
+        nullable=False,
+        comment="微信小程序openid",
+    )
+    unionid = db.Column(
+        db.String(100),
+        nullable=True,
+        index=True,
+        comment="微信开放平台unionid",
+    )
+    phone_number = db.Column(db.String(20), nullable=True, comment="绑定手机号")
+    bind_method = db.Column(
+        db.String(50),
+        nullable=False,
+        default="phone_id_card_verify",
+        server_default="phone_id_card_verify",
+        comment="绑定方式: phone_id_card_verify/contract_sign/admin/dev_mock",
+    )
+    verified_at = db.Column(
+        db.DateTime(timezone=True),
+        server_default=func.now(),
+        comment="绑定验证时间",
+    )
+    last_login_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=True,
+        comment="最后登录时间",
+    )
+    created_at = db.Column(
+        db.DateTime(timezone=True),
+        server_default=func.now(),
+        comment="创建时间",
+    )
+    updated_at = db.Column(
+        db.DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        comment="更新时间",
+    )
+
+    employee = db.relationship(
+        "ServicePersonnel",
+        backref=db.backref("miniapp_wechat_accounts", lazy="dynamic", cascade="all, delete-orphan"),
+    )
+
+    def __repr__(self):
+        return f"<EmployeeWechatAccount {self.mini_openid} -> {self.employee_id}>"
+
+
+class MiniappContractAccess(db.Model):
+    __tablename__ = "miniapp_contract_access"
+    __table_args__ = (
+        db.UniqueConstraint(
+            "mini_openid",
+            "contract_id",
+            "relation_type",
+            name="uq_miniapp_contract_access_relation",
+        ),
+        db.Index("ix_miniapp_contract_access_openid", "mini_openid"),
+        db.Index("ix_miniapp_contract_access_contract_id", "contract_id"),
+        db.Index("ix_miniapp_contract_access_customer_id", "customer_id"),
+        {"comment": "小程序微信身份与合同的授权关系表"},
+    )
+
+    id = db.Column(
+        PG_UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+        comment="主键",
+    )
+    mini_openid = db.Column(
+        db.String(100),
+        nullable=False,
+        comment="微信小程序openid",
+    )
+    contract_id = db.Column(
+        PG_UUID(as_uuid=True),
+        db.ForeignKey("contracts.id", ondelete="CASCADE"),
+        nullable=False,
+        comment="关联合同ID",
+    )
+    customer_id = db.Column(
+        PG_UUID(as_uuid=True),
+        db.ForeignKey("customer.id", ondelete="SET NULL"),
+        nullable=True,
+        comment="合同客户ID快照",
+    )
+    relation_type = db.Column(
+        db.String(50),
+        nullable=False,
+        default="contract_signer",
+        server_default="contract_signer",
+        comment="关系类型: contract_signer/attendance_signer/evaluation_submitter/manual_grant",
+    )
+    source_token = db.Column(
+        db.String(255),
+        nullable=True,
+        index=True,
+        comment="产生关系的分享或签署token",
+    )
+    verified_phone = db.Column(
+        db.String(20),
+        nullable=True,
+        comment="认证使用的手机号",
+    )
+    verified_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=True,
+        comment="认证或授权时间",
+    )
+    last_used_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=True,
+        comment="最后使用时间",
+    )
+    created_at = db.Column(
+        db.DateTime(timezone=True),
+        server_default=func.now(),
+        comment="创建时间",
+    )
+    updated_at = db.Column(
+        db.DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        comment="更新时间",
+    )
+
+    contract = db.relationship(
+        "BaseContract",
+        backref=db.backref("miniapp_accesses", lazy="dynamic", cascade="all, delete-orphan"),
+    )
+    customer = db.relationship(
+        "Customer",
+        backref=db.backref("miniapp_contract_accesses", lazy="dynamic"),
+    )
+
+    def __repr__(self):
+        return f"<MiniappContractAccess {self.mini_openid} -> {self.contract_id} ({self.relation_type})>"
+
+
+class MiniappContractEvaluation(db.Model):
+    __tablename__ = "miniapp_contract_evaluations"
+    __table_args__ = (
+        db.UniqueConstraint(
+            "mini_openid",
+            "contract_id",
+            name="uq_miniapp_contract_evaluation_openid_contract",
+        ),
+        db.Index("ix_miniapp_contract_evaluation_contract_id", "contract_id"),
+        db.Index("ix_miniapp_contract_evaluation_employee_id", "employee_id"),
+        db.Index("ix_miniapp_contract_evaluation_customer_id", "customer_id"),
+        {"comment": "小程序合同级客户评价表"},
+    )
+
+    id = db.Column(
+        PG_UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+        comment="主键",
+    )
+    mini_openid = db.Column(
+        db.String(100),
+        nullable=False,
+        comment="微信小程序openid",
+    )
+    contract_id = db.Column(
+        PG_UUID(as_uuid=True),
+        db.ForeignKey("contracts.id", ondelete="CASCADE"),
+        nullable=False,
+        comment="关联合同ID",
+    )
+    customer_id = db.Column(
+        PG_UUID(as_uuid=True),
+        db.ForeignKey("customer.id", ondelete="SET NULL"),
+        nullable=True,
+        comment="合同客户ID快照",
+    )
+    employee_id = db.Column(
+        PG_UUID(as_uuid=True),
+        db.ForeignKey("service_personnel.id", ondelete="SET NULL"),
+        nullable=True,
+        comment="被评价服务人员ID",
+    )
+    rating = db.Column(db.Integer, nullable=False, comment="总体评分，1-5星")
+    tags = db.Column(PG_JSONB, nullable=True, comment="评价标签")
+    comment = db.Column(db.Text, nullable=True, comment="文字评价")
+    source_token = db.Column(
+        db.String(255),
+        nullable=True,
+        index=True,
+        comment="产生评价的分享token或来源",
+    )
+    created_at = db.Column(
+        db.DateTime(timezone=True),
+        server_default=func.now(),
+        comment="创建时间",
+    )
+    updated_at = db.Column(
+        db.DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        comment="更新时间",
+    )
+
+    contract = db.relationship(
+        "BaseContract",
+        backref=db.backref("miniapp_evaluations", lazy="dynamic", cascade="all, delete-orphan"),
+    )
+    customer = db.relationship(
+        "Customer",
+        backref=db.backref("miniapp_contract_evaluations", lazy="dynamic"),
+    )
+    employee = db.relationship(
+        "ServicePersonnel",
+        backref=db.backref("miniapp_contract_evaluations", lazy="dynamic"),
+    )
+
+    def __repr__(self):
+        return f"<MiniappContractEvaluation {self.mini_openid} -> {self.contract_id} ({self.rating})>"
+
+
+class MiniappContractExitSummary(db.Model):
+    __tablename__ = "miniapp_contract_exit_summaries"
+    __table_args__ = (
+        db.UniqueConstraint(
+            "contract_id",
+            "employee_id",
+            name="uq_miniapp_contract_exit_summary_contract_employee",
+        ),
+        db.Index("ix_miniapp_contract_exit_summary_contract_id", "contract_id"),
+        db.Index("ix_miniapp_contract_exit_summary_employee_id", "employee_id"),
+        db.Index("ix_miniapp_contract_exit_summary_openid", "mini_openid"),
+        {"comment": "小程序合同级下户总结表"},
+    )
+
+    id = db.Column(
+        PG_UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+        comment="主键",
+    )
+    contract_id = db.Column(
+        PG_UUID(as_uuid=True),
+        db.ForeignKey("contracts.id", ondelete="CASCADE"),
+        nullable=False,
+        comment="关联合同ID",
+    )
+    employee_id = db.Column(
+        PG_UUID(as_uuid=True),
+        db.ForeignKey("service_personnel.id", ondelete="SET NULL"),
+        nullable=True,
+        comment="填写下户总结的服务人员ID",
+    )
+    customer_id = db.Column(
+        PG_UUID(as_uuid=True),
+        db.ForeignKey("customer.id", ondelete="SET NULL"),
+        nullable=True,
+        comment="合同客户ID快照",
+    )
+    mini_openid = db.Column(
+        db.String(100),
+        nullable=False,
+        comment="填写人的微信小程序openid",
+    )
+    exit_date = db.Column(db.Date, nullable=True, comment="下户日期")
+    learned = db.Column(db.Text, nullable=True, comment="服务中的经验与亮点")
+    improved = db.Column(db.Text, nullable=True, comment="后续可改进事项")
+    data = db.Column(PG_JSONB, nullable=True, comment="扩展数据快照")
+    created_at = db.Column(
+        db.DateTime(timezone=True),
+        server_default=func.now(),
+        comment="创建时间",
+    )
+    updated_at = db.Column(
+        db.DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        comment="更新时间",
+    )
+
+    contract = db.relationship(
+        "BaseContract",
+        backref=db.backref("miniapp_exit_summaries", lazy="dynamic", cascade="all, delete-orphan"),
+    )
+    employee = db.relationship(
+        "ServicePersonnel",
+        backref=db.backref("miniapp_exit_summaries", lazy="dynamic"),
+    )
+    customer = db.relationship(
+        "Customer",
+        backref=db.backref("miniapp_exit_summaries", lazy="dynamic"),
+    )
+
+    def __repr__(self):
+        return f"<MiniappContractExitSummary {self.contract_id} by {self.employee_id}>"
+
+
 class EmployeeSelfEvaluation(db.Model):
     __tablename__ = "employee_self_evaluation"
     __table_args__ = {"comment": "员工自评表"}
@@ -3683,7 +4071,3 @@ class SystemSetting(db.Model):
             "description": self.description,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None
         }
-
-
-
-

@@ -1,0 +1,91 @@
+<view class="page evaluation-page">
+  <view class="eval-hero">
+    <view class="hero-head">
+      <view class="logo-box"><image class="logo" src="/assets/logo.png" mode="aspectFit" /></view>
+      <view class="hero-copy">
+        <view class="hero-title">服务评价</view>
+        <view class="hero-desc">{{contract.employee_name || '服务人员'}} · {{contract.date_range || ''}}</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="summary-card">
+    <view class="summary-main">
+      <view class="summary-label">本次评价对象</view>
+      <view class="summary-title">{{contract.employee_name || '服务人员'}}</view>
+      <view class="summary-desc">{{contract.type_label || '服务合同'}} · {{contract.status_text || ''}}</view>
+    </view>
+    <view class="summary-score">
+      <text class="summary-score-num">{{rating}}</text>
+      <text class="summary-score-unit">星</text>
+    </view>
+  </view>
+
+  <view class="form-card rating-card">
+    <view class="card-head">
+      <view>
+        <view class="section-title no-margin">总体评价</view>
+        <view class="section-desc">点击星星选择满意程度</view>
+      </view>
+      <view class="rating-pill">{{ratingLabel}}</view>
+    </view>
+    <view class="star-row compact">
+      <block wx:for="{{starItems}}" wx:key="value">
+        <button class="{{item.className}}" data-value="{{item.value}}" bindtap="setRating">{{item.text}}</button>
+      </block>
+    </view>
+  </view>
+
+  <view class="form-card">
+    <view class="section-title no-margin">服务印象</view>
+    <view class="section-desc">可以多选，帮助我们更准确了解服务情况</view>
+
+    <view class="tag-section">
+      <view class="tag-section-title">做得好的地方</view>
+      <view class="tag-grid">
+        <block wx:for="{{goodTags}}" wx:key="label">
+          <view class="{{item.className}}" data-label="{{item.label}}" bindtap="toggleTag">{{item.label}}</view>
+        </block>
+      </view>
+    </view>
+
+    <view class="tag-section">
+      <view class="tag-section-title">希望改进</view>
+      <view class="tag-grid">
+        <block wx:for="{{improveTags}}" wx:key="label">
+          <view class="{{item.className}} improve" data-label="{{item.label}}" bindtap="toggleTag">{{item.label}}</view>
+        </block>
+      </view>
+    </view>
+  </view>
+
+  <view class="form-card">
+    <view class="card-head">
+      <view>
+        <view class="section-title no-margin">文字评价</view>
+        <view class="section-desc">可选填，也可以点下面的快捷评价后再修改</view>
+      </view>
+      <view class="counter">{{commentCount}}/500</view>
+    </view>
+
+    <view class="quick-grid">
+      <block wx:for="{{quickComments}}" wx:key="*this">
+        <view class="quick-chip" data-text="{{item}}" bindtap="useQuickComment">{{item}}</view>
+      </block>
+    </view>
+
+    <textarea
+      class="comment-input"
+      maxlength="500"
+      placeholder="写下服务亮点、需要改进的地方，或希望运营继续跟进的问题"
+      value="{{comment}}"
+      bindinput="onCommentInput"
+    ></textarea>
+  </view>
+
+  <view wx:if="{{submitted}}" class="success-card">已保存评价，可继续修改后重新提交。</view>
+
+  <view class="submit-bar">
+    <button class="submit-btn" loading="{{loading}}" bindtap="submit">{{submitted ? '更新评价' : '提交评价'}}</button>
+  </view>
+</view>

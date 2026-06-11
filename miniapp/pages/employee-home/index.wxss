@@ -1,0 +1,130 @@
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18rpx;
+}
+
+.todo-count {
+  margin-top: 32rpx;
+  color: #0f9f8f;
+  font-size: 24rpx;
+  font-weight: 800;
+}
+
+.link-btn {
+  margin-top: 32rpx;
+  margin-left: auto;
+  color: #0f9f8f;
+  background: transparent;
+  font-size: 24rpx;
+  font-weight: 800;
+}
+
+.action-card,
+.contract-card {
+  margin-bottom: 18rpx;
+  padding: 26rpx;
+  border-radius: 16rpx;
+  background: #fff;
+  border: 1rpx solid #e5e7eb;
+  box-shadow: 0 4rpx 16rpx rgba(15, 23, 42, 0.04);
+}
+
+.action-card {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18rpx;
+  overflow: hidden;
+}
+
+.action-main {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  gap: 18rpx;
+}
+
+.action-icon {
+  width: 72rpx;
+  height: 72rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 12rpx;
+  background: #ecfdfa;
+  color: #0f9f8f;
+  font-size: 28rpx;
+  font-weight: 900;
+}
+
+.action-content {
+  min-width: 0;
+  flex: 1;
+}
+
+.action-title,
+.contract-title {
+  min-width: 0;
+  font-size: 29rpx;
+  line-height: 38rpx;
+  font-weight: 800;
+  color: #0f172a;
+  word-break: break-word;
+}
+
+.action-desc,
+.contract-desc {
+  min-width: 0;
+  margin-top: 8rpx;
+  font-size: 24rpx;
+  line-height: 36rpx;
+  color: #64748b;
+  word-break: break-word;
+}
+
+.todo-badge {
+  flex-shrink: 0;
+  max-width: 116rpx;
+  padding: 8rpx 16rpx;
+  border-radius: 999rpx;
+  background: #fffbeb;
+  color: #b45309;
+  font-size: 22rpx;
+  font-weight: 800;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.todo-badge.teal {
+  background: #ecfdfa;
+  color: #0f766e;
+}
+
+.contract-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18rpx;
+  min-width: 0;
+}
+
+.contract-top > view:first-child {
+  min-width: 0;
+  flex: 1;
+}
+
+.contract-foot {
+  margin-top: 22rpx;
+  padding-top: 20rpx;
+  border-top: 1rpx dashed #dbe4ea;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 24rpx;
+  color: #64748b;
+}

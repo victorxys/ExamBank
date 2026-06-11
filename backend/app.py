@@ -81,6 +81,7 @@ from backend.api.dynamic_form_data_api import dynamic_form_data_bp
 from backend.api.form_folder_api import form_folder_bp
 from backend.api.attendance_form_api import attendance_form_bp
 from backend.api.dashboard_routes import dashboard_bp as revenue_dashboard_bp
+from backend.api.miniapp_api import miniapp_bp
 
 # ... (existing code)
 
@@ -140,6 +141,8 @@ app.config['WECHAT_CORP_ID'] = os.environ.get('WECHAT_CORP_ID', 'ww_dummy_corp_i
 app.config['WECHAT_AGENT_ID'] = os.environ.get('WECHAT_AGENT_ID', '1000002')
 app.config['WECHAT_SECRET'] = os.environ.get('WECHAT_SECRET', 'dummy_app_secret')
 app.config['WECHAT_NOTIFY_USERS'] = os.environ.get('WECHAT_NOTIFY_USERS', '@all')
+app.config['WECHAT_MINIAPP_APPID'] = os.environ.get('WECHAT_MINIAPP_APPID', '')
+app.config['WECHAT_MINIAPP_SECRET'] = os.environ.get('WECHAT_MINIAPP_SECRET', '')
 
 
 # IndexTTS2 服务配置
@@ -345,6 +348,7 @@ app.register_blueprint(dynamic_form_data_bp)
 app.register_blueprint(form_folder_bp)
 app.register_blueprint(attendance_form_bp)
 app.register_blueprint(revenue_dashboard_bp)
+app.register_blueprint(miniapp_bp)
 # app.register_blueprint(statement_bp, url_prefix="/api") 
 
 from backend.api.upload_api import upload_bp

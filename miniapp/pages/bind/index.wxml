@@ -1,0 +1,28 @@
+<view class="page">
+  <view class="hero">
+    <view class="hero-head">
+      <view class="logo-box"><image class="logo" src="/assets/logo.png" mode="aspectFit" /></view>
+      <view class="hero-copy">
+        <view class="hero-title">客户档案排障绑定</view>
+        <view class="hero-desc">客户正常使用无需填写资料，系统会根据签署和分享关系自动关联。</view>
+      </view>
+    </view>
+    <view class="bind-tip">仅在运营排查身份关联异常时使用；普通客户请从运营分享的页面进入。</view>
+  </view>
+
+  <view class="card">
+    <view class="field">
+      <text class="label">客户姓名</text>
+      <input class="input" placeholder="例如：王女士" value="{{form.name}}" data-field="name" bindinput="onInput" />
+    </view>
+    <view class="field">
+      <text class="label">登记手机号</text>
+      <input class="input" type="number" placeholder="请输入后台登记手机号" value="{{form.phone_number}}" data-field="phone_number" bindinput="onInput" />
+    </view>
+    <view class="field">
+      <text class="label">身份证后四位</text>
+      <input class="input" type="number" maxlength="4" placeholder="选填，用于提高匹配准确度" value="{{form.id_card_last4}}" data-field="id_card_last4" bindinput="onInput" />
+    </view>
+    <button class="btn-primary" loading="{{loading}}" bindtap="bindCustomer">确认绑定</button>
+  </view>
+</view>

@@ -1,0 +1,59 @@
+.contract-card {
+  margin-bottom: 18rpx;
+  padding: 26rpx;
+  border-radius: 16rpx;
+  background: #fff;
+  border: 1rpx solid #e5e7eb;
+  box-shadow: 0 4rpx 16rpx rgba(15, 23, 42, 0.04);
+  overflow: hidden;
+}
+
+.contract-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18rpx;
+  min-width: 0;
+}
+
+.contract-meta {
+  min-width: 0;
+  flex: 1;
+}
+
+.contract-group-title {
+  margin: 4rpx 0 14rpx;
+  color: #64748b;
+  font-size: 24rpx;
+  line-height: 34rpx;
+  font-weight: 800;
+}
+
+.contract-title {
+  min-width: 0;
+  font-size: 29rpx;
+  line-height: 38rpx;
+  font-weight: 800;
+  color: #0f172a;
+  word-break: break-word;
+}
+
+.contract-desc {
+  min-width: 0;
+  margin-top: 8rpx;
+  font-size: 24rpx;
+  line-height: 36rpx;
+  color: #64748b;
+  word-break: break-word;
+}
+
+.contract-foot {
+  margin-top: 22rpx;
+  padding-top: 20rpx;
+  border-top: 1rpx dashed #dbe4ea;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 24rpx;
+  color: #64748b;
+}

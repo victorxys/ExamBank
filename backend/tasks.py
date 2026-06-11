@@ -2956,16 +2956,22 @@ def post_virtual_contract_creation_task(self, contract_id):
 @celery_app.task(name='tasks.update_contract_statuses')
 def update_contract_statuses():
     """
-    每天扫描一次，将已到期的、非自动续约的育儿嫂合同状态更新为“已完成”。
+    每天扫描一次，将已到期的、非自动续约合同状态更新为“已完成”。
     """
     try:
         today = date.today()
-        # 查询所有状态为'active'、非自动续约且结束日期已过的育儿嫂合同
-        contracts_to_finish = NannyContract.query.filter(
-            NannyContract.is_monthly_auto_renew == False,
-            NannyContract.status == 'active',
-            NannyContract.end_date < today
+        contracts_to_finish = []
+        active_contracts = BaseContract.query.filter(
+            BaseContract.status == 'active',
+            BaseContract.end_date <= today,
         ).all()
+
+        for contract in active_contracts:
+            is_monthly_auto_renew = isinstance(contract, NannyContract) and getattr(
+                contract, "is_monthly_auto_renew", False
+            )
+            if not is_monthly_auto_renew:
+                contracts_to_finish.append(contract)
 
         if not contracts_to_finish:
             logging.info("Contract Status Update Task: No contracts found to update.")

@@ -1,0 +1,151 @@
+.sign-range {
+  margin-top: 18rpx;
+  font-size: 24rpx;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.no-margin {
+  margin-top: 0;
+}
+
+.signature-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16rpx;
+}
+
+.signature-title {
+  font-size: 28rpx;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.small {
+  width: 120rpx;
+  height: 58rpx;
+  font-size: 23rpx;
+}
+
+.readonly-row {
+  min-height: 72rpx;
+  padding: 18rpx 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 24rpx;
+  border-bottom: 1rpx solid #e2e8f0;
+}
+
+.readonly-row:last-child {
+  border-bottom: 0;
+}
+
+.readonly-label {
+  flex: none;
+  width: 150rpx;
+  color: #64748b;
+  font-size: 25rpx;
+  line-height: 36rpx;
+  font-weight: 700;
+}
+
+.readonly-value {
+  min-width: 0;
+  flex: 1;
+  color: #0f172a;
+  font-size: 26rpx;
+  line-height: 38rpx;
+  font-weight: 800;
+  word-break: break-word;
+}
+
+.submit-btn {
+  margin-top: 24rpx;
+}
+
+.role-block-text {
+  padding: 26rpx;
+  border-radius: 14rpx;
+  background: #fff7ed;
+  border: 1rpx solid #fed7aa;
+  color: #9a3412;
+  font-size: 26rpx;
+  line-height: 40rpx;
+  font-weight: 700;
+}
+
+.bind-action {
+  margin-top: 22rpx;
+}
+
+.md-block {
+  max-height: 760rpx;
+  padding-right: 4rpx;
+  white-space: normal;
+}
+
+.md-block .md-h1,
+.md-block .md-h2,
+.md-block .md-h3 {
+  color: #0f172a;
+  font-weight: 800;
+  line-height: 1.5;
+  margin: 20rpx 0 14rpx;
+}
+
+.md-block .md-h1 {
+  font-size: 34rpx;
+}
+
+.md-block .md-h2 {
+  font-size: 31rpx;
+}
+
+.md-block .md-h3 {
+  font-size: 29rpx;
+}
+
+.md-block .md-p {
+  display: block;
+  margin: 18rpx 0;
+  color: #475569;
+  font-size: 27rpx;
+  line-height: 1.85;
+}
+
+.md-block .md-strong {
+  font-weight: 800;
+  color: #111827;
+}
+
+.md-block .md-ol {
+  display: block;
+  margin: 16rpx 0;
+  padding-left: 42rpx;
+}
+
+.md-block .md-li {
+  display: list-item;
+  margin: 10rpx 0;
+  color: #475569;
+  font-size: 27rpx;
+  line-height: 1.8;
+}
+
+.md-block .muted {
+  color: #94a3b8;
+}
+
+.signature-preview {
+  height: 180rpx;
+  margin-top: 18rpx;
+  border: 2rpx dashed #d9e3ea;
+  border-radius: 18rpx;
+  background: #f8fafc;
+  overflow: hidden;
+}
+
+.signature-image {
+  width: 100%;
+  height: 100%;
+}

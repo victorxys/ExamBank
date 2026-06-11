@@ -1,0 +1,19 @@
+<view class="page login-page">
+  <view class="login-logo">
+    <image class="login-logo-img" src="/assets/logo.png" mode="aspectFit" />
+  </view>
+  <view class="login-title">萌姨萌嫂服务助手</view>
+  <view class="login-desc">客户微信登录后自动关联可见合同；服务人员使用手机号和身份证后6位绑定。</view>
+
+  <view class="role-tabs">
+    <button class="role-tab {{role === 'customer' ? 'active' : ''}}" data-role="customer" bindtap="selectRole">我是客户</button>
+    <button class="role-tab {{role === 'employee' ? 'active' : ''}}" data-role="employee" bindtap="selectRole">我是服务人员</button>
+  </view>
+
+  <view class="card">
+    <text class="label">开发联调 openid</text>
+    <input class="input" value="{{openid}}" bindinput="onOpenidInput" />
+  </view>
+
+  <button class="btn-primary login-btn" loading="{{loading}}" bindtap="login">微信一键登录</button>
+</view>

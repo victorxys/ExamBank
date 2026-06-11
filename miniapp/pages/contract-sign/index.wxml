@@ -1,0 +1,71 @@
+<view class="page">
+  <view class="hero">
+    <view class="hero-head">
+      <view class="logo-box"><image class="logo" src="/assets/logo.png" mode="aspectFit" /></view>
+      <view class="hero-copy">
+        <view class="hero-title">{{contract.type_label || '合同签署'}}</view>
+        <view class="hero-desc">请核对甲方信息与服务条款，确认后完成电子签署。</view>
+      </view>
+    </view>
+    <view class="sign-range">{{contract.date_range || ''}}</view>
+  </view>
+
+  <view class="card" wx:if="{{contract.role !== 'employee'}}">
+    <view class="section-title no-margin">甲方信息</view>
+    <view class="readonly-row"><text class="readonly-label">姓名</text><text class="readonly-value">{{customerInfo.name || '-'}}</text></view>
+    <view class="readonly-row"><text class="readonly-label">联系电话</text><text class="readonly-value">{{customerInfo.phone_masked || '-'}}</text></view>
+    <view class="readonly-row"><text class="readonly-label">身份证号</text><text class="readonly-value">{{customerInfo.id_card_masked || '-'}}</text></view>
+    <view class="readonly-row"><text class="readonly-label">联系地址</text><text class="readonly-value">{{customerInfo.address || '-'}}</text></view>
+  </view>
+
+  <view class="card" wx:if="{{contract.role === 'employee'}}">
+    <view class="section-title no-margin">乙方信息</view>
+    <view class="field">
+      <text class="label">姓名</text>
+      <input class="input" value="{{employeeInfo.name}}" data-field="name" bindinput="onEmployeeInput" />
+    </view>
+    <view class="field">
+      <text class="label">联系电话</text>
+      <input class="input" type="number" value="{{employeeInfo.phone_number}}" data-field="phone_number" bindinput="onEmployeeInput" />
+    </view>
+    <view class="field">
+      <text class="label">身份证号</text>
+      <input class="input" value="{{employeeInfo.id_card_number}}" data-field="id_card_number" bindinput="onEmployeeInput" />
+    </view>
+    <view class="field">
+      <text class="label">联系地址</text>
+      <input class="input" value="{{employeeInfo.address}}" data-field="address" bindinput="onEmployeeInput" />
+    </view>
+  </view>
+
+  <view class="card">
+    <view class="section-title no-margin">合同正文</view>
+    <scroll-view scroll-y class="text-block md-block">
+      <rich-text nodes="{{markdownNodes}}"></rich-text>
+    </scroll-view>
+  </view>
+
+  <view class="card" wx:if="{{contract.current_signature_image}}">
+    <view class="section-title no-margin">{{contract.role === 'employee' ? '服务人员已签字' : '客户已签字'}}</view>
+    <view class="signature-preview">
+      <image class="signature-image" src="{{contract.current_signature_image}}" mode="aspectFit" />
+    </view>
+  </view>
+
+  <view class="card role-block-card" wx:if="{{!contract.current_signature_image && blockedByRole}}">
+    <view class="section-title no-margin">签署身份不匹配</view>
+    <view class="role-block-text">{{roleBlockText}}</view>
+    <button wx:if="{{showEmployeeBindAction}}" class="btn-primary bind-action" bindtap="goEmployeeBind">去绑定员工身份</button>
+  </view>
+
+  <view class="card" wx:if="{{!contract.current_signature_image && !blockedByRole}}">
+    <view class="signature-head">
+      <view class="signature-title">{{contract.role === 'employee' ? (employeeInfo.name || '服务人员') : (customerInfo.name || '客户')}}电子签名</view>
+      <button class="btn-secondary small" bindtap="clearSignature">重签</button>
+    </view>
+    <view class="signature-box">
+      <canvas class="signature-canvas" canvas-id="contractSignature" disable-scroll="true" bindtouchstart="touchStart" bindtouchmove="touchMove" bindtouchend="touchEnd"></canvas>
+    </view>
+    <button class="btn-primary submit-btn" loading="{{submitting}}" bindtap="submitSign">确认签署</button>
+  </view>
+</view>

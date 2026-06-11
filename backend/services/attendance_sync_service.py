@@ -15,6 +15,17 @@ def _parse_date(value):
     return datetime.fromisoformat(str(value)).date()
 
 
+def _attendance_contract_end_date(contract):
+    if not contract:
+        return None
+    is_monthly = bool(getattr(contract, 'is_monthly_auto_renew', False))
+    if is_monthly and contract.status in ('active', 'pending'):
+        return None
+    if is_monthly and contract.status == 'terminated' and getattr(contract, 'termination_date', None):
+        return _parse_date(contract.termination_date)
+    return _parse_date(contract.end_date) if getattr(contract, 'end_date', None) else None
+
+
 def _record_hours(record):
     hours = record.get("hours", 0) or 0
     minutes = record.get("minutes", 0) or 0
@@ -155,10 +166,28 @@ def get_onboarding_time_for_contract(employee_id, contract_id):
     }
     """
     try:
-        # 查找所有该合同的考勤表，按时间正序（找最早的上户记录）
-        forms = AttendanceForm.query.filter_by(
-            employee_id=employee_id,
-            contract_id=contract_id
+        contract = BaseContract.query.get(contract_id)
+        contract_ids = [contract_id]
+        if contract:
+            query = BaseContract.query.filter(
+                BaseContract.service_personnel_id == employee_id,
+                BaseContract.status.in_(['active', 'pending', 'terminated', 'finished', 'completed'])
+            )
+            if contract.family_id:
+                query = query.filter(BaseContract.family_id == contract.family_id)
+            elif contract.customer_name:
+                query = query.filter(BaseContract.customer_name == contract.customer_name)
+            elif contract.customer_id:
+                query = query.filter(BaseContract.customer_id == contract.customer_id)
+            else:
+                query = query.filter(BaseContract.id == contract_id)
+            related_contracts = query.all()
+            contract_ids = [c.id for c in related_contracts] or [contract_id]
+
+        # 查找当前合同及同客户/家庭历史合同的考勤表，按时间正序（找最早的上户记录）
+        forms = AttendanceForm.query.filter(
+            AttendanceForm.employee_id == employee_id,
+            AttendanceForm.contract_id.in_(contract_ids)
         ).order_by(AttendanceForm.cycle_start_date.asc()).all()
         
         current_app.logger.info(f"[GET_ONBOARDING] 查找合同 {contract_id} 的考勤表，找到 {len(forms)} 条记录")
@@ -394,22 +423,7 @@ def sync_attendance_to_record(attendance_form_id):
         contract_start = contract.start_date.date() if isinstance(contract.start_date, datetime) else contract.start_date
         effective_start = max(cycle_start, contract_start)
         
-        # 合同结束日期（如果在当月之前，使用合同结束日期）
-        is_monthly_auto_renew = getattr(contract, 'is_monthly_auto_renew', False)
-        
-        if is_monthly_auto_renew and contract.status in ('active', 'pending'):
-            # 月签合同（active/pending状态）没有实际固定的结束日期限制
-            contract_end = None
-        else:
-            contract_end = contract.end_date.date() if getattr(contract, 'end_date', None) and isinstance(contract.end_date, datetime) else getattr(contract, 'end_date', None)
-            
-        # 如果合同已终止且包含终止日期，优先使用终止日期
-        if contract.status == 'terminated' and getattr(contract, 'termination_date', None):
-            termination_date = contract.termination_date.date() if isinstance(contract.termination_date, datetime) else contract.termination_date
-            if contract_end:
-                contract_end = min(contract_end, termination_date)
-            else:
-                contract_end = termination_date
+        contract_end = _attendance_contract_end_date(contract)
                 
         if contract_end:
             effective_end = max(effective_start, min(cycle_end, contract_end))  # 防止 contract_end 在 effective_start 之前导致负数

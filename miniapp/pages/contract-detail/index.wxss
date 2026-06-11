@@ -1,0 +1,260 @@
+.date-range {
+  margin-top: 18rpx;
+  font-size: 24rpx;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.no-margin {
+  margin-top: 0;
+}
+
+.section-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18rpx;
+}
+
+.eval-entry-link {
+  flex: none;
+  padding-left: 24rpx;
+  color: #0f9f8f;
+  font-size: 24rpx;
+  line-height: 32rpx;
+  font-weight: 800;
+  text-align: right;
+}
+
+.actions-card {
+  overflow: hidden;
+}
+
+.notice-list {
+  margin-top: 22rpx;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 18rpx;
+}
+
+.notice-panel {
+  padding: 24rpx;
+  border-radius: 18rpx;
+  border: 1rpx solid #d9efe9;
+  background: #f0fdfa;
+}
+
+.notice-panel.warning {
+  border-color: #fed7aa;
+  background: #fff7ed;
+}
+
+.notice-main {
+  min-width: 0;
+}
+
+.notice-kicker {
+  display: inline-flex;
+  align-items: center;
+  min-height: 42rpx;
+  padding: 0 16rpx;
+  border-radius: 999rpx;
+  background: rgba(15, 159, 143, 0.12);
+  color: #0f766e;
+  font-size: 22rpx;
+  line-height: 32rpx;
+  font-weight: 900;
+}
+
+.notice-panel.warning .notice-kicker {
+  background: #ffedd5;
+  color: #c2410c;
+}
+
+.notice-title {
+  margin-top: 14rpx;
+  color: #0f172a;
+  font-size: 30rpx;
+  line-height: 42rpx;
+  font-weight: 900;
+  word-break: break-word;
+}
+
+.notice-desc {
+  margin-top: 8rpx;
+  color: #64748b;
+  font-size: 24rpx;
+  line-height: 36rpx;
+  word-break: break-word;
+}
+
+.notice-btn {
+  width: 100%;
+  min-height: 82rpx;
+  margin-top: 22rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14rpx;
+  background: #f1f5f9;
+  color: #334155;
+  font-size: 26rpx;
+  line-height: 36rpx;
+  font-weight: 900;
+}
+
+.notice-btn.primary {
+  background: #0f9f8f;
+  color: #fff;
+}
+
+.hint-line {
+  margin-top: 18rpx;
+  color: #64748b;
+  font-size: 24rpx;
+  line-height: 34rpx;
+}
+
+.empty-line {
+  margin-top: 18rpx;
+  color: #94a3b8;
+  font-size: 25rpx;
+  line-height: 36rpx;
+}
+
+.record-item {
+  margin-top: 18rpx;
+  padding: 20rpx 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18rpx;
+  border-bottom: 1rpx solid #e2e8f0;
+}
+
+.attendance-record-card {
+  margin-top: 20rpx;
+  padding: 22rpx;
+  border: 1rpx solid #e5e7eb;
+  border-radius: 18rpx;
+  background: #fff;
+}
+
+.attendance-record-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18rpx;
+}
+
+.record-main {
+  min-width: 0;
+  flex: 1;
+}
+
+.record-title {
+  color: #0f172a;
+  font-size: 28rpx;
+  line-height: 40rpx;
+  font-weight: 850;
+}
+
+.record-desc {
+  margin-top: 6rpx;
+  color: #64748b;
+  font-size: 24rpx;
+  line-height: 34rpx;
+  word-break: break-word;
+}
+
+.record-status {
+  flex: none;
+  max-width: 180rpx;
+  padding: 8rpx 14rpx;
+  border-radius: 999rpx;
+  background: #eef7f4;
+  color: #0f9f8f;
+  font-size: 22rpx;
+  line-height: 30rpx;
+  font-weight: 800;
+  text-align: center;
+}
+
+.record-status.danger {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.record-status.signed {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.record-status.pending {
+  background: #eef7f4;
+  color: #0f9f8f;
+}
+
+.attendance-mini-stats {
+  margin-top: 18rpx;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12rpx;
+}
+
+.mini-stat {
+  min-width: 0;
+  padding: 18rpx 8rpx;
+  border-radius: 14rpx;
+  text-align: center;
+}
+
+.mini-stat.work {
+  background: #e5faf6;
+  color: #087c70;
+}
+
+.mini-stat.overtime {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.mini-stat.leave {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.mini-stat-value {
+  font-size: 32rpx;
+  line-height: 38rpx;
+  font-weight: 900;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mini-stat-label {
+  margin-top: 4rpx;
+  font-size: 22rpx;
+  line-height: 30rpx;
+  font-weight: 800;
+}
+
+.md-block {
+  max-height: 760rpx;
+  padding-right: 4rpx;
+  white-space: normal;
+}
+
+.signature-preview {
+  height: 180rpx;
+  margin-top: 18rpx;
+  border: 2rpx dashed #d9e3ea;
+  border-radius: 18rpx;
+  background: #f8fafc;
+  overflow: hidden;
+}
+
+.signature-image {
+  width: 100%;
+  height: 100%;
+}

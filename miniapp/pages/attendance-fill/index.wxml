@@ -1,0 +1,230 @@
+<view class="attendance-page">
+  <view class="sticky-head">
+    <view class="head-sub">客户：{{customerNameText}}</view>
+    <view class="head-main">
+      <button class="{{prevMonthClass}}" bindtap="goPrevMonth">‹</button>
+      <view class="title-wrap">
+        <view class="page-title">{{pageTitleText}}</view>
+        <view class="status-line">{{statusText}}</view>
+      </view>
+      <button class="{{nextMonthClass}}" bindtap="goNextMonth">›</button>
+      <view class="avatar">{{avatarText}}</view>
+    </view>
+  </view>
+
+  <view class="stats-wrap">
+    <view class="stats-panel">
+      <view class="stat-col">
+        <view class="stat-num">{{stats.workDaysText}}</view>
+        <view class="stat-label">出勤(天)</view>
+      </view>
+      <view class="stat-col">
+        <view class="stat-num orange">{{stats.leaveDaysText}}</view>
+        <view class="stat-label">请假/休假</view>
+      </view>
+      <view class="stat-col">
+        <view class="stat-num green">{{stats.overtimeDaysText}}</view>
+        <view class="stat-label">加班(天)</view>
+        
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{showAutoBanner}}" class="info-banner">
+    <view class="info-title">考勤折算说明</view>
+    <view class="info-text">本月实际工作出勤已超过 26 天上限，超出部分 {{stats.autoOvertimeDaysText}} 已由系统自动折算为加班。</view>
+  </view>
+
+  <view class="calendar-card">
+    <view class="week-row">
+      <view class="week-cell">一</view>
+      <view class="week-cell">二</view>
+      <view class="week-cell">三</view>
+      <view class="week-cell">四</view>
+      <view class="week-cell">五</view>
+      <view class="week-cell red">六</view>
+      <view class="week-cell red">日</view>
+    </view>
+
+    <view class="calendar-grid">
+      <block wx:for="{{calendarCells}}" wx:key="key">
+        <view wx:if="{{item.blank}}" class="day-cell blank"></view>
+        <view
+          wx:else
+          class="{{item.className}}"
+          data-date="{{item.date}}"
+          data-edit-date="{{item.editDate}}"
+          data-auto="{{item.isAuto}}"
+          data-disabled="{{item.disabled}}"
+          bindtap="openEdit"
+        >
+          <view wx:if="{{item.holidayLabelText}}" class="{{item.holidayLabelClass}}">{{item.holidayLabelText}}</view>
+          <view class="day-num">{{item.day}}</view>
+          <view wx:if="{{item.disabled}}" class="day-disabled">×</view>
+          <view wx:else class="day-label">{{item.typeLabel}}</view>
+          <view wx:if="{{item.displayTime}}" class="day-time">{{item.displayTime}}</view>
+        </view>
+      </block>
+    </view>
+  </view>
+
+  <view wx:if="{{showSpecialRecords}}" class="detail-card">
+    <view class="detail-title">考勤详情</view>
+    <block wx:for="{{specialRecords}}" wx:key="date">
+      <view class="{{item.className}}" data-date="{{item.date}}" data-edit-date="{{item.editDate}}" data-auto="{{item.is_auto}}" bindtap="openEdit">
+        <view class="detail-date">
+          <view class="detail-day">{{item.dateText}}</view>
+          <view class="detail-type">{{item.typeLabel}}</view>
+        </view>
+        <view class="detail-main">
+          <view class="detail-time">{{item.timeLabel}}</view>
+          <view wx:if="{{item.showDuration}}" class="detail-duration">{{item.durationText}}</view>
+          <view wx:if="{{item.showAutoReason}}" class="detail-duration auto">因出勤超26天自动折算</view>
+        </view>
+      </view>
+    </block>
+  </view>
+
+  <view class="bottom-bar">
+    <view wx:if="{{showReadonlyBanner}}" class="readonly-bar">
+      <view class="readonly-title">{{readonlyBannerTitle}}</view>
+      <view class="readonly-text">{{readonlyBannerText}}</view>
+    </view>
+
+    <view wx:if="{{showAutoSave}}" class="{{saveStateClass}}">
+      <text>{{saveStateText}}</text>
+    </view>
+    <view wx:if="{{showSubmittedHint}}" class="submitted-hint">{{submittedHintText}}</view>
+    <button wx:if="{{showShareButton}}" class="share-btn" open-type="share">分享给客户确认</button>
+    <button wx:if="{{showSubmitButton}}" class="submit-btn" loading="{{submitting}}" bindtap="submitConfirm">{{submitText}}</button>
+  </view>
+
+  <view wx:if="{{modalOpen}}" class="sheet-mask">
+    <view class="edit-sheet">
+      <view class="sheet-head">
+        <view>
+          <view class="sheet-title">{{editingDateText}}</view>
+          <view wx:if="{{showHolidayBadge}}" class="{{holidayBadgeClass}}">{{holidayBadgeText}}</view>
+          <view class="sheet-sub">请选择当日考勤状态</view>
+        </view>
+        <view class="icon-close" bindtap="closeModal">×</view>
+      </view>
+
+      <view wx:if="{{showHolidayHint}}" class="holiday-alert">{{holidayHintText}}</view>
+
+      <view wx:if="{{modalReadOnly}}" class="covering-alert">
+        <view class="covering-title">该日期包含在多天考勤记录中</view>
+        <view class="covering-text">{{coveringRecordText}}</view>
+      </view>
+
+      <view class="type-grid">
+        <block wx:for="{{typeOptions}}" wx:key="value">
+          <view
+            class="{{item.className}}"
+            data-type="{{item.value}}"
+            bindtap="selectType"
+          >{{item.label}}</view>
+        </block>
+      </view>
+
+      <view wx:if="{{showTimePanel}}" class="time-panel">
+        <view class="time-title">{{timePanelTitle}}</view>
+
+        <view wx:if="{{isOnboardingOrOffboarding}}" class="hint-box">
+          <view>{{timeHintText}}</view>
+          <view wx:if="{{showOnboardingReference}}" class="hint-sub">{{onboardingReferenceText}}</view>
+        </view>
+
+        <view wx:if="{{isOnboardingOrOffboarding}}" class="time-row" data-field="startTime" bindtap="openTimePicker">
+          <view class="time-label">{{singleTimeLabel}}</view>
+          <view class="time-value">{{startTimeText}}</view>
+        </view>
+
+        <view wx:if="{{isOutType}}" class="out-rule">
+          <view class="out-title">{{outRuleTitle}}</view>
+          <view class="out-text">{{outRuleText}}</view>
+        </view>
+
+        <view wx:if="{{isOutNoContinuation}}" class="preset-row">
+          <view class="preset-btn" data-days="29" bindtap="chooseOutStartPreset">近30天</view>
+          <view class="preset-btn" data-days="44" bindtap="chooseOutStartPreset">近45天</view>
+          <view class="preset-btn" data-days="59" bindtap="chooseOutStartPreset">近60天</view>
+        </view>
+
+        <view wx:if="{{isOutType}}" class="time-row muted">
+          <view class="time-label">开始日期（出发日）</view>
+          <picker mode="date" value="{{outStartDateValue}}" end="{{outStartMaxDate}}" disabled="{{outStartPickerDisabled}}" bindchange="onOutStartDateChange">
+            <view class="time-value date">{{startDateText}}</view>
+          </picker>
+        </view>
+
+        <view wx:if="{{showRegularStartDate}}" class="time-row muted">
+          <view class="time-label">开始日期</view>
+          <view class="time-value date">{{startDateText}}</view>
+        </view>
+
+        <view wx:if="{{showStartTimePicker}}" class="time-row" data-field="startTime" bindtap="openTimePicker">
+          <view class="time-label">{{startTimeLabel}}</view>
+          <view class="time-value">{{startTimeText}}</view>
+        </view>
+
+        <view wx:if="{{showOutContinuationTime}}" class="time-row muted">
+          <view class="time-label">开始时间</view>
+          <view class="time-value">00:00</view>
+        </view>
+
+        <view wx:if="{{showDurationBlock}}" class="duration-block">
+          <view class="field-label">{{durationFieldLabel}}</view>
+          <view class="duration-row">
+            <view class="{{decreaseButtonClass}}" data-delta="-1" bindtap="changeDays">−</view>
+            <view class="duration-center">
+              <view class="duration-main">{{dayCountText}}</view>
+              <view class="duration-sub">天</view>
+            </view>
+            <view class="step-btn" data-delta="1" bindtap="changeDays">+</view>
+          </view>
+          <view wx:if="{{isOutType}}" class="warn-text">最少需要连续30天，不满30天的出京/出境不计入考勤。</view>
+        </view>
+
+        <view wx:if="{{showEndDateAndTime}}" class="time-row muted">
+          <view class="time-label">结束日期</view>
+          <view class="time-value date">{{endDateText}}</view>
+        </view>
+
+        <view wx:if="{{showEndDateAndTime}}" class="time-row" data-field="endTime" bindtap="openTimePicker">
+          <view class="time-label">结束时间</view>
+          <view class="time-value">{{endTimeText}}</view>
+        </view>
+
+        <view class="duration-total">共计：{{tempDurationText}}</view>
+      </view>
+
+      <view class="{{sheetActionsClass}}">
+        <view class="cancel-btn" bindtap="closeModal">{{closeButtonText}}</view>
+        <view wx:if="{{showConfirmButton}}" class="confirm-btn" bindtap="saveRecord">确认修改</view>
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{timePickerOpen}}" class="time-mask">
+    <view class="time-sheet">
+      <view class="time-sheet-head">
+        <button class="picker-cancel" bindtap="cancelTime">取消</button>
+        <view class="picker-title">选择时间</view>
+        <button class="picker-confirm" bindtap="confirmTime">确定</button>
+      </view>
+      <picker-view class="picker-view" value="{{timeValue}}" bindchange="onTimePickerChange">
+        <picker-view-column>
+          <block wx:for="{{timeColumns.hours}}" wx:key="*this">
+            <view class="picker-item">{{item}} 时</view>
+          </block>
+        </picker-view-column>
+        <picker-view-column>
+          <block wx:for="{{timeColumns.minutes}}" wx:key="*this">
+            <view class="picker-item">{{item}} 分</view>
+          </block>
+        </picker-view-column>
+      </picker-view>
+    </view>
+  </view>
+</view>

@@ -328,7 +328,6 @@ const ContractDetail = lazy(() => import('./components/ContractDetail')); // 新
 const ConflictCheckerPage = lazy(() => import('./components/ConflictCheckerPage'));
 const NotificationSettings = lazy(() => import('./pages/NotificationSettings'));
 const MonthlyManagementFees = lazy(() => import('./pages/MonthlyManagementFees'));
-const BankStatementUploader = lazy(() => import('./components/BankStatementUploader'));
 const ReconciliationPage = lazy(() => import('./components/ReconciliationPage'));
 const AllBankTransactions = lazy(() => import('./components/AllBankTransactions'));
 const OutboundPayments = lazy(() => import('./components/OutboundPayments')); // 新增
@@ -347,6 +346,7 @@ const ExamResultDetailPage = lazy(() => import('./components/ExamResultDetailPag
 const PickerTestPage = lazy(() => import('./components/PickerTestPage'));
 const WechatAttendance = lazy(() => import('./pages/WechatAttendance'));
 const WechatMessageLogs = lazy(() => import('./pages/WechatMessageLogs'));
+const MiniappPhaseOne = lazy(() => import('./pages/MiniappPhaseOne'));
 
 
 const ExecutiveDashboard = lazy(() => import('./pages/ExecutiveDashboard'));
@@ -450,6 +450,9 @@ function App() {
 
           {/* 微信公众号考勤页面 */}
           <Route path="/wechat-attendance" element={<Suspense fallback={<LoadingFallback />}><WechatAttendance /></Suspense>} />
+          <Route path="/miniapp" element={<Suspense fallback={<LoadingFallback />}><MiniappPhaseOne /></Suspense>} />
+          <Route path="/miniapp/contract/:contractId" element={<Suspense fallback={<LoadingFallback />}><MiniappPhaseOne /></Suspense>} />
+          <Route path="/miniapp/:view" element={<Suspense fallback={<LoadingFallback />}><MiniappPhaseOne /></Suspense>} />
 
           {/* EmployeeProfile 和其子路由已移到 MainLayout 下，这里不再需要 */}
         </Route>
