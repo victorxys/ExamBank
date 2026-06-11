@@ -1,0 +1,285 @@
+.section-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 24rpx;
+}
+
+.todo-count {
+  margin-top: 32rpx;
+  color: #0f9f8f;
+  font-size: 24rpx;
+  font-weight: 800;
+}
+
+.link-btn {
+  margin: 32rpx 0 18rpx;
+  padding: 0;
+  width: auto;
+  min-width: 128rpx;
+  color: #0f9f8f;
+  background: transparent;
+  font-size: 24rpx;
+  font-weight: 800;
+  line-height: 40rpx;
+  text-align: right;
+}
+
+.section-link {
+  justify-self: end;
+}
+
+.contract-group-title {
+  margin: 4rpx 0 14rpx;
+  color: #64748b;
+  font-size: 24rpx;
+  line-height: 34rpx;
+  font-weight: 800;
+}
+
+.action-card,
+.contract-card,
+.attendance-card {
+  margin-bottom: 18rpx;
+  padding: 26rpx;
+  border-radius: 16rpx;
+  background: #fff;
+  border: 1rpx solid #e5e7eb;
+  box-shadow: 0 4rpx 16rpx rgba(15, 23, 42, 0.04);
+}
+
+.action-card {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18rpx;
+  overflow: hidden;
+}
+
+.action-main {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  gap: 18rpx;
+}
+
+.action-icon {
+  width: 72rpx;
+  height: 72rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 12rpx;
+  background: #ecfdfa;
+  color: #0f9f8f;
+  font-size: 28rpx;
+  font-weight: 900;
+}
+
+.action-icon.eval {
+  background: #fff7ed;
+  color: #b45309;
+}
+
+.action-content {
+  min-width: 0;
+  flex: 1;
+}
+
+.action-title,
+.contract-title {
+  min-width: 0;
+  font-size: 29rpx;
+  line-height: 38rpx;
+  font-weight: 800;
+  color: #0f172a;
+  word-break: break-word;
+}
+
+.action-desc,
+.contract-desc {
+  min-width: 0;
+  margin-top: 8rpx;
+  font-size: 24rpx;
+  line-height: 36rpx;
+  color: #64748b;
+  word-break: break-word;
+}
+
+.todo-badge {
+  flex-shrink: 0;
+  max-width: 116rpx;
+  padding: 8rpx 16rpx;
+  border-radius: 999rpx;
+  background: #fffbeb;
+  color: #b45309;
+  font-size: 22rpx;
+  font-weight: 800;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.todo-badge.teal {
+  background: #ecfdfa;
+  color: #0f766e;
+}
+
+.attendance-card {
+  overflow: hidden;
+}
+
+.attendance-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18rpx;
+}
+
+.attendance-meta {
+  min-width: 0;
+  flex: 1;
+}
+
+.attendance-title {
+  min-width: 0;
+  font-size: 30rpx;
+  line-height: 40rpx;
+  font-weight: 900;
+  color: #0f172a;
+  word-break: break-word;
+}
+
+.attendance-desc {
+  margin-top: 8rpx;
+  font-size: 24rpx;
+  line-height: 34rpx;
+  color: #64748b;
+  word-break: break-word;
+}
+
+.attendance-action {
+  flex-shrink: 0;
+  min-width: 112rpx;
+  height: 62rpx;
+  padding: 0 18rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999rpx;
+  background: #0f9f8f;
+  color: #fff;
+  font-size: 24rpx;
+  font-weight: 900;
+}
+
+.mini-calendar {
+  margin-top: 22rpx;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 10rpx;
+}
+
+.calendar-day {
+  min-height: 72rpx;
+  padding: 8rpx 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14rpx;
+  background: #e5faf6;
+  color: #087c70;
+  font-size: 23rpx;
+  font-weight: 900;
+}
+
+.calendar-day.rest {
+  background: #fff1f2;
+  color: #dc2626;
+}
+
+.calendar-day.overtime {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.calendar-day.disabled {
+  background: #f8fafc;
+  color: #cbd5e1;
+}
+
+.calendar-day.normal {
+  background: #e5faf6;
+  color: #087c70;
+}
+
+.calendar-num {
+  line-height: 30rpx;
+}
+
+.calendar-mark {
+  margin-top: 2rpx;
+  font-size: 18rpx;
+  line-height: 22rpx;
+  font-weight: 800;
+}
+
+.attendance-stats {
+  margin-top: 18rpx;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12rpx;
+}
+
+.stat-box {
+  min-width: 0;
+  padding: 16rpx 8rpx;
+  border: 1rpx solid #e2e8f0;
+  border-radius: 16rpx;
+  text-align: center;
+}
+
+.stat-value {
+  color: #0f172a;
+  font-size: 32rpx;
+  line-height: 38rpx;
+  font-weight: 900;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stat-label {
+  margin-top: 6rpx;
+  color: #64748b;
+  font-size: 21rpx;
+  line-height: 28rpx;
+  font-weight: 800;
+}
+
+.contract-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18rpx;
+  min-width: 0;
+}
+
+.contract-meta {
+  min-width: 0;
+  flex: 1;
+}
+
+.contract-foot {
+  margin-top: 22rpx;
+  padding-top: 20rpx;
+  border-top: 1rpx dashed #dbe4ea;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 24rpx;
+  color: #64748b;
+}

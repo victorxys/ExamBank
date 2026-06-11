@@ -1,6 +1,5 @@
 // frontend/src/api/axios.js
 import axios from 'axios';
-import { API_BASE_URL } from '../config';
 import { getToken, getRefreshToken, saveToken, clearTokens, shouldRefreshToken } from './auth-utils';
 
 // 在开发环境中使用相对路径，让请求通过 Vite proxy
@@ -38,6 +37,7 @@ api.interceptors.request.use(
       config.url.includes('/attendance-forms/by-token/') ||  // 考勤表填写页面免登录
       config.url.includes('/attendance-forms/sign/') ||  // 考勤表签署页面免登录
       config.url.includes('/wechat-attendance/') ||  // 微信考勤API免登录
+      config.url.includes('/miniapp/') ||  // 小程序客户侧API免后台登录
       /^\/attendance-forms\/[0-9a-f-]+$/.test(config.url);  // 智能路由API免登录 (员工ID格式)
     const token = getToken();
 

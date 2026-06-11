@@ -1,0 +1,71 @@
+<view class="page">
+  <view class="hero">
+    <view class="hero-head">
+      <view class="logo-box"><image class="logo" src="/assets/logo.png" mode="aspectFit" /></view>
+      <view class="hero-copy">
+        <view class="hero-title">{{role === 'employee' ? '我的服务合同' : '我的合同'}}</view>
+        <view class="hero-desc">查看待上户、正在履行和历史服务合同。</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="section-title">服务合同</view>
+  <view wx:if="{{servingContracts.length > 0}}" class="contract-group-title">正在履行</view>
+  <block wx:for="{{servingContracts}}" wx:key="id">
+    <view class="contract-card" data-id="{{item.id}}" bindtap="goDetail">
+      <view class="contract-top">
+        <view class="contract-meta">
+          <view class="contract-title">{{item.type_label || '服务合同'}}</view>
+          <view class="contract-desc">{{role === 'employee' ? (item.customer_name || '客户') : (item.employee_name || '服务人员')}} · {{item.date_range}}</view>
+        </view>
+        <view class="chip">{{item.status_text}}</view>
+      </view>
+      <view class="contract-foot">
+        <text>{{item.signing_status_text}}</text>
+        <text>›</text>
+      </view>
+    </view>
+  </block>
+
+  <view wx:if="{{upcomingContracts.length > 0}}" class="contract-group-title">待上户</view>
+  <block wx:for="{{upcomingContracts}}" wx:key="id">
+    <view class="contract-card" data-id="{{item.id}}" bindtap="goDetail">
+      <view class="contract-top">
+        <view class="contract-meta">
+          <view class="contract-title">{{item.type_label || '服务合同'}}</view>
+          <view class="contract-desc">{{role === 'employee' ? (item.customer_name || '客户') : (item.employee_name || '服务人员')}} · {{item.date_range}}</view>
+        </view>
+        <view class="chip">{{item.status_text}}</view>
+      </view>
+      <view class="contract-foot">
+        <text>{{item.signing_status_text}}</text>
+        <text>›</text>
+      </view>
+    </view>
+  </block>
+  <view wx:if="{{loaded && serviceContractCount === 0}}" class="empty">
+    <view class="empty-title">暂无服务合同</view>
+    <view class="empty-desc">待上户和正在履行的合同会显示在这里。</view>
+  </view>
+
+  <view class="section-title">历史合同</view>
+  <block wx:for="{{historyContracts}}" wx:key="id">
+    <view class="contract-card" data-id="{{item.id}}" bindtap="goDetail">
+      <view class="contract-top">
+        <view class="contract-meta">
+          <view class="contract-title">{{item.type_label || '服务合同'}}</view>
+          <view class="contract-desc">{{role === 'employee' ? (item.customer_name || '客户') : (item.employee_name || '服务人员')}} · {{item.date_range}}</view>
+        </view>
+        <view class="chip">{{item.status_text}}</view>
+      </view>
+      <view class="contract-foot">
+        <text>{{item.signing_status_text}}</text>
+        <text>›</text>
+      </view>
+    </view>
+  </block>
+  <view wx:if="{{loaded && historyContracts.length === 0}}" class="empty">
+    <view class="empty-title">暂无历史合同</view>
+    <view class="empty-desc">已完成、已终止合同会显示在这里。</view>
+  </view>
+</view>

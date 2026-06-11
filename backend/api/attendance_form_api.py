@@ -11,6 +11,25 @@ from sqlalchemy.orm.attributes import flag_modified
 
 attendance_form_bp = Blueprint('attendance_form_api', __name__, url_prefix='/api/attendance-forms')
 
+def to_date_value(value):
+    if isinstance(value, datetime):
+        return value.date()
+    return value
+
+
+def get_attendance_contract_end_date(contract):
+    """考勤有效截止日：普通合同按服务结束日，自动月签终止后按终止日。"""
+    if not contract:
+        return None
+
+    is_monthly = bool(getattr(contract, 'is_monthly_auto_renew', False))
+    if is_monthly and contract.status in ('active', 'pending'):
+        return None
+    if is_monthly and contract.status == 'terminated' and contract.termination_date:
+        return to_date_value(contract.termination_date)
+    return to_date_value(contract.end_date)
+
+
 def calculate_last_month_cycle():
     """计算上个月的考勤周期(上月1日到上月最后一日)"""
     today = date.today()
@@ -175,14 +194,7 @@ def filter_contracts_for_cycle(employee_id, cycle_start, cycle_end):
             is_monthly = bool(monthly_flag)
             current_app.logger.info(f"  - 合同 {c.id}: type={c.type}, status={c.status}, is_monthly_auto_renew={monthly_flag}, is_monthly={is_monthly}")
         
-        # 转换 end_date 为 date 类型
-        end_date = c.end_date.date() if isinstance(c.end_date, datetime) else c.end_date
-        
-        # 对于已终止的合同，使用 termination_date 作为实际结束日期
-        if c.status == 'terminated' and c.termination_date:
-            actual_end = c.termination_date.date() if isinstance(c.termination_date, datetime) else c.termination_date
-        else:
-            actual_end = end_date
+        actual_end = get_attendance_contract_end_date(c)
         
         # 月签合同（active/pending）不检查 end_date
         if is_monthly:
@@ -257,10 +269,13 @@ def find_consecutive_contracts(employee_id, cycle_start, cycle_end):
         return contract.start_date
     
     effective_start = min(get_effective_start(c) for c in family_contracts)
-    effective_end = max(c.end_date for c in family_contracts)
+    def get_effective_end(contract):
+        return get_attendance_contract_end_date(contract) or contract.end_date
+
+    effective_end = max(get_effective_end(c) for c in family_contracts)
 
     # 考虑最后一个合同如果是自动月签且未终止（active或pending），则 effective_end 为 None
-    last_contract = max(family_contracts, key=lambda c: c.end_date)
+    last_contract = max(family_contracts, key=get_effective_end)
     if getattr(last_contract, 'is_monthly_auto_renew', False) and last_contract.status in ('active', 'pending'):
         effective_end = None
     
@@ -336,11 +351,8 @@ def get_attendance_form_by_token(employee_token):
                     effective_end = contract.end_date if contract else None
                     
                     # 对于月签合同，根据状态处理 effective_end
-                    if contract and hasattr(contract, 'is_monthly_auto_renew') and contract.is_monthly_auto_renew:
-                        if contract.status == 'active':
-                            effective_end = None
-                        elif contract.status == 'terminated' and contract.termination_date:
-                            effective_end = contract.termination_date
+                    if contract:
+                        effective_end = get_attendance_contract_end_date(contract)
                     
                     result = form_to_dict(existing_form, effective_start, effective_end)
                     cycle_start = existing_form.cycle_start_date
@@ -457,14 +469,12 @@ def get_attendance_form_by_token(employee_token):
                 actual_start = target_contract.start_date.date() if isinstance(target_contract.start_date, datetime) else target_contract.start_date
             
             # 获取合同的实际结束日期
-            is_monthly = getattr(target_contract, 'is_monthly_auto_renew', False) and target_contract.status in ('active', 'pending')
+            is_monthly = bool(getattr(target_contract, 'is_monthly_auto_renew', False) and target_contract.status in ('active', 'pending'))
             if is_monthly:
                 # 月签合同（active/pending）没有结束日期限制
                 actual_end = None
-            elif target_contract.status == 'terminated' and target_contract.termination_date:
-                actual_end = target_contract.termination_date.date() if isinstance(target_contract.termination_date, datetime) else target_contract.termination_date
             else:
-                actual_end = target_contract.end_date.date() if isinstance(target_contract.end_date, datetime) else target_contract.end_date
+                actual_end = get_attendance_contract_end_date(target_contract)
             
             # 检查合同是否在请求的周期内有效
             # 条件：actual_start <= cycle_end 且 (is_monthly 或 actual_end >= cycle_start)
@@ -506,9 +516,7 @@ def get_attendance_form_by_token(employee_token):
                     is_mo = getattr(c, 'is_monthly_auto_renew', False) and c.status in ('active', 'pending')
                     if is_mo:
                         return None
-                    elif c.status == 'terminated' and c.termination_date:
-                        return c.termination_date.date() if isinstance(c.termination_date, datetime) else c.termination_date
-                    return c.end_date.date() if isinstance(c.end_date, datetime) else c.end_date
+                    return get_attendance_contract_end_date(c)
                 
                 starts = [get_eff_start(c) for c in family_contracts]
                 ends = [get_act_end(c) for c in family_contracts]
@@ -585,11 +593,7 @@ def get_attendance_form_by_token(employee_token):
             # 检查是否为合同结束月，且缺少下户记录
             
             # 检查是否为合同结束月，且缺少下户记录
-            contract_end_date = None
-            if getattr(contract, 'is_monthly_auto_renew', False) and contract.status == 'terminated' and contract.termination_date:
-                contract_end_date = contract.termination_date.date() if isinstance(contract.termination_date, datetime) else contract.termination_date
-            elif not getattr(contract, 'is_monthly_auto_renew', False) and contract.end_date:
-                contract_end_date = contract.end_date.date() if isinstance(contract.end_date, datetime) else contract.end_date
+            contract_end_date = get_attendance_contract_end_date(contract)
             
             if contract_end_date and cycle_start <= contract_end_date <= cycle_end:
                 contract_end_str = contract_end_date.isoformat()
@@ -676,11 +680,7 @@ def get_attendance_form_by_token(employee_token):
         # 判断是否为合同结束月
         # 对于自动月签合同，使用终止日期；否则使用结束日期
         # 注意：如果有续约合同（同一客户/家庭的连续服务），则不需要下户记录
-        contract_end_date = None
-        if getattr(contract, 'is_monthly_auto_renew', False) and contract.status == 'terminated' and contract.termination_date:
-            contract_end_date = contract.termination_date.date() if isinstance(contract.termination_date, datetime) else contract.termination_date
-        elif not getattr(contract, 'is_monthly_auto_renew', False) and contract.end_date:
-            contract_end_date = contract.end_date.date() if isinstance(contract.end_date, datetime) else contract.end_date
+        contract_end_date = get_attendance_contract_end_date(contract)
         
         if contract_end_date and cycle_start <= contract_end_date <= cycle_end:
             if not has_following_contract(contract):
@@ -749,17 +749,30 @@ def update_attendance_form(employee_token):
             return jsonify({"error": "考勤表已签署，无法修改"}), 400
             
         form_data = data.get('form_data')
+        action = data.get('action')
+        should_apply_auto = action == 'confirm' or form.status == 'employee_confirmed'
         
         if form_data:
             form.form_data = form_data
-            normalized_form_data, normalized = normalize_auto_overtime_form_data(form)
-            if normalized:
-                form.form_data = normalized_form_data
-                form_data = normalized_form_data
+            if should_apply_auto:
+                normalized_form_data, normalized = normalize_auto_overtime_form_data(form)
+                if normalized:
+                    form.form_data = normalized_form_data
+                    form_data = normalized_form_data
+            else:
+                form.form_data['overtime_records'] = [
+                    item for item in (form.form_data.get('overtime_records') or [])
+                    if not item.get('is_auto')
+                ]
+                form_data = form.form_data
             
         # 如果是提交确认
-        action = data.get('action')
         if action == 'confirm':
+            if not form_data:
+                normalized_form_data, normalized = normalize_auto_overtime_form_data(form)
+                if normalized:
+                    form.form_data = normalized_form_data
+                    form_data = normalized_form_data
             # 验证"上户"和"下户"记录的时间是否已填写
             validation_errors = []
             
@@ -793,12 +806,7 @@ def update_attendance_form(employee_token):
                     current_app.logger.info(f"[验证] 续约合同，跳过上户记录验证: {contract_start}")
             
             # 检查是否为合同结束月
-            contract_end_date = None
-            if contract:
-                if getattr(contract, 'is_monthly_auto_renew', False) and contract.status == 'terminated' and contract.termination_date:
-                    contract_end_date = contract.termination_date.date() if isinstance(contract.termination_date, datetime) else contract.termination_date
-                elif not getattr(contract, 'is_monthly_auto_renew', False) and contract.end_date:
-                    contract_end_date = contract.end_date.date() if isinstance(contract.end_date, datetime) else contract.end_date
+            contract_end_date = get_attendance_contract_end_date(contract)
             
             if contract_end_date and cycle_start <= contract_end_date <= cycle_end:
                 # 检查是否有续约合同
@@ -1146,11 +1154,30 @@ def get_onboarding_time_info(employee_id, contract_id, current_cycle_start):
         if isinstance(current_cycle_start, datetime):
             current_cycle_start = current_cycle_start.date()
         
-        # 查找所有该合同的考勤表，按时间倒序
-        forms = AttendanceForm.query.filter_by(
-            employee_id=employee_id,
-            contract_id=contract_id
-        ).order_by(AttendanceForm.cycle_start_date.desc()).all()
+        contract = BaseContract.query.get(contract_id)
+        contract_ids = [contract_id]
+        if contract:
+            query = BaseContract.query.filter(
+                BaseContract.service_personnel_id == employee_id,
+                BaseContract.status.in_(['active', 'pending', 'terminated', 'finished', 'completed'])
+            )
+            if contract.family_id:
+                query = query.filter(BaseContract.family_id == contract.family_id)
+            elif contract.customer_name:
+                query = query.filter(BaseContract.customer_name == contract.customer_name)
+            elif contract.customer_id:
+                query = query.filter(BaseContract.customer_id == contract.customer_id)
+            else:
+                query = query.filter(BaseContract.id == contract_id)
+            related_contracts = query.all()
+            contract_ids = [c.id for c in related_contracts] or [contract_id]
+
+        # 查找当前合同及同客户/家庭历史合同的考勤表，按时间正序取最早的上户记录。
+        forms = AttendanceForm.query.filter(
+            AttendanceForm.employee_id == employee_id,
+            AttendanceForm.contract_id.in_(contract_ids),
+            AttendanceForm.cycle_start_date <= current_cycle_start
+        ).order_by(AttendanceForm.cycle_start_date.asc()).all()
         
         for form in forms:
             if not form.form_data:
@@ -1185,6 +1212,30 @@ def get_onboarding_time_info(employee_id, contract_id, current_cycle_start):
         }
 
 
+def normalize_contract_effective_dates(contract, effective_start_date=None, effective_end_date=None):
+    """Return the service window that the attendance UI should use."""
+    if not contract:
+        return effective_start_date, effective_end_date
+
+    display_start_date = effective_start_date if effective_start_date else contract.start_date
+    display_end_date = effective_end_date
+
+    attendance_end_date = get_attendance_contract_end_date(contract)
+
+    if display_end_date is None:
+        if getattr(contract, 'is_monthly_auto_renew', False) and contract.status in ('active', 'pending'):
+            display_end_date = None
+        else:
+            display_end_date = attendance_end_date
+
+    if attendance_end_date and display_end_date:
+        parsed_display_end = display_end_date.date() if isinstance(display_end_date, datetime) else display_end_date
+        if attendance_end_date > parsed_display_end:
+            display_end_date = attendance_end_date
+
+    return display_start_date, display_end_date
+
+
 def form_to_dict(form, effective_start_date=None, effective_end_date=None):
     # 生成客户签署链接
     client_sign_url = None
@@ -1196,8 +1247,11 @@ def form_to_dict(form, effective_start_date=None, effective_end_date=None):
     # 确定合同显示的起止日期
     # 如果传入了 effective_start_date (合并后的开始日期)，则使用它
     # 否则回退到合同本身的 start_date
-    display_start_date = effective_start_date if effective_start_date else (form.contract.start_date if form.contract else None)
-    display_end_date = effective_end_date if effective_end_date else (form.contract.end_date if form.contract else None)
+    display_start_date, display_end_date = normalize_contract_effective_dates(
+        form.contract,
+        effective_start_date,
+        effective_end_date
+    )
     
     # 【家庭信息】获取同一家庭的所有客户信息
     family_customers = []
@@ -1250,6 +1304,8 @@ def form_to_dict(form, effective_start_date=None, effective_end_date=None):
             "employee_name": form.contract.service_personnel.name if form.contract and form.contract.service_personnel else "",
             "start_date": display_start_date.isoformat() if display_start_date else None,
             "end_date": display_end_date.isoformat() if display_end_date else None,
+            "effective_start_date": display_start_date.isoformat() if display_start_date else None,
+            "effective_end_date": display_end_date.isoformat() if display_end_date else None,
             # 合同状态和类型信息（用于判断最后一个月）
             "status": form.contract.status if form.contract else None,
             "type": form.contract.type if form.contract else None,

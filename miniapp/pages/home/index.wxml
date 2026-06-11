@@ -1,0 +1,108 @@
+<view class="page">
+  <view class="hero">
+    <view class="hero-head">
+      <view class="logo-box"><image class="logo" src="/assets/logo.png" mode="aspectFit" /></view>
+      <view class="hero-copy">
+        <view class="hero-title">{{customer.name || '客户'}}，您好</view>
+        <view class="hero-desc">查看服务待办，完成签署与考勤确认。</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="section-head">
+    <view class="section-title">待处理</view>
+    <view class="todo-count">{{todoCount}} 项</view>
+  </view>
+
+  <block wx:for="{{pendingContracts}}" wx:key="id">
+    <view class="action-card" data-token="{{item.customer_signing_token}}" bindtap="goContractSign">
+      <view class="action-main">
+        <view class="action-icon">签</view>
+        <view class="action-content">
+          <view class="action-title">{{item.type_label}}待签署</view>
+          <view class="action-desc">{{item.employee_name || '服务人员'}} · {{item.start_date_text}} 开始</view>
+        </view>
+      </view>
+      <view class="todo-badge">待签</view>
+    </view>
+  </block>
+
+  <block wx:for="{{pendingAttendance}}" wx:key="id">
+    <view class="attendance-card" data-token="{{item.customer_signature_token}}" bindtap="goAttendanceSign">
+      <view class="attendance-head">
+        <view class="attendance-meta">
+          <view class="attendance-title">{{item.year || ''}}年{{item.month || '-'}}月考勤</view>
+          <view class="attendance-desc">{{item.employee_name || '服务人员'}} · {{item.date_range}}</view>
+        </view>
+        <view class="attendance-action">去确认</view>
+      </view>
+      <view class="mini-calendar">
+        <block wx:for="{{item.preview_days}}" wx:for-item="day" wx:key="date">
+          <view class="{{day.className}}">
+            <view class="calendar-num">{{day.day}}</view>
+            <view wx:if="{{day.disabled}}" class="calendar-mark">×</view>
+            <view wx:elif="{{day.label && day.label !== '出勤'}}" class="calendar-mark">{{day.label}}</view>
+          </view>
+        </block>
+      </view>
+      <view class="attendance-stats">
+        <view class="stat-box">
+          <view class="stat-value">{{item.work_days_text}}</view>
+          <view class="stat-label">出勤天</view>
+        </view>
+        <view class="stat-box">
+          <view class="stat-value">{{item.overtime_text}}</view>
+          <view class="stat-label">加班</view>
+        </view>
+        <view class="stat-box">
+          <view class="stat-value">{{item.leave_days_text}}</view>
+          <view class="stat-label">休假</view>
+        </view>
+      </view>
+    </view>
+  </block>
+
+  <block wx:for="{{pendingEvaluations}}" wx:key="id">
+    <view class="action-card" data-id="{{item.id}}" bindtap="goEvaluation">
+      <view class="action-main">
+        <view class="action-icon eval">评</view>
+        <view class="action-content">
+          <view class="action-title">{{item.type_label || '服务合同'}}待评价</view>
+          <view class="action-desc">{{item.employee_name || '服务人员'}} · {{item.date_range}}</view>
+        </view>
+      </view>
+      <view class="todo-badge teal">待评价</view>
+    </view>
+  </block>
+
+  <view wx:if="{{overviewLoaded && todoCount === 0}}" class="empty">
+    <view class="empty-title">暂无待办</view>
+    <view class="empty-desc">合同签署和考勤确认事项都会出现在这里；如果刚收到运营分享，请从分享页面进入完成自动关联。</view>
+  </view>
+
+  <view class="section-head">
+    <view class="section-title">服务合同</view>
+    <button class="link-btn section-link" bindtap="goContracts">全部合同</button>
+  </view>
+
+  <block wx:for="{{activeContracts}}" wx:key="id">
+    <view class="contract-card" data-id="{{item.id}}" bindtap="goContractDetail">
+      <view class="contract-top">
+        <view class="contract-meta">
+          <view class="contract-title">{{item.type_label || '服务合同'}}</view>
+          <view class="contract-desc">{{item.employee_name || '服务人员'}} · {{item.date_range}}</view>
+        </view>
+        <view class="chip">{{item.status_text}}</view>
+      </view>
+      <view class="contract-foot">
+        <text>{{item.signing_status_text}}</text>
+        <text>›</text>
+      </view>
+    </view>
+  </block>
+
+  <view wx:if="{{overviewLoaded && serviceContractCount === 0}}" class="empty">
+    <view class="empty-title">暂无服务合同</view>
+    <view class="empty-desc">当前微信尚未关联服务合同，签署合同或确认分享来的考勤后会自动显示。</view>
+  </view>
+</view>

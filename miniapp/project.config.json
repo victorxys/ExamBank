@@ -1,0 +1,80 @@
+{
+  "description": "萌姨萌嫂服务助手小程序一期",
+  "packOptions": {
+    "ignore": [],
+    "include": []
+  },
+  "setting": {
+    "urlCheck": false,
+    "es6": true,
+    "enhance": true,
+    "postcss": true,
+    "minified": true,
+    "newFeature": true,
+    "compileWorklet": false,
+    "uglifyFileName": false,
+    "uploadWithSourceMap": true,
+    "packNpmManually": false,
+    "packNpmRelationList": [],
+    "minifyWXSS": true,
+    "minifyWXML": true,
+    "localPlugins": false,
+    "disableUseStrict": false,
+    "useCompilerPlugins": false,
+    "condition": false,
+    "swc": false,
+    "disableSWC": true,
+    "babelSetting": {
+      "ignore": [],
+      "disablePlugins": [],
+      "outputPath": ""
+    }
+  },
+  "compileType": "miniprogram",
+  "libVersion": "latest",
+  "appid": "wxde7056d80e52042f",
+  "projectname": "mengjia-service-miniapp",
+  "condition": {
+    "miniprogram": {
+      "list": [
+        {
+          "name": "登录",
+          "pathName": "pages/login/index",
+          "query": ""
+        },
+        {
+          "name": "员工登录",
+          "pathName": "pages/login/index",
+          "query": "role=employee"
+        },
+        {
+          "name": "首页",
+          "pathName": "pages/home/index",
+          "query": ""
+        },
+        {
+          "name": "员工首页",
+          "pathName": "pages/employee-home/index",
+          "query": ""
+        },
+        {
+          "name": "员工绑定",
+          "pathName": "pages/employee-bind/index",
+          "query": ""
+        },
+        {
+          "name": "合同签署",
+          "pathName": "pages/contract-sign/index",
+          "query": "token=demo-token"
+        },
+        {
+          "name": "考勤确认",
+          "pathName": "pages/attendance-sign/index",
+          "query": "token=demo-token"
+        }
+      ]
+    }
+  },
+  "simulatorPluginLibVersion": {},
+  "editorSetting": {}
+}

@@ -93,6 +93,29 @@ ADJUSTMENT_TYPE_LABELS = {
     AdjustmentType.EMPLOYEE_CLIENT_PAYMENT: "客户直付"
 }
 
+def _date_only(value):
+    if isinstance(value, datetime):
+        return value.date()
+    return value
+
+
+def _get_contract_effective_end_date(contract):
+    if contract.type == "maternity_nurse":
+        return _date_only(getattr(contract, "expected_offboarding_date", None) or contract.end_date)
+    return _date_only(contract.end_date)
+
+
+def _get_contract_effective_status(contract, today=None):
+    today = today or date.today()
+    end_date = _get_contract_effective_end_date(contract)
+    is_monthly_auto_renew = isinstance(contract, NannyContract) and getattr(
+        contract, "is_monthly_auto_renew", False
+    )
+    if contract.status == "active" and end_date and end_date <= today and not is_monthly_auto_renew:
+        return "finished"
+    return contract.status
+
+
 def _get_or_create_personnel_ref(name: str, phone: str = None):
     """
     根据姓名和（可选）手机号，查找或创建服务人员。
@@ -1569,6 +1592,7 @@ def get_all_contracts():
 
         results = []
         for contract, deposit_amount, deposit_status in paginated_contracts.items:
+            effective_status = _get_contract_effective_status(contract, today)
             # 统一从 ServicePersonnel 获取员工姓名
             employee_name = (
                 contract.service_personnel.name
@@ -1640,7 +1664,7 @@ def get_all_contracts():
                     "employee_name": employee_name,
                     "contract_type_value": contract.type,
                     "contract_type_label": get_contract_type_details(contract.type),
-                    "status": contract.status,
+                    "status": effective_status,
                     "employee_level": contract.employee_level,
                     "start_date": contract.start_date.isoformat() if contract.start_date else None,
                     "end_date": contract.end_date.isoformat() if contract.end_date else None,
@@ -2313,6 +2337,8 @@ def get_single_contract_details(contract_id):
         if contract.type == 'nanny_trial':
             can_convert = _check_can_convert(contract)
 
+        effective_status = _get_contract_effective_status(contract, today)
+
         result = {
             "id": str(contract.id),
             "source_trial_contract_id": str(contract.source_trial_contract_id) if hasattr(contract, 'source_trial_contract_id') and contract.source_trial_contract_id else None,
@@ -2327,7 +2353,7 @@ def get_single_contract_details(contract_id):
             "employee_name": employee_name,
             "contract_type_value": contract.type,
             "contract_type_label": get_contract_type_details(contract.type),
-            "status": contract.status,
+            "status": effective_status,
             "employee_level": contract.employee_level,
             "start_date": safe_isoformat(contract.start_date),
             "end_date": safe_isoformat(contract.end_date),

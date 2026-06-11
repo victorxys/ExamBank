@@ -1,0 +1,25 @@
+{
+  "pages": [
+    "pages/login/index",
+    "pages/employee-bind/index",
+    "pages/home/index",
+    "pages/employee-home/index",
+    "pages/contracts/index",
+    "pages/contract-detail/index",
+    "pages/contract-sign/index",
+    "pages/attendance-fill/index",
+    "pages/attendance-sign/index",
+    "pages/evaluation/index",
+    "pages/exit-summary/index"
+  ],
+  "window": {
+    "navigationBarTitleText": "萌姨萌嫂服务助手",
+    "navigationBarBackgroundColor": "#ffffff",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#edf5f2",
+    "backgroundTextStyle": "dark"
+  },
+  "style": "v2",
+  "lazyCodeLoading": "requiredComponents",
+  "sitemapLocation": "sitemap.json"
+}

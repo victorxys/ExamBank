@@ -1,0 +1,150 @@
+<view class="attendance-page">
+  <view class="sticky-head">
+    <view class="head-sub">客户：{{customerNameText}}</view>
+    <view class="head-main">
+      <view class="title-wrap">
+        <view class="page-title">{{pageTitleText}}</view>
+        <view class="status-line">{{statusText}}</view>
+      </view>
+      <view class="avatar">{{avatarText}}</view>
+    </view>
+    <view class="range-line">{{employeeNameText}} · {{dateRangeText}}</view>
+  </view>
+
+  <view class="stats-wrap">
+    <view class="stats-panel">
+      <view class="stat-col">
+        <view class="stat-num">{{stats.workDaysText}}</view>
+        <view class="stat-label">出勤(天)</view>
+      </view>
+      <view class="stat-col">
+        <view class="stat-num orange">{{stats.leaveDaysText}}</view>
+        <view class="stat-label">请假/休假</view>
+      </view>
+      <view class="stat-col">
+        <view class="stat-num green">{{stats.overtimeDaysText}}</view>
+        <view class="stat-label">加班(天)</view>
+        <view wx:if="{{showHolidayOvertimeStat}}" class="stat-sub">含法定 {{stats.holidayOvertimeDaysText}}</view>
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{showAutoBanner}}" class="info-banner" bindtap="openAutoOvertimeInfo">
+    <view class="info-title">考勤折算说明</view>
+    <view class="info-text">本月实际工作出勤已超过 26 天上限，超出部分 {{stats.autoOvertimeDaysText}} 已由系统自动折算为加班。</view>
+  </view>
+
+  <view class="calendar-card">
+    <view class="week-row">
+      <view class="week-cell">一</view>
+      <view class="week-cell">二</view>
+      <view class="week-cell">三</view>
+      <view class="week-cell">四</view>
+      <view class="week-cell">五</view>
+      <view class="week-cell red">六</view>
+      <view class="week-cell red">日</view>
+    </view>
+
+    <view class="calendar-grid">
+      <block wx:for="{{calendarCells}}" wx:key="key">
+        <view wx:if="{{item.blank}}" class="day-cell blank"></view>
+        <view
+          wx:else
+          class="{{item.className}}"
+          data-date="{{item.date}}"
+          data-disabled="{{item.disabled}}"
+          data-auto="{{item.isAuto}}"
+          data-type-label="{{item.typeLabel}}"
+          data-time="{{item.displayTime}}"
+          bindtap="onCalendarDayTap"
+        >
+          <view wx:if="{{item.holidayLabelText}}" class="{{item.holidayLabelClass}}">{{item.holidayLabelText}}</view>
+          <view class="day-num">{{item.day}}</view>
+          <view wx:if="{{item.disabled}}" class="day-disabled">×</view>
+          <view wx:else class="day-label">{{item.typeLabel}}</view>
+          <view wx:if="{{item.displayTime}}" class="day-time">{{item.displayTime}}</view>
+        </view>
+      </block>
+    </view>
+  </view>
+
+  <view wx:if="{{showSpecialRecords}}" class="detail-card">
+    <view class="detail-title">考勤详情</view>
+    <block wx:for="{{specialRecords}}" wx:key="date">
+      <view class="{{item.className}}" data-index="{{index}}" bindtap="onRecordTap">
+        <view class="detail-date">
+          <view class="detail-day">{{item.dateText}}</view>
+          <view class="detail-type">{{item.typeLabel}}</view>
+        </view>
+        <view class="detail-main">
+          <view class="detail-time">{{item.timeLabel}}</view>
+          <view wx:if="{{item.showDuration}}" class="detail-duration">{{item.durationText}}</view>
+          <view wx:if="{{item.showAutoReason}}" class="detail-duration auto">因出勤超26天自动折算</view>
+        </view>
+      </view>
+    </block>
+  </view>
+
+  <view wx:else class="detail-card empty-detail">
+    <view class="detail-title">考勤详情</view>
+    <view class="empty-text">本月暂无特殊考勤明细。</view>
+  </view>
+
+  <view wx:if="{{showSignedCard}}" class="signature-card">
+    <view class="signed-title">客户签名</view>
+    <view class="signature-preview">
+      <image wx:if="{{signatureImage}}" class="signature-image" src="{{signatureImage}}" mode="aspectFit" />
+      <view wx:else class="empty-text">已签署，暂无签名图片预览</view>
+    </view>
+    <view class="signed-meta">{{signedNameText}} · {{signedAtText}}</view>
+  </view>
+
+  <view class="bottom-bar">
+    <view wx:if="{{isSigned}}" class="signed-bar">已签署</view>
+    <view wx:elif="{{blockedByEmployeeRole}}" class="employee-block">
+      <view class="employee-block-title">请分享给客户本人签署</view>
+      <view class="employee-block-text">{{employeeBlockText}}</view>
+      <view class="employee-block-actions">
+        <button class="secondary-action" bindtap="goEmployeeHome">返回员工端</button>
+        <button class="share-action" open-type="share">分享给客户确认</button>
+      </view>
+    </view>
+    <view wx:else>
+      <view wx:if="{{auth.requires_phone_auth}}" class="auth-card">
+        <view class="auth-title">签署前认证</view>
+        <view class="auth-desc">请输入合同签署人手机号，认证后当前微信可继续确认本合同后续考勤。</view>
+        <view class="auth-row">
+          <input class="auth-input" type="number" placeholder="合同签署人手机号" value="{{phoneNumber}}" bindinput="onPhoneInput" />
+          <button class="auth-btn" loading="{{authLoading}}" bindtap="verifyPhone">认证</button>
+        </view>
+      </view>
+      <view class="bottom-hint">请确认考勤信息无误后签署</view>
+      <button class="submit-btn" loading="{{submitting}}" bindtap="openSignatureModal">确认并签署</button>
+    </view>
+  </view>
+
+  <view wx:if="{{signatureModalOpen}}" class="signature-mask">
+    <view class="signature-sheet">
+      <view class="signature-sheet-head">
+        <view>
+          <view class="sheet-title">签署确认</view>
+          <view class="sheet-sub">请在下方区域手写签名，签署后将无法修改。</view>
+        </view>
+        <view class="icon-close" bindtap="closeSignatureModal">×</view>
+      </view>
+
+      <view class="signature-pad">
+        <canvas class="signature-canvas" canvas-id="attendanceSignature" disable-scroll="true" bindtouchstart="touchStart" bindtouchmove="touchMove" bindtouchend="touchEnd"></canvas>
+      </view>
+
+      <view class="signature-tools">
+        <button class="clear-btn" bindtap="clearSignature">清除签名</button>
+      </view>
+
+      <view class="signature-actions">
+        <button class="cancel-btn" bindtap="closeSignatureModal">取消</button>
+        <button class="confirm-btn" loading="{{submitting}}" bindtap="submitSign">确认签署</button>
+      </view>
+    </view>
+  </view>
+</view>
