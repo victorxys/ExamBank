@@ -93,7 +93,8 @@ Page({
         ? await api.employeeContractDetail(this.data.id)
         : await api.contractDetail(this.data.id);
       const contract = contractView(result.contract || {});
-      const markdown = contract.template_content || contract.service_content || contract.attachment_content || '';
+      const markdown = contract.template_content || contract.service_content || '';
+      const attachmentMarkdown = contract.attachment_content || '';
       const attendanceForms = (contract.attendance_forms || []).filter((item) => (
         ['employee_confirmed', 'customer_signed', 'synced'].includes(item.status)
       )).map((item) => {
@@ -143,7 +144,8 @@ Page({
         loadedOnce: true,
         shareTitle: `请评价${contract.employee_name || '服务人员'}的服务`,
         sharePath: `/pages/evaluation/index?contractId=${contract.id}`,
-        markdownNodes: markdownToNodes(markdown)
+        markdownNodes: markdownToNodes(markdown),
+        attachmentNodes: markdownToNodes(attachmentMarkdown)
       });
     } catch (error) {
       wx.showToast({ title: error.message || '加载失败', icon: 'none' });

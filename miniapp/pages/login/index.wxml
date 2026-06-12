@@ -16,4 +16,22 @@
   </view>
 
   <button class="btn-primary login-btn" loading="{{loading}}" bindtap="login">微信一键登录</button>
+
+  <view class="test-sign-card">
+    <view class="test-sign-title">生产合同签署测试</view>
+    <view class="test-sign-desc">用于验证签署后合同与当前微信自动关联。</view>
+    <view class="test-sign-actions">
+      <button
+        wx:for="{{contractSignTestLinks}}"
+        wx:key="token"
+        class="test-sign-btn {{item.role}}"
+        data-token="{{item.token}}"
+        data-role="{{item.role}}"
+        loading="{{loading}}"
+        bindtap="goContractSignTest"
+      >
+        {{item.label}}
+      </button>
+    </view>
+  </view>
 </view>

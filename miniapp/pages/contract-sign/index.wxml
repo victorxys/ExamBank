@@ -45,6 +45,13 @@
     </scroll-view>
   </view>
 
+  <view class="card" wx:if="{{contract.attachment_content}}">
+    <view class="section-title no-margin">补充协议</view>
+    <scroll-view scroll-y class="text-block md-block attachment-block">
+      <rich-text nodes="{{attachmentNodes}}"></rich-text>
+    </scroll-view>
+  </view>
+
   <view class="card" wx:if="{{contract.current_signature_image}}">
     <view class="section-title no-margin">{{contract.role === 'employee' ? '服务人员已签字' : '客户已签字'}}</view>
     <view class="signature-preview">
@@ -64,38 +71,12 @@
       <button wx:if="{{hasSignature}}" class="btn-secondary small" bindtap="clearSignature">重签</button>
     </view>
     <view class="signature-box tap-signature-box" bindtap="openSignaturePad">
-      <image wx:if="{{signaturePreview}}" class="signature-image" src="{{signaturePreview}}" mode="aspectFit" />
+      <image wx:if="{{signaturePreview}}" class="signature-image signature-draft-image" src="{{signaturePreview}}" mode="aspectFill" />
       <view wx:else class="signature-placeholder">
         <view class="signature-placeholder-icon">✎</view>
         <view>点击进入横屏签名</view>
       </view>
     </view>
     <button class="btn-primary submit-btn" loading="{{submitting}}" bindtap="submitSign">确认签署</button>
-  </view>
-
-  <view wx:if="{{signaturePadOpen}}" class="landscape-signature-mask">
-    <view class="landscape-signature-panel" style="width: {{landscapePanelWidth}}px; height: {{landscapePanelHeight}}px;">
-      <view class="landscape-toolbar">
-        <button class="landscape-tool-btn" bindtap="cancelSignaturePad">取消</button>
-        <view class="landscape-title">请签名</view>
-        <view class="landscape-actions">
-          <button class="landscape-tool-btn" bindtap="clearLandscapeSignature">清除</button>
-          <button class="landscape-confirm-btn" bindtap="confirmSignaturePad">确认</button>
-        </view>
-      </view>
-      <view class="landscape-canvas-wrap" style="height: {{landscapeCanvasHeight}}px;">
-        <canvas
-          class="landscape-signature-canvas"
-          style="width: {{landscapeCanvasWidth}}px; height: {{landscapeCanvasHeight}}px;"
-          canvas-id="contractLandscapeSignature"
-          disable-scroll="true"
-          bindtouchstart="landscapeTouchStart"
-          bindtouchmove="landscapeTouchMove"
-          bindtouchend="landscapeTouchEnd"
-        ></canvas>
-        <view class="landscape-guide-line"></view>
-        <view class="landscape-guide-text">签名区域</view>
-      </view>
-    </view>
   </view>
 </view>
