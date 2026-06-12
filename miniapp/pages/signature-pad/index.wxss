@@ -1,62 +1,85 @@
-.signature-page {
-  width: 100vw;
-  height: 100vh;
+.signature-viewport {
+  position: fixed;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
   overflow: hidden;
-  display: flex;
-  flex-direction: column;
   background: #ffffff;
 }
 
+.signature-panel {
+  position: fixed;
+  transform-origin: top left;
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  overflow: hidden;
+}
+
 .signature-toolbar {
-  height: 44rpx;
   flex: none;
-  padding: 0 18rpx;
+  box-sizing: border-box;
+  padding: 0 18px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 14rpx;
-  border-bottom: 1rpx solid #e2e8f0;
+  justify-content: flex-start;
+  border-bottom: 1px solid #e2e8f0;
   background: #f8fafc;
 }
 
 .toolbar-title {
-  flex: 1;
-  min-width: 0;
   color: #64748b;
-  font-size: 17rpx;
+  font-size: 15px;
   font-weight: 800;
+  line-height: 1;
 }
 
-.toolbar-actions {
+.signature-actions {
   flex: none;
+  box-sizing: border-box;
+  padding: 8px 20px;
   display: flex;
   align-items: center;
-  gap: 10rpx;
+  justify-content: flex-end;
+  gap: 6px;
+  border-top: 1px solid #e2e8f0;
+  background: #f8fafc;
 }
 
 .tool-btn,
 .confirm-btn {
-  width: 88rpx;
-  height: 34rpx;
+  box-sizing: border-box;
+  width: 64px;
+  height: 30px;
   margin: 0;
   padding: 0;
-  border-radius: 7rpx;
-  font-size: 17rpx;
+  border-radius: 7px;
+  font-size: 15px;
   font-weight: 900;
-  line-height: 34rpx;
+  line-height: 30px;
+  text-align: center;
 }
 
 .tool-btn {
-  border: 1rpx solid #cbd5e1;
+  border: 1px solid #cbd5e1;
   background: #ffffff;
   color: #475569;
 }
 
 .confirm-btn {
-  width: 104rpx;
+  width: 72px;
   border: 0;
   background: #0f766e;
   color: #ffffff;
+}
+
+.tool-btn-hover {
+  background: #f1f5f9;
+}
+
+.confirm-btn-hover {
+  background: #0d9488;
 }
 
 .canvas-wrap {
@@ -69,32 +92,33 @@
 }
 
 .signature-canvas {
-  width: 100%;
   flex: none;
+  display: block;
+  background: #ffffff;
 }
 
 .guide-wrap {
   position: relative;
   flex: none;
-  height: 56rpx;
   background: #ffffff;
 }
 
 .guide-line {
   position: absolute;
-  left: 44rpx;
-  right: 44rpx;
-  top: 8rpx;
-  border-bottom: 3rpx dashed #cbd5e1;
+  left: 24px;
+  right: 24px;
+  top: 5px;
+  border-bottom: 1px dashed #cbd5e1;
   pointer-events: none;
 }
 
 .guide-text {
   position: absolute;
-  left: 44rpx;
-  top: 18rpx;
+  left: 24px;
+  top: 11px;
   color: #94a3b8;
-  font-size: 20rpx;
+  font-size: 12px;
   font-weight: 700;
+  line-height: 1;
   pointer-events: none;
 }

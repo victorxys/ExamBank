@@ -141,7 +141,7 @@
 }
 
 .signature-preview {
-  height: 240rpx;
+  height: 268rpx;
   margin-top: 18rpx;
   border: 2rpx dashed #d9e3ea;
   border-radius: 18rpx;
@@ -160,7 +160,7 @@
 }
 
 .tap-signature-box {
-  height: 240rpx;
+  height: 268rpx;
   display: flex;
   align-items: center;
   justify-content: center;

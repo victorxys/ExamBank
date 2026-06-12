@@ -79,7 +79,7 @@
         <view class="detail-main">
           <view class="detail-time">{{item.timeLabel}}</view>
           <view wx:if="{{item.showDuration}}" class="detail-duration">{{item.durationText}}</view>
-          <view wx:if="{{item.showAutoReason}}" class="detail-duration auto">因出勤超26天自动折算</view>
+          <view wx:if="{{item.showAutoReason}}" class="detail-duration auto">{{item.autoReasonText}}</view>
         </view>
       </view>
     </block>

@@ -1,25 +1,28 @@
-<view class="signature-page">
-  <view class="signature-toolbar">
-    <view class="toolbar-title">签名区域</view>
-    <view class="toolbar-actions">
-      <button class="tool-btn" bindtap="cancel">取消</button>
-      <button class="tool-btn" bindtap="clearSignature">清除</button>
-      <button class="confirm-btn" bindtap="confirm">确认</button>
+<view class="signature-viewport" catchtouchmove="stopPageTouch">
+  <view class="signature-panel {{isPortrait ? 'is-portrait' : 'is-landscape'}}" style="{{panelStyle}}">
+    <view class="signature-toolbar" style="height: {{toolbarHeight}}px; padding-right: {{toolbarSafeRight}}px;">
+      <view class="toolbar-title">请签名</view>
     </view>
-  </view>
-  <view class="canvas-wrap" style="width: {{canvasWidth}}px;">
-    <canvas
-      class="signature-canvas"
-      style="width: {{canvasWidth}}px; height: {{canvasHeight}}px;"
-      canvas-id="signaturePad"
-      disable-scroll="true"
-      bindtouchstart="touchStart"
-      bindtouchmove="touchMove"
-      bindtouchend="touchEnd"
-    ></canvas>
-    <view class="guide-wrap">
-      <view class="guide-line"></view>
-      <view class="guide-text">签名区域</view>
+    <view class="canvas-wrap" style="width: {{canvasWidth}}px; height: {{canvasWrapHeight}}px;">
+      <canvas
+        class="signature-canvas"
+        style="width: {{canvasWidth}}px; height: {{canvasHeight}}px;"
+        canvas-id="signaturePad"
+        disable-scroll="true"
+        catchtouchstart="touchStart"
+        catchtouchmove="touchMove"
+        catchtouchend="touchEnd"
+        catchtouchcancel="touchEnd"
+      ></canvas>
+      <view class="guide-wrap" style="height: {{guideHeight}}px;">
+        <view class="guide-line"></view>
+        <view class="guide-text">签名区域</view>
+      </view>
+    </view>
+    <view class="signature-actions" style="height: {{actionBarHeight}}px;">
+      <view class="tool-btn" hover-class="tool-btn-hover" bindtap="cancel">取消</view>
+      <view class="tool-btn" hover-class="tool-btn-hover" bindtap="clearSignature">清除</view>
+      <view class="confirm-btn" hover-class="confirm-btn-hover" bindtap="confirm">确认</view>
     </view>
   </view>
 </view>

@@ -71,7 +71,7 @@
       <button wx:if="{{hasSignature}}" class="btn-secondary small" bindtap="clearSignature">重签</button>
     </view>
     <view class="signature-box tap-signature-box" bindtap="openSignaturePad">
-      <image wx:if="{{signaturePreview}}" class="signature-image signature-draft-image" src="{{signaturePreview}}" mode="aspectFill" />
+      <image wx:if="{{signaturePreview}}" class="signature-image signature-draft-image" src="{{signaturePreview}}" mode="aspectFit" />
       <view wx:else class="signature-placeholder">
         <view class="signature-placeholder-icon">✎</view>
         <view>点击进入横屏签名</view>

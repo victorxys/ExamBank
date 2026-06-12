@@ -76,6 +76,19 @@ const formatDays = (totalDays) => {
     return `${days}天${formattedHours}小时`;
 };
 
+const timeToMinutesForDisplay = (time, fallback = 0) => {
+    if (!time) return fallback;
+    const [rawHours, rawMinutes] = String(time).split(':').map(Number);
+    if (!Number.isFinite(rawHours) || !Number.isFinite(rawMinutes)) return fallback;
+    return rawHours * 60 + rawMinutes;
+};
+
+const isFullDayDisplayRecord = (record = {}) => {
+    const startMinutes = timeToMinutesForDisplay(record.startTime || '00:00', 0);
+    const endMinutes = timeToMinutesForDisplay(record.endTime || '24:00', 24 * 60);
+    return startMinutes <= 0 && endMinutes >= 24 * 60;
+};
+
 const ATTENDANCE_TYPES = {
     NORMAL: { label: '出勤', color: 'bg-gray-100 text-gray-800', value: 'normal', border: 'border-l-gray-200' },
     REST: { label: '休息', color: 'bg-blue-100 text-blue-800', value: 'rest', border: 'border-l-blue-400' },
@@ -2262,7 +2275,6 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                 const daysInCurrentMonth = record.daysInCurrentMonth || 1;
                                 const actualDaysOffset = daysInCurrentMonth - 1;
 
-                                let timeRangeStr = '';
                                 // 上户/下户：不使用默认时间，未填写时显示"待填写"
                                 const normalizeDisplayTime = (time) => {
                                     if (!time) return time;
@@ -2276,12 +2288,19 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                 };
                                 const startTime = normalizeDisplayTime(isOnboardingOrOffboarding ? record.startTime : (record.startTime || '09:00'));
                                 const endTime = normalizeDisplayTime(record.endTime || '18:00');
+                                const dateRangeStr = actualDaysOffset > 0
+                                    ? `${format(startDate, 'M月d日')} ~ ${format(endDate, 'M月d日')}`
+                                    : format(startDate, 'M月d日');
+                                let timeRangeStr = dateRangeStr;
+                                const durationText = formatDuration(record.hours, record.minutes);
 
                                 if (isOnboardingOrOffboarding) {
                                     // 上户：显示到达时间（startTime）
                                     // 下户：显示离开时间（endTime）
                                     const displayTime = record.type === 'offboarding' ? endTime : startTime;
                                     timeRangeStr = `${format(startDate, 'M月d日')} ${displayTime || '待填写'}`;
+                                } else if (record.is_auto || isFullDayDisplayRecord(record)) {
+                                    timeRangeStr = dateRangeStr;
                                 } else if (actualDaysOffset > 0) {
                                     // 跨天：显示当前月份内的起止时间
                                     timeRangeStr = `${format(startDate, 'M月d日')} ${startTime} ~ ${format(endDate, 'M月d日')} ${endTime}`;
@@ -2339,7 +2358,7 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                                     {timeRangeStr}
                                                     {record.is_auto && (
                                                         <span className="text-[10px] text-gray-400 block mt-0.5 font-normal">
-                                                            （因出勤天数超26天上限自动转换）
+                                                            补齐{durationText}，因出勤天数超26天上限自动转换
                                                         </span>
                                                     )}
                                                 </div>
@@ -2349,7 +2368,7 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                         {!isOnboardingOrOffboarding && (
                                             <div className="text-right">
                                                 <div className="text-sm font-bold text-gray-900">
-                                                    {formatDuration(record.hours, record.minutes)}
+                                                    {durationText}
                                                 </div>
                                             </div>
                                         )}
