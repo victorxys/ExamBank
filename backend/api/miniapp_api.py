@@ -153,6 +153,18 @@ def _is_active_contract(contract):
     return _contract_effective_status(contract) in ACTIVE_CONTRACT_STATUSES
 
 
+def _employee_has_signed_contract(contract):
+    return _signing_status_value(contract) in {
+        SigningStatus.EMPLOYEE_SIGNED.value,
+        SigningStatus.SIGNED.value,
+        SigningStatus.NOT_REQUIRED.value,
+    }
+
+
+def _is_employee_active_contract(contract):
+    return _is_active_contract(contract) and _employee_has_signed_contract(contract)
+
+
 def _is_history_contract(contract):
     return _contract_effective_status(contract) in HISTORY_CONTRACT_STATUSES
 
@@ -924,7 +936,10 @@ def _default_attendance_cycle():
 
 def _get_or_create_employee_attendance_forms(employee):
     cycle_start, cycle_end = _default_attendance_cycle()
-    contracts = filter_contracts_for_cycle(employee.id, cycle_start, cycle_end)
+    contracts = [
+        contract for contract in filter_contracts_for_cycle(employee.id, cycle_start, cycle_end)
+        if _employee_has_signed_contract(contract)
+    ]
     if not contracts:
         current_month_start = date.today().replace(day=1)
         current_month_end = date(
@@ -932,7 +947,10 @@ def _get_or_create_employee_attendance_forms(employee):
             current_month_start.month,
             calendar.monthrange(current_month_start.year, current_month_start.month)[1],
         )
-        contracts = filter_contracts_for_cycle(employee.id, current_month_start, current_month_end)
+        contracts = [
+            contract for contract in filter_contracts_for_cycle(employee.id, current_month_start, current_month_end)
+            if _employee_has_signed_contract(contract)
+        ]
         if contracts:
             cycle_start, cycle_end = current_month_start, current_month_end
 
@@ -1396,7 +1414,7 @@ def employee_overview():
         and contract.employee_signing_token
         and not _is_history_contract(contract)
     ]
-    active_contracts = [contract for contract in contracts if _is_active_contract(contract)]
+    active_contracts = [contract for contract in contracts if _is_employee_active_contract(contract)]
     history_contracts = [contract for contract in contracts if _is_history_contract(contract)]
     attendance_forms = _get_or_create_employee_attendance_forms(employee)
 
@@ -1424,7 +1442,7 @@ def employee_contracts():
     status_group = request.args.get("status_group", "all")
     contracts = _employee_contract_query(account.employee_id).order_by(BaseContract.start_date.desc()).all()
     if status_group == "active":
-        contracts = [contract for contract in contracts if _is_active_contract(contract)]
+        contracts = [contract for contract in contracts if _is_employee_active_contract(contract)]
     elif status_group == "history":
         contracts = [contract for contract in contracts if _is_history_contract(contract)]
 
