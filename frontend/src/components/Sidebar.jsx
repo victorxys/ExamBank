@@ -1,9 +1,10 @@
 // frontend/src/components/Sidebar.jsx (Refactored for recursive menus)
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
+import PropTypes from 'prop-types';
 import { Link as RouterLink, useLocation, useParams } from 'react-router-dom';
 import {
-  Box, List, ListItemButton, ListItemIcon, ListItemText, Drawer, Typography,
-  Divider, IconButton, useMediaQuery, Tooltip, Collapse, AppBar, Toolbar
+  Box, List, ListItemButton, ListItemIcon, ListItemText, Drawer,
+  IconButton, useMediaQuery, Tooltip, Collapse, AppBar, Toolbar
 } from '@mui/material';
 import { useTheme, alpha } from '@mui/material/styles';
 import {
@@ -12,7 +13,7 @@ import {
   People as PeopleIcon, Menu as MenuIcon, ChevronLeft as ChevronLeftIcon,
   ChevronRight as ChevronRightIcon, Settings as SettingsIcon, Api as ApiIcon, AccountBalanceWallet as AccountBalanceWalletIcon,
   Description as DescriptionIcon, History as HistoryIcon, ExpandLess, ExpandMore, Warning as WarningIcon,
-  Payment as PaymentIcon, Payments as PaymentsIcon, CalendarMonth as CalendarIcon
+  Payment as PaymentIcon, Payments as PaymentsIcon, CalendarMonth as CalendarIcon, Smartphone as SmartphoneIcon
 } from '@mui/icons-material';
 import logo from '../assets/logo.svg';
 import UserInfo from './UserInfo';
@@ -70,6 +71,7 @@ export const allMenuItems = [
   { text: '动态表单', icon: <DescriptionIcon />, path: '/forms', adminOnly: true },
   { text: '评价体系管理', icon: <AssignmentIcon />, path: '/evaluation-management', adminOnly: true },
   { text: '微信提醒审计', icon: <HistoryIcon />, path: '/admin/wechat-messages', adminOnly: true },
+  { text: '微信小程序绑定', icon: <SmartphoneIcon />, path: '/admin/miniapp-openids', adminOnly: true },
   { text: '系统通知配置', icon: <SettingsIcon />, path: '/admin/settings/notifications', adminOnly: true },
   {
     text: 'LLM 管理',
@@ -126,15 +128,15 @@ function Sidebar({ isCollapsed, setIsCollapsed }) {
   useEffect(() => {
     const currentPath = location.pathname;
     const parentPaths = findParentPaths(menuItemsToRender, currentPath);
-    const newOpenMenus = {};
-    let needsUpdate = false;
-    for (const path of parentPaths) {
-      if (!openMenus[path]) needsUpdate = true;
-      newOpenMenus[path] = true;
-    }
-    if (needsUpdate) {
-      setOpenMenus(prev => ({ ...prev, ...newOpenMenus }));
-    }
+    setOpenMenus(prev => {
+      const newOpenMenus = {};
+      let needsUpdate = false;
+      for (const path of parentPaths) {
+        if (!prev[path]) needsUpdate = true;
+        newOpenMenus[path] = true;
+      }
+      return needsUpdate ? { ...prev, ...newOpenMenus } : prev;
+    });
   }, [location.pathname, menuItemsToRender]);
 
   const handleDrawerToggle = () => setMobileOpen(!mobileOpen);
@@ -285,5 +287,10 @@ function Sidebar({ isCollapsed, setIsCollapsed }) {
     </>
   );
 }
+
+Sidebar.propTypes = {
+  isCollapsed: PropTypes.bool.isRequired,
+  setIsCollapsed: PropTypes.func.isRequired,
+};
 
 export default Sidebar;

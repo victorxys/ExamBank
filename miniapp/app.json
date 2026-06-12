@@ -1,6 +1,7 @@
 {
   "pages": [
     "pages/login/index",
+    "pages/role-select/index",
     "pages/employee-bind/index",
     "pages/home/index",
     "pages/employee-home/index",
