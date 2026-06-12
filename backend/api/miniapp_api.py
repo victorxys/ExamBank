@@ -1158,9 +1158,6 @@ def miniapp_contract_sign(token):
             data["customer_info"] = customer_info
             request._cached_json = (data, data)
     if employee_contract:
-        employee_account = _get_employee_account(openid) if openid else None
-        if not employee_account or employee_account.employee_id != employee_contract.service_personnel_id:
-            return jsonify({"success": False, "error": "请服务人员先使用手机号和身份证后6位登录绑定后再签署"}), 403
         if _get_account(openid):
             return jsonify({"success": False, "error": "客户账号不能代服务人员签署合同，请由服务人员本人签署"}), 403
 

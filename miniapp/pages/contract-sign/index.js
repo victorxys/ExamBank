@@ -1,12 +1,6 @@
 const api = require('../../utils/api');
 const { contractView } = require('../../utils/format');
 const { markdownToNodes } = require('../../utils/markdown');
-const {
-  drawSignatureDot,
-  drawSignatureSegment,
-  getTouchPoint
-} = require('../../utils/signature');
-
 const defaultCustomerInfo = {
   name: '',
   phone_number: '',
@@ -39,13 +33,13 @@ function hasLocalCustomer() {
 function roleBlocked(contractRole) {
   const role = currentMiniappRole();
   if (contractRole === 'customer') return role === 'employee' || hasLocalEmployee();
-  if (contractRole === 'employee') return role === 'customer' || hasLocalCustomer() || !hasLocalEmployee();
+  if (contractRole === 'employee') return role === 'customer' || hasLocalCustomer();
   return false;
 }
 
 function roleBlockText(contractRole) {
   if (contractRole === 'customer') return '这是客户签署页面。请分享给客户本人签署，员工不能代客户签署。';
-  if (contractRole === 'employee') return '这是服务人员签署页面。请先使用手机号和身份证后6位绑定员工身份，再返回签署。';
+  if (contractRole === 'employee') return '这是服务人员签署页面。请使用服务人员本人微信打开签署。';
   return '当前登录身份与签署角色不一致，请分享给对应签署人。';
 }
 
@@ -71,33 +65,14 @@ Page({
     submitting: false,
     hasSignature: false,
     signaturePreview: '',
-    signaturePadOpen: false,
-    landscapePanelWidth: 667,
-    landscapePanelHeight: 375,
-    landscapeCanvasWidth: 667,
-    landscapeCanvasHeight: 329,
     blockedByRole: false,
     roleBlockText: '',
     showEmployeeBindAction: false
   },
 
   onLoad(options) {
-    const info = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync();
-    const windowWidth = info.windowWidth || 375;
-    const windowHeight = info.windowHeight || 667;
-    const toolbarHeight = 46;
-    this.ctx = null;
-    this.landscapeCtx = null;
-    this.lastSignaturePoint = null;
-    this.lastLandscapeSignaturePoint = null;
-    this.signatureTouched = false;
-    this.landscapeSignatureTouched = false;
     this.setData({
-      token: options.token || '',
-      landscapePanelWidth: windowHeight,
-      landscapePanelHeight: windowWidth,
-      landscapeCanvasWidth: windowHeight,
-      landscapeCanvasHeight: Math.max(220, windowWidth - toolbarHeight)
+      token: options.token || ''
     });
     this.loadContract();
   },
@@ -112,7 +87,8 @@ Page({
       const result = await api.contractSignDetail(this.data.token);
       const contract = contractView(result.contract || {});
       await api.ensureOpenid(contract.role === 'employee' ? 'employee' : 'customer');
-      const markdown = contract.template_content || contract.service_content || contract.attachment_content || '';
+      const markdown = contract.template_content || contract.service_content || '';
+      const attachmentMarkdown = contract.attachment_content || '';
       const currentSignatureImage = contract.role === 'employee'
         ? contract.employee_signature_image
         : contract.customer_signature_image;
@@ -123,8 +99,9 @@ Page({
         },
         blockedByRole: roleBlocked(contract.role || 'customer'),
         roleBlockText: roleBlockText(contract.role || 'customer'),
-        showEmployeeBindAction: contract.role === 'employee' && !hasLocalEmployee(),
+        showEmployeeBindAction: false,
         markdownNodes: markdownToNodes(markdown),
+        attachmentNodes: markdownToNodes(attachmentMarkdown),
         customerInfo: {
           ...defaultCustomerInfo,
           ...(contract.customer_info || {}),
@@ -159,117 +136,11 @@ Page({
     this.setData({ [`employeeInfo.${field}`]: event.detail.value });
   },
 
-  createLandscapeContext() {
-    if (!this.landscapeCtx) {
-      this.landscapeCtx = wx.createCanvasContext('contractLandscapeSignature', this);
-    }
-    return this.landscapeCtx;
-  },
-
-  resetLandscapeCanvas() {
-    const ctx = this.createLandscapeContext();
-    ctx.setFillStyle('#ffffff');
-    ctx.fillRect(0, 0, this.data.landscapeCanvasWidth, this.data.landscapeCanvasHeight);
-    ctx.draw();
-    this.lastLandscapeSignaturePoint = null;
-    this.landscapeSignatureTouched = false;
-  },
-
   openSignaturePad() {
-    this.setData({ signaturePadOpen: true }, () => {
-      this.resetLandscapeCanvas();
-    });
-  },
-
-  cancelSignaturePad() {
-    this.setData({ signaturePadOpen: false });
-    this.lastLandscapeSignaturePoint = null;
-    this.landscapeSignatureTouched = false;
-  },
-
-  landscapeTouchStart(event) {
-    const point = getTouchPoint(event);
-    if (!point) return;
-    const ctx = this.createLandscapeContext();
-    this.lastLandscapeSignaturePoint = point;
-    this.landscapeSignatureTouched = true;
-    drawSignatureDot(ctx, point, { lineWidth: 5 });
-  },
-
-  landscapeTouchMove(event) {
-    const point = getTouchPoint(event);
-    if (!point) return;
-    const ctx = this.createLandscapeContext();
-    if (this.lastLandscapeSignaturePoint) {
-      drawSignatureSegment(ctx, this.lastLandscapeSignaturePoint, point, { lineWidth: 5 });
-    } else {
-      drawSignatureDot(ctx, point, { lineWidth: 5 });
-    }
-    this.lastLandscapeSignaturePoint = point;
-  },
-
-  landscapeTouchEnd() {
-    this.lastLandscapeSignaturePoint = null;
-  },
-
-  clearLandscapeSignature() {
-    this.resetLandscapeCanvas();
-  },
-
-  confirmSignaturePad() {
-    if (!this.landscapeSignatureTouched) {
-      wx.showToast({ title: '请先签名', icon: 'none' });
-      return;
-    }
-    wx.canvasToTempFilePath({
-      canvasId: 'contractLandscapeSignature',
-      fileType: 'png',
-      success: (res) => {
-        this.setData({
-          signaturePadOpen: false,
-          signaturePreview: res.tempFilePath,
-          hasSignature: true
-        });
-      },
-      fail: () => wx.showToast({ title: '签名保存失败', icon: 'none' })
-    }, this);
-  },
-
-  touchStart(event) {
-    const point = getTouchPoint(event);
-    if (!point) return;
-    this.lastSignaturePoint = point;
-    this.signatureTouched = true;
-    drawSignatureDot(this.ctx, point);
-  },
-
-  touchMove(event) {
-    const point = getTouchPoint(event);
-    if (!point) return;
-    if (this.lastSignaturePoint) {
-      drawSignatureSegment(this.ctx, this.lastSignaturePoint, point);
-    } else {
-      drawSignatureDot(this.ctx, point);
-    }
-    this.lastSignaturePoint = point;
-    if (!this.signatureTouched || !this.data.hasSignature) {
-      this.signatureTouched = true;
-      this.setData({ hasSignature: true });
-    }
-  },
-
-  touchEnd() {
-    this.lastSignaturePoint = null;
-    if (this.signatureTouched && !this.data.hasSignature) {
-      this.setData({ hasSignature: true });
-    }
+    wx.navigateTo({ url: '/pages/signature-pad/index' });
   },
 
   clearSignature() {
-    this.lastSignaturePoint = null;
-    this.lastLandscapeSignaturePoint = null;
-    this.signatureTouched = false;
-    this.landscapeSignatureTouched = false;
     this.setData({
       hasSignature: false,
       signaturePreview: ''

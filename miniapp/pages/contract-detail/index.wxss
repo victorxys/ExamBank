@@ -4,6 +4,10 @@
   color: rgba(255, 255, 255, 0.9);
 }
 
+.attachment-block {
+  max-height: 420rpx;
+}
+
 .no-margin {
   margin-top: 0;
 }

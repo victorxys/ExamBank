@@ -1,6 +1,19 @@
 const api = require('../../utils/api');
 const { devMockOpenid, enableMockLogin } = require('../../config/index');
 
+const contractSignTestLinks = [
+  {
+    role: 'customer',
+    label: '测试客户签署',
+    token: 'c6323e8a-60b2-408f-9757-040d7ab9a74e'
+  },
+  {
+    role: 'employee',
+    label: '测试员工签署',
+    token: 'e1c3831c-23a8-413c-bdf6-7b3c1808c4cd'
+  }
+];
+
 function wxLogin() {
   return new Promise((resolve, reject) => {
     wx.login({
@@ -20,6 +33,7 @@ Page({
   data: {
     openid: '',
     role: 'customer',
+    contractSignTestLinks,
     enableMockLogin,
     loading: false
   },
@@ -88,5 +102,28 @@ Page({
     }
     wx.showToast({ title: result.has_customer_access ? '登录成功' : '暂无关联服务', icon: 'none' });
     wx.redirectTo({ url: '/pages/home/index' });
+  },
+
+  async goContractSignTest(event) {
+    const token = event.currentTarget.dataset.token;
+    const role = event.currentTarget.dataset.role || 'customer';
+    if (!token) return;
+
+    this.setData({ loading: true });
+    try {
+      if (enableMockLogin && this.data.openid.trim()) {
+        const result = await api.login({ mock_openid: this.data.openid.trim() });
+        getApp().setSession(result.openid || this.data.openid.trim(), result.customer || null, result.employee || null, role);
+      } else {
+        const code = await wxLogin();
+        const result = await api.login({ code });
+        getApp().setSession(result.openid, result.customer || null, result.employee || null, role);
+      }
+      wx.navigateTo({ url: `/pages/contract-sign/index?token=${token}` });
+    } catch (error) {
+      wx.showToast({ title: error.message || '打开签署页失败', icon: 'none' });
+    } finally {
+      this.setData({ loading: false });
+    }
   }
 });

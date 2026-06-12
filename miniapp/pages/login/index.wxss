@@ -77,3 +77,51 @@
   background: #e7f7f4;
   color: #04786d;
 }
+
+.test-sign-card {
+  width: 100%;
+  margin-top: 28rpx;
+  padding: 24rpx;
+  border: 1rpx dashed #94a3b8;
+  border-radius: 16rpx;
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.test-sign-title {
+  color: #0f172a;
+  font-size: 27rpx;
+  font-weight: 900;
+}
+
+.test-sign-desc {
+  margin-top: 8rpx;
+  color: #64748b;
+  font-size: 23rpx;
+  line-height: 34rpx;
+}
+
+.test-sign-actions {
+  margin-top: 18rpx;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 14rpx;
+}
+
+.test-sign-btn {
+  width: 100%;
+  height: 72rpx;
+  margin: 0;
+  border-radius: 12rpx;
+  color: #ffffff;
+  font-size: 25rpx;
+  font-weight: 900;
+  line-height: 72rpx;
+}
+
+.test-sign-btn.customer {
+  background: #0f9f8f;
+}
+
+.test-sign-btn.employee {
+  background: #2563eb;
+}
