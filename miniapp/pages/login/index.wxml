@@ -1,37 +1,18 @@
 <view class="page login-page">
-  <view class="login-logo">
-    <image class="login-logo-img" src="/assets/logo.png" mode="aspectFit" />
-  </view>
-  <view class="login-title">萌姨萌嫂服务助手</view>
-  <view class="login-desc">客户微信登录后自动关联可见合同；服务人员使用手机号和身份证后6位绑定。</view>
-
-  <view class="role-tabs">
-    <button class="role-tab {{role === 'customer' ? 'active' : ''}}" data-role="customer" bindtap="selectRole">我是客户</button>
-    <button class="role-tab {{role === 'employee' ? 'active' : ''}}" data-role="employee" bindtap="selectRole">我是服务人员</button>
-  </view>
-
-  <view wx:if="{{enableMockLogin}}" class="card">
-    <text class="label">开发联调 openid</text>
-    <input class="input" value="{{openid}}" bindinput="onOpenidInput" />
-  </view>
-
-  <button class="btn-primary login-btn" loading="{{loading}}" bindtap="login">微信一键登录</button>
-
-  <view class="test-sign-card">
-    <view class="test-sign-title">生产合同签署测试</view>
-    <view class="test-sign-desc">用于验证签署后合同与当前微信自动关联。</view>
-    <view class="test-sign-actions">
-      <button
-        wx:for="{{contractSignTestLinks}}"
-        wx:key="token"
-        class="test-sign-btn {{item.role}}"
-        data-token="{{item.token}}"
-        data-role="{{item.role}}"
-        loading="{{loading}}"
-        bindtap="goContractSignTest"
-      >
-        {{item.label}}
-      </button>
+  <view class="login-brand">
+    <view class="login-logo">
+      <image class="login-logo-img" src="/assets/logo.png" mode="aspectFit" />
     </view>
+    <view class="login-title">萌姨萌嫂服务助手</view>
+    <view class="login-desc">客户请通过合同或考勤链接进入，服务人员可在此登录并绑定员工身份。</view>
+  </view>
+
+  <view class="login-actions">
+    <view wx:if="{{enableMockLogin}}" class="dev-card">
+      <text class="label">开发联调 openid</text>
+      <input class="input" value="{{openid}}" bindinput="onOpenidInput" />
+    </view>
+
+    <button class="btn-primary login-btn" loading="{{loading}}" bindtap="login">一键登录</button>
   </view>
 </view>

@@ -1,0 +1,14 @@
+<view class="page role-page">
+  <view class="role-title">请选择进入身份</view>
+  <view class="role-desc">当前微信同时关联了客户和服务人员身份。</view>
+
+  <view class="role-card" bindtap="selectEmployee">
+    <view class="role-card-title">服务人员</view>
+    <view class="role-card-desc">{{employee.name || '进入员工工作台'}}</view>
+  </view>
+
+  <view class="role-card customer" bindtap="selectCustomer">
+    <view class="role-card-title">客户</view>
+    <view class="role-card-desc">{{customer.name || '进入客户服务页'}}</view>
+  </view>
+</view>

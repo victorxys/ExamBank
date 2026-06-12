@@ -1034,6 +1034,19 @@ def miniapp_login():
         account = _get_account(openid)
         employee_account = _get_employee_account(openid)
         contract_accesses = _get_contract_accesses(openid)
+        roles = []
+        if account:
+            roles.append("customer")
+        if employee_account:
+            roles.append("employee")
+        requires_role_select = len(roles) > 1
+        default_role = ""
+        if not requires_role_select:
+            if employee_account:
+                default_role = "employee"
+            elif account:
+                default_role = "customer"
+        needs_employee_bind = not account and not employee_account
         if account:
             account.last_login_at = _now()
         if employee_account:
@@ -1050,6 +1063,10 @@ def miniapp_login():
                 "unionid": session.get("unionid"),
                 "bound": bool(account),
                 "employee_bound": bool(employee_account),
+                "roles": roles,
+                "default_role": default_role,
+                "requires_role_select": requires_role_select,
+                "needs_employee_bind": needs_employee_bind,
                 "contract_access_count": len(contract_accesses),
                 "has_customer_access": bool(account or contract_accesses),
                 "customer": {
@@ -1751,6 +1768,13 @@ def miniapp_attendance_sign_auth(signature_token):
         source_token=signature_token,
         verified_phone=_normalize_phone(phone_number),
     )
+    if form.contract and form.contract.customer_id:
+        _bind_customer_openid(
+            form.contract.customer_id,
+            openid,
+            phone_number=_normalize_phone(phone_number),
+            bind_method="phone_verify",
+        )
     db.session.commit()
     return jsonify({"success": True, "auth": _attendance_sign_auth_state(form, openid)})
 
@@ -1786,6 +1810,13 @@ def miniapp_attendance_sign_submit(signature_token):
                 source_token=signature_token,
                 verified_phone=_normalize_phone(phone_number),
             )
+            if form.contract and form.contract.customer_id:
+                _bind_customer_openid(
+                    form.contract.customer_id,
+                    openid,
+                    phone_number=_normalize_phone(phone_number),
+                    bind_method="phone_verify",
+                )
             db.session.flush()
 
     response = submit_customer_signature(signature_token)
@@ -1796,6 +1827,8 @@ def miniapp_attendance_sign_submit(signature_token):
 
     if openid and form and form.contract:
         _grant_contract_access(form.contract, openid, "attendance_signer", source_token=signature_token)
+        if form.contract.customer_id:
+            _bind_customer_openid(form.contract.customer_id, openid, bind_method="phone_verify")
         db.session.commit()
     return flask_response
 

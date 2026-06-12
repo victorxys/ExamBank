@@ -60,7 +60,7 @@ function assetUrl(path) {
   return `${apiOrigin}${path.startsWith('/') ? path : `/${path}`}`;
 }
 
-async function ensureOpenid(role = 'customer') {
+async function ensureOpenid(role = '') {
   const existing = getOpenid();
   if (existing) return existing;
 
@@ -74,11 +74,12 @@ async function ensureOpenid(role = 'customer') {
   }
 
   const openid = result.openid || devMockOpenid;
+  const sessionRole = role || result.default_role || '';
   if (app().setSession) {
-    app().setSession(openid, result.customer || null, result.employee || null, role);
+    app().setSession(openid, result.customer || null, result.employee || null, sessionRole);
   } else {
     wx.setStorageSync('miniapp_openid', openid);
-    wx.setStorageSync('miniapp_role', role);
+    if (sessionRole) wx.setStorageSync('miniapp_role', sessionRole);
   }
   return openid;
 }

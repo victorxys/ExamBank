@@ -19,3 +19,12 @@ export const retryWechatMessage = async (logId) => {
   return response.data;
 };
 
+export const getMiniappOpenidLinks = async (params) => {
+  const response = await api.get('/admin/wechat/miniapp-openids', { params });
+  return response.data;
+};
+
+export const deleteMiniappOpenidLink = async (role, accountId) => {
+  const response = await api.delete(`/admin/wechat/miniapp-openids/${role}/${accountId}`);
+  return response.data;
+};

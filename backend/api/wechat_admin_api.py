@@ -3,10 +3,169 @@
 """
 from flask import Blueprint, jsonify, request, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from backend.models import db, ServicePersonnel, User
+from backend.models import CustomerWechatAccount, EmployeeWechatAccount, db, ServicePersonnel, User
 from sqlalchemy import or_
 
 wechat_admin_bp = Blueprint('wechat_admin_api', __name__, url_prefix='/api/admin/wechat')
+
+
+def _require_admin():
+    current_user_id = get_jwt_identity()
+    current_user = User.query.get(current_user_id)
+    if not current_user or current_user.role != 'admin':
+        return None, (jsonify({"error": "权限不足"}), 403)
+    return current_user, None
+
+
+def _format_datetime(value):
+    return value.isoformat() if value else None
+
+
+def _format_miniapp_openid_account(account, role):
+    if role == "customer":
+        subject = account.customer
+        return {
+            "id": str(account.id),
+            "role": "customer",
+            "role_label": "客户",
+            "subject_id": str(subject.id) if subject else None,
+            "name": subject.name if subject else "",
+            "phone_number": subject.phone_number if subject else account.phone_number,
+            "mini_openid": account.mini_openid,
+            "unionid": account.unionid,
+            "bind_method": account.bind_method,
+            "verified_at": _format_datetime(account.verified_at),
+            "last_login_at": _format_datetime(account.last_login_at),
+            "created_at": _format_datetime(account.created_at),
+            "updated_at": _format_datetime(account.updated_at),
+        }
+
+    subject = account.employee
+    return {
+        "id": str(account.id),
+        "role": "employee",
+        "role_label": "员工",
+        "subject_id": str(subject.id) if subject else None,
+        "name": subject.name if subject else "",
+        "phone_number": subject.phone_number if subject else account.phone_number,
+        "mini_openid": account.mini_openid,
+        "unionid": account.unionid,
+        "bind_method": account.bind_method,
+        "verified_at": _format_datetime(account.verified_at),
+        "last_login_at": _format_datetime(account.last_login_at),
+        "created_at": _format_datetime(account.created_at),
+        "updated_at": _format_datetime(account.updated_at),
+    }
+
+
+def _miniapp_openid_matches(item, search):
+    if not search:
+        return True
+    needle = search.lower()
+    fields = [
+        item.get("mini_openid"),
+        item.get("unionid"),
+        item.get("name"),
+        item.get("phone_number"),
+        item.get("bind_method"),
+    ]
+    return any(needle in str(field or "").lower() for field in fields)
+
+
+@wechat_admin_bp.route('/miniapp-openids', methods=['GET'])
+@jwt_required()
+def get_miniapp_openid_links():
+    """
+    获取小程序 OpenID 身份绑定列表。
+    """
+    try:
+        _, error_response = _require_admin()
+        if error_response:
+            return error_response
+
+        page = max(request.args.get('page', 1, type=int), 1)
+        per_page = min(max(request.args.get('per_page', 20, type=int), 1), 100)
+        search = (request.args.get('search') or '').strip()
+        role_filter = (request.args.get('role') or '').strip()
+
+        items = []
+        if role_filter in ('', 'customer'):
+            customer_accounts = CustomerWechatAccount.query.join(
+                CustomerWechatAccount.customer
+            ).all()
+            items.extend(_format_miniapp_openid_account(account, "customer") for account in customer_accounts)
+
+        if role_filter in ('', 'employee'):
+            employee_accounts = EmployeeWechatAccount.query.join(
+                EmployeeWechatAccount.employee
+            ).all()
+            items.extend(_format_miniapp_openid_account(account, "employee") for account in employee_accounts)
+
+        items = [item for item in items if _miniapp_openid_matches(item, search)]
+        items.sort(key=lambda item: item.get("updated_at") or item.get("created_at") or "", reverse=True)
+
+        total = len(items)
+        start = (page - 1) * per_page
+        end = start + per_page
+        paged_items = items[start:end]
+        pages = (total + per_page - 1) // per_page if total else 0
+
+        return jsonify({
+            "items": paged_items,
+            "total": total,
+            "page": page,
+            "per_page": per_page,
+            "pages": pages,
+            "has_prev": page > 1,
+            "has_next": page < pages,
+        })
+    except Exception as e:
+        current_app.logger.error(f"获取小程序 OpenID 绑定列表失败: {e}", exc_info=True)
+        return jsonify({"error": "服务器内部错误"}), 500
+
+
+@wechat_admin_bp.route('/miniapp-openids/<role>/<account_id>', methods=['DELETE'])
+@jwt_required()
+def remove_miniapp_openid_link(role, account_id):
+    """
+    解绑小程序 OpenID 身份绑定，不删除合同/考勤访问与历史签署记录。
+    """
+    try:
+        current_user, error_response = _require_admin()
+        if error_response:
+            return error_response
+
+        if role == "customer":
+            account = CustomerWechatAccount.query.get(account_id)
+        elif role == "employee":
+            account = EmployeeWechatAccount.query.get(account_id)
+        else:
+            return jsonify({"error": "不支持的角色类型"}), 400
+
+        if not account:
+            return jsonify({"error": "绑定记录不存在"}), 404
+
+        account_info = _format_miniapp_openid_account(account, role)
+        db.session.delete(account)
+        db.session.commit()
+
+        current_app.logger.info(
+            "管理员 %s 解绑小程序 OpenID 身份绑定 role=%s account_id=%s openid=%s subject=%s",
+            current_user.username,
+            role,
+            account_id,
+            account_info.get("mini_openid"),
+            account_info.get("name"),
+        )
+
+        return jsonify({
+            "message": "小程序 OpenID 身份绑定已解绑",
+            "removed": account_info,
+        })
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"解绑小程序 OpenID 绑定失败: {e}", exc_info=True)
+        return jsonify({"error": "服务器内部错误"}), 500
 
 @wechat_admin_bp.route('/employee-links', methods=['GET'])
 @jwt_required()
@@ -16,10 +175,9 @@ def get_employee_wechat_links():
     """
     try:
         # 检查管理员权限
-        current_user_id = get_jwt_identity()
-        current_user = User.query.get(current_user_id)
-        if not current_user or current_user.role != 'admin':
-            return jsonify({"error": "权限不足"}), 403
+        _, error_response = _require_admin()
+        if error_response:
+            return error_response
         
         page = request.args.get('page', 1, type=int)
         per_page = request.args.get('per_page', 20, type=int)

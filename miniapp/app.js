@@ -3,7 +3,7 @@ App({
     openid: '',
     customer: null,
     employee: null,
-    role: 'customer'
+    role: ''
   },
 
   onLaunch() {
@@ -14,14 +14,15 @@ App({
     this.globalData.openid = openid || '';
     this.globalData.customer = customer || null;
     this.globalData.employee = employee || null;
-    this.globalData.role = role || 'customer';
+    this.globalData.role = role || '';
   },
 
   setSession(openid, customer, employee, role) {
+    const hasRoleArg = arguments.length >= 4;
     this.globalData.openid = openid || '';
     this.globalData.customer = customer || null;
     this.globalData.employee = employee || null;
-    this.globalData.role = role || this.globalData.role || 'customer';
+    this.globalData.role = hasRoleArg ? (role || '') : (this.globalData.role || '');
     if (openid) wx.setStorageSync('miniapp_openid', openid);
     if (customer) {
       wx.setStorageSync('miniapp_customer', customer);
@@ -33,6 +34,12 @@ App({
     } else {
       wx.removeStorageSync('miniapp_employee');
     }
-    if (role) wx.setStorageSync('miniapp_role', role);
+    if (hasRoleArg) {
+      if (role) {
+        wx.setStorageSync('miniapp_role', role);
+      } else {
+        wx.removeStorageSync('miniapp_role');
+      }
+    }
   }
 });

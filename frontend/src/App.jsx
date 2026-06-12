@@ -346,6 +346,7 @@ const ExamResultDetailPage = lazy(() => import('./components/ExamResultDetailPag
 const PickerTestPage = lazy(() => import('./components/PickerTestPage'));
 const WechatAttendance = lazy(() => import('./pages/WechatAttendance'));
 const WechatMessageLogs = lazy(() => import('./pages/WechatMessageLogs'));
+const MiniappOpenidManagement = lazy(() => import('./pages/MiniappOpenidManagement'));
 const MiniappPhaseOne = lazy(() => import('./pages/MiniappPhaseOne'));
 
 
@@ -386,6 +387,7 @@ function App() {
           <Route path="/employee-self-evaluations/:evaluationId" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <EmployeeSelfEvaluationDetail /> </Suspense>} />} />
           <Route path="/evaluation-management" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <EvaluationManagement /> </Suspense>} />} />
           <Route path="/admin/wechat-messages" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <WechatMessageLogs /> </Suspense>} />} />
+          <Route path="/admin/miniapp-openids" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <MiniappOpenidManagement /> </Suspense>} />} />
           <Route path="/admin/settings/notifications" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <NotificationSettings /> </Suspense>} />} />
           <Route path="/admin/llm/models" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <LlmModelManagement /> </Suspense>} />} />
           <Route path="/admin/llm/api-keys" element={<PrivateRoute element={<Suspense fallback={<LoadingFallback />}> <LlmApiKeyManagement /> </Suspense>} />} />

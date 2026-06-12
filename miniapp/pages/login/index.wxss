@@ -1,30 +1,36 @@
 .login-page {
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: space-between;
   overflow-x: hidden;
+  padding: 96rpx 34rpx 72rpx;
+}
+
+.login-brand {
+  padding-top: 52rpx;
 }
 
 .login-logo {
-  width: 144rpx;
-  height: 144rpx;
-  margin: 0 auto 28rpx;
+  width: 132rpx;
+  height: 132rpx;
+  margin: 0 auto 34rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 28rpx;
-  background: #fff;
-  box-shadow: 0 18rpx 44rpx rgba(15, 23, 42, 0.12);
+  border-radius: 30rpx;
+  background: #ffffff;
+  box-shadow: 0 16rpx 40rpx rgba(15, 23, 42, 0.1);
 }
 
 .login-logo-img {
-  width: 104rpx;
-  height: 104rpx;
+  width: 96rpx;
+  height: 96rpx;
 }
 
 .login-title {
   text-align: center;
-  font-size: 44rpx;
+  font-size: 42rpx;
   line-height: 54rpx;
   font-weight: 900;
   color: #0f172a;
@@ -33,95 +39,29 @@
 .login-desc {
   width: 560rpx;
   max-width: 100%;
-  margin: 18rpx auto 24rpx;
+  margin: 20rpx auto 0;
   text-align: center;
-  font-size: 27rpx;
-  line-height: 42rpx;
+  font-size: 26rpx;
+  line-height: 44rpx;
   color: #64748b;
+}
+
+.login-actions {
+  width: 100%;
+  padding-bottom: 22rpx;
+}
+
+.dev-card {
+  margin-bottom: 24rpx;
+  padding: 24rpx;
+  border-radius: 16rpx;
+  background: rgba(255, 255, 255, 0.86);
+  border: 1rpx solid #e2e8f0;
+  box-shadow: 0 10rpx 28rpx rgba(15, 23, 42, 0.05);
 }
 
 .login-btn {
-  margin-top: 24rpx;
-}
-
-.role-tabs {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 16rpx;
-  margin: 12rpx 0 24rpx;
-  width: 100%;
-  min-width: 0;
-}
-
-.role-tab {
-  width: 100%;
-  min-width: 0;
-  height: 76rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 8rpx;
-  border: 1rpx solid #d8e1e8;
-  border-radius: 12rpx;
-  background: #fff;
-  color: #475569;
-  font-size: 25rpx;
-  font-weight: 800;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.role-tab.active {
-  border-color: #0f9f8f;
-  background: #e7f7f4;
-  color: #04786d;
-}
-
-.test-sign-card {
-  width: 100%;
-  margin-top: 28rpx;
-  padding: 24rpx;
-  border: 1rpx dashed #94a3b8;
+  height: 94rpx;
   border-radius: 16rpx;
-  background: rgba(255, 255, 255, 0.78);
-}
-
-.test-sign-title {
-  color: #0f172a;
-  font-size: 27rpx;
-  font-weight: 900;
-}
-
-.test-sign-desc {
-  margin-top: 8rpx;
-  color: #64748b;
-  font-size: 23rpx;
-  line-height: 34rpx;
-}
-
-.test-sign-actions {
-  margin-top: 18rpx;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 14rpx;
-}
-
-.test-sign-btn {
-  width: 100%;
-  height: 72rpx;
-  margin: 0;
-  border-radius: 12rpx;
-  color: #ffffff;
-  font-size: 25rpx;
-  font-weight: 900;
-  line-height: 72rpx;
-}
-
-.test-sign-btn.customer {
-  background: #0f9f8f;
-}
-
-.test-sign-btn.employee {
-  background: #2563eb;
+  box-shadow: 0 14rpx 30rpx rgba(15, 159, 143, 0.22);
 }
