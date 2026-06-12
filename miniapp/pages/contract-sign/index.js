@@ -70,16 +70,35 @@ Page({
     markdownNodes: [],
     submitting: false,
     hasSignature: false,
+    signaturePreview: '',
+    signaturePadOpen: false,
+    landscapePanelWidth: 667,
+    landscapePanelHeight: 375,
+    landscapeCanvasWidth: 667,
+    landscapeCanvasHeight: 329,
     blockedByRole: false,
     roleBlockText: '',
     showEmployeeBindAction: false
   },
 
   onLoad(options) {
-    this.ctx = wx.createCanvasContext('contractSignature', this);
+    const info = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync();
+    const windowWidth = info.windowWidth || 375;
+    const windowHeight = info.windowHeight || 667;
+    const toolbarHeight = 46;
+    this.ctx = null;
+    this.landscapeCtx = null;
     this.lastSignaturePoint = null;
+    this.lastLandscapeSignaturePoint = null;
     this.signatureTouched = false;
-    this.setData({ token: options.token || '' });
+    this.landscapeSignatureTouched = false;
+    this.setData({
+      token: options.token || '',
+      landscapePanelWidth: windowHeight,
+      landscapePanelHeight: windowWidth,
+      landscapeCanvasWidth: windowHeight,
+      landscapeCanvasHeight: Math.max(220, windowWidth - toolbarHeight)
+    });
     this.loadContract();
   },
 
@@ -140,6 +159,82 @@ Page({
     this.setData({ [`employeeInfo.${field}`]: event.detail.value });
   },
 
+  createLandscapeContext() {
+    if (!this.landscapeCtx) {
+      this.landscapeCtx = wx.createCanvasContext('contractLandscapeSignature', this);
+    }
+    return this.landscapeCtx;
+  },
+
+  resetLandscapeCanvas() {
+    const ctx = this.createLandscapeContext();
+    ctx.setFillStyle('#ffffff');
+    ctx.fillRect(0, 0, this.data.landscapeCanvasWidth, this.data.landscapeCanvasHeight);
+    ctx.draw();
+    this.lastLandscapeSignaturePoint = null;
+    this.landscapeSignatureTouched = false;
+  },
+
+  openSignaturePad() {
+    this.setData({ signaturePadOpen: true }, () => {
+      this.resetLandscapeCanvas();
+    });
+  },
+
+  cancelSignaturePad() {
+    this.setData({ signaturePadOpen: false });
+    this.lastLandscapeSignaturePoint = null;
+    this.landscapeSignatureTouched = false;
+  },
+
+  landscapeTouchStart(event) {
+    const point = getTouchPoint(event);
+    if (!point) return;
+    const ctx = this.createLandscapeContext();
+    this.lastLandscapeSignaturePoint = point;
+    this.landscapeSignatureTouched = true;
+    drawSignatureDot(ctx, point, { lineWidth: 5 });
+  },
+
+  landscapeTouchMove(event) {
+    const point = getTouchPoint(event);
+    if (!point) return;
+    const ctx = this.createLandscapeContext();
+    if (this.lastLandscapeSignaturePoint) {
+      drawSignatureSegment(ctx, this.lastLandscapeSignaturePoint, point, { lineWidth: 5 });
+    } else {
+      drawSignatureDot(ctx, point, { lineWidth: 5 });
+    }
+    this.lastLandscapeSignaturePoint = point;
+  },
+
+  landscapeTouchEnd() {
+    this.lastLandscapeSignaturePoint = null;
+  },
+
+  clearLandscapeSignature() {
+    this.resetLandscapeCanvas();
+  },
+
+  confirmSignaturePad() {
+    if (!this.landscapeSignatureTouched) {
+      wx.showToast({ title: '请先签名', icon: 'none' });
+      return;
+    }
+    wx.canvasToTempFilePath({
+      canvasId: 'contractLandscapeSignature',
+      fileType: 'png',
+      success: (res) => {
+        this.setData({
+          signaturePadOpen: false,
+          signaturePreview: res.tempFilePath,
+          hasSignature: true
+        });
+      },
+      fail: () => wx.showToast({ title: '签名保存失败', icon: 'none' })
+    }, this);
+  },
+
   touchStart(event) {
     const point = getTouchPoint(event);
     if (!point) return;
@@ -171,21 +266,13 @@ Page({
   },
 
   clearSignature() {
-    this.ctx.clearRect(0, 0, 360, 140);
-    this.ctx.draw();
     this.lastSignaturePoint = null;
+    this.lastLandscapeSignaturePoint = null;
     this.signatureTouched = false;
-    this.setData({ hasSignature: false });
-  },
-
-  canvasToTempFile() {
-    return new Promise((resolve, reject) => {
-      wx.canvasToTempFilePath({
-        canvasId: 'contractSignature',
-        fileType: 'png',
-        success: (res) => resolve(res.tempFilePath),
-        fail: reject
-      }, this);
+    this.landscapeSignatureTouched = false;
+    this.setData({
+      hasSignature: false,
+      signaturePreview: ''
     });
   },
 
@@ -223,8 +310,7 @@ Page({
 
     this.setData({ submitting: true });
     try {
-      const path = await this.canvasToTempFile();
-      const signature = await this.readFileBase64(path);
+      const signature = await this.readFileBase64(this.data.signaturePreview);
       const payload = {
         openid: api.getOpenid(),
         signature

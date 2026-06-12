@@ -10,7 +10,7 @@
     <button class="role-tab {{role === 'employee' ? 'active' : ''}}" data-role="employee" bindtap="selectRole">我是服务人员</button>
   </view>
 
-  <view class="card">
+  <view wx:if="{{enableMockLogin}}" class="card">
     <text class="label">开发联调 openid</text>
     <input class="input" value="{{openid}}" bindinput="onOpenidInput" />
   </view>

@@ -1,14 +1,14 @@
-import React, { useState, useEffect, useCallback, useRef, useLayoutEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import {
     Container, Box, Typography, Paper, Grid, Button, CircularProgress,
-    Alert, Divider, Card, CardContent, CardHeader, Chip, TextField
+    Alert, Card, CardContent, CardHeader, Chip, TextField
 } from '@mui/material';
 import api from '../api/axios';
 import ReactMarkdown from 'react-markdown';
-import SignatureCanvas from 'react-signature-canvas';
 import logoSvg from '../assets/logo.svg'; // 假设你的Logo文件路径是这个
 import { useTheme } from '@mui/material/styles';
+import { FullscreenSignaturePad } from './ui/FullscreenSignaturePad';
 
 const partyInfoDefault = {
     name: '',
@@ -25,17 +25,13 @@ const PublicSigningPage = () => {
     const [error, setError] = useState('');
     const [submitting, setSubmitting] = useState(false);
     const [isResigning, setIsResigning] = useState(false);
-    const [sigCanvasWidth, setSigCanvasWidth] = useState(0);
+    const [signatureImages, setSignatureImages] = useState({ customer: null, employee: null });
 
     // Refactored State: One state for form values
     const [formValues, setFormValues] = useState({
         customer: partyInfoDefault,
         employee: partyInfoDefault,
     });
-
-    const customerSigCanvas = useRef(null);
-    const employeeSigCanvas = useRef(null);
-    const sigContainerRef = useRef(null);
 
     // Effect 1: Fetch contract data from server
     useEffect(() => {
@@ -77,19 +73,9 @@ const PublicSigningPage = () => {
                 customer: initialCustomerInfo,
                 employee: initialEmployeeInfo
             });
+            setSignatureImages({ customer: null, employee: null });
         }
     }, [contract]);
-
-    useLayoutEffect(() => {
-        const setWidth = () => {
-            if (sigContainerRef.current) {
-                setSigCanvasWidth(sigContainerRef.current.offsetWidth);
-            }
-        };
-        setWidth();
-        window.addEventListener('resize', setWidth);
-        return () => window.removeEventListener('resize', setWidth);
-    }, [contract, isResigning]);
 
     const isPartyInfoValid = (info) => {
         return info.name && info.phone_number && info.id_card_number && info.address;
@@ -97,14 +83,13 @@ const PublicSigningPage = () => {
 
     const handleSign = async () => {
         const role = contract.role;
-        const sigCanvas = role === 'customer' ? customerSigCanvas.current : employeeSigCanvas.current;
+        const signature = signatureImages[role];
 
-        if (sigCanvas.isEmpty()) {
+        if (!signature) {
             setError(`请在签名区域写下您的签名。`);
             return;
         }
 
-        const signature = sigCanvas.toDataURL('image/png');
         setSubmitting(true);
         setError('');
 
@@ -149,6 +134,13 @@ const PublicSigningPage = () => {
             }
         }));
     };
+
+    const handleSignatureChange = useCallback((role, dataUrl) => {
+        setSignatureImages(prev => ({
+            ...prev,
+            [role]: dataUrl
+        }));
+    }, []);
 
 
     const renderEditablePartyInfo = (role) => {
@@ -251,7 +243,6 @@ const PublicSigningPage = () => {
         const title = role === 'customer' ? '甲方 (客户) 签名区' : '乙方 (服务人员) 签名区';
         const existingSignature = role === 'customer' ? contract.customer_signature : contract. employee_signature;
         const signed = !!existingSignature;
-        const sigCanvasRef = role === 'customer' ? customerSigCanvas : employeeSigCanvas;
 
         const showCanvas = !signed || isResigning;
         const canSign = isPartyInfoValid(formValues[role]);
@@ -272,13 +263,16 @@ const PublicSigningPage = () => {
                     </Box>
                 ) : (
                     <>
-                        <Box ref={sigContainerRef} sx={{ border: '1px dashed grey', borderRadius: 1, mb: 2, touchAction : 'none' }}>
-                            {sigCanvasWidth > 0 &&
-                                <SignatureCanvas ref={sigCanvasRef} penColor='black' canvasProps={{ width: sigCanvasWidth, height: 200, className: 'sigCanvas', style: { width: '100%' } }} />
-                            }
+                        <Box sx={{ mb: 2 }}>
+                            <FullscreenSignaturePad
+                                value={signatureImages[role]}
+                                onChange={(dataUrl) => handleSignatureChange(role, dataUrl)}
+                                placeholder="点击进入横屏签名"
+                                className="min-h-[140px]"
+                            />
                         </Box>
                         <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', mt: 2 }}>
-                            <Button variant="outlined" onClick={() => sigCanvasRef.current.clear ()} disabled={submitting} sx={{ mr: 2 }}>
+                            <Button variant="outlined" onClick={() => handleSignatureChange(role, null)} disabled={submitting || !signatureImages[role]} sx={{ mr: 2 }}>
                                 清除
                             </Button>
                             <Button variant="contained" color="primary" size="large" onClick={handleSign} disabled={submitting || !canSign}>
@@ -420,7 +414,7 @@ const PublicSigningPage = () => {
                                 } else {
                                     // 非微信浏览器
                                     // 1. 尝试关闭窗口（仅对脚本打开的窗口有效）
-                                    const closed = window.close();
+                                    window.close();
                                     
                                     // 2. 延迟检查是否关闭成功，如果没有则返回上一页
                                     setTimeout(() => {

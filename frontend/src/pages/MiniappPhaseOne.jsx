@@ -16,6 +16,7 @@ import {
 import SignatureCanvas from 'react-signature-canvas';
 import api from '../api/axios';
 import logo from '../assets/logo.svg';
+import { FullscreenSignaturePad } from '../components/ui/FullscreenSignaturePad';
 
 const DEMO_OPENID = 'dev-miniapp-wang';
 
@@ -267,13 +268,13 @@ export default function MiniappPhaseOne() {
   const params = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const contractSignatureRef = useRef(null);
   const attendanceSignatureRef = useRef(null);
   const [openid, setOpenid] = useState(() => localStorage.getItem('miniapp_openid') || DEMO_OPENID);
   const [loading, setLoading] = useState(false);
   const [overview, setOverview] = useState(null);
   const [contractDetail, setContractDetail] = useState(null);
   const [signingContract, setSigningContract] = useState(null);
+  const [contractSignatureImage, setContractSignatureImage] = useState(null);
   const [attendanceDetail, setAttendanceDetail] = useState(null);
   const [customerInfo, setCustomerInfo] = useState(defaultCustomerInfo);
   const [bindForm, setBindForm] = useState(defaultBindForm);
@@ -364,6 +365,7 @@ export default function MiniappPhaseOne() {
         const response = await api.get(`/miniapp/contracts/sign/${token}`, { headers: miniHeaders });
         const contract = response.data.contract;
         setSigningContract(contract);
+        setContractSignatureImage(null);
         setCustomerInfo(ensureCustomerInfo(contract.customer_info, contract.customer_name));
       } catch (error) {
         showMessage(error.response?.data?.error || '合同加载失败');
@@ -398,7 +400,7 @@ export default function MiniappPhaseOne() {
       showMessage('请先补全甲方信息');
       return;
     }
-    if (!contractSignatureRef.current || contractSignatureRef.current.isEmpty()) {
+    if (!contractSignatureImage) {
       showMessage('请先在签名区签名');
       return;
     }
@@ -408,7 +410,7 @@ export default function MiniappPhaseOne() {
         `/miniapp/contracts/sign/${token}`,
         {
           openid,
-          signature: contractSignatureRef.current.toDataURL('image/png'),
+          signature: contractSignatureImage,
           customer_info: customerInfo,
         },
         { headers: miniHeaders }
@@ -660,7 +662,25 @@ export default function MiniappPhaseOne() {
             </div>
           </div>
           <div className="rounded-lg bg-white p-4 shadow-sm">
-            <SignaturePad canvasRef={contractSignatureRef} label={`${customerInfo.name || '客户'}电子签名`} />
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-sm font-bold text-slate-900">{customerInfo.name || '客户'}电子签名</span>
+              {contractSignatureImage && (
+                <button
+                  type="button"
+                  onClick={() => setContractSignatureImage(null)}
+                  className="inline-flex h-8 items-center gap-1 rounded-md border border-slate-200 px-2 text-xs font-bold text-slate-600"
+                >
+                  <RotateCcw size={14} />
+                  重签
+                </button>
+              )}
+            </div>
+            <FullscreenSignaturePad
+              value={contractSignatureImage}
+              onChange={setContractSignatureImage}
+              placeholder="点击进入横屏签名"
+              className="min-h-[132px] border-dashed border-slate-300 bg-slate-50"
+            />
             <button type="button" onClick={signContract} className="mt-4 h-12 w-full rounded-md bg-teal-600 text-sm font-bold text-white">
               确认签署
             </button>
