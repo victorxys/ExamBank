@@ -149,3 +149,133 @@
   width: 100%;
   height: 100%;
 }
+
+.tap-signature-box {
+  height: 260rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.signature-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12rpx;
+  color: #94a3b8;
+  font-size: 26rpx;
+  font-weight: 700;
+}
+
+.signature-placeholder-icon {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2rpx solid #cbd5e1;
+  color: #64748b;
+  font-size: 42rpx;
+  line-height: 1;
+}
+
+.landscape-signature-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: #ffffff;
+}
+
+.landscape-signature-panel {
+  position: fixed;
+  top: 0;
+  left: 100vw;
+  width: 100vh;
+  height: 100vw;
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  transform: rotate(90deg);
+  transform-origin: top left;
+}
+
+.landscape-toolbar {
+  height: 92rpx;
+  flex: none;
+  padding: 0 24rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1rpx solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.landscape-title {
+  color: #0f172a;
+  font-size: 30rpx;
+  font-weight: 800;
+}
+
+.landscape-actions {
+  display: flex;
+  align-items: center;
+  gap: 14rpx;
+}
+
+.landscape-tool-btn,
+.landscape-confirm-btn {
+  width: auto;
+  min-width: 112rpx;
+  height: 58rpx;
+  margin: 0;
+  padding: 0 22rpx;
+  border-radius: 10rpx;
+  font-size: 24rpx;
+  font-weight: 800;
+  line-height: 58rpx;
+}
+
+.landscape-tool-btn {
+  border: 1rpx solid #cbd5e1;
+  background: #ffffff;
+  color: #475569;
+}
+
+.landscape-confirm-btn {
+  border: 0;
+  background: #0f766e;
+  color: #ffffff;
+}
+
+.landscape-canvas-wrap {
+  position: relative;
+  flex: 1;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+.landscape-signature-canvas {
+  width: 100%;
+  height: 100%;
+}
+
+.landscape-guide-line {
+  position: absolute;
+  left: 44rpx;
+  right: 44rpx;
+  bottom: 92rpx;
+  border-bottom: 3rpx dashed #cbd5e1;
+  pointer-events: none;
+}
+
+.landscape-guide-text {
+  position: absolute;
+  left: 44rpx;
+  bottom: 42rpx;
+  color: #94a3b8;
+  font-size: 24rpx;
+  font-weight: 700;
+  pointer-events: none;
+}

@@ -20,12 +20,13 @@ Page({
   data: {
     openid: '',
     role: 'customer',
+    enableMockLogin,
     loading: false
   },
 
   onLoad(options) {
     this.setData({
-      openid: wx.getStorageSync('miniapp_openid') || devMockOpenid,
+      openid: enableMockLogin ? (wx.getStorageSync('miniapp_openid') || devMockOpenid) : '',
       role: options.role || wx.getStorageSync('miniapp_role') || 'customer'
     });
   },

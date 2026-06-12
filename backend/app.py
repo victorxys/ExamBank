@@ -117,7 +117,9 @@ def create_token_with_role(user_id, role):
     return create_access_token(identity=user_id, additional_claims={"role": role})
 
 
-load_dotenv()
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+load_dotenv(os.path.join(PROJECT_ROOT, ".env"))
+load_dotenv(os.path.join(PROJECT_ROOT, "backend", ".env"))
 
 
 app.config["SECRET_KEY"] = os.environ["SECRET_KEY"]  # 设置 SECRET_KEY

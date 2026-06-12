@@ -1,4 +1,5 @@
-import React, { useRef, useState, useEffect, useCallback } from 'react';
+/* eslint-disable react/prop-types */
+import { useRef, useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { X, RotateCcw, Check } from 'lucide-react';
 import { cn } from '../../utils';
@@ -25,12 +26,6 @@ const FullscreenSignaturePad = ({
         setIsOpen(true);
     }, [disabled]);
 
-    const clearSavedSignature = useCallback((e) => {
-        e.stopPropagation();
-        setSignatureImage(null);
-        onChange?.(null);
-    }, [onChange]);
-
     const handleSignatureComplete = useCallback((dataUrl) => {
         if (dataUrl) {
             setSignatureImage(dataUrl);
@@ -56,11 +51,6 @@ const FullscreenSignaturePad = ({
                 {signatureImage ? (
                     <div className="relative w-full h-full min-h-[120px]">
                         <img src={signatureImage} alt="签名" className="w-full h-full object-contain" />
-                        {!disabled && (
-                            <button onClick={clearSavedSignature} className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 z-10">
-                                <X className="w-4 h-4" />
-                            </button>
-                        )}
                     </div>
                 ) : (
                     <div className="text-gray-400 flex flex-col items-center gap-2">
@@ -194,6 +184,23 @@ const LandscapeSignatureModal = ({ onConfirm, onCancel }) => {
         if (ctxRef.current) ctxRef.current.beginPath();
     }, []);
 
+    useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!ready || !canvas) return undefined;
+
+        canvas.addEventListener('touchstart', startDrawing, { passive: false });
+        canvas.addEventListener('touchmove', draw, { passive: false });
+        canvas.addEventListener('touchend', stopDrawing, { passive: false });
+        canvas.addEventListener('touchcancel', stopDrawing, { passive: false });
+
+        return () => {
+            canvas.removeEventListener('touchstart', startDrawing);
+            canvas.removeEventListener('touchmove', draw);
+            canvas.removeEventListener('touchend', stopDrawing);
+            canvas.removeEventListener('touchcancel', stopDrawing);
+        };
+    }, [ready, startDrawing, draw, stopDrawing]);
+
     const clearSignature = useCallback(() => {
         if (!canvasRef.current || !ctxRef.current) return;
         ctxRef.current.fillStyle = '#fff';
@@ -273,9 +280,6 @@ const LandscapeSignatureModal = ({ onConfirm, onCancel }) => {
                     onMouseMove={ready ? draw : undefined}
                     onMouseUp={ready ? stopDrawing : undefined}
                     onMouseLeave={ready ? stopDrawing : undefined}
-                    onTouchStart={ready ? startDrawing : undefined}
-                    onTouchMove={ready ? draw : undefined}
-                    onTouchEnd={ready ? stopDrawing : undefined}
                 />
                 <div style={{ position: 'absolute', bottom: 50, left: 32, right: 32, borderBottom: '2px dashed #d1d5db', pointerEvents: 'none' }} />
                 <span style={{ position: 'absolute', bottom: 24, left: 32, color: '#9ca3af', fontSize: '14px', pointerEvents: 'none' }}>签名区域</span>
