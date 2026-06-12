@@ -1,4 +1,6 @@
 {
   "navigationBarTitleText": "请签名",
-  "pageOrientation": "landscape"
+  "navigationStyle": "custom",
+  "pageOrientation": "landscape",
+  "disableScroll": true
 }

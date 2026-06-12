@@ -161,7 +161,6 @@ const LandscapeSignatureModal = ({ onConfirm, onCancel }) => {
     }, [isPortrait, screenW, toolbarH]);
 
     const startDrawing = useCallback((e) => {
-        e.preventDefault();
         if (!ctxRef.current) return;
         isDrawingRef.current = true;
         const point = getPoint(e);
@@ -171,7 +170,6 @@ const LandscapeSignatureModal = ({ onConfirm, onCancel }) => {
 
     const draw = useCallback((e) => {
         if (!isDrawingRef.current || !ctxRef.current) return;
-        e.preventDefault();
         const point = getPoint(e);
         ctxRef.current.lineTo(point.x, point.y);
         ctxRef.current.stroke();

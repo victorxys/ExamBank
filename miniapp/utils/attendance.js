@@ -217,6 +217,27 @@ function formatDuration(hours, minutes = 0) {
   return `${days}天${Number(remain.toFixed(2))}小时`;
 }
 
+function isFullDayRecord(record = {}) {
+  const startMinutes = timeToMinutes(record.startTime || '00:00', 0);
+  const endMinutes = timeToMinutes(record.endTime || '24:00', 24 * 60);
+  return startMinutes <= 0 && endMinutes >= 24 * 60;
+}
+
+function formatRecordDateRange(actualStart, actualEnd) {
+  return diffDays(actualEnd, actualStart) > 0
+    ? `${formatMonthDay(actualStart)} ~ ${formatMonthDay(actualEnd)}`
+    : formatMonthDay(actualStart);
+}
+
+function formatRecordTimeLabel(record, actualStart, actualEnd) {
+  if (record.type === 'onboarding') return `${formatMonthDay(actualStart)} ${record.startTime || '待填写'}`;
+  if (record.type === 'offboarding') return `${formatMonthDay(actualStart)} ${record.endTime || '待填写'}`;
+  if (record.is_auto || isFullDayRecord(record)) return formatRecordDateRange(actualStart, actualEnd);
+  return diffDays(actualEnd, actualStart) > 0
+    ? `${formatMonthDay(actualStart)} ${record.startTime || '00:00'} ~ ${formatMonthDay(actualEnd)} ${record.endTime || '24:00'}`
+    : `${formatMonthDay(actualStart)} ${record.startTime || '00:00'}~${record.endTime || '24:00'}`;
+}
+
 function formatDays(value) {
   const total = Number(value || 0);
   if (Math.abs(total) < 0.001) return '0';
@@ -782,20 +803,15 @@ function buildSpecialRecords(attendanceData, form) {
       const actualEnd = end > cycleEnd ? cycleEnd : end;
       const duration = calculateTotalDuration(record);
       const typeLabel = record.is_auto ? '自动补齐加班' : (TYPE_MAP[record.type]?.label || '考勤');
-      const timeLabel = record.type === 'onboarding'
-        ? `${formatMonthDay(actualStart)} ${record.startTime || '待填写'}`
-        : record.type === 'offboarding'
-          ? `${formatMonthDay(actualStart)} ${record.endTime || '待填写'}`
-          : diffDays(actualEnd, actualStart) > 0
-            ? `${formatMonthDay(actualStart)} ${record.startTime || '00:00'} ~ ${formatMonthDay(actualEnd)} ${record.endTime || '24:00'}`
-            : `${formatMonthDay(actualStart)} ${record.startTime || '00:00'}~${record.endTime || '24:00'}`;
+      const durationText = formatDuration(duration.totalHours);
       return {
         ...record,
         typeLabel,
-        timeLabel,
-        durationText: formatDuration(duration.totalHours),
+        timeLabel: formatRecordTimeLabel(record, actualStart, actualEnd),
+        durationText,
         showDuration: record.type !== 'onboarding' && record.type !== 'offboarding' && !record.is_auto,
         showAutoReason: Boolean(record.is_auto),
+        autoReasonText: record.is_auto ? `补齐${durationText}，因出勤超26天自动折算` : '',
         tone: TYPE_MAP[record.type]?.tone || 'normal',
         className: `detail-row tone-left-${TYPE_MAP[record.type]?.tone || 'normal'}`,
         dateText: formatMonthDay(record.date),

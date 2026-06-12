@@ -79,7 +79,7 @@
         <view class="detail-main">
           <view class="detail-time">{{item.timeLabel}}</view>
           <view wx:if="{{item.showDuration}}" class="detail-duration">{{item.durationText}}</view>
-          <view wx:if="{{item.showAutoReason}}" class="detail-duration auto">因出勤超26天自动折算</view>
+          <view wx:if="{{item.showAutoReason}}" class="detail-duration auto">{{item.autoReasonText}}</view>
         </view>
       </view>
     </block>
@@ -97,6 +97,16 @@
       <view wx:else class="empty-text">已签署，暂无签名图片预览</view>
     </view>
     <view class="signed-meta">{{signedNameText}} · {{signedAtText}}</view>
+  </view>
+
+  <view wx:if="{{!showSignedCard && !blockedByEmployeeRole && !auth.requires_phone_auth && signaturePreview}}" class="signature-card">
+    <view class="signature-head">
+      <view class="signed-title no-margin">客户签名</view>
+      <button class="secondary-action small-action" bindtap="openSignatureModal">重签</button>
+    </view>
+    <view class="signature-preview draft-preview" bindtap="openSignatureModal">
+      <image class="signature-image signature-draft-image" src="{{signaturePreview}}" mode="aspectFit" />
+    </view>
   </view>
 
   <view class="bottom-bar">
@@ -119,32 +129,9 @@
         </view>
       </view>
       <view class="bottom-hint">请确认考勤信息无误后签署</view>
-      <button class="submit-btn" loading="{{submitting}}" bindtap="openSignatureModal">确认并签署</button>
+      <button wx:if="{{hasSignature}}" class="submit-btn" loading="{{submitting}}" bindtap="submitSign">确认签署</button>
+      <button wx:else class="submit-btn" loading="{{submitting}}" bindtap="openSignatureModal">确认并签署</button>
     </view>
   </view>
 
-  <view wx:if="{{signatureModalOpen}}" class="signature-mask">
-    <view class="signature-sheet">
-      <view class="signature-sheet-head">
-        <view>
-          <view class="sheet-title">签署确认</view>
-          <view class="sheet-sub">请在下方区域手写签名，签署后将无法修改。</view>
-        </view>
-        <view class="icon-close" bindtap="closeSignatureModal">×</view>
-      </view>
-
-      <view class="signature-pad">
-        <canvas class="signature-canvas" canvas-id="attendanceSignature" disable-scroll="true" bindtouchstart="touchStart" bindtouchmove="touchMove" bindtouchend="touchEnd"></canvas>
-      </view>
-
-      <view class="signature-tools">
-        <button class="clear-btn" bindtap="clearSignature">清除签名</button>
-      </view>
-
-      <view class="signature-actions">
-        <button class="cancel-btn" bindtap="closeSignatureModal">取消</button>
-        <button class="confirm-btn" loading="{{submitting}}" bindtap="submitSign">确认签署</button>
-      </view>
-    </view>
-  </view>
 </view>

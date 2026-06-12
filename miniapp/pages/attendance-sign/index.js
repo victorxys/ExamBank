@@ -1,11 +1,6 @@
 const api = require('../../utils/api');
 const { formatDate: formatFullDate } = require('../../utils/format');
 const {
-  drawSignatureDot,
-  drawSignatureSegment,
-  getTouchPoint
-} = require('../../utils/signature');
-const {
   buildCalendar,
   buildSpecialRecords,
   calculateStats,
@@ -98,14 +93,12 @@ Page({
     authLoading: false,
     shareTitle: '请确认月度考勤',
     sharePath: '',
-    signatureModalOpen: false,
+    signaturePreview: '',
     hasSignature: false,
     submitting: false
   },
 
   onLoad(options) {
-    this.lastSignaturePoint = null;
-    this.signatureTouched = false;
     this.setData({ token: options.token || '' });
     this.loadForm();
   },
@@ -278,12 +271,13 @@ Page({
       wx.showToast({ title: '请先完成手机号认证', icon: 'none' });
       return;
     }
-    this.setData({ signatureModalOpen: true, hasSignature: false }, () => {
-      wx.nextTick(() => {
-        this.ctx = wx.createCanvasContext('attendanceSignature', this);
-        this.clearSignature();
-      });
+    this.setData({ hasSignature: false, signaturePreview: '' }, () => {
+      wx.navigateTo({ url: '/pages/signature-pad/index?return=attendance-sign' });
     });
+  },
+
+  clearSignature() {
+    this.setData({ hasSignature: false, signaturePreview: '' });
   },
 
   onPhoneInput(event) {
@@ -321,63 +315,6 @@ Page({
     }
   },
 
-  closeSignatureModal() {
-    if (this.data.submitting) return;
-    this.setData({ signatureModalOpen: false, hasSignature: false });
-  },
-
-  touchStart(event) {
-    if (!this.ctx) this.ctx = wx.createCanvasContext('attendanceSignature', this);
-    const point = getTouchPoint(event);
-    if (!point) return;
-    this.lastSignaturePoint = point;
-    this.signatureTouched = true;
-    drawSignatureDot(this.ctx, point);
-  },
-
-  touchMove(event) {
-    if (!this.ctx) this.ctx = wx.createCanvasContext('attendanceSignature', this);
-    const point = getTouchPoint(event);
-    if (!point) return;
-    if (this.lastSignaturePoint) {
-      drawSignatureSegment(this.ctx, this.lastSignaturePoint, point);
-    } else {
-      drawSignatureDot(this.ctx, point);
-    }
-    this.lastSignaturePoint = point;
-    if (!this.signatureTouched || !this.data.hasSignature) {
-      this.signatureTouched = true;
-      this.setData({ hasSignature: true });
-    }
-  },
-
-  touchEnd() {
-    this.lastSignaturePoint = null;
-    if (this.signatureTouched && !this.data.hasSignature) {
-      this.setData({ hasSignature: true });
-    }
-  },
-
-  clearSignature() {
-    if (!this.ctx) this.ctx = wx.createCanvasContext('attendanceSignature', this);
-    this.ctx.clearRect(0, 0, 750, 320);
-    this.ctx.draw();
-    this.lastSignaturePoint = null;
-    this.signatureTouched = false;
-    this.setData({ hasSignature: false });
-  },
-
-  canvasToTempFile() {
-    return new Promise((resolve, reject) => {
-      wx.canvasToTempFilePath({
-        canvasId: 'attendanceSignature',
-        fileType: 'png',
-        success: (res) => resolve(res.tempFilePath),
-        fail: reject
-      }, this);
-    });
-  },
-
   readFileBase64(path) {
     return new Promise((resolve, reject) => {
       wx.getFileSystemManager().readFile({
@@ -409,8 +346,7 @@ Page({
 
     this.setData({ submitting: true });
     try {
-      const path = await this.canvasToTempFile();
-      const image = await this.readFileBase64(path);
+      const image = await this.readFileBase64(this.data.signaturePreview);
       const signatureData = {
         image,
         signed_at: new Date().toISOString(),
@@ -430,7 +366,7 @@ Page({
         signature_data: signatureData
       };
       this.applyForm(nextForm);
-      this.setData({ signatureModalOpen: false, hasSignature: false });
+      this.setData({ hasSignature: false, signaturePreview: '' });
       wx.showToast({ title: '确认完成', icon: 'success' });
     } catch (error) {
       wx.showToast({ title: error.message || '确认失败', icon: 'none' });

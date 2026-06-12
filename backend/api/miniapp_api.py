@@ -348,18 +348,41 @@ def _exchange_code_for_session(code):
     if not appid or not secret:
         raise RuntimeError("未配置 WECHAT_MINIAPP_APPID/WECHAT_MINIAPP_SECRET")
 
-    response = requests.get(
-        "https://api.weixin.qq.com/sns/jscode2session",
-        params={
-            "appid": appid,
-            "secret": secret,
-            "js_code": code,
-            "grant_type": "authorization_code",
-        },
-        timeout=8,
-    )
-    response.raise_for_status()
-    payload = response.json()
+    params = {
+        "appid": appid,
+        "secret": secret,
+        "js_code": code,
+        "grant_type": "authorization_code",
+    }
+    last_error = None
+    max_attempts = 3
+    for attempt in range(max_attempts):
+        try:
+            response = requests.get(
+                "https://api.weixin.qq.com/sns/jscode2session",
+                params=params,
+                timeout=(3, 8),
+            )
+            response.raise_for_status()
+            payload = response.json()
+            break
+        except ValueError as exc:
+            raise RuntimeError("微信登录响应解析失败，请稍后重试") from exc
+        except requests.exceptions.RequestException as exc:
+            last_error = exc
+            status_code = getattr(getattr(exc, "response", None), "status_code", None)
+            current_app.logger.warning(
+                "微信 jscode2session 请求失败 attempt=%s/%s error=%s status=%s",
+                attempt + 1,
+                max_attempts,
+                exc.__class__.__name__,
+                status_code,
+            )
+            if attempt < max_attempts - 1:
+                time.sleep(0.3 * (attempt + 1))
+    else:
+        raise RuntimeError("微信登录服务暂时不可用，请稍后重试")
+
     if payload.get("errcode"):
         raise RuntimeError(payload.get("errmsg") or "微信登录失败")
     return payload

@@ -331,6 +331,10 @@
   color: #334155;
 }
 
+.no-margin {
+  margin-bottom: 0;
+}
+
 .detail-row {
   margin-bottom: 14rpx;
   padding: 18rpx;
@@ -407,7 +411,7 @@
 }
 
 .signature-preview {
-  min-height: 180rpx;
+  min-height: 252rpx;
   padding: 18rpx;
   display: flex;
   align-items: center;
@@ -420,7 +424,24 @@
 
 .signature-image {
   width: 100%;
-  height: 180rpx;
+  height: 252rpx;
+}
+
+.signature-draft-image {
+  display: block;
+  background: #ffffff;
+}
+
+.draft-preview {
+  margin-top: 18rpx;
+}
+
+.signature-head {
+  margin-bottom: 18rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
 }
 
 .signed-meta {
@@ -537,6 +558,13 @@
   font-weight: 900;
 }
 
+.small-action {
+  width: 118rpx;
+  height: 58rpx;
+  border-radius: 12rpx;
+  font-size: 24rpx;
+}
+
 .submit-btn {
   background: #4f46e5;
   color: #fff;
@@ -554,136 +582,6 @@
 
 .share-action {
   background: #16a34a;
-  color: #fff;
-}
-
-.signature-mask {
-  position: fixed;
-  inset: 0;
-  z-index: 60;
-  display: flex;
-  align-items: flex-end;
-  background: rgba(15, 23, 42, 0.48);
-  overflow: hidden;
-}
-
-.signature-sheet {
-  width: calc(100% - 28rpx);
-  margin: 0 14rpx;
-  max-height: 88vh;
-  overflow-y: auto;
-  border-radius: 28rpx 28rpx 0 0;
-  background: #fff;
-  box-shadow: 0 -16rpx 40rpx rgba(15, 23, 42, 0.18);
-}
-
-.signature-sheet-head {
-  padding: 30rpx;
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 22rpx;
-  border-bottom: 1rpx solid #e5e7eb;
-  background: #fff;
-}
-
-.signature-sheet-head > view:first-child {
-  min-width: 0;
-  flex: 1;
-}
-
-.sheet-title {
-  font-size: 34rpx;
-  line-height: 42rpx;
-  font-weight: 900;
-  color: #111827;
-}
-
-.sheet-sub {
-  margin-top: 8rpx;
-  font-size: 24rpx;
-  line-height: 34rpx;
-  color: #64748b;
-}
-
-.icon-close {
-  width: 72rpx;
-  height: 58rpx;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 28rpx;
-  background: #f1f5f9;
-  color: #475569;
-  font-size: 42rpx;
-}
-
-.signature-pad {
-  height: 300rpx;
-  margin: 26rpx 30rpx 14rpx;
-  overflow: hidden;
-  border: 1rpx dashed #cbd5e1;
-  border-radius: 18rpx;
-  background: #f8fafc;
-}
-
-.signature-canvas {
-  width: 100%;
-  height: 300rpx;
-}
-
-.signature-tools {
-  padding: 0 30rpx 18rpx;
-  display: flex;
-  justify-content: flex-end;
-}
-
-.clear-btn {
-  height: 58rpx;
-  padding: 0 20rpx;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 14rpx;
-  background: #f1f5f9;
-  color: #475569;
-  font-size: 24rpx;
-  font-weight: 800;
-}
-
-.signature-actions {
-  position: sticky;
-  bottom: 0;
-  padding: 22rpx 30rpx 30rpx;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 18rpx;
-  background: #fff;
-  border-top: 1rpx solid #e5e7eb;
-}
-
-.cancel-btn,
-.confirm-btn {
-  min-width: 0;
-  width: 100%;
-  height: 84rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 16rpx;
-  font-size: 28rpx;
-  font-weight: 900;
-  white-space: nowrap;
-}
-
-.cancel-btn {
-  background: #f1f5f9;
-  color: #334155;
-}
-
-.confirm-btn {
-  background: #4f46e5;
   color: #fff;
 }
 
