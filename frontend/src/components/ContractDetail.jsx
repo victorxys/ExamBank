@@ -184,6 +184,7 @@ const ContractDetail = () => {
     const [signingModalOpen, setSigningModalOpen] = useState(false);
     const [signingMessage, setSigningMessage] = useState('');
     const [signingModalTitle, setSigningModalTitle] = useState('');
+    const [signingLinkInfo, setSigningLinkInfo] = useState(null);
     const autoOpenedTerminationDialogRef = useRef(false);
 
     // State for editing signature requirement
@@ -566,9 +567,11 @@ const ContractDetail = () => {
             if (type === 'customer') {
                 setSigningMessage(response.data.customer_message);
                 setSigningModalTitle('客户签约提醒消息');
+                setSigningLinkInfo(response.data.links?.customer || null);
             } else {
                 setSigningMessage(response.data.employee_message);
                 setSigningModalTitle('员工签约提醒消息');
+                setSigningLinkInfo(response.data.links?.employee || null);
             }
             setSigningModalOpen(true);
         } catch (error) {
@@ -2187,6 +2190,7 @@ const ContractDetail = () => {
                     onClose={() => setSigningModalOpen(false)}
                     title={signingModalTitle}
                     initialMessage={signingMessage}
+                    linkInfo={signingLinkInfo}
                 />
                 <Dialog open={isRenewModalOpen} onClose={() => setIsRenewModalOpen(false)}>
                     <DialogTitle>续约合同</DialogTitle>

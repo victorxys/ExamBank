@@ -76,7 +76,7 @@ const ContractList = () => {
     const [syncing, setSyncing] = useState(false);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [isCreateFormalModalOpen, setIsCreateFormalModalOpen] = useState(false);
-    const [signingLink, setSigningLink] = useState('');
+    const [signingLinks, setSigningLinks] = useState(null);
     const [isSigningLinkDialogOpen, setIsSigningLinkDialogOpen] = useState(false);
 
     const page = parseInt(searchParams.get('page') || '0', 10);
@@ -235,10 +235,21 @@ const ContractList = () => {
         }
     };
 
-    const handleShowSigningLink = (token) => {
-        const link = `${window.location.origin}/sign/${token}`;
-        setSigningLink(link);
-        setIsSigningLinkDialogOpen(true);
+    const copyText = async (text, message = '已复制链接') => {
+        if (!text) return;
+        await navigator.clipboard.writeText(text);
+        setAlert({ open: true, message, severity: 'success' });
+    };
+
+    const handleShowSigningLink = async (event, contract) => {
+        event.stopPropagation();
+        try {
+            const response = await api.get(`/contracts/${contract.id}/signing-links`);
+            setSigningLinks(response.data || null);
+            setIsSigningLinkDialogOpen(true);
+        } catch (error) {
+            setAlert({ open: true, message: `获取签署链接失败: ${error.response?.data?.error || error.message}`, severity: 'error' });
+        }
     };
 
     const getSigningStatusChip = (status) => {
@@ -349,11 +360,12 @@ const ContractList = () => {
                                 <TableCell>签署</TableCell>
                                 <TableCell>客户签名</TableCell>
                                 <TableCell>员工签名</TableCell>
+                                <TableCell>链接</TableCell>
                             </TableRow>
                         </TableHead>
 
                         <TableBody>
-                            {loading ? (<TableRow><TableCell colSpan={7} align="center" sx={{ py: 5 }}><CircularProgress /></TableCell></TableRow>)
+                            {loading ? (<TableRow><TableCell colSpan={10} align="center" sx={{ py: 5 }}><CircularProgress /></TableCell></TableRow>)
                                 : (
                                     contracts.map((contract) => (
                                         <TableRow
@@ -420,6 +432,17 @@ const ContractList = () => {
                                                     />
                                                 )}
                                             </TableCell>
+                                            <TableCell>
+                                                {contract.signing_status === 'NOT_REQUIRED' ? (
+                                                    <Typography variant="caption" color="text.secondary">N/A</Typography>
+                                                ) : (
+                                                    <Tooltip title="复制合同签署链接">
+                                                        <IconButton size="small" onClick={(event) => handleShowSigningLink(event, contract)}>
+                                                            <LinkIcon fontSize="small" />
+                                                        </IconButton>
+                                                    </Tooltip>
+                                                )}
+                                            </TableCell>
                                         </TableRow>
                                     ))
                                 )}
@@ -484,21 +507,53 @@ const ContractList = () => {
                         <Button onClick={handleSaveOnboardingDate} variant="contained">保存</Button>
                     </DialogActions>
                 </Dialog>
-                <Dialog open={isSigningLinkDialogOpen} onClose={() => setIsSigningLinkDialogOpen(false)} fullWidth maxWidth="sm">
-                    <DialogTitle>合同签名链接</DialogTitle>
+                <Dialog open={isSigningLinkDialogOpen} onClose={() => setIsSigningLinkDialogOpen(false)} fullWidth maxWidth="md">
+                    <DialogTitle>合同签署链接</DialogTitle>
                     <DialogContent>
-                        <Typography>任何人都可以通过此链接访问并签署合同，请妥善保管。</Typography>
-                        <TextField
-                            fullWidth
-                            variant="outlined"
-                            value={signingLink}
-                            onFocus={(event) => event.target.select()}
-                            InputProps={{ readOnly: true }}
-                            sx={{ mt: 2 }}
-                        />
+                        <Alert severity="info" sx={{ mb: 2 }}>
+                            小程序链接可在微信内打开并拉起小程序；Web 链接继续保留作为备用签署入口。
+                        </Alert>
+                        {[
+                            ['customer', '客户签署', signingLinks?.customer],
+                            ['employee', '员工签署', signingLinks?.employee],
+                        ].map(([key, label, link]) => link && (
+                            <Paper key={key} variant="outlined" sx={{ p: 2, mb: 2 }}>
+                                <Typography variant="subtitle2" sx={{ mb: 1 }}>{label}</Typography>
+                                <Stack spacing={1.5}>
+                                    <TextField
+                                        fullWidth
+                                        label={link.primary_type === 'miniapp' ? '主链接（小程序）' : '主链接（Web）'}
+                                        value={link.primary_url || ''}
+                                        onFocus={(event) => event.target.select()}
+                                        InputProps={{ readOnly: true }}
+                                        size="small"
+                                    />
+                                    <Button variant="contained" onClick={() => copyText(link.primary_url, `已复制${label}主链接`)}>
+                                        复制主链接
+                                    </Button>
+                                    {link.web_url && link.web_url !== link.primary_url && (
+                                        <>
+                                            <TextField
+                                                fullWidth
+                                                label="Web 备用链接"
+                                                value={link.web_url}
+                                                onFocus={(event) => event.target.select()}
+                                                InputProps={{ readOnly: true }}
+                                                size="small"
+                                            />
+                                            <Button variant="outlined" onClick={() => copyText(link.web_url, `已复制${label}Web备用链接`)}>
+                                                复制 Web 备用链接
+                                            </Button>
+                                        </>
+                                    )}
+                                    {link.miniapp_error && (
+                                        <Alert severity="warning">小程序链接生成失败，已回落 Web 链接：{link.miniapp_error}</Alert>
+                                    )}
+                                </Stack>
+                            </Paper>
+                        ))}
                     </DialogContent>
                     <DialogActions>
-                        <Button onClick={() => navigator.clipboard.writeText(signingLink)}>复制链接</Button>
                         <Button onClick={() => setIsSigningLinkDialogOpen(false)}>关闭</Button>
                     </DialogActions>
                 </Dialog>

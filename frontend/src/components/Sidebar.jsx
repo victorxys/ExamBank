@@ -72,6 +72,7 @@ export const allMenuItems = [
   { text: '评价体系管理', icon: <AssignmentIcon />, path: '/evaluation-management', adminOnly: true },
   { text: '微信提醒审计', icon: <HistoryIcon />, path: '/admin/wechat-messages', adminOnly: true },
   { text: '微信小程序绑定', icon: <SmartphoneIcon />, path: '/admin/miniapp-openids', adminOnly: true },
+  { text: '小程序签署配置', icon: <SmartphoneIcon />, path: '/admin/miniapp-signing', adminOnly: true },
   { text: '系统通知配置', icon: <SettingsIcon />, path: '/admin/settings/notifications', adminOnly: true },
   {
     text: 'LLM 管理',

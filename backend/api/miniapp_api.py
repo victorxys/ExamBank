@@ -35,6 +35,7 @@ from backend.api.attendance_form_api import (
 )
 from backend.api.contract_api import handle_signing_page_action
 from backend.services.attendance_sync_service import normalize_auto_overtime_form_data
+from backend.utils.miniapp_config import get_miniapp_credentials
 
 
 miniapp_bp = Blueprint("miniapp_api", __name__, url_prefix="/api/miniapp")
@@ -343,8 +344,7 @@ def _bind_employee_openid(employee_id, openid, unionid=None, phone_number=None, 
 
 
 def _exchange_code_for_session(code):
-    appid = current_app.config.get("WECHAT_MINIAPP_APPID") or os.environ.get("WECHAT_MINIAPP_APPID")
-    secret = current_app.config.get("WECHAT_MINIAPP_SECRET") or os.environ.get("WECHAT_MINIAPP_SECRET")
+    appid, secret = get_miniapp_credentials()
     if not appid or not secret:
         raise RuntimeError("未配置 WECHAT_MINIAPP_APPID/WECHAT_MINIAPP_SECRET")
 

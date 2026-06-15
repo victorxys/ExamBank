@@ -2,6 +2,7 @@ from flask import Blueprint, jsonify, request
 from backend.models import SystemSetting, db
 import logging
 from datetime import datetime
+from backend.utils.miniapp_config import get_miniapp_credentials, miniapp_credential_status
 
 logger = logging.getLogger(__name__)
 
@@ -14,6 +15,13 @@ RESETTABLE_REMINDER_FIELDS = {"enabled", "advance_days", "day_of_month", "start_
 DEFAULT_CONTRACT_CREATED_AFTER = "2026-06-01"
 DEFAULT_CONTRACT_END_AFTER = "2026-06-01"
 DEFAULT_TRIAL_END_AFTER = "2026-06-01"
+DEFAULT_MINIAPP_SIGNING_CONFIG = {
+    "enabled": False,
+    "env_version": "release",
+    "expire_days": 30,
+    "contract_sign_path": "pages/contract-sign/index",
+    "fallback_to_web": True,
+}
 
 
 def normalize_wechat_touser(value):
@@ -167,6 +175,99 @@ def get_or_create_notification_config():
             flag_modified(config, 'value')
             db.session.commit()
     return config
+
+
+def get_or_create_miniapp_signing_config():
+    config = SystemSetting.query.get('miniapp_signing_config')
+    env_appid, _ = get_miniapp_credentials()
+    if not config:
+        config = SystemSetting(
+            id='miniapp_signing_config',
+            value={
+                **DEFAULT_MINIAPP_SIGNING_CONFIG,
+                "appid": env_appid,
+            },
+            description="小程序签署入口配置"
+        )
+        db.session.add(config)
+        db.session.commit()
+        return config
+
+    current_val = {**DEFAULT_MINIAPP_SIGNING_CONFIG, **(config.value or {})}
+    if not current_val.get("appid"):
+        current_val["appid"] = env_appid
+    if current_val != config.value:
+        from sqlalchemy.orm.attributes import flag_modified
+        config.value = current_val
+        flag_modified(config, 'value')
+        db.session.commit()
+    return config
+
+
+@setting_api_bp.route('/miniapp-signing', methods=['GET'])
+def get_miniapp_signing_config():
+    try:
+        config = get_or_create_miniapp_signing_config()
+        data = config.value or {}
+        return jsonify({
+            "status": "success",
+            "data": data,
+            "diagnostics": miniapp_credential_status(data.get("appid")),
+        }), 200
+    except Exception as e:
+        logger.error(f"Error getting miniapp signing config: {e}")
+        return jsonify({"status": "error", "message": "Failed to load config"}), 500
+
+
+@setting_api_bp.route('/miniapp-signing', methods=['PUT'])
+def update_miniapp_signing_config():
+    try:
+        data = request.json or {}
+        config = get_or_create_miniapp_signing_config()
+
+        current_val = {**DEFAULT_MINIAPP_SIGNING_CONFIG, **(config.value or {})}
+        allowed_fields = {
+            "enabled",
+            "appid",
+            "env_version",
+            "expire_days",
+            "contract_sign_path",
+            "fallback_to_web",
+        }
+        for field in allowed_fields:
+            if field in data:
+                current_val[field] = data[field]
+
+        current_val["enabled"] = bool(current_val.get("enabled"))
+        current_val["fallback_to_web"] = bool(current_val.get("fallback_to_web", True))
+        current_val["appid"] = str(current_val.get("appid") or "").strip()
+        current_val["env_version"] = (
+            current_val.get("env_version")
+            if current_val.get("env_version") in ("release", "trial", "develop")
+            else "release"
+        )
+        try:
+            current_val["expire_days"] = max(1, min(int(current_val.get("expire_days") or 30), 30))
+        except (TypeError, ValueError):
+            current_val["expire_days"] = 30
+        path = str(current_val.get("contract_sign_path") or DEFAULT_MINIAPP_SIGNING_CONFIG["contract_sign_path"]).strip()
+        current_val["contract_sign_path"] = path.lstrip("/")
+
+        config.value = current_val
+        from sqlalchemy.orm.attributes import flag_modified
+        flag_modified(config, 'value')
+        db.session.commit()
+
+        return jsonify({
+            "status": "success",
+            "message": "Miniapp signing config updated",
+            "data": config.value,
+            "diagnostics": miniapp_credential_status(config.value.get("appid")),
+        }), 200
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error updating miniapp signing config: {e}")
+        return jsonify({"status": "error", "message": "Failed to update config"}), 500
 
 @setting_api_bp.route('/notification', methods=['GET'])
 def get_notification_config():
