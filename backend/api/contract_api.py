@@ -1,6 +1,8 @@
 # backend/api/contract_api.py
 from flask import Blueprint, jsonify, request, current_app, send_file, render_template,send_from_directory
 import os
+import time
+import urllib.parse
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from backend.models import (
     db,
@@ -28,6 +30,7 @@ from backend.models import (
     ContractOperationLog,
 )
 import base64
+import requests
 from backend.tasks import calculate_monthly_billing_task
 from backend.services.billing_engine import BillingEngine, calculate_substitute_management_fee, _update_bill_payment_status
 from backend.services.contract_service import (
@@ -51,10 +54,16 @@ from backend.services.contract_operation_log_service import (
     diff_snapshots,
     snapshot_contract,
 )
+from backend.utils.miniapp_config import get_miniapp_credentials, miniapp_credential_status
 
 contract_bp = Blueprint("contract_api", __name__, url_prefix="/api/contracts")
 
 ONGOING_EMPLOYEE_CONTRACT_STATUSES = ("active", "pending", "trial_active")
+_MINIAPP_ACCESS_TOKEN_CACHE = {
+    "appid": "",
+    "access_token": "",
+    "expires_at": 0,
+}
 
 
 def _serialize_employee_ongoing_contract(contract):
@@ -94,6 +103,112 @@ def _serialize_employee_pending_trial_contract(contract):
         "daily_rate": str(contract.employee_level) if contract.employee_level is not None else "",
         "introduction_fee": str(contract.introduction_fee) if contract.introduction_fee is not None else "0",
     }
+
+
+def _frontend_signing_url(token):
+    frontend_base_url = current_app.config.get('FRONTEND_BASE_URL', '').rstrip('/')
+    return f"{frontend_base_url}/sign/{token}"
+
+
+def _miniapp_access_token(config=None):
+    now = time.time()
+    appid, secret = get_miniapp_credentials((config or {}).get("appid"))
+    if (
+        _MINIAPP_ACCESS_TOKEN_CACHE["appid"] == appid
+        and _MINIAPP_ACCESS_TOKEN_CACHE["access_token"]
+        and _MINIAPP_ACCESS_TOKEN_CACHE["expires_at"] > now + 60
+    ):
+        return _MINIAPP_ACCESS_TOKEN_CACHE["access_token"]
+
+    if not appid or not secret:
+        missing = []
+        if not appid:
+            missing.append("WECHAT_MINIAPP_APPID")
+        if not secret:
+            missing.append("WECHAT_MINIAPP_SECRET")
+        raise RuntimeError(f"未配置 {'/'.join(missing)}")
+
+    response = requests.get(
+        "https://api.weixin.qq.com/cgi-bin/token",
+        params={
+            "grant_type": "client_credential",
+            "appid": appid,
+            "secret": secret,
+        },
+        timeout=(3, 8),
+    )
+    response.raise_for_status()
+    payload = response.json()
+    if payload.get("errcode"):
+        raise RuntimeError(payload.get("errmsg") or "获取小程序 access_token 失败")
+
+    access_token = payload.get("access_token")
+    if not access_token:
+        raise RuntimeError("微信未返回小程序 access_token")
+
+    _MINIAPP_ACCESS_TOKEN_CACHE["appid"] = appid
+    _MINIAPP_ACCESS_TOKEN_CACHE["access_token"] = access_token
+    _MINIAPP_ACCESS_TOKEN_CACHE["expires_at"] = now + int(payload.get("expires_in") or 7200)
+    return access_token
+
+
+def _generate_miniapp_url_link(token, role, config):
+    access_token = _miniapp_access_token(config)
+    path = str(config.get("contract_sign_path") or "pages/contract-sign/index").strip().lstrip("/")
+    query = urllib.parse.urlencode({"token": token, "role": role})
+    expire_days = max(1, min(int(config.get("expire_days") or 30), 30))
+    expire_time = int(time.time()) + expire_days * 24 * 60 * 60
+    payload = {
+        "path": path,
+        "query": query,
+        "is_expire": True,
+        "expire_type": 0,
+        "expire_time": expire_time,
+        "env_version": config.get("env_version") or "release",
+    }
+
+    response = requests.post(
+        f"https://api.weixin.qq.com/wxa/generate_urllink?access_token={access_token}",
+        json=payload,
+        timeout=(3, 8),
+    )
+    response.raise_for_status()
+    data = response.json()
+    if data.get("errcode"):
+        raise RuntimeError(data.get("errmsg") or "生成小程序链接失败")
+    url_link = data.get("url_link")
+    if not url_link:
+        raise RuntimeError("微信未返回小程序 URL Link")
+    return url_link
+
+
+def _build_contract_signing_link(token, role, miniapp_config=None):
+    web_url = _frontend_signing_url(token)
+    result = {
+        "role": role,
+        "web_url": web_url,
+        "primary_url": web_url,
+        "primary_type": "web",
+        "miniapp_url": "",
+        "miniapp_error": "",
+    }
+    config = miniapp_config or {}
+    if not config.get("enabled"):
+        return result
+
+    try:
+        miniapp_url = _generate_miniapp_url_link(token, role, config)
+        result.update({
+            "primary_url": miniapp_url,
+            "primary_type": "miniapp",
+            "miniapp_url": miniapp_url,
+        })
+    except Exception as exc:
+        current_app.logger.warning("生成小程序合同签署 URL Link 失败 role=%s token=%s error=%s", role, token, exc)
+        result["miniapp_error"] = str(exc)
+        if not config.get("fallback_to_web", True):
+            raise
+    return result
 
 
 def _get_employee_ongoing_contracts(service_personnel_id, exclude_contract_id=None):
@@ -728,6 +843,8 @@ def search_contracts():
                 "remaining_months": remaining_months,
                 "highlight_remaining": highlight_remaining,
                 "is_monthly_auto_renew": getattr(contract, 'is_monthly_auto_renew', False),
+                "customer_signing_token": contract.customer_signing_token,
+                "employee_signing_token": contract.employee_signing_token,
                 # --- 核心修改：移除了签名数据 ---
                 # "customer_signature": contract.customer_signature,
                 # "employee_signature": contract.employee_signature,
@@ -931,6 +1048,43 @@ def find_successor_contract(contract_id):
     except Exception as e:
         current_app.logger.error(f"查找续约合同失败 {contract_id}: {e}", exc_info=True)
         return jsonify({"error": "Internal server error"}), 500
+
+
+@contract_bp.route("/<uuid:contract_id>/signing-links", methods=["GET"])
+@jwt_required()
+def get_contract_signing_links(contract_id):
+    try:
+        contract = BaseContract.query.filter_by(id=contract_id).first()
+        if not contract:
+            return jsonify({"error": "合同未找到"}), 404
+
+        from backend.api.setting_api import get_or_create_miniapp_signing_config
+        miniapp_config = get_or_create_miniapp_signing_config().value or {}
+
+        customer_link = _build_contract_signing_link(
+            contract.customer_signing_token,
+            "customer",
+            miniapp_config,
+        ) if contract.customer_signing_token else None
+        employee_link = _build_contract_signing_link(
+            contract.employee_signing_token,
+            "employee",
+            miniapp_config,
+        ) if contract.employee_signing_token else None
+
+        return jsonify({
+            "customer": customer_link,
+            "employee": employee_link,
+            "miniapp_config": {
+                "enabled": bool(miniapp_config.get("enabled")),
+                "env_version": miniapp_config.get("env_version") or "release",
+                "expire_days": miniapp_config.get("expire_days") or 30,
+                "diagnostics": miniapp_credential_status(miniapp_config.get("appid")),
+            }
+        })
+    except Exception as e:
+        current_app.logger.error(f"获取合同签署链接失败: {e}", exc_info=True)
+        return jsonify({"error": "获取签署链接失败"}), 500
 
 import uuid
 
@@ -2122,10 +2276,21 @@ def generate_signing_messages(contract_id):
             is_substitute_bill=False
         ).order_by(CustomerBill.cycle_start_date.asc()).first()
 
-        # 4. 构建签署链接
-        frontend_base_url = current_app.config.get('FRONTEND_BASE_URL', '')
-        customer_signing_url = f"{frontend_base_url}/sign/{contract.customer_signing_token}"
-        employee_signing_url = f"{frontend_base_url}/sign/{contract.employee_signing_token}"
+        # 4. 构建签署链接。小程序 URL Link 启用后作为主链接，Web 链接仍保留为兜底。
+        from backend.api.setting_api import get_or_create_miniapp_signing_config
+        miniapp_config = get_or_create_miniapp_signing_config().value or {}
+        customer_signing_link = _build_contract_signing_link(
+            contract.customer_signing_token,
+            "customer",
+            miniapp_config,
+        )
+        employee_signing_link = _build_contract_signing_link(
+            contract.employee_signing_token,
+            "employee",
+            miniapp_config,
+        )
+        customer_signing_url = customer_signing_link["primary_url"]
+        employee_signing_url = employee_signing_link["primary_url"]
 
         # 5. 生成客户消息
         customer_message_lines = []
@@ -2257,7 +2422,17 @@ def generate_signing_messages(contract_id):
 
         return jsonify({
             "customer_message": customer_message,
-            "employee_message": employee_message
+            "employee_message": employee_message,
+            "links": {
+                "customer": customer_signing_link,
+                "employee": employee_signing_link,
+            },
+            "miniapp_config": {
+                "enabled": bool(miniapp_config.get("enabled")),
+                "env_version": miniapp_config.get("env_version") or "release",
+                "expire_days": miniapp_config.get("expire_days") or 30,
+                "diagnostics": miniapp_credential_status(miniapp_config.get("appid")),
+            }
         })
 
     except Exception as e:
