@@ -1,7 +1,7 @@
 <view class="page">
   <view class="hero">
     <view class="hero-head">
-      <view class="logo-box"><image class="logo" src="/assets/logo.png" mode="aspectFit" /></view>
+      <view class="logo-box"><image class="logo" src="https://images.mengyimengsao.com/miniprogram/logo.png" mode="aspectFit" /></view>
       <view class="hero-copy">
         <view class="hero-title">{{employee.name || '服务人员'}}，您好</view>
         <view class="hero-desc">处理合同签署，填写并提交月度考勤。</view>

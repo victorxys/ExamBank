@@ -1,7 +1,7 @@
 <view class="page evaluation-page">
   <view class="eval-hero">
     <view class="hero-head">
-      <view class="logo-box"><image class="logo" src="/assets/logo.png" mode="aspectFit" /></view>
+      <view class="logo-box"><image class="logo" src="https://images.mengyimengsao.com/miniprogram/logo.png" mode="aspectFit" /></view>
       <view class="hero-copy">
         <view class="hero-title">服务评价</view>
         <view class="hero-desc">{{contract.employee_name || '服务人员'}} · {{contract.date_range || ''}}</view>

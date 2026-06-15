@@ -50,6 +50,24 @@ function employeeCanSign(contract = {}) {
   return ['UNSIGNED', 'CUSTOMER_SIGNED'].includes(contract.signing_status) && Boolean(contract.employee_signing_token);
 }
 
+function contractShareTitle(contract = {}) {
+  const typeLabel = contract.type_label || '服务合同';
+  if (customerCanSign(contract)) {
+    return `请签署${typeLabel}`;
+  }
+  return `${typeLabel}详情`;
+}
+
+function contractSharePath(contract = {}) {
+  if (customerCanSign(contract)) {
+    return `/pages/contract-sign/index?token=${contract.customer_signing_token}`;
+  }
+  if (contract.id) {
+    return `/pages/contract-detail/index?id=${contract.id}&role=customer`;
+  }
+  return '/pages/home/index';
+}
+
 Page({
   data: {
     id: '',
@@ -66,8 +84,9 @@ Page({
     evaluationEntryText: '填写评价',
     hasCustomerActions: false,
     hasEmployeeActions: false,
+    canShareContract: false,
     loadedOnce: false,
-    shareTitle: '请评价本次服务',
+    shareTitle: '服务合同',
     sharePath: ''
   },
 
@@ -141,9 +160,10 @@ Page({
         evaluationEntryText: evaluations.length > 0 ? '继续填写评价' : '填写评价',
         hasCustomerActions: canCustomerSign || canEvaluate || pendingAttendanceForms.length > 0,
         hasEmployeeActions: canEmployeeSign,
+        canShareContract: Boolean(contract.customer_signing_token || contract.id),
         loadedOnce: true,
-        shareTitle: `请评价${contract.employee_name || '服务人员'}的服务`,
-        sharePath: `/pages/evaluation/index?contractId=${contract.id}`,
+        shareTitle: contractShareTitle(contract),
+        sharePath: contractSharePath(contract),
         markdownNodes: markdownToNodes(markdown),
         attachmentNodes: markdownToNodes(attachmentMarkdown)
       });
@@ -177,15 +197,9 @@ Page({
   },
 
   onShareAppMessage() {
-    if (this.data.role === 'employee') {
-      return {
-        title: this.data.shareTitle || '请评价本次服务',
-        path: this.data.sharePath || `/pages/evaluation/index?contractId=${this.data.id}`
-      };
-    }
     return {
-      title: this.data.contract.type_label || '服务合同',
-      path: `/pages/contract-detail/index?id=${this.data.id}`
+      title: this.data.shareTitle || '服务合同',
+      path: this.data.sharePath || `/pages/contract-detail/index?id=${this.data.id}&role=customer`
     };
   }
 });

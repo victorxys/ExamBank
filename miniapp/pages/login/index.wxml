@@ -1,18 +1,51 @@
 <view class="page login-page">
-  <view class="login-brand">
-    <view class="login-logo">
-      <image class="login-logo-img" src="/assets/logo.png" mode="aspectFit" />
-    </view>
-    <view class="login-title">萌姨萌嫂服务助手</view>
-    <view class="login-desc">客户请通过合同或考勤链接进入，服务人员可在此登录并绑定员工身份。</view>
-  </view>
-
-  <view class="login-actions">
-    <view wx:if="{{enableMockLogin}}" class="dev-card">
-      <text class="label">开发联调 openid</text>
-      <input class="input" value="{{openid}}" bindinput="onOpenidInput" />
+  <image class="login-bg" src="https://images.mengyimengsao.com/miniprogram/background.png" mode="aspectFill" />
+  <view class="login-content">
+    <view class="login-brand">
+      <view class="login-logo">
+        <image class="login-logo-img" src="https://images.mengyimengsao.com/miniprogram/logo.png" mode="aspectFill" />
+      </view>
+      <view class="login-title">萌姨萌嫂服务助手</view>
+      <view class="login-subtitle">签合同 · 填考勤 · 查记录 · 评服务</view>
     </view>
 
-    <button class="btn-primary login-btn" loading="{{loading}}" bindtap="login">一键登录</button>
+    <view class="feature-panel">
+      <view class="feature-card">
+        <image class="feature-icon" src="/assets/login-icons/contract_icon.png" mode="aspectFit" />
+        <view class="feature-title">合同签署</view>
+        <view class="feature-desc">在线签署合同，高效便捷</view>
+      </view>
+      <view class="feature-card">
+        <image class="feature-icon" src="/assets/login-icons/attendance_icon.png" mode="aspectFit" />
+        <view class="feature-title">考勤确认</view>
+        <view class="feature-desc">每月考勤确认，轻松记录</view>
+      </view>
+      <view class="feature-card">
+        <image class="feature-icon" src="/assets/login-icons/history_icon.png" mode="aspectFit" />
+        <view class="feature-title">历史合同</view>
+        <view class="feature-desc">合同记录查询，随时可查</view>
+      </view>
+      <view class="feature-card">
+        <image class="feature-icon" src="/assets/login-icons/evaluation_icon.png" mode="aspectFit" />
+        <view class="feature-title">员工评价</view>
+        <view class="feature-desc">服务评价反馈，真实透明</view>
+      </view>
+    </view>
+
+    <view class="login-actions">
+      <view wx:if="{{enableMockLogin}}" class="dev-card">
+        <text class="label">开发联调 openid</text>
+        <input class="input" value="{{openid}}" bindinput="onOpenidInput" />
+      </view>
+
+      <button class="login-btn" loading="{{loading}}" bindtap="login">
+        <text>一键登录</text>
+      </button>
+      <view class="login-tip">
+        <view class="tip-line"></view>
+        <view class="tip-text">客户请通过合同或考勤链接进入</view>
+        <view class="tip-line"></view>
+      </view>
+    </view>
   </view>
 </view>

@@ -1,7 +1,7 @@
 <view class="page">
   <view class="hero">
     <view class="hero-head">
-      <view class="logo-box"><image class="logo" src="/assets/logo.png" mode="aspectFit" /></view>
+      <view class="logo-box"><image class="logo" src="https://images.mengyimengsao.com/miniprogram/logo.png" mode="aspectFit" /></view>
       <view class="hero-copy">
         <view class="hero-title">{{contract.type_label || '合同详情'}}</view>
         <view class="hero-desc">{{contract.employee_name || '服务人员'}} · {{contract.status_text || ''}}</view>
@@ -11,7 +11,10 @@
   </view>
 
   <view class="card">
-    <view class="section-title no-margin">合同信息</view>
+    <view class="section-title-row">
+      <view class="section-title no-margin">合同信息</view>
+      <button wx:if="{{canShareContract}}" class="share-link-btn" open-type="share">分享给客户</button>
+    </view>
     <view class="row"><text class="row-label">客户</text><text class="row-value">{{contract.customer_name || '-'}}</text></view>
     <view class="row"><text class="row-label">服务人员</text><text class="row-value">{{contract.employee_name || '-'}}</text></view>
     <view class="row"><text class="row-label">劳务报酬</text><text class="row-value">{{contract.employee_level_text}}</text></view>
