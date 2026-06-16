@@ -52,14 +52,14 @@ function employeeCanSign(contract = {}) {
 
 function contractShareTitle(contract = {}) {
   const typeLabel = contract.type_label || '服务合同';
-  if (customerCanSign(contract)) {
+  if (contract.customer_signing_token) {
     return `请签署${typeLabel}`;
   }
   return `${typeLabel}详情`;
 }
 
 function contractSharePath(contract = {}) {
-  if (customerCanSign(contract)) {
+  if (contract.customer_signing_token) {
     return `/pages/contract-sign/index?token=${contract.customer_signing_token}`;
   }
   if (contract.id) {
@@ -71,6 +71,7 @@ function contractSharePath(contract = {}) {
 Page({
   data: {
     id: '',
+    token: '',
     role: 'customer',
     contract: {},
     attendanceForms: [],
@@ -86,12 +87,17 @@ Page({
     hasEmployeeActions: false,
     canShareContract: false,
     loadedOnce: false,
+    loadError: '',
     shareTitle: '服务合同',
     sharePath: ''
   },
 
   onLoad(options) {
-    this.setData({ id: options.id || '', role: options.role || 'customer' });
+    if (options.token) {
+      wx.redirectTo({ url: `/pages/contract-sign/index?token=${options.token}` });
+      return;
+    }
+    this.setData({ id: options.id || '', token: options.token || '', role: options.role || 'customer', loadError: '' });
     this.loadContract();
   },
 
@@ -103,6 +109,7 @@ Page({
 
   async loadContract() {
     if (!this.data.id) {
+      this.setData({ loadError: '缺少合同信息，请从运营分享的签署链接进入。' });
       wx.showToast({ title: '缺少合同ID', icon: 'none' });
       return;
     }
@@ -162,12 +169,20 @@ Page({
         hasEmployeeActions: canEmployeeSign,
         canShareContract: Boolean(contract.customer_signing_token || contract.id),
         loadedOnce: true,
+        loadError: '',
         shareTitle: contractShareTitle(contract),
         sharePath: contractSharePath(contract),
         markdownNodes: markdownToNodes(markdown),
         attachmentNodes: markdownToNodes(attachmentMarkdown)
       });
     } catch (error) {
+      const message = error.message || '加载失败';
+      this.setData({
+        loadedOnce: true,
+        loadError: message === '合同不存在或无权访问'
+          ? '当前微信暂未获得该合同访问权限。请从运营分享的合同签署链接进入，完成签署后即可查看合同。'
+          : message
+      });
       wx.showToast({ title: error.message || '加载失败', icon: 'none' });
     } finally {
       wx.hideLoading();
