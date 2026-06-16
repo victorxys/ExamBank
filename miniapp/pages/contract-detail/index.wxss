@@ -29,24 +29,6 @@
   text-align: right;
 }
 
-.share-link-btn {
-  flex: none;
-  min-height: 44rpx;
-  padding: 0 0 0 24rpx;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  background: transparent;
-  color: #0f9f8f;
-  font-size: 24rpx;
-  line-height: 32rpx;
-  font-weight: 800;
-}
-
-.share-link-btn::after {
-  border: 0;
-}
-
 .actions-card {
   overflow: hidden;
 }

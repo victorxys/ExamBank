@@ -19,7 +19,6 @@
   <view class="card">
     <view class="section-title-row">
       <view class="section-title no-margin">合同信息</view>
-      <button wx:if="{{canShareContract}}" class="share-link-btn" open-type="share">分享给客户</button>
     </view>
     <view class="row"><text class="row-label">客户</text><text class="row-value">{{contract.customer_name || '-'}}</text></view>
     <view class="row"><text class="row-label">服务人员</text><text class="row-value">{{contract.employee_name || '-'}}</text></view>

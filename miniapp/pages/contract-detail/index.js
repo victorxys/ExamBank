@@ -97,7 +97,12 @@ Page({
       wx.redirectTo({ url: `/pages/contract-sign/index?token=${options.token}` });
       return;
     }
-    this.setData({ id: options.id || '', token: options.token || '', role: options.role || 'customer', loadError: '' });
+    this.setData({
+      id: options.id || '',
+      token: options.token || '',
+      role: options.role || 'customer',
+      loadError: ''
+    });
     this.loadContract();
   },
 
