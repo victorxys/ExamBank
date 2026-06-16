@@ -12,10 +12,22 @@
 
   <view class="card" wx:if="{{contract.role !== 'employee'}}">
     <view class="section-title no-margin">甲方信息</view>
-    <view class="readonly-row"><text class="readonly-label">姓名</text><text class="readonly-value">{{customerInfo.name || '-'}}</text></view>
-    <view class="readonly-row"><text class="readonly-label">联系电话</text><text class="readonly-value">{{customerInfo.phone_masked || '-'}}</text></view>
-    <view class="readonly-row"><text class="readonly-label">身份证号</text><text class="readonly-value">{{customerInfo.id_card_masked || '-'}}</text></view>
-    <view class="readonly-row"><text class="readonly-label">联系地址</text><text class="readonly-value">{{customerInfo.address || '-'}}</text></view>
+    <view class="field">
+      <text class="label">姓名</text>
+      <input class="input" value="{{customerInfo.name}}" data-field="name" placeholder="请输入甲方姓名" bindinput="onCustomerInput" />
+    </view>
+    <view class="field">
+      <text class="label">联系电话</text>
+      <input class="input" type="number" value="{{customerInfo.phone_number}}" data-field="phone_number" placeholder="请输入联系电话" bindinput="onCustomerInput" />
+    </view>
+    <view class="field">
+      <text class="label">身份证号</text>
+      <input class="input" value="{{customerInfo.id_card_number}}" data-field="id_card_number" placeholder="请输入身份证号" bindinput="onCustomerInput" />
+    </view>
+    <view class="field">
+      <text class="label">联系地址</text>
+      <input class="input" value="{{customerInfo.address}}" data-field="address" placeholder="请输入联系地址" bindinput="onCustomerInput" />
+    </view>
   </view>
 
   <view class="card" wx:if="{{contract.role === 'employee'}}">
@@ -62,6 +74,7 @@
   <view class="card role-block-card" wx:if="{{!contract.current_signature_image && blockedByRole}}">
     <view class="section-title no-margin">签署身份不匹配</view>
     <view class="role-block-text">{{roleBlockText}}</view>
+    <button wx:if="{{contract.role !== 'employee'}}" class="btn-primary share-action" open-type="share">分享给客户签署</button>
     <button wx:if="{{showEmployeeBindAction}}" class="btn-primary bind-action" bindtap="goEmployeeBind">去绑定员工身份</button>
   </view>
 

@@ -1501,6 +1501,7 @@ def employee_contract_detail(contract_id):
     if not contract:
         return jsonify({"success": False, "error": "合同不存在或无权访问"}), 404
     data = _contract_detail(contract)
+    data["customer_signing_token"] = contract.customer_signing_token
     data["employee_signing_token"] = contract.employee_signing_token
     return jsonify({"success": True, "contract": data})
 

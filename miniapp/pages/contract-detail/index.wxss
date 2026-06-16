@@ -143,6 +143,19 @@
   line-height: 36rpx;
 }
 
+.error-card {
+  border-color: #fed7aa;
+  background: #fff7ed;
+}
+
+.error-text {
+  margin-top: 18rpx;
+  color: #9a3412;
+  font-size: 26rpx;
+  line-height: 42rpx;
+  font-weight: 700;
+}
+
 .record-item {
   margin-top: 18rpx;
   padding: 20rpx 0;

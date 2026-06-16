@@ -74,8 +74,13 @@
   font-weight: 700;
 }
 
-.bind-action {
+.bind-action,
+.share-action {
   margin-top: 22rpx;
+}
+
+.share-action {
+  width: 100%;
 }
 
 .md-block {

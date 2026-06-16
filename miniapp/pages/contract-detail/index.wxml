@@ -10,6 +10,12 @@
     <view class="date-range">{{contract.date_range}}</view>
   </view>
 
+  <view wx:if="{{loadError}}" class="card error-card">
+    <view class="section-title no-margin">无法打开合同</view>
+    <view class="error-text">{{loadError}}</view>
+  </view>
+
+  <block wx:else>
   <view class="card">
     <view class="section-title-row">
       <view class="section-title no-margin">合同信息</view>
@@ -141,4 +147,5 @@
       <image class="signature-image" src="{{contract.employee_signature_image}}" mode="aspectFit" />
     </view>
   </view>
+  </block>
 </view>

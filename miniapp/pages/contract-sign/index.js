@@ -43,16 +43,25 @@ function roleBlockText(contractRole) {
   return '当前登录身份与签署角色不一致，请分享给对应签署人。';
 }
 
-function maskPhone(phoneNumber = '') {
-  const value = String(phoneNumber || '');
-  if (value.length < 7) return value || '-';
-  return `${value.slice(0, 3)}****${value.slice(-4)}`;
+function normalizeSignerInfo(info = {}) {
+  return {
+    name: String(info.name || '').trim(),
+    phone_number: String(info.phone_number || '').trim(),
+    id_card_number: String(info.id_card_number || '').trim(),
+    address: String(info.address || '').trim()
+  };
 }
 
-function maskIdCard(idCardNumber = '') {
-  const value = String(idCardNumber || '');
-  if (value.length < 8) return value || '-';
-  return `${value.slice(0, 4)}********${value.slice(-4)}`;
+function customerInfoFromContract(contract = {}) {
+  const info = contract.customer_info || {};
+  const hasCustomerInfo = Boolean(info.id || info.name || info.phone_number || info.id_card_number || info.address);
+  return {
+    ...defaultCustomerInfo,
+    ...(hasCustomerInfo ? info : {}),
+    name: hasCustomerInfo
+      ? (info.name || '')
+      : (contract.customer_name === '新客户' ? '' : (contract.customer_name || ''))
+  };
 }
 
 Page({
@@ -73,6 +82,10 @@ Page({
   onLoad(options) {
     this.setData({
       token: options.token || ''
+    });
+    wx.showShareMenu({
+      withShareTicket: true,
+      menus: ['shareAppMessage']
     });
     this.loadContract();
   },
@@ -102,13 +115,7 @@ Page({
         showEmployeeBindAction: false,
         markdownNodes: markdownToNodes(markdown),
         attachmentNodes: markdownToNodes(attachmentMarkdown),
-        customerInfo: {
-          ...defaultCustomerInfo,
-          ...(contract.customer_info || {}),
-          name: (contract.customer_info && contract.customer_info.name) || contract.customer_name || '',
-          phone_masked: maskPhone((contract.customer_info || {}).phone_number),
-          id_card_masked: maskIdCard((contract.customer_info || {}).id_card_number)
-        },
+        customerInfo: customerInfoFromContract(contract),
         employeeInfo: {
           ...defaultEmployeeInfo,
           ...(contract.employee_info || {}),
@@ -136,7 +143,22 @@ Page({
     this.setData({ [`employeeInfo.${field}`]: event.detail.value });
   },
 
+  validateSignerInfo() {
+    const role = this.data.contract.role || 'customer';
+    const signerInfo = normalizeSignerInfo(role === 'employee' ? this.data.employeeInfo : this.data.customerInfo);
+    if (!signerInfo.name || !signerInfo.phone_number || !signerInfo.id_card_number || !signerInfo.address) {
+      wx.showToast({ title: role === 'employee' ? '请补全乙方信息' : '请先补全甲方信息', icon: 'none' });
+      return null;
+    }
+    return signerInfo;
+  },
+
   openSignaturePad() {
+    if (this.data.blockedByRole) {
+      wx.showToast({ title: (this.data.contract.role || 'customer') === 'employee' ? '请服务人员本人签署' : '员工不能代客户签署', icon: 'none' });
+      return;
+    }
+    if (!this.validateSignerInfo()) return;
     wx.navigateTo({ url: '/pages/signature-pad/index' });
   },
 
@@ -159,21 +181,14 @@ Page({
   },
 
   async submitSign() {
-    const { customerInfo, employeeInfo, contract, token } = this.data;
+    const { contract, token } = this.data;
     const role = contract.role || 'customer';
     if (this.data.blockedByRole) {
       wx.showToast({ title: role === 'employee' ? '请服务人员本人签署' : '员工不能代客户签署', icon: 'none' });
       return;
     }
-    const signerInfo = role === 'employee' ? employeeInfo : customerInfo;
-    if (role === 'employee' && (!signerInfo.name || !signerInfo.phone_number || !signerInfo.id_card_number || !signerInfo.address)) {
-      wx.showToast({ title: '请补全乙方信息', icon: 'none' });
-      return;
-    }
-    if (role !== 'employee' && !signerInfo.name) {
-      wx.showToast({ title: '合同甲方信息不完整，请联系运营', icon: 'none' });
-      return;
-    }
+    const signerInfo = this.validateSignerInfo();
+    if (!signerInfo) return;
     if (!this.data.hasSignature) {
       wx.showToast({ title: '请先签名', icon: 'none' });
       return;
@@ -187,7 +202,9 @@ Page({
         signature
       };
       if (role === 'employee') {
-        payload.employee_info = employeeInfo;
+        payload.employee_info = signerInfo;
+      } else {
+        payload.customer_info = signerInfo;
       }
       await api.submitContractSign(token, payload);
       wx.showToast({ title: '签署完成', icon: 'success' });
@@ -197,5 +214,15 @@ Page({
     } finally {
       this.setData({ submitting: false });
     }
+  },
+
+  onShareAppMessage() {
+    const { contract, token } = this.data;
+    const customerName = contract.customer_name || (contract.customer_info || {}).name || '客户';
+    const typeLabel = contract.type_label || '服务合同';
+    return {
+      title: `${customerName}的${typeLabel}待签署`,
+      path: `/pages/contract-sign/index?token=${token}`
+    };
   }
 });
