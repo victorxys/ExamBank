@@ -135,14 +135,6 @@
       </view>
     </view>
     <view wx:else>
-      <view wx:if="{{auth.requires_phone_auth}}" class="auth-card">
-        <view class="auth-title">签署前认证</view>
-        <view class="auth-desc">请输入合同签署人手机号，认证后当前微信可继续确认本合同后续考勤。</view>
-        <view class="auth-row">
-          <input class="auth-input" type="number" placeholder="合同签署人手机号" value="{{phoneNumber}}" bindinput="onPhoneInput" />
-          <button class="auth-btn" loading="{{authLoading}}" bindtap="verifyPhone">认证</button>
-        </view>
-      </view>
       <view class="bottom-hint">请确认考勤信息无误后签署</view>
       <button wx:if="{{hasSignature}}" class="submit-btn" loading="{{submitting}}" bindtap="submitSign">确认签署</button>
       <button wx:else class="submit-btn" loading="{{submitting}}" bindtap="openSignatureModal">确认并签署</button>

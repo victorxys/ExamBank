@@ -492,58 +492,6 @@
   font-size: 24rpx;
 }
 
-.auth-card {
-  margin-bottom: 18rpx;
-  padding: 18rpx;
-  border-radius: 18rpx;
-  background: #f8fafc;
-  border: 1rpx solid #e2e8f0;
-}
-
-.auth-title {
-  font-size: 26rpx;
-  font-weight: 900;
-  color: #111827;
-}
-
-.auth-desc {
-  margin-top: 6rpx;
-  font-size: 22rpx;
-  line-height: 32rpx;
-  color: #64748b;
-}
-
-.auth-row {
-  margin-top: 14rpx;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 132rpx;
-  gap: 12rpx;
-}
-
-.auth-input {
-  min-width: 0;
-  height: 74rpx;
-  padding: 0 18rpx;
-  border-radius: 14rpx;
-  background: #fff;
-  border: 1rpx solid #cbd5e1;
-  color: #111827;
-  font-size: 26rpx;
-}
-
-.auth-btn {
-  width: 132rpx;
-  height: 74rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 14rpx;
-  background: #0f9f8f;
-  color: #fff;
-  font-size: 25rpx;
-  font-weight: 900;
-}
-
 .employee-block-title {
   text-align: center;
   color: #334155;
