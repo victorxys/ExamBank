@@ -210,11 +210,7 @@ function calculateTotalDuration(record = {}) {
 
 function formatDuration(hours, minutes = 0) {
   const totalHours = hours % 1 !== 0 ? Number(hours || 0) : Number(hours || 0) + Number(minutes || 0) / 60;
-  if (totalHours < 24) return `${Number(totalHours.toFixed(2))}小时`;
-  const days = Math.floor(totalHours / 24);
-  const remain = totalHours % 24;
-  if (remain <= 0.01) return `${days}天`;
-  return `${days}天${Number(remain.toFixed(2))}小时`;
+  return `${(totalHours / 24).toFixed(2)}天`;
 }
 
 function isFullDayRecord(record = {}) {
@@ -240,13 +236,131 @@ function formatRecordTimeLabel(record, actualStart, actualEnd) {
 
 function formatDays(value) {
   const total = Number(value || 0);
-  if (Math.abs(total) < 0.001) return '0';
-  const days = Math.floor(total);
-  const hours = (total - days) * 24;
-  if (hours <= 0.01) return `${days}`;
-  const hourText = Number(hours.toFixed(2));
-  if (days === 0) return `${hourText}小时`;
-  return `${days}天${hourText}小时`;
+  return `${total.toFixed(2)}天`;
+}
+
+function formatDayTextForNote(value) {
+  const total = Number(value || 0);
+  if (Math.abs(total - 1) < 0.005) return '1天';
+  return formatDays(total);
+}
+
+function normalizeAttendanceTimeText(time) {
+  if (!time) return '';
+  const minutes = timeToMinutes(time, NaN);
+  if (!Number.isFinite(minutes)) return String(time);
+  if (minutes >= 24 * 60) return '24:00';
+  return minutesToTime(minutes);
+}
+
+function getOnboardingReferenceForAttendance(form, attendanceData) {
+  const info = form?.onboarding_time_info || {};
+  if (info.onboarding_time) {
+    return {
+      date: info.onboarding_date || '',
+      time: info.onboarding_time,
+      contractId: info.contract_id || '',
+      signatureToken: info.customer_signature_token || ''
+    };
+  }
+
+  const normalized = normalizeAttendanceData(attendanceData || form?.form_data || {});
+  const onboardingRecord = (normalized.onboarding_records || []).find((record) => record.startTime);
+  if (!onboardingRecord) return null;
+  return {
+    date: onboardingRecord.date || '',
+    time: onboardingRecord.startTime,
+    contractId: onboardingRecord.contract_id || '',
+    signatureToken: onboardingRecord.customer_signature_token || ''
+  };
+}
+
+function getOnboardingTimeForAttendance(form, attendanceData) {
+  return getOnboardingReferenceForAttendance(form, attendanceData)?.time || '';
+}
+
+function getSpecialRecordDetailNote(record, form, attendanceData) {
+  if (record?.type === 'onboarding') {
+    const onboardingTime = normalizeAttendanceTimeText(record.startTime);
+    if (!onboardingTime) return '';
+    return `上户日 ${onboardingTime}~24:00 会在下户日当天计算考勤，本月不计算上户日当天考勤`;
+  }
+
+  if (record?.type === 'offboarding') {
+    const ref = getOnboardingReferenceForAttendance(form, attendanceData);
+    const onboardingTime = normalizeAttendanceTimeText(ref?.time);
+    const offboardingTime = normalizeAttendanceTimeText(record.endTime);
+    if (!onboardingTime || !offboardingTime) return '';
+
+    const onboardingMinutes = timeToMinutes(ref.time, 0);
+    const offboardingMinutes = timeToMinutes(record.endTime, 0);
+    const refDateText = formatMonthDay(ref.date);
+    const offboardingDateText = formatMonthDay(record.date);
+    const baseText = `${refDateText ? `${refDateText} ` : '上户日 '}${onboardingTime}~${offboardingDateText ? `${offboardingDateText} ` : '下户日 '}${onboardingTime} 算作1天`;
+    const deltaMinutes = offboardingMinutes - onboardingMinutes;
+
+    if (deltaMinutes > 0) {
+      return `${baseText}；下户日 ${onboardingTime}~${offboardingTime} 另计${formatDays(deltaMinutes / (24 * 60))}`;
+    }
+    if (deltaMinutes < 0) {
+      const combinedDays = ((24 * 60 - onboardingMinutes) + offboardingMinutes) / (24 * 60);
+      return `${baseText}；下户早于上户时间，合并计${formatDayTextForNote(combinedDays)}`;
+    }
+    return baseText;
+  }
+
+  return '';
+}
+
+function getOnboardingAttendanceLink(record, form, attendanceData) {
+  if (record?.type !== 'offboarding') return null;
+  const ref = getOnboardingReferenceForAttendance(form, attendanceData);
+  const date = parseDate(ref?.date);
+  if (!date) return null;
+  return {
+    year: date.getFullYear(),
+    month: date.getMonth() + 1,
+    date: formatDate(date),
+    contractId: ref.contractId || '',
+    signatureToken: ref.signatureToken || '',
+    text: '查看上户考勤'
+  };
+}
+
+function calculateOnboardingDaysToExclude(attendanceData, form) {
+  const normalized = normalizeAttendanceData(attendanceData);
+  const cycleStart = parseDate(form?.cycle_start_date);
+  const cycleEnd = parseDate(form?.cycle_end_date);
+  if (!cycleStart || !cycleEnd) return 0;
+
+  const dates = new Set();
+  (normalized.onboarding_records || []).forEach((record) => {
+    const onboardingDate = parseDate(record.date);
+    if (onboardingDate && onboardingDate >= cycleStart && onboardingDate <= cycleEnd) {
+      dates.add(formatDate(onboardingDate));
+    }
+  });
+
+  const infoDate = parseDate(form?.onboarding_time_info?.onboarding_date);
+  if (infoDate && infoDate >= cycleStart && infoDate <= cycleEnd) {
+    dates.add(formatDate(infoDate));
+  }
+
+  return dates.size;
+}
+
+function calculateOffboardingAdjustment(attendanceData, form) {
+  const normalized = normalizeAttendanceData(attendanceData);
+  const offboardingRecord = (normalized.offboarding_records || []).find((record) => record.endTime);
+  const onboardingTime = getOnboardingTimeForAttendance(form, normalized);
+  const offboardingTime = offboardingRecord?.endTime;
+  if (!onboardingTime || !offboardingTime) return 0;
+
+  const onboardingMinutes = timeToMinutes(onboardingTime, NaN);
+  const offboardingMinutes = timeToMinutes(offboardingTime, NaN);
+  if (!Number.isFinite(onboardingMinutes) || !Number.isFinite(offboardingMinutes)) return 0;
+
+  return ((24 * 60 - onboardingMinutes) + offboardingMinutes) / (24 * 60) - 1;
 }
 
 function getHolidayInfo(date, holidays = {}) {
@@ -677,23 +791,10 @@ function calculateStats(attendanceData, monthDays, form, holidays = {}) {
     }
   });
 
-  let offboardingAdjustment = 0;
-  if ((normalized.offboarding_records || []).length > 0) {
-    const offboardingRecord = normalized.offboarding_records[0];
-    const offboardingTime = offboardingRecord.endTime;
-    const onboardingInfo = form?.onboarding_time_info || {};
-    const onboardingTime = onboardingInfo.onboarding_time
-      || ((normalized.onboarding_records || [])[0] || {}).startTime;
+  const onboardingDays = calculateOnboardingDaysToExclude(normalized, form);
+  const offboardingAdjustment = calculateOffboardingAdjustment(normalized, form);
 
-    if (onboardingTime && offboardingTime) {
-      const onboardingHours = timeToMinutes(onboardingTime, 0) / 60;
-      const offboardingHours = timeToMinutes(offboardingTime, 0) / 60;
-      offboardingAdjustment = (24 + offboardingHours) / 24 - 1;
-      if (!Number.isFinite(onboardingHours)) offboardingAdjustment = 0;
-    }
-  }
-
-  const totalWorkBeforeCap = validDays + offboardingAdjustment - totalLeaveDays;
+  const totalWorkBeforeCap = validDays - onboardingDays + offboardingAdjustment - totalLeaveDays;
   const recalculatedAuto = Math.max(0, totalWorkBeforeCap - 26 - manualNormalOvertimeDays);
   const totalWorkDays = Math.min(26, totalWorkBeforeCap);
   const totalOvertimeDays = totalManualOvertimeDays + (autoOvertimeDays > 0 ? recalculatedAuto : autoOvertimeDays);
@@ -790,13 +891,21 @@ function buildSpecialRecords(attendanceData, form) {
       const actualEnd = end > cycleEnd ? cycleEnd : end;
       const duration = calculateTotalDuration(record);
       const typeLabel = record.is_auto ? '自动补齐加班' : (TYPE_MAP[record.type]?.label || '考勤');
-      const durationText = formatDuration(duration.totalHours);
+      const durationHours = record.type === 'onboarding'
+        ? Math.max(0, 24 - timeToMinutes(record.startTime, 24 * 60) / 60)
+        : record.type === 'offboarding'
+          ? Math.max(0, (calculateOffboardingAdjustment(normalized, form) + 1) * 24)
+          : duration.totalHours;
+      const durationText = formatDuration(durationHours);
       return {
         ...record,
         typeLabel,
         timeLabel: formatRecordTimeLabel(record, actualStart, actualEnd),
+        detailNote: getSpecialRecordDetailNote(record, form, normalized),
+        onboardingAttendanceLink: getOnboardingAttendanceLink(record, form, normalized),
+        showReturnAttendanceAction: record.type === 'onboarding',
         durationText,
-        showDuration: record.type !== 'onboarding' && record.type !== 'offboarding' && !record.is_auto,
+        showDuration: !record.is_auto,
         showAutoReason: Boolean(record.is_auto),
         autoReasonText: record.is_auto ? `补齐${durationText}，因出勤超26天自动折算` : '',
         tone: TYPE_MAP[record.type]?.tone || 'normal',
@@ -866,7 +975,9 @@ function autoConvertOvertimeIfNeeded(attendanceData, form, monthDays, holidays =
     }
   });
 
-  const currentWorkDays = validDays - leaveDays - normalOvertimeDays;
+  const onboardingDays = calculateOnboardingDaysToExclude(data, form);
+  const offboardingAdjustment = calculateOffboardingAdjustment(data, form);
+  const currentWorkDays = validDays - onboardingDays + offboardingAdjustment - leaveDays - normalOvertimeDays;
   if (currentWorkDays <= 26) return { data, converted: false, overtimeDays: 0 };
 
   const exactDaysToConvert = currentWorkDays - 26;

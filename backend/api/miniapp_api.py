@@ -1726,6 +1726,35 @@ def miniapp_attendance_sign_detail(signature_token):
     if not form:
         return jsonify({"success": False, "error": "无效的签署链接"}), 404
 
+    year = request.args.get("year", type=int)
+    month = request.args.get("month", type=int)
+    contract_id_param = request.args.get("contractId", type=str)
+    if year and month:
+        from backend.api.attendance_form_api import get_attendance_form_by_token
+
+        employee_token = str(form.employee_id)
+        with current_app.test_request_context(
+            f"/api/attendance-forms/by-token/{employee_token}",
+            query_string={
+                "year": year,
+                "month": month,
+                "contractId": contract_id_param or str(form.contract_id),
+            },
+        ):
+            response = get_attendance_form_by_token(employee_token)
+        flask_response = response[0] if isinstance(response, tuple) else response
+        status_code = response[1] if isinstance(response, tuple) and len(response) > 1 else getattr(flask_response, "status_code", 200)
+        payload = flask_response.get_json(silent=True) or {}
+        if status_code >= 400:
+            return jsonify({"success": False, "error": payload.get("error") or "考勤表加载失败"}), status_code
+        return jsonify(
+            {
+                "success": True,
+                "attendance_form": payload,
+                "auth": _attendance_sign_auth_state(form),
+            }
+        )
+
     cycle_start = form.cycle_start_date.date() if hasattr(form.cycle_start_date, "date") else form.cycle_start_date
     cycle_end = form.cycle_end_date.date() if hasattr(form.cycle_end_date, "date") else form.cycle_end_date
     _, effective_start, effective_end = find_consecutive_contracts(form.employee_id, cycle_start, cycle_end)

@@ -78,6 +78,21 @@
         </view>
         <view class="detail-main">
           <view class="detail-time">{{item.timeLabel}}</view>
+          <view wx:if="{{item.detailNote}}" class="detail-note">{{item.detailNote}}</view>
+          <view
+            wx:if="{{item.onboardingAttendanceLink}}"
+            class="detail-link"
+            data-year="{{item.onboardingAttendanceLink.year}}"
+            data-month="{{item.onboardingAttendanceLink.month}}"
+            data-contract-id="{{item.onboardingAttendanceLink.contractId}}"
+            data-signature-token="{{item.onboardingAttendanceLink.signatureToken}}"
+            catchtap="goOnboardingAttendance"
+          >查看上户考勤</view>
+          <view
+            wx:if="{{showReturnAttendance && item.showReturnAttendanceAction}}"
+            class="detail-link"
+            catchtap="goReturnAttendance"
+          >返回下户考勤</view>
           <view wx:if="{{item.showDuration}}" class="detail-duration">{{item.durationText}}</view>
           <view wx:if="{{item.showAutoReason}}" class="detail-duration auto">{{item.autoReasonText}}</view>
         </view>
