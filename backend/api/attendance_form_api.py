@@ -18,16 +18,75 @@ def to_date_value(value):
 
 
 def get_attendance_contract_end_date(contract):
-    """考勤有效截止日：普通合同按服务结束日，自动月签终止后按终止日。"""
+    """考勤有效截止日：合同终止后按终止日，未终止时按合同原结束日。"""
     if not contract:
         return None
 
     is_monthly = bool(getattr(contract, 'is_monthly_auto_renew', False))
     if is_monthly and contract.status in ('active', 'pending'):
         return None
-    if is_monthly and contract.status == 'terminated' and contract.termination_date:
+    if contract.status == 'terminated' and contract.termination_date:
         return to_date_value(contract.termination_date)
     return to_date_value(contract.end_date)
+
+
+def reconcile_attendance_form_with_contract_end(form):
+    """Keep existing attendance forms aligned when a contract is ended early."""
+    if not form or not form.contract:
+        return False
+
+    contract_end = get_attendance_contract_end_date(form.contract)
+    if not contract_end:
+        return False
+
+    cycle_start = to_date_value(form.cycle_start_date)
+    cycle_end = to_date_value(form.cycle_end_date)
+    if not cycle_start or not cycle_end or not (cycle_start <= contract_end <= cycle_end):
+        return False
+
+    changed = False
+    form_data = form.form_data or {}
+    if not isinstance(form_data, dict):
+        form_data = {}
+    for key in ['rest_records', 'leave_records', 'overtime_records', 'out_of_beijing_records',
+                'out_of_country_records', 'paid_leave_records', 'onboarding_records', 'offboarding_records']:
+        if key not in form_data:
+            form_data[key] = []
+            changed = True
+
+    contract_end_str = contract_end.isoformat()
+    offboarding_records = form_data.get('offboarding_records') or []
+    if not has_following_contract(form.contract):
+        stale_records = [
+            item for item in offboarding_records
+            if item.get('type') == 'offboarding' and item.get('date') != contract_end_str
+        ]
+        if stale_records:
+            offboarding_records = [
+                item for item in offboarding_records
+                if item.get('type') != 'offboarding' or item.get('date') == contract_end_str
+            ]
+            changed = True
+        if not any(item.get('date') == contract_end_str for item in offboarding_records):
+            offboarding_records.append({
+                'date': contract_end_str,
+                'type': 'offboarding',
+                'startTime': '',
+                'endTime': '',
+                'hours': 0,
+                'minutes': 0,
+                'daysOffset': 0
+            })
+            changed = True
+    elif offboarding_records:
+        offboarding_records = [item for item in offboarding_records if item.get('date') != contract_end_str]
+        changed = True
+
+    form_data['offboarding_records'] = offboarding_records
+    if changed:
+        form.form_data = form_data
+        flag_modified(form, "form_data")
+    return changed
 
 
 def calculate_last_month_cycle():
@@ -558,10 +617,11 @@ def get_attendance_form_by_token(employee_token):
         ).first()
         
         if existing_form:
+            reconciled = reconcile_attendance_form_with_contract_end(existing_form)
             
             # 检查并补充上户/下户记录（如果缺失）
             form_data = existing_form.form_data or {}
-            form_data_updated = False
+            form_data_updated = reconciled
             
             # 确保所有记录类型都存在
             for key in ['rest_records', 'leave_records', 'overtime_records', 'out_of_beijing_records', 
@@ -1213,25 +1273,12 @@ def get_onboarding_time_info(employee_id, contract_id, current_cycle_start):
 
 
 def normalize_contract_effective_dates(contract, effective_start_date=None, effective_end_date=None):
-    """Return the service window that the attendance UI should use."""
+    """Return the service window for display without folding termination into end_date."""
     if not contract:
         return effective_start_date, effective_end_date
 
     display_start_date = effective_start_date if effective_start_date else contract.start_date
-    display_end_date = effective_end_date
-
-    attendance_end_date = get_attendance_contract_end_date(contract)
-
-    if display_end_date is None:
-        if getattr(contract, 'is_monthly_auto_renew', False) and contract.status in ('active', 'pending'):
-            display_end_date = None
-        else:
-            display_end_date = attendance_end_date
-
-    if attendance_end_date and display_end_date:
-        parsed_display_end = display_end_date.date() if isinstance(display_end_date, datetime) else display_end_date
-        if attendance_end_date > parsed_display_end:
-            display_end_date = attendance_end_date
+    display_end_date = effective_end_date if effective_end_date is not None else contract.end_date
 
     return display_start_date, display_end_date
 
@@ -1252,6 +1299,8 @@ def form_to_dict(form, effective_start_date=None, effective_end_date=None):
         effective_start_date,
         effective_end_date
     )
+    attendance_end_date = get_attendance_contract_end_date(form.contract)
+    contract_end_date = form.contract.end_date if form.contract else None
     
     # 【家庭信息】获取同一家庭的所有客户信息
     family_customers = []
@@ -1303,9 +1352,10 @@ def form_to_dict(form, effective_start_date=None, effective_end_date=None):
             "customer_name": form.contract.customer_name if form.contract else "",
             "employee_name": form.contract.service_personnel.name if form.contract and form.contract.service_personnel else "",
             "start_date": display_start_date.isoformat() if display_start_date else None,
-            "end_date": display_end_date.isoformat() if display_end_date else None,
+            "end_date": contract_end_date.isoformat() if contract_end_date else None,
             "effective_start_date": display_start_date.isoformat() if display_start_date else None,
             "effective_end_date": display_end_date.isoformat() if display_end_date else None,
+            "attendance_end_date": attendance_end_date.isoformat() if attendance_end_date else None,
             # 合同状态和类型信息（用于判断最后一个月）
             "status": form.contract.status if form.contract else None,
             "type": form.contract.type if form.contract else None,

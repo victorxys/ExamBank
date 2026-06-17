@@ -101,6 +101,24 @@ const ATTENDANCE_TYPES = {
     OFFBOARDING: { label: '下户', color: 'bg-rose-100 text-rose-800', value: 'offboarding', border: 'border-l-rose-400' },
 };
 
+const getAttendanceEndDate = (info) => {
+    if (!info) return null;
+    return info.attendance_end_date || (info.status === 'terminated' ? info.termination_date : info.end_date);
+};
+
+const buildDisplayMonthDays = (cycleStartDate) => {
+    const start = parseISO(cycleStartDate);
+    const monthStart = new Date(start.getFullYear(), start.getMonth(), 1);
+    const monthEnd = new Date(start.getFullYear(), start.getMonth() + 1, 0);
+    const days = [];
+    let current = monthStart;
+    while (current <= monthEnd) {
+        days.push(current);
+        current = addDays(current, 1);
+    }
+    return days;
+};
+
 // Custom TimePicker Component
 const TimePicker = ({ value, onChange, disabled, placeholder = '请选择' }) => {
     const [isOpen, setIsOpen] = useState(false);
@@ -325,24 +343,9 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
 
     const isLastMonth = useMemo(() => {
         if (!contractInfo || !formData?.cycle_end_date) return false;
-
-        // 对于自动月签合同，只有在合同终止时才有"最后一个月"
-        if (contractInfo.is_monthly_auto_renew) {
-            // 合同未终止，永远不是最后一个月
-            if (contractInfo.status !== 'terminated' || !contractInfo.termination_date) {
-                return false;
-            }
-            // 合同已终止，使用终止日期判断
-            const terminationDate = parseISO(contractInfo.termination_date);
-            const cycleEndDate = parseISO(formData.cycle_end_date);
-            // 如果终止日期在考勤周期内，则是最后一个月
-            return terminationDate < cycleEndDate;
-        }
-
-        // 非自动月签合同，使用原来的逻辑
-        if (!contractInfo.end_date) return false;
-        // If contract ends BEFORE the cycle end date, it's the last month
-        return parseISO(contractInfo.end_date) < parseISO(formData.cycle_end_date);
+        const attendanceEndDate = getAttendanceEndDate(contractInfo);
+        if (!attendanceEndDate) return false;
+        return parseISO(attendanceEndDate) < parseISO(formData.cycle_end_date);
     }, [contractInfo, formData]);
 
     // 计算可编辑的最大月份：允许员工切换到当月
@@ -392,17 +395,11 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                 }
             }
             // 检查是否为合同结束月
-            if (contractInfo?.end_date && !contractInfo.is_monthly_auto_renew) {
-                const endDate = parseISO(contractInfo.end_date);
+            const attendanceEndDate = getAttendanceEndDate(contractInfo);
+            if (attendanceEndDate) {
+                const endDate = parseISO(attendanceEndDate);
                 if (endDate.getFullYear() === selectedYear && (endDate.getMonth() + 1) === selectedMonth) {
-                    return false; // 合同结束月可编辑
-                }
-            }
-            // 检查是否为终止月（自动月签合同）
-            if (contractInfo?.is_monthly_auto_renew && contractInfo.status === 'terminated' && contractInfo.termination_date) {
-                const terminationDate = parseISO(contractInfo.termination_date);
-                if (terminationDate.getFullYear() === selectedYear && (terminationDate.getMonth() + 1) === selectedMonth) {
-                    return false; // 终止月可编辑
+                    return false; // 合同考勤结束月可编辑
                 }
             }
             return true; // 其他历史月份只读
@@ -442,14 +439,12 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
         //   - 如果状态是 active，不检查结束日期（会自动续约）
         //   - 如果已终止，使用终止日期
         // 对于普通合同，使用结束日期
-        if (contractInfo.is_monthly_auto_renew && contractInfo.status === 'active') {
+        if (contractInfo.is_monthly_auto_renew && contractInfo.status === 'active' && !contractInfo.attendance_end_date) {
             // 月签合同且未终止，不检查结束日期限制
             return false;
         }
 
-        const endDateStr = (contractInfo.is_monthly_auto_renew && contractInfo.status === 'terminated' && contractInfo.termination_date)
-            ? contractInfo.termination_date
-            : contractInfo.end_date;
+        const endDateStr = getAttendanceEndDate(contractInfo);
         if (endDateStr) {
             const endDate = startOfDay(parseISO(endDateStr));
             if (targetDate > endDate) return true;
@@ -715,15 +710,7 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                 setAttendanceData(emptyData);
             }
 
-            const startDate = parseISO(data.cycle_start_date);
-            const endDate = parseISO(data.cycle_end_date);
-            const days = [];
-            let current = startDate;
-            while (current <= endDate) {
-                days.push(current);
-                current = addDays(current, 1);
-            }
-            setMonthDays(days);
+            setMonthDays(buildDisplayMonthDays(data.cycle_start_date));
 
         } catch (error) {
             console.error("Failed to fetch attendance data", error);
@@ -761,6 +748,10 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
         Object.keys(attendanceData).forEach(key => {
             if (key.endsWith('_records') && Array.isArray(attendanceData[key])) {
                 attendanceData[key].forEach(record => {
+                    const recordType = record.type || key.replace('_records', '');
+                    if (recordType === 'onboarding' && !record.startTime) return;
+                    if (recordType === 'offboarding' && !record.endTime) return;
+
                     // 【关键修复】计算当前月份内的实际天数
                     const recordStartDate = parseISO(record.date);
                     const daysOffset = record.daysOffset || 0;
@@ -808,8 +799,8 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
 
                     allRecords.push({
                         ...record,
-                        type: record.type || key.replace('_records', ''),
-                        typeLabel: ATTENDANCE_TYPES[Object.keys(ATTENDANCE_TYPES).find(k => ATTENDANCE_TYPES[k].value === (record.type || key.replace('_records', '')))]?.label,
+                        type: recordType,
+                        typeLabel: ATTENDANCE_TYPES[Object.keys(ATTENDANCE_TYPES).find(k => ATTENDANCE_TYPES[k].value === recordType)]?.label,
                         // 【关键】使用当前月份内的时长
                         hours: hoursInCurrentMonth,
                         minutes: minutesInCurrentMonth,
@@ -2287,7 +2278,7 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                     return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
                                 };
                                 const startTime = normalizeDisplayTime(isOnboardingOrOffboarding ? record.startTime : (record.startTime || '09:00'));
-                                const endTime = normalizeDisplayTime(record.endTime || '18:00');
+                                const endTime = normalizeDisplayTime(isOnboardingOrOffboarding ? record.endTime : (record.endTime || '18:00'));
                                 const dateRangeStr = actualDaysOffset > 0
                                     ? `${format(startDate, 'M月d日')} ~ ${format(endDate, 'M月d日')}`
                                     : format(startDate, 'M月d日');
@@ -2514,9 +2505,12 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                                         if (errorMessage.includes('上户') && contractInfo?.start_date) {
                                                             const startDate = parseISO(contractInfo.start_date);
                                                             setTimeout(() => openEditModal(startDate), 500);
-                                                        } else if (errorMessage.includes('下户') && contractInfo?.end_date) {
-                                                            const endDate = parseISO(contractInfo.end_date);
-                                                            setTimeout(() => openEditModal(endDate), 500);
+                                                        } else if (errorMessage.includes('下户')) {
+                                                            const endDateStr = getAttendanceEndDate(contractInfo);
+                                                            if (endDateStr) {
+                                                                const endDate = parseISO(endDateStr);
+                                                                setTimeout(() => openEditModal(endDate), 500);
+                                                            }
                                                         }
 
                                                         setSubmitting(false);
@@ -2651,10 +2645,7 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                     }
                                     if (type.value === 'offboarding') {
                                         if (!isLastMonth) return null;
-                                        // 对于自动月签合同，使用终止日期；否则使用结束日期
-                                        const endDateStr = contractInfo?.is_monthly_auto_renew
-                                            ? contractInfo?.termination_date
-                                            : contractInfo?.end_date;
+                                        const endDateStr = getAttendanceEndDate(contractInfo);
                                         if (!endDateStr) return null;
                                         if (!isSameDay(editingDate, parseISO(endDateStr))) return null;
                                     }
