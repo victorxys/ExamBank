@@ -719,6 +719,9 @@ def _attendance_summary(form):
     if cycle_start and cycle_end:
         _, effective_start, effective_end = find_consecutive_contracts(form.employee_id, cycle_start, cycle_end)
         payload = form_to_dict(form, effective_start, effective_end)
+        if effective_end is None and payload.get("contract_info"):
+            payload["contract_info"]["status"] = "active"
+            payload["contract_info"]["is_monthly_auto_renew"] = True
     return {
         "id": str(form.id),
         "contract_id": str(form.contract_id),
