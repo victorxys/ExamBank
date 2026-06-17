@@ -32,6 +32,75 @@ def _record_hours(record):
     return Decimal(str(hours)) + Decimal(str(minutes)) / Decimal(60)
 
 
+def _time_to_minutes(time_value):
+    if not time_value:
+        return None
+    try:
+        hour, minute = map(int, str(time_value).split(":"))
+    except (TypeError, ValueError):
+        return None
+    total = hour * 60 + minute
+    if total < 0 or total > 24 * 60:
+        return None
+    return total
+
+
+def _onboarding_time_from_data(data):
+    for record in data.get("onboarding_records") or []:
+        onboarding_time = record.get("startTime")
+        if onboarding_time:
+            return onboarding_time
+    return None
+
+
+def _onboarding_days_to_exclude(data, cycle_start, cycle_end):
+    """上户月不把上户当天计入基础出勤天数。"""
+    dates = set()
+    for record in data.get("onboarding_records") or []:
+        raw_date = record.get("date")
+        if not raw_date:
+            continue
+        try:
+            onboarding_date = _parse_date(raw_date)
+        except (TypeError, ValueError):
+            continue
+        if cycle_start <= onboarding_date <= cycle_end:
+            dates.add(onboarding_date)
+    return Decimal(len(dates))
+
+
+def _contract_valid_days_for_cycle(form, cycle_start, cycle_end):
+    contract = getattr(form, "contract", None)
+    if not contract:
+        return Decimal((cycle_end - cycle_start).days + 1)
+
+    raw_start = getattr(contract, "actual_onboarding_date", None) or contract.start_date
+    contract_start = _parse_date(raw_start)
+    effective_start = max(cycle_start, contract_start)
+
+    contract_end = _attendance_contract_end_date(contract)
+    effective_end = min(cycle_end, contract_end) if contract_end else cycle_end
+    if effective_end < effective_start:
+        return Decimal(0)
+    return Decimal((effective_end - effective_start).days + 1)
+
+
+def _offboarding_adjustment_days(data, onboarding_time):
+    offboarding_time = None
+    for record in data.get("offboarding_records") or []:
+        if record.get("endTime"):
+            offboarding_time = record.get("endTime")
+            break
+
+    onboarding_minutes = _time_to_minutes(onboarding_time)
+    offboarding_minutes = _time_to_minutes(offboarding_time)
+    if onboarding_minutes is None or offboarding_minutes is None:
+        return Decimal(0)
+
+    combined_minutes = Decimal(24 * 60 - onboarding_minutes + offboarding_minutes)
+    return combined_minutes / Decimal(24 * 60) - Decimal("1")
+
+
 def _is_full_day_overtime(record):
     return (
         record.get("type") == "overtime"
@@ -103,8 +172,15 @@ def normalize_auto_overtime_form_data(form):
         if not _is_statutory_holiday(record_date):
             manual_normal_overtime_days += _record_hours(record) / Decimal(24)
 
-    valid_days_count = Decimal(len(month_days))
-    total_work_days_before_cap = valid_days_count - total_leave_days
+    valid_days_count = _contract_valid_days_for_cycle(form, cycle_start, cycle_end)
+    onboarding_days = _onboarding_days_to_exclude(data, cycle_start, cycle_end)
+    onboarding_time = _onboarding_time_from_data(data)
+    if not onboarding_time:
+        onboarding_info = get_onboarding_time_for_contract(form.employee_id, form.contract_id)
+        if onboarding_info.get("has_onboarding"):
+            onboarding_time = onboarding_info.get("onboarding_time")
+    offboarding_adjustment = _offboarding_adjustment_days(data, onboarding_time)
+    total_work_days_before_cap = valid_days_count - onboarding_days + offboarding_adjustment - total_leave_days
     auto_overtime_days = total_work_days_before_cap - Decimal("26") - manual_normal_overtime_days
     if auto_overtime_days <= 0:
         auto_overtime_days = Decimal(0)
@@ -212,14 +288,20 @@ def get_onboarding_time_for_contract(employee_id, contract_id):
                     return {
                         'has_onboarding': True,
                         'onboarding_date': onboarding_date,
-                        'onboarding_time': onboarding_time
+                        'onboarding_time': onboarding_time,
+                        'contract_id': str(form.contract_id),
+                        'form_id': str(form.id),
+                        'customer_signature_token': form.customer_signature_token
                     }
         
         current_app.logger.warning(f"[GET_ONBOARDING] 未找到合同 {contract_id} 的上户记录")
         return {
             'has_onboarding': False,
             'onboarding_date': None,
-            'onboarding_time': None
+            'onboarding_time': None,
+            'contract_id': None,
+            'form_id': None,
+            'customer_signature_token': None
         }
         
     except Exception as e:
@@ -227,7 +309,10 @@ def get_onboarding_time_for_contract(employee_id, contract_id):
         return {
             'has_onboarding': False,
             'onboarding_date': None,
-            'onboarding_time': None
+            'onboarding_time': None,
+            'contract_id': None,
+            'form_id': None,
+            'customer_signature_token': None
         }
 
 
@@ -256,8 +341,8 @@ def calculate_offboarding_work_days(onboarding_time, offboarding_date, offboardi
         offboarding_hour, offboarding_minute = map(int, offboarding_time.split(':'))
         offboarding_hours = offboarding_hour + offboarding_minute / 60
         
-        # 上户日实际出勤（上户日已算作满额1天正常出勤，即24小时）
-        onboarding_day_work = 24
+        # 上户日不计入首月基础出勤，剩余小时在下户月与下户当天合并计算。
+        onboarding_day_work = max(0, 24 - onboarding_hours)
         
         # 下户日实际出勤（00:00到下户时间）
         offboarding_day_work = offboarding_hours
@@ -352,17 +437,19 @@ def sync_attendance_to_record(attendance_form_id):
     out_of_country_days = calculate_days(data.get('out_of_country_records', []))  # 修复：使用正确的键名
     paid_leave_days = calculate_days(data.get('paid_leave_records', []))
     
+    cycle_start = _parse_date(form.cycle_start_date)
+    cycle_end = _parse_date(form.cycle_end_date)
+
     # 【新增】上户/下户特殊处理
     onboarding_records = data.get('onboarding_records', [])
     offboarding_records = data.get('offboarding_records', [])
     
-    # 考勤中的“上户”那天要算作“出勤”天数，因此不扣除
-    onboarding_days = Decimal(0)
+    # 上户月不把上户当天计入基础出勤；该日剩余小时留到下户月合并计算。
+    onboarding_days = _onboarding_days_to_exclude(data, cycle_start, cycle_end)
     
-    # 下户天数：下户当月，下户日计作出勤
-    # 需要根据上户时间和下户时间计算下户日的实际出勤
+    # 下户月需要把首月上户日剩余小时与下户日已工作小时合并计算。
     offboarding_days = Decimal(0)
-    offboarding_day_work = Decimal(0)  # 下户日的实际出勤天数
+    offboarding_day_work = Decimal(0)  # 上户日剩余小时 + 下户日已工作小时折算出的天数
     onboarding_time_info = None
     offboarding_time_info = None
     
@@ -391,20 +478,20 @@ def sync_attendance_to_record(attendance_form_id):
             }
         
         if onboarding_info['has_onboarding'] and offboarding_time:
-            # 计算下户日的实际出勤天数
+            # 计算上户日剩余小时 + 下户日已工作小时折算出的天数
             offboarding_day_work = calculate_offboarding_work_days(
                 onboarding_info['onboarding_time'],
                 offboarding_date,
                 offboarding_time
             )
             
-            current_app.logger.info(f"[ATTENDANCE_SYNC] 下户月计算 - 上户时间:{onboarding_info['onboarding_time']}, 下户时间:{offboarding_time}, 下户日出勤:{offboarding_day_work}天")
+            current_app.logger.info(f"[ATTENDANCE_SYNC] 下户月计算 - 上户时间:{onboarding_info['onboarding_time']}, 下户时间:{offboarding_time}, 合并出勤:{offboarding_day_work}天")
         else:
             # 如果没有上户时间信息，下户日按1整天计算
             offboarding_day_work = Decimal('1')
             current_app.logger.warning(f"[ATTENDANCE_SYNC] 未找到上户时间信息，下户日按1整天计算")
     
-    current_app.logger.info(f"[ATTENDANCE_SYNC] 计算结果 - 休息:{rest_days}, 请假:{leave_days}, 带薪休假:{paid_leave_days}, 加班:{overtime_days}, 出京:{out_of_beijing_days}, 出境:{out_of_country_days}, 上户:{onboarding_days}, 下户日出勤:{offboarding_day_work}")
+    current_app.logger.info(f"[ATTENDANCE_SYNC] 计算结果 - 休息:{rest_days}, 请假:{leave_days}, 带薪休假:{paid_leave_days}, 加班:{overtime_days}, 出京:{out_of_beijing_days}, 出境:{out_of_country_days}, 上户扣除:{onboarding_days}, 合并出勤:{offboarding_day_work}")
     
     # 3. 计算总出勤天数
     # 逻辑: 合同有效天数 - 休息天数 - 请假天数
@@ -415,12 +502,9 @@ def sync_attendance_to_record(attendance_form_id):
     # 【关键修复】使用合同的有效日期范围，而不是整个考勤周期
     contract = form.contract
     if contract:
-        # 计算合同在当月的有效天数
-        cycle_start = form.cycle_start_date.date() if isinstance(form.cycle_start_date, datetime) else form.cycle_start_date
-        cycle_end = form.cycle_end_date.date() if isinstance(form.cycle_end_date, datetime) else form.cycle_end_date
-        
-        # 合同开始日期（如果在当月之后，使用合同开始日期）
-        contract_start = contract.start_date.date() if isinstance(contract.start_date, datetime) else contract.start_date
+        # 合同开始日期（如果有实际上户日，优先使用实际上户日）
+        raw_contract_start = getattr(contract, 'actual_onboarding_date', None) or contract.start_date
+        contract_start = raw_contract_start.date() if isinstance(raw_contract_start, datetime) else raw_contract_start
         effective_start = max(cycle_start, contract_start)
         
         contract_end = _attendance_contract_end_date(contract)
@@ -436,20 +520,13 @@ def sync_attendance_to_record(attendance_form_id):
         current_app.logger.info(f"[ATTENDANCE_SYNC] 合同有效期: {effective_start} 到 {effective_end}, 基础劳务天数: {base_work_days}")
     else:
         # 如果没有合同信息，回退到使用考勤周期
-        base_work_days = (form.cycle_end_date.date() - form.cycle_start_date.date()).days + 1
+        base_work_days = (cycle_end - cycle_start).days + 1
         current_app.logger.warning(f"[ATTENDANCE_SYNC] 未找到合同信息，使用考勤周期天数: {base_work_days}")
     
-    # 出勤天数 = 基础劳务天数 - 休息天数 - 请假天数 - 上户天数
-    # 【新增】上户不计算出勤天数，下户计算出勤天数
-    # 【下户月特殊处理】如果有下户记录，需要调整
+    # 出勤天数 = 基础劳务天数 - 休息天数 - 请假天数 - 上户日 + 末月小时合并调整
     if offboarding_records and offboarding_day_work > 0:
-        # 下户月计算逻辑：
-        # offboarding_day_work = 上户日实际出勤(24-上户时间) + 下户日实际出勤(下户时间)
-        # 基础天数已经包含了下户日作为完整1天
-        # 需要：减去下户日多算的部分，加上上户日补回的部分
-        # 调整 = offboarding_day_work - 1（因为下户日已经算了1天，实际应该是 offboarding_day_work 天）
-        # 但 offboarding_day_work 包含了上户日补回，所以：
-        # 总出勤 = 基础天数 - 1（下户日） + offboarding_day_work
+        # offboarding_day_work = (上户日 24:00-上户时间) + (下户日 00:00-下户时间)
+        # 基础天数已包含下户日 1 天，因此先减 1 天再加回合并小时。
         total_days_worked = Decimal(base_work_days) - rest_days - leave_days - onboarding_days - Decimal('1') + offboarding_day_work
         current_app.logger.info(f"[ATTENDANCE_SYNC] 下户月调整 - 基础:{base_work_days}, 上户日+下户日出勤:{offboarding_day_work}, 调整后出勤:{total_days_worked}")
     else:

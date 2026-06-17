@@ -84,6 +84,13 @@ async function ensureOpenid(role = '') {
   return openid;
 }
 
+function buildQuery(params = {}) {
+  return Object.keys(params)
+    .filter((key) => params[key] !== undefined && params[key] !== null && params[key] !== '')
+    .map((key) => `${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`)
+    .join('&');
+}
+
 module.exports = {
   getOpenid,
   ensureOpenid,
@@ -136,8 +143,9 @@ module.exports = {
   submitContractSign(token, data) {
     return request({ url: `/miniapp/contracts/sign/${token}`, method: 'POST', data });
   },
-  attendanceSignDetail(token) {
-    return request({ url: `/miniapp/attendance/sign/${token}` });
+  attendanceSignDetail(token, params = {}) {
+    const query = buildQuery(params);
+    return request({ url: `/miniapp/attendance/sign/${token}${query ? `?${query}` : ''}` });
   },
   verifyAttendanceSign(token, data) {
     return request({ url: `/miniapp/attendance/sign/${token}/auth`, method: 'POST', data });
@@ -152,10 +160,7 @@ module.exports = {
     return request({ url: `/miniapp/employee/attendance/${formId}` });
   },
   employeeAttendanceByToken(token, params = {}) {
-    const query = Object.keys(params)
-      .filter((key) => params[key] !== undefined && params[key] !== null && params[key] !== '')
-      .map((key) => `${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`)
-      .join('&');
+    const query = buildQuery(params);
     return request({ url: `/miniapp/employee/attendance/by-token/${token}${query ? `?${query}` : ''}` });
   },
   updateEmployeeAttendance(formId, data) {

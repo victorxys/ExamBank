@@ -95,11 +95,30 @@ Page({
     sharePath: '',
     signaturePreview: '',
     hasSignature: false,
-    submitting: false
+    submitting: false,
+    returnAttendance: null,
+    showReturnAttendance: false
   },
 
   onLoad(options) {
-    this.setData({ token: options.token || '' });
+    const returnYear = options.returnYear ? Number(options.returnYear) : null;
+    const returnMonth = options.returnMonth ? Number(options.returnMonth) : null;
+    const returnAttendance = returnYear && returnMonth
+      ? {
+        year: returnYear,
+        month: returnMonth,
+        contractId: options.returnContractId || '',
+        signatureToken: options.returnSignatureToken || ''
+      }
+      : null;
+    this.setData({
+      token: options.token || '',
+      selectedYear: options.year ? Number(options.year) : null,
+      selectedMonth: options.month ? Number(options.month) : null,
+      contractId: options.contractId || '',
+      returnAttendance,
+      showReturnAttendance: Boolean(returnAttendance)
+    });
     this.loadForm();
   },
 
@@ -111,7 +130,11 @@ Page({
     wx.showLoading({ title: '加载中' });
     try {
       await api.ensureOpenid('customer');
-      const result = await api.attendanceSignDetail(this.data.token);
+      const result = await api.attendanceSignDetail(this.data.token, {
+        year: this.data.selectedYear,
+        month: this.data.selectedMonth,
+        contractId: this.data.contractId
+      });
       const form = result.attendance_form || {};
       const holidays = await this.loadHolidays(form.actual_year || form.year);
       this.applyForm(form, holidays, result.auth || null);
@@ -245,6 +268,44 @@ Page({
       showCancel: false,
       confirmText: '我知道了'
     });
+  },
+
+  goOnboardingAttendance(event) {
+    const { year, month, contractId, contractid, signatureToken, signaturetoken } = event.currentTarget.dataset;
+    const targetYear = Number(year);
+    const targetMonth = Number(month);
+    if (!targetYear || !targetMonth || !this.data.token) return;
+    const targetContractId = contractId || contractid || (this.data.form && this.data.form.contract_id);
+    const targetToken = signatureToken || signaturetoken || this.data.token;
+    const currentForm = this.data.form || {};
+    const currentYear = this.data.selectedYear || currentForm.actual_year || currentForm.year;
+    const currentMonth = this.data.selectedMonth || currentForm.actual_month || currentForm.month;
+    const currentContractId = this.data.contractId || currentForm.contract_id || '';
+    const params = [
+      `token=${encodeURIComponent(targetToken)}`,
+      `year=${targetYear}`,
+      `month=${targetMonth}`
+    ];
+    if (targetContractId) params.push(`contractId=${encodeURIComponent(targetContractId)}`);
+    if (currentYear && currentMonth) {
+      params.push(`returnYear=${encodeURIComponent(currentYear)}`);
+      params.push(`returnMonth=${encodeURIComponent(currentMonth)}`);
+      if (currentContractId) params.push(`returnContractId=${encodeURIComponent(currentContractId)}`);
+      params.push(`returnSignatureToken=${encodeURIComponent(this.data.token)}`);
+    }
+    wx.navigateTo({ url: `/pages/attendance-sign/index?${params.join('&')}` });
+  },
+
+  goReturnAttendance() {
+    const target = this.data.returnAttendance;
+    if (!target || !target.year || !target.month) return;
+    const params = [
+      `token=${encodeURIComponent(target.signatureToken || this.data.token)}`,
+      `year=${encodeURIComponent(target.year)}`,
+      `month=${encodeURIComponent(target.month)}`
+    ];
+    if (target.contractId) params.push(`contractId=${encodeURIComponent(target.contractId)}`);
+    wx.redirectTo({ url: `/pages/attendance-sign/index?${params.join('&')}` });
   },
 
   openAutoOvertimeInfo() {

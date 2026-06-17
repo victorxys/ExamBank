@@ -349,7 +349,9 @@ Page({
     showHolidayHint: false,
     customerSignatureToken: '',
     sharePath: '',
-    shareTitle: '请确认月度考勤'
+    shareTitle: '请确认月度考勤',
+    returnAttendance: null,
+    showReturnAttendance: false
   },
 
   onLoad(options) {
@@ -579,6 +581,54 @@ Page({
     if (!this.data.canGoNext || !this.data.selectedYear || !this.data.selectedMonth) return;
     const date = new Date(this.data.selectedYear, this.data.selectedMonth, 1);
     this.loadForm(date.getFullYear(), date.getMonth() + 1);
+  },
+
+  goOnboardingAttendance(event) {
+    const { year, month, contractId, contractid } = event.currentTarget.dataset;
+    const targetYear = Number(year);
+    const targetMonth = Number(month);
+    if (!targetYear || !targetMonth) return;
+    const targetContractId = contractId || contractid || '';
+    const currentForm = this.data.form || {};
+    const returnAttendance = this.data.selectedYear && this.data.selectedMonth
+      ? {
+        year: this.data.selectedYear,
+        month: this.data.selectedMonth,
+        contractId: currentForm.contract_id || ''
+      }
+      : null;
+    if (targetContractId) {
+      this.setData({
+        form: {
+          ...this.data.form,
+          contract_id: targetContractId
+        }
+      });
+    }
+    this.setData({
+      returnAttendance,
+      showReturnAttendance: Boolean(returnAttendance)
+    });
+    this.loadForm(targetYear, targetMonth);
+  },
+
+  goReturnAttendance() {
+    const target = this.data.returnAttendance;
+    if (!target || !target.year || !target.month) return;
+    const targetContractId = target.contractId || '';
+    if (targetContractId) {
+      this.setData({
+        form: {
+          ...this.data.form,
+          contract_id: targetContractId
+        }
+      });
+    }
+    this.setData({
+      returnAttendance: null,
+      showReturnAttendance: false
+    });
+    this.loadForm(target.year, target.month);
   },
 
   buildModalState(record, editingDate, modalReadOnly = false, coveringRecord = null, holidays = this.data.holidays || {}) {

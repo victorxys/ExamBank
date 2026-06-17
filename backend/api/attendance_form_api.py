@@ -998,7 +998,21 @@ def get_sign_page_data(signature_token):
         if not form:
             return jsonify({"error": "无效的签署链接"}), 404
 
+        year = request.args.get('year', type=int)
+        month = request.args.get('month', type=int)
         contract_id_param = request.args.get('contractId', type=str)
+        if year and month:
+            employee_token = str(form.employee_id)
+            with current_app.test_request_context(
+                f"/api/attendance-forms/by-token/{employee_token}",
+                query_string={
+                    "year": year,
+                    "month": month,
+                    "contractId": contract_id_param or str(form.contract_id),
+                },
+            ):
+                return get_attendance_form_by_token(employee_token)
+
         if contract_id_param and str(form.contract_id) != contract_id_param:
             corrected_form = AttendanceForm.query.filter(
                 AttendanceForm.contract_id == contract_id_param,
@@ -1254,13 +1268,19 @@ def get_onboarding_time_info(employee_id, contract_id, current_cycle_start):
                     return {
                         'has_onboarding': True,
                         'onboarding_date': onboarding_date,
-                        'onboarding_time': onboarding_time
+                        'onboarding_time': onboarding_time,
+                        'contract_id': str(form.contract_id),
+                        'form_id': str(form.id),
+                        'customer_signature_token': form.customer_signature_token
                     }
         
         return {
             'has_onboarding': False,
             'onboarding_date': None,
-            'onboarding_time': None
+            'onboarding_time': None,
+            'contract_id': None,
+            'form_id': None,
+            'customer_signature_token': None
         }
         
     except Exception as e:
@@ -1268,7 +1288,10 @@ def get_onboarding_time_info(employee_id, contract_id, current_cycle_start):
         return {
             'has_onboarding': False,
             'onboarding_date': None,
-            'onboarding_time': None
+            'onboarding_time': None,
+            'contract_id': None,
+            'form_id': None,
+            'customer_signature_token': None
         }
 
 

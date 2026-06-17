@@ -386,6 +386,28 @@
   color: #334155;
 }
 
+.detail-note {
+  margin-top: 6rpx;
+  font-size: 20rpx;
+  line-height: 30rpx;
+  color: #94a3b8;
+  word-break: break-word;
+}
+
+.detail-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 8rpx;
+  padding: 8rpx 14rpx;
+  border: 1rpx solid #bae6fd;
+  border-radius: 10rpx;
+  background: #ecfeff;
+  color: #0891b2;
+  font-size: 21rpx;
+  font-weight: 800;
+}
+
 .detail-duration {
   margin-top: 6rpx;
   font-size: 24rpx;

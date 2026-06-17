@@ -4,7 +4,7 @@ import { format, parseISO, addDays, setHours, setMinutes, isSameDay, startOfDay,
 import { zhCN } from 'date-fns/locale';
 import api from '../../api/axios';
 import { useToast } from '../ui/use-toast';
-import { Loader2, CheckCircle2, AlertCircle, Save, Send, X, Clock, ChevronRight, ChevronLeft, ArrowRight, Copy, Check, Share2, Eraser, CalendarIcon } from 'lucide-react';
+import { Loader2, CheckCircle2, AlertCircle, Save, Send, X, Clock, ChevronRight, ChevronLeft, ArrowRight, ArrowLeft, Copy, Check, Share2, Eraser, CalendarIcon } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "../../utils";
 import SignatureCanvas from 'react-signature-canvas';
@@ -32,48 +32,12 @@ const formatDuration = (hours, minutes = 0) => {
         totalHours = hours + minutes / 60;
     }
 
-    if (totalHours < 24) {
-        // Less than 24 hours: show hours without unnecessary decimal places
-        const formattedHours = Number(totalHours.toFixed(2));
-        return `${formattedHours}小时`;
-    } else {
-        // 24 hours or more: show as days and hours
-        const days = Math.floor(totalHours / 24);
-        const remainingHours = totalHours % 24;
-
-        if (remainingHours === 0) {
-            return `${days}天`;
-        }
-
-        // 如果剩余小时数是整数，直接显示；否则保留一位小数
-        const formattedRemaining = remainingHours % 1 === 0
-            ? remainingHours
-            : Number(remainingHours.toFixed(2));
-
-        return `${days}天${formattedRemaining}小时`;
-    }
+    return `${(totalHours / 24).toFixed(2)}天`;
 };
 
 // Helper function to format days (for summary display)
 const formatDays = (totalDays) => {
-    if (totalDays === 0) return '0';
-    const days = Math.floor(totalDays);
-    const remainingHours = (totalDays - days) * 24;
-
-    // 如果没有余数小时，仅显示天数
-    if (remainingHours <= 0.01) { // 极小余数忽略
-        return `${days}`;
-    }
-
-    // 格式化余数小时：如果是整数则不带小数，否则带1-2位小数
-    const formattedHours = remainingHours % 1 === 0
-        ? remainingHours
-        : Number(remainingHours.toFixed(2));
-
-    if (days === 0) {
-        return `${formattedHours}小时`;
-    }
-    return `${days}天${formattedHours}小时`;
+    return `${Number(totalDays || 0).toFixed(2)}天`;
 };
 
 const timeToMinutesForDisplay = (time, fallback = 0) => {
@@ -87,6 +51,141 @@ const isFullDayDisplayRecord = (record = {}) => {
     const startMinutes = timeToMinutesForDisplay(record.startTime || '00:00', 0);
     const endMinutes = timeToMinutesForDisplay(record.endTime || '24:00', 24 * 60);
     return startMinutes <= 0 && endMinutes >= 24 * 60;
+};
+
+const parseDateOnlyForAttendance = (value) => {
+    if (!value) return null;
+    const parsed = startOfDay(parseISO(String(value).slice(0, 10)));
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+const getOnboardingTimeForAttendance = (formData, attendanceData) => {
+    const infoTime = formData?.onboarding_time_info?.onboarding_time;
+    if (infoTime) return infoTime;
+    const onboardingRecord = attendanceData?.onboarding_records?.find(record => record.startTime);
+    return onboardingRecord?.startTime || null;
+};
+
+const getOnboardingReferenceForAttendance = (formData, attendanceData) => {
+    const info = formData?.onboarding_time_info || {};
+    if (info?.onboarding_time) {
+        return {
+            date: info.onboarding_date || null,
+            time: info.onboarding_time,
+            contractId: info.contract_id || null,
+            signatureToken: info.customer_signature_token || null
+        };
+    }
+
+    const onboardingRecord = attendanceData?.onboarding_records?.find(record => record.startTime);
+    if (!onboardingRecord) return null;
+    return {
+        date: onboardingRecord.date || null,
+        time: onboardingRecord.startTime,
+        contractId: onboardingRecord.contract_id || null,
+        signatureToken: onboardingRecord.customer_signature_token || null
+    };
+};
+
+const normalizeAttendanceTimeText = (time) => {
+    if (!time) return '';
+    const minutes = timeToMinutesForDisplay(time, NaN);
+    if (!Number.isFinite(minutes)) return String(time);
+    if (minutes >= 24 * 60) return '24:00';
+    const hours = Math.floor(minutes / 60);
+    const minute = minutes % 60;
+    return `${String(hours).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+};
+
+const formatAttendanceMonthDay = (date) => {
+    const parsed = parseDateOnlyForAttendance(date);
+    return parsed ? format(parsed, 'M月d日') : '';
+};
+
+const formatDayTextForNote = (days) => {
+    const value = Number(days || 0);
+    if (Math.abs(value - 1) < 0.005) return '1天';
+    return formatDays(value);
+};
+
+const calculateOnboardingDaysToExclude = (attendanceData, formData) => {
+    const startDate = parseDateOnlyForAttendance(formData?.cycle_start_date);
+    const endDate = parseDateOnlyForAttendance(formData?.cycle_end_date);
+    if (!startDate || !endDate) return 0;
+
+    const onboardingDates = new Set();
+    (attendanceData?.onboarding_records || []).forEach(record => {
+        const onboardingDate = parseDateOnlyForAttendance(record.date);
+        if (onboardingDate && onboardingDate >= startDate && onboardingDate <= endDate) {
+            onboardingDates.add(format(onboardingDate, 'yyyy-MM-dd'));
+        }
+    });
+
+    const infoDate = parseDateOnlyForAttendance(formData?.onboarding_time_info?.onboarding_date);
+    if (infoDate && infoDate >= startDate && infoDate <= endDate) {
+        onboardingDates.add(format(infoDate, 'yyyy-MM-dd'));
+    }
+
+    return onboardingDates.size;
+};
+
+const calculateOffboardingAdjustment = (attendanceData, formData) => {
+    const offboardingRecord = attendanceData?.offboarding_records?.find(record => record.endTime);
+    const onboardingTime = getOnboardingTimeForAttendance(formData, attendanceData);
+    const offboardingTime = offboardingRecord?.endTime;
+    if (!onboardingTime || !offboardingTime) return 0;
+
+    const onboardingMinutes = timeToMinutesForDisplay(onboardingTime, NaN);
+    const offboardingMinutes = timeToMinutesForDisplay(offboardingTime, NaN);
+    if (!Number.isFinite(onboardingMinutes) || !Number.isFinite(offboardingMinutes)) return 0;
+
+    const combinedMinutes = (24 * 60 - onboardingMinutes) + offboardingMinutes;
+    return combinedMinutes / (24 * 60) - 1;
+};
+
+const getSpecialRecordDetailText = (record, formData, attendanceData) => {
+    if (record?.type === 'onboarding') {
+        const onboardingTime = normalizeAttendanceTimeText(record.startTime);
+        if (!onboardingTime) return '';
+        return `上户日 ${onboardingTime}~24:00 会在下户日当天计算考勤，本月不计算上户日当天考勤`;
+    }
+
+    if (record?.type === 'offboarding') {
+        const ref = getOnboardingReferenceForAttendance(formData, attendanceData);
+        const onboardingTime = normalizeAttendanceTimeText(ref?.time);
+        const offboardingTime = normalizeAttendanceTimeText(record.endTime);
+        if (!onboardingTime || !offboardingTime) return '';
+        const refDateText = formatAttendanceMonthDay(ref?.date);
+        const offboardingDateText = formatAttendanceMonthDay(record.date);
+        const onboardingMinutes = timeToMinutesForDisplay(ref.time, 0);
+        const offboardingMinutes = timeToMinutesForDisplay(record.endTime, 0);
+        const baseEndTime = normalizeAttendanceTimeText(ref.time);
+        const baseText = `${refDateText ? `${refDateText} ` : '上户日 '}${onboardingTime}~${offboardingDateText ? `${offboardingDateText} ` : '下户日 '}${baseEndTime} 算作1天`;
+        const deltaMinutes = offboardingMinutes - onboardingMinutes;
+        if (deltaMinutes > 0) {
+            return `${baseText}；下户日 ${baseEndTime}~${offboardingTime} 另计${formatDays(deltaMinutes / (24 * 60))}`;
+        }
+        if (deltaMinutes < 0) {
+            const combinedDays = ((24 * 60 - onboardingMinutes) + offboardingMinutes) / (24 * 60);
+            return `${baseText}；下户早于上户时间，合并计${formatDayTextForNote(combinedDays)}`;
+        }
+        return baseText;
+    }
+
+    return '';
+};
+
+const getOnboardingAttendanceLink = (record, formData, attendanceData) => {
+    if (record?.type !== 'offboarding') return null;
+    const ref = getOnboardingReferenceForAttendance(formData, attendanceData);
+    const date = parseDateOnlyForAttendance(ref?.date);
+    if (!date) return null;
+    return {
+        year: date.getFullYear(),
+        month: date.getMonth() + 1,
+        contractId: ref.contractId || null,
+        signatureToken: ref.signatureToken || null
+    };
 };
 
 const ATTENDANCE_TYPES = {
@@ -258,10 +357,18 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
         const year = searchParams.get('year');
         const month = searchParams.get('month');
         const contractId = searchParams.get('contractId');
+        const returnYear = searchParams.get('returnYear');
+        const returnMonth = searchParams.get('returnMonth');
+        const returnContractId = searchParams.get('returnContractId');
+        const returnSignatureToken = searchParams.get('returnSignatureToken');
         return {
             year: year ? parseInt(year, 10) : null,
             month: month ? parseInt(month, 10) : null,
-            contractId: contractId || null
+            contractId: contractId || null,
+            returnYear: returnYear ? parseInt(returnYear, 10) : null,
+            returnMonth: returnMonth ? parseInt(returnMonth, 10) : null,
+            returnContractId: returnContractId || null,
+            returnSignatureToken: returnSignatureToken || null
         };
     }, [location.search]);
 
@@ -275,6 +382,20 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
     // 初始值：优先使用 URL 参数或 token 中的年月，否则为 null（让后端智能选择）
     const [selectedYear, setSelectedYear] = useState(() => urlParams.year || initialYear || null);
     const [selectedMonth, setSelectedMonth] = useState(() => urlParams.month || initialMonth || null);
+    const [selectedContractId, setSelectedContractId] = useState(() => urlParams.contractId || null);
+    const [formData, setFormData] = useState(null);
+    const [attendanceData, setAttendanceData] = useState({
+        rest_records: [],
+        leave_records: [],
+        overtime_records: [],
+        out_of_beijing_records: [],
+        out_of_country_records: [],
+        paid_leave_records: [],
+        onboarding_records: [],
+        offboarding_records: []
+    });
+    const [monthDays, setMonthDays] = useState([]);
+    const [contractInfo, setContractInfo] = useState(null);
 
     // 更新 URL 参数的函数（不刷新页面）
     const updateUrlParams = useCallback((year, month, contractId = null) => {
@@ -290,13 +411,107 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
     }, [location.pathname, location.search]);
 
     // 切换月份的函数
-    const handleMonthChange = useCallback((year, month) => {
+    const handleMonthChange = useCallback((year, month, contractId = selectedContractId) => {
         // 清除上次请求记录，确保会重新请求
-        lastFetchedMonth.current = { year: null, month: null };
+        lastFetchedMonth.current = { year: null, month: null, contractId: null };
         setSelectedYear(year);
         setSelectedMonth(month);
-        updateUrlParams(year, month);
-    }, [updateUrlParams]);
+        if (contractId) setSelectedContractId(contractId);
+        updateUrlParams(year, month, contractId);
+    }, [selectedContractId, updateUrlParams]);
+
+    const jumpToAttendanceMonth = useCallback((year, month, targetContractId = null, targetSignatureToken = null) => {
+        if (!year || !month) return;
+        const nextContractId = targetContractId || selectedContractId || formData?.contract_id || urlParams.contractId || null;
+        const returnYear = selectedYear || formData?.actual_year || formData?.year || urlParams.year;
+        const returnMonth = selectedMonth || formData?.actual_month || formData?.month || urlParams.month;
+        const returnContractId = selectedContractId || formData?.contract_id || urlParams.contractId;
+        if (isCustomerMode) {
+            const searchParams = new URLSearchParams(location.search);
+            searchParams.set('year', year.toString());
+            searchParams.set('month', month.toString());
+            if (nextContractId) searchParams.set('contractId', nextContractId);
+
+            if (returnYear && returnMonth) {
+                searchParams.set('returnYear', returnYear.toString());
+                searchParams.set('returnMonth', returnMonth.toString());
+                if (returnContractId) searchParams.set('returnContractId', returnContractId);
+                if (realToken) searchParams.set('returnSignatureToken', realToken);
+            }
+
+            const targetPath = targetSignatureToken
+                ? location.pathname.replace(realToken, targetSignatureToken)
+                : location.pathname;
+            navigate(`${targetPath}?${searchParams.toString()}`);
+            return;
+        }
+        lastFetchedMonth.current = { year: null, month: null, contractId: null };
+        setSelectedContractId(nextContractId);
+        setSelectedYear(year);
+        setSelectedMonth(month);
+        const searchParams = new URLSearchParams(location.search);
+        searchParams.set('year', year.toString());
+        searchParams.set('month', month.toString());
+        if (nextContractId) {
+            searchParams.set('contractId', nextContractId);
+        } else {
+            searchParams.delete('contractId');
+        }
+        if (returnYear && returnMonth) {
+            searchParams.set('returnYear', returnYear.toString());
+            searchParams.set('returnMonth', returnMonth.toString());
+            if (returnContractId) {
+                searchParams.set('returnContractId', returnContractId);
+            } else {
+                searchParams.delete('returnContractId');
+            }
+        }
+        navigate(`${location.pathname}?${searchParams.toString()}`, { replace: true });
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }, [formData, isCustomerMode, location.pathname, location.search, navigate, realToken, selectedContractId, selectedMonth, selectedYear, urlParams.contractId, urlParams.month, urlParams.year]);
+
+    const returnAttendanceLink = useMemo(() => {
+        if (!urlParams.returnYear || !urlParams.returnMonth) return null;
+
+        const searchParams = new URLSearchParams(location.search);
+        searchParams.set('year', urlParams.returnYear.toString());
+        searchParams.set('month', urlParams.returnMonth.toString());
+        if (urlParams.returnContractId) {
+            searchParams.set('contractId', urlParams.returnContractId);
+        } else {
+            searchParams.delete('contractId');
+        }
+        searchParams.delete('returnYear');
+        searchParams.delete('returnMonth');
+        searchParams.delete('returnContractId');
+        searchParams.delete('returnSignatureToken');
+
+        const targetPath = urlParams.returnSignatureToken
+            ? location.pathname.replace(realToken, urlParams.returnSignatureToken)
+            : location.pathname;
+
+        return `${targetPath}?${searchParams.toString()}`;
+    }, [location.pathname, location.search, realToken, urlParams.returnContractId, urlParams.returnMonth, urlParams.returnSignatureToken, urlParams.returnYear]);
+
+    const goBackToReturnAttendance = useCallback(() => {
+        if (returnAttendanceLink) {
+            if (isCustomerMode) {
+                navigate(returnAttendanceLink);
+                return;
+            }
+            const targetUrl = new URL(returnAttendanceLink, window.location.origin);
+            const year = Number(targetUrl.searchParams.get('year'));
+            const month = Number(targetUrl.searchParams.get('month'));
+            const contractId = targetUrl.searchParams.get('contractId') || null;
+            if (!year || !month) return;
+            lastFetchedMonth.current = { year: null, month: null, contractId: null };
+            setSelectedContractId(contractId);
+            setSelectedYear(year);
+            setSelectedMonth(month);
+            navigate(`${location.pathname}${targetUrl.search}`, { replace: true });
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    }, [isCustomerMode, location.pathname, navigate, returnAttendanceLink]);
 
     // Update selected year/month if token changes and has suffix
     useEffect(() => {
@@ -305,20 +520,6 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
             setSelectedMonth(initialMonth);
         }
     }, [initialYear, initialMonth]);
-
-    const [formData, setFormData] = useState(null);
-    const [attendanceData, setAttendanceData] = useState({
-        rest_records: [],
-        leave_records: [],
-        overtime_records: [],
-        out_of_beijing_records: [],
-        out_of_country_records: [],
-        paid_leave_records: [],
-        onboarding_records: [],
-        offboarding_records: []
-    });
-    const [monthDays, setMonthDays] = useState([]);
-    const [contractInfo, setContractInfo] = useState(null);
 
     // 上月出京/出境延续信息（用于判断本月是否需要满30天）
     const previousMonthContinuation = useMemo(() => {
@@ -329,7 +530,16 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
     const hasAdjustedForContractMonth = useRef(false);
 
     // 跟踪最后一次成功请求的年月，避免重复请求
-    const lastFetchedMonth = useRef({ year: null, month: null });
+    const lastFetchedMonth = useRef({ year: null, month: null, contractId: null });
+
+    useEffect(() => {
+        setSelectedContractId(urlParams.contractId || null);
+        if (urlParams.year && urlParams.month) {
+            lastFetchedMonth.current = { year: null, month: null, contractId: null };
+            setSelectedYear(urlParams.year);
+            setSelectedMonth(urlParams.month);
+        }
+    }, [urlParams.year, urlParams.month, urlParams.contractId]);
 
     // 注意：默认月份的智能选择已由后端处理，前端不再需要额外的调整逻辑
     // 后端会根据合同开始/结束月份返回 actual_year 和 actual_month
@@ -572,9 +782,9 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
     useEffect(() => {
         // 只有当realToken存在时才调用fetchData
         if (realToken) {
-            fetchData(selectedYear, selectedMonth);
+            fetchData(selectedYear, selectedMonth, selectedContractId);
         }
-    }, [realToken, selectedYear, selectedMonth]);
+    }, [realToken, selectedYear, selectedMonth, selectedContractId]);
 
     // 检查是否需要显示分享提示遮罩
     // 使用 sessionStorage 传递状态，避免 URL 参数被分享出去
@@ -619,10 +829,15 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
         return () => window.removeEventListener('scroll', handleScroll);
     }, [isScrolled]);
 
-    const fetchData = async (year = selectedYear, month = selectedMonth) => {
+    const fetchData = async (year = selectedYear, month = selectedMonth, contractId = selectedContractId) => {
         try {
             // 如果请求的年月与上次成功请求的相同，跳过（避免重复请求）
-            if (lastFetchedMonth.current.year === year && lastFetchedMonth.current.month === month && formData) {
+            if (
+                lastFetchedMonth.current.year === year &&
+                lastFetchedMonth.current.month === month &&
+                lastFetchedMonth.current.contractId === (contractId || null) &&
+                formData
+            ) {
                 console.log(`[fetchData] Skipping duplicate request for ${year}-${month}`);
                 return;
             }
@@ -641,20 +856,29 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                 ? `/attendance-forms/sign/${realToken}`  // 客户签署模式
                 : `/attendance-forms/by-token/${realToken}`;  // 员工填写模式或管理员查看模式
 
-            if (isCustomerMode && urlParams.contractId) {
-                endpoint += `?contractId=${urlParams.contractId}`;
+            if (isCustomerMode) {
+                const params = new URLSearchParams();
+                if (year && month) {
+                    params.set('year', year);
+                    params.set('month', month);
+                }
+                if (contractId) {
+                    params.set('contractId', contractId);
+                }
+                const query = params.toString();
+                if (query) endpoint += `?${query}`;
             }
 
             // 添加月份参数 (仅员工模式)
             if (!isCustomerMode && year && month) {
                 endpoint += `?year=${year}&month=${month}`;
                 // 如果有 contractId，也传递给后端
-                if (urlParams.contractId) {
-                    endpoint += `&contractId=${urlParams.contractId}`;
+                if (contractId) {
+                    endpoint += `&contractId=${contractId}`;
                 }
-            } else if (!isCustomerMode && urlParams.contractId) {
+            } else if (!isCustomerMode && contractId) {
                 // 没有年月参数但有 contractId
-                endpoint += `?contractId=${urlParams.contractId}`;
+                endpoint += `?contractId=${contractId}`;
             }
 
             const response = await api.get(endpoint);
@@ -671,8 +895,10 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
             // 记录成功请求的年月（使用后端返回的实际年月）
             lastFetchedMonth.current = {
                 year: data.actual_year || actualYear,
-                month: data.actual_month || actualMonth
+                month: data.actual_month || actualMonth,
+                contractId: data.contract_id || contractId || null
             };
+            setSelectedContractId(data.contract_id || contractId || null);
 
             if (data.actual_year && data.actual_month) {
                 // 始终更新前端状态为后端返回的实际年月
@@ -680,7 +906,7 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                 setSelectedMonth(data.actual_month);
                 // 同时保存 contract_id 到 URL（如果还没有的话）
                 updateUrlParams(data.actual_year, data.actual_month, data.contract_id);
-            } else if (data.contract_id && !urlParams.contractId) {
+            } else if (data.contract_id && !contractId) {
                 // 即使没有年月变化，也要保存 contract_id
                 const searchParams = new URLSearchParams(location.search);
                 searchParams.set('contractId', data.contract_id);
@@ -1429,12 +1655,15 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
             });
         }
 
+        const onboardingDaysToExclude = calculateOnboardingDaysToExclude(data, formData);
+        const offboardingAdjustment = calculateOffboardingAdjustment(data, formData);
+
         // 计算有效天数（合同范围内的天数）
         const validDaysCount = monthDays.filter(day => !isDateDisabled(day)).length;
 
         // 【关键修复】待分配出勤天数 = 有效天数 - 休息请假天数 - 普通加班天数
         // 【重要】确定的法定节假日加班是“额外”奖金，不消耗物理出勤天数的名额，因此不减去 holidayOvertimeDays
-        const currentWorkDays = validDaysCount - totalLeaveDays - normalOvertimeDays;
+        const currentWorkDays = validDaysCount - onboardingDaysToExclude + offboardingAdjustment - totalLeaveDays - normalOvertimeDays;
 
         // 如果出勤天数 <= 26，不需要处理
         if (currentWorkDays <= MAX_WORK_DAYS) {
@@ -1856,53 +2085,14 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
         });
     }
 
-    // 【新增】计算上户天数（上户当月，上户日不计入出勤天数，按整天扣除；下户当月，下户日计作1整天出勤）
-    // 上户：无论几点到达，上户日都不算出勤，扣除整整1天
-    // 下户：需要根据上户时间和下户时间计算实际出勤
-    let totalOnboardingDays = 0;
-    if (Array.isArray(attendanceData.onboarding_records)) {
-        attendanceData.onboarding_records.forEach(() => {
-            // 考勤中的”上户“那天要算作”出勤“天数，因此不扣除
-            totalOnboardingDays += 0;
-        });
-    }
-
-    // 【下户月特殊处理】计算上户日补回 + 下户日出勤
-    let offboardingAdjustment = 0;
-    if (Array.isArray(attendanceData.offboarding_records) && attendanceData.offboarding_records.length > 0) {
-        const offboardingRecord = attendanceData.offboarding_records[0];
-        const offboardingTime = offboardingRecord.endTime; // 下户时间存储在 endTime 中
-
-        // 获取上户时间（优先从后端返回的信息获取，否则从当前月份的考勤数据获取）
-        const onboardingInfo = formData?.onboarding_time_info;
-        const onboardingTime = onboardingInfo?.onboarding_time ||
-            (attendanceData.onboarding_records?.[0]?.startTime);
-
-        if (onboardingTime && offboardingTime) {
-            // 解析上户时间
-            const [onboardingHour, onboardingMinute] = onboardingTime.split(':').map(Number);
-            const onboardingHours = onboardingHour + (onboardingMinute || 0) / 60;
-
-            // 解析下户时间
-            const [offboardingHour, offboardingMinute] = offboardingTime.split(':').map(Number);
-            const offboardingHours = offboardingHour + (offboardingMinute || 0) / 60;
-
-            // 上户日实际出勤（上户日已算作满额1天正常出勤，即24小时）+ 下户日实际出勤（00:00到下户时间）
-            const onboardingDayWork = 24;
-            const offboardingDayWork = offboardingHours;
-            const totalExtraHours = onboardingDayWork + offboardingDayWork;
-
-            // 调整量 = 额外出勤 - 1（因为下户日已经算了1天）
-            offboardingAdjustment = totalExtraHours / 24 - 1;
-        }
-    }
+    const totalOnboardingDays = calculateOnboardingDaysToExclude(attendanceData, formData);
+    const offboardingAdjustment = calculateOffboardingAdjustment(attendanceData, formData);
 
     // Work days (基本劳务天数) = valid days - onboarding days + offboarding adjustment - leave days
     // 【关键修复】法定节假日算出勤（带薪假期），休息和请假不算出勤
     // 【重要】无论是"假期加班"还是"正常加班"均算出勤，不需要扣除
     // 带薪休假、出京、出境都算作出勤天数，不需要扣除
-    // 【新增】上户不计算出勤天数，需要扣除；下户月需要加上调整量
-    // 公式：出勤天数 = 当月总天数 - 上户天数 + 下户调整 - 休息天数 - 请假天数
+    // 上户月：上户当天不计入基础出勤；下户月：上户日剩余小时与下户日小时合并计算。
     const validDaysCount = monthDays.filter(day => !isDateDisabled(day)).length;
     totalWorkDays = validDaysCount - totalOnboardingDays + offboardingAdjustment - totalLeaveDays;
     const recalculatedAutoOvertimeDays = Math.max(
@@ -2011,10 +2201,12 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                 })()}
                             </div>
 
-                            {/* User 图标 */}
-                            <div className={`rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold transition-all duration-300
-                                ${isScrolled ? 'h-8 w-8 text-xs' : 'h-10 w-10 text-sm'}`}>
-                                {contractInfo?.employee_name?.slice(-2) || 'User'}
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                                {/* User 图标 */}
+                                <div className={`rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold transition-all duration-300
+                                    ${isScrolled ? 'h-8 w-8 text-xs' : 'h-10 w-10 text-sm'}`}>
+                                    {contractInfo?.employee_name?.slice(-2) || 'User'}
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -2283,7 +2475,17 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                     ? `${format(startDate, 'M月d日')} ~ ${format(endDate, 'M月d日')}`
                                     : format(startDate, 'M月d日');
                                 let timeRangeStr = dateRangeStr;
-                                const durationText = formatDuration(record.hours, record.minutes);
+                                const detailHours = isOnboardingOrOffboarding
+                                    ? (
+                                        record.type === 'offboarding'
+                                            ? Math.max(0, (calculateOffboardingAdjustment(attendanceData, formData) + 1) * 24)
+                                            : Math.max(0, 24 - timeToMinutesForDisplay(record.startTime, 24 * 60) / 60)
+                                    )
+                                    : ((record.hours || 0) + (record.minutes || 0) / 60);
+                                const durationText = formatDuration(detailHours, 0);
+                                const detailNote = getSpecialRecordDetailText(record, formData, attendanceData);
+                                const onboardingAttendanceLink = getOnboardingAttendanceLink(record, formData, attendanceData);
+                                const showReturnAttendanceAction = record.type === 'onboarding' && Boolean(returnAttendanceLink);
 
                                 if (isOnboardingOrOffboarding) {
                                     // 上户：显示到达时间（startTime）
@@ -2352,17 +2554,49 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                                             补齐{durationText}，因出勤天数超26天上限自动转换
                                                         </span>
                                                     )}
+                                                    {detailNote && (
+                                                        <span className="text-[10px] leading-snug text-gray-400 block mt-1 font-normal max-w-[210px]">
+                                                            {detailNote}
+                                                        </span>
+                                                    )}
+                                                    {onboardingAttendanceLink && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={(event) => {
+                                                                event.stopPropagation();
+                                                                jumpToAttendanceMonth(
+                                                                    onboardingAttendanceLink.year,
+                                                                    onboardingAttendanceLink.month,
+                                                                    onboardingAttendanceLink.contractId,
+                                                                    onboardingAttendanceLink.signatureToken
+                                                                );
+                                                            }}
+                                                            className="mt-1.5 inline-flex items-center rounded-md border border-cyan-200 bg-cyan-50 px-2 py-1 text-[10px] font-semibold text-cyan-700 hover:bg-cyan-100"
+                                                        >
+                                                            查看上户考勤
+                                                        </button>
+                                                    )}
+                                                    {showReturnAttendanceAction && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={(event) => {
+                                                                event.stopPropagation();
+                                                                goBackToReturnAttendance();
+                                                            }}
+                                                            className="mt-1.5 inline-flex items-center rounded-md border border-cyan-200 bg-cyan-50 px-2 py-1 text-[10px] font-semibold text-cyan-700 hover:bg-cyan-100"
+                                                        >
+                                                            <ArrowLeft className="w-3 h-3 mr-1" />
+                                                            {isCustomerMode ? '返回下户考勤签署' : '返回下户考勤'}
+                                                        </button>
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>
-                                        {/* 上户/下户不显示时长 */}
-                                        {!isOnboardingOrOffboarding && (
-                                            <div className="text-right">
-                                                <div className="text-sm font-bold text-gray-900">
-                                                    {durationText}
-                                                </div>
+                                        <div className="text-right">
+                                            <div className="text-sm font-bold text-gray-900">
+                                                {durationText}
                                             </div>
-                                        )}
+                                        </div>
                                     </div>
                                 );
                             })}
@@ -2525,7 +2759,7 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                         )}
 
                                         {/* Share button for employees in confirmed status */}
-                                        {!isAdminView && formData.client_sign_url && formData.status === 'employee_confirmed' && (
+                                        {/* {!isAdminView && formData.client_sign_url && formData.status === 'employee_confirmed' && (
                                             <button
                                                 onClick={() => {
                                                     // 使用 sessionStorage 传递分享提示状态，避免 URL 参数被分享出去
@@ -2537,7 +2771,7 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                                 <Share2 className="w-5 h-5" />
                                                 前往签署页分享给客户
                                             </button>
-                                        )}
+                                        )} */}
                                     </>
                                 ) : (
                                     <div className="flex flex-col gap-4 w-full">
@@ -2557,7 +2791,7 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
                                                             });
                                                             toast({ title: "修改成功", description: "状态已重置为待签署，员工可重新编辑。" });
                                                             // 刷新数据
-                                                            fetchData(selectedYear, selectedMonth);
+                                                            fetchData(selectedYear, selectedMonth, selectedContractId);
                                                         } catch (error) {
                                                             toast({ title: "修改失败", description: "服务器错误，请联系技术人员", variant: "destructive" });
                                                         } finally {
