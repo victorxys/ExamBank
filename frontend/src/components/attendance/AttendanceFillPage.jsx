@@ -729,20 +729,20 @@ const AttendanceFillPage = ({ mode = 'employee' }) => {
     const { getHolidayLabel, loading: holidaysLoading } = useHolidays(effectiveYear);
 
     // 【调试】打印节假日数据加载状态
-    useEffect(() => {
-        console.log('=== 节假日数据调试 ===');
-        console.log('selectedYear:', selectedYear);
-        console.log('effectiveYear:', effectiveYear);
-        console.log('formData?.cycle_start_date:', formData?.cycle_start_date);
-        console.log('holidaysLoading:', holidaysLoading);
-        console.log('getHolidayLabel:', typeof getHolidayLabel);
-        if (effectiveYear && getHolidayLabel) {
-            const testDate = new Date(effectiveYear, 0, 1); // 1月1日
-            const testLabel = getHolidayLabel(testDate);
-            console.log('测试1月1日:', testLabel);
-        }
-        console.log('====================');
-    }, [selectedYear, effectiveYear, formData?.cycle_start_date, holidaysLoading, getHolidayLabel]);
+    // useEffect(() => {
+    //     console.log('=== 节假日数据调试 ===');
+    //     console.log('selectedYear:', selectedYear);
+    //     console.log('effectiveYear:', effectiveYear);
+    //     console.log('formData?.cycle_start_date:', formData?.cycle_start_date);
+    //     console.log('holidaysLoading:', holidaysLoading);
+    //     console.log('getHolidayLabel:', typeof getHolidayLabel);
+    //     if (effectiveYear && getHolidayLabel) {
+    //         const testDate = new Date(effectiveYear, 0, 1); // 1月1日
+    //         const testLabel = getHolidayLabel(testDate);
+    //         console.log('测试1月1日:', testLabel);
+    //     }
+    //     console.log('====================');
+    // }, [selectedYear, effectiveYear, formData?.cycle_start_date, holidaysLoading, getHolidayLabel]);
 
     // Auto-save effect (only for employee mode, draft/confirmed status, and NOT historical view)
     useEffect(() => {
