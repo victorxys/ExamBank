@@ -928,6 +928,22 @@ def _attendance_sign_auth_state(form, openid=None):
     }
 
 
+def _grant_attendance_sign_access(form, openid=None, source_token=None):
+    openid = _normalize_openid(openid) or _get_openid_from_request()
+    if not openid or not form or not form.contract:
+        return None
+    if _get_employee_account(openid):
+        return None
+    # 考勤确认人可能不是合同签署人，只授权当前考勤对应的这一份合同，
+    # 不绑定 CustomerWechatAccount，避免看到该客户名下的其他合同。
+    return _grant_contract_access(
+        form.contract,
+        openid,
+        "attendance_signer",
+        source_token=source_token or form.customer_signature_token,
+    )
+
+
 def _ensure_employee_account():
     account = _get_employee_account()
     if not account:
@@ -1725,6 +1741,7 @@ def miniapp_attendance_sign_detail(signature_token):
     form = AttendanceForm.query.filter_by(customer_signature_token=signature_token).first()
     if not form:
         return jsonify({"success": False, "error": "无效的签署链接"}), 404
+    access = _grant_attendance_sign_access(form, source_token=signature_token)
 
     year = request.args.get("year", type=int)
     month = request.args.get("month", type=int)
@@ -1747,6 +1764,8 @@ def miniapp_attendance_sign_detail(signature_token):
         payload = flask_response.get_json(silent=True) or {}
         if status_code >= 400:
             return jsonify({"success": False, "error": payload.get("error") or "考勤表加载失败"}), status_code
+        if access:
+            db.session.commit()
         return jsonify(
             {
                 "success": True,
@@ -1759,6 +1778,8 @@ def miniapp_attendance_sign_detail(signature_token):
     cycle_end = form.cycle_end_date.date() if hasattr(form.cycle_end_date, "date") else form.cycle_end_date
     _, effective_start, effective_end = find_consecutive_contracts(form.employee_id, cycle_start, cycle_end)
     result = form_to_dict(form, effective_start, effective_end)
+    if access:
+        db.session.commit()
     return jsonify(
         {
             "success": True,
@@ -1786,12 +1807,7 @@ def miniapp_attendance_sign_auth(signature_token):
     if state["authenticated"]:
         return jsonify({"success": True, "auth": state})
 
-    _grant_contract_access(
-        form.contract,
-        openid,
-        "attendance_signer",
-        source_token=signature_token,
-    )
+    _grant_attendance_sign_access(form, openid, signature_token)
     db.session.commit()
     return jsonify({"success": True, "auth": _attendance_sign_auth_state(form, openid)})
 
@@ -1814,12 +1830,7 @@ def miniapp_attendance_sign_submit(signature_token):
     if not form:
         return jsonify({"success": False, "error": "无效的签署链接"}), 404
     if form.status not in ("customer_signed", "synced") and form.contract:
-        _grant_contract_access(
-            form.contract,
-            openid,
-            "attendance_signer",
-            source_token=signature_token,
-        )
+        _grant_attendance_sign_access(form, openid, signature_token)
         db.session.flush()
 
     response = submit_customer_signature(signature_token)
@@ -1829,7 +1840,7 @@ def miniapp_attendance_sign_submit(signature_token):
         return response
 
     if openid and form and form.contract:
-        _grant_contract_access(form.contract, openid, "attendance_signer", source_token=signature_token)
+        _grant_attendance_sign_access(form, openid, signature_token)
         db.session.commit()
     return flask_response
 
