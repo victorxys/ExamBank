@@ -7,6 +7,7 @@ Page({
     pendingContracts: [],
     attendanceForms: [],
     activeContracts: [],
+    recentContracts: [],
     todoCount: 0,
     overviewLoaded: false
   },
@@ -40,11 +41,15 @@ Page({
         date_range: `${formatDate(item.cycle_start_date)} - ${formatDate(item.cycle_end_date)}`
       }));
       const activeContracts = (result.active_contracts || []).map(contractView);
+      const recentContracts = ((result.recent_contracts && result.recent_contracts.length)
+        ? result.recent_contracts
+        : result.active_contracts || []).slice(0, 1).map(contractView);
       this.setData({
         employee: result.employee || {},
         pendingContracts,
         attendanceForms,
         activeContracts,
+        recentContracts,
         todoCount: pendingContracts.length + attendanceForms.length,
         overviewLoaded: true
       });

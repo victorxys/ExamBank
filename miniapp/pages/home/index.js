@@ -91,6 +91,20 @@ function attendanceCardStats(stats = {}, item = {}) {
   };
 }
 
+function contractFallbackFromAttendance(attendance = {}) {
+  if (!attendance.contract_id) return null;
+  return contractView({
+    id: attendance.contract_id,
+    type_label: '服务合同',
+    employee_name: attendance.employee_name || '',
+    customer_name: attendance.customer_name || '',
+    start_date: attendance.cycle_start_date,
+    end_date: attendance.cycle_end_date,
+    status: 'active',
+    signing_status: 'SIGNED'
+  });
+}
+
 Page({
   data: {
     customer: {},
@@ -151,6 +165,10 @@ Page({
       const recentContracts = ((result.recent_contracts && result.recent_contracts.length)
         ? result.recent_contracts
         : result.active_contracts || []).slice(0, 1).map(contractView);
+      if (!recentContracts.length && pendingAttendance.length) {
+        const fallbackContract = contractFallbackFromAttendance(pendingAttendance[0]);
+        if (fallbackContract) recentContracts.push(fallbackContract);
+      }
       const upcomingContracts = activeContracts.filter((item) => item.status === 'pending');
       const servingContracts = activeContracts.filter((item) => item.status !== 'pending');
       this.setData({

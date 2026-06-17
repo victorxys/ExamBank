@@ -46,11 +46,11 @@
   </view>
 
   <view class="section-head">
-    <view class="section-title">履行中合同</view>
+    <view class="section-title">服务合同</view>
     <button class="link-btn" bindtap="goContracts">全部合同</button>
   </view>
 
-  <block wx:for="{{activeContracts}}" wx:key="id">
+  <block wx:for="{{recentContracts}}" wx:key="id">
     <view class="contract-card" data-id="{{item.id}}" bindtap="goContractDetail">
       <view class="contract-top">
         <view>
@@ -66,8 +66,8 @@
     </view>
   </block>
 
-  <view wx:if="{{overviewLoaded && activeContracts.length === 0}}" class="empty">
-    <view class="empty-title">暂无正在履行合同</view>
-    <view class="empty-desc">服务中的合同会显示在这里。</view>
+  <view wx:if="{{overviewLoaded && recentContracts.length === 0}}" class="empty">
+    <view class="empty-title">暂无服务合同</view>
+    <view class="empty-desc">最近服务合同会显示在这里。</view>
   </view>
 </view>
