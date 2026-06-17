@@ -16,11 +16,18 @@ function buildFallbackCalendarDays(item = {}, stats = {}) {
   const days = [];
   const cursor = new Date(start.getFullYear(), start.getMonth(), start.getDate());
   const last = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+  const cycleStartText = dateText(item.cycle_start_date);
+  const cycleEndText = dateText(item.cycle_end_date);
   const effectiveStart = dateText(stats.effective_start_date);
   const effectiveEnd = dateText(stats.effective_end_date);
+  const shouldUseEffectiveStart = Boolean(effectiveStart && effectiveStart >= cycleStartText && effectiveStart <= cycleEndText);
+  const shouldUseEffectiveEnd = Boolean(effectiveEnd && effectiveEnd >= cycleStartText && effectiveEnd <= cycleEndText);
   while (cursor <= last) {
     const current = `${cursor.getFullYear()}-${pad(cursor.getMonth() + 1)}-${pad(cursor.getDate())}`;
-    const disabled = Boolean((effectiveStart && current < effectiveStart) || (effectiveEnd && current > effectiveEnd));
+    const disabled = Boolean(
+      (shouldUseEffectiveStart && current < effectiveStart)
+      || (shouldUseEffectiveEnd && current > effectiveEnd)
+    );
     days.push({
       date: current,
       day: cursor.getDate(),
@@ -40,8 +47,6 @@ function normalizeCalendarDay(day, stats = {}) {
   const disabled = Boolean(
     day.disabled
     || day.tone === 'disabled'
-    || (effectiveStart && current && current < effectiveStart)
-    || (effectiveEnd && current && current > effectiveEnd)
   );
   const tone = disabled ? 'disabled' : (day.tone || 'normal');
   return {
