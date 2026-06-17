@@ -1050,8 +1050,9 @@ def miniapp_login():
         account = _get_account(openid)
         employee_account = _get_employee_account(openid)
         contract_accesses = _get_contract_accesses(openid)
+        has_contract_access = bool(contract_accesses)
         roles = []
-        if account:
+        if account or has_contract_access:
             roles.append("customer")
         if employee_account:
             roles.append("employee")
@@ -1060,9 +1061,9 @@ def miniapp_login():
         if not requires_role_select:
             if employee_account:
                 default_role = "employee"
-            elif account:
+            elif account or has_contract_access:
                 default_role = "customer"
-        needs_employee_bind = not account and not employee_account
+        needs_employee_bind = not account and not employee_account and not has_contract_access
         if account:
             account.last_login_at = _now()
         if employee_account:
@@ -1084,7 +1085,7 @@ def miniapp_login():
                 "requires_role_select": requires_role_select,
                 "needs_employee_bind": needs_employee_bind,
                 "contract_access_count": len(contract_accesses),
-                "has_customer_access": bool(account or contract_accesses),
+                "has_customer_access": bool(account or has_contract_access),
                 "customer": {
                     "id": str(account.customer.id),
                     "name": account.customer.name,

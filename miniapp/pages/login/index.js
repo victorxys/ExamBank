@@ -37,7 +37,7 @@ Page({
     const openid = result.openid || fallbackOpenid;
     const customer = result.customer || null;
     const employee = result.employee || null;
-    const defaultRole = result.default_role || '';
+    const defaultRole = result.default_role || (result.has_customer_access ? 'customer' : '');
     const role = result.requires_role_select ? '' : defaultRole;
     getApp().setSession(openid, customer, employee, role);
 
