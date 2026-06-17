@@ -7,6 +7,7 @@
     "pages/employee-home/index",
     "pages/contracts/index",
     "pages/contract-detail/index",
+    "pages/contract-attendance/index",
     "pages/contract-sign/index",
     "pages/signature-pad/index",
     "pages/attendance-fill/index",

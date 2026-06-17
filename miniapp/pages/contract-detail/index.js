@@ -75,6 +75,7 @@ Page({
     role: 'customer',
     contract: {},
     attendanceForms: [],
+    attendancePreviewForms: [],
     pendingAttendanceForms: [],
     evaluations: [],
     markdownNodes: [],
@@ -142,6 +143,7 @@ Page({
           leave_days_text: attendanceStatText(stats, 'leave_days_text')
         };
       });
+      const attendancePreviewForms = attendanceForms.slice(0, 3);
       const pendingAttendanceForms = attendanceForms.filter((item) => (
         item.status === 'employee_confirmed' && item.customer_signature_token
       ));
@@ -163,6 +165,7 @@ Page({
           management_fee_text: contract.management_fee_amount ? `${contract.management_fee_amount} 元/月` : '-'
         },
         attendanceForms,
+        attendancePreviewForms,
         pendingAttendanceForms,
         evaluations,
         canCustomerSign,
@@ -209,6 +212,11 @@ Page({
   goAttendanceSign(event) {
     const token = event.currentTarget.dataset.token;
     if (token) wx.navigateTo({ url: `/pages/attendance-sign/index?token=${token}` });
+  },
+
+  goAllAttendance() {
+    if (!this.data.id) return;
+    wx.navigateTo({ url: `/pages/contract-attendance/index?id=${this.data.id}&role=${this.data.role}` });
   },
 
   goExitSummary() {

@@ -19,7 +19,8 @@
   gap: 18rpx;
 }
 
-.eval-entry-link {
+.eval-entry-link,
+.text-entry-link {
   flex: none;
   padding-left: 24rpx;
   color: #0f9f8f;

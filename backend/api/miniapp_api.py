@@ -13,6 +13,7 @@ from sqlalchemy.orm.attributes import flag_modified
 
 from backend.models import (
     AttendanceForm,
+    AttendanceRecord,
     BaseContract,
     ContractSignature,
     Customer,
@@ -621,6 +622,15 @@ def _format_attendance_amount(days=None, hours=None):
     return f"{value:.1f}".rstrip("0").rstrip(".")
 
 
+def _format_attendance_result_amount(days):
+    value = float(days or 0)
+    if abs(value) < 0.001:
+        return "0"
+    if abs(value - round(value)) < 0.001:
+        return str(int(round(value)))
+    return f"{value:.2f}".rstrip("0").rstrip(".")
+
+
 def _is_attendance_day_disabled(day, contract_info):
     if not contract_info:
         return False
@@ -705,6 +715,36 @@ def _attendance_preview(form, payload=None):
     }
 
 
+def _attendance_record_stats(form):
+    record = form.attendance_record
+    if not record:
+        record = AttendanceRecord.query.filter_by(
+            contract_id=form.contract_id,
+            cycle_start_date=form.cycle_start_date,
+        ).first()
+    if not record:
+        return None
+
+    details = record.attendance_details or {}
+    rest_days = float(details.get("rest_days") or 0)
+    leave_days = float(details.get("leave_days") or 0)
+    paid_leave_days = float(details.get("paid_leave_days") or 0)
+    leave_total = rest_days + leave_days + paid_leave_days
+    overtime_days = float(record.overtime_days or details.get("overtime_days") or 0)
+    work_days = float(record.total_days_worked or 0)
+
+    return {
+        "work_days": work_days,
+        "work_days_text": _format_attendance_result_amount(work_days),
+        "leave_days": leave_total,
+        "leave_days_text": _format_attendance_result_amount(leave_total),
+        "overtime_days": overtime_days,
+        "overtime_hours": overtime_days * 24,
+        "overtime_text": _format_attendance_result_amount(overtime_days),
+        "source": "attendance_record",
+    }
+
+
 def _attendance_summary(form):
     contract = form.contract
     employee = contract.service_personnel if contract else None
@@ -740,7 +780,7 @@ def _attendance_summary(form):
             "leave_count": len(leave_records),
             "overtime_count": len(overtime_records),
             "paid_leave_count": len(paid_leave_records),
-            **_attendance_preview(form, payload),
+            **(_attendance_record_stats(form) or _attendance_preview(form, payload)),
         },
     }
 
