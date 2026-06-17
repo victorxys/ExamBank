@@ -98,6 +98,7 @@ Page({
     pendingAttendance: [],
     pendingEvaluations: [],
     activeContracts: [],
+    recentContracts: [],
     servingContracts: [],
     upcomingContracts: [],
     serviceContractCount: 0,
@@ -147,6 +148,9 @@ Page({
       }));
       const pendingEvaluations = (todos.evaluations || []).map(contractView);
       const activeContracts = (result.active_contracts || []).map(contractView);
+      const recentContracts = ((result.recent_contracts && result.recent_contracts.length)
+        ? result.recent_contracts
+        : result.active_contracts || []).slice(0, 1).map(contractView);
       const upcomingContracts = activeContracts.filter((item) => item.status === 'pending');
       const servingContracts = activeContracts.filter((item) => item.status !== 'pending');
       this.setData({
@@ -155,9 +159,10 @@ Page({
         pendingAttendance,
         pendingEvaluations,
         activeContracts,
+        recentContracts,
         servingContracts,
         upcomingContracts,
-        serviceContractCount: activeContracts.length,
+        serviceContractCount: recentContracts.length,
         todoCount: pendingContracts.length + pendingAttendance.length + pendingEvaluations.length,
         overviewLoaded: true
       });
@@ -172,6 +177,7 @@ Page({
           pendingAttendance: [],
           pendingEvaluations: [],
           activeContracts: [],
+          recentContracts: [],
           servingContracts: [],
           upcomingContracts: [],
           serviceContractCount: 0,

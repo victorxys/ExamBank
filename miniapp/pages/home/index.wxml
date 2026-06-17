@@ -85,7 +85,7 @@
     <button class="link-btn section-link" bindtap="goContracts">全部合同</button>
   </view>
 
-  <block wx:for="{{activeContracts}}" wx:key="id">
+  <block wx:for="{{recentContracts}}" wx:key="id">
     <view class="contract-card" data-id="{{item.id}}" bindtap="goContractDetail">
       <view class="contract-top">
         <view class="contract-meta">
