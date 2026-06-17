@@ -21,7 +21,7 @@ def _attendance_contract_end_date(contract):
     is_monthly = bool(getattr(contract, 'is_monthly_auto_renew', False))
     if is_monthly and contract.status in ('active', 'pending'):
         return None
-    if is_monthly and contract.status == 'terminated' and getattr(contract, 'termination_date', None):
+    if contract.status == 'terminated' and getattr(contract, 'termination_date', None):
         return _parse_date(contract.termination_date)
     return _parse_date(contract.end_date) if getattr(contract, 'end_date', None) else None
 

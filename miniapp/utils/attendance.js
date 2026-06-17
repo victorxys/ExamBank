@@ -162,10 +162,10 @@ function daysInMonth(year, month) {
 
 function buildMonthDays(cycleStart, cycleEnd) {
   const start = parseDate(cycleStart);
-  const end = parseDate(cycleEnd);
   const days = [];
-  if (!start || !end) return days;
-  let current = start;
+  if (!start) return days;
+  let current = new Date(start.getFullYear(), start.getMonth(), 1);
+  const end = new Date(start.getFullYear(), start.getMonth() + 1, 0);
   while (current <= end) {
     days.push(new Date(current));
     current = addDays(current, 1);
@@ -454,23 +454,20 @@ function latestRecordDate(records = []) {
 }
 
 function resolveContractEndDate(contractInfo = {}, attendanceData = null) {
-  if (contractInfo.effective_end_date) return contractInfo.effective_end_date;
+  if (contractInfo.attendance_end_date) return contractInfo.attendance_end_date;
   const terminationDate = parseDate(contractInfo.termination_date);
-  const endDate = parseDate(contractInfo.end_date);
   const offboardingDate = attendanceData
     ? parseDate(latestRecordDate(normalizeAttendanceData(attendanceData).offboarding_records))
     : null;
 
-  if (offboardingDate && (!endDate || offboardingDate > endDate)) {
+  if (contractInfo.status === 'terminated') {
+    if (terminationDate) return contractInfo.termination_date;
+    return offboardingDate ? formatDate(offboardingDate) : '';
+  }
+  if (offboardingDate) {
     return formatDate(offboardingDate);
   }
-  if (terminationDate && (!endDate || terminationDate > endDate)) {
-    return contractInfo.termination_date;
-  }
   if (contractInfo.is_monthly_auto_renew) {
-    if (contractInfo.status === 'terminated') {
-      return contractInfo.termination_date || (offboardingDate ? formatDate(offboardingDate) : '');
-    }
     return '';
   }
   return contractInfo.end_date;
@@ -479,11 +476,10 @@ function resolveContractEndDate(contractInfo = {}, attendanceData = null) {
 function normalizeContractInfoForAttendance(form = {}, attendanceData = null) {
   const contractInfo = form?.contract_info || {};
   const effectiveEnd = resolveContractEndDate(contractInfo, attendanceData || form?.form_data);
-  if (!effectiveEnd || effectiveEnd === contractInfo.end_date) return contractInfo;
+  if (!effectiveEnd || effectiveEnd === contractInfo.attendance_end_date) return contractInfo;
   return {
     ...contractInfo,
-    end_date: effectiveEnd,
-    effective_end_date: effectiveEnd
+    attendance_end_date: effectiveEnd
   };
 }
 
@@ -549,15 +545,8 @@ function isDateDisabled(date, contractInfo) {
   const start = parseDate(contractInfo.start_date);
   if (start && target < start) return true;
 
-  let endSource = resolveContractEndDate(contractInfo);
+  const endSource = resolveContractEndDate(contractInfo);
   if (contractInfo.is_monthly_auto_renew && contractInfo.status === 'active' && !endSource) return false;
-  const terminationDate = parseDate(contractInfo.termination_date);
-  const endDate = parseDate(contractInfo.end_date);
-  if (terminationDate && (!endDate || terminationDate > endDate)) {
-    endSource = contractInfo.termination_date;
-  } else if (contractInfo.is_monthly_auto_renew && contractInfo.status === 'terminated' && contractInfo.termination_date) {
-    endSource = contractInfo.termination_date;
-  }
   const end = parseDate(endSource);
   return Boolean(end && target > end);
 }
@@ -578,13 +567,6 @@ function isLastMonth(form) {
   const contractInfo = form?.contract_info || {};
   if (!form?.cycle_end_date) return false;
   const cycleEnd = parseDate(form.cycle_end_date);
-
-  if (contractInfo.is_monthly_auto_renew) {
-    if (contractInfo.status !== 'terminated' || !contractInfo.termination_date) return false;
-    const termination = parseDate(contractInfo.termination_date);
-    return Boolean(termination && cycleEnd && termination < cycleEnd);
-  }
-
   const end = parseDate(getContractEndDate(contractInfo));
   return Boolean(end && cycleEnd && end < cycleEnd);
 }
@@ -612,7 +594,7 @@ function isHistoricalView(form, selectedYear, selectedMonth, now = new Date()) {
 
   const contractInfo = form?.contract_info || {};
   if (sameMonth(contractInfo.start_date, selectedYear, selectedMonth)) return false;
-  if (!contractInfo.is_monthly_auto_renew && sameMonth(contractInfo.end_date, selectedYear, selectedMonth)) return false;
+  if (sameMonth(resolveContractEndDate(contractInfo), selectedYear, selectedMonth)) return false;
   if (
     contractInfo.is_monthly_auto_renew
     && contractInfo.status === 'terminated'
@@ -792,9 +774,14 @@ function buildCalendar(form, attendanceData, holidays = {}) {
 function buildSpecialRecords(attendanceData, form) {
   const normalized = normalizeAttendanceData(attendanceData);
   const cycleStart = parseDate(form?.cycle_start_date);
-  const cycleEnd = parseDate(form?.cycle_end_date);
+  const cycleEnd = cycleStart ? new Date(cycleStart.getFullYear(), cycleStart.getMonth() + 1, 0) : null;
   return flattenRecords(normalized)
     .filter((record) => record.type !== 'normal')
+    .filter((record) => {
+      if (record.type === 'onboarding') return Boolean(record.startTime);
+      if (record.type === 'offboarding') return Boolean(record.endTime);
+      return true;
+    })
     .map((record) => {
       const start = parseDate(record.date);
       const end = addDays(start, record.daysOffset || 0);

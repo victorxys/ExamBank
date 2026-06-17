@@ -15,6 +15,7 @@ from backend.models import (
     SigningStatus,
     EmployeeSalaryHistory,
     ServicePersonnel,
+    AttendanceForm,
     NannyTrialContract,
     TrialOutcome,
     FinancialActivityLog
@@ -768,6 +769,20 @@ class ContractService:
             end_date_override=termination_date
         )
         db.session.flush() # 确保更改被写入会话
+
+        try:
+            from backend.api.attendance_form_api import reconcile_attendance_form_with_contract_end
+            forms = AttendanceForm.query.filter(
+                AttendanceForm.contract_id == str(contract.id),
+                AttendanceForm.cycle_start_date <= termination_date,
+                AttendanceForm.cycle_end_date >= termination_date,
+            ).all()
+            for form in forms:
+                reconcile_attendance_form_with_contract_end(form)
+            if forms:
+                db.session.flush()
+        except Exception as attendance_err:
+            current_app.logger.error(f"同步终止合同考勤表失败: {attendance_err}", exc_info=True)
 
         # 4. 创建最终薪资调整
         final_bill = CustomerBill.query.filter(CustomerBill.contract_id == str(contract.id )).order_by(CustomerBill.cycle_end_date.desc()).first()
