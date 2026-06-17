@@ -1,44 +1,6 @@
 const api = require('../../utils/api');
-const { contractView, formatDate } = require('../../utils/format');
-
-function attendanceStatusText(status) {
-  const labels = {
-    draft: '待填写',
-    employee_confirmed: '未签署',
-    customer_signed: '已签署',
-    synced: '已归档'
-  };
-  return labels[status] || status || '考勤';
-}
-
-function attendanceBadge(form = {}) {
-  if (form.status === 'employee_confirmed') {
-    return { text: '未签署', className: 'danger' };
-  }
-  if (['customer_signed', 'synced'].includes(form.status)) {
-    return { text: form.status === 'synced' ? '已归档' : '已签署', className: 'signed' };
-  }
-  return { text: attendanceStatusText(form.status), className: 'pending' };
-}
-
-function attendanceStatText(stats = {}, key, fallback = '0') {
-  return stats[key] || fallback;
-}
-
-function normalizeAttendanceForm(item = {}) {
-  const badge = attendanceBadge(item);
-  const stats = item.stats || {};
-  return {
-    ...item,
-    status_text: attendanceStatusText(item.status),
-    status_badge_text: badge.text,
-    status_class: badge.className,
-    date_range: `${formatDate(item.cycle_start_date)} - ${formatDate(item.cycle_end_date)}`,
-    work_days_text: attendanceStatText(stats, 'work_days_text'),
-    overtime_text: attendanceStatText(stats, 'overtime_text'),
-    leave_days_text: attendanceStatText(stats, 'leave_days_text')
-  };
-}
+const { contractView } = require('../../utils/format');
+const { normalizeAttendanceCard } = require('../../utils/attendance-summary');
 
 Page({
   data: {
@@ -73,9 +35,11 @@ Page({
         ? await api.employeeContractDetail(this.data.id)
         : await api.contractDetail(this.data.id);
       const contract = contractView(result.contract || {});
-      const attendanceForms = (contract.attendance_forms || [])
-        .filter((item) => ['employee_confirmed', 'customer_signed', 'synced'].includes(item.status))
-        .map(normalizeAttendanceForm);
+      const rawAttendanceForms = (contract.attendance_forms || [])
+        .filter((item) => ['employee_confirmed', 'customer_signed', 'synced'].includes(item.status));
+      const holidays = await this.loadAttendanceHolidays(rawAttendanceForms);
+      const attendanceForms = rawAttendanceForms
+        .map((item) => normalizeAttendanceCard(item, holidays[item.actual_year || item.year] || {}));
       this.setData({
         contract,
         attendanceForms,
@@ -87,6 +51,22 @@ Page({
     } finally {
       wx.hideLoading();
     }
+  },
+
+  async loadAttendanceHolidays(forms = []) {
+    const years = Array.from(new Set(forms.map((item) => item.actual_year || item.year).filter(Boolean)));
+    const entries = await Promise.all(years.map(async (year) => {
+      try {
+        const result = await api.holidays(year);
+        return [year, result.holidays || {}];
+      } catch (error) {
+        return [year, {}];
+      }
+    }));
+    return entries.reduce((acc, item) => {
+      acc[item[0]] = item[1];
+      return acc;
+    }, {});
   },
 
   goAttendanceSign(event) {

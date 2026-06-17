@@ -756,12 +756,14 @@ def _attendance_summary(form):
     cycle_start = _date_only(form.cycle_start_date)
     cycle_end = _date_only(form.cycle_end_date)
     payload = None
+    normalized_payload = {}
     if cycle_start and cycle_end:
         _, effective_start, effective_end = find_consecutive_contracts(form.employee_id, cycle_start, cycle_end)
         payload = form_to_dict(form, effective_start, effective_end)
         if effective_end is None and payload.get("contract_info"):
             payload["contract_info"]["status"] = "active"
             payload["contract_info"]["is_monthly_auto_renew"] = True
+        normalized_payload = payload or {}
     return {
         "id": str(form.id),
         "contract_id": str(form.contract_id),
@@ -772,6 +774,12 @@ def _attendance_summary(form):
         "month": form.cycle_start_date.month if form.cycle_start_date else None,
         "cycle_start_date": _iso(form.cycle_start_date),
         "cycle_end_date": _iso(form.cycle_end_date),
+        "form_data": normalized_payload.get("form_data") or form.form_data or {},
+        "contract_info": normalized_payload.get("contract_info") or {},
+        "actual_year": normalized_payload.get("actual_year") or (form.cycle_start_date.year if form.cycle_start_date else None),
+        "actual_month": normalized_payload.get("actual_month") or (form.cycle_start_date.month if form.cycle_start_date else None),
+        "onboarding_time_info": normalized_payload.get("onboarding_time_info"),
+        "previous_month_continuation": normalized_payload.get("previous_month_continuation"),
         "status": form.status,
         "customer_signed_at": _iso(form.customer_signed_at),
         "customer_signature_token": form.customer_signature_token,
