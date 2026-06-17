@@ -1323,6 +1323,7 @@ def customer_overview():
                 "attendance_forms": [_attendance_summary(f) for f in pending_attendance],
                 "evaluations": [_contract_summary(c) for c in pending_evaluations],
             },
+            "recent_contracts": [_contract_summary(c) for c in contracts[:1]],
             "active_contracts": [_contract_summary(c) for c in active_contracts],
             "history_contracts": [_contract_summary(c) for c in history_contracts],
         }
