@@ -919,12 +919,12 @@ def _attendance_sign_auth_state(form, openid=None):
     has_contract_access = bool(contract and _openid_has_contract_access(contract.id, openid))
     has_customer_access = _customer_account_can_access_contract(account, contract)
     blocked_by_employee = bool(employee_account and not already_signed)
-    authenticated = bool(already_signed or has_contract_access or has_customer_access)
+    authenticated = bool(already_signed or has_contract_access or has_customer_access or not blocked_by_employee)
     return {
         "authenticated": authenticated,
-        "requires_phone_auth": bool(not authenticated and not blocked_by_employee),
+        "requires_phone_auth": False,
         "blocked_by_employee": blocked_by_employee,
-        "phone_hint": "请输入合同签署人手机号后4位以上信息" if not authenticated else "",
+        "phone_hint": "",
     }
 
 
@@ -1786,25 +1786,12 @@ def miniapp_attendance_sign_auth(signature_token):
     if state["authenticated"]:
         return jsonify({"success": True, "auth": state})
 
-    data = request.get_json(silent=True) or {}
-    phone_number = data.get("phone_number")
-    if not _contract_phone_matches(form.contract, phone_number):
-        return jsonify({"success": False, "error": "手机号与合同签署人不匹配，请确认后重试"}), 200
-
     _grant_contract_access(
         form.contract,
         openid,
         "attendance_signer",
         source_token=signature_token,
-        verified_phone=_normalize_phone(phone_number),
     )
-    if form.contract and form.contract.customer_id:
-        _bind_customer_openid(
-            form.contract.customer_id,
-            openid,
-            phone_number=_normalize_phone(phone_number),
-            bind_method="phone_verify",
-        )
     db.session.commit()
     return jsonify({"success": True, "auth": _attendance_sign_auth_state(form, openid)})
 
@@ -1826,28 +1813,14 @@ def miniapp_attendance_sign_submit(signature_token):
     ).first()
     if not form:
         return jsonify({"success": False, "error": "无效的签署链接"}), 404
-    if form.status not in ("customer_signed", "synced"):
-        state = _attendance_sign_auth_state(form, openid)
-        if not state["authenticated"]:
-            data = request.get_json(silent=True) or {}
-            phone_number = data.get("phone_number")
-            if not _contract_phone_matches(form.contract, phone_number):
-                return jsonify({"success": False, "error": "请先使用合同签署人手机号完成认证"}), 403
-            _grant_contract_access(
-                form.contract,
-                openid,
-                "attendance_signer",
-                source_token=signature_token,
-                verified_phone=_normalize_phone(phone_number),
-            )
-            if form.contract and form.contract.customer_id:
-                _bind_customer_openid(
-                    form.contract.customer_id,
-                    openid,
-                    phone_number=_normalize_phone(phone_number),
-                    bind_method="phone_verify",
-                )
-            db.session.flush()
+    if form.status not in ("customer_signed", "synced") and form.contract:
+        _grant_contract_access(
+            form.contract,
+            openid,
+            "attendance_signer",
+            source_token=signature_token,
+        )
+        db.session.flush()
 
     response = submit_customer_signature(signature_token)
     flask_response = response[0] if isinstance(response, tuple) else response
@@ -1857,8 +1830,6 @@ def miniapp_attendance_sign_submit(signature_token):
 
     if openid and form and form.contract:
         _grant_contract_access(form.contract, openid, "attendance_signer", source_token=signature_token)
-        if form.contract.customer_id:
-            _bind_customer_openid(form.contract.customer_id, openid, bind_method="phone_verify")
         db.session.commit()
     return flask_response
 

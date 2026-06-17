@@ -89,8 +89,6 @@ Page({
       requires_phone_auth: false,
       blocked_by_employee: false
     },
-    phoneNumber: '',
-    authLoading: false,
     shareTitle: '请确认月度考勤',
     sharePath: '',
     signaturePreview: '',
@@ -176,7 +174,7 @@ Page({
     const isSigned = ['customer_signed', 'synced'].includes(normalizedForm.status) || Boolean(currentSignatureImage);
     const auth = authState || {};
     const authBlockedByEmployee = Boolean(auth.blocked_by_employee);
-    const requiresPhoneAuth = Boolean(auth.requires_phone_auth) && !isSigned;
+    const requiresPhoneAuth = false;
     const blockedByEmployeeRole = (isEmployeeSignedIn() || authBlockedByEmployee) && !isSigned;
     const selectedMonth = normalizedForm.actual_month || normalizedForm.month || '-';
     const signedAt = normalizedForm.customer_signed_at || signatureData.signed_at;
@@ -328,10 +326,6 @@ Page({
       });
       return;
     }
-    if (this.data.auth && this.data.auth.requires_phone_auth) {
-      wx.showToast({ title: '请先完成手机号认证', icon: 'none' });
-      return;
-    }
     this.setData({ hasSignature: false, signaturePreview: '' }, () => {
       wx.navigateTo({ url: '/pages/signature-pad/index?return=attendance-sign' });
     });
@@ -339,41 +333,6 @@ Page({
 
   clearSignature() {
     this.setData({ hasSignature: false, signaturePreview: '' });
-  },
-
-  onPhoneInput(event) {
-    this.setData({ phoneNumber: event.detail.value });
-  },
-
-  async verifyPhone() {
-    if (!this.data.phoneNumber) {
-      wx.showToast({ title: '请输入合同签署人手机号', icon: 'none' });
-      return;
-    }
-    this.setData({ authLoading: true });
-    try {
-      const result = await api.verifyAttendanceSign(this.data.token, {
-        openid: api.getOpenid(),
-        phone_number: this.data.phoneNumber
-      });
-      if (result.auth && result.auth.authenticated) {
-        this.setData({
-          auth: {
-            authenticated: true,
-            requires_phone_auth: false,
-            blocked_by_employee: false
-          },
-          phoneNumber: ''
-        });
-        wx.showToast({ title: '认证成功', icon: 'success' });
-        return;
-      }
-      wx.showToast({ title: '认证失败', icon: 'none' });
-    } catch (error) {
-      wx.showToast({ title: error.message || '认证失败', icon: 'none' });
-    } finally {
-      this.setData({ authLoading: false });
-    }
   },
 
   readFileBase64(path) {
@@ -394,10 +353,6 @@ Page({
     }
     if (this.data.blockedByEmployeeRole) {
       wx.showToast({ title: '员工不能代客户签署', icon: 'none' });
-      return;
-    }
-    if (this.data.auth && this.data.auth.requires_phone_auth) {
-      wx.showToast({ title: '请先完成手机号认证', icon: 'none' });
       return;
     }
     if (!this.data.hasSignature) {
