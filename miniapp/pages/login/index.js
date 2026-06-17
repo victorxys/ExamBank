@@ -20,13 +20,15 @@ Page({
   data: {
     openid: '',
     enableMockLogin,
-    loading: false
+    loading: false,
+    autoRouting: false
   },
 
   onLoad() {
     this.setData({
       openid: enableMockLogin ? (wx.getStorageSync('miniapp_openid') || devMockOpenid) : ''
     });
+    this.routeFromExistingSession();
   },
 
   onOpenidInput(event) {
@@ -59,6 +61,42 @@ Page({
 
     wx.showToast({ title: '请先绑定员工身份', icon: 'none' });
     wx.redirectTo({ url: '/pages/employee-bind/index' });
+  },
+
+  routeFromExistingSession() {
+    const openid = wx.getStorageSync('miniapp_openid');
+    if (!openid) return;
+
+    const role = wx.getStorageSync('miniapp_role');
+    const customer = wx.getStorageSync('miniapp_customer');
+    const employee = wx.getStorageSync('miniapp_employee');
+    if (role === 'employee' || (!role && employee)) {
+      wx.redirectTo({ url: '/pages/employee-home/index' });
+      return;
+    }
+    if (role === 'customer' || (!role && customer)) {
+      wx.redirectTo({ url: '/pages/home/index' });
+      return;
+    }
+
+    this.refreshExistingSession(openid);
+  },
+
+  async refreshExistingSession(openid) {
+    if (this.data.autoRouting) return;
+    this.setData({ autoRouting: true });
+    try {
+      let result;
+      if (enableMockLogin) {
+        result = await api.login({ mock_openid: openid });
+      } else {
+        const code = await wxLogin();
+        result = await api.login({ code });
+      }
+      this.routeAfterLogin(result, openid);
+    } catch (error) {
+      this.setData({ autoRouting: false });
+    }
   },
 
   async login() {

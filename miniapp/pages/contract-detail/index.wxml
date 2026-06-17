@@ -77,9 +77,12 @@
   </view>
 
   <view wx:if="{{role === 'customer'}}" class="card">
-    <view class="section-title no-margin">考勤记录</view>
+    <view class="section-title-row">
+      <view class="section-title no-margin">考勤记录</view>
+      <view wx:if="{{attendanceForms.length > 3}}" class="text-entry-link" bindtap="goAllAttendance">全部考勤</view>
+    </view>
     <view wx:if="{{attendanceForms.length === 0}}" class="empty-line">暂无考勤记录</view>
-    <view wx:for="{{attendanceForms}}" wx:key="id" class="attendance-record-card" bindtap="goAttendanceSign" data-token="{{item.customer_signature_token}}">
+    <view wx:for="{{attendancePreviewForms}}" wx:key="id" class="attendance-record-card" bindtap="goAttendanceSign" data-token="{{item.customer_signature_token}}">
       <view class="attendance-record-head">
         <view class="record-main">
           <view class="record-title">{{item.year || ''}}年{{item.month || ''}}月考勤</view>

@@ -1,0 +1,137 @@
+.compact-hero {
+  padding-bottom: 34rpx;
+}
+
+.no-margin {
+  margin-top: 0;
+}
+
+.section-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18rpx;
+}
+
+.count-text {
+  flex: none;
+  color: #64748b;
+  font-size: 24rpx;
+  line-height: 32rpx;
+  font-weight: 800;
+}
+
+.empty-line {
+  margin-top: 18rpx;
+  color: #94a3b8;
+  font-size: 25rpx;
+  line-height: 36rpx;
+}
+
+.attendance-record-card {
+  margin-top: 20rpx;
+  padding: 22rpx;
+  border: 1rpx solid #e5e7eb;
+  border-radius: 18rpx;
+  background: #fff;
+}
+
+.attendance-record-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18rpx;
+}
+
+.record-main {
+  min-width: 0;
+  flex: 1;
+}
+
+.record-title {
+  color: #0f172a;
+  font-size: 28rpx;
+  line-height: 40rpx;
+  font-weight: 850;
+}
+
+.record-desc {
+  margin-top: 6rpx;
+  color: #64748b;
+  font-size: 24rpx;
+  line-height: 34rpx;
+  word-break: break-word;
+}
+
+.record-status {
+  flex: none;
+  max-width: 180rpx;
+  padding: 8rpx 14rpx;
+  border-radius: 999rpx;
+  background: #eef7f4;
+  color: #0f9f8f;
+  font-size: 22rpx;
+  line-height: 30rpx;
+  font-weight: 800;
+  text-align: center;
+}
+
+.record-status.danger {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.record-status.signed {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.record-status.pending {
+  background: #eef7f4;
+  color: #0f9f8f;
+}
+
+.attendance-mini-stats {
+  margin-top: 18rpx;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12rpx;
+}
+
+.mini-stat {
+  min-width: 0;
+  padding: 18rpx 8rpx;
+  border-radius: 14rpx;
+  text-align: center;
+}
+
+.mini-stat.work {
+  background: #e5faf6;
+  color: #087c70;
+}
+
+.mini-stat.overtime {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.mini-stat.leave {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.mini-stat-value {
+  font-size: 32rpx;
+  line-height: 38rpx;
+  font-weight: 900;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mini-stat-label {
+  margin-top: 4rpx;
+  font-size: 22rpx;
+  line-height: 30rpx;
+  font-weight: 800;
+}

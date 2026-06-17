@@ -1,0 +1,42 @@
+<view class="page">
+  <view class="hero compact-hero">
+    <view class="hero-head">
+      <view class="logo-box"><image class="logo" src="https://images.mengyimengsao.com/miniprogram/logo.png" mode="aspectFit" /></view>
+      <view class="hero-copy">
+        <view class="hero-title">全部考勤</view>
+        <view class="hero-desc">{{contract.employee_name || contract.customer_name || '服务合同'}} · {{contract.date_range || ''}}</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="card">
+    <view class="section-title-row">
+      <view class="section-title no-margin">考勤记录</view>
+      <view class="count-text">{{attendanceForms.length}} 个月</view>
+    </view>
+    <view wx:if="{{loaded && attendanceForms.length === 0}}" class="empty-line">暂无考勤记录</view>
+    <view wx:for="{{attendanceForms}}" wx:key="id" class="attendance-record-card" bindtap="goAttendanceSign" data-token="{{item.customer_signature_token}}">
+      <view class="attendance-record-head">
+        <view class="record-main">
+          <view class="record-title">{{item.year || ''}}年{{item.month || ''}}月考勤</view>
+          <view class="record-desc">{{item.date_range}}</view>
+        </view>
+        <view class="record-status {{item.status_class}}">{{item.status_badge_text}}</view>
+      </view>
+      <view class="attendance-mini-stats">
+        <view class="mini-stat work">
+          <view class="mini-stat-value">{{item.work_days_text}}</view>
+          <view class="mini-stat-label">出勤</view>
+        </view>
+        <view class="mini-stat overtime">
+          <view class="mini-stat-value">{{item.overtime_text}}</view>
+          <view class="mini-stat-label">加班</view>
+        </view>
+        <view class="mini-stat leave">
+          <view class="mini-stat-value">{{item.leave_days_text}}</view>
+          <view class="mini-stat-label">休假</view>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>
