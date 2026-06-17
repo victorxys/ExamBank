@@ -1488,6 +1488,7 @@ def employee_overview():
                 "contracts": [_contract_summary(contract, include_employee_token=True) for contract in pending_contracts],
                 "attendance_forms": [_attendance_summary(form) for form in attendance_forms if form.status in ("draft", "employee_confirmed")],
             },
+            "recent_contracts": [_contract_summary(contract) for contract in contracts[:1]],
             "active_contracts": [_contract_summary(contract) for contract in active_contracts],
             "history_contracts": [_contract_summary(contract) for contract in history_contracts],
         }
