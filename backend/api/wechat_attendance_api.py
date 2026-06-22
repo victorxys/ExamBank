@@ -5,11 +5,45 @@
 from flask import Blueprint, jsonify, request, current_app
 from backend.models import db, ServicePersonnel, AttendanceForm, BaseContract
 from backend.api.attendance_form_api import find_consecutive_contracts, form_to_dict, calculate_last_month_cycle
+from backend.api.attendance_form_api import _generate_attendance_miniapp_url_link, _generic_attendance_miniapp_entry
 import uuid
 from datetime import datetime, date
 import os
 
 wechat_attendance_bp = Blueprint('wechat_attendance_api', __name__, url_prefix='/api/wechat-attendance')
+
+
+@wechat_attendance_bp.route('/miniapp-entry', methods=['GET'])
+def miniapp_entry():
+    return jsonify({
+        "success": True,
+        "miniapp": _generic_attendance_miniapp_entry(),
+    })
+
+
+def _miniapp_attendance_payload(employee_id, year=None, month=None, contract_id=None):
+    path = "pages/attendance-fill/index"
+    query_parts = [f"id={employee_id}"]
+    if year:
+        query_parts.append(f"year={year}")
+    if month:
+        query_parts.append(f"month={month}")
+    if contract_id:
+        query_parts.append(f"contractId={contract_id}")
+    miniapp_path = f"{path}?{'&'.join(query_parts)}"
+    result = {
+        "miniapp_path": miniapp_path,
+        "miniapp_url": "",
+        "miniapp_error": "",
+    }
+    try:
+        miniapp_url, generated_path = _generate_attendance_miniapp_url_link(employee_id, year, month, contract_id)
+        result["miniapp_url"] = miniapp_url
+        result["miniapp_path"] = generated_path or miniapp_path
+    except Exception as exc:
+        current_app.logger.warning("生成员工考勤小程序链接失败 employee_id=%s error=%s", employee_id, exc)
+        result["miniapp_error"] = str(exc)
+    return result
 
 @wechat_attendance_bp.route('/verify-employee', methods=['POST'])
 def verify_employee():
@@ -39,7 +73,8 @@ def verify_employee():
                     "id": str(existing_employee.id),
                     "name": existing_employee.name,
                     "phone_number": existing_employee.phone_number
-                }
+                },
+                "miniapp": _miniapp_attendance_payload(str(existing_employee.id)),
             })
         
         # 2. 根据姓名和身份证号查找员工（不限制is_active，先找到再判断状态）
@@ -81,7 +116,8 @@ def verify_employee():
                 "id": str(employee.id),
                 "name": employee.name,
                 "phone_number": employee.phone_number
-            }
+            },
+            "miniapp": _miniapp_attendance_payload(str(employee.id)),
         })
         
     except Exception as e:
@@ -385,7 +421,8 @@ def get_employee_info():
                 "name": employee.name,
                 "phone_number": employee.phone_number,
                 "is_active": employee.is_active
-            }
+            },
+            "miniapp": _miniapp_attendance_payload(str(employee.id)),
         })
         
     except Exception as e:

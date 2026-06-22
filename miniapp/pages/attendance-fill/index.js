@@ -251,6 +251,7 @@ Page({
     employeeToken: '',
     selectedYear: null,
     selectedMonth: null,
+    selectedContractId: '',
     form: { contract_info: {} },
     attendanceData: normalizeAttendanceData({}),
     monthDays: [],
@@ -262,6 +263,9 @@ Page({
       workDaysText: '0',
       leaveDaysText: '0',
       overtimeDaysText: '0',
+      workDaysHoursText: '0天0小时',
+      leaveDaysHoursText: '0天0小时',
+      overtimeDaysHoursText: '0天0小时',
       holidayOvertimeDaysText: '0'
     },
     showHolidayOvertimeStat: false,
@@ -356,9 +360,18 @@ Page({
 
   onLoad(options) {
     const id = options.id || '';
+    const selectedYear = options.year ? Number(options.year) : null;
+    const selectedMonth = options.month ? Number(options.month) : null;
+    const selectedContractId = options.contractId || options.contractid || '';
     this.autoSaveTimer = null;
-    this.setData({ id, employeeToken: options.employee_token || '' });
-    this.loadForm();
+    this.setData({
+      id,
+      employeeToken: options.employee_token || '',
+      selectedYear,
+      selectedMonth,
+      selectedContractId
+    });
+    this.loadForm(selectedYear, selectedMonth);
   },
 
   onUnload() {
@@ -374,8 +387,15 @@ Page({
 
     wx.showLoading({ title: '加载中' });
     try {
-      const result = year && month
-        ? await api.employeeAttendanceByToken(token, { year, month, contractId: this.data.form.contract_id })
+      const contractId = this.data.selectedContractId || this.data.form.contract_id || '';
+      const params = {};
+      if (year && month) {
+        params.year = year;
+        params.month = month;
+      }
+      if (contractId) params.contractId = contractId;
+      const result = Object.keys(params).length
+        ? await api.employeeAttendanceByToken(token, params)
         : await api.employeeAttendanceByToken(token);
       const form = result.attendance_form || {};
       const formYear = form.actual_year || form.year;
@@ -455,6 +475,7 @@ Page({
       employeeToken: form.employee_access_token || this.data.employeeToken || form.employee_id || this.data.id,
       selectedYear,
       selectedMonth,
+      selectedContractId: normalizedForm.contract_id || this.data.selectedContractId || '',
       attendanceData,
       monthDays: calendar.monthDays.map(formatDate),
       calendarCells: calendar.cells,

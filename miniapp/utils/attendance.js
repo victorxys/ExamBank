@@ -239,6 +239,32 @@ function formatDays(value) {
   return `${total.toFixed(2)}天`;
 }
 
+function formatDaysHours(value) {
+  const total = Math.max(0, Number(value || 0));
+  const days = Math.floor(total);
+  const hours = (total - days) * 24;
+  const roundedHours = Math.round(hours * 10) / 10;
+  if (roundedHours >= 24) {
+    return `${days + 1}天0小时`;
+  }
+  const hourText = Math.abs(roundedHours - Math.round(roundedHours)) < 0.05
+    ? String(Math.round(roundedHours))
+    : roundedHours.toFixed(1).replace(/\.0$/, '');
+  if (days <= 0) return `${hourText}小时`;
+  return `${days}天${hourText}小时`;
+}
+
+function formatHoursText(hours) {
+  const total = Math.max(0, Number(hours || 0));
+  const days = Math.floor(total / 24);
+  const remainder = Math.round((total - days * 24) * 10) / 10;
+  const hourText = Math.abs(remainder - Math.round(remainder)) < 0.05
+    ? String(Math.round(remainder))
+    : remainder.toFixed(1).replace(/\.0$/, '');
+  if (days <= 0) return `${hourText}小时`;
+  return `${days}天${hourText}小时`;
+}
+
 function formatDayTextForNote(value) {
   const total = Number(value || 0);
   if (Math.abs(total - 1) < 0.005) return '1天';
@@ -809,6 +835,9 @@ function calculateStats(attendanceData, monthDays, form, holidays = {}) {
     workDaysText: formatDays(totalWorkDays),
     leaveDaysText: formatDays(totalLeaveDays),
     overtimeDaysText: formatDays(totalOvertimeDays),
+    workDaysHoursText: formatDaysHours(totalWorkDays),
+    leaveDaysHoursText: formatDaysHours(totalLeaveDays),
+    overtimeDaysHoursText: formatDaysHours(totalOvertimeDays),
     holidayOvertimeDaysText: formatDays(holidayOvertimeDays),
     normalOvertimeDaysText: formatDays(Math.max(0, totalOvertimeDays - holidayOvertimeDays)),
     autoOvertimeDaysText: formatDays(autoOvertimeDays > 0 ? recalculatedAuto : 0)
@@ -897,6 +926,7 @@ function buildSpecialRecords(attendanceData, form) {
           ? Math.max(0, (calculateOffboardingAdjustment(normalized, form) + 1) * 24)
           : duration.totalHours;
       const durationText = formatDuration(durationHours);
+      const durationHoursText = formatHoursText(durationHours);
       return {
         ...record,
         typeLabel,
@@ -905,9 +935,10 @@ function buildSpecialRecords(attendanceData, form) {
         onboardingAttendanceLink: getOnboardingAttendanceLink(record, form, normalized),
         showReturnAttendanceAction: record.type === 'onboarding',
         durationText,
+        durationHoursText,
         showDuration: !record.is_auto,
         showAutoReason: Boolean(record.is_auto),
-        autoReasonText: record.is_auto ? `补齐${durationText}，因出勤超26天自动折算` : '',
+        autoReasonText: record.is_auto ? `补齐${durationText}（${durationHoursText}），因出勤超26天自动折算` : '',
         tone: TYPE_MAP[record.type]?.tone || 'normal',
         className: `detail-row tone-left-${TYPE_MAP[record.type]?.tone || 'normal'}`,
         dateText: formatMonthDay(record.date),

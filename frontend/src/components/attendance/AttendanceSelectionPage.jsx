@@ -42,6 +42,14 @@ const StatusBadge = ({ status }) => {
 const AttendanceSelectionPage = ({ forms, employeeName }) => {
     const navigate = useNavigate();
 
+    const openMiniappOrFallback = (form) => {
+        if (form.miniapp?.miniapp_url) {
+            window.location.href = form.miniapp.miniapp_url;
+            return;
+        }
+        navigate(`/attendance-fill/${form.form_id}?contractId=${form.contract_id}`);
+    };
+
     return (
         <div className="min-h-screen bg-slate-50">
             {/* Header */}
@@ -57,6 +65,9 @@ const AttendanceSelectionPage = ({ forms, employeeName }) => {
                     </div>
                     <p className="text-sm text-gray-600">
                         员工: {employeeName} · 请选择要处理的考勤表
+                    </p>
+                    <p className="mt-2 text-xs text-teal-700 bg-teal-50 border border-teal-100 rounded-lg px-3 py-2">
+                        考勤填写已迁移到小程序，点击下方按钮会拉起“萌姨萌嫂服务助手”进行填写。
                     </p>
                 </div>
             </div>
@@ -92,11 +103,11 @@ const AttendanceSelectionPage = ({ forms, employeeName }) => {
                             {/* Action Buttons */}
                             <div className="flex gap-3">
                                 <button
-                                    onClick={() => navigate(`/attendance-fill/${form.form_id}?contractId=${form.contract_id}`)}
-                                    className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 rounded-xl transition-colors flex items-center justify-center gap-2"
+                                    onClick={() => openMiniappOrFallback(form)}
+                                    className="flex-1 bg-teal-600 hover:bg-teal-500 text-white font-medium py-3 rounded-xl transition-colors flex items-center justify-center gap-2"
                                 >
                                     <FileText className="w-4 h-4" />
-                                    {form.status === 'draft' ? '填写考勤' : '查看/修改'}
+                                    {form.status === 'draft' ? '小程序填写考勤' : '小程序查看/修改'}
                                 </button>
                                 
                                 {/* 如果已确认，显示分享按钮 */}
