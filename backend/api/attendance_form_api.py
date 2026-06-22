@@ -3,13 +3,135 @@ from backend.models import db, AttendanceForm, BaseContract, ServicePersonnel, A
 from backend.services.attendance_sync_service import sync_attendance_to_record, normalize_auto_overtime_form_data
 from backend.services.billing_engine import BillingEngine
 import uuid
+import time
+import urllib.parse
+import requests
 from datetime import datetime, date, timedelta
 from dateutil.relativedelta import relativedelta
 import calendar
 import os
 from sqlalchemy.orm.attributes import flag_modified
+from backend.utils.miniapp_config import get_miniapp_credentials
 
 attendance_form_bp = Blueprint('attendance_form_api', __name__, url_prefix='/api/attendance-forms')
+_MINIAPP_ACCESS_TOKEN_CACHE = {
+    "appid": "",
+    "access_token": "",
+    "expires_at": 0,
+}
+
+
+def _miniapp_access_token():
+    now = time.time()
+    appid, secret = get_miniapp_credentials()
+    if (
+        _MINIAPP_ACCESS_TOKEN_CACHE["appid"] == appid
+        and _MINIAPP_ACCESS_TOKEN_CACHE["access_token"]
+        and _MINIAPP_ACCESS_TOKEN_CACHE["expires_at"] > now + 60
+    ):
+        return _MINIAPP_ACCESS_TOKEN_CACHE["access_token"]
+
+    if not appid or not secret:
+        raise RuntimeError("未配置 WECHAT_MINIAPP_APPID/WECHAT_MINIAPP_SECRET")
+
+    response = requests.get(
+        "https://api.weixin.qq.com/cgi-bin/token",
+        params={"grant_type": "client_credential", "appid": appid, "secret": secret},
+        timeout=(3, 8),
+    )
+    response.raise_for_status()
+    payload = response.json()
+    if payload.get("errcode"):
+        raise RuntimeError(payload.get("errmsg") or "获取小程序 access_token 失败")
+
+    access_token = payload.get("access_token")
+    if not access_token:
+        raise RuntimeError("微信未返回小程序 access_token")
+
+    _MINIAPP_ACCESS_TOKEN_CACHE["appid"] = appid
+    _MINIAPP_ACCESS_TOKEN_CACHE["access_token"] = access_token
+    _MINIAPP_ACCESS_TOKEN_CACHE["expires_at"] = now + int(payload.get("expires_in") or 7200)
+    return access_token
+
+
+def _generate_attendance_miniapp_url_link(employee_token, year=None, month=None, contract_id=None):
+    query_params = {"id": str(employee_token)}
+    if year:
+        query_params["year"] = str(year)
+    if month:
+        query_params["month"] = str(month)
+    if contract_id:
+        query_params["contractId"] = str(contract_id)
+    return _generate_miniapp_url_link("pages/attendance-fill/index", query_params)
+
+
+def _generate_miniapp_url_link(path, query_params=None):
+    query = urllib.parse.urlencode(query_params or {})
+    access_token = _miniapp_access_token()
+    response = requests.post(
+        f"https://api.weixin.qq.com/wxa/generate_urllink?access_token={access_token}",
+        json={
+            "path": path,
+            "query": query,
+            "is_expire": True,
+            "expire_type": 0,
+            "expire_time": int(time.time()) + 30 * 24 * 60 * 60,
+            "env_version": current_app.config.get("WECHAT_MINIAPP_ENV_VERSION") or "release",
+        },
+        timeout=(3, 8),
+    )
+    response.raise_for_status()
+    data = response.json()
+    if data.get("errcode"):
+        raise RuntimeError(data.get("errmsg") or "生成小程序链接失败")
+    url_link = data.get("url_link")
+    if not url_link:
+        raise RuntimeError("微信未返回小程序 URL Link")
+    return url_link, f"{path}?{query}"
+
+
+def _generic_attendance_miniapp_entry():
+    path = "pages/login/index"
+    query_params = {"role": "employee", "entry": "attendance"}
+    miniapp_path = f"{path}?{urllib.parse.urlencode(query_params)}"
+    result = {
+        "miniapp_path": miniapp_path,
+        "miniapp_url": "",
+        "miniapp_error": "",
+    }
+    try:
+        miniapp_url, generated_path = _generate_miniapp_url_link(path, query_params)
+        result["miniapp_url"] = miniapp_url
+        result["miniapp_path"] = generated_path or miniapp_path
+    except Exception as exc:
+        current_app.logger.warning("生成通用员工考勤小程序入口失败 error=%s", exc)
+        result["miniapp_error"] = str(exc)
+    return result
+
+
+def _attendance_miniapp_entry(employee_token, year=None, month=None, contract_id=None):
+    path = "pages/attendance-fill/index"
+    query_params = {"id": str(employee_token)}
+    if year:
+        query_params["year"] = str(year)
+    if month:
+        query_params["month"] = str(month)
+    if contract_id:
+        query_params["contractId"] = str(contract_id)
+    miniapp_path = f"{path}?{urllib.parse.urlencode(query_params)}"
+    result = {
+        "miniapp_path": miniapp_path,
+        "miniapp_url": "",
+        "miniapp_error": "",
+    }
+    try:
+        miniapp_url, generated_path = _generate_attendance_miniapp_url_link(employee_token, year, month, contract_id)
+        result["miniapp_url"] = miniapp_url
+        result["miniapp_path"] = generated_path or miniapp_path
+    except Exception as exc:
+        current_app.logger.warning("生成员工考勤小程序入口失败 employee_token=%s error=%s", employee_token, exc)
+        result["miniapp_error"] = str(exc)
+    return result
 
 def to_date_value(value):
     if isinstance(value, datetime):
@@ -1996,6 +2118,12 @@ def get_employee_attendance_forms(employee_token):
                 "family_customers": family_customers,
                 "service_period": f"{service_start.isoformat()} to {service_end.isoformat()}",
                 "status": existing_form.status,
+                "miniapp": _attendance_miniapp_entry(
+                    str(employee_id),
+                    cycle_start.year,
+                    cycle_start.month,
+                    str(primary_contract.id),
+                ),
                 "client_sign_url": f"/attendance-sign/{existing_form.customer_signature_token}" if existing_form.customer_signature_token else None
             })
         
@@ -2010,7 +2138,9 @@ def get_employee_attendance_forms(employee_token):
                     # 使用员工ID作为跳转token，不使用考勤表的access_token（可能包含年月）
                     "form_token": str(employee_id),
                     "year": cycle_start.year,
-                    "month": cycle_start.month
+                    "month": cycle_start.month,
+                    "contract_id": attendance_forms[0].get("contract_id"),
+                    "miniapp": attendance_forms[0].get("miniapp") or _attendance_miniapp_entry(str(employee_id), cycle_start.year, cycle_start.month)
                 }
             })
         elif len(attendance_forms) > 1:

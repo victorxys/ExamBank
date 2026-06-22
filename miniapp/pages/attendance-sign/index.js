@@ -49,6 +49,9 @@ function buildEmptyStats() {
     workDaysText: '0',
     leaveDaysText: '0',
     overtimeDaysText: '0',
+    workDaysHoursText: '0天0小时',
+    leaveDaysHoursText: '0天0小时',
+    overtimeDaysHoursText: '0天0小时',
     holidayOvertimeDaysText: '0',
     autoOvertimeDaysText: '0'
   };
@@ -262,7 +265,11 @@ Page({
     }
     wx.showModal({
       title: record.typeLabel || '考勤详情',
-      content: [record.timeLabel, record.showDuration ? record.durationText : ''].filter(Boolean).join('\n'),
+      content: [
+        record.timeLabel,
+        record.showDuration ? record.durationText : '',
+        record.showDuration ? record.durationHoursText : ''
+      ].filter(Boolean).join('\n'),
       showCancel: false,
       confirmText: '我知道了'
     });

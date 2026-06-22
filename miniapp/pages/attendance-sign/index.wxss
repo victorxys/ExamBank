@@ -124,6 +124,22 @@
   color: #94a3b8;
 }
 
+.stat-hours {
+  margin-top: 4rpx;
+  color: #334155;
+  font-size: 24rpx;
+  line-height: 30rpx;
+  font-weight: 800;
+}
+
+.stat-hours.orange {
+  color: #9a3412;
+}
+
+.stat-hours.green {
+  color: #166534;
+}
+
 .stat-sub {
   margin-top: 5rpx;
   font-size: 19rpx;
@@ -414,6 +430,14 @@
   font-size: 24rpx;
   font-weight: 900;
   color: #111827;
+}
+
+.detail-hours {
+  margin-top: 4rpx;
+  color: #64748b;
+  font-size: 22rpx;
+  line-height: 30rpx;
+  font-weight: 800;
 }
 
 .detail-duration.auto {
