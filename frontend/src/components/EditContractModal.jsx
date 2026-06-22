@@ -630,10 +630,10 @@ ${managementFeeNotePart}`;
                             )}
                             
                             <Grid item xs={12}>
-                                <TextField fullWidth name="notes" label="备注" multiline rows={4} value={formData.notes} onChange={handleChange} />
+                                <TextField fullWidth name="attachment_content" label="附件内容" multiline rows={4} value={formData. attachment_content} onChange={handleChange} />
                             </Grid>
                             <Grid item xs={12}>
-                                <TextField fullWidth name="attachment_content" label="附件内容" multiline rows={4} value={formData. attachment_content} onChange={handleChange} />
+                                <TextField fullWidth name="notes" label="备注" multiline rows={4} value={formData.notes} onChange={handleChange} />
                             </Grid>
                         </Grid>
                     )}
