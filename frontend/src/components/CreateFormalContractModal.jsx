@@ -1345,18 +1345,6 @@ ${managementFeeNotePart}`;
                             </FormControl>
                         </Grid>
 
-                        <Grid item xs={12}>
-                            <TextField
-                                fullWidth
-                                name="attachment_content"
-                                label="附件内容"
-                                multiline
-                                rows={4}
-                                value={formData.attachment_content}
-                                onChange={handleInputChange}
-                            />
-                        </Grid>
-
                         {formData.contract_type === 'maternity_nurse' && (
                             <>
                                 <Grid item xs={12} sm={4}><TextField required fullWidth name="employee_level" label="乙方劳务报酬 (元/月)" type="number" value={formData.employee_level} onChange={handleChange} onWheel={(e) => e.target.blur()} /></Grid>
@@ -1508,6 +1496,18 @@ ${managementFeeNotePart}`;
                             </FormControl>
                         </Grid>
                         {/* --- 新增结束 --- */}
+
+                        <Grid item xs={12}>
+                            <TextField
+                                fullWidth
+                                name="attachment_content"
+                                label="附件内容"
+                                multiline
+                                rows={4}
+                                value={formData.attachment_content}
+                                onChange={handleInputChange}
+                            />
+                        </Grid>
 
                         <Grid item xs={12}><TextField fullWidth name="notes" label="备注" multiline rows={3} value={formData.notes} onChange={handleInputChange} /></Grid>
                     </Grid>

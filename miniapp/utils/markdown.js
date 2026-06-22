@@ -39,6 +39,17 @@ function parseInline(text) {
   return nodes.length ? nodes : [textNode(text)];
 }
 
+function parseParagraph(lines) {
+  const nodes = [];
+  lines.forEach((line, index) => {
+    if (index > 0) {
+      nodes.push({ name: 'br' });
+    }
+    nodes.push(...parseInline(line));
+  });
+  return nodes.length ? nodes : [textNode('')];
+}
+
 function blockNode(name, className, text) {
   const styleKey = className.includes('muted') ? 'muted' : className.replace('md-', '');
   return {
@@ -85,7 +96,11 @@ function markdownToNodes(markdown) {
 
   function flushParagraph() {
     if (!paragraph.length) return;
-    nodes.push(blockNode('p', 'md-p', paragraph.join(' ')));
+    nodes.push({
+      name: 'p',
+      attrs: { class: 'md-p', style: styles.p },
+      children: parseParagraph(paragraph)
+    });
     paragraph = [];
   }
 
