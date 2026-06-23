@@ -17,7 +17,9 @@
   <block wx:for="{{pendingContracts}}" wx:key="id">
     <view class="action-card" data-token="{{item.customer_signing_token}}" bindtap="goContractSign">
       <view class="action-main">
-        <view class="action-icon">签</view>
+        <view class="action-icon contract-sign-icon">
+          <image class="action-icon-img" src="{{icons.contractSign}}" mode="aspectFit" />
+        </view>
         <view class="action-content">
           <view class="action-title">{{item.type_label}}待签署</view>
           <view class="action-desc">{{item.employee_name || '服务人员'}} · {{item.start_date_text}} 开始</view>
@@ -65,7 +67,9 @@
   <block wx:for="{{pendingEvaluations}}" wx:key="id">
     <view class="action-card" data-id="{{item.id}}" bindtap="goEvaluation">
       <view class="action-main">
-        <view class="action-icon eval">评</view>
+        <view class="action-icon eval-icon">
+          <image class="action-icon-img" src="{{icons.evaluation}}" mode="aspectFit" />
+        </view>
         <view class="action-content">
           <view class="action-title">{{item.type_label || '服务合同'}}待评价</view>
           <view class="action-desc">{{item.employee_name || '服务人员'}} · {{item.date_range}}</view>

@@ -6,7 +6,7 @@ import time
 import uuid
 
 import requests
-from flask import Blueprint, current_app, jsonify, request
+from flask import Blueprint, Response, current_app, jsonify, request
 from sqlalchemy import or_
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm.attributes import flag_modified
@@ -90,6 +90,24 @@ FALLBACK_HOLIDAYS = {
         "10-10": {"holiday": False, "name": "国庆节调休", "wage": 1},
     },
 }
+
+MINIAPP_ICON_SVGS = {
+    "contract_sign": """<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.7V19a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-4.3"/><path d="M14.5 3.5a2.1 2.1 0 0 1 3 3L9.6 14.4 5.5 15.5l1.1-4.1 7.9-7.9Z"/><path d="m13.4 4.6 3 3"/><path d="M7 19c2-2 3.7-2 5 0 1.2 1.7 3 1.6 5.5-.4"/></svg>""",
+    "attendance_fill": """<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><rect x="3" y="4" width="18" height="18" rx="3"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/></svg>""",
+    "evaluation": """<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 14.7 9l6 .9-4.4 4.2 1 6-5.3-2.8-5.3 2.8 1-6L3.3 9.9l6-.9L12 3.5Z"/><path d="M4 21h16"/></svg>""",
+}
+
+
+@miniapp_bp.route("/icons/<string:icon_key>.svg", methods=["GET"])
+def miniapp_icon(icon_key):
+    svg = MINIAPP_ICON_SVGS.get(icon_key)
+    if not svg:
+        return jsonify({"success": False, "error": "图标不存在"}), 404
+
+    response = Response(svg, mimetype="image/svg+xml")
+    response.headers["Cache-Control"] = "public, max-age=86400"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    return response
 
 
 class _DebugEmployeeAccount:

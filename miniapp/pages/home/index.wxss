@@ -71,15 +71,21 @@
   justify-content: center;
   flex-shrink: 0;
   border-radius: 12rpx;
-  background: #ecfdfa;
-  color: #0f9f8f;
-  font-size: 28rpx;
-  font-weight: 900;
+  background: #0f9f8f;
+  overflow: hidden;
 }
 
-.action-icon.eval {
-  background: #fff7ed;
-  color: #b45309;
+.contract-sign-icon {
+  background: #0f9f8f;
+}
+
+.eval-icon {
+  background: #13a89a;
+}
+
+.action-icon-img {
+  width: 46rpx;
+  height: 46rpx;
 }
 
 .action-content {

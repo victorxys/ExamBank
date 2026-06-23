@@ -117,7 +117,11 @@ Page({
     upcomingContracts: [],
     serviceContractCount: 0,
     todoCount: 0,
-    overviewLoaded: false
+    overviewLoaded: false,
+    icons: {
+      contractSign: api.miniappIconUrl('contract_sign'),
+      evaluation: api.miniappIconUrl('evaluation')
+    }
   },
 
   onShow() {
