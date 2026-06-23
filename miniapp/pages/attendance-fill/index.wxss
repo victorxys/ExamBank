@@ -331,6 +331,15 @@
 .tone-onboarding { background: #ecfeff; border-color: #a5f3fc; }
 .tone-offboarding { background: #fff1f2; border-color: #fecdd3; }
 
+.day-cell.weekend.tone-normal {
+  background: #fff1f2;
+  border-color: #fecdd3;
+}
+
+.day-cell.weekend.tone-normal .day-num {
+  color: #be123c;
+}
+
 .tone-rest .day-label { color: #2563eb; }
 .tone-leave .day-label { color: #ca8a04; }
 .tone-overtime .day-label { color: #16a34a; }

@@ -244,10 +244,7 @@ function formatDaysHours(value) {
   const days = Math.floor(total);
   const hours = (total - days) * 24;
   const roundedHours = Math.round(hours * 10) / 10;
-  if (roundedHours >= 24) {
-    return `${days + 1}天`;
-  }
-  if (roundedHours <= 0) return days > 0 ? `${days}天` : '';
+  if (roundedHours >= 24 || roundedHours <= 0) return '';
   const hourText = Math.abs(roundedHours - Math.round(roundedHours)) < 0.05
     ? String(Math.round(roundedHours))
     : roundedHours.toFixed(1).replace(/\.0$/, '');

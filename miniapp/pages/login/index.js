@@ -64,6 +64,8 @@ Page({
   },
 
   routeFromExistingSession() {
+    if (enableMockLogin) return;
+
     const openid = wx.getStorageSync('miniapp_openid');
     if (!openid) return;
 

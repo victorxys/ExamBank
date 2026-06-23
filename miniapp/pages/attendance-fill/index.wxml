@@ -214,7 +214,7 @@
           <view class="time-value">{{endTimeText}}</view>
         </view>
 
-        <view class="duration-total">共计：{{tempDurationText}}</view>
+        <view wx:if="{{showDurationTotal}}" class="duration-total">共计：{{tempDurationText}}</view>
       </view>
 
       <view class="{{sheetActionsClass}}">

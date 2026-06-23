@@ -213,10 +213,6 @@
   opacity: 0.52;
 }
 
-.calendar-day.weekend {
-  background: #fff1f2;
-}
-
 .calendar-day.holiday {
   background: #fff1f2;
   border: 1rpx solid #fecaca;
@@ -282,6 +278,18 @@
   background: #fff1f2;
   color: #e11d48;
   border: 1rpx solid #fecdd3;
+}
+
+.calendar-day.weekend.tone-normal {
+  background: #fff1f2;
+  color: #be123c;
+  border: 1rpx solid #fecdd3;
+}
+
+.calendar-day.weekend.tone-disabled {
+  background: #fff1f2;
+  color: #cbd5e1;
+  border: 1rpx solid #fee2e2;
 }
 
 .calendar-num {
