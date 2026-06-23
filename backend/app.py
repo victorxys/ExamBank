@@ -145,6 +145,8 @@ app.config['WECHAT_SECRET'] = os.environ.get('WECHAT_SECRET', 'dummy_app_secret'
 app.config['WECHAT_NOTIFY_USERS'] = os.environ.get('WECHAT_NOTIFY_USERS', '@all')
 app.config['WECHAT_MINIAPP_APPID'] = os.environ.get('WECHAT_MINIAPP_APPID', '')
 app.config['WECHAT_MINIAPP_SECRET'] = os.environ.get('WECHAT_MINIAPP_SECRET', '')
+app.config['MYMS_API_BASE_URL'] = os.environ.get('MYMS_API_BASE_URL', 'http://localhost:8080/myms/wp-json/myms/v1')
+app.config['MYMS_API_TOKEN'] = os.environ.get('MYMS_API_TOKEN', '')
 
 
 # IndexTTS2 服务配置

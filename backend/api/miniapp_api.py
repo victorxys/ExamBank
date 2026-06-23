@@ -4,6 +4,7 @@ import os
 import re
 import time
 import uuid
+from urllib.parse import urljoin
 
 import requests
 from flask import Blueprint, Response, current_app, jsonify, request
@@ -96,6 +97,23 @@ MINIAPP_ICON_SVGS = {
     
     "attendance_fill": """<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><rect x="3" y="4" width="18" height="18" rx="3"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/></svg>""",
     "evaluation": """<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 14.7 9l6 .9-4.4 4.2 1 6-5.3-2.8-5.3 2.8 1-6L3.3 9.9l6-.9L12 3.5Z"/><path d="M4 21h16"/></svg>""",
+    "ayi_search": """<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="8" r="4"/><path d="M2 21a8 8 0 0 1 12.4-6.7"/><circle cx="18" cy="18" r="3"/><path d="m21 21-1.5-1.5"/></svg>""",
+}
+
+MYMS_AYI_SEARCH_PARAMS = {
+    "search",
+    "type",
+    "city",
+    "shegnxiao",
+    "shengxiao",
+    "xingzuo",
+    "education",
+    "age",
+    "pay_rate",
+    "hobbies",
+    "page",
+    "per_page",
+    "hot",
 }
 
 
@@ -109,6 +127,72 @@ def miniapp_icon(icon_key):
     response.headers["Cache-Control"] = "public, max-age=86400"
     response.headers["X-Content-Type-Options"] = "nosniff"
     return response
+
+
+def _myms_api_base_url():
+    base_url = (
+        current_app.config.get("MYMS_API_BASE_URL")
+        or os.environ.get("MYMS_API_BASE_URL")
+        or "http://localhost:8080/myms/wp-json/myms/v1"
+    )
+    return str(base_url).rstrip("/") + "/"
+
+
+def _myms_api_headers():
+    token = (current_app.config.get("MYMS_API_TOKEN") or os.environ.get("MYMS_API_TOKEN") or "").strip()
+    if not token:
+        return {}
+    return {"Authorization": f"Bearer {token}"}
+
+
+def _request_myms_api(path, params=None):
+    url = urljoin(_myms_api_base_url(), path.lstrip("/"))
+    try:
+        response = requests.get(url, params=params or {}, headers=_myms_api_headers(), timeout=8)
+    except requests.RequestException as exc:
+        current_app.logger.warning("myms api request failed: %s", exc)
+        return None, jsonify({"success": False, "error": "阿姨资料服务暂时不可用"}), 502
+
+    try:
+        payload = response.json()
+    except ValueError:
+        current_app.logger.warning("myms api returned non-json response status=%s url=%s", response.status_code, url)
+        return None, jsonify({"success": False, "error": "阿姨资料服务返回异常"}), 502
+
+    if response.status_code >= 400:
+        error = payload.get("message") or payload.get("error") or "阿姨资料加载失败"
+        return None, jsonify({"success": False, "error": error}), response.status_code
+
+    return payload, None, None
+
+
+@miniapp_bp.route("/ayi/options", methods=["GET"])
+def miniapp_ayi_options():
+    payload, error_response, status_code = _request_myms_api("ayi/options")
+    if error_response:
+        return error_response, status_code
+    return jsonify(payload)
+
+
+@miniapp_bp.route("/ayi/search", methods=["GET"])
+def miniapp_ayi_search():
+    params = {
+        key: value
+        for key, value in request.args.items()
+        if key in MYMS_AYI_SEARCH_PARAMS and value not in (None, "")
+    }
+    payload, error_response, status_code = _request_myms_api("ayi/search", params=params)
+    if error_response:
+        return error_response, status_code
+    return jsonify(payload)
+
+
+@miniapp_bp.route("/ayi/<int:employee_id>", methods=["GET"])
+def miniapp_ayi_detail(employee_id):
+    payload, error_response, status_code = _request_myms_api(f"ayi/{employee_id}")
+    if error_response:
+        return error_response, status_code
+    return jsonify(payload)
 
 
 class _DebugEmployeeAccount:

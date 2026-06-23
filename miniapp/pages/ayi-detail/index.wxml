@@ -1,0 +1,99 @@
+<view class="page" wx:if="{{item}}">
+  <view class="profile-hero">
+    <image class="hero-avatar" src="{{item.avatar_url}}" mode="aspectFill" />
+    <view class="hero-main">
+      <view class="hero-name">{{item.full_name || item.name}}</view>
+      <view class="hero-role">{{item.type_label || '服务人员'}}</view>
+      <view class="hero-meta">
+        <text wx:if="{{item.age}}">{{item.age}}岁</text>
+        <text wx:if="{{item.city}}">{{item.city}}</text>
+        <text wx:if="{{item.education}}">{{item.education}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="stats">
+    <view class="stat">
+      <view class="stat-value">{{item.experience_years || '-'}}</view>
+      <view class="stat-label">经验年限</view>
+    </view>
+    <view class="stat">
+      <view class="stat-value">{{item.baby_count || '-'}}</view>
+      <view class="stat-label">带宝数量</view>
+    </view>
+    <view class="stat">
+      <view class="stat-value">{{item.media_counts.total || 0}}</view>
+      <view class="stat-label">资料图片</view>
+    </view>
+  </view>
+
+  <view class="info-card">
+    <view class="card-title">基本信息</view>
+    <view class="info-grid">
+      <view class="info-row" wx:if="{{item.shengxiao}}"><text>生肖</text><text>{{item.shengxiao}}</text></view>
+      <view class="info-row" wx:if="{{item.xingzuo}}"><text>星座</text><text>{{item.xingzuo}}</text></view>
+      <view class="info-row" wx:if="{{item.minzu}}"><text>民族</text><text>{{item.minzu}}</text></view>
+      <view class="info-row" wx:if="{{item.height}}"><text>身高</text><text>{{item.height}}</text></view>
+      <view class="info-row" wx:if="{{item.weight}}"><text>体重</text><text>{{item.weight}}</text></view>
+      <view class="info-row" wx:if="{{item.work_start_date}}"><text>入司</text><text>{{item.work_start_date}}</text></view>
+    </view>
+  </view>
+
+  <view class="info-card" wx:if="{{item.description}}">
+    <view class="card-title">自我介绍</view>
+    <view class="paragraph">{{item.description}}</view>
+  </view>
+
+  <view class="info-card" wx:if="{{item.good_at}}">
+    <view class="card-title">擅长服务</view>
+    <view class="paragraph">{{item.good_at}}</view>
+  </view>
+
+  <block wx:for="{{sections}}" wx:for-item="section" wx:key="key">
+    <view class="info-card">
+      <view class="card-title-row">
+        <view class="card-title">{{section.label}}</view>
+        <view class="section-count">{{section.count}} 项</view>
+      </view>
+      <view class="media-grid">
+        <block wx:for="{{section.items}}" wx:for-item="media" wx:key="id">
+          <view class="media-cell" data-url="{{media.url}}" data-type="{{media.type}}" data-section="{{section.key}}" bindtap="previewMedia">
+            <image wx:if="{{media.type === 'image'}}" class="media-img" src="{{media.thumbnail || media.url}}" mode="aspectFill" />
+            <video wx:elif="{{media.type === 'video'}}" class="media-img" src="{{media.url}}" controls object-fit="cover"></video>
+            <view wx:else class="file-cell">资料</view>
+          </view>
+        </block>
+      </view>
+    </view>
+  </block>
+
+  <view class="info-card" wx:if="{{item.certificates.length}}">
+    <view class="card-title">培训证书</view>
+    <block wx:for="{{item.certificates}}" wx:for-item="cert" wx:key="key">
+      <view class="certificate-row">
+        <view>{{cert.name || cert.key}}</view>
+        <view>{{cert.issue_date || cert.valid_date || ''}}</view>
+      </view>
+    </block>
+  </view>
+
+  <view class="info-card" wx:if="{{item.performance_items.length}}">
+    <view class="card-title">客户评价</view>
+    <block wx:for="{{item.performance_items}}" wx:for-item="performance" wx:key="id">
+      <view class="performance">
+        <view class="performance-head">
+          <view class="performance-customer">{{performance.customer_name || '客户评价'}}</view>
+          <view class="performance-score">技能 {{performance.skill_score || '-'}} · 素质 {{performance.quality_score || '-'}} · 沟通 {{performance.communication_score || '-'}}</view>
+        </view>
+        <view class="paragraph">{{performance.comments || '暂无文字评价'}}</view>
+      </view>
+    </block>
+  </view>
+</view>
+
+<view wx:elif="{{loaded}}" class="page">
+  <view class="empty">
+    <view class="empty-title">未找到阿姨资料</view>
+    <view class="empty-desc">请返回搜索页重新选择。</view>
+  </view>
+</view>

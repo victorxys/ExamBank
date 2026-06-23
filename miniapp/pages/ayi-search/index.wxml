@@ -1,0 +1,123 @@
+<view class="page">
+  <view class="hero">
+    <view class="hero-title">阿姨资料</view>
+    <view class="hero-desc">搜索阿姨并查看公开介绍，便于分享给客户。</view>
+  </view>
+
+  <view class="search-panel">
+    <view class="search-row">
+      <view class="input-wrap">
+        <input
+          class="search-input"
+          value="{{keyword}}"
+          placeholder="输入阿姨姓名"
+          confirm-type="search"
+          bindinput="onKeywordInput"
+          bindconfirm="onSearchConfirm"
+        />
+        <view wx:if="{{keyword}}" class="clear-btn" bindtap="clearKeyword">×</view>
+      </view>
+      <button class="search-btn" bindtap="onSearchConfirm">搜索</button>
+    </view>
+    <view class="filter-grid">
+      <picker mode="selector" range="{{typeOptions}}" range-key="label" value="{{typeIndex}}" bindchange="onTypeChange">
+        <view class="picker-line">
+          <text class="picker-label">类型</text>
+          <text class="picker-value">{{typeOptions[typeIndex].label}}</text>
+        </view>
+      </picker>
+      <picker mode="selector" range="{{cityOptions}}" range-key="label" value="{{cityIndex}}" bindchange="onCityChange">
+        <view class="picker-line">
+          <text class="picker-label">籍贯</text>
+          <text class="picker-value">{{cityOptions[cityIndex].label}}</text>
+        </view>
+      </picker>
+      <picker mode="selector" range="{{shengxiaoOptions}}" range-key="label" value="{{shengxiaoIndex}}" bindchange="onShengxiaoChange">
+        <view class="picker-line">
+          <text class="picker-label">生肖</text>
+          <text class="picker-value">{{shengxiaoOptions[shengxiaoIndex].label}}</text>
+        </view>
+      </picker>
+      <picker mode="selector" range="{{xingzuoOptions}}" range-key="label" value="{{xingzuoIndex}}" bindchange="onXingzuoChange">
+        <view class="picker-line">
+          <text class="picker-label">星座</text>
+          <text class="picker-value">{{xingzuoOptions[xingzuoIndex].label}}</text>
+        </view>
+      </picker>
+    </view>
+
+    <view class="chip-section">
+      <view class="chip-title">年龄</view>
+      <scroll-view class="chip-scroll" scroll-x enable-flex>
+        <view
+          wx:for="{{ageOptions}}"
+          wx:key="value"
+          class="chip {{age === item.value ? 'active' : ''}}"
+          data-value="{{item.value}}"
+          bindtap="selectAge"
+        >{{item.label}}</view>
+      </scroll-view>
+    </view>
+    <view class="chip-section">
+      <view class="chip-title">学历</view>
+      <scroll-view class="chip-scroll" scroll-x enable-flex>
+        <view
+          wx:for="{{educationOptions}}"
+          wx:key="value"
+          class="chip {{education === item.value ? 'active' : ''}}"
+          data-value="{{item.value}}"
+          bindtap="selectEducation"
+        >{{item.label}}</view>
+      </scroll-view>
+    </view>
+    <view class="chip-section">
+      <view class="chip-title">月薪</view>
+      <scroll-view class="chip-scroll" scroll-x enable-flex>
+        <view
+          wx:for="{{payRateOptions}}"
+          wx:key="value"
+          class="chip {{payRate === item.value ? 'active' : ''}}"
+          data-value="{{item.value}}"
+          bindtap="selectPayRate"
+        >{{item.label}}</view>
+      </scroll-view>
+    </view>
+
+    <view class="filter-footer">
+      <text bindtap="resetFilters">清除筛选</text>
+    </view>
+  </view>
+
+  <view class="result-head">
+    <view class="result-title">搜索结果</view>
+    <view class="result-count">{{loaded ? total : 0}} 人</view>
+  </view>
+
+  <block wx:for="{{items}}" wx:key="id">
+    <view class="ayi-card" data-id="{{item.id}}" bindtap="goDetail">
+      <image class="avatar" src="{{item.avatar_url}}" mode="aspectFill" />
+      <view class="ayi-main">
+        <view class="ayi-top">
+          <view class="ayi-name">{{item.full_name || item.name}}</view>
+          <view class="ayi-type">{{item.type_label || '服务人员'}}</view>
+        </view>
+        <view class="ayi-meta">
+          <text wx:if="{{item.age}}">{{item.age}}岁</text>
+          <text wx:if="{{item.city}}">{{item.city}}</text>
+          <text wx:if="{{item.education}}">{{item.education}}</text>
+          <text wx:if="{{item.experience_years}}">{{item.experience_years}}年经验</text>
+        </view>
+        <view class="ayi-summary">{{item.summary || '暂无简介'}}</view>
+      </view>
+      <view class="arrow">›</view>
+    </view>
+  </block>
+
+  <view wx:if="{{loaded && items.length === 0}}" class="empty">
+    <view class="empty-title">暂无匹配阿姨</view>
+    <view class="empty-desc">换一个姓名或筛选条件试试。</view>
+  </view>
+
+  <view wx:if="{{loading && items.length > 0}}" class="loading-more">加载中...</view>
+  <view wx:if="{{loaded && !hasMore && items.length > 0}}" class="loading-more">已显示全部</view>
+</view>

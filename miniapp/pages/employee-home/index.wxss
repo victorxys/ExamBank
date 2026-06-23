@@ -40,7 +40,8 @@
 }
 
 .action-card,
-.contract-card {
+.contract-card,
+.tool-card {
   margin-bottom: 18rpx;
   padding: 26rpx;
   border-radius: 16rpx;
@@ -55,6 +56,31 @@
   justify-content: space-between;
   gap: 18rpx;
   overflow: hidden;
+}
+
+.tool-card {
+  margin-top: 18rpx;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18rpx;
+}
+
+.tool-main {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  gap: 18rpx;
+}
+
+.tool-icon {
+  background: #14b8a6;
+}
+
+.tool-arrow {
+  color: #94a3b8;
+  font-size: 42rpx;
+  line-height: 72rpx;
 }
 
 .action-main {

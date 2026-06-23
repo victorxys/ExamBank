@@ -76,7 +76,8 @@ Page({
     overviewLoaded: false,
     icons: {
       contractSign: api.miniappIconUrl('contract_sign'),
-      evaluation: api.miniappIconUrl('evaluation')
+      evaluation: api.miniappIconUrl('evaluation'),
+      ayiSearch: api.miniappIconUrl('ayi_search')
     }
   },
 
@@ -183,5 +184,9 @@ Page({
   goEvaluation(event) {
     const id = event.currentTarget.dataset.id;
     if (id) wx.navigateTo({ url: `/pages/evaluation/index?contractId=${id}` });
+  },
+
+  goAyiSearch() {
+    wx.navigateTo({ url: '/pages/ayi-search/index' });
   }
 });
