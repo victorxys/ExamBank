@@ -16,6 +16,11 @@ function pickValue(options, index) {
   return option.value || '';
 }
 
+function isAccessDenied(error) {
+  const message = error && error.message ? error.message : '';
+  return message.includes('仅后台') || message.includes('无权') || message.includes('未绑定') || message.includes('403');
+}
+
 Page({
   data: {
     keyword: '',
@@ -37,6 +42,7 @@ Page({
     page: 1,
     perPage: 10,
     total: 0,
+    authorized: false,
     loading: false,
     loaded: false,
     hasMore: true
@@ -51,13 +57,26 @@ Page({
   ensureStaffAccess() {
     const role = getApp().globalData.role || wx.getStorageSync('miniapp_role');
     const staffUser = getApp().globalData.staffUser || wx.getStorageSync('miniapp_staff_user');
-    if (role === 'staff' && staffUser) return true;
+    if (role === 'staff' && staffUser) {
+      this.setData({ authorized: true });
+      return true;
+    }
 
-    wx.showToast({ title: '仅后台人员可搜索阿姨资料', icon: 'none' });
-    setTimeout(() => {
-      wx.redirectTo({ url: '/pages/employee-bind/index' });
-    }, 700);
+    this.setData({ authorized: false });
+    this.redirectToLogin('仅后台人员可搜索阿姨资料');
     return false;
+  },
+
+  redirectToLogin(message = '请先登录后台人员身份') {
+    const app = getApp();
+    app.globalData.staffUser = null;
+    if (app.globalData.role === 'staff') app.globalData.role = '';
+    wx.removeStorageSync('miniapp_staff_user');
+    if (wx.getStorageSync('miniapp_role') === 'staff') {
+      wx.removeStorageSync('miniapp_role');
+    }
+    wx.showToast({ title: message, icon: 'none' });
+    wx.redirectTo({ url: '/pages/login/index?force_bind=1' });
   },
 
   onPullDownRefresh() {
@@ -88,6 +107,11 @@ Page({
         payRateOptions: [{ value: '', label: '不限' }, ...normalizeOptions(options.pay_rates)]
       });
     } catch (error) {
+      if (isAccessDenied(error)) {
+        this.setData({ authorized: false });
+        this.redirectToLogin(error.message);
+        return;
+      }
       wx.showToast({ title: error.message || '筛选项加载失败', icon: 'none' });
     }
   },
@@ -183,6 +207,11 @@ Page({
       });
     } catch (error) {
       this.setData({ loaded: true });
+      if (isAccessDenied(error)) {
+        this.setData({ authorized: false });
+        this.redirectToLogin(error.message);
+        return;
+      }
       wx.showToast({ title: error.message || '搜索失败', icon: 'none' });
     } finally {
       this.setData({ loading: false });

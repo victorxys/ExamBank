@@ -27,12 +27,14 @@ Page({
     openid: '',
     enableMockLogin,
     loading: false,
-    autoRouting: false
+    autoRouting: false,
+    forceBind: false
   },
 
-  onLoad() {
+  onLoad(options = {}) {
     this.setData({
-      openid: ''
+      openid: '',
+      forceBind: options.force_bind === '1'
     });
     this.routeFromExistingSession();
   },
@@ -76,7 +78,7 @@ Page({
   },
 
   routeFromExistingSession() {
-    if (enableMockLogin) return;
+    if (this.data.forceBind || enableMockLogin) return;
 
     const openid = wx.getStorageSync('miniapp_openid');
     if (!openid) return;

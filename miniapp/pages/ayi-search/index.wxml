@@ -1,4 +1,4 @@
-<view class="page">
+<view class="page" wx:if="{{authorized}}">
   <view class="hero">
     <view class="hero-title">阿姨资料</view>
     <view class="hero-desc">搜索阿姨并查看公开介绍，便于分享给客户。</view>
