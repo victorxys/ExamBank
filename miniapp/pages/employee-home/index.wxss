@@ -72,10 +72,18 @@
   justify-content: center;
   flex-shrink: 0;
   border-radius: 12rpx;
-  background: #ecfdfa;
-  color: #0f9f8f;
-  font-size: 28rpx;
-  font-weight: 900;
+  background: #0f9f8f;
+  overflow: hidden;
+}
+
+.contract-sign-icon,
+.attendance-icon {
+  background: #0f9f8f;
+}
+
+.action-icon-img {
+  width: 46rpx;
+  height: 46rpx;
 }
 
 .action-content {
@@ -155,51 +163,9 @@
   overflow: hidden;
 }
 
-.calendar-icon {
-  position: relative;
-  width: 38rpx;
+.quick-entry-icon-img {
+  width: 42rpx;
   height: 42rpx;
-  border: 4rpx solid #fff;
-  border-radius: 7rpx;
-  box-sizing: border-box;
-}
-
-.calendar-icon::before,
-.calendar-icon::after {
-  content: "";
-  position: absolute;
-  top: -10rpx;
-  width: 6rpx;
-  height: 14rpx;
-  border-radius: 999rpx;
-  background: #fff;
-}
-
-.calendar-icon::before {
-  left: 7rpx;
-}
-
-.calendar-icon::after {
-  right: 7rpx;
-}
-
-.calendar-icon-head {
-  height: 10rpx;
-  border-bottom: 4rpx solid #fff;
-}
-
-.calendar-icon-grid {
-  padding: 6rpx 5rpx 0;
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 4rpx;
-}
-
-.calendar-icon-grid view {
-  width: 6rpx;
-  height: 6rpx;
-  border-radius: 2rpx;
-  background: #fff;
 }
 
 .quick-entry-content {

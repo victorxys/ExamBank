@@ -9,7 +9,11 @@ Page({
     activeContracts: [],
     recentContracts: [],
     todoCount: 0,
-    overviewLoaded: false
+    overviewLoaded: false,
+    icons: {
+      contractSign: api.miniappIconUrl('contract_sign'),
+      attendanceFill: api.miniappIconUrl('attendance_fill')
+    }
   },
 
   onShow() {

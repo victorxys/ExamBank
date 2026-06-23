@@ -60,6 +60,10 @@ function assetUrl(path) {
   return `${apiOrigin}${path.startsWith('/') ? path : `/${path}`}`;
 }
 
+function miniappIconUrl(key) {
+  return `${apiBaseUrl}/miniapp/icons/${encodeURIComponent(key)}.svg`;
+}
+
 async function ensureOpenid(role = '') {
   const existing = getOpenid();
   if (existing) return existing;
@@ -95,6 +99,7 @@ module.exports = {
   getOpenid,
   ensureOpenid,
   assetUrl,
+  miniappIconUrl,
   login(data) {
     return request({ url: '/miniapp/auth/login', method: 'POST', data });
   },
