@@ -858,6 +858,8 @@ def _attendance_summary(form):
             payload["contract_info"]["status"] = "active"
             payload["contract_info"]["is_monthly_auto_renew"] = True
         normalized_payload = payload or {}
+    preview_stats = _attendance_preview(form, payload)
+    record_stats = _attendance_record_stats(form)
     return {
         "id": str(form.id),
         "contract_id": str(form.contract_id),
@@ -882,7 +884,8 @@ def _attendance_summary(form):
             "leave_count": len(leave_records),
             "overtime_count": len(overtime_records),
             "paid_leave_count": len(paid_leave_records),
-            **(_attendance_record_stats(form) or _attendance_preview(form, payload)),
+            **preview_stats,
+            **(record_stats or {}),
         },
     }
 

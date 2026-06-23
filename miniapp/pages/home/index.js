@@ -69,6 +69,22 @@ function formatAmount(value) {
 }
 
 function attendanceCardStats(stats = {}, item = {}) {
+  const hasSavedStats = (
+    stats.work_days_text !== undefined
+    || stats.overtime_text !== undefined
+    || stats.leave_days_text !== undefined
+    || stats.work_days !== undefined
+    || stats.overtime_days !== undefined
+    || stats.leave_days !== undefined
+  );
+  if (hasSavedStats) {
+    return {
+      workDaysText: stats.work_days_text || formatAmount(stats.work_days || 0),
+      overtimeText: stats.overtime_text || formatAmount(stats.overtime_days || 0),
+      leaveDaysText: stats.leave_days_text || formatAmount(stats.leave_days || 0)
+    };
+  }
+
   const sourceDays = (Array.isArray(stats.calendar_days) && stats.calendar_days.length)
     ? stats.calendar_days
     : buildFallbackCalendarDays(item, stats);
