@@ -965,6 +965,76 @@ class EmployeeWechatAccount(db.Model):
         return f"<EmployeeWechatAccount {self.mini_openid} -> {self.employee_id}>"
 
 
+class UserWechatAccount(db.Model):
+    __tablename__ = "user_wechat_accounts"
+    __table_args__ = (
+        db.UniqueConstraint("mini_openid", name="uq_user_wechat_accounts_mini_openid"),
+        db.Index("ix_user_wechat_accounts_user_id", "user_id"),
+        {"comment": "后台用户小程序微信身份绑定表"},
+    )
+
+    id = db.Column(
+        PG_UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+        comment="主键",
+    )
+    user_id = db.Column(
+        PG_UUID(as_uuid=True),
+        db.ForeignKey("user.id", ondelete="CASCADE"),
+        nullable=False,
+        comment="关联后台用户ID",
+    )
+    mini_openid = db.Column(
+        db.String(100),
+        nullable=False,
+        comment="微信小程序openid",
+    )
+    unionid = db.Column(
+        db.String(100),
+        nullable=True,
+        index=True,
+        comment="微信开放平台unionid",
+    )
+    phone_number = db.Column(db.String(20), nullable=True, comment="绑定手机号")
+    bind_method = db.Column(
+        db.String(50),
+        nullable=False,
+        default="phone_password_verify",
+        server_default="phone_password_verify",
+        comment="绑定方式: phone_password_verify/admin/dev_mock",
+    )
+    verified_at = db.Column(
+        db.DateTime(timezone=True),
+        server_default=func.now(),
+        comment="绑定验证时间",
+    )
+    last_login_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=True,
+        comment="最后登录时间",
+    )
+    created_at = db.Column(
+        db.DateTime(timezone=True),
+        server_default=func.now(),
+        comment="创建时间",
+    )
+    updated_at = db.Column(
+        db.DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        comment="更新时间",
+    )
+
+    user = db.relationship(
+        "User",
+        backref=db.backref("miniapp_wechat_accounts", lazy="dynamic", cascade="all, delete-orphan"),
+    )
+
+    def __repr__(self):
+        return f"<UserWechatAccount {self.mini_openid} -> {self.user_id}>"
+
+
 class MiniappDebugAccess(db.Model):
     __tablename__ = "miniapp_debug_access"
     __table_args__ = (

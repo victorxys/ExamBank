@@ -43,11 +43,28 @@ Page({
   },
 
   onLoad() {
+    if (!this.ensureStaffAccess()) return;
     this.loadOptions();
     this.search(true);
   },
 
+  ensureStaffAccess() {
+    const role = getApp().globalData.role || wx.getStorageSync('miniapp_role');
+    const staffUser = getApp().globalData.staffUser || wx.getStorageSync('miniapp_staff_user');
+    if (role === 'staff' && staffUser) return true;
+
+    wx.showToast({ title: '仅后台人员可搜索阿姨资料', icon: 'none' });
+    setTimeout(() => {
+      wx.redirectTo({ url: '/pages/employee-bind/index' });
+    }, 700);
+    return false;
+  },
+
   onPullDownRefresh() {
+    if (!this.ensureStaffAccess()) {
+      wx.stopPullDownRefresh();
+      return;
+    }
     this.search(true).finally(() => wx.stopPullDownRefresh());
   },
 

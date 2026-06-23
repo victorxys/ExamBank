@@ -3,11 +3,11 @@
     <view class="hero-head">
       <view class="logo-box"><image class="logo" src="https://images.mengyimengsao.com/miniprogram/logo.png" mode="aspectFit" /></view>
       <view class="hero-copy">
-        <view class="hero-title">绑定服务人员</view>
-        <view class="hero-desc">绑定后可查看待签合同、填写月度考勤。</view>
+        <view class="hero-title">绑定小程序身份</view>
+        <view class="hero-desc">服务人员绑定后处理合同与考勤；后台人员可搜索阿姨资料。</view>
       </view>
     </view>
-    <view class="bind-tip">请使用后台登记的手机号和身份证后6位进行验证。</view>
+    <view class="bind-tip">服务人员使用手机号和身份证后6位；运营或管理员使用手机号和后台登录密码。</view>
   </view>
 
   <view class="card">
@@ -16,8 +16,8 @@
       <input class="input" type="number" placeholder="请输入后台登记手机号" value="{{form.phone_number}}" data-field="phone_number" bindinput="onInput" />
     </view>
     <view class="field">
-      <text class="label">身份证后6位</text>
-      <input class="input" maxlength="6" placeholder="例如：123456 或 12345X" value="{{form.id_card_last6}}" data-field="id_card_last6" bindinput="onInput" />
+      <text class="label">身份验证信息</text>
+      <input class="input" password placeholder="服务人员填身份证后6位，后台人员填登录密码" value="{{form.credential}}" data-field="credential" bindinput="onInput" />
     </view>
     <button class="btn-primary" loading="{{loading}}" bindtap="bindEmployee">确认绑定</button>
   </view>

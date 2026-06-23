@@ -74,6 +74,7 @@ Page({
     serviceContractCount: 0,
     todoCount: 0,
     overviewLoaded: false,
+    canAccessAyiProfiles: false,
     icons: {
       contractSign: api.miniappIconUrl('contract_sign'),
       evaluation: api.miniappIconUrl('evaluation'),
@@ -137,9 +138,10 @@ Page({
         upcomingContracts,
         serviceContractCount: recentContracts.length,
         todoCount: pendingContracts.length + pendingAttendance.length + pendingEvaluations.length,
-        overviewLoaded: true
+        overviewLoaded: true,
+        canAccessAyiProfiles: false
       });
-      getApp().setSession(api.getOpenid(), result.customer || null, null, 'customer');
+      getApp().setSession(api.getOpenid(), result.customer || null, null, 'customer', null);
     } catch (error) {
       this.setData({ overviewLoaded: true });
       wx.showToast({ title: error.message || '加载失败', icon: 'none' });
@@ -154,7 +156,8 @@ Page({
           servingContracts: [],
           upcomingContracts: [],
           serviceContractCount: 0,
-          todoCount: 0
+          todoCount: 0,
+          canAccessAyiProfiles: false
         });
       }
     } finally {

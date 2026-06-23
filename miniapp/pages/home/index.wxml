@@ -112,7 +112,7 @@
     <view class="empty-desc">当前微信尚未关联服务合同，签署合同或确认分享来的考勤后会自动显示。</view>
   </view>
 
-  <view class="tool-card" bindtap="goAyiSearch">
+  <view wx:if="{{canAccessAyiProfiles}}" class="tool-card" bindtap="goAyiSearch">
     <view class="tool-main">
       <view class="action-icon tool-icon">
         <image class="action-icon-img" src="{{icons.ayiSearch}}" mode="aspectFit" />

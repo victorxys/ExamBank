@@ -11,6 +11,7 @@ from flask import Blueprint, Response, current_app, jsonify, request
 from sqlalchemy import or_
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm.attributes import flag_modified
+from werkzeug.security import check_password_hash
 
 from backend.models import (
     AttendanceForm,
@@ -26,6 +27,8 @@ from backend.models import (
     MiniappContractExitSummary,
     ServicePersonnel,
     SigningStatus,
+    User,
+    UserWechatAccount,
     db,
 )
 from backend.api.attendance_form_api import (
@@ -166,8 +169,20 @@ def _request_myms_api(path, params=None):
     return payload, None, None
 
 
+def _ensure_staff_ayi_access():
+    account = _get_staff_account()
+    if not account:
+        return None, (jsonify({"success": False, "error": "仅后台运营或管理员可搜索阿姨资料"}), 403)
+    account.last_login_at = _now()
+    db.session.commit()
+    return account, None
+
+
 @miniapp_bp.route("/ayi/options", methods=["GET"])
 def miniapp_ayi_options():
+    _, error = _ensure_staff_ayi_access()
+    if error:
+        return error
     payload, error_response, status_code = _request_myms_api("ayi/options")
     if error_response:
         return error_response, status_code
@@ -176,6 +191,9 @@ def miniapp_ayi_options():
 
 @miniapp_bp.route("/ayi/search", methods=["GET"])
 def miniapp_ayi_search():
+    _, error = _ensure_staff_ayi_access()
+    if error:
+        return error
     params = {
         key: value
         for key, value in request.args.items()
@@ -445,6 +463,62 @@ def _get_employee_account(openid=None):
     if not employee:
         return None
     return _DebugEmployeeAccount(debug_access, employee)
+
+
+def _is_staff_user(user):
+    if not user:
+        return False
+    return user.role in ("admin", "teacher", "管理员") and getattr(user, "status", "active") == "active"
+
+
+def _staff_user_payload(user):
+    if not user:
+        return None
+    return {
+        "id": str(user.id),
+        "username": user.username,
+        "phone_number": user.phone_number,
+        "role": user.role,
+        "can_access_ayi_profiles": _is_staff_user(user),
+    }
+
+
+def _get_staff_account(openid=None):
+    openid = _normalize_openid(openid) or _get_openid_from_request()
+    if not openid:
+        return None
+    account = UserWechatAccount.query.filter_by(mini_openid=openid).first()
+    if account and _is_staff_user(account.user):
+        return account
+    return None
+
+
+def _bind_staff_openid(user_id, openid, unionid=None, phone_number=None, bind_method="phone_id_card_verify"):
+    openid = _normalize_openid(openid)
+    if not user_id or not openid:
+        return None
+
+    account = UserWechatAccount.query.filter_by(mini_openid=openid).first()
+    if account:
+        account.user_id = user_id
+        account.unionid = unionid or account.unionid
+        account.phone_number = phone_number or account.phone_number
+        account.bind_method = bind_method or account.bind_method
+        account.verified_at = account.verified_at or _now()
+        account.last_login_at = _now()
+        return account
+
+    account = UserWechatAccount(
+        user_id=user_id,
+        mini_openid=openid,
+        unionid=unionid,
+        phone_number=phone_number,
+        bind_method=bind_method,
+        verified_at=_now(),
+        last_login_at=_now(),
+    )
+    db.session.add(account)
+    return account
 
 
 def _get_active_debug_access(openid, role=None):
@@ -1281,6 +1355,7 @@ def miniapp_login():
         openid = session.get("openid")
         account = _get_account(openid)
         employee_account = _get_employee_account(openid)
+        staff_account = _get_staff_account(openid)
         contract_accesses = _get_contract_accesses(openid)
         has_contract_access = bool(contract_accesses)
         roles = []
@@ -1288,23 +1363,29 @@ def miniapp_login():
             roles.append("customer")
         if employee_account:
             roles.append("employee")
+        if staff_account:
+            roles.append("staff")
         requires_role_select = len(roles) > 1
         default_role = ""
         if not requires_role_select:
-            if employee_account:
+            if staff_account:
+                default_role = "staff"
+            elif employee_account:
                 default_role = "employee"
             elif account or has_contract_access:
                 default_role = "customer"
-        needs_employee_bind = not account and not employee_account and not has_contract_access
+        needs_employee_bind = not account and not employee_account and not staff_account and not has_contract_access
         if account:
             account.last_login_at = _now()
         if employee_account:
             employee_account.last_login_at = _now()
+        if staff_account:
+            staff_account.last_login_at = _now()
         _touch_debug_access(account)
         _touch_debug_access(employee_account)
         for access in contract_accesses:
             access.last_used_at = _now()
-        if account or employee_account or contract_accesses:
+        if account or employee_account or staff_account or contract_accesses:
             db.session.commit()
 
         debug_accesses = [
@@ -1331,10 +1412,12 @@ def miniapp_login():
                 else None,
                 "bound": bool(account),
                 "employee_bound": bool(employee_account),
+                "staff_bound": bool(staff_account),
                 "roles": roles,
                 "default_role": default_role,
                 "requires_role_select": requires_role_select,
                 "needs_employee_bind": needs_employee_bind,
+                "can_access_ayi_profiles": bool(staff_account),
                 "contract_access_count": len(contract_accesses),
                 "has_customer_access": bool(account or has_contract_access),
                 "customer": {
@@ -1346,6 +1429,9 @@ def miniapp_login():
                 else None,
                 "employee": _employee_payload(employee_account.employee)
                 if employee_account and employee_account.employee
+                else None,
+                "staff_user": _staff_user_payload(staff_account.user)
+                if staff_account and staff_account.user
                 else None,
             }
         )
@@ -1410,9 +1496,10 @@ def bind_employee_by_phone():
     openid = _normalize_openid(data.get("openid") or request.headers.get("X-Miniapp-Openid"))
     phone_number = _normalize_phone(data.get("phone_number"))
     id_card_last6 = (data.get("id_card_last6") or "").strip()
+    password = (data.get("password") or "").strip()
 
-    if not openid or not phone_number or not id_card_last6:
-        return jsonify({"success": False, "error": "缺少 openid、手机号或身份证后6位"}), 400
+    if not openid or not phone_number or (not id_card_last6 and not password):
+        return jsonify({"success": False, "error": "缺少 openid、手机号或验证信息"}), 400
 
     candidates = ServicePersonnel.query.filter(ServicePersonnel.phone_number == phone_number).all()
     if not candidates:
@@ -1422,39 +1509,69 @@ def bind_employee_by_phone():
             if _normalize_phone(employee.phone_number) == phone_number
         ]
 
-    employee = next((item for item in candidates if _id_card_last6_matches(item.id_card_number, id_card_last6)), None)
-    if not employee:
-        payload = {"success": False, "error": "未找到匹配服务人员，请联系运营确认登记信息"}
-        if _allow_mock_login() and candidates:
-            payload["debug_candidates"] = [
-                {
-                    "name": item.name,
-                    "phone_number": item.phone_number,
-                    "id_card_last6": str(item.id_card_number)[-6:] if item.id_card_number else "",
-                }
-                for item in candidates[:3]
+    employee = next((item for item in candidates if id_card_last6 and _id_card_last6_matches(item.id_card_number, id_card_last6)), None)
+    if employee:
+        if not employee.is_active:
+            return jsonify({"success": False, "error": "该服务人员当前未激活，请联系运营处理"}), 200
+
+        existing = EmployeeWechatAccount.query.filter(
+            EmployeeWechatAccount.employee_id == employee.id,
+            EmployeeWechatAccount.mini_openid != openid,
+        ).first()
+        if existing:
+            return jsonify({"success": False, "error": "该服务人员已绑定其他微信，如需更换请联系管理员"}), 200
+
+        account = _bind_employee_openid(employee.id, openid, data.get("unionid"), phone_number, "phone_id_card_verify")
+        db.session.commit()
+        return jsonify(
+            {
+                "success": True,
+                "role": "employee",
+                "employee": _employee_payload(employee),
+                "account_id": str(account.id),
+            }
+        )
+
+    if password:
+        user_candidates = User.query.filter(User.phone_number == phone_number).all()
+        if not user_candidates:
+            user_candidates = [
+                user
+                for user in User.query.filter(User.phone_number.isnot(None)).all()
+                if _normalize_phone(user.phone_number) == phone_number
             ]
-        return jsonify(payload), 200
+        staff_user = next(
+            (
+                user
+                for user in user_candidates
+                if _is_staff_user(user) and check_password_hash(user.password, password)
+            ),
+            None,
+        )
+        if staff_user:
+            account = _bind_staff_openid(staff_user.id, openid, data.get("unionid"), phone_number, "phone_password_verify")
+            db.session.commit()
+            return jsonify(
+                {
+                    "success": True,
+                    "role": "staff",
+                    "staff_user": _staff_user_payload(staff_user),
+                    "account_id": str(account.id),
+                    "can_access_ayi_profiles": True,
+                }
+            )
 
-    if not employee.is_active:
-        return jsonify({"success": False, "error": "该服务人员当前未激活，请联系运营处理"}), 200
-
-    existing = EmployeeWechatAccount.query.filter(
-        EmployeeWechatAccount.employee_id == employee.id,
-        EmployeeWechatAccount.mini_openid != openid,
-    ).first()
-    if existing:
-        return jsonify({"success": False, "error": "该服务人员已绑定其他微信，如需更换请联系管理员"}), 200
-
-    account = _bind_employee_openid(employee.id, openid, data.get("unionid"), phone_number, "phone_id_card_verify")
-    db.session.commit()
-    return jsonify(
-        {
-            "success": True,
-            "employee": _employee_payload(employee),
-            "account_id": str(account.id),
-        }
-    )
+    payload = {"success": False, "error": "未找到匹配服务人员，或后台用户密码不正确"}
+    if _allow_mock_login() and candidates:
+        payload["debug_candidates"] = [
+            {
+                "name": item.name,
+                "phone_number": item.phone_number,
+                "id_card_last6": str(item.id_card_number)[-6:] if item.id_card_number else "",
+            }
+            for item in candidates[:3]
+        ]
+    return jsonify(payload), 200
 
 
 @miniapp_bp.route("/contracts/sign/<string:token>", methods=["GET", "POST"])
