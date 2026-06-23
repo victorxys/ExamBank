@@ -28,3 +28,18 @@ export const deleteMiniappOpenidLink = async (role, accountId) => {
   const response = await api.delete(`/admin/wechat/miniapp-openids/${role}/${accountId}`);
   return response.data;
 };
+
+export const getMiniappDebugAccess = async (params) => {
+  const response = await api.get('/admin/wechat/miniapp-debug-access', { params });
+  return response.data;
+};
+
+export const createMiniappDebugAccess = async (data) => {
+  const response = await api.post('/admin/wechat/miniapp-debug-access', data);
+  return response.data;
+};
+
+export const deleteMiniappDebugAccess = async (accessId) => {
+  const response = await api.delete(`/admin/wechat/miniapp-debug-access/${accessId}`);
+  return response.data;
+};

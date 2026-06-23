@@ -20,6 +20,7 @@ from backend.models import (
     CustomerWechatAccount,
     EmployeeWechatAccount,
     MiniappContractAccess,
+    MiniappDebugAccess,
     MiniappContractEvaluation,
     MiniappContractExitSummary,
     ServicePersonnel,
@@ -89,6 +90,30 @@ FALLBACK_HOLIDAYS = {
         "10-10": {"holiday": False, "name": "国庆节调休", "wage": 1},
     },
 }
+
+
+class _DebugEmployeeAccount:
+    def __init__(self, debug_access, employee):
+        self.id = debug_access.id
+        self.mini_openid = debug_access.debugger_openid
+        self.employee_id = debug_access.target_id
+        self.employee = employee
+        self.bind_method = "debug_access"
+        self.last_login_at = debug_access.last_used_at
+        self.debug_access = debug_access
+        self.is_debug_access = True
+
+
+class _DebugCustomerAccount:
+    def __init__(self, debug_access, customer):
+        self.id = debug_access.id
+        self.mini_openid = debug_access.debugger_openid
+        self.customer_id = debug_access.target_id
+        self.customer = customer
+        self.bind_method = "debug_access"
+        self.last_login_at = debug_access.last_used_at
+        self.debug_access = debug_access
+        self.is_debug_access = True
 
 
 def _now():
@@ -250,7 +275,18 @@ def miniapp_holidays(year):
         return jsonify({"success": True, "year": year, "holidays": cached, "cached": True})
 
     try:
-        response = requests.get(f"https://timor.tech/api/holiday/year/{year}", timeout=8)
+        response = requests.get(
+            f"https://timor.tech/api/holiday/year/{year}",
+            headers={
+                "User-Agent": (
+                    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) "
+                    "Chrome/126.0.0.0 Safari/537.36"
+                ),
+                "Accept": "application/json,text/plain,*/*",
+            },
+            timeout=8,
+        )
         response.raise_for_status()
         payload = response.json()
         holidays = payload.get("holiday") if payload.get("code") == 0 else None
@@ -278,14 +314,54 @@ def _get_account(openid=None):
     openid = _normalize_openid(openid) or _get_openid_from_request()
     if not openid:
         return None
-    return CustomerWechatAccount.query.filter_by(mini_openid=openid).first()
+    account = CustomerWechatAccount.query.filter_by(mini_openid=openid).first()
+    if account:
+        return account
+
+    debug_access = _get_active_debug_access(openid, "customer")
+    if not debug_access:
+        return None
+    customer = Customer.query.get(debug_access.target_id)
+    if not customer:
+        return None
+    return _DebugCustomerAccount(debug_access, customer)
 
 
 def _get_employee_account(openid=None):
     openid = _normalize_openid(openid) or _get_openid_from_request()
     if not openid:
         return None
-    return EmployeeWechatAccount.query.filter_by(mini_openid=openid).first()
+    account = EmployeeWechatAccount.query.filter_by(mini_openid=openid).first()
+    if account:
+        return account
+
+    debug_access = _get_active_debug_access(openid, "employee")
+    if not debug_access:
+        return None
+    employee = ServicePersonnel.query.get(debug_access.target_id)
+    if not employee:
+        return None
+    return _DebugEmployeeAccount(debug_access, employee)
+
+
+def _get_active_debug_access(openid, role=None):
+    openid = _normalize_openid(openid)
+    if not openid:
+        return None
+    query = MiniappDebugAccess.query.filter(
+        MiniappDebugAccess.debugger_openid == openid,
+        MiniappDebugAccess.enabled.is_(True),
+        MiniappDebugAccess.expires_at > _now(),
+    )
+    if role:
+        query = query.filter(MiniappDebugAccess.role == role)
+    return query.order_by(MiniappDebugAccess.expires_at.desc(), MiniappDebugAccess.created_at.desc()).first()
+
+
+def _touch_debug_access(account):
+    debug_access = getattr(account, "debug_access", None)
+    if debug_access:
+        debug_access.last_used_at = _now()
 
 
 def _bind_customer_openid(customer_id, openid, unionid=None, phone_number=None, bind_method="contract_sign"):
@@ -1000,6 +1076,7 @@ def _ensure_employee_account():
     if not account:
         return None, (jsonify({"success": False, "error": "服务人员未绑定小程序身份"}), 401)
     account.last_login_at = _now()
+    _touch_debug_access(account)
     return account, None
 
 
@@ -1024,13 +1101,17 @@ def _default_attendance_cycle():
     return date(previous_month_end.year, previous_month_end.month, 1), previous_month_end
 
 
-def _get_or_create_employee_attendance_forms(employee):
-    cycle_start, cycle_end = _default_attendance_cycle()
+def _get_or_create_employee_attendance_forms(employee, year=None, month=None):
+    if year and month:
+        cycle_start = date(year, month, 1)
+        cycle_end = date(year, month, calendar.monthrange(year, month)[1])
+    else:
+        cycle_start, cycle_end = _default_attendance_cycle()
     contracts = [
         contract for contract in filter_contracts_for_cycle(employee.id, cycle_start, cycle_end)
         if _employee_has_signed_contract(contract)
     ]
-    if not contracts:
+    if not contracts and not (year and month):
         current_month_start = date.today().replace(day=1)
         current_month_end = date(
             current_month_start.year,
@@ -1119,16 +1200,35 @@ def miniapp_login():
             account.last_login_at = _now()
         if employee_account:
             employee_account.last_login_at = _now()
+        _touch_debug_access(account)
+        _touch_debug_access(employee_account)
         for access in contract_accesses:
             access.last_used_at = _now()
         if account or employee_account or contract_accesses:
             db.session.commit()
+
+        debug_accesses = [
+            getattr(item, "debug_access", None)
+            for item in (account, employee_account)
+            if getattr(item, "debug_access", None)
+        ]
 
         return jsonify(
             {
                 "success": True,
                 "openid": openid,
                 "unionid": session.get("unionid"),
+                "debug_mode": bool(debug_accesses),
+                "debug_access": {
+                    "id": str(debug_accesses[0].id),
+                    "role": debug_accesses[0].role,
+                    "target_type": debug_accesses[0].target_type,
+                    "target_id": str(debug_accesses[0].target_id),
+                    "expires_at": _iso(debug_accesses[0].expires_at),
+                    "reason": debug_accesses[0].reason or "",
+                }
+                if debug_accesses
+                else None,
                 "bound": bool(account),
                 "employee_bound": bool(employee_account),
                 "roles": roles,
@@ -1641,7 +1741,12 @@ def employee_attendance_forms():
     if error_response:
         return error_response
 
-    forms = _get_or_create_employee_attendance_forms(account.employee)
+    year = request.args.get("year", type=int)
+    month = request.args.get("month", type=int)
+    if (year and not month) or (month and not year):
+        return jsonify({"success": False, "error": "year/month 必须同时提供"}), 400
+
+    forms = _get_or_create_employee_attendance_forms(account.employee, year=year, month=month)
     db.session.commit()
     return jsonify({"success": True, "attendance_forms": [_attendance_summary(form) for form in forms]})
 

@@ -21,6 +21,24 @@
   font-weight: 800;
 }
 
+.contract-section-head {
+  position: relative;
+}
+
+.contract-section-head .link-btn {
+  position: absolute;
+  right: 0;
+  bottom: 18rpx;
+  margin-top: 0;
+  width: 150rpx;
+  height: 48rpx;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  text-align: right;
+  line-height: 48rpx;
+}
+
 .action-card,
 .contract-card {
   margin-bottom: 18rpx;
@@ -103,6 +121,111 @@
 .todo-badge.teal {
   background: #ecfdfa;
   color: #0f766e;
+}
+
+.quick-entry-card {
+  margin: 18rpx 0 28rpx;
+  padding: 24rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18rpx;
+  border-radius: 16rpx;
+  background: #f0fdfa;
+  border: 1rpx solid #99f6e4;
+}
+
+.quick-entry-main {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 18rpx;
+}
+
+.quick-entry-icon {
+  width: 64rpx;
+  height: 64rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 14rpx;
+  background: #0f9f8f;
+  overflow: hidden;
+}
+
+.calendar-icon {
+  position: relative;
+  width: 38rpx;
+  height: 42rpx;
+  border: 4rpx solid #fff;
+  border-radius: 7rpx;
+  box-sizing: border-box;
+}
+
+.calendar-icon::before,
+.calendar-icon::after {
+  content: "";
+  position: absolute;
+  top: -10rpx;
+  width: 6rpx;
+  height: 14rpx;
+  border-radius: 999rpx;
+  background: #fff;
+}
+
+.calendar-icon::before {
+  left: 7rpx;
+}
+
+.calendar-icon::after {
+  right: 7rpx;
+}
+
+.calendar-icon-head {
+  height: 10rpx;
+  border-bottom: 4rpx solid #fff;
+}
+
+.calendar-icon-grid {
+  padding: 6rpx 5rpx 0;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 4rpx;
+}
+
+.calendar-icon-grid view {
+  width: 6rpx;
+  height: 6rpx;
+  border-radius: 2rpx;
+  background: #fff;
+}
+
+.quick-entry-content {
+  min-width: 0;
+  flex: 1;
+}
+
+.quick-entry-title {
+  font-size: 27rpx;
+  line-height: 36rpx;
+  font-weight: 900;
+  color: #0f172a;
+}
+
+.quick-entry-desc {
+  margin-top: 6rpx;
+  font-size: 23rpx;
+  line-height: 32rpx;
+  color: #0f766e;
+}
+
+.quick-entry-arrow {
+  flex-shrink: 0;
+  color: #0f766e;
+  font-size: 38rpx;
+  font-weight: 700;
 }
 
 .contract-top {

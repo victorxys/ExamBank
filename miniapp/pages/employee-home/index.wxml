@@ -45,7 +45,28 @@
     <view class="empty-desc">待签合同和待填写考勤会显示在这里。</view>
   </view>
 
-  <view class="section-head">
+  <view wx:if="{{overviewLoaded && attendanceForms.length === 0}}" class="quick-entry-card" bindtap="goAttendanceEntry">
+    <view class="quick-entry-main">
+      <view class="quick-entry-icon">
+        <view class="calendar-icon">
+          <view class="calendar-icon-head"></view>
+          <view class="calendar-icon-grid">
+            <view></view>
+            <view></view>
+            <view></view>
+            <view></view>
+          </view>
+        </view>
+      </view>
+      <view class="quick-entry-content">
+        <view class="quick-entry-title">填写月度考勤</view>
+        <view class="quick-entry-desc">提前下户或需要补填时，可从这里进入考勤表。</view>
+      </view>
+    </view>
+    <view class="quick-entry-arrow">›</view>
+  </view>
+
+  <view class="section-head contract-section-head">
     <view class="section-title">服务合同</view>
     <button class="link-btn" bindtap="goContracts">全部合同</button>
   </view>
