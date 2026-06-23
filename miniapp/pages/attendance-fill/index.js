@@ -203,6 +203,7 @@ function defaultModalUi(record, form, editingDate, modalReadOnly = false) {
     hasOutContinuation: hasContinuation,
     isOutNoContinuation: isOut && !hasContinuation,
     showTimePanel: type !== 'normal',
+    showDurationTotal: type !== 'normal' && !isOnOff,
     showStartTimePicker: !isOnOff && !hasContinuation,
     showOutContinuationTime: isOut && hasContinuation,
     showRegularStartDate: !isOnOff && !isOut,
@@ -696,6 +697,7 @@ Page({
 
   openEdit(event) {
     const date = event.currentTarget.dataset.date;
+    const requestedType = event.currentTarget.dataset.type || '';
     const isAuto = boolDataset(event.currentTarget.dataset.auto);
     const disabled = boolDataset(event.currentTarget.dataset.disabled);
     if (!date || this.data.readOnly) return;
@@ -737,7 +739,8 @@ Page({
       original = { ...original, startTime: original.endTime || original.startTime || '' };
     }
 
-    const record = original ? { ...original } : defaultRecordForType('normal', editingDate);
+    const defaultType = TYPE_OPTIONS.some((item) => item.value === requestedType) ? requestedType : 'normal';
+    const record = original ? { ...original } : defaultRecordForType(defaultType, editingDate);
     if (original && (original.type === 'out_of_beijing' || original.type === 'out_of_country')) {
       record.date = editingDate;
     }
@@ -950,7 +953,7 @@ Page({
           wx.showToast({ title: message, icon: 'none' });
           const contractInfo = this.data.form.contract_info || {};
           if (message.indexOf('上户') >= 0 && contractInfo.start_date) {
-            setTimeout(() => this.openEdit({ currentTarget: { dataset: { date: contractInfo.start_date } } }), 500);
+            setTimeout(() => this.openEdit({ currentTarget: { dataset: { date: contractInfo.start_date, type: 'onboarding' } } }), 500);
           } else if (message.indexOf('下户') >= 0) {
             const endDate = getContractEndDate(contractInfo);
             if (endDate) setTimeout(() => this.openEdit({ currentTarget: { dataset: { date: endDate } } }), 500);
