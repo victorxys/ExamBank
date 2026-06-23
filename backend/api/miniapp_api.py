@@ -1107,10 +1107,7 @@ def _get_or_create_employee_attendance_forms(employee, year=None, month=None):
         cycle_end = date(year, month, calendar.monthrange(year, month)[1])
     else:
         cycle_start, cycle_end = _default_attendance_cycle()
-    contracts = [
-        contract for contract in filter_contracts_for_cycle(employee.id, cycle_start, cycle_end)
-        if _employee_has_signed_contract(contract)
-    ]
+    contracts = filter_contracts_for_cycle(employee.id, cycle_start, cycle_end)
     if not contracts and not (year and month):
         current_month_start = date.today().replace(day=1)
         current_month_end = date(
@@ -1118,10 +1115,7 @@ def _get_or_create_employee_attendance_forms(employee, year=None, month=None):
             current_month_start.month,
             calendar.monthrange(current_month_start.year, current_month_start.month)[1],
         )
-        contracts = [
-            contract for contract in filter_contracts_for_cycle(employee.id, current_month_start, current_month_end)
-            if _employee_has_signed_contract(contract)
-        ]
+        contracts = filter_contracts_for_cycle(employee.id, current_month_start, current_month_end)
         if contracts:
             cycle_start, cycle_end = current_month_start, current_month_end
 
