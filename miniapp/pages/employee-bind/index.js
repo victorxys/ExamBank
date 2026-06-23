@@ -4,7 +4,7 @@ Page({
   data: {
     form: {
       phone_number: '',
-      id_card_last6: ''
+      credential: ''
     },
     redirect: '',
     loading: false
@@ -22,17 +22,24 @@ Page({
   async bindEmployee() {
     const { form } = this.data;
     const openid = api.getOpenid();
-    if (!openid || !form.phone_number || !form.id_card_last6) {
-      wx.showToast({ title: '请填写手机号和身份证后6位', icon: 'none' });
+    const credential = (form.credential || '').trim();
+    if (!openid || !form.phone_number || !credential) {
+      wx.showToast({ title: '请填写手机号和验证信息', icon: 'none' });
       return;
     }
 
     this.setData({ loading: true });
     try {
-      const result = await api.bindEmployee({ ...form, openid });
-      getApp().setSession(openid, null, result.employee || null, 'employee');
+      const result = await api.bindEmployee({
+        phone_number: form.phone_number,
+        id_card_last6: credential,
+        password: credential,
+        openid
+      });
+      const role = result.role || (result.staff_user ? 'staff' : 'employee');
+      getApp().setSession(openid, null, result.employee || null, role, result.staff_user || null);
       wx.showToast({ title: '绑定成功', icon: 'success' });
-      wx.redirectTo({ url: this.data.redirect || '/pages/employee-home/index' });
+      wx.redirectTo({ url: this.data.redirect || (role === 'staff' ? '/pages/ayi-search/index' : '/pages/employee-home/index') });
     } catch (error) {
       wx.showToast({ title: error.message || '绑定失败', icon: 'none' });
     } finally {

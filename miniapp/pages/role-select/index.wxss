@@ -35,6 +35,11 @@
   border-color: #bfdbfe;
 }
 
+.role-card.staff {
+  background: #f0fdfa;
+  border-color: #99f6e4;
+}
+
 .role-card-title {
   font-size: 32rpx;
   line-height: 42rpx;

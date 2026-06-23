@@ -80,10 +80,11 @@ async function ensureOpenid(role = '') {
   const openid = result.openid || devMockOpenid;
   const sessionRole = role || result.default_role || '';
   if (app().setSession) {
-    app().setSession(openid, result.customer || null, result.employee || null, sessionRole);
+    app().setSession(openid, result.customer || null, result.employee || null, sessionRole, result.staff_user || null);
   } else {
     wx.setStorageSync('miniapp_openid', openid);
     if (sessionRole) wx.setStorageSync('miniapp_role', sessionRole);
+    if (result.staff_user) wx.setStorageSync('miniapp_staff_user', result.staff_user);
   }
   return openid;
 }

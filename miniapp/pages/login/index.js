@@ -1,5 +1,5 @@
 const api = require('../../utils/api');
-const { devMockOpenid, enableMockLogin } = require('../../config/index');
+const { enableMockLogin } = require('../../config/index');
 
 function wxLogin() {
   return new Promise((resolve, reject) => {
@@ -16,6 +16,12 @@ function wxLogin() {
   });
 }
 
+function localOpenid() {
+  const generated = `dev-local-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+  wx.setStorageSync('miniapp_openid', generated);
+  return generated;
+}
+
 Page({
   data: {
     openid: '',
@@ -26,7 +32,7 @@ Page({
 
   onLoad() {
     this.setData({
-      openid: enableMockLogin ? (wx.getStorageSync('miniapp_openid') || devMockOpenid) : ''
+      openid: ''
     });
     this.routeFromExistingSession();
   },
@@ -39,9 +45,10 @@ Page({
     const openid = result.openid || fallbackOpenid;
     const customer = result.customer || null;
     const employee = result.employee || null;
+    const staffUser = result.staff_user || null;
     const defaultRole = result.default_role || (result.has_customer_access ? 'customer' : '');
     const role = result.requires_role_select ? '' : defaultRole;
-    getApp().setSession(openid, customer, employee, role);
+    getApp().setSession(openid, customer, employee, role, staffUser);
 
     if (result.requires_role_select) {
       wx.showToast({ title: '请选择进入身份', icon: 'none' });
@@ -51,6 +58,11 @@ Page({
     if (defaultRole === 'employee') {
       wx.showToast({ title: '登录成功', icon: 'success' });
       wx.redirectTo({ url: '/pages/employee-home/index' });
+      return;
+    }
+    if (defaultRole === 'staff') {
+      wx.showToast({ title: '登录成功', icon: 'success' });
+      wx.redirectTo({ url: '/pages/ayi-search/index' });
       return;
     }
     if (defaultRole === 'customer') {
@@ -72,6 +84,11 @@ Page({
     const role = wx.getStorageSync('miniapp_role');
     const customer = wx.getStorageSync('miniapp_customer');
     const employee = wx.getStorageSync('miniapp_employee');
+    const staffUser = wx.getStorageSync('miniapp_staff_user');
+    if (role === 'staff' || (!role && staffUser)) {
+      wx.redirectTo({ url: '/pages/ayi-search/index' });
+      return;
+    }
     if (role === 'employee' || (!role && employee)) {
       wx.redirectTo({ url: '/pages/employee-home/index' });
       return;
@@ -104,7 +121,7 @@ Page({
   async login() {
     this.setData({ loading: true });
     try {
-      if (enableMockLogin && this.data.openid.trim()) {
+      if (enableMockLogin) {
         await this.loginWithMock();
         return;
       }
@@ -129,7 +146,10 @@ Page({
   async loginWithMock(originalError = {}) {
     const openid = this.data.openid.trim();
     if (!openid) {
-      wx.showToast({ title: originalError.message || '登录失败', icon: 'none' });
+      const generatedOpenid = localOpenid();
+      getApp().setSession(generatedOpenid, null, null, '', null);
+      wx.showToast({ title: '请先绑定身份', icon: 'none' });
+      wx.redirectTo({ url: '/pages/employee-bind/index' });
       return;
     }
     const result = await api.login({ mock_openid: openid });

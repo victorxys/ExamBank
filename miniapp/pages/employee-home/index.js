@@ -10,6 +10,7 @@ Page({
     recentContracts: [],
     todoCount: 0,
     overviewLoaded: false,
+    canAccessAyiProfiles: false,
     icons: {
       contractSign: api.miniappIconUrl('contract_sign'),
       attendanceFill: api.miniappIconUrl('attendance_fill'),
@@ -56,9 +57,10 @@ Page({
         activeContracts,
         recentContracts,
         todoCount: pendingContracts.length + attendanceForms.length,
-        overviewLoaded: true
+        overviewLoaded: true,
+        canAccessAyiProfiles: false
       });
-      getApp().setSession(api.getOpenid(), null, result.employee || null, 'employee');
+      getApp().setSession(api.getOpenid(), null, result.employee || null, 'employee', null);
     } catch (error) {
       this.setData({ overviewLoaded: true });
       wx.showToast({ title: error.message || '加载失败', icon: 'none' });
