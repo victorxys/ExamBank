@@ -39,11 +39,13 @@
         <view class="attendance-action">去确认</view>
       </view>
       <view class="mini-calendar">
-        <block wx:for="{{item.preview_days}}" wx:for-item="day" wx:key="date">
+        <block wx:for="{{item.previewDays}}" wx:for-item="day" wx:key="key">
           <view class="{{day.className}}">
-            <view class="calendar-num">{{day.day}}</view>
-            <view wx:if="{{day.disabled}}" class="calendar-mark">×</view>
-            <view wx:elif="{{day.label && day.label !== '出勤'}}" class="calendar-mark">{{day.label}}</view>
+            <block wx:if="{{!day.blank}}">
+              <view class="calendar-num">{{day.day}}</view>
+              <view wx:if="{{day.disabled}}" class="calendar-mark">×</view>
+              <view wx:elif="{{day.label && day.label !== '出勤'}}" class="calendar-mark">{{day.label}}</view>
+            </block>
           </view>
         </block>
       </view>

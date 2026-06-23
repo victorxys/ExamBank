@@ -92,7 +92,7 @@ FALLBACK_HOLIDAYS = {
 }
 
 MINIAPP_ICON_SVGS = {
-    "contract_sign": """<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.7V19a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-4.3"/><path d="M14.5 3.5a2.1 2.1 0 0 1 3 3L9.6 14.4 5.5 15.5l1.1-4.1 7.9-7.9Z"/><path d="m13.4 4.6 3 3"/><path d="M7 19c2-2 3.7-2 5 0 1.2 1.7 3 1.6 5.5-.4"/></svg>""",
+    "contract_sign": """<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22h6a2 2 0 0 0 2-2V7l-5-5H6a2 2 0 0 0-2 2v10"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10.4 12.6a2 2 0 1 1 3 3L8 21l-4 1 1-4Z"/></svg>""",
     "attendance_fill": """<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><rect x="3" y="4" width="18" height="18" rx="3"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/></svg>""",
     "evaluation": """<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 14.7 9l6 .9-4.4 4.2 1 6-5.3-2.8-5.3 2.8 1-6L3.3 9.9l6-.9L12 3.5Z"/><path d="M4 21h16"/></svg>""",
 }
@@ -797,12 +797,12 @@ def _attendance_preview(form, payload=None):
 
     return {
         "work_days": work_days,
-        "work_days_text": _format_attendance_amount(days=work_days),
+        "work_days_text": _format_attendance_result_amount(work_days),
         "leave_days": leave_days,
-        "leave_days_text": _format_attendance_amount(days=leave_days),
+        "leave_days_text": _format_attendance_result_amount(leave_days),
         "overtime_hours": overtime_hours,
         "overtime_days": overtime_days,
-        "overtime_text": _format_attendance_amount(days=overtime_days),
+        "overtime_text": _format_attendance_result_amount(overtime_days),
         "effective_start_date": contract_info.get("start_date"),
         "effective_end_date": contract_info.get("end_date"),
         "calendar_days": days,
@@ -884,8 +884,8 @@ def _attendance_summary(form):
             "leave_count": len(leave_records),
             "overtime_count": len(overtime_records),
             "paid_leave_count": len(paid_leave_records),
-            **preview_stats,
             **(record_stats or {}),
+            **preview_stats,
         },
     }
 

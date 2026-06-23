@@ -1,109 +1,49 @@
 const api = require('../../utils/api');
 const { formatDate, contractView } = require('../../utils/format');
+const {
+  buildCalendar,
+  calculateStats,
+  normalizeAttendanceData,
+  normalizeAutoOvertime
+} = require('../../utils/attendance');
 
-function dateText(value) {
-  return value ? String(value).slice(0, 10) : '';
+function compactDaysText(value) {
+  return String(value || '0').replace(/天$/, '');
 }
 
-function pad(value) {
-  return String(value).padStart(2, '0');
-}
-
-function buildFallbackCalendarDays(item = {}, stats = {}) {
-  const start = new Date(item.cycle_start_date);
-  const end = new Date(item.cycle_end_date);
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return [];
-  const days = [];
-  const cursor = new Date(start.getFullYear(), start.getMonth(), start.getDate());
-  const last = new Date(end.getFullYear(), end.getMonth(), end.getDate());
-  const cycleStartText = dateText(item.cycle_start_date);
-  const cycleEndText = dateText(item.cycle_end_date);
-  const effectiveStart = dateText(stats.effective_start_date);
-  const effectiveEnd = dateText(stats.effective_end_date);
-  const shouldUseEffectiveStart = Boolean(effectiveStart && effectiveStart >= cycleStartText && effectiveStart <= cycleEndText);
-  const shouldUseEffectiveEnd = Boolean(effectiveEnd && effectiveEnd >= cycleStartText && effectiveEnd <= cycleEndText);
-  while (cursor <= last) {
-    const current = `${cursor.getFullYear()}-${pad(cursor.getMonth() + 1)}-${pad(cursor.getDate())}`;
-    const disabled = Boolean(
-      (shouldUseEffectiveStart && current < effectiveStart)
-      || (shouldUseEffectiveEnd && current > effectiveEnd)
-    );
-    days.push({
-      date: current,
-      day: cursor.getDate(),
-      tone: disabled ? 'disabled' : 'normal',
-      label: disabled ? '' : '出勤',
-      disabled
-    });
-    cursor.setDate(cursor.getDate() + 1);
-  }
-  return days;
-}
-
-function normalizeCalendarDay(day, stats = {}) {
-  const current = dateText(day.date);
-  const effectiveStart = dateText(stats.effective_start_date);
-  const effectiveEnd = dateText(stats.effective_end_date);
-  const disabled = Boolean(
-    day.disabled
-    || day.tone === 'disabled'
-  );
-  const tone = disabled ? 'disabled' : (day.tone || 'normal');
+function buildAttendancePreview(item = {}) {
+  const attendanceData = normalizeAttendanceData(item.form_data || {});
+  const firstCalendar = buildCalendar(item, attendanceData, {});
+  const normalizedData = normalizeAutoOvertime(attendanceData, item, firstCalendar.monthDays, {});
+  const calendar = buildCalendar(item, normalizedData, {});
+  const stats = calculateStats(normalizedData, calendar.monthDays, item, {});
   return {
-    ...day,
-    disabled,
-    tone,
-    className: `calendar-day ${tone}`
-  };
-}
-
-function previewDays(days = [], stats = {}) {
-  return (Array.isArray(days) ? days : []).map((item) => normalizeCalendarDay(item, stats));
-}
-
-function formatAmount(value) {
-  const number = Number(value || 0);
-  if (Math.abs(number) < 0.001) return '0';
-  if (Math.abs(number - Math.round(number)) < 0.001) return String(Math.round(number));
-  return number.toFixed(1).replace(/\.0$/, '');
-}
-
-function attendanceCardStats(stats = {}, item = {}) {
-  const hasSavedStats = (
-    stats.work_days_text !== undefined
-    || stats.overtime_text !== undefined
-    || stats.leave_days_text !== undefined
-    || stats.work_days !== undefined
-    || stats.overtime_days !== undefined
-    || stats.leave_days !== undefined
-  );
-  if (hasSavedStats) {
-    return {
-      workDaysText: stats.work_days_text || formatAmount(stats.work_days || 0),
-      overtimeText: stats.overtime_text || formatAmount(stats.overtime_days || 0),
-      leaveDaysText: stats.leave_days_text || formatAmount(stats.leave_days || 0)
-    };
-  }
-
-  const sourceDays = (Array.isArray(stats.calendar_days) && stats.calendar_days.length)
-    ? stats.calendar_days
-    : buildFallbackCalendarDays(item, stats);
-  const days = previewDays(sourceDays, stats);
-  if (!days.length) {
-    return {
-      workDaysText: stats.work_days_text || '0',
-      overtimeText: stats.overtime_text || '0',
-      leaveDaysText: stats.leave_days_text || '0'
-    };
-  }
-
-  const activeDays = days.filter((day) => !day.disabled && day.tone !== 'disabled');
-  const leaveDays = activeDays.filter((day) => day.tone === 'rest').length;
-  const overtimeDays = activeDays.filter((day) => day.tone === 'overtime').length;
-  return {
-    workDaysText: formatAmount(Math.min(26, Math.max(0, activeDays.length - leaveDays))),
-    overtimeText: formatAmount(overtimeDays || stats.overtime_days || 0),
-    leaveDaysText: formatAmount(leaveDays || stats.leave_days || 0)
+    workDaysText: compactDaysText(stats.workDaysText),
+    overtimeText: compactDaysText(stats.overtimeDaysText),
+    leaveDaysText: compactDaysText(stats.leaveDaysText),
+    previewDays: calendar.cells.map((cell) => {
+      if (cell.blank) {
+        return {
+          key: cell.key,
+          blank: true,
+          className: 'calendar-day blank'
+        };
+      }
+      const tone = cell.tone || 'normal';
+      return {
+        ...cell,
+        label: cell.typeLabel,
+        className: [
+          'calendar-day',
+          `tone-${tone}`,
+          cell.weekend ? 'weekend' : '',
+          cell.isHoliday && cell.type === 'normal' ? 'holiday' : '',
+          cell.isWorkday ? 'workday' : '',
+          cell.isAuto ? 'auto-overtime' : '',
+          cell.disabled ? 'disabled' : ''
+        ].filter(Boolean).join(' ')
+      };
+    })
   };
 }
 
@@ -164,16 +104,10 @@ Page({
       }));
       const pendingAttendance = (todos.attendance_forms || []).map((item) => ({
         ...item,
-        ...attendanceCardStats(item.stats || {}, item),
+        ...buildAttendancePreview(item),
         cycle_start_date_text: formatDate(item.cycle_start_date),
         cycle_end_date_text: formatDate(item.cycle_end_date),
-        date_range: `${formatDate(item.cycle_start_date)} - ${formatDate(item.cycle_end_date)}`,
-        preview_days: previewDays(
-          (item.stats && item.stats.calendar_days && item.stats.calendar_days.length)
-            ? item.stats.calendar_days
-            : buildFallbackCalendarDays(item, item.stats || {}),
-          item.stats || {}
-        )
+        date_range: `${formatDate(item.cycle_start_date)} - ${formatDate(item.cycle_end_date)}`
       })).map((item) => ({
         ...item,
         work_days_text: item.workDaysText,

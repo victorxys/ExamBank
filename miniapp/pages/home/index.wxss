@@ -202,24 +202,86 @@
   font-weight: 900;
 }
 
-.calendar-day.rest {
-  background: #fff1f2;
-  color: #dc2626;
-}
-
-.calendar-day.overtime {
-  background: #fef3c7;
-  color: #b45309;
+.calendar-day.blank {
+  background: transparent;
+  border: 0;
 }
 
 .calendar-day.disabled {
-  background: #f8fafc;
-  color: #cbd5e1;
+  background: #f1f5f9;
+  color: #94a3b8;
+  opacity: 0.52;
 }
 
-.calendar-day.normal {
+.calendar-day.weekend {
+  background: #fff1f2;
+}
+
+.calendar-day.holiday {
+  background: #fff1f2;
+  border: 1rpx solid #fecaca;
+}
+
+.calendar-day.workday {
+  background: #eff6ff;
+  border: 1rpx solid #bfdbfe;
+}
+
+.calendar-day.auto-overtime {
+  border: 1rpx dashed #86efac;
+}
+
+.calendar-day.tone-normal {
   background: #e5faf6;
   color: #087c70;
+}
+
+.calendar-day.tone-rest {
+  background: #eff6ff;
+  color: #2563eb;
+  border: 1rpx solid #bfdbfe;
+}
+
+.calendar-day.tone-leave {
+  background: #fefce8;
+  color: #ca8a04;
+  border: 1rpx solid #fde68a;
+}
+
+.calendar-day.tone-overtime {
+  background: #f0fdf4;
+  color: #16a34a;
+  border: 1rpx solid #bbf7d0;
+}
+
+.calendar-day.tone-out-beijing {
+  background: #faf5ff;
+  color: #9333ea;
+  border: 1rpx solid #e9d5ff;
+}
+
+.calendar-day.tone-out-country {
+  background: #fdf2f8;
+  color: #db2777;
+  border: 1rpx solid #fbcfe8;
+}
+
+.calendar-day.tone-paid-leave {
+  background: #eef2ff;
+  color: #4f46e5;
+  border: 1rpx solid #c7d2fe;
+}
+
+.calendar-day.tone-onboarding {
+  background: #ecfeff;
+  color: #0891b2;
+  border: 1rpx solid #a5f3fc;
+}
+
+.calendar-day.tone-offboarding {
+  background: #fff1f2;
+  color: #e11d48;
+  border: 1rpx solid #fecdd3;
 }
 
 .calendar-num {
