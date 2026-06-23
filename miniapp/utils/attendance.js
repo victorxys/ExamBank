@@ -245,8 +245,9 @@ function formatDaysHours(value) {
   const hours = (total - days) * 24;
   const roundedHours = Math.round(hours * 10) / 10;
   if (roundedHours >= 24) {
-    return `${days + 1}天0小时`;
+    return `${days + 1}天`;
   }
+  if (roundedHours <= 0) return days > 0 ? `${days}天` : '';
   const hourText = Math.abs(roundedHours - Math.round(roundedHours)) < 0.05
     ? String(Math.round(roundedHours))
     : roundedHours.toFixed(1).replace(/\.0$/, '');
@@ -258,6 +259,7 @@ function formatHoursText(hours) {
   const total = Math.max(0, Number(hours || 0));
   const days = Math.floor(total / 24);
   const remainder = Math.round((total - days * 24) * 10) / 10;
+  if (remainder <= 0) return days > 0 ? `${days}天` : '';
   const hourText = Math.abs(remainder - Math.round(remainder)) < 0.05
     ? String(Math.round(remainder))
     : remainder.toFixed(1).replace(/\.0$/, '');

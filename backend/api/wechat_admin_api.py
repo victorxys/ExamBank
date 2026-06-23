@@ -1,9 +1,12 @@
 """
 微信关联管理API - 供管理员使用
 """
+from datetime import datetime, timedelta
+import uuid
+
 from flask import Blueprint, jsonify, request, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from backend.models import CustomerWechatAccount, EmployeeWechatAccount, db, ServicePersonnel, User
+from backend.models import Customer, CustomerWechatAccount, EmployeeWechatAccount, MiniappDebugAccess, db, ServicePersonnel, User
 from sqlalchemy import or_
 
 wechat_admin_bp = Blueprint('wechat_admin_api', __name__, url_prefix='/api/admin/wechat')
@@ -55,6 +58,32 @@ def _format_miniapp_openid_account(account, role):
         "last_login_at": _format_datetime(account.last_login_at),
         "created_at": _format_datetime(account.created_at),
         "updated_at": _format_datetime(account.updated_at),
+    }
+
+
+def _format_debug_access(access):
+    target = None
+    if access.target_type == "employee":
+        target = ServicePersonnel.query.get(access.target_id)
+    elif access.target_type == "customer":
+        target = Customer.query.get(access.target_id)
+
+    return {
+        "id": str(access.id),
+        "debugger_openid": access.debugger_openid,
+        "role": access.role,
+        "role_label": "员工" if access.role == "employee" else "客户",
+        "target_type": access.target_type,
+        "target_id": str(access.target_id),
+        "target_name": target.name if target else "",
+        "target_phone_number": getattr(target, "phone_number", "") if target else "",
+        "reason": access.reason or "",
+        "enabled": bool(access.enabled),
+        "is_active": bool(access.enabled and access.expires_at and access.expires_at > datetime.now(access.expires_at.tzinfo)),
+        "expires_at": _format_datetime(access.expires_at),
+        "last_used_at": _format_datetime(access.last_used_at),
+        "created_at": _format_datetime(access.created_at),
+        "disabled_at": _format_datetime(access.disabled_at),
     }
 
 
@@ -121,6 +150,126 @@ def get_miniapp_openid_links():
         })
     except Exception as e:
         current_app.logger.error(f"获取小程序 OpenID 绑定列表失败: {e}", exc_info=True)
+        return jsonify({"error": "服务器内部错误"}), 500
+
+
+@wechat_admin_bp.route('/miniapp-debug-access', methods=['GET'])
+@jwt_required()
+def get_miniapp_debug_access_list():
+    try:
+        _, error_response = _require_admin()
+        if error_response:
+            return error_response
+
+        debugger_openid = (request.args.get('debugger_openid') or '').strip()
+        target_id = (request.args.get('target_id') or '').strip()
+        role_filter = (request.args.get('role') or '').strip()
+        include_disabled = request.args.get('include_disabled', 'false').lower() == 'true'
+
+        query = MiniappDebugAccess.query
+        if debugger_openid:
+            query = query.filter(MiniappDebugAccess.debugger_openid == debugger_openid)
+        if target_id:
+            try:
+                query = query.filter(MiniappDebugAccess.target_id == uuid.UUID(target_id))
+            except ValueError:
+                return jsonify({"error": "target_id 格式不正确"}), 400
+        if role_filter in ("employee", "customer"):
+            query = query.filter(MiniappDebugAccess.role == role_filter)
+        if not include_disabled:
+            query = query.filter(MiniappDebugAccess.enabled.is_(True))
+
+        access_list = query.order_by(MiniappDebugAccess.created_at.desc()).limit(200).all()
+        return jsonify({"items": [_format_debug_access(access) for access in access_list]})
+    except Exception as e:
+        current_app.logger.error(f"获取小程序调试授权失败: {e}", exc_info=True)
+        return jsonify({"error": "服务器内部错误"}), 500
+
+
+@wechat_admin_bp.route('/miniapp-debug-access', methods=['POST'])
+@jwt_required()
+def create_miniapp_debug_access():
+    try:
+        current_user, error_response = _require_admin()
+        if error_response:
+            return error_response
+
+        data = request.get_json(silent=True) or {}
+        debugger_openid = (data.get("debugger_openid") or "").strip()
+        role = (data.get("role") or "").strip()
+        target_id = (data.get("target_id") or "").strip()
+        reason = (data.get("reason") or "").strip()
+        expires_in_minutes = int(data.get("expires_in_minutes") or 120)
+
+        if not debugger_openid:
+            return jsonify({"error": "调试人员 OpenID 不能为空"}), 400
+        if role not in ("employee", "customer"):
+            return jsonify({"error": "角色必须是 employee 或 customer"}), 400
+        if expires_in_minutes < 5 or expires_in_minutes > 24 * 60:
+            return jsonify({"error": "授权时长需在 5 分钟到 24 小时之间"}), 400
+
+        try:
+            target_uuid = uuid.UUID(target_id)
+        except (TypeError, ValueError):
+            return jsonify({"error": "目标ID格式不正确"}), 400
+
+        if role == "employee":
+            target = ServicePersonnel.query.get(target_uuid)
+            target_type = "employee"
+        else:
+            target = Customer.query.get(target_uuid)
+            target_type = "customer"
+        if not target:
+            return jsonify({"error": "目标人员不存在"}), 404
+
+        access = MiniappDebugAccess(
+            debugger_openid=debugger_openid,
+            role=role,
+            target_type=target_type,
+            target_id=target_uuid,
+            reason=reason,
+            expires_at=datetime.now() + timedelta(minutes=expires_in_minutes),
+            created_by=current_user.id,
+        )
+        db.session.add(access)
+        db.session.commit()
+
+        current_app.logger.info(
+            "管理员 %s 创建小程序临时调试授权 openid=%s role=%s target=%s:%s expires=%s",
+            current_user.username,
+            debugger_openid,
+            role,
+            target_type,
+            target_uuid,
+            access.expires_at,
+        )
+        return jsonify({"message": "临时调试授权已创建", "item": _format_debug_access(access)})
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"创建小程序调试授权失败: {e}", exc_info=True)
+        return jsonify({"error": "服务器内部错误"}), 500
+
+
+@wechat_admin_bp.route('/miniapp-debug-access/<access_id>', methods=['DELETE'])
+@jwt_required()
+def disable_miniapp_debug_access(access_id):
+    try:
+        current_user, error_response = _require_admin()
+        if error_response:
+            return error_response
+
+        access = MiniappDebugAccess.query.get(access_id)
+        if not access:
+            return jsonify({"error": "调试授权不存在"}), 404
+
+        access.enabled = False
+        access.disabled_at = datetime.now()
+        access.disabled_by = current_user.id
+        db.session.commit()
+        return jsonify({"message": "临时调试授权已停用", "item": _format_debug_access(access)})
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"停用小程序调试授权失败: {e}", exc_info=True)
         return jsonify({"error": "服务器内部错误"}), 500
 
 

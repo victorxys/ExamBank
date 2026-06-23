@@ -153,8 +153,9 @@ module.exports = {
   submitAttendanceSign(token, data) {
     return request({ url: `/miniapp/attendance/sign/${token}`, method: 'POST', data });
   },
-  employeeAttendanceList() {
-    return request({ url: '/miniapp/employee/attendance' });
+  employeeAttendanceList(params = {}) {
+    const query = buildQuery(params);
+    return request({ url: `/miniapp/employee/attendance${query ? `?${query}` : ''}` });
   },
   employeeAttendanceDetail(formId) {
     return request({ url: `/miniapp/employee/attendance/${formId}` });

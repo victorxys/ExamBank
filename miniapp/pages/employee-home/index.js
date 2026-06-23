@@ -79,6 +79,31 @@ Page({
     if (id) wx.navigateTo({ url: `/pages/attendance-fill/index?id=${id}` });
   },
 
+  async goAttendanceEntry() {
+    wx.showLoading({ title: '加载考勤' });
+    try {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = now.getMonth() + 1;
+      const result = await api.employeeAttendanceList({ year, month });
+      const forms = result.attendance_forms || [];
+      if (!forms.length) {
+        wx.showToast({ title: '本月暂无可填写考勤', icon: 'none' });
+        return;
+      }
+      const form = forms.find((item) => item.status === 'draft')
+        || forms.find((item) => item.status === 'employee_confirmed')
+        || forms[0];
+      if (form && form.id) {
+        wx.navigateTo({ url: `/pages/attendance-fill/index?id=${form.id}` });
+      }
+    } catch (error) {
+      wx.showToast({ title: error.message || '加载失败', icon: 'none' });
+    } finally {
+      wx.hideLoading();
+    }
+  },
+
   goContractDetail(event) {
     const id = event.currentTarget.dataset.id;
     if (id) wx.navigateTo({ url: `/pages/contract-detail/index?id=${id}&role=employee` });

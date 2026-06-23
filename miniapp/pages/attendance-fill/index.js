@@ -263,9 +263,9 @@ Page({
       workDaysText: '0',
       leaveDaysText: '0',
       overtimeDaysText: '0',
-      workDaysHoursText: '0天0小时',
-      leaveDaysHoursText: '0天0小时',
-      overtimeDaysHoursText: '0天0小时',
+      workDaysHoursText: '',
+      leaveDaysHoursText: '',
+      overtimeDaysHoursText: '',
       holidayOvertimeDaysText: '0'
     },
     showHolidayOvertimeStat: false,

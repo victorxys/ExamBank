@@ -15,17 +15,17 @@
     <view class="stats-panel">
       <view class="stat-col">
         <view class="stat-num">{{stats.workDaysText}}</view>
-        <view class="stat-hours">{{stats.workDaysHoursText}}</view>
+        <view wx:if="{{stats.workDaysHoursText}}" class="stat-hours">{{stats.workDaysHoursText}}</view>
         <view class="stat-label">出勤(天)</view>
       </view>
       <view class="stat-col">
         <view class="stat-num orange">{{stats.leaveDaysText}}</view>
-        <view class="stat-hours orange">{{stats.leaveDaysHoursText}}</view>
+        <view wx:if="{{stats.leaveDaysHoursText}}" class="stat-hours orange">{{stats.leaveDaysHoursText}}</view>
         <view class="stat-label">请假/休假</view>
       </view>
       <view class="stat-col">
         <view class="stat-num green">{{stats.overtimeDaysText}}</view>
-        <view class="stat-hours green">{{stats.overtimeDaysHoursText}}</view>
+        <view wx:if="{{stats.overtimeDaysHoursText}}" class="stat-hours green">{{stats.overtimeDaysHoursText}}</view>
         <view class="stat-label">加班(天)</view>
         <view wx:if="{{showHolidayOvertimeStat}}" class="stat-sub">含法定 {{stats.holidayOvertimeDaysText}}</view>
       </view>

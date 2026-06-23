@@ -965,6 +965,95 @@ class EmployeeWechatAccount(db.Model):
         return f"<EmployeeWechatAccount {self.mini_openid} -> {self.employee_id}>"
 
 
+class MiniappDebugAccess(db.Model):
+    __tablename__ = "miniapp_debug_access"
+    __table_args__ = (
+        db.Index("ix_miniapp_debug_access_openid", "debugger_openid"),
+        db.Index("ix_miniapp_debug_access_target", "target_type", "target_id"),
+        db.Index("ix_miniapp_debug_access_expires_at", "expires_at"),
+        {"comment": "小程序临时调试授权表"},
+    )
+
+    id = db.Column(
+        PG_UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+        comment="主键",
+    )
+    debugger_openid = db.Column(
+        db.String(100),
+        nullable=False,
+        comment="调试人员微信小程序openid",
+    )
+    role = db.Column(
+        db.String(20),
+        nullable=False,
+        comment="临时登录角色: employee/customer",
+    )
+    target_type = db.Column(
+        db.String(20),
+        nullable=False,
+        comment="目标类型: employee/customer",
+    )
+    target_id = db.Column(
+        PG_UUID(as_uuid=True),
+        nullable=False,
+        comment="目标员工或客户ID",
+    )
+    reason = db.Column(db.Text, nullable=True, comment="授权原因")
+    enabled = db.Column(
+        db.Boolean,
+        nullable=False,
+        default=True,
+        server_default=db.text("true"),
+        comment="是否启用",
+    )
+    expires_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=False,
+        comment="过期时间",
+    )
+    last_used_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=True,
+        comment="最近使用时间",
+    )
+    created_by = db.Column(
+        PG_UUID(as_uuid=True),
+        db.ForeignKey("user.id", ondelete="SET NULL"),
+        nullable=True,
+        comment="创建管理员ID",
+    )
+    disabled_by = db.Column(
+        PG_UUID(as_uuid=True),
+        db.ForeignKey("user.id", ondelete="SET NULL"),
+        nullable=True,
+        comment="停用管理员ID",
+    )
+    disabled_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=True,
+        comment="停用时间",
+    )
+    created_at = db.Column(
+        db.DateTime(timezone=True),
+        server_default=func.now(),
+        comment="创建时间",
+    )
+    updated_at = db.Column(
+        db.DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        comment="更新时间",
+    )
+
+    creator = db.relationship("User", foreign_keys=[created_by])
+    disabler = db.relationship("User", foreign_keys=[disabled_by])
+
+    def __repr__(self):
+        return f"<MiniappDebugAccess {self.debugger_openid} -> {self.target_type}:{self.target_id}>"
+
+
 class MiniappContractAccess(db.Model):
     __tablename__ = "miniapp_contract_access"
     __table_args__ = (
