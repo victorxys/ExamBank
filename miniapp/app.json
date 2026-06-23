@@ -12,6 +12,8 @@
     "pages/signature-pad/index",
     "pages/attendance-fill/index",
     "pages/attendance-sign/index",
+    "pages/ayi-search/index",
+    "pages/ayi-detail/index",
     "pages/evaluation/index",
     "pages/exit-summary/index"
   ],

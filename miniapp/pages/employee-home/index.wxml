@@ -87,4 +87,17 @@
     <view class="empty-title">暂无服务合同</view>
     <view class="empty-desc">最近服务合同会显示在这里。</view>
   </view>
+
+  <view class="tool-card" bindtap="goAyiSearch">
+    <view class="tool-main">
+      <view class="action-icon tool-icon">
+        <image class="action-icon-img" src="{{icons.ayiSearch}}" mode="aspectFit" />
+      </view>
+      <view class="action-content">
+        <view class="action-title">阿姨资料</view>
+        <view class="action-desc">搜索并查看员工介绍、照片、证书和评价。</view>
+      </view>
+    </view>
+    <view class="tool-arrow">›</view>
+  </view>
 </view>

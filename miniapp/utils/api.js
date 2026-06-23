@@ -171,5 +171,15 @@ module.exports = {
   },
   updateEmployeeAttendance(formId, data) {
     return request({ url: `/miniapp/employee/attendance/${formId}`, method: 'PUT', data });
+  },
+  ayiOptions() {
+    return request({ url: '/miniapp/ayi/options' });
+  },
+  ayiSearch(params = {}) {
+    const query = buildQuery(params);
+    return request({ url: `/miniapp/ayi/search${query ? `?${query}` : ''}` });
+  },
+  ayiDetail(id) {
+    return request({ url: `/miniapp/ayi/${id}` });
   }
 };

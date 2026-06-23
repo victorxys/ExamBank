@@ -12,7 +12,8 @@ Page({
     overviewLoaded: false,
     icons: {
       contractSign: api.miniappIconUrl('contract_sign'),
-      attendanceFill: api.miniappIconUrl('attendance_fill')
+      attendanceFill: api.miniappIconUrl('attendance_fill'),
+      ayiSearch: api.miniappIconUrl('ayi_search')
     }
   },
 
@@ -111,5 +112,9 @@ Page({
   goContractDetail(event) {
     const id = event.currentTarget.dataset.id;
     if (id) wx.navigateTo({ url: `/pages/contract-detail/index?id=${id}&role=employee` });
+  },
+
+  goAyiSearch() {
+    wx.navigateTo({ url: '/pages/ayi-search/index' });
   }
 });
